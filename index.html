@@ -225,7 +225,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   </div></section>
 
   <section class="home-sec hs-alt"><div class="wrap">
-    <div class="hs-kicker">10문항 · 3분</div>
+    <div class="hs-kicker">10문항 · 5분</div>
     <h2>내 부동산 감각, 몇 점일까?</h2>
     <p>10문항으로 재는 내 부동산 감각. 결과는 친구와 대결할 수 있습니다.</p>
     <!-- 무엇을 얻는지가 안 보여서 안 누른다(2026-08-17). 결과 화면의 티어 카드를
@@ -511,7 +511,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
             <span class="pc-go">→</span>
           </button>
         </div>
-        <div class="qmeta">각 10문항 · 약 3분 · 문항마다 즉시 해설</div>
+        <div class="qmeta">각 10문항 · 약 5분 · 문항마다 즉시 해설</div>
         <button class="qshare-btn primary" style="margin:22px auto 0;padding:13px 28px;border-radius:var(--r-touch)" onclick="shareTest()"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡으로 테스트 보내기</button>
       </div>
     </div>
@@ -1567,6 +1567,17 @@ function drawQuiz(setKey,seed){
   return pick;
 }
 let curSet='investor', QUIZ=drawQuiz('investor'), qIdx=0, qScore=0, qAnswered=false, qResults=[];
+/* 진행 저장(2026-09-15 점검 후속 ③). 인앱 브라우저는 새로고침·뒤로 가기가 잦은데 그때마다
+   처음부터 다시 풀게 해 이탈로 끝났다. 세트·시드·문항 번호·응답만 sessionStorage에 둔다 —
+   시드가 같으면 같은 시험지가 재현된다(drawQuiz). 탭을 닫으면 사라지는 화면 상태다.
+   ⚠️ 인앱 브라우저·사생활 보호 모드에서 저장소 접근이 예외를 던질 수 있어 전부 try로 감싼다. */
+const QSAVE='agong_quiz', QDONE='agong_quiz_done';
+let qChoices=[], qReplay=false;
+function qSave(){try{sessionStorage.setItem(QSAVE,JSON.stringify({set:curSet,seed:curSeed,idx:qIdx,ch:qChoices}));}catch(e){}}
+function qLoad(){try{return JSON.parse(sessionStorage.getItem(QSAVE)||'null');}catch(e){return null;}}
+function qClear(){try{sessionStorage.removeItem(QSAVE);}catch(e){}}
+function qDone(set){try{return (sessionStorage.getItem(QDONE)||'').split(',').indexOf(set)>=0;}catch(e){return false;}}
+function qMarkDone(set){try{if(!qDone(set))sessionStorage.setItem(QDONE,((sessionStorage.getItem(QDONE)||'')+','+set).replace(/^,/,''));}catch(e){}}
 function startQuiz(setKey,seed,fromHash){
   if(setKey){curSet=setKey;}
   /* 뒤로가기가 테스트 목록으로 돌아오려면 여기서 한 칸을 쌓아야 한다.
@@ -1575,16 +1586,47 @@ function startQuiz(setKey,seed,fromHash){
     const want='#test-'+curSet;
     if(location.hash!==want)history.pushState(null,'',want);
   }
-  QUIZ=drawQuiz(curSet,seed);
-  qIdx=0;qScore=0;qResults=[];
-  track('quiz_start',{quiz_type:curSet});
+  /* 이어 풀기 — 같은 세트의 저장이 있고, 시드를 따로 받지 않았거나(해시·탭 진입) 같은 시드(대결
+     링크 새로고침)일 때만. 다시 풀기·재도전은 결과 화면에서 저장을 지운 뒤라 여기 걸리지 않는다.
+     ⚠️ 한 문항도 답하지 않은 저장은 이어 풀기가 아니다 — 해시로 열기만 해도 빈 저장이 생겨,
+     그걸 resume 으로 세면 옛 quiz_start 처럼 수치가 부푼다(2026-09-15 브라우저 확인에서 발견). */
+  const sv=qLoad();
+  const resume=!!(sv&&sv.set===curSet&&Array.isArray(sv.ch)&&sv.ch.length>0&&Number.isInteger(sv.idx)&&
+    sv.idx>=0&&sv.idx<QUIZ_LEN&&(seed==null||(seed>>>0)===sv.seed));
+  QUIZ=drawQuiz(curSet,resume?sv.seed:seed);
+  qIdx=0;qScore=0;qResults=[];qChoices=[];
+  /* start_type: new(처음)·retry(이 탭에서 이미 끝낸 세트를 다시)·resume(이어 풀기).
+     예전엔 새로고침·다시 풀기도 전부 시작으로 잡혀 이탈률이 부풀어 보였다. */
+  track('quiz_start',{quiz_type:curSet,start_type:resume?'resume':(qDone(curSet)?'retry':'new')});
   document.getElementById('quiz-intro').style.display='none';
   document.getElementById('quiz-result').style.display='none';
   document.getElementById('quiz-play').style.display='';
   renderChalBar();
-  renderQ();
+  if(resume){
+    qReplay=true;
+    const okChoice=(c,i)=>Number.isInteger(c)&&i<QUIZ.length&&c>=0&&c<QUIZ[i].opts.length;
+    for(let i=0;i<sv.idx;i++){
+      if(!okChoice(sv.ch[i],i))break;
+      qChoices[i]=sv.ch[i];
+      const ok=sv.ch[i]===QUIZ[i].answer;
+      if(ok)qScore++;
+      qResults.push(ok);
+      qIdx=i+1;
+    }
+    renderQ();
+    if(qIdx===sv.idx&&okChoice(sv.ch[qIdx],qIdx))answerQ(sv.ch[qIdx]);
+    qReplay=false;
+  }else{
+    renderQ();
+  }
+  qSave();
 }
 function backToPick(fromHash){
+  /* 풀던 중이면 확인을 받는다(점검 후속 ③) — 버튼 한 번에 진행이 사라졌다.
+     뒤로 가기(fromHash)는 묻지 않고 저장도 남긴다: 앞으로 가기·재진입에서 이어 풀게 한다. */
+  const playing=document.getElementById('quiz-play').style.display!=='none'&&(qIdx>0||qAnswered);
+  if(!fromHash&&playing&&!confirm('테스트를 그만둘까요? 지금까지 푼 문항은 사라집니다.'))return;
+  if(!fromHash)qClear();
   document.getElementById('quiz-play').style.display='none';
   document.getElementById('quiz-result').style.display='none';
   document.getElementById('quiz-intro').style.display='';
@@ -1612,6 +1654,7 @@ function answerQ(choice){
   const correct=item.answer;
   if(choice===correct)qScore++;
   qResults.push(choice===correct);
+  qChoices[qIdx]=choice;
   opts.forEach((o,i)=>{
     o.style.pointerEvents='none';
     if(i===correct){o.classList.add('correct');o.innerHTML+='<span class="mark">○</span>';}
@@ -1623,12 +1666,16 @@ function answerQ(choice){
   exp.innerHTML=`<div class="ehead ${ok?'o':'x'}">${ok?'○ 정답!':'✕ 아쉬워요'}</div><p>${item.exp}</p>`;
   exp.classList.add('show');
   document.getElementById('qnext').classList.add('show');
+  qSave();
+  if(qReplay)return;   // 이어 풀기 복원 중에는 측정·스크롤을 하지 않는다
+  track('quiz_answer',{quiz_type:curSet,idx:qIdx+1,correct:ok});
   setTimeout(()=>{document.getElementById('qnext').scrollIntoView({behavior:scrollBehavior(),block:'center'});},150);
 }
 function nextQ(){
   qIdx++;
   if(qIdx>=QUIZ.length){showResult();return;}
   renderQ();
+  qSave();
   window.scrollTo(0,0);
 }
 function gradeOf(s){return QUIZSETS[curSet].grade(s);}
@@ -1664,6 +1711,7 @@ function nextStepHTML(){
 }
 function showResult(){
   track('quiz_complete',{quiz_type:curSet,score:qScore});
+  qClear();qMarkDone(curSet);
   if(CHALLENGE&&CHALLENGE.set===curSet){
     track('challenge_result',{quiz_type:curSet,score:qScore,friend_score:CHALLENGE.score,
       outcome:qScore>CHALLENGE.score?'win':(qScore<CHALLENGE.score?'lose':'draw')});
@@ -1780,13 +1828,13 @@ function kakaoFeed(title,desc,img,link,btn){
 function shareTest(){
   track('share',{content_type:'quiz_invite',method:kakaoReady()?'kakao':(navigator.share?'os_share':'copy')});
   if(kakaoReady()){
-    try{kakaoFeed('내 부동산 감각, 몇 점일까?','부린이·투자자·재건축 3종 테스트 — 10문항 3분, 즉시 채점·해설');return;}
+    try{kakaoFeed('내 부동산 감각, 몇 점일까?','부린이·투자자·재건축 3종 테스트 — 10문항 5분, 즉시 채점·해설');return;}
     catch(e){}
   }
-  const txt='내 부동산 감각, 몇 점일까? 부린이·투자자·재건축 3종 테스트 — 10문항 3분\n'+SHARE_URL_UTM;
+  const txt='내 부동산 감각, 몇 점일까? 부린이·투자자·재건축 3종 테스트 — 10문항 5분\n'+SHARE_URL_UTM;
   if(navigator.share){
     navigator.share({title:'부동산 사이클 테스트',
-      text:'내 부동산 감각, 몇 점일까? 10문항 3분 테스트 — 같이 풀어보자!',
+      text:'내 부동산 감각, 몇 점일까? 10문항 5분 테스트 — 같이 풀어보자!',
       url:SHARE_URL_UTM}).catch(e=>{if(e&&e.name!=='AbortError')copyText(txt);});
   }else{copyText(txt);}
 }
