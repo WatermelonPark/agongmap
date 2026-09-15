@@ -41,8 +41,10 @@ def _moved_copy(tmp_path):
 
 def test_moved_script_fails_loudly_until_external_is_set(tmp_path):
     root = _moved_copy(tmp_path)
+    # ⚠️ external=() 를 명시한다. 기본값(모듈 EXTERNAL)에 기대면 동결 창에서 EXTERNAL 을 적은 뒤에는
+    #    이 '실패해야 한다' 호출이 성공해 시험이 깨진다(모의 B에서 실제로 그랬다).
     with pytest.raises(HS.HomeSourceError):
-        HS.home_source(root=root)
+        HS.home_source(root=root, external=())
     s = HS.home_source(root=root, external=('home-app.js',))
     assert all(m in s for m in HS.MARKERS), 'EXTERNAL 한 줄로 옮긴 스크립트를 따라가지 못한다'
 
