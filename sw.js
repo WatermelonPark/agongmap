@@ -8,7 +8,7 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v150'; // 홈 히어로 이름을 상자 없는 워드마크로, 간격 묶음
+const VERSION = 'v151'; // 홈 본문 스크립트를 home-app.js 로 분리(백로그 10)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
@@ -38,6 +38,7 @@ const PRECACHE = [
   '/data-core.js',   // 홈이 실제로 읽는 것
   '/sido-geo.js',    // 홈 지도 모드 경계(기본 모드라 프리캐시)
   '/app.css',
+  '/home-app.js',   // 홈 본문 스크립트(2026-09-16 index.html 에서 분리) — HTML 과 한 몸이라 network-first
   '/chart-4.4.1.umd.js',
   '/cycle/',
   '/404.html',
@@ -92,7 +93,8 @@ self.addEventListener('fetch', (e) => {
   //    분기가 '캐시 즉시 응답 + 백그라운드 갱신'이라 재생성분은 다음 방문에
   //    따라온다 — 경계선이 한 방문 늦는 건 데이터 스테일과 달리 무해하고,
   //    network-first로 두면 파서 블로킹 스크립트가 매 방문 네트워크 왕복을 기다린다.
-  if (url.pathname === '/data.js' || url.pathname === '/app.css'
+  // - home-app.js 는 index.html 에서 떼어낸 본문 스크립트다. app.css 와 같은 이유로 마크업과 함께 받는다.
+  if (url.pathname === '/data.js' || url.pathname === '/app.css' || url.pathname === '/home-app.js'
       || url.pathname === '/data-core.js' || url.pathname === '/data-rest.json'
       || url.pathname === '/data-size.json'
       || url.pathname === '/data-trend.json' || url.pathname === '/data-sgg.json') {
