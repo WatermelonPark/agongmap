@@ -18,6 +18,7 @@
 | 위치 | 내용 |
 |---|---|
 | `index.html`, `app.css`, `data.js`, `data-*.json` | 홈과 데이터 페이로드. 데이터는 `data.js`의 `ADV_DATA` 블록을 배치가 갈아끼우고 `tools/split_data.py`가 `data-*.json`으로 쪼갠다 |
+| `home-app.js` | 홈 본문 스크립트(2026-09-16 `index.html` 인라인에서 분리). 홈 코드는 여기서 고치고, 도구·시험은 이 파일을 직접 열지 말고 `tools/home_src.py`의 `home_source()`로 읽는다 |
 | `zone/`(시도별 리포트), `weekly/`, `monthly/`, `moveins/`, `jeonse-ratio/`, `cycle/`, `share/`, 퀴즈 3종(`burini-test/`, `investor-test/`, `redev-test/`) | 생성된 정적 페이지. 손으로 고치지 말고 생성기를 고친다 |
 | `about/`, `faq/`, `privacy/` | 운영 주체·설명·개인정보 페이지 |
 | `tools/` | 배치·생성기·발행 도구 (아래 표) |
