@@ -8,7 +8,7 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v136'; // 홈 지도 전남광주 단일 라벨
+const VERSION = 'v137'; // 주간 시세 랜딩에 결론·TOP 3·서울 구 요약을 굽는다
 const CACHE = `agongmap-${VERSION}`;
 
 const PRECACHE = [

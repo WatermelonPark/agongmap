@@ -15,7 +15,7 @@ rem   (a local script cannot report that it never ran).
 rem
 rem   exit codes: 10 keys 11 pull 12 update 20 split 13 share
 rem               14 add 15 commit 16 push 17 zone-pages 18 indicator-pages
-rem               19 already-running 21 cycle-data
+rem               19 already-running 21 cycle-data 22 weekly-page
 rem   (2026-07-24: 이메일/인스타 자동 발행 제거.
 rem    rc=18은 옛 newsletter 코드가 아니라 make_indicator_pages 실패에 쓴다
 rem    — 2026-08-04 감사에서 표와 실물이 어긋난 것을 맞춤.
@@ -118,6 +118,13 @@ if errorlevel 1 (
   exit /b 13
 )
 
+rem /weekly/ landing: bakes the week's conclusion, sgg TOP 3 and Seoul gu summary.
+python tools\make_weekly_page.py
+if errorlevel 1 (
+  echo ERROR: make_weekly_page failed
+  exit /b 22
+)
+
 python tools\make_sido_pages.py
 if errorlevel 1 (
   echo ERROR: make_sido_pages failed - newsletter skipped
@@ -145,9 +152,9 @@ rem split_data.py emits 5 files (core/trend/rest/sgg/size) and
 rem make_indicator_pages.py emits jeonse-ratio/ and moveins/.
 rem A file missing here is silently never deployed (2026-08-04 audit:
 rem data-sgg.json and data-size.json were absent from every list).
-git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json index.html share\weekly-map.png zone sitemap.xml jeonse-ratio moveins
+git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json index.html share\weekly-map.png zone sitemap.xml jeonse-ratio moveins weekly
 if errorlevel 1 (
-  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json index.html share\weekly-map.png zone sitemap.xml jeonse-ratio moveins tools\data\.home_stamp
+  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json index.html share\weekly-map.png zone sitemap.xml jeonse-ratio moveins weekly tools\data\.home_stamp
   if errorlevel 1 (
     echo ERROR: git add failed
     exit /b 14

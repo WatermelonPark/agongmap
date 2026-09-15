@@ -24,7 +24,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>이번 주 아파트 시세 지도 — 전국·서울 주간 가격 변동률 | 아공맵</title>
-<meta name="description" content="이번 주 어디가 오르고 내렸을까? 전국 시군구·서울 구별 아파트 매매·전세 변동률을 빨강(상승)·파랑(하락) 지도로 한눈에. 한국부동산원 주간 통계 기준, 매주 목요일 자동 갱신.">
+<meta name="description" content="9/7 조사 · 9/10 발표 기준 이번 주 아파트 매매가격은 전국 +0.08%, 서울 +0.20%로 가장 크게 올랐다. 시군구 상승 1위 동해 +0.56%, 하락 1위 서울 강남구 -0.35%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.">
 <meta name="keywords" content="아파트 주간 시세, 이번주 아파트 가격, 아파트 시세 지도, 주간 아파트 가격동향, 아파트 매매가격 변동률, 전세가격 변동률, 서울 아파트 시세, 부동산 시장상황">
 <link rel="canonical" href="https://www.agongmap.co.kr/weekly/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -37,7 +37,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
 <meta property="og:type" content="website">
 <meta property="og:title" content="이번 주 아파트 시세 지도 — 전국·서울 주간 변동률">
-<meta property="og:description" content="전국 시군구·서울 구별 매매·전세 변동률을 상승 빨강·하락 파랑 지도로. 매주 목요일 자동 갱신.">
+<meta property="og:description" content="9/7 조사 · 9/10 발표 · 전국 +0.08%, 서울 +0.20%. 시군구·서울 구별 변동률 지도.">
 <meta property="og:url" content="https://www.agongmap.co.kr/weekly/">
 <meta property="og:image" content="https://www.agongmap.co.kr/share/weekly-map.png">
 <meta property="og:image:width" content="900">
@@ -98,16 +98,21 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     background:var(--ink);color:#fff;font-size:16.5px;font-weight:600;padding:15px 24px;border-radius:var(--r-touch)}
   .cta:active{transform:scale(.985)}
   .meta{font-size:12.5px;color:var(--muted);text-align:center;margin-top:12px}
+  .lead b{font-weight:600;color:var(--ink)}
+  .sub{font-size:12.5px;color:var(--muted);margin:-6px 0 12px}
+  .h2-gap{margin-top:30px}
+  .rk2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .rk h3{font-size:13px;font-weight:600;margin-bottom:4px}
+  .rk h3.up{color:var(--up2)} .rk h3.dn{color:var(--dn2)}
+  .rk ol{list-style:none;border-top:1.5px solid var(--ink)}
+  .rk li{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:0 8px;
+    padding:8px 0;border-bottom:1px solid var(--line);font-size:14px;color:var(--ink)}
+  .rk li b{font-weight:600;font-variant-numeric:tabular-nums}
+  .rk li b.up{color:var(--up2)} .rk li b.dn{color:var(--dn2)}
+  .rk li.none{color:var(--muted);font-size:13px}
   section{padding:32px 0;border-top:1px solid var(--line)}
   h2{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-bottom:14px}
   p{font-size:14.5px;color:var(--ink2);margin-bottom:12px}
-  .feat{display:block;text-decoration:none;position:relative;background:#fff;border:1px solid var(--line);
-    border-radius:var(--r-touch);padding:15px 42px 14px 18px;margin-bottom:10px}
-  .feat:active{transform:scale(.995);background:#fbfcfb}
-  .feat b{display:block;font-size:14.5px;color:var(--ink);font-weight:600;margin-bottom:4px}
-  .feat span{font-size:13px;color:var(--muted)}
-  .feat::after{content:'›';position:absolute;right:16px;top:50%;transform:translateY(-50%);
-    font-size:20px;font-weight:600;color:var(--muted)}
   .links{display:flex;flex-direction:column;gap:8px;margin-top:14px}
   .links a{display:block;background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
     padding:13px 16px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:600}
@@ -133,22 +138,29 @@ body{padding-bottom:66px}
 <body>
 
 <header><div class="wrap">
-  <p class="eyebrow" id="wk-eyebrow">한국부동산원 주간 통계 · 매주 목요일 자동 갱신</p>
-  <h1 id="wk-head">이번 주 아파트,<br>어디가 오르고 내렸을까</h1>
-  <p class="lead">전국 요약부터 시군구 상세까지, 아파트 매매·전세 변동률을 지도 한 장으로 확인한다.</p>
-  <a class="minimap" href="/#stats-market" id="wk-minimap" hidden aria-label="이번 주 시도별 변동률 — 눌러서 시군구 상세 지도 보기">
-    <div class="mm-grid" id="wk-grid"></div>
-    <div class="mm-cap"><span><i style="background:#e0564a"></i>상승</span><span><i style="background:#3a7bd5"></i>하락</span><span>진할수록 크게 움직임</span><span class="go">시군구 상세 →</span></div>
+<!--WK:HEAD-->
+  <p class="eyebrow">9/7 조사 · 9/10 발표 · 한국부동산원 주간 통계</p>
+  <h1>이번 주 아파트,<br><em class="up">서울 +0.20%</em> 가장 크게 올랐다</h1>
+  <p class="lead">전국 <b>+0.08%</b>. 시도 16곳 중 10곳 상승, 5곳 하락, 1곳 보합. 가장 많이 내린 곳은 제주 -0.06%다.</p>
+  <a class="minimap" href="/#stats-market" aria-label="이번 주 시도별 매매가격 변동률, 눌러서 시군구 상세 지도 보기">
+    <div class="mm-grid"><div class="mm-tile" style="background:rgba(224,86,74,0.30);animation-delay:0ms"><b style="color:#8f2318">전국</b><span style="color:#8f2318">+0.08%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.49);animation-delay:22ms"><b style="color:#8f2318">수도권</b><span style="color:#8f2318">+0.16%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.12);animation-delay:44ms"><b style="color:#8f2318">지방</b><span style="color:#8f2318">+0.01%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.57);animation-delay:66ms"><b style="color:#8f2318">서울</b><span style="color:#8f2318">+0.20%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.52);animation-delay:88ms"><b style="color:#8f2318">경기</b><span style="color:#8f2318">+0.17%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.18);animation-delay:110ms"><b style="color:#8f2318">인천</b><span style="color:#8f2318">+0.03%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.14);animation-delay:132ms"><b style="color:#123c5c">부산</b><span style="color:#123c5c">-0.02%</span></div><div class="mm-tile" style="background:#e9edeb;animation-delay:154ms"><b style="color:#5e6f74">대구</b><span style="color:#5e6f74">0.00%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.20);animation-delay:176ms"><b style="color:#8f2318">대전</b><span style="color:#8f2318">+0.04%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.15);animation-delay:198ms"><b style="color:#123c5c">세종</b><span style="color:#123c5c">-0.02%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.20);animation-delay:220ms"><b style="color:#8f2318">울산</b><span style="color:#8f2318">+0.04%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.17);animation-delay:242ms"><b style="color:#8f2318">전남광주</b><span style="color:#8f2318">+0.03%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.21);animation-delay:264ms"><b style="color:#123c5c">충남</b><span style="color:#123c5c">-0.05%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.23);animation-delay:286ms"><b style="color:#8f2318">충북</b><span style="color:#8f2318">+0.06%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.16);animation-delay:308ms"><b style="color:#8f2318">경남</b><span style="color:#8f2318">+0.02%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.18);animation-delay:330ms"><b style="color:#123c5c">경북</b><span style="color:#123c5c">-0.03%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.23);animation-delay:352ms"><b style="color:#8f2318">전북</b><span style="color:#8f2318">+0.05%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.17);animation-delay:374ms"><b style="color:#8f2318">강원</b><span style="color:#8f2318">+0.03%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.25);animation-delay:396ms"><b style="color:#123c5c">제주</b><span style="color:#123c5c">-0.06%</span></div></div>
+    <div class="mm-cap"><span><i style="background:#e0564a"></i>상승</span><span><i style="background:#3a7bd5"></i>하락</span><span>매매가격 전주 대비</span><span class="go">시군구 상세 →</span></div>
   </a>
-  <a class="cta" href="/#stats-market">이번 주 시세 지도 보기</a>
-  <div class="meta">주간·월간 · 매매·전세 · 무료 · 회원가입 없음</div>
+<!--/WK:HEAD-->
 </div></header>
 
-<section><div class="wrap">
-  <h2>들어가면 더 보이는 것</h2>
-  <a class="feat" href="/#stats-market"><b>시군구 상세 지도</b><span>전국 시군구 타일을 지리 배치 그대로. 수원 영통·안양 동안처럼 구 단위 흐름까지 보인다.</span></a>
-  <a class="feat" href="/#stats-market"><b>상승·하락 TOP 10</b><span>이번 주 가장 많이 오르고 내린 시군구 순위와 전주 대비 순위 변동(▲▼)까지.</span></a>
+<!--WK:ANSWER-->
+<section class="ans"><div class="wrap">
+  <h2>시군구 상승·하락 TOP 3</h2>
+  <p class="sub">매매가격 전주 대비 · 시군구 182곳 · 9/7 조사 · 9/10 발표</p>
+  <div class="rk2"><div class="rk"><h3 class="up">▲ 상승</h3><ol><li><span class="nm">동해</span><b class="up">+0.56%</b></li><li><span class="nm">삼척</span><b class="up">+0.50%</b></li><li><span class="nm">수원 권선구</span><b class="up">+0.48%</b></li></ol></div><div class="rk"><h3 class="dn">▼ 하락</h3><ol><li><span class="nm">서울 강남구</span><b class="dn">-0.35%</b></li><li><span class="nm">서울 서초구</span><b class="dn">-0.30%</b></li><li><span class="nm">속초</span><b class="dn">-0.27%</b></li></ol></div></div>
+  <h2 class="h2-gap">서울 구별</h2>
+  <p class="sub">서울 25개 구 중 22곳 상승, 3곳 하락.</p>
+  <div class="rk2"><div class="rk"><h3 class="up">▲ 상승</h3><ol><li><span class="nm">강북구</span><b class="up">+0.46%</b></li><li><span class="nm">서대문구</span><b class="up">+0.43%</b></li><li><span class="nm">도봉구</span><b class="up">+0.43%</b></li></ol></div><div class="rk"><h3 class="dn">▼ 하락</h3><ol><li><span class="nm">강남구</span><b class="dn">-0.35%</b></li><li><span class="nm">서초구</span><b class="dn">-0.30%</b></li><li><span class="nm">송파구</span><b class="dn">-0.02%</b></li></ol></div></div>
+  <a class="cta" href="/#stats-market">전체 TOP 10 · 시군구 지도 보기</a>
+  <div class="meta">주간·월간 · 매매·전세 · 무료 · 회원가입 없음</div>
 </div></section>
+<!--/WK:ANSWER-->
 
 <section><div class="wrap">
   <h2>숫자의 출처</h2>
@@ -171,56 +183,7 @@ body{padding-bottom:66px}
   <a href="/">agongmap.co.kr</a> · 자료: 한국부동산원 R-ONE 전국주택가격동향조사
 </div></footer>
 
-<script src="/data-core.js"></script>
 <script>
-/* 라이브 미니맵 — data-core.js(ADV.weekly.sgg 최신 1주)의 시도 값으로 그린다.
-   데이터가 없거나 구조가 바뀌면 조용히 숨김(정적 제목·본문은 크롤러/무JS에도 그대로). */
-(function(){
-try{
-  var sgg=ADV.weekly.sgg, codes=sgg.codes, row=sgg.rows[sgg.rows.length-1];
-  var SIDO=[['a0','전국'],['a7','서울'],['a8','경기'],['a9','인천'],
-            ['c1','강원'],['c2','충북'],['c3','충남'],['b4','대전'],
-            ['b6','세종'],['c4','전북'],['c5','전남'],['b3','광주'],
-            ['c6','경북'],['b2','대구'],['b5','울산'],['b1','부산'],
-            ['c7','경남'],['c8','제주']];
-  var grid=document.getElementById('wk-grid'), best=null;
-  SIDO.forEach(function(d,i){
-    var j=codes.indexOf(d[0]); if(j<0)return;
-    var v=row.ma[j]; if(v==null)return;
-    if(d[0]!=='a0'&&(!best||Math.abs(v)>Math.abs(best.v)))best={nm:d[1],v:v};
-    var a=Math.min(.78,.10+Math.abs(v)*2.4);
-    var rv0=Math.round(Math.abs(v)*100)/100*(v<0?-1:1);   // 표시값이 0.00이면 색도 무색
-    var bg=rv0>0?'rgba(224,86,74,'+a.toFixed(2)+')':(rv0<0?'rgba(58,123,213,'+a.toFixed(2)+')':'#e9edeb');
-    var tc=Math.abs(v)>=0.2?'#fff':(rv0>0?'#8f2318':(rv0<0?'#123c5c':'#5e6f74'));
-    var el=document.createElement('div');
-    el.className='mm-tile';
-    el.style.background=bg;
-    el.style.animationDelay=(i*22)+'ms';
-    var rv=Math.round(v*100)/100;   // 0.00인데 부호만 남는 '-0.00%' 방지
-    el.innerHTML='<b style="color:'+tc+'">'+d[1]+'</b><span style="color:'+tc+'">'+(rv>0?'+':'')+rv.toFixed(2)+'%</span>';
-    grid.appendChild(el);
-  });
-  if(!grid.children.length)return;
-  var p=row.p||'';
-  var m=/(\d{4})-(\d{2})-(\d{2})/.exec(p);
-  /* 조사기준일(월)이 아니라 발표일(목)을 적는다 — 공유 카드와 같은 어법.
-     카드가 '8/6 발표'인데 여기가 '8/3 주간'이면 SNS에서 넘어온 사람에게 날짜가
-     달라 보이고, 목요일에 나온 걸 월요일 날짜로 부르면 사흘 묵어 보인다.
-     ⚠️ 발표는 목요일이다. 오래 '매주 목요일 자동 갱신'이라 적혀 있었지만 실제
-     배치는 발표 당일 목요일에 받아 간다(2026-08-06 실측: 22:13에 8/3 주차 반영). */
-  if(m){
-    var d=new Date(+m[1],+m[2]-1,+m[3]); d.setDate(d.getDate()+3);
-    document.getElementById('wk-eyebrow').textContent=
-      (d.getMonth()+1)+'/'+d.getDate()+' 발표 · 한국부동산원 · 매주 목요일 자동 갱신';
-  }
-  if(best){
-    var cls=best.v>0?'up':'dn';
-    document.getElementById('wk-head').innerHTML='이번 주, <em class="'+cls+'">'
-      +best.nm+' '+((Math.round(best.v*100)/100)>0?'+':'')+(Math.round(best.v*100)/100).toFixed(2)+'%</em>';
-  }
-  document.getElementById('wk-minimap').hidden=false;
-}catch(e){}
-})();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});
 }
