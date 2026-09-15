@@ -609,7 +609,18 @@
   .home-hero .wrap{position:relative;z-index:1}
   .home-hero h1{font-size:clamp(30px,6.4vw,48px);line-height:1.12;font-weight:700;
     letter-spacing:-.01em;margin-bottom:16px}
-  .home-hero .sub{font-size:16px;color:var(--ink2);max-width:440px;margin:0 auto;line-height:1.6}
+  /* 키 메시지가 제목이고 서비스 이름은 그 위 라벨이다(2026-09-15 사용자 C안).
+     ⚠️ 줄바꿈 금지 — 한 줄이 이 자리의 조건이다. 글자 수를 늘리면 320px에서 다시 잴 것.
+     밑줄 띠는 지도 범례(.tk-ramp)와 같은 파랑→빨강이라 제목을 읽는 순간 지도 색의 뜻이 이어진다. */
+  /* display:table — 라벨 폭만큼만 차지하면서 자기 줄을 쓴다. inline-block이면 제목과
+     한 줄에 붙어 375px에서 제목이 가운데에서 밀려났다(실측). */
+  .home-hero .hero-kick{display:table;margin:0 auto 14px;background:var(--ink);color:var(--paper);font-size:12px;
+    font-weight:600;letter-spacing:.04em;padding:3px 10px;line-height:1.6}
+  .home-hero h1.hero-msg{display:inline-block;font-size:clamp(24px,7.2vw,40px);letter-spacing:-.035em;
+    line-height:1.15;white-space:nowrap;margin:0 0 4px}
+  .hero-ramp{display:block;height:5px;margin-top:11px;
+    background:linear-gradient(90deg,rgba(38,110,180,.85),rgba(38,110,180,.16) 44%,
+      rgba(198,58,48,.16) 56%,rgba(198,58,48,.85))}
   .home-cta{font-family:inherit;font-size:18px;font-weight:600;padding:17px 24px;border-radius:var(--r-touch);
     width:100%;max-width:400px;border:0;cursor:pointer;background:var(--ink);color:#fff;transition:.15s}
   .home-cta:active{transform:scale(.98)}
