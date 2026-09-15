@@ -72,8 +72,13 @@ def test_headline_counts_match_the_model():
     """머리글의 '시도 N개'는 현재 모델 수, 본문의 검증 지역 수는 세종·제주를
     뺀 수여야 한다. 둘이 어긋나면 어느 한쪽이 낡은 것이다."""
     D, s = _D()
-    n = len(_model())
-    assert '%d개 시도 · 지역 4곳' % n in s, '머리글 시도 수가 모델과 다르다'
     panel = len(D['sync'])
+    # 2026-09-15 콘텐츠 점검 ②: 머리글 칩이 '16개 시도 · 지역 4곳'(손으로 적은 모델 수)에서
+    # '분석 N개 시도'(검증 표본 수)로 바뀌었다. 칩은 모델 수가 아니라 실제로 검증한 지역 수를
+    # 말하므로 sync 표본 수와 대조한다. 수는 rebuild_cycle_analysis 가 data-d="n_panel" 자리에
+    # len(sync) 로 채운다 — 이 표식이 사라지면 손으로 적은 수가 돌아온 것이다.
+    m = re.search(r'<span>분석 <span data-d="n_panel">(\d+)</span>개 시도</span>', s)
+    assert m, '머리글 칩이 data-d="n_panel" 로 채워지지 않는다 — 손으로 적은 수가 돌아왔을 수 있다'
+    assert int(m.group(1)) == panel, '머리글 분석 시도 수(%s)가 sync 표본(%d)과 다르다' % (m.group(1), panel)
     assert '%d개 시도' % panel in s, '본문의 검증 지역 수가 sync 표본과 다르다'
     assert '합치기 전' not in s, '통합 이전 표본이라는 낡은 단서가 남아 있다'
