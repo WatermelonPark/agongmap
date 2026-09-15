@@ -1001,6 +1001,7 @@ table.adv thead th:first-child{text-align:center}
   /* 리포트 머리 세 줄(2026-09-13 대표 결정). 앞 두 줄은 실적·착공 기반이라 본문
      무게로, 세 번째 줄(인허가)은 참고 칩과 옅은 글씨로 신뢰 수준이 다르게 보이게 한다.
      필요량에 못 미쳐도 경보 색을 쓰지 않는다 — 참고 신호 안에서 굵기로만 강조한다. */
+  .zbasis{font-size:12px;color:var(--muted);margin-left:2px}
   .zsplit{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
   .zs-row{display:grid;grid-template-columns:7.5em 1fr;gap:10px;font-size:14px;
     color:var(--ink2);line-height:1.6;margin:3px 0}

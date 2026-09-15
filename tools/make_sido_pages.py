@@ -84,7 +84,7 @@ REFNOTE = {
           '이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, '
           '참고로만 보여줍니다.',
     # 2026-09-13 대표 결정: 인허가는 허수가 많아 참고로만 본다는 점을 분명히 한다.
-    'pm': '인허가는 "짓겠다"고 허가받은 단계의 물량으로, 보통 3~4년 뒤 입주로 이어집니다. '
+    'pm': '인허가는 "짓겠다"고 허가받은 단계의 물량으로, 보통 ' + SZ.PERMIT_TO_MOVEIN + ' 뒤 입주로 이어집니다. '
           '실제로 착공하지 않는 계획이 섞여 있어 참고로만 봅니다. 월별 들쭉날쭉이 커서 '
           '최근 12개월 합으로 묶어 연간 적정물량과 견주고, 순위 계산에는 착공만 씁니다.',
 }
@@ -167,7 +167,13 @@ def umx(v):
     가르면 '1.00배'가 되어 1.0의 '1.0배'와 자릿수가 갈린다(2026-08-13 리뷰 경계 케이스).
     """
     s = '%.1f' % v
-    return (s if float(s) >= 1 else '%.2f' % v) + '배'
+    if float(s) >= 1:
+        return s + '배'
+    # 1 미만은 퍼센트(2026-09-15 점검후속 ⑤: '분기 적정물량의 0.05배'는 읽기 어렵다)
+    pct = rnd(v * 100)
+    if pct < 1:
+        return '1% 미만' if v > 0 else '0%'
+    return '%d%%' % pct
 
 
 def refbtn(label):
@@ -251,6 +257,21 @@ INNER_SPREAD_NOTE = ('시도 전체를 합친 값입니다. 같은 시도 안에
                      '공급 사정이 크게 다를 수 있습니다.')
 NO_INNER_UNITS = ('세종',)
 
+# 합쳐진 판정 단위. 옛 이름 → 통합 이름. 옛 URL 안내 페이지와 통합 리포트의 병합 안내가
+# 같은 목록을 쓴다(2026-09-15 점검후속 ⑦에서 main() 안의 지역 변수를 모듈로 올렸다).
+MERGED_INTO = {'광주': '전남광주', '전남': '전남광주'}
+# 합쳐진 판정 단위의 시작 달. /monthly/ 각주와 같은 문구를 쓴다.
+MERGED_FROM = '2026.07'
+
+
+def merge_note(z):
+    """통합 지역 리포트의 병합 안내. 옛 이름은 MERGED_INTO에서 파생한다."""
+    olds = sorted(k for k, v in MERGED_INTO.items() if v == z)
+    if not olds:
+        return None
+    return ('행정구역 통합에 따라 %s분부터 %s을 %s 한 지역으로 봅니다. '
+            '과거 시계열은 두 지역 합으로 병합했습니다.' % (MERGED_FROM, '·'.join(olds), z))
+
 
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 
@@ -320,6 +341,8 @@ def disp_tot(row, H):
     """화면에 찍는 누적 순부족. ADV의 tot는 반올림 전 값들로 계산돼서, 카드에 찍은
     정수 셋(적정·공급·재고)으로 검산하면 1~2세대가 남는다. 허브 목록과 상세 카드가
     **같은 정수**를 쓰도록 여기서 한 번만 만든다(2026-08-08 감사에서 4곳이 갈렸다)."""
+    if 'dtot' in row:
+        return row['dtot']
     return rnd(row['ref']) * H - rnd(row['fut']) - rnd(row['inow'])
 
 
@@ -576,17 +599,22 @@ def build_page(z, calc, stats, pq, others):
     d_tot = disp_tot(row, calc['H'])
     fut_sum = d_fut
 
-    desc = ('%s의 아파트 공급은 적정물량 대비 %s세대(%s). 앞으로 %.0f년 착공 기준 공급 %s세대, '
-            '분기 적정물량 %s호. 국토교통부 준공·착공 실적으로 매주 자동 갱신.'
-            % (z, signed(d_tot), lab, yrs, num(d_fut), num(d_ref)))
+    # ⚠️ 주간 갱신처럼 쓰지 않는다. 배치는 매일 돌지만 판정은 분기 실적으로
+    # 정해져 분기마다 바뀐다(2026-09-15 점검후속 ④).
+    desc = ('%s의 아파트 공급은 %s(%s). 앞으로 %.0f년 착공 기준 공급 %s세대, '
+            '분기 적정물량 %s호. %s 기준, 국토교통부 준공·착공 실적으로 분기마다 갱신.'
+            % (z, row.get('ctxt') or signed(d_tot), lab, yrs, num(d_fut), num(d_ref),
+               calc.get('Ltxt') or calc['L']))
     title = '%s 아파트 공급 분석 — %s' % (z, lab)
 
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
              '<h1>%s 아파트 공급</h1>'
-             '<p class="zlead"><span class="sc-tier %s">%s</span> %s</p>'
-             % (esc(z), esc(z), row['grade'], esc(lab), esc(verdict_line(row, calc['H']))))
+             '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
+             '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>'
+             % (esc(z), esc(z), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
+                esc(calc.get('Ltxt') or calc['L'])))
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의
     # 빨간 경고 박스는 2026-09-13 대표 결정으로 이 블록의 참고 줄에 흡수했다 —
     # 인허가는 허수가 많아 경보로 보여주면 '참고로만'과 부딪친다. split_block() 참조.
@@ -603,6 +631,8 @@ def build_page(z, calc, stats, pq, others):
         h.append('<p class="znote">%s</p>' % esc(AGG_NOTE[z]))
     elif z not in NO_INNER_UNITS:
         h.append('<p class="znote">%s</p>' % esc(INNER_SPREAD_NOTE))
+    if merge_note(z):
+        h.append('<p class="znote">%s</p>' % esc(merge_note(z)))
     # 홈 그래프 연동 — 이 지역을 보고 홈으로 돌아가면 그래프가 이 지역으로
     # 열린다(2026-08-08 사용자). sessionStorage라 탭을 닫으면 사라진다.
     h.append('<script>try{sessionStorage.setItem("agong_gr",%s)}catch(e){}</script>'
@@ -617,18 +647,22 @@ def build_page(z, calc, stats, pq, others):
     # 적정물량 행은 분기값이라 숫자가 다른 게 정상임을 화면이 스스로 말해야 한다.
     d_need = d_ref * calc['H']
     # 누적 순부족 부제 = 화면의 세 정수로 그대로 검산되는 등식. 재고가 음수(모자람)면
-    # '+ 모자란 재고'로 풀어 이중 부호(− 음수)를 읽는 사람에게 떠넘기지 않는다.
-    eq = (('= 적정 %s − 공급 %s + 모자란 재고 %s' % (num(d_need), num(d_fut), num(-d_inow)))
+    # '지난 4년 쌓인 부족'을 더하는 식으로 풀어 이중 부호를 읽는 사람에게 떠넘기지 않는다.
+    # 부호를 쓰지 않고 말로 푼다(2026-09-15 점검후속 ⑤: 음수 재고와 '더하기 부족' 등식이
+    # 부호를 두 번 뒤집어 읽혔다). 등식은 여전히 카드의 세 정수로 검산된다.
+    eq = (('= 적정 %s − 공급 %s + 지난 4년 쌓인 부족 %s' % (num(d_need), num(d_fut), num(-d_inow)))
           if d_inow < 0 else
-          ('= 적정 %s − 공급 %s − 남은 재고 %s' % (num(d_need), num(d_fut), num(d_inow))))
+          ('= 적정 %s − 공급 %s − 지난 4년 남은 재고 %s' % (num(d_need), num(d_fut), num(d_inow))))
     for k, v, note in (
         # ⚠️ 부호를 뒤집지 않는다. tot는 '양수=부족'인데 signed()로 −를 붙이면
         # 부제의 등식(적정 − 공급 ∓ 재고)으로 검산했을 때 부호가 반대가 된다
         # (2026-08-07 감사).
         ('누적 순부족', ('%s세대 부족' % num(d_tot)) if d_tot >= 0
          else ('%s세대 여유' % num(-d_tot)), eq),
-        ('지난 4년 재고', signed(-d_inow) + '세대',
-         '준공에서 멸실과 적정물량을 뺀 누적. −는 그만큼 모자랐다는 뜻'),
+        (('지난 4년 쌓인 부족', num(-d_inow) + '세대',
+          '준공이 적정물량보다 적어 쌓인 몫(멸실을 뺀 값)') if d_inow < 0 else
+         ('지난 4년 남은 재고', num(d_inow) + '세대',
+          '준공이 적정물량보다 많아 남은 몫(멸실을 뺀 값)')),
         ('앞으로 %.0f년 공급' % yrs, num(fut_sum) + '세대',
          '이미 착공한 물량을 3년 뒤로 밀어 추정'),
         (('앞으로 %.0f년 적정물량' % yrs) + (' <em class="zchip">추정</em>' if row.get('est') else ''),
@@ -690,9 +724,10 @@ def build_page(z, calc, stats, pq, others):
                        calc.get('unsold_prd') or ''))
     if row.get('pm12') is not None:
         foot.append('<tr class="zref" data-ref="pm"><td>%s</td><td>%s</td><td>%s</td>'
-                    '<td colspan="3" class="zfut">3~4년 뒤 입주로 이어지는 선행 물량</td></tr>'
+                    '<td colspan="3" class="zfut">%s 뒤 입주로 이어지는 선행 물량</td></tr>'
                     % (refbtn('인허가 1년'), num(row['pm12']),
-                       ('%.0f%%' % (row['pmr'] * 100)) if row.get('pmr') is not None else '–'))
+                       ('%.0f%%' % (row['pmr'] * 100)) if row.get('pmr') is not None else '–',
+                       SZ.PERMIT_TO_MOVEIN))
     if foot:
         h.append('<tfoot>' + ''.join(foot) + '</tfoot>')
     # 표 아래 설명 문단은 2026-08-11 사용자 결정으로 삭제 — 굵은 줄은 보면 알고,
@@ -768,11 +803,11 @@ def build_hub(calc):
              '<div class="zlinks" id="sido-list">')
     for o in sido:
         h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>'
-                 '<span class="sc-tier %s">%s</span><i>%s세대 · %s</i></a>'
+                 '<span class="sc-tier %s">%s</span><i>%s</i></a>'
                  % (urllib.parse.quote(o['z']), SZ.GRADE_KEYS.index(o['grade']),
                     disp_tot(o, calc['H']),
                     esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
-                    signed(disp_tot(o, calc['H'])), esc(o['rtxt'])))
+                    esc(o['ctxt'])))
     h.append('</div></div></section>')
     h.append(FOOT)
     return ''.join(h)
@@ -876,7 +911,7 @@ def main():
     # /zone/광주/ 는 검색·블로그·카톡에 남아 있어, 지우면 그 링크가 전부 404가
     # 된다. 사용자가 '광주'를 찾아온 것 자체가 정당한 요청이므로 어디로 갔는지
     # 알려주고 보낸다. canonical을 새 주소로 걸어 검색엔진에도 이전을 알린다.
-    MERGED_INTO = {'광주': '전남광주', '전남': '전남광주'}
+    # MERGED_INTO는 모듈 수준 정의를 쓴다(병합 안내와 같은 목록).
     gone = []
     if os.path.isdir(OUT):
         for d in os.listdir(OUT):

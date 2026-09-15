@@ -280,6 +280,49 @@ def permit_trail12(stats, region):
     return pieces[0] + pieces[1] - pieces[2], ym
 
 
+# 기간 정본(2026-09-15 점검후속 ③). 페이지마다 인허가→입주가 "3~4년"·"4~6년"·"3년"으로
+# 갈리고 착공→준공이 "27개월"·"28개월"·"3년 반"으로 갈렸다. 전국 12개월 이동합끼리의
+# 시차상관(tools/rebuild_cycle_analysis.py의 link45 분석, 인허가는 누계를 풀어서)으로 정했다:
+#   인허가 → 착공  시차 0개월에서 가장 강하다(r 0.76) — 전국 집계로는 같은 시기에 움직인다
+#   착공 → 준공   2018년 전 28개월 → 2018년 이후 37개월(전체 32개월)
+# 그래서 인허가 → 입주는 착공 → 준공과 같은 '약 3년'으로 쓴다. 개별 단지는 허가 뒤 착공이
+# 늦거나 아예 안 될 수 있다(인허가는 참고로만). 2018년 이후 인허가→준공 73개월은 표본이
+# 30개뿐이라 쓰지 않았다. 재산정 결과가 바뀌면 test_period_constants_follow_the_analysis가 잡는다.
+START_DONE_MONTHS_OLD = 28
+START_DONE_MONTHS_NEW = 37
+PERMIT_TO_MOVEIN = '약 3년'
+
+
+def quarter_text(key):
+    """'2026Q2' → '2026년 2분기'. 판정 기준 시점을 사람 말로."""
+    import re
+    m = re.match(r'(\d{4})Q([1-4])$', key or '')
+    return ('%s년 %s분기' % (m.group(1), m.group(2))) if m else (key or '')
+
+
+def half_up(v):
+    """JS Math.round와 같은 half-up. 화면 정수는 이걸로 만든다(make_sido_pages.rnd와 같다)."""
+    import math
+    return int(math.floor(float(v) + 0.5))
+
+
+def card_text(dtot, ratio, H=LEAD_Q):
+    """홈·허브 카드의 한 줄: '686,396세대 부족 · 3년 필요량의 60%'.
+
+    예전엔 '−686,396세대 · 3년 필요량의 60% 부족'이라 배지('부족') 옆에 음수 부호가
+    또 붙어 이중 부정으로 읽혔다(2026-09-15 점검후속 ⑤). 부호 대신 부족·여유를 말로 쓰고
+    비율은 크기만 적는다. 여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다.
+    """
+    yrs = '%g년' % (H / 4.0)
+    pct = int(round(abs(ratio) * 100))
+    share = ('%s 필요량과 거의 같음' % yrs) if pct < 1 else ('%s 필요량의 %d%%' % (yrs, pct))
+    if dtot > 0:
+        return '%s세대 부족 · %s' % (format(dtot, ','), share)
+    if dtot < 0:
+        return '%s세대 여유 · %s' % (format(-dtot, ','), share)
+    return share
+
+
 PERMIT_WIN = 24          # 3년 너머 신호의 창. 12월을 두 번 담아 한 해의 이례를 반으로 줄인다
 CONV_FROM = 2012         # 착공 전환율을 재는 첫 해(착공 계열이 2011년부터 온전하다)
 
@@ -504,6 +547,11 @@ def calc(stats):
             # 저장되는 ratio(소수 넷째 자리)로 만든다. 반올림 전 값으로 만들면 퍼센트 경계에서
             # 화면의 문구와 저장된 숫자가 1%p 어긋날 수 있다.
             'rtxt': ratio_text(round(ratio, 4), H),
+            # 화면에 찍는 순부족 정수(카드의 적정·공급·재고 정수로 검산되는 값)와 카드 문구
+            # 저장되는 fut·inow(round 결과)와 같은 정수로 만든다 — 반올림 전 값으로 하면
+            # 리포트 카드의 세 정수로 검산한 값과 1세대 어긋난다(경기 50,578 vs 50,579).
+            'dtot': half_up(ref) * H - round(fut) - round(inow),
+            'ctxt': card_text(half_up(ref) * H - round(fut) - round(inow), round(ratio, 4), H),
             'unsold': (None if un is None else round(un)),
             'um': (None if um is None else round(um, 3)),
             'uwarn': bool(um is not None and um >= 1.0 and g in ('g4', 'g3', 'g2')),
@@ -555,7 +603,7 @@ def calc(stats):
               % (len(missing), ', '.join(missing)), file=_s.stderr)
     return {'L': qkey(L), 'S': qkey(S), 'H': H,
             'lead': LEAD_Q, 'conv': CONV, 'window': BACKLOG_WINDOW,
-            'unsold_prd': un_prd, 'missing': missing, 'agg_warn': warn, 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))}
+            'unsold_prd': un_prd, 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))}
 
 
 def supply_rows(stats):

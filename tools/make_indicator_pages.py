@@ -458,12 +458,12 @@ def build_moveins(adv):
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. %(lastact)s까지 준공 실적, 이후는 <b>착공 실적을 3년 뒤로 밀어</b> 추정한 값입니다(전환율 0.958). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, 서울·경기·인천과 세종·제주는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 매주 갱신.</div>
+  <div class="note">표두를 누르면 정렬. %(lastact)s까지 준공 실적, 이후는 <b>착공 실적을 3년 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 3년 뒤 준공). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, 서울·경기·인천과 세종·제주는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
 </section>
 
 <section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>2026년 적정수요를 가장 덜 채운 곳은 <strong>%(lo1)s(%(lo1p)d%% 충족)</strong>, 가장 많이 채운 곳은 <strong>%(hi1)s(%(hi1p)d%% 충족)</strong>다. 공급이 적정선의 70%%를 밑돌면 전세부터 조여드는 구간, 130%%를 넘으면 입주장이 전세를 누르는 구간으로 본다.</p>
+  <p>2026년 적정수요를 가장 덜 채운 곳은 <strong>%(lo1)s(%(lo1p)d%% 충족)</strong>, 가장 많이 채운 곳은 <strong>%(hi1)s(%(hi1p)d%% 충족)</strong>다. 공급이 적정선의 70%%를 밑돌면 전세부터 조여드는 구간, 130%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 충족률은 한 해의 입주만 보므로, 지난 4년 쌓인 부족과 앞으로 3년을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 2026년 %(sudo26)s세대에서 2027년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
@@ -478,6 +478,7 @@ def build_moveins(adv):
 </section>
 """ % dict(nat26=num(nat26), nat27=num(nat27), trs='\n'.join(trs),
            lastact=last_act.replace('Q', '년 ') + '분기',
+           conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
            lo1=lo1[0], lo1p=round(lo1[1]), hi1=hi1[0], hi1p=round(hi1[1]),
            sudo26=num(sudo['2026'] or 0), sudo27=num(sudo['2027'] or 0),
            sudodir=updown(sudo['2026'], sudo['2027']))
