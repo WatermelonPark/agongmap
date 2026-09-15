@@ -2961,17 +2961,31 @@ function renderSidoMap(){
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
     +'" role="img" aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유">';
   /* 광주·전남은 2026-09-10 판정 단위가 하나로 합쳐졌다(국토부가 공급 통계를
-     '전남광주'로만 발표). 지도의 두 도형은 지리 정보라 그대로 두고, 색과 링크만
-     통합 지역을 가리킨다 — 한 판정을 두 땅이 나눠 갖는 모양이다. */
-  var MERGED={'광주':'전남광주','전남':'전남광주'};
+     '전남광주'로만 발표). 지도의 두 도형은 지리 정보라 그대로 두고, 색·링크·라벨은
+     통합 지역을 가리킨다 — 한 판정을 두 땅이 나눠 갖는 모양이다.
+     ⚠️ 통합 이름을 여기 박지 않는다. 도형 이름이 판정 단위(Z)에 없으면 그 이름을
+     품은 판정 단위로 보낸다. 라벨은 묶음마다 한 번, 가장 큰 도형에만 단다 — 도형마다
+     원래 이름을 그리면 판정 단위에 없는 '광주'·'전남'이 지도에 따로 남는다
+     (2026-09-15 고객 점검). */
+  function zoneOf(n){
+    if(Z[n])return n;
+    for(var k in Z){ if(k.indexOf(n)>=0)return k; }
+    return n;
+  }
+  var labelAt={};
   SIDO_GEO.p.forEach(function(a){
-    var key=MERGED[a.n]||a.n;
+    var k=zoneOf(a.n), b=labelAt[k];
+    if(!b||a.d.length>b.d.length)labelAt[k]=a;
+  });
+  SIDO_GEO.p.forEach(function(a){
+    var key=zoneOf(a.n);
     var z=Z[key]||{};
     var lab=key+' — '+(TB_GRADE[z.grade]||'')+' · 누적 '+tbSigned(z.tot||0)+'세대';
+    var small=SMALL[a.n]||key!==a.n;
     h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
       +'<path d="'+a.d+'" fill="'+mapFill(z.ratio)+'"></path>'
       +(SMALL[a.n]?'<circle cx="'+a.x+'" cy="'+a.y+'" r="22" fill="transparent"></circle>':'')
-      +'<text x="'+a.x+'" y="'+a.y+'" class="'+(SMALL[a.n]?'ml-s':'ml')+'">'+a.n+'</text>'
+      +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
       +'<title>'+lab+'</title></a>';
   });
   h+='</svg></div>';
