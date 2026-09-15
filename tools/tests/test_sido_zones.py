@@ -370,11 +370,12 @@ def test_unsold_ratio_reads_the_same_everywhere():
     import io, os, re, sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
     import make_sido_pages as M
-    assert M.umx(0.384) == '0.38배' and M.umx(0.01) == '0.01배'
+    # 2026-09-15 점검후속 ⑤: 1 미만은 퍼센트로 쓴다('0.05배'는 읽기 어렵다).
+    assert M.umx(0.384) == '38%' and M.umx(0.01) == '1%' and M.umx(0.004) == '1% 미만'
     assert M.umx(2.44) == '2.4배' and M.umx(1.0) == '1.0배'
     # 경계: 첫째 자리로 1.0이 되는 값은 1.0배로 — 0.996이 '1.00배'로 나와
     # 1.0의 '1.0배'와 자릿수가 갈리면 안 된다(2026-08-13 리뷰).
-    assert M.umx(0.996) == '1.0배' and M.umx(0.95) == '0.95배'
+    assert M.umx(0.996) == '1.0배' and M.umx(0.95) == '95%'
 
     root = os.path.join(os.path.dirname(__file__), '..', '..')
     for z in ('수도권', '제주', '세종'):

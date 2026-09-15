@@ -160,7 +160,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <div id="view-home">
   <header class="home-hero"><div class="hero-map" id="hero-map" aria-hidden="true"></div><div class="wrap">
     <h1>아공맵</h1>
-    <p class="sub">언제 어디에 얼마나 지어지는가 — 전국 아파트 공급과 시세, 국가 통계로 매주 갱신</p>
+    <p class="sub">언제 어디에 얼마나 지어지는가 — 전국 아파트 공급과 시세, 국가 통계로 시세는 매주·공급은 분기마다 갱신</p>
   </div></header>
 
   <!-- 제목 텍스트는 히어로가 대신한다(2026-08-08 사용자: "텍스트 합치고 심플하게").
@@ -196,7 +196,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     <p class="tb-refnote" id="tb-refnote" aria-live="polite" hidden></p>
     <p class="tb-more"><a href="/zone/">시도별로 자세히 보기 →</a></p>
 
-    <details class="sc-how"><summary><span class="t">산출 방법</span><span class="src">국토교통부 · 한국부동산원 · 매주 갱신</span></summary><div class="body"><ul class="how-ls">
+    <details class="sc-how"><summary><span class="t">산출 방법</span><span class="src">국토교통부 · 한국부동산원 · 공급 분기·시세 매주 갱신</span></summary><div class="body"><ul class="how-ls">
 <li><b>칸의 숫자</b> — 그 기간에 준공된 아파트 세대수(국토교통부 주택건설 준공실적).</li>
 <li><b>경계선 아래 = 미래</b> — 착공 실적을 3년 뒤로 밀어 추정합니다. 착공한 것의 96%가 3년 뒤 준공되는 게 15년치 실측입니다. 인허가는 삽을 안 뜬 계획이 섞여 같은 해 착공보다 15%쯤 많고 해마다 크게 흔들려서 쓰지 않습니다.</li>
 <li><b>배경색</b> — 과거 칸은 실제 가격 변동(왼쪽부터 매매·전세·월세, 한국부동산원 「전국주택가격동향조사」 월간 지수의 전월비), 미래 칸은 적정물량 대비 모자란 정도. 붉을수록 오르거나 모자라고, 푸를수록 내리거나 남습니다.</li>
@@ -350,7 +350,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         <div class="adv-tblwrap matrix" id="adv-month-matrix"></div>
         <div class="adv-tblwrap compact" id="adv-month-compact"></div>
       </div>
-      <div class="src-note">자료: 한국부동산원 R-ONE 「전국주택가격동향조사」 월간 아파트 동향 (지수 전월비 환산) · 매주 자동 갱신</div>
+      <div class="src-note">자료: 한국부동산원 R-ONE 「전국주택가격동향조사」 월간 아파트 동향 (지수 전월비 환산) · 매달 갱신</div>
     </section>
 
   </div></div>
@@ -415,7 +415,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         <div class="gt"><button class="on" data-v="g" onclick="gtSet('permit','g')">그래프</button><button data-v="t" onclick="gtSet('permit','t')">표</button></div></div>
 
   
-      <p class="adv-note">4~6년 뒤 입주로 이어지는 가장 이른 공급 신호입니다.</p>
+      <p class="adv-note">약 3년 뒤 입주로 이어지는 가장 이른 공급 신호입니다. 실제로 착공하지 않는 계획이 섞여 있어 참고로만 봅니다.</p>
       <div class="adv-regsel"><select id="adv-permit-reg" onchange="renderPermitSec()"></select></div>
       <div class="gt-g"><div class="chartwrap sm"><canvas id="permitChart"></canvas></div></div>
       <div class="gt-t">
@@ -440,7 +440,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         <div class="adv-tblwrap compact" id="adv-occ-compact"></div>
       </div>
       <div class="adv-legend"><span><i style="background:#eaf3fb"></i>분기 적정물량 이상</span><span><i style="background:#fdecea"></i>적정물량의 60% 미만</span><span><i style="background:#f6f8f7"></i>착공 기준 추정(실적 미확정)</span></div>
-      <div class="src-note">자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.958) · 분기 합산 · 홈 공급표와 같은 값 · 매주 자동 갱신</div>
+      <div class="src-note">자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.958) · 분기 합산 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
     </section>
 
 
@@ -2828,9 +2828,9 @@ function tbDraw(){
   }
   h+='</tr>';
   /* 인허가 줄(2026-08-11 사용자) — 미분양과 같은 참고 행. 위 칸들은 분기(또는 토글
-     단위) 값인데 인허가는 최근 12개월 합이라 라벨에 창을 박는다. 3~4년 뒤 입주로
+     단위) 값인데 인허가는 최근 12개월 합이라 라벨에 창을 박는다. 약 3년 뒤 입주로
      이어지는 선행 물량이라, 표의 마지막 분기 너머를 미리 보여주는 유일한 줄이다. */
-  h+='<tr class="tb-un" data-ref="pm"><th scope="row" title="최근 12개월 합 · 3~4년 뒤 입주로 이어지는 선행 물량 · 순위에 넣지 않은 참고 수치">'+refBtn('인허가 1년')+'</th>';
+  h+='<tr class="tb-un" data-ref="pm"><th scope="row" title="최근 12개월 합 · 약 3년 뒤 입주로 이어지는 선행 물량 · 순위에 넣지 않은 참고 수치">'+refBtn('인허가 1년')+'</th>';
   for(var u2=0;u2<B.regs.length;u2++){
     var pv=B.pm[B.regs[u2]];
     h+='<td><span class="tc"><b>'+(pv==null?'–':tbNum(pv))+'</b></span></td>';
@@ -2934,7 +2934,7 @@ function tbRefSync(){
    (test_refnote_copy_is_identical_on_home_and_zone). */
 var TB_REFNOTE={
   un:'미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(국토교통부 월간 집계). 이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, 참고로만 보여줍니다.',
-  pm:'인허가는 "짓겠다"고 허가받은 단계의 물량으로, 보통 3~4년 뒤 입주로 이어집니다. 실제로 착공하지 않는 계획이 섞여 있어 참고로만 봅니다. 월별 들쭉날쭉이 커서 최근 12개월 합으로 묶어 연간 적정물량과 견주고, 순위 계산에는 착공만 씁니다.'
+  pm:'인허가는 "짓겠다"고 허가받은 단계의 물량으로, 보통 약 3년 뒤 입주로 이어집니다. 실제로 착공하지 않는 계획이 섞여 있어 참고로만 봅니다. 월별 들쭉날쭉이 커서 최근 12개월 합으로 묶어 연간 적정물량과 견주고, 순위 계산에는 착공만 씁니다.'
 };
 /* 라벨 사다리 한 칸 올림(2026-08-15 PM 결정). 컷(GRADE_CUTS)은 그대로 —
    등급 키는 파이썬이 계산해 데이터에 굽고 여기선 이름만 붙인다. */
@@ -2989,9 +2989,10 @@ function renderSidoMap(){
     var z=Z[n]; if(!z) return;
     h+='<a href="/zone/'+encodeURIComponent(n)+'/"><b>'+n+'</b>'
       +'<span class="sc-tier '+z.grade+'">'+TB_GRADE[z.grade]+'</span>'
-      /* 비율 문구는 sido_zones.ratio_text가 구워 싣는다 — 여기서 다시 만들지 않는다
-         (이중 구현 금지). 옛 캐시에 필드가 없으면 세대수만 보인다. */
-      +'<i>'+tbSigned(z.tot)+'세대'+(z.rtxt?' · '+z.rtxt:'')+'</i></a>';
+      /* 카드 문구는 sido_zones.card_text가 구워 싣는다 — 여기서 다시 만들지 않는다
+         (이중 구현 금지). 부호 대신 '부족·여유'를 말로 써 배지와 이중 부정이 되지 않는다
+         (2026-09-15). 옛 캐시에 필드가 없으면 세대수만 보인다. */
+      +'<i>'+(z.ctxt||(tbSigned(z.tot)+'세대'))+'</i></a>';
   });
   h+='</div>';
   /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
@@ -3004,7 +3005,7 @@ function renderSidoMap(){
     +'<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span>'
-    +'<span class="tk-n">적정물량 대비 누적 순부족 · 기준 '+ADV.sido.L+'</span>'
+    +'<span class="tk-n">앞으로 3년 필요한 만큼 지어지는지 · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span>'
     +'<span class="tk-n">지역을 누르면 상세 리포트</span></div>'
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
     +'" role="img" aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유">';
@@ -3028,7 +3029,7 @@ function renderSidoMap(){
   SIDO_GEO.p.forEach(function(a){
     var key=zoneOf(a.n);
     var z=Z[key]||{};
-    var lab=key+' — '+(TB_GRADE[z.grade]||'')+' · 누적 '+tbSigned(z.tot||0)+'세대';
+    var lab=key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
     var small=SMALL[a.n]||key!==a.n;
     h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
       +'<path d="'+a.d+'" fill="'+mapFill(z.ratio)+'"></path>'

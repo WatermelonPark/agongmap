@@ -104,7 +104,7 @@ def test_balance_line_no_longer_says_enough_is_coming():
 
 def test_home_reads_the_baked_text_instead_of_rebuilding_it():
     src = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
-    assert 'z.rtxt' in src, '홈 요약 카드가 비율 문구를 읽지 않는다'
+    assert 'z.ctxt' in src, '홈 요약 카드가 구워 둔 카드 문구를 읽지 않는다'
     assert not re.search(r'z\.ratio\s*\*', src), '홈이 비율 문구를 따로 계산한다 — 이중 구현'
 
 
