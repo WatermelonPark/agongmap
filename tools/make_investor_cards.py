@@ -140,9 +140,9 @@ def make_card(score, out):
     draw_centered(d, 400, 680, lines[1], f2, INK)
 
     # 푸터
-    full = '10문항 2지선다 · 3분 · agongmap.co.kr'
+    full = '10문항 2지선다 · 5분 · agongmap.co.kr'
     ffoot = fit_h(full, 25, 'Medium')
-    left, right = '10문항 2지선다 · 3분 · ', 'agongmap.co.kr'
+    left, right = '10문항 2지선다 · 5분 · ', 'agongmap.co.kr'
     fb = noto(ffoot.size, 'Bold')
     lw = d.textbbox((0, 0), left, font=ffoot)[2] - d.textbbox((0, 0), left, font=ffoot)[0]
     rw = d.textbbox((0, 0), right, font=fb)[2] - d.textbbox((0, 0), right, font=fb)[0]
