@@ -4,6 +4,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import sido_zones as M
 
 
@@ -329,7 +330,7 @@ def test_home_table_has_both_reference_rows():
     맨 아래(2026-08-11 사용자)도 함께 잠근다."""
     import io, os
     root = os.path.join(os.path.dirname(__file__), '..', '..')
-    src = io.open(os.path.join(root, 'index.html'), encoding='utf-8').read()
+    src = HS.home_source()
     assert src.count('<tr class="tb-un" data-ref=') == 2, 'tfoot 참고 행은 정확히 2개'
     assert "refBtn('인허가 1년')" in src and "refBtn('미분양')" in src
     assert 'pm[z.z]=z.pm12' in src, '인허가 값이 TB_BCACHE에 실리지 않았다'
@@ -348,7 +349,7 @@ def test_refnote_copy_is_identical_on_home_and_zone():
     import make_sido_pages as M
     root = os.path.join(os.path.dirname(__file__), '..', '..')
 
-    src = io.open(os.path.join(root, 'index.html'), encoding='utf-8').read()
+    src = HS.home_source()
     body = re.search(r'var TB_REFNOTE=\{(.*?)\n\};', src, re.S).group(1)
     home = dict(re.findall(r"(\w+):'((?:[^'\\]|\\.)*)'", body))
     assert set(home) == set(M.REFNOTE), '홈과 정본의 항목이 다르다: %s' % sorted(home)
@@ -390,7 +391,7 @@ def test_reference_rows_are_keyboard_reachable():
     라벨이 진짜 <button>이라야 Tab 도달·Enter/Space 실행을 브라우저가 해준다."""
     import io, os
     root = os.path.join(os.path.dirname(__file__), '..', '..')
-    src = io.open(os.path.join(root, 'index.html'), encoding='utf-8').read()
+    src = HS.home_source()
     assert 'aria-controls="tb-refnote"' in src and 'class="rbtn"' in src
     assert 'aria-live="polite"' in src, '열린 설명이 읽히지 않는다'
     assert 'tbRefSync' in src, 'aria-expanded가 상태를 따라가지 않는다'

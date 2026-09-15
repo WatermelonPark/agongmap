@@ -19,6 +19,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 import sido_zones as SZ  # noqa: E402
 
@@ -26,7 +27,7 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def _loop_src():
-    s = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    s = HS.home_source()
     a = s.find('var SMALL=')
     b = s.find("h+='</svg></div>';", a)
     assert a >= 0 and b > a, '홈 지도 루프를 찾지 못했다 — 구조가 바뀌었으면 이 시험도 고칠 것'

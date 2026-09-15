@@ -11,6 +11,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import sido_zones as SZ  # noqa: E402
 import make_sido_pages as P  # noqa: E402
 
@@ -18,6 +19,8 @@ ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 
 
 def _src(rel):
+    if HS.is_home(rel):
+        return HS.home_source()
     return io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
 
 
@@ -46,6 +49,7 @@ def test_permit_text_describes_nature_not_an_unmeasured_period():
     for rel in ('tools/make_sido_pages.py', 'tools/make_monthly_page.py'):
         assert not period.search(_src(rel)), '%s가 인허가→입주 기간을 단정한다' % rel
     home = _src('index.html')
+    HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
     pm = re.search(r"pm:'([^']*)'", home).group(1)
     assert SZ.PERMIT_NATURE in pm, '홈 인허가 안내문 사본이 정본 서술과 다르다'
     assert '약 3년 뒤 입주' not in home
@@ -63,6 +67,7 @@ def test_quarterly_verdict_is_not_described_as_weekly():
 
 def test_home_supply_captions_say_quarterly():
     home = _src('index.html')
+    HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
     for bad in ('분기 합산 · 홈 공급표와 같은 값 · 매주 자동 갱신', '지수 전월비 환산) · 매주 자동 갱신'):
         assert bad not in home, bad
 
@@ -87,6 +92,7 @@ def test_stored_cards_match_the_function_and_the_display_integer():
 
 def test_home_and_hub_read_the_baked_card_text():
     home = _src('index.html')
+    HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
     assert "z.ctxt" in home
     assert "tbSigned(z.tot)+'세대'+(z.rtxt" not in home, '홈 카드가 옛 부호 문구를 만든다'
     hub = _src('tools/make_sido_pages.py')
@@ -100,6 +106,7 @@ def test_unsold_multiple_reads_as_percent_below_one():
 
 def test_home_legend_says_what_the_color_means_and_when():
     home = _src('index.html')
+    HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
     assert '앞으로 3년 필요한 만큼 지어지는지' in home and 'ADV.sido.Ltxt' in home
     assert '적정물량 대비 누적 순부족 · 기준' not in home
 

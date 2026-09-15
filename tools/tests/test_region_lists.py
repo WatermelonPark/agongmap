@@ -22,6 +22,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 import sido_zones as SZ  # noqa: E402
 
@@ -31,6 +32,8 @@ SIDO = set(z for z in SZ.ORDER if z not in SZ.AGG)      # 시도만
 
 
 def _read(*parts):
+    if HS.is_home(*parts):
+        return HS.home_source()
     return io.open(os.path.join(ROOT, *parts), encoding='utf-8').read()
 
 

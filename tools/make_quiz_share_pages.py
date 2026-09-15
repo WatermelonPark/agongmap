@@ -15,6 +15,10 @@ import io
 import os
 import re
 import struct
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://www.agongmap.co.kr'
@@ -53,7 +57,7 @@ PAGE = '''<!doctype html>
 
 
 def load():
-    s = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    s = HS.home_source()
     m = re.search(r'const QUIZ_SLUG=\{(.*?)\};', s)
     if not m:
         raise SystemExit('index.html 에서 QUIZ_SLUG 를 찾지 못했다')

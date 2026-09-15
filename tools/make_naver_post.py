@@ -26,6 +26,7 @@ from urllib.parse import quote
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_sido_pages as M  # noqa: E402  (load 재사용)
 import sido_zones as SZ      # noqa: E402  (zone_order·GRADE_LABS·상수)
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'drafts')
@@ -181,7 +182,7 @@ def _tile_counts():
     """
     import json
     import re
-    h = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    h = HS.home_source()
     m = re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S)
     if not m:
         raise RuntimeError('index.html에서 SGG_QNAME을 찾지 못했다 — 타일 수를 못 맞춘다')
