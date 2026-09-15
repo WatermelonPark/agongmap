@@ -1,9 +1,9 @@
 {
  "_extra": {
-  "l3_mean": 0.218,
+  "l3_mean": 0.134,
   "l4": {
    "lag_months": 0,
-   "r": 0.68
+   "r": 0.76
   },
   "l6_scale": {
    "metro": -0.38,
@@ -48,7 +48,7 @@
      "l5": true,
      "l6": true
     },
-    "region": "경기",
+    "region": "대구",
     "score": 5
    },
    {
@@ -60,7 +60,7 @@
      "l5": true,
      "l6": true
     },
-    "region": "인천",
+    "region": "경북",
     "score": 5
    },
    {
@@ -79,12 +79,12 @@
     "detail": {
      "l1": true,
      "l2": true,
-     "l3": true,
+     "l3": false,
      "l4": false,
-     "l5": false,
+     "l5": true,
      "l6": true
     },
-    "region": "부산",
+    "region": "경기",
     "score": 4
    },
    {
@@ -96,19 +96,7 @@
      "l5": true,
      "l6": true
     },
-    "region": "대구",
-    "score": 4
-   },
-   {
-    "detail": {
-     "l1": true,
-     "l2": true,
-     "l3": false,
-     "l4": false,
-     "l5": true,
-     "l6": true
-    },
-    "region": "경북",
+    "region": "인천",
     "score": 4
    },
    {
@@ -125,15 +113,27 @@
    },
    {
     "detail": {
-     "l1": true,
+     "l1": false,
      "l2": true,
      "l3": true,
+     "l4": true,
+     "l5": true,
+     "l6": false
+    },
+    "region": "충북",
+    "score": 4
+   },
+   {
+    "detail": {
+     "l1": true,
+     "l2": true,
+     "l3": false,
      "l4": false,
      "l5": false,
      "l6": true
     },
-    "region": "전북",
-    "score": 4
+    "region": "부산",
+    "score": 3
    },
    {
     "detail": {
@@ -161,14 +161,14 @@
    },
    {
     "detail": {
-     "l1": false,
+     "l1": true,
      "l2": true,
-     "l3": true,
+     "l3": false,
      "l4": false,
-     "l5": true,
-     "l6": false
+     "l5": false,
+     "l6": true
     },
-    "region": "충북",
+    "region": "전북",
     "score": 3
    },
    {
@@ -249,7 +249,7 @@
    "r": 0.73
   },
   "link3": {
-   "basis": "택지 여유 지역(부산·충북·전북)은 1년 뒤 인허가로 이어짐(평균 0.42). 택지 포화된 곳(대전·서울·울산)은 끊김",
+   "basis": "택지 여유 지역(충북·부산)은 1년 뒤 인허가로 이어짐(평균 0.42). 택지 포화된 곳(대전·충남·울산)은 끊김",
    "level": "지역별로 갈림",
    "n": "시도별 연 18개",
    "r": 0.42
@@ -296,7 +296,7 @@
    "desc": "건설사 관망 후 사업 추진",
    "from": "매매가\n상승",
    "lag": "약 1년",
-   "r": 0.22,
+   "r": 0.13,
    "sign": "정",
    "strong": false,
    "to": "인허가\n증가"
@@ -305,7 +305,7 @@
    "desc": "인허가 나면 곧 착공",
    "from": "인허가\n증가",
    "lag": "동시",
-   "r": 0.68,
+   "r": 0.76,
    "sign": "정",
    "strong": true,
    "to": "착공\n증가"
@@ -331,11 +331,11 @@
  ],
  "cycle_strength": [
   {
-   "region": "경기",
+   "region": "대구",
    "score": 5
   },
   {
-   "region": "인천",
+   "region": "경북",
    "score": 5
   },
   {
@@ -343,15 +343,11 @@
    "score": 5
   },
   {
-   "region": "부산",
+   "region": "경기",
    "score": 4
   },
   {
-   "region": "대구",
-   "score": 4
-  },
-  {
-   "region": "경북",
+   "region": "인천",
    "score": 4
   },
   {
@@ -359,8 +355,12 @@
    "score": 4
   },
   {
-   "region": "전북",
+   "region": "충북",
    "score": 4
+  },
+  {
+   "region": "부산",
+   "score": 3
   },
   {
    "region": "경남",
@@ -371,7 +371,7 @@
    "score": 3
   },
   {
-   "region": "충북",
+   "region": "전북",
    "score": 3
   },
   {
@@ -442,92 +442,89 @@
  },
  "link3_regional": [
   {
-   "r": 0.57,
-   "region": "부산",
-   "sudo": false
-  },
-  {
-   "r": 0.5,
+   "r": 0.46,
    "region": "충북",
    "sudo": false
   },
   {
-   "r": 0.41,
-   "region": "전북",
+   "r": 0.38,
+   "region": "부산",
    "sudo": false
   },
   {
-   "r": 0.37,
+   "r": 0.28,
    "region": "대구",
    "sudo": false
   },
   {
-   "r": 0.35,
-   "region": "경북",
-   "sudo": false
-  },
-  {
-   "r": 0.31,
-   "region": "강원",
-   "sudo": false
-  },
-  {
-   "r": 0.27,
+   "r": 0.26,
    "region": "경남",
    "sudo": false
   },
   {
-   "r": 0.22,
+   "r": 0.24,
+   "region": "경북",
+   "sudo": false
+  },
+  {
+   "r": 0.24,
+   "region": "전북",
+   "sudo": false
+  },
+  {
+   "r": 0.21,
+   "region": "강원",
+   "sudo": false
+  },
+  {
+   "r": 0.14,
    "region": "인천",
    "sudo": true
   },
   {
-   "r": 0.2,
-   "region": "충남",
-   "sudo": false
-  },
-  {
-   "r": 0.11,
+   "r": 0.12,
    "region": "전남광주",
    "sudo": false
   },
   {
-   "r": 0.06,
+   "r": 0.05,
    "region": "대전",
    "sudo": false
   },
   {
-   "r": 0.03,
-   "region": "서울",
-   "sudo": true
+   "r": 0.05,
+   "region": "충남",
+   "sudo": false
   },
   {
-   "r": -0.07,
+   "r": -0.03,
    "region": "울산",
    "sudo": false
   },
   {
-   "r": -0.28,
+   "r": -0.19,
+   "region": "서울",
+   "sudo": true
+  },
+  {
+   "r": -0.33,
    "region": "경기",
    "sudo": true
   }
  ],
  "link3_split": {
-  "broken_mean": -0.07,
+  "broken_mean": -0.09,
   "broken_regions": [
    "대전",
-   "서울",
+   "충남",
    "울산",
+   "서울",
    "경기"
   ],
   "strong_mean": 0.42,
   "strong_regions": [
-   "부산",
    "충북",
-   "전북",
-   "대구",
-   "경북",
-   "강원"
+   "부산"
   ]
  },
  "link6_regional": [
@@ -658,6 +655,44 @@
    "zone": "수도권"
   }
  ],
+ "prose": {
+  "l1_hi": "−0.4",
+  "l1_hi_txt": "0.4% 하락으로 돌아섰다",
+  "l1_lo": "2.7",
+  "l1_n": "49",
+  "l1_p": "0.9",
+  "l1_r": "−0.37",
+  "l1s_p": "69",
+  "l1s_r": "0.06",
+  "l3_mean": "0.42",
+  "l3_n": "18",
+  "l3_range": "0.3~0.5",
+  "l3_top2": "충북·부산",
+  "l3_top3": "충북·부산",
+  "l4_r": "0.76",
+  "l6_mean": "−0.36",
+  "l6_metro": "−0.38",
+  "l6_prov": "−0.30",
+  "l6_sig": "11",
+  "l6_total": "14",
+  "lead_new": "37",
+  "lead_new_y": "3년 남짓",
+  "lead_old": "28",
+  "lead_old_y": "2년 남짓",
+  "lead_r": "0.84",
+  "n_panel": "14",
+  "n_q": "49",
+  "q4": "42",
+  "q4_span": "2007~2025",
+  "rate_n": "46",
+  "rate_r": "−0.57",
+  "seoul_l6": "−0.10",
+  "seoul_sync": "0.55",
+  "sudo_l6": "−0.40",
+  "sync_mean": "0.73",
+  "sync_top2": "대구·부산",
+  "sync_top_v": "0.8"
+ },
  "sr_corr": 0.9,
  "supply_ratio": [
   {

@@ -52,39 +52,38 @@ def test_archived_analysis_is_not_also_shipped():
     D, _, _ = _page()
     A = _analysis()
     both = sorted(set(D) & set(A) - {'_extra'})
-    shipped = {'sync', 'link1_new', 'link3_regional', 'link6_regional', 'cycle_strength'}
+    shipped = {'sync', 'link1_new', 'link3_regional', 'link6_regional', 'cycle_strength', 'prose'}
     stray = [k for k in both if k not in shipped]
     assert not stray, '보관용 값이 페이지에도 실려 있다: %s' % ', '.join(stray)
 
 
-def _minus(v):
-    """본문은 음수에 유니코드 빼기표(−)를 쓴다."""
-    return ('%.2f' % v).replace('-', '−')
+def test_prose_spans_carry_exactly_the_payload_values():
+    """본문 수치는 D.prose에서 온다(2026-09-15). 칸의 글자와 D.prose가 같아야 하고,
+    쓰지 않는 prose 값이나 값 없는 칸이 없어야 한다."""
+    D, _, s = _page()
+    prose = D.get('prose') or {}
+    spans = re.findall(r'<span data-d="([a-z0-9_]+)">([^<]*)</span>', s)
+    assert spans, '본문 칸이 하나도 없다'
+    wrong = [(k, v, prose.get(k)) for k, v in spans if prose.get(k) != v]
+    assert not wrong, '칸과 D.prose가 다르다: %s' % wrong[:5]
+    unused = sorted(set(prose) - {k for k, _ in spans})
+    assert not unused, '어느 칸도 쓰지 않는 prose 값: %s' % unused
 
 
-def test_prose_figures_match_the_analysis():
-    """본문에 박은 수치가 재산정 결과와 같은가."""
-    _, _, s = _page()
+def test_prose_is_what_the_analysis_computed():
+    """보관한 분석 결과와 페이지의 prose가 같은 회차의 것이어야 한다."""
+    D, _, _ = _page()
     A = _analysis()
-    x = A['_extra']
-    want = [
-        ('검증 지역 수', '%d개 시도' % len(A['sync'])),
-        ('동조성 평균', '평균 r %.2f' % x['sync_mean']),
-        ('서울 동조성', '서울은 %.2f로 가장 느슨' % x['seoul']['sync']),
-        ('고리1 상관', 'r %s · 약 1분기 시차' % _minus(A['link1_new']['r'])),
-        ('고리3 강한 지역 평균', '강한 지역 평균 r %.2f' % A['link3_split']['strong_mean']),
-        ('리드타임', '과거 %d개월 → 최근 %d개월'
-         % (A['leadtime']['old_months'], A['leadtime']['new_months'])),
-        ('착공→준공 상관', '가장 단단하다(r %.2f)' % A['leadtime']['all_r']),
-        ('인허가→착공 상관', '거의 동시에 움직인다(r %.2f)' % x['l4']['r']),
-        ('고리6 유의 지역', '시도 %d/%d 음(-) 유의' % (x['l6_sig'], x['l6_total'])),
-        ('고리6 평균', '평균 r %s' % _minus(A['cycle_links'][5]['r'])),
-        ('광역시 평균', '광역시는 평균 %s' % _minus(x['l6_scale']['metro'])),
-        ('도 평균', '섞인 도는 %s' % _minus(x['l6_scale']['province'])),
-        ('금리 상관', '수도권 분기 %d개 · r %s' % (x['rate']['n'], _minus(x['rate']['r']))),
-        ('서울 입주 효과', '%s → %s' % (_minus(x['seoul']['l6']),
-                                     _minus(x['l6_sudo']['r']))),
-    ]
-    missing = [(name, txt) for name, txt in want if txt not in s]
-    assert not missing, ('본문이 분석 결과와 어긋난다(재산정 뒤 본문을 고치지 않았다):\n'
-                         + '\n'.join('  %s: "%s"를 찾지 못했다' % m for m in missing))
+    assert D.get('prose') == A.get('prose'), '페이지와 보관 분석의 prose가 다르다 — --write를 다시 돌릴 것'
+
+
+def test_page_script_fills_from_the_payload():
+    _, code, _ = _page()
+    assert "querySelectorAll('[data-d]')" in code and 'D.prose' in code
+
+
+def test_old_hand_written_figures_are_gone():
+    """계산되지 않던 수(4분기 43%)와 옛 요약 수치가 돌아오지 않는다."""
+    _, _, s = _page()
+    for old in ('4분기 43%', '0.6% vs 적은 분기 1.4%', '최근 3년 반으로'):
+        assert old not in s, old
