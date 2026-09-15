@@ -235,9 +235,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
          그대로 드러나 사회적 증거가 역효과다(PM 결정). -->
     <div id="quiz-sample" class="qsample" aria-hidden="true"></div>
     <div class="hs-cta">
-      <button class="home-cta" onclick="location.href='/burini-test/'">🐣 부린이 테스트 · 난이도 하</button>
-      <button class="home-cta alt" onclick="location.href='/investor-test/'">🦅 투자자 테스트 · 난이도 중</button>
-      <button class="home-cta alt" onclick="location.href='/redev-test/'">🏗️ 재건축·재개발 테스트 · 난이도 상</button>
+      <a class="home-cta" href="/burini-test/">🐣 부린이 테스트 · 난이도 하</a>
+      <a class="home-cta alt" href="/investor-test/">🦅 투자자 테스트 · 난이도 중</a>
+      <a class="home-cta alt" href="/redev-test/">🏗️ 재건축·재개발 테스트 · 난이도 상</a>
     </div>
   </div></section>
 
@@ -486,7 +486,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         <h2>당신의 부동산 감각,<br>몇 점일까?</h2>
         
         <div class="qpick">
-          <button class="qpick-card" onclick="location.href='/burini-test/'">
+          <a class="qpick-card" href="/burini-test/">
             <div class="pc-top">
               <span class="pc-emoji">🐣</span>
               <span class="pc-title">부린이 테스트</span>
@@ -494,8 +494,8 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
             </div>
             <p class="pc-desc">LTV·디딤돌·계약갱신청구권… 집 사기 전 꼭 알아야 할 제도와 용어. 부린이 탈출의 첫걸음.</p>
             <span class="pc-go">→</span>
-          </button>
-          <button class="qpick-card" onclick="location.href='/investor-test/'">
+          </a>
+          <a class="qpick-card" href="/investor-test/">
             <div class="pc-top">
               <span class="pc-emoji">🦅</span>
               <span class="pc-title">투자자 테스트</span>
@@ -503,8 +503,8 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
             </div>
             <p class="pc-desc">호재를 악재로, 악재를 호재로. 통념을 거꾸로 뒤집어야 풀리는 사이클·금리·수급의 진짜 게임.</p>
             <span class="pc-go">→</span>
-          </button>
-          <button class="qpick-card" onclick="location.href='/redev-test/'">
+          </a>
+          <a class="qpick-card" href="/redev-test/">
             <div class="pc-top">
               <span class="pc-emoji">🏗️</span>
               <span class="pc-title">재건축·재개발 테스트</span>
@@ -512,7 +512,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
             </div>
             <p class="pc-desc">매매가·대지지분·용적률에서 재건축 사업성이, 구역 면적과 조합원 수에서 재개발 사업성이 보이나요? 쉬운 숫자로 바로 굴려보는 훈련.</p>
             <span class="pc-go">→</span>
-          </button>
+          </a>
         </div>
         <div class="qmeta">각 10문항 · 약 5분 · 문항마다 즉시 해설</div>
         <button class="qshare-btn primary" style="margin:22px auto 0;padding:13px 28px;border-radius:var(--r-touch)" onclick="shareTest()"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡으로 테스트 보내기</button>
@@ -1690,7 +1690,7 @@ function nextStepHTML(){
       <p class="ns-desc">투자자 테스트는 <b>호재를 악재로, 악재를 호재로</b> 읽어야 풀린다. 규제·금리·수급의 진짜 게임을 확인해보자.</p>
       <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'beginner',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
       <button class="ns-btn ghost" onclick="track('next_step',{from:'beginner',to:'investor'});goQuiz('investor')">🦅 투자자 테스트 도전하기</button>
-      <button class="ns-btn ghost" onclick="track('next_step',{from:'beginner',to:'report'});location.href='/cycle/'">📑 아파트 사이클 리포트 읽기</button>
+      <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'beginner',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
     </div>`;
   }
   if(curSet==='calc'){
@@ -1700,7 +1700,7 @@ function nextStepHTML(){
       <p class="ns-desc">공식이 손에 익었다면, 이제 그 계산을 통째로 뒤집을 수 있는 변수를 보자. <b>입주물량과 사이클</b> — 사업성 판단의 순서는 언제나 시장이 먼저다.</p>
       <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'calc',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
       <button class="ns-btn ghost" onclick="track('next_step',{from:'calc',to:'adv'});goStats('adv')">📈 투자지표에서 입주물량·인허가 확인</button>
-      <button class="ns-btn ghost" onclick="track('next_step',{from:'calc',to:'report'});location.href='/cycle/'">📑 아파트 사이클 리포트 읽기</button>
+      <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'calc',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
     </div>`;
   }
   return `<div class="nextstep">
@@ -1708,7 +1708,7 @@ function nextStepHTML(){
     <div class="ns-title">이 문제들, 감으로 낸 게 아니다</div>
     <p class="ns-desc">10문항은 <b>아파트 사이클</b>의 고리에서 나왔다. 전세가 왜 먼저 오르는지, 서울은 왜 집값이 올라도 공급이 안 늘어나는지 이어서 읽어 보자.</p>
     <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'investor',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
-    <button class="ns-btn ghost" onclick="track('next_step',{from:'investor',to:'report'});location.href='/cycle/'">📑 아파트 사이클 리포트 읽기</button>
+    <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'investor',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
     <button class="ns-btn ghost" onclick="track('next_step',{from:'investor',to:'stats'});showView('stats')">📊 국가기관 원자료 직접 보기</button>
   </div>`;
 }

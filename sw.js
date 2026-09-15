@@ -8,8 +8,30 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v144'; // 시도 리포트 하단 시세 한 줄, FAQ 면책
+const VERSION = 'v145'; // 이동 버튼→링크, 탭 40px, SW 3.5초 타임아웃, 면책 대비
 const CACHE = `agongmap-${VERSION}`;
+
+// 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
+// 있는데도 빈 화면을 오래 본다. 이 시간을 넘기면 캐시로 먼저 응답하고, 늦게 온 네트워크 응답은
+// 뒤에서 캐시만 갱신한다. ⚠️ 캐시가 없으면 네트워크를 끝까지 기다린다 — 빈 응답보다 늦은 응답이 낫다.
+// ⚠️ res.ok 를 봐야 한다. 404/5xx 본문(에러 HTML)이 캐시에 들어가면 정상 프리캐시본을 덮고, 그 뒤
+//    오프라인 폴백이 쓰레기를 준다(2026-08-07 감사에서 격리 재현).
+const NET_TIMEOUT_MS = 3500;
+function networkFirst(req, fallback) {
+  const net = fetch(req).then((res) => {
+    if (res && res.ok) {
+      const copy = res.clone();
+      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+    }
+    return res;
+  });
+  const cached = () => caches.match(req).then((hit) => hit || (fallback ? fallback() : undefined));
+  const timer = new Promise((resolve) => setTimeout(resolve, NET_TIMEOUT_MS, 'timeout'));
+  return Promise.race([net.catch(() => 'error'), timer]).then((first) => {
+    if (first !== 'timeout' && first !== 'error') return first;
+    return cached().then((hit) => hit || net);
+  });
+}
 
 const PRECACHE = [
   '/',
@@ -74,36 +96,13 @@ self.addEventListener('fetch', (e) => {
       || url.pathname === '/data-core.js' || url.pathname === '/data-rest.json'
       || url.pathname === '/data-size.json'
       || url.pathname === '/data-trend.json' || url.pathname === '/data-sgg.json') {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          // ⚠️ res.ok를 안 보면 404/5xx 본문(에러 HTML)이 그대로 캐시에 들어가
-          //    정상 프리캐시본을 덮는다 — 그 뒤 오프라인이면 폴백이 쓰레기를 준다
-          //    (2026-08-07 감사에서 격리 재현). 정적 분기는 원래 이걸 검사한다.
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => caches.match(req))
-    );
+    e.respondWith(networkFirst(req));
     return;
   }
 
   // HTML 문서: network-first
   if (req.mode === 'navigate') {
-    e.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res && res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => caches.match(req).then((hit) => hit || caches.match('/')))
-    );
+    e.respondWith(networkFirst(req, () => caches.match('/')));
     return;
   }
 
