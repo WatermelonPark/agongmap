@@ -1013,7 +1013,17 @@ def capture_zone(z):
             # 그리드만 남기려고 위 60·아래는 시작+450에서 끊는다(실측 오프셋).
             g0 = bs[4][0] + 60
             t = os.path.join(OUT, 'capture-%s-판정표.png' % z)
-            body.crop((X0, g0, X1, min(g0 + 400, bs[4][1]))).save(t)
+            # 높이를 박지 않는다. 예전엔 g0+400으로 잘랐는데, 2026-09 광주·전남
+            # 통합과 집계 행(전국·수도권·지방) 추가로 판정표가 네 줄이 되면서
+            # 셋째 줄 설명이 끊기고 넷째 줄(전북·강원·제주)이 통째로 빠졌다.
+            # 덩어리 끝까지 자르면 그 아래 '돌아가기' 링크와 공유 버튼이 딸려
+            # 온다. 그래서 그리드의 **마지막 가로 테두리**를 찾아 거기서 끊는다:
+            # 폭의 30% 이상을 긋고 왼쪽 가장자리에서 시작하는 선. 공유 버튼
+            # 테두리는 가운데에만 있어 걸리지 않는다(2026-09-15 경기 실측 588px).
+            region = body.crop((X0, g0, X1, bs[4][1]))
+            gb = _grid_bottom(region)
+            region.crop((0, 0, region.size[0],
+                         (gb + 6) if gb else region.size[1])).save(t)
             extra['판정표'] = os.path.relpath(t, ROOT)
     except Exception as e:
         return os.path.relpath(out, ROOT), extra, '다듬기 실패(원본 그대로): %s' % e
@@ -1096,6 +1106,30 @@ def capture_weekly_map():
         return os.path.relpath(a, ROOT), c, None
     except Exception as e:
         return None, None,'자르기 실패: %s' % e
+
+
+def _grid_bottom(im):
+    """판정표 그리드의 마지막 가로 테두리 y. 못 찾으면 None(자르지 않고 둔다).
+
+    폭의 30% 이상을 칠하고 왼쪽 가장자리(2~20px)에도 칠이 있는 행을 선으로 본다.
+    그리드 가로선은 전부 왼쪽 테두리에서 시작하고, 아래 공유 버튼 테두리는
+    가운데에만 있어 제외된다. 행 수가 바뀌어도 따라간다.
+    """
+    w, h = im.size
+    px = im.load()
+    bg = px[w - 3, h // 2]
+    xs = list(range(0, w, max(1, w // 200)))
+
+    def nonbg(x, y):
+        p = px[x, y]
+        return abs(p[0] - bg[0]) + abs(p[1] - bg[1]) + abs(p[2] - bg[2]) > 24
+
+    last = None
+    for y in range(h):
+        if (sum(nonbg(x, y) for x in xs) > 0.3 * len(xs)
+                and any(nonbg(x, y) for x in range(2, min(20, w)))):
+            last = y
+    return last
 
 
 def _blocks(im, gap=70, keep=60):
