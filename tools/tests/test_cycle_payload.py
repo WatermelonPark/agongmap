@@ -18,8 +18,11 @@ import io
 import json
 import os
 import re
+import sys
 
 import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 PAGE = os.path.join(ROOT, 'cycle', 'index.html')
@@ -74,7 +77,26 @@ def test_prose_is_what_the_analysis_computed():
     """보관한 분석 결과와 페이지의 prose가 같은 회차의 것이어야 한다."""
     D, _, _ = _page()
     A = _analysis()
-    assert D.get('prose') == A.get('prose'), '페이지와 보관 분석의 prose가 다르다 — --write를 다시 돌릴 것'
+    # 전세가율 풀이 칸(jr_)은 매일 배치가 차트와 함께 채워 보관 분석에 없다 — 비교에서 뺀다.
+    # 빼지 않으면 전세가율이 바뀌는 날마다 이 시험이 배치의 커밋 게이트를 막는다.
+    mine = {k: v for k, v in (D.get('prose') or {}).items() if not k.startswith('jr_')}
+    assert mine == A.get('prose'), '페이지와 보관 분석의 prose가 다르다 — --write를 다시 돌릴 것'
+
+
+def test_jeonse_ratio_spans_follow_the_chart_on_the_same_page():
+    """전세가율 풀이 칸은 같은 페이지의 전세가율 차트(jratio_level)와 같은 값이어야 한다."""
+    import refresh_cycle_data as RF
+    D, _, _ = _page()
+    want = RF.jratio_prose(D['jratio_level'])
+    got = {k: (D.get('prose') or {}).get(k) for k in RF.JR_KEYS}
+    assert got == want, '전세가율 풀이 칸이 차트와 다르다 — refresh_cycle_data를 다시 돌릴 것: %s vs %s' % (got, want)
+
+
+def test_jratio_mid_band_is_only_a_decade_when_both_share_it():
+    import refresh_cycle_data as RF
+    base = [{'region': '서울', 'val': 52.4}, {'region': '전남광주', 'val': 78.6}]
+    assert RF.jratio_prose(base + [{'region': '대구', 'val': 70.8}, {'region': '대전', 'val': 71.8}])['jr_mid'] == '70%대'
+    assert RF.jratio_prose(base + [{'region': '대구', 'val': 69.4}, {'region': '대전', 'val': 71.8}])['jr_mid'] == '69~72%'
 
 
 def test_page_script_fills_from_the_payload():
