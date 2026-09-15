@@ -8,7 +8,7 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v151'; // 홈 본문 스크립트를 home-app.js 로 분리(백로그 10)
+const VERSION = 'v152'; // 타임아웃 시 다른 문서를 홈으로 바꿔치기하던 폴백 정정
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
@@ -16,6 +16,10 @@ const CACHE = `agongmap-${VERSION}`;
 // 뒤에서 캐시만 갱신한다. ⚠️ 캐시가 없으면 네트워크를 끝까지 기다린다 — 빈 응답보다 늦은 응답이 낫다.
 // ⚠️ res.ok 를 봐야 한다. 404/5xx 본문(에러 HTML)이 캐시에 들어가면 정상 프리캐시본을 덮고, 그 뒤
 //    오프라인 폴백이 쓰레기를 준다(2026-08-07 감사에서 격리 재현).
+// ⚠️ fallback(홈 '/' 캐시)은 **오프라인(fetch 거부)에서만** 쓴다. 타임아웃까지 fallback 으로 내리면
+//    홈은 항상 프리캐시돼 있으므로, 캐시에 없는 문서(/weekly/·/zone/서울/)가 느린 망에서 3.5초 뒤
+//    **홈 HTML 로 바꿔치기**된다(2026-09-16 리뷰에서 처리기를 돌려 재현). 타임아웃은 그 요청의
+//    캐시만 쓰고, 없으면 네트워크를 끝까지 기다린다.
 const NET_TIMEOUT_MS = 3500;
 function networkFirst(req, fallback) {
   const net = fetch(req).then((res) => {
@@ -25,11 +29,12 @@ function networkFirst(req, fallback) {
     }
     return res;
   });
-  const cached = () => caches.match(req).then((hit) => hit || (fallback ? fallback() : undefined));
   const timer = new Promise((resolve) => setTimeout(resolve, NET_TIMEOUT_MS, 'timeout'));
   return Promise.race([net.catch(() => 'error'), timer]).then((first) => {
     if (first !== 'timeout' && first !== 'error') return first;
-    return cached().then((hit) => hit || net);
+    return caches.match(req)
+      .then((hit) => hit || (first === 'error' && fallback ? fallback() : undefined))
+      .then((hit) => hit || net);
   });
 }
 

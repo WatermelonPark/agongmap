@@ -155,3 +155,45 @@ def test_unknown_line_is_kept_not_dropped():
     body, mention = _b('❌ 처음 보는 실패 문구 XYZ\n')
     assert mention is True
     assert 'XYZ' in body
+
+
+# ── 월간 기준월 뒤처짐 (2026-09-16 PM 조건) ──────────────────────────────
+
+LAG2 = CLEAN + 'ℹ️ 월간 뒤처짐 2개월 · 가계열 2026.06 / 나계열 2026.06 · 최신 2026.08\n'
+LAG4 = CLEAN + 'ℹ️ 월간 뒤처짐 4개월 · 가계열 2026.04 · 최신 2026.08\n'
+
+
+def test_lag_is_quiet_on_ordinary_days():
+    """매 회차 반복하면 '괜찮다'가 쌓여 진짜 경보를 묻는다."""
+    body, mention = _b(LAG2, weekday=2)
+    assert mention is False
+    assert '뒤처진' not in body and '2026년 6월' not in body
+
+
+def test_lag_rides_the_monday_summary():
+    body, mention = _b(LAG2, weekday=0)
+    assert '가계열·나계열가 2026년 6월 기준' in body, body
+    assert '가장 최신 월간 통계는 2026년 8월' in body
+    assert '2026.06' not in body, '내부 표기가 그대로 새면 안 된다'
+    assert mention is True  # 월요일 회차는 원래 멘션이 붙는다
+
+
+def test_long_lag_is_told_every_run_with_a_mention():
+    body, mention = _b(LAG4, weekday=3)
+    assert mention is True and '@OWNER' in body
+    assert '4개월 차이' in body
+    assert '대안을 검토' in body
+
+
+def test_lag_line_never_reads_as_a_failure():
+    """뒤처짐은 이상이 아니다 — 갱신 실패로 읽히면 안 된다."""
+    body, _ = _b(LAG2, weekday=0)
+    assert body.startswith('### ✅')
+    assert '수치는 그 기준월 그대로 정확합니다' in body
+
+
+def test_lag_does_not_mask_a_real_failure():
+    body, mention = _b(FAILED + 'ℹ️ 월간 뒤처짐 4개월 · 가계열 2026.04 · 최신 2026.08\n', weekday=3)
+    assert body.startswith('### ⚠️ 데이터 갱신 중단')
+    assert mention is True
+    assert '4개월 차이' in body

@@ -94,6 +94,11 @@ async function run(path, mode) {
   store.clear(); store.set('/', resp('home'));
   NET = () => Promise.reject(new Error('offline'));           // 오프라인, 그 문서 캐시 없음 → 홈
   out['/zone/ offline'] = await run('/zone/', 'navigate');
+  // ⚠️ 배포 직후의 실제 상태: 홈은 프리캐시돼 있고 그 문서는 없다. 느린 망(한도 초과)이라도
+  //    홈으로 바꿔치기하면 안 되고 네트워크를 기다려야 한다(2026-09-16 리뷰에서 잡힌 결함).
+  store.clear(); store.set('/', resp('home'));
+  NET = () => later(150, resp('net'));
+  out['/zone/ slow+home-cached'] = await run('/zone/', 'navigate');
   process.stdout.write(JSON.stringify(out));
 })();
 """
@@ -121,3 +126,5 @@ def test_sw_serves_cache_when_network_hangs_and_network_when_fast():
         assert o[path + ' fast']['tag'] == 'net', '%s: 빠른 망인데 네트워크 응답을 쓰지 않았다' % path
         assert o[path + ' slow+nocache']['tag'] == 'net', '%s: 캐시가 없는데 네트워크를 기다리지 않았다' % path
     assert o['/zone/ offline']['tag'] == 'home', '오프라인 문서 요청이 홈 캐시로 폴백하지 않았다'
+    slow = o['/zone/ slow+home-cached']
+    assert slow['tag'] == 'net', '느린 망에서 캐시에 없는 문서를 홈으로 바꿔치기했다 — %s' % slow
