@@ -8,7 +8,7 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v141'; // 광주·전남 통합 설명 문구 삭제(전남광주 리포트·사이클·FAQ·월간)
+const VERSION = 'v142'; // 인허가→입주 기간 단정 되돌림(측정된 착공→준공만 정본)
 const CACHE = `agongmap-${VERSION}`;
 
 const PRECACHE = [

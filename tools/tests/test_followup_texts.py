@@ -35,14 +35,20 @@ def test_period_constants_follow_the_analysis():
     assert a['leadtime']['new_months'] == SZ.START_DONE_MONTHS_NEW
 
 
-def test_generated_text_uses_the_canonical_permit_period():
-    assert SZ.PERMIT_TO_MOVEIN in P.REFNOTE['pm']
-    for rel in ('tools/make_sido_pages.py', 'tools/make_monthly_page.py', 'tools/make_indicator_pages.py'):
-        s = _src(rel)
-        assert not re.search(r'[34]\s*~\s*[46]년 뒤 입주', s), '%s가 옛 기간을 말한다' % rel
+def test_permit_text_describes_nature_not_an_unmeasured_period():
+    """인허가→입주 기간은 측정된 적이 없다(전국 집계 시차 0은 사업 단위 시차가 아니다).
+
+    2026-09-15에 '약 3년'으로 박았다가 PM 반대 의견으로 되돌렸다. 기간 대신 성격을 쓴다.
+    """
+    assert not hasattr(SZ, 'PERMIT_TO_MOVEIN'), '인허가→입주 기간 상수가 되살아났다'
+    assert SZ.PERMIT_NATURE in P.REFNOTE['pm']
+    period = re.compile(r'\d+\s*(?:~\s*\d+)?\s*년 뒤 입주')
+    for rel in ('tools/make_sido_pages.py', 'tools/make_monthly_page.py'):
+        assert not period.search(_src(rel)), '%s가 인허가→입주 기간을 단정한다' % rel
     home = _src('index.html')
     pm = re.search(r"pm:'([^']*)'", home).group(1)
-    assert SZ.PERMIT_TO_MOVEIN in pm, '홈 인허가 안내문 사본이 정본 기간과 다르다'
+    assert SZ.PERMIT_NATURE in pm, '홈 인허가 안내문 사본이 정본 서술과 다르다'
+    assert '약 3년 뒤 입주' not in home
 
 
 # ---- ④ 갱신 주기 ----
