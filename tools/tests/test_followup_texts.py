@@ -107,16 +107,24 @@ def test_moveins_page_explains_the_gap_to_the_verdict():
     assert '매주 갱신.</div>' not in s
 
 
-# ---- ⑦ 병합 안내 ----
+# ---- ⑦ 병합 안내 (2026-09-15 사용자 결정으로 제거) ----
 
-def test_merge_note_comes_from_the_merge_map():
-    merged = set(P.MERGED_INTO.values())
-    assert merged, '병합 목록이 비었다 — 시험이 헛돈다'
-    for z in merged:
-        note = P.merge_note(z)
-        assert note and '병합했습니다' in note
-        for old in (k for k, v in P.MERGED_INTO.items() if v == z):
-            assert old in note
-    for z in SZ.ORDER:
-        if z not in merged:
-            assert P.merge_note(z) is None, z
+# 전남광주를 한 곳으로 보는 건 당연해 본문에 설명을 두지 않는다. 옛 주소 안내 페이지
+# (/zone/광주/, /zone/전남/)만 예외다 — 그 페이지는 옮겨졌다는 사실 자체가 내용이다.
+MERGE_EXPLAINER = re.compile(r'통합 발표|통합에 따라|한 곳으로 본|한 지역으로 봅니다|'
+                             r'한 행으로 싣|두 지역(의)? 합으로 병합|왜 합쳐졌')
+
+
+def test_no_merge_explainer():
+    assert not hasattr(P, 'merge_note'), '통합 리포트 병합 안내가 되살아났다'
+    srcs = ['tools/make_sido_pages.py', 'tools/make_monthly_page.py',
+            'faq/index.html', 'cycle/index.html']
+    for rel in srcs:
+        text = _src(rel)
+        if rel.endswith('.py'):
+            # 주석·독스트링의 개발 기록은 화면에 안 나온다 — 따옴표 문자열 줄만 본다
+            text = '\n'.join(l for l in text.splitlines()
+                             if l.strip().startswith(("'", '"', "('", '("'))
+                             or re.search(r"\bh\.append|return \(", l))
+        m = MERGE_EXPLAINER.search(text)
+        assert not m, '%s에 병합 설명 문구가 있다: %r' % (rel, m.group(0))

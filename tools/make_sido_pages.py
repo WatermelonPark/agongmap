@@ -257,20 +257,10 @@ INNER_SPREAD_NOTE = ('시도 전체를 합친 값입니다. 같은 시도 안에
                      '공급 사정이 크게 다를 수 있습니다.')
 NO_INNER_UNITS = ('세종',)
 
-# 합쳐진 판정 단위. 옛 이름 → 통합 이름. 옛 URL 안내 페이지와 통합 리포트의 병합 안내가
-# 같은 목록을 쓴다(2026-09-15 점검후속 ⑦에서 main() 안의 지역 변수를 모듈로 올렸다).
+# 합쳐진 판정 단위. 옛 이름 → 통합 이름. 옛 URL 안내 페이지가 쓴다.
+# ⚠️ 통합 리포트·월간·사이클·FAQ 본문에는 병합 설명을 두지 않는다. 전남광주를 한 곳으로
+# 보는 건 당연해 따로 알릴 일이 아니다(2026-09-15 사용자 결정, test_no_merge_explainer).
 MERGED_INTO = {'광주': '전남광주', '전남': '전남광주'}
-# 합쳐진 판정 단위의 시작 달. /monthly/ 각주와 같은 문구를 쓴다.
-MERGED_FROM = '2026.07'
-
-
-def merge_note(z):
-    """통합 지역 리포트의 병합 안내. 옛 이름은 MERGED_INTO에서 파생한다."""
-    olds = sorted(k for k, v in MERGED_INTO.items() if v == z)
-    if not olds:
-        return None
-    return ('행정구역 통합에 따라 %s분부터 %s을 %s 한 지역으로 봅니다. '
-            '과거 시계열은 두 지역 합으로 병합했습니다.' % (MERGED_FROM, '·'.join(olds), z))
 
 
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
@@ -631,8 +621,6 @@ def build_page(z, calc, stats, pq, others):
         h.append('<p class="znote">%s</p>' % esc(AGG_NOTE[z]))
     elif z not in NO_INNER_UNITS:
         h.append('<p class="znote">%s</p>' % esc(INNER_SPREAD_NOTE))
-    if merge_note(z):
-        h.append('<p class="znote">%s</p>' % esc(merge_note(z)))
     # 홈 그래프 연동 — 이 지역을 보고 홈으로 돌아가면 그래프가 이 지역으로
     # 열린다(2026-08-08 사용자). sessionStorage라 탭을 닫으면 사라진다.
     h.append('<script>try{sessionStorage.setItem("agong_gr",%s)}catch(e){}</script>'
