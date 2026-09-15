@@ -266,7 +266,7 @@ def build(adv, sts):
         basis_list.append(raw)
         out.append(sec('permits', 2, '인허가', lab, esc(pm.get('source') or '국토교통부'),
                        table(['지역', '이 달', '최근 12개월 합'], cells,
-                             '허가받은 단계의 물량(호). 보통 ' + SZ.PERMIT_TO_MOVEIN + ' 뒤 입주로 이어집니다. '
+                             '허가받은 단계의 물량(호). ' + SZ.PERMIT_NATURE + '습니다. '
                              '월별 편차가 커서 12개월 합을 함께 봅니다.')))
 
     # ── 3. 입주물량 ──────────────────────────────────────────────

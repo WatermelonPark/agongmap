@@ -84,9 +84,9 @@ REFNOTE = {
           '이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, '
           '참고로만 보여줍니다.',
     # 2026-09-13 대표 결정: 인허가는 허수가 많아 참고로만 본다는 점을 분명히 한다.
-    'pm': '인허가는 "짓겠다"고 허가받은 단계의 물량으로, 보통 ' + SZ.PERMIT_TO_MOVEIN + ' 뒤 입주로 이어집니다. '
-          '실제로 착공하지 않는 계획이 섞여 있어 참고로만 봅니다. 월별 들쭉날쭉이 커서 '
-          '최근 12개월 합으로 묶어 연간 적정물량과 견주고, 순위 계산에는 착공만 씁니다.',
+    # 기간을 단정하지 않는다(2026-09-15): 사업 단위 인허가→입주 시차는 측정된 적이 없다.
+    'pm': '인허가는 "짓겠다"고 허가받은 단계의 물량입니다. ' + SZ.PERMIT_NATURE + '아 참고로만 봅니다. '
+          '월별 들쭉날쭉이 커서 최근 12개월 합으로 묶어 연간 적정물량과 견주고, 순위 계산에는 착공만 씁니다.',
 }
 
 
@@ -712,10 +712,9 @@ def build_page(z, calc, stats, pq, others):
                        calc.get('unsold_prd') or ''))
     if row.get('pm12') is not None:
         foot.append('<tr class="zref" data-ref="pm"><td>%s</td><td>%s</td><td>%s</td>'
-                    '<td colspan="3" class="zfut">%s 뒤 입주로 이어지는 선행 물량</td></tr>'
+                    '<td colspan="3" class="zfut">착공 전 단계의 선행 물량</td></tr>'
                     % (refbtn('인허가 1년'), num(row['pm12']),
-                       ('%.0f%%' % (row['pmr'] * 100)) if row.get('pmr') is not None else '–',
-                       SZ.PERMIT_TO_MOVEIN))
+                       ('%.0f%%' % (row['pmr'] * 100)) if row.get('pmr') is not None else '–'))
     if foot:
         h.append('<tfoot>' + ''.join(foot) + '</tfoot>')
     # 표 아래 설명 문단은 2026-08-11 사용자 결정으로 삭제 — 굵은 줄은 보면 알고,
