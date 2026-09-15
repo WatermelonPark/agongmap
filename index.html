@@ -1262,7 +1262,7 @@ const QUIZSETS={
   {q:'대단지 아파트는 오늘 착공하면 보통 <b>2년 정도</b>면 입주(준공)한다. O일까 X일까?',
    opts:['X','O'],
    answer:0,
-   exp:'정답은 <b>X</b>. 착공에서 준공까지는 보통 <b>3년~3년 반</b>이 걸리고, 최근엔 고층화·공사비 급등·중대재해처벌법 등으로 <b>4년 이상</b> 걸리는 경우도 흔하다. "지금 공급 부족"과 "몇 년 뒤 입주"가 늘 어긋나는 이유다.'},
+   exp:'정답은 <b>X</b>. 착공에서 준공까지 전국 평균이 <b>과거 28개월에서 최근 37개월</b>로 늘었다(3년 남짓). 고층화·공사비 급등 등으로 길어지는 흐름이다. "지금 공급 부족"과 "몇 년 뒤 입주"가 늘 어긋나는 이유다.'},
 
   {q:'주택을 담보로 대출받을 때, <b>집값 대비 빌릴 수 있는 최대 비율</b>을 가리키는 말은?',
    opts:['DSR','LTV'],
@@ -1296,16 +1296,19 @@ const QUIZSETS={
 
   {q:'규제지역에서 <b>생애최초</b> 주택 구입자는 일반 구매자보다 LTV를 더 많이(최대 70%) 받을 수 있다. O일까 X일까?',
    opts:['X','O'],
+   asof:'2026-09-15', review:'2027-03-15',
    answer:1,
    exp:'정답은 <b>O</b>. 생애최초 구입자는 우대를 받아 규제지역에서도 <b>LTV 70%</b>가 적용된다(과거 80%에서 6·27 대책으로 하향). 다만 6개월 내 전입(실거주) 의무가 붙고, 주담대 한도 6억원 제한도 함께 적용된다.'},
 
   {q:'신용대출을 <b>1억원 넘게</b> 받으면 일정 기간 규제지역 내 주택 구입이 막힌다. O일까 X일까?',
    opts:['O','X'],
+   asof:'2026-09-15', review:'2027-03-15',
    answer:0,
    exp:'정답은 <b>O</b>. 2025년 6·27 대책으로 <b>1억원 초과 신용대출</b>을 받으면 대출 실행일로부터 <b>1년간 규제지역 주택 구입이 금지</b>된다. 신용대출을 끌어다 집을 사는 우회로를 막기 위한 조치다. (신용대출 한도 자체도 연소득 이내로 제한됐다.)'},
 
   {q:'전세 계약 후 <b>전입신고</b>를 하고 이사까지 마쳤다. 보증금을 지킬 <b>대항력</b>이 생기는 시점은?',
    opts:['이사한 그날 0시','그 다음 날 0시'],
+   asof:'2026-09-15', review:'2026-12-15',
    answer:1,
    exp:'정답은 <b>다음 날 0시</b>. 대항력은 "주택 인도 + 전입신고"를 마친 <b>다음 날 0시</b>에 생긴다. 이사한 그날 집주인이 근저당을 설정하면 은행이 순위에서 앞선다는 뜻이다. 잔금일과 같은 날 근저당이 잡히지 않는지 반드시 확인해야 하는 이유다. (확정일자는 대항력과 별개로 <b>우선변제권</b>을 준다.) 다만 2026년 3월 전세사기 방지 대책에서 대항력을 <b>전입신고 처리 즉시</b> 발생시키는 법 개정이 추진 중이다 — 아직 시행 전이라 현행법 기준 정답은 다음 날 0시다.'},
 
@@ -1387,6 +1390,7 @@ const QUIZSETS={
 
   {q:'전세가율이 오르면(매매가와 전세가 차이가 줄면), <b>갭투자</b>에 필요한 자기자본은 어떻게 될까?',
    opts:['줄어든다','늘어난다'],
+   asof:'2026-09-15', review:'2027-03-15',
    answer:0,
    exp:'정답은 <b>줄어든다</b>. 갭투자는 매매가와 전세가의 "갭(차이)"만큼만 내 돈을 넣고 집을 사는 방식이다. 전세가율이 오를수록 갭이 작아져 적은 돈으로 가능해진다. 6·27 대책의 "소유권 이전 조건부 전세대출 금지"가 바로 이 갭투자를 겨냥한 규제다.'},
 
@@ -1415,10 +1419,10 @@ const QUIZSETS={
    answer:0,
    exp:'정답은 <b>전세</b>. 전세는 <b>지금 당장 살 집</b>이 필요한 실수요라 공급 부족에 즉각 반응한다. 매매는 기대·금리·규제가 섞여 한 박자 늦게 따라온다. 이 리포트의 고리①②가 바로 "공급 부족 → 전세 → 매매"의 순서다.'},
 
-  {q:'오늘 <b>인허가</b>가 난 아파트가 실제 <b>입주</b>로 시장에 나오는 건 대략 언제일까?',
-   opts:['4~6년 뒤','1~2년 뒤'],
+  {q:'오늘 <b>인허가</b>가 난 아파트, <b>입주 시점</b>을 지금 셀 수 있을까?',
+   opts:['착공해야 셀 수 있다','허가 날짜로 셀 수 있다'],
    answer:0,
-   exp:'인허가에서 착공까지 1~2년, 착공에서 준공까지 3~3.5년(요즘은 4년 넘기도) — 합하면 <b>4~6년</b>이다. 정부가 "공급 대책"을 발표해도 체감까지 몇 년이 걸리는 이유이자, 사이클이 짧아지지 않는 근본 원인이다.'},
+   exp:'정답은 <b>착공해야 셀 수 있다</b>. 인허가는 착공과 같은 흐름으로 움직이지만 <b>허가 뒤 착공하지 않는 물량</b>이 섞여 있고 착공 시점도 제각각이라, 입주까지의 시차가 일정하지 않다. 착공한 뒤부터는 잰 값이 있다. 전국 평균이 <b>과거 28개월에서 최근 37개월</b>이다. 그래서 공급을 판정할 때는 착공 실적을 쓰고 인허가는 참고로만 본다.'},
 
   {q:'전세가 <b>상승 중</b>일 때 입주 물량이 늘어나면, 전세 가격은 즉각 하락으로 반전한다. O일까 X일까?',
    opts:['O','X'],
@@ -1428,7 +1432,7 @@ const QUIZSETS={
   {q:'사이클 <b>한 바퀴</b>가 도는 데 더 오래 걸리는 쪽은?',
    opts:['수도권','지방'],
    answer:0,
-   exp:'정답은 <b>수도권</b>. 주기는 재본 값이 아니라 <b>각 단계의 시차를 더해 만들어진 값</b>이다 — 인허가에서 입주까지 3년, 입주 증가가 전세를 밀어내리기까지 반년~1년, 전세 하락이 매매로 옮아가는 데 1년 남짓. 여기에 수도권은 <b>유동성장</b>(전세는 내리는데 매매는 오르는 구간)이 1년~1년 반 더 붙지만 지방은 이 구간이 거의 없다. 그만큼 수도권의 한 국면이 길게 늘어진다. 다만 이건 <b>기준점이지 시계가 아니다</b> — 부양책·규제책이 개입하면 사이클은 늘어나고 줄어든다. 인과의 순서가 유지될 뿐, 햇수가 고정된 건 아니다.'},
+   exp:'정답은 <b>수도권</b>. 주기는 재본 값이 아니라 <b>각 단계의 시차를 더해 만들어진 값</b>이다 — 착공에서 입주까지 3년 남짓(최근 37개월), 입주 증가가 전세를 밀어내리기까지 반년~1년, 전세 하락이 매매로 옮아가는 데 1년 남짓. 여기에 수도권은 <b>유동성장</b>(전세는 내리는데 매매는 오르는 구간)이 1년~1년 반 더 붙지만 지방은 이 구간이 거의 없다. 그만큼 수도권의 한 국면이 길게 늘어진다. 다만 이건 <b>기준점이지 시계가 아니다</b> — 부양책·규제책이 개입하면 사이클은 늘어나고 줄어든다. 인과의 순서가 유지될 뿐, 햇수가 고정된 건 아니다.'},
 
   {q:'전세와 매매가 <b>가장 따로 노는</b>(동조성이 낮은) 지역은?',
    opts:['지방 광역시','서울'],
@@ -1448,7 +1452,7 @@ const QUIZSETS={
   {q:'<b>준공 후 미분양</b>(악성 미분양)이 급증했다. 중장기적으로 이건 무슨 신호일까?',
    opts:['장기 침체가 확정된 신호','몇 년 뒤 공급 절벽의 씨앗'],
    answer:1,
-   exp:'미분양이 쌓이면 건설사는 <b>신규 착공을 멈춘다.</b> 그 멈춤은 3~4년 뒤 입주 물량의 공백으로 돌아온다. 즉 지금의 미분양은 <b>몇 년 뒤 공급 절벽</b>을 예고하는 선행 지표다. 사이클이 바닥에서 반등하는 방아쇠가 대개 여기서 당겨진다.'},
+   exp:'미분양이 쌓이면 건설사는 <b>신규 착공을 멈춘다.</b> 그 멈춤은 착공에서 준공까지 걸리는 3년 남짓(최근 37개월) 뒤에 입주 물량의 공백으로 돌아온다. 즉 지금의 미분양은 <b>몇 년 뒤 공급 절벽</b>을 예고하는 선행 지표다. 사이클이 바닥에서 반등하는 방아쇠가 대개 여기서 당겨진다.'},
 
   {q:'바닥을 기던 <b>전세가율</b>이 다시 오르기 시작했다. 매매 시장에는?',
    opts:['상승 압력이 쌓이고 있다','하락이 임박했다'],
@@ -1458,7 +1462,7 @@ const QUIZSETS={
   {q:'<b>약 3년 뒤</b> 입주 물량을 가장 정확히 예고하는 지표는?',
    opts:['인허가 물량','착공 물량'],
    answer:1,
-   exp:'정답은 <b>착공</b>. 인허가는 났어도 <b>사업성이 안 나오면 삽을 뜨지 않는다</b> — 인허가와 실제 공급 사이엔 이탈이 크다. 반면 착공은 돈이 들어간 뒤라 3~3.5년 뒤 준공으로 거의 그대로 이어진다. 입주 물량을 읽으려면 인허가가 아니라 착공을 봐야 한다.'},
+   exp:'정답은 <b>착공</b>. 인허가는 났어도 <b>사업성이 안 나오면 삽을 뜨지 않는다</b> — 인허가와 실제 공급 사이엔 이탈이 크다. 반면 착공은 돈이 들어간 뒤라 3년 남짓(최근 37개월) 뒤 준공으로 거의 그대로 이어진다. 입주 물량을 읽으려면 인허가가 아니라 착공을 봐야 한다.'},
     ],
     grade:s=>{
       if(s>=9)return{lv:'LV5',g:'지역별 공급 물량을 꿰고 있는 승부사',d:'규제의 이면도, 사이클의 역방향도 읽어냅니다. 입주물량 표를 머릿속에 펼쳐 두고 1년 뒤를 계산하는 경지. 이 리포트를 쓴 사람과 토론해도 됩니다.',emoji:'🏆'};
@@ -1583,17 +1587,26 @@ function mulberry32(a){
 function drawQuiz(setKey,seed){
   curSeed=(seed==null)?(Math.floor(Math.random()*4294967296)>>>0):(seed>>>0);
   const rnd=mulberry32(curSeed);
+  /* 보기 순서도 시드로 섞는다(2026-09-15 점검 후속 ⑧). 원본은 정답이 첫 보기에 몰려 있어(재건축 17문항 중 9)
+     위치로 답이 보였다. ⚠️ 문항 선택과 **다른 난수열**을 쓴다 — 같은 rnd 를 이어 쓰면 옛 대결 링크(시드)가
+     다른 문항을 뽑는다. 같은 시드면 이어 풀기·대결 상대도 같은 보기 순서를 본다. */
+  const ornd=mulberry32((curSeed^0x9E3779B9)>>>0);
+  const shuffleOpts=items=>items.map(it=>{
+    const idx=it.opts.map((_,i)=>i);
+    for(let i=idx.length-1;i>0;i--){const j=Math.floor(ornd()*(i+1));const t=idx[i];idx[i]=idx[j];idx[j]=t;}
+    return Object.assign({},it,{opts:idx.map(i=>it.opts[i]),answer:idx.indexOf(it.answer)});
+  });
   const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;};
   const pool=shuf(QUIZSETS[setKey].Q.slice());
   const n=Math.min(QUIZ_LEN,pool.length);
   const key=pool.find(x=>x.k), mkt=pool.filter(x=>x.m&&!x.k), rest=pool.filter(x=>!x.m);
   if(!key||mkt.length<2||rest.length<n-3)
-    return pool.slice(0,n);
+    return shuffleOpts(pool.slice(0,n));
   /* 시장·계산의 한계 문항(m:1)은 매회 3개 보장 — 공식 문제만 10개 나오는 시험지를 차단.
      그중 핵심 문항(k:1, 사이클이 계산에 우선)은 매회 고정 출제 + 1~3번 고정 배치. */
   const pick=shuf(rest.slice(0,n-3).concat(mkt.slice(0,2)));
   pick.splice(Math.floor(rnd()*3),0,key);
-  return pick;
+  return shuffleOpts(pick);
 }
 let curSet='investor', QUIZ=drawQuiz('investor'), qIdx=0, qScore=0, qAnswered=false, qResults=[];
 /* 진행 저장(2026-09-15 점검 후속 ③). 인앱 브라우저는 새로고침·뒤로 가기가 잦은데 그때마다
@@ -1692,7 +1705,8 @@ function answerQ(choice){
   });
   const exp=document.getElementById('qexp');
   const ok=choice===correct;
-  exp.innerHTML=`<div class="ehead ${ok?'o':'x'}">${ok?'○ 정답!':'✕ 아쉬워요'}</div><p>${item.exp}</p>`;
+  exp.innerHTML=`<div class="ehead ${ok?'o':'x'}">${ok?'○ 정답!':'✕ 아쉬워요'}</div><p>${item.exp}</p>`+
+    (item.asof?`<p class="qasof">제도 기준일 ${item.asof.replace(/-/g,'.')} · 이후 바뀌었을 수 있습니다</p>`:'');
   exp.classList.add('show');
   document.getElementById('qnext').classList.add('show');
   qSave();
@@ -1738,6 +1752,22 @@ function nextStepHTML(){
     <button class="ns-btn ghost" onclick="track('next_step',{from:'investor',to:'stats'});showView('stats')">📊 국가기관 원자료 직접 보기</button>
   </div>`;
 }
+/* 결과 화면에서 정오 점을 누르면 그 문항을 다시 본다(2026-09-15 점검 후속 ⑧). 틀린 문항을 되짚을 길이 없었다. */
+function dotExpHTML(i){
+  const it=QUIZ[i]; if(!it)return '';
+  const mine=qChoices[i], ok=mine===it.answer;
+  return `<div class="rx-head ${ok?'o':'x'}">${i+1}번 · ${ok?'○ 정답':'✕ 오답'}</div><div class="rx-q">${it.q}</div>`+
+    (mine!=null&&!ok?`<div class="rx-mine">내 답: ${it.opts[mine]}</div>`:'')+
+    `<div class="rx-ans">정답: ${it.opts[it.answer]}</div><p>${it.exp}</p>`;
+}
+function showDotExp(i){
+  const box=document.getElementById('rc-exp'); if(!box)return;
+  const same=!box.hidden&&box.dataset.i===String(i);
+  document.querySelectorAll('.rc-dot').forEach((d,j)=>d.setAttribute('aria-expanded',String(!same&&j===i)));
+  if(same){box.hidden=true;return;}
+  box.dataset.i=String(i); box.innerHTML=dotExpHTML(i); box.hidden=false;
+  track('quiz_review',{quiz_type:curSet,idx:i+1});
+}
 function showResult(){
   track('quiz_complete',{quiz_type:curSet,score:qScore});
   qClear();qMarkDone(curSet);
@@ -1751,7 +1781,7 @@ function showResult(){
   const r=document.getElementById('quiz-result');
   r.style.display='';
   const gr=gradeOf(qScore);
-  const dots=qResults.map(ok=>`<i class="${ok?'ok':'no'}"></i>`).join('');
+  const dots=qResults.map((ok,i)=>`<button type="button" class="rc-dot ${ok?'ok':'no'}" aria-expanded="false" aria-label="${i+1}번 ${ok?'정답':'오답'}, 해설 보기" onclick="showDotExp(${i})"></button>`).join('');
   r.innerHTML=`
     <div class="qresult">
       ${versusHTML()}
@@ -1760,12 +1790,14 @@ function showResult(){
         <div class="rc-head">${QUIZSETS[curSet].title}</div>
         <div class="rc-emoji">${gr.emoji}</div>
         <div class="rc-score">${qScore}<small>/${QUIZ.length}</small></div>
-        <div class="rc-dots">${dots}</div>
+        <div class="rc-dots rc-dots-btn">${dots}</div>
+        <div class="rc-hint">점을 누르면 그 문항 해설이 열립니다</div>
         <div><span class="rc-lv">${gr.lv}</span></div>
         <div class="rc-grade">${gr.g}</div>
         <div class="rc-desc">${gr.d}</div>
         <div class="rc-foot">agongmap.co.kr · 아공맵</div>
       </div>
+      <div class="rc-exp" id="rc-exp" hidden></div>
       <div class="qshare-box">
         <h4>${CHALLENGE&&CHALLENGE.set===curSet?'친구에게 되받아치기 🔥':'친구는 몇 점일까? 🔥'}</h4>
         <div class="qshare-btns">
@@ -1801,11 +1833,14 @@ function readChallenge(){
   }catch(e){}
   return null;
 }
+/* 세트 → 랜딩 주소. 점수별 공유 페이지(/{주소}/{점수}/, tools/make_quiz_share_pages.py)가 이 표를 읽는다.
+   카카오 말고 링크 복사·밴드·문자로 보내도 미리보기에 점수가 보이게 한다(2026-09-15 점검 후속 ⑧). */
+const QUIZ_SLUG={beginner:'burini-test',investor:'investor-test',calc:'redev-test'};
 function challengeURL(){
   // 세트별 랜딩이 파라미터를 홈으로 넘겨준다(OG는 세트별 퀴즈 카드로 뜨게).
   // 세 랜딩 모두 ?c=&s= 대결 파라미터를 홈으로 리다이렉트하므로 라우팅은 동일하다.
-  const slug=curSet==='investor'?'investor-test':curSet==='calc'?'redev-test':'burini-test';
-  return `https://www.agongmap.co.kr/${slug}/?c=${qScore}&s=${curSet}&q=${curSeed.toString(36)}&utm_source=quiz_challenge&utm_medium=viral&utm_campaign=${curSet}`;
+  const slug=QUIZ_SLUG[curSet]||'burini-test';
+  return `https://www.agongmap.co.kr/${slug}/${qScore}/?c=${qScore}&s=${curSet}&q=${curSeed.toString(36)}&utm_source=quiz_challenge&utm_medium=viral&utm_campaign=${curSet}`;
 }
 function renderChalBar(){
   const b=document.getElementById('chal-bar');
@@ -1823,7 +1858,7 @@ function versusHTML(){
     :st==='lose'?`${d}점 차로 졌습니다 😤`:'무승부입니다 🤝';
   const cta=st==='win'
     ?'<div class="vs-next">이제 친구에게 되받아치세요 ↓</div>'
-    :`<button class="vs-btn" onclick="track('challenge_retry',{quiz_type:curSet});startQuiz(curSet)">다시 도전하기</button>`;
+    :`<button class="vs-btn" onclick="track('challenge_retry',{quiz_type:curSet});startQuiz(curSet,CHALLENGE.seed)">다시 도전하기</button>`;
   return `<div class="versus ${st}">
       <div class="vs-head">친구의 도전</div>
       <div class="vs-row">

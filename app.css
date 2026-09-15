@@ -247,6 +247,22 @@
   .rcard .rc-dots i{width:12px;height:12px;border-radius:50%;background:#39415f}
   .rcard .rc-dots i.ok{background:#3aa17e}
   .rcard .rc-dots i.no{background:#e0564a}
+  /* 결과 점을 누르면 해설(점검 후속 ⑧) — 손가락 대상은 24px, 보이는 점은 그대로 12px */
+  .rcard .rc-dots.rc-dots-btn{gap:2px;margin:8px 0 4px}
+  .rcard .rc-dot{width:24px;height:24px;border:0;padding:0;background:transparent;cursor:pointer;position:relative;border-radius:50%}
+  .rcard .rc-dot::after{content:'';position:absolute;inset:6px;border-radius:50%;background:#39415f}
+  .rcard .rc-dot.ok::after{background:#3aa17e}
+  .rcard .rc-dot.no::after{background:#e0564a}
+  .rcard .rc-dot[aria-expanded="true"]::after{box-shadow:0 0 0 2px #fff}
+  .rcard .rc-dot:focus-visible{outline:2px solid #fff;outline-offset:1px}
+  .rcard .rc-hint{font-size:11.5px;color:rgba(232,235,242,.6);margin-bottom:12px}
+  .rc-exp{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);padding:14px 16px;margin:12px 0;text-align:left}
+  .rc-exp .rx-head{font-size:13px;font-weight:600;margin-bottom:6px}
+  .rc-exp .rx-head.o{color:#1a6b54} .rc-exp .rx-head.x{color:#c0392b}
+  .rc-exp .rx-q{font-size:14.5px;color:var(--ink);line-height:1.6;margin-bottom:6px}
+  .rc-exp .rx-mine,.rc-exp .rx-ans{font-size:13px;color:var(--ink2)}
+  .rc-exp p{font-size:13.5px;line-height:1.7;color:var(--ink2);margin:8px 0 0}
+  .qexp .qasof{font-size:12px;color:var(--muted);margin-top:6px}
   .rcard .rc-lv{display:inline-block;background:rgba(255,255,255,.14);color:#e8ebf2;font-weight:600;
     font-size:15px;padding:3px 15px;border-radius:0;margin-bottom:10px}
   .rcard .rc-grade{font-size:20px;font-weight:600;line-height:1.35;margin-bottom:10px}
