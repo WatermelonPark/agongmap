@@ -80,7 +80,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   <h1>집값은 돌고 돈다<br><em>전세</em>가 끌고 <em>공급</em>이 누른다</h1>
   <p class="sub">공급이 부족하면 전세가 오르고, 전세가 매매를 밀어올린다. 오른 매매가 새 공급을 부르고, 그 공급이 다시 전세를 눌러 사이클을 돌린다. 그리고 금리가 이 순환 전체를 흔든다. 세종·제주를 뺀 <span data-d="n_panel">14</span>개 시도 데이터로 한 고리씩 추적했다(광주와 전남은 공급 통계가 통합 발표돼 '전남광주' 한 곳으로 본다).</p>
   <div class="meta"><span>2006–2026 분기·연</span><span class="dot"></span>
-    <span>16개 시도 · 지역 4곳</span><span class="dot"></span><span>KOSIS·한국은행</span></div>
+    <span>분석 <span data-d="n_panel">14</span>개 시도</span><span class="dot"></span><span>KOSIS·한국은행</span></div>
 </div></header>
 
 <!-- 30초 요약 (첫 방문자용 진입로) -->
@@ -222,16 +222,16 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   <span class="verdict v-mid"><span class="v-dot"></span>지역별로 갈림 · 시차 약 1년</span>
   <div class="conf"><span class="clevel cl-mid">지역에 따라 다름</span>
     <span class="gauge"><i class="on"></i><i class="on"></i><i class="on"></i><i class="mid"></i><i></i></span>
-    <span class="ctxt"><b>고리 자체는 뚜렷하지만, 지역에 따라 살아있기도 끊기기도 한다.</b> 택지에 여유가 있는 <span data-d="l3_top3">충북·부산</span> 등에선 매매 상승이 1년 뒤 인허가로 이어집니다(r <span data-d="l3_range">0.3~0.5</span>). 반대로 택지가 포화된 수도권(서울·경기)에선 이 고리가 끊깁니다. 전국 평균만 보면 이 둘이 상쇄돼 약해 보일 뿐이다.
+    <span class="ctxt"><b>고리가 살아있는 지역은 많지 않다.</b> 매매 상승이 1년 뒤 인허가로 이어지는 곳(r 0.3 이상)은 <span data-d="l3_top3">충북·부산</span>에 그치고(r <span data-d="l3_range">0.3~0.5</span>), 택지가 포화된 수도권(서울·경기)에선 음(−)으로 끊긴다. 나머지 지방은 약하게만 이어져, 전국으로 묶으면 고리가 잘 드러나지 않는다.
     <span class="meta">근거: 시도별 연 <span data-d="l3_n">18</span>개 · 강한 지역 평균 r <span data-d="l3_mean">0.42</span> · 수도권 음(-)</span></span></div>
   <p class="lead">집값이 오르면 건설사가 움직인다. 단, 즉시가 아니라 <strong>약 1년의 시차</strong>를 두고서, 그리고 <strong>지을 땅이 있는 곳에서만</strong>이다.</p>
-  <p>건설사는 매매가가 오른다고 바로 삽을 뜨지 않는다. 반년에서 1년쯤 시장을 지켜보다 사업성이 확실해지면 부지를 사고 인허가를 신청한다. 그런데 이 반응은 <strong>땅이 있어야 가능</strong>하다. 택지가 넉넉한 지방은 가격 신호에 공급이 또렷하게 반응하지만, 택지가 바닥난 수도권은 집값이 아무리 올라도 인허가가 따라오지 못한다.</p>
+  <p>건설사는 매매가가 오른다고 바로 삽을 뜨지 않는다. 반년에서 1년쯤 시장을 지켜보다 사업성이 확실해지면 부지를 사고 인허가를 신청한다. 그런데 이 반응은 <strong>땅이 있어야 가능</strong>하다. 택지에 여유가 있는 일부 지방은 가격 신호에 공급이 반응하지만, 택지가 바닥난 수도권은 집값이 아무리 올라도 인허가가 따라오지 못한다.</p>
   <div class="chartbox">
     <h3>매매 상승 → 인허가, 지역별 연결 강도 (1년 시차)</h3>
-    <div class="cap">막대가 오른쪽으로 길수록 고리가 강함. <span data-d="l3_top2">충북·부산</span> 등은 뚜렷이 살아있고(초록), 수도권(서울·경기)은 음(-)으로 끊겨 있다(빨강).</div>
+    <div class="cap">막대가 오른쪽으로 길수록 고리가 강함. <span data-d="l3_top2">충북·부산</span>처럼 살아있는 곳은 초록, 수도권(서울·경기)처럼 음(-)으로 끊긴 곳은 빨강이다.</div>
     <div class="cwrap tall"><canvas id="cL3"></canvas></div>
   </div>
-  <div class="read"><span class="lab">쉽게 말하면</span>"집값 오르면 공급 는다"는 <b>땅이 있는 지역에서만</b> 성립한다. <span data-d="l3_top2">충북·부산</span>처럼 택지 여유가 있으면 1년 뒤 공급이 따라오지만, <b>서울·경기는 땅이 없어 이 고리가 끊깁니다.</b> 전국을 뭉뚱그리면 이 둘이 섞여 약해 보이지만, 실제로는 강한 지역과 끊긴 지역으로 갈리는 겁니다.</div>
+  <div class="read"><span class="lab">쉽게 말하면</span>"집값 오르면 공급 는다"는 <b>땅이 있는 지역에서만</b> 성립한다. <span data-d="l3_top2">충북·부산</span>처럼 택지 여유가 있으면 1년 뒤 공급이 따라오지만, <b>서울·경기는 땅이 없어 이 고리가 끊깁니다.</b> 전국을 뭉뚱그리면 이 둘이 섞여 약해 보이지만, 실제로는 살아있는 지역이 몇 곳에 그치고 수도권은 끊겨 있는 겁니다.</div>
   <div class="note"><b>왜 수도권에서 끊기나.</b> 택지가 포화돼 신규 공급 부지가 없기 때문이다. 매매가 상승이라는 신호는 똑같이 와도, 받아줄 땅이 없으니 인허가로 이어지지 못한다. 이 끊긴 고리가 수도권의 만성 공급 부족과 긴 사이클(참고 ③)의 근본 원인이다.</div>
 </div></section>
 
@@ -338,7 +338,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     <div class="cap">왼쪽(낮은 전세가율)일수록 투자성, 오른쪽일수록 실거주성. 수도권·광역시·지방이 띠를 이룬다. <b>2026.06 기준</b>.</div>
     <div class="cwrap tall"><canvas id="c4"></canvas></div>
   </div>
-  <div class="read"><span class="lab">쉽게 말하면</span>서울(52%)은 집값의 절반 가까이가 '미래 기대'로 채워진 투자 시장이다. 전남(79%)은 거의 거주 가치 그대로인 실거주 시장이고요. 대구·대전(70%대)은 그 사이에 있다. <b>전세가율이 낮을수록 기대·금리에 민감하게 출렁인다.</b></div>
+  <div class="read"><span class="lab">쉽게 말하면</span>서울(52%)은 집값의 절반 가까이가 '미래 기대'로 채워진 투자 시장이다. 전남광주(79%)는 거의 거주 가치 그대로인 실거주 시장이다. 대구·대전(70%대)은 그 사이에 있다. <b>전세가율이 낮을수록 기대·금리에 민감하게 출렁인다.</b></div>
 </div></section>
 
 <!-- 참고3: 투자 호흡 -->
@@ -352,7 +352,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
       <div class="htag">지방 · 빠른 순환</div>
       <div class="hbig">순환에 올라타기</div>
       <ul>
-        <li>인허가 기준 <b>향후 입주물량 3년치</b>를 확인해 공급 공백기에 진입</li>
+        <li>착공 기준 <b>향후 3년 공급</b>을 확인해 공급 공백기에 진입</li>
         <li>공급이 가격에 즉각 반영 → 사이클이 짧고 회전이 빠름</li>
         <li>보유 <b>2년차(양도세 중과 해제)</b>에 매도 고려</li>
       </ul>
