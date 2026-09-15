@@ -127,6 +127,39 @@ def build_jratio(S):
     return lvl, round(sum(sudo) / len(sudo), 1), round(sum(jib) / len(jib), 1), D['dates'][k]
 
 
+# 사이클 본문의 전세가율 풀이 칸(2026-09-15 콘텐츠 세션 제안). 전세가율은 이 배치가 매일
+# 갈아끼우므로 칸도 여기서 채운다 — 사이클 재산정(rebuild_cycle_analysis)은 손으로 돌릴 때만
+# 도니, 그쪽 prose로 만들면 다음 날 차트와 문장이 어긋난다. 재산정은 jr_ 키를 보존한다.
+JR_KEYS = ('jr_seoul', 'jr_jnl', 'jr_mid')
+
+
+def jratio_prose(lvl):
+    """전세가율 풀이 문장의 칸 값. 문장이 이름으로 부르는 지역에서만 뽑는다."""
+    by = {x['region']: x['val'] for x in lvl}
+    need = ('서울', '전남광주', '대구', '대전')
+    gone = [r for r in need if r not in by]
+    if gone:
+        raise RuntimeError('전세가율 풀이 문장의 지역이 차트에 없다: %s' % ', '.join(gone))
+    lo, hi = sorted((by['대구'], by['대전']))
+    a, b = int(round(lo)), int(round(hi))
+    # '70%대'는 두 곳이 같은 십 단위일 때만 참이다. 갈리면 범위로 쓴다.
+    mid = ('%d%%대' % (a // 10 * 10)) if a // 10 == b // 10 else ('%d~%d%%' % (a, b))
+    return {'jr_seoul': '%d' % int(round(by['서울'])),
+            'jr_jnl': '%d' % int(round(by['전남광주'])),
+            'jr_mid': mid}
+
+
+def fill_spans(page, values):
+    """본문의 <span data-d="키">를 values로 채운다. 칸이 하나도 없으면 멈춘다."""
+    for k, v in values.items():
+        pat = '<span data-d="%s">' % k
+        if pat not in page:
+            raise RuntimeError('사이클 본문에 %s 칸이 없다' % k)
+        page = re.sub(r'<span data-d="%s">[^<]*</span>' % re.escape(k),
+                      lambda m, v=v, k=k: '<span data-d="%s">%s</span>' % (k, v), page)
+    return page
+
+
 def splice(page, key, value):
     """const D={...} 안의 "key": <값> 하나를 통째로 갈아 끼운다."""
     i = page.find('"%s": ' % key)
@@ -148,6 +181,13 @@ def main():
     page = splice(page, 'zones', zones)
     page = splice(page, 'rate_overlay', overlay)
     page = splice(page, 'jratio_level', lvl)
+    # 전세가율 풀이 칸 — 차트와 같은 값으로 D.prose와 본문을 함께 갱신한다
+    m = re.search(r'const D=(\{.*?\});\n', page, re.S)
+    prose = dict(json.loads(m.group(1)).get('prose') or {})
+    jr = jratio_prose(lvl)
+    prose.update(jr)
+    page = splice(page, 'prose', prose)
+    page = fill_spans(page, jr)
     # 수도권·지방 평균은 페이지 어디서도 읽지 않아 D에서 뺐다. 배치 로그로는
     # 계속 남겨 두는 편이 갱신 결과를 눈으로 확인하는 데 쓸모가 있다.
 

@@ -722,10 +722,13 @@ def splice(page, D):
     if not m:
         raise RuntimeError('cycle 페이지에서 const D를 찾지 못했다')
     cur = json.loads(m.group(2))
+    keep_jr = {k: v for k, v in (cur.get('prose') or {}).items() if k.startswith('jr_')}
     for k in KEYS:
         if k not in D:
             raise RuntimeError('재계산 결과에 %s가 없다' % k)
         cur[k] = D[k]
+    # 전세가율 풀이 칸(jr_)은 매일 배치(refresh_cycle_data)가 채운다 — 재산정이 지우지 않는다
+    cur['prose'] = dict(keep_jr, **cur['prose'])
     for k in DROP:
         cur.pop(k, None)
     dead = [k for k in cur if not re.search(r'D\.%s\b|D\[.%s.\]' % (k, k),
