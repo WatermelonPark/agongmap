@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import sido_zones as SZ                                            # noqa: E402
+import make_weekly_page as MW    # noqa: E402  주간 표기(반올림·조사일·발표일)를 /weekly/와 같이
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
@@ -574,7 +575,42 @@ def _topic(word):
     return '은' if (ord(last) - 0xAC00) % 28 else '는'
 
 
-def build_page(z, calc, stats, pq, others):
+def next_links(z, weekly, stats):
+    """리포트 끝에서 '이 지역 이번 주 시세는?'으로 가는 길(2026-09-15 점검 후속 ⑤).
+
+    판정 문구·카드는 건드리지 않고 하단에만 둔다(판정 영역은 데이터 세션 몫). 값은 저장분(data.js)에서
+    읽고, 표기는 그 값을 싣는 페이지와 같은 규칙을 쓴다 — 주간은 make_weekly_page(사이트 pv2r 반올림,
+    조사일·발표일 병기), 전세가율은 /jeonse-ratio/ 와 같은 소수 첫째 자리와 1년 전 대비 %p.
+    ⚠️ 값이 없으면 그 칸을 싣지 않는다. '매매 ·%' 같은 빈 칸을 인쇄하지 않는다.
+    """
+    cards = []
+    w = weekly or {}
+    regs, rows = w.get('regions') or [], w.get('rows') or []
+    if rows and z in regs:
+        i, row = regs.index(z), rows[-1]
+        ma = (row.get('ma') or [])[i] if i < len(row.get('ma') or []) else None
+        je = (row.get('je') or [])[i] if i < len(row.get('je') or []) else None
+        parts = ['%s %s%%' % (k, MW.pv2(v)) for k, v in (('매매', ma), ('전세', je)) if v is not None]
+        if parts:
+            cards.append('<a href="/weekly/"><b>이번 주 시세</b><i>%s · %s 조사 · %s 발표</i></a>'
+                         % (' · '.join(parts), MW.md(row['p']), MW.md(MW.pub(row['p']))))
+    j = (stats or {}).get('전세가율') or {}
+    ser, dates = (j.get('series') or {}).get(z), j.get('dates') or []
+    if ser and dates:
+        li = len(dates) - 1
+        cur = ser[li] if li < len(ser) else None
+        ago = ser[li - 12] if 12 <= li and li - 12 < len(ser) else None
+        if cur is not None:
+            chg = '' if ago is None else ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
+            cards.append('<a href="/jeonse-ratio/"><b>전세가율</b><i>%.1f%%%s · %s 기준</i></a>'
+                         % (cur, chg, esc(dates[li])))
+    if not cards:
+        return ''
+    return ('<section><div class="wrap"><h2>%s 시세도 함께</h2><div class="zlinks">%s</div></div></section>'
+            % (esc(z), ''.join(cards)))
+
+
+def build_page(z, calc, stats, pq, others, weekly=None):
     row = [x for x in calc['zones'] if x['z'] == z][0]
     lab, color = GRADE_TXT[row['grade']]
     rows = series(stats, z, calc)
@@ -751,6 +787,8 @@ def build_page(z, calc, stats, pq, others):
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
              '</div></section>' % calc['H'])
 
+    h.append(next_links(z, weekly, stats))
+
     # ── 다른 지역 ──
     h.append('<section><div class="wrap"><h2>다른 지역</h2><div class="zlinks">')
     for o in others:
@@ -924,7 +962,7 @@ def main():
         d = os.path.join(OUT, z)
         os.makedirs(d, exist_ok=True)
         fp = os.path.join(d, 'index.html')
-        html, lm, ch = keep_dates(build_page(z, calc, stats, pq, calc['zones']),
+        html, lm, ch = keep_dates(build_page(z, calc, stats, pq, calc['zones'], adv.get('weekly')),
                                   read_old(fp), today)
         if ch:
             changed += 1
