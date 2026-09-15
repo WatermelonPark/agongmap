@@ -25,6 +25,7 @@ import json
 import os
 import re
 import sys
+import urllib.parse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -346,7 +347,89 @@ def build(adv, sts):
                        table(['지역', '전세가율(%)', '1년 전 대비(%p)'], cells,
                              '매매가 대비 전세가 비율. <a href="/jeonse-ratio/">전세가율 자세히 보기</a>')))
 
+    tops = top3_lines(adv, sts)
+    out = [_with_top(x, tops) for x in out]
     return out, basis_list
+
+
+def _rank(vals, n=3):
+    """{지역: 변화량} → 절대값이 큰 순서로 n곳.
+
+    집계(전국·수도권·지방)는 뺀다 — 시도와 같은 층위가 아니라 그 합이라, 섞으면 순위가
+    자기 자신과 겨룬다. 동률이면 표 순서(ORDER)가 앞선 곳. 0 은 변화가 아니므로 싣지 않는다.
+    """
+    items = [(r, v) for r, v in vals.items() if v is not None and r not in AGG and r in ORDER]
+    items.sort(key=lambda x: (-abs(x[1]), ORDER.index(x[0])))
+    return [x for x in items if x[1] != 0][:n]
+
+
+def _signed(v):
+    r = int(round(v))
+    return ('+' if r > 0 else '') + format(r, ',')
+
+
+def top3_lines(adv, sts):
+    """섹션마다 '이번 달 변화가 큰 3곳' — 표와 같은 값에서 뽑는다(2026-09-15 점검 후속 ④).
+
+    ⚠️ 문장을 박지 않는다. 지역·수치는 매달 바뀌고, 박아 두면 표와 요약이 서로 다른 달을
+       말한다. 표를 만드는 도우미(cum_month·series_at·last_idx)를 그대로 써서 같은 값을 본다.
+    반환: {섹션 id: (머리말, [(지역, 표시값)])}
+    """
+    tops = {}
+    mo = adv.get('monthly') or {}
+    mrows, mregs = mo.get('rows') or [], mo.get('regions') or []
+    if mrows:
+        ma = mrows[-1].get('ma') or []
+        vals = {r: ma[i] for i, r in enumerate(mregs) if i < len(ma)}
+        tops['price'] = ('매매 변동이 큰 곳',
+                         [(r, pv2(v) + '%') for r, v in _rank(vals) if pv2(v) != '0.00'])
+    pm = sts.get('인허가')
+    if pm:
+        i, _ = last_idx(pm)
+        vals = {r: v for r, v in cum_month(pm, i).items() if v is not None and v > 0}
+        tops['permits'] = ('이 달 인허가가 많은 곳', [(r, num(v) + '호') for r, v in _rank(vals)])
+    occ = adv.get('occupancy') or {}
+    orows, oregs = occ.get('rows') or [], occ.get('regions') or []
+    act = [r for r in orows if not r.get('e')]
+    fut = [r for r in orows if r.get('e')]
+    if orows and fut:
+        last, nxt = (act[-1] if act else orows[-1]), fut[0]
+        lv, nv = last.get('v') or [], nxt.get('v') or []
+        vals = {r: nv[i] - lv[i] for i, r in enumerate(oregs)
+                if i < len(lv) and i < len(nv) and lv[i] is not None and nv[i] is not None}
+        tops['moveins'] = ('%s 실적 대비 %s 예정, 증감이 큰 곳' % (last.get('p', ''), nxt.get('p', '')),
+                           [(r, _signed(v) + '세대') for r, v in _rank(vals)])
+    un = sts.get('미분양')
+    if un:
+        i, _ = last_idx(un)
+        if i > 0:
+            cur, prev = series_at(un, i), series_at(un, i - 1)
+            vals = {r: cur[r] - prev[r] for r in ORDER
+                    if cur.get(r) is not None and prev.get(r) is not None}
+            tops['unsold'] = ('전월 대비 미분양 증감이 큰 곳', [(r, _signed(v) + '호') for r, v in _rank(vals)])
+    jr = sts.get('전세가율')
+    if jr:
+        i, _ = last_idx(jr)
+        if i >= 12:
+            cur, prev = series_at(jr, i), series_at(jr, i - 12)
+            vals = {r: cur[r] - prev[r] for r in ORDER
+                    if cur.get(r) is not None and prev.get(r) is not None}
+            tops['jeonse'] = ('1년 새 전세가율 변화가 큰 곳',
+                              [(r, pv2(v) + '%p') for r, v in _rank(vals) if pv2(v) != '0.00'])
+    return tops
+
+
+def _with_top(section_html, tops):
+    """섹션의 기준월 줄 바로 아래(표 위)에 요약 한 줄을 넣는다. 지역 이름은 그 지역 리포트로 잇는다."""
+    m = re.match(r'<section id="([a-z]+)"', section_html)
+    t = tops.get(m.group(1)) if m else None
+    if not t or not t[1]:
+        return section_html
+    line = ('<p class="top3"><b>%s</b> %s</p>'
+            % (esc(t[0]), ' · '.join('<a href="/zone/%s/">%s</a> %s'
+                                     % (urllib.parse.quote(r), esc(r), esc(v)) for r, v in t[1])))
+    i = section_html.find('</p>') + len('</p>')
+    return section_html[:i] + line + section_html[i:]
 
 
 EXTRA_CSS = """
@@ -361,6 +444,9 @@ EXTRA_CSS = """
 .toc a:hover{background:var(--paper2)}
 table td:first-child,table th[scope=row]{white-space:nowrap}
 tbody tr.agg{background:var(--paper2)}
+.top3{font-size:13.5px;color:var(--ink2);margin:2px 0 10px;line-height:1.7}
+.top3 b{color:var(--ink);font-weight:600;margin-right:4px}
+.top3 a{color:var(--ink)}
 """
 
 
