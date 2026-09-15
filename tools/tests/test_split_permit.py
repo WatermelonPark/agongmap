@@ -43,6 +43,21 @@ def test_permit_is_de_cumulated_before_use():
     assert m == {'2024.01': 10, '2024.02': 15, '2024.03': 20}, '누계를 풀지 않았다'
 
 
+def test_year_start_null_is_zero_so_the_year_is_not_lost():
+    """연초 null(그해 앞선 누계 없음)은 0이다. 건너뛰면 그해 전체가 빠졌다(2026-09-15)."""
+    dates = ['2024.01', '2024.02', '2024.03']
+    m = SZ.permit_monthly(_stats(dates, [None, 5, 12], [0, 0, 0]), 'X')
+    assert m == {'2024.01': 0.0, '2024.02': 5, '2024.03': 7}
+
+
+def test_null_after_accumulation_is_skipped_not_zeroed():
+    """누계가 쌓인 뒤의 null을 0으로 보면 음수가 생긴다 — 그 달은 만들지 않는다."""
+    dates = ['2024.01', '2024.02', '2024.03']
+    m = SZ.permit_monthly(_stats(dates, [10, None, 30], [0, 0, 0]), 'X')
+    assert '2024.02' not in m and '2024.03' not in m and m['2024.01'] == 10
+    assert all(v >= 0 for v in m.values())
+
+
 def test_conversion_is_same_year_starts_over_permits():
     dates = ['%d.%02d' % (y, mm) for y in (2012, 2013) for mm in range(1, 13)]
     cum = [100.0 * mm for mm in range(1, 13)] * 2           # 해마다 12월 누계 1,200
