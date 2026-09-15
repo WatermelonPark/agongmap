@@ -27,12 +27,14 @@ def test_reads_the_current_home_with_every_marker():
 
 
 def _moved_copy(tmp_path):
-    """홈을 복사하고 가장 큰 인라인 스크립트를 home-app.js 로 옮긴다(동결 창에서 할 일의 모의)."""
-    s = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
-    ms = list(re.finditer(r'<script(?![^>]*\bsrc=)(?![^>]*ld\+json)[^>]*>(.*?)</script>', s, re.S))
-    m = max(ms, key=lambda m: len(m.group(1)))
-    (tmp_path / 'home-app.js').write_text(m.group(1), encoding='utf-8')
-    (tmp_path / 'index.html').write_text(s[:m.start()] + '<script defer src="/home-app.js"></script>' + s[m.end():],
+    """스크립트가 외부 파일로 옮겨진 상태의 모의 — 마크업만 남은 index.html + 전체 소스를 담은 home-app.js.
+
+    ⚠️ 저장소의 index.html 에서 '가장 큰 인라인 스크립트'를 떼어 만들지 않는다. 동결 창에서 실제로 옮기고 나면
+       그 스크립트가 없어 이 시험 자체가 깨진다(모의 B에서 실제로 그랬다). 입구가 돌려주는 완전한 소스로 만든다.
+    """
+    full = HS.home_source()
+    (tmp_path / 'home-app.js').write_text(full, encoding='utf-8')
+    (tmp_path / 'index.html').write_text('<!doctype html><title>home</title><script defer src="/home-app.js"></script>',
                                          encoding='utf-8')
     return str(tmp_path)
 
