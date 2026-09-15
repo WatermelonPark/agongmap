@@ -293,7 +293,22 @@ def permit_monthly(stats, region):
     """
     s = stats.get('인허가') or {}
     ser = (s.get('series') or {}).get(region) or []
-    cum = {d[:7]: v for d, v in zip(s.get('dates') or [], ser) if v is not None}
+    # ⚠️ 빈 값: KOSIS의 null은 진짜 0이다. 인허가 누계에서 null은 전부 연초(그해 앞서
+    # 쌓인 누계가 없는 달)에 있었다(2026-09-15 전수: 99개 중 99개). 이걸 건너뛰면 다음
+    # 달의 전월 누계가 없어 그해가 통째로 빠진다 — 사이클 고리3 표본이 18 → 16으로
+    # 줄고, 착공 전환율도 그 해를 잃었다. 그래서 그해 앞선 누계가 없을 때의 null은 0으로
+    # 본다. 누계가 쌓인 뒤의 null은 0으로 보면 누계가 줄어드는 음수가 생기므로 건너뛴다.
+    cum = {}
+    seen = {}
+    for d, v in zip(s.get('dates') or [], ser):
+        k, y = d[:7], d[:4]
+        if v is None:
+            if not seen.get(y):
+                cum[k] = 0.0
+            continue
+        cum[k] = v
+        if v:
+            seen[y] = True
     out = {}
     for k, v in cum.items():
         y, m = int(k[:4]), int(k[5:7])

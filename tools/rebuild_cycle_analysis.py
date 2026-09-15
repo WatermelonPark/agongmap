@@ -140,7 +140,11 @@ def q_avg(series, dates):
 
 
 def q_sum(series, dates):
-    """분기 합. 물량처럼 유량으로 읽는 계열에 쓴다. KOSIS의 null은 진짜 0이다."""
+    """분기 합. 물량처럼 유량으로 읽는 계열에 쓴다. KOSIS의 null은 진짜 0이다.
+
+    ⚠️ 인허가에는 쓰지 않는다. 인허가는 '호 (연내 누계)'라 월 값을 더하면 부푼다
+    (2026-09-15 수정 전 고리3·고리4가 이 합산 위에 있었다). 인허가는
+    SZ.permit_monthly()로 푼 뒤 m_q_sum()·m_y_sum()·m_roll12()를 쓴다."""
     o = {}
     for d, v in zip(dates, series):
         o.setdefault(qkey(d), []).append(0.0 if v is None else v)
@@ -159,6 +163,22 @@ def y_sum(series, dates):
     o = {}
     for d, v in zip(dates, series):
         o.setdefault(d[:4], []).append(0.0 if v is None else v)
+    return {k: sum(v) for k, v in o.items() if len(v) == 12}
+
+
+def m_q_sum(mon):
+    """월별 유량 {'YYYY.MM': 값} → 세 달이 모두 있는 분기 합."""
+    o = {}
+    for k, v in mon.items():
+        o.setdefault(qkey(k), []).append(v)
+    return {k: sum(v) for k, v in o.items() if len(v) == 3}
+
+
+def m_y_sum(mon):
+    """월별 유량 → 열두 달이 모두 있는 연 합."""
+    o = {}
+    for k, v in mon.items():
+        o.setdefault(k[:4], []).append(v)
     return {k: sum(v) for k, v in o.items() if len(v) == 12}
 
 
@@ -192,9 +212,11 @@ def prep(st):
         e['dj'] = pct_change(e['qj'])
         e['qdone'] = q_sum(DN['series'][r], DN['dates'])
         e['qstart'] = q_sum(ST['series'][r], ST['dates'])
-        e['qpermit'] = q_sum(PM['series'][r], PM['dates'])
+        # 인허가는 연내 누계 — 월별로 푼 뒤 합한다(q_sum·y_sum에 원값을 넣지 않는다)
+        pmon = SZ.permit_monthly(st, r)
+        e['qpermit'] = m_q_sum(pmon)
         e['ym'] = y_avg(M['series'][r], M['dates'])
-        e['ypermit'] = y_sum(PM['series'][r], PM['dates'])
+        e['ypermit'] = m_y_sum(pmon)
         # 최근 12분기 누적 준공. 유량이 아니라 쌓인 재고를 보는 고리1의 설명변수다
         ks = sorted(e['qdone'])
         e['stock12'] = {k: sum(e['qdone'][x] for x in ks[max(0, i - 11):i + 1])
@@ -215,13 +237,21 @@ def link1_capital(P):
             dj[k] = sum(P[s]['dj'][k] for s in SUDO) / 3.0
     xs, ys = paired(done, dj, 1)
     r, p, n = corr(detrend(xs), detrend(ys))
+    # 대조: 최근 12분기 누적 입주량으로 보면 관계가 잡히는가(본문 고리1 주석이 인용한다)
+    stock = {}
+    for k in P['서울']['stock12']:
+        if all(k in P[s_]['stock12'] for s_ in SUDO):
+            stock[k] = sum(P[s_]['stock12'][k] for s_ in SUDO)
+    sx, sy = paired(stock, dj, 1)
+    sr_, sp_, _ = corr(detrend(sx), detrend(sy))
     # 공급 수준 3분위별로 다음 분기 전세 상승률이 어떻게 갈리는지 본다
     order = sorted(range(len(xs)), key=lambda i: xs[i])
     cut = len(order) // 3
     groups = (order[:cut], order[cut:2 * cut], order[2 * cut:])
     rise = [round(sum(ys[i] for i in g) / len(g) * 100, 2) for g in groups]
     return {'levels': ['공급 적음', '보통', '공급 많음'], 'jeonse_rise': rise,
-            'r': round(r, 2), 'p': round(p, 3), 'lag': 1, 'n': n}
+            'r': round(r, 2), 'p': round(p, 3), 'lag': 1, 'n': n,
+            'stock_r': round(sr_, 2), 'stock_p': round(sp_, 3)}
 
 
 def link2_sync(P):
@@ -292,10 +322,43 @@ def _roll12(series, dates):
             for i, k in enumerate(ks) if i >= 11}
 
 
+def m_roll12(mon):
+    """월별 유량 → 연속 12개월 이동합(중간에 빠진 달이 있으면 그 시점은 만들지 않는다)."""
+    ks = sorted(mon)
+    out = {}
+    for i in range(11, len(ks)):
+        win = ks[i - 11:i + 1]
+        y0, m0 = int(win[0][:4]), int(win[0][5:7])
+        y1, m1 = int(win[-1][:4]), int(win[-1][5:7])
+        if (y1 * 12 + m1) - (y0 * 12 + m0) == 11:
+            out[ks[i]] = sum(mon[k] for k in win)
+    return out
+
+
+def permit_q4_share(st, region='전국'):
+    """연간 인허가 중 4분기(10~12월) 비중 — 방법 문단의 '연말 쏠림'.
+
+    본문에 손으로 적혀 있던 '4분기 43%'는 어디서도 계산되지 않던 수다.
+    열두 달이 모두 있는 연도를 합쳐 한 비율로 잰다.
+    """
+    mon = SZ.permit_monthly(st, region)
+    yrs = sorted({k[:4] for k in mon})
+    tot = q4 = 0.0
+    used = []
+    for y in yrs:
+        ks = ['%s.%02d' % (y, m) for m in range(1, 13)]
+        if all(k in mon for k in ks):
+            tot += sum(mon[k] for k in ks)
+            q4 += sum(mon[k] for k in ks[9:])
+            used.append(int(y))
+    return {'share': (q4 / tot) if tot else None,
+            'from': min(used) if used else None, 'to': max(used) if used else None}
+
+
 def link45_leadtime(st):
     """고리4와 5: 인허가는 곧 착공으로, 착공은 몇 해 뒤 준공으로 이어진다."""
     PM, ST, DN = st['인허가'], st['착공'], st['준공']
-    permit = _roll12(PM['series']['전국'], PM['dates'])
+    permit = m_roll12(SZ.permit_monthly(st, '전국'))
     start = _roll12(ST['series']['전국'], ST['dates'])
     done = _roll12(DN['series']['전국'], DN['dates'])
     best = max(((corr(*paired(permit, start, L, shift=_mshift))[0], L)
@@ -458,7 +521,8 @@ def cycle_strength(P):
 # ---------- 조립 ----------
 
 # 페이지의 차트가 실제로 읽는 키. 여기에 있는 것만 D에 넣는다.
-KEYS = ('sync', 'link1_new', 'link3_regional', 'link6_regional', 'cycle_strength')
+KEYS = ('sync', 'link1_new', 'link3_regional', 'link6_regional', 'cycle_strength',
+        'prose')
 
 # 계산은 하되 페이지에는 싣지 않는 값. 본문에 이미 글자로 적혀 있어 D에 두면
 # 같은 숫자를 두 곳에 보관하는 셈이고, 방문자는 읽지도 않을 5KB를 받게 된다.
@@ -476,6 +540,76 @@ DROP = ARCHIVE_ONLY + ('flow_vs_stock', 'flow_mean', 'stock_mean',
 ANALYSIS = os.path.join(ROOT, 'tools', 'data', 'cycle_analysis.json')
 
 
+def _mn(v, d=2):
+    """본문 표기 — 음수에 유니코드 빼기표(−)."""
+    return ('%.*f' % (d, v)).replace('-', '−')
+
+
+def _years(months):
+    """개월 수를 본문 말로. 28 → '2년 남짓', 37 → '3년 남짓', 42 → '3년 반 남짓'."""
+    y, r = divmod(int(months), 12)
+    if r == 0:
+        return '%d년' % y
+    return ('%d년 남짓' % y) if r < 6 else ('%d년 반 남짓' % y)
+
+
+def make_prose(sync, l1, l3, l3split, l4, lead, l6, l6_sig, l6_mean, l6_scale,
+               l6_sudo, rate, q4):
+    """본문에 손으로 적혀 있던 수치를 한 곳에서 만든다(2026-09-15 PM 요청 ①②).
+
+    전에는 --write가 D만 갈아끼워 분석을 고쳐도 본문 문장이 따라오지 않았다.
+    '4분기 43%'처럼 어디서도 계산되지 않는 수가 본문에 있었다. 이제 본문의 숫자는
+    <span data-d="키">로 감싸 두고 splice()가 이 사전으로 채운다. 페이지 스크립트도
+    D.prose로 다시 채운다.
+    """
+    strong = [x for x in l3 if x['region'] in l3split['strong_regions']]   # l3는 r 내림차순
+    rs = [x['r'] for x in strong]
+    rng = ('%.1f~%.1f' % (math.floor(min(rs) * 10) / 10.0, math.ceil(max(rs) * 10) / 10.0)
+           if rs else '–')
+    hi = l1['jeonse_rise'][2]
+    seoul_sync = next(x['corr'] for x in sync if x['region'] == '서울')
+    seoul_l6 = next(x['r'] for x in l6 if x['region'] == '서울')
+    return {
+        'n_panel': str(len(sync)),
+        'n_q': str(sync[0]['n']),
+        'l1_n': str(l1['n']),
+        'l1_r': _mn(l1['r']),
+        'l1_p': '%.1f' % (100 * l1['p']),
+        'l1s_r': _mn(l1['stock_r']),
+        'l1s_p': '%d' % round(100 * l1['stock_p']),
+        'l1_lo': '%.1f' % l1['jeonse_rise'][0],
+        'l1_hi': _mn(hi, 1),
+        'l1_hi_txt': (('%.1f%% 하락으로 돌아섰다' % -hi) if hi < 0
+                      else ('%.1f%%로 꺾였다' % hi)),
+        'sync_mean': '%.2f' % (sum(x['corr'] for x in sync) / len(sync)),
+        'seoul_sync': '%.2f' % seoul_sync,
+        'sync_top2': '·'.join(x['region'] for x in sync[:2]),
+        'sync_top_v': '%.1f' % sync[1]['corr'],
+        'l3_top3': '·'.join(x['region'] for x in strong[:3]),
+        'l3_top2': '·'.join(x['region'] for x in strong[:2]),
+        'l3_range': rng,
+        'l3_mean': '%.2f' % l3split['strong_mean'],
+        'l3_n': str(l3[0]['n']),
+        'l4_r': '%.2f' % l4['r'],
+        'lead_old': str(lead['old_months']),
+        'lead_new': str(lead['new_months']),
+        'lead_old_y': _years(lead['old_months']),
+        'lead_new_y': _years(lead['new_months']),
+        'lead_r': '%.2f' % lead['all_r'],
+        'l6_sig': str(len(l6_sig)),
+        'l6_total': str(len(l6)),
+        'l6_mean': _mn(round(l6_mean, 2)),
+        'l6_metro': _mn(l6_scale['metro']),
+        'l6_prov': _mn(l6_scale['province']),
+        'seoul_l6': _mn(seoul_l6),
+        'sudo_l6': _mn(l6_sudo['r']),
+        'rate_r': _mn(rate['r']),
+        'rate_n': str(rate['n']),
+        'q4': '%d' % round(100 * q4['share']),
+        'q4_span': '%d~%d' % (q4['from'], q4['to']),
+    }
+
+
 def build(st):
     P = prep(st)
     sync = link2_sync(P)
@@ -489,6 +623,7 @@ def build(st):
     l6_sudo = link6_capital(P)
     l6_scale = link6_scale(l6)
     strength = cycle_strength(P)
+    q4 = permit_q4_share(st)
 
     sync_mean = sum(x['corr'] for x in sync) / len(sync)
     sync_pos = sum(1 for x in sync if x['corr'] > 0 and x['p'] < SIG_P)
@@ -548,7 +683,11 @@ def build(st):
                  'n': '분기 %d개' % rate['n']},
     }
 
+    prose = make_prose(sync, l1, l3, l3split, l4, lead, l6, l6_sig, l6_mean, l6_scale,
+                       l6_sudo, rate, q4)
+
     return {
+        'prose': prose,
         'sync': [{k: v for k, v in x.items() if k in ('region', 'corr', 'sudo')}
                  for x in sync],
         'l2_lagcurve': [{'lag': x['lag'], 'r': x['r'], 'p': x['p']} for x in lagc],
@@ -596,6 +735,23 @@ def splice(page, D):
                            % ', '.join(sorted(dead)))
     new = m.group(1) + json.dumps(cur, ensure_ascii=False) + ';\n'
     out = txt[:m.start()] + new + txt[m.end():]
+    # 본문 칸 채우기 — 정적 HTML도 D.prose와 같은 값을 말하게 한다(검색·스크립트 없는 환경)
+    prose = cur['prose']
+    used = set()
+
+    def fill(mm):
+        k = mm.group(1)
+        if k not in prose:
+            raise RuntimeError('본문 칸 %s의 값이 D.prose에 없다' % k)
+        used.add(k)
+        return '<span data-d="%s">%s</span>' % (k, prose[k])
+
+    out = re.sub(r'<span data-d="([a-z0-9_]+)">[^<]*</span>', fill, out)
+    unused = sorted(set(prose) - used)
+    if unused:
+        raise RuntimeError('어느 본문 칸도 쓰지 않는 prose 값: %s' % ', '.join(unused))
+    # 메타 설명은 속성이라 칸을 둘 수 없다 — 같은 값으로 문구 속 숫자만 바꾼다
+    out = re.sub(r'\d+개 시도 20년', prose['n_panel'] + '개 시도 20년', out)
     open(page, 'w', encoding='utf-8', newline='\n').write(out)
     return len(cur)
 
