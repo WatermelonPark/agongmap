@@ -159,7 +159,7 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
 footer a{color:var(--ink)}
-.disc{margin-top:10px;font-size:11.5px;line-height:1.6;color:#8a9599}
+.disc{margin-top:10px;font-size:11.5px;line-height:1.6;color:var(--muted)}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:11.5px;font-weight:600;text-decoration:none}
 .nav-btn svg{display:block}

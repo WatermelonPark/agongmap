@@ -343,6 +343,7 @@
   .seg button{border:1px solid var(--line);background:#fff;border-radius:var(--r-touch);
     padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
   .seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .seg button{min-height:40px}   /* 세그먼트가 약 26~27px였다(점검 후속 ⑦) */
   #reg-sel{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r-touch);
     font-size:14px;font-weight:600;color:var(--ink);background:#fff;font-family:inherit}
   .meta-bar{display:flex;flex-wrap:wrap;gap:8px 18px;margin:16px 2px 4px;font-size:12.5px;color:var(--muted)}
@@ -724,6 +725,9 @@
 /* 리포트가 /cycle/로 이전하며 .nav-btn·.home-cta 일부가 <a>가 되었다.
    버튼일 땐 필요 없던 밑줄 제거가 필요하다. */
 a.nav-btn,a.home-cta{text-decoration:none}
+/* 페이지 이동 버튼을 <a>로 바꿨다(점검 후속 ⑦). 버튼 기본값에 기대던 모양을 링크에서도 맞춘다. */
+a.home-cta{text-align:center;box-sizing:border-box}
+a.qpick-card{text-decoration:none;color:inherit;box-sizing:border-box;position:relative}
 
 /* 표 헤더는 항상 중앙정렬(2026-07-22 원칙) — 고정컬럼 헤더의 좌측 예외 무효화 */
 table.adv thead th:first-child{text-align:center}
@@ -810,6 +814,8 @@ table.adv thead th:first-child{text-align:center}
   .tb-seg button:last-child{border-right:0}
   .tb-seg button.on{background:var(--ink);color:var(--paper);font-weight:600}
   .tb-seg button[disabled]{opacity:.4;cursor:default}
+  /* 손가락 대상 최소 높이(2026-09-15 점검 후속 ⑦) — 지도/그래프/표 전환이 약 32px였다. */
+  .tb-seg button{min-height:40px}
   .tb-chk{font-size:12.5px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
   .tb-key{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11.5px;
     color:var(--muted);flex-wrap:wrap}
