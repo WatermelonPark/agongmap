@@ -79,7 +79,6 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://www.agongmap.co.kr/og-brand.png">
-<script defer src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
 <meta name="twitter:title" content="아공맵 — 공급을 보면 집값이 보인다">
 <meta name="twitter:description" content="전국 16개 시도 아파트 공급 지도 · 준공·착공으로 본 입주물량 · 주간 시세">
 <title>전국 아파트 공급 지도 — 시도별 입주물량·주간 시세 | 아공맵</title>
@@ -561,7 +560,6 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
      받으면 그만큼 앱 초기화가 밀리므로 defer로 내린다. defer 스크립트는
      DOMContentLoaded 이전에 반드시 실행되므로, Chart를 만지는 코드는 전부
      아래 boot()(DOMContentLoaded)로 미뤄 두었다. -->
-<script defer src="/chart-4.4.1.umd.js"></script>
 
 <!-- 홈이 쓰는 조각만(48KB). 통계 탭을 열면 loadFullData()가 나머지를 받는다.
      data.js(393KB)는 그대로 두되 이 페이지는 더 이상 읽지 않는다. -->
@@ -581,6 +579,32 @@ function chartSetup(){
   Chart.defaults.font.family=FONT;Chart.defaults.font.size=12;Chart.defaults.color=INK2;
   Chart.defaults.plugins.legend.display=false;
 }
+/* 차트 라이브러리(약 70KB)와 카카오 SDK(약 29KB)는 홈 첫 로딩에서 받지 않는다(2026-09-15 점검 후속 ⑦).
+   차트는 통계 화면에서만, 카카오는 공유할 때만 쓴다. 그리기·공유 함수는 라이브러리가 없으면 받은 뒤
+   자기 자신을 다시 부른다(needChart·needKakao). 동시에 여러 번 불려도 스크립트는 한 번만 붙인다. */
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const el=document.createElement('script'); el.src=src; el.async=true;
+    el.onload=()=>res(); el.onerror=()=>{ el.remove(); rej(new Error('load '+src)); };
+    document.head.appendChild(el);
+  });
+}
+let CHART_P=null;
+function loadChart(){
+  if(window.Chart)return Promise.resolve();
+  if(!CHART_P)CHART_P=loadScript('/chart-4.4.1.umd.js').then(chartSetup).catch(e=>{ CHART_P=null; throw e; });
+  return CHART_P;
+}
+function needChart(redo){ if(window.Chart)return false; loadChart().then(redo).catch(()=>{}); return true; }
+let KAKAO_P=null, KAKAO_FAIL=false;
+function loadKakao(){
+  if(window.Kakao)return Promise.resolve();
+  if(!KAKAO_P)KAKAO_P=loadScript('https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js')
+    .catch(e=>{ KAKAO_P=null; KAKAO_FAIL=true; throw e; });
+  return KAKAO_P;
+}
+/* ⚠️ 받기에 실패해도 공유는 이어간다 — KAKAO_FAIL 이 서면 kakaoReady()가 false 라 OS 공유·복사로 넘어간다. */
+function needKakao(redo){ if(window.Kakao||KAKAO_FAIL)return false; loadKakao().then(redo,redo); return true; }
 /* Chart.js는 생성 시점에 텍스트를 한 번 래스터화하고 폰트 로드로 다시 그리지 않는다.
    이게 없으면 웹폰트가 늦게 도착할 때 차트 라벨만 폴백 폰트로 굳어 본문과 어긋난다.
    호출부 14곳을 건드리는 대신 캔버스를 훑는다 — 이 시점 이후 만들어지는 차트는
@@ -868,6 +892,7 @@ function renderAux(){
   }));
 }
 function drawStat(){
+  if(needChart(()=>drawStat()))return;
   if(ST.ds==='규모별'){
     if(!STATS['규모별']){ ensureSizeStats().then(drawStat).catch(()=>{}); return; }
     drawSizePivot();return;
@@ -1039,6 +1064,7 @@ function buildTable(D,labels,vals,idx,parsed){
 
 /* 착공→준공 리드타임 시차곡선 (시기별 비교) */
 function drawLeadtime(){
+  if(needChart(()=>drawLeadtime()))return;
   const L=LEADTIME;
   document.getElementById('stat-tbl').classList.remove('szpivot');
   document.getElementById('sec-basicmain').classList.add('single');
@@ -1715,6 +1741,7 @@ function nextStepHTML(){
 function showResult(){
   track('quiz_complete',{quiz_type:curSet,score:qScore});
   qClear();qMarkDone(curSet);
+  loadKakao().catch(()=>{});   // 결과 화면에 공유 버튼이 뜬다 — 누르기 전에 받아 둔다
   if(CHALLENGE&&CHALLENGE.set===curSet){
     track('challenge_result',{quiz_type:curSet,score:qScore,friend_score:CHALLENGE.score,
       outcome:qScore>CHALLENGE.score?'win':(qScore<CHALLENGE.score?'lose':'draw')});
@@ -1829,6 +1856,7 @@ function kakaoFeed(title,desc,img,link,btn){
       {title:'풀 리포트 보기',link:{mobileWebUrl:'https://www.agongmap.co.kr/?utm_source=quiz_share&utm_medium=viral&utm_campaign=full_report',webUrl:'https://www.agongmap.co.kr/?utm_source=quiz_share&utm_medium=viral&utm_campaign=full_report'}}]});
 }
 function shareTest(){
+  if(needKakao(shareTest))return;
   track('share',{content_type:'quiz_invite',method:kakaoReady()?'kakao':(navigator.share?'os_share':'copy')});
   if(kakaoReady()){
     try{kakaoFeed('내 부동산 감각, 몇 점일까?','부린이·투자자·재건축 3종 테스트 — 10문항 5분, 즉시 채점·해설');return;}
@@ -1854,6 +1882,7 @@ function shareTxt(){
   return `${gr.emoji} 내 점수 ${qScore}/10 — ${name}\n${shareTaunt(qScore)}\n\n내 점수 넘어봐 👇\n${challengeURL()}`;
 }
 function shareResult(){
+  if(needKakao(shareResult))return;
   const gr=gradeOf(qScore),name=QUIZSETS[curSet].shareName;
   const url=challengeURL();
   track('share',{content_type:'quiz_result',method:kakaoReady()?'kakao':(navigator.share?'os_share':'copy'),quiz_type:curSet,score:qScore});
@@ -2412,6 +2441,7 @@ function trSetPeriod(k,i){
   track('stats_period',{section:k,period:TREND[k].periods[i][0]});
 }
 function drawTrendChart(k){
+  if(needChart(()=>drawTrendChart(k)))return;
   const T=TREND[k], W=trendData(k); if(!W)return;
   advSel(T.sel,W.regions);
   fillSggSel(k,(document.getElementById(T.sel2)||{}).value);
@@ -2453,6 +2483,7 @@ function renderWeekSec(){ renderTrendTables('week'); drawTrendChart('week'); dra
 function renderMonthSec(){ renderTrendTables('month'); drawTrendChart('month'); drawTrendMap('month'); }
 /* --- 투자지표 차트 --- */
 function drawPermitChart(){
+  if(needChart(()=>drawPermitChart()))return;
   const P=ADV.permits, regs=P.regions;
   const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
   const vals=P.rows.map(r=>r.v[ri]);
@@ -2478,6 +2509,7 @@ function drawPermitChart(){
     }}]});
 }
 function drawOccChart(){
+  if(needChart(()=>drawOccChart()))return;
   const O=ADV.occupancy, regs=O.regions;
   const reg=advSel('adv-occ-reg',regs), ri=regs.indexOf(reg), ref=O.ref[reg];
   const vals=O.rows.map(r=>r.v[ri]);
@@ -3401,7 +3433,7 @@ function quizSample(){
     +'</div>';
 }
 function boot(){
-  chartSetup();
+  /* chartSetup 은 차트 라이브러리를 받은 뒤 loadChart 가 부른다 */
   renderWeeklyGrid();
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
