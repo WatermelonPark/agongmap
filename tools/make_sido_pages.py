@@ -539,17 +539,26 @@ def _write_merged_stub(path, old, new):
          '<meta name="description" content="%s의 공급 통계는 %s 페이지에서 볼 수 있습니다.">'
          '<link rel="stylesheet" href="/app.css"></head><body>'
          '<main class="wrap" style="max-width:640px;margin:12vh auto;text-align:center">'
-         '<h1 style="font-size:20px">%s는 %s로 합쳐졌습니다</h1>'
+         '<h1 style="font-size:20px">%s %s로 합쳐졌습니다</h1>'
          '<p style="line-height:1.7;color:var(--muted)">국토교통부가 2026년 7월분부터 '
          '공급 통계를 <b>%s</b> 하나로 발표하기 시작했습니다. 시군구 단위 자료가 없어 '
          '두 지역을 따로 계산할 수 없게 되어, 아공맵도 판정 단위를 합쳤습니다.</p>'
          '<p style="margin-top:22px"><a href="%s" style="display:inline-block;'
-         'background:var(--ink);color:var(--paper);padding:12px 22px;border-radius:8px;'
+         'background:var(--ink);color:var(--paper);padding:12px 22px;border-radius:3px;'
          'text-decoration:none">%s 공급 분석 보기</a></p>'
          '<p style="font-size:12px;color:var(--muted);margin-top:18px">3초 뒤 자동으로 이동합니다.</p>'
-         '</main></body></html>') % (old, new, url, url, old, new, old, new, new, url, new)
+         '</main></body></html>') % (old, new, url, url, old, new, old + _topic(old), new, new, url, new)
     io.open(os.path.join(path, 'index.html'), 'w', encoding='utf-8',
             newline='\n').write(h)
+
+
+def _topic(word):
+    """받침에 맞는 보조사 은/는. '%s는'으로 고정해 두었더니 통합 안내 페이지가
+    '전남는 전남광주로 합쳐졌습니다'로 나갔다(2026-09-15 디자인 검수)."""
+    last = word[-1]
+    if not ('가' <= last <= '힣'):
+        return '는'
+    return '은' if (ord(last) - 0xAC00) % 28 else '는'
 
 
 def build_page(z, calc, stats, pq, others):
