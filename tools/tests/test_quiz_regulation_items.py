@@ -13,11 +13,14 @@ import io
 import os
 import re
 
+import sys as _hs_sys  # noqa: E402
+_hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def _items():
-    s = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    s = HS.home_source()
     out = []
     for m in re.finditer(r"\{q:'(.*?)',\s*opts:\[(.*?)\],\s*answer:(\d+),\s*exp:'(.*?)'\}", s, re.S):
         opts = re.findall(r"'([^']*)'", m.group(2))

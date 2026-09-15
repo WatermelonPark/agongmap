@@ -16,10 +16,15 @@ import subprocess
 
 import pytest
 
+import sys as _hs_sys  # noqa: E402
+_hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def _read(*p):
+    if HS.is_home(*p):
+        return HS.home_source()
     return io.open(os.path.join(ROOT, *p), encoding='utf-8').read()
 
 

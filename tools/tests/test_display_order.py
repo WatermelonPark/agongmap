@@ -18,6 +18,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 import sido_zones as SZ  # noqa: E402
 
@@ -74,6 +75,7 @@ def test_monthly_keeps_source_order():
 
 def test_no_ranking_wording_on_the_list_link():
     for rel in ('index.html', os.path.join('tools', 'make_naver_post.py')):
-        s = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        s = HS.home_source() if HS.is_home(rel) else io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        HS.require(s, '/zone/', what=rel)   # 목록 링크를 실제로 읽었는가
         assert '시도별 공급 순위' not in s and '시도 공급 순위' not in s, (
             '%s: 목록 링크에 "순위"가 남아 있다' % rel)

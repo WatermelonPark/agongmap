@@ -14,10 +14,15 @@ import io
 import os
 import re
 
+import sys as _hs_sys  # noqa: E402
+_hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def _read(*parts):
+    if HS.is_home(*parts):
+        return HS.home_source()
     return io.open(os.path.join(ROOT, *parts), encoding='utf-8').read()
 
 
@@ -68,6 +73,7 @@ PROMISES = (
 
 
 def test_unkept_source_promises_are_gone():
+    HS.require(_read('index.html'), 'function nextStepHTML', 'const QUIZSETS', what='홈 퀴즈 스크립트')
     left = ['%s: %s' % (f, t) for f, t in PROMISES if t in _read(*f.split('/'))]
     assert not left, '지키지 않는 출처 약속이 남았다: %s' % '; '.join(left)
 

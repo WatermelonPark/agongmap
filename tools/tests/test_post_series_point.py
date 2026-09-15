@@ -15,6 +15,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import make_naver_post as P  # noqa: E402
 import make_theory_post as T  # noqa: E402
 
@@ -61,7 +62,7 @@ def test_tile_counts_match_what_the_map_draws():
     import json
     import re
     root = os.path.join(os.path.dirname(__file__), '..', '..')
-    h = open(os.path.join(root, 'index.html'), encoding='utf-8').read()
+    h = HS.home_source()
     q = json.loads(re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S).group(1))
     seoul = sum(1 for n in q.values() if n.startswith('서울 '))
     assert (P.SGG_N, P.SEOUL_N) == (len(q) - seoul, seoul)

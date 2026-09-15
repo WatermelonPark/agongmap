@@ -20,15 +20,22 @@ import subprocess
 
 import pytest
 
+import sys as _hs_sys  # noqa: E402
+_hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def _read(*p):
+    if HS.is_home(*p):
+        return HS.home_source()
     return io.open(os.path.join(ROOT, *p), encoding='utf-8').read()
 
 
 def test_no_page_navigation_through_buttons():
-    left = re.findall(r'<button[^>]*onclick="[^"]*location\.href[^"]*"', _read('index.html'))
+    s = _read('index.html')
+    HS.require(s, 'function nextStepHTML', 'class="qpick', what='이동 버튼이 있던 퀴즈 템플릿·카드')
+    left = re.findall(r'<button[^>]*onclick="[^"]*location\.href[^"]*"', s)
     assert not left, '버튼으로 페이지를 옮기는 곳이 남았다 — <a href> 로: %s' % left
 
 

@@ -31,6 +31,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import sido_zones as SZ  # noqa: E402
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
@@ -39,7 +40,7 @@ SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
 def load():
     s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
     adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});', s, re.S).group(1))
-    h = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    h = HS.home_source()
     m = re.search(r'const SGG_QNAME=(\{.*?\});', h)
     if not m:
         raise SystemExit('index.html 에서 SGG_QNAME 을 찾지 못했다 — 시군구 이름표 위치가 바뀌었는지 볼 것')

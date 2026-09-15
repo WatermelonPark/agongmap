@@ -13,6 +13,9 @@ import re
 
 import pytest
 
+import sys as _hs_sys  # noqa: E402
+_hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 PAGE = os.path.join(ROOT, 'monthly', 'index.html')
 
@@ -94,7 +97,7 @@ def test_entry_is_measured(html):
 def test_linked_from_sitemap_and_home():
     sm = io.open(os.path.join(ROOT, 'sitemap.xml'), encoding='utf-8').read()
     assert '/monthly/</loc>' in sm, 'sitemap에 없다 — 색인이 안 된다'
-    home = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    home = HS.home_source()
     assert 'href="/monthly/"' in home, '홈에서 도달할 수 없다'
 
 

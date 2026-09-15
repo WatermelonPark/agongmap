@@ -20,6 +20,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import sido_zones as SZ  # noqa: E402
 import make_sido_pages as P  # noqa: E402
 
@@ -103,7 +104,7 @@ def test_balance_line_no_longer_says_enough_is_coming():
 
 
 def test_home_reads_the_baked_text_instead_of_rebuilding_it():
-    src = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    src = HS.home_source()
     assert 'z.ctxt' in src, '홈 요약 카드가 구워 둔 카드 문구를 읽지 않는다'
     assert not re.search(r'z\.ratio\s*\*', src), '홈이 비율 문구를 따로 계산한다 — 이중 구현'
 

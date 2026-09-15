@@ -41,6 +41,7 @@ import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목�
 import make_indicator_pages as I  # noqa: E402  (공개일·클램프 규칙 공유)
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
 import quiz_review as QR       # noqa: E402  (퀴즈 제도 문항 검토 기한)
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 SITE = 'https://www.agongmap.co.kr'
 UA = {'User-Agent': 'agongmap-watchdog'}
@@ -964,11 +965,18 @@ def main():
     # 지나면 여기서 빨개진다(2026-09-15 점검 후속 ⑧). pytest 게이트에 두지 않은 이유: 날짜만 지나도
     # 데이터 배치 커밋이 막히기 때문이다. ⚠️ extend 로 붙인다 — fails 길이는 검사한 계열 수로 쓰인다.
     print('[퀴즈 제도 문항 — 검토 기한]')
-    _qsrc = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'index.html'),
-                 encoding='utf-8').read()
-    _qo = QR.overdue(_qsrc, datetime.date.today())
-    print('  제도 문항 %d개 · 기한 지남 %d개' % (len(QR.items(_qsrc)), len(_qo)))
-    fails.extend(_qo)
+    # ⚠️ 0개를 찾고 통과하면 감시가 조용히 꺼진다 — 백로그 10 이동 모의에서 실제로 그랬다. 못 읽었거나
+    #    0개면 실패로 올린다. 홈 스크립트는 home_src 로만 읽는다(옮겨도 EXTERNAL 한 줄로 따라온다).
+    try:
+        _qsrc = HS.home_source()
+        _qi = QR.items(_qsrc)
+        _qo = QR.overdue(_qsrc, datetime.date.today())
+        print('  제도 문항 %d개 · 기한 지남 %d개' % (len(_qi), len(_qo)))
+        if not _qi:
+            fails.append('퀴즈 제도 문항을 0개 찾았다 — 검토 기한 감시가 헛돈다(asof·review 형식이나 홈 스크립트 위치 확인)')
+        fails.extend(_qo)
+    except HS.HomeSourceError as e:
+        fails.append('홈 스크립트를 읽지 못해 퀴즈 검토 기한을 못 봤다: %s' % e)
 
     # 커버리지 가드: 라이브에 있는데 위에서 한 번도 대조 안 한 계열을 잡는다.
     # 분양·미분양이 SUPPLY_CONF에 있다는 이유로 몇 주간 감시 밖에 있었다 — 사람이

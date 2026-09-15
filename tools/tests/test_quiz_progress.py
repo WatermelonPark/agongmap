@@ -17,11 +17,14 @@ import subprocess
 
 import pytest
 
+import sys as _hs_sys  # noqa: E402
+_hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def _quiz_src():
-    s = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    s = HS.home_source()
     a = s.find('const QUIZSETS')
     b = s.find('function gradeOf(')
     assert a >= 0 and b > a, '퀴즈 코드 경계를 찾지 못했다 — 구조가 바뀌었으면 이 시험도 고칠 것'
@@ -162,6 +165,7 @@ def test_time_copy_matches_real_duration():
     import re
     bad = []
     for f in files:
-        s = io.open(os.path.join(ROOT, f), encoding='utf-8').read()
+        s = HS.home_source() if HS.is_home(f) else io.open(os.path.join(ROOT, f), encoding='utf-8').read()
+        HS.require(s, '5분', what=f)   # 고친 표기를 실제로 읽었는가 — 못 읽으면 '3분 없음'이 헛돈다
         bad += ['%s: %s' % (f, m.group(0)) for m in re.finditer(r'.{0,12}3분(?![기위]).{0,6}', s)]
     assert not bad, "퀴즈 시간 표기에 '3분'이 남았다: %s" % bad

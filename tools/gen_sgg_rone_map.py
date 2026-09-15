@@ -26,6 +26,7 @@ import io, json, os, re, sys, urllib.parse, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import update_adv_data as U
+import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 API = 'https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do'
 TBL = 'A_2024_00045'          # (월) 매매가격지수_아파트 — 시도·권역·시군구가 다 있다
@@ -56,7 +57,7 @@ def _key():
 
 def qname_map():
     """index.html SGG_QNAME — KOSIS 코드 → 표시용 지역명(접미사 없는 형태)."""
-    h = io.open(os.path.join(HERE, os.pardir, 'index.html'), encoding='utf-8').read()
+    h = HS.home_source()
     m = re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S)
     if not m:
         raise SystemExit('index.html에서 SGG_QNAME을 찾지 못했다 — 구조가 바뀌었는지 확인할 것')
