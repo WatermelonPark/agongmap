@@ -157,7 +157,7 @@ def test_blocked_storage_does_not_break_the_quiz():
 
 def test_time_copy_matches_real_duration():
     """해설 포함 실제 4~6분(요청서 실측) — '3분'으로 약속하지 않는다."""
-    files = ['index.html', 'weekly/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html',
+    files = ['index.html', 'weekly/index.html', 'faq/index.html', 'cycle/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html',
              'tools/make_og_cards.py', 'tools/make_investor_cards.py', 'tools/make_naver_post.py']
     import re
     bad = []

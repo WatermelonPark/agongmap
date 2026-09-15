@@ -61,7 +61,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     {"@type": "Question", "name": "실거래가격지수는 호가와 뭐가 다른가요?",
      "acceptedAnswer": {"@type": "Answer", "text": "실거래가격지수는 실제 신고된 거래만으로 만든 지수라 호가나 표본조사보다 시장을 늦게, 그러나 정확하게 반영합니다. 최신 월은 잠정치(p)로 먼저 나오고 다음 달 확정됩니다."}},
     {"@type": "Question", "name": "부린이가 무슨 뜻인가요?",
-     "acceptedAnswer": {"@type": "Answer", "text": "부동산+어린이의 합성어로, 부동산 초보자를 뜻하는 신조어입니다. 내 부동산 상식이 어느 정도인지 궁금하다면 10문항 부린이 테스트로 3분 만에 확인할 수 있습니다."}}
+     "acceptedAnswer": {"@type": "Answer", "text": "부동산+어린이의 합성어로, 부동산 초보자를 뜻하는 신조어입니다. 내 부동산 상식이 어느 정도인지 궁금하다면 10문항 부린이 테스트로 5분 만에 확인할 수 있습니다."}}
   ]
 }
 </script>
@@ -89,6 +89,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
   footer{padding:24px 0 60px;text-align:center;font-size:12.5px;color:var(--muted)}
   footer a{color:var(--muted)}
+  footer .disc{margin-top:8px;font-size:12px;line-height:1.6;color:var(--muted)}
 
 
 /* 하단 네비 — 이 페이지는 공용 스타일시트를 안 쓰므로 필요한 규칙만 동봉
@@ -156,7 +157,7 @@ body{padding-bottom:66px}
   </details>
   <details>
     <summary>부린이가 무슨 뜻인가요?</summary>
-    <p>부동산+어린이, 즉 부동산 초보자를 뜻하는 신조어다. 내 감각이 어느 단계인지 궁금하면 <a href="/burini-test/">부린이 테스트</a> 10문항으로 3분 만에 확인할 수 있다 — 무주택 달걀부터 부동산 봉황까지 11단계로 알려준다.</p>
+    <p>부동산+어린이, 즉 부동산 초보자를 뜻하는 신조어다. 내 감각이 어느 단계인지 궁금하면 <a href="/burini-test/">부린이 테스트</a> 10문항으로 5분 만에 확인할 수 있다 — 무주택 달걀부터 부동산 봉황까지 11단계로 알려준다.</p>
   </details>
   <a class="cta" href="/">🏠 아공맵 — 홈으로</a>
 </div></section>
@@ -164,6 +165,8 @@ body{padding-bottom:66px}
 
 <footer><div class="wrap">
   <a href="/">agongmap.co.kr</a> · 자료: KOSIS·한국부동산원·국토교통부·한국은행
+  <!-- 공통 면책(2026-09-15 점검 후속 ⑥) — 다른 페이지에는 있고 FAQ에만 없었다. -->
+  <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
 <script>
