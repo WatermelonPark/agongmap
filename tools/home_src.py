@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = 'index.html'
 
 # 동결 창에서 인라인 스크립트를 외부 파일로 옮기면 여기에 그 파일(저장소 루트 기준)을 적는다. 예: ('home-app.js',)
-EXTERNAL = ()
+EXTERNAL = ('home-app.js',)
 
 # 읽는 쪽이 기대는 식별자. 하나라도 없으면 '스크립트를 못 읽었다'로 본다.
 MARKERS = ('const QUIZSETS', 'const QUIZ_LEN', 'const QUIZ_SLUG', 'const SGG_QNAME',

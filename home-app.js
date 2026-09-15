@@ -1,0 +1,2931 @@
+/* 아공맵 홈 본문 스크립트 — 2026-09-16 index.html 인라인에서 분리(백로그 10, 동결 창).
+   ⚠️ index.html 과 한 몸이다. sw.js 는 이 파일을 network-first 로 받는다(새 마크업 + 옛 스크립트 조합 방지).
+   도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 로 읽는다. */
+const LEADTIME={"lags": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], "all": [0.49, 0.526, 0.564, 0.603, 0.642, 0.679, 0.714, 0.747, 0.775, 0.797, 0.809, 0.817, 0.818, 0.813, 0.802, 0.782, 0.754, 0.718, 0.676, 0.629, 0.578, 0.515, 0.458, 0.399, 0.335, 0.264, 0.194, 0.122, 0.044, -0.03, -0.1], "old": [0.865, 0.886, 0.911, 0.933, 0.947, 0.955, 0.958, 0.959, 0.952, 0.944, 0.926, 0.905, 0.885, 0.868, 0.859, 0.839, 0.832, 0.819, 0.812, 0.808, 0.805, 0.766, 0.713, 0.661, 0.579, 0.481, 0.36, 0.213, 0.016, -0.142, -0.255], "new": [-0.261, -0.213, -0.156, -0.092, -0.01, 0.073, 0.154, 0.239, 0.325, 0.405, 0.467, 0.532, 0.596, 0.664, 0.72, 0.772, 0.8, 0.814, 0.811, 0.788, 0.753, 0.687, 0.669, 0.616, 0.575, 0.515, 0.485, 0.419, 0.338, 0.253, 0.17], "peak_old": [27, 0.96], "peak_new": [37, 0.81], "peak_all": [32, 0.82]};
+
+
+const FONT="'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',sans-serif";
+const INK="#131e24",INK2="#4c5f66",GRID="#dde4e1",MUTED="#5e6f74";
+const MAEMAE="#c0392b",JEONSE="#6c4ab6",STOCK="#1f8a70",FLOW="#d99a00";
+/* Chart.js는 defer라 이 시점엔 아직 없다 — boot()에서 부른다. */
+function chartSetup(){
+  Chart.defaults.font.family=FONT;Chart.defaults.font.size=12;Chart.defaults.color=INK2;
+  Chart.defaults.plugins.legend.display=false;
+}
+/* 차트 라이브러리(약 70KB)와 카카오 SDK(약 29KB)는 홈 첫 로딩에서 받지 않는다(2026-09-15 점검 후속 ⑦).
+   차트는 통계 화면에서만, 카카오는 공유할 때만 쓴다. 그리기·공유 함수는 라이브러리가 없으면 받은 뒤
+   자기 자신을 다시 부른다(needChart·needKakao). 동시에 여러 번 불려도 스크립트는 한 번만 붙인다. */
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const el=document.createElement('script'); el.src=src; el.async=true;
+    el.onload=()=>res(); el.onerror=()=>{ el.remove(); rej(new Error('load '+src)); };
+    document.head.appendChild(el);
+  });
+}
+let CHART_P=null;
+function loadChart(){
+  if(window.Chart)return Promise.resolve();
+  if(!CHART_P)CHART_P=loadScript('/chart-4.4.1.umd.js').then(chartSetup).catch(e=>{ CHART_P=null; throw e; });
+  return CHART_P;
+}
+function needChart(redo){ if(window.Chart)return false; loadChart().then(redo).catch(()=>{}); return true; }
+let KAKAO_P=null, KAKAO_FAIL=false;
+function loadKakao(){
+  if(window.Kakao)return Promise.resolve();
+  if(!KAKAO_P)KAKAO_P=loadScript('https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js')
+    .catch(e=>{ KAKAO_P=null; KAKAO_FAIL=true; throw e; });
+  return KAKAO_P;
+}
+/* ⚠️ 받기에 실패해도 공유는 이어간다 — KAKAO_FAIL 이 서면 kakaoReady()가 false 라 OS 공유·복사로 넘어간다. */
+function needKakao(redo){ if(window.Kakao||KAKAO_FAIL)return false; loadKakao().then(redo,redo); return true; }
+/* Chart.js는 생성 시점에 텍스트를 한 번 래스터화하고 폰트 로드로 다시 그리지 않는다.
+   이게 없으면 웹폰트가 늦게 도착할 때 차트 라벨만 폴백 폰트로 굳어 본문과 어긋난다.
+   호출부 14곳을 건드리는 대신 캔버스를 훑는다 — 이 시점 이후 만들어지는 차트는
+   이미 로드된 폰트로 그려지므로 한 번의 스윕이면 충분하다. */
+if(document.fonts&&document.fonts.ready){
+  document.fonts.ready.then(()=>{
+    if(typeof Chart==='undefined')return;
+    document.querySelectorAll('canvas').forEach(cv=>{
+      const c=Chart.getChart(cv); if(c)c.update('none');
+    });
+  }).catch(()=>{});
+}
+const fy=t=>Math.floor(t),SUDO=["서울","경기","인천"];
+
+
+
+/* ============ 하단 내비 뷰 전환 ============ */
+function track(ev,params){try{if(typeof gtag==='function')gtag('event',ev,params||{});}catch(e){}}
+const vHome=document.getElementById('view-home'),vStats=document.getElementById('view-stats'),vTest=document.getElementById('view-test');
+let statsInited=false,curView=null;
+let _fullData=null;
+function loadFullData(){
+  /* 홈은 core(48KB)만 받고, 주간 155주·기본통계 11계열은 통계 탭을 열 때 받는다.
+     data.js를 런타임에 정규식으로 파싱하지 않는다 — 선언 형태가 조금만 바뀌어도
+     조용히 깨지므로 분리기가 낸 JSON을 그대로 읽는다. */
+  return loadData('/data-trend.json');
+}
+let _loaded={};
+function loadData(url){
+  /* 통계 탭 진입 시 trend(그래프) → rest(기본통계 11계열) 순서로 둘 다 받는다.
+     둘로 쪼갠 이유는 진입 화면(주간·월간 그래프)이 rest 194KB를 기다리지
+     않게 하기 위해서다 — 세그먼트 UI(initStats)만 rest 도착을 기다린다. */
+  if(_loaded[url])return _loaded[url];
+  const box=document.getElementById('stats-loading');
+  if(box){box.textContent='통계 데이터를 불러오는 중…';box.style.display='';}
+  _loaded[url]=fetch(url).then(r=>{
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(d=>{
+    Object.assign(ADV,d.ADV); Object.assign(STATS,d.STATS);
+    if(box)box.style.display='none';
+  }).catch(e=>{
+    delete _loaded[url];   // 다음 진입에서 다시 시도할 수 있게
+    if(box){box.textContent='통계 데이터를 불러오지 못했습니다. 새로고침해 주세요.';box.style.display='';}
+    throw e;
+  });
+  return _loaded[url];
+}
+/* 시군구·서울구 전체 시계열은 '구를 고른 사람'만 받는다(통계 탭 기본 전송량 유지).
+   ⚠️ Object.assign(ADV, d.ADV)를 쓰면 ADV.weekly가 통째로 교체돼 시도 rows를 잃는다 —
+   그래서 sgg/seoul만 골라 덮어쓴다. */
+let SGG_HIST_READY=false, _sggReq=null;
+function ensureSggHist(){
+  if(SGG_HIST_READY)return Promise.resolve();
+  if(_sggReq)return _sggReq;
+  _sggReq=fetch('/data-sgg.json').then(r=>{
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    return r.json();
+  }).then(d=>{
+    const src=(d&&d.ADV)||{};
+    ['weekly','monthly'].forEach(k=>{
+      const s2=src[k]; if(!s2||!ADV[k])return;
+      ['sgg','seoul'].forEach(part=>{ if(s2[part]&&s2[part].rows)ADV[k][part]=s2[part]; });
+    });
+    SGG_HIST_READY=true;
+  }).catch(e=>{ _sggReq=null; throw e; });
+  return _sggReq;
+}
+/* 시군구를 고르면 먼저 있는 만큼(12구간) 즉시 그리고, 전체가 도착하면 다시 그린다 */
+function onTrendSgg(k){
+  const T=TREND[k], sub=document.getElementById(T.sel2);
+  TRSHOW[k]=12;
+  const render=k==='week'?renderWeekSec:renderMonthSec;
+  render();
+  if(sub&&sub.value&&!SGG_HIST_READY)ensureSggHist().then(render).catch(()=>{});
+}
+/* 기본통계(13계열)는 이 함수를 거쳐서만 그린다 */
+function ensureBasicStats(){ return loadData('/data-rest.json'); }
+/* '규모별 동향'(지표4x규모6 피벗)은 혼자 186KB라 rest에서 빼 지연 로드한다 —
+   그 세그먼트를 실제로 누른 사람만 받는다(2026-08-01, tools/split_data.py LAZY_STATS). */
+function ensureSizeStats(){ return loadData('/data-size.json'); }
+/* 감소 모션은 호출 시점에 읽는다 — .matches를 스냅샷으로 잡아두면
+   사용자가 세션 중 OS 설정을 바꿔도 따라가지 못한다. */
+const _rm=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
+const scrollBehavior=()=>(_rm&&_rm.matches)?'auto':'smooth';
+function showView(v,updateHash){
+  /* 퀴즈 뷰는 전용 탭이 없다(퀴즈 탭 → 지역 탭 교체, d6fe72e). 아무 탭도 안 켜면
+     '지금 어디인가' 표시가 사라진다(2026-08-10 리뷰) — 퀴즈는 홈에서 진입하는
+     하위 화면이므로 홈을 켠 채 둔다. */
+  const nv=(v==='test')?'home':v;
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('on',x.dataset.view===nv));
+  vHome.style.display=v==='home'?'':'none';
+  vStats.style.display=v==='stats'?'':'none';
+  vTest.style.display=v==='test'?'':'none';
+  window.scrollTo(0,0);
+  if(v==='stats'&&!statsInited){
+    statsInited=true;
+    /* 버블밴드는 fetch를 기다리지 않는다 — 입력(ADV.bubble, STATS 전세가율)이
+       data-core.js에 있어 부팅 때 이미 와 있다. 체인 뒤에 세우면 탭을 눌렀을 때
+       이유 없이 빈 채로 보인다.
+       ⚠️ renderBubbleSec가 읽는 건 이 둘뿐이다. 옛 주석은 주택멸실도 읽는다고
+       적혀 있었는데 사실이 아니어서, 소비자 없는 멸실 2계열이 core에 4.1KB를
+       차지한 채 아무도 못 지웠다(2026-08-07 감사, 지금은 뺐다). */
+    renderBubbleSec();renderReleaseInfo();
+    loadFullData()
+      .then(()=>{ if(typeof renderWeekSec==='function')renderWeekSec();
+                  if(typeof renderMonthSec==='function')renderMonthSec(); })
+      .then(ensureBasicStats)
+      .then(initStats)
+      .catch(()=>{statsInited=false;});
+  }
+  if(updateHash!==false){
+    // 통계는 모드·하위탭까지 정규화한 해시로 — 뒤로가기 복원이 화면과 일치하게
+    const full=v==='stats'?statsHashOf(statsMode):'#'+v;
+    const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname:full;
+    if(v===curView)history.replaceState(null,'',tgtUrl);
+    else if(location.hash!==tgtHash)history.pushState(null,'',tgtUrl);
+  }
+  curView=v;
+  track('page_view',{page_title:'view_'+v,page_location:location.origin+'/#'+v});
+}
+// 리포트 탭은 <a href="/cycle/">라 dataset.view가 없다. 가드가 없으면
+// showView(undefined)가 불려 네 뷰가 전부 사라진다.
+document.querySelectorAll('.nav-btn').forEach(b=>{if(b.dataset.view)
+  b.addEventListener('click',()=>showView(b.dataset.view));});
+function goQuiz(k){showView('test');startQuiz(k);}
+// 해시는 setStatsMode가 한 번만 쌓는다(showView까지 쌓으면 한 클릭에 두 칸)
+function goStats(m){showView('stats',false);setStatsMode(m);}
+// 리포트가 /cycle/로 가져간 앵커들. score는 일부러 뺐다 — zone 37장이
+// /#score로 홈의 sec-score를 가리키고 있어서, 여기 넣으면 그 링크가
+// /cycle/로 튕긴다(위 score 분기가 먼저 잡지만 순서에 기대지 않는다).
+const R2C=new Set(["report", "c4", "c5", "c6", "cFlow", "cL1", "cL3", "cL6", "cMelt", "cRate", "cStr", "cSuper", "link1", "link2", "link3", "link45", "link6", "ref1", "ref2", "ref3", "ref4", "summary", "ztog"]);
+/* '레이아웃이 잡힌 뒤에' 할 일. rAF 대신 타이머를 쓰는 이유는 rAF가 배경 탭·
+   비렌더링 맥락에서 아예 돌지 않기 때문이다 — 표 초기 위치에서 실제로 그
+   함정을 밟았다(IntersectionObserver 콜백 0건, 커밋 0677fb0).
+   ⚠️ 다만 여기 세 곳(해시 앵커 2·차트 리플로 1)이 rAF 때문에 고장 나 있었다는
+   증거는 없다. 전환은 예방적 통일이다 — 2026-08-08에 '/#score가 안 된다'고
+   판단했던 건 측정 환경 탓이었다(그 창은 window.scrollTo(0,500)조차 무시했다).
+   같은 실수를 반복하지 않으려고 남긴다: 창 스크롤을 재기 전에 창이 스크롤
+   되는지부터 확인할 것. */
+function afterLayout(fn){ setTimeout(fn, 0); }
+function applyHash(){
+  const h=location.hash.replace('#','');
+  if(!h){showView('home',false);return;}
+  if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
+  const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?$/);
+  if(sm){
+    showView('stats',false);setStatsMode(sm[1],false);
+    // 하위탭 미지정 해시는 기본탭으로 — 뒤로가기가 항상 같은 화면을 재현하도록
+    if(sm[1]==='market')setMarketTab(sm[2]||'week',false);
+    else if(sm[1]==='adv')setAdvTab(sm[2]||'occ',false);
+    return;
+  }
+  if(h==='score'){showView('home',false);afterLayout(()=>{const el=document.getElementById('sec-score');if(el)el.scrollIntoView();});return;}
+  if(h==='test'){showView('test',false);backToPick(true);return;}
+  if(h==='home'||h==='stats'||h==='test'){showView(h,false);return;}
+  // 리포트는 /cycle/로 이전했다. 옛 해시로 들어온 링크·북마크를 넘긴다.
+  // replace를 쓰는 이유: push면 뒤로가기가 이 페이지로 되돌아와 무한 왕복한다.
+  if(R2C.has(h)){location.replace('/cycle/'+(h==='report'?'':'#'+h));return;}
+  const el=document.getElementById(h);
+  if(el){afterLayout(()=>el.scrollIntoView());}
+}
+window.addEventListener('hashchange',applyHash);
+
+/* ============ 통계 대시보드 ============ */
+// 날짜 정규화: "2006.01","2006.01 p)","2007/01","2012.1","2024" -> {y,m}
+function parseDate(s){
+  s=String(s).replace(/\s*p\)?\s*/g,'').trim();
+  let m=s.match(/(\d{4})[.\/]\s*(\d{1,2})/);
+  if(m)return{y:+m[1],m:+m[2],label:m[1]+'.'+String(+m[2]).padStart(2,'0')};
+  let y=s.match(/^(\d{4})$/);
+  if(y)return{y:+y[1],m:12,label:y[1]};
+  return{y:0,m:0,label:s};
+}
+// 보조선 정의 (우리가 리포트에서 논의한 변곡점들)
+const AUXLINES={
+  '매매지수':[{y:2018,m:1,t:'2018 수도권 매매만 급등',c:'#e8b84b'},{y:2021,m:9,t:'2021 정점',c:'#e0564a'}],
+  '전세지수':[{y:2021,m:9,t:'2021 정점',c:'#e0564a'},{y:2023,m:1,t:'2023 입주장',c:'#3aa17e'}],
+  '금리':[{y:2021,m:6,t:'금리 바닥',c:'#3aa17e'},{y:2022,m:11,t:'금리 정점',c:'#e0564a'}],
+  '착공':[{y:2022,m:1,t:'착공 급감',c:'#e0564a'}],
+  // 준공연도 + 40년 = 재건축 연한 도래 시점. 축은 준공연도라 도래 연도를 라벨에
+  // 병기한다(실측: 1988년 16.2만 → 2028년 / 1992년 38.1만 → 2032년 / 1995년 43.0만
+  // → 2035년). 40년차 도래는 '헐릴 물량'이 아니라 후보 재고다 — 실현 비율은 별개.
+  '아파트건설':[{y:1988,m:12,t:'88올림픽 급증 · 40년차 2028',c:'#e0564a'},
+    {y:1992,m:12,t:'38만 돌파 · 40년차 2032',c:'#b5651d'},
+    {y:1995,m:12,t:'정점 43만 · 40년차 2035',c:'#9a7000'}],
+};
+const DS_LABEL={매매지수:'매매 실거래지수',전세지수:'전세 실거래지수',전세가율:'전세가율',
+  규모별:'규모별 동향',
+  인허가:'인허가',착공:'착공',분양:'신규 분양',준공:'준공',미분양:'미분양',
+  금리:'CD금리',보급률:'주택보급률',
+  아파트건설:'아파트 건설(연도별)',주택멸실:'주택 멸실',아파트멸실:'아파트 멸실',노후주택30년:'30년이상 노후아파트',
+  리드타임:'착공·준공 리드타임'};
+const DS_COLOR={매매지수:'#e0564a',전세지수:'#a98be0',전세가율:'#2c7a5b',인허가:'#e8a33b',
+  착공:'#3a7bd5',분양:'#3f7d8c',준공:'#7b5ea8',미분양:'#8a6a4a',
+  금리:'#e8b84b',보급률:'#2c5f9e',
+  아파트건설:'#c0563a',주택멸실:'#9a4a3a',아파트멸실:'#b5563f',노후주택30년:'#b8862c'};
+/* 색이 빠진 계열을 고르면 areaGrad가 'undefined38'을 addColorStop에 넘겨 예외로
+   차트가 통째로 안 그려진다 — 아파트멸실이 실제로 그랬다(2026-08-07 감사). */
+const DS_FALLBACK='#5e6f74';
+
+/* 세그먼트 표시 순서. Object.keys(STATS)를 그대로 쓰면 data-core.js에 먼저
+   담긴 전세가율·주택멸실이 앞으로 튀어나와, 기본 선택인 매매지수가 3번째에
+   놓인다(모바일에서 선택 칩이 화면 밖). 가격→공급→주거여건→금리 순으로 고정. */
+// 공급 파이프라인 순서대로: 인허가→착공→분양→준공→미분양(분양의 잔량)
+// '아파트멸실'은 러닝재고(준공−멸실−적정)가 실제로 쓰는 계열이라 준공 옆에 둔다.
+// '주택멸실'(계, 단독 포함)은 표시용으로 남긴다 — 둘은 값이 크게 다르므로
+// (2024 전국 85,069호 vs 아파트분) 라벨로 구분되게 나란히 세운다.
+const DS_ORDER=['매매지수','전세지수','전세가율','규모별','인허가','착공','분양','준공','미분양',
+  '아파트건설','노후주택30년','아파트멸실','주택멸실','보급률','금리','리드타임'];
+let ST={ds:'매매지수',reg:null,years:0,aux:new Set()};
+let statChartObj=null;
+
+function initStats(){
+  // 데이터셋 세그먼트 (+리드타임 특수항목)
+  const seg=document.getElementById('ds-seg');
+  // DS_ORDER 기준 정렬 — 목록에 없는 신규 계열이 생겨도 빠지지 않게 뒤에 붙인다
+  // 지연 로드 계열(규모별)은 아직 STATS에 없어도 목록에 세운다 — 누르면 그때 받는다
+  // (2026-08-01 분리. 안 넣으면 세그먼트에서 통째로 사라진다).
+  const avail=[...new Set([...Object.keys(STATS),'규모별','리드타임'])];
+  const keys=DS_ORDER.filter(k=>avail.includes(k))
+    .concat(avail.filter(k=>!DS_ORDER.includes(k)));
+  seg.innerHTML=keys.map(k=>
+    `<button data-ds="${k}"${k===ST.ds?' class="on"':''}>${DS_LABEL[k]}</button>`).join('');
+  seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    ST.ds=b.dataset.ds;ST.aux.clear();ST.reg=null;
+    track('stats_dataset',{dataset:ST.ds});
+    seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    const isLead=ST.ds==='리드타임', isSize=ST.ds==='규모별';
+    document.getElementById('reg-sel').parentElement.style.display=isLead?'none':'';
+    document.getElementById('period-seg').style.display=isLead?'none':'';
+    document.getElementById('aux-seg').style.display=(isLead||isSize)?'none':'';
+    document.getElementById('size-ctl').style.display=isSize?'':'none';
+    // 규모별은 표 전용(피벗) — 그래프/표 토글을 숨기고 표 모드로 고정
+    const gth=document.querySelector('#sec-basicmain .gt-head');
+    if(gth)gth.style.display=isSize?'none':'';
+    if(isSize)gtSet('basicmain','t');
+    // 지연 계열(규모별)은 fillRegions가 STATS[ST.ds]를 바로 읽으므로 여기서 먼저 받는다
+    const go=()=>{ if(isLead){drawLeadtime();}else{fillRegions();renderAux();drawStat();} };
+    if(!isLead&&!STATS[ST.ds]) ensureSizeStats().then(go).catch(()=>{}); else go();
+  }));
+  // 기간 프리셋
+  document.querySelectorAll('#period-seg button').forEach(b=>b.addEventListener('click',()=>{
+    ST.years=+b.dataset.y;
+    document.querySelectorAll('#period-seg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+    drawStat();
+  }));
+  document.getElementById('reg-sel').addEventListener('change',e=>{ST.reg=e.target.value;drawStat();});
+  fillRegions();renderAux();drawStat();
+  // 주간·월간·버블밴드는 탭 진입 시 이미 그렸다 —
+  // 여기는 STATS 11계열(data-rest.json)이 있어야만 가능한 것만 남긴다.
+}
+/* 지역 목록 정렬은 사이트 전체가 하나여야 한다 — 예전엔 목록마다 데이터 적재 순서를
+   그대로 써서 화면마다 순서가 달랐고, 내 지역을 찾으려면 매번 훑어야 했다(2026-08-01).
+   인구순도 후보였지만 통계 드롭다운엔 지역명만 있고 인구가 없다. 모든 목록에 적용할 수
+   있는 건 가나다순뿐이고, 찾는 목적에도 그게 낫다(위치가 이름으로 정해진다).
+   전국·수도권 같은 집계 항목은 시도의 동료가 아니므로 맨 앞에 원래 순서로 남긴다. */
+const REG_AGG=['전국','수도권','지방','6대광역시','5대광역시','9개도','8개도'];
+function regSort(list,label){
+  const nameOf=label||(x=>x);
+  const agg=list.filter(x=>REG_AGG.indexOf(nameOf(x))>=0);
+  const rest=list.filter(x=>REG_AGG.indexOf(nameOf(x))<0)
+                 .sort((a,b)=>String(nameOf(a)).localeCompare(String(nameOf(b)),'ko'));
+  return agg.concat(rest);
+}
+function fillRegions(){
+  const sel=document.getElementById('reg-sel');
+  const D=STATS[ST.ds];
+  // 규모별은 series가 지표 키라 regions 목록을 따로 싣는다. 기본 지역도 전국.
+  /* 값이 하나도 없는 지역은 세우지 않는다. 분양·미분양은 계열을 만들 때 준공의
+     지역 키를 복사하는데 R-ONE 원표에 '기타광역시'·'기타지방' 집계가 없어
+     전 구간 null인 선택지가 떴다 — 고르면 표는 머리글만, 차트는 빈 화면이었다. */
+  const has=r=>{const s=D.series[r]; return !s||s.some(v=>v!=null);};
+  const regs=regSort(ST.ds==='규모별'?(D.regions||[]):Object.keys(D.series).filter(has));
+  if(!regs.includes(ST.reg)) ST.reg = ST.ds==='규모별'?regs[0]:(regs.includes('서울')?'서울':regs[0]);
+  sel.innerHTML=regs.map(r=>`<option${r===ST.reg?' selected':''}>${r}</option>`).join('');
+}
+function renderAux(){
+  const box=document.getElementById('aux-seg');
+  const lines=AUXLINES[ST.ds]||[];
+  box.innerHTML=lines.map((l,i)=>`<button data-i="${i}">― ${l.t}</button>`).join('');
+  box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    const i=b.dataset.i; if(ST.aux.has(i)){ST.aux.delete(i);b.classList.remove('on');}
+    else{ST.aux.add(i);b.classList.add('on');} drawStat();
+  }));
+}
+function drawStat(){
+  if(needChart(()=>drawStat()))return;
+  if(ST.ds==='규모별'){
+    if(!STATS['규모별']){ ensureSizeStats().then(drawStat).catch(()=>{}); return; }
+    drawSizePivot();return;
+  }
+  document.getElementById('stat-tbl').classList.remove('szpivot');
+  const D=STATS[ST.ds], raw=D.series[ST.reg]||[];
+  const parsed=D.dates.map(parseDate);
+  // 기간 필터
+  let idx=parsed.map((p,i)=>i);
+  if(ST.years>0){
+    const last=parsed[parsed.length-1];
+    const cutY=last.y-ST.years, cutM=last.m;
+    idx=idx.filter(i=>parsed[i].y>cutY||(parsed[i].y===cutY&&parsed[i].m>=cutM));
+  }
+  const labels=idx.map(i=>parsed[i].label);
+  const rawFirst=dsFirst(raw);
+  const vals=idx.map(i=>dsV(raw[i],i,rawFirst));   // 진짜 0인 달을 차트가 건너뛰지 않게
+  /* 표를 차트보다 먼저 그린다(2026-08-03). 예전엔 차트 생성이 먼저라, 캔버스
+     소유권이 꼬여 'Canvas is already in use'가 터지면 buildMatrix까지 못 가서
+     행열 전환이 조용히 죽었다(인허가·착공·분양·준공·미분양에서 실측). */
+  document.getElementById('meta-bar').innerHTML=
+    `<span>단위 <b>${D.unit}</b></span><span>지역 <b>${ST.reg}</b></span><span>출처 <b>${D.source}</b></span>`;
+  buildTable(D,labels,vals,idx,parsed);
+  buildMatrix(D,idx,parsed);
+  document.getElementById('src-note').innerHTML=
+    `※ ${D.note?D.note+'. ':''}가공 없는 원자료다.`;
+  /* statChartObj만 믿고 destroy하면 참조가 어긋났을 때(비동기 재진입 등) 캔버스에
+     고아 차트가 남아 이후 모든 생성이 실패한다 — 실소유 차트를 찾아 파괴한다. */
+  const _own=Chart.getChart('statChart'); if(_own)_own.destroy();
+  statChartObj=null;
+  const col=DS_COLOR[ST.ds]||DS_FALLBACK;
+  statChartObj=new Chart(document.getElementById('statChart'),{
+    type:'line',
+    data:{labels,datasets:[{label:DS_LABEL[ST.ds],data:vals,borderColor:col,
+      backgroundColor:areaGrad(col),borderWidth:2,pointRadius:0,pointHoverRadius:4,
+      tension:.25,fill:true,spanGaps:true}]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${DS_LABEL[ST.ds]}: ${fmtN(c.raw)} ${D.unit.split(' ')[0]}`}}},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,maxRotation:0,autoSkip:true}},
+        y:{grid:{color:GRID},title:{display:true,text:D.unit}}}},
+    plugins:[{id:'vlines',afterDraw(ch){
+      const ctx=ch.ctx,ya=ch.scales.y,xa=ch.scales.x;
+      let drawn=[];
+      (AUXLINES[ST.ds]||[]).forEach((l,i)=>{
+        if(!ST.aux.has(String(i)))return;
+        const pos=labels.findIndex(lb=>lb===l.y+'.'+String(l.m).padStart(2,'0')||lb===String(l.y));
+        if(pos<0)return;
+        const x=xa.getPixelForValue(pos);
+        ctx.save();ctx.strokeStyle=l.c;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+        ctx.beginPath();ctx.moveTo(x,ya.top);ctx.lineTo(x,ya.bottom);ctx.stroke();
+        ctx.setLineDash([]);ctx.fillStyle=l.c;ctx.font='700 10px '+FONT;
+        // 인접 라벨과 겹치면 빈 줄을 찾을 때까지 내린다. 예전엔 2행 고정이라
+        // 보조선이 3개 이상 붙어 있으면(아파트건설 1988/1992/1995) 3번째가
+        // 2번째 위에 그대로 겹쳐 찍혔다.
+        let row=0;
+        while(drawn.some(d=>d.row===row&&Math.abs(d.x-x)<70))row++;
+        const ty=ya.top+11+row*14;
+        ctx.textAlign=x>xa.right-50?'right':'left';
+        ctx.fillText(' '+l.t,x,ty);drawn.push({x:x,row:row});ctx.restore();
+      });
+    }}]
+  });
+  // 기간 표시
+  document.getElementById('prange').innerHTML=labels.length?
+    `<b>${labels[0]}</b> ~ <b>${labels[labels.length-1]}</b> · ${labels.length}개 시점`:'데이터 없음';
+}
+function fmtN(v,dec){return (v==null||isNaN(v))?'-':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:dec==null?2:dec});}
+/* PC 표 모드: 전 지역(광역시도) 매트릭스 — 투자지표 인허가 표와 같은 형식 */
+const MATRIX_REGIONS=['전국','수도권','지방','서울','경기','인천','부산','대구','전남광주','대전','울산','세종','강원','충북','충남','전북','경북','경남','제주'];
+function buildMatrix(D,idx,parsed){
+  const box=document.getElementById('stat-matrix');
+  /* ⚠️ filter 는 목록에 없는 지역을 **조용히** 걸러낸다. 모델이 바뀌었는데 위
+     목록만 옛것이면 그 지역이 표에서 통째로 사라지는데 아무것도 빨개지지 않는다.
+     2026-09-12 에 실제로 그랬다 — 광주·전남이 '전남광주'로 합쳐진 뒤에도 목록이
+     옛 이름을 들고 있어, 데이터에 있는 전남광주가 PC 표 모드에서 안 보였다.
+     같은 사고가 사이클 전세가율 차트에도 있었다(355d767). 조용히 빠뜨리지 않도록
+     데이터에만 있는 지역은 뒤에 붙이고 콘솔에 남긴다. */
+  const regs=MATRIX_REGIONS.filter(r=>D.series[r]);
+  /* ⚠️ 경고만 하고 **표에 넣지는 않는다.** 넣었더니 전세가율의 권역 집계
+     (6대광역시·5대광역시·9개도·8개도)까지 시도 표 끝에 붙었다 — 원래 여기 오면
+     안 되는 행이다. 데이터에만 있다고 다 시도인 것이 아니라서, 무엇을 넣을지는
+     JS 쪽에서 판단할 수가 없다.
+     빠지는 것을 막는 주 방어는 시험이다(tools/tests/test_region_lists.py 가
+     MATRIX_REGIONS 를 sido_zones.ORDER 와 대조해 배포 전에 잡는다). 이 경고는
+     그 시험이 없는 경로로 데이터가 바뀌었을 때를 위한 보조 신호다. */
+  /* ⚠️ 집계 행은 제외하고 센다. 원천이 주는 권역 묶음(6대광역시·9개도·도심권 등)은
+     시도가 아니라 여기 올 일이 없는데, 그걸 그대로 세면 경고가 **매 방문 뜬다**.
+     항상 켜진 경고는 아무것도 가리키지 못해 진짜 누락을 묻는다(2026-09-12 리뷰:
+     전세가율 4개·매매지수 8개가 늘 걸렸다). 시도처럼 생긴 것만 남긴다. */
+  const NON_SIDO=['6대광역시','5대광역시','광역시','지방광역시','9개도','8개도','지방도',
+    '기타광역시','기타지방','도심권','동북권','동남권','서북권','서남권','CD(91일)'];
+  const missed=Object.keys(D.series||{})
+    .filter(r=>MATRIX_REGIONS.indexOf(r)<0 && NON_SIDO.indexOf(r)<0);
+  if(missed.length)
+    console.warn('MATRIX_REGIONS에 없는 지역이 데이터에 있다 — 시도라면 목록에 넣을 것:',missed);
+  const single=regs.length<=1;
+  document.getElementById('sec-basicmain').classList.toggle('single',single);
+  if(single){box.innerHTML='';return;}
+  const isMonthly=!D.annual&&parsed[idx[0]].m>0;
+  let h;
+  if(TRANSP.basicmain){
+    h=['<table class="adv"><thead><tr><th>지역</th>'+idx.map(i=>`<th>${parsed[i].label}</th>`).join('')+'</tr></thead><tbody>'];
+    regs.forEach(r=>{
+      const f=dsFirst(D.series[r]);
+      h.push(`<tr><td>${r}</td>`+idx.map(i=>{
+        const v=dsV(D.series[r][i],i,f);
+        return `<td>${v==null?'·':fmtN(v)}</td>`;
+      }).join('')+'</tr>');
+    });
+  }else{
+    h=['<table class="adv"><thead><tr><th>'+(isMonthly?'연월':'연도')+'</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    for(let k=idx.length-1;k>=0;k--){
+      const i=idx[k];
+      h.push(`<tr><td>${parsed[i].label}</td>`+regs.map(r=>{
+        const v=dsV(D.series[r][i],i,dsFirst(D.series[r]));
+        return `<td>${v==null?'·':fmtN(v)}</td>`;
+      }).join('')+'</tr>');
+    }
+  }
+  h.push('</tbody></table>');
+  box.innerHTML=h.join('');
+}
+/* ⚠️ KOSIS는 값 0을 '-'로 준다. 아래 4계열의 null은 결측이 아니라 **진짜 0**이다 —
+   17시도 합(null→0)이 원천의 독립 '전국' 행과 준공 191/191개월·착공 186/186개월
+   전부 일치한다(2026-08-08 감사). 예전엔 그 달의 행이 표에서 통째로 사라지고
+   차트가 0 골짜기를 직선으로 덮었으며, 같은 표 안에서 명시적 0은 '0'으로 뜨는데
+   null은 '·'로 떠 자기모순이었다. tools/sido_zones.py _series가 이미 (v or 0)으로
+   세고 있어, 안 맞추면 홈 공급표·등급과 통계 탭이 같은 원천을 반대로 해석한다. */
+const DS_ZERO=new Set(['준공','착공','인허가','분양']);
+/* ⚠️ null 두 종류를 갈라야 한다. 계열이 그 지역에서 **시작되기 전**의 null은
+   '진짜 0'이 아니라 '아직 없던 지역·기간'이다 — 세종은 2012.07 출범이라
+   준공 null 73개 중 23개, 미분양 null 76개 중 73개가 출범 이전이다.
+   전부 0으로 찍으면 없던 도시의 0이 그래프에 그려진다. 첫 실측값 **이후**의
+   null만 0으로 본다(2026-08-08 자체 점검). */
+function dsFirst(arr){ for(let i=0;i<arr.length;i++) if(arr[i]!=null) return i; return -1; }
+function dsV(v,i,first){
+  if(v!=null) return v;
+  if(!DS_ZERO.has(ST.ds)) return null;
+  return (first>=0&&i>=first)?0:null;
+}
+/* 인허가는 **연내 누계**다(1월부터 누적, 12월이 연간 합계). 여기에 flow용
+   '전기 대비'를 그대로 적용하면 12월 누계 → 1월 누계에서 -98%짜리 없는 급락이
+   찍히고, 2월 이후 %도 분자는 그 달 실적·분모는 전월까지 누적이라 의미가 없다
+   (2026-08-08 감사). 누계 계열은 **전년 동월 대비**로 견준다. */
+const DS_CUM=new Set(['인허가']);
+function buildTable(D,labels,vals,idx,parsed){
+  const thead=document.querySelector('#stat-tbl thead'),tbody=document.querySelector('#stat-tbl tbody');
+  const isMonthly=!D.annual && parsed[0].m>0;
+  const cum=DS_CUM.has(ST.ds), lag=cum?(isMonthly?12:1):1;
+  thead.innerHTML=`<tr><th>${isMonthly?'연월':'연도'}</th><th>${DS_LABEL[ST.ds]}</th><th>${cum?'전년 동월 대비':'전기 대비'}</th></tr>`;
+  let html='';
+  for(let k=labels.length-1;k>=0;k--){
+    const v=vals[k]; if(v==null)continue;   // drawStat에서 이미 dsV를 거쳤다
+    let chg='';
+    const prev=(k>=lag)?vals[k-lag]:null;
+    if(prev!=null){
+      const d=v-prev;
+      const cls=d>0?'chg-up':(d<0?'chg-dn':'');
+      /* 직전이 0이면 증가율은 정의되지 않는다. 예전엔 0을 대입해 '+5,129 (0%)'처럼
+         '변화 없음'으로 읽히게 찍었다(637셀, 2026-08-08 감사). 증감폭만 낸다. */
+      const pct=prev!==0?fmtN(d/prev*100,1)+'%':'–';
+      chg=`<span class="${cls}">${d>0?'+':''}${fmtN(d)} (${prev!==0&&d/prev>0?'+':''}${pct})</span>`;
+    }
+    html+=`<tr><td>${labels[k]}</td><td>${fmtN(v)}</td><td>${chg}</td></tr>`;
+  }
+  tbody.innerHTML=html;
+}
+
+/* 착공→준공 리드타임 시차곡선 (시기별 비교) */
+function drawLeadtime(){
+  if(needChart(()=>drawLeadtime()))return;
+  const L=LEADTIME;
+  document.getElementById('stat-tbl').classList.remove('szpivot');
+  document.getElementById('sec-basicmain').classList.add('single');
+  document.getElementById('stat-matrix').innerHTML='';
+  {const _o=Chart.getChart('statChart'); if(_o)_o.destroy();}
+  statChartObj=new Chart(document.getElementById('statChart'),{
+    type:'line',
+    data:{labels:L.lags,datasets:[
+      {label:'2011~2017 (과거)',data:L.old,borderColor:'#3a7bd5',backgroundColor:'transparent',
+        borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true},
+      {label:'2018~2025 (최근)',data:L.new,borderColor:'#e0564a',backgroundColor:'transparent',
+        borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:14,font:{size:12}}},
+        tooltip:{callbacks:{title:c=>c[0].label+'개월 시차',label:c=>`${c.dataset.label}: r=${c.raw??'-'}`}}},
+      scales:{x:{grid:{display:false},title:{display:true,text:'착공→준공 시차 (개월)'},
+          ticks:{callback:(v,i)=>L.lags[i]%4===0?L.lags[i]:''}},
+        y:{grid:{color:GRID},title:{display:true,text:'연결 강도 (r)'},min:0,max:1}}},
+    plugins:[{id:'peaks',afterDraw(ch){
+      const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
+      [[L.peak_old,'#3a7bd5'],[L.peak_new,'#e0564a']].forEach(([pk,c])=>{
+        const xi=L.lags.indexOf(pk[0]); if(xi<0)return;
+        const x=xa.getPixelForValue(xi),y=ya.getPixelForValue(pk[1]);
+        ctx.save();ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();
+        ctx.font='700 11px '+FONT;ctx.textAlign='center';
+        ctx.fillText(pk[0]+'개월',x,y-9);ctx.restore();
+      });
+    }}]
+  });
+  document.getElementById('prange').innerHTML=
+    `과거 최강 시차 <b>${L.peak_old[0]}개월</b> → 최근 <b>${L.peak_new[0]}개월</b>`;
+  document.getElementById('meta-bar').innerHTML=
+    `<span>단위 <b>상관계수 r</b></span><span>대상 <b>전국 착공·준공(12개월 이동평균)</b></span><span>출처 <b>국토교통부</b></span>`;
+  // 테이블: 시차별 r 비교
+  const thead=document.querySelector('#stat-tbl thead'),tbody=document.querySelector('#stat-tbl tbody');
+  thead.innerHTML=`<tr><th>시차(개월)</th><th>2011~2017</th><th>2018~2025</th></tr>`;
+  let h='';
+  L.lags.forEach((lg,i)=>{
+    if(lg<24||lg>44||lg%2)return;
+    h+=`<tr><td>${lg}</td><td>${L.old[i]??'-'}</td><td>${L.new[i]??'-'}</td></tr>`;
+  });
+  tbody.innerHTML=h;
+  document.getElementById('src-note').innerHTML=
+    `※ 착공량과 준공량의 12개월 이동평균을 시차를 두고 비교한 것. 곡선의 봉우리가 평균 공사기간을 뜻한다. 과거 약 27개월(2년 남짓)에서 최근 약 37개월(3년~3년 반)로 길어졌다 — 공사비·인력·안전기준 변화 등이 원인으로 추정된다.`;
+}
+
+/* ── 규모별 동향 피벗 (지표×규모 멀티선택, 전월비% 표) ──
+   series[지표][지역] = 월별 [규모6 값] (지수 3종=전월비%, 전환율=수준%).
+   지표를 바깥 그룹으로 묶는다 — 전환율(단위 %)이 블록으로 격리되고,
+   바깥 그룹 수(지표≤4)가 규모(≤6)보다 적어 헤더가 안정적이다. */
+let SZ={met:new Set(['매매','전세']),siz:new Set([2]),desc:true,tr:false};
+function renderSizeCtl(){
+  const D=STATS['규모별'];if(!D)return;
+  const box=document.getElementById('size-ctl');
+  const short=s=>s.replace(/㎡/g,'');
+  box.innerHTML=
+    '<div class="period szrow szmet">'+D.metrics.map(m=>
+      `<button data-m="${m}"${SZ.met.has(m)?' class="on"':''}>${m}</button>`).join('')+'</div>'+
+    '<div class="period szrow szsiz">'+D.sizes.map((s,i)=>
+      `<button data-s="${i}"${SZ.siz.has(i)?' class="on"':''}>${short(s)}</button>`).join('')+'</div>'+
+    '<div class="szops">'+
+      `<button class="trbtn" data-o="sort">${SZ.desc?'최신순 ↓':'과거순 ↑'}</button>`+
+      `<button class="trbtn${SZ.tr?' on':''}" data-o="tr">⇄ 행열 전환</button></div>`;
+  box.querySelectorAll('button[data-m]').forEach(b=>b.addEventListener('click',()=>{
+    const m=b.dataset.m;
+    if(SZ.met.has(m)){if(SZ.met.size<=1)return;SZ.met.delete(m);b.classList.remove('on');}
+    else{SZ.met.add(m);b.classList.add('on');}
+    track('stats_size',{met:[...SZ.met].join('/')});drawSizePivot();
+  }));
+  box.querySelectorAll('button[data-s]').forEach(b=>b.addEventListener('click',()=>{
+    const s=+b.dataset.s;
+    if(SZ.siz.has(s)){if(SZ.siz.size<=1)return;SZ.siz.delete(s);b.classList.remove('on');}
+    else{SZ.siz.add(s);b.classList.add('on');}
+    track('stats_size',{siz:[...SZ.siz].sort().join(',')});drawSizePivot();
+  }));
+  box.querySelector('button[data-o="sort"]').addEventListener('click',e=>{
+    SZ.desc=!SZ.desc;e.target.textContent=SZ.desc?'최신순 ↓':'과거순 ↑';
+    track('stats_size',{sort:SZ.desc?'desc':'asc'});drawSizePivot();
+  });
+  box.querySelector('button[data-o="tr"]').addEventListener('click',e=>{
+    SZ.tr=!SZ.tr;e.target.classList.toggle('on',SZ.tr);
+    track('stats_size',{tr:SZ.tr?1:0});drawSizePivot();
+  });
+}
+function drawSizePivot(){
+  const D=STATS['규모별'];if(!D)return;
+  if(!document.getElementById('size-ctl').innerHTML)renderSizeCtl();
+  document.getElementById('sec-basicmain').classList.add('single');
+  document.getElementById('stat-matrix').innerHTML='';
+  {const _o=Chart.getChart('statChart'); if(_o)_o.destroy();} statChartObj=null;
+  const reg=ST.reg||D.regions[0];
+  let idx=D.dates.map((_,i)=>i);
+  if(ST.years>0)idx=idx.filter(i=>i>=D.dates.length-ST.years*12);
+  const mets=D.metrics.filter(m=>SZ.met.has(m));
+  const sizes=[...SZ.siz].sort((a,b)=>a-b);
+  const short=s=>s.replace(/㎡/g,'');
+  // 열 구성 — 전환율은 자체 3구간(0→40↓,1→40-60,2+→60↑)으로 매핑·중복 제거
+  const cols=[];
+  mets.forEach(m=>{
+    if(m==='전환율'){
+      /* 전환율 구간(60↓/60~85/85↑)에 6개 규모를 맞춘다. 옛 매핑 si>=2?2:si는
+     '40↓/40~60/60↑' 전제라 si1·si2가 한 칸씩 밀렸다(2026-08-07 감사). */
+    const tiers=[...new Set(sizes.map(si=>si<=1?0:(si===2?1:2)))];
+      tiers.forEach((t,j)=>cols.push({m,si:t,lab:short(D.conv_sizes[t]),first:j===0,pct:false}));
+    }else{
+      sizes.forEach((si,j)=>cols.push({m,si,lab:short(D.sizes[si]),first:j===0,pct:true}));
+    }
+  });
+  const val=c=>i=>{const a=(D.series[c.m][reg]||[])[i];return a?a[c.si]:null;};
+  // grp: 세로 블록 경계(szgrp)를 붙일지 — 세로 모드에서만 참. 전치 모드는 행이
+  // 한 조합이라 c.first를 그대로 쓰면 그 행 전체에 세로선이 그려진다(실사고).
+  const cell=(c,v,grp)=>{
+    if(v==null)return '<td'+(grp?' class="szgrp"':'')+'>·</td>';
+    const rc=c.pct?pvSign(v):v;
+    const col=c.pct?(rc>0?';color:#c0392b':(rc<0?';color:#1a5276':'')):'';
+    const t=c.pct?pv2(v):v.toFixed(2);
+    return `<td${grp?' class="szgrp"':''} style="white-space:nowrap${col}">${t}</td>`;
+  };
+  const tbl=document.getElementById('stat-tbl');tbl.classList.add('szpivot');
+  const thead=tbl.querySelector('thead'),tbody=tbl.querySelector('tbody');
+  const ord=SZ.desc?[...idx].reverse():idx;   // 정렬 토글: 최신순↓ / 과거순↑
+  let h='';
+  if(SZ.tr){
+    thead.innerHTML='<tr><th style="text-align:center">지표 · 규모</th>'+
+      ord.map(i=>`<th>${D.dates[i].replace(/^20/,'')}</th>`).join('')+'</tr>';
+    cols.forEach((c,ci)=>{
+      h+=`<tr${c.first&&ci>0?' class="szgrp-r"':''}><td>${c.m} ${c.lab}${c.pct?'':' <span class="szu">%</span>'}</td>`+
+        ord.map(i=>cell(c,val(c)(i),false)).join('')+'</tr>';
+    });
+  }else{
+    thead.innerHTML='<tr><th>연월</th>'+cols.map(c=>
+      `<th${c.first?' class="szgrp"':''}>${c.m}<span class="szsub">${c.lab}${c.pct?'':' %'}</span></th>`).join('')+'</tr>';
+    ord.forEach(i=>{
+      h+=`<tr><td>${D.dates[i]}</td>`+cols.map(c=>cell(c,val(c)(i),c.first)).join('')+'</tr>';
+    });
+  }
+  tbody.innerHTML=h;
+  document.getElementById('prange').innerHTML=idx.length?
+    `<b>${D.dates[idx[0]]}</b> ~ <b>${D.dates[idx[idx.length-1]]}</b> · ${idx.length}개월`:'';
+  document.getElementById('meta-bar').innerHTML=
+    `<span>단위 <b>${D.unit}</b></span><span>지역 <b>${reg}</b></span><span>출처 <b>${D.source}</b></span>`;
+  document.getElementById('src-note').innerHTML=
+    `※ ${D.note}. 총계 대신 규모별로 보면 초소형(오피스텔성) 물량의 왜곡 없이 시장을 읽을 수 있다.`;
+}
+
+/* ============ 부동산 테스트 (부린이 / 투자자) ============ */
+/* 부린이 테스트 레벨 10단계 (점수 0~10 → 태아부터 교수님까지).
+   share/beginner-{0..10}.png 카드의 스탬프·이모지·문구와 1:1로 대응한다. */
+const BLV=[
+  {lv:'LV1',emoji:'\u{1F95A}',g:'무주택 달걀',
+   d:'아직 청약도 임장도 낯선 단계. 용어부터 하나씩 익히면 금방 깨어납니다.',
+   taunt:'아직 껍데기 속 무주택입니다'},
+  {lv:'LV1',emoji:'\u{1F423}',g:'부화 임박',
+   d:'금이 가기 시작했습니다. 조금만 더 읽으면 세상 밖으로 나옵니다.',
+   taunt:'곧 세상 밖으로 나올 참입니다'},
+  {lv:'LV2',emoji:'\u{1F424}',g:'갓 깬 삐약이',
+   d:'이제 막 눈을 떴습니다. 전세와 월세 차이부터 하나씩 익혀보세요.',
+   taunt:'전세 계약서가 아직 무섭죠?'},
+  {lv:'LV3',emoji:'\u{1F425}',g:'솜털 병아리',
+   d:'단어는 들어봤는데 뜻은 아직. 해설만 읽어도 두 계단은 올라갑니다.',
+   taunt:'용어는 외웠는데 실전은 아직이죠'},
+  {lv:'LV4',emoji:'\u{1FA99}',g:'첫 발품 영계',
+   d:'임장은 다녀봤지만 LTV·DSR만 정리해도 확 달라집니다.',
+   taunt:'임장은 이제 다녀보셨나요?'},
+  {lv:'LV5',emoji:'\u{1FAB9}',g:'알 낳는 암탉',
+   d:'슬슬 감이 잡히는 단계. 동전도 하나둘 모이기 시작합니다.',
+   taunt:'슬슬 감이 잡히시죠?'},
+  {lv:'LV6',emoji:'\u{1F413}',g:'목청 좋은 장닭',
+   d:'기본기는 탄탄합니다. 헷갈린 한두 개 제도만 챙기면 곧 내 집 마련입니다.',
+   taunt:'이제 아무도 못 말리겠는데요?'},
+  {lv:'LV7',emoji:'\u{1F3E0}',g:'내 집 마련',
+   d:'대출·세금·임대차를 또렷이 꿰고 있습니다. 계약서 앞에서 안 떨릴 수준.',
+   taunt:'드디어 첫 둥지 축하합니다!'},
+  {lv:'LV8',emoji:'\u{1F3D8}\u{FE0F}',g:'다주택자',
+   d:'한 채로는 성에 안 차는 실력. 이쯤 되면 중개사에게 되묻는 쪽입니다.',
+   taunt:'한 채로는 성에 안 차죠?'},
+  {lv:'LV9',emoji:'\u{1F3D9}\u{FE0F}',g:'부동산 거물',
+   d:'시장이 손안에 들어왔습니다. 투자자 테스트로 넘어갈 때입니다.',
+   taunt:'시장이 손안에 들어왔네요'},
+  {lv:'LV10',emoji:'\u{1F985}',g:'부동산 봉황',
+   d:'부린이는 무슨 — 금은보화 위에 앉으셔도 됩니다. 이제 투자자 테스트에서 통념을 깨보세요.',
+   taunt:'금은보화 위에 앉으셨네요'}
+];
+const QUIZSETS={
+  beginner:{
+    title:'부린이 테스트', emoji:'🐣',
+    shareName:'부린이 테스트',
+    Q:[
+  {q:'압구정 현대아파트의 정비사업은 "OOO"이다. 빈칸에 들어갈 말은?',
+   opts:['재개발','재건축'],
+   answer:1,
+   exp:'정답은 <b>재건축</b>. <b>재건축</b>은 도로·상하수도 같은 기반시설이 멀쩡한 곳에서 낡은 "건물"만 다시 짓는 것이고, <b>재개발</b>은 기반시설 자체가 열악한 "지역 전체"를 갈아엎는 것이다. 압구정처럼 인프라가 좋은 곳의 노후 아파트 정비는 재건축이다.'},
+
+  {q:'대단지 아파트는 오늘 착공하면 보통 <b>2년 정도</b>면 입주(준공)한다. O일까 X일까?',
+   opts:['X','O'],
+   answer:0,
+   exp:'정답은 <b>X</b>. 착공에서 준공까지 전국 평균이 <b>과거 28개월에서 최근 37개월</b>로 늘었다(3년 남짓). 고층화·공사비 급등 등으로 길어지는 흐름이다. "지금 공급 부족"과 "몇 년 뒤 입주"가 늘 어긋나는 이유다.'},
+
+  {q:'주택을 담보로 대출받을 때, <b>집값 대비 빌릴 수 있는 최대 비율</b>을 가리키는 말은?',
+   opts:['DSR','LTV'],
+   answer:1,
+   exp:'<b>LTV</b>(주택담보인정비율)는 집값 대비 대출 한도다 — 5억 집에 LTV 70%면 3.5억까지. 반면 <b>DSR</b>(총부채원리금상환비율)은 "내 소득 대비 매년 갚는 원리금" 비율로, 집값이 아니라 <b>갚을 능력</b>을 본다. 둘 다 통과해야 실제 대출이 나온다.'},
+
+  {q:'투기과열지구로 지정되면 집을 사고팔 때 <b>지자체장의 허가</b>를 받아야 한다. O일까 X일까?',
+   opts:['X','O'],
+   answer:0,
+   exp:'정답은 <b>X</b>. 허가를 받아야 하는 건 <b>토지거래허가구역</b>(토허제)에 대한 설명이다. <b>투기과열지구</b>는 대출(LTV)·청약·전매 등을 죄는 규제지역이지만, 매매 자체에 허가가 필요한 건 아니다. 둘은 자주 겹치지만 서로 다른 제도다.'},
+
+  {q:'정부가 지원하는 대표적인 <b>저금리 주택담보대출</b> 상품의 이름은?',
+   opts:['디딤돌 대출','사잇돌 대출'],
+   answer:0,
+   exp:'정답은 <b>디딤돌 대출</b>. 주택도시기금이 무주택 서민에게 내 집 마련 자금을 저금리로 빌려주는 정책 상품이다. <b>사잇돌 대출</b>은 서민금융진흥원이 보증하는 <b>중금리 신용대출</b>로, 주택 구입 자금과는 성격이 다르다.'},
+
+  {q:'임차인은 기본 2년 거주 후 <b>계약갱신청구권</b>을 쓰면 최대 2년을 더 살 수 있다. O일까 X일까?',
+   opts:['X','O'],
+   answer:1,
+   exp:'정답은 <b>O</b>. 주택임대차보호법상 임차인은 1회 갱신을 요구할 수 있어 <b>2+2년, 최대 4년</b> 거주가 보장된다. 갱신 시 임대료 인상은 5% 이내로 제한된다.'},
+
+  {q:'재건축을 기대하고 낡고 불편한 집에서 버티며 실거주하는 전략을 뭐라 부를까?',
+   opts:['몸테크','짠테크'],
+   answer:0,
+   exp:'정답은 <b>몸테크</b>. "몸(身)+재테크"의 합성어로, <b>몸이 고생하는 대신</b> 미래의 재건축·시세차익을 노리고 낡은 집에 직접 사는 전략이다. 반면 <b>짠테크</b>는 짠돌이처럼 소비를 아껴 돈을 모으는 절약 재테크를 뜻한다.'},
+
+  {q:'집주인이 "내가 실거주하겠다"고 하면, 임차인은 계약갱신청구권을 쓰지 못하고 나가야 할 수 있다. O일까 X일까?',
+   opts:['X','O'],
+   answer:1,
+   exp:'정답은 <b>O</b>. 집주인(또는 직계존비속)의 <b>실거주</b>는 갱신 거절의 정당한 사유다. 단, 거절해 놓고 실제로는 살지 않고 제3자에게 세를 놓으면 임차인은 손해배상을 청구할 수 있어, 집주인도 함부로 악용하긴 어렵다.'},
+
+  {q:'규제지역에서 <b>생애최초</b> 주택 구입자는 일반 구매자보다 LTV를 더 많이(최대 70%) 받을 수 있다. O일까 X일까?',
+   opts:['X','O'],
+   asof:'2026-09-15', review:'2027-03-15',
+   answer:1,
+   exp:'정답은 <b>O</b>. 생애최초 구입자는 우대를 받아 규제지역에서도 <b>LTV 70%</b>가 적용된다(과거 80%에서 6·27 대책으로 하향). 다만 6개월 내 전입(실거주) 의무가 붙고, 주담대 한도 6억원 제한도 함께 적용된다.'},
+
+  {q:'신용대출을 <b>1억원 넘게</b> 받으면 일정 기간 규제지역 내 주택 구입이 막힌다. O일까 X일까?',
+   opts:['O','X'],
+   asof:'2026-09-15', review:'2027-03-15',
+   answer:0,
+   exp:'정답은 <b>O</b>. 2025년 6·27 대책으로 <b>1억원 초과 신용대출</b>을 받으면 대출 실행일로부터 <b>1년간 규제지역 주택 구입이 금지</b>된다. 신용대출을 끌어다 집을 사는 우회로를 막기 위한 조치다. (신용대출 한도 자체도 연소득 이내로 제한됐다.)'},
+
+  {q:'전세 계약 후 <b>전입신고</b>를 하고 이사까지 마쳤다. 보증금을 지킬 <b>대항력</b>이 생기는 시점은?',
+   opts:['이사한 그날 0시','그 다음 날 0시'],
+   asof:'2026-09-15', review:'2026-12-15',
+   answer:1,
+   exp:'정답은 <b>다음 날 0시</b>. 대항력은 "주택 인도 + 전입신고"를 마친 <b>다음 날 0시</b>에 생긴다. 이사한 그날 집주인이 근저당을 설정하면 은행이 순위에서 앞선다는 뜻이다. 잔금일과 같은 날 근저당이 잡히지 않는지 반드시 확인해야 하는 이유다. (확정일자는 대항력과 별개로 <b>우선변제권</b>을 준다.) 다만 2026년 3월 전세사기 방지 대책에서 대항력을 <b>전입신고 처리 즉시</b> 발생시키는 법 개정이 추진 중이다 — 아직 시행 전이라 현행법 기준 정답은 다음 날 0시다.'},
+
+  {q:'전세보증금 반환보증에 가입하려면 <b>집주인의 동의</b>가 필요하다. O일까 X일까?',
+   opts:['O','X'],
+   answer:1,
+   exp:'정답은 <b>X</b>. 예전엔 임대인 동의가 필요했지만 <b>2018년부터 폐지</b>돼, 이제 임차인이 혼자서 가입할 수 있다. 집주인 눈치 볼 필요 없이 보증금을 지킬 수 있으니, 전세라면 가입 여부부터 따져보는 게 좋다.'},
+
+  {q:'청약 가점 <b>84점 만점</b>은 무엇으로 채워질까?',
+   opts:['무주택 기간 · 부양가족 수 · 청약통장 가입 기간','소득 · 자산 · 거주 기간'],
+   answer:0,
+   exp:'정답은 <b>무주택 기간(32점) + 부양가족 수(35점) + 청약통장 가입 기간(17점)</b> = 84점. 가장 배점이 큰 건 <b>부양가족 수</b>다. 소득이나 자산은 가점 항목이 아니라 특별공급 자격에서 따진다.'},
+
+  {q:'등기부등본에서 <b>근저당권</b>(집을 담보로 잡힌 빚)은 어디에 적혀 있을까?',
+   opts:['갑구','을구'],
+   answer:1,
+   exp:'정답은 <b>을구</b>. <b>갑구</b>에는 소유권(누구 집인지, 압류·가압류)이, <b>을구</b>에는 소유권 이외의 권리(근저당권·전세권)가 적힌다. 전세 계약 전 을구의 근저당 금액과 내 보증금을 더한 값이 집값을 넘지 않는지 꼭 확인해야 한다.'},
+
+  {q:'재건축 조합원이 새 아파트를 받을 권리를 뭐라 부를까?',
+   opts:['입주권','분양권'],
+   answer:0,
+   exp:'정답은 <b>입주권</b>. 기존 집을 내놓은 <b>조합원</b>이 새 아파트를 받을 권리가 입주권이고, <b>청약에 당첨</b>돼 얻은 권리가 분양권이다. 둘은 취득세·양도세 계산과 주택 수 산정 방식이 서로 달라 실전에서 자주 헷갈린다.'},
+
+  {q:'전세 만기가 다가오는데 집주인도 나도 아무 말이 없었다. 계약은 같은 조건으로 <b>자동 연장</b>된다. O일까 X일까?',
+   opts:['X','O'],
+   answer:1,
+   exp:'정답은 <b>O</b>. 집주인이 만기 <b>6개월~2개월 전</b>에 아무 통보를 하지 않으면 <b>묵시적 갱신</b>이 되어 같은 조건으로 2년 연장된다. 이때는 계약갱신청구권을 쓴 것으로 치지 않고, 임차인은 언제든 해지를 통보할 수 있다(3개월 뒤 효력).'},
+
+  {q:'전용 <b>84㎡</b>가 흔히 "34평"으로 불린다. 그 34평은 무엇을 기준으로 한 숫자일까?',
+   opts:['전용면적','공급면적'],
+   answer:1,
+   exp:'정답은 <b>공급면적</b>. 84㎡는 순수한 <b>전용면적</b>(약 25평)이고, 여기에 계단·복도 같은 <b>주거공용면적</b>을 더한 공급면적이 약 112㎡, 즉 34평이다. 같은 34평이라도 단지마다 전용률이 달라 실제 쓰는 면적은 차이가 난다.'},
+
+  {q:'6월 1일에 집을 팔았다. 그 해 <b>재산세</b>는 판 사람이 낸다. O일까 X일까?',
+   opts:['O','X'],
+   answer:1,
+   exp:'정답은 <b>X</b>. 재산세·종부세 과세기준일은 <b>6월 1일</b>이고, 그날의 사실상 소유자가 1년치를 낸다. 소유권(취득)은 <b>잔금지급일</b>(또는 등기접수일 중 빠른 날)에 넘어가므로, 6월 1일에 잔금을 치렀다면 그날 소유자는 이미 <b>매수인</b> — 즉 <b>산 사람</b>이 낸다. 그래서 파는 쪽은 <b>5월 31일 이전</b>에, 사는 쪽은 <b>6월 2일 이후</b>에 잔금을 선호한다.'},
+
+  {q:'분양가상한제 아파트는 시세보다 싸서 "로또 청약"으로 불린다. 그 대가로 붙는 조건은?',
+   opts:['전매 제한 · 실거주 의무','장기보유특별공제 배제'],
+   answer:0,
+   exp:'정답은 <b>전매 제한과 실거주 의무</b>. 싸게 받은 만큼 일정 기간 팔 수 없고, 직접 살아야 한다. 시세차익만 챙기고 바로 파는 걸 막기 위한 장치다. <b>장기보유특별공제</b>는 보유·거주 기간에 따라 양도세를 깎아주는 제도로, 분양가상한제 주택이라고 배제되지 않는다 — 오히려 실거주 의무를 채우며 오래 보유하면 공제를 더 받는다.'},
+
+  {q:'부동산 <b>중개보수</b>(복비)는 법에 정해진 <b>상한 금액을 넘겨</b> 받을 수 없다. O일까 X일까?',
+   opts:['O','X'],
+   answer:0,
+   exp:'정답은 <b>O</b>. 법과 조례는 거래 금액 구간별로 <b>상한 요율</b>을 정해 두고, 이를 초과해 받는 것은 불법이다. 다만 정해진 건 어디까지나 <b>상한</b>이라 그 한도 안에서는 중개사와 협의해 낮출 수 있다 — 상한이 곧 정찰가는 아니다.'},
+    ],
+    grade:s=>BLV[Math.max(0,Math.min(10,s|0))]
+  },
+  investor:{
+    title:'투자자 테스트', emoji:'🦅',
+    shareName:'투자자 테스트',
+    Q:[
+  {q:'2026년 수도권처럼 <b>공급이 부족한</b> 상황에서, 정부가 규제로 매매 수요를 누르고 전세대출한도까지 조여 전세도 누르면 <b>월세</b>는?',
+   opts:['상승','하락'],
+   answer:0,
+   exp:'정답은 <b>상승</b>. 사람은 매매든 전세든 월세든 <b>어딘가엔 살아야 한다.</b> 공급이 부족한 상태에서 매매·전세를 동시에 규제로 누르면, 갈 곳 잃은 실수요가 결국 <b>월세 시장으로 밀려난다.</b> 규제가 특정 시장을 눌러도 총 주거 수요 자체가 사라지는 건 아니라는 뜻이다.'},
+
+  {q:'재건축·재개발이 외곽보다 <b>중심지·핵심지</b>에서 먼저 시작되는 이유는?',
+   opts:['용적률','분양가'],
+   answer:1,
+   exp:'정답은 <b>분양가</b>. 핵심지는 <b>일반분양가를 높게 책정</b>할 수 있어, 전체 사업비에서 공사비가 차지하는 비중이 낮고 사업성이 좋다. 반면 외곽은 분양가가 낮아 공사비 부담이 상대적으로 커 사업성이 떨어진다. 사업성이 워낙 좋은 강남 같은 곳에서는 <b>일반분양 없이 조합원끼리 새로 짓는 1:1 재건축</b>도 진행된다.'},
+
+  {q:'"투기과열지구 지정" 같은 규제가 시장에 남기는 효과로 가까운 것은?',
+   opts:['단기엔 누르고 길게는 올린다','길게 봐도 집값을 누른다'],
+   answer:0,
+   exp:'단기에는 대출·청약·전매 제한으로 거래와 가격이 눌린다. 그러나 규제가 신규 공급과 정비사업을 위축시키면 몇 년 뒤 공급이 줄어, <b>상승 국면이 더 길어지는</b> 쪽으로 작동할 수 있다. 호재·악재는 보는 기간에 따라 갈린다.'},
+
+  {q:'대출 금리는 매매가에만 영향을 주고 전월세에는 큰 영향이 없다. O일까 X일까?',
+   opts:['O','X'],
+   answer:1,
+   exp:'정답은 <b>X</b>. <b>전세자금대출</b>이 보편화되면서 금리는 전세에도 직접 영향을 미친다. 금리가 오르면 전세대출 이자 부담이 커져 <b>전세 수요가 월세로 이동</b>하고, 전세가와 월세가 모두 흔들린다. 금리는 매매·전세·월세 전부를 덮는 변수다.'},
+
+  {q:'다주택자 "취득세 중과"가 지역별로 남기는 효과로 가까운 것은?',
+   opts:['모든 지역 같은 부담','핵심지는 쏠리고 외곽은 부담'],
+   answer:1,
+   exp:'여러 채 대신 <b>똘똘한 한 채</b>로 좁히게 만들어 수요가 핵심지로 모인다. 같은 규제가 핵심지 보유자에게는 버팀목, 지방·외곽 보유자에게는 부담으로 갈린다.'},
+
+  {q:'전세가율이 오르면(매매가와 전세가 차이가 줄면), <b>갭투자</b>에 필요한 자기자본은 어떻게 될까?',
+   opts:['줄어든다','늘어난다'],
+   asof:'2026-09-15', review:'2027-03-15',
+   answer:0,
+   exp:'정답은 <b>줄어든다</b>. 갭투자는 매매가와 전세가의 "갭(차이)"만큼만 내 돈을 넣고 집을 사는 방식이다. 전세가율이 오를수록 갭이 작아져 적은 돈으로 가능해진다. 6·27 대책의 "소유권 이전 조건부 전세대출 금지"가 바로 이 갭투자를 겨냥한 규제다.'},
+
+  {q:'광범위한 대출 규제(LTV·DSR 강화)는 <b>중장기적으로</b> 집값에 어떻게 작용할까?',
+   opts:['살 돈 줄어 하락 압력','신규 공급 막아 상승 압력'],
+   answer:1,
+   exp:'대출 규제는 <b>단기적으론</b> 매수 수요를 눌러 하락 압력으로 작용한다. 하지만 재건축·재개발 <b>이주비 대출</b>, 신축 <b>중도금·잔금 대출</b>까지 함께 막히면서 분양과 신규 공급도 위축된다. 수요·공급을 동시에 조이는데, <b>공급 위축 효과가 더 오래 남아</b> 중장기적으로는 상승 압력이 된다.'},
+
+  {q:'"집값이 오르면 공급(인허가)이 따라 는다"는 관계, <b>서울</b>에서는 어떻게 나타날까?',
+   opts:['빈 땅이 없어 시차를 두고 나타남','집값이 오르면 당연히 즉각적으로 늘어남'],
+   answer:0,
+   exp:'서울은 <b>택지가 없어</b> 집값이 올라도 인허가가 곧바로 따라오지 못한다. 땅이 있는 충북·부산 등은 약 1년 시차를 두고 공급이 늘어나지만, 서울처럼 <b>빈 땅 자체가 없는 지역</b>은 그마저도 거의 작동하지 않을 만큼 관계가 약하다. 서울의 만성 공급 부족이 여기서 비롯된다.'},
+
+  {q:'서울 아파트의 전세가율이 지방보다 <b>낮다</b>는 것은 무엇을 뜻할까?',
+   opts:['실거주 수요 위주다','투자·기대 수요가 두껍다'],
+   answer:1,
+   exp:'전세가율(전세÷매매)이 <b>낮으면</b> 매매가가 전세보다 훨씬 높다는 뜻 — 거주 가치보다 <b>미래 상승 기대</b>에 더 많이 지불하는 투자 시장이다. 서울이 대표적. 반대로 전세가율이 높은 지방은 가격이 거주 가치에 수렴한 실거주 시장이다. 지금 수치는 <a href="/jeonse-ratio/">전세가율 페이지</a>에서 볼 수 있다.'},
+
+  {q:'"부동산 슈퍼사이클"의 정체는?',
+   opts:['80년대 말~90년대 초 대량 공급의 멸실 도래','베이비붐 세대의 은퇴와 인구절벽 시작'],
+   answer:0,
+   exp:'정답은 <b>멸실(재건축) 슈퍼사이클</b>. 1980년대 후반 올림픽 전후로 시작돼 <b>1기 신도시(분당·일산 등)로 이어진 대량 공급</b>이 <b>준공 40년 안팎</b>(물리적 노후·멸실 시점)에 도달하기 시작하는 때가 2028년이다. 법정 재건축 연한은 준공 후 30년이지만, 실제 멸실·재건축은 대체로 그보다 늦게 이뤄진다. 헐어야 할 노후 재고는 폭증하는데 멸실 속도는 못 따라가, 순공급이 장기간 제약된다.'},
+
+  {q:'어떤 지역에 공급 부족이 닥쳤다. <b>대체로</b> 전세와 매매 중 무엇이 먼저 움직일까?',
+   opts:['전세','매매'],
+   answer:0,
+   exp:'정답은 <b>전세</b>. 전세는 <b>지금 당장 살 집</b>이 필요한 실수요라 공급 부족에 즉각 반응한다. 매매는 기대·금리·규제가 섞여 한 박자 늦게 따라온다. 이 리포트의 고리①②가 바로 "공급 부족 → 전세 → 매매"의 순서다.'},
+
+  {q:'오늘 <b>인허가</b>가 난 아파트, <b>입주 시점</b>을 지금 셀 수 있을까?',
+   opts:['착공해야 셀 수 있다','허가 날짜로 셀 수 있다'],
+   answer:0,
+   exp:'정답은 <b>착공해야 셀 수 있다</b>. 인허가는 착공과 같은 흐름으로 움직이지만 <b>허가 뒤 착공하지 않는 물량</b>이 섞여 있고 착공 시점도 제각각이라, 입주까지의 시차가 일정하지 않다. 착공한 뒤부터는 잰 값이 있다. 전국 평균이 <b>과거 28개월에서 최근 37개월</b>이다. 그래서 공급을 판정할 때는 착공 실적을 쓰고 인허가는 참고로만 본다.'},
+
+  {q:'전세가 <b>상승 중</b>일 때 입주 물량이 늘어나면, 전세 가격은 즉각 하락으로 반전한다. O일까 X일까?',
+   opts:['O','X'],
+   answer:1,
+   exp:'정답은 <b>X</b>. 데이터로 보면 입주가 늘어도 <b>누적 재고 수준이 낮은</b> 구간에서는 전세가 오히려 분기당 <b>+1.88%</b> 올랐고, <b>누적 수준까지 높아졌을 때</b>에야 0.00%로 눌렸다. 물량의 <b>증가</b>만으로는 부족하고 쌓인 <b>수준</b>이 함께 높아야 꺾인다 — 그래서 반전은 즉각적이지 않고 시차를 두고 온다.'},
+
+  {q:'사이클 <b>한 바퀴</b>가 도는 데 더 오래 걸리는 쪽은?',
+   opts:['수도권','지방'],
+   answer:0,
+   exp:'정답은 <b>수도권</b>. 주기는 재본 값이 아니라 <b>각 단계의 시차를 더해 만들어진 값</b>이다 — 착공에서 입주까지 3년 남짓(최근 37개월), 입주 증가가 전세를 밀어내리기까지 반년~1년, 전세 하락이 매매로 옮아가는 데 1년 남짓. 여기에 수도권은 <b>유동성장</b>(전세는 내리는데 매매는 오르는 구간)이 1년~1년 반 더 붙지만 지방은 이 구간이 거의 없다. 그만큼 수도권의 한 국면이 길게 늘어진다. 다만 이건 <b>기준점이지 시계가 아니다</b> — 부양책·규제책이 개입하면 사이클은 늘어나고 줄어든다. 인과의 순서가 유지될 뿐, 햇수가 고정된 건 아니다.'},
+
+  {q:'전세와 매매가 <b>가장 따로 노는</b>(동조성이 낮은) 지역은?',
+   opts:['지방 광역시','서울'],
+   answer:1,
+   exp:'정답은 <b>서울</b>. 전세는 거주 가치를, 매매는 기대 가치를 반영한다. 서울은 <b>투자·기대 수요가 두꺼워</b> 매매가 전세와 무관하게 움직이는 구간이 길다. 반대로 지방은 둘이 거의 붙어 다닌다 — 가격이 거주 가치에 수렴하기 때문이다.'},
+
+  {q:'이 리포트에서 <b>금리</b>는 사이클의 어디에 놓여 있을까?',
+   opts:['사이클 바깥에서 순환 전체를 흔드는 외부 힘','전세와 매매를 잇는 고리의 하나'],
+   answer:0,
+   exp:'정답은 <b>사이클 바깥</b>. 공급→전세→매매→공급은 스스로 도는 <b>내부 순환</b>이고, 금리는 그 바깥에서 순환의 진폭과 속도를 바꾸는 <b>외부 변수</b>다. 2021년 초저금리가 사이클을 통째로 밀어올린 것이 대표적이다. 다만 <b>바깥에 있다는 게 무시해도 된다는 뜻은 아니다</b> — 전세가율×전환율(주거비 수익률)이 대출금리를 넘어서는 지점이 추세 상승의 출발선이고, 반대로 금리가 그 수익률을 크게 웃돌면 하락 국면으로 넘어간다. 미리 예측할 수는 없지만, 일단 움직이면 <b>전환점을 읽는 지표</b>가 된다.'},
+
+  {q:'대규모 재건축 <b>이주</b>가 시작되면, 그 동네 전세는 단기적으로?',
+   opts:['하락','상승'],
+   answer:1,
+   exp:'정답은 <b>상승</b>. 재건축은 새 집을 짓기 전에 먼저 <b>기존 집을 없앤다</b>(멸실). 쫓겨난 수천 세대가 인근 전세를 동시에 찾으면서 단기 전세난이 벌어진다. 공급을 늘리려는 행위가 <b>단기적으로는 공급을 줄이는</b> 역설이다.'},
+
+  {q:'<b>준공 후 미분양</b>(악성 미분양)이 급증했다. 중장기적으로 이건 무슨 신호일까?',
+   opts:['장기 침체가 확정된 신호','몇 년 뒤 공급 절벽의 씨앗'],
+   answer:1,
+   exp:'미분양이 쌓이면 건설사는 <b>신규 착공을 멈춘다.</b> 그 멈춤은 착공에서 준공까지 걸리는 3년 남짓(최근 37개월) 뒤에 입주 물량의 공백으로 돌아온다. 즉 지금의 미분양은 <b>몇 년 뒤 공급 절벽</b>을 예고하는 선행 지표다. 사이클이 바닥에서 반등하는 방아쇠가 대개 여기서 당겨진다.'},
+
+  {q:'바닥을 기던 <b>전세가율</b>이 다시 오르기 시작했다. 매매 시장에는?',
+   opts:['상승 압력이 쌓이고 있다','하락이 임박했다'],
+   answer:0,
+   exp:'전세가율이 오른다는 건 매매가는 그대로인데 <b>전세가 밀어올려지고 있다</b>는 뜻이다. 갭이 좁아질수록 매수 문턱이 낮아지고, 어느 순간 전세가 매매를 끌어올린다(고리②). 그래서 전세가율 반등은 매매 상승의 <b>선행 신호</b>로 읽힌다.'},
+
+  {q:'<b>약 3년 뒤</b> 입주 물량을 가장 정확히 예고하는 지표는?',
+   opts:['인허가 물량','착공 물량'],
+   answer:1,
+   exp:'정답은 <b>착공</b>. 인허가는 났어도 <b>사업성이 안 나오면 삽을 뜨지 않는다</b> — 인허가와 실제 공급 사이엔 이탈이 크다. 반면 착공은 돈이 들어간 뒤라 3년 남짓(최근 37개월) 뒤 준공으로 거의 그대로 이어진다. 입주 물량을 읽으려면 인허가가 아니라 착공을 봐야 한다.'},
+    ],
+    grade:s=>{
+      if(s>=9)return{lv:'LV5',g:'지역별 공급 물량을 꿰고 있는 승부사',d:'규제의 이면도, 사이클의 역방향도 읽어냅니다. 입주물량 표를 머릿속에 펼쳐 두고 1년 뒤를 계산하는 경지. 이 리포트를 쓴 사람과 토론해도 됩니다.',emoji:'🏆'};
+      if(s>=7)return{lv:'LV4',g:'무주택이어도 머릿속에선 이미 최소 다주택자',d:'공급과 전세가 어떻게 맞물리는지 분명히 이해합니다. 통념에 휘둘리지 않는 시야 — 실탄만 모이면 바로 움직일 사람.',emoji:'🔭'};
+      if(s>=5)return{lv:'LV3',g:'집 사놓고 불안해서 밤에 잠 못 드는 단계',d:'감은 잡혔지만 확신이 없어 호가창을 자꾸 들여다보는 단계. 사이클의 큰 그림을 한 번 더 정독하면 밤잠이 편해집니다.',emoji:'🌙'};
+      if(s>=3)return{lv:'LV2',g:'호재·악재 거꾸로 읽는 초보',d:'"규제=악재" 같은 통념에 아직 갇혀 있습니다. 괜찮아요, 이 리포트가 바로 그 통념을 깨려고 만들어졌으니까요.',emoji:'🧭'};
+      return{lv:'LV1',g:'통념에 갇힌 부동산 왕초보',d:'"규제=악재, 입주=호재"부터 다시. 이 리포트가 바로 그 통념을 깨려고 만들어졌습니다. 정독하고 재도전!',emoji:'🌱'};
+    }
+  },
+  calc:{
+    title:'재건축·재개발 테스트', emoji:'🏗️',
+    shareName:'재건축·재개발 테스트',
+    Q:[
+  {q:'매매가 <b>4억</b>, 대지지분 <b>10평</b>짜리 재건축 대상 아파트. <b>개발 전</b> 대지 1평의 가치는?',
+   opts:['4,000만원','8,000만원'],
+   answer:0,
+   exp:'개발 전 가치 = <b>매매가 ÷ 대지지분</b>. 4억 ÷ 10평 = <b>평당 4,000만원</b>. 재건축 물건은 건물이 아니라 땅을 사는 것이므로, 모든 계산은 대지지분 1평 기준에서 시작한다.'},
+
+  {q:'개발 전 매매가 <b>3억</b>, 대지지분 <b>10평</b>. 용적률 <b>300%</b>, 공사비 평당 <b>1,000만원</b>으로 개발 시 분양가는 평당 <b>3,000만원</b>. 이 조합원의 <b>기대수익</b>은?',
+   opts:['3억','6억'],
+   answer:0,
+   exp:'개발 전 평당 가격 = 3억 ÷ 10평 = 3,000만원. 개발 후 평당 수익 = (3,000 − 1,000) × 3 = <b>6,000만원</b>. 기대수익 = <b>(개발 후 − 개발 전) × 대지지분</b> = (6,000 − 3,000) × 10평 = <b>3억</b>. 개발 후 전체(6억)가 아니라 지금 가격과의 <b>차이</b>만 내 몫이라는 점이 핵심이다.'},
+
+  {q:'<b>개발 후</b> 용적률 <b>200%</b>로 짓는 재건축 단지에서 평당 공사비가 <b>1,000만원 → 1,500만원</b>으로 올랐다. 개발 후 대지 1평의 수익은 얼마나 줄어들까?',
+   opts:['500만원','1,000만원'],
+   answer:1,
+   exp:'공사비 인상분 500만원에 <b>용적률 배수(×2)</b>가 곱해져 <b>1,000만원</b>이 줄어든다. 용적률이 높을수록 공사비 변동이 그대로 증폭돼 <b>걸린 금액이 커진다</b> — 요즘 재건축 단지들이 공사비 협상에 사활을 거는 이유다. 다만 마진(분양가 − 공사비)도 같은 배수로 커지므로 <b>"용적률이 높으면 공사비에 더 취약하다"는 뜻은 아니다.</b> 진짜 위험한 쪽은 마진이 얇아 조금만 올라도 개발 후 가치가 개발 전을 밑도는 단지다.'},
+
+  {q:'개발 전 평당 <b>4,000만원</b> → 개발 후 평당 <b>6,000만원</b>으로 분명한 흑자인데, 대지지분이 <b>5평</b>뿐인 소형 평형 단지. 사업이 잘 안 굴러가는 이유는?',
+   opts:['기대수익 절대액이 작아서','용적률이 낮아서'],
+   answer:0,
+   exp:'기대수익 = (6,000 − 4,000) × 5평 = <b>1억뿐</b>. 이주와 분담금, 수년의 리스크를 감수하기엔 남는 돈이 작아 조합원들이 움직이지 않는다. <b>평당 수익률이 아니라 수익 절대액</b>이 사업의 동력이다 — 소형·단일 평형 단지의 흔한 함정.'},
+
+  {q:'매매가 <b>5억</b>, 대지지분 <b>10평</b>짜리 재건축 아파트. <b>개발 후</b> 용적률 <b>250%</b>로 짓고 공사비는 평당 <b>1,000만원</b>. 최소한 본전이 되려면 분양가는 평당 얼마 이상이어야 할까?',
+   opts:['3,000만원','2,000만원'],
+   answer:0,
+   exp:'개발 전 평당 가격 = 5억 ÷ 10평 = <b>5,000만원</b>. (분양가 − 1,000) × 2.5 ≥ 5,000 → 분양가 − 1,000 ≥ 2,000 → 분양가 <b>3,000만원</b>. 5,000을 2.5로 나눈 뒤 공사비를 <b>다시 더해야</b> 한다는 걸 잊기 쉽다. 주변 신축 시세가 이보다 낮다면 그 단지는 아직 때가 아니다.'},
+
+  {q:'개발 전 매매가 <b>6억</b>, 대지지분 <b>15평</b>. 용적률 <b>400%</b>, 공사비 평당 <b>1,500만원</b>으로 개발 시 분양가는 평당 <b>2,500만원</b>. 사업성은?',
+   opts:['있다','없다'],
+   answer:1,
+   exp:'개발 전 평당 = 6억 ÷ 15평 = 4,000만원. 개발 후 = (2,500 − 1,500) × 4 = <b>4,000만원</b> — 개발 전과 <b>똑같다</b>. 남는 게 0이면 공사비가 조금만 올라도 적자로 뒤집히니, 이 물건만 놓고 보면 사업성이 없다. 다만 <b>동점이 곧 "별 볼 일 없는 곳"이라는 뜻은 아니다</b> — 정보가 열려 있고 관심이 많은 단지일수록 시세가 개발 후 가치를 쫓아 올라와 <b>늘 동점 근처</b>에 머문다. 그런 곳의 투자 근거는 지금의 차익이 아니라 <b>앞으로의 분양가 상승분 × 용적률 배수</b>다.'},
+
+  {q:'A단지: 평당 차익 <b>1,000만원</b> × 지분 <b>20평</b>. B단지: 평당 차익 <b>3,000만원</b> × 지분 <b>5평</b>. 재건축 추진 동력이 더 큰 쪽은?',
+   opts:['A단지','B단지'],
+   answer:0,
+   exp:'A = 1,000 × 20 = <b>2억</b>, B = 3,000 × 5 = <b>1.5억</b>. 평당 차익은 B가 3배지만, 조합원을 움직이는 건 <b>총 기대수익</b>이다. 재건축은 언제나 "평당"이 아니라 "내 몫 전체"로 판단한다.'},
+
+  {q:'하락장이 끝나고 분양가가 <b>바닥에서 회복</b>되기 시작했다. 공사비는 전국 어디든 평당 <b>700만원</b>으로 거의 같다. 재건축 사업성이 <b>먼저</b> 살아나는 곳은?',
+   opts:['분양가 평당 1,000만원인 곳','분양가 평당 800만원인 곳'],
+   answer:0,
+   exp:'공사비는 전국이 비슷하므로 사업성은 <b>(분양가 − 공사비) 마진</b>에서 갈린다. 1,000만원인 곳의 마진은 1,000 − 700 = <b>300</b>, 800만원인 곳은 800 − 700 = <b>100</b> — 3배 차이다. 분양가가 같이 회복돼도 마진이 두꺼운 비싼 동네가 훨씬 먼저 사업성 기준선을 넘는다 — 상승 전환기에 정비사업이 핵심지부터 다시 움직이는 이유다.'},
+
+  {q:'전쟁·유가 급등 같은 인플레이션으로 평당 공사비가 전국적으로 <b>1,000 → 1,300만원</b>이 됐다. 사업성 타격이 더 큰 쪽은?',
+   opts:['분양가 2,000만원 하급지','분양가 5,000만원 상급지'],
+   answer:0,
+   exp:'마진으로 비교하면: 하급지는 1,000 → <b>700(−30%)</b>, 상급지는 4,000 → <b>3,700(−7.5%)</b>. 같은 300만원 인상도 마진이 얇은 곳에는 치명적이다. 공사비 인플레 국면마다 하급지 정비사업이 줄줄이 멈추고, 사업성 회복도 그만큼 늦어지는 이유다.'},
+
+  {q:'분양가가 전국적으로 <b>10%씩</b> 똑같이 올랐다. 평당 5,000만원 상급지는 <b>+500</b>, 평당 2,000만원 외곽은 <b>+200</b>. 재건축 사업성 개선 폭은?',
+   opts:['같은 10%니 비슷하다','상급지가 훨씬 크다'],
+   answer:1,
+   exp:'사업성은 퍼센트가 아니라 (분양가 − 공사비) <b>절대액</b>으로 움직인다. 공사비는 그대로인데 마진이 +500 vs +200 — 상급지의 개선 폭이 2.5배다. 여기에 용적률 배수와 대지지분이 다시 곱해지니 격차는 더 벌어진다. 같은 상승률이라도 비싼 동네의 재건축이 먼저 굴러가는 구조적 이유.'},
+
+  {q:'개발 전 평당 <b>4,000만원</b> → 개발 후 평당 <b>6,000만원</b>. 계산상 사업성은 충분한데, 시장 전체가 <b>하락장 초입</b>에 들어섰다. 판단은?',
+   opts:['계산이 좋으니 진행해도 된다','사이클이 우선 — 계산은 다시 해야 한다'],
+   m:1, k:1, answer:1,
+   exp:'개발 후 가치는 <b>미래의 분양가</b>를 가정한 숫자다. 하락장에선 그 가정 자체가 무너진다 — 분양가가 내려앉으면 (분양가 − 공사비) 마진이 용적률 배수로 증폭되며 사업성이 통째로 뒤집힌다. <b>사업성 계산은 시장 사이클 판단을 대신하지 못한다.</b> 순서는 언제나 시장 먼저, 물건은 그다음이다.'},
+
+  {q:'사업성 공식에 넣는 <b>분양가</b>는 어느 시점의 가격이어야 할까?',
+   opts:['지금 주변 신축 시세','수년 뒤 실제 분양 시점의 가격'],
+   m:1, answer:1,
+   exp:'분양은 빨라야 수년 뒤다. 오늘 시세는 <b>출발점</b>일 뿐, 실제 사업성은 분양 시점의 가격이 결정한다. 그래서 같은 계산도 상승기엔 실제보다 박하게, 하락기엔 후하게 나온다. 오늘 숫자로 나온 사업성을 확정 수익처럼 믿으면 안 되는 이유다.'},
+
+  {q:'조합설립부터 입주까지 정비사업은 보통 <b>10년 안팎</b>. 사이클이 <b>5년</b>인 지방에서 상승기 한복판에 재건축을 샀다면?',
+   opts:['입주 시점엔 하락기일 수 있다','상승기에 샀으니 입주 때도 상승기다'],
+   m:1, answer:0,
+   exp:'10년이면 지방 사이클(약 5년)이 <b>한 바퀴를 돌고도 남는다</b>. 사업성 계산엔 이 시간이 들어있지 않다. 정비사업 투자는 물건의 사업성만이 아니라 <b>입주 시점이 사이클의 어디쯤일지</b>까지 계산에 넣어야 한다 — 특히 사이클이 짧은 지방에서는 <b>사업 진행이 빠른 곳</b>을 골라야 한다.'},
+
+  {q:'계산상 사업성은 넉넉하다. 그런데 입주 예정 시점에 <b>인근 대규모 입주물량</b>이 겹친다. 어떻게 봐야 할까?',
+   opts:['사업성이 좋으니 문제없다','물량이 분양가·전세가를 눌러 계산이 어긋날 수 있다'],
+   m:1, answer:1,
+   exp:'공급이 몰리면 전세가가 먼저 밀리고 분양가도 따라 눌린다. 공식의 (분양가 − 공사비) 마진이 얇아지며 사업성이 훼손된다. <b>물량 앞에 장사 없다</b> — 개별 단지 계산 전에 그 지역의 입주물량부터 확인하는 게 순서다.'},
+
+  {q:'재개발 구역의 대지면적 <b>50,000㎡</b>, 용적률 <b>200%</b>. 30평형 기준 총세대수는 대략?',
+   opts:['약 1,000세대','약 3,000세대'],
+   answer:0,
+   exp:'대지면적 × 용적률 = 총 분양면적 <b>100,000㎡</b>. 30평 ≈ 100㎡이니 <b>뒷자리 00만 지우면 약 1,000세대</b>다. 옛 재개발의 표준 평형 구성 2:6:2(대·중·소)의 가중평균이 딱 30평이라 성립하는 근사 — 설계도 없이 30초면 구역의 규모가 손에 잡힌다.'},
+
+  {q:'총세대수 약 <b>3,000</b>으로 계산된 구역, 조합원이 <b>2,700명</b>이다. 먼저 봐야 할 숫자는?',
+   opts:['총 3,000세대 — 대단지라 좋다','일반분양 300세대뿐 — 위험하다'],
+   answer:1,
+   exp:'조합원 2,700 대 일반분양 300(9:1)이면 <b>분담금이 무거워</b> 사업이 서기 어렵다. 실제로 조합원 1,800에 총세대 1,850 — 일반분양이 50뿐이라 사업이 못 가는 구역도 있다. 총세대수보다 <b>누구 몫이냐</b>가 먼저다. 다만 "수익은 일반분양에서만 나온다"고 보면 계산이 틀어진다 — <b>조합원 몫도 구축에서 신축이 되며 값이 오르고</b>, 그것 역시 엄연한 수익이다. 그래서 일반분양이 거의 없는 1:1 재건축도 사업성이 나올 수 있다.'},
+
+  {q:'대지지분 <b>6평</b>짜리 빌라만 모인 구역. 용적률 300%를 받아도 1인당 분양면적은 <b>18평</b>. 상승장에서 가격이 오를까?',
+   opts:['사업성이 없으니 안 오른다','상승장 후반엔 오른다 — 다만 리스크가 매우 높다'],
+   m:1, answer:1,
+   exp:'1인당 18평이면 조합원이 살 집으로도 빠듯해 <b>일반분양이 거의 없다</b>. 일반분양이 없어도 <b>구축과 신축의 평당 가격차가 공사비보다 크면</b> 사업은 성립하지만, 그건 아주 비싼 동네에서나 가능해 이런 구역 대부분은 사업성이 나오지 않는다. 그런데 상승장 후반이 되면 이런 구역까지 돈이 돌아 가격은 <b>오르긴 오른다</b>. 문제는 그 상승을 받쳐줄 펀더멘털이 없다는 것 — 장이 꺾이면 가장 먼저·가장 깊게 빠진다. <b>오르는 것과 안전한 것은 다르다.</b> 용적률보다 대지지분이 먼저다.'},
+    ],
+    grade:s=>{
+      if(s>=9)return{lv:'LV5',g:'사업성이 한눈에 보이는 선수',d:'공식이 완전히 손에 붙었습니다. 매물 정보만 보면 사업성이 바로 나오는 단계 — 이제 임장 가서 대지지분부터 물어보세요.',emoji:'🏗️'};
+      if(s>=7)return{lv:'LV4',g:'눈대중 견적이 되는 예비 조합원',d:'큰 틀은 정확합니다. 공사비 인상이 용적률 배수로 증폭되는 것 같은 디테일까지 다듬으면 완성.',emoji:'📐'};
+      if(s>=5)return{lv:'LV3',g:'공식은 아는데 손이 느린 단계',d:'개발 전·후 비교의 뼈대는 잡았습니다. 재도전하며 숫자를 몇 번 굴려보면 손이 빨라집니다.',emoji:'✏️'};
+      if(s>=3)return{lv:'LV2',g:'분담금 고지서에 놀랄 단계',d:'용적률과 공사비가 어디에 곱해지는지부터 다시. 해설을 정독하며 한 번 더 풀어보세요.',emoji:'📮'};
+      return{lv:'LV1',g:'묻지마 재건축 매수 직전',d:'"낡으면 오른다"는 절반만 맞는 말. 개발 전·후 가치 비교부터 시작하면 헛돈 쓸 일이 없어집니다.',emoji:'🚧'};
+    }
+  }
+};
+
+/* 문항 풀에서 매 회차 10개를 뽑는다.
+   시드를 주면 같은 문항·같은 순서가 재현된다 → 친구 대결은 동일 시험지로 겨룬다.
+   시드를 생략하면 새 시드를 뽑는다 → 재도전할 때마다 문제가 달라진다. */
+const QUIZ_LEN=10;
+let curSeed=0;
+function mulberry32(a){
+  return function(){
+    a=a+0x6D2B79F5|0;
+    let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function drawQuiz(setKey,seed){
+  curSeed=(seed==null)?(Math.floor(Math.random()*4294967296)>>>0):(seed>>>0);
+  const rnd=mulberry32(curSeed);
+  /* 보기 순서도 시드로 섞는다(2026-09-15 점검 후속 ⑧). 원본은 정답이 첫 보기에 몰려 있어(재건축 17문항 중 9)
+     위치로 답이 보였다. ⚠️ 문항 선택과 **다른 난수열**을 쓴다 — 같은 rnd 를 이어 쓰면 옛 대결 링크(시드)가
+     다른 문항을 뽑는다. 같은 시드면 이어 풀기·대결 상대도 같은 보기 순서를 본다. */
+  const ornd=mulberry32((curSeed^0x9E3779B9)>>>0);
+  const shuffleOpts=items=>items.map(it=>{
+    const idx=it.opts.map((_,i)=>i);
+    for(let i=idx.length-1;i>0;i--){const j=Math.floor(ornd()*(i+1));const t=idx[i];idx[i]=idx[j];idx[j]=t;}
+    return Object.assign({},it,{opts:idx.map(i=>it.opts[i]),answer:idx.indexOf(it.answer)});
+  });
+  const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;};
+  const pool=shuf(QUIZSETS[setKey].Q.slice());
+  const n=Math.min(QUIZ_LEN,pool.length);
+  const key=pool.find(x=>x.k), mkt=pool.filter(x=>x.m&&!x.k), rest=pool.filter(x=>!x.m);
+  if(!key||mkt.length<2||rest.length<n-3)
+    return shuffleOpts(pool.slice(0,n));
+  /* 시장·계산의 한계 문항(m:1)은 매회 3개 보장 — 공식 문제만 10개 나오는 시험지를 차단.
+     그중 핵심 문항(k:1, 사이클이 계산에 우선)은 매회 고정 출제 + 1~3번 고정 배치. */
+  const pick=shuf(rest.slice(0,n-3).concat(mkt.slice(0,2)));
+  pick.splice(Math.floor(rnd()*3),0,key);
+  return shuffleOpts(pick);
+}
+let curSet='investor', QUIZ=drawQuiz('investor'), qIdx=0, qScore=0, qAnswered=false, qResults=[];
+/* 진행 저장(2026-09-15 점검 후속 ③). 인앱 브라우저는 새로고침·뒤로 가기가 잦은데 그때마다
+   처음부터 다시 풀게 해 이탈로 끝났다. 세트·시드·문항 번호·응답만 sessionStorage에 둔다 —
+   시드가 같으면 같은 시험지가 재현된다(drawQuiz). 탭을 닫으면 사라지는 화면 상태다.
+   ⚠️ 인앱 브라우저·사생활 보호 모드에서 저장소 접근이 예외를 던질 수 있어 전부 try로 감싼다. */
+const QSAVE='agong_quiz', QDONE='agong_quiz_done';
+let qChoices=[], qReplay=false;
+function qSave(){try{sessionStorage.setItem(QSAVE,JSON.stringify({set:curSet,seed:curSeed,idx:qIdx,ch:qChoices}));}catch(e){}}
+function qLoad(){try{return JSON.parse(sessionStorage.getItem(QSAVE)||'null');}catch(e){return null;}}
+function qClear(){try{sessionStorage.removeItem(QSAVE);}catch(e){}}
+function qDone(set){try{return (sessionStorage.getItem(QDONE)||'').split(',').indexOf(set)>=0;}catch(e){return false;}}
+function qMarkDone(set){try{if(!qDone(set))sessionStorage.setItem(QDONE,((sessionStorage.getItem(QDONE)||'')+','+set).replace(/^,/,''));}catch(e){}}
+function startQuiz(setKey,seed,fromHash){
+  if(setKey){curSet=setKey;}
+  /* 뒤로가기가 테스트 목록으로 돌아오려면 여기서 한 칸을 쌓아야 한다.
+     해시로 들어온 경우(fromHash)는 이미 그 상태에 있으므로 쌓지 않는다. */
+  if(!fromHash&&curSet){
+    const want='#test-'+curSet;
+    if(location.hash!==want)history.pushState(null,'',want);
+  }
+  /* 이어 풀기 — 같은 세트의 저장이 있고, 시드를 따로 받지 않았거나(해시·탭 진입) 같은 시드(대결
+     링크 새로고침)일 때만. 다시 풀기·재도전은 결과 화면에서 저장을 지운 뒤라 여기 걸리지 않는다.
+     ⚠️ 한 문항도 답하지 않은 저장은 이어 풀기가 아니다 — 해시로 열기만 해도 빈 저장이 생겨,
+     그걸 resume 으로 세면 옛 quiz_start 처럼 수치가 부푼다(2026-09-15 브라우저 확인에서 발견). */
+  const sv=qLoad();
+  const resume=!!(sv&&sv.set===curSet&&Array.isArray(sv.ch)&&sv.ch.length>0&&Number.isInteger(sv.idx)&&
+    sv.idx>=0&&sv.idx<QUIZ_LEN&&(seed==null||(seed>>>0)===sv.seed));
+  QUIZ=drawQuiz(curSet,resume?sv.seed:seed);
+  qIdx=0;qScore=0;qResults=[];qChoices=[];
+  /* start_type: new(처음)·retry(이 탭에서 이미 끝낸 세트를 다시)·resume(이어 풀기).
+     예전엔 새로고침·다시 풀기도 전부 시작으로 잡혀 이탈률이 부풀어 보였다. */
+  track('quiz_start',{quiz_type:curSet,start_type:resume?'resume':(qDone(curSet)?'retry':'new')});
+  document.getElementById('quiz-intro').style.display='none';
+  document.getElementById('quiz-result').style.display='none';
+  document.getElementById('quiz-play').style.display='';
+  renderChalBar();
+  if(resume){
+    qReplay=true;
+    const okChoice=(c,i)=>Number.isInteger(c)&&i<QUIZ.length&&c>=0&&c<QUIZ[i].opts.length;
+    for(let i=0;i<sv.idx;i++){
+      if(!okChoice(sv.ch[i],i))break;
+      qChoices[i]=sv.ch[i];
+      const ok=sv.ch[i]===QUIZ[i].answer;
+      if(ok)qScore++;
+      qResults.push(ok);
+      qIdx=i+1;
+    }
+    renderQ();
+    if(qIdx===sv.idx&&okChoice(sv.ch[qIdx],qIdx))answerQ(sv.ch[qIdx]);
+    qReplay=false;
+  }else{
+    renderQ();
+  }
+  qSave();
+}
+function backToPick(fromHash){
+  /* 풀던 중이면 확인을 받는다(점검 후속 ③) — 버튼 한 번에 진행이 사라졌다.
+     뒤로 가기(fromHash)는 묻지 않고 저장도 남긴다: 앞으로 가기·재진입에서 이어 풀게 한다. */
+  const playing=document.getElementById('quiz-play').style.display!=='none'&&(qIdx>0||qAnswered);
+  if(!fromHash&&playing&&!confirm('테스트를 그만둘까요? 지금까지 푼 문항은 사라집니다.'))return;
+  if(!fromHash)qClear();
+  document.getElementById('quiz-play').style.display='none';
+  document.getElementById('quiz-result').style.display='none';
+  document.getElementById('quiz-intro').style.display='';
+  window.scrollTo(0,0);
+  if(!fromHash&&location.hash!=='#test')history.pushState(null,'','#test');
+}
+function renderQ(){
+  qAnswered=false;
+  const item=QUIZ[qIdx];
+  document.getElementById('qbar').style.width=((qIdx)/QUIZ.length*100)+'%';
+  document.getElementById('qcount').textContent=`${QUIZSETS[curSet].title} · ${qIdx+1} / ${QUIZ.length}`;
+  const card=document.getElementById('qcard');
+  card.innerHTML=`
+    <button class="qback" onclick="backToPick()">← 테스트 선택</button>
+    <div class="qq">${item.q}</div>
+    <div class="qopts qopts-lr">${item.opts.map((o,i)=>
+      `<button class="qopt" onclick="answerQ(${i})">${o}</button>`).join('')}</div>
+    <div class="qexp" id="qexp"></div>
+    <button class="qnext" id="qnext" onclick="nextQ()">${qIdx===QUIZ.length-1?'결과 보기 →':'다음 문제 →'}</button>`;
+}
+function answerQ(choice){
+  if(qAnswered)return; qAnswered=true;
+  const item=QUIZ[qIdx];
+  const opts=document.querySelectorAll('.qopt');
+  const correct=item.answer;
+  if(choice===correct)qScore++;
+  qResults.push(choice===correct);
+  qChoices[qIdx]=choice;
+  opts.forEach((o,i)=>{
+    o.style.pointerEvents='none';
+    if(i===correct){o.classList.add('correct');o.innerHTML+='<span class="mark">○</span>';}
+    else if(i===choice){o.classList.add('wrong');o.innerHTML+='<span class="mark">✕</span>';}
+    else o.classList.add('dim');
+  });
+  const exp=document.getElementById('qexp');
+  const ok=choice===correct;
+  exp.innerHTML=`<div class="ehead ${ok?'o':'x'}">${ok?'○ 정답!':'✕ 아쉬워요'}</div><p>${item.exp}</p>`+
+    (item.asof?`<p class="qasof">제도 기준일 ${item.asof.replace(/-/g,'.')} · 이후 바뀌었을 수 있습니다</p>`:'');
+  exp.classList.add('show');
+  document.getElementById('qnext').classList.add('show');
+  qSave();
+  if(qReplay)return;   // 이어 풀기 복원 중에는 측정·스크롤을 하지 않는다
+  track('quiz_answer',{quiz_type:curSet,idx:qIdx+1,correct:ok});
+  setTimeout(()=>{document.getElementById('qnext').scrollIntoView({behavior:scrollBehavior(),block:'center'});},150);
+}
+function nextQ(){
+  qIdx++;
+  if(qIdx>=QUIZ.length){showResult();return;}
+  renderQ();
+  qSave();
+  window.scrollTo(0,0);
+}
+function gradeOf(s){return QUIZSETS[curSet].grade(s);}
+function nextStepHTML(){
+  if(curSet==='beginner'){
+    return `<div class="nextstep">
+      <div class="ns-kicker">다음 단계</div>
+      <div class="ns-title">기초는 됐다. 이제 통념을 뒤집을 차례</div>
+      <p class="ns-desc">투자자 테스트는 <b>호재를 악재로, 악재를 호재로</b> 읽어야 풀린다. 규제·금리·수급의 진짜 게임을 확인해보자.</p>
+      <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'beginner',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
+      <button class="ns-btn ghost" onclick="track('next_step',{from:'beginner',to:'investor'});goQuiz('investor')">🦅 투자자 테스트 도전하기</button>
+      <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'beginner',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
+    </div>`;
+  }
+  if(curSet==='calc'){
+    return `<div class="nextstep">
+      <div class="ns-kicker">다음 단계</div>
+      <div class="ns-title">계산보다 먼저 볼 것은 시장이다</div>
+      <p class="ns-desc">공식이 손에 익었다면, 이제 그 계산을 통째로 뒤집을 수 있는 변수를 보자. <b>입주물량과 사이클</b> — 사업성 판단의 순서는 언제나 시장이 먼저다.</p>
+      <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'calc',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
+      <button class="ns-btn ghost" onclick="track('next_step',{from:'calc',to:'adv'});goStats('adv')">📈 투자지표에서 입주물량·인허가 확인</button>
+      <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'calc',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
+    </div>`;
+  }
+  return `<div class="nextstep">
+    <div class="ns-kicker">다음 단계</div>
+    <div class="ns-title">이 문제들, 감으로 낸 게 아니다</div>
+    <p class="ns-desc">10문항은 <b>아파트 사이클</b>의 고리에서 나왔다. 전세가 왜 먼저 오르는지, 서울은 왜 집값이 올라도 공급이 안 늘어나는지 이어서 읽어 보자.</p>
+    <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'investor',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
+    <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'investor',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
+    <button class="ns-btn ghost" onclick="track('next_step',{from:'investor',to:'stats'});showView('stats')">📊 국가기관 원자료 직접 보기</button>
+  </div>`;
+}
+/* 결과 화면에서 정오 점을 누르면 그 문항을 다시 본다(2026-09-15 점검 후속 ⑧). 틀린 문항을 되짚을 길이 없었다. */
+function dotExpHTML(i){
+  const it=QUIZ[i]; if(!it)return '';
+  const mine=qChoices[i], ok=mine===it.answer;
+  return `<div class="rx-head ${ok?'o':'x'}">${i+1}번 · ${ok?'○ 정답':'✕ 오답'}</div><div class="rx-q">${it.q}</div>`+
+    (mine!=null&&!ok?`<div class="rx-mine">내 답: ${it.opts[mine]}</div>`:'')+
+    `<div class="rx-ans">정답: ${it.opts[it.answer]}</div><p>${it.exp}</p>`;
+}
+function showDotExp(i){
+  const box=document.getElementById('rc-exp'); if(!box)return;
+  const same=!box.hidden&&box.dataset.i===String(i);
+  document.querySelectorAll('.rc-dot').forEach((d,j)=>d.setAttribute('aria-expanded',String(!same&&j===i)));
+  if(same){box.hidden=true;return;}
+  box.dataset.i=String(i); box.innerHTML=dotExpHTML(i); box.hidden=false;
+  track('quiz_review',{quiz_type:curSet,idx:i+1});
+}
+function showResult(){
+  track('quiz_complete',{quiz_type:curSet,score:qScore});
+  qClear();qMarkDone(curSet);
+  loadKakao().catch(()=>{});   // 결과 화면에 공유 버튼이 뜬다 — 누르기 전에 받아 둔다
+  if(CHALLENGE&&CHALLENGE.set===curSet){
+    track('challenge_result',{quiz_type:curSet,score:qScore,friend_score:CHALLENGE.score,
+      outcome:qScore>CHALLENGE.score?'win':(qScore<CHALLENGE.score?'lose':'draw')});
+  }
+  document.getElementById('qbar').style.width='100%';
+  document.getElementById('quiz-play').style.display='none';
+  const r=document.getElementById('quiz-result');
+  r.style.display='';
+  const gr=gradeOf(qScore);
+  const dots=qResults.map((ok,i)=>`<button type="button" class="rc-dot ${ok?'ok':'no'}" aria-expanded="false" aria-label="${i+1}번 ${ok?'정답':'오답'}, 해설 보기" onclick="showDotExp(${i})"></button>`).join('');
+  r.innerHTML=`
+    <div class="qresult">
+      ${versusHTML()}
+      
+      <div class="rcard">
+        <div class="rc-head">${QUIZSETS[curSet].title}</div>
+        <div class="rc-emoji">${gr.emoji}</div>
+        <div class="rc-score">${qScore}<small>/${QUIZ.length}</small></div>
+        <div class="rc-dots rc-dots-btn">${dots}</div>
+        <div class="rc-hint">점을 누르면 그 문항 해설이 열립니다</div>
+        <div><span class="rc-lv">${gr.lv}</span></div>
+        <div class="rc-grade">${gr.g}</div>
+        <div class="rc-desc">${gr.d}</div>
+        <div class="rc-foot">agongmap.co.kr · 아공맵</div>
+      </div>
+      <div class="rc-exp" id="rc-exp" hidden></div>
+      <div class="qshare-box">
+        <h4>${CHALLENGE&&CHALLENGE.set===curSet?'친구에게 되받아치기 🔥':'친구는 몇 점일까? 🔥'}</h4>
+        <div class="qshare-btns">
+          <button class="qshare-btn primary" onclick="shareResult()"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡으로 공유하기</button>
+        </div>
+      </div>
+      ${nextStepHTML()}
+      <button class="qretry" onclick="startQuiz()">다시 풀기</button>
+      <button class="qback" style="display:block;margin:14px auto 0" onclick="backToPick()">← 다른 테스트 풀어보기</button>
+    </div>`;
+  window.scrollTo(0,0);
+}
+// 공유 링크는 퀴즈 전용 OG(og-test.png)를 가진 /burini-test/로 보낸다.
+// 해시(#test)나 루트(?c=)로 보내면 홈 OG(og-brand.png)로 언펄돼 퀴즈 훅이 사라진다.
+const SHARE_URL='https://www.agongmap.co.kr/burini-test/';
+// GA 어트리뷰션 규약: utm_source는 유입 장치(quiz_invite/quiz_challenge), utm_medium=viral 고정,
+// utm_campaign은 퀴즈 세트. 랜딩의 location.replace('/'+q)가 쿼리를 보존하므로 홈까지 전달된다.
+const SHARE_URL_UTM=SHARE_URL+'?utm_source=quiz_invite&utm_medium=viral&utm_campaign=quiz3set';
+/* ===== 친구 대결 (서버 없이 URL 파라미터로) ===== */
+let CHALLENGE=null;
+function readChallenge(){
+  try{
+    const p=new URLSearchParams(location.search);
+    const sc=parseInt(p.get('c'),10), st=p.get('s'), sq=p.get('q');
+    if(!Number.isInteger(sc)||sc<0||sc>10)return null;
+    if(st!=='beginner'&&st!=='investor'&&st!=='calc')return null;
+    let seed=null;
+    if(sq&&/^[0-9a-z]{1,7}$/.test(sq)){
+      const v=parseInt(sq,36);
+      if(Number.isInteger(v)&&v>=0&&v<=4294967295)seed=v;
+    }
+    return{score:sc,set:st,seed:seed};
+  }catch(e){}
+  return null;
+}
+/* 세트 → 랜딩 주소. 점수별 공유 페이지(/{주소}/{점수}/, tools/make_quiz_share_pages.py)가 이 표를 읽는다.
+   카카오 말고 링크 복사·밴드·문자로 보내도 미리보기에 점수가 보이게 한다(2026-09-15 점검 후속 ⑧). */
+const QUIZ_SLUG={beginner:'burini-test',investor:'investor-test',calc:'redev-test'};
+function challengeURL(){
+  // 세트별 랜딩이 파라미터를 홈으로 넘겨준다(OG는 세트별 퀴즈 카드로 뜨게).
+  // 세 랜딩 모두 ?c=&s= 대결 파라미터를 홈으로 리다이렉트하므로 라우팅은 동일하다.
+  const slug=QUIZ_SLUG[curSet]||'burini-test';
+  return `https://www.agongmap.co.kr/${slug}/${qScore}/?c=${qScore}&s=${curSet}&q=${curSeed.toString(36)}&utm_source=quiz_challenge&utm_medium=viral&utm_campaign=${curSet}`;
+}
+function renderChalBar(){
+  const b=document.getElementById('chal-bar');
+  if(!b)return;
+  if(CHALLENGE&&CHALLENGE.set===curSet){
+    b.style.display='';
+    b.innerHTML=`🔥 친구가 <b>${CHALLENGE.score}점</b>으로 도전장을 보냈습니다 — 넘어보세요`;
+  }else{b.style.display='none';}
+}
+function versusHTML(){
+  if(!CHALLENGE||CHALLENGE.set!==curSet)return '';
+  const mine=qScore,theirs=CHALLENGE.score,d=Math.abs(mine-theirs);
+  const st=mine>theirs?'win':(mine<theirs?'lose':'draw');
+  const verdict=st==='win'?`${d}점 차로 이겼습니다 🎉`
+    :st==='lose'?`${d}점 차로 졌습니다 😤`:'무승부입니다 🤝';
+  const cta=st==='win'
+    ?'<div class="vs-next">이제 친구에게 되받아치세요 ↓</div>'
+    :`<button class="vs-btn" onclick="track('challenge_retry',{quiz_type:curSet});startQuiz(curSet,CHALLENGE.seed)">다시 도전하기</button>`;
+  return `<div class="versus ${st}">
+      <div class="vs-head">친구의 도전</div>
+      <div class="vs-row">
+        <div class="vs-side"><div class="vs-lab">나</div><div class="vs-score">${mine}</div></div>
+        <div class="vs-mid">VS</div>
+        <div class="vs-side"><div class="vs-lab">친구</div><div class="vs-score">${theirs}</div></div>
+      </div>
+      <div class="vs-verdict">${verdict}</div>
+      ${cta}
+    </div>`;
+}
+const KAKAO_KEY='1bd3370cb08703d1450ddb0e7726ab98';
+function kakaoReady(){
+  if(!window.Kakao)return false;
+  try{if(!Kakao.isInitialized())Kakao.init(KAKAO_KEY);return Kakao.isInitialized();}
+  catch(e){return false;}
+}
+/* 카카오 채널(_hRjxnX) 추가 버튼은 2026-08-01 제거.
+   사업자등록이 없어 비즈니스 채널 전환이 불가하고, 그러면 알림톡·친구톡을
+   못 쓴다. 즉 채널을 추가해도 "매주 시세 알림"이 실제로 가지 않는다.
+   지키지 못할 약속을 CTA로 거는 셈이라 버튼 자체를 뺐다.
+   Kakao SDK는 공유(kakaoFeed)에 계속 쓰므로 유지. */
+function kakaoFeed(title,desc,img,link,btn){
+  const L=link||SHARE_URL_UTM;
+  Kakao.Share.sendDefault({objectType:'feed',
+    content:{title:title,description:desc,
+      imageUrl:img||'https://www.agongmap.co.kr/og-test.png',imageWidth:img?800:1200,imageHeight:img?800:630,
+      link:{mobileWebUrl:L,webUrl:L}},
+    buttons:[{title:btn||'나도 도전하기',link:{mobileWebUrl:L,webUrl:L}},
+      {title:'풀 리포트 보기',link:{mobileWebUrl:'https://www.agongmap.co.kr/?utm_source=quiz_share&utm_medium=viral&utm_campaign=full_report',webUrl:'https://www.agongmap.co.kr/?utm_source=quiz_share&utm_medium=viral&utm_campaign=full_report'}}]});
+}
+function shareTest(){
+  if(needKakao(shareTest))return;
+  track('share',{content_type:'quiz_invite',method:kakaoReady()?'kakao':(navigator.share?'os_share':'copy')});
+  if(kakaoReady()){
+    try{kakaoFeed('내 부동산 감각, 몇 점일까?','부린이·투자자·재건축 3종 테스트 — 10문항 5분, 즉시 채점·해설');return;}
+    catch(e){}
+  }
+  const txt='내 부동산 감각, 몇 점일까? 부린이·투자자·재건축 3종 테스트 — 10문항 5분\n'+SHARE_URL_UTM;
+  if(navigator.share){
+    navigator.share({title:'부동산 사이클 테스트',
+      text:'내 부동산 감각, 몇 점일까? 10문항 5분 테스트 — 같이 풀어보자!',
+      url:SHARE_URL_UTM}).catch(e=>{if(e&&e.name!=='AbortError')copyText(txt);});
+  }else{copyText(txt);}
+}
+function shareTaunt(s){
+  if(curSet==='beginner')return BLV[Math.max(0,Math.min(10,s|0))].taunt;
+  if(s>=9)return '이걸 다 맞히네… 혹시 업자세요?';
+  if(s>=7)return '머릿속엔 이미 다주택자시네요';
+  if(s>=5)return '감은 있어요. 계약은 아직 이르지만';
+  if(s>=3)return '부동산 뉴스, 헤드라인만 보셨죠?';
+  return '호재를 악재로 읽고 계시네요';
+}
+function shareTxt(){
+  const gr=gradeOf(qScore),name=QUIZSETS[curSet].shareName;
+  return `${gr.emoji} 내 점수 ${qScore}/10 — ${name}\n${shareTaunt(qScore)}\n\n내 점수 넘어봐 👇\n${challengeURL()}`;
+}
+function shareResult(){
+  if(needKakao(shareResult))return;
+  const gr=gradeOf(qScore),name=QUIZSETS[curSet].shareName;
+  const url=challengeURL();
+  track('share',{content_type:'quiz_result',method:kakaoReady()?'kakao':(navigator.share?'os_share':'copy'),quiz_type:curSet,score:qScore});
+  track('challenge_sent',{quiz_type:curSet,score:qScore});
+  if(kakaoReady()){
+    try{kakaoFeed(`${gr.emoji} ${qScore}/10점 — ${name}`,
+      `${shareTaunt(qScore)} · 내 점수 넘어봐`,
+      `https://www.agongmap.co.kr/share/${curSet}-${qScore}.png`,
+      url,'도전 받기');return;}
+    catch(e){}
+  }
+  if(navigator.share){
+    navigator.share({title:name,
+      text:`${gr.emoji} 내 점수 ${qScore}/10 — ${name}. ${shareTaunt(qScore)} 넘어봐!`,
+      url:url}).catch(e=>{if(e&&e.name!=='AbortError')copyText(shareTxt());});
+  }else{copyText(shareTxt());}
+}
+function copyText(txt){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('복사됐어요! 친구에게 붙여넣기 하세요')).catch(()=>fallbackCopy(txt));
+  }else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);
+  ta.select();try{document.execCommand('copy');toast('복사됐어요!');}catch(e){toast('복사 실패 — 길게 눌러 복사하세요');}
+  document.body.removeChild(ta);
+}
+function toast(msg){
+  let t=document.querySelector('.qtoast');
+  if(!t){t=document.createElement('div');t.className='qtoast';document.body.appendChild(t);}
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+
+/* ============ 투자지표(구 심화통계) ============ */
+let advRendered=false, statsMode='market';
+const SMODES=['market','basic','adv','more'];
+/* 통계 백버튼: 사용자 클릭 1회 = 히스토리 1칸. 화면이 실제로 바뀐 클릭만
+   push하고, 이미 보이던 상태의 해시 정규화(#stats-adv → #stats-adv-occ)는
+   replace로 접는다. 복원은 applyHash가 해시만 보고 전체 화면을 재현한다. */
+function statsNav(hh,replace){
+  if(location.hash===hh)return;
+  if(replace)history.replaceState(null,'',hh);
+  else history.pushState(null,'',hh);
+}
+/* 모드의 정규 해시 — market/adv는 지금 켜져 있는 하위탭까지 포함한다.
+   모드 진입 해시가 하위탭을 생략하면 뒤로가기 복원이 기본탭으로 튀어,
+   화면에 남아 있던 하위탭과 어긋난다. */
+function statsHashOf(m){
+  if(m==='market')return '#stats-market-'+(document.getElementById('mtab-month').classList.contains('on')?'month':'week');
+  if(m==='adv'){const t=['occ','permit','bubble'].find(k=>document.getElementById('atab-'+k).classList.contains('on'))||'occ';return '#stats-adv-'+t;}
+  return '#stats-'+m;
+}
+function setStatsMode(m,push){
+  if(!SMODES.includes(m))m='market';
+  statsMode=m;
+  SMODES.forEach(k=>{
+    document.getElementById('smode-'+k).classList.toggle('on', k===m);
+    document.getElementById('stats-'+k).style.display = k===m ? '' : 'none';
+  });
+  if(m==='adv' && !advRendered){ renderAdvAll(); advRendered=true; }
+  if(m==='basic'||m==='market'){ afterLayout(()=>window.dispatchEvent(new Event('resize'))); }
+  track('stats_mode',{mode:m});
+  if(push!==false)statsNav(statsHashOf(m));
+}
+function advFmt(v){ return v==null ? '·' : Number(v).toLocaleString('ko-KR'); }
+/* 입주물량 미래 분기는 소수 한 자리로 실려 온다(분기마다 반올림하면 소비자가
+   그걸 다시 더해 홈과 갈리기 때문). 화면에는 정수로 찍는다. */
+function occFmt(v){ return v==null ? '·' : Math.round(v).toLocaleString('ko-KR'); }
+function advSel(id, regions){
+  const s=document.getElementById(id);
+  if(s.options.length) return s.value;
+  const list=regSort(regions);
+  s.innerHTML=list.map(r=>`<option value="${r}">${r}</option>`).join('');
+  return list[0];
+}
+/* --- 인허가 --- */
+function permitCls(region, v){
+  if(v==null) return '';
+  const ref=ADV.permits.ref[region]; if(!ref) return '';
+  if(v <= ref[0]/2) return 'lo';
+  if(v >= ref[1]/2) return 'hi';
+  return '';
+}
+function renderAdvPermits(){
+  const P=ADV.permits, regs=P.regions;
+  const plab=p=>p.replace('H1',' 상').replace('H2',' 하');
+  let mx;
+  if(TRANSP.permit){
+    mx=['<table class="adv"><thead><tr><th>지역</th>'+P.rows.map(r=>`<th>${plab(r.p)}</th>`).join('')+'</tr></thead><tbody>'];
+    regs.forEach((r,j)=>{
+      mx.push(`<tr><td>${r}</td>`+P.rows.map(row=>`<td class="${permitCls(r,row.v[j])}">${advFmt(row.v[j])}</td>`).join('')+'</tr>');
+    });
+  }else{
+    mx=['<table class="adv"><thead><tr><th>반기</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    for(let i=P.rows.length-1;i>=0;i--){
+      const row=P.rows[i];
+      mx.push(`<tr><td>${plab(row.p)}</td>`+
+        row.v.map((v,j)=>`<td class="${permitCls(regs[j],v)}">${advFmt(v)}</td>`).join('')+'</tr>');
+    }
+  }
+  mx.push('</tbody></table>');
+  document.getElementById('adv-permit-matrix').innerHTML=mx.join('');
+  const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
+  const cp=['<table class="adv"><thead><tr><th>반기</th><th>'+reg+'</th></tr></thead><tbody>'];
+  for(let i=P.rows.length-1;i>=Math.max(0,P.rows.length-12);i--){
+    const row=P.rows[i], v=row.v[ri];
+    cp.push(`<tr><td>${row.p.replace('H1',' 상').replace('H2',' 하')}</td><td class="${permitCls(reg,v)}">${advFmt(v)}</td></tr>`);
+  }
+  cp.push(`</tbody></table>`);
+  document.getElementById('adv-permit-compact').innerHTML=cp.join('')+
+    (ref?`<div class="src-note" style="padding:8px 12px">과거 연간 저점 ${advFmt(ref[0])} · 고점 ${advFmt(ref[1])} (반기 환산 ½)</div>`:'');
+}
+/* --- 입주물량 --- */
+function occCls(region,v){
+  if(v==null) return '';
+  /* 기준선은 분기 적정물량 하나다. 2026-08-07까지 여기에 '적정밴드'가 하나 더
+     있어서, 같은 제주를 홈·존 페이지는 '매우 부족'이라 하고 이 표는 '밴드 상단
+     초과(과잉)'라고 칠했다(감사 확인 23칸). 밴드는 걷었다. */
+  const ref=ADV.occupancy.ref[region]; if(!ref) return '';
+  if(v>=ref) return 'hi';
+  if(v<=ref*0.6) return 'lo';
+  return '';
+}
+function occFut(p){
+  const y=+p.slice(0,4), q=+p.slice(5);
+  const now=new Date(), cy=now.getFullYear(), cq=Math.floor(now.getMonth()/3)+1;
+  return y>cy || (y===cy && q>cq);
+}
+function occEst(row){ return row.e===1 || (row.e===undefined && occFut(row.p)); }
+function renderAdvOcc(){
+  const O=ADV.occupancy, regs=O.regions;
+  let mx;
+  if(TRANSP.occ){
+    /* 추정 분기임을 색으로만 알리면 색각이상·스크린리더 사용자가 실적으로 읽는다.
+       현재 분기가 이미 추정 구간이라 특히 그렇다(2026-08-08 감사). 글로도 붙인다. */
+    mx=['<table class="adv"><caption class="sr-only">지역별 분기 입주물량. 별표(*)가 붙은 분기는 착공 실적으로 추정한 값입니다.</caption><thead><tr><th scope="col">지역</th>'+O.rows.map(r=>`<th scope="col"${occEst(r)?' style="color:#9a7000" title="착공 기준 추정"':''}>${r.p}${occEst(r)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`).join('')+'</tr></thead><tbody>'];
+    regs.forEach((r,j)=>{
+      mx.push(`<tr><td>${r}</td>`+O.rows.map(row=>{
+        const cls=[occCls(r,row.v[j]),occEst(row)?'fut':''].filter(Boolean).join(' ');
+        return `<td class="${cls}">${occFmt(row.v[j])}</td>`;
+      }).join('')+'</tr>');
+    });
+  }else{
+    mx=['<table class="adv"><thead><tr><th>분기</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    for(let i=O.rows.length-1;i>=0;i--){
+      const row=O.rows[i];
+      mx.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row"${occEst(row)?' title="착공 기준 추정"':''}>${row.p}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`+
+        row.v.map((v,j)=>`<td class="${occCls(regs[j],v)}">${occFmt(v)}</td>`).join('')+'</tr>');
+    }
+  }
+  mx.push('</tbody></table>');
+  document.getElementById('adv-occ-matrix').innerHTML=mx.join('');
+  const reg=advSel('adv-occ-reg',regs), ri=regs.indexOf(reg), ref=O.ref[reg];
+  const rows=O.rows, ci=rows.findIndex(r=>occEst(r));
+  const start=Math.max(0,(ci<0?rows.length:ci)-6), end=Math.min(rows.length,(ci<0?rows.length:ci)+6);
+  const cp=['<table class="adv"><thead><tr><th>분기</th><th>'+reg+'</th></tr></thead><tbody>'];
+  for(let i=end-1;i>=start;i--){
+    const row=rows[i], v=row.v[ri];
+    cp.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row">${row.p}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th><td class="${occCls(reg,v)}">${occFmt(v)}</td></tr>`);
+  }
+  cp.push('</tbody></table>');
+  const b=null;   // 적정밴드 폐지(2026-08-07) — 기준선은 적정물량 하나
+  document.getElementById('adv-occ-compact').innerHTML=cp.join('')+
+    (b?`<div class="src-note" style="padding:8px 12px">적정밴드 ${advFmt(b[0])}~${advFmt(b[1])} · 아래면 공급부족, 위면 공급과잉</div>`:
+       (ref?`<div class="src-note" style="padding:8px 12px">분기 수요 기준선 ${advFmt(ref)}</div>`:''));
+}
+function wkCell(v){
+  if(v==null) return '<td>·</td>';
+  const r=pvSign(v);
+  const cls=r>0?'up':(r<0?'dn':'');
+  return `<td class="${cls}">${pv2(v)}%</td>`;
+}
+/* --- 주간·월간 동향 (기본통계) — 표 + 막대 차트 공용 --- */
+const TREND={
+  week:{sel:'adv-week-reg',sel2:'adv-week-sgg',matrix:'adv-week-matrix',compact:'adv-week-compact',chart:'weekChart',col:'주간',lab:p=>p.slice(2),tick:l=>l.slice(3),periods:[['3개월',13],['1년',52],['3년',156],['전체',0]],map:'week-map',maplab:'week-maplab',unit:'전주 대비'},
+  month:{sel:'adv-month-reg',sel2:'adv-month-sgg',matrix:'adv-month-matrix',compact:'adv-month-compact',chart:'monthChart',col:'월간',lab:p=>p,tick:l=>l.slice(2),periods:[['3개월',3],['1년',12],['3년',36],['전체',0]],map:'month-map',maplab:'month-maplab',unit:'전월 대비'}
+};
+/* --- 시도 타일 지도 (빨강=상승 · 파랑=하락, 진할수록 변동 큼) --- */
+const NATION_TILE={cols:12,rows:20,t:[["c3","충남",0,9,1],["c313","당진",1,9,0],["c306","아산",2,9,0],["c301","천안",3,9,1],["c302","동남",4,9,0],["c303","서북",5,9,0],["c2","충북",6,9,1],["c206","음성",7,9,0],["c203","충주",8,9,0],["c204","제천",9,9,0],["c307","서산",0,10,0],["c311","홍성",1,10,0],["c312","예산",2,10,0],["c304","공주",3,10,0],["c309","계룡",4,10,0],["b6","세종",5,10,1],["c201","청주",6,10,1],["c20103","흥덕",7,10,0],["c20104","청원",8,10,0],["c20101","상당",9,10,0],["c20102","서원",10,10,0],["c305","보령",0,11,0],["c308","논산",1,11,0],["b4","대전",3,11,1],["b404","유성",4,11,0],["b405","대덕",5,11,0],["b403","서",6,11,0],["b402","중",7,11,0],["b401","동",8,11,0],["c4","전북",0,12,1],["c404","군산",1,12,0],["c405","익산",2,12,0],["c401","전주",3,12,1],["c402","완산",4,12,0],["c403","덕진",5,12,0],["c6","경북",6,12,1],["c606","영주",7,12,0],["c609","문경",8,12,0],["c605","안동",9,12,0],["c603","포항",10,12,1],["c60302","북",11,12,0],["c408","김제",0,13,0],["c406","정읍",1,13,0],["c407","남원",2,13,0],["c608","상주",6,13,0],["c602","구미",7,13,0],["c611","칠곡",8,13,0],["c604","김천",9,13,0],["c610","경산",10,13,0],["c60301","남",11,13,0],["b3","광주",0,14,1],["b304","북",1,14,0],["b305","광산",2,14,0],["b302","서",3,14,0],["b301","동",4,14,0],["b303","남",5,14,0],["b2","대구",6,14,1],["b205","북",7,14,0],["b202","동",8,14,0],["b206","수성",9,14,0],["c607","영천",10,14,0],["c601","경주",11,14,0],["c5","전남",0,15,1],["c504","나주",1,15,0],["c503","순천",2,15,0],["c505","광양",3,15,0],["c506","무안",4,15,0],["c501","목포",5,15,0],["c502","여수",6,15,0],["b203","서",7,15,0],["b201","중",8,15,0],["b207","달서",9,15,0],["b208","달성",10,15,0],["b204","남",11,15,0],["c7","경남",0,16,1],["c703","진주",1,16,0],["c705","사천",2,16,0],["c704","통영",3,16,0],["c708","거제",4,16,0],["c707","밀양",5,16,0],["b5","울산",6,16,1],["b501","중",7,16,0],["b503","동",8,16,0],["b504","북",9,16,0],["b505","울주",10,16,0],["b502","남",11,16,0],["c701","창원",1,17,1],["c70101","의창",2,17,0],["c70102","성산",3,17,0],["c70104","마산회원",4,17,0],["c70103","마산합포",5,17,0],["c702","진해",6,17,0],["c706","김해",7,17,0],["c709","양산",8,17,0],["b1","부산",9,17,1],["b10202","금정",10,17,0],["b10204","기장",11,17,0],["b10302","강서",4,18,0],["b10303","사상",5,18,0],["b10301","북",6,18,0],["b10203","동래",7,18,0],["b10201","해운대",8,18,0],["b10105","부산진",9,18,0],["b10107","연제",10,18,0],["b10108","수영",11,18,0],["b10304","사하",5,19,0],["b10102","서",6,19,0],["b10101","중",7,19,0],["b10106","남",8,19,0],["b10103","동",9,19,0],["b10104","영도",10,19,0],["c8","제주",0,19,1],["c801","제주",1,19,0],["c802","서귀포",2,19,0],["a0","전국",0,0,1],["a8","경기",1,0,1],["c1","강원",9,0,1],["a7","서울",3,1,1],["a9","인천",0,3,1],["a80603","파주",2,0,0],["a80704","의정부",6,0,0],["a80703","양주",3,0,0],["a80702","동두천",4,0,0],["a80701","포천",5,0,0],["a80402","구리",7,0,0],["a80401","남양주",8,0,0],["c106","속초",10,0,0],["c101","춘천",8,1,0],["c103","강릉",10,1,0],["c102","원주",9,1,0],["c104","동해",9,2,0],["c105","태백",8,2,0],["c107","삼척",8,3,0],["a806023","일산서",1,1,0],["a80602","고양",2,2,0],["a806022","일산동",1,2,0],["a806021","덕양",2,1,0],["a80601","김포",0,2,0],["a7010301","은평",4,1,0],["a7010206","강북",5,1,0],["a7010207","도봉",6,1,0],["a7010208","노원",7,1,0],["a7010302","서대문",3,2,0],["a7010101","종로",4,2,0],["a7010205","성북",5,2,0],["a7010203","동대문",6,2,0],["a7010204","중랑",7,2,0],["a7010303","마포",3,3,0],["a7010102","중",4,3,0],["a7010103","용산",5,3,0],["a7010201","성동",6,3,0],["a7010202","광진",7,3,0],["a7020102","강서",3,4,0],["a7020101","양천",4,4,0],["a7020105","영등포",5,4,0],["a7020106","동작",6,4,0],["a7020202","강남",7,4,0],["a7020203","송파",8,4,0],["a7020204","강동",9,4,0],["a7020103","구로",3,5,0],["a7020104","금천",4,5,0],["a7020107","관악",5,5,0],["a7020201","서초",6,5,0],["a80403","하남",10,4,0],["a908","검단",1,3,0],["a902","영종",2,3,0],["a901","제물포",0,4,0],["a903","미추홀",1,4,0],["a906","부평",2,4,0],["a904","연수",0,5,0],["a909","서해",1,5,0],["a907","계양",2,5,0],["a905","남동",0,6,0],["a80301","부천",1,6,0],["a803011","원미",2,6,0],["a803012","소사",3,6,0],["a803013","오정",4,6,0],["a80304","광명",5,6,0],["a80303","시흥",0,7,0],["a80302","안산",1,8,0],["a803021","상록",2,8,0],["a803022","단원",3,8,0],["a80101","과천",6,6,0],["a80102","안양",1,7,0],["a801021","만안",2,7,0],["a801022","동안",3,7,0],["a80104","군포",5,7,0],["a80105","의왕",4,7,0],["a80203","수원",6,7,0],["a802031","장안",7,7,0],["a802032","권선",8,7,0],["a802033","팔달",9,7,0],["a802034","영통",10,7,0],["a80103","성남",7,5,0],["a801031","수정",8,5,0],["a801032","중원",9,5,0],["a801033","분당",10,5,0],["a80202","용인",7,6,0],["a802021","처인",8,6,0],["a802022","기흥",9,6,0],["a802023","수지",10,6,0],["a80404","광주",11,6,0],["a80501","이천",11,7,0],["a80502","여주",11,8,0],["a80305","화성",4,8,0],["a803051","동탄",5,8,0],["a803052","만세",6,8,0],["a803053","병점",7,8,0],["a803054","효행",8,8,0],["a80306","오산",9,8,0],["a80201","안성",10,8,0],["a80307","평택",0,8,0]]};
+const SGG_QNAME={"a80703": "양주", "a80702": "동두천", "a80701": "포천", "a80603": "파주", "a80704": "의정부", "a80402": "구리", "a80401": "남양주", "a7010301": "서울 은평구", "a7010206": "서울 강북구", "a7010207": "서울 도봉구", "a7010208": "서울 노원구", "a7010302": "서울 서대문구", "a7010101": "서울 종로구", "a7010205": "서울 성북구", "a7010203": "서울 동대문구", "a7010204": "서울 중랑구", "a7010303": "서울 마포구", "a7010102": "서울 중구", "a7010103": "서울 용산구", "a7010201": "서울 성동구", "a7010202": "서울 광진구", "a7020102": "서울 강서구", "a7020101": "서울 양천구", "a7020105": "서울 영등포구", "a7020106": "서울 동작구", "a7020202": "서울 강남구", "a7020203": "서울 송파구", "a7020204": "서울 강동구", "a7020103": "서울 구로구", "a7020104": "서울 금천구", "a7020107": "서울 관악구", "a7020201": "서울 서초구", "a80403": "하남", "a80404": "광주", "a80601": "김포", "a908": "인천 검단구", "a909": "인천 서해구", "a907": "인천 계양구", "a902": "인천 영종구", "a906": "인천 부평구", "a901": "인천 제물포구", "a903": "인천 미추홀구", "a905": "인천 남동구", "a904": "인천 연수구", "a80303": "시흥", "a80304": "광명", "a80101": "과천", "a80105": "의왕", "a80104": "군포", "a80501": "이천", "a80502": "여주", "a80306": "오산", "a80201": "안성", "a80307": "평택", "c106": "속초", "c101": "춘천", "c103": "강릉", "c102": "원주", "c104": "동해", "c105": "태백", "c107": "삼척", "c313": "당진", "c306": "아산", "c206": "음성", "c203": "충주", "c204": "제천", "c307": "서산", "c312": "예산", "c302": "천안 동남구", "c303": "천안 서북구", "c20103": "청주 흥덕구", "c20104": "청주 청원구", "c311": "홍성", "c304": "공주", "b6": "세종", "c20101": "청주 상당구", "c20102": "청주 서원구", "c305": "보령", "c309": "계룡", "b404": "대전 유성구", "b405": "대전 대덕구", "c308": "논산", "b403": "대전 서구", "b402": "대전 중구", "b401": "대전 동구", "c404": "군산", "c405": "익산", "c402": "전주 완산구", "c403": "전주 덕진구", "c408": "김제", "c406": "정읍", "c407": "남원", "c606": "영주", "c609": "문경", "c605": "안동", "c60302": "포항 북구", "c608": "상주", "c602": "구미", "c611": "칠곡", "c60301": "포항 남구", "c604": "김천", "c610": "경산", "c607": "영천", "c601": "경주", "b304": "광주 북구", "b305": "광주 광산구", "b302": "광주 서구", "b301": "광주 동구", "b303": "광주 남구", "b205": "대구 북구", "b202": "대구 동구", "b203": "대구 서구", "b201": "대구 중구", "b206": "대구 수성구", "b208": "대구 달성군", "b207": "대구 달서구", "b204": "대구 남구", "b504": "울산 북구", "b501": "울산 중구", "b503": "울산 동구", "b505": "울산 울주군", "b502": "울산 남구", "c504": "나주", "c503": "순천", "c505": "광양", "c506": "무안", "c501": "목포", "c502": "여수", "c707": "밀양", "c709": "양산", "c70101": "창원 의창구", "c70102": "창원 성산구", "c706": "김해", "c70104": "창원 마산회원구", "c70103": "창원 마산합포구", "c702": "창원 진해구", "c703": "진주", "c705": "사천", "c704": "통영", "c708": "거제", "b10301": "부산 북구", "b10202": "부산 금정구", "b10204": "부산 기장군", "b10302": "부산 강서구", "b10303": "부산 사상구", "b10203": "부산 동래구", "b10201": "부산 해운대구", "b10304": "부산 사하구", "b10105": "부산 부산진구", "b10107": "부산 연제구", "b10108": "부산 수영구", "b10102": "부산 서구", "b10101": "부산 중구", "b10106": "부산 남구", "b10103": "부산 동구", "b10104": "부산 영도구", "c801": "제주", "c802": "서귀포", "a802031": "수원 장안구", "a802032": "수원 권선구", "a802033": "수원 팔달구", "a802034": "수원 영통구", "a801031": "성남 수정구", "a801032": "성남 중원구", "a801033": "성남 분당구", "a802021": "용인 처인구", "a802022": "용인 기흥구", "a802023": "용인 수지구", "a801021": "안양 만안구", "a801022": "안양 동안구", "a806021": "고양 덕양구", "a806022": "고양 일산동구", "a806023": "고양 일산서구", "a803011": "부천 원미구", "a803012": "부천 소사구", "a803013": "부천 오정구", "a803021": "안산 상록구", "a803022": "안산 단원구", "a803051": "화성 동탄구", "a803052": "화성 만세구", "a803053": "화성 병점구", "a803054": "화성 효행구"};
+/* 기준일 배너 — 지도 위 유일한 메타 표기(옛 map-lab 텍스트 줄은 중복이라 제거,
+   사용자 선택으로 배너 쪽을 살림). sggOnly=시군구 지도만 이 주차일 때. */
+function mapDateChip(p,unit,sggOnly){
+  return '<div class="map-datechip"><span>📅 '+(sggOnly?'시군구 ':'')+'기준일 '+p+' · '+unit+'</span></div>';
+}
+function sggRanks(S,row,met){
+  const arr=[];
+  const src=row[met]||[];
+  S.codes.forEach((c,i)=>{
+    if(SGG_QNAME[c]&&src[i]!=null)arr.push([c,src[i]]);
+  });
+  arr.sort((a,b)=>b[1]-a[1]);
+  const rk={};
+  arr.forEach(([c],i)=>rk[c]=i+1);
+  return {order:arr,rk};
+}
+/* TOP10 정렬 기준 — 지도별로 매매/전세/월세 중 하나. 방향은 박스가 정한다
+   (상승 박스=내림차순, 하락 박스=오름차순). 헤더를 누르면 기준만 바뀐다. */
+const RANKMET={week:'ma',month:'ma'};
+function setRankMet(k,met){ RANKMET[k]=met; drawNationMap(k); }
+function rankTables(S,unit,k){
+  const rows=S.rows, cur=rows[rows.length-1];
+  const prev=rows.length>1?rows[rows.length-2]:null;
+  const hasWo=Array.isArray(cur.wo);
+  let met=RANKMET[k]||'ma';
+  if(met==='wo'&&!hasWo)met='ma';        // 주간엔 월세가 없다
+  const MLAB={ma:'매매',je:'전세',wo:'월세'};
+  const cr=sggRanks(S,cur,met), pr=prev?sggRanks(S,prev,met).rk:null;
+  const val={};
+  ['ma','je','wo'].forEach(m=>{ val[m]={}; S.codes.forEach((c,i)=>{ val[m][c]=(cur[m]||[])[i]; }); });
+  function dcell(c){
+    if(!pr||!(c in pr))return '<span class="rk-new">NEW</span>';
+    const d=pr[c]-cr.rk[c];
+    if(d>0)return '<span class="rk-up">▲'+d+'위</span>';
+    if(d<0)return '<span class="rk-dn">▼'+(-d)+'위</span>';
+    return '<span class="rk-same">–</span>';
+  }
+  function vcell(c,m){
+    const v=val[m][c];
+    const r=pvSign(v);
+    const cls=(r>0?'up':(r<0?'dn':''))+(m===met?' sortcol':'');
+    return '<td class="'+cls.trim()+'">'+(v==null?'·':pv2(v)+'%')+'</td>';
+  }
+  const cols=hasWo?['ma','je','wo']:['ma','je'];
+  function tbl(title,items,base){
+    const th=cols.map(m=>'<th class="rk-sort'+(m===met?' on':'')+'" role="button" tabindex="0" data-k="'+k+'" data-met="'+m+'" title="'+MLAB[m]+' 기준으로 정렬">'+MLAB[m]+'</th>').join('');
+    const h=['<div class="rank-box"><div class="rank-h">'+title+'</div><div class="rank-wrap"><table class="rank-tbl'+(hasWo?' wide':'')+'">',
+      '<thead><tr><th>순위</th><th>지역</th>'+th+'<th>'+unit+'</th></tr></thead><tbody>'];
+    items.forEach(([c,v],i)=>{
+      const rank=base+i;
+      const medal=rank<=3?'<span class="rk-medal">'+['🥇','🥈','🥉'][rank-1]+'</span>':'';
+      h.push('<tr><td>'+medal+rank+'</td><td>'+SGG_QNAME[c]+'</td>'+
+        cols.map(m=>vcell(c,m)).join('')+'<td>'+dcell(c)+'</td></tr>');
+    });
+    h.push('</tbody></table></div></div>');
+    return h.join('');
+  }
+  const basis='<span style="font-weight:600;color:#799185;font-size:11px">'+MLAB[met]+' 기준</span>';
+  return '<div class="map-rank">'+
+    tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.slice(0,10),1)+
+    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1)+
+    '</div>';
+}
+function drawNationMap(k){
+  const T=TREND[k], D=trendData(k), S=D.sgg; if(!S||!S.rows.length)return;
+  const row=S.rows[S.rows.length-1];
+  const vma={},vje={},vwo={};
+  S.codes.forEach((c,i)=>{vma[c]=row.ma[i];vje[c]=row.je[i];vwo[c]=(row.wo||[])[i];});
+  /* 월세는 월간 원천에만 있다 — 부동산원 주간조사는 매매·전세만(R-ONE 주간표 8종 전부).
+     그래서 주간 지도는 2단, 월간 지도는 3단으로 자동 분기한다. */
+  const hasWo=Array.isArray(row.wo);
+  // 시군구 지도(KOSIS 등)의 기준일이 시도·서울 지표(R-ONE 최신)보다 뒤처질 때가 있어
+  // (예: 주간 시군구는 시도보다 수일 늦음) 오해 없게 두 날짜를 함께 표기한다.
+  const natP=(D.rows&&D.rows.length)?D.rows[D.rows.length-1].p:row.p;
+  const gap=natP!==row.p;
+  const SER=hasWo?'매매·전세·월세':'매매·전세';
+  const ref=k==='week'?0.4:1.0, TW=30, NH=15, G=2;
+  /* 3단(월간)은 값 칸을 1px 낮춰 세로가 길어지는 걸 억제한다.
+     9px 숫자에 12px 칸이면 충분하고, 2단(주간)은 기존 13px 그대로 둔다. */
+  const VH=hasWo?12:13;
+  const rowH=NH+(hasWo?3:2)*(VH+1);   // 이름칸 + 값칸(각 VH, 사이 1px)
+  const N=NATION_TILE, W=N.cols*(TW+G)-G, H=N.rows*(rowH+G)-G;
+  const sv=['<svg viewBox="-2 -2 '+(W+4)+' '+(H+4)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:640px;margin:0 auto;display:block" role="img" aria-label="전국 시군구 변동률 지도">'];
+  const GRP_TINT={a7:'#e2e7e5',c1:'#e2e7e5',c3:'#e2e7e5',b2:'#e2e7e5',b1:'#e2e7e5',
+    a9:'#e1e6e3',b3:'#e1e6e3',c7:'#e1e6e3',c6:'#e1e6e3',c8:'#e1e6e3',b4:'#e1e6e3'};
+  const grpOf=c=>{
+    if(c[0]==='a'){
+      if(c==='a0')return 'a0';
+      if(c.indexOf('a7')===0)return 'a7';
+      if(c.indexOf('a8')===0)return 'a8';
+      return 'a9';
+    }
+    return c.slice(0,2);
+  };
+  const SI_PARENT=new Set(['a80203','a80103','a80202','a80102','a80602','a80301','a80302','a80305']);
+  const clOf=c=>{ if(SI_PARENT.has(c))return c; for(const p of SI_PARENT)if(c.indexOf(p)===0)return p; return null; };
+  const fmtV=v=>pv2(v);
+  const tcol=v=>{const r=pvSign(v);return r>0?'#8f2318':(r<0?'#123c5c':'#5e6f74');};
+  N.t.forEach(([c,nm,x,y,h])=>{
+    const ma=vma[c], je=vje[c], wo=vwo[c];
+    const px=x*(TW+G), py=y*(rowH+G);
+    /* 값칸 y는 칸 높이에서 계산 — 베이스라인도 칸 중앙 기준이라 VH를 바꿔도 숫자가
+       위로 치우치지 않는다(예전엔 상수라 칸을 줄이면 글자가 천장에 붙었다). */
+    const cells=[[ma,NH+1],[je,NH+VH+2]];
+    if(hasWo)cells.push([wo,NH+2*VH+3]);
+    const tb=Math.round(VH/2)+3;
+    sv.push(`<g transform="translate(${px},${py})">`+
+      `<rect width="${TW}" height="${NH}" rx="4" fill="${h?'#1e2846':(SI_PARENT.has(c)?'#34456b':'#eef1f8')}" stroke="${h?'#1e2846':'#d6dced'}"/>`+
+      `<text x="${TW/2}" y="${NH-4}" text-anchor="middle" font-size="${nm.length>=4?7:(nm.length===3?8:9)}" font-weight="600" fill="${(h||SI_PARENT.has(c))?'#fff':'#1b2426'}">${nm}</text>`+
+      cells.map(([v,ry])=>
+        `<rect y="${ry}" width="${TW}" height="${VH}" rx="3" fill="${mapColor(v,ref)}" stroke="#d8dfdc"/>`+
+        `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="9" font-weight="600" fill="${tcol(v)}">${fmtV(v)}</text>`).join('')+
+      `<title>${nm} 매매 ${fmtV(ma)}% · 전세 ${fmtV(je)}%${hasWo?' · 월세 '+fmtV(wo)+'%':''}</title></g>`);
+  });
+  // 시도(광역) 경계선 — 같은 시도가 아닌 이웃과 접한 변만 그린다
+  const posGrp={};
+  N.t.forEach(([c,,x,y])=>{posGrp[x+','+y]=grpOf(c);});
+  const bl=[];
+  N.t.forEach(([c,,x,y])=>{
+    const g=grpOf(c), px=x*(TW+G), py=y*(rowH+G);
+    const nb=(dx,dy)=>posGrp[(x+dx)+','+(y+dy)];
+    if(nb(0,-1)!==g)bl.push('M'+(px-1.5)+' '+(py-1.5)+'H'+(px+TW+1.5));
+    if(nb(0,1)!==g)bl.push('M'+(px-1.5)+' '+(py+rowH+1.5)+'H'+(px+TW+1.5));
+    if(nb(-1,0)!==g)bl.push('M'+(px-1.5)+' '+(py-1.5)+'V'+(py+rowH+1.5));
+    if(nb(1,0)!==g)bl.push('M'+(px+TW+1.5)+' '+(py-1.5)+'V'+(py+rowH+1.5));
+  });
+  sv.push('<path d="'+bl.join('')+'" stroke="#5e6f74" stroke-width="1.4" fill="none" opacity=".9"/>');
+  // 구를 가진 시 = 점선 테두리로 묶기 (시+소속 구)
+  const posCl={}; N.t.forEach(([c,,x,y])=>{posCl[x+','+y]=clOf(c);});
+  const dl=[];
+  N.t.forEach(([c,,x,y])=>{
+    const cl=clOf(c); if(!cl)return;
+    const px=x*(TW+G), py=y*(rowH+G), nb=(dx,dy)=>posCl[(x+dx)+','+(y+dy)];
+    if(nb(0,-1)!==cl)dl.push('M'+(px+0.5)+' '+(py+0.5)+'H'+(px+TW-0.5));
+    if(nb(0,1)!==cl)dl.push('M'+(px+0.5)+' '+(py+rowH-0.5)+'H'+(px+TW-0.5));
+    if(nb(-1,0)!==cl)dl.push('M'+(px+0.5)+' '+(py+0.5)+'V'+(py+rowH-0.5));
+    if(nb(1,0)!==cl)dl.push('M'+(px+TW-0.5)+' '+(py+0.5)+'V'+(py+rowH-0.5));
+  });
+  sv.push('<path d="'+dl.join('')+'" stroke="#34456b" stroke-width="0.8" stroke-dasharray="0.6 1" stroke-linecap="round" fill="none" opacity=".85"/>');
+  sv.push('</svg>');
+  document.getElementById(T.map).innerHTML=
+    mapDateChip(row.p,SER+' · '+T.unit,gap)+
+    rankTables(S,T.unit,k)+
+    '<div class="map-scroll">'+sv.join('')+'</div>'+
+    (hasWo?'<div class="map-suplegend">타일 값: 위 = 매매 · 가운데 = 전세 · 아래 = 월세</div>':'<div class="map-suplegend">타일 값: 위 = 매매 · 아래 = 전세</div>');
+  /* TOP10 헤더 정렬 — innerHTML 이후에 붙인다(인라인 onclick은 따옴표 중첩이 깨진다) */
+  document.getElementById(T.map).querySelectorAll('.rk-sort').forEach(th=>{
+    const go=()=>setRankMet(th.dataset.k,th.dataset.met);
+    th.addEventListener('click',go);
+    th.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+  });
+}
+/* --- 표 행열전환 --- */
+let TRANSP={};
+const TR_REDRAW={basicmain:()=>drawStat(),week:()=>renderTrendTables('week'),month:()=>renderTrendTables('month'),permit:()=>renderAdvPermits(),occ:()=>renderAdvOcc()};
+function trFlip(sec,btn){
+  TRANSP[sec]=!TRANSP[sec];
+  btn.classList.toggle('on',!!TRANSP[sec]);
+  TR_REDRAW[sec]();
+  track('stats_transpose',{section:sec,on:!!TRANSP[sec]});
+}
+function mapColor(v,ref){
+  /* 글자가 '0.00'인 칸은 배경도 무색이어야 한다 — 안 그러면 같은 '0.00'이
+     빨강·파랑·회색 세 가지로 칠해진다(2026-08-08 감사). */
+  if(v!=null&&typeof pvSign==='function'&&pvSign(v)===0)return '#e8ecea';
+  if(v==null||v===0)return '#e8ecea';
+  const a=Math.min(Math.abs(v)/(ref||0.4),1);
+  return v>0?`rgba(224,86,74,${(0.14+0.72*a).toFixed(3)})`:`rgba(58,123,213,${(0.14+0.72*a).toFixed(3)})`;
+}
+function drawTrendMap(k){
+  const T=TREND[k], W=trendData(k); if(!W)return;
+  if(W.sgg&&W.sgg.rows.length){drawNationMap(k);return;}
+  document.getElementById(T.map).innerHTML='<div class="src-note" style="padding:14px">지도 데이터 수집 대기중</div>';
+}
+function trendData(k){ return k==='week'?ADV.weekly:ADV.monthly; }
+/* ── 시도 → 시군구 2단 선택 ─────────────────────────────────────────
+   부동산원 앱처럼 시도를 고르면 그 아래 '전체 + 시군구'가 뜬다.
+   시군구 시계열은 12구간만 저장하므로(용량) 그래프는 그만큼만 그리고
+   기간 탭을 숨긴다 — 표(최근 12개 표시)는 영향 없다. */
+const SIDO_PREFIX={a7:'서울',a8:'경기',a9:'인천',b1:'부산',b2:'대구',b3:'광주',b4:'대전',
+  b5:'울산',b6:'세종',c1:'강원',c2:'충북',c3:'충남',c4:'전북',c5:'전남',c6:'경북',c7:'경남',c8:'제주'};
+function sidoOf(code){
+  if(code[0]==='a'){
+    if(code==='a0')return null;
+    if(code.indexOf('a7')===0)return '서울';
+    if(code.indexOf('a8')===0)return '경기';
+    return '인천';
+  }
+  return SIDO_PREFIX[code.slice(0,2)]||null;
+}
+function sggOfSido(W,sido){
+  const S=W.sgg; if(!S)return [];
+  /* ⚠️ 값이 하나도 없는 시군구는 세우지 않는다. 인천 신설 4구(제물포·영종·검단·서해)는
+     주간표에는 있고 **월간표에는 아직 없어**, 고르면 영원히 빈 그래프가 나오는
+     죽은 선택지였다(2026-08-08 감사). 원천이 생기면 자동으로 다시 나타난다. */
+  const has=c=>{const i=S.codes.indexOf(c);
+    return i>=0&&(S.rows||[]).some(r=>['ma','je','wo'].some(f=>(r[f]||[])[i]!=null));};
+  return S.codes.filter(c=>SGG_QNAME[c]&&sidoOf(c)===sido&&has(c));
+}
+/* 시도 select가 바뀌면 하위 목록을 다시 채우고 '전체'로 되돌린다 */
+function onTrendReg(k){
+  const T=TREND[k], W=trendData(k); if(!W)return;
+  TRSHOW[k]=12;                     // 지역이 바뀌면 표는 기본 개수로
+  fillSggSel(k,'');
+  (k==='week'?renderWeekSec:renderMonthSec)();
+}
+function fillSggSel(k,keep){
+  const T=TREND[k], W=trendData(k);
+  const sub=document.getElementById(T.sel2); if(!sub||!W)return;
+  const sido=document.getElementById(T.sel).value;
+  const list=sggOfSido(W,sido);
+  if(!list.length){ sub.hidden=true; sub.innerHTML=''; return; }
+  sub.hidden=false;
+  sub.innerHTML='<option value="">'+sido+' 전체</option>'+
+    regSort(list,c=>SGG_QNAME[c]||c).map(c=>'<option value="'+c+'">'+SGG_QNAME[c]+'</option>').join('');
+  if(keep&&list.indexOf(keep)>=0)sub.value=keep;
+}
+/* 표·그래프가 함께 쓰는 '현재 선택' — 시도면 W.rows, 시군구면 W.sgg.rows */
+/* 시장동향 시도 select — 맨 앞에 '전체'(값 '')를 둔다. 인허가·입주물량이 쓰는
+   advSel()은 '전체' 개념이 없으므로 공유하지 않고 여기서만 채운다. */
+function fillTrendReg(k,regs){
+  const s=document.getElementById(TREND[k].sel); if(!s)return '';
+  if(!s.options.length){
+    s.innerHTML='<option value="">전체 지역</option>'+
+      regSort(regs).map(r=>'<option value="'+r+'">'+r+'</option>').join('');
+  }
+  return s.value;
+}
+function trendPick(k){
+  const T=TREND[k], W=trendData(k);
+  const sv=fillTrendReg(k,W.regions);
+  const reg=sv||(W.regions.indexOf('전국')>=0?'전국':W.regions[0]);
+  const sub=document.getElementById(T.sel2);
+  if(sub&&!sub.hidden&&sub.value&&W.sgg){
+    const ci=W.sgg.codes.indexOf(sub.value);
+    if(ci>=0)return {name:SGG_QNAME[sub.value]||sub.value,rows:W.sgg.rows,idx:ci,isSgg:true};
+  }
+  return {name:reg,rows:W.rows,idx:W.regions.indexOf(reg),isSgg:false};
+}
+/* 표 표시 개수 — 기본 12개, '더보기'로 12씩 늘린다. 시군구를 고른 상태면
+   전체 시계열(data-sgg.json)이 필요하므로 먼저 받아온 뒤 늘린다. */
+const TRSHOW={week:12,month:12};
+function trMore(k){
+  const P=trendPick(k);
+  const grow=()=>{ TRSHOW[k]+=12; (k==='week'?renderWeekSec:renderMonthSec)(); };
+  if(P.isSgg&&!SGG_HIST_READY){ ensureSggHist().then(grow).catch(grow); return; }
+  grow();
+}
+function renderTrendTables(k){
+  const T=TREND[k], W=trendData(k);
+  if(!W){document.getElementById(T.matrix).innerHTML='<div class="src-note" style="padding:14px">데이터 수집 대기중</div>';return;}
+  const regs=W.regions;
+  const LIM=TRSHOW[k]||12;
+  const R=W.rows.slice(-LIM);   // 기본 12개, '더보기'로 확장
+  // 월세는 월간에만 있다(주간 원천엔 없음). 행이 wo를 가질 때만 3행 구성.
+  const hasWo=R.length>0&&Array.isArray(R[R.length-1].wo);
+  const nSub=hasWo?3:2;
+  let mx;
+  if(TRANSP[k]){
+    mx=['<table class="adv"><thead><tr><th>지역</th><th></th>'+R.map(r=>`<th>${T.lab(r.p)}</th>`).join('')+'</tr></thead><tbody>'];
+    regs.forEach((r,ri)=>{
+      mx.push(`<tr><td rowspan="${nSub}">${r}</td><td style="position:static;text-align:left;color:var(--muted);font-weight:600">매매</td>`+R.map(row=>wkCell(row.ma[ri])).join('')+'</tr>');
+      mx.push(`<tr><td style="position:static;text-align:left;color:var(--muted);font-weight:600">전세</td>`+R.map(row=>wkCell(row.je[ri])).join('')+'</tr>');
+      if(hasWo)mx.push(`<tr><td style="position:static;text-align:left;color:var(--muted);font-weight:600">월세</td>`+R.map(row=>wkCell((row.wo||[])[ri])).join('')+'</tr>');
+    });
+  }else{
+    mx=['<table class="adv"><thead><tr><th>'+T.col+'</th><th></th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    for(let i=R.length-1;i>=0;i--){
+      const row=R[i], label=T.lab(row.p);
+      mx.push(`<tr><td rowspan="${nSub}">${label}</td><td style="position:static;text-align:left;color:var(--muted);font-weight:600">매매</td>`+row.ma.map(wkCell).join('')+'</tr>');
+      mx.push(`<tr><td style="position:static;text-align:left;color:var(--muted);font-weight:600">전세</td>`+row.je.map(wkCell).join('')+'</tr>');
+      if(hasWo)mx.push(`<tr><td style="position:static;text-align:left;color:var(--muted);font-weight:600">월세</td>`+(row.wo||[]).map(wkCell).join('')+'</tr>');
+    }
+  }
+  mx.push('</tbody></table>');
+  if(W.rows.length>R.length)mx.push('<button type="button" class="tr-more" data-more="'+k+'">'+
+    '이전 '+Math.min(12,W.rows.length-R.length)+'개 더보기</button>');
+  document.getElementById(T.matrix).innerHTML=mx.join('');
+  fillTrendReg(k,regs);
+  fillSggSel(k,(document.getElementById(T.sel2)||{}).value);
+  /* 아무것도 안 고른 상태(''):  전 지역 매트릭스.  1·2차를 고르면 그 지역만.
+     PC 표 모드에서 시군구는 매트릭스에 아예 없어 첫 화면만으로는 볼 수 없었다
+     (2026-08-01 사용자 지적). 단일 지역 표는 compact가 이미 그리므로 그걸 쓴다. */
+  const secEl=document.getElementById(T.matrix).closest('.gsec');
+  if(secEl)secEl.classList.toggle('sel-one',!!document.getElementById(T.sel).value);
+  const P=trendPick(k), ri=P.idx;
+  const CR=P.rows.slice(-LIM);
+  const cp=['<table class="adv"><thead><tr><th>'+T.col+'</th><th>매매</th><th>전세</th>'+(hasWo?'<th>월세</th>':'')+'</tr></thead><tbody>'];
+  for(let i=CR.length-1;i>=0;i--){
+    const row=CR[i];
+    cp.push(`<tr><td>${T.lab(row.p)}</td>`+wkCell(row.ma[ri])+wkCell(row.je[ri])+(hasWo?wkCell((row.wo||[])[ri]):'')+'</tr>');
+  }
+  cp.push('</tbody></table>');
+  /* 더 볼 게 남았을 때만 버튼을 낸다. 시군구는 아직 12구간뿐이어도 눌러서
+     전체를 받아올 수 있으므로(지연 로드) 버튼을 함께 보여준다. */
+  const totalAvail=P.isSgg&&!SGG_HIST_READY?Infinity:P.rows.length;
+  const rest=totalAvail-CR.length;
+  if(rest>0)cp.push('<button type="button" class="tr-more" data-more="'+k+'">'+
+    '이전 '+(isFinite(rest)?Math.min(12,rest):12)+'개 더보기</button>');
+  document.getElementById(T.compact).innerHTML=cp.join('');
+  /* 더보기 바인딩 — 인라인 onclick은 문자열 안 따옴표가 깨져 data 속성으로 위임 */
+  [T.matrix,T.compact].forEach(id=>{
+    const b=document.getElementById(id).querySelector('.tr-more');
+    if(b)b.addEventListener('click',()=>trMore(b.dataset.more));
+  });
+}
+let GCH={};
+function areaGrad(color,topHex){
+  topHex=topHex||'38';
+  return function(ctx){
+    const ch=ctx.chart, area=ch.chartArea;
+    if(!area) return color+'00';
+    const g=ch.ctx.createLinearGradient(0,area.top,0,area.bottom);
+    g.addColorStop(0,color+topHex); g.addColorStop(1,color+'00');
+    return g;
+  };
+}
+function mkChart(id,cfg){ if(GCH[id])GCH[id].destroy(); return GCH[id]=new Chart(document.getElementById(id),cfg); }
+// 가로 스크롤 추이 차트의 y축을 왼쪽에 고정 복제 (스크롤해도 항상 보이게)
+const TRP={week:1,month:1};
+/* 발표 일정 안내: 부동산원 주간=매주 목요일, 월간=매월 15일(전월분). 낮 12시 공표.
+   다음 발표일까지 계산해 보여준다 — 유저가 '언제 새로 나오나'를 알 수 있게. */
+/* 2026 법정공휴일(대체공휴일 포함). 발표일이 휴일이면 다음 영업일로 민다.
+   매년 갱신 필요 — 자동화하려면 공공데이터 특일정보 API 활용신청 후 배치에서 주입.
+   목요일에 걸리는 공휴일: 추석 09-24. 15일에 걸리는 것: 광복절 08-15(토). */
+/* 배치가 특일정보 API로 채운 ADV.holidays가 있으면 그걸, 없으면 이 하드코딩으로.
+   const가 아니라 let인 이유는 데이터 도착 시 갈아끼우기 위함이다. */
+let _HOLIDAYS=new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18',
+  '2026-03-01','2026-03-02','2026-05-05','2026-05-25','2026-06-06','2026-08-15',
+  '2026-08-17','2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05',
+  '2026-10-09','2026-12-25']);
+function _iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _bizDay(d){   // 주말·공휴일이면 다음 영업일까지 민다
+  while(d.getDay()===0||d.getDay()===6||_HOLIDAYS.has(_iso(d)))d.setDate(d.getDate()+1);
+  return d;
+}
+function _nextThu(now){
+  const d=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  let add=(4-d.getDay()+7)%7;                 // 목=4
+  if(add===0&&now.getHours()>=12)add=7;       // 오늘 목요일 정오 지나면 다음 주
+  d.setDate(d.getDate()+add);
+  return _bizDay(d);                          // 목요일이 공휴일이면 다음 영업일
+}
+function _next15(now){
+  let y=now.getFullYear(),m=now.getMonth();
+  const past=now.getDate()>15||(now.getDate()===15&&now.getHours()>=12);
+  if(past){m++; if(m>11){m=0;y++;}}
+  return _bizDay(new Date(y,m,15));
+}
+function _fmtRel(d){
+  const wd=['일','월','화','수','목','금','토'][d.getDay()];
+  return (d.getMonth()+1)+'월 '+d.getDate()+'일('+wd+')';
+}
+function renderReleaseInfo(){
+  if(typeof ADV!=="undefined"&&Array.isArray(ADV.holidays)&&ADV.holidays.length)_HOLIDAYS=new Set(ADV.holidays);
+  const now=new Date();
+  const w=document.getElementById('rel-week');
+  if(w)w.textContent='한국부동산원 · 매주 목요일 발표 · 다음 '+_fmtRel(_nextThu(now));
+  const m=document.getElementById('rel-month');
+  if(m)m.textContent='한국부동산원 · 매월 15일 발표 · 다음 '+_fmtRel(_next15(now));
+}   /* 기본: 주간 1년 · 월간 3년 */
+function renderTrPeriods(k){
+  const T=TREND[k], el=document.getElementById(k+'-period'); if(!el||!T.periods)return;
+  const W=trendData(k), have=W&&W.rows?W.rows.length:0;
+  const cur=T.periods[TRP[k]];
+  if(!cur||(cur[1]>0&&cur[1]>have))TRP[k]=T.periods.length-1;   // 감춰진 칸이 선택돼 있으면 '전체'로
+  el.innerHTML=T.periods.map((p,i)=>
+    (p[1]>0&&have<p[1]*0.95)?'':
+    '<button type="button" class="'+(TRP[k]===i?'on':'')+'" onclick="trSetPeriod(&#39;'+k+'&#39;,'+i+')">'
+    +p[0]+'</button>').join('');
+}
+function trSetPeriod(k,i){
+  TRP[k]=i; renderTrPeriods(k); drawTrendChart(k);
+  track('stats_period',{section:k,period:TREND[k].periods[i][0]});
+}
+function drawTrendChart(k){
+  if(needChart(()=>drawTrendChart(k)))return;
+  const T=TREND[k], W=trendData(k); if(!W)return;
+  advSel(T.sel,W.regions);
+  fillSggSel(k,(document.getElementById(T.sel2)||{}).value);
+  const P=trendPick(k), ri=P.idx;
+  renderTrPeriods(k);
+  /* 시군구 전체 시계열이 아직 안 왔으면(12구간) 기간 선택이 의미 없어 탭을 감춘다.
+     data-sgg.json이 도착하면 시도와 똑같이 기간 탭이 살아난다. */
+  const shortSgg=P.isSgg&&P.rows.length<=12;
+  const pel=document.getElementById(k+'-period');
+  if(pel)pel.style.display=shortSgg?'none':'';
+  const cnt=(T.periods&&T.periods[TRP[k]])?T.periods[TRP[k]][1]:0;
+  const rows=shortSgg?P.rows:(cnt>0?P.rows.slice(-cnt):P.rows);
+  const n=rows.length;
+  /* '전체'가 실제로 어디부터인지 밝힌다 — 라벨만으로는 알 수 없다 */
+  const uel=document.getElementById(k+'-unit');
+  if(uel&&n)uel.textContent='변동률(%) · '+T.lab(rows[0].p)+' ~ '+T.lab(rows[n-1].p);
+  /* 월세는 월간에만 있다. 면적 3겹은 서로를 가려 선만 그린다(fill 없음). */
+  const dsets=[
+    {label:'매매',data:rows.map(r=>r.ma[ri]),borderColor:'#e0564a',backgroundColor:areaGrad('#e0564a','1a'),fill:'origin',
+      borderWidth:2,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true},
+    {label:'전세',data:rows.map(r=>r.je[ri]),borderColor:'#a98be0',backgroundColor:areaGrad('#a98be0','1a'),fill:'origin',
+      borderWidth:2,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true}];
+  if(n&&Array.isArray(rows[n-1].wo))dsets.push(
+    {label:'월세',data:rows.map(r=>(r.wo||[])[ri]),borderColor:'#1f8a70',fill:false,
+      borderWidth:2,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true});
+  const chart=mkChart(T.chart,{type:'line',
+    data:{labels:rows.map(r=>T.lab(r.p)),datasets:dsets},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw==null?'-':pv2(Number(c.raw))}%`}}},
+      scales:{x:{grid:{display:false},ticks:{maxRotation:45,minRotation:45,autoSkip:true,
+          maxTicksLimit:Math.max(8,Math.ceil(n/5)),font:{size:10},
+          /* 축은 짧게(04-06), 정확한 날짜는 툴팁이 책임진다 */
+          callback:function(v){const l=this.getLabelForValue(v);return T.tick?T.tick(l):l;}}},
+        y:{grid:{color:c=>c.tick.value===0?INK:GRID,lineWidth:c=>c.tick.value===0?1.2:1},
+          ticks:{callback:v=>String(+Number(v).toFixed(3)),maxTicksLimit:6,padding:2,font:{size:10}},title:{display:false}}}}});
+}
+function renderWeekSec(){ renderTrendTables('week'); drawTrendChart('week'); drawTrendMap('week'); }
+function renderMonthSec(){ renderTrendTables('month'); drawTrendChart('month'); drawTrendMap('month'); }
+/* --- 투자지표 차트 --- */
+function drawPermitChart(){
+  if(needChart(()=>drawPermitChart()))return;
+  const P=ADV.permits, regs=P.regions;
+  const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
+  const vals=P.rows.map(r=>r.v[ri]);
+  const cols=vals.map(v=>{const c=permitCls(reg,v);return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');});
+  mkChart('permitChart',{type:'bar',
+    data:{labels:P.rows.map(r=>r.p.replace('H1',' 상').replace('H2',' 하')),
+      datasets:[{label:'아파트 인허가',data:vals,backgroundColor:cols}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${advFmt(c.raw)} 호`}}},
+      scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}},
+        y:{grid:{color:GRID},title:{display:true,text:'호 (반기)'}}}},
+    plugins:[{id:'permitRef',afterDraw(ch){
+      if(!ref)return;
+      const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
+      [[ref[0]/2,'#3a7bd5','과거 저점 ½'],[ref[1]/2,'#e0564a','과거 고점 ½']].forEach(([v,c,t])=>{
+        if(v<ya.min||v>ya.max)return;
+        const y=ya.getPixelForValue(v);
+        ctx.save();ctx.strokeStyle=c;ctx.setLineDash([5,4]);ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(xa.left,y);ctx.lineTo(xa.right,y);ctx.stroke();
+        ctx.setLineDash([]);ctx.fillStyle=c;ctx.font='700 10px '+FONT;ctx.textAlign='right';
+        ctx.fillText(t,xa.right-4,y-4);ctx.restore();
+      });
+    }}]});
+}
+function drawOccChart(){
+  if(needChart(()=>drawOccChart()))return;
+  const O=ADV.occupancy, regs=O.regions;
+  const reg=advSel('adv-occ-reg',regs), ri=regs.indexOf(reg), ref=O.ref[reg];
+  const vals=O.rows.map(r=>r.v[ri]);
+  const cols=O.rows.map((r,i)=>{
+    if(occEst(r))return '#e8ce7a';
+    const c=occCls(reg,vals[i]);
+    return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');
+  });
+  mkChart('occChart',{type:'bar',
+    data:{labels:O.rows.map(r=>r.p),datasets:[{label:'입주물량',data:vals,backgroundColor:cols}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${occFmt(c.raw)} 호`}}},
+      scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}},
+        y:{grid:{color:GRID},title:{display:true,text:'호 (분기)'}}}},
+    plugins:[{id:'occRef',afterDraw(ch){
+      const b=null;   // 적정밴드 폐지(2026-08-07) — 기준선은 적정물량 하나
+      const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
+      const lines=b?[[b[0],'#3a7bd5','적정 하단'],[b[1],'#e0564a','적정 상단']]:(ref?[[ref,'#9a7000','수요 기준선']]:[]);
+      lines.forEach(([v,c,t])=>{
+        if(v<ya.min||v>ya.max)return;
+        const y=ya.getPixelForValue(v);
+        ctx.save();ctx.strokeStyle=c;ctx.setLineDash([5,4]);ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.moveTo(xa.left,y);ctx.lineTo(xa.right,y);ctx.stroke();
+        ctx.setLineDash([]);ctx.fillStyle=c;ctx.font='700 10px '+FONT;ctx.textAlign='right';
+        ctx.fillText(t,xa.right-4,y-4);ctx.restore();
+      });
+    }}]});
+}
+function renderPermitSec(){ renderAdvPermits(); drawPermitChart(); }
+function renderOccSec(){ renderAdvOcc(); drawOccChart(); }
+/* --- 그래프/표 토글 & 투자지표 탭 --- */
+function gtSet(sec,v){
+  const el=document.getElementById('sec-'+sec);
+  el.classList.toggle('gm-g',v==='g');
+  el.classList.toggle('gm-t',v==='t');
+  el.classList.toggle('gm-m',v==='m');
+  el.querySelectorAll('.gt button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  if(v==='g'){
+    const box=document.getElementById(sec+'ChartBox');
+    const ch=box&&window.Chart&&Chart.getChart(box.querySelector('canvas'));
+    if(ch)ch.resize();   // display:none에서 생성된 차트는 표시 시 직접 리사이즈해야 canvas가 그려짐
+  }
+  track('stats_gt',{section:sec,view:v});
+}
+function setAdvTab(t,push){
+  if(!['occ','permit','bubble'].includes(t))t='occ';
+  const changed=!document.getElementById('atab-'+t).classList.contains('on');
+  ['occ','permit','bubble'].forEach(k=>{
+    document.getElementById('sec-'+k).style.display=k===t?'':'none';
+    document.getElementById('atab-'+k).classList.toggle('on',k===t);
+  });
+  if(t==='permit')drawPermitChart();
+  if(t==='occ')drawOccChart();
+  track('adv_tab',{tab:t});
+  if(push!==false)statsNav('#stats-adv-'+t,!changed);
+}
+function renderAdvAll(){ renderAdvPermits(); renderAdvOcc(); setAdvTab('occ',false); }
+/* 시장동향 주간/월간 토글 — 숨김 상태에서 만들어진 차트는 표시 시 리사이즈 필요 */
+function setMarketTab(t,push){
+  if(!['week','month'].includes(t))t='week';
+  const changed=!document.getElementById('mtab-'+t).classList.contains('on');
+  ['week','month'].forEach(k=>{
+    document.getElementById('sec-'+k).style.display=k===t?'':'none';
+    document.getElementById('mtab-'+k).classList.toggle('on',k===t);
+  });
+  const ch=window.Chart&&Chart.getChart&&Chart.getChart(t+'Chart');
+  if(ch)ch.resize();
+  track('market_tab',{tab:t});
+  if(push!==false)statsNav('#stats-market-'+t,!changed);
+}
+
+/* ============ 시장 도구: 버블밴드 ============ */
+/* role="button" 행 공용 키 핸들러 — Enter/Space를 클릭으로 위임한다.
+   el.click()이 기존 onclick(bbToggle)을 그대로 태우므로
+   aria-expanded 갱신 경로가 마우스와 키보드에서 갈라지지 않는다.
+   preventDefault는 Space의 페이지 스크롤을 막기 위해 필요하다. */
+function rowKey(e,el){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); el.click(); } }
+function bbToggle(row){
+  const d=row.nextElementSibling;
+  if(!d||!d.classList.contains('bb-det'))return;
+  const wasOpen=d.style.display==='block';
+  document.querySelectorAll('#bubble-wrap .bb-det').forEach(x=>x.style.display='none');
+  document.querySelectorAll('#bubble-wrap .bb-row').forEach(x=>x.setAttribute('aria-expanded','false'));
+  if(!wasOpen){
+    d.style.display='block';
+    row.setAttribute('aria-expanded','true');
+    track('bubble_detail',{region:row.querySelector('.bb-lab').textContent});
+  }
+}
+/* ===== 아공맵 스코어: 시도 20곳 공급 지표 ===== */
+/* ── 시도 20곳 공급 지표 ──────────────────────────────────────────────────
+   2026-08-06 이전에는 홈이 scCalc()로 순부족을 직접 계산하고 Python과 산식을
+   글자 단위로 맞추는 이중구현 미러를 유지했다(check_dual_calc.py가 감시). 산식을
+   국토부 준공·착공으로 바꾸면서 계산을 빌드 시점으로 옮겼다 — 화면은 ADV.sido를
+   읽기만 하므로 두 구현이 갈릴 일이 없다. 정본은 tools/sido_zones.py 하나다.
+   ⚠️ 여기에 sidoOf() 같은 헬퍼를 다시 만들지 말 것 — 1996행에 시군구 코드용
+   sidoOf(code)가 이미 있고, 함수 선언은 호이스팅돼 나중 것이 앞의 것을 가린다.
+   실제로 내 지역 기능을 지우고 남은 죽은 sidoOf(nm)가 그걸 가려 통계 탭의
+   시군구 선택이 영구히 비어 있었다(2026-08-07 감사). */
+
+/* ── 공급·가격 통합표 ─────────────────────────────────────────────────────
+   행=기간, 열=시도 20곳, 칸=공급 세대수 + 배경색.
+   과거 칸은 세로 3등분(왼쪽부터 매매/전세/월세), 미래 칸은 적정물량 대비 단색.
+   ⚠️ 값이 정확히 0.00일 때만 무색이다. 옅은 값을 흰색으로 두면 오류처럼 보인다
+   (2026-08-06 사용자 지적) — TB_MIN이 그 바닥을 만든다.
+
+   ⚠️ 표는 **월 단위로 짓고 위로 합친다**. 분기로 고정해 짓던 첫 구현에는 셋이
+   같이 있었다(2026-08-06 리뷰): 연 모드의 혼합 표시가 모든 과거 연도에 붙었고,
+   부분 기간(2029년 2분기치·2017년 3분기치)이 1년치 적정물량과 비교돼 과대 부족으로
+   보였고, '월' 버튼은 눌려도 분기 표를 그렸다. 합치는 칸 수(n)를 들고 다니면
+   적정물량도 같은 비율로 따라와 셋이 한꺼번에 해결된다. */
+var TB_PER='q';
+var TB_MIN=0.13;          // 0이 아니면 최소 이만큼은 물들인다
+var TB_PRICE_SCALE=2;     // 가격 변동 ±2%가 만색. ±3%로 넓히지 말 것 —
+                          // 최근 서울이 진한 건 실제로 공급부족이라서다(사용자 확인).
+var TB_FROM=2017*12;      // 표 시작 = 2017.01 (적정물량 기준표와 같은 구간)
+var TB_ANCHOR=true;       // 다음 렌더에서 굵은 줄로 세로 위치를 맞출지
+var TB_SIZE={m:1,q:3,y:12};
+/* 결측은 '변동 없음(0.00%)'과 구별해야 한다. 광주·전남은 2025-05~2026-06 14개월
+   지수가 통째로 결측인데 예전엔 두 경우가 똑같이 무색이라 '1년째 완전 보합'으로
+   읽혔다(2026-08-07 감사). 빗금은 평평한 색과 헷갈리지 않는다. */
+var TB_NODATA='repeating-linear-gradient(45deg,transparent 0 3px,rgba(120,120,120,.16) 3px 5px)';
+/* 월 모드는 150행 × 20지역 × 3등분 = 9,000칸이라 이 함수가 만드는 문자열이
+   렌더 시간의 큰 몫이다. 색은 알파 3자리로 양자화되니 결과가 몇백 종류뿐 —
+   기억해 두면 toFixed와 문자열 조립을 대부분 건너뛴다(2026-08-07 감사). */
+var TB_TINTC={};
+/* 상승/하락 끝점과 알파 산식의 정본 — 표 칸(tbTint)·지도·그래프(mapFill)가 같이
+   쓴다. '색 문법 통일'(21ba32f) 이후에도 산식이 복제돼 있어 한쪽만 튜닝하면
+   조용히 갈라지는 상태였다(2026-08-10 리뷰). PAPER_RGB는 CSS --paper의 사본 —
+   토큰을 바꾸면 여기도 같이 바꿀 것. */
+var TB_UP=[198,58,48], TB_DN=[38,110,180], PAPER_RGB=[244,246,245];
+function tintA(v,scale){ return (TB_MIN+(1-TB_MIN)*Math.min(1,Math.abs(v)/scale))*0.8; }
+function tbTint(v,scale){
+  if(v==null) return TB_NODATA;
+  if(v===0) return 'transparent';
+  var a=tintA(v,scale);
+  var k=(v>0?'r':'b')+a.toFixed(3);
+  var c=TB_TINTC[k];
+  if(c===undefined){ c='rgba('+(v>0?TB_UP:TB_DN).join(',')+','+a.toFixed(3)+')'; TB_TINTC[k]=c; }
+  return c;
+}
+/* toFixed(1)은 -0.04를 '-0.0'으로 만든다. 0.0인데 부호만 붙은 값은 '변동 없음'으로
+   읽히지 않고 오류처럼 보인다(2026-08-08 감사). 반올림 결과로 부호를 정한다. */
+/* 소수 둘째 자리로 반올림했더니 0.00인데 부호만 남는 값들이 있었다 —
+   '-0.00%'가 주간 지도 9칸·표 16칸에 찍히고 하락(파랑) 색까지 받았다
+   (2026-08-08 감사). 표시값 기준으로 부호를 정한다. */
+/* Math.round는 half-toward-+Infinity라 -0.085가 -0.08로 **작아진다**(양수는 커진다).
+   부호 대칭이 깨져 원자료 대비 마지막 자리가 틀린 칸이 113개 있었다(2026-08-08 감사).
+   절대값으로 반올림해 대칭을 지킨다. */
+function pv2r(v){ return (v<0?-1:1)*Math.round(Math.abs(v)*100)/100; }
+function pv2(v){ if(v==null) return '·';
+  var r=pv2r(v);
+  return (r>0?'+':'')+r.toFixed(2); }
+/* 표시값이 0.00인데 원값 부호로 빨강·파랑을 칠하면 같은 '0.00'이 세 색으로 갈린다
+   — 글자와 색이 서로 다른 말을 한다(2026-08-08 감사). 색도 표시값으로 정한다. */
+function pvSign(v){ return v==null?0:pv2r(v); }
+function tbPv(a){ if(a==null) return '자료 없음';
+  var r=Math.round(a*10)/10;
+  return (r>0?'+':'')+(r===0?(0).toFixed(1):r.toFixed(1))+'%'; }
+/* Number.prototype.toLocaleString은 호출마다 포맷터를 새로 세운다. 월 모드는
+   칸이 3,000개라 그것만으로 렌더의 절반을 먹었다(2026-08-07 감사). 천단위
+   쉼표는 직접 넣는다 — 이 표의 값은 전부 음수 없는 정수 세대수다. */
+function tbNum(x){ return String(x).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+function tbMi(d){ return +d.slice(0,4)*12 + (+d.slice(5,7)-1); }   // 'YYYY.MM'/'YYYY-MM' → 월 인덱스
+function tbQLast(q){ return +q.slice(0,4)*12 + (+q.slice(5))*3 - 1; }  // '2026Q2' → 그 분기 마지막 달
+function tbLabel(i,per){
+  var y=Math.floor(i/12);
+  if(per==='y') return String(y);
+  if(per==='q') return ('0'+(y%100)).slice(-2)+'Q'+(Math.floor((i%12)/3)+1);
+  return ('0'+(y%100)).slice(-2)+'.'+(i%12+1);
+}
+/* 월별 원장. 여기서만 원자료를 읽고, 아래 tbAgg가 기간 단위로 접는다.
+   ⚠️ KOSIS는 값 0을 '-'로 준다. null은 결측이 아니라 진짜 0이다(시도합÷전국이
+   모든 연도 1.00). 건너뛰면 그 달이 통째로 사라진다. */
+var TB_BCACHE=null;   // 원천(ADV/STATS)은 페이지 수명 내내 불변 — 한 번만 짓는다
+function tbBuild(){
+  if(TB_BCACHE) return TB_BCACHE;
+  var S=ADV.sido; if(!S||!S.zones||!S.zones.length) return null;
+  var D=STATS['준공'], K=STATS['착공']; if(!D||!K) return null;
+  var regs=S.zones.map(function(z){return z.z;});
+  var refs={}, est={}; S.zones.forEach(function(z){ refs[z.z]=z.ref; est[z.z]=z.est; });
+  var di={}, ki={};
+  D.dates.forEach(function(d,n){ di[tbMi(d)]=n; });
+  K.dates.forEach(function(d,n){ ki[tbMi(d)]=n; });
+  /* ⚠️ 경계는 **분기 기준**이어야 한다. 준공 시리즈의 마지막 '월'을 쓰면, KOSIS가
+     분기 중간까지만 발표한 달(매달 일어난다)에 홈은 그 달을 실적으로 그리고
+     지역 페이지(make_sido_pages.series)는 같은 분기를 통째로 착공 추정으로 그려
+     두 화면이 같은 분기에 다른 숫자를 보여준다(2026-08-07 리뷰).
+     sido_zones가 이미 정한 L(마지막 완결 분기)과 H를 그대로 따른다. */
+  var lastD=tbQLast(S.L);
+  var LEAD=S.lead*3;                       // 12분기 = 36개월
+  var pi={}, P=ADV.monthly||{};
+  (P.regions||[]).forEach(function(r,n){ pi[r]=n; });
+  var prow={};
+  (P.rows||[]).forEach(function(r){ prow[tbMi(r.p)]=r; });
+  var rows=[];
+  for(var i=TB_FROM;i<=lastD+S.H*3;i++){
+    var fut=i>lastD, sup=[];
+    for(var k=0;k<regs.length;k++){
+      var r=regs[k];
+      if(fut){
+        /* ⚠️ 여기서 반올림하지 않는다. 월별로 반올림해 더하면 분기 합이
+           zone 페이지(분기 착공 합 × conv를 한 번만 반올림)와 어긋난다 —
+           미래 240칸 중 51칸이 ±1이었다(2026-08-07 감사). 표시 직전에 한 번만. */
+        var j=ki[i-LEAD];
+        sup.push(j==null?0:((K.series[r]||[])[j]||0)*S.conv);
+      }else{
+        var n=di[i];
+        sup.push(n==null?0:((D.series[r]||[])[n]||0));
+      }
+    }
+    var pr=fut?null:prow[i];
+    rows.push({i:i,fut:fut,s:sup,
+      m:pr?regs.map(function(r){return (pr.ma||[])[pi[r]];}):null,
+      j:pr?regs.map(function(r){return (pr.je||[])[pi[r]];}):null,
+      w:pr?regs.map(function(r){return (pr.wo||[])[pi[r]];}):null});
+  }
+  /* um·uw(부족+미분양 경고)는 표 정비(2026-08-08 사용자: '참고 행에 색·표식을
+     두르지 않는다')로 소비처가 사라져 걷어냈다 — 경고문은 지역 페이지(zwarn)가
+     본문으로 말한다. */
+  var un={},pm={};
+  S.zones.forEach(function(z){ un[z.z]=z.unsold; pm[z.z]=z.pm12; });
+  return TB_BCACHE={regs:regs,refs:refs,est:est,rows:rows,H:S.H,L:S.L,
+          un:un,pm:pm,uprd:S.unsold_prd};
+}
+/* 월 원장 → 기간 단위. n(합친 달 수)을 같이 돌려줘야 부분 기간의 적정물량이
+   같은 비율로 줄어든다 — 안 그러면 2029년(2분기치)이 1년치 기준과 비교돼
+   과대 부족으로 보인다. */
+function tbAgg(rows,per){
+  var size=TB_SIZE[per]||3, out=[], cur=null, key=null;
+  rows.forEach(function(r){
+    var g=Math.floor(r.i/size);
+    if(cur===null||g!==key){
+      key=g;
+      cur={i:g*size,n:0,nf:0,s:r.s.map(function(){return 0;}),m:null,j:null,w:null};
+      out.push(cur);
+    }
+    cur.n++; if(r.fut) cur.nf++;
+    r.s.forEach(function(v,k){ cur.s[k]+=v; });
+    ['m','j','w'].forEach(function(f){
+      if(!r[f]) return;
+      if(!cur[f]) cur[f]=r.s.map(function(){return null;});
+      r[f].forEach(function(v,k){ if(v!=null) cur[f][k]=(cur[f][k]||0)+v; });
+    });
+  });
+  out.forEach(function(c){
+    c.fut=(c.nf===c.n);                 // 전부 미래일 때만 미래 행
+    c.mix=(c.nf>0&&c.nf<c.n);           // 실적과 추정이 한 칸에 섞였다
+    c.part=(c.n<size);                  // 기간이 덜 찼다(표 시작·끝)
+  });
+  return out;
+}
+function tbPer(p){
+  if(TB_PER===p) return;
+  TB_PER=p;
+  TB_ANCHOR=true;      // 행 집합이 통째로 바뀌므로 다시 조준한다
+  var seg=document.getElementById('tb-per');
+  if(seg) [].forEach.call(seg.children,function(b){
+    var on=b.dataset.p===p;
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',on?'true':'false');   // 선택 상태를 음성으로도
+  });
+  tbDraw();
+  if(typeof track==='function') track('supply_table',{period:p});
+}
+function tbDraw(){
+  var el=document.getElementById('tb-main'); if(!el) return;
+  tbDraw.done=1;                       // 지연 렌더 판정용(tbView 참조)
+  var B=tbBuild();
+  if(!B){ var sec=document.getElementById('sec-score'); if(sec) sec.style.display='none'; return; }
+  var rel=(document.getElementById('tb-rel')||{}).checked;
+  var size=TB_SIZE[TB_PER]||3;
+  var rows=tbAgg(B.rows,TB_PER);
+  /* 접근성: 열 머리에 scope="col", 기간 칸은 행 머리(th scope="row")로 낸다.
+     칸 안 가격 변동은 배경색으로만 전달되므로 title에 글로도 넣는다 —
+     스크린리더·색각이상 사용자가 공급 세대수만 얻던 문제(2026-08-07 감사). */
+  var h='<caption class="sr-only">기간별 시도 아파트 공급 세대수. '
+    +'각 칸의 배경색은 과거 구간에서는 매매·전세·월세 변동률, 미래 구간에서는 '
+    +'적정물량 대비 부족분을 나타내며, 같은 값을 칸의 설명 텍스트로도 제공합니다.</caption>'
+    +'<thead><tr><th scope="col">기간</th>';
+  B.regs.forEach(function(r){
+    /* 추정 지역 표식(*)은 달지 않는다 — 뜻을 알 길 없는 기호였다(2026-08-08
+       사용자). 어느 지역이 추정인지는 '산출 방법' 접힘이 문장으로 말한다. */
+    h+='<th scope="col"><a class="tb-zl" href="/zone/'+encodeURIComponent(r)+'/">'+r+'</a></th>';
+  });
+  /* ⚠️ 적정물량 '수치'까지 th scope="col"로 두면 스크린리더가 그 열의 모든 칸마다
+     '95,000'을 헤더로 읽는다. 열 이름은 위 줄(지역명)이고 이 줄은 데이터다
+     (2026-08-08 감사). 줄 이름만 행 머리로 두고 수치는 td로 낸다. */
+  h+='</tr><tr class="tb-ref"><th scope="row">적정물량</th>';
+  B.regs.forEach(function(r){
+    h+='<td>'+tbNum(Math.round(B.refs[r]*size/3))+'</td>';
+  });
+  h+='</tr></thead><tbody>';
+  var firstFut=true;
+  rows.forEach(function(r){
+    var cls=[];
+    if(r.fut) cls.push('fut');
+    /* 굵은 줄은 '전부 미래인 첫 행'이 아니라 **미래가 처음 섞이는 행** 앞에 긋는다.
+       연 모드에서 2026년은 실적 2분기 + 추정 2분기라 fut가 아니고, 줄을 fut 기준으로
+       그으면 2027년 앞에 놓여 2026년 절반이 추정이라는 사실이 줄 위로 숨는다
+       (2026-08-06 사용자 지정). 분기·월 모드에는 섞인 행이 없어 동작이 같다. */
+    if(r.nf>0&&firstFut){
+      cls.push('now'); firstFut=false;
+      /* 경계는 선이 아니라 말하는 밴드로(2026-08-08 사용자) — "굵은 줄"이 뭘
+         가르는지 각주까지 안 가도 그 자리에서 읽힌다. 문구는 붙박이(sticky)로,
+         가로 스크롤해도 시야에 남는다. */
+      /* ⚠️ 행 전체를 aria-hidden하면 실적/추정 경계가 접근성 트리에서 사라져
+         스크린리더가 추정치를 실적처럼 읽는다(2026-08-10 리뷰). 문장은 읽히게,
+         장식 화살표만 숨긴다. */
+      h+='<tr class="tb-nowrow"><td colspan="'+(B.regs.length+1)
+        +'"><span><i aria-hidden="true">▼ </i>아래는 착공 실적으로 추정한 미래입니다</span></td></tr>';
+    }
+    var mark='';
+    if(r.mix) mark='<i class="tb-mx" title="실적과 착공 기준 추정이 섞인 기간">±</i>';
+    else if(r.part) mark='<i class="tb-mx" title="'+r.n+'개월치만 있는 기간">·</i>';
+    var lab=tbLabel(r.i,TB_PER);     // 칸마다 다시 만들면 6,000번 호출된다
+    h+='<tr class="'+cls.join(' ')+'"><th scope="row">'+lab+mark+'</th>';
+    for(var k=0;k<B.regs.length;k++){
+      var ref=B.refs[B.regs[k]]*r.n/3, v=r.s[k];
+      var txt=rel?(ref?Math.round(v/ref*100)+'%':'–'):tbNum(Math.round(v));
+      var lay;
+      if(r.fut){
+        lay='<i class="tl f" style="background:'+tbTint(ref?1-v/ref:null,1)+'"></i>';
+      }else{
+        lay='<i class="tl a" style="background:'+tbTint(r.m?r.m[k]:null,TB_PRICE_SCALE)+'"></i>'
+           +'<i class="tl b" style="background:'+tbTint(r.j?r.j[k]:null,TB_PRICE_SCALE)+'"></i>'
+           +'<i class="tl c" style="background:'+tbTint(r.w?r.w[k]:null,TB_PRICE_SCALE)+'"></i>';
+      }
+      var alt;
+      if(r.fut){
+        alt = ref ? ('적정물량의 '+Math.round(v/ref*100)+'%, 착공 기준 추정') : '착공 기준 추정';
+      }else{
+        alt = '매매 '+tbPv(r.m?r.m[k]:null)+' · 전세 '+tbPv(r.j?r.j[k]:null)+' · 월세 '+tbPv(r.w?r.w[k]:null);
+      }
+      h+='<td title="'+B.regs[k]+' '+lab+' — '+alt+'">'
+        +'<span class="tc">'+lay+'<b>'+txt+'</b></span></td>';
+    }
+    h+='</tr>';
+  });
+  /* ── 미분양 줄 ────────────────────────────────────────────────────────
+     미분양은 **순위 산식에 넣지 않는다**(결과값이라 재고에서 차감하면 부호가
+     반대고 이중계상된다). 여기 있는 건 위 칸들을 읽는 맥락이다.
+     색·표식도 두르지 않는다(2026-08-08 사용자) — 참고 행이 색을 입으면
+     점수 행처럼 읽히고, ⚠ 같은 기호는 뜻을 알 길이 없다. 설명은 '산출 방법'
+     접힘이 맡는다. */
+  h+='</tbody><tfoot><tr class="tb-un" data-ref="un"><th scope="row" title="'+(B.uprd||'')
+    +' 기준 · 순위에 넣지 않은 참고 수치">'+refBtn('미분양')+'</th>';
+  for(var u=0;u<B.regs.length;u++){
+    var uv=B.un[B.regs[u]];
+    h+='<td><span class="tc"><b>'+(uv==null?'–':tbNum(uv))+'</b></span></td>';
+  }
+  h+='</tr>';
+  /* 인허가 줄(2026-08-11 사용자) — 미분양과 같은 참고 행. 위 칸들은 분기(또는 토글
+     단위) 값인데 인허가는 최근 12개월 합이라 라벨에 창을 박는다. 착공 전 단계로
+     이어지는 선행 물량이라, 표의 마지막 분기 너머를 미리 보여주는 유일한 줄이다. */
+  h+='<tr class="tb-un" data-ref="pm"><th scope="row" title="최근 12개월 합 · 착공 전 단계의 선행 물량 · 순위에 넣지 않은 참고 수치">'+refBtn('인허가 1년')+'</th>';
+  for(var u2=0;u2<B.regs.length;u2++){
+    var pv=B.pm[B.regs[u2]];
+    h+='<td><span class="tc"><b>'+(pv==null?'–':tbNum(pv))+'</b></span></td>';
+  }
+  h+='</tr></tfoot>';
+  el.innerHTML=h;
+  /* 참고 행 탭 안내(2026-08-11 사용자) — title 툴팁은 데스크톱 호버 전용이라
+     모바일에서는 뜻을 알 길이 없다. 행을 누르면 표 아래에 설명이 열린다.
+     리스너는 테이블 노드에 한 번만 건다(innerHTML은 자식만 갈아끼운다). */
+  if(!el.dataset.refbound){
+    el.dataset.refbound='1';
+    el.addEventListener('click',function(ev){
+      var tr=ev.target&&ev.target.closest?ev.target.closest('tr.tb-un'):null;
+      if(!tr) return;
+      var p=document.getElementById('tb-refnote');
+      if(!p) return;
+      var k=tr.getAttribute('data-ref');
+      if(!p.hidden&&p.dataset.k===k){ p.hidden=true; }
+      else{
+        /* 미분양의 기준 시점(B.uprd)은 <th>의 title=에만 있었다 — 그건 데스크톱
+           호버 전용이라 모바일에서는 뜻을 알 길이 없다. 지역 페이지는 같은 값을
+           '2026.06 기준'이라고 눈에 보이는 칸으로 찍는데, 홈만 빠져 있어서
+           모바일 방문자는 월간 재고를 이번 분기 값으로 읽었다(2026-08-15 리뷰).
+           정본 문구(REFNOTE)는 홈·지역이 글자까지 같아야 하므로 상수는 건드리지
+           않고, 여는 시점에 시점만 덧붙인다. */
+        /* B는 표를 그리는 함수의 지역 변수라 여기선 못 본다 — tbBuild()는
+           TB_BCACHE로 메모이즈돼 있어 다시 불러도 같은 객체다. */
+        var note=TB_REFNOTE[k]||'', BB=tbBuild();
+        if(k==='un'&&BB&&BB.uprd) note=BB.uprd+' 기준. '+note;
+        p.dataset.k=k; p.textContent=note; p.hidden=false;
+        /* 탭한 행이 화면 맨 밑이면 설명이 폴드 아래 열린다(모바일) —
+           nearest라 이미 보이면 안 움직인다. */
+        p.scrollIntoView({block:'nearest'});
+      }
+      tbRefSync();
+    });
+  }
+  /* 기간을 바꾸면 tfoot이 새로 그려져 버튼의 aria-expanded가 false로 돌아간다 —
+     설명이 열린 채라면 상태를 다시 맞춘다. */
+  tbRefSync();
+  var n=document.getElementById('tb-note');
+  if(n) n.textContent=TB_PER==='y'?'한 해 합계':TB_PER==='m'?'한 달치':'';
+  /* 표는 2017Q1부터라, 그냥 두면 첫 화면이 9년 전 숫자다. 기본 화면을 맨
+     아래(최근 실적 → 미래 추정 → 참고 2행)로 연다 — 지역 페이지 표와 같은
+     규칙(2026-08-11 사용자, 굵은 줄 1/3 조준을 대체). 스크롤은 열려 있다. */
+  if(TB_ANCHOR) tbAnchor();
+}
+/* 표의 기본 화면을 맨 아래로 민다 — 단, 굵은 줄(현재)이 시야를 벗어나지 않는
+   선까지만. 월 모드는 미래가 36행이라 바닥에 그냥 붙이면 '착공 기준 추정'만
+   가득하고 실적도 현재 표시선도 안 보인다(2026-08-12 리뷰 실측: 굵은 줄이
+   시야 위 482px 밖). 분기·연 모드는 미래 블록이 화면보다 작아 바닥 = 현재가
+   같이 보이는 화면이다.
+   ⚠️ 렌더링 생명주기에 묶인 것은 쓰지 말 것 — requestAnimationFrame도
+   IntersectionObserver도 '그리지 않는 창'에서는 콜백이 영영 안 온다.
+   2026-08-07에 rAF를 걷어내면서 뷰가 숨은 경우를 IO로 처리했는데, 같은
+   함정을 다시 들인 것이었다(2026-08-08 실측: 명백히 보이는 요소에 새로
+   붙인 관찰자도 600ms 동안 콜백 0건 — 그 사이 표는 2017Q1에서 열렸다).
+   타이머는 렌더링과 무관하게 돌므로 재시도는 setTimeout으로 한다.
+   getBoundingClientRect가 레이아웃을 동기로 강제하니 측정 자체는 즉시 된다. */
+var TB_TRY=[0,50,150,400,900,1800];
+function tbAnchor(n){
+  var sc=document.querySelector('.tb-scroll');
+  n=n||0;
+  if(sc&&sc.clientHeight&&sc.offsetParent&&sc.scrollHeight>sc.clientHeight){
+    TB_ANCHOR=false;
+    sc.scrollTop=sc.scrollHeight;
+    var nw=sc.querySelector('#tb-main tbody tr.now');
+    var hd=sc.querySelector('#tb-main thead');
+    if(nw){
+      /* 굵은 줄이 붙박이 표두 아래로 들어올 때까지만 도로 내린다(월 모드). */
+      var over=sc.getBoundingClientRect().top
+              +(hd?hd.getBoundingClientRect().height:0)
+              -nw.getBoundingClientRect().top;
+      if(over>0) sc.scrollTop-=over;
+    }
+    return;
+  }
+  /* 아직 잴 수 없다(뷰가 숨었거나 레이아웃 전). 몇 번만 다시 본다 —
+     무한 재시도는 하지 않는다. 그 사이 사용자가 표를 스크롤했다면
+     TB_ANCHOR가 false라 자리를 뺏지 않는다. */
+  if(n<TB_TRY.length) setTimeout(function(){ if(TB_ANCHOR) tbAnchor(n+1); }, TB_TRY[n]);
+}
+/* ── 홈 보기 전환: 지도(공간)/그래프(시간)/표(시간×공간) — 2026-08-08 ── */
+var TB_VIEW='map';
+/* 참고 행 라벨은 진짜 <button>이다 — tr에 tabindex를 얹으면 Enter/Space와
+   역할 안내를 직접 다시 만들어야 하는데, 버튼은 브라우저가 다 해준다
+   (2026-08-12 리뷰: 클릭 전용이라 키보드로는 설명에 닿을 길이 없었다). */
+function refBtn(label){
+  return '<button type="button" class="rbtn" aria-expanded="false" '
+    +'aria-controls="tb-refnote">'+label+'<i class="ri" aria-hidden="true">ⓘ</i></button>';
+}
+function tbRefSync(){
+  var p=document.getElementById('tb-refnote');
+  [].forEach.call(document.querySelectorAll('#tb-main tfoot .rbtn'),function(b){
+    var own=b.parentNode.parentNode.getAttribute('data-ref');
+    b.setAttribute('aria-expanded',(p&&!p.hidden&&own===p.dataset.k)?'true':'false');
+  });
+}
+/* ⚠️ 아래 두 문구는 tools/make_sido_pages.py의 REFNOTE를 옮긴 거울이다 —
+   홈은 정적 파일이라 생성기가 주입할 수 없다. 한쪽만 고치면 테스트가 깨진다
+   (test_refnote_copy_is_identical_on_home_and_zone). */
+var TB_REFNOTE={
+  un:'미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(국토교통부 월간 집계). 이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, 참고로만 보여줍니다.',
+  pm:'인허가는 "짓겠다"고 허가받은 단계의 물량입니다. 착공과 같은 흐름으로 움직이지만 허가 뒤 착공하지 않는 물량이 섞여 있고 입주까지의 시차가 일정하지 않아 참고로만 봅니다. 월별 들쭉날쭉이 커서 최근 12개월 합으로 묶어 연간 적정물량과 견주고, 순위 계산에는 착공만 씁니다.'
+};
+/* 라벨 사다리 한 칸 올림(2026-08-15 PM 결정). 컷(GRADE_CUTS)은 그대로 —
+   등급 키는 파이썬이 계산해 데이터에 굽고 여기선 이름만 붙인다. */
+var TB_GRADE={g4:'심각한 부족',g3:'매우 부족',g2:'부족',g1:'균형',g0:'공급 여유'};
+function tbView(v){
+  if(TB_VIEW===v) return;
+  TB_VIEW=v;
+  var sec=document.getElementById('sec-score');
+  sec.classList.remove('vm-map','vm-graph','vm-table');
+  sec.classList.add('vm-'+v);
+  var seg=document.getElementById('tb-view');
+  if(seg) [].forEach.call(seg.children,function(b){
+    var on=b.dataset.v===v;
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  if(v==='table'){
+    if(!tbDraw.done) tbDraw();       // 표는 처음 열 때 굽는다(아래 boot 주석 참조)
+    TB_ANCHOR=true; tbAnchor();      // 숨김 상태로 로드돼 초기 조준이 무산됐을 수 있다
+  }
+  if(v==='graph') renderSidoGraph();
+  if(v==='map') renderSidoMap();
+  track('supply_view',{view:v});
+}
+function tbSigned(v){ return (v>0?'\u2212':v<0?'+':'')+tbNum(Math.abs(v)); }
+/* 지도 채움색 — 표의 미래 칸과 같은 규칙(적정 대비, 100%p 만색, TB_MIN 바닥)을
+   지면색에 합성해 '불투명'하게 만든다. 시도 도형이 겹쳐 그려지므로(경기 위에
+   서울·인천) 반투명을 그대로 쓰면 겹친 곳만 색이 이중으로 쌓인다. */
+function mapFill(r,sc){
+  if(r==null) return 'var(--paper2)';
+  if(r===0) return 'var(--paper)';
+  var a=tintA(r,sc||1);
+  var C=r>0?TB_UP:TB_DN, P=PAPER_RGB;
+  return 'rgb('+Math.round(P[0]+(C[0]-P[0])*a)+','+Math.round(P[1]+(C[1]-P[1])*a)+','
+    +Math.round(P[2]+(C[2]-P[2])*a)+')';
+}
+function renderSidoMap(){
+  var el=document.getElementById('map-wrap');
+  if(!el||el.dataset.done) return;
+  if(typeof SIDO_GEO==='undefined'||!ADV.sido||!ADV.sido.zones){
+    /* 지도는 기본 모드다 — sido-geo.js가 안 오면(404·차단) 조용히 빠지면
+       홈 첫 화면이 빈 상자가 된다(2026-08-08 감사 세션 지적). 표로 폴백하고
+       지도 버튼은 잠근다. 그래프·표는 이 파일 없이도 온전하다. */
+    if(TB_VIEW==='map') tbView('table');
+    var mb=document.querySelector('#tb-view [data-v="map"]');
+    if(mb){ mb.disabled=true; mb.title='지도 데이터를 불러오지 못했습니다'; }
+    return;
+  }
+  var Z={}; ADV.sido.zones.forEach(function(z){ Z[z.z]=z; });
+  var h='<div class="map-agg">';
+  ['전국','수도권','지방'].forEach(function(n){
+    var z=Z[n]; if(!z) return;
+    h+='<a href="/zone/'+encodeURIComponent(n)+'/"><b>'+n+'</b>'
+      +'<span class="sc-tier '+z.grade+'">'+TB_GRADE[z.grade]+'</span>'
+      /* 카드 문구는 sido_zones.card_text가 구워 싣는다 — 여기서 다시 만들지 않는다
+         (이중 구현 금지). 부호 대신 '부족·여유'를 말로 써 배지와 이중 부정이 되지 않는다
+         (2026-09-15). 옛 캐시에 필드가 없으면 세대수만 보인다. */
+      +'<i>'+(z.ctxt||(tbSigned(z.tot)+'세대'))+'</i></a>';
+  });
+  h+='</div>';
+  /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
+     글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 원으로 넓힌다. */
+  var SMALL={'서울':1,'인천':1,'대전':1,'광주':1,'대구':1,'부산':1,'울산':1,'세종':1};
+  /* 범례는 지도 좌상단(서해 빈 공간) 오버레이 — 지도 아래 한 줄로 떨어져
+     있으면 지도와 안 붙어 읽힌다(2026-08-08 사용자). pointer-events:none이라
+     밑의 경기 북부 탭을 막지 않는다. */
+  h+='<div class="map-box">'
+    +'<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
+    +'<span class="tk-ramp" aria-hidden="true"></span>'
+    +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span>'
+    +'<span class="tk-n">앞으로 3년 필요한 만큼 지어지는지 · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span>'
+    +'<span class="tk-n">지역을 누르면 상세 리포트</span></div>'
+    +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
+    +'" role="img" aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유">';
+  /* 광주·전남은 2026-09-10 판정 단위가 하나로 합쳐졌다(국토부가 공급 통계를
+     '전남광주'로만 발표). 지도의 두 도형은 지리 정보라 그대로 두고, 색·링크·라벨은
+     통합 지역을 가리킨다 — 한 판정을 두 땅이 나눠 갖는 모양이다.
+     ⚠️ 통합 이름을 여기 박지 않는다. 도형 이름이 판정 단위(Z)에 없으면 그 이름을
+     품은 판정 단위로 보낸다. 라벨은 묶음마다 한 번, 가장 큰 도형에만 단다 — 도형마다
+     원래 이름을 그리면 판정 단위에 없는 '광주'·'전남'이 지도에 따로 남는다
+     (2026-09-15 고객 점검). */
+  function zoneOf(n){
+    if(Z[n])return n;
+    for(var k in Z){ if(k.indexOf(n)>=0)return k; }
+    return n;
+  }
+  var labelAt={};
+  SIDO_GEO.p.forEach(function(a){
+    var k=zoneOf(a.n), b=labelAt[k];
+    if(!b||a.d.length>b.d.length)labelAt[k]=a;
+  });
+  SIDO_GEO.p.forEach(function(a){
+    var key=zoneOf(a.n);
+    var z=Z[key]||{};
+    var lab=key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
+    var small=SMALL[a.n]||key!==a.n;
+    h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
+      +'<path d="'+a.d+'" fill="'+mapFill(z.ratio)+'"></path>'
+      +(SMALL[a.n]?'<circle cx="'+a.x+'" cy="'+a.y+'" r="22" fill="transparent"></circle>':'')
+      +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
+      +'<title>'+lab+'</title></a>';
+  });
+  h+='</svg></div>';
+  el.innerHTML=h;
+  el.dataset.done='1';
+}
+/* 그래프 = 시간축. 분기 공급 막대 + 적정 기준선. 지도가 잃는 시간축을 이 모드가
+   담당한다. 데이터는 표와 같은 tbBuild/tbAgg — 세 모드가 한 원장을 쓴다. */
+var GR_REG='전국';
+/* 시도 상세를 보고 돌아오면 그래프가 그 지역으로 열린다(2026-08-08 사용자).
+   sessionStorage: 탭을 닫으면 사라지는 화면 상태라 영구 수집이 아니다. */
+try{ GR_REG=sessionStorage.getItem('agong_gr')||'전국'; }catch(e){}
+function grSet(r){
+  GR_REG=r;
+  try{ sessionStorage.setItem('agong_gr',r); }catch(e){}
+  var el=document.getElementById('graph-wrap'); if(el) el.dataset.done='';
+  renderSidoGraph();
+}
+function renderSidoGraph(){
+  var el=document.getElementById('graph-wrap');
+  if(!el) return;
+  /* 좁음/넓음 판정이 done 캐시에 갇히면 모바일에서 그린 360 viewBox가
+     데스크톱 전환 뒤에도 남는다(실측) — 렌더 때의 폭 버킷을 기록하고
+     달라졌으면 다시 그린다. */
+  if(!el.clientWidth) return;          // 숨은 상태 — 측정 불가
+  var nb=(el.clientWidth<520)?'1':'0';
+  if(el.dataset.done&&el.dataset.nw!==nb) el.dataset.done='';
+  if(el.dataset.done) return;
+  el.dataset.nw=nb;
+  var B=tbBuild(); if(!B) return;
+  var rows=tbAgg(B.rows,'q');
+  var k=B.regs.indexOf(GR_REG); if(k<0){ GR_REG='전국'; k=0; }
+  var ref=B.refs[GR_REG];
+  /* 640×210 고정 비율은 327px 화면에서 높이 107px — 너무 작다(2026-08-08
+     사용자). 좁으면 360×220으로 그린다(250은 세로가 과했다 — 아래 H). 회전·리사이즈는 아래 재렌더가 받는다. */
+  if(!el.clientWidth) return;          // 숨은 상태 — 측정 불가, 보일 때 다시 온다
+  var narrow=el.clientWidth<520;
+  var W=narrow?360:640, H=narrow?220:210, PT=14,PB=22,PL=8,PR=10;  // 250은 세로가 과했다(사용자)
+  var iw=W-PL-PR, ih=H-PT-PB;
+  // ⚠️ 상한은 막대가 실제로 그리는 값(분기 환산)으로 잡는다 — 원시 그룹 합으로
+  // 잡으면 덜 찬 분기(r.n<3)가 생기는 순간 환산 막대가 차트 위로 뚫린다(2026-08-10 리뷰).
+  // 분기 환산의 정본 — 막대 높이·히트 렉트·상한이 전부 이걸 쓴다(복제 금지:
+  // 한쪽만 고치면 툴팁 숫자와 막대 높이가 갈린다).
+  var qv=function(r){ return Math.round(r.s[k]*3/r.n); };
+  var mx=ref; rows.forEach(function(r){ var q=r.s[k]*3/r.n; if(q>mx) mx=q; });
+  mx*=1.06;
+  var bw=iw/rows.length;
+  var h='<div class="gr-bar"><label class="gr-lab" for="gr-reg">지역</label>'
+    +'<select id="gr-reg" onchange="grSet(this.value)">'
+    +B.regs.map(function(r){ return '<option'+(r===GR_REG?' selected':'')+'>'+r+'</option>'; }).join('')
+    +'</select><a class="gr-more" href="/zone/'+encodeURIComponent(GR_REG)+'/">'+GR_REG+' 상세 리포트 →</a></div>';
+  h+='<div class="gr-box"><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'
+    +GR_REG+' 분기별 아파트 공급과 적정물량">';
+  var y0=PT+ih;
+  /* y축 눈금 — 적정선 하나로는 막대의 절대 크기를 가늠할 기준이 없다
+     (2026-08-08 사용자 승인). 보기 좋은 단위로 2~3줄, 적정선과 겹치면 생략. */
+  var st=(function(x){ var p=Math.pow(10,Math.floor(Math.log(x)/Math.LN10));
+    var u=x/p; return (u>=5?5:u>=2.5?2.5:u>=2?2:1)*p; })(mx/3);
+  /* 라벨은 여기서 모으기만 한다 — 막대보다 먼저 찍으면 막대에 묻힌다
+     (2026-08-08 사용자). 선은 뒤층, 라벨은 막대 뒤 위층 + 종이색 후광. */
+  var yl='';
+  for(var gv=st;gv<mx*0.97;gv+=st){
+    if(Math.abs(gv-ref)/mx<0.05) continue;
+    var gy=y0-ih*gv/mx;
+    h+='<line x1="'+PL+'" y1="'+gy.toFixed(1)+'" x2="'+(PL+iw)+'" y2="'+gy.toFixed(1)+'" class="gr-gl"></line>';
+    yl+='<text x="'+(PL+3)+'" y="'+(gy-3).toFixed(1)+'" class="gr-yt">'+tbNum(gv)+'</text>';
+  }
+  // 실적/추정 경계 — 막대보다 먼저 그려야 워시가 뒤로 깔린다
+  var fi=-1; rows.some(function(r,i){ if(r.nf>0){ fi=i; return true; } return false; });
+  if(fi>=0){
+    var bx=PL+fi*bw;
+    h+='<rect class="gr-futbg" x="'+bx.toFixed(1)+'" y="'+PT+'" width="'+(PL+iw-bx).toFixed(1)
+      +'" height="'+ih+'"></rect>'
+      +'<line x1="'+bx.toFixed(1)+'" y1="'+PT+'" x2="'+bx.toFixed(1)+'" y2="'+y0+'" class="gr-now"></line>';
+  }
+  rows.forEach(function(r,i){
+    var v=qv(r);                               // 덜 찬 분기는 분기치로 환산
+    var bh=Math.max(v>0?1:0,ih*v/mx);
+    var x=PL+i*bw;
+    /* 색 문법은 홈 표 그대로(2026-08-08 사용자): 과거 칸 = 그 분기의 매매가
+       등락(±2% 만색), 미래 칸 = 적정 대비 부족. 높이는 공급량 — 표의 '숫자'가
+       여기선 높이다. 가격 결측 분기는 회색(paper2). */
+    var fill=r.nf>0?mapFill(ref?1-v/ref:null)
+      :mapFill(r.m?r.m[k]:null,TB_PRICE_SCALE);
+    h+='<rect x="'+(x+0.5).toFixed(1)+'" y="'+(y0-bh).toFixed(1)+'" width="'+(bw-1).toFixed(1)
+      +'" height="'+bh.toFixed(1)+'" class="gb" fill="'+fill+'"></rect>';
+  });
+  // 적정 기준선 — 존 페이지 분기 차트의 파선과 같은 어휘
+  var ry=y0-ih*ref/mx;
+  h+=yl;   // y 라벨 — 막대 위층
+  /* 라벨은 차트 '안쪽' 오른끝 — 여백에 두면 잘린다('적정 95,00' 실측). */
+  h+='<line x1="'+PL+'" y1="'+ry.toFixed(1)+'" x2="'+(PL+iw)+'" y2="'+ry.toFixed(1)+'" class="gr-ref"></line>'
+    +'<text x="'+(PL+iw-4)+'" y="'+(ry-5).toFixed(1)+'" class="gr-rt">적정 '+tbNum(ref)+'</text>';
+  // x축 라벨 — 8분기마다
+  rows.forEach(function(r,i){
+    var last=i===rows.length-1;
+    // 주기 라벨이 마지막 라벨과 4칸 이내로 붙으면 겹친다(29Q1/29Q2 실측) — 생략
+    if(!last&&(i%8!==0||i>rows.length-5)) return;
+    // 과거는 연도로(2017 · 2019 …), 미래는 분기 표기 유지(2026-08-08 사용자)
+    var xl=r.nf>0?tbLabel(r.i,'q'):String(Math.floor(r.i/12));
+    h+='<text x="'+(PL+i*bw+bw/2).toFixed(1)+'" y="'+(H-6)+'" class="gr-xt">'+xl+'</text>';
+  });
+  /* 탭 표적 — 막대는 화면에서 ~3px 폭이라 손가락으로 못 집는다(2026-08-08
+     사용자: "눌렀을 때 숫자가 안 보임"). 분기 전체 높이를 덮는 투명 렉트가
+     탭·호버·title을 받는다(존 시세 차트 .px-hit와 같은 패턴). 맨 위층. */
+  rows.forEach(function(r,i){
+    var v=qv(r);
+    var pm=(r.nf===0&&r.m&&r.m[k]!=null)?tbPv(r.m[k]):null;
+    h+='<rect class="gr-hit" x="'+(PL+i*bw).toFixed(1)+'" y="'+PT+'" width="'+bw.toFixed(1)
+      +'" height="'+ih+'" fill="transparent" data-q="'+tbLabel(r.i,'q')
+      +'" data-v="'+tbNum(v)+'"'
+      +(pm?' data-p="'+pm+'"':'')+(r.nf>0?' data-f="1"':'')+'>'
+      +'<title>'+tbLabel(r.i,'q')+' '+tbNum(v)+'세대'
+      +(pm?' · 매매 '+pm:'')+(r.nf>0?' · 착공 기준 추정':'')
+      +' (적정 '+tbNum(ref)+')</title></rect>';
+  });
+  h+='</svg><div class="gr-tip" hidden></div></div>'
+    +'<p class="gr-note">색은 과거엔 매매가의 등락을, 미래엔 적정물량 대비 남고 모자람을 나타냅니다.</p>';
+  el.innerHTML=h;
+  el.dataset.done='1';
+  grWireTip(el);
+}
+/* 막대 탭 → 값 표시. title은 데스크톱 호버 전용이라 모바일에서 개별 값을
+   볼 수 없었다(2026-08-08 사용자 승인). 규칙은 존 페이지 툴팁에서 실기기로
+   다진 그대로: click은 무조건 show, hover는 마우스 포인터일 때만(터치의 합성
+   mouseenter 상쇄 함정), 닫기는 바깥 pointerdown(iOS는 비인터랙티브 탭으로
+   document click이 안 온다). 문서 레벨 리스너는 한 번만 단다. */
+function grWireTip(el){
+  var tip=el.querySelector('.gr-tip'),svg=el.querySelector('svg'),box=el.querySelector('.gr-box');
+  if(!tip||!svg) return;
+  function hide(){ tip.hidden=true; }
+  function show(rc){
+    tip.innerHTML=rc.getAttribute('data-q')+' <b>'+rc.getAttribute('data-v')+'</b>세대'
+      +(rc.getAttribute('data-p')?' <span>· 매매 '+rc.getAttribute('data-p')+'</span>':'')
+      +(rc.getAttribute('data-f')?' <span>· 추정</span>':'');
+    tip.hidden=false;
+    var br=rc.getBoundingClientRect(),wr=box.getBoundingClientRect();
+    tip.style.left='0px'; tip.style.top='0px';
+    var tw=tip.offsetWidth;
+    var x=br.left-wr.left+br.width/2, y=Math.max(br.top-wr.top,14)-6;
+    x=Math.max(tw/2+2,Math.min(x,wr.width-tw/2-2));
+    tip.style.left=x+'px'; tip.style.top=y+'px';
+  }
+  svg.addEventListener('click',function(e){
+    var rc=e.target.closest&&e.target.closest('rect.gr-hit'); if(!rc)return;
+    e.stopPropagation(); show(rc);
+  });
+  svg.addEventListener('pointerover',function(e){
+    if(e.pointerType&&e.pointerType!=='mouse')return;
+    var rc=e.target.closest&&e.target.closest('rect.gr-hit'); if(rc)show(rc);
+  });
+  svg.addEventListener('mouseleave',hide);
+  if(!grWireTip.doc){
+    grWireTip.doc=1;
+    // 회전·창 크기 변경 → 좁음/넓음 판정이 바뀌면 다시 그린다(그래프 표시 중일 때만)
+    var rt2;
+    window.addEventListener('resize',function(){
+      clearTimeout(rt2);
+      rt2=setTimeout(function(){
+        var w=document.getElementById('graph-wrap');
+        if(!w||!w.dataset.done||TB_VIEW!=='graph') return;
+        /* ⚠️ 숨은 상태(다른 뷰로 이동)에선 clientWidth가 0이라 측정 자체가 무효 —
+           그대로 재렌더하면 데스크톱에 모바일용 360 그래프가 굳는다(2026-08-10 리뷰).
+           그리고 버킷이 실제로 바뀌었을 때만 다시 그린다 — 5px 드래그마다
+           전체 재빌드하지 않게. */
+        if(!w.clientWidth) return;
+        var nb=(w.clientWidth<520)?'1':'0';
+        if(w.dataset.nw!==nb){ w.dataset.done=''; renderSidoGraph(); }
+      },250);
+    });
+    var out=function(e){
+      var w=document.getElementById('graph-wrap');
+      if(w&&!w.contains(e.target)){ var t=w.querySelector('.gr-tip'); if(t)t.hidden=true; }
+    };
+    document.addEventListener('pointerdown',out);
+    document.addEventListener('click',out);
+  }
+}
+function renderHeroMap(){
+  const el=document.getElementById('hero-map');
+  if(!el||typeof NATION_TILE==='undefined'||typeof mapColor!=='function')return;
+  const S=ADV.weekly&&ADV.weekly.sgg;
+  if(!S||!S.rows||!S.rows.length)return;
+  const row=S.rows[S.rows.length-1], v={};
+  (S.codes||[]).forEach((c,i)=>{v[c]=row.ma[i];});
+  const N=NATION_TILE, T=10, G=1.6;
+  const w=N.cols*(T+G)-G, h=N.rows*(T+G)-G;
+  const p=['<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" role="presentation" focusable="false">'];
+  N.t.forEach(a=>{
+    p.push('<rect x="'+(a[2]*(T+G)).toFixed(1)+'" y="'+(a[3]*(T+G)).toFixed(1)+'" width="'+T+'" height="'+T+'" rx="2.2" fill="'+mapColor(v[a[0]],0.4)+'"/>');
+  });
+  p.push('</svg>');
+  el.innerHTML=p.join('');
+}
+function renderBubbleSec(){
+  const sec=document.getElementById('sec-bubble');if(!sec)return;
+  const B=ADV.bubble,J=STATS['전세가율'];
+  if(!B||!B.conv||!J){sec.style.display='none';return;}
+  const loan=B.loan.v;
+  const prdEl=document.getElementById('bubble-prd');if(prdEl)prdEl.textContent='기준 '+B.prd;
+  const latest=r=>{const s=J.series[r];if(!s)return null;for(let i=s.length-1;i>=0;i--)if(s[i]!=null)return s[i];return null;};
+  /* 축 상한을 9%로 못박아 두면 위험선(월세수익률×2)이 그 위인 지역들이 전부
+     같은 자리(98%)에 찍혀 서로 구분이 안 된다 — 실측 7곳이 겹쳤다(2026-08-08 감사).
+     실제 값에서 상한을 잡되 최소 9%는 유지한다. */
+  const MAX=Math.max(9, Math.ceil(Math.max(loan,
+    ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=latest(rg);
+      return (cv==null||jr==null)?0:jr/100*cv*2;}))*1.04));
+  const px=v=>Math.min(98,Math.max(0,v/MAX*100));
+  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:9.5px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+B.loan.p+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
+  let nHi=0,nLo=0,nNear=0;
+  (B.regions||Object.keys(B.conv)).forEach(rg=>{
+    const cv=B.conv[rg],jr=latest(rg);
+    if(cv==null||jr==null)return;
+    /* ⚠️ 소수 한 자리로 찍으면 판정과 표시가 어긋난다. 울산(4.351)과 경남(4.366)이
+       둘 다 '4.4%'로 보이는데 대출금리 4.36% 기준으로 판정은 정반대였다
+       (2026-08-08 감사). 금리를 두 자리로 쓰므로 밴드도 두 자리로 맞춘다. */
+    const lo=jr/100*cv,hi=lo*2;
+    let cls='',txt='여유 '+(hi-loan).toFixed(1)+'%p';
+    if(loan>=hi){cls='hi';txt='상단 초과';nHi++;}
+    else if(loan<=lo){cls='lo';txt='매수 신호권';nLo++;}
+    else if(hi-loan<1)nNear++;
+    let pos;
+    if(loan>=hi)pos='대출금리가 위험선(월세수익률 2배)을 넘었습니다 — 이자가 임대수익의 2배를 넘는 과열 구간입니다.';
+    else if(loan<=lo)pos='대출금리가 월세수익률보다 낮습니다 — 이자가 임대수익보다 싼 매수 신호권입니다.';
+    else pos='대출금리는 밴드 안이고, 위험선까지 '+(hi-loan).toFixed(1)+'%p 남았습니다.';
+    const det='밴드: 전세가율 '+jr+'% × 전월세전환율 '+cv+'% = <b>월세수익률 '+lo.toFixed(2)+'%</b> · 그 2배 = <b>위험선 '+hi.toFixed(2)+'%</b>.<br>'
+      +'<b>대출금리 '+loan.toFixed(2)+'%</b> — '+pos;
+    // 숫자 위치 적응: 파랑=밴드 왼쪽(단 대출금리 검은선과 겹치면 그 선 왼쪽으로), 빨강=밴드 오른쪽(단 우측 공간 없거나 겹치면 밴드 안쪽 왼편). NW=숫자 폭 근사(%)
+    const pL=px(lo),pH=px(hi),pN=px(loan),NW=15;
+    const blueAnc=(pN<pL&&pN>pL-NW)?pN:pL;
+    const redIn=(pH+NW>98)||(pN>pH&&pN<pH+NW);
+    const blueSt='left:'+blueAnc+'%;transform:translate(calc(-100% - 3px),-50%);color:#1a5276';
+    const redSt=redIn?'left:'+pH+'%;transform:translate(calc(-100% - 3px),-50%);color:#a93226':'left:'+pH+'%;transform:translate(3px,-50%);color:#a93226';
+    h+='<div class="bb-row" role="button" tabindex="0" aria-expanded="false" onclick="bbToggle(this)" onkeydown="rowKey(event,this)"><span class="bb-lab">'+rg+'</span>'
+      +'<div class="bb-track" title="월세수익률 '+lo.toFixed(2)+'% ~ 위험선 '+hi.toFixed(2)+'% · 대출금리 '+loan.toFixed(2)+'%">'
+      +'<div class="bb-band" style="left:'+px(lo)+'%;width:'+Math.max(2,px(hi)-px(lo))+'%"></div>'
+      +'<div class="bb-loan" style="left:'+px(loan)+'%"></div>'
+      +'<span class="bb-v" style="'+blueSt+'">'+lo.toFixed(2)+'%</span>'
+      +'<span class="bb-v" style="'+redSt+'">'+hi.toFixed(2)+'%</span></div>'
+      +'<span class="bb-chip '+cls+'">'+txt+'</span>'
+      +'</div>'
+      +'<div class="bb-det">'+det+'</div>';
+  });
+  let sum;
+  if(nHi>0)sum='<b style="color:#a93226">'+nHi+'개 지역</b>에서 대출금리가 위험선(월세수익률 2배)을 넘었습니다. 과거 급락기(2008·2022)가 이 조건에서 나왔습니다.';
+  else if(nLo>0)sum='<b style="color:#1a5276">'+nLo+'개 지역</b>이 매수 신호권(대출금리 ≤ 월세수익률)입니다.';
+  else if(nNear>0)sum=nNear+'개 지역이 위험선까지 1%p 미만으로 접근해 있습니다.';
+  else sum='현재 대출금리가 위험선을 넘거나 월세수익률 아래인 지역은 없습니다.';
+  document.getElementById('bubble-wrap').innerHTML='<p class="adv-note" style="margin:10px 0 4px">'+sum+'</p>'+h;
+}
+
+/* 모든 선언(QUIZSETS·curSet 등) 이후에 초기 라우팅 실행 — TDZ 방지.
+   ⚠️ DOMContentLoaded까지 미루는 이유: applyHash()가 #stats로 들어오면 그 자리에서
+   차트를 만드는데, Chart.js가 defer라 파싱 시점엔 아직 없다. defer 스크립트는
+   DOMContentLoaded 직전에 실행이 보장되므로 이 훅이 정확한 경계다. */
+/* 주간 시세 카드 격자 — 공유 PNG를 대신해 홈에서 직접 그린다.
+   값은 ADV.weekly.rows(시도 20곳 최신 1주, split_data가 코어에 싣는다).
+   ⚠️ 히어로 지도가 읽는 sgg.rows와는 다른 배열이다 — 이쪽은 regions와
+   같은 순서로 ma/je가 들어 있고, PNG 생성기(make_weekly_share.py)도 이걸 쓴다. */
+/* ⚠️ 여기 있던 fmtPct는 지웠다(2026-08-18). **원값의 부호 + 반올림한 절대값**을
+   이어 붙이는 방식이라 −0.0012가 '−0.00'으로, +0.0012가 '+0.00'으로 나왔다
+   (부산 실측). 값은 0인데 부호가 붙으면 글자와 색이 서로 다른 말을 한다.
+   정본은 pv2/pvSign — **반올림을 먼저** 하고 그 결과로 부호를 정한다.
+   새 서식이 필요해도 이 패턴을 다시 만들지 말고 pv2를 쓸 것. */
+/* 조사기준일(월) -> 부동산원 공표일(목). 공유 카드(make_weekly_share._pubdate)와
+   같은 규칙이다 — 2026-08-06 사용자 결정으로 '발표일'로 적기로 했는데, 격자만
+   조사기준일을 찍고 있어 같은 데이터가 두 화면에서 다른 날짜로 보였다
+   (2026-09-01 리뷰). 공휴일이 끼면 하루씩 밀리는 주가 있으나 그건 원천 일정이라
+   우리가 알 수 없다 — 통상 +3일로 적는다. */
+function pubDate(basis){
+  if(!basis)return '';
+  const d=new Date(basis+'T00:00:00');
+  if(isNaN(d))return basis;
+  d.setDate(d.getDate()+3);
+  const z=n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());
+}
+function renderWeeklyGrid(){
+  const box=document.getElementById('home-weekly-grid');
+  if(!box)return;
+  let regs,row;
+  try{const W=ADV.weekly;regs=W&&W.regions;row=W&&W.rows&&W.rows[W.rows.length-1];}catch(e){}
+  if(!regs||!regs.length||!row||!row.ma){box.style.display='none';return;}
+  /* 색은 홈 지도와 같은 문법 — 상승 빨강·하락 파랑. 0.2%p를 상한으로 잡아
+     투명도를 준다(주간 변동은 대개 ±0.3%p 안이라 그 안에서 갈려야 보인다). */
+  /* ⚠️ 표시·색·정렬을 모두 **표시값**(pv2r: 소수 2자리 반올림) 기준으로 맞춘다.
+     원값으로 찍으면 −0.0012가 '−0.00'이 되고(실측: 부산), 원값 부호로 칠하면
+     같은 0.00이 빨강·파랑으로 갈린다 — 글자와 색이 다른 말을 한다.
+     pv2/pvSign은 감사 세션이 세운 정본이라 그대로 쓴다(2026-08-08 규칙). */
+  /* 값의 정본은 pv2/pvSign 그대로 두고, 글리프만 하이픈 → 마이너스(U+2212).
+     숫자 격자에서 '-'는 줄표처럼 붙어 자릿수를 흐린다(홈 지도 tbSigned와 같은 글리프). */
+  const mnus=(t)=>t.replace('-','−');
+  const tint=(ma)=>{
+    const v=pvSign(ma);
+    if(ma==null) return 'transparent';
+    if(v===0) return 'transparent';
+    const t=Math.min(1,Math.abs(v)/0.2), a=(0.06+t*0.30).toFixed(3);
+    return (v>0?'rgba(169,50,38,':'rgba(26,82,118,')+a+')';
+  };
+  const cell=(r,i,cls,t)=>{
+    const ma=row.ma[i], je=row.je?row.je[i]:null;
+    const gp=t?';grid-column:'+t[0]+';grid-row:'+t[1]:'';
+    return '<div class="'+cls+'" style="background:'+tint(ma)+gp+'">'
+      +'<b>'+r+'</b>'
+      +'<span class="wc-ma">'+mnus(pv2(ma))+'</span>'
+      +'<i class="wc-je">전세 '+mnus(pv2(je))+'</i></div>';
+  };
+  /* 집계 3은 격자에서 떼어 위로 — 홈 지도의 집계 칩과 같은 구조다. */
+  const AGG=3;
+  const aggHtml=regs.slice(0,AGG).map((r,i)=>cell(r,i,'wc wc-agg')).join('');
+  /* 16시도는 **지리 배치**(2026-08-18 사용자: "실제 전국 지리와 비슷하게").
+     [열,행] 4x5 타일맵 — 서해가 왼쪽, 동해가 오른쪽, 남으로 내려간다.
+     경기.서울 좌상단 / 강원 우상단 / 부산.경남 우하단 / 제주 최하단.
+     주의: 변동률 정렬과는 양립하지 않는다. 같은 축(칸 위치)을 두고 다투므로
+     하나만 가질 수 있다 — 순위는 색.숫자가 이미 말하고, 지리 배치는 '어느
+     쪽이 오르나'라는 공간 패턴을 준다. '시도는 오른 순' 안내도 함께 걷었다. */
+  const TILE={'인천':[1,1],'서울':[2,1],'경기':[3,1],'강원':[4,1],
+              '충남':[1,2],'세종':[2,2],'충북':[3,2],'경북':[4,2],
+              '전북':[1,3],'대전':[2,3],'대구':[3,3],'울산':[4,3],
+              /* 전남광주는 한 칸이라 [2,4]가 빈다. 그 자리를 비워 두고 제주를 한 줄 아래
+                 [2,5]에 두었더니 격자 가운데 구멍이 뚫리고 제주만 떨어져 보였다
+                 (2026-09-15 사용자). 제주를 빈 [2,4]로 올려 4줄로 닫는다.
+                 공유 PNG(make_weekly_share.TILE)는 집계 3칸을 격자에 함께 넣는 가로형이라
+                 제주가 이미 다른 자리(첫 줄 끝)에 있다 — 두 매체의 칸 위치는 원래 같지 않다. */
+              '전남광주':[1,4],'제주':[2,4],'경남':[3,4],'부산':[4,4]};
+  /* 배치표에 없는 이름이 오면(지역 개편 등) 좌표 없이 흐름 배치로 떨어진다 —
+     칸이 사라지는 것보다 자리만 어긋나는 게 낫다. */
+  const cells=regs.map((r,i)=>({r,i})).slice(AGG)
+    .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
+  box.innerHTML='<a class="wg-link" href="/weekly/" aria-label="이번 주 시세 지도 보기">'
+    +'<div class="wg-head"><span class="wg-when"><b>'+pubDate(row.p)+'</b> 발표 · 매매 전주 대비(%)</span>'
+    +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
+    +'<span class="tk-ramp" aria-hidden="true"></span>'
+    +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
+    +'<div class="wg-agg">'+aggHtml+'</div>'
+    +'<div class="wg-cells">'+cells+'</div></a>';
+}
+/* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.
+   티어 문구는 BLV 정본에서 읽는다. 가짜 데이터로 오해되지 않게 라벨을 붙인다.
+   예시 점수 3 = 🐥 솜털 병아리. 8(🏘️ 다주택자)로 걸었다가 사용자가 "병아리가
+   더 귀엽다"고 해서 낮췄다(2026-08-17). 만점을 걸면 "쉽겠네"가 되고, 부린이
+   테스트의 얼굴은 도달점보다 출발점 쪽이 맞다 — 상위 티어는 풀어야 보인다. */
+const SAMPLE_SCORE=3, SAMPLE_TOTAL=10;
+function quizSample(){
+  const box=document.getElementById('quiz-sample');
+  /* ⚠️ window.BLV로 보면 안 된다 — 최상위 const는 window에 안 걸린다(2026-08-17
+     실측: windowBLV=undefined, BLV는 len=11). 이름 그대로 참조한다. */
+  if(!box||typeof BLV==='undefined'||!BLV[SAMPLE_SCORE])return;
+  const g=BLV[SAMPLE_SCORE];
+  let dots='';
+  for(let i=0;i<SAMPLE_TOTAL;i++)dots+='<i class="'+(i<SAMPLE_SCORE?'ok':'no')+'"></i>';
+  box.innerHTML='<div class="qs-label">결과 예시</div>'
+    +'<div class="rcard rc-sample">'
+    +'<div class="rc-head">부린이 테스트</div>'
+    +'<div class="rc-emoji">'+g.emoji+'</div>'
+    +'<div class="rc-score">'+SAMPLE_SCORE+'<small>/'+SAMPLE_TOTAL+'</small></div>'
+    +'<div class="rc-dots">'+dots+'</div>'
+    +'<div><span class="rc-lv">'+g.lv+'</span></div>'
+    +'<div class="rc-grade">'+g.g+'</div>'
+    +'<div class="rc-desc">'+g.d+'</div>'
+    +'</div>';
+}
+function boot(){
+  /* chartSetup 은 차트 라이브러리를 받은 뒤 loadChart 가 부른다 */
+  renderWeeklyGrid();
+  quizSample();
+  renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
+  /* ⚠️ 표(분기 1,000칸 HTML 조립)는 여기서 굽지 않는다. 기본 모드가 지도인데
+     숨은 표를 먼저 구우면 그 비용(월 모드 실측 200ms+)이 기본 화면 페인트를 막고,
+     숨은 상태의 tbAnchor 재시도 타이머 6발이 전부 헛돈다(2026-08-10 리뷰).
+     tbView('table')이 처음 열 때 굽는다 — 지도 폴백(tbView('table'))도 같은 경로. */
+renderSidoMap();    // 기본 모드 — 보이는 것부터
+  CHALLENGE=readChallenge();
+  if(CHALLENGE){
+    track('challenge_accepted',{quiz_type:CHALLENGE.set,friend_score:CHALLENGE.score,
+      same_paper:CHALLENGE.seed!=null});
+    showView('test',false);
+    startQuiz(CHALLENGE.set,CHALLENGE.seed);
+  }else{
+    applyHash();
+  }
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
+else boot();
+
+/* PWA: 서비스워커 등록 */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
