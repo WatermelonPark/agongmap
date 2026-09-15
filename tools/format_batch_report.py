@@ -27,8 +27,12 @@
 """
 import argparse
 import io
+import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import month_lag as ML  # noqa: E402  (뒤처짐 표시와 기준 개월을 한 곳에서 가져온다)
 
 # 상태 표시 → 심각도. 기록의 각 줄은 이 중 하나로 시작한다(rep() 호출부 참조).
 BAD = '❌'
@@ -118,6 +122,39 @@ PLAIN = (
 )
 
 
+# 월간 계열 뒤처짐 알림(tools/month_lag.py 가 찍는 줄). 실패도 경고도 아니라 표시가 따로다.
+LAG_LINE = re.compile(r'^\s*%s\s*월간 뒤처짐\s*(\d+)개월\s*·\s*(.+?)\s*·\s*최신\s*(\d{4}[.\-]\d{1,2})\s*$'
+                      % re.escape(ML.MARK))
+
+
+def lag_notice(lines):
+    """뒤처짐 줄 → (사람이 읽는 문장, 가장 큰 뒤처짐 개월). 없으면 (None, 0).
+
+    받는 사람에게 뜻이 있는 것은 계열 이름과 기준월뿐이다. 같은 달에 묶인 계열은 한
+    덩어리로 적어 줄을 짧게 유지한다.
+    """
+    for ln in lines:
+        m = LAG_LINE.match(ln)
+        if not m:
+            continue
+        pairs = []
+        for part in m.group(2).split('/'):
+            bits = part.strip().rsplit(' ', 1)
+            if len(bits) == 2:
+                pairs.append((bits[1], bits[0]))
+        by = []
+        for ym, name in pairs:
+            if by and by[-1][0] == ym:
+                by[-1][1].append(name)
+            else:
+                by.append((ym, [name]))
+        say = ' · '.join('%s가 %s 기준' % ('·'.join(names), _year_month(ym)) for ym, names in by)
+        return ('%s입니다. 가장 최신 월간 통계는 %s입니다(%s개월 차이). 원천이 아직 그 달을 '
+                '내놓지 않았다는 뜻이며, 사이트 수치는 그 기준월 그대로 정확합니다.'
+                % (say, _year_month(m.group(3)), m.group(1))), int(m.group(1))
+    return None, 0
+
+
 def plain(line):
     """기록 한 줄 → 사람의 말. 대응이 없으면 표시만 떼고 원문을 쓴다."""
     body = line.lstrip(''.join((BAD, WARN, OK, SKIP))).strip()
@@ -138,6 +175,12 @@ def build(raw, kst, run_url, owner, weekday):
     warn = [ln for ln in lines if ln.lstrip().startswith(WARN)]
     nothing = any(ln.lstrip().startswith(SKIP) for ln in lines)
     basis = basis_line(lines)
+    # 월간 뒤처짐은 평소 월요일 회차에만 싣는다. 매 회차 반복하면 '괜찮다'가 쌓여
+    # 진짜 경보를 묻는다(PM 조건 2026-09-16). 오래 끌면 그때는 매번 싣고 멘션한다.
+    lag_say, lag_months = lag_notice(lines)
+    lag_hard = lag_months >= ML.ESCALATE_MONTHS
+    if lag_say and not (lag_hard or weekday == 0):
+        lag_say = None
 
     out = []
     if bad:
@@ -180,7 +223,15 @@ def build(raw, kst, run_url, owner, weekday):
             out.append('')
             out.append(basis)
 
-    mention = bool(bad or warn) or weekday == 0
+    if lag_say:
+        out.append('')
+        out.append('**기준월이 뒤처진 통계:** %s' % lag_say)
+        if lag_hard:
+            out.append('')
+            out.append('**하실 일: 없습니다.** 다만 이만큼 길어진 것은 원천 사정만으로 '
+                       '보기 어려워, 세션이 대안을 검토해 알려 드립니다.')
+
+    mention = bool(bad or warn) or weekday == 0 or lag_hard
     if mention and weekday == 0 and not (bad or warn):
         out.append('')
         out.append('(월요일 확인 메일입니다. 이상이 있을 때만 메일이 가고, 평소에는 '
