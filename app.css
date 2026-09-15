@@ -329,6 +329,9 @@
   .shero h2{font-size:30px;font-weight:700;margin:0 0 12px}
   .shero p{font-size:14.5px;line-height:1.7;color:var(--ink2);margin:0;max-width:620px}
   .shero b{color:var(--ink)}
+  .shero .shero-link{font-size:14px}
+  .shero .shero-link a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1.5px solid var(--ink);margin-right:8px}
+  .shero .shero-link span{color:var(--muted);font-size:13px;white-space:nowrap}
   .dash{padding:0 0 18px}
   .dash .wrap{max-width:860px;margin:0 auto;padding:0 18px}
   .ctrl{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);

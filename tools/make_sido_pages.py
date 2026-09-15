@@ -796,6 +796,12 @@ def build_hub(calc):
                     esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
                     esc(o['ctxt'])))
     h.append('</div></div></section>')
+    # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
+    # 화면인데 허브에서 가는 길이 없었다.
+    h.append('<section><div class="wrap"><h2>매달 발표되는 통계</h2><div class="zlinks">'
+             '<a href="/monthly/"><b>이달의 통계</b>'
+             '<i>시도별 매매·인허가·입주물량·미분양·전세가율을 한 화면에</i></a>'
+             '</div></div></section>')
     h.append(FOOT)
     return ''.join(h)
 
