@@ -414,6 +414,15 @@ jobs:
             exit 1
           fi
           rep "✅ 이달의 통계"
+          # /weekly/ — 주간 시세 랜딩에 그 주의 결론·시군구 TOP 3·서울 구 요약을 굽는다.
+          # 블로그에서 들어오는 첫 페이지라 옛 주차 결론이 '이번 주'로 나가면 안 된다.
+          # 실패하면 커밋하지 않는다(2026-09-15 점검 후속 ①).
+          if ! python3 tools/make_weekly_page.py; then
+            rep "❌ 주간 시세 페이지 실패 — 커밋 안 함"
+            echo "::error::make_weekly_page 실패 — 커밋하지 않는다"
+            exit 1
+          fi
+          rep "✅ 주간 시세 페이지"
           # /cycle/ 리포트가 하드코딩해 둔 지수·전세가율 배열을 data.js에서 다시 만든다.
           # 손으로 두었더니 세 회차 연속 감사에 스테일로 걸렸다(2026-08-08).
           # 서술은 고정 문서라 이 스텝은 숫자 배열만 건드린다.
@@ -438,7 +447,7 @@ jobs:
             rep "⚠️ 공유카드 건너뜀 — pillow 미설치(인프라)"
             echo "::warning::pillow 미설치로 공유 카드 생성을 건너뛴다(인프라 문제)"
           fi
-          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly cycle share tools/data/.home_stamp"
+          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp"
           git add -A -- $TARGETS || { rep "❌ git add 실패 — TARGETS 경로 확인"; exit 1; }
           if git diff --cached --quiet; then
             rep "➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)"
