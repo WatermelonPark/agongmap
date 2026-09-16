@@ -78,18 +78,26 @@ DECL = re.compile(
     r'(?:const\s+|var\s+|let\s+)?([A-Z_][A-Z0-9_]{2,})\s*=\s*[\[\(]([^\]\)]{0,4000})[\]\)]', re.S)
 
 
+def _rel(p, root=ROOT):
+    """저장소 루트 기준 상대 경로('/' 구분). 폴더 이름에 기대지 않는다 — 로컬은 aptweather,
+    GitHub 러너는 /home/runner/work/agongmap/agongmap 이라, 이름을 찾아 자르면 클라우드에서
+    SKIP_DIR 이 통째로 꺼진 채 zone/·cycle/ 까지 훑는다(2026-09-16 리뷰)."""
+    return os.path.relpath(p, root).replace(os.sep, '/')
+
+
 def _scan():
     """(파일, 식별자, 리터럴로 들어 있는 지역명 집합) 목록."""
     out = []
+    skipped = 0
     for root, dirs, files in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d != '.git' and (not d.startswith('.') or d == '.github')]
         for fn in files:
-            p = (root + '/' + fn).replace(os.sep, '/')
-            i = p.find('/aptweather/')
-            rel = p[i + len('/aptweather/'):] if i >= 0 else p
+            p = os.path.join(root, fn)
+            rel = _rel(p)
             if not rel.endswith(('.py', '.html', '.js')):
                 continue
             if any(rel.startswith(d) for d in SKIP_DIR) or os.path.basename(rel) in SKIP_FILE:
+                skipped += 1
                 continue
             try:
                 s = io.open(p, encoding='utf-8', errors='replace').read()
@@ -99,7 +107,16 @@ def _scan():
                 names = set(re.findall(r"['\"]([가-힣]{2,4})['\"]", m.group(2)))
                 if len(names & (MODEL | OLD)) >= 3:
                     out.append((rel, m.group(1), names))
+    # 생성 페이지(zone/ 등)는 저장소에 늘 있으므로, 하나도 건너뛰지 않았다면 경로 자르기가
+    # 틀려 스킵이 꺼진 것이다 — 그 상태의 초록불은 방어선이 아니다.
+    assert skipped > 0, 'SKIP_DIR 이 한 파일도 건너뛰지 않았다 — 상대 경로 계산이 틀렸다'
     return out
+
+
+def test_relative_path_does_not_depend_on_the_folder_name():
+    cloud = '/home/runner/work/agongmap/agongmap'
+    assert _rel(cloud + '/zone/서울/index.html', cloud) == 'zone/서울/index.html'
+    assert _rel(os.path.join(ROOT, 'tools', 'x.py')) == 'tools/x.py'
 
 
 def test_every_region_list_is_classified():
