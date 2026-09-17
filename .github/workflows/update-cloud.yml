@@ -166,6 +166,7 @@ jobs:
             data-sgg.json
             data-size.json
             .stats_changed
+            .supply_stalled
           retention-days: 1
           if-no-files-found: ignore
           include-hidden-files: true   # .stats_changed(변경 내역, 뉴스레터용) 포함
@@ -346,6 +347,12 @@ jobs:
           if ! cp "$SRC/data.js" "$SRC/data-core.js" "$SRC/data-rest.json" "$SRC/data-trend.json" .; then
             rep "❌ 산출물 복사 실패 — 아티팩트가 불완전하다(러너 $SRC)"
             exit 1
+          fi
+          # 공급 계열이 받은 달을 전부 버렸으면 배치 알림에 올린다(백로그 14). 그 회차도
+          # 나머지 데이터는 멀쩡히 갱신되므로 막지는 않는다 — 다만 ✅로만 끝나면 2026-09-08~12
+          # 처럼 닷새를 지나친다. ⚠️ 줄은 메일이 가는 회차가 된다.
+          if [ -s "$SRC/.supply_stalled" ]; then
+            rep "⚠️ 공급 갱신 멈춤 — $(cat "$SRC/.supply_stalled"): 받은 달을 전부 버렸다(완비 기준 확인)"
           fi
           for f in data-sgg.json data-size.json; do
             [ -f "$SRC/$f" ] && cp "$SRC/$f" . || echo "::warning::$f 산출물 없음(구 러너?) — 기존 파일 유지"
