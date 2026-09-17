@@ -11,10 +11,13 @@
   2. 정상이면 확인된 항목을 나열하지 않는다. 읽을 것이 없어야 정상이다.
   3. 실패는 반대로 **무엇이 안 됐는지 이름을 밝힌다.** '일부 단계 실패'는 알림이 아니다.
 
-⚠️ 멘션(@소유자)은 메일 발송 스위치다. 코멘트 알림은 구독자에게만 가지만 멘션은
-   구독과 무관하게 메일이 간다. 그래서 멘션을 항상 붙이면 정상 회차에도 매일 메일이
-   가고, 그게 쌓이면 진짜 경보가 묻힌다. 붙이는 경우를 좁게 둔다:
-     실패했을 때 · 점검 이상일 때 · 월요일 회차(살아 있다는 신호)
+⚠️ 메일 발송 스위치는 멘션이 아니라 **이슈 코멘트 그 자체**다(2026-09-17 실측).
+   한 번이라도 멘션되거나 담당자로 지정된 사람은 그 이슈를 구독한 상태가 되어,
+   이후 코멘트는 멘션이 없어도 전부 메일로 간다. 2026-09-12 에 정상 회차의 멘션을
+   뗐지만 메일은 매 회차 그대로 갔다(받은 메일 꼬리: "because you were mentioned").
+   그래서 build() 가 돌려주는 '멘션 여부'는 곧 **코멘트를 남길지 여부**다. 워크플로는
+   이 값이 참일 때만 이슈에 쓰고, 거짓이면 화면 요약(Step Summary)에만 남긴다:
+     실패했을 때 · 점검 이상일 때 · 월요일 회차(살아 있다는 신호) · 기준월 장기 뒤처짐
    침묵이 곧 정상을 뜻하게 만드는 것이 목적이다.
 
 ⚠️ 단계별 상세를 지우는 대상은 **메일 본문**뿐이다. 실행 로그 링크는 항상 남기고,
@@ -164,6 +167,37 @@ def plain(line):
     return body
 
 
+def _short_date(kst):
+    """'2026-09-17 18:33' → '9/17'. 못 읽으면 빈 문자열."""
+    m = re.match(r'^\d{4}-(\d{2})-(\d{2})', (kst or '').strip())
+    return '%d/%d' % (int(m.group(1)), int(m.group(2))) if m else ''
+
+
+def headline(raw, kst, weekday):
+    """메일 제목이 될 한 줄. **제목만 보고 열지 말지 정할 수 있어야 한다**(2026-09-17 대표).
+
+    GitHub 이슈 코멘트 메일의 제목은 그 시점의 이슈 제목이다. 그래서 코멘트를 남기기
+    직전에 이슈 제목을 이 문장으로 바꾼다. 모든 제목은 같은 세 토막으로 읽힌다:
+      무슨 일인가 · 사이트는 괜찮은가 · 내가 할 일이 있는가
+    색 동그라미가 맨 앞이라 받은편지함 목록에서 색만 봐도 된다(🔴 실패, 🟡 확인 중, 🟢 정상).
+    """
+    lines = [ln.rstrip() for ln in raw.splitlines() if ln.strip()]
+    bad = any(ln.lstrip().startswith(BAD) for ln in lines)
+    warn = any(ln.lstrip().startswith(WARN) for ln in lines)
+    _, lag_months = lag_notice(lines)
+    day = _short_date(kst)
+    tail = (' (%s)' % day) if day else ''
+    if bad:
+        return '🔴 데이터 갱신 실패 · 사이트는 정상 · 하실 일 없음' + tail
+    if warn:
+        return '🟡 데이터는 갱신됨 · 곁가지 하나 확인 중 · 하실 일 없음' + tail
+    if lag_months >= ML.ESCALATE_MONTHS:
+        return '🟡 일부 통계가 %d개월째 옛 기준 · 세션이 검토 중 · 하실 일 없음%s' % (lag_months, tail)
+    if weekday == 0:
+        return '🟢 주간 확인 · 데이터 정상 · 하실 일 없음' + tail
+    return '🟢 데이터 정상 · 하실 일 없음' + tail
+
+
 def build(raw, kst, run_url, owner, weekday):
     """기록 전문 → (본문, 멘션여부).
 
@@ -251,9 +285,14 @@ def main(argv=None):
     ap.add_argument('--run-url', required=True)
     ap.add_argument('--owner', required=True)
     ap.add_argument('--weekday', type=int, required=True, help='0=월 … 6=일')
+    ap.add_argument('--meta', help='첫 줄에 메일 여부(1/0), 둘째 줄에 제목을 적을 파일')
     a = ap.parse_args(argv)
     raw = io.open(a.report, encoding='utf-8', errors='replace').read()
-    body, _ = build(raw, a.kst, a.run_url, a.owner, a.weekday)
+    body, mention = build(raw, a.kst, a.run_url, a.owner, a.weekday)
+    if a.meta:
+        # 워크플로가 읽는다: 메일을 보낼 회차인가(=이슈에 코멘트를 남길 것인가)와 그 제목.
+        io.open(a.meta, 'w', encoding='utf-8', newline='\n').write(
+            '%d\n%s\n' % (1 if mention else 0, headline(raw, a.kst, a.weekday)))
     sys.stdout.write(body)
     return 0
 
