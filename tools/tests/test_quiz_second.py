@@ -120,7 +120,7 @@ def _run(body):
 SHUFFLE = r"""
 const orig={}; for(const k in QUIZSETS){ QUIZSETS[k].Q.forEach(it=>{ orig[it.q]=it; }); }
 const sets=Object.keys(QUIZSETS);
-let same=true, keep=true; const first={}, total={};
+let same=true, keep=true; const first={}, total={}, pos={};
 sets.forEach(k=>{first[k]=0;total[k]=0;});
 for(let s=1;s<=300;s++){
   for(const k of sets){
@@ -130,6 +130,7 @@ for(let s=1;s<=300;s++){
       const o=orig[it.q];
       if(it.opts[it.answer]!==o.opts[o.answer] || it.opts.slice().sort().join('|')!==o.opts.slice().sort().join('|')) keep=false;
       total[k]++; if(it.answer===0) first[k]++;
+      (pos[it.q]=pos[it.q]||new Set()).add(it.answer);
     });
   }
 }
@@ -147,12 +148,22 @@ function oldDraw(setKey,seed){
 }
 let sel=true;
 for(let s=1;s<=80;s++){ for(const k of sets){ if(drawQuiz(k,s).map(x=>x.q).join('|')!==oldDraw(k,s).map(x=>x.q).join('|')) sel=false; } }
-OUT={same,keep,first,total,sel};
+const qn=Object.keys(pos).length, varied=Object.values(pos).filter(v=>v.size>1).length;
+OUT={same,keep,first,total,sel,qn,varied};
 """
 
 
 def test_options_are_shuffled_by_seed_without_changing_the_questions():
+    """같은 시드면 같은 시험지, 시드가 다르면 같은 문항의 정답 위치가 달라진다.
+
+    깨뜨리면 빨개지는 것: home-app.js drawQuiz 의 보기 섞기 루프를 지우면 — 문항마다 정답 위치가 하나로
+    고정돼 varied 가 0 이 된다(리뷰 12번: 예전 단정 same·keep·첫 보기 비율은 원본 배치로도 참이라 통과했다).
+    픽스처: 세 세트 × 시드 300개로 실제 drawQuiz 를 돌린다. 한 문항이 여러 시드에서 나오므로 위치 변화를 셀 수 있다.
+    """
     o = _run(SHUFFLE)
+    assert o['qn'] >= 40, '뽑힌 문항이 %d개뿐이다 — 시드 루프가 헛돈다' % o['qn']
+    assert o['varied'] / float(o['qn']) >= 0.9, (
+        '정답 위치가 시드에 따라 바뀌는 문항이 %d/%d 뿐이다 — 보기를 섞지 않는다' % (o['varied'], o['qn']))
     assert o['same'], '같은 시드인데 시험지(보기 순서)가 달라진다 — 이어 풀기·대결이 깨진다'
     assert o['keep'], '보기를 섞으며 정답 텍스트나 보기 구성이 바뀌었다'
     assert o['sel'], '문항 선택이 옛 시드와 달라졌다 — 이미 보낸 대결 링크가 다른 문제를 뽑는다'
