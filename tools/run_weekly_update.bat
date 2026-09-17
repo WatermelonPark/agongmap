@@ -15,7 +15,7 @@ rem   (a local script cannot report that it never ran).
 rem
 rem   exit codes: 10 keys 11 pull 12 update 20 split 13 share
 rem               14 add 15 commit 16 push 17 zone-pages 18 indicator-pages
-rem               19 already-running 21 cycle-data 22 weekly-page
+rem               19 already-running 21 cycle-data 22 weekly-page 23 monthly-page 24 pytest
 rem   (2026-07-24: 이메일/인스타 자동 발행 제거.
 rem    rc=18은 옛 newsletter 코드가 아니라 make_indicator_pages 실패에 쓴다
 rem    — 2026-08-04 감사에서 표와 실물이 어긋난 것을 맞춤.
@@ -112,19 +112,9 @@ if errorlevel 1 (
   exit /b 20
 )
 
-python tools\make_weekly_share.py
-if errorlevel 1 (
-  echo ERROR: make_weekly_share failed - newsletter skipped
-  exit /b 13
-)
-
-rem /weekly/ landing: bakes the week's conclusion, sgg TOP 3 and Seoul gu summary.
-python tools\make_weekly_page.py
-if errorlevel 1 (
-  echo ERROR: make_weekly_page failed
-  exit /b 22
-)
-
+rem ORDER MUST MATCH .github/workflows/update-cloud.yml (test_batch_parity.py fails otherwise).
+rem 2026-09-17: the local runner skipped make_monthly_page and never committed cycle/, so its
+rem cycle/index.html edits sat uncommitted in the shared worktree and blocked other sessions' pushes.
 python tools\make_sido_pages.py
 if errorlevel 1 (
   echo ERROR: make_sido_pages failed - newsletter skipped
@@ -137,24 +127,51 @@ if errorlevel 1 (
   exit /b 18
 )
 
+python tools\make_monthly_page.py
+if errorlevel 1 (
+  echo ERROR: make_monthly_page failed - not committing
+  exit /b 23
+)
+
+rem /weekly/ landing: bakes the week's conclusion, sgg TOP 3 and Seoul gu summary.
+python tools\make_weekly_page.py
+if errorlevel 1 (
+  echo ERROR: make_weekly_page failed
+  exit /b 22
+)
+
 python tools\refresh_cycle_data.py
 if errorlevel 1 (
   echo ERROR: refresh_cycle_data failed
   exit /b 21
 )
 
+rem Test gate: after the generators, before the commit (same place as the cloud batch).
+rem Failing tests mean a code regression; the data is not committed.
+python -m pytest tools\tests -q
+if errorlevel 1 (
+  echo ERROR: pytest failed - not committing
+  exit /b 24
+)
+
+python tools\make_weekly_share.py
+if errorlevel 1 (
+  echo ERROR: make_weekly_share failed - newsletter skipped
+  exit /b 13
+)
+
 rem 이중 구현 정합성 검사(check_dual_calc)는 2026-08-06에 폐지했다.
 rem 점수를 tools\sido_zones.py가 빌드 시점에 계산해 ADV.sido로 싣고 홈·지역
 rem 페이지가 그걸 읽기만 하므로, 갈릴 구현 자체가 없다.
 
-rem NOTE: this list must cover every file the steps above write.
+rem NOTE: this list must equal TARGETS in update-cloud.yml (test_batch_parity.py checks it).
 rem split_data.py emits 5 files (core/trend/rest/sgg/size) and
 rem make_indicator_pages.py emits jeonse-ratio/ and moveins/.
 rem A file missing here is silently never deployed (2026-08-04 audit:
 rem data-sgg.json and data-size.json were absent from every list).
-git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json index.html share\weekly-map.png zone sitemap.xml jeonse-ratio moveins weekly
+git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp
 if errorlevel 1 (
-  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json index.html share\weekly-map.png zone sitemap.xml jeonse-ratio moveins weekly tools\data\.home_stamp
+  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp
   if errorlevel 1 (
     echo ERROR: git add failed
     exit /b 14
