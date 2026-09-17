@@ -31,6 +31,21 @@ import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로�
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'drafts')
 STATE = os.path.join(OUT, '.rotation.json')
+
+
+def write_draft(path, html):
+    """초안을 **다 만든 뒤에** 쓴다. 호출하는 쪽은 render()의 결과를 넘긴다.
+
+    ⚠️ 쓰기 모드로 연 파일 객체에 곧바로 render 결과를 write 하는 한 줄짜리로 쓰지 말 것
+    (test_draft_not_truncated 가 그 모양을 막는다). 파일이 먼저 열려 0바이트가 된 뒤에
+    render 가 돈다 — 생성 가드(SystemExit)나 예외가 나면 사람이 채운 해석 문단이 든 기존 초안이
+    빈 파일로 남는다. drafts/ 는 gitignore 라 되돌릴 데가 없다(2026-09-18 리뷰에서 3편 가드로 재현:
+    18,140바이트 → 0). 임시 파일에 쓰고 바꿔치기하므로 쓰는 도중 죽어도 기존 파일은 그대로다.
+    """
+    tmp = path + '.tmp'
+    with io.open(tmp, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(html)
+    os.replace(tmp, path)
 SITE = 'https://www.agongmap.co.kr'
 
 
@@ -1629,6 +1644,7 @@ def main():
     if not os.path.isdir(OUT):
         os.makedirs(OUT)
     path = os.path.join(OUT, 'naver-%s.html' % p)
+    html = render(p, d1, d2)   # 파일을 열기 전에 끝낸다(write_draft 주석)
 
     # 손댄 초안은 덮지 않는다. drafts/는 gitignore라 덮어쓰면 되돌릴 데가 없다
     # (2026-08-14에 실제로 날렸다 — 트랜스크립트에서 겨우 건졌다).
@@ -1637,7 +1653,7 @@ def main():
         old = io.open(path, encoding='utf-8').read()
         if INTERP_PLACEHOLDER[:20] not in old:
             alt = path[:-5] + '.new.html'
-            io.open(alt, 'w', encoding='utf-8', newline='\n').write(render(p, d1, d2))
+            write_draft(alt, html)
             print('⚠ %s 는 이미 손댄 흔적이 있어 그대로 뒀다.' % os.path.basename(path))
             print('  새 초안은 %s 에 썼다. 비교 후 필요한 것만 옮길 것.'
                   % os.path.relpath(alt, ROOT))
@@ -1645,7 +1661,7 @@ def main():
             # 순회는 소비하지 않는다 — 이 지역 글은 아직 안 나갔다.
             return 0
 
-    io.open(path, 'w', encoding='utf-8', newline='\n').write(render(p, d1, d2))
+    write_draft(path, html)
     commit_rotation()          # 발행이 확인된 지역 편만 캐시에 적는다(지금 고른 지역은 안 적는다)
     print('네이버 초안 생성: %s' % os.path.relpath(path, ROOT))
     print('  ① %s' % d1['title'])
