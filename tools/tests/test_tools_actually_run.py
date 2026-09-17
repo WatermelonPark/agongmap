@@ -33,25 +33,50 @@ SCRIPTS = ['make_naver_post.py', 'make_theory_post.py', 'make_sido_pages.py',
 def _import_stage(name):
     """그 스크립트를 __main__ 으로 올려 **모듈 최상단까지만** 실행한다.
 
-    본체가 도는 것을 막으려고 `__name__`을 바꾸지는 않는다 — 그러면 실제 실행
-    경로와 달라져 이 시험의 뜻이 없어진다. 대신 runpy로 올리되 도중에 나오는
-    SystemExit(키 없음·사용법 출력 등)은 정상으로 본다. 잡으려는 건 ImportError다.
+    ⚠️ 2026-09-17 정정. 예전엔 runpy로 스크립트를 통째로 돌렸다. "최상단까지만"이라고
+    적어 놓고 실제로는 `if __name__ == '__main__':` 아래 본체까지 돌아서, pytest를 한 번
+    돌릴 때마다 make_sido_pages·split_data 등이 **진짜 저장소에** zone/*·data.js·sitemap
+    등 28개 파일을 다시 썼다(내용은 같고 줄바꿈만 달라 매번 미커밋 28건). 공유 작업
+    트리가 늘 더러워 rebase가 막히고, PM이 "주인 없는 미커밋 28개"로 추적해야 했다.
+    make_naver_post는 초안까지 만들었다.
+
+    이제 소스를 읽어 `__main__` 가드 블록만 떼고 나머지 최상단을 `__name__ == '__main__'`
+    으로 실행한다. 순환 참조는 최상단 import에서 터지므로 잡으려던 것은 그대로 잡는다
+    (변이: make_naver_post 최상단에 `import make_theory_post`를 넣으면 빨개진다 — 확인함).
     """
     code = (
-        'import runpy, sys\n'
+        'import ast, sys\n'
         'sys.path.insert(0, %r)\n'
+        'path = %r\n'
+        'tree = ast.parse(open(path, encoding="utf-8").read(), path)\n'
+        'def is_guard(n):\n'
+        '    return (isinstance(n, ast.If) and isinstance(n.test, ast.Compare)\n'
+        '            and isinstance(n.test.left, ast.Name) and n.test.left.id == "__name__")\n'
+        'tree.body = [n for n in tree.body if not is_guard(n)]\n'
+        'sys.argv = [path]\n'
         'try:\n'
-        '    runpy.run_path(%r, run_name="__main__")\n'
+        '    exec(compile(tree, path, "exec"), {"__name__": "__main__", "__file__": path})\n'
         'except ImportError as e:\n'
         '    print("IMPORTERROR", e); sys.exit(9)\n'
         'except SystemExit:\n'
         '    pass\n'
         'except Exception:\n'
-        '    pass\n'          # 키 없음·네트워크 실패 등은 이 시험의 관심사가 아니다
+        '    pass\n'
         % (TOOLS, os.path.join(TOOLS, name))
     )
     return subprocess.run([sys.executable, '-c', code], capture_output=True,
                           text=True, encoding='utf-8', errors='replace', timeout=120)
+
+
+def test_running_the_tools_does_not_touch_the_repo():
+    """이 시험 파일이 저장소 파일을 다시 쓰지 않는다(위 정정의 재발 방지).
+    변이: _import_stage를 runpy.run_path(..., run_name='__main__')로 되돌리면 빨개진다."""
+    watch = [os.path.join(ROOT, p) for p in ('data.js', 'sitemap.xml',
+                                            os.path.join('zone', 'index.html'))]
+    before = [os.path.getmtime(p) for p in watch]
+    for name in ('make_sido_pages.py', 'split_data.py', 'make_naver_post.py'):
+        _import_stage(name)
+    assert [os.path.getmtime(p) for p in watch] == before
 
 
 def test_no_tool_dies_on_import_when_run_as_a_script():
