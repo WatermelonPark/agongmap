@@ -466,6 +466,15 @@ jobs:
           #    거짓이 되어 bash -e 가 스텝을 죽인다. if 로 둔다.
           LAG=$(python3 tools/month_lag.py || true)
           if [ -n "$LAG" ]; then rep "$LAG"; fi
+          # 값이 틀린 게 아니라 **없어서** 화면에서 줄이 그냥 빠지는 자리를 ⚠️ 로 올린다
+          # (tools/batch_notes.py). 막지는 않는다. 파이프로 읽으면 rep 이 서브셸에서 돌고
+          # 빈 입력에서 마지막 명령이 거짓이 되어 bash -e 가 스텝을 죽일 수 있어 here-string 으로 읽는다.
+          NOTES=$(python3 tools/batch_notes.py || true)
+          if [ -n "$NOTES" ]; then
+            while IFS= read -r LN; do
+              if [ -n "$LN" ]; then rep "$LN"; fi
+            done <<< "$NOTES"
+          fi
           TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp"
           git add -A -- $TARGETS || { rep "❌ git add 실패 — TARGETS 경로 확인"; exit 1; }
           if git diff --cached --quiet; then
