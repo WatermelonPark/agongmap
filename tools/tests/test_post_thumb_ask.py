@@ -1,36 +1,66 @@
 # -*- coding: utf-8 -*-
 """지역 편의 썸네일과 댓글 유도문 (2026-09-17 사용자 결정).
 
-유입의 90%가 홈피드인데 대표 이미지가 12편 내내 사이트 캡처였다. 썸네일은 본문
-첫 문장과 **같은 값**(r['tot'])을 말해야 한다 — 부호를 거꾸로 읽으면 "모자랍니다"와
-"남습니다"가 뒤집혀 글과 그림이 반대 말을 한다.
+유입의 90%가 홈피드인데 대표 이미지가 12편 내내 사이트 캡처였다. 썸네일은 그 지역
+가격 곡선을 배경에 깔고 가운데에 키 메시지를 얹는다. 메시지의 숫자(고점 대비 %)와
+아랫줄(순부족·판정)은 **데이터에서 그대로** 나와야 한다 — 그림이 본문과 다른 말을
+하면 클릭은 벌어도 신뢰를 잃는다.
 
-변이 확인(실제로 깨뜨려 봄): thumb_zone의 `lack = t >= 0`을 `t <= 0`으로 바꾸면
-test_thumb_color_follows_sign이 빨개진다. ask_cta의 인덱스를 0으로 고정하면
-test_ask_rotates_by_seq가 빨개진다.
-픽스처: r은 ADV.sido.zones 한 줄에서 thumb_zone이 읽는 세 키(z·tot·grade)만 재현한다.
+변이 확인(실제로 깨뜨려 봄):
+  - thumb_sub의 `>= 0`을 `<= 0`으로 → test_sub_sign_without_ctxt 빨강
+  - thumb_message의 `curve[2] <= -3` 조건을 지움 → test_message_at_peak_does_not_claim_a_fall 빨강
+  - ask_cta 인덱스를 0으로 고정 → test_ask_rotates_by_seq 빨강
+픽스처: 지수 계열은 sts['매매지수']의 모양(dates에 잠정 표시 'p)'가 붙는 것 포함)을,
+r은 ADV.sido.zones 한 줄에서 썸네일이 읽는 키(z·tot·grade·ctxt)만 재현한다.
 """
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import make_naver_post as P  # noqa: E402
-import make_zone_cards as ZC  # noqa: E402
 
 
-def _thumb(tmp_path, monkeypatch, tot):
+def _sts(vals):
+    dates = ['%d.%02d' % (2016 + i // 12, i % 12 + 1) for i in range(len(vals))]
+    dates[-1] += ' p)'
+    return {'매매지수': {'dates': dates, 'series': {'세종': vals}}}
+
+
+FALL = [100 + i for i in range(40)] + [140 - i for i in range(1, 36)]   # 고점 139 → 105
+RISE = [100 + i for i in range(60)]
+
+
+def test_message_states_the_fall_from_the_index():
+    c = P._thumb_curve(_sts(FALL), '세종')
+    assert round(c[2]) == -24
+    assert P.thumb_message('세종', c)[0] == '세종, 고점에서 -24%'
+
+
+def test_message_at_peak_does_not_claim_a_fall():
+    msg = P.thumb_message('세종', P._thumb_curve(_sts(RISE), '세종'))
+    assert '고점에서' not in msg[0] and '최고가' in msg[0]
+
+
+def test_sub_prefers_site_text_and_keeps_sign():
+    r = {'z': '세종', 'tot': 907, 'grade': 'g1', 'ctxt': '907세대 부족 · 3년 필요량의 13%'}
+    assert P.thumb_sub(r, 3).startswith('907세대 부족 · 3년 필요량의 13%')
+
+
+def test_sub_sign_without_ctxt():
+    assert '부족' in P.thumb_sub({'z': '세종', 'tot': 907, 'grade': 'g1'}, 3)
+    assert '과잉' in P.thumb_sub({'z': '세종', 'tot': -907, 'grade': 'g1'}, 3)
+
+
+def test_thumb_renders_even_without_series(tmp_path, monkeypatch):
     from PIL import Image
     monkeypatch.setattr(P, 'OUT', str(tmp_path))
-    rel = P.thumb_zone({'z': '세종', 'tot': tot, 'grade': 'g1'}, '2026년', 3)
-    return Image.open(os.path.join(P.ROOT, rel)).convert('RGB')
+    rel = P.thumb_zone({'z': '세종', 'tot': 907, 'grade': 'g1'}, '2026년', 3, sts={})
+    assert Image.open(os.path.join(P.ROOT, rel)).size == (1200, 900)
 
 
-def test_thumb_color_follows_sign(tmp_path, monkeypatch):
-    lack = _thumb(tmp_path, monkeypatch, 907)
-    assert lack.size == (1200, 900)
-    assert ZC.RED in set(lack.crop((60, 440, 1140, 600)).getdata()), '부족인데 붉은 문장이 없다'
-    over = _thumb(tmp_path, monkeypatch, -907)
-    assert ZC.RED not in set(over.crop((60, 440, 1140, 600)).getdata()), '과잉인데 붉은 문장이 남았다'
+def test_thumb_msg_arg():
+    assert P._thumb_msg_arg(['x', '--thumb-msg', '첫 줄|*둘째 줄*']) == ['첫 줄', '*둘째 줄*']
+    assert P._thumb_msg_arg(['x']) is None
 
 
 def test_ask_rotates_by_seq():

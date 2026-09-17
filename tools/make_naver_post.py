@@ -650,64 +650,109 @@ def ask_cta(nm, seq):
     return '<p>%s</p>' % (txt % esc(nm) if '%s' in txt else txt)
 
 
-def thumb_zone(r, yr, yrs):
+def _thumb_curve(sts, nm, since='2016.01'):
+    """썸네일 배경에 깔 그 지역 매매가격지수. (점 목록, 고점 위치, 고점 대비 %)"""
+    st = (sts or {}).get('매매지수') or {}
+    ds = [x.split()[0] for x in st.get('dates', [])]    # '2026.07 p)' 같은 잠정 표시를 뗀다
+    pts = [(d, v) for d, v in zip(ds, (st.get('series') or {}).get(nm, []))
+           if v is not None and d >= since]
+    if len(pts) < 24:
+        return None
+    ip = max(range(len(pts)), key=lambda i: pts[i][1])
+    return pts, ip, (pts[-1][1] / pts[ip][1] - 1) * 100
+
+
+def thumb_message(nm, curve):
+    """가운데 큰 글자의 기본값. `*...*`로 감싼 줄은 강조색으로 찍힌다.
+
+    기본값은 데이터에서 나오는 사실 한 줄 + 독자가 품는 질문 한 줄이다. 없는 위기감을
+    지어내지 않는다 — 발행 때 결론이 서면 `--thumb-msg "첫 줄|*둘째 줄*"`로 바꾼다.
+    """
+    if curve and curve[1] < len(curve[0]) - 3 and curve[2] <= -3:
+        return ['%s, 고점에서 %.0f%%' % (nm, curve[2]), '*바닥은 지났을까*']
+    if curve:
+        return ['%s, 지금이 역대 최고가' % nm, '*여기서 더 오를까*']
+    return ['%s 아파트' % nm, '*앞으로 3년 공급은*']
+
+
+def thumb_sub(r, yrs):
+    """아랫줄 — 사이트가 구운 요약문(r['ctxt'])을 그대로 쓴다. 블로그가 따로 짓지 않는다.
+    옛 데이터에 ctxt가 없을 때만 본문 첫 문장과 같은 값(r['tot'])·같은 부호로 만든다."""
+    head = r.get('ctxt') or '%s세대 %s' % (num(abs(r['tot'])),
+                                          '부족' if r['tot'] >= 0 else '과잉')
+    return '%s · 판정 %s' % (head, SZ.GRADE_LABS[r['grade']])
+
+
+def thumb_zone(r, yr, yrs, sts=None, msg=None):
     """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (1200x900).
 
     2026-09-17 실측: 발행 12편의 대표 이미지가 전부 사이트 캡처였다. 글자가 빽빽해
     피드의 작은 카드에서는 아무것도 안 읽힌다. 피드에서 우리가 쥔 손잡이는 제목과
     썸네일 둘인데 썸네일은 한 번도 만든 적이 없었다.
 
-    OG 카드(make_zone_cards)와 달리 **숫자를 넣는다.** OG는 캐시돼 옛 숫자가 남는
-    게 문제였지만, 블로그 글은 발행 시점의 기록이라 그 시점 숫자가 맞다.
-    값은 본문 첫 문장과 같은 r['tot']·r['grade']를 그대로 쓴다 — 다시 계산하지 않는다.
+    첫 시안(지역명+숫자 카드)은 사용자가 "AI 양산형"이라며 버렸다 — 글자만 갈아
+    끼우는 틀이라 그렇다. 그래서 **그 지역의 실제 10년 가격 곡선을 배경에** 깐다.
+    곡선은 지역마다 모양이 달라(세종은 절벽, 서울은 우상향) 찍어낸 카드로 안 보인다.
+    그 위 가운데에 큰 글자로 키 메시지를 얹는다(사용자 제안) — 클릭은 메시지가 번다.
+
+    ⚠️ 세로축은 0이 아니라 구간 최저에서 시작한다. 배경 그림이라 눈금을 안 찍고,
+    숫자(고점 대비 %)는 지수에서 그대로 계산한 값만 쓴다.
     실패해도 초안은 나가야 하므로 호출부에서 예외를 잡는다.
     """
     from PIL import Image, ImageDraw
     import make_zone_cards as ZC
-    Wd, Ht, MX = 1200, 900, 72
-    nm, t = r['z'], r['tot']
-    lack = t >= 0
-    accent = ZC.RED if lack else (36, 92, 148)
-    img = Image.new('RGB', (Wd, Ht), ZC.PAPER)
+    Wd, Ht, K = 1200, 900, 2                      # K배로 그려 줄인다(곡선 계단 방지)
+    BG, DIM, FILL = (17, 24, 30), (150, 58, 48), (38, 32, 38)
+    WHITE, ACCENT, SOFT = (255, 255, 255), (255, 209, 61), (176, 188, 192)
+    nm = r['z']
+    img = Image.new('RGB', (Wd * K, Ht * K), BG)
     d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, Wd, 16], fill=ZC.INK)
+    F = lambda size, w='Bold': ZC.font(size * K, w)
 
-    def text(xy, s, fnt, fill):
-        bb = d.textbbox((0, 0), s, font=fnt)
-        d.text((xy[0] - bb[0], xy[1] - bb[1]), s, font=fnt, fill=fill)
-        return bb[2] - bb[0], bb[3] - bb[1]
+    curve = _thumb_curve(sts, nm)
+    if curve:
+        pts = curve[0]
+        lo, hi = min(v for _, v in pts), max(v for _, v in pts)
+        x0, x1, yb, yt = 0, Wd, Ht - 40, 150
+        xy = [((x0 + (x1 - x0) * i / (len(pts) - 1)) * K,
+               (yb - (yb - yt) * (v - lo) / ((hi - lo) or 1)) * K)
+              for i, (_, v) in enumerate(pts)]
+        d.polygon(xy + [(x1 * K, Ht * K), (x0 * K, Ht * K)], fill=FILL)
+        d.line(xy, fill=DIM, width=6 * K, joint='curve')
 
     chip = '%s아파트 공급 전망' % ((yr + ' ') if yr else '')
-    cf = ZC.font(34, 'Bold')
-    bb = d.textbbox((0, 0), chip, font=cf)
-    cw, ch = bb[2] - bb[0], bb[3] - bb[1]
-    d.rounded_rectangle([MX, 78, MX + cw + 52, 78 + ch + 32], radius=8, fill=ZC.INK)
-    text((MX + 26, 78 + 16), chip, cf, ZC.WHITE)
+    d.text((Wd / 2 * K, 96 * K), chip, font=F(38), fill=SOFT, anchor='mm')
 
-    # 지역명은 피드 카드에서도 읽히게 가장 크게. 길이 편차(세종 2자·전남광주 4자)는
-    # fit_width가 맞춘다.
-    hf = ZC.fit_width(nm, Wd - MX * 2, hi=250, lo=120)
-    _, hh = text((MX, 190), nm, hf, ZC.INK)
-    y = 190 + hh + 56
+    lines = [x for x in (msg or thumb_message(nm, curve)) if x.strip()][:3]
+    clean = [x.strip('*') for x in lines]
+    size = min(ZC.fit_width(c, (Wd - 120) * K, hi=150 * K, lo=60 * K).size for c in clean)
+    gap = int(size * 1.22)
+    y = Ht / 2 * K - gap * (len(lines) - 1) / 2 + 10 * K
+    fnt = ZC.font(size, 'Bold')
+    for raw, c in zip(lines, clean):
+        # 곡선 위에서도 읽히게 글자 뒤에 배경색 테두리를 두른다.
+        d.text((Wd / 2 * K, y), c, font=fnt, anchor='mm', stroke_width=10 * K,
+               stroke_fill=BG, fill=ACCENT if raw.startswith('*') else WHITE)
+        y += gap
 
-    line = '%s세대 %s' % (num(abs(t)), '모자랍니다' if lack else '남습니다')
-    lf = ZC.fit_width(line, Wd - MX * 2, hi=120, lo=60)
-    _, lh = text((MX, y), line, lf, accent)
-    y += lh + 44
-
-    text((MX, y), '판정  %s' % SZ.GRADE_LABS[r['grade']], ZC.font(52, 'Bold'), ZC.INK)
-
-    fy = Ht - 110
-    d.line([MX, fy, Wd - MX, fy], fill=ZC.LINE, width=2)
-    text((MX, fy + 30), '앞으로 %d년 · 국가통계로 계산' % yrs, ZC.font(32, 'Medium'), ZC.MUTED)
-    dom, df = 'agongmap.co.kr', ZC.font(34, 'Bold')
-    bb = d.textbbox((0, 0), dom, font=df)
-    text((Wd - MX - (bb[2] - bb[0]), fy + 28), dom, df, ZC.RED)
+    d.text((Wd / 2 * K, (Ht - 118) * K), thumb_sub(r, yrs), font=F(36, 'Medium'),
+           fill=WHITE, anchor='mm', stroke_width=6 * K, stroke_fill=BG)
+    d.text((Wd / 2 * K, (Ht - 62) * K), 'agongmap.co.kr', font=F(28), fill=SOFT,
+           anchor='mm', stroke_width=6 * K, stroke_fill=BG)
 
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, 'thumb-%s.png' % nm)
-    img.save(path)
+    img.resize((Wd, Ht), Image.LANCZOS).save(path)
     return os.path.relpath(path, ROOT)
+
+
+def _thumb_msg_arg(argv):
+    """--thumb-msg "첫 줄|*둘째 줄*" → ['첫 줄', '*둘째 줄*']"""
+    if '--thumb-msg' in argv:
+        i = argv.index('--thumb-msg')
+        if i + 1 < len(argv):
+            return [x.strip() for x in argv[i + 1].split('|')]
+    return None
 
 
 def draft_zone(adv, sts, r, seq, total):
@@ -883,7 +928,7 @@ def draft_zone(adv, sts, r, seq, total):
         shot, shots, err = capture_zone(nm)
     thumb = None
     try:
-        thumb = thumb_zone(r, yr, yrs)
+        thumb = thumb_zone(r, yr, yrs, sts, _thumb_msg_arg(sys.argv))
     except Exception as e:    # 썸네일이 없어도 초안은 나간다
         print('  ⚠ 썸네일 생략 — %s: %s' % (type(e).__name__, e))
     if shot:
