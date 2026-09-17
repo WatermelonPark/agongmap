@@ -14,6 +14,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 
 import pytest
 
@@ -24,10 +25,17 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 
 def _quiz_src():
+    """QUIZSETS 부터 showResult 함수 끝까지. 결과 화면을 실제로 거쳐야 '다시 풀기' 경로를 볼 수 있다.
+
+    ⚠️ 예전에는 gradeOf 앞에서 잘라 showResult 가 없었고, 그래서 재시작 시험이 qClear() 를 직접 불러
+       결함을 스스로 재현했다(리뷰 11번). 경계는 showResult 의 닫는 중괄호(줄 첫머리의 '}')다 —
+       다음 함수까지 잡으면 사이의 전역 선언(let CHALLENGE 등)이 딸려 와 하네스 선언과 부딪힌다.
+    """
     s = HS.home_source()
     a = s.find('const QUIZSETS')
-    b = s.find('function gradeOf(')
-    assert a >= 0 and b > a, '퀴즈 코드 경계를 찾지 못했다 — 구조가 바뀌었으면 이 시험도 고칠 것'
+    r = s.find('function showResult(')
+    b = s.find('\n}', r) + 2
+    assert a >= 0 and r > a and b > r, '퀴즈 코드 경계를 찾지 못했다 — 구조가 바뀌었으면 이 시험도 고칠 것'
     return s[a:b]
 
 
@@ -54,6 +62,8 @@ const location = { hash:'' };
 const window = { scrollTo(){} };
 function scrollBehavior(){ return 'auto'; }
 function renderChalBar(){}
+function versusHTML(){ return ''; }
+function loadKakao(){ return Promise.resolve(); }
 let CHALLENGE = null;
 %(src)s
 ;(function(){ %(body)s })();
@@ -66,7 +76,15 @@ def _run(body, store=None, throw=False):
         pytest.skip('node 없음')
     js = HARNESS % {'store': json.dumps(store or {}), 'throw': 'true' if throw else 'false',
                     'src': 'var OUT;\n' + _quiz_src(), 'body': body}
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
+    # ⚠️ 명령줄로 넘기지 않는다. showResult 까지 담으면 Windows 명령줄 한도(약 32KB)를 넘어
+    #    WinError 206 으로 시험 전체가 실행조차 안 된다(2026-09-17 백로그 12 작업 중 실제로 그랬다).
+    fd, path = tempfile.mkstemp(suffix='.js')
+    with os.fdopen(fd, 'w', encoding='utf-8') as f:
+        f.write(js)
+    try:
+        p = subprocess.run(['node', path], capture_output=True, timeout=60)
+    finally:
+        os.remove(path)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
     return json.loads(p.stdout.decode('utf-8'))
 
@@ -143,14 +161,24 @@ OUT = {kept, gone, back};
 
 
 def test_retry_after_finishing_is_marked_retry():
+    """10문항을 끝까지 풀어 실제 결과 화면(nextQ → showResult)을 거친 뒤 '다시 풀기'는 retry 로 새로 시작한다.
+
+    깨뜨리면 빨개지는 것: home-app.js 의 showResult 에서 qClear() 나 qMarkDone() 을 빼면 — 저장이 남아
+    다시 풀기가 같은 시험지 10번 문항으로 되돌아가고 start_type 이 resume 이 된다(리뷰 11번, 변이로 확인).
+    픽스처: 빈 sessionStorage 에서 투자자 세트를 처음부터 끝까지 푼 실제 흐름. 시험 본문은 저장을 직접 지우지 않는다.
+    """
     o = _run("""
 startQuiz('investor');
-for (let i=0;i<QUIZ.length;i++){ answerQ(0); qIdx===QUIZ.length-1 ? (qIdx++, qClear(), qMarkDone(curSet)) : nextQ(); }
+for (let i=0;i<QUIZ.length;i++){ answerQ(0); nextQ(); }
+const afterResult = {saved:'agong_quiz' in STORE};
 startQuiz();
-OUT = {ev:EV, saved:'agong_quiz' in STORE};
+OUT = {ev:EV, afterResult, idx:qIdx, answered:qAnswered};
 """)
+    assert [p for e, p in o['ev'] if e == 'quiz_complete'], '결과 화면(showResult)을 거치지 않았다 — 시험이 헛돈다'
+    assert o['afterResult']['saved'] is False, '결과 화면 뒤에도 진행 저장이 남았다'
     starts = [p['start_type'] for e, p in o['ev'] if e == 'quiz_start']
     assert starts == ['new', 'retry'], starts
+    assert o['idx'] == 0 and o['answered'] is False, '다시 풀기가 처음 문항에서 시작하지 않는다'
 
 
 def test_blocked_storage_does_not_break_the_quiz():
