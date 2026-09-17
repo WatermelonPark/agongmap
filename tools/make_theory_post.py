@@ -641,7 +641,8 @@ def main(argv):
     if not os.path.isdir(OUT):
         os.makedirs(OUT)
     path = os.path.join(OUT, 'theory-%02d.html' % n)
-    io.open(path, 'w', encoding='utf-8', newline='\n').write(render(post))
+    # render 가 생성 가드로 멈출 수 있다 — 파일을 열기 전에 끝내야 기존 초안이 0바이트가 안 된다.
+    P.write_draft(path, render(post))
     print('이론 초안 생성: %s' % os.path.relpath(path, ROOT))
     print('  %s' % post['title'])
     # 열지 않는다 — 재생성이 잦다. 볼 때만 --open.
