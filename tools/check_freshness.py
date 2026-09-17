@@ -588,6 +588,18 @@ def check_supply_value(label, D, tbl, since):
             % (label, tag, format(int(mine), ','), format(int(src_total), ',')))
 
 
+def supply_value_fail(label, D, tbl, since):
+    """main()이 쓰는 값 대조의 입구. 실패 문자열 또는 None.
+
+    main 안에 두면 원천을 스무 번 부르지 않고는 시험할 수 없어서 떼어 냈다. 호출하는 쪽은
+    **참일 때만** fails 에 넣는다(통과 None 을 넣으면 개수 게이트의 분모가 부푼다).
+    나이 검사 조회가 실패해 캐시가 비어 있으면 원천을 다시 부르지 않고 넘어간다.
+    """
+    if not D or (tbl, since) not in _COMPLETE_CACHE:
+        return None
+    return check_supply_value(label, D, tbl, since)
+
+
 def rone_region_names(tbl, cycle):
     """R-ONE 표의 지역 계층 이름 집합(최신 한 시점).
 
@@ -901,10 +913,18 @@ def main():
         fails.append(check(name, last,
                            lambda c=cfg, sc=since: rone_latest_complete(c['tbl'], sc),
                            GRACE_MONTHLY))
-        # 시점이 같아도 값이 멈춰 있을 수 있다. 위 조회 결과를 캐시에서 재사용하므로
-        # API 호출은 늘지 않는다.
-        if D:
-            fails.append(check_supply_value(name, D, cfg['tbl'], since))
+        # 시점이 같아도 값이 멈춰 있을 수 있다.
+        # ⚠️ 두 가지를 지킨다(리뷰 2026-09-16 9번).
+        #   ① 통과(None)는 fails 에 넣지 않는다. len(fails) 는 '검사한 계열 수'이고 개수
+        #      게이트(SKIPPED×2 > len(fails))의 분모다. None 까지 넣으면 계열당 항목이 둘이
+        #      되어 분모가 부풀고, 광역 장애가 문턱을 못 넘어 OK 가 찍힌다 — 2026-08-13 에
+        #      재시도 루프에서 재현·확정한 것과 같은 회귀다.
+        #   ② 위의 나이 검사 조회가 성공해 캐시에 있을 때만 값을 견준다. 조회가 실패한
+        #      직후에 같은 원천을 곧바로 다시 부르면 광역 장애 때 계열당 타임아웃이 한 번씩
+        #      더 붙는다. 그 계열은 재시도 큐가 다시 본다.
+        r = supply_value_fail(name, D, cfg['tbl'], since)
+        if r:
+            fails.append(r)
 
     print('[금리 — 원천 한국은행 ECOS]')
     D = stats.get('금리') or {}
