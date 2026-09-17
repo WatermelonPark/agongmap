@@ -47,6 +47,15 @@ def test_thumb_renders_even_without_series(tmp_path, monkeypatch):
     assert Image.open(os.path.join(P.ROOT, rel)).size == (1200, 900)
 
 
+def test_every_zone_has_a_thumb_group():
+    # 변이: THUMB_GROUP에서 '전남광주'를 지우면 빨개진다. 실제 모델(ADV.sido)을 읽는다 —
+    # 손으로 적은 권역 목록이 판정 단위 개편을 조용히 놓치지 않게.
+    adv, _ = P.M.load()
+    zones = [z['z'] for z in adv['sido']['zones'] if not z.get('agg')]
+    assert [z for z in zones if z not in P.THUMB_GROUP] == []
+    assert set(P.THUMB_GROUP.values()) <= set(P.THUMB_PALETTES)
+
+
 def test_thumb_msg_arg():
     assert P._thumb_msg_arg(['x', '--thumb-msg', '첫 줄|*둘째 줄*']) == ['첫 줄', '*둘째 줄*']
     assert P._thumb_msg_arg(['x']) is None
