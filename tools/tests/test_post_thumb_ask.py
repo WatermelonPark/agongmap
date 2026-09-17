@@ -56,6 +56,13 @@ def test_every_zone_has_a_thumb_group():
     assert set(P.THUMB_GROUP.values()) <= set(P.THUMB_PALETTES)
 
 
+def test_default_question_is_not_the_same_everywhere():
+    # 변이: thumb_message의 인덱스 k를 0으로 고정하면 빨개진다.
+    c = P._thumb_curve(_sts(FALL), '세종')
+    asks = {P.thumb_message(z, c)[1] for z in P.THUMB_GROUP}
+    assert len(asks) == len(P.THUMB_ASK_FALL)
+
+
 def test_thumb_msg_arg():
     assert P._thumb_msg_arg(['x', '--thumb-msg', '첫 줄|*둘째 줄*']) == ['첫 줄', '*둘째 줄*']
     assert P._thumb_msg_arg(['x']) is None

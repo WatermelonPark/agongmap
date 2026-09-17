@@ -662,16 +662,28 @@ def _thumb_curve(sts, nm, since='2016.01'):
     return pts, ip, (pts[-1][1] / pts[ip][1] - 1) * 100
 
 
+# 기본 문구의 둘째 줄(질문). 시안 여섯 장 중 다섯이 "바닥은 지났을까"였다(2026-09-17
+# 사용자: "반복되면 지루하다"). 기본값은 어디까지나 **안전망**이고, 발행 때는 그 글의
+# 결론에 맞춘 문구를 --thumb-msg로 넣는다. 안전망이라도 같은 말이 이어지지 않게
+# 지역 표시 순서로 돌린다(난수면 초안을 다시 만들 때 바뀐다).
+THUMB_ASK_FALL = ('바닥은 지났을까', '지금 사도 될까', '다시 오를 수 있을까', '언제쯤 돌아설까')
+THUMB_ASK_PEAK = ('여기서 더 오를까', '지금 사도 늦지 않았을까', '이 상승은 언제까지일까')
+
+
 def thumb_message(nm, curve):
     """가운데 큰 글자의 기본값. `*...*`로 감싼 줄은 강조색으로 찍힌다.
 
     기본값은 데이터에서 나오는 사실 한 줄 + 독자가 품는 질문 한 줄이다. 없는 위기감을
     지어내지 않는다 — 발행 때 결론이 서면 `--thumb-msg "첫 줄|*둘째 줄*"`로 바꾼다.
     """
+    order = list(SZ.DISPLAY_ORDER)
+    k = order.index(nm) if nm in order else 0
     if curve and curve[1] < len(curve[0]) - 3 and curve[2] <= -3:
-        return ['%s, 고점에서 %.0f%%' % (nm, curve[2]), '*바닥은 지났을까*']
+        return ['%s, 고점에서 %.0f%%' % (nm, curve[2]),
+                '*%s*' % THUMB_ASK_FALL[k % len(THUMB_ASK_FALL)]]
     if curve:
-        return ['%s, 지금이 역대 최고가' % nm, '*여기서 더 오를까*']
+        return ['%s, 지금이 역대 최고가' % nm,
+                '*%s*' % THUMB_ASK_PEAK[k % len(THUMB_ASK_PEAK)]]
     return ['%s 아파트' % nm, '*앞으로 3년 공급은*']
 
 
@@ -697,6 +709,9 @@ THUMB_GROUP = {
     '대전': '충청', '세종': '충청', '충남': '충청', '충북': '충청',
     '강원': '강원', '제주': '제주',
 }
+
+
+THUMB_FONT = 104
 
 
 def thumb_zone(r, yr, yrs, sts=None, msg=None):
@@ -744,7 +759,15 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
 
     lines = [x for x in (msg or thumb_message(nm, curve)) if x.strip()][:3]
     clean = [x.strip('*') for x in lines]
-    size = min(ZC.fit_width(c, (Wd - 120) * K, hi=150 * K, lo=60 * K).size for c in clean)
+    # 글자 크기는 고정이다 — 앨범형 목록에 나란히 깔리므로 회차마다 크기가 들쭉날쭉하면
+    # 지저분하다. THUMB_FONT는 가장 긴 기본 문구("전남광주, 고점에서 -15%")가 들어가는
+    # 크기다. 넘치는 문구만 줄이고, 줄였다는 걸 알린다 — 문구를 줄이는 게 먼저다.
+    size = min([THUMB_FONT * K] +
+               [ZC.fit_width(c, (Wd - 120) * K, hi=THUMB_FONT * K, lo=60 * K).size
+                for c in clean])
+    if size < THUMB_FONT * K:
+        print('  ⚠ 썸네일 문구가 길어 글자를 %dpx → %dpx로 줄였다. 한 줄 11자 안팎이 맞다.'
+              % (THUMB_FONT, size // K))
     gap = int(size * 1.22)
     y = Ht / 2 * K - gap * (len(lines) - 1) / 2 + 10 * K
     fnt = ZC.font(size, 'Bold')
@@ -955,7 +978,9 @@ def draft_zone(adv, sts, r, seq, total):
     if shot:
         lines = ['<b>%s</b> → [리포트 캡처]' % shot]
         if thumb:
-            lines.insert(0, '<b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % thumb)
+            lines.insert(0, '<b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)%s' % (
+                thumb, '' if _thumb_msg_arg(sys.argv) else
+                ' — ⚠ 문구가 기본값입니다. 결론이 서면 <code>--thumb-msg "첫 줄|*둘째 줄*"</code>로 다시 만드세요'))
         if shots.get('표'):
             lines.append('<b>%s</b> → [분기별 공급표]' % shots['표'])
         if shots.get('판정표'):
