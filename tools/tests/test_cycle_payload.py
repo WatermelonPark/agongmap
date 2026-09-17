@@ -87,16 +87,37 @@ def test_jeonse_ratio_spans_follow_the_chart_on_the_same_page():
     """전세가율 풀이 칸은 같은 페이지의 전세가율 차트(jratio_level)와 같은 값이어야 한다."""
     import refresh_cycle_data as RF
     D, _, _ = _page()
-    want = RF.jratio_prose(D['jratio_level'])
-    got = {k: (D.get('prose') or {}).get(k) for k in RF.JR_KEYS}
+    prose = D.get('prose') or {}
+    # 기준월은 D 안에 다른 출처가 없다. 배치가 넣은 값을 그대로 넘겨 나머지 칸을 대조한다.
+    # ⚠️ 여기서 data.js 의 최신 달과 맞추지 말 것 — 배치는 pytest 를 페이지 생성보다 먼저
+    #    돌리므로, 전세가율이 새 달로 넘어가는 날마다 이 시험이 데이터 커밋을 막게 된다.
+    want = RF.jratio_prose(D['jratio_level'], prose.get('jr_prd'))
+    got = {k: prose.get(k) for k in RF.JR_KEYS}
     assert got == want, '전세가율 풀이 칸이 차트와 다르다 — refresh_cycle_data를 다시 돌릴 것: %s vs %s' % (got, want)
 
 
 def test_jratio_mid_band_is_only_a_decade_when_both_share_it():
     import refresh_cycle_data as RF
     base = [{'region': '서울', 'val': 52.4}, {'region': '전남광주', 'val': 78.6}]
-    assert RF.jratio_prose(base + [{'region': '대구', 'val': 70.8}, {'region': '대전', 'val': 71.8}])['jr_mid'] == '70%대'
-    assert RF.jratio_prose(base + [{'region': '대구', 'val': 69.4}, {'region': '대전', 'val': 71.8}])['jr_mid'] == '69~72%'
+    assert RF.jratio_prose(base + [{'region': '대구', 'val': 70.8}, {'region': '대전', 'val': 71.8}], '2026.07')['jr_mid'] == '70%대'
+    assert RF.jratio_prose(base + [{'region': '대구', 'val': 69.4}, {'region': '대전', 'val': 71.8}], '2026.07')['jr_mid'] == '69~72%'
+
+
+def test_jratio_caption_month_comes_with_the_values():
+    """차트 캡션의 기준월은 값을 읽은 그 달이어야 한다(백로그 17).
+
+    캡션에 손으로 적은 '2026.06 기준'이 값이 07로 넘어간 뒤에도 남아 있었다.
+    """
+    import pytest
+    import refresh_cycle_data as RF
+    lvl = [{'region': r, 'val': 60.0} for r in ('서울', '전남광주', '대구', '대전')]
+    assert RF.jratio_prose(lvl, '2026.07')['jr_prd'] == '2026.07'
+    for bad in (None, '', '2026-07-01', '2026Q2'):
+        with pytest.raises(RuntimeError):
+            RF.jratio_prose(lvl, bad)
+    _, _, s = _page()
+    assert re.search(r'<span data-d="jr_prd">\d{4}\.\d{2}</span> 기준', s), '캡션 기준월이 칸이 아니다'
+    assert not re.search(r'<b>\d{4}\.\d{2} 기준</b>', s), '캡션에 손으로 적은 기준월이 남았다'
 
 
 def test_page_script_fills_from_the_payload():
