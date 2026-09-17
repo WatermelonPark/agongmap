@@ -675,14 +675,6 @@ def thumb_message(nm, curve):
     return ['%s 아파트' % nm, '*앞으로 3년 공급은*']
 
 
-def thumb_sub(r, yrs):
-    """아랫줄 — 사이트가 구운 요약문(r['ctxt'])을 그대로 쓴다. 블로그가 따로 짓지 않는다.
-    옛 데이터에 ctxt가 없을 때만 본문 첫 문장과 같은 값(r['tot'])·같은 부호로 만든다."""
-    head = r.get('ctxt') or '%s세대 %s' % (num(abs(r['tot'])),
-                                          '부족' if r['tot'] >= 0 else '과잉')
-    return '%s · 판정 %s' % (head, SZ.GRADE_LABS[r['grade']])
-
-
 def thumb_zone(r, yr, yrs, sts=None, msg=None):
     """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (1200x900).
 
@@ -735,9 +727,11 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
                stroke_fill=BG, fill=ACCENT if raw.startswith('*') else WHITE)
         y += gap
 
-    d.text((Wd / 2 * K, (Ht - 118) * K), thumb_sub(r, yrs), font=F(36, 'Medium'),
-           fill=WHITE, anchor='mm', stroke_width=6 * K, stroke_fill=BG)
-    d.text((Wd / 2 * K, (Ht - 62) * K), 'agongmap.co.kr', font=F(28), fill=SOFT,
+    # 아랫줄 요약("907세대 부족 · 3년 필요량의 13% · 판정 균형")은 뺐다 — 피드 카드
+    # 크기에서 안 읽히고, 처음 보는 사람은 뜻도 모른다(2026-09-17 사용자). 썸네일은
+    # 키 메시지 하나만 말한다. 서명은 도메인이 아니라 이름 — 네이버 안에서는 주소가
+    # 눌리지도 않고 광고처럼 읽힌다.
+    d.text((Wd / 2 * K, (Ht - 78) * K), '아공맵', font=F(44), fill=WHITE,
            anchor='mm', stroke_width=6 * K, stroke_fill=BG)
 
     os.makedirs(OUT, exist_ok=True)
