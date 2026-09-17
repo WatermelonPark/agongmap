@@ -88,22 +88,65 @@ def eunneun(w):
 PRIORITY = ('서울', '대구', '부산', '경기', '세종', '전남광주')
 
 
-def pick_zone(rows):
+ZONE_CAT = '지역별 아파트 공급'
+
+
+def _published_zone_posts(names):
+    """발행된 지역 편을 {지역: {글 주소, ...}}로. RSS를 못 읽으면 None."""
+    try:
+        import close_published_issues as CP
+        posts = CP.fetch_posts()
+    except Exception:
+        return None
+    if posts is None:
+        return None
+    out = {}
+    for p in posts:
+        if p.get('cat') != ZONE_CAT or not p.get('url'):
+            continue
+        # 제목은 '<연도>년 <지역> 아파트 공급물량 전망, …' 꼴이다. 긴 이름부터 맞춘다.
+        for nm in sorted(names, key=len, reverse=True):
+            if ('%s 아파트' % nm) in p['title']:
+                out.setdefault(nm, set()).add(p['url'])
+                break
+    return out
+
+
+def pick_zone(rows, published=None):
     """아직 안 다룬 지역 중 하나를 고른다 — PRIORITY 먼저, 그다음 |순부족| 순.
 
-    한 바퀴 돌면 초기화. 주차 번호로 나머지 연산을 하면 데이터가 바뀔 때
-    같은 곳이 연달아 걸릴 수 있어, 다룬 목록을 파일로 남기는 쪽을 택했다.
-    ⚠️ 2026-08-06 재편으로 지역 이름이 전부 바뀌었다(생활권 → 시도). 옛 순회
-    기록이 남아 있으면 없는 이름만 가리키므로, 현재 목록에 없는 이름은 버린다.
+    **'다뤘다'의 기준은 실제 발행이다**(2026-09-17). 예전엔 초안을 저장할 때마다 순회
+    기록을 한 칸 넘겼는데, 주간 글만 쓰려고 돌려도 지역 하나가 소비됐다 — 지역 편은
+    격주라 매주 도는 생성기와 박자가 안 맞는다. 9/17에 세종이 그렇게 소비돼 손으로
+    되돌렸다. 이제 블로그 RSS에서 발행된 지역 편을 세고, 파일(STATE)은 RSS에서
+    밀려난 옛 글을 기억하는 **캐시**로만 쓴다(RSS는 최근 글만 준다). 지금 고른 지역은
+    기록하지 않는다 — 발행되면 다음 실행 때 RSS가 알려 준다.
+
+    한 바퀴 돌면 다음 바퀴: 지역마다 발행 편수를 세어, 가장 적게 나간 편수(lap)보다
+    많이 나간 지역을 '이번 바퀴에 다뤘다'고 본다.
+    ⚠️ 2026-08-06 재편으로 지역 이름이 전부 바뀌었다(생활권 → 시도). 현재 목록에 없는
+    이름은 버린다.
     """
     names = {r['z'] for r in rows}
-    done = []
+    seen = {}
     if os.path.exists(STATE):
         try:
-            done = json.load(io.open(STATE, encoding='utf-8')).get('done', [])
+            st = json.load(io.open(STATE, encoding='utf-8'))
+            seen = {k: set(v) for k, v in (st.get('posts') or {}).items()}
+            # 옛 형식 {"done": [...]} — 주소를 모르니 자리만 하나씩 채운다.
+            for nm in st.get('done', []):
+                seen.setdefault(nm, set()).add('legacy:' + nm)
         except Exception:
-            done = []
-    done = [d for d in done if d in names]
+            seen = {}
+    if published is None:
+        published = _published_zone_posts(names)
+    if published is None:
+        print('  ⚠ 발행 목록(RSS)을 못 읽어 저장해 둔 순회 기록으로 고른다.')
+        published = {}
+    for nm, urls in published.items():
+        if urls:                       # 실제 주소를 알게 되면 옛 자리표는 버린다
+            seen[nm] = {u for u in seen.get(nm, set()) if not u.startswith('legacy:')} | urls
+    seen = {k: v for k, v in seen.items() if k in names}
 
     def rank(r):
         # PRIORITY에 있으면 그 순서대로 앞에, 없으면 순부족 큰 순으로 뒤에
@@ -112,22 +155,16 @@ def pick_zone(rows):
         except ValueError:
             return (1, 0, -abs(r['tot']))
     pool = sorted(rows, key=rank)
-    rest = [r for r in pool if r['z'] not in done]
-    if not rest:                      # 한 바퀴 완주 → 처음부터
-        done, rest = [], pool
-    pick = rest[0]
-    done.append(pick['z'])
+    lap = min(len(seen.get(r['z'], ())) for r in pool)
+    done = [r['z'] for r in pool if len(seen.get(r['z'], ())) > lap]
+    pick = next(r for r in pool if r['z'] not in done)
 
-    # ⚠️ 순회 기록은 여기서 쓰지 않는다 — 초안이 실제로 저장된 뒤에 commit()을
-    # 부른다. 고르자마자 기록하면 뒤 단계(캡처·렌더·쓰기)가 죽거나 "이미 손댄
-    # 초안이라 그대로 뒀다"로 빠질 때 그 지역이 조용히 소비된다. 16주 순회에서
-    # 어떤 시도는 글이 한 번도 안 나가고, 화면에 찍히는 (seq/total)도 틀어진다.
     def commit():
         if not os.path.isdir(OUT):
             os.makedirs(OUT)
-        io.open(STATE, 'w', encoding='utf-8').write(
-            json.dumps({'done': done}, ensure_ascii=False))
-    return pick, len(done), len(pool), commit
+        io.open(STATE, 'w', encoding='utf-8').write(json.dumps(
+            {'posts': {k: sorted(v) for k, v in seen.items()}}, ensure_ascii=False))
+    return pick, len(done) + 1, len(pool), commit
 
 
 # ---------------------------------------------------------- 로테이션·해석 자리
@@ -635,13 +672,13 @@ def cta(nm, seq):
 # 매번 같은 문장이면 회차 간 반복이 된다.
 ASK_CTA = (
     '%s에서 매수나 매도를 고민 중이시라면 댓글로 상황을 남겨 주세요. '
-    '아는 범위에서 제 생각을 답글로 드리겠습니다.',
-    '보고 계신 단지가 있다면 댓글에 단지 이름을 적어 주세요. '
-    '공급 숫자로 보면 어떤 자리인지 같이 보겠습니다.',
-    '지금 사야 할지 기다려야 할지, 팔아야 할지 고민이 있으시면 댓글로 물어봐 주세요. '
-    '제 판단을 솔직하게 답하겠습니다.',
+    '아는 범위에서 제 생각을 답글로 적어 드리겠습니다.',
+    '눈여겨보는 단지가 있으면 댓글에 이름을 적어 주세요. '
+    '그 동네 공급이 어떤지 같이 따져 보겠습니다.',
+    '지금 사야 할지 기다려야 할지, 팔아야 할지 고민되시면 댓글로 물어봐 주세요. '
+    '제 생각을 솔직하게 말씀드리겠습니다.',
     '다음에 다뤘으면 하는 지역이나 궁금한 단지가 있으면 댓글로 알려 주세요. '
-    '순서를 당겨서 다루겠습니다.',
+    '그 지역부터 먼저 다루겠습니다.',
 )
 
 
@@ -666,8 +703,8 @@ def _thumb_curve(sts, nm, since='2016.01'):
 # 사용자: "반복되면 지루하다"). 기본값은 어디까지나 **안전망**이고, 발행 때는 그 글의
 # 결론에 맞춘 문구를 --thumb-msg로 넣는다. 안전망이라도 같은 말이 이어지지 않게
 # 지역 표시 순서로 돌린다(난수면 초안을 다시 만들 때 바뀐다).
-THUMB_ASK_FALL = ('바닥은 지났을까', '지금 사도 될까', '다시 오를 수 있을까', '언제쯤 돌아설까')
-THUMB_ASK_PEAK = ('여기서 더 오를까', '지금 사도 늦지 않았을까', '이 상승은 언제까지일까')
+THUMB_ASK_FALL = ('바닥은 지났을까', '지금 사도 될까', '다시 오를까', '언제쯤 돌아설까')
+THUMB_ASK_PEAK = ('여기서 더 오를까', '지금 사면 늦은 걸까', '언제까지 오를까')
 
 
 def thumb_message(nm, curve):
@@ -991,6 +1028,8 @@ def draft_zone(adv, sts, r, seq, total):
     else:
         note = ('캡처 없음 — %s. 본문의 자리 표시자를 지우거나 직접 캡처해 '
                 '넣으세요.' % err)
+        if thumb:
+            note += '<br><b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % thumb
     return dict(title=title, body='\n'.join(body), tags=tags, img=shot,
                 kw='%s 아파트 공급물량' % nm, imgnote=note,
                 seq='%d / %d번째 지역' % (seq, total))
@@ -1607,7 +1646,7 @@ def main():
             return 0
 
     io.open(path, 'w', encoding='utf-8', newline='\n').write(render(p, d1, d2))
-    commit_rotation()          # 파일이 실제로 생긴 뒤에만 순회를 한 칸 넘긴다
+    commit_rotation()          # 발행이 확인된 지역 편만 캐시에 적는다(지금 고른 지역은 안 적는다)
     print('네이버 초안 생성: %s' % os.path.relpath(path, ROOT))
     print('  ① %s' % d1['title'])
     if d2:
