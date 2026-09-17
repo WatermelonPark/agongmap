@@ -675,6 +675,15 @@ def thumb_message(nm, curve):
     return ['%s 아파트' % nm, '*앞으로 3년 공급은*']
 
 
+# (바탕, 곡선 아래 면, 곡선, 강조 글자)
+THUMB_PALETTES = (
+    ((252, 246, 238), (248, 226, 214), (233, 164, 140), (200, 60, 40)),    # 살구
+    ((240, 247, 250), (214, 232, 242), (140, 184, 214), (28, 100, 170)),   # 하늘
+    ((243, 249, 241), (219, 237, 216), (150, 200, 150), (30, 125, 70)),    # 연두
+    ((250, 246, 252), (234, 222, 244), (186, 160, 220), (110, 60, 170)),   # 연보라
+)
+
+
 def thumb_zone(r, yr, yrs, sts=None, msg=None):
     """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (1200x900).
 
@@ -694,9 +703,15 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
     from PIL import Image, ImageDraw
     import make_zone_cards as ZC
     Wd, Ht, K = 1200, 900, 2                      # K배로 그려 줄인다(곡선 계단 방지)
-    BG, DIM, FILL = (17, 24, 30), (150, 58, 48), (38, 32, 38)
-    WHITE, ACCENT, SOFT = (255, 255, 255), (255, 209, 61), (176, 188, 192)
     nm = r['z']
+    # 밝은 바탕. 블로그가 앨범형이라 썸네일이 목록에 나란히 깔리는데, 어두운 카드가
+    # 이어지면 블로그 전체가 침침해진다(2026-09-17 사용자). 같은 색만 이어져도
+    # 단조로우니 지역 표시 순서(SZ.DISPLAY_ORDER)로 네 가지 색조를 돌린다 — 난수가
+    # 아니라 순서에서 뽑아야 초안을 다시 만들어도 같은 색이 나온다.
+    order = list(SZ.DISPLAY_ORDER)
+    k = order.index(nm) if nm in order else sum(map(ord, nm))
+    BG, FILL, DIM, ACCENT = THUMB_PALETTES[k % len(THUMB_PALETTES)]
+    WHITE, SOFT = (19, 30, 36), (94, 111, 116)      # 본문 글자(먹색)·보조 글자
     img = Image.new('RGB', (Wd * K, Ht * K), BG)
     d = ImageDraw.Draw(img)
     F = lambda size, w='Bold': ZC.font(size * K, w)
