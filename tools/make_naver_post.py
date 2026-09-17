@@ -625,6 +625,91 @@ def cta(nm, seq):
                label % esc(nm) if '%s' in label else label))
 
 
+# 댓글 유도문 — 글 끝(면책 바로 앞) 한 줄. 2026-09-17 사용자 결정.
+#
+# 홈피드 랭커는 클릭 확률과 **체류·반응**을 같이 본다(네이버 2024.11 컨퍼런스 발표).
+# 우리 유입의 90%가 홈피드라 댓글은 장식이 아니라 노출 신호다. 사용자는 매수·매도
+# 고민과 단지 질문에 직접 답할 의향이 있다("내 경험도 쌓고"). '무료 상담'이라는
+# 말은 쓰지 않는다 — 면책과 부딪히고 광고 문구로 읽힌다.
+# ZONE_CTA와 같은 이유로 seq로 고른다: 난수면 검토본과 발행본이 어긋나고,
+# 매번 같은 문장이면 회차 간 반복이 된다.
+ASK_CTA = (
+    '%s에서 매수나 매도를 고민 중이시라면 댓글로 상황을 남겨 주세요. '
+    '아는 범위에서 제 생각을 답글로 드리겠습니다.',
+    '보고 계신 단지가 있다면 댓글에 단지 이름을 적어 주세요. '
+    '공급 숫자로 보면 어떤 자리인지 같이 보겠습니다.',
+    '지금 사야 할지 기다려야 할지, 팔아야 할지 고민이 있으시면 댓글로 물어봐 주세요. '
+    '제 판단을 솔직하게 답하겠습니다.',
+    '다음에 다뤘으면 하는 지역이나 궁금한 단지가 있으면 댓글로 알려 주세요. '
+    '순서를 당겨서 다루겠습니다.',
+)
+
+
+def ask_cta(nm, seq):
+    txt = ASK_CTA[(seq - 1) % len(ASK_CTA)]
+    return '<p>%s</p>' % (txt % esc(nm) if '%s' in txt else txt)
+
+
+def thumb_zone(r, yr, yrs):
+    """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (1200x900).
+
+    2026-09-17 실측: 발행 12편의 대표 이미지가 전부 사이트 캡처였다. 글자가 빽빽해
+    피드의 작은 카드에서는 아무것도 안 읽힌다. 피드에서 우리가 쥔 손잡이는 제목과
+    썸네일 둘인데 썸네일은 한 번도 만든 적이 없었다.
+
+    OG 카드(make_zone_cards)와 달리 **숫자를 넣는다.** OG는 캐시돼 옛 숫자가 남는
+    게 문제였지만, 블로그 글은 발행 시점의 기록이라 그 시점 숫자가 맞다.
+    값은 본문 첫 문장과 같은 r['tot']·r['grade']를 그대로 쓴다 — 다시 계산하지 않는다.
+    실패해도 초안은 나가야 하므로 호출부에서 예외를 잡는다.
+    """
+    from PIL import Image, ImageDraw
+    import make_zone_cards as ZC
+    Wd, Ht, MX = 1200, 900, 72
+    nm, t = r['z'], r['tot']
+    lack = t >= 0
+    accent = ZC.RED if lack else (36, 92, 148)
+    img = Image.new('RGB', (Wd, Ht), ZC.PAPER)
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, Wd, 16], fill=ZC.INK)
+
+    def text(xy, s, fnt, fill):
+        bb = d.textbbox((0, 0), s, font=fnt)
+        d.text((xy[0] - bb[0], xy[1] - bb[1]), s, font=fnt, fill=fill)
+        return bb[2] - bb[0], bb[3] - bb[1]
+
+    chip = '%s아파트 공급 전망' % ((yr + ' ') if yr else '')
+    cf = ZC.font(34, 'Bold')
+    bb = d.textbbox((0, 0), chip, font=cf)
+    cw, ch = bb[2] - bb[0], bb[3] - bb[1]
+    d.rounded_rectangle([MX, 78, MX + cw + 52, 78 + ch + 32], radius=8, fill=ZC.INK)
+    text((MX + 26, 78 + 16), chip, cf, ZC.WHITE)
+
+    # 지역명은 피드 카드에서도 읽히게 가장 크게. 길이 편차(세종 2자·전남광주 4자)는
+    # fit_width가 맞춘다.
+    hf = ZC.fit_width(nm, Wd - MX * 2, hi=250, lo=120)
+    _, hh = text((MX, 190), nm, hf, ZC.INK)
+    y = 190 + hh + 56
+
+    line = '%s세대 %s' % (num(abs(t)), '모자랍니다' if lack else '남습니다')
+    lf = ZC.fit_width(line, Wd - MX * 2, hi=120, lo=60)
+    _, lh = text((MX, y), line, lf, accent)
+    y += lh + 44
+
+    text((MX, y), '판정  %s' % SZ.GRADE_LABS[r['grade']], ZC.font(52, 'Bold'), ZC.INK)
+
+    fy = Ht - 110
+    d.line([MX, fy, Wd - MX, fy], fill=ZC.LINE, width=2)
+    text((MX, fy + 30), '앞으로 %d년 · 국가통계로 계산' % yrs, ZC.font(32, 'Medium'), ZC.MUTED)
+    dom, df = 'agongmap.co.kr', ZC.font(34, 'Bold')
+    bb = d.textbbox((0, 0), dom, font=df)
+    text((Wd - MX - (bb[2] - bb[0]), fy + 28), dom, df, ZC.RED)
+
+    os.makedirs(OUT, exist_ok=True)
+    path = os.path.join(OUT, 'thumb-%s.png' % nm)
+    img.save(path)
+    return os.path.relpath(path, ROOT)
+
+
 def draft_zone(adv, sts, r, seq, total):
     nm = r['z']
     t = r['tot']
@@ -648,6 +733,8 @@ def draft_zone(adv, sts, r, seq, total):
         (yr + '년 ') if yr else '', nm, yrs, ask)
 
     body = []
+    # 첫 이미지가 네이버의 대표 이미지(피드 카드 썸네일)가 된다 — 그래서 맨 앞이다.
+    body.append('<p>[여기에 썸네일 이미지를 넣어 주세요 — 첫 이미지가 대표 이미지가 됩니다]</p>')
     # ⚠️ 도입의 "전국 N개 시도를 같은 기준으로 보고 있습니다. 이번에는 X 차례입니다"를
     # 뺐다(2026-09-01 사용자: "대구랑 중첩되는 내용, 특히 아공맵의 로직이나 소개 같은
     # 부분"). 회차마다 지역명만 갈리는 시리즈 안내였고, 검색으로 들어온 사람에게는
@@ -779,6 +866,7 @@ def draft_zone(adv, sts, r, seq, total):
     if sl:
         body.append(sl)
     body.append(cta(nm, seq))
+    body.append(ask_cta(nm, seq))
     # ⚠️ 면책을 '권유하지 않습니다'로 쓰지 않는다. 본문이 방향을 분명히
     # 말하는데 말미에서 그걸 부인하면 글이 스스로를 무른다. 대신 **사실과
     # 견해를 가르고 책임 소재를 밝힌다** — 이 편이 더 정직하고 더 강하다.
@@ -793,8 +881,15 @@ def draft_zone(adv, sts, r, seq, total):
     shot, shots, err = (None, {}, '--no-shot 로 건너뜀')
     if '--no-shot' not in sys.argv:
         shot, shots, err = capture_zone(nm)
+    thumb = None
+    try:
+        thumb = thumb_zone(r, yr, yrs)
+    except Exception as e:    # 썸네일이 없어도 초안은 나간다
+        print('  ⚠ 썸네일 생략 — %s: %s' % (type(e).__name__, e))
     if shot:
         lines = ['<b>%s</b> → [리포트 캡처]' % shot]
+        if thumb:
+            lines.insert(0, '<b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % thumb)
         if shots.get('표'):
             lines.append('<b>%s</b> → [분기별 공급표]' % shots['표'])
         if shots.get('판정표'):
