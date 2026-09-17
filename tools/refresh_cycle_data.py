@@ -130,11 +130,19 @@ def build_jratio(S):
 # 사이클 본문의 전세가율 풀이 칸(2026-09-15 콘텐츠 세션 제안). 전세가율은 이 배치가 매일
 # 갈아끼우므로 칸도 여기서 채운다 — 사이클 재산정(rebuild_cycle_analysis)은 손으로 돌릴 때만
 # 도니, 그쪽 prose로 만들면 다음 날 차트와 문장이 어긋난다. 재산정은 jr_ 키를 보존한다.
-JR_KEYS = ('jr_seoul', 'jr_jnl', 'jr_mid')
+# jr_prd 는 차트 캡션의 기준월이다(백로그 17, 2026-09-17). 캡션에 손으로 적어 둔
+# '2026.06 기준'이 값이 07로 넘어간 뒤에도 그대로 남아 있었다.
+JR_KEYS = ('jr_seoul', 'jr_jnl', 'jr_mid', 'jr_prd')
 
 
-def jratio_prose(lvl):
-    """전세가율 풀이 문장의 칸 값. 문장이 이름으로 부르는 지역에서만 뽑는다."""
+def jratio_prose(lvl, prd):
+    """전세가율 풀이 문장과 차트 캡션의 칸 값. 문장이 이름으로 부르는 지역에서만 뽑는다.
+
+    prd 는 build_jratio 가 값을 읽은 바로 그 달이다. 값과 기준월을 같은 호출에서 받아야
+    둘이 어긋나지 않는다.
+    """
+    if not re.match(r'^\d{4}\.\d{2}$', str(prd or '')):
+        raise RuntimeError('전세가율 기준월을 읽지 못했다: %r' % (prd,))
     by = {x['region']: x['val'] for x in lvl}
     need = ('서울', '전남광주', '대구', '대전')
     gone = [r for r in need if r not in by]
@@ -146,7 +154,8 @@ def jratio_prose(lvl):
     mid = ('%d%%대' % (a // 10 * 10)) if a // 10 == b // 10 else ('%d~%d%%' % (a, b))
     return {'jr_seoul': '%d' % int(round(by['서울'])),
             'jr_jnl': '%d' % int(round(by['전남광주'])),
-            'jr_mid': mid}
+            'jr_mid': mid,
+            'jr_prd': str(prd)}
 
 
 def fill_spans(page, values):
@@ -184,7 +193,7 @@ def main():
     # 전세가율 풀이 칸 — 차트와 같은 값으로 D.prose와 본문을 함께 갱신한다
     m = re.search(r'const D=(\{.*?\});\n', page, re.S)
     prose = dict(json.loads(m.group(1)).get('prose') or {})
-    jr = jratio_prose(lvl)
+    jr = jratio_prose(lvl, prd)
     prose.update(jr)
     page = splice(page, 'prose', prose)
     page = fill_spans(page, jr)
