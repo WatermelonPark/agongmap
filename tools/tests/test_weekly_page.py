@@ -15,7 +15,6 @@ import io
 import os
 import re
 import sys
-from decimal import ROUND_HALF_UP, Decimal
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -35,15 +34,11 @@ def _block(name):
     return m.group(1)
 
 
-def _r2(v):
-    """생성기와 독립으로 반올림한다(절대값 half-up)."""
-    d = Decimal(repr(abs(v))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    return float(d) * (-1 if v < 0 else 1) + 0.0
-
-
-def _fmt(v):
-    r = _r2(v)
-    return ('+' if r > 0 else '') + '%.2f' % r
+# 반올림은 생성기 함수를 그대로 쓴다. 예전에는 Decimal half-up 으로 따로 구현했는데, 생성기·사이트는
+# floor(|v|*100+0.5)(JS Math.round)라 0.145 같은 값에서 시험만 0.15 를 기대해 클라우드 게이트를 막을 수
+# 있었다(리뷰 14번, 이력 38,783개 값 중 3개). 대신 그 함수가 사이트 pv2r 와 같은지는 아래 시험이 node 로 본다.
+_r2 = MW.pv2r
+_fmt = MW.pv2
 
 
 def test_page_is_baked_from_current_data():
@@ -124,3 +119,31 @@ def test_both_batches_run_the_generator_and_commit_the_page():
     assert 'make_weekly_page.py' in bat, '로컬 배치가 생성기를 부르지 않는다'
     add = [ln for ln in bat.splitlines() if ln.strip().startswith('git add ')]
     assert add and all(re.search(r'(?<![\w/\\])weekly(?![\w\-/\\.])', ln) for ln in add), '로컬 배치 git add 에 weekly 가 없다'
+
+
+PV2R_CASES = (0.145, -0.145, 0.125, -0.085, 2.675, 0.005, 1.005, 0.0049, -0.0012, 0.2, 0.0)
+
+
+def test_generator_rounding_matches_the_site_js():
+    """생성기 pv2r 가 사이트(home-app.js) pv2r 와 같은 값을 낸다 — 같은 주 같은 지역의 끝자리가 갈리지 않게.
+
+    깨뜨리면 빨개지는 것: make_weekly_page.pv2r 를 round(v, 2)(은행가 반올림)나 Decimal half-up 으로 바꾸면
+    0.125·0.145 에서 사이트와 갈린다(변이로 확인).
+    픽스처: 경계값 모음 — 리뷰가 찾은 0.145, 부호 대칭 −0.085, 은행가 반올림이 갈리는 0.125·2.675.
+    """
+    import json
+    import shutil
+    import subprocess
+    import home_src as HS
+    if not shutil.which('node'):
+        import pytest
+        pytest.skip('node 없음')
+    m = re.search(r'^function pv2r\(v\)\{[^\n]*\}', HS.home_source(), re.M)
+    assert m, 'home-app.js 에서 pv2r 를 찾지 못했다'
+    js = m.group(0) + ';process.stdout.write(JSON.stringify(%s.map(pv2r)));' % json.dumps(list(PV2R_CASES))
+    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
+    site = json.loads(p.stdout.decode('utf-8'))
+    ours = [MW.pv2r(v) for v in PV2R_CASES]
+    bad = ['%s: 사이트 %s · 생성기 %s' % (v, a, b) for v, a, b in zip(PV2R_CASES, site, ours) if abs(a - b) > 1e-9]
+    assert not bad, '생성기 반올림이 사이트와 다르다: %s' % '; '.join(bad)
