@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import sido_zones as SZ  # noqa: E402
+import make_monthly_page as MMP  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -81,6 +82,8 @@ def test_this_month_is_the_cumulative_difference():
         else:
             p = v[i - 1] if i >= 1 else None
             want = (c - p) if p is not None else None
+            if want is not None and want < 0:
+                want = None   # 소급 정정분은 '이 달' 값으로 싣지 않는다(리뷰 13번)
         if cur != (None if want is None else int(round(want))):
             bad.append('%s 화면 %s vs 누계차분 %s' % (r, cur, want))
     assert not bad, "'이 달'이 누계 차분과 다르다: %s" % '; '.join(bad)
@@ -108,3 +111,19 @@ def test_generator_does_not_sum_raw_cumulative():
     src = io.open(os.path.join(ROOT, 'tools', 'make_monthly_page.py'), encoding='utf-8').read()
     assert 'permit_trail12' in src, '12개월 합이 permit_trail12 를 쓰지 않는다 — 산식을 새로 쓰지 말 것'
     assert 'sum_last' not in src, '원값 12개 합산 함수가 되살아났다'
+
+
+def test_negative_difference_is_blank_not_a_negative_permit():
+    """누계가 소급 정정으로 줄어든 달은 '이 달'을 비운다 — 음수 인허가를 싣지 않는다.
+
+    깨뜨리면 빨개지는 것: make_monthly_page.cum_month 의 음수 거르기를 지우면 −491 이 그대로 나온다(변이로 확인).
+    픽스처: 실데이터에 있던 모양 — 서울 2011.07 누계 20,000 → 2011.08 19,509(−491), 경기는 정상 증가.
+    """
+    regions = list(MMP.ORDER)
+    series = {r: [None, None] for r in regions}
+    series['서울'] = [20000, 19509]
+    series['경기'] = [10000, 10600]
+    d = {'dates': ['2011.07', '2011.08'], 'series': series}
+    got = MMP.cum_month(d, 1)
+    assert got['서울'] is None, '소급 정정으로 줄어든 누계가 음수 인허가(%s)로 나간다' % got['서울']
+    assert got['경기'] == 600, '정상 증가분까지 비웠다: %s' % got['경기']

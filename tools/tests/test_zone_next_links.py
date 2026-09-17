@@ -15,11 +15,11 @@ import json
 import os
 import re
 import sys
-from decimal import ROUND_HALF_UP, Decimal
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import sido_zones as SZ  # noqa: E402
+import make_weekly_page as MW  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -35,9 +35,10 @@ def _page(z):
     return io.open(os.path.join(ROOT, 'zone', z, 'index.html'), encoding='utf-8').read()
 
 
+# 반올림은 /weekly/·홈과 같은 정본(make_weekly_page.pv2)을 쓴다. 그 함수가 사이트 JS 와 같은지는
+# test_weekly_page.test_generator_rounding_matches_the_site_js 가 본다(리뷰 14번과 같은 부류).
 def _pv2(v):
-    r = float(Decimal(repr(abs(v))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)) * (-1 if v < 0 else 1) + 0.0
-    return ('+' if r > 0 else '') + '%.2f' % r
+    return MW.pv2(v)
 
 
 def _md(p, plus=0):

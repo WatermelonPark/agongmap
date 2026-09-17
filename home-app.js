@@ -1255,7 +1255,7 @@ function readChallenge(){
   try{
     const p=new URLSearchParams(location.search);
     const sc=parseInt(p.get('c'),10), st=p.get('s'), sq=p.get('q');
-    if(!Number.isInteger(sc)||sc<0||sc>10)return null;
+    if(!Number.isInteger(sc)||sc<0||sc>QUIZ_LEN)return null;   // 상한은 문항 수에서(리뷰 15번)
     if(st!=='beginner'&&st!=='investor'&&st!=='calc')return null;
     let seed=null;
     if(sq&&/^[0-9a-z]{1,7}$/.test(sq)){
@@ -1265,6 +1265,16 @@ function readChallenge(){
     return{score:sc,set:st,seed:seed};
   }catch(e){}
   return null;
+}
+/* 같은 대결 링크를 이 탭에서 처음 여는가. 새로고침·이어 풀기로 다시 열 때마다 challenge_accepted 가
+   다시 찍혀 수락 수가 부풀었다(리뷰 15번). 저장소가 막힌 브라우저에서는 매번 처음으로 본다 — 빠뜨리는 쪽보다 낫다. */
+function challengeFirstSeen(ch){
+  const key=ch.set+':'+ch.score+':'+(ch.seed==null?'':ch.seed);
+  try{
+    if(sessionStorage.getItem('agong_chal_seen')===key)return false;
+    sessionStorage.setItem('agong_chal_seen',key);
+  }catch(e){}
+  return true;
 }
 /* 세트 → 랜딩 주소. 점수별 공유 페이지(/{주소}/{점수}/, tools/make_quiz_share_pages.py)가 이 표를 읽는다.
    카카오 말고 링크 복사·밴드·문자로 보내도 미리보기에 점수가 보이게 한다(2026-09-15 점검 후속 ⑧). */
@@ -2912,7 +2922,7 @@ function boot(){
 renderSidoMap();    // 기본 모드 — 보이는 것부터
   CHALLENGE=readChallenge();
   if(CHALLENGE){
-    track('challenge_accepted',{quiz_type:CHALLENGE.set,friend_score:CHALLENGE.score,
+    if(challengeFirstSeen(CHALLENGE))track('challenge_accepted',{quiz_type:CHALLENGE.set,friend_score:CHALLENGE.score,
       same_paper:CHALLENGE.seed!=null});
     showView('test',false);
     startQuiz(CHALLENGE.set,CHALLENGE.seed);
