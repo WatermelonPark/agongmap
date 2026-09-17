@@ -1,4 +1,4 @@
-name: 데이터 자동 갱신
+name: 데이터 자동 갱신 · 실패해도 사이트는 정상 · 하실 일 없음
 
 # 집 PC 없이 완전 자동. KOSIS는 GitHub 러너의 Azure IP 일부를 간헐 차단해
 # 단일 러너면 그날 전면 실패한다. 쿼리 크기 문제가 아니라 IP 룰렛이라 청크
@@ -562,8 +562,10 @@ jobs:
           # 본문 조립은 tools/format_batch_report.py 가 한다(시험이 붙어 있는 자리).
           # ⚠️ 그게 죽어도 알림 자체는 나가야 한다 — 침묵이 가장 나쁘다. 폴백은 옛 형식
           #    그대로 두되 멘션을 붙여 사람이 이상을 알아채게 한다.
-          if ! python3 tools/format_batch_report.py "$R" --kst "$KST"                  --run-url "$RUN" --owner "$OWNER" --weekday "$WD" > _report.md; then
+          if ! python3 tools/format_batch_report.py "$R" --kst "$KST"                  --run-url "$RUN" --owner "$OWNER" --weekday "$WD" --meta _report.meta > _report.md; then
             echo "::warning::알림 본문 생성 실패 — 옛 형식으로 보낸다"
+            # 본문을 못 만든 것 자체가 이상이다 — 메일을 보내고 제목에 그렇게 적는다.
+            printf '1\n🟡 알림 본문을 만들지 못함 · 세션이 확인 · 하실 일 없음\n' > _report.meta
             {
               echo "### 아공맵 배치 $KST KST"
               echo ""
@@ -585,21 +587,45 @@ jobs:
             echo ""
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
-          # 전용 이슈 하나에 코멘트를 쌓는다. 구독하면 알림이 오고 히스토리도 남는다.
-          # 없으면 만든다 — 사람이 미리 만들어 둘 필요가 없어야 한다.
-          N=$(gh issue list --state open --search "$TITLE in:title" --limit 1 --json number --jq '.[0].number' 2>/dev/null || true)
+          # ── 메일을 보낼 회차에만 이슈에 쓴다(2026-09-17 대표 요청·실측) ─────────
+          # ⚠️ **이슈 코멘트가 곧 메일이다.** 한 번이라도 멘션되거나 담당자로 지정된 사람은
+          #    그 이슈의 구독자가 되어, 이후 코멘트는 멘션이 없어도 전부 메일로 받는다.
+          #    2026-09-12 에 정상 회차의 멘션을 뗐는데도 메일은 매 회차 갔다 — 2주에
+          #    20통, 9/12 하루에 7통. 받은 메일 꼬리에 "because you were mentioned"가
+          #    그대로 찍혀 있었다. 그래서 정상 회차는 이슈에 쓰지 않고 위의 화면 요약에만
+          #    남긴다. 기록은 거기 다 있으니 세션이 파고들 입구는 그대로다.
+          # ⚠️ 메일 제목은 **그 시점의 이슈 제목**이다. 받는 사람이 제목만 보고 판단할 수
+          #    있도록, 코멘트를 남기기 직전에 이슈 제목을 그 회차의 결론으로 바꾼다
+          #    (제목 변경은 알림을 만들지 않는다). 그래서 이슈를 제목으로 찾으면 안 되고
+          #    라벨로 찾는다.
+          # ⚠️ 담당자 지정(--assignee)을 되살리지 말 것 — "Assigned" 메일이 한 통 더 간다.
+          SEND=$(sed -n 1p _report.meta 2>/dev/null || true)
+          HEAD=$(sed -n 2p _report.meta 2>/dev/null || true)
+          [ -n "$HEAD" ] || HEAD="$TITLE"
+          if [ "$SEND" != "1" ]; then
+            echo "정상 회차 — 이슈에 쓰지 않는다(메일 없음). 기록은 화면 요약에 남겼다: $HEAD"
+            exit 0
+          fi
+          LABEL="batch-report"
+          gh label create "$LABEL" --color 0E8A16 --description "배치 결과 알림(코멘트=메일)" 2>/dev/null || true
+          N=$(gh issue list --state open --label "$LABEL" --limit 1 --json number --jq '.[0].number' 2>/dev/null || true)
           if [ -z "$N" ] || [ "$N" = "null" ]; then
-            # 담당자로 지정해 두면 그 이슈에 자동 구독된다 — 멘션과 겹치는 안전장치다.
+            # 라벨을 붙이기 전에 만들어진 옛 이슈(제목 고정 시절)를 한 번 이어받는다.
+            N=$(gh issue list --state open --search "$TITLE in:title" --limit 1 --json number --jq '.[0].number' 2>/dev/null || true)
+            if [ -n "$N" ] && [ "$N" != "null" ]; then gh issue edit "$N" --add-label "$LABEL" >/dev/null || true; fi
+          fi
+          if [ -z "$N" ] || [ "$N" = "null" ]; then
             # `gh issue create`는 --json 미지원(unknown flag). 첫 실전(2026-08-08 20:33)에서
             # 그 플래그로 죽었는데 2>/dev/null이 에러를 삼켜 경고 한 줄만 남았다.
             # 생성 출력은 이슈 URL — 끝의 숫자를 잘라 쓰고, 에러는 더 이상 숨기지 않는다.
-            URL=$(gh issue create --title "$TITLE" --assignee "$OWNER" \
-                  --body "매일 배치 결과가 코멘트로 쌓입니다. 이 이슈를 구독하면 알림을 받습니다. 닫아도 다음 회차에 새로 만들어집니다." \
+            URL=$(gh issue create --title "$HEAD" --label "$LABEL" \
+                  --body "데이터 갱신에 알릴 일이 있을 때만 코멘트가 달립니다(실패·확인할 것·월요일 확인). 메일 제목은 그 회차의 결론입니다. 닫아도 다음에 알릴 일이 생기면 새로 만들어집니다." \
                   || true)
             N=$(echo "$URL" | grep -oE '[0-9]+$' || true)
           fi
           if [ -n "$N" ] && [ "$N" != "null" ]; then
-            gh issue comment "$N" --body-file _report.md && echo "이슈 #$N 에 보고" || echo "::warning::이슈 코멘트 실패 — Step Summary에는 남았다"
+            gh issue edit "$N" --title "$HEAD" >/dev/null || echo "::warning::이슈 제목 변경 실패 — 메일 제목이 옛 문구로 간다"
+            gh issue comment "$N" --body-file _report.md && echo "이슈 #$N 에 보고: $HEAD" || echo "::warning::이슈 코멘트 실패 — Step Summary에는 남았다"
           else
             echo "::warning::보고 이슈를 찾지도 만들지도 못했다 — Step Summary에는 남았다"
           fi

@@ -88,6 +88,29 @@ def fetch_posts():
     return out
 
 
+# 알림 이슈 제목 → (예정일, 종류). 제목이 곧 메일 제목이라 2026-09-17 에 사람이 읽는
+# 문장으로 바꿨다. 그 전에 만들어져 아직 열려 있는 이슈도 닫아야 하므로 옛 형식도 받는다.
+PATTERNS = (
+    re.compile(r'오늘 발행할 글:\s*(?P<kind>.+?)\s*\((?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})\)\s*$'),
+    re.compile(r'\[발행\]\s+(?P<y>\d{4})-(?P<m>\d{2})-(?P<d>\d{2})\s+(?P<kind>.+?)\s*$'),
+)
+
+
+def parse_title(title):
+    """알림 이슈 제목에서 (예정일, 종류)를 읽는다. 알림 이슈가 아니면 None."""
+    for pat in PATTERNS:
+        m = pat.search(title or '')
+        if m:
+            return (datetime.date(int(m.group('y')), int(m.group('m')), int(m.group('d'))),
+                    m.group('kind'))
+    return None
+
+
+def done_title(kind, due):
+    """닫을 때 바꿔 두는 제목 — '닫힘' 메일의 제목이 된다."""
+    return '✅ 발행 확인됨: %s (%s) · 하실 일 없음' % (kind, due.isoformat())
+
+
 def open_issues():
     try:
         r = subprocess.run(
@@ -102,17 +125,32 @@ def open_issues():
         return None
     out = []
     for it in json.loads(r.stdout or '[]'):
-        m = re.match(r'\[발행\]\s+(\d{4})-(\d{2})-(\d{2})\s+(.+?)\s*$', it['title'])
-        if not m:
+        got = parse_title(it['title'])
+        if not got:
             continue                      # 알림 이슈가 아니면 건드리지 않는다
-        kind = norm(m.group(4))
+        due, kind = got[0], norm(got[1])
         cat = norm(KIND_TO_CATEGORY.get(kind, ''))
         if not cat:
             continue
-        out.append(dict(n=it['number'], kind=kind, cat=cat,
-                        due=datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))))
+        out.append(dict(n=it['number'], kind=kind, cat=cat, due=due))
     out.sort(key=lambda x: x['due'])      # 오래된 것부터 — 글 하나에 이슈 하나
     return out
+
+
+def note_record(n, record, title):
+    """발행 기록을 이슈 본문 끝에 덧붙이고 제목을 바꾼다. 실패해도 닫기는 계속한다."""
+    try:
+        r = subprocess.run(['gh', 'issue', 'view', str(n), '--repo', REPO, '--json', 'body'],
+                           capture_output=True, text=True, timeout=60, encoding='utf-8')
+        old = (json.loads(r.stdout or '{}').get('body') or '') if r.returncode == 0 else ''
+        new = (old.rstrip() + '\n\n---\n' + record) if old else record
+        r = subprocess.run(['gh', 'issue', 'edit', str(n), '--repo', REPO,
+                            '--title', title, '--body', new],
+                           capture_output=True, text=True, timeout=60, encoding='utf-8')
+        if r.returncode != 0:
+            print('   ! 기록·제목 수정 실패: %s' % (r.stderr or '').strip()[:160])
+    except Exception as e:
+        print('   ! 기록·제목 수정 실패: %s' % e)
 
 
 def main(argv):
@@ -147,8 +185,11 @@ def main(argv):
                                      iss['due'], iss['kind'], p['title'][:40]))
         if dry:
             continue
-        r = subprocess.run(['gh', 'issue', 'close', str(iss['n']), '--repo', REPO,
-                            '--comment', body],
+        # ⚠️ 코멘트를 달고 닫으면 메일이 두 통 간다(코멘트 + 닫힘). 기록은 본문 끝에
+        #    덧붙이고(본문·제목 수정은 알림을 만들지 않는다) 닫기만 한다 — 메일은 '닫힘'
+        #    한 통이고, 그 제목이 '발행 확인됨'이 되도록 제목을 먼저 바꾼다.
+        note_record(iss['n'], body, done_title(iss['kind'], iss['due']))
+        r = subprocess.run(['gh', 'issue', 'close', str(iss['n']), '--repo', REPO],
                            capture_output=True, text=True, timeout=60, encoding='utf-8')
         if r.returncode != 0:
             print('   ! 닫기 실패: %s' % (r.stderr or '').strip()[:160])
