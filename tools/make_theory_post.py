@@ -73,7 +73,7 @@ def sync_table(cols=3):
             k = c * rows_per + i
             if k < len(r):
                 nm, cv = r[k]['region'], r[k]['corr']
-                bold = nm == '서울'
+                bold = nm == r[-1]['region']      # 본문이 따로 다루는 최저 지역
                 tds.append('<td>%s%s%s</td><td>%s%.2f%s</td>' % (
                     '<b>' if bold else '', P.esc(nm), '</b>' if bold else '',
                     '<b>' if bold else '', cv, '</b>' if bold else ''))
@@ -90,6 +90,33 @@ def sync_stats():
     avg = sum(x['corr'] for x in r) / len(r)
     return dict(n=len(r), avg=avg, top=r[0], low=r[-1],
                 top2='·'.join(x['region'] for x in r[:2]))
+
+
+SYNC_LOW_REGION = '서울'     # 3편 "서울은 왜 다른가" 절이 전제하는 최저 지역
+
+
+def check_sync_claims(rows=None):
+    """3편의 문장이 데이터와 맞는지 본다. 어긋나면 **생성을 멈춘다**(2026-09-16 리뷰 16번).
+
+    3편은 두 가지를 문장으로 못 박고 있다.
+      ① 제목·본문 "N개 시도에서 예외가 없었습니다" — 동조성이 **전부 양수**일 때만 참이다.
+      ② "서울은 왜 다른가" 절 — 값은 최저 지역(r[-1])에서 읽는데 설명은 서울 고유의
+         논리(전세와 무관한 투자 수요)다. 재산정으로 최저 지역이 바뀌면 다른 지역의 값을
+         서울 이름으로 발행하게 된다.
+    문장을 데이터에 맞춰 자동으로 갈아 끼우지 않는 이유: 최저가 대구라면 "왜 다른가"의
+    설명 자체가 틀린다 — 그건 기계가 쓸 문단이 아니라 사람이 다시 써야 할 글이다.
+    이미 발행한 3편은 고치지 않는다(대표 결정). 이 가드는 다시 생성할 때를 지킨다.
+    """
+    r = CYCLE_SYNC if rows is None else rows
+    neg = [x['region'] for x in r if x['corr'] <= 0]
+    if neg:
+        raise SystemExit('3편을 만들 수 없다 — 동조성이 0 이하인 곳이 있다(%s). 제목과 본문의 '
+                         '"예외가 없었습니다"가 거짓이 된다. 문장을 먼저 고칠 것.' % '·'.join(neg))
+    low = min(r, key=lambda x: x['corr'])['region']
+    if low != SYNC_LOW_REGION:
+        raise SystemExit('3편을 만들 수 없다 — 동조성 최저 지역이 %s이 아니라 %s다. "서울은 왜 '
+                         '다른가" 절은 서울 고유의 설명이라 그대로 쓸 수 없다. 절을 다시 쓸 것.'
+                         % (SYNC_LOW_REGION, low))
 
 
 POSTS = [
@@ -551,6 +578,8 @@ POSTS = [
 
 
 def render(post):
+    if post['n'] == 3:
+        check_sync_claims()
     S = []
     S.append('<!doctype html><html lang="ko"><meta charset="utf-8">')
     S.append('<title>이론 시리즈 초안 %02d — %s</title>' % (post['n'], post['title']))
