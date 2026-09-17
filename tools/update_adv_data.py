@@ -171,6 +171,15 @@ def _merge_gj(fetched):
     return fetched
 
 
+# 받은 달을 전부 버린 공급 계열의 이름. main()이 .supply_stalled 로 남기고, 워크플로가
+# 그것을 배치 알림의 ⚠️ 줄로 올린다(백로그 14, 2026-09-17).
+# 왜 파일인가: 이 가드는 print 뒤에 넘어가므로 회차가 ✅로 끝났다. `::warning::`은 러너
+# 로그 안의 글자일 뿐 아무에게도 닿지 않는다. 2026-09-08~12 에 정확히 이 모양으로 닷새를
+# 지나쳤고, 감시의 값 대조는 원천이 같은 달 값을 바꿀 때만 걸려서 그때도 초록이었다.
+SUPPLY_STALLED = []
+STALLED_FILE = '.supply_stalled'
+
+
 def _drop_incomplete(fetched, regions, name):
     """시도가 하나라도 빠진 달은 통째로 버린다(2026-09-10).
 
@@ -198,7 +207,16 @@ def _drop_incomplete(fetched, regions, name):
         print('::warning::supply %s: 받은 %d개 달을 전부 버렸다 — 완비 기준(%d개 이름)이 '
               '원천이 주는 이름과 어긋났을 수 있다' % (name, had, len(want)))
         print('supply %s: ⛔ 완비된 달이 하나도 없다 — 이번 회차 갱신 없음' % name)
+        if name not in SUPPLY_STALLED:
+            SUPPLY_STALLED.append(name)
     return fetched
+
+
+def write_supply_stalled(root=None):
+    """멈춘 공급 계열을 파일로 남긴다. 멈춘 것이 없으면 빈 파일이다(옛 회차 것이 남지 않게)."""
+    path = os.path.join(root or ROOT, STALLED_FILE)
+    io.open(path, 'w', encoding='utf-8').write(','.join(SUPPLY_STALLED))
+    return path
 
 
 def _supply_rollup(fetched, regions):
@@ -248,6 +266,7 @@ def _fetch_supply_one(cfg, regions, months=None):
 
 def update_supply(stats, months=None):
     changed = []
+    del SUPPLY_STALLED[:]      # 회차마다 새로 센다
     base = list(((stats.get('준공') or {}).get('series') or {}).keys()) or list(WEEKLY_REGIONS)
     for name, cfg in SUPPLY_CONF.items():
         try:
@@ -1679,6 +1698,9 @@ def main():
     # 나쁜 IP를 뽑은 러너는 여기에 실패 목록이 차므로, 워크플로가 그 러너의
     # 산출물을 커밋 후보에서 제외한다(오염 데이터 커밋 방지). 성공 러너는 빈 파일.
     io.open(os.path.join(ROOT, '.fetch_failed'), 'w', encoding='utf-8').write(','.join(failed))
+    write_supply_stalled()
+    if SUPPLY_STALLED:
+        print('WARN: 공급 갱신 멈춤 -> %s (받은 달을 전부 버렸다)' % ', '.join(SUPPLY_STALLED))
     if failed:
         print('WARN: fetch 실패 %d개 -> %s' % (len(failed), ', '.join(failed)))
     if changed:

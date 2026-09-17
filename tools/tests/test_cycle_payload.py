@@ -89,8 +89,8 @@ def test_jeonse_ratio_spans_follow_the_chart_on_the_same_page():
     D, _, _ = _page()
     prose = D.get('prose') or {}
     # 기준월은 D 안에 다른 출처가 없다. 배치가 넣은 값을 그대로 넘겨 나머지 칸을 대조한다.
-    # ⚠️ 여기서 data.js 의 최신 달과 맞추지 말 것 — 배치는 pytest 를 페이지 생성보다 먼저
-    #    돌리므로, 전세가율이 새 달로 넘어가는 날마다 이 시험이 데이터 커밋을 막게 된다.
+    # ⚠️ 여기서 data.js 의 최신 달과 맞추지 말 것 — 실데이터 값을 배포 게이트에 단정하지
+    #    않는다는 규칙이다. (게이트는 2026-09-16 c23c7dd4 부터 생성기 뒤·커밋 앞에서 돈다.)
     want = RF.jratio_prose(D['jratio_level'], prose.get('jr_prd'))
     got = {k: prose.get(k) for k in RF.JR_KEYS}
     assert got == want, '전세가율 풀이 칸이 차트와 다르다 — refresh_cycle_data를 다시 돌릴 것: %s vs %s' % (got, want)
