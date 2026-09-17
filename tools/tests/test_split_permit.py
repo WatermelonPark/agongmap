@@ -67,13 +67,26 @@ def test_conversion_is_same_year_starts_over_permits():
 
 
 def test_signal_uses_24_month_average_times_conversion():
+    """신호는 최근 24개월의 **연평균**이지 최근 12개월 합이 아니다.
+
+    변이: permit_signal 의 `yearly` 를 `sum(mon[k] for k in want[:12])` 로 바꾸면 pbr 이
+          1.5 가 되어 빨개진다(2026-09-17 실제로 바꿔 확인).
+    픽스처: 첫해 월 50호, 둘째 해 월 150호 — 인허가가 한 해 사이 세 배로 뛴 지역이다.
+            예전 픽스처는 매달 100호로 평평해서 24개월 연평균과 12개월 합이 같은 수였고,
+            산식을 12개월 합으로 되돌려도 초록이었다(리뷰 09-16 4번). 12월 몫도 두 산식에서
+            갈리도록 둘째 해 12월만 450호로 둔다.
+    """
     dates = ['%d.%02d' % (y, mm) for y in (2012, 2013) for mm in range(1, 13)]
-    cum = [100.0 * mm for mm in range(1, 13)] * 2           # 월 100호
-    starts = [50.0] * 24                                     # 전환율 0.5
+    y1 = [50.0] * 12                                         # 첫해 600호
+    y2 = [150.0] * 11 + [450.0]                              # 둘째 해 2,100호, 12월이 450
+    cum = [sum(y1[:i + 1]) for i in range(12)] + [sum(y2[:i + 1]) for i in range(12)]
+    starts = [v / 2 for v in y1 + y2]                        # 전환율 0.5
     sig = SZ.permit_signal(_stats(dates, cum, starts), 'X', ref_q=150)
-    # 연평균 1,200 × 0.5 ÷ (150 × 4) = 1.0
-    assert abs(sig['pbr'] - 1.0) < 1e-9
-    assert abs(sig['pdec'] - 1.0 / 12) < 1e-9
+    # 연평균 (600 + 2,100) ÷ 2 = 1,350 → 1,350 × 0.5 ÷ (150 × 4) = 1.125
+    assert abs(sig['pbr'] - 1.125) < 1e-9, sig
+    assert abs(sig['pconv'] - 0.5) < 1e-9
+    # 12월 몫은 최근 12개월 기준이다: 450 ÷ 2,100
+    assert abs(sig['pdec'] - 450.0 / 2100.0) < 1e-9
 
 
 def test_permits_do_not_move_the_verdict():

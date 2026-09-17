@@ -276,15 +276,25 @@ def test_pwarn_fires_on_live_data_where_expected():
     adv = json.loads(re.search(
         r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
     by = {z['z']: z for z in adv['sido']['zones']}
-    thin = ('경남', '대구', '서울')      # 실측 pbr 0.23~0.58 — 컷에서 0.37 이상 떨어져 있다
-    thick = ('대전', '충남')             # 실측 pbr 1.30~1.55 — 역시 멀다
+    # 2026-09-17 실측: thin 의 pbr 0.23~0.58, thick 1.30~1.55. 경고 컷(PWARN_CUT 0.95)에서
+    # 양쪽 다 0.35 이상 떨어져 있다.
+    thin = ('경남', '대구', '서울')
+    thick = ('대전', '충남')
     for z in thin:
         assert by[z]['pwarn'], '%s 경고가 꺼졌다 — 인허가 계열 오염 의심' % z
     for z in thick:
         assert not by[z]['pwarn'], '%s 경고가 켜졌다 — 인허가 계열 오염 의심' % z
-    # 오염 판정의 본체는 문턱 통과 여부가 아니라 **관계**다. 얇은 쪽이 두꺼운 쪽보다
-    # 확실히 낮아야 한다 — 이 부등식은 문턱과 무관해 시장이 움직여도 안 깨진다.
-    assert max(by[z]['pbr'] for z in thin) < min(by[z]['pbr'] for z in thick) / 2
+    # 오염 판정의 본체는 문턱 통과 여부가 아니라 **관계**다. 얇은 쪽이 두꺼운 쪽보다 낮아야 한다.
+    # ⚠️ 예전에는 `max(thin) < min(thick) / 2` 였는데 실측이 0.578 대 0.6515 로 여유가 0.07
+    #    뿐이었다(리뷰 09-16 5번). 서울 24개월 인허가 평균이 13%만 올라도 이 시험이 배포
+    #    게이트를 막는 셈이라 "실데이터 값을 배포 게이트에 단정하지 않는다"는 규칙과 어긋났다.
+    #    순서만 본다 — 여유는 0.58 대 1.30 이다. 절반이라는 배수에는 근거가 없었다.
+    # 변이: permit_monthly 가 연내 누계를 풀지 않고 그대로 돌려주면 pbr 이 부풀어(SZ.calc 로
+    #       직접 재 봄: 서울 0.58→2.92, 경남 0.38→2.03) 두 곳의 경고가 꺼지고 위의 pwarn
+    #       단정이 빨개진다. ⚠️ 이 시험은 **저장된** ADV.sido 를 읽는다. 코드만 바꿔서는 안
+    #       빨개지고, 배치가 그 코드로 data.js 를 다시 구운 뒤(게이트는 생성 뒤·커밋 앞)에
+    #       걸린다. 산식 자체의 변이는 test_split_permit 의 합성 픽스처가 맡는다.
+    assert max(by[z]['pbr'] for z in thin) < min(by[z]['pbr'] for z in thick)
 
     # ⚠️ 전국·수도권·부산은 **일부러 단정하지 않는다.** 실측 pmr이 전국 0.853,
     # 부산 0.925, 수도권 1.000으로 컷(0.95)에서 0.03~0.10밖에 안 떨어져 있다.
