@@ -65,6 +65,9 @@ on:
     - cron: '7 9 * * *'
   workflow_dispatch: {}
 
+permissions:
+  contents: read   # 명시하지 않으면 저장소 기본값을 받는다 — 읽기만 필요하다(2026-09-18 보안 점검)
+
 jobs:
   # 1차: 스스로 red가 되지 않는다(종료코드를 삼킨다). 판정은 아래 두 잡이 나눠 맡는다.
   #
