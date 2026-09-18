@@ -71,10 +71,10 @@ def _cloud_targets():
 def _bat_list(cmd):
     lines = [l.strip() for l in io.open(BAT, encoding='utf-8').read().splitlines() if l.strip().startswith(cmd + ' ')]
     assert len(lines) == 1, 'bat 에서 "%s" 줄이 %d개다' % (cmd, len(lines))
-    rest = lines[0][len(cmd):].split()
+    rest = lines[0][len(cmd):].split('>>')[0].split()   # 로그 리다이렉션은 대상이 아니다
     if rest and rest[0] == '--':
         rest = rest[1:]
-    return {t.replace('\\', '/') for t in rest if not t.startswith('>>') and not t.startswith('"%')}
+    return {t.replace('\', '/') for t in rest}
 
 
 def test_parsers_actually_read_the_steps():
