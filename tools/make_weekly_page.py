@@ -84,7 +84,9 @@ def tile(name, v, i):
     rv = pv2r(v)
     bg = ('rgba(224,86,74,%.2f)' % a if rv > 0 else
           ('rgba(58,123,213,%.2f)' % a if rv < 0 else '#e9edeb'))
-    tc = '#fff' if abs(v) >= 0.2 else ('#8f2318' if rv > 0 else ('#123c5c' if rv < 0 else '#5e6f74'))
+    # 글자는 항상 먹색 — 흰 글자는 연한 바탕(알파 .1~.78) 위에서 대비 2.2, 색 글자도 4.1 이었다(2026-09-18 오딧).
+    # 방향은 바탕색이 이미 말한다. 보합 칸은 ink2(5.7).
+    tc = '#131e24' if rv else '#4c5f66'
     return ('<div class="mm-tile" style="background:%s;animation-delay:%dms">'
             '<b style="color:%s">%s</b><span style="color:%s">%s%%</span></div>'
             % (bg, i * 22, tc, html.escape(name), tc, pv2(v)))

@@ -25,7 +25,7 @@
     letter-spacing:-.01em;position:relative;z-index:2}
   .hero h1 em{font-style:normal}
   .hero h1 em:first-of-type{color:var(--jeonse)}
-  .hero h1 em:last-of-type{color:var(--stock)}
+  .hero h1 em:last-of-type{color:#1a6b54}   /* --stock 은 paper 위 글자로 3.93 — 글자에는 짙은 초록(4.5 이상), 면에는 --stock */
   .hero .sub{font-size:clamp(17px,2.5vw,21px);font-weight:500;color:var(--ink2);
     margin-top:22px;max-width:600px;position:relative;z-index:2;line-height:1.55}
   .hero .meta{margin-top:34px;font-size:13.5px;color:var(--muted);display:flex;
@@ -47,7 +47,7 @@
   section.step{padding:58px 0;border-top:1px solid var(--line);position:relative}
   /* 본문(고리) = 청록 계열 / 참고 = 골드 계열로 파트 구분 */
   section.step{--part:var(--stock);--part-bg:#e8f3ee;--part-ink:#1a6b54}
-  section.step.ref{--part:var(--ink2);--part-bg:#f2f4f3;--part-ink:#9a7000}
+  section.step.ref{--part:var(--ink2);--part-bg:#f2f4f3;--part-ink:#7a5800}
   section.step.ref{background:#fbfbfb}
   .stepnum{display:flex;align-items:center;gap:11px;margin-bottom:16px;flex-wrap:wrap}
   .stepnum .badge{font-size:15px;font-weight:600;letter-spacing:.02em;
@@ -63,7 +63,7 @@
   .verdict{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;
     padding:5px 13px;border-radius:0;margin-bottom:18px}
   .v-strong{background:#dff3ec;color:#157a61;border:1px solid #9dd9c5}
-  .v-mid{background:#fdf3d8;color:#9a7000;border:1px solid #ecd28a}
+  .v-mid{background:#fdf3d8;color:#7a5800;border:1px solid #ecd28a}
   .v-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
 
   .chartbox{background:#fff;border-radius:0;
@@ -105,25 +105,25 @@
   .conf .clevel{font-size:12px;font-weight:600;letter-spacing:.02em;padding:3px 10px;
     border-radius:0;flex:none}
   .cl-high{background:#dff3ec;color:#157a61}
-  .cl-mid{background:#fdf3d8;color:#9a7000}
+  .cl-mid{background:#fdf3d8;color:#7a5800}
   .conf .meta{font-size:11.5px;color:var(--muted);margin-top:3px}
 
   /* 본문 파트 배너 (청록) */
-  .mainbanner{background:var(--stock);padding:22px 0;margin-top:10px}
+  .mainbanner{background:#1a6b54;padding:22px 0;margin-top:10px}   /* 흰 글자 대비 4.26 → 6.5 */
   .mainbanner .wrap{max-width:880px;margin:0 auto;padding:0 24px}
   .mainbanner .mainkicker{display:inline-block;font-size:12px;font-weight:500;
     background:#fff;color:#1a6b54;padding:3px 12px;border-radius:0;margin-bottom:10px}
-  .mainbanner p{margin:0;color:#eafff7;font-size:15px;line-height:1.6}
+  .mainbanner p{margin:0;color:#fff;font-size:15px;line-height:1.6}
   .mainbanner b{color:#fff}
   /* 참고 배너 & 섹션 */
   .refbanner{background:var(--paper2);padding:22px 0;margin-top:10px}
   .refbanner .wrap{max-width:880px;margin:0 auto;padding:0 24px}
   .refbanner .refkicker{display:inline-block;font-size:12px;font-weight:500;
-    background:#fff;color:#9a7000;padding:3px 12px;border-radius:0;margin-bottom:10px}
+    background:#fff;color:#7a5800;padding:3px 12px;border-radius:0;margin-bottom:10px}
   .refbanner p{margin:0;color:#3a2e00;font-size:15px;line-height:1.6}
   .refbanner b{color:#1a1500}
   section.ref{background:#f9fafa}
-  section.ref .stepnum .arc{color:#b89020}
+  section.ref .stepnum .arc{color:#7a5800}   /* #b89020 은 #fbfbfb 위에서 대비 2.88 이었다(2026-09-18 오딧 4번) */
 
   /* 투자 호흡 2칼럼 */
   .hbox{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0}
@@ -171,6 +171,8 @@
   .quiz-hero p{font-size:15.5px;line-height:1.7;color:var(--ink2);margin:0 auto 28px;max-width:420px}
   .qmeta{margin-top:16px;font-size:13px;color:var(--muted)}
   /* 테스트 선택 카드 */
+  body.in-test .home-foot{display:none}   /* 문항 화면 첫 화면에 푸터 색인 8개가 함께 보였다(2026-09-18 오딧 9번) */
+  body.in-test #view-test{min-height:calc(100svh - 62px)}
   .qpick{display:flex;flex-direction:column;gap:14px;margin:28px 0 8px;text-align:left}
   .qpick-card{display:block;width:100%;background:#fff;border:1px solid var(--line);
     border-radius:0;padding:20px 22px;cursor:pointer;font-family:inherit;transition:all .15s;
@@ -179,17 +181,17 @@
   .qpick-card:hover{border-color:var(--ink)}
   .qpick-card .pc-top{display:flex;align-items:center;gap:11px;margin-bottom:7px}
   .qpick-card .pc-emoji{font-size:26px;line-height:1}
-  .qpick-card .pc-title{font-size:18.5px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
-  .qpick-card .pc-badge{margin-left:auto;font-size:11px;font-weight:600;letter-spacing:.03em;
+  .qpick-card .pc-title{font-size:clamp(15.5px,4.6vw,18.5px);font-weight:600;color:var(--ink);letter-spacing:-.01em;white-space:nowrap}   /* '재건축·재개발 테스트'가 375px 에서 두 줄이었다 */
+  .qpick-card .pc-badge{margin-left:auto;flex:none;font-size:11px;font-weight:600;letter-spacing:.03em;
     padding:4px 10px;border-radius:0}
   .qpick-card .pc-badge.lv1{background:#e8f3ee;color:#1a6b54}
-  .qpick-card .pc-badge.lv2{background:#f4f6f5;color:#b9770e}
+  .qpick-card .pc-badge.lv2{background:#f4f6f5;color:#8f5c0a}   /* 3.39 → 5.2 */
 .qpick-card .pc-badge.lv3{background:#fbe9e6;color:#c0392b}
   .qpick-card .pc-desc{font-size:14px;line-height:1.6;color:var(--ink2);margin:0}
   .qpick-card .pc-go{position:absolute;right:20px;bottom:18px;font-size:20px;color:var(--muted)}
   .qback{display:inline-flex;align-items:center;gap:5px;background:none;border:0;
     color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
-    padding:6px 0;margin-bottom:4px}
+    padding:6px 8px 6px 0;min-height:40px;margin-bottom:4px}
   /* 진행바 */
   .qprogress{height:6px;background:var(--paper2);border-radius:0;margin:30px 0 8px;overflow:hidden}
   .qbar{height:100%;background:var(--ink);border-radius:0;transition:width .35s ease;width:0}
@@ -330,13 +332,13 @@
 .ft-brand b{color:var(--ink);font-weight:600}
 .ft-nav{font-size:13px;color:var(--ink2);line-height:2;margin-bottom:7px}
 @media(max-width:560px){.ft-nav{max-width:340px;margin-left:auto;margin-right:auto}}
-.ft-nav a{color:inherit;text-decoration:none;white-space:nowrap}
+.ft-nav a{color:inherit;text-decoration:none;white-space:nowrap;display:inline-block;padding:5px 2px;margin:-5px 0}   /* 누르는 면만 26px 로, 줄 간격은 그대로(2026-09-18 오딧 3번) */
 .ft-nav a:hover{text-decoration:underline}
 /* 홈에서 뺀 '통계 원자료' 카드의 신뢰 신호만 남긴 줄(2026-08-17). 링크가 아니라
    출처 표기라 ft-meta보다 한 톤 죽인다 — 클릭을 유도하는 자리가 아니다. */
 .ft-src{font-size:11.5px;color:var(--muted);margin-bottom:6px;letter-spacing:.01em}
 .ft-meta{font-size:12px;color:var(--muted)}
-.ft-meta a{color:inherit;text-decoration:none;white-space:nowrap}
+.ft-meta a{color:inherit;text-decoration:none;white-space:nowrap;display:inline-block;padding:5px 2px;margin:-5px 0}
 .ft-meta a:hover{text-decoration:underline}
 
   /* ===== 통계 대시보드 ===== */
@@ -346,7 +348,7 @@
   .shero p{font-size:14.5px;line-height:1.7;color:var(--ink2);margin:0;max-width:620px}
   .shero b{color:var(--ink)}
   .shero .shero-link{font-size:14px}
-  .shero .shero-link a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1.5px solid var(--ink);margin-right:8px}
+  .shero .shero-link a{display:inline-block;padding:10px 0;color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1.5px solid var(--ink);margin-right:8px}
   .shero .shero-link span{color:var(--muted);font-size:13px;white-space:nowrap}
   .dash{padding:0 0 18px}
   .dash .wrap{max-width:860px;margin:0 auto;padding:0 18px}
@@ -368,7 +370,7 @@
   /* padding 6px → 9px: 높이가 26px라 터치 타깃 권장(44px)은커녕 최소선(32px)에도
      못 미쳤다(2026-08-01 검수). 글자 크기는 그대로 두고 세로 여백만 늘린다. */
   .period button{flex:1;min-width:54px;border:1px solid var(--line);background:#fff;line-height:1.3;
-    border-radius:var(--r-touch);padding:9px 0;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
+    border-radius:var(--r-touch);padding:9px 0;min-height:40px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
   .period button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   /* 규모별 동향 피벗 — 지표/규모 멀티토글 + 정렬·행렬전환. 균등 그리드라
      줄바꿈이 안 생기고, 모바일은 규모를 3열×2줄로 의도적으로 나눈다. */
@@ -392,8 +394,8 @@
   .szu{font-size:10.5px;color:var(--muted);font-weight:400}
   .aux{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 4px;min-height:4px}
   .aux button{border:1px dashed var(--line);background:#fff;border-radius:var(--r-touch);
-    padding:5px 11px;font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer}
-  .aux button.on{background:#f7f8f8;border-color:var(--muted);border-style:solid;color:#9a7000}
+    padding:5px 11px;min-height:40px;font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer}
+  .aux button.on{background:#f7f8f8;border-color:var(--muted);border-style:solid;color:#7a5800}
   /* 차트도 상자가 아니라 괘선으로 연다(6단계 카드 해체와 동일 규칙).
    좌우 테두리는 어차피 가로 스크롤로 시야를 벗어나 아무 일도 하지 않았다. */
   .chartwrap{position:relative;height:320px;margin:10px 0 4px;background:#fff;
@@ -417,11 +419,17 @@
     .chartwrap{height:290px}
   }
   /* 30초 요약 */
+  /* 28화면 분량인데 위치 표시가 없었다(2026-09-18 오딧 8번). 위쪽 3px 진행 막대 + 요약(목차)으로 가는 버튼. */
+  .cy-progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--ink);z-index:60;pointer-events:none;transition:width .1s linear}
+  .cy-toc{position:fixed;right:14px;bottom:76px;z-index:60;display:none;align-items:center;min-height:40px;padding:0 14px;
+    background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:var(--r-touch);font-size:13px;font-weight:600;
+    text-decoration:none;box-shadow:0 1px 4px rgba(19,30,36,.12)}
+  body.cy-scrolled .cy-toc{display:inline-flex}
   .tldr{padding:44px 0 8px}
   .tldr-kicker{font-size:12.5px;font-weight:500;color:var(--muted);margin-bottom:10px}
   .tldr-h{font-size:clamp(22px,4.2vw,30px);font-weight:700;letter-spacing:-.02em;
     line-height:1.25;margin-bottom:26px}
-  .tldr-h b{color:var(--stock)}
+  .tldr-h b{color:#1a6b54}
   .tldr-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:18px 28px;align-items:start;
     grid-template-areas:"diagram steps" "rate steps" "more more"}
   .tldr-diagram{grid-area:diagram;display:flex;justify-content:center}
@@ -444,7 +452,7 @@
   .tldr-steps b{color:var(--ink)}
   .tldr-steps b.j{color:var(--jeonse)}
   .tldr-steps b.m{color:var(--maemae)}
-  .tldr-steps b.s{color:var(--stock)}
+  .tldr-steps b.s{color:#1a6b54}
   .tldr-steps a::after{content:"›";flex:none;color:var(--muted);font-weight:600;
     opacity:.35;transition:opacity .15s,transform .15s}
   .tldr-steps a:hover::after{opacity:1;transform:translateX(2px)}
@@ -521,7 +529,8 @@
   .adv-links span{font-size:12px;color:var(--muted);line-height:1.5}
   /* ===== 그래프/표 토글 · 심화 탭 ===== */
   .gt{display:inline-flex;margin-left:auto;border:1.5px solid var(--line);border-radius:var(--r-touch);overflow:hidden;background:#fff}
-  .gt button{font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;border:0;background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
+  .gt button{font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;min-height:40px;border:0;background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
+  /* min-height 40px: 09-15 에 세그먼트를 40px 로 올릴 때 이 토글(26px)·심화 탭(34px)·기간(36px)·주석 칩(28px)은 빠졌다(2026-09-18 오딧 2번). 선택자별로 따로 적지 말고 여기 한 줄로. */
   .gt button.on{background:var(--ink);color:#fff}
   .gsec.gm-g .gt-t{display:none}
   .gsec.gm-t .gt-g{display:none}
@@ -587,7 +596,7 @@
   .chart-legend .cl-wo::before{background:#1f8a70}
   @media(max-width:720px){.chartwrap.sm{height:270px}}
   .adv-tabs{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
-  .adv-tabs button{font-family:inherit;font-size:13.5px;font-weight:600;padding:8px 18px;border-radius:var(--r-touch);
+  .adv-tabs button{font-family:inherit;font-size:13.5px;font-weight:600;padding:8px 18px;min-height:40px;border-radius:var(--r-touch);
     border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:.15s}
   .adv-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   #stats-adv .adv-sec,#stats-more .adv-sec{margin-top:8px}
@@ -962,6 +971,7 @@ table.adv thead th:first-child{text-align:center}
   .zhead+section,section+section{padding-top:30px}
   section h2{font-size:19px;font-weight:700;margin-bottom:4px}
   .zsub{font-size:12.5px;color:var(--muted);line-height:1.7;margin:2px 0 12px}
+  .zback{display:inline-flex;align-items:center;min-height:40px;padding:0 6px 0 2px;font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none}   /* 132x15 링크였다(2026-09-18 오딧 12번) */
 
   /* 격자선을 컨테이너 배경(--line)으로 깔고 gap:1px로 뚫어 보이게 하던 방식이었는데,
      카드가 5개라 넓은 화면에서 4열이 잡히면 둘째 줄 빈 칸 3개에 그 배경이 그대로

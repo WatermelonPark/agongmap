@@ -438,13 +438,13 @@ def _with_top(section_html, tops):
 
 EXTRA_CSS = """
 .secno{display:inline-block;font-size:11.5px;font-weight:600;color:var(--muted);
- border:1px solid var(--line);border-radius:2px;padding:1px 7px;margin-bottom:6px}
+ border:1px solid var(--line);border-radius:0;padding:1px 7px;margin-bottom:6px}
 .basis{font-size:13px;color:var(--muted);margin-bottom:8px}
 .basis b{color:var(--ink);font-weight:600}
 .up{color:var(--up)} .dn{color:var(--dn)}
 .toc{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
 .toc a{font-size:12.5px;color:var(--ink2);text-decoration:none;border:1px solid var(--line);
- border-radius:2px;padding:4px 9px;white-space:nowrap}
+ border-radius:3px;padding:0 11px;min-height:40px;display:inline-flex;align-items:center;white-space:nowrap}   /* 31px·2px 였다(2026-09-18 오딧 11번) */
 .toc a:hover{background:var(--paper2)}
 table td:first-child,table th[scope=row]{white-space:nowrap}
 tbody tr.agg{background:var(--paper2)}
