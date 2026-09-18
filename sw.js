@@ -8,7 +8,7 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v154'; // 디자인 오딧 개선 — 탭 40px·푸터 링크·사이클 대비·OX 순서·진행 막대(백로그 24)
+const VERSION = 'v155'; // 접근성(랜드마크·탭 역할·차트 이름)·CLS 예약·data-core defer
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가

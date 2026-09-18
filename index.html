@@ -117,6 +117,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 </style>
 </head>
 <body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <div id="splash" aria-hidden="true">
   <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -156,6 +157,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 })();
 </script>
 
+<main id="main">
 <div id="view-home">
   <header class="home-hero"><div class="hero-map" id="hero-map" aria-hidden="true"></div><div class="wrap">
     <span class="hero-kick">아공맵</span>
@@ -311,21 +313,21 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   </div></header>
 
   <div class="smode" role="tablist" aria-label="통계 모드">
-    <button id="smode-market" class="on" onclick="setStatsMode('market')">시장동향</button>
-    <button id="smode-adv" onclick="setStatsMode('adv')">투자지표</button>
-    <button id="smode-basic" onclick="setStatsMode('basic')">기본통계</button>
-    <button id="smode-more" onclick="setStatsMode('more')">더보기</button>
+    <button id="smode-market" class="on" role="tab" aria-selected="true" onclick="setStatsMode('market')">시장동향</button>
+    <button id="smode-adv" role="tab" aria-selected="false" onclick="setStatsMode('adv')">투자지표</button>
+    <button id="smode-basic" role="tab" aria-selected="false" onclick="setStatsMode('basic')">기본통계</button>
+    <button id="smode-more" role="tab" aria-selected="false" onclick="setStatsMode('more')">더보기</button>
   </div>
 
   <div class="dash" id="stats-market"><div class="wrap">
     <div class="adv-tabs" role="tablist" aria-label="시장동향 주기">
-      <button id="mtab-week" class="on" onclick="setMarketTab('week')">주간</button>
-      <button id="mtab-month" onclick="setMarketTab('month')">월간</button>
+      <button id="mtab-week" class="on" role="tab" aria-selected="true" onclick="setMarketTab('week')">주간</button>
+      <button id="mtab-month" role="tab" aria-selected="false" onclick="setMarketTab('month')">월간</button>
     </div>
 
     <section class="adv-sec gsec gm-m" id="sec-week">
       <div class="adv-h"><h3>주간 아파트 동향</h3><span class="rel" id="rel-week"></span>
-        <div class="gt"><button class="on" data-v="m" onclick="gtSet('week','m')">지도</button><button data-v="g" onclick="gtSet('week','g')">그래프</button><button data-v="t" onclick="gtSet('week','t')">표</button></div></div>
+        <div class="gt"><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('week','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('week','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('week','t')">표</button></div></div>
       <div class="adv-regsel"><select id="adv-week-reg" onchange="onTrendReg('week')" aria-label="시도 선택"></select><select id="adv-week-sgg" onchange="onTrendSgg('week')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="week-map"></div>
@@ -341,7 +343,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 
     <section class="adv-sec gsec gm-m" id="sec-month" style="display:none">
       <div class="adv-h"><h3>월간 아파트 동향</h3><span class="rel" id="rel-month"></span>
-        <div class="gt"><button class="on" data-v="m" onclick="gtSet('month','m')">지도</button><button data-v="g" onclick="gtSet('month','g')">그래프</button><button data-v="t" onclick="gtSet('month','t')">표</button></div></div>
+        <div class="gt"><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('month','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('month','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('month','t')">표</button></div></div>
       <div class="adv-regsel"><select id="adv-month-reg" onchange="onTrendReg('month')" aria-label="시도 선택"></select><select id="adv-month-sgg" onchange="onTrendSgg('month')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="month-map"></div>
@@ -381,7 +383,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     <div id="size-ctl" style="display:none"></div>
 
     <div id="sec-basicmain" class="gsec gm-g">
-      <div class="gt-head"><div class="gt"><button class="on" data-v="g" onclick="gtSet('basicmain','g')">그래프</button><button data-v="t" onclick="gtSet('basicmain','t')">표</button></div></div>
+      <div class="gt-head"><div class="gt"><button class="on" aria-pressed="true" data-v="g" onclick="gtSet('basicmain','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('basicmain','t')">표</button></div></div>
       <div class="gt-g">
         <div class="chartwrap"><canvas id="statChart"></canvas></div>
         <div class="prange" id="prange"></div>
@@ -401,9 +403,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 
   <div class="dash" id="stats-adv" style="display:none"><div class="wrap">
     <div class="adv-tabs" role="tablist" aria-label="투자지표 항목">
-      <button id="atab-occ" class="on" onclick="setAdvTab('occ')">입주물량</button>
-      <button id="atab-permit" onclick="setAdvTab('permit')">인허가</button>
-      <button id="atab-bubble" onclick="setAdvTab('bubble')">버블밴드</button>
+      <button id="atab-occ" class="on" role="tab" aria-selected="true" onclick="setAdvTab('occ')">입주물량</button>
+      <button id="atab-permit" role="tab" aria-selected="false" onclick="setAdvTab('permit')">인허가</button>
+      <button id="atab-bubble" role="tab" aria-selected="false" onclick="setAdvTab('bubble')">버블밴드</button>
     </div>
 
     <section class="adv-sec gsec" id="sec-bubble" style="display:none">
@@ -414,7 +416,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 
     <section class="adv-sec gsec gm-g" id="sec-permit" style="display:none">
       <div class="adv-h"><h3>인허가 물량 (반기별)</h3><span class="rel">국토교통부 · 매월 말 발표</span>
-        <div class="gt"><button class="on" data-v="g" onclick="gtSet('permit','g')">그래프</button><button data-v="t" onclick="gtSet('permit','t')">표</button></div></div>
+        <div class="gt"><button class="on" aria-pressed="true" data-v="g" onclick="gtSet('permit','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('permit','t')">표</button></div></div>
 
   
       <p class="adv-note">착공 전 단계라 가장 이른 공급 신호입니다. 착공과 같은 흐름으로 움직이지만 허가 뒤 착공하지 않는 물량이 섞여 있고 입주까지의 시차가 일정하지 않아 참고로만 봅니다.</p>
@@ -432,7 +434,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 
     <section class="adv-sec gsec gm-g" id="sec-occ">
       <div class="adv-h"><h3>입주물량 (분기별)</h3><span class="adv-badge">미래 분기 포함</span>
-        <div class="gt"><button class="on" data-v="g" onclick="gtSet('occ','g')">그래프</button><button data-v="t" onclick="gtSet('occ','t')">표</button></div></div>
+        <div class="gt"><button class="on" aria-pressed="true" data-v="g" onclick="gtSet('occ','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('occ','t')">표</button></div></div>
       <p class="adv-note">준공 실적과 착공 기반 추정 물량을 지역별 분기 적정물량과 견줍니다.</p>
       <div class="adv-regsel"><select id="adv-occ-reg" onchange="renderOccSec()"></select></div>
       <div class="gt-g"><div class="chartwrap sm"><canvas id="occChart"></canvas></div></div>
@@ -535,6 +537,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
   </div>
 </div>
+</main>
 
 <!-- ===== 하단 내비 ===== -->
 <nav class="bottomnav">
@@ -563,7 +566,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 
 <!-- 홈이 쓰는 조각만(48KB). 통계 탭을 열면 loadFullData()가 나머지를 받는다.
      data.js(393KB)는 그대로 두되 이 페이지는 더 이상 읽지 않는다. -->
-<script src="/data-core.js"></script>
+<script defer src="/data-core.js"></script>   <!-- defer: 렌더를 450ms 막았다(Lighthouse 2026-09-18). defer 끼리는 순서대로 실행되므로 sido-geo·home-app 보다 앞에 있으면 된다 -->
 <!-- 경계 좌표는 boot()(DOMContentLoaded)에서만 쓰므로 defer로 파서를 막지 않는다.
      defer는 DOMContentLoaded 전 실행이 보장된다(chart.js와 같은 근거). -->
 <script defer src="/sido-geo.js"></script>

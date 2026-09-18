@@ -1,4 +1,7 @@
-  :root{
+  /* 건너뛰기 링크 — 첫 Tab 에만 보인다(2026-09-18 접근성 점검: 랜드마크·건너뛰기가 어느 페이지에도 없었다) */
+.skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:var(--r-touch)}
+.skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
+:root{
     --ink:#131e24; --ink2:#4c5f66; --paper:#f4f6f5; --paper2:#e9edeb;
     --maemae:#c0392b; --jeonse:#6c4ab6; --stock:#1f8a70; --flow:#d99a00;
     --line:#c4cec9; --muted:#5e6f74;
@@ -51,7 +54,7 @@
   section.step.ref{background:#fbfbfb}
   .stepnum{display:flex;align-items:center;gap:11px;margin-bottom:16px;flex-wrap:wrap}
   .stepnum .badge{font-size:15px;font-weight:600;letter-spacing:.02em;
-    color:#fff;background:var(--part);padding:5px 14px;border-radius:0;
+    color:#fff;background:var(--part-ink);padding:5px 14px;border-radius:0;   /* --part(청록) 위 흰 글자는 4.26(Lighthouse 2026-09-18) */
     display:inline-block;white-space:nowrap}
   .stepnum .arc{font-size:14px;color:var(--part-ink);font-weight:600;letter-spacing:0}
   h2.t{font-size:clamp(23px,4vw,32px);font-weight:700;letter-spacing:-.02em;
@@ -437,7 +440,7 @@
   .tldr-diagram .cycbox rect.cb{transition:fill .15s}
   .tldr-diagram .cycbox:hover rect.cb,
   .tldr-diagram .cycbox:focus-visible rect.cb{fill:#eef1ef}
-  .tldr-diagram .cycbox:focus{outline:none}
+  .tldr-diagram .cycbox:focus:not(:focus-visible){outline:none}   /* 키보드 초점은 남긴다(2026-09-18 접근성 점검) */
   .tldr-text{grid-area:steps}
   .tldr-text p{font-size:16px;line-height:1.7;color:var(--ink2);margin-bottom:14px}
   /* 번호별 한 줄 + 섹션 딥링크 */
@@ -689,10 +692,10 @@
     display:flex;flex-direction:column;gap:1px;min-width:0}
   /* 위계: 지역명은 이름표라 작고 흐리게, 매매가 주인공, 전세는 곁수치.
      예전엔 지역명이 ink 600이라 숫자와 무게가 비슷했다(2026-08-17 재설계). */
-  .wc b{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;
+  .wc b{font-size:11px;font-weight:500;color:var(--ink);white-space:nowrap;   /* muted 는 붉은 틴트 위에서 2.8(Lighthouse 2026-09-18) */
     overflow:hidden;text-overflow:ellipsis}
   .wc-ma{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
-  .wc-je{font-style:normal;font-size:10.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .wc-je{font-style:normal;font-size:10.5px;color:var(--ink);font-variant-numeric:tabular-nums}
   .wc-agg{padding:12px 8px 10px}
   .wc-agg b{font-size:12px;color:var(--ink2);font-weight:600}
   .wc-agg .wc-ma{font-size:20px}
@@ -793,6 +796,12 @@ table.adv thead th:first-child{text-align:center}
   .map-agg a b{font-weight:600}
   .map-agg a i{font-style:normal;font-size:11px;color:var(--muted);margin-left:auto;
     font-variant-numeric:tabular-nums}
+  /* 지도는 JS 가 그린다. 빈 컨테이너에 최종 높이를 미리 잡아 두지 않으면 부팅 때 아래 구역(주간 격자)이
+     600~900px 밀려 CLS 0.62 가 났다(2026-09-18 Lighthouse). :empty 라 그려진 뒤엔 사라진다. 값은 실측(320·375·430·768·1280). */
+  #map-wrap:empty{min-height:728px}
+  @media(max-width:479px){#map-wrap:empty{min-height:675px}}
+  @media(max-width:399px){#map-wrap:empty{min-height:643px}}
+  @media(max-width:359px){#map-wrap:empty{min-height:588px}}
   .map-box{max-width:480px;margin:0 auto;position:relative}
   .map-box svg{display:block;width:100%;height:auto}
   .map-box path{stroke:var(--paper);stroke-width:1.2;transition:filter .12s}

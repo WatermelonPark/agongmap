@@ -1426,6 +1426,7 @@ function setStatsMode(m,push){
   statsMode=m;
   SMODES.forEach(k=>{
     document.getElementById('smode-'+k).classList.toggle('on', k===m);
+    document.getElementById('smode-'+k).setAttribute('aria-selected', k===m?'true':'false');
     document.getElementById('stats-'+k).style.display = k===m ? '' : 'none';
   });
   if(m==='adv' && !advRendered){ renderAdvAll(); advRendered=true; }
@@ -2030,7 +2031,7 @@ function gtSet(sec,v){
   el.classList.toggle('gm-g',v==='g');
   el.classList.toggle('gm-t',v==='t');
   el.classList.toggle('gm-m',v==='m');
-  el.querySelectorAll('.gt button[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  el.querySelectorAll('.gt button[data-v]').forEach(b=>{b.classList.toggle('on',b.dataset.v===v);b.setAttribute('aria-pressed',b.dataset.v===v?'true':'false');});
   if(v==='g'){
     const box=document.getElementById(sec+'ChartBox');
     const ch=box&&window.Chart&&Chart.getChart(box.querySelector('canvas'));
@@ -2044,6 +2045,7 @@ function setAdvTab(t,push){
   ['occ','permit','bubble'].forEach(k=>{
     document.getElementById('sec-'+k).style.display=k===t?'':'none';
     document.getElementById('atab-'+k).classList.toggle('on',k===t);
+    document.getElementById('atab-'+k).setAttribute('aria-selected',k===t?'true':'false');
   });
   if(t==='permit')drawPermitChart();
   if(t==='occ')drawOccChart();
@@ -2058,6 +2060,7 @@ function setMarketTab(t,push){
   ['week','month'].forEach(k=>{
     document.getElementById('sec-'+k).style.display=k===t?'':'none';
     document.getElementById('mtab-'+k).classList.toggle('on',k===t);
+    document.getElementById('mtab-'+k).setAttribute('aria-selected',k===t?'true':'false');
   });
   const ch=window.Chart&&Chart.getChart&&Chart.getChart(t+'Chart');
   if(ch)ch.resize();
@@ -2883,8 +2886,8 @@ function renderWeeklyGrid(){
      칸이 사라지는 것보다 자리만 어긋나는 게 낫다. */
   const cells=regs.map((r,i)=>({r,i})).slice(AGG)
     .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
-  box.innerHTML='<a class="wg-link" href="/weekly/" aria-label="이번 주 시세 지도 보기">'
-    +'<div class="wg-head"><span class="wg-when"><b>'+pubDate(row.p)+'</b> 발표 · 매매 전주 대비(%)</span>'
+  box.innerHTML='<a class="wg-link" href="/weekly/" aria-labelledby="wg-when">'   // 보이는 글자와 다른 aria-label 은 이름 불일치(Lighthouse)
+    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+pubDate(row.p)+'</b> 발표 · 매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
