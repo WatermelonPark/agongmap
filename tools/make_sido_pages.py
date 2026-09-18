@@ -461,6 +461,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
 ''' % {'ga': GA, 'zjs': zone_js_src(),
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,
        # 지역 카드(make_zone_cards.py 산출물). 없으면 브랜드 카드로 떨어진다 —
@@ -512,7 +513,8 @@ def share_section(z):
         % (e, json.dumps(z, ensure_ascii=False)))
 
 
-FOOT = '''<footer><div class="wrap">
+FOOT = '''</main>
+<footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
   <a href="/">agongmap.co.kr</a> · <a href="/about/">아공맵 소개</a> · 자료: 국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
@@ -661,7 +663,7 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     # 열린다(2026-08-08 사용자). sessionStorage라 탭을 닫으면 사라진다.
     h.append('<script>try{sessionStorage.setItem("agong_gr",%s)}catch(e){}</script>'
              % json.dumps(z, ensure_ascii=False))
-    h.append('</div></header>')
+    h.append('</div></header><main id="main">')
 
     # ── 핵심 수치 ──
     h.append('<section><div class="wrap"><h2>숫자로 보면</h2><div class="zgrid">')
@@ -818,7 +820,7 @@ def build_hub(calc):
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <b>시도 공급 분석</b></nav>'
              '<h1>시도별 아파트 공급</h1>'
-             '<p class="zlead">%s</p></div></header>' % esc(desc))
+             '<p class="zlead">%s</p></div></header><main id="main">' % esc(desc))
     h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2><div class="zlinks">')
     for o in agg:
         h.append('<a href="/zone/%s/"><b>%s</b><span class="sc-tier %s">%s</span><i>%s</i></a>'
