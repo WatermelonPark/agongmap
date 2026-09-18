@@ -130,3 +130,22 @@ def test_old_hand_written_figures_are_gone():
     _, _, s = _page()
     for old in ('4분기 43%', '0.6% vs 적은 분기 1.4%', '최근 3년 반으로'):
         assert old not in s, old
+
+
+def test_caption_month_is_the_month_the_values_were_read_from():
+    """build_jratio 가 값을 읽은 달이 그대로 jratio_prose 의 jr_prd 가 된다(리뷰 2026-09-18 20번).
+
+    깨뜨리면 빨개지는 것: build_jratio 가 dates[-1] 대신 다른 달을 돌려주거나, main 이
+    `jratio_prose(lvl, prd)` 가 아니라 고정 문자열을 넘기면(원문 검사) 빨강.
+    픽스처: 모델의 모든 시도에 값이 있는 합성 전세가율 계열.
+    """
+    import refresh_cycle_data as RF
+    S = {'전세가율': {'dates': ['2026.06', '2026.07'],
+                     'series': {r: [70.0, 71.0 + i] for i, r in enumerate(RF.SIDO)}}}
+    lvl, _, _, prd = RF.build_jratio(S)
+    assert prd == '2026.07'
+    assert RF.jratio_prose(lvl, prd)['jr_prd'] == '2026.07'
+    src = io.open(os.path.join(os.path.dirname(__file__), '..', 'refresh_cycle_data.py'), encoding='utf-8').read()
+    body = src[src.find('def main('):]
+    assert re.search(r'lvl,[^\n]*prd = build_jratio\(S\)', body) and 'jratio_prose(lvl, prd)' in body, (
+        'main 이 build_jratio 가 돌려준 달을 jratio_prose 에 넘기지 않는다')

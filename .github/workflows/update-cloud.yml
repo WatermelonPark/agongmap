@@ -167,6 +167,7 @@ jobs:
             data-size.json
             .stats_changed
             .supply_stalled
+            .fetch_failed
           retention-days: 1
           if-no-files-found: ignore
           include-hidden-files: true   # .stats_changed(변경 내역, 뉴스레터용) 포함
@@ -358,6 +359,11 @@ jobs:
           # 처럼 닷새를 지나친다. ⚠️ 줄은 메일이 가는 회차가 된다.
           if [ -s "$SRC/.supply_stalled" ]; then
             rep "⚠️ 공급 갱신 멈춤 — $(cat "$SRC/.supply_stalled"): 받은 달을 전부 버렸다(완비 기준 확인)"
+          fi
+          # 비핵심 원천(ECOS·DATAGO) 실패는 rc=0 이라 어디에도 안 남았다(리뷰 2026-09-18 20번). 키 만료가
+          # 감시의 50일 유예를 지나서야 드러난다. ℹ️ 줄은 메일을 부르지 않고 월요일 회차·요약에만 실린다.
+          if [ -s "$SRC/.fetch_failed" ]; then
+            rep "ℹ️ 비핵심 원천 실패 — $(cat "$SRC/.fetch_failed") (직전 값 유지, 계속되면 키·주소 확인)"
           fi
           for f in data-sgg.json data-size.json; do
             [ -f "$SRC/$f" ] && cp "$SRC/$f" . || echo "::warning::$f 산출물 없음(구 러너?) — 기존 파일 유지"

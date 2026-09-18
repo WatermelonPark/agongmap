@@ -75,3 +75,26 @@ def test_real_data_is_readable_and_agrees_with_the_stored_series():
         assert ym == L.month_of((sts.get(name) or {}).get('dates', [None])[-1]
                                 if name in sts else
                                 adv[name]['rows'][-1]['p']), name
+
+
+# ── 계열별 정상 시차(리뷰 2026-09-18 20번) ───────────────────────────────────
+# 깨뜨리면 빨개지는 것: allowance() 가 늘 0 을 돌려주면 아래 둘 다 빨강.
+# 픽스처: 감시가 GRACE_BASIC 으로 보는 계열(인허가) 하나와 기준 계열(금리) 하나.
+
+def test_allowance_comes_from_the_watchdog_constants():
+    import check_freshness as CF
+    import update_adv_data as U
+    assert L.SLOW_ALLOWANCE == int(round((CF.GRACE_BASIC - CF.GRACE_MONTHLY) / 30.0)) >= 1
+    assert set(U.BASIC_CONF) <= L.SLOW_SERIES and '규모별' in L.SLOW_SERIES
+    assert L.allowance('미분양') == 0 and L.allowance('금리') == 0, '공급·금리는 정상 시차 0 이어야 한다'
+
+
+def test_normal_publication_lag_of_slow_series_is_not_a_lag():
+    """인허가가 금리보다 2개월 늦은 것은 정상이다 — 매달 초 금리가 새 달로 넘어가도 알리지 않는다."""
+    months = {'금리': (2026, 9), '인허가': (2026, 7), '미분양': (2026, 7)}
+    _, rows = L.behind(months)
+    assert [r[0] for r in rows] == ['미분양'], rows
+    assert rows[0][2] == 2
+    # 같은 계열이 정상보다 2개월 더 늦으면 그때 잡힌다(정상을 넘은 개월 수로 센다)
+    _, rows = L.behind({'금리': (2026, 9), '인허가': (2026, 5)})
+    assert rows and rows[0][0] == '인허가' and rows[0][2] == 2
