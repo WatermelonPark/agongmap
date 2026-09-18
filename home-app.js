@@ -2886,7 +2886,7 @@ function renderWeeklyGrid(){
      칸이 사라지는 것보다 자리만 어긋나는 게 낫다. */
   const cells=regs.map((r,i)=>({r,i})).slice(AGG)
     .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
-  box.innerHTML='<a class="wg-link" href="/weekly/" aria-labelledby="wg-when">'   // 보이는 글자와 다른 aria-label 은 이름 불일치(Lighthouse)
+  box.innerHTML='<a class="wg-link" href="/weekly/">'   // 이름은 보이는 내용 그대로 — aria-label(elledby)은 이름 불일치로 걸린다(Lighthouse)
     +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+pubDate(row.p)+'</b> 발표 · 매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
