@@ -71,7 +71,10 @@ def _cloud_targets():
 def _bat_list(cmd):
     lines = [l.strip() for l in io.open(BAT, encoding='utf-8').read().splitlines() if l.strip().startswith(cmd + ' ')]
     assert len(lines) == 1, 'bat 에서 "%s" 줄이 %d개다' % (cmd, len(lines))
-    return {t.replace('\\', '/') for t in lines[0][len(cmd):].split()}
+    rest = lines[0][len(cmd):].split()
+    if rest and rest[0] == '--':
+        rest = rest[1:]
+    return {t.replace('\\', '/') for t in rest if not t.startswith('>>') and not t.startswith('"%')}
 
 
 def test_parsers_actually_read_the_steps():
@@ -88,7 +91,10 @@ def test_local_runs_the_same_generators_in_the_same_order():
 def test_local_commits_the_same_targets():
     cloud = _cloud_targets()
     assert {'monthly', 'cycle', 'weekly'} <= cloud, '클라우드 TARGETS 를 제대로 읽지 못했다: %s' % sorted(cloud)
-    for cmd in ('git add', 'git diff --quiet'):
+    # 커밋은 경로 지정(남이 스테이징한 파일을 쓸어 담지 않게), 실패 복원도 같은 목록(리뷰 09-18 백로그 22).
+    for cmd in ('git add', 'git diff --quiet',
+                'git commit -m "stats: weekly auto-update (KOSIS, local)"',
+                'git restore --staged --worktree'):
         local = _bat_list(cmd)
         assert local == cloud, '로컬 "%s" 대상이 클라우드 TARGETS 와 다르다 — 빠짐 %s, 더함 %s' % (
             cmd, sorted(cloud - local), sorted(local - cloud))

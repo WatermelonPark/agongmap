@@ -39,6 +39,13 @@ call :main >> "%LOG%" 2>&1
 set RC=%ERRORLEVEL%
 rem Release the lock unless we aborted *because* someone else held it (rc=19).
 if not "%RC%"=="19" rmdir /s /q "%LOCK%" 2>nul
+rem A failure after the data update (rc 12+) leaves ~28 regenerated files uncommitted in the
+rem SHARED worktree, which blocks other sessions' merges (review 2026-09-18, backlog 22).
+rem Put the batch targets back to HEAD. rc 10/11/19 never touched them; after a failed push
+rem (rc 16) the commit exists so this is a no-op. The list must equal TARGETS in update-cloud.yml.
+if not "%RC%"=="0" if not "%RC%"=="10" if not "%RC%"=="11" if not "%RC%"=="19" (
+  git restore --staged --worktree -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp >> "%LOG%" 2>&1
+)
 if not "%RC%"=="0" (
   echo [%date% %time%] FAILED rc=%RC% - see %LOG%
   echo [%date% %time%] FAILED rc=%RC% >> "%LOG%"
@@ -91,6 +98,9 @@ if exist ".git\rebase-apply" (
   git rebase --abort
 )
 rem --autostash: a parallel session's uncommitted edits must not wedge the batch.
+rem NOTE: CLAUDE.md forbids --autostash for sessions (it hides others' WIP if the pop conflicts).
+rem This runner is dormant since 2026-07-23; if it is switched back on (backlog 22), replace this
+rem with a fail-if-dirty check or run it from its own clone instead of the shared worktree.
 git pull --rebase --autostash origin main
 if errorlevel 1 (
   echo ERROR: git pull failed - aborting before any update
@@ -176,7 +186,9 @@ if errorlevel 1 (
     echo ERROR: git add failed
     exit /b 14
   )
-  git commit -m "stats: weekly auto-update (KOSIS, local)"
+  rem Commit ONLY the batch targets. A bare `git commit` sweeps whatever another session left
+  rem staged in the shared index (it happened on 2026-09-16, commit 930b4534).
+  git commit -m "stats: weekly auto-update (KOSIS, local)" -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp
   if errorlevel 1 (
     echo ERROR: git commit failed
     exit /b 15
