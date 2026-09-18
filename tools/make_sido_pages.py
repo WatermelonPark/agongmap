@@ -709,9 +709,9 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     h.append('<section><div class="wrap"><h2>%s의 분기별 공급</h2>'
              '<p class="zsub">칸 색은 실적 구간에서는 가격 변동(매매·전세·월세), '
              '미래 구간에서는 적정물량 대비 모자란 정도입니다.</p>'
-             '<div class="ztb-scroll"><table class="ztb">'
+             '<div class="ztb-scroll"><table class="ztb" aria-label="%s의 분기별 공급">'
              '<thead><tr><th>기간</th><th>공급</th><th>적정 대비</th>'
-             '<th>매매</th><th>전세</th><th>월세</th></tr></thead><tbody>' % esc(z))
+             '<th>매매</th><th>전세</th><th>월세</th></tr></thead><tbody>' % (esc(z), esc(z)))
     first_fut = True
     for i, v, isfut in rows:
         cls = ''

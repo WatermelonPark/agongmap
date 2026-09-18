@@ -166,9 +166,12 @@ footer a{color:var(--ink)}
 .nav-btn:hover{color:#fff}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-3px}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+.skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
+.skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
 </head>
 <body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
 __BODY__
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
@@ -234,6 +237,9 @@ def fill(shell, **kw):
     out = shell
     for k, v in kw.items():
         out = out.replace('__' + k.upper() + '__', v)
+    # 랜드마크: 머리글 뒤부터 바닥글 앞까지가 본문이다(2026-09-18 접근성 점검 — 어느 페이지에도 <main> 이 없었다).
+    if '<main' not in out and '</header>' in out and '<footer' in out:
+        out = out.replace('</header>', '</header>\n<main id="main">', 1).replace('<footer', '</main>\n<footer', 1)
     return out
 
 
@@ -330,7 +336,7 @@ def build_jeonse(sts):
 
 <section class="wrap">
   <h2>시도별 현황 (%(prd)s)</h2>
-  <div class="tbl-wrap"><table id="utable">
+  <div class="tbl-wrap"><table id="utable" aria-label="시도별 전세가율 현황">
     <thead><tr><th>지역</th><th data-num>전세가율</th><th data-num>1년 전</th><th data-num>변화</th></tr></thead>
     <tbody>
 %(trs)s
@@ -452,7 +458,7 @@ def build_moveins(adv):
 
 <section class="wrap">
   <h2>시도별 연간 입주물량 (세대)</h2>
-  <div class="tbl-wrap"><table id="utable">
+  <div class="tbl-wrap"><table id="utable" aria-label="시도별 연간 입주물량">
     <thead><tr><th>지역</th><th data-num>2025</th><th data-num>2026</th><th data-num>2027</th><th data-num>적정수요/년</th><th data-num>2026 충족률</th></tr></thead>
     <tbody>
 %(trs)s

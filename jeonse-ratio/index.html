@@ -112,15 +112,19 @@ footer a{color:var(--ink)}
 .nav-btn:hover{color:#fff}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-3px}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+.skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
+.skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
 </head>
 <body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
 <header class="wrap">
   <div class="chip">지표 해설</div>
   <h1>전세가율 — 매매가 대비 전세가,<br>실수요의 체온계</h1>
   <div class="big">69.1%</div>
   <div class="bigsub">전국 아파트 전세가율 · 2026.07 기준 · 1년 전 대비 +1.0%p</div>
 </header>
+<main id="main">
 
 <section class="wrap">
   <h2>전세가율이란</h2>
@@ -130,7 +134,7 @@ footer a{color:var(--ink)}
 
 <section class="wrap">
   <h2>시도별 현황 (2026.07)</h2>
-  <div class="tbl-wrap"><table id="utable">
+  <div class="tbl-wrap"><table id="utable" aria-label="시도별 전세가율 현황">
     <thead><tr><th>지역</th><th data-num>전세가율</th><th data-num>1년 전</th><th data-num>변화</th></tr></thead>
     <tbody>
 <tr class="agg"><td>전국</td><td>69.1%</td><td>68.1%</td><td class="up">+1.0%p</td></tr>
@@ -174,6 +178,7 @@ footer a{color:var(--ink)}
   </div>
 </section>
 
+</main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
   <a href="/">agongmap.co.kr</a> · 자료: KOSIS 한국부동산원 매매가격 대비 전세가격비

@@ -1,6 +1,8 @@
   /* 건너뛰기 링크 — 첫 Tab 에만 보인다(2026-09-18 접근성 점검: 랜드마크·건너뛰기가 어느 페이지에도 없었다) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:var(--r-touch)}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
+/* 글자 크기 하한(2026-09-18 오딧 1번): 본문 글자는 11px 아래로 내리지 않는다(9~10px 이던 지도 라벨·값·범례를 11px 로, 10.5px 를 11.5px 로).
+   첨자(sup)만 10px. 새 규칙에 10.5px 미만을 적지 말 것 — 정적 감사가 아니라 이 주석이 유일한 기록이다. */
 :root{
     --ink:#131e24; --ink2:#4c5f66; --paper:#f4f6f5; --paper2:#e9edeb;
     --maemae:#c0392b; --jeonse:#6c4ab6; --stock:#1f8a70; --flow:#d99a00;
@@ -394,7 +396,7 @@
   #stat-tbl.szpivot th:first-child{position:sticky;left:0;z-index:3;border-right:1px solid var(--line)}
   #stat-tbl.szpivot tr.szgrp-r td{border-top:2px solid var(--line)}
   #stat-tbl.szpivot td{font-variant-numeric:tabular-nums}
-  .szu{font-size:10.5px;color:var(--muted);font-weight:400}
+  .szu{font-size:11.5px;color:var(--muted);font-weight:400}
   .aux{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 4px;min-height:4px}
   .aux button{border:1px dashed var(--line);background:#fff;border-radius:var(--r-touch);
     padding:5px 11px;min-height:40px;font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer}
@@ -572,7 +574,7 @@
   @media(max-width:720px){
     .rank-tbl.wide{font-size:11.5px}
     .rank-tbl.wide th,.rank-tbl.wide td{padding:4px 3px}
-    .rank-tbl.wide thead th{font-size:10.5px}
+    .rank-tbl.wide thead th{font-size:11.5px}
     .rank-tbl.wide .rk-medal{margin-right:1px;font-size:11px}
   }
   .rank-tbl td.up{color:#c0392b;font-weight:600}
@@ -678,7 +680,7 @@
     flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:.01em}
   .wg-when b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;
     border-bottom:1px solid transparent}
-  .wg-key{margin:0;font-size:10.5px}
+  .wg-key{margin:0;font-size:11.5px}
   .wg-key .tk-ramp{width:44px;height:7px}
   .wg-key .tk i{width:9px;height:9px}
   /* 집계 3은 격자에서 떼어 위로 — 전국이 헤드라인이 되게 숫자를 키운다.
@@ -695,7 +697,7 @@
   .wc b{font-size:11px;font-weight:500;color:var(--ink);white-space:nowrap;   /* muted 는 붉은 틴트 위에서 2.8(Lighthouse 2026-09-18) */
     overflow:hidden;text-overflow:ellipsis}
   .wc-ma{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
-  .wc-je{font-style:normal;font-size:10.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .wc-je{font-style:normal;font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums}
   .wc-agg{padding:12px 8px 10px}
   .wc-agg b{font-size:12px;color:var(--ink);font-weight:600}
   .wc-agg .wc-ma{font-size:20px}
@@ -703,9 +705,9 @@
      열을 줄이면 지리가 깨지므로 열 수는 건드리지 않는다. */
   @media(max-width:420px){
     .wc{padding:7px 4px 6px}
-    .wc b{font-size:10.5px}
+    .wc b{font-size:11.5px}
     .wc-ma{font-size:13.5px}
-    .wc-je{font-size:9.5px}
+    .wc-je{font-size:11px}
     .wc-agg .wc-ma{font-size:18px}
   }
   /* 홈 사이클 카드의 축약 도식(2026-08-17). /cycle/의 상호작용 다이어그램과 달리
@@ -739,7 +741,7 @@
   .sc-how .how-ls{list-style:none;margin:0;padding:0}
   .sc-how .how-ls li{margin:9px 0;padding:2px 0 2px 13px;border-left:2px solid var(--line);line-height:1.75}
   .sc-how .how-ls li>b:first-child{color:var(--ink)}
-  .sc-tier{flex:none;width:62px;text-align:center;font-size:10.5px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted);white-space:nowrap}
+  .sc-tier{flex:none;width:62px;text-align:center;font-size:11.5px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted);white-space:nowrap}
   .sc-tier.g4{background:#fdecea;color:#a93226}
   .sc-tier.g3{background:#fbeee9;color:#c0392b}
   /* 3.34:1이라 10.5px 기준(4.5:1)에 미달했다 — 20곳 중 7곳이 다는 최다
@@ -810,7 +812,7 @@ table.adv thead th:first-child{text-align:center}
   .map-box a:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   .map-box text{font-size:13px;font-weight:600;fill:var(--ink);text-anchor:middle;
     pointer-events:none;paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round}
-  .map-box text.ml-s{font-size:10.5px}
+  .map-box text.ml-s{font-size:11.5px}
   /* 지도 좌상단 오버레이(서해 빈 공간). 세로로 쌓고, 밑의 탭을 막지 않는다. */
   .map-key{position:absolute;top:2px;left:0;z-index:2;pointer-events:none;
     flex-direction:column;align-items:flex-start;gap:4px;margin:0;text-align:left}
@@ -823,7 +825,7 @@ table.adv thead th:first-child{text-align:center}
   }
   .map-key .mk-r{display:inline-flex;align-items:center;gap:6px}
   .map-key .tk-ramp{width:56px}
-  .map-key .tk-n{font-size:10.5px;line-height:1.4;margin:0}
+  .map-key .tk-n{font-size:11.5px;line-height:1.4;margin:0}
   .gr-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
   .gr-lab{font-size:12.5px;color:var(--muted)}
   .gr-bar select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);
@@ -842,18 +844,18 @@ table.adv thead th:first-child{text-align:center}
   .gr-box .gr-rt{font-size:11px;font-weight:700;fill:var(--ink);text-anchor:end;
     paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round}
   .gr-box .gr-gl{stroke:var(--line)}
-  .gr-box .gr-yt{font-size:9.5px;fill:var(--ink2);
+  .gr-box .gr-yt{font-size:11px;fill:var(--ink2);
     paint-order:stroke;stroke:var(--paper);stroke-width:3px;stroke-linejoin:round}
   .gr-box .gr-hit{cursor:pointer}
   /* 막대 탭 값 표시 — 존 페이지 .q-tip과 같은 어휘 */
   .gr-tip{position:absolute;background:var(--ink);color:#fff;padding:6px 9px;border-radius:3px;
     font-size:12px;line-height:1.4;z-index:4;transform:translate(-50%,-100%);
     pointer-events:none;white-space:nowrap}
-  .gr-tip span{color:#c9d4d0;font-size:10.5px}
+  .gr-tip span{color:#c9d4d0;font-size:11.5px}
   /* ⚠️ 전역 strong,b{color:var(--ink)}가 먹색 배경 위 먹색 숫자를 만든다
      (2026-08-08 사용자가 정확히 추정) — 툴팁 안 b는 흰색으로 되돌린다. */
   .gr-tip b{color:#fff}
-  .gr-box .gr-xt{font-size:10.5px;fill:var(--muted);text-anchor:middle}
+  .gr-box .gr-xt{font-size:11.5px;fill:var(--muted);text-anchor:middle}
   .gr-note{margin:10px 0 0;font-size:11.5px;color:var(--muted)}
   .tb-seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-touch);overflow:hidden}
   .tb-seg button{border:0;background:transparent;color:var(--muted);padding:6px 15px;
@@ -876,7 +878,7 @@ table.adv thead th:first-child{text-align:center}
   .tk-n{margin-left:2px}
   /* 과거 칸의 3등분(매매|전세|월세)을 말 대신 모양으로 — 실제 칸의 축소판 */
   .tk-tri{display:inline-flex;border:1px solid var(--line);cursor:help}
-  .tk-tri i{width:30px;height:18px;font-style:normal;font-size:10.5px;color:var(--ink2);
+  .tk-tri i{width:30px;height:18px;font-style:normal;font-size:11.5px;color:var(--ink2);
     display:inline-flex;align-items:center;justify-content:center;background:var(--paper)}
   .tk-tri i+i{border-left:1px solid var(--line)}
   /* 표는 1,198px인데 .wrap이 820px이라 1440px 화면에서도 13/21열만 보이고
@@ -892,14 +894,14 @@ table.adv thead th:first-child{text-align:center}
     padding:0;text-align:center;white-space:nowrap}
   #tb-main thead th{background:var(--paper);font-weight:600;font-size:12px;padding:6px 9px;
     color:var(--ink);position:sticky;top:0;z-index:6}
-  #tb-main thead th sup{font-size:9px;color:var(--muted)}
+  #tb-main thead th sup{font-size:11px;color:var(--muted)}
   /* 적정물량 줄은 이름칸만 th(scope=row)이고 수치는 td다 — 둘 다 잡아야 한다
      (2026-08-08 접근성 수정). 예전에 td→th 바꾸고 CSS를 안 따라가 줄이 깨진 전례. */
   /* ⚠️ position·background·z-index까지 같이 줘야 한다. th일 때는 위의
      `#tb-main thead th{position:sticky}`가 대신 걸어줬는데, td로 바꾸면서 그게 빠져
      스크롤하면 수치 20칸만 위로 사라지고 '적정물량' 라벨이 남의 분기 줄에 얹혔다
      (2026-08-08 감사). td→th를 바꿀 때 CSS를 안 따라간 세 번째 사례다. */
-  #tb-main thead tr.tb-ref th,#tb-main thead tr.tb-ref td{top:30px;font-weight:400;font-size:10.5px;color:var(--muted);
+  #tb-main thead tr.tb-ref th,#tb-main thead tr.tb-ref td{top:30px;font-weight:400;font-size:11.5px;color:var(--muted);
     padding:3px 9px;border-bottom:2px solid var(--ink2);
     position:sticky;background:var(--paper);z-index:6}
   #tb-main thead tr.tb-ref th{z-index:7}
@@ -935,10 +937,10 @@ table.adv thead th:first-child{text-align:center}
   #tb-main tbody tr.tb-nowrow td{background:var(--paper);text-align:left;
     padding:0;border-right:0;min-width:0;border-top:3px solid var(--ink)}
   #tb-main tbody tr.tb-nowrow span{position:sticky;left:0;display:inline-block;
-    font-size:10.5px;font-weight:600;color:var(--ink2);line-height:1;padding:5px 12px;white-space:nowrap}
+    font-size:11.5px;font-weight:600;color:var(--ink2);line-height:1;padding:5px 12px;white-space:nowrap}
   #tb-main tbody tr.now th:first-child{font-weight:700;color:var(--ink);font-style:normal}
   #tb-main tbody tr.yr td,#tb-main tbody tr.yr th{border-top:1px solid var(--line)}
-  #tb-main .tb-mx{font-style:normal;color:var(--muted);font-size:9.5px;margin-left:2px}
+  #tb-main .tb-mx{font-style:normal;color:var(--muted);font-size:11px;margin-left:2px}
   /* 표두 지역명 = 상세페이지 링크. 밑줄은 hover에만 — 20개가 늘 밑줄이면 시끄럽다 */
   /* 링크가 글자 상자(21×14px)만 반응해 터치 최소선 미달이었다(2026-08-14
      검수). 칸을 채운다 — th 패딩을 음수 마진으로 흡수하고 자체 패딩으로 복원,
@@ -1009,7 +1011,7 @@ table.adv thead th:first-child{text-align:center}
   .ztb tr.ztb-nowrow td{background:var(--paper);text-align:left;padding:0;
     border-top:3px solid var(--ink)}
   .ztb tr.ztb-nowrow span{position:sticky;left:0;display:inline-block;
-    font-size:10.5px;font-weight:600;color:var(--ink2);line-height:1;
+    font-size:11.5px;font-weight:600;color:var(--ink2);line-height:1;
     padding:5px 12px;white-space:nowrap}
   .ztb tr.znow td:first-child{font-weight:700;color:var(--ink)}
   .ztb .zfut{text-align:center;color:var(--muted);font-size:11px}
@@ -1018,7 +1020,7 @@ table.adv thead th:first-child{text-align:center}
      아니라 정보 진입점이므로 참고 행 무표식 원칙과 충돌하지 않는다. */
   .ztb tfoot tr:first-child td{border-top:2px solid var(--line)}
   .ztb tr.zref,#tb-main tr.tb-un{cursor:pointer}
-  .ri{font-style:normal;color:var(--muted);font-size:10px;margin-left:3px;vertical-align:1px}
+  .ri{font-style:normal;color:var(--muted);font-size:11px;margin-left:3px;vertical-align:1px}
   /* 참고 행 라벨은 <button> — 겉모습은 그대로 두고(칸의 글자처럼 보여야 한다)
      키보드 초점 테두리만 되살린다. font:inherit이 line-height까지 물려받아
      붙박이 첫 칸의 25px 줄높이가 유지된다. */
@@ -1054,7 +1056,7 @@ table.adv thead th:first-child{text-align:center}
   #tb-main tfoot tr:first-child td,#tb-main tfoot tr:first-child th{bottom:27px;
     border-top:2px solid var(--ink2)}
   #tb-main tfoot th:first-child{z-index:6;font-weight:600;color:var(--ink);line-height:25px}
-  #tb-main tfoot .tc b em{font-style:normal;color:#a93226;margin-left:2px;font-size:10px}
+  #tb-main tfoot .tc b em{font-style:normal;color:#a93226;margin-left:2px;font-size:11px}
   /* 리포트 머리 세 줄(2026-09-13 대표 결정). 앞 두 줄은 실적·착공 기반이라 본문
      무게로, 세 번째 줄(인허가)은 참고 칩과 옅은 글씨로 신뢰 수준이 다르게 보이게 한다.
      필요량에 못 미쳐도 경보 색을 쓰지 않는다 — 참고 신호 안에서 굵기로만 강조한다. */
@@ -1069,7 +1071,7 @@ table.adv thead th:first-child{text-align:center}
   .zs-thin strong{font-weight:600;color:var(--ink2)}
   .zs-note,.zs-est{font-size:12px;color:var(--muted);line-height:1.6;margin:2px 0 0 calc(7.5em + 10px)}
   .zs-est{margin-left:0;margin-top:8px}
-  .zchip{font-style:normal;font-size:10.5px;font-weight:500;color:var(--muted);
+  .zchip{font-style:normal;font-size:11.5px;font-weight:500;color:var(--muted);
     border:1px solid var(--line);padding:0 4px;margin-right:5px;vertical-align:1px}
   @media (max-width:520px){.zs-row{grid-template-columns:1fr;gap:0}.zs-note{margin-left:0}}
   .zwarn{margin-top:10px;font-size:13px;color:#a93226;line-height:1.65;
