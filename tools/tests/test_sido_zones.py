@@ -280,10 +280,12 @@ def test_pwarn_fires_on_live_data_where_expected():
     # 양쪽 다 0.35 이상 떨어져 있다.
     thin = ('경남', '대구', '서울')
     thick = ('대전', '충남')
-    for z in thin:
-        assert by[z]['pwarn'], '%s 경고가 꺼졌다 — 인허가 계열 오염 의심' % z
-    for z in thick:
-        assert not by[z]['pwarn'], '%s 경고가 켜졌다 — 인허가 계열 오염 의심' % z
+    # ⚠️ 예전엔 thin 의 pwarn 참·thick 의 pwarn 거짓을 단정했다. 충남 pbr 은 2026.01 1.62 → 07 1.30 으로
+    #    6개월에 0.32 내려, 같은 기울기면 6~7개월 뒤 경고 컷(0.95) 아래가 되어 매일 배치가 막혔을 것이다
+    #    (리뷰 09-18 21번). 문턱 통과 여부는 시장이 정하므로 단정하지 않는다 — 아래 **관계**만 본다.
+    #    산식 변이(24개월 평균 → 12개월 합 등)는 test_split_permit 의 합성 픽스처가 잡는다.
+    for z in thin + thick:
+        assert by[z].get('pbr') is not None, '%s pbr 이 없다 — 인허가 계열 결측' % z
     # 오염 판정의 본체는 문턱 통과 여부가 아니라 **관계**다. 얇은 쪽이 두꺼운 쪽보다 낮아야 한다.
     # ⚠️ 예전에는 `max(thin) < min(thick) / 2` 였는데 실측이 0.578 대 0.6515 로 여유가 0.07
     #    뿐이었다(리뷰 09-16 5번). 서울 24개월 인허가 평균이 13%만 올라도 이 시험이 배포

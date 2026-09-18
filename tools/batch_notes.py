@@ -33,12 +33,31 @@ def permit_gaps(adv):
     return [z.get('z') for z in zones(adv) if z.get('pbr') is None]
 
 
+def sync_claim_lines():
+    """사이클 3편이 못 박은 주장('전부 양수', '최저는 서울')이 지금 데이터와 어긋나면 ℹ️ 로 알린다.
+
+    예전엔 이것이 pytest 게이트의 실데이터 단정이었다(test_theory_sync_claims). 재산정으로 최저 지역이
+    바뀌면 "발행본은 고치지 않는다"는 결정과 맞물려 데이터 커밋이 막혔을 것이다(리뷰 09-18 19번).
+    게이트는 코드 회귀만 막고, 데이터 상태는 여기서 알린다. 생성 가드(make_theory_post)는 그대로다.
+    """
+    try:
+        import make_theory_post as T
+        T.check_sync_claims()
+    except SystemExit as e:
+        return ['%s 사이클 3편 주장이 지금 데이터와 어긋남 — %s (발행본은 두고 재발행을 검토)'
+                % (ML.MARK, str(e).replace('\n', ' ')[:140])]
+    except Exception as e:   # 도구를 못 올리면 그것도 알린다 — 조용히 통과하지 않는다
+        return ['%s 사이클 3편 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
+    return []
+
+
 def lines(adv):
     out = []
     gaps = permit_gaps(adv)
     if gaps:
         out.append("%s 인허가 신호 빠짐 — %s: 리포트의 '3년 너머' 줄이 빠진다(인허가 누계 결측 확인)"
                    % (WARN, ', '.join(gaps)))
+    out.extend(sync_claim_lines())
     return out
 
 
