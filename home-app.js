@@ -2765,7 +2765,7 @@ function renderBubbleSec(){
     ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=latest(rg);
       return (cv==null||jr==null)?0:jr/100*cv*2;}))*1.04));
   const px=v=>Math.min(98,Math.max(0,v/MAX*100));
-  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:9.5px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+B.loan.p+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
+  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:11px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+B.loan.p+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
   let nHi=0,nLo=0,nNear=0;
   (B.regions||Object.keys(B.conv)).forEach(rg=>{
     const cv=B.conv[rg],jr=latest(rg);

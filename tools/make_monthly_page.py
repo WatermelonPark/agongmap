@@ -224,6 +224,7 @@ def ld_pack_here(headline, desc, url, modified):
 def sec(anchor, n, title, basis, source, body):
     """지표 한 덩어리. **기준월과 원천을 반드시 함께 적는다** — '지금 보는 게
     이번 달 발표분'이라는 확신이 이 화면의 존재 이유다(요청서 2번)."""
+    body = body.replace('<table>', '<table aria-label="%s">' % esc(title), 1)   # 스크린리더용 표 이름(접근성 점검 2026-09-18)
     return ('<section id="%s"><div class="wrap">'
             '<div class="secno">%d</div><h2>%s</h2>'
             '<p class="basis"><b>%s</b> 기준 · %s</p>%s'
