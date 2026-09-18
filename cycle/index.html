@@ -84,7 +84,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 </div></header>
 
 <!-- 30초 요약 (첫 방문자용 진입로) -->
-<section class="tldr"><div class="wrap">
+<div class="cy-progress" aria-hidden="true"></div>
+<a class="cy-toc" href="#tldr" onclick="track('tldr_jump',{to:'toc'})">↑ 30초 요약</a>
+<section class="tldr" id="tldr"><div class="wrap">
   <div class="tldr-kicker">30초 요약</div>
   <h2 class="tldr-h">부동산은 <b>공급</b>이 만드는 <b>사이클</b>로 돈다</h2>
   <div class="tldr-grid">
@@ -650,6 +652,19 @@ new Chart(cMelt,{type:'bar',data:{labels:D.super.melt_scenarios.map(s=>'연 '+s.
   }
   if(document.readyState==='complete')setTimeout(boot,1500);
   else window.addEventListener('load',()=>setTimeout(boot,1500));
+})();
+/* 읽기 진행 막대와 '30초 요약' 버튼(2026-09-18 오딧 8번). 버튼은 첫 화면을 지난 뒤에만 보인다. */
+(function(){
+  const bar=document.querySelector('.cy-progress'); if(!bar)return;
+  let tick=false;
+  function upd(){
+    tick=false;
+    const h=document.documentElement.scrollHeight-innerHeight;
+    bar.style.width=(h>0?Math.min(100,scrollY/h*100):0)+'%';
+    document.body.classList.toggle('cy-scrolled',scrollY>innerHeight*1.2);
+  }
+  addEventListener('scroll',()=>{ if(!tick){tick=true;requestAnimationFrame(upd);} },{passive:true});
+  upd();
 })();
 </script>
 <script>

@@ -798,7 +798,7 @@ def build_page(z, calc, stats, pq, others, weekly=None):
                  % (urllib.parse.quote(o['z']), esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
                     esc(o['rtxt'])))
     h.append('</div><p class="zsub" style="margin-top:14px">'
-             '<a href="/">← 전국 공급 표로 돌아가기</a></p></div></section>')
+             '<a class="zback" href="/">← 전국 공급 표로 돌아가기</a></p></div></section>')
     h.append(share_section(z))
     h.append(FOOT)
     return ''.join(h)

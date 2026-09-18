@@ -132,6 +132,7 @@ function showView(v,updateHash){
   vHome.style.display=v==='home'?'':'none';
   vStats.style.display=v==='stats'?'':'none';
   vTest.style.display=v==='test'?'':'none';
+  document.body.classList.toggle('in-test',v==='test');   // 푸터 색인은 퀴즈 중엔 감춘다(2026-09-18 오딧 9번)
   window.scrollTo(0,0);
   if(v==='stats'&&!statsInited){
     statsInited=true;
@@ -1024,9 +1025,14 @@ function drawQuiz(setKey,seed){
      위치로 답이 보였다. ⚠️ 문항 선택과 **다른 난수열**을 쓴다 — 같은 rnd 를 이어 쓰면 옛 대결 링크(시드)가
      다른 문항을 뽑는다. 같은 시드면 이어 풀기·대결 상대도 같은 보기 순서를 본다. */
   const ornd=mulberry32((curSeed^0x9E3779B9)>>>0);
+  /* O/X 문항은 섞지 않는다 — 관례대로 O 가 왼쪽. 원본 12문항 중 6개가 ['X','O'] 라 "X | O" 로 나갔다
+     (2026-09-18 오딧 5번). 정답이 O 인 문항과 X 인 문항이 섞여 있어 위치가 답을 알려주지 않는다.
+     난수는 한 번 소비해 뒤 문항의 보기 순서(이미 보낸 대결 링크)를 그대로 둔다. */
+  const isOX=it=>it.opts.length===2&&it.opts.every(o=>o==='O'||o==='X');
   const shuffleOpts=items=>items.map(it=>{
     const idx=it.opts.map((_,i)=>i);
-    for(let i=idx.length-1;i>0;i--){const j=Math.floor(ornd()*(i+1));const t=idx[i];idx[i]=idx[j];idx[j]=t;}
+    if(isOX(it)){ ornd(); if(it.opts[0]!=='O')idx.reverse(); }
+    else for(let i=idx.length-1;i>0;i--){const j=Math.floor(ornd()*(i+1));const t=idx[i];idx[i]=idx[j];idx[j]=t;}
     return Object.assign({},it,{opts:idx.map(i=>it.opts[i]),answer:idx.indexOf(it.answer)});
   });
   const shuf=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;};
@@ -1600,7 +1606,7 @@ function rankTables(S,unit,k){
     h.push('</tbody></table></div></div>');
     return h.join('');
   }
-  const basis='<span style="font-weight:600;color:#799185;font-size:11px">'+MLAB[met]+' 기준</span>';
+  const basis='<span style="font-weight:600;color:var(--muted);font-size:11px">'+MLAB[met]+' 기준</span>';
   return '<div class="map-rank">'+
     tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.slice(0,10),1)+
     tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1)+

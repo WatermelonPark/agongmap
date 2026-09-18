@@ -41,7 +41,8 @@ def test_no_page_navigation_through_buttons():
 
 def test_tab_buttons_have_a_40px_minimum():
     css = _read('app.css')
-    for sel in (r'\.tb-seg button', r'\.seg button'):
+    # 09-15 엔 두 선택자만 잡아 통계 토글(.gt 26px)·심화 탭(34px)·기간(36px)·주석 칩(28px)이 빠졌다(2026-09-18 오딧 2번).
+    for sel in (r'\.tb-seg button', r'\.seg button', r'\.gt button', r'\.adv-tabs button', r'\.period button', r'\.aux button'):
         hs = [int(x) for x in re.findall(sel + r'\{[^}]*min-height:(\d+)px', css)]
         assert hs and max(hs) >= 40, '%s 최소 높이가 40px 미만이다' % sel.replace('\\', '')
 
