@@ -157,3 +157,20 @@ def test_stall_reaches_the_mail():
     assert mail is True, '멈춤이 있는 회차인데 메일이 가지 않는다'
     assert '분양·미분양 통계를 새로 받지 못했습니다' in body
     assert '완비 기준' not in body and 'supply' not in body, '내부 용어가 본문에 샜다'
+
+
+# ── 알림 경로의 고리 전부(리뷰 2026-09-18 20번) ──────────────────────────────
+# 깨뜨리면 빨개지는 것: main 의 write_supply_stalled 호출 제거 · 업로드 목록에서 .supply_stalled 제거 ·
+# include-hidden-files 를 false 로 · 커밋 잡의 $SRC/.supply_stalled 검사 제거 → 각각 빨강.
+
+def test_stall_record_travels_from_main_to_the_commit_job():
+    import re
+    ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
+    src = io.open(os.path.join(ROOT, 'tools', 'update_adv_data.py'), encoding='utf-8').read()
+    body = src[src.find('def main('):]
+    assert 'write_supply_stalled(' in body, 'main 이 정지 기록을 쓰지 않는다'
+    yml = io.open(os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml'), encoding='utf-8').read()
+    code = '\n'.join(l for l in yml.splitlines() if not l.lstrip().startswith('#'))
+    up = code[code.find('name: 산출물 업로드'):code.find('commit:')]
+    assert '.supply_stalled' in up and re.search(r'include-hidden-files:\s*true', up), '숨김 파일이 아티팩트에 안 실린다'
+    assert '"$SRC/.supply_stalled"' in code and '공급 갱신 멈춤' in code, '커밋 잡이 정지 기록을 읽지 않는다'

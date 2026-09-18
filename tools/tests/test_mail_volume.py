@@ -143,3 +143,54 @@ def test_closer_still_reads_titles_made_before_the_change():
     for other in ('🟢 주간 확인 · 데이터 정상 · 하실 일 없음 (9/21)',
                   C.done_title('지역 공급', datetime.date(2026, 9, 15)), ''):
         assert C.parse_title(other) is None, other
+
+
+# ── 3. 리뷰 2026-09-18 20번 ───────────────────────────────────────────────
+# 깨뜨리면 빨개지는 것(각각 확인): headline 의 자동 재시도 분기 제거 → retry 시험 · 워크플로에서
+# `--meta _report.meta` 제거 → hand-off 시험 · build 의 lag_hard 머리 제거 → body 시험 ·
+# headline 의 nothing 분기 제거 → nothing 시험.
+
+RETRY = OK + '❌ 러너 0/3 clean (시도 1/3) — 35분 뒤 자동 재시도\n'
+FINAL = OK + '❌ 러너 0/3 clean (시도 3/3 소진) — 이번 회차 갱신 없음\n'
+
+
+def test_retry_pending_and_final_failure_have_different_subjects():
+    a, b = F.headline(RETRY, KST, 3), F.headline(FINAL, KST, 3)
+    assert a != b, '재시도 대기와 최종 실패의 제목이 같다 — 스로틀 날 같은 제목이 서너 통 온다'
+    assert '재시도' in a and a.startswith('🔴') and '하실 일' in a and len(a) <= 60
+    assert '재시도' not in b
+
+
+def test_workflow_hands_the_meta_file_to_the_send_gate():
+    """형식기가 쓴 meta 파일을 게이트가 읽어야 한다. --meta 가 빠지면 SEND 가 비어 모든 실패가 조용해진다."""
+    code = _code(_wf('update-cloud.yml'))
+    m = re.search(r'format_batch_report\.py[^\n]*--meta (\S+)', code)
+    assert m, '형식기 호출에 --meta 가 없다'
+    meta = m.group(1)
+    i_call = m.start()
+    i_read = code.find('SEND=$(sed -n 1p %s' % meta)
+    assert i_call < i_read < code.find('if [ "$SEND" != "1" ]'), 'SEND 를 형식기가 쓴 그 파일에서 읽지 않는다'
+
+
+def test_long_lag_body_header_matches_the_subject():
+    raw = OK + 'ℹ️ 월간 뒤처짐 4개월 · 규모별 2026.04 · 최신 2026.08\n'
+    body, mention = F.build(raw, KST, 'u', 'O', 3)
+    h = F.headline(raw, KST, 3)
+    assert h.startswith('🟡') and mention
+    assert '### ✅' not in body and '옛 기준' in body.splitlines()[0], body[:80]
+
+
+def test_no_change_plus_warning_does_not_claim_an_update():
+    raw = OK + '➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)\n⚠️ 공급 갱신 멈춤 — 분양\n⚠️ 감시 실행 이력을 읽지 못했다\n'
+    h = F.headline(raw, KST, 3)
+    body, _ = F.build(raw, KST, 'u', 'O', 3)
+    assert '갱신됨' not in h and '2건' in h, h
+    assert '최신 데이터로 갱신됐습니다' not in body and '바뀐 내용이 없습니다' in body
+
+
+def test_info_lines_ride_along_only_when_a_comment_goes_out():
+    raw = OK + 'ℹ️ 비핵심 원천 실패 — ECOS (직전 값 유지)\n'
+    monday, _ = F.build(raw, KST, 'u', 'O', 0)
+    weekday, mention = F.build(raw, KST, 'u', 'O', 3)
+    assert '비핵심 원천 실패' in monday and '**참고:**' in monday
+    assert not mention and F.headline(raw, KST, 3).startswith('🟢'), 'ℹ️ 줄이 메일을 불러선 안 된다'

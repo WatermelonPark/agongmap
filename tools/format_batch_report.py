@@ -193,15 +193,29 @@ def headline(raw, kst, weekday):
     _, lag_months = lag_notice(lines)
     day = _short_date(kst)
     tail = (' (%s)' % day) if day else ''
+    nothing = any(ln.lstrip().startswith(SKIP) for ln in lines)
     if bad:
+        # 재시도 대기(시도 1·2)와 최종 실패는 제목이 달라야 한다 — 같으면 스로틀 날 같은 제목이
+        # 서너 통 오고 어느 것이 마지막인지 모른다(리뷰 2026-09-18 20번).
+        if all(re.search(r'러너 0/3 clean.*자동 재시도', ln) for ln in lines if ln.lstrip().startswith(BAD)):
+            return '🔴 갱신 실패 · 35분 뒤 자동 재시도 · 하실 일 없음' + tail
         return '🔴 데이터 갱신 실패 · 사이트는 정상 · 하실 일 없음' + tail
     if warn:
-        return '🟡 데이터는 갱신됨 · 곁가지 하나 확인 중 · 하실 일 없음' + tail
+        n = sum(1 for ln in lines if ln.lstrip().startswith(WARN))
+        what = '확인할 것 %d건' % n if n > 1 else '곁가지 하나 확인 중'
+        if nothing:   # 갱신이 없었던 회차에 "갱신됨"이라고 하면 안 된다
+            return '🟡 갱신 없음 · %s · 하실 일 없음%s' % (what, tail)
+        return '🟡 데이터는 갱신됨 · %s · 하실 일 없음%s' % (what, tail)
     if lag_months >= ML.ESCALATE_MONTHS:
         return '🟡 일부 통계가 %d개월째 옛 기준 · 세션이 검토 중 · 하실 일 없음%s' % (lag_months, tail)
     if weekday == 0:
         return '🟢 주간 확인 · 데이터 정상 · 하실 일 없음' + tail
     return '🟢 데이터 정상 · 하실 일 없음' + tail
+
+
+def mention_preview(bad, warn, weekday, lag_hard):
+    """이 회차가 코멘트(=메일)를 남기는가. build() 끝의 mention 과 같은 식이다."""
+    return bool(bad or warn) or weekday == 0 or lag_hard
 
 
 def build(raw, kst, run_url, owner, weekday):
@@ -238,10 +252,16 @@ def build(raw, kst, run_url, owner, weekday):
         for ln in warn:
             out.append('- %s' % plain(ln))
     elif warn:
-        out.append('### ⚠️ 데이터 갱신은 됐지만 확인할 것이 있습니다 · %s' % kst)
-        out.append('')
-        out.append('**사이트는 최신 데이터로 갱신됐습니다.** 곁가지 하나가 '
-                   '제대로 되지 않았습니다.')
+        if nothing:
+            out.append('### ⚠️ 갱신은 없었고 확인할 것이 있습니다 · %s' % kst)
+            out.append('')
+            out.append('**원천 통계가 그대로라 바뀐 내용이 없습니다.** 아래 항목을 세션이 확인합니다.')
+        else:
+            out.append('### ⚠️ 데이터 갱신은 됐지만 확인할 것이 있습니다 · %s' % kst)
+            out.append('')
+            out.append('**사이트는 최신 데이터로 갱신됐습니다.** %s'
+                       % ('곁가지 하나가 제대로 되지 않았습니다.' if len(warn) == 1
+                          else '확인할 것이 %d건 있습니다.' % len(warn)))
         out.append('')
         out.append('**하실 일: 없습니다.** 세션에서 확인합니다.')
         out.append('')
@@ -251,6 +271,11 @@ def build(raw, kst, run_url, owner, weekday):
         if basis:
             out.append('')
             out.append(basis)
+    elif lag_hard:
+        # 제목(🟡 옛 기준)과 본문 머리가 다른 말을 하면 안 된다(리뷰 2026-09-18 20번).
+        out.append('### 🟡 데이터 갱신은 정상 · 일부 통계가 %d개월째 옛 기준 · %s' % (lag_months, kst))
+        out.append('')
+        out.append('사이트는 최신 데이터로 갱신됐습니다. 하실 일 없습니다.')
     else:
         out.append('### ✅ 데이터 갱신 정상 · %s' % kst)
         out.append('')
@@ -262,6 +287,14 @@ def build(raw, kst, run_url, owner, weekday):
         if basis:
             out.append('')
             out.append(basis)
+
+    # ℹ️ 로 시작하지만 뒤처짐 줄이 아닌 것(비핵심 원천 실패 등)은 '참고'로 싣는다. 메일을 부르지 않는다.
+    info = [ln for ln in lines if ln.lstrip().startswith(ML.MARK) and not LAG_LINE.match(ln)]
+    if info and (mention_preview(bad, warn, weekday, lag_hard)):
+        out.append('')
+        out.append('**참고:**')
+        for ln in info:
+            out.append('- %s' % plain(ln.lstrip().lstrip(ML.MARK).strip()))
 
     if lag_say:
         out.append('')
