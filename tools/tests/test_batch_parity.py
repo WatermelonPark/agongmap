@@ -74,7 +74,7 @@ def _bat_list(cmd):
     rest = lines[0][len(cmd):].split('>>')[0].split()   # 로그 리다이렉션은 대상이 아니다
     if rest and rest[0] == '--':
         rest = rest[1:]
-    return {t.replace('\', '/') for t in rest}
+    return {t.replace('\\', '/') for t in rest}
 
 
 def test_parsers_actually_read_the_steps():
