@@ -132,8 +132,26 @@ def open_issues():
         cat = norm(KIND_TO_CATEGORY.get(kind, ''))
         if not cat:
             continue
-        out.append(dict(n=it['number'], kind=kind, cat=cat, due=due))
+        out.append(dict(n=it['number'], kind=kind, cat=cat, due=due, title=it['title']))
     out.sort(key=lambda x: x['due'])      # 오래된 것부터 — 글 하나에 이슈 하나
+    return out
+
+
+def match(posts, issues):
+    """[(이슈, 글)] — 같은 카테고리이고 발행일이 예정일 이후인 가장 이른 글 하나. 글 하나에 이슈 하나.
+
+    예정일 조건을 빼면 지난주 주간 글이 이번 주 이슈를 닫고, 카테고리 조건을 빼면 주간 글이 지역 이슈를
+    닫는다 — 둘 다 시험으로 고정한다(리뷰 09-18 23번).
+    """
+    used, out = set(), []
+    for iss in issues:
+        cand = [p for p in posts
+                if p['cat'] == iss['cat'] and p['date'] >= iss['due'] and p['url'] not in used]
+        if not cand:
+            continue
+        cand.sort(key=lambda p: p['date'])
+        used.add(cand[0]['url'])
+        out.append((iss, cand[0]))
     return out
 
 
@@ -142,11 +160,15 @@ def note_record(n, record, title):
     try:
         r = subprocess.run(['gh', 'issue', 'view', str(n), '--repo', REPO, '--json', 'body'],
                            capture_output=True, text=True, timeout=60, encoding='utf-8')
-        old = (json.loads(r.stdout or '{}').get('body') or '') if r.returncode == 0 else ''
-        new = (old.rstrip() + '\n\n---\n' + record) if old else record
-        r = subprocess.run(['gh', 'issue', 'edit', str(n), '--repo', REPO,
-                            '--title', title, '--body', new],
-                           capture_output=True, text=True, timeout=60, encoding='utf-8')
+        if r.returncode != 0:
+            # 본문을 못 읽었으면 본문은 건드리지 않는다 — 빈 값 위에 기록을 쓰면 점검 체크리스트가
+            # 지워진다(리뷰 09-18 23번). 제목만 바꾼다.
+            args = ['gh', 'issue', 'edit', str(n), '--repo', REPO, '--title', title]
+        else:
+            old = json.loads(r.stdout or '{}').get('body') or ''
+            new = (old.rstrip() + '\n\n---\n' + record) if old else record
+            args = ['gh', 'issue', 'edit', str(n), '--repo', REPO, '--title', title, '--body', new]
+        r = subprocess.run(args, capture_output=True, text=True, timeout=60, encoding='utf-8')
         if r.returncode != 0:
             print('   ! 기록·제목 수정 실패: %s' % (r.stderr or '').strip()[:160])
     except Exception as e:
@@ -165,17 +187,13 @@ def main(argv):
         print('열린 알림 이슈가 없다.')
         return 0
 
-    used, closed = set(), 0
+    closed = 0
+    pairs = dict((iss['n'], p) for iss, p in match(posts, issues))
     for iss in issues:
-        cand = [p for p in posts
-                if p['cat'] == iss['cat'] and p['date'] >= iss['due']
-                and p['url'] not in used]
-        if not cand:
+        p = pairs.get(iss['n'])
+        if p is None:
             print('· #%d %s %s — 아직 발행 안 됨' % (iss['n'], iss['due'], iss['kind']))
             continue
-        cand.sort(key=lambda p: p['date'])
-        p = cand[0]
-        used.add(p['url'])
         body = ('✅ 발행 확인 — %s\n\n**%s**\n%s\n\n'
                 '이 이슈는 블로그 RSS에서 발행이 확인되어 자동으로 닫혔습니다'
                 '(`tools/close_published_issues.py`). 카테고리와 발행일로 맞춘 것이라,'
@@ -193,6 +211,10 @@ def main(argv):
                            capture_output=True, text=True, timeout=60, encoding='utf-8')
         if r.returncode != 0:
             print('   ! 닫기 실패: %s' % (r.stderr or '').strip()[:160])
+            # 제목을 먼저 바꿔 둔 상태라, 되돌리지 않으면 다음 회차에 알림 이슈로 인식되지 않아
+            # '발행 확인됨' 제목으로 영원히 열려 있다(리뷰 09-18 23번).
+            subprocess.run(['gh', 'issue', 'edit', str(iss['n']), '--repo', REPO, '--title', iss['title']],
+                           capture_output=True, text=True, timeout=60, encoding='utf-8')
         else:
             closed += 1
     print('\n%d건 닫음.' % closed if not dry else '\n(dry-run — 아무것도 닫지 않았다)')

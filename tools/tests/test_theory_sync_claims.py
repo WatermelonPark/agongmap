@@ -29,8 +29,8 @@ def _rows(**over):
                    for k, v in base.items()), key=lambda x: -x['corr'])
 
 
-def test_live_data_still_supports_the_published_claims():
-    T.check_sync_claims()          # 지금 데이터에서는 출력이 바뀌지 않아야 한다
+# ⚠️ '지금 데이터가 주장을 받쳐 준다'는 실데이터 단정은 배치 게이트에 두지 않는다(CLAUDE.md 데이터 원칙,
+#    리뷰 09-18 19번). 그 상태는 tools/batch_notes.py 가 ℹ️ 줄로 알린다(test_batch_notes 참조).
 
 
 def test_negative_region_stops_generation():

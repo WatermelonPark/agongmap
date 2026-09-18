@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_sido_pages as M  # noqa: E402  (load 재사용)
 import sido_zones as SZ      # noqa: E402  (zone_order·GRADE_LABS·상수)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import close_published_issues as CP  # noqa: E402  (RSS·카테고리 이름의 정본)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'drafts')
@@ -103,7 +104,21 @@ def eunneun(w):
 PRIORITY = ('서울', '대구', '부산', '경기', '세종', '전남광주')
 
 
-ZONE_CAT = '지역별 아파트 공급'
+ZONE_CAT = CP.KIND_TO_CATEGORY['지역 공급']   # 손으로 복제하면 한쪽만 고쳐질 때 발행 편수가 0 으로 세어진다(리뷰 09-18)
+
+
+def _zone_of_title(title, names):
+    """제목이 어느 지역 편인지. '<지역>(시|도)? 아파트' 가 **가장 앞에** 나오는 지역을 고른다.
+
+    같은 길이 이름을 set 순회 순서로 맞추면 '부산 … 서울 아파트' 같은 제목이 실행마다 다른 지역으로
+    세어졌고(PYTHONHASHSEED 에 좌우), '세종시 아파트' 처럼 접미사가 붙으면 못 셌다(리뷰 09-18 19번).
+    """
+    best = None
+    for nm in names:
+        m = re.search(r'(?<![가-힣])%s(?:시|도|특별자치시|특별자치도)? 아파트' % re.escape(nm), title or '')
+        if m and (best is None or m.start() < best[0]):
+            best = (m.start(), nm)
+    return best[1] if best else None
 
 
 def _published_zone_posts(names):
@@ -113,17 +128,17 @@ def _published_zone_posts(names):
         posts = CP.fetch_posts()
     except Exception:
         return None
-    if posts is None:
+    if not posts:
+        # 빈 목록은 '아직 아무것도 안 냈다'가 아니라 '못 읽었다'로 본다 — 빈 피드로 1번 지역부터 다시
+        # 시작하면 이미 낸 글을 또 만든다(리뷰 09-18 19번). 호출자가 저장해 둔 순회 기록으로 고른다.
         return None
     out = {}
     for p in posts:
         if p.get('cat') != ZONE_CAT or not p.get('url'):
             continue
-        # 제목은 '<연도>년 <지역> 아파트 공급물량 전망, …' 꼴이다. 긴 이름부터 맞춘다.
-        for nm in sorted(names, key=len, reverse=True):
-            if ('%s 아파트' % nm) in p['title']:
-                out.setdefault(nm, set()).add(p['url'])
-                break
+        nm = _zone_of_title(p.get('title'), names)
+        if nm:
+            out.setdefault(nm, set()).add(p['url'])
     return out
 
 
@@ -730,12 +745,15 @@ def thumb_message(nm, curve):
     """
     order = list(SZ.DISPLAY_ORDER)
     k = order.index(nm) if nm in order else 0
-    if curve and curve[1] < len(curve[0]) - 3 and curve[2] <= -3:
-        return ['%s, 고점에서 %.0f%%' % (nm, curve[2]),
-                '*%s*' % THUMB_ASK_FALL[k % len(THUMB_ASK_FALL)]]
+    # '역대 최고가'는 고점이 **지금(최근 3점 안)** 일 때만 사실이다. 예전엔 하락 폭이 3% 미만이면 고점이
+    # 2년 전이어도 그렇게 찍었다(리뷰 09-18 19번). 고점이 오래됐으면 폭이 작아도 '고점에서 −N%' 로 적는다.
     if curve:
-        return ['%s, 지금이 역대 최고가' % nm,
-                '*%s*' % THUMB_ASK_PEAK[k % len(THUMB_ASK_PEAK)]]
+        recent = curve[1] >= len(curve[0]) - 3
+        if recent and curve[2] > -3:
+            return ['%s, 지금이 역대 최고가' % nm,
+                    '*%s*' % THUMB_ASK_PEAK[k % len(THUMB_ASK_PEAK)]]
+        return ['%s, 고점에서 %.0f%%' % (nm, min(curve[2], -1)),
+                '*%s*' % THUMB_ASK_FALL[k % len(THUMB_ASK_FALL)]]
     return ['%s 아파트' % nm, '*앞으로 3년 공급은*']
 
 
@@ -838,8 +856,22 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
 
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, 'thumb-%s.png' % nm)
+    if _keep_existing_thumb(path, msg):
+        print('  ⚠ %s 는 이미 있어 그대로 뒀다(--thumb-msg 로 만든 것일 수 있다). 다시 만들려면 --force.'
+              % os.path.basename(path))
+        return os.path.relpath(path, ROOT)
     img.resize((Wd, Ht), Image.LANCZOS).save(path)
     return os.path.relpath(path, ROOT)
+
+
+def _keep_existing_thumb(path, msg, argv=None):
+    """문구 없이 다시 돌릴 때 기존 썸네일을 보존한다.
+
+    발행 전까지 같은 지역이 계속 뽑히므로 금요일 주간 글 때문에 돌릴 때마다 --thumb-msg 로 만든
+    맞춤 썸네일이 기본 문구로 덮였다(리뷰 09-18 19번). 문구를 줬거나 --force 면 새로 만든다.
+    """
+    argv = sys.argv if argv is None else argv
+    return msg is None and '--force' not in argv and os.path.exists(path)
 
 
 def _thumb_msg_arg(argv):
