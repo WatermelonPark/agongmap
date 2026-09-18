@@ -179,6 +179,11 @@ jobs:
       need_retry: ${{ steps.main.outputs.need_retry }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # ⚠️ 기본값(depth 1)이면 sw.js 버전 단조 증가 시험이 '이력을 못 읽었다'고 skip 한다 —
+          #    게이트가 "366 passed, 1 skipped" 로 초록이었고 그 방어선은 한 번도 돈 적이 없었다
+          #    (2026-09-18 리뷰). 시험은 최근 커밋의 sw.js diff 를 읽으므로 200이면 충분하다.
+          fetch-depth: 200
 
       # ⚠️ pattern + merge-multiple:false 를 쓰지 않는다. v5 부터 **받은 결과가 1개일 때만**
       # 하위 디렉터리를 만들지 않고 path 에 곧장 푼다. 여러 개면 예전처럼 이름별로 나눈다.
