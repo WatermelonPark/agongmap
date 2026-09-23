@@ -94,6 +94,18 @@ def test_match_needs_the_post_on_or_after_the_due_date():
     assert [(i['n'], p['url']) for i, p in C.match(posts, issues)] == [(1, 'w2')]
 
 
+def test_post_published_a_day_early_closes_that_issue():
+    """주간 시세를 예정일(금) 전날 밤에 올린 실제 운영 패턴이다. 예전 조건(발행일 >= 예정일)이면
+    이 글은 어느 이슈도 닫지 못해 이슈가 한 주씩 밀렸다.
+    무엇을 깨뜨리면 빨개지나: EARLY_DAYS 를 0으로 두면 첫 단정이 실패한다(실제로 확인).
+    사흘 이른 글은 여전히 닫지 못한다 — 여유를 넓혀 지난 회차 글을 끌어오지 않는지 함께 본다."""
+    issues = [_iss(1, WEEK, D(2026, 9, 25), '주간 시세')]
+    posts = [dict(date=D(2026, 9, 24), cat=WEEK, title='w', url='w')]
+    assert [(i['n'], p['url']) for i, p in C.match(posts, issues)] == [(1, 'w')]
+    posts = [dict(date=D(2026, 9, 22), cat=WEEK, title='w0', url='w0')]
+    assert C.match(posts, issues) == []
+
+
 def test_match_needs_the_same_category_and_uses_each_post_once():
     posts = [dict(date=D(2026, 9, 16), cat=WEEK, title='w', url='w'),
              dict(date=D(2026, 9, 16), cat=ZONE, title='z', url='z')]
