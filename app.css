@@ -1037,6 +1037,12 @@ table.adv thead th:first-child{text-align:center}
   .rbtn{font:inherit;color:inherit;letter-spacing:inherit;background:none;border:0;
     padding:0;margin:0;cursor:pointer;text-align:inherit}
   .rbtn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  /* 지역 페이지 표의 참고 행 라벨은 첫 칸 전체를 누르는 면으로(2026-09-18 오딧 12번: 49×20·70×20px 였다).
+     이 표의 tfoot 은 붙박이가 아니라 행이 40px 로 높아져도 겹치는 것이 없다. 홈 표(#tb-main)는 tfoot 이
+     bottom 오프셋으로 두 줄을 쌓는 붙박이라 25px 줄높이를 유지한다 — 그쪽은 행 전체(tr.tb-un)가 누르는 면이고
+     버튼도 26px 로 WCAG 2.5.8 의 24px 를 넘는다. */
+  .ztb tfoot td:first-child{padding:0}
+  .ztb tfoot .rbtn{display:flex;align-items:center;width:100%;min-height:40px;padding:0 9px}
   .tb-refnote{margin:6px 0 0;font-size:12px;line-height:1.55;color:var(--muted)}
 
   /* .zgrid와 같은 이유로 셀이 선을 그린다(2026-08-16). 컨테이너 배경을 선 색으로
