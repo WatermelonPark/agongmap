@@ -3,14 +3,13 @@
 
 data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이터로 교체한다.
 (2026-07-19 분리: 데이터는 index.html이 아니라 data.js에 있다.)
-실운영 갱신은 로컬 작업 스케줄러(tools/run_weekly_update.bat, 매주 금 09:30)가 담당한다.
-GitHub Actions(.github/workflows/update-stats.yml)는 KOSIS의 해외 IP 차단 때문에
-갱신이 실패해 클라우드는 IP 프리플라이트로 우회한다(update-cloud.yml).
+실운영 갱신은 클라우드 배치(.github/workflows/update-cloud.yml) 하나가 담당한다. KOSIS가 해외 IP를
+간헐 차단하므로 러너 3개의 IP 프리플라이트로 우회하고, 0/3이면 update-cloud-retry.yml이 재시도한다.
+로컬 러너(tools/run_weekly_update.bat)는 2026-07-23 이후 휴면이다(재가동은 대표 결정 대기, 백로그 22).
 
 사용:
   KOSIS_API_KEY=... python tools/update_adv_data.py --update      # 실제 갱신
   KOSIS_API_KEY=... python tools/update_adv_data.py --discover 주택규모별   # 표 ID 탐색
-  python tools/update_adv_data.py --dry-run                        # 키 없이 재작성 로직만 검증
 
 데이터셋 구성 (docs/advanced_stats_catalog.md 참조):
   permits  — 국토교통부 「주택건설실적통계」 주택규모별 인허가실적(월별 누계):
