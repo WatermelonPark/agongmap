@@ -524,6 +524,68 @@ def update_sitemap(entries):
     io.open(p, 'w', encoding='utf-8', newline='\n').write(x)
 
 
+# 손으로 관리하는 페이지 — 생성기가 없어서 sitemap lastmod 를 아무도 안 고쳤다. /faq/ 는 08-06 모델
+# 개편으로 본문이 바뀌었는데 07-16 에 멈춰 있었고, /privacy/ 는 lastmod 가 아예 없었다(2026-09-23 점검,
+# 백로그 29). 배치마다 그 파일의 마지막 커밋 날짜로 따라간다. /cycle/ 는 데이터 칸을 배치가 갈아끼우므로
+# refresh_cycle_data 가 따로 맞춘다.
+HAND_PAGES = (('/faq/', 'faq/index.html'), ('/about/', 'about/index.html'),
+              ('/privacy/', 'privacy/index.html'), ('/burini-test/', 'burini-test/index.html'),
+              ('/investor-test/', 'investor-test/index.html'), ('/redev-test/', 'redev-test/index.html'))
+
+
+def _git(root, *args):
+    import subprocess
+    try:
+        r = subprocess.run(['git'] + list(args), cwd=root, capture_output=True, timeout=30,
+                           encoding='utf-8', errors='replace')
+    except Exception:
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def hand_lastmods(root=None):
+    """[(경로, 마지막 커밋 날짜)] — 날짜를 믿을 수 없는 파일은 뺀다.
+
+    ⚠️ 얕은 클론(배치 커밋 잡은 fetch-depth 200)에서 창 밖의 파일은 경계 커밋이 파일을 통째로
+    '추가'한 것처럼 보여, 그 커밋 날짜가 마지막 수정일로 잘못 나온다. 경계 커밋(.git/shallow)이면 뺀다.
+    """
+    root = root or ROOT
+    shallow = set()
+    top = _git(root, 'rev-parse', '--git-dir')
+    if top:
+        sp = os.path.join(root, top, 'shallow') if not os.path.isabs(top) else os.path.join(top, 'shallow')
+        if os.path.exists(sp):
+            shallow = set(io.open(sp, encoding='utf-8').read().split())
+    out = []
+    for path, rel in HAND_PAGES:
+        got = _git(root, 'log', '-1', '--format=%H %cs', '--', rel)
+        if not got:
+            continue
+        sha, day = got.split()
+        if sha in shallow:
+            continue
+        out.append((path, day))
+    return out
+
+
+def bump_sitemap(entries, root=None):
+    """entries 의 lastmod 를 **앞으로만** 옮긴다(없으면 넣는다). 날짜가 뒤로 가는 일은 없다."""
+    p = os.path.join(root or ROOT, 'sitemap.xml')
+    x = io.open(p, encoding='utf-8').read()
+    for path, lm in entries:
+        loc = SITE + path
+        m = re.search(r'<loc>%s</loc>\s*<lastmod>([^<]*)</lastmod>' % re.escape(loc), x)
+        if m:
+            if m.group(1) < lm:
+                x = x[:m.start(1)] + lm + x[m.end(1):]
+            continue
+        # lastmod 가 없는 항목(한 줄로 적힌 /privacy/ 등)은 loc 뒤에 넣는다
+        m = re.search(r'<loc>%s</loc>' % re.escape(loc), x)
+        if m:
+            x = x[:m.end()] + '<lastmod>%s</lastmod>' % lm + x[m.end():]
+    io.open(p, 'w', encoding='utf-8', newline='\n').write(x)
+
+
 def main():
     adv, sts = load()
     out = []
@@ -535,7 +597,10 @@ def main():
         io.open(os.path.join(d, 'index.html'), 'w', encoding='utf-8', newline='\n').write(html)
         out.append(('/%s/' % sub, lm))
     update_sitemap(out)
+    hand = hand_lastmods()
+    bump_sitemap(hand)
     print('indicator pages: %s' % ', '.join('%s(%s)' % e for e in out))
+    print('hand pages lastmod: %s' % ', '.join('%s(%s)' % e for e in hand))
 
 
 if __name__ == '__main__':
