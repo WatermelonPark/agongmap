@@ -25,7 +25,7 @@
 | `tools/` | 배치·생성기·발행 도구 (아래 표) |
 | `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다 |
 | `tools/data/` | 시딩 데이터·캐시·스탬프. `tools/cache/`와 벌크 원본은 gitignore |
-| `docs/` | 세션 간 요청서·결정 기록·백로그. 날짜 접두 파일명 |
+| `docs/` | 세션 간 요청서·결정 기록·백로그. 날짜 접두 파일명. 목록은 `docs/README.md`, 종결된 요청서는 `docs/archive/`로 옮긴다 |
 | `.github/workflows/` | 클라우드 배치·감시·발행 알림 (아래 "자동화") |
 | `drafts/`, `logs/` | **로컬 전용(gitignore)**. 블로그 초안과 배치 로그. 클라우드 세션에서는 보이지 않는다 |
 
