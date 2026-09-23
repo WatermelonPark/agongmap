@@ -8,7 +8,7 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v157'; // 글자 하한 11px·표 이름·월간/주간/지표 랜드마크(백로그 24 잔여)
+const VERSION = 'v158'; // 페이지 캐시 키에서 쿼리 제거(utm·대결 링크마다 항목이 쌓이던 것)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
@@ -21,18 +21,27 @@ const CACHE = `agongmap-${VERSION}`;
 //    **홈 HTML 로 바꿔치기**된다(2026-09-16 리뷰에서 처리기를 돌려 재현). 타임아웃은 그 요청의
 //    캐시만 쓰고, 없으면 네트워크를 끝까지 기다린다.
 const NET_TIMEOUT_MS = 3500;
+// 페이지(navigation)는 쿼리를 뺀 경로로 캐시한다. 쿼리를 키에 넣으면 ?utm_…·대결 링크(?c=&s=)·광고
+// 클릭 파라미터마다 같은 페이지가 따로 쌓여 VERSION 을 올릴 때까지 캐시가 계속 커진다(2026-09-23
+// 점검). 페이지 본문은 쿼리와 무관하고 쿼리는 스크립트가 location 에서 읽으므로 경로 키로 충분하다.
+function cacheKey(req) {
+  if (req.mode !== 'navigate') return req;
+  const u = new URL(req.url);
+  return u.origin + u.pathname;
+}
 function networkFirst(req, fallback) {
+  const key = cacheKey(req);
   const net = fetch(req).then((res) => {
     if (res && res.ok) {
       const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+      caches.open(CACHE).then((c) => c.put(key, copy)).catch(() => {});
     }
     return res;
   });
   const timer = new Promise((resolve) => setTimeout(resolve, NET_TIMEOUT_MS, 'timeout'));
   return Promise.race([net.catch(() => 'error'), timer]).then((first) => {
     if (first !== 'timeout' && first !== 'error') return first;
-    return caches.match(req)
+    return caches.match(key)
       .then((hit) => hit || (first === 'error' && fallback ? fallback() : undefined))
       .then((hit) => hit || net);
   });
