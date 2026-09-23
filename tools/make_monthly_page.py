@@ -124,38 +124,27 @@ def series_at(d, i):
     return out
 
 
-def _ym(label):
-    m = re.match(r'^(\d{4})[.\-](\d{1,2})', str(label))
-    return (int(m.group(1)), int(m.group(2))) if m else None
-
-
 def cum_month(d, i):
-    """누계 계열의 '이 달' 값 = 해당 월 누계 − 전월 누계. 1월은 누계가 곧 그 달 값이다.
+    """누계 계열의 '이 달' 값 — sido_zones.permit_monthly 를 그대로 쓴다.
 
     ⚠️ 인허가 단위는 '호 (연내 누계)'다. 원값을 그대로 쓰면 1~7월 누계가 '이 달'로
-       나간다(2026-09-13 발견: 경기 38,240 → 실제 2,855). 전월 값이 없거나 바로 앞
-       칸이 전월이 아니면 비워 둔다 — 추정해 채우지 않는다.
-    ⚠️ 차분이 음수면 비워 둔다. 원천이 과거 달 누계를 소급 정정하면 최신 달 누계가 전월보다 작아지는데,
-       그 차이는 '이 달에 인허가가 줄었다'가 아니라 정정분이라 이 달 값으로 읽을 수 없다. 실데이터에
-       전남광주 2025.08 −1, 서울 2011.08 −491, 대전 2011.10 −1,177 이 실재한다(리뷰 13번).
+       나간다(2026-09-13 발견: 경기 38,240 → 실제 2,855). 1월은 누계가 곧 그 달이고 나머지
+       달은 전월 누계와의 차다. 전월 값이 없으면 비워 둔다 — 추정해 채우지 않는다.
+    ⚠️ 산식을 여기 새로 쓰지 않는다. 예전 사본은 연초 null(KOSIS 의 진짜 0)을 '전월 없음'으로
+       보고 그 달을 비웠다. permit_monthly 는 그해 앞선 누계가 없을 때의 null 을 0 으로 보므로,
+       2024.02 대구 1,205호가 사이트의 다른 화면(착공 전환율·사이클)에는 들어가고 이 표에서만
+       '·'로 나갈 수 있었다(2026-09-23 전체 점검, 실데이터 63칸). 일치는 test_monthly_permits 가 본다.
+    ⚠️ 차분이 음수면 비워 둔다(이 표의 표시 규칙 — permit_monthly 는 합계용이라 음수를 남긴다).
+       원천이 과거 달 누계를 소급 정정하면 최신 달 누계가 전월보다 작아지는데, 그 차이는 '이 달에
+       인허가가 줄었다'가 아니라 정정분이라 이 달 값으로 읽을 수 없다. 실데이터에 전남광주 2025.08 −1,
+       서울 2011.08 −491, 대전 2011.10 −1,177 이 실재한다(리뷰 13번).
     """
-    ser = d.get('series') or {}
-    dates = d['dates']
-    here = _ym(dates[i])
+    key = str(d['dates'][i])[:7]
+    wrap = {'인허가': d}
     out = {}
     for r in ORDER:
-        v = ser.get(r)
-        cur = v[i] if v and i < len(v) else None
-        if cur is None or here is None:
-            out[r] = None
-            continue
-        if here[1] == 1:
-            out[r] = cur
-            continue
-        prev = _ym(dates[i - 1]) if i >= 1 else None
-        pv = v[i - 1] if prev == (here[0], here[1] - 1) and i - 1 < len(v) else None
-        diff = (cur - pv) if pv is not None else None
-        out[r] = diff if diff is None or diff >= 0 else None
+        v = SZ.permit_monthly(wrap, r).get(key)
+        out[r] = v if v is None or v >= 0 else None
     return out
 
 
