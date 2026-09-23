@@ -11,7 +11,7 @@ data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이�
   KOSIS_API_KEY=... python tools/update_adv_data.py --update      # 실제 갱신
   KOSIS_API_KEY=... python tools/update_adv_data.py --discover 주택규모별   # 표 ID 탐색
 
-데이터셋 구성 (docs/advanced_stats_catalog.md 참조):
+데이터셋 구성:
   permits  — 국토교통부 「주택건설실적통계」 주택규모별 인허가실적(월별 누계):
              6월·12월 누계에서 (계 − 40㎡이하)로 '40제외' 반기값 산출
   occupancy — 입주물량은 공공 API가 없어 자동 갱신 대상에서 제외(수동 시딩 유지)
