@@ -52,21 +52,25 @@ concurrency:
   group: update-cloud
   cancel-in-progress: false
 
+# 권한은 잡마다 필요한 만큼만 준다(2026-09-23 점검). 예전에는 쓰기 권한 세 개가 워크플로
+# 전체에 걸려 있어, 푸시하지 않는 fetch 러너 3개도 쓰기 토큰을 .git/config 에 들고 있었다.
 permissions:
-  contents: write
-  issues: write          # 매 회차 결과 보고를 전용 이슈에 코멘트로 남긴다(아래 '결과 보고')
-  actions: write         # retry 잡이 자신을 workflow_dispatch로 재트리거한다
+  contents: read
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
     timeout-minutes: 60     # 클라우드→한국 지연으로 배치가 ~40분. 여유 있게 60.
+    permissions:
+      contents: read        # 산출물은 아티팩트로만 넘긴다. 푸시는 commit 잡만 한다
     strategy:
       fail-fast: false      # 한 러너가 나쁜 IP로 죽어도 나머지는 계속
       matrix:
         n: [1, 2, 3]
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
@@ -136,7 +140,14 @@ jobs:
             else echo crash > "$GITHUB_WORKSPACE/_reason.txt"; fi
             echo "배치 rc=$rc — 산출물 폐기(다음 회차 흡수)"
           else
-            python tools/split_data.py
+            # split 실패는 코드 회귀다(원천과 무관) — pending 으로 남기면 재시도로 분류돼
+            # 결말이 정해진 실패에 35분 대기를 두 번 더 쓴다(2026-09-23 점검).
+            if ! python tools/split_data.py; then
+              echo crash > "$GITHUB_WORKSPACE/_reason.txt"
+              echo "clean=false" >> "$GITHUB_OUTPUT"
+              echo "::error::split_data.py 실패 — 코드 회귀, 재시도하지 않는다"
+              exit 1
+            fi
             echo ok > "$GITHUB_WORKSPACE/_reason.txt"
             echo "clean=true" >> "$GITHUB_OUTPUT"
             [ -s .fetch_failed ] && echo "참고: 비핵심 소스 실패 -> $(cat .fetch_failed) (직전 값 유지)"
@@ -176,6 +187,10 @@ jobs:
     needs: fetch
     if: always()
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # 데이터 커밋·푸시
+      issues: write         # 매 회차 결과 보고를 전용 이슈에 코멘트로 남긴다(아래 '결과 보고')
+      actions: read         # 결과 보고에서 감시(watchdog) 최근 실행을 조회한다
     outputs:
       need_retry: ${{ steps.main.outputs.need_retry }}
     steps:
@@ -185,6 +200,12 @@ jobs:
           #    게이트가 "366 passed, 1 skipped" 로 초록이었고 그 방어선은 한 번도 돈 적이 없었다
           #    (2026-09-18 리뷰). 시험은 최근 커밋의 sw.js diff 를 읽으므로 200이면 충분하다.
           fetch-depth: 200
+      # 생성기·pytest 도 fetch 잡·감시와 같은 파이썬에서 돈다. 러너 기본 python3 는 이미지가
+      # 바뀌면 버전이 달라지고, PEP 668(externally-managed)이 걸리면 pip 가 매번 실패해
+      # 아래 검증 게이트가 '설치 실패(인프라)'로 매 회차 꺼진다(2026-09-23 점검).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
 
       # ⚠️ pattern + merge-multiple:false 를 쓰지 않는다. v5 부터 **받은 결과가 1개일 때만**
       # 하위 디렉터리를 만들지 않고 path 에 곧장 푼다. 여러 개면 예전처럼 이름별로 나눈다.
@@ -675,6 +696,8 @@ jobs:
     needs: commit
     if: needs.commit.outputs.need_retry == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      actions: write        # update-cloud-retry.yml 을 workflow_dispatch 로 부른다
     timeout-minutes: 10
     steps:
       - name: 대기 워크플로에 넘김(이 런은 즉시 끝나 그룹을 놓아준다)
