@@ -347,3 +347,36 @@ def test_holidays_keep_saved_year_when_that_year_fails(monkeypatch):
     assert '%d-10-09' % yr in got, '성공한 해의 새 값이 안 들어왔다'
     assert '%d-01-01' % (yr + 1) in got and '%d-03-01' % (yr + 1) in got, '실패한 해의 저장분이 사라졌다'
     assert failed == ['holidays:%d' % (yr + 1)]
+
+
+def test_holidays_empty_200_response_counts_as_failure(monkeypatch):
+    """HTTP 200 인데 items 가 빈 응답(키 만료 때 공공데이터포털이 실제로 주는 모양)도 실패로 다룬다.
+
+    변이: fetch_holidays 의 `if len(out) == n0: raise` 두 줄을 지우면 내년 저장분이 사라져 빨개진다(확인).
+    픽스처: 올해는 정상, 내년 조회는 200 + 빈 body 인 회차. 저장분에는 두 해가 다 있다.
+    """
+    yr = datetime.date.today().year
+    prev = ['%d-01-01' % yr, '%d-01-01' % (yr + 1), '%d-03-01' % (yr + 1)]
+
+    def fake(url, tries=3):
+        if 'solYear=%d' % (yr + 1) in url:
+            return {'response': {'body': {'items': ''}}}
+        return {'response': {'body': {'items': {'item': [{'locdate': int('%d0101' % yr)}]}}}}
+
+    monkeypatch.setattr(U, 'DATAGO_KEY', 'x')
+    monkeypatch.setattr(U, 'http_json', fake)
+    failed = []
+    got = U.fetch_holidays(prev, failed)
+    assert '%d-03-01' % (yr + 1) in got, '빈 응답이 저장분을 지웠다'
+    assert failed == ['holidays:%d' % (yr + 1)]
+
+
+def test_align_rows_keeps_rows_when_new_block_has_no_columns():
+    """그 주 응답에 서울 구 행이 하나도 없으면 새 블록의 열 목록이 None 이다. 여기서 죽으면 주간 섹션
+    전체를 잃는다(예전 코드는 죽지 않았다 — 2026-09-23 재검토에서 TypeError 재현).
+
+    변이: _align_rows 의 조기 반환에서 `not new_cols` 를 지우면 TypeError 로 빨개진다(확인).
+    픽스처: 옛 블록은 정상 열, 새 블록은 열 목록이 없는 빈 응답.
+    """
+    old = [{'p': '2026-01-05', 'v': [1, 2]}]
+    assert U._align_rows(old, ['가구', '나구'], None) is old

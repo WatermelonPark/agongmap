@@ -288,7 +288,7 @@ def build(raw, kst, run_url, owner, weekday):
             out.append('')
             out.append(basis)
 
-    # ℹ️ 로 시작하지만 뒤처짐 줄이 아닌 것(비핵심 원천 실패 등)은 '참고'로 싣는다. 메일을 부르지 않는다.
+    # ℹ️ 로 시작하지만 뒤처짐 줄이 아닌 것(원천 일부 실패 등)은 '참고'로 싣는다. 메일을 부르지 않는다.
     info = [ln for ln in lines if ln.lstrip().startswith(ML.MARK) and not LAG_LINE.match(ln)]
     if info and (mention_preview(bad, warn, weekday, lag_hard)):
         out.append('')

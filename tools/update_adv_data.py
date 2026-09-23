@@ -694,7 +694,9 @@ def _align_rows(rows, old_cols, new_cols, label=''):
     그려지고 아무 검사도 빨개지지 않는다(2026-09-23 전체 점검). 이름이 같으면 그대로 두고,
     다르면 이름으로 옮긴다. 새로 생긴 열의 과거는 None(모른다), 사라진 열의 과거는 버리고 알린다.
     """
-    if not rows or old_cols is None or list(old_cols) == list(new_cols):
+    # 새 응답에 열이 하나도 없으면(그 주 서울 구 행이 통째로 빠진 응답) 옮길 기준이 없다.
+    # list(None) 으로 죽어 주간 섹션 전체를 잃지 말고 예전처럼 그대로 둔다(2026-09-23 재검토).
+    if not rows or old_cols is None or not new_cols or list(old_cols) == list(new_cols):
         return rows
     idx = {c: i for i, c in enumerate(old_cols)}
     gone = [c for c in old_cols if c not in set(new_cols)]
@@ -771,6 +773,7 @@ def fetch_holidays(prev=None, failed=None):
     yr = datetime.date.today().year
     out = []
     for y in (yr, yr + 1):
+        n0 = len(out)
         try:
             url = HOLIDAY_API + '?' + urllib.parse.urlencode(
                 {'serviceKey': DATAGO_KEY, 'solYear': y, 'numOfRows': 50, '_type': 'json'})
@@ -783,6 +786,10 @@ def fetch_holidays(prev=None, failed=None):
                 v = str(x.get('locdate', ''))
                 if len(v) == 8 and v.isdigit():
                     out.append('%s-%s-%s' % (v[:4], v[4:6], v[6:8]))
+            # HTTP 200 인데 비었거나 오류 JSON 이면 예외 없이 0개가 된다. 한 해에 공휴일이 0개일 수는
+            # 없으므로 실패로 다뤄 저장분을 지킨다(2026-09-23 재검토 — 예외 경로만 지키고 있었다).
+            if len(out) == n0:
+                raise ValueError('공휴일 0개 응답')
         except Exception as e:
             print('holidays %d skip: %s' % (y, e))
             if failed is not None:
@@ -1842,9 +1849,9 @@ def main():
         failed.append('sido'); print('sido skip:', e)
     # 후속 단계(뉴스레터 발송 등)에 변경 내역 전달 — 커밋 대상 아님
     io.open(os.path.join(ROOT, '.stats_changed'), 'w', encoding='utf-8').write(','.join(changed))
-    # 클라우드 이중화 러너 게이트용: 이 실행에서 fetch가 하나라도 실패했는지 남긴다.
-    # 나쁜 IP를 뽑은 러너는 여기에 실패 목록이 차므로, 워크플로가 그 러너의
-    # 산출물을 커밋 후보에서 제외한다(오염 데이터 커밋 방지). 성공 러너는 빈 파일.
+    # 이 실행에서 실패한 원천·계열 목록. 워크플로는 러너 채택을 rc 로만 하고, 이 파일은 배치 보고의
+    # ℹ️ 줄(메일 없음)에 싣는다(2026-09-23 재검토 — 예전 주석은 이 파일로 러너를 거른다고 적었으나
+    # 사실이 아니었다). 기본통계·공휴일 같은 부분 실패(soft_failed)도 함께 적는다. 성공 러너는 빈 파일.
     io.open(os.path.join(ROOT, '.fetch_failed'), 'w', encoding='utf-8').write(','.join(failed + soft_failed))
     write_supply_stalled()
     if SUPPLY_STALLED:
