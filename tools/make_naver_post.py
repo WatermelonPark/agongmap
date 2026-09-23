@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_sido_pages as M  # noqa: E402  (load 재사용)
 import sido_zones as SZ      # noqa: E402  (zone_order·GRADE_LABS·상수)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import make_weekly_page as MW  # noqa: E402  (주간 변동률 반올림 정본 pv2 — 사이트 pv2 와 같다)
 import close_published_issues as CP  # noqa: E402  (RSS·카테고리 이름의 정본)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -62,10 +63,43 @@ umx = M.umx        # 미분양 배수 표기도 정본을 쓴다 — 사이트�
 
 
 def pct(v):
-    """-0.004 가 '-0.00%'로 찍히는 것(음수 0) 방지."""
+    """주간 변동률 표기. 사이트 pv2(절대값 half-up, 부호는 반올림 결과로)와 같은 값을 낸다.
+
+    예전 '%+.2f'는 파이썬 반올림이라 사이트와 끝자리가 갈렸다 — -0.075 가 블로그 -0.07%,
+    사이트 -0.08%(data.js 주간 칸 13,706개 중 58개, 2026-09-23 전체 점검). /weekly/ 가 백로그 15에서
+    고친 방식 그대로 make_weekly_page.pv2 를 쓴다. 그 함수가 사이트 JS 와 같은지는
+    test_weekly_page 가 node 로 본다.
+    """
     if v is None:
         return '—'
-    return '0.00%' if abs(v) < 0.005 else '%+.2f%%' % v
+    return MW.pv2(v) + '%'
+
+
+def fixed2(v):
+    """JS Number.prototype.toFixed(2) 와 같은 문자열. 홈이 toFixed(2)로 찍는 값을 블로그에 옮길 때 쓴다.
+
+    toFixed 는 double 의 정확한 값에서 가까운 쪽으로, 정확히 가운데면 절대값이 큰 쪽으로 자른다.
+    '%.2f'는 가운데에서 짝수 쪽이라 3.125 같은 값에서 갈린다(홈 3.13, '%.2f' 3.12).
+    """
+    from decimal import Decimal, ROUND_HALF_UP
+    return str(Decimal(v).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+
+
+def rent_yield(adv, sts, region='전국'):
+    """월세수익률 = 전세가율(최신 비결측) / 100 × 전월세전환율. 홈 버블밴드(renderBubbleSec)의
+    `lo=jr/100*cv` 와 같은 산식·같은 입력이다. 값이 없으면 None.
+
+    예전 블로그는 문장에 '전세가율 × 전월세전환율'이라 써 놓고 전환율(5.37%)을 그대로 찍었다.
+    같은 주 홈은 3.71%였고, 대출금리 4.48% 대비 판정이 정반대로 나갔다(2026-09-23 전체 점검).
+    홈 산식과의 일치는 test_post_site_parity 가 node 로 홈 코드를 돌려 본다.
+    """
+    B = adv.get('bubble') or {}
+    cv = (B.get('conv') or {}).get(region)
+    s = (((sts or {}).get('전세가율') or {}).get('series') or {}).get(region) or []
+    jr = next((v for v in reversed(s) if v is not None), None)
+    if cv is None or jr is None:
+        return None
+    return jr / 100 * cv
 
 
 def kdate(p):
@@ -369,19 +403,20 @@ def extra_section(adv, sts, rot):
                 '미분양은 공급이 수요를 넘어선 흔적이라, 쌓이면 그 지역 분양가와 '
                 '입주장 전세가에 먼저 반영됩니다.</p>' % (num(cur), when, mv))
     if rot == 2:
+        # 값과 판정은 홈 버블밴드와 같은 산식·같은 경계를 쓴다(rent_yield 주석).
+        # 홈은 loan<=lo 를 '매수 신호권'(이자가 임대수익보다 싸다)으로 본다.
         B = adv.get('bubble') or {}
-        conv = (B.get('conv') or {}).get('전국')
+        lo = rent_yield(adv, sts, '전국')
         loan = (B.get('loan') or {}).get('v')
-        if conv is None or loan is None:
+        if lo is None or loan is None:
             return ''
-        gap = conv - loan
-        judge = ('월세로 사는 비용이 대출 이자보다 비싼 상태' if gap > 0
+        judge = ('월세로 사는 비용이 대출 이자보다 비싼 상태' if loan <= lo
                  else '대출 이자가 월세보다 비싼 상태')
         return ('<h3>이번 주의 지표 — 월세수익률 vs 대출금리</h3>'
-                '<p>전국 월세수익률(전세가율 × 전월세전환율)은 연 <b>%.2f%%</b>, '
-                '주택담보대출 금리는 <b>%.2f%%</b>입니다. 지금은 %s입니다. '
+                '<p>전국 월세수익률(전세가율 × 전월세전환율)은 연 <b>%s%%</b>, '
+                '주택담보대출 금리는 <b>%s%%</b>입니다. 지금은 %s입니다. '
                 '어차피 어딘가에는 살아야 하므로, 이 차이는 실거주 매수를 '
-                '검토할지 판단하는 출발점이 됩니다.</p>' % (conv, loan, judge))
+                '검토할지 판단하는 출발점이 됩니다.</p>' % (fixed2(lo), fixed2(loan), judge))
     # ⚠️ ADV.aged30은 쓰지 않는다 — 2026-08-06 시도 재편 전의 생활권 키('서울권',
     # '경기남부권' …)가 그대로 남아 있어서, 사이트엔 없는 지역명이 블로그로 나간다
     # (2026-08-11 실측으로 확인). STATS['노후주택30년']이 시도 키로 살아 있다.
@@ -443,8 +478,9 @@ def draft_weekly(adv, sts):
     # 집계 이름은 SZ.AGG가 정본이다 — 여기에 사본을 두면 정본이 늘 때 이 글만
     # 옛 목록으로 남는다.
     sido = [(k, v[0]) for k, v in val.items() if k not in SZ.AGG and v[0] is not None]
-    up = [t for t in sorted(sido, key=lambda x: -x[1])[:3] if t[1] > 0]
-    dn = [t for t in sorted(sido, key=lambda x: x[1])[:3] if t[1] < 0]
+    # 부호는 **표시값**(pv2r)으로 가른다 — 원값 0.001 을 '오른 곳 0.00%'로 쓰지 않게(/weekly/ 와 같은 규칙).
+    up = [t for t in sorted(sido, key=lambda x: -x[1])[:3] if MW.pv2r(t[1]) > 0]
+    dn = [t for t in sorted(sido, key=lambda x: x[1])[:3] if MW.pv2r(t[1]) < 0]
 
     # 서울 구별
     gu = []
@@ -455,7 +491,7 @@ def draft_weekly(adv, sts):
         # 뒤로 밀린다. 결측(None)만 맨 뒤로 보내는 게 의도다.
         gu = sorted(zip(S['regions'], sr['ma']),
                     key=lambda x: -(x[1] if x[1] is not None else -9))[:3]
-        gu = [t for t in gu if t[1] is not None and t[1] > 0]
+        gu = [t for t in gu if t[1] is not None and MW.pv2r(t[1]) > 0]
 
     ymd = p.split('-')
     # 검색어를 맨 앞에 둔다. 2026-08-14 네이버 검색 실측에서 이 자리를 차지한
@@ -885,7 +921,10 @@ def _thumb_msg_arg(argv):
 
 def draft_zone(adv, sts, r, seq, total):
     nm = r['z']
-    t = r['tot']
+    # 순부족은 사이트 카드·리포트가 찍는 정수(배치가 구운 dtot)를 쓴다. 'tot'는 반올림 전
+    # 값들로 계산돼 카드의 세 정수로 검산한 값과 1세대 갈린다(경기 50,578 vs 사이트 50,579 등
+    # 4개 시도, 2026-09-23 전체 점검). M.disp_tot 가 사이트 쪽 정본이다.
+    t = M.disp_tot(r, SZ.LEAD_Q)
     lack = t >= 0
     # '과잉하다'는 동사가 아니라 '얼마나 과잉할까'가 안 된다. 부족/과잉을
     # 대칭 서술어(모자라다/남다)로 갈라 쓴다.

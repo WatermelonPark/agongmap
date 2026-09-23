@@ -24,6 +24,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_naver_post as P  # noqa: E402  (CSS·JS·복사 UI 재사용)
+import make_sido_pages as M  # noqa: E402  (시도 수 정본 N_SIDO — /zone/ 허브가 쓰는 값)
 
 ROOT = P.ROOT
 OUT = P.OUT
@@ -246,7 +247,7 @@ POSTS = [
 <p>말이 아니라 숫자로 남는 차이입니다.</p>
 
 <p>그런데 이건 수도권 이야기입니다. 지역마다 사정이 다르고, 아공맵에서는
-16개 시도를 같은 기준으로 나눠 볼 수 있습니다.<br>
+%(nsido)d개 시도를 같은 기준으로 나눠 볼 수 있습니다.<br>
 👉 %(zone)s</p>
 
 <h3>금리는 사이클 바깥에 있습니다</h3>
@@ -401,7 +402,7 @@ POSTS = [
 
 <p>[여기에 사이클 도식]</p>
 
-<p>지역별 입주물량과 적정선 대비 비율은 아공맵에서 16개 시도를 같은 기준으로
+<p>지역별 입주물량과 적정선 대비 비율은 아공맵에서 %(nsido)d개 시도를 같은 기준으로
 볼 수 있습니다.<br>
 👉 %(zone)s</p>
 
@@ -605,6 +606,10 @@ def render(post):
         # 실측: <p></p><p><br></p> 가 두 군데). 감싸지 않고 넣고, 비어 있을
         # 때만 자리 표시자를 <p>로 감싼다.
         'exp': post.get('exp') or ('<p>%s</p>' % EXP_PLACEHOLDER),
+        # 시도 수는 모델에서 센다 — 링크가 가리키는 /zone/ 허브와 같은 상수(M.N_SIDO)다.
+        # 1·2편 본문에 '16개'가 박혀 있었다(2026-09-23 전체 점검). 3편의 곳 수는 다른 대상
+        # (사이클 검증 곳 수, sync_n)이라 따로 둔다.
+        'nsido': M.N_SIDO,
         # 동조성 관련 수치는 전부 사이트에서 읽어 넣는다(2026-09-12 재산정으로
         # 15곳 → 14곳, 평균 0.71 → 0.73, 서울 0.58 → 0.55로 바뀌었다).
         'sync_table': sync_table(),
