@@ -24,3 +24,6 @@ tools/data/.reseed_tries.json
 # kw.txt·kw2.txt·kw3.txt가 루트에 untracked로 굴러다니는 걸 발견).
 kw*.txt
 tools/serp-history.jsonl
+
+# Claude Code 에이전트 작업 공간(git worktree). 저장소 내용이 아니다.
+.claude/worktrees/
