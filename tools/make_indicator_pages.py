@@ -125,22 +125,22 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">__LD__</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2f6db3}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2f6db3;__TOKENS__}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
  font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
-.wrap{max-width:620px;margin:0 auto;padding:0 22px}
+.wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
 .chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
-h1{font-size:clamp(25px,5.6vw,34px);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
-.lead{font-size:15.5px;color:var(--ink2)}
+h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
+.lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
 .bigsub{font-size:13.5px;color:var(--muted)}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
-p{margin-bottom:12px;font-size:15px}
+p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
 .tbl-wrap{overflow-x:auto;margin:6px 0 2px}
@@ -233,8 +233,25 @@ __BODY__
 """
 
 
+# 조판 치수 토큰(백로그 24-6)은 app.css :root 가 정본이다. 이 껍데기는 app.css 를 읽지 않으므로
+# 생성할 때 그 선언을 그대로 옮겨 싣는다 — 손으로 옮긴 사본은 정본이 바뀌어도 조용히 남는다.
+TYPE_TOKENS = ('--h1-report', '--h1-doc', '--col-read', '--col-wide', '--fs-read', '--fs-dense')
+
+
+def type_tokens(css=None):
+    if css is None:
+        css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    out = []
+    for name in TYPE_TOKENS:
+        got = re.findall(r'(?<![\w-])' + re.escape(name) + r'\s*:\s*([^;]+);', css)
+        if len(got) != 1:
+            raise SystemExit('app.css 에서 %s 선언을 하나로 찾지 못했다(%d개)' % (name, len(got)))
+        out.append('%s:%s' % (name, got[0].strip()))
+    return ';'.join(out)
+
+
 def fill(shell, **kw):
-    out = shell
+    out = shell.replace('__TOKENS__', type_tokens())
     for k, v in kw.items():
         out = out.replace('__' + k.upper() + '__', v)
     # 랜드마크: 머리글 뒤부터 바닥글 앞까지가 본문이다(2026-09-18 접근성 점검 — 어느 페이지에도 <main> 이 없었다).
