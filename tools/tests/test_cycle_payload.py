@@ -149,3 +149,40 @@ def test_caption_month_is_the_month_the_values_were_read_from():
     body = src[src.find('def main('):]
     assert re.search(r'lvl,[^\n]*prd = build_jratio\(S\)', body) and 'jratio_prose(lvl, prd)' in body, (
         'main 이 build_jratio 가 돌려준 달을 jratio_prose 에 넘기지 않는다')
+
+
+# 2026.07 실측 전세가율(저장소 data.js 의 그 달 값). 서울·세종이 60 아래, 지방 도가 70 후반이다.
+_JR_2026_07 = {'서울': 52.4, '경기': 66.8, '인천': 69.6, '부산': 69.3, '대구': 70.8, '대전': 71.8,
+               '울산': 74.7, '세종': 52.1, '강원': 76.8, '충북': 78.6, '충남': 77.6, '전북': 78.3,
+               '경북': 78.8, '경남': 78.3, '제주': 65.9, '전남광주': 78.6}
+
+
+def test_jratio_types_and_capital_vs_rest_means():
+    """전세가율 스펙트럼의 성격 구분(60 미만 투자성, 73 미만 중간, 그 위 실거주성)과
+    수도권·지방 평균이 맞는 쪽에 들어가는지 본다(2026-09-23 전체 점검 시험 보강).
+
+    변이: build_jratio 의 투자성 컷 `v < 60` 을 `v < 50` 으로 바꾸면 서울 52.4·세종 52.1 이 '중간'이 되어
+          빨개지고, 반환값의 수도권·지방 평균 자리를 서로 바꾸면 62.9 와 73.2 가 뒤바뀌어 빨개진다
+          (둘 다 실제로 바꿔 확인). 경계 60.0·73.0 은 아래 둘째 픽스처가 잡는다.
+    픽스처: 2026.07 실측 16개 시도 값(_JR_2026_07) — 수도권 평균이 지방보다 10%p 쯤 낮은 실제 모양.
+    """
+    import refresh_cycle_data as RF
+    assert set(_JR_2026_07) == set(RF.SIDO), '픽스처가 모델 지역과 다르다'
+    S = {'전세가율': {'dates': ['2026.06', '2026.07'],
+                     'series': {r: [None, v] for r, v in _JR_2026_07.items()}}}
+    lvl, sudo, jib, prd = RF.build_jratio(S)
+    by = {x['region']: x for x in lvl}
+    assert by['서울']['type'] == by['세종']['type'] == '투자성'
+    assert by['경기']['type'] == by['제주']['type'] == by['대구']['type'] == '중간'
+    assert by['전남광주']['type'] == by['울산']['type'] == '실거주성'
+    assert [x['val'] for x in lvl] == sorted(x['val'] for x in lvl), '낮은 순 정렬이 아니다'
+    assert by['서울']['sudo'] and not by['부산']['sudo']
+    cap = [v for r, v in _JR_2026_07.items() if r in ('서울', '경기', '인천')]
+    rest = [v for r, v in _JR_2026_07.items() if r not in ('서울', '경기', '인천')]
+    assert (sudo, jib) == (round(sum(cap) / len(cap), 1), round(sum(rest) / len(rest), 1)), (sudo, jib)
+    assert sudo < jib
+
+    edge = dict(_JR_2026_07, 서울=59.9, 세종=60.0, 대구=72.9, 대전=73.0)
+    S['전세가율']['series'] = {r: [None, v] for r, v in edge.items()}
+    by = {x['region']: x['type'] for x in RF.build_jratio(S)[0]}
+    assert (by['서울'], by['세종'], by['대구'], by['대전']) == ('투자성', '중간', '중간', '실거주성')
