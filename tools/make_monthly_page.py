@@ -38,6 +38,7 @@ except Exception:
 
 import make_indicator_pages as I           # noqa: E402  SHELL·fill·ld_pack 공유
 import sido_zones as SZ                    # noqa: E402  지역 정의 정본
+import make_weekly_page as MW              # noqa: E402  변동률 반올림 정본(pv2r)
 
 SITE = I.SITE
 OUT = os.path.join(ROOT, 'monthly')
@@ -68,7 +69,7 @@ def pv2(v):
     """
     if v is None:
         return '·'
-    r = round(v, 2) + 0.0
+    r = MW.pv2r(v)   # 반올림 정본(사이트 half-up). round()는 가운데 값에서 갈렸다(2026-09-23 점검)
     return ('%+.2f' % r) if r != 0 else '0.00'
 
 
@@ -76,7 +77,7 @@ def cls(v):
     """색도 표시값 기준 — 표시가 0.00인데 원값 부호로 칠하면 글자와 색이 갈린다."""
     if v is None:
         return ''
-    r = round(v, 2) + 0.0
+    r = MW.pv2r(v)
     return ' class="up"' if r > 0 else (' class="dn"' if r < 0 else '')
 
 
