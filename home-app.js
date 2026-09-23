@@ -1632,7 +1632,13 @@ function drawNationMap(k){
   const VH=hasWo?12:13;
   const rowH=NH+(hasWo?3:2)*(VH+1);   // 이름칸 + 값칸(각 VH, 사이 1px)
   const N=NATION_TILE, W=N.cols*(TW+G)-G, H=N.rows*(rowH+G)-G;
-  const sv=['<svg viewBox="-2 -2 '+(W+4)+' '+(H+4)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:640px;margin:0 auto;display:block" role="img" aria-label="전국 시군구 변동률 지도">'];
+  /* 글자 하한 11px(2026-09-18 오딧 1번). viewBox 를 폭에 맞춰 줄이는 지도라 SVG 글자 크기가 곧 화면
+     크기가 아니다 — 375px 에서는 0.88배라 값 9 → 7.9px, 이름 7 → 6.1px 로 그려졌다(2026-09-23 실측).
+     12열 타일은 375px 에서 칸당 27px 라 11px 이름·값이 들어갈 수 없다. 값을 숨기면 TOP 10 밖 200여 곳의
+     숫자를 볼 길이 없고(title 은 터치에서 안 뜬다), 부호·소수를 줄이면 값이 달라진다. 그래서 지도가
+     MAP_FS 가 MAP_MIN_PX 로 그려질 최소 폭을 갖고, 좁은 화면에서는 표처럼 상자(.map-scroll) 안에서 옆으로 민다. */
+  const MAP_FS=9, MAP_MIN_PX=11, minW=Math.ceil((W+4)*MAP_MIN_PX/MAP_FS);
+  const sv=['<svg viewBox="-2 -2 '+(W+4)+' '+(H+4)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:640px;min-width:'+minW+'px;margin:0 auto;display:block" role="img" aria-label="전국 시군구 변동률 지도">'];
   const GRP_TINT={a7:'#e2e7e5',c1:'#e2e7e5',c3:'#e2e7e5',b2:'#e2e7e5',b1:'#e2e7e5',
     a9:'#e1e6e3',b3:'#e1e6e3',c7:'#e1e6e3',c6:'#e1e6e3',c8:'#e1e6e3',b4:'#e1e6e3'};
   const grpOf=c=>{
@@ -1658,10 +1664,12 @@ function drawNationMap(k){
     const tb=Math.round(VH/2)+3;
     sv.push(`<g transform="translate(${px},${py})">`+
       `<rect width="${TW}" height="${NH}" rx="4" fill="${h?'#1e2846':(SI_PARENT.has(c)?'#34456b':'#eef1f8')}" stroke="${h?'#1e2846':'#d6dced'}"/>`+
-      `<text x="${TW/2}" y="${NH-4}" text-anchor="middle" font-size="${nm.length>=4?7:(nm.length===3?8:9)}" font-weight="600" fill="${(h||SI_PARENT.has(c))?'#fff':'#1b2426'}">${nm}</text>`+
+      /* 이름도 값과 같은 MAP_FS. 네 글자(마산회원·마산합포)만 칸 폭에 맞춰 자간·글자 폭을 눌러 담는다 —
+         예전처럼 글자 크기를 7로 줄이면 높이까지 줄어 하한 아래로 내려간다. */
+      `<text x="${TW/2}" y="${NH-4}" text-anchor="middle" font-size="${MAP_FS}"${nm.length>=4?` textLength="${TW-3}" lengthAdjust="spacingAndGlyphs"`:''} font-weight="600" fill="${(h||SI_PARENT.has(c))?'#fff':'#1b2426'}">${nm}</text>`+
       cells.map(([v,ry])=>
         `<rect y="${ry}" width="${TW}" height="${VH}" rx="3" fill="${mapColor(v,ref)}" stroke="#d8dfdc"/>`+
-        `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="9" font-weight="600" fill="${tcol(v)}">${fmtV(v)}</text>`).join('')+
+        `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="${MAP_FS}" font-weight="600" fill="${tcol(v)}">${fmtV(v)}</text>`).join('')+
       `<title>${nm} 매매 ${fmtV(ma)}% · 전세 ${fmtV(je)}%${hasWo?' · 월세 '+fmtV(wo)+'%':''}</title></g>`);
   });
   // 시도(광역) 경계선 — 같은 시도가 아닌 이웃과 접한 변만 그린다
@@ -1694,7 +1702,10 @@ function drawNationMap(k){
     mapDateChip(row.p,SER+' · '+T.unit,gap)+
     rankTables(S,T.unit,k)+
     '<div class="map-scroll">'+sv.join('')+'</div>'+
-    (hasWo?'<div class="map-suplegend">타일 값: 위 = 매매 · 가운데 = 전세 · 아래 = 월세</div>':'<div class="map-suplegend">타일 값: 위 = 매매 · 아래 = 전세</div>');
+    (hasWo?'<div class="map-suplegend">타일 값: 위 = 매매 · 가운데 = 전세 · 아래 = 월세<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>':'<div class="map-suplegend">타일 값: 위 = 매매 · 아래 = 전세<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>');
+  /* 상자가 지도보다 좁을 때만 민다는 안내를 켠다(데스크톱에서는 안 넘친다). */
+  const mbox=document.getElementById(T.map).querySelector('.map-scroll'), swipe=document.getElementById(T.map).querySelector('.map-swipe');
+  if(mbox&&swipe)swipe.hidden=!(mbox.scrollWidth>mbox.clientWidth+1);
   /* TOP10 헤더 정렬 — innerHTML 이후에 붙인다(인라인 onclick은 따옴표 중첩이 깨진다) */
   document.getElementById(T.map).querySelectorAll('.rk-sort').forEach(th=>{
     const go=()=>setRankMet(th.dataset.k,th.dataset.met);
