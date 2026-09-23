@@ -357,7 +357,7 @@ def build_jeonse(sts):
     <a href="/#stats-adv-bubble">버블밴드<span>전세가율로 계산한 지역별 고평가·저평가 밴드</span></a>
     <a href="/#stats-basic">기본통계 차트<span>전세가율 2012년부터 월별 추이를 지역별로</span></a>
     <a href="/moveins/">아파트 입주물량<span>전세가율을 움직이는 원인 — 시도별 입주 예정</span></a>
-    <a href="/zone/">시도별 공급 분석<span>16개 시도를 부족·과잉 등급으로</span></a>
+    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도를 부족·과잉 등급으로</span></a>
     <a href="/cycle/">아파트 사이클 리포트<span>전세가율이 매매를 미는 고리, 데이터 검증</span></a>
   </div>
 </section>
@@ -367,7 +367,8 @@ def build_jeonse(sts):
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,
                 ld=ld_pack('전세가율 — 전국·시도별 현황과 의미', desc, url, '전세가율', prd_iso),
-                src='KOSIS 한국부동산원 매매가격 대비 전세가격비')
+                src='KOSIS 한국부동산원 매매가격 대비 전세가격비',
+                nsido=str(len(SIDO17)))   # 본문을 넣은 뒤에 치환되도록 마지막에 둔다
     return html, not_before_pub(prd_iso)
 
 
@@ -393,7 +394,14 @@ def build_moveins(adv):
         mod_iso = prd.replace('.', '-') + '-01'
     else:
         mod_iso = prd[:4] + '-01-01'
-    years = ['2025', '2026', '2027']
+    # 머리 연도(Y)는 **마지막 실적 분기의 해**다. 표는 Y−1(실적)·Y(실적+예정)·Y+1(예정) 세 해.
+    # 예전엔 '2026'을 문자로 박아 2027년이 와도 2026년을 머리로 내걸었다(2026-09-23 전체 점검).
+    # 달력 날짜가 아니라 데이터에서 읽는 이유: 1~5월에는 그해 1분기 실적이 아직 없어, 달력을
+    # 따르면 실적이 한 분기도 없는 해를 '올해 입주물량'으로 내건다. Y+1 은 착공을 12분기 밀어
+    # 추정하므로 늘 채워진다.
+    y0 = int(last_act[:4])
+    years = [str(y0 - 1), str(y0), str(y0 + 1)]
+    Y, Y1 = years[1], years[2]
 
     def ytot(name, y):
         i = idx[name]
@@ -419,7 +427,7 @@ def build_moveins(adv):
     # 수도권만 맨 위 집계행으로 두고 나머지 집계는 뺀다.
     order = ['수도권', '서울', '경기', '인천'] + sorted(
         [r for r in SIDO17 if r not in ('서울', '경기', '인천')],
-        key=lambda r: -(ytot(r, '2026') or 0))
+        key=lambda r: -(ytot(r, Y) or 0))
     trs = []
     for name in order:
         t = {y: ytot(name, y) for y in years}
@@ -427,27 +435,27 @@ def build_moveins(adv):
         trs.append('<tr%s><td>%s</td>%s<td>%s</td>%s</tr>' % (
             ' class="agg"' if name == '수도권' else '', name,
             ''.join('<td>%s</td>' % ('·' if t[y] is None else num(t[y])) for y in years),
-            '·' if not rf else num(rf), pct_cell(t['2026'], rf)))
+            '·' if not rf else num(rf), pct_cell(t[Y], rf)))
 
-    nat26 = sum(ytot(r, '2026') or 0 for r in SIDO17)
-    nat27 = sum(ytot(r, '2027') or 0 for r in SIDO17)
+    nat26 = sum(ytot(r, Y) or 0 for r in SIDO17)       # 이름은 이력상 26·27 — 값은 Y·Y+1 이다
+    nat27 = sum(ytot(r, Y1) or 0 for r in SIDO17)
     sudo = {y: ytot('수도권', y) for y in years}
-    shorts = sorted([(r, (ytot(r, '2026') or 0) / ref[r] * 100)
+    shorts = sorted([(r, (ytot(r, Y) or 0) / ref[r] * 100)
                      for r in SIDO17 if ref.get(r)], key=lambda x: x[1])
     lo1, hi1 = shorts[0], shorts[-1]
 
-    title = '아파트 입주물량 — 2026·2027 전국 시도별 입주 예정 | 아공맵'
-    desc = ('아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 2026년 전국 %s세대, '
-            '2027년 %s세대 예정. 수도권은 %s→%s세대. 적정수요와 비교한 시도별 부족·과잉과 '
+    title = '아파트 입주물량 — %s·%s 전국 시도별 입주 예정 | 아공맵' % (Y, Y1)
+    desc = ('아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. %s년 전국 %s세대, '
+            '%s년 %s세대 예정. 수도권은 %s→%s세대. 적정수요와 비교한 시도별 부족·과잉과 '
             '전세·매매에 미치는 영향을 정리했다.') % (
-        num(nat26), num(nat27), num(sudo['2026'] or 0), num(sudo['2027'] or 0))
+        Y, num(nat26), Y1, num(nat27), num(sudo[Y] or 0), num(sudo[Y1] or 0))
     url = SITE + '/moveins/'
 
     body = """<header class="wrap">
   <div class="chip">지표 해설</div>
   <h1>아파트 입주물량 —<br>공급이 시장에 도착하는 순간</h1>
   <div class="big">%(nat26)s</div>
-  <div class="bigsub">2026년 전국 입주물량(실적+예정, 세대) · 2027년 %(nat27)s세대</div>
+  <div class="bigsub">%(Y)s년 전국 입주물량(실적+예정, 세대) · %(Y1)s년 %(nat27)s세대</div>
 </header>
 
 <section class="wrap">
@@ -459,7 +467,7 @@ def build_moveins(adv):
 <section class="wrap">
   <h2>시도별 연간 입주물량 (세대)</h2>
   <div class="tbl-wrap"><table id="utable" aria-label="시도별 연간 입주물량">
-    <thead><tr><th>지역</th><th data-num>2025</th><th data-num>2026</th><th data-num>2027</th><th data-num>적정수요/년</th><th data-num>2026 충족률</th></tr></thead>
+    <thead><tr><th>지역</th><th data-num>%(Y0)s</th><th data-num>%(Y)s</th><th data-num>%(Y1)s</th><th data-num>적정수요/년</th><th data-num>%(Y)s 충족률</th></tr></thead>
     <tbody>
 %(trs)s
     </tbody>
@@ -469,15 +477,15 @@ def build_moveins(adv):
 
 <section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>2026년 적정수요를 가장 덜 채운 곳은 <strong>%(lo1)s(%(lo1p)d%% 충족)</strong>, 가장 많이 채운 곳은 <strong>%(hi1)s(%(hi1p)d%% 충족)</strong>다. 공급이 적정선의 70%%를 밑돌면 전세부터 조여드는 구간, 130%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 충족률은 한 해의 입주만 보므로, 지난 4년 쌓인 부족과 앞으로 3년을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
-  <p>수도권은 2026년 %(sudo26)s세대에서 2027년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
+  <p>%(Y)s년 적정수요를 가장 덜 채운 곳은 <strong>%(lo1)s(%(lo1p)d%% 충족)</strong>, 가장 많이 채운 곳은 <strong>%(hi1)s(%(hi1p)d%% 충족)</strong>다. 공급이 적정선의 70%%를 밑돌면 전세부터 조여드는 구간, 130%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 충족률은 한 해의 입주만 보므로, 지난 4년 쌓인 부족과 앞으로 3년을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
+  <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
 <section class="wrap">
   <h2>더 보기</h2>
   <div class="links">
     <a href="/#stats-adv-occ">입주물량 차트<span>분기별 추이를 적정수요와 견줘 지역별로</span></a>
-    <a href="/zone/">시도별 공급 분석<span>16개 시도의 부족·과잉을 등급으로</span></a>
+    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도의 부족·과잉을 등급으로</span></a>
     <a href="/jeonse-ratio/">전세가율<span>입주물량이 움직이는 결과 — 시도별 현황</span></a>
     <a href="/cycle/">아파트 사이클 리포트<span>입주 → 전세 → 매매로 이어지는 고리, 데이터 검증</span></a>
   </div>
@@ -486,14 +494,15 @@ def build_moveins(adv):
            lastact=last_act.replace('Q', '년 ') + '분기',
            conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
            lo1=lo1[0], lo1p=round(lo1[1]), hi1=hi1[0], hi1p=round(hi1[1]),
-           sudo26=num(sudo['2026'] or 0), sudo27=num(sudo['2027'] or 0),
-           sudodir=updown(sudo['2026'], sudo['2027']))
+           sudo26=num(sudo[Y] or 0), sudo27=num(sudo[Y1] or 0),
+           sudodir=updown(sudo[Y], sudo[Y1]), Y0=years[0], Y=Y, Y1=Y1)
 
     html = fill(SHELL, title=title,
-                ogtitle='아파트 입주물량 — 2026년 전국 %s세대' % num(nat26),
+                ogtitle='아파트 입주물량 — %s년 전국 %s세대' % (Y, num(nat26)),
                 desc=desc, url=url, body=body,
                 ld=ld_pack('아파트 입주물량 — 시도별 입주 예정과 의미', desc, url, '입주물량', mod_iso),
-                src='국토교통부 주택건설실적(준공·착공)')
+                src='국토교통부 주택건설실적(준공·착공)',
+                nsido=str(len(SIDO17)))   # 본문을 넣은 뒤에 치환되도록 마지막에 둔다
     return html, not_before_pub(mod_iso)
 
 

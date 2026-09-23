@@ -79,6 +79,6 @@ def test_workflow_records_what_the_two_clis_print():
 def test_non_core_fetch_failures_reach_the_record():
     code = _code()
     up = code[code.find('name: 산출물 업로드'):code.find('commit:')]
-    assert '.fetch_failed' in up, '비핵심 원천 실패 파일이 아티팩트에 안 실린다'
-    assert '"$SRC/.fetch_failed"' in code and '비핵심 원천 실패' in code, '커밋 잡이 비핵심 실패를 기록하지 않는다'
-    assert re.search(r'rep "%s 비핵심 원천 실패' % re.escape(ML.MARK), code), 'ℹ️ 줄이어야 한다 — ⚠️ 면 매 회차 메일이 간다'
+    assert '.fetch_failed' in up, '원천 일부 실패 파일이 아티팩트에 안 실린다'
+    assert '"$SRC/.fetch_failed"' in code and '원천 일부 실패' in code, '커밋 잡이 비핵심 실패를 기록하지 않는다'
+    assert re.search(r'rep "%s 원천 일부 실패' % re.escape(ML.MARK), code), 'ℹ️ 줄이어야 한다 — ⚠️ 면 매 회차 메일이 간다'

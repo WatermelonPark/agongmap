@@ -79,10 +79,13 @@ def test_sw_version_never_goes_below_the_highest_ever_shipped():
     if hist is None:
         pytest.skip('sw.js 이력을 읽지 못했다(얕은 클론 등) — 이번엔 버전을 못 본다')
     top = max(hist)
-    # 얕은 클론이면 이력이 현재 값 하나뿐이라 비교가 자기 자신과의 비교가 된다.
-    # 통과시키되 '봤다'고 말하지는 않는다.
+    # 이력에 현재 값 하나뿐이면(얕은 클론의 경계 커밋이 sw.js 를 통째로 '추가'한 것으로 보일 때)
+    # 보이는 창 안에서 sw.js 가 다른 값으로 바뀐 적이 없다는 뜻이라 역행도 있을 수 없다 — 통과다.
+    # ⚠️ 예전엔 여기서 skip 했는데, CI 는 skip 을 실패로 바꾸므로 배치 커밋 잡(fetch-depth 200)에서
+    #    sw.js 를 안 건드린 커밋이 200개 쌓이는 날부터 데이터 커밋이 매 회차 막힐 시한폭탄이었다
+    #    (2026-09-23 점검, `git clone --depth 5` + GITHUB_ACTIONS=1 로 재현).
     if hist == {cur}:
-        pytest.skip('sw.js 이력에 현재 값(v%d)뿐이다 — 얕은 클론으로 보인다' % cur)
+        return
     assert cur >= top, (
         'sw.js VERSION이 뒤로 갔거나 이미 쓴 번호다: 현재 v%d, 이력 최대 v%d. '
         '기억한 숫자를 박지 말고 현재 값을 읽어 +1 할 것.' % (cur, top))

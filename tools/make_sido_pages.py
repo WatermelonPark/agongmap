@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""시도 20곳의 공급 상세 페이지와 허브를 만든다.
+"""시도(집계 포함, 목록은 sido_zones.ORDER)의 공급 상세 페이지와 허브를 만든다.
 
 옛 make_zone_pages.py(생활권 31곳·시군구 페이지·건축HUB 단지 목록)를 대체한다.
 지역이 국토부 통계와 같은 단위가 되면서 안분·풀 재배선·단지 수집이 통째로
@@ -55,8 +55,11 @@ GRADE_TXT = {
     'g0': ('공급 여유', '#1a5276'),
 }
 # 집계 3종은 '지역'이 아니라 묶음이라 설명이 달라야 한다
+# 시도 수는 모델에서 센다(CLAUDE.md "사람이 센 수를 박지 않는다"). 이 파일의 '16개 시도'
+# 문구는 전부 이 값을 쓴다 — '지방'만 세고 '전국'은 리터럴이던 것을 2026-09-23 점검에서 맞췄다.
+N_SIDO = len([z for z in SZ.ORDER if z not in SZ.AGG])
 AGG_NOTE = {
-    '전국': '전국 16개 시도를 합친 값입니다.',
+    '전국': '전국 %d개 시도를 합친 값입니다.' % N_SIDO,
     '수도권': '서울·경기·인천을 합친 값입니다.',
     # ⚠️ 숫자를 박지 않는다. 2026-09-10 광주·전남 통합으로 17→16이 되면서
     #    전국은 고쳤는데 여기만 14로 남아 라이브가 틀린 수를 말했다.
@@ -553,6 +556,7 @@ def _write_merged_stub(path, old, new):
          '<link rel="canonical" href="%s">'
          '<meta http-equiv="refresh" content="3;url=%s">'
          '<meta name="description" content="%s의 공급 통계는 %s 페이지에서 볼 수 있습니다.">'
+         '<link rel="icon" type="image/svg+xml" href="/favicon.svg">'   # 없으면 /favicon.ico 404
          '<link rel="stylesheet" href="/app.css"></head><body>'
          '<main class="wrap" style="max-width:640px;margin:12vh auto;text-align:center">'
          '<h1 style="font-size:20px">%s %s로 합쳐졌습니다</h1>'
@@ -770,7 +774,7 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     h.append('<section><div class="wrap"><h2>어떻게 계산했나</h2>'
              '<p>칸의 숫자는 그 분기에 <b>준공된</b> 아파트 세대수입니다(국토교통부 주택건설 준공실적). '
              '아직 오지 않은 분기는 <b>착공 실적을 3년 뒤로 밀어</b> 추정했습니다 — '
-             '착공한 것의 96%%가 3년 뒤 준공되는 게 15년치 실측입니다. '
+             '착공한 것의 %d%%가 3년 뒤 준공되는 게 %d년 이후 실측입니다. '
              '판정에 인허가는 쓰지 않습니다. 삽을 안 뜬 계획이 섞여 같은 해 착공보다 15%%쯤 많고 '
              '해마다 크게 흔들리기 때문입니다. 위의 \'3년 너머\' 줄은 최근 2년 인허가를 그 지역의 '
              '착공 비율로 환산한 <b>참고</b> 값입니다. 서울·경기처럼 기준표에 없는 지역은 '
@@ -787,7 +791,9 @@ def build_page(z, calc, stats, pq, others, weekly=None):
              '순위 계산에는 넣지 않습니다 — 결과값이라 공급에서 빼면 이중으로 세고 부호도 반대가 됩니다. '
              '판정을 읽는 맥락으로만 씁니다.</p>'
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
-             '</div></section>' % calc['H'])
+             '</div></section>'
+             # 전환율·기준 연도는 모델 상수에서 읽는다(2026-09-23 점검 — '96%·15년치'가 박혀 있었다).
+             % (round(calc['conv'] * 100), SZ.CONV_FROM, calc['H']))
 
     h.append(next_links(z, weekly, stats))
 
@@ -812,9 +818,9 @@ def build_hub(calc):
     # sido_zones.DISPLAY_ORDER 순서로 zones 를 낸다. 여기서 다시 정렬하지 않는다.
     # 예전의 정렬 토글은 뺐다: 목록은 순위가 아니고, 순위는 zone_order() 가 말한다.
     sido = [z for z in calc['zones'] if not z['agg']]
-    desc = ('전국 16개 시도의 아파트 공급을 적정물량과 견줘 정리했습니다. '
+    desc = ('전국 %d개 시도의 아파트 공급을 적정물량과 견줘 정리했습니다. '
             '실적은 국토교통부 준공, 앞으로 %d분기는 착공 실적 기준. 기준 %s.'
-            % (calc['H'], calc['L']))
+            % (len(sido), calc['H'], calc['L']))
     h = [head('시도별 공급', desc, '시도별 아파트 공급 분석',
               url=SITE + '/zone/', crumb=False)]
     h.append('<header class="zhead"><div class="wrap">'
@@ -826,7 +832,8 @@ def build_hub(calc):
         h.append('<a href="/zone/%s/"><b>%s</b><span class="sc-tier %s">%s</span><i>%s</i></a>'
                  % (urllib.parse.quote(o['z']), esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
                     esc(o['rtxt'])))
-    h.append('</div><h2 class="z17">16개 시도</h2>'
+    h.append('</div><h2 class="z17">%d개 시도</h2>' % len(sido) +
+             ''
              '<div class="zlinks" id="sido-list">')
     for o in sido:
         h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>'
@@ -880,7 +887,9 @@ def update_sitemap(names, lastmods, hub_lastmod, home_lastmod):
     """/zone/ 항목을 통째로 갈아 끼운다.
 
     옛 생활권 31곳 URL이 남아 있으면 색인에 404가 쌓인다 — 먼저 전부 지우고
-    새 20곳만 넣는다(리다이렉트는 두지 않기로 함, 2026-08-06 사용자 결정).
+    새 시도 목록만 넣는다(리다이렉트는 두지 않기로 함, 2026-08-06 사용자 결정).
+    이후 2026-09-10 광주·전남 통합 때는 옛 두 주소(zone/광주/, zone/전남/)를 손으로 만든
+    리다이렉트 페이지로 남겼다 — sitemap 에는 넣지 않는다.
 
     ⚠️ lastmod는 **페이지별로 실제 내용이 바뀐 날**이다. 오늘 날짜를 일괄로 박으면
     안 바뀐 날에도 21줄이 매일 달라져 커밋되고, 검색엔진엔 '매일 전부 갱신'이라는

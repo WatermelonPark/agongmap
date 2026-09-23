@@ -83,7 +83,13 @@ def zone_names():
     names = []
     for d in sorted(os.listdir(zdir)):
         p = os.path.join(zdir, d)
-        if os.path.isdir(p) and os.path.exists(os.path.join(p, 'index.html')):
+        idx = os.path.join(p, 'index.html')
+        if os.path.isdir(p) and os.path.exists(idx):
+            # 통합으로 사라진 옛 지역(2026-09-10 광주·전남)은 새 주소로 넘기는 리다이렉트
+            # 페이지만 남아 있다. 그 카드를 만들면 쓰이지 않는 이미지가 쌓인다.
+            with open(idx, encoding='utf-8') as f:
+                if 'http-equiv="refresh"' in f.read():
+                    continue
             names.append(d)
     return names
 

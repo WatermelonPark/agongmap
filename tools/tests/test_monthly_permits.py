@@ -127,3 +127,42 @@ def test_negative_difference_is_blank_not_a_negative_permit():
     got = MMP.cum_month(d, 1)
     assert got['서울'] is None, '소급 정정으로 줄어든 누계가 음수 인허가(%s)로 나간다' % got['서울']
     assert got['경기'] == 600, '정상 증가분까지 비웠다: %s' % got['경기']
+
+
+def test_this_month_equals_permit_monthly_everywhere():
+    """/monthly/ '이 달'(cum_month)이 sido_zones.permit_monthly 와 전 지역·전 기간에서 같다(음수만 비운다).
+
+    같은 인허가 월 값을 사이트의 두 곳이 잰다 — permit_monthly 는 착공 전환율·3년 너머 신호·사이클
+    고리3에, cum_month 는 /monthly/ 표와 '이 달 많은 곳' 요약에 쓰인다. 2026-09-23 전체 점검까지
+    cum_month 는 연초 null(KOSIS 의 진짜 0)을 '전월 없음'으로 보고 다음 달을 비웠다.
+    깨뜨리면 빨개지는 것: cum_month 를 옛 사본(전월 원값이 None 이면 그 달을 None 으로)으로 되돌리면
+    실데이터 123칸(대구 2024.02 1,205 등 63칸 + 세종 출범 전 2007~2011년 60칸)에서 빨개진다(변이로 확인).
+    픽스처: 저장소의 실제 data.js 인허가 계열 전부.
+    """
+    st = _stats()
+    pm = st['인허가']
+    ref = {r: SZ.permit_monthly(st, r) for r in MMP.ORDER}
+    bad = []
+    for i, d in enumerate(pm['dates']):
+        got = MMP.cum_month(pm, i)
+        for r in MMP.ORDER:
+            want = ref[r].get(str(d)[:7])
+            want = None if want is not None and want < 0 else want
+            if got.get(r) != want:
+                bad.append('%s %s: 표 %s · permit_monthly %s' % (d, r, got.get(r), want))
+    assert not bad, '/monthly/ 이 달 값이 permit_monthly 와 %d칸 다르다: %s' % (len(bad), '; '.join(bad[:5]))
+
+
+def test_month_after_a_null_january_is_not_blanked():
+    """1월 누계가 null(진짜 0)이면 2월 '이 달'은 2월 누계 그대로다 — 비우지 않는다.
+
+    깨뜨리면 빨개지는 것: 위와 같은 변이(옛 cum_month)로 대구가 None 이 되어 빨개진다(변이로 확인).
+    픽스처: 실데이터 대구 2024.01 null → 2024.02 누계 1,205 를 그대로 옮겼다. 서울은 정상 증가.
+    """
+    series = {r: [None, None] for r in MMP.ORDER}
+    series['대구'] = [None, 1205]
+    series['서울'] = [800, 2100]
+    d = {'dates': ['2024.01', '2024.02'], 'series': series}
+    got = MMP.cum_month(d, 1)
+    assert got['대구'] == 1205, '연초 null 뒤의 달을 비웠다: %s' % got['대구']
+    assert got['서울'] == 1300
