@@ -179,6 +179,15 @@ def splice(page, key, value):
     return page[:start] + json.dumps(value, ensure_ascii=False) + page[start + end:]
 
 
+def _strip_date(page):
+    return re.sub(r'"dateModified":\s*"[^"]*"', '"dateModified": ""', page, count=1)
+
+
+def _today_kst():
+    import datetime
+    return (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).date().isoformat()
+
+
 def main():
     S = load_stats()
     page = io.open(PAGE, encoding='utf-8').read()
@@ -200,6 +209,15 @@ def main():
     # 수도권·지방 평균은 페이지 어디서도 읽지 않아 D에서 뺐다. 배치 로그로는
     # 계속 남겨 두는 편이 갱신 결과를 눈으로 확인하는 데 쓸모가 있다.
 
+    # 데이터 칸이 실제로 바뀐 회차에만 JSON-LD dateModified 와 sitemap lastmod 를 오늘(KST)로 올린다.
+    # 둘 다 07-19·07-16 에 멈춰 있었다 — 매달 값이 바뀌는데 검색엔진엔 두 달째 그대로라고 말했다
+    # (2026-09-23 점검, 백로그 29). 안 바뀐 날 날짜만 바꾸면 매일 커밋이 생기므로 비교 뒤에만 올린다.
+    old = io.open(PAGE, encoding='utf-8').read()
+    if _strip_date(page) != _strip_date(old):
+        today = _today_kst()
+        page = re.sub(r'("dateModified":\s*")[^"]*(")', r'\g<1>%s\g<2>' % today, page, count=1)
+        import make_indicator_pages as _I
+        _I.bump_sitemap([('/cycle/', today)])
     io.open(PAGE, 'w', encoding='utf-8', newline='').write(page)
     z0 = zones[ZONE_REGIONS[0]]
     print('cycle 갱신 (전세가율 기준 %s)' % prd)
