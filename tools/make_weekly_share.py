@@ -42,6 +42,7 @@ TILE = [('전국', 0, 0), ('수도권', 1, 0), ('지방', 2, 0), ('제주', 3, 0
         ('전남광주', 0, 4), ('경남', 2, 4), ('부산', 3, 4)]
 
 import sido_zones as _SZ  # noqa: E402
+import make_weekly_page as _MW  # noqa: E402  (주간 변동률 반올림 정본)
 _MISSING = set(_SZ.ORDER) - set(t[0] for t in TILE)
 if _MISSING:
     raise SystemExit('TILE에 빠진 지역: %s — 그 지역만 그림에서 사라진다'
@@ -77,10 +78,9 @@ def pv2r(v):
     2026-08-18에 JS만 고치고 이 파일을 놓쳐 카톡·네이버로 나가는 카드에만
     결함이 남아 있었다(2026-09-01 리뷰).
     """
-    if v is None:
-        return None
-    r = round(v, 2)
-    return r + 0.0          # -0.0 → 0.0
+    # 반올림 자체는 /weekly/ 의 정본(make_weekly_page.pv2r, 사이트 JS 와 node 로 대조됨)을 쓴다.
+    # 파이썬 round()는 가운데 값에서 사이트 half-up 과 끝자리가 갈렸다(2026-09-23 전체 점검).
+    return _MW.pv2r(v)
 
 
 def fmt(v):
