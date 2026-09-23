@@ -18,13 +18,13 @@ import sys
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import sido_zones as SZ  # noqa: E402
+import home_src as HS  # noqa: E402  (홈은 이 입구로만 읽는다 — 백로그 10)
 
 PAT = re.compile(r'착공한 것의 (\d+)%가 3년 뒤 준공되는 게 (\d{4})년 이후 실측')
 
 
 def test_home_how_text_matches_model_conversion():
-    s = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
-    m = PAT.search(s)
+    m = PAT.search(HS.home_source())
     assert m, '홈 산출 방법 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것'
     assert int(m.group(1)) == round(SZ.CONV * 100), (m.group(1), SZ.CONV)
     assert int(m.group(2)) == SZ.CONV_FROM, (m.group(2), SZ.CONV_FROM)
