@@ -22,6 +22,7 @@ import sys
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import sido_zones as SZ  # noqa: E402
+import home_src as HS  # noqa: E402  (홈은 이 입구로만 읽는다 — 백로그 10)
 
 HANDWRITTEN = ('index.html', 'about/index.html', 'faq/index.html',
                'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')
@@ -35,10 +36,13 @@ def test_handwritten_pages_say_model_sido_count():
     seen = 0
     bad = []
     for rel in HANDWRITTEN:
-        p = os.path.join(ROOT, rel)
-        if not os.path.exists(p):
-            continue
-        s = io.open(p, encoding='utf-8').read()
+        if rel == 'index.html':
+            s = HS.home_source()
+        else:
+            p = os.path.join(ROOT, rel)
+            if not os.path.exists(p):
+                continue
+            s = io.open(p, encoding='utf-8').read()
         for m in PAT.finditer(s):
             seen += 1
             if int(m.group(1)) != n:
