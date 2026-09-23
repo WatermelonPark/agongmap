@@ -363,7 +363,7 @@
   .shero b{color:var(--ink)}
   .shero .shero-link{font-size:14px}
   .shero .shero-link a{display:inline-block;padding:10px 0;color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1.5px solid var(--ink);margin-right:8px}
-  .shero .shero-link span{color:var(--muted);font-size:13px;white-space:nowrap}
+  .shero .shero-link span{color:var(--muted);font-size:13px;display:inline-block}   /* nowrap 이면 375px 에서 6px 가로 넘침(2026-09-23 실측) — 덩어리로 줄을 바꾸되 안에서도 꺾인다 */
   .dash{padding:0 0 18px}
   .dash .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 18px}
   .ctrl{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
@@ -560,10 +560,11 @@
     padding:8px 20px;border-radius:0;letter-spacing:.01em}
   .tilemap{padding:2px 0 4px}
   .map-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .map-rank{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 20px}
-  @media(max-width:720px){.map-rank{grid-template-columns:1fr}}
+  /* minmax(0,…): 1fr 의 최소값은 표 폭이라 320px 에서 TOP 10 표가 페이지를 20px 가로로 밀었다(2026-09-23 실측). 넘치는 표는 상자 안에서 민다. */
+  .map-rank{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:14px 0 20px}
+  @media(max-width:720px){.map-rank{grid-template-columns:minmax(0,1fr)}}
   .rank-h{font-size:14.5px;font-weight:600;margin:0 0 8px}
-  .rank-wrap{background:#fff;border-radius:0;overflow:hidden;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
+  .rank-wrap{background:#fff;border-radius:0;overflow-x:auto;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
   .rank-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
   .rank-tbl th,.rank-tbl td{padding:4px 8px;border-bottom:1px solid var(--paper2);
     text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
