@@ -137,16 +137,24 @@ def open_issues():
     return out
 
 
+# 예정일보다 며칠 먼저 올린 글도 그 회차 발행으로 친다. 주간 시세를 목요일 밤에 미리 올리면
+# 금요일 이슈가 닫히지 않고 남았고, 다음 주 글이 그 옛 이슈를 닫으면서 이슈가 한 주씩 밀린 채
+# 굳었다(2026-09-23 점검). 가장 짧은 발행 주기가 7일이라 2일 여유는 지난 회차 글을 끌어오지 않는다.
+EARLY_DAYS = 2
+
+
 def match(posts, issues):
-    """[(이슈, 글)] — 같은 카테고리이고 발행일이 예정일 이후인 가장 이른 글 하나. 글 하나에 이슈 하나.
+    """[(이슈, 글)] — 같은 카테고리이고 발행일이 예정일 EARLY_DAYS일 전 이후인 가장 이른 글 하나.
+    글 하나에 이슈 하나.
 
     예정일 조건을 빼면 지난주 주간 글이 이번 주 이슈를 닫고, 카테고리 조건을 빼면 주간 글이 지역 이슈를
     닫는다 — 둘 다 시험으로 고정한다(리뷰 09-18 23번).
     """
     used, out = set(), []
     for iss in issues:
+        start = iss['due'] - datetime.timedelta(days=EARLY_DAYS)
         cand = [p for p in posts
-                if p['cat'] == iss['cat'] and p['date'] >= iss['due'] and p['url'] not in used]
+                if p['cat'] == iss['cat'] and p['date'] >= start and p['url'] not in used]
         if not cand:
             continue
         cand.sort(key=lambda p: p['date'])

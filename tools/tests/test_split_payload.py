@@ -53,8 +53,14 @@ def test_core_carries_price_rows_for_the_table():
     adv, _ = _core()
     mo = adv.get('monthly') or {}
     assert mo.get('rows'), 'monthly가 core에 없다 — 표의 가격 색이 전부 빠진다'
-    # 2026-09-10 광주·전남 통합으로 19곳(시도 16 + 집계 3).
-    assert len(mo.get('regions') or []) == 19, '표는 19개 지역을 그린다'
+    # 표가 그리는 지역(TABLE_REGIONS = sido_zones.ORDER)과 가격 행의 지역이 같아야 칸이 빠짐없이
+    # 칠해진다. 예전엔 `== 19` 리터럴이라 모델이 원천 통합을 반영해 바뀌면 이 줄이 배치를 막았다.
+    # 변이: 모델에서 지역 하나를 빼거나(ORDER) 가격 행 지역에서 하나를 빼면 빨개진다.
+    regions = mo.get('regions') or []
+    assert len(regions) == len(set(regions)), '가격 행 지역이 중복됐다'
+    assert set(regions) == set(S.TABLE_REGIONS), (
+        '표 지역과 가격 지역이 다르다 — 빠짐 %s · 남음 %s'
+        % (sorted(set(S.TABLE_REGIONS) - set(regions)), sorted(set(regions) - set(S.TABLE_REGIONS))))
     for f in ('ma', 'je', 'wo'):
         assert f in mo['rows'][0], 'monthly.rows에 %s가 없다' % f
     for heavy in ('seoul', 'sgg'):

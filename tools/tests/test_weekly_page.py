@@ -102,6 +102,13 @@ def test_sgg_top_matches_home_ranking_rule():
     got = re.findall(r'<li><span class="nm">([^<]+)</span><b class="[^"]*">([^<]+)%</b></li>', _block('ANSWER'))
     for (n, v), (gn, gv) in zip(up, got[:3]):
         assert (n, _fmt(v)) == (gn, gv), '시군구 상승 순위가 다르다: %s vs %s' % ((n, _fmt(v)), (gn, gv))
+    # 하락 쪽도 본다 — 예전엔 상승 목록만 zip 해서 하락 TOP 3 정렬을 뒤집어도 초록이었다(2026-09-23 점검).
+    # 값 순서만 대조한다(동률의 이름 순서는 안정 정렬 방향에 따라 갈릴 수 있다). 정렬 자체의 변이는
+    # 아래 합성 픽스처 시험이 잡는다.
+    dn = sorted((x for x in arr if _r2(x[1]) < 0), key=lambda x: x[1])[:3]
+    sec = re.search(r'<h3 class="dn">[^<]*</h3><ol>(.*?)</ol>', _block('ANSWER'), re.S).group(1)
+    got_dn = re.findall(r'<b class="[^"]*">([^<]+)%</b>', sec)
+    assert got_dn == [_fmt(v) for _, v in dn], '시군구 하락 순위가 다르다: %s vs %s' % (got_dn, [_fmt(v) for _, v in dn])
 
 
 def test_region_count_phrases_are_derived():
@@ -147,3 +154,85 @@ def test_generator_rounding_matches_the_site_js():
     ours = [MW.pv2r(v) for v in PV2R_CASES]
     bad = ['%s: 사이트 %s · 생성기 %s' % (v, a, b) for v, a, b in zip(PV2R_CASES, site, ours) if abs(a - b) > 1e-9]
     assert not bad, '생성기 반올림이 사이트와 다르다: %s' % '; '.join(bad)
+
+
+# ---------------------------------------------------------------------------
+# 합성 주간 픽스처(2026-09-23 전체 점검 시험 보강)
+# 위 시험들은 이번 주 실데이터로만 돌아, 그 주의 방향에 기대어 초록이었다 — 가장 크게 움직인 시도가
+# 마침 오른 주라 결론 문장의 abs 를 빼도 통과했고, 하락 TOP 3 정렬을 뒤집어도 통과했다.
+# 여기서는 방향을 정해 둔 두 주를 만들어 build() 를 직접 부른다. 모양은 data.js 의 ADV.weekly 와 같다
+# (regions·rows[-1].ma, sgg.codes·rows, seoul.regions·rows, 조사일은 월요일).
+# ---------------------------------------------------------------------------
+_GU = ['강남구', '서초구', '송파구', '용산구', '마포구', '노원구', '도봉구', '강북구', '성동구', '광진구']
+
+
+def _week(sido, sgg, gu):
+    regs = list(SZ.DISPLAY_ORDER)
+    val = dict(sido)
+    val.setdefault('전국', 0.01)
+    ma = [val.get(z, 0.01) for z in regs]
+    codes = ['C%02d' % i for i in range(len(sgg))]
+    W = {'regions': regs, 'rows': [{'p': '2026-09-14', 'ma': ma}],
+         'sgg': {'codes': codes, 'rows': [{'p': '2026-09-14', 'ma': [v for _, v in sgg]}]},
+         'seoul': {'regions': [g for g, _ in gu], 'rows': [{'p': '2026-09-14', 'ma': [v for _, v in gu]}]}}
+    Q = {c: n for c, (n, _) in zip(codes, sgg)}
+    return W, Q
+
+
+def _base(v):
+    return {z: v for z in MW.SIDO}
+
+
+# 하락이 주도한 주: 대구가 −0.31 로 가장 크게 내렸고 오른 곳은 서울 +0.12 가 최고다.
+# 시군구는 하락폭이 표시 순서와 섞여 있다(정렬이 실제로 일해야 맞는다).
+_DOWN_SIDO = dict(_base(-0.03), 서울=0.12, 경기=0.05, 대구=-0.31, 부산=-0.18, 제주=-0.22)
+_DOWN_SGG = [('가군', -0.05), ('나구', -0.44), ('다시', 0.08), ('라군', -0.21), ('마시', -0.62),
+             ('바구', 0.02), ('사시', -0.30), ('아군', -0.01), ('자구', 0.15), ('차시', -0.12), ('카군', 0.0)]
+_DOWN_GU = [(g, v) for g, v in zip(_GU, (-0.02, 0.06, -0.09, -0.01, -0.15, -0.07, 0.03, -0.04, -0.11, 0.0))]
+# 상승이 주도한 주: 서울이 +0.40 으로 가장 크게 올랐고 내린 곳은 대구 −0.10 이 최대다.
+_UP_SIDO = dict(_base(0.02), 서울=0.40, 경기=0.21, 대구=-0.10, 부산=-0.04)
+
+
+def _rank(answer, cls, nth=0):
+    secs = re.findall(r'<h3 class="%s">[^<]*</h3><ol>(.*?)</ol>' % cls, answer, re.S)
+    return re.findall(r'<li><span class="nm">([^<]+)</span><b class="[^"]*">([^<]+)%</b></li>', secs[nth])
+
+
+def test_down_week_headline_names_the_biggest_fall():
+    """하락이 주도한 주에는 제목이 '대구 −0.31% 가장 크게 내렸다'여야 한다.
+
+    변이: build() 의 `max(sido, key=lambda x: abs(pv2r(x[1])))` 에서 abs 를 빼면 서울 +0.12 가
+          제목에 올라 빨개진다(실제로 바꿔 확인). 실데이터 시험은 그 주가 상승 주도여서 초록이었다.
+    픽스처: 대구 −0.31·제주 −0.22·부산 −0.18, 서울 +0.12 — 지방 하락이 수도권 상승보다 큰 주.
+    """
+    head, _, desc, og = MW.build(*_week(_DOWN_SIDO, _DOWN_SGG, _DOWN_GU))
+    h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
+    assert '대구 -0.31%' in h1 and '내렸다' in h1, h1
+    assert '가장 많이 오른 곳은 서울 +0.12%다.' in head, '반대 방향 1위가 빠졌다'
+    assert '대구 -0.31%로 가장 크게 내렸다' in desc and '대구 -0.31%' in og
+
+
+def test_up_week_headline_names_the_biggest_rise():
+    """같은 규칙이 상승 주에는 반대 방향으로 선다 — 두 방향을 모두 고정한다.
+
+    변이: 방향어를 뒤집어(`'올랐다' if pv2r(best[1]) < 0`) 쓰면 빨개진다(확인).
+    픽스처: 서울 +0.40·경기 +0.21, 대구 −0.10 — 수도권 상승이 주도한 주.
+    """
+    head, _, desc, _ = MW.build(*_week(_UP_SIDO, _DOWN_SGG, _DOWN_GU))
+    h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
+    assert '서울 +0.40%' in h1 and '올랐다' in h1, h1
+    assert '가장 많이 내린 곳은 대구 -0.10%다.' in head
+
+
+def test_down_top3_lists_the_largest_falls_first():
+    """하락 TOP 3 은 가장 많이 내린 곳부터다(마시 −0.62 → 나구 −0.44 → 사시 −0.30).
+
+    변이: top3() 의 `reversed(arr)` 를 `arr` 로 바꾸면 덜 내린 곳부터(아군 −0.01 …) 나와 빨개진다
+          (실제로 바꿔 확인). 예전 시험은 상승 목록만 대조해 초록이었다.
+    픽스처: 하락폭이 표시 순서와 섞인 시군구 11곳(보합 1곳 포함)과 서울 10개 구.
+    """
+    _, answer, desc, _ = MW.build(*_week(_DOWN_SIDO, _DOWN_SGG, _DOWN_GU))
+    assert _rank(answer, 'dn', 0) == [('마시', '-0.62'), ('나구', '-0.44'), ('사시', '-0.30')]
+    assert _rank(answer, 'up', 0) == [('자구', '+0.15'), ('다시', '+0.08'), ('바구', '+0.02')]
+    assert _rank(answer, 'dn', 1) == [('마포구', '-0.15'), ('성동구', '-0.11'), ('송파구', '-0.09')]
+    assert '하락 1위 마시 -0.62%' in desc

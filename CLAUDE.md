@@ -20,7 +20,10 @@
 |---|---|
 | `index.html`, `app.css`, `data.js`, `data-*.json` | 홈과 데이터 페이로드. 데이터는 `data.js`의 `ADV_DATA` 블록을 배치가 갈아끼우고 `tools/split_data.py`가 `data-*.json`으로 쪼갠다 |
 | `home-app.js` | 홈 본문 스크립트(2026-09-16 `index.html` 인라인에서 분리). 홈 코드는 여기서 고치고, 도구·시험은 이 파일을 직접 열지 말고 `tools/home_src.py`의 `home_source()`로 읽는다 |
-| `zone/`(시도별 리포트), `weekly/`, `monthly/`, `moveins/`, `jeonse-ratio/`, `cycle/`, `share/`, 퀴즈 3종(`burini-test/`, `investor-test/`, `redev-test/`) | 생성된 정적 페이지. 손으로 고치지 말고 생성기를 고친다 |
+| `zone/`(시도별 리포트), `weekly/`, `monthly/`, `moveins/`, `jeonse-ratio/` | 배치가 매 회차 굽는 생성 페이지. 손으로 고치지 말고 생성기를 고친다 |
+| `cycle/` | 서술은 손으로 쓴 문서이고, 차트 데이터 배열만 `refresh_cycle_data.py`가 매 회차 갈아끼운다 |
+| `share/` | 공유 이미지. `weekly-map.png`만 배치가 굽고, 지역·퀴즈 카드(`make_zone_cards.py` 등)는 지역 구성이나 문항이 바뀔 때 사람이 돌린다 |
+| 퀴즈 3종(`burini-test/`, `investor-test/`, `redev-test/`) | 랜딩은 손으로 쓴 파일, 점수별 하위 페이지(`/0/`~)는 `make_quiz_share_pages.py`가 만든다 |
 | `about/`, `faq/`, `privacy/` | 운영 주체·설명·개인정보 페이지 |
 | `tools/` | 배치·생성기·발행 도구 (아래 표) |
 | `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다 |

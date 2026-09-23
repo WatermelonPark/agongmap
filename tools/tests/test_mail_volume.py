@@ -189,8 +189,8 @@ def test_no_change_plus_warning_does_not_claim_an_update():
 
 
 def test_info_lines_ride_along_only_when_a_comment_goes_out():
-    raw = OK + 'ℹ️ 비핵심 원천 실패 — ECOS (직전 값 유지)\n'
+    raw = OK + 'ℹ️ 원천 일부 실패 — ECOS (직전 값 유지)\n'
     monday, _ = F.build(raw, KST, 'u', 'O', 0)
     weekday, mention = F.build(raw, KST, 'u', 'O', 3)
-    assert '비핵심 원천 실패' in monday and '**참고:**' in monday
+    assert '원천 일부 실패' in monday and '**참고:**' in monday
     assert not mention and F.headline(raw, KST, 3).startswith('🟢'), 'ℹ️ 줄이 메일을 불러선 안 된다'

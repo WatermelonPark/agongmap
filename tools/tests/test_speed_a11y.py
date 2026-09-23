@@ -59,7 +59,8 @@ const handlers = {};
 const self = { addEventListener: (t, f) => { handlers[t] = f; }, location: { origin: 'https://example.test' },
                skipWaiting() {}, clients: { claim() {} } };
 const store = new Map();
-const keyOf = (r) => typeof r === 'string' ? r : new URL(r.url).pathname;
+// 실제 Cache API 처럼 문자열·Request 를 같은 URL 로 정규화하고, 쿼리까지 키에 넣는다(쿼리를 떼는 건 sw.js 의 몫).
+const keyOf = (r) => { const u = new URL(typeof r === 'string' ? r : r.url, 'https://example.test'); return u.pathname + u.search; };
 const caches = {
   open: async () => ({ put: async (r, v) => { store.set(keyOf(r), v); }, add: async () => {} }),
   match: async (r) => store.get(keyOf(r)),
@@ -92,6 +93,15 @@ async function run(path, mode) {
     NET = () => later(150, resp('net'));                      // 느린 망, 캐시 없음
     out[path + ' slow+nocache'] = await run(path, mode);
   }
+  // 쿼리가 붙은 주소(utm·대결 링크)도 경로 캐시로 응답한다 — 쿼리마다 따로 쌓지 않는다(2026-09-23).
+  store.clear(); store.set('/zone/', resp('cache'));
+  NET = () => new Promise(() => {});
+  out['/zone/?utm hang+cache'] = await run('/zone/?utm_source=blog', 'navigate');
+  store.clear();
+  NET = () => later(5, resp('net'));
+  await run('/burini-test/7/?c=7&s=beginner', 'navigate');
+  await later(20);
+  out['query nav cache keys'] = { handled: true, tag: [...store.keys()].join(','), ms: 0 };
   store.clear(); store.set('/', resp('home'));
   NET = () => Promise.reject(new Error('offline'));           // 오프라인, 그 문서 캐시 없음 → 홈
   out['/zone/ offline'] = await run('/zone/', 'navigate');
@@ -129,3 +139,12 @@ def test_sw_serves_cache_when_network_hangs_and_network_when_fast():
     assert o['/zone/ offline']['tag'] == 'home', '오프라인 문서 요청이 홈 캐시로 폴백하지 않았다'
     slow = o['/zone/ slow+home-cached']
     assert slow['tag'] == 'net', '느린 망에서 캐시에 없는 문서를 홈으로 바꿔치기했다 — %s' % slow
+
+
+def test_sw_caches_pages_by_path_not_query():
+    """페이지를 쿼리째 키로 넣으면 ?utm_…·대결 링크(?c=&s=)마다 캐시 항목이 쌓인다(2026-09-23 점검).
+    무엇을 깨뜨리면 빨개지나: sw.js 의 cacheKey 가 req 를 그대로 돌려주게 하면 두 단정 모두 실패한다
+    (실제로 확인). 픽스처: 블로그 유입 utm 주소와 퀴즈 대결 링크, 실제 쓰이는 두 형태다."""
+    o = _sw_run()
+    assert o['/zone/?utm hang+cache']['tag'] == 'cache', '쿼리 붙은 주소가 경로 캐시를 못 찾았다'
+    assert o['query nav cache keys']['tag'] == '/burini-test/7/', o['query nav cache keys']

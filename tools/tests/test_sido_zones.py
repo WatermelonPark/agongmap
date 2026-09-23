@@ -112,10 +112,18 @@ def test_기간_표기():
 
 
 def test_실데이터가_있으면_모든_지역이_나온다():
-    try:
-        s = M._load_stats()
-    except Exception:
-        return   # 데이터 파일 없는 환경(CI 초기)에서는 건너뛴다
+    """⚠️ 예전엔 `except Exception: return` 이라 data-rest.json 이 깨지거나(JSON 오류·STATS 키 없음)
+    읽기 코드가 고장 나도 **통과**했다(2026-09-23 전체 점검). 파일이 없을 때만 건너뛰고(CI 에서는
+    conftest 가 건너뜀을 실패로 바꾼다), 그 밖의 오류는 그대로 터지게 한다.
+    변이: sido_zones._load_stats 가 읽는 키를 'STATS' → 'STATSX' 로 바꾸면 KeyError 로 빨개진다
+          (예전엔 조용히 return 해 초록이었다 — 실제로 바꿔 확인).
+    """
+    import pytest
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                        'data-rest.json')
+    if not os.path.exists(path):
+        pytest.skip('data-rest.json 없음')
+    s = M._load_stats()
     r = M.calc(s)
     got = {z['z'] for z in r['zones']}
     assert got == set(M.ORDER), '빠진 지역: %s' % (set(M.ORDER) - got)
@@ -254,13 +262,21 @@ def test_pwarn_threshold_avoids_knife_edge():
     꺼졌다 한다. 깜빡이는 경고는 무시된다.
 
     ⚠️ 이 테스트는 원래 `assert M.permit_trail12`(함수 객체 → 항상 참)여서
-    아무것도 검사하지 않았다. 문턱을 지킨다고 이름만 붙어 있고 실제로는
-    1.0으로 되돌려도 초록이었다(2026-08-15 리뷰). 상수와 동작을 함께 잠근다."""
+    아무것도 검사하지 않았다(2026-08-15 리뷰). 그 뒤에도 상수만 다시 읽어서, calc() 안의
+    `sig['pbr'] < PWARN_CUT` 를 `< 1.0` 으로 바꿔도 초록이었다(2026-09-23 전체 점검).
+    이제 **calc 출력**으로 본다.
+
+    변이: calc 의 pwarn 식을 `sig['pbr'] < 1.0` 으로 바꾸면 수도권(0.968)이 켜져 빨개진다.
+          split_text 의 thin 을 `< 1.0` 으로 바꿔도 빨개진다(둘 다 실제로 바꿔 확인).
+    픽스처: 2026-09 실데이터의 두 경계 지역 — 수도권 pbr 0.968(경고 없음), 인천 0.941(경고).
+    """
     assert M.PWARN_CUT == 0.95
-    assert M.PWARN_CUT < 1.0, '1.0이면 100% 언저리 지역이 매달 깜빡인다'
-    # 동작으로도 확인 — 100% 언저리는 안 뜨고, 확실히 얇은 쪽만 뜬다.
-    assert not (1.0 < M.PWARN_CUT) and not (0.999 < M.PWARN_CUT)
-    assert 0.90 < M.PWARN_CUT, '너무 낮추면 진짜 얇은 곳도 못 잡는다'
+    edge = _edge_row('수도권', k=0.968)
+    assert abs(edge['pbr'] - 0.968) < 1e-9, '픽스처가 의도한 신호를 못 만들었다: %s' % edge['pbr']
+    assert edge['pwarn'] is False, '100%% 언저리(0.968)에서 경고가 켜졌다 — 문턱이 1.0으로 돌아갔다'
+    thin = _edge_row('인천', k=0.941)
+    assert abs(thin['pbr'] - 0.941) < 1e-9
+    assert thin['pwarn'] is True, '문턱 아래(0.941)인데 경고가 꺼졌다'
 
 
 def test_pwarn_fires_on_live_data_where_expected():
@@ -499,3 +515,119 @@ def test_label_ladder_stays_one_notch_up_without_moving_the_cuts():
     for agg in ('전국', '수도권', '지방'):
         assert M.GRADE_LABS[by[agg]['grade']] in ('부족', '매우 부족', '심각한 부족'), \
             '%s가 아직 약하게 읽힌다(%s)' % (agg, M.GRADE_LABS[by[agg]['grade']])
+
+
+# ---------------------------------------------------------------------------
+# 전체 점검 시험 보강(2026-09-23) — calc() 의 경계 동작을 합성 픽스처로 잠근다.
+# 모양: 2011.01~2026.06 월별(L = S = 2026Q2). 지역 z 의 과거 16분기 준공은 적정과 같아
+# 재고(inow)가 0이고, 착공은 월 k × 적정/3 으로 평평해 미래공급 = H × k × 적정 × CONV,
+# 순부족비 = 1 − k × CONV 가 된다. 인허가는 월 p = pmul × 적정/3 을 연내 누계로 싣는다
+# (저장소와 같은 '호 (연내 누계)' 모양). 이러면 착공 전환율 = k/pmul 이라
+# 3년 너머 신호 pbr = 12p × (k/pmul) ÷ (4 × 적정) = k, 12개월 원값 pmr = pmul 이다.
+# ---------------------------------------------------------------------------
+_EDGE_CUT = (2026 - 2011) * 12 + 6
+
+
+def _edge_stats(z, k, pmul=1.0, start_cut=_EDGE_CUT, unsold=None):
+    ref = M.REF_Q[z]
+    dates = _months(2011, 1, _EDGE_CUT)
+    done = [ref / 3.0] * _EDGE_CUT
+    start = [k * ref / 3.0] * start_cut
+    p = pmul * ref / 3.0
+    cum = [p * int(d[5:7]) for d in dates]
+    regs = ('전국', z) if z != '전국' else ('전국',)
+    s = {'준공': {'dates': dates, 'series': {r: list(done) for r in regs}},
+         '착공': {'dates': dates[:start_cut], 'series': {r: list(start) for r in regs}},
+         '인허가': {'dates': dates, 'series': {r: list(cum) for r in regs}}}
+    if unsold is not None:
+        s['미분양'] = {'dates': unsold[0], 'series': {r: list(unsold[1]) for r in regs}}
+    return s
+
+
+def _edge_row(z, k, **kw):
+    r = M.calc(_edge_stats(z, k, **kw))
+    return [x for x in r['zones'] if x['z'] == z][0]
+
+
+def test_미래_시야는_착공_끝에서_유도한다():
+    """착공표가 준공표보다 한 분기 늦게 도착한 회차(2026-08-07 '착공만 늦게 도착' 사고)에는
+    H = S + 12 − L = 11 이어야 한다. 이 값을 보고 make_sido_pages 가 ABORT 한다.
+
+    변이: calc 의 `H = S + LEAD_Q - L` 을 `H = LEAD_Q` 로 바꾸면 H 가 12로 나와 빨개진다
+          (실제로 바꿔 확인). H 를 12로 박으면 착공이 없는 분기(2026Q2 착공 → 2029Q2)까지
+          미래공급 0으로 세어 부족이 부풀고, ABORT 게이트도 영영 안 걸린다.
+    픽스처: 준공은 2026.06(L=2026Q2)까지, 착공은 2026.03(S=2026Q1)까지만 들어온 상태.
+    """
+    z = '서울'
+    ref = M.REF_Q[z]
+    r = M.calc(_edge_stats(z, k=0.5, start_cut=_EDGE_CUT - 3))
+    assert (r['L'], r['S']) == ('2026Q2', '2026Q1')
+    assert r['H'] == M.LEAD_Q - 1 == 11, r['H']
+    row = [x for x in r['zones'] if x['z'] == z][0]
+    assert row['need'] == ref * 11
+    assert row['fut'] == round(11 * 0.5 * ref * M.CONV)
+
+
+def test_창_너머_얇음과_경고는_같은_문턱을_쓴다():
+    """리포트 세 번째 줄의 강조(split_text 의 thin)와 홈·허브의 pwarn 은 같은 것(24개월 인허가
+    환산이 필요량에 못 미침)을 잰다. 다른 문턱을 쓰면 한 화면에서 강조는 없는데 경고는 켜진다.
+    CLAUDE.md '같은 대상을 재는 코드는 같은 상수를 쓰고 일치를 시험으로 고정한다'.
+
+    변이: split_text 의 `thin = sig['pbr'] < PWARN_CUT` 를 `< 1.0` 으로 바꾸면 0.968 에서
+          thin 만 켜져 빨개지고, calc 의 pwarn 식만 `< 1.0` 으로 바꿔도 빨개진다(둘 다 확인).
+    픽스처: 문턱 양옆의 실측값 — 수도권 0.968, 인천 0.941(2026-09), 그리고 한참 위·아래.
+    """
+    for z, k in (('수도권', 0.968), ('인천', 0.941), ('경기', 1.26), ('대구', 0.226)):
+        row = _edge_row(z, k=k)
+        thin = row['split']['ref'][3]
+        assert thin == row['pwarn'] == (k < 0.95), (z, k, thin, row['pwarn'])
+
+
+def test_모순_표시는_g2_부족에도_붙고_균형_여유에는_안_붙는다():
+    """uwarn 은 판정이 '부족' 쪽(g2 이상)인데 미분양이 분기 적정물량 이상일 때만 켠다.
+    기존 시험은 g4 픽스처 하나라 g2 를 빼도(`in ('g4', 'g3')`) 초록이었다.
+
+    변이: uwarn 조건에서 'g2' 를 빼면 지방이 꺼져 빨개지고, 'g1'·'g0' 을 넣으면 경기·충남이
+          켜져 빨개진다(각각 확인).
+    픽스처: 2026-09 실데이터의 두 모양 — 지방 g2·미분양 1.082배(표시), 충남 g0·2.541배(미표시).
+            g1 은 실데이터에 미분양 1배 이상인 곳이 없어 경기(g1)에 2.0배를 얹어 만든다.
+    """
+    def row(z, k, um):
+        ref = M.REF_Q[z]
+        return _edge_row(z, k=k, unsold=(['2026.06'], [um * ref]))
+    g2 = row('지방', 0.3 / M.CONV, 1.082)          # 순부족비 0.7
+    assert g2['grade'] == 'g2' and g2['um'] == 1.082
+    assert g2['uwarn'] is True, 'g2 부족 + 미분양 1배 이상인데 모순 표시가 없다'
+    g1 = row('경기', 0.8 / M.CONV, 2.0)            # 순부족비 0.2
+    assert g1['grade'] == 'g1' and g1['uwarn'] is False
+    g0 = row('충남', 1.2 / M.CONV, 2.541)          # 순부족비 −0.2
+    assert g0['grade'] == 'g0' and g0['uwarn'] is False
+
+
+def test_최신_미분양은_아직_안_나온_달을_건너뛴다():
+    """미분양 표는 다음 달 칸이 먼저 생기고 값(None)이 뒤에 채워진다. 마지막 칸만 보면 그 지역의
+    미분양이 통째로 사라진다(표시·모순 표시·기준월 전부).
+
+    변이: unsold_latest 의 `if ser[i] is not None` 을 지워 마지막 칸을 그대로 돌려주면
+          unsold 가 None 이 되어 빨개진다(확인).
+    픽스처: 2026.06까지 발표, 2026.07 칸은 비어 있는 상태.
+    """
+    z = '대구'
+    r = M.calc(_edge_stats(z, k=0.5, unsold=(['2026.05', '2026.06', '2026.07'], [9000, 8700, None])))
+    row = [x for x in r['zones'] if x['z'] == z][0]
+    assert row['unsold'] == 8700
+    assert r['unsold_prd'] == '2026.06'
+    assert M.unsold_latest({'미분양': {'dates': ['2026.06', '2026.07'],
+                                       'series': {z: [8700, None]}}}, z) == (8700, '2026.06')
+
+
+def test_인허가_1년은_연간_적정물량과_견준다():
+    """표 아래 '인허가 1년' 행의 배수(pmr)는 최근 12개월 인허가 ÷ **연간** 적정(분기 × 4)이다.
+
+    변이: pmr 분모를 `ref * 3` 으로 바꾸면 1.014 가 1.352 로 나와 빨개진다(확인).
+    픽스처: 수도권 2026-09 실측 pmr 1.014 — 12개월 인허가가 연 필요량과 거의 같은 상태.
+    """
+    z = '수도권'
+    row = _edge_row(z, k=0.968, pmul=1.014)
+    assert row['pm12'] == round(12 * 1.014 * M.REF_Q[z] / 3.0)
+    assert row['pmr'] == 1.014, row['pmr']
