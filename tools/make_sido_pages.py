@@ -556,6 +556,7 @@ def _write_merged_stub(path, old, new):
          '<link rel="canonical" href="%s">'
          '<meta http-equiv="refresh" content="3;url=%s">'
          '<meta name="description" content="%s의 공급 통계는 %s 페이지에서 볼 수 있습니다.">'
+         '<link rel="icon" type="image/svg+xml" href="/favicon.svg">'   # 없으면 /favicon.ico 404
          '<link rel="stylesheet" href="/app.css"></head><body>'
          '<main class="wrap" style="max-width:640px;margin:12vh auto;text-align:center">'
          '<h1 style="font-size:20px">%s %s로 합쳐졌습니다</h1>'
@@ -773,7 +774,7 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     h.append('<section><div class="wrap"><h2>어떻게 계산했나</h2>'
              '<p>칸의 숫자는 그 분기에 <b>준공된</b> 아파트 세대수입니다(국토교통부 주택건설 준공실적). '
              '아직 오지 않은 분기는 <b>착공 실적을 3년 뒤로 밀어</b> 추정했습니다 — '
-             '착공한 것의 96%%가 3년 뒤 준공되는 게 15년치 실측입니다. '
+             '착공한 것의 %d%%가 3년 뒤 준공되는 게 %d년 이후 실측입니다. '
              '판정에 인허가는 쓰지 않습니다. 삽을 안 뜬 계획이 섞여 같은 해 착공보다 15%%쯤 많고 '
              '해마다 크게 흔들리기 때문입니다. 위의 \'3년 너머\' 줄은 최근 2년 인허가를 그 지역의 '
              '착공 비율로 환산한 <b>참고</b> 값입니다. 서울·경기처럼 기준표에 없는 지역은 '
@@ -790,7 +791,9 @@ def build_page(z, calc, stats, pq, others, weekly=None):
              '순위 계산에는 넣지 않습니다 — 결과값이라 공급에서 빼면 이중으로 세고 부호도 반대가 됩니다. '
              '판정을 읽는 맥락으로만 씁니다.</p>'
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
-             '</div></section>' % calc['H'])
+             '</div></section>'
+             # 전환율·기준 연도는 모델 상수에서 읽는다(2026-09-23 점검 — '96%·15년치'가 박혀 있었다).
+             % (round(calc['conv'] * 100), SZ.CONV_FROM, calc['H']))
 
     h.append(next_links(z, weekly, stats))
 
