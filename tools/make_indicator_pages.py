@@ -125,22 +125,22 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">__LD__</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2f6db3}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2f6db3;__TOKENS__}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
  font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
-.wrap{max-width:620px;margin:0 auto;padding:0 22px}
+.wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
 .chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
-h1{font-size:clamp(25px,5.6vw,34px);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
-.lead{font-size:15.5px;color:var(--ink2)}
+h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
+.lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
 .bigsub{font-size:13.5px;color:var(--muted)}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
-p{margin-bottom:12px;font-size:15px}
+p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
 .tbl-wrap{overflow-x:auto;margin:6px 0 2px}
@@ -233,8 +233,25 @@ __BODY__
 """
 
 
+# 조판 치수 토큰(백로그 24-6)은 app.css :root 가 정본이다. 이 껍데기는 app.css 를 읽지 않으므로
+# 생성할 때 그 선언을 그대로 옮겨 싣는다 — 손으로 옮긴 사본은 정본이 바뀌어도 조용히 남는다.
+TYPE_TOKENS = ('--h1-report', '--h1-doc', '--col-read', '--col-wide', '--fs-read', '--fs-dense')
+
+
+def type_tokens(css=None):
+    if css is None:
+        css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    out = []
+    for name in TYPE_TOKENS:
+        got = re.findall(r'(?<![\w-])' + re.escape(name) + r'\s*:\s*([^;]+);', css)
+        if len(got) != 1:
+            raise SystemExit('app.css 에서 %s 선언을 하나로 찾지 못했다(%d개)' % (name, len(got)))
+        out.append('%s:%s' % (name, got[0].strip()))
+    return ';'.join(out)
+
+
 def fill(shell, **kw):
-    out = shell
+    out = shell.replace('__TOKENS__', type_tokens())
     for k, v in kw.items():
         out = out.replace('__' + k.upper() + '__', v)
     # 랜드마크: 머리글 뒤부터 바닥글 앞까지가 본문이다(2026-09-18 접근성 점검 — 어느 페이지에도 <main> 이 없었다).
@@ -524,6 +541,68 @@ def update_sitemap(entries):
     io.open(p, 'w', encoding='utf-8', newline='\n').write(x)
 
 
+# 손으로 관리하는 페이지 — 생성기가 없어서 sitemap lastmod 를 아무도 안 고쳤다. /faq/ 는 08-06 모델
+# 개편으로 본문이 바뀌었는데 07-16 에 멈춰 있었고, /privacy/ 는 lastmod 가 아예 없었다(2026-09-23 점검,
+# 백로그 29). 배치마다 그 파일의 마지막 커밋 날짜로 따라간다. /cycle/ 는 데이터 칸을 배치가 갈아끼우므로
+# refresh_cycle_data 가 따로 맞춘다.
+HAND_PAGES = (('/faq/', 'faq/index.html'), ('/about/', 'about/index.html'),
+              ('/privacy/', 'privacy/index.html'), ('/burini-test/', 'burini-test/index.html'),
+              ('/investor-test/', 'investor-test/index.html'), ('/redev-test/', 'redev-test/index.html'))
+
+
+def _git(root, *args):
+    import subprocess
+    try:
+        r = subprocess.run(['git'] + list(args), cwd=root, capture_output=True, timeout=30,
+                           encoding='utf-8', errors='replace')
+    except Exception:
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def hand_lastmods(root=None):
+    """[(경로, 마지막 커밋 날짜)] — 날짜를 믿을 수 없는 파일은 뺀다.
+
+    ⚠️ 얕은 클론(배치 커밋 잡은 fetch-depth 200)에서 창 밖의 파일은 경계 커밋이 파일을 통째로
+    '추가'한 것처럼 보여, 그 커밋 날짜가 마지막 수정일로 잘못 나온다. 경계 커밋(.git/shallow)이면 뺀다.
+    """
+    root = root or ROOT
+    shallow = set()
+    top = _git(root, 'rev-parse', '--git-dir')
+    if top:
+        sp = os.path.join(root, top, 'shallow') if not os.path.isabs(top) else os.path.join(top, 'shallow')
+        if os.path.exists(sp):
+            shallow = set(io.open(sp, encoding='utf-8').read().split())
+    out = []
+    for path, rel in HAND_PAGES:
+        got = _git(root, 'log', '-1', '--format=%H %cs', '--', rel)
+        if not got:
+            continue
+        sha, day = got.split()
+        if sha in shallow:
+            continue
+        out.append((path, day))
+    return out
+
+
+def bump_sitemap(entries, root=None):
+    """entries 의 lastmod 를 **앞으로만** 옮긴다(없으면 넣는다). 날짜가 뒤로 가는 일은 없다."""
+    p = os.path.join(root or ROOT, 'sitemap.xml')
+    x = io.open(p, encoding='utf-8').read()
+    for path, lm in entries:
+        loc = SITE + path
+        m = re.search(r'<loc>%s</loc>\s*<lastmod>([^<]*)</lastmod>' % re.escape(loc), x)
+        if m:
+            if m.group(1) < lm:
+                x = x[:m.start(1)] + lm + x[m.end(1):]
+            continue
+        # lastmod 가 없는 항목(한 줄로 적힌 /privacy/ 등)은 loc 뒤에 넣는다
+        m = re.search(r'<loc>%s</loc>' % re.escape(loc), x)
+        if m:
+            x = x[:m.end()] + '<lastmod>%s</lastmod>' % lm + x[m.end():]
+    io.open(p, 'w', encoding='utf-8', newline='\n').write(x)
+
+
 def main():
     adv, sts = load()
     out = []
@@ -535,7 +614,10 @@ def main():
         io.open(os.path.join(d, 'index.html'), 'w', encoding='utf-8', newline='\n').write(html)
         out.append(('/%s/' % sub, lm))
     update_sitemap(out)
+    hand = hand_lastmods()
+    bump_sitemap(hand)
     print('indicator pages: %s' % ', '.join('%s(%s)' % e for e in out))
+    print('hand pages lastmod: %s' % ', '.join('%s(%s)' % e for e in hand))
 
 
 if __name__ == '__main__':

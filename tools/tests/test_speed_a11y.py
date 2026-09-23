@@ -148,3 +148,41 @@ def test_sw_caches_pages_by_path_not_query():
     o = _sw_run()
     assert o['/zone/?utm hang+cache']['tag'] == 'cache', '쿼리 붙은 주소가 경로 캐시를 못 찾았다'
     assert o['query nav cache keys']['tag'] == '/burini-test/7/', o['query nav cache keys']
+
+
+def test_zone_reference_row_buttons_are_40px():
+    """시도 리포트 표의 참고 행(미분양·인허가 1년) ⓘ 버튼이 첫 칸 전체·40px 인지 본다.
+    재현하는 실제 상태: 2026-09-18 오딧 12번 실측 49×20·70×20px(버튼이 글자 폭만큼만 있었다). 2026-09-23 수정 뒤
+    Chromium 375px 에서 88×40px(칸 폭 89px)로 쟀다. 홈 표(#tb-main)는 tfoot 붙박이 설계라 25px 줄높이를 유지한다.
+    무엇을 깨뜨리면 빨개지나: app.css 의 `.ztb tfoot .rbtn` 에서 min-height:40px 를 빼거나 width:100% 를 빼면
+    빨개진다(실제로 확인). 지역 페이지 생성기가 이 버튼을 tfoot 첫 칸에 두는지도 함께 본다."""
+    css = _read('app.css')
+    m = re.search(r'\.ztb tfoot \.rbtn\{([^}]*)\}', css)
+    assert m, '.ztb tfoot .rbtn 규칙이 없다'
+    assert re.search(r'min-height:(4\d|[5-9]\d)px', m.group(1)), '참고 행 버튼의 최소 높이가 40px 미만이다'
+    assert 'width:100%' in m.group(1), '참고 행 버튼이 칸 전체를 차지하지 않는다'
+    gen = _read('tools', 'make_sido_pages.py')
+    assert re.search(r'<tr class="zref"[^>]*><td>%s</td>', gen), '생성기의 참고 행 첫 칸 구조가 바뀌었다 — 이 시험도 고칠 것'
+    assert 'refbtn(' in gen
+
+
+def test_skip_link_has_its_hiding_rule():
+    """건너뛰기 링크(<a class="skip">)가 있는 페이지는 그 링크를 평소에 감추는 .skip 규칙을 가져야 한다.
+    재현하는 실제 상태: 2026-09-18 2차 작업이 링크를 모든 페이지에 넣었는데 공용 시트를 안 읽는 /weekly/·/faq/·
+    /about/·/privacy/ 에는 규칙이 없어, 링크가 늘 왼쪽 위에 밑줄 글자로 떠 있었다(2026-09-23 375·1280px 스크린샷).
+    무엇을 깨뜨리면 빨개지나: faq/index.html 에서 .skip{…} 규칙을 지우면 빨개진다(실제로 확인)."""
+    import glob
+    pages = ['index.html', '404.html'] + sorted(glob.glob(os.path.join(ROOT, '*', 'index.html')))
+    bad = []
+    for p in pages:
+        rel = os.path.relpath(p if os.path.isabs(p) else os.path.join(ROOT, p), ROOT)
+        s = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        if 'class="skip"' not in s:
+            continue
+        shared = re.search(r'<link[^>]+href="/app\.css', s)
+        if not (shared or re.search(r'\.skip\{[^}]*top:-\d+px', s)):
+            bad.append(rel)
+    assert re.search(r'\.skip\{[^}]*top:-\d+px', _read('app.css')), '공용 시트에 .skip 규칙이 없다'
+    shell = __import__('make_indicator_pages').SHELL
+    assert re.search(r'\.skip\{[^}]*top:-\d+px', shell), '지표 생성기 껍데기에 .skip 규칙이 없다'
+    assert not bad, '건너뛰기 링크가 늘 보이는 페이지: %s' % bad

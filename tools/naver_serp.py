@@ -34,7 +34,10 @@ import datetime
 import io
 import json
 import os
+import socket
 import sys
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -103,6 +106,43 @@ def hist_last(mode, key):
     return last
 
 
+# 호출 간격·재시도(백로그 26, 2026-09-23).
+# 기본 실행이 API를 24회(키워드 8 × 코퍼스 3) 쉬지 않고 던졌다. 초당 한도에 걸려 429가 나면
+# 예전엔 그 코퍼스가 빈 목록이 되어 "경쟁 글 없음"·"상위 10에는 없음"과 구별되지 않았고,
+# --record면 빈 상위 목록이 비교 기준으로 기록됐다.
+#  - 간격: 호출 사이를 MIN_INTERVAL 이상 띄운다. 네이버가 밝힌 초당 한도를 우리가 실측한
+#    적은 없어서 여유 있게 초당 5회 아래로 잡았다. 기본 실행 24회에 4.8초쯤 더 든다.
+#  - 재시도: 429·5xx·타임아웃·연결 오류만 BACKOFF 간격(1→2→4초)으로 최대 len(BACKOFF)번 더
+#    본다. 401·403·404 같은 요청 자체의 오류는 다시 불러도 같으므로 바로 올린다.
+#    한 호출의 최악은 (타임아웃 15초 × 4회) + 대기 7초 = 67초다.
+#  - 재시도까지 실패한 코퍼스는 빈 목록이 아니라 **실패**로 남긴다(probe()의 hits 값 None).
+MIN_INTERVAL = 0.2
+BACKOFF = (1, 2, 4)
+RETRY_CODES = (429, 500, 502, 503, 504)
+_sleep = time.sleep          # 시험이 바꿔 끼운다(실제로 잠들지 않게)
+_now = time.monotonic
+_last_call = [None]
+_gate = threading.Lock()
+
+
+def _space():
+    """직전 호출에서 MIN_INTERVAL이 안 지났으면 그만큼 기다린다."""
+    with _gate:
+        if _last_call[0] is not None:
+            wait = MIN_INTERVAL - (_now() - _last_call[0])
+            if wait > 0:
+                _sleep(wait)
+        _last_call[0] = _now()
+
+
+def _retryable(e):
+    """다시 불러 볼 값어치가 있는 실패인가 — 한도·서버 오류·타임아웃·연결 오류."""
+    if isinstance(e, urllib.error.HTTPError):
+        return e.code in RETRY_CODES
+    return isinstance(e, (urllib.error.URLError, socket.timeout, TimeoutError,
+                          ConnectionError))
+
+
 def _get(kind, query, display=10, sort='sim'):
     # strip 필수 — 콘솔에서 복사하면 앞뒤 공백·개행이 딸려오기 쉽고,
     # 네이버는 헤더 값에 공백이 있으면 그대로 인증 실패를 낸다.
@@ -118,17 +158,27 @@ def _get(kind, query, display=10, sort='sim'):
         {'query': query, 'display': display, 'sort': sort})
     req = urllib.request.Request(url, headers={
         'X-NCP-APIGW-API-KEY-ID': cid, 'X-NCP-APIGW-API-KEY': sec})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as r:
-            return json.loads(r.read().decode('utf-8'))
-    except urllib.error.HTTPError as e:
-        # 실패 원인은 본문 JSON에 들어온다. 이걸 버리면 "401"만 남아서
-        # 키가 틀린 건지 경로가 틀린 건지 못 가른다(실제로 한 번 헤맸다).
+    for attempt in range(len(BACKOFF) + 1):
+        _space()
         try:
-            detail = e.read().decode('utf-8', 'replace')[:300]
-        except Exception:
-            detail = ''
-        raise RuntimeError('HTTP %s %s' % (e.code, detail)) from None
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return json.loads(r.read().decode('utf-8'))
+        except Exception as e:
+            if _retryable(e) and attempt < len(BACKOFF):
+                _sleep(BACKOFF[attempt])
+                continue
+            tries = '' if attempt == 0 else ' (재시도 %d회 뒤)' % attempt
+            if isinstance(e, urllib.error.HTTPError):
+                # 실패 원인은 본문 JSON에 들어온다. 이걸 버리면 "401"만 남아서
+                # 키가 틀린 건지 경로가 틀린 건지 못 가른다(실제로 한 번 헤맸다).
+                try:
+                    detail = e.read().decode('utf-8', 'replace')[:300]
+                except Exception:
+                    detail = ''
+                raise RuntimeError('HTTP %s %s%s' % (e.code, detail, tries)) from None
+            if _retryable(e):
+                raise RuntimeError('%s: %s%s' % (type(e).__name__, e, tries)) from None
+            raise
 
 
 def _clean(s):
@@ -140,8 +190,13 @@ def _clean(s):
 
 
 def probe(keyword, display=10):
-    """한 키워드를 블로그·웹문서·카페에서 조회하고 우리 것 여부를 표시한다."""
-    out = {'keyword': keyword, 'hits': {}, 'ours': []}
+    """한 키워드를 블로그·웹문서·카페에서 조회하고 우리 것 여부를 표시한다.
+
+    ⚠️ 조회에 실패한 코퍼스는 hits[코퍼스]가 **None**이고 failed에 이름이 들어간다.
+    빈 목록([])은 "조회는 됐고 결과가 없다"만 뜻한다. 둘을 같은 []로 두면 429 한 번이
+    "경쟁 글 없음"으로 읽히고, --record가 빈 상위 목록을 비교 기준으로 남긴다(백로그 26).
+    """
+    out = {'keyword': keyword, 'hits': {}, 'ours': [], 'failed': []}
     for kind, label in CORPORA:
         rows = []
         try:
@@ -150,7 +205,8 @@ def probe(keyword, display=10):
             raise
         except Exception as e:
             out.setdefault('errors', []).append('%s: %s' % (label, e))
-            out['hits'][label] = rows
+            out['failed'].append(label)
+            out['hits'][label] = None
             continue
         for i, it in enumerate(d.get('items') or [], 1):
             link = it.get('link', '') + it.get('bloggerlink', '')
@@ -255,10 +311,13 @@ def main(argv):
             raise SystemExit('추적할 키워드가 없다 — 발행된 지역 편이 아직 없거나 '
                              'RSS를 못 읽었다.')
         print('타겟 키워드 %d개의 우리 자리를 잰다 (정확도순 블로그 상위 30)\n' % len(kws))
+        failed = 0
         for kw in kws:
             hit, err = rank_on(kw)
             if err:
-                print('  ! %-28s — %s' % (kw[:28], err))
+                # 실패는 '30 밖'이 아니다 — 기록하지 않고 넘어간다(이력의 추이가 오염되지 않게).
+                failed += 1
+                print('  ! %-28s — 조회 실패: %s' % (kw[:28], err))
                 continue
             prev = hist_last('rank', kw)
             if hit:
@@ -284,17 +343,21 @@ def main(argv):
         print('\n※ API 순번은 통합검색 실제 순위가 아니다. 절대값이 아니라 '
               '회차 간 **변화**를 읽을 것.')
         print('※ %s 에 기록했다.' % os.path.relpath(HIST, ROOT))
-        return 0
+        if failed:
+            print('⚠️ %d개 키워드는 재시도까지 조회에 실패해 재지 못했다(기록 안 함).' % failed)
+        return 1 if failed else 0
 
     if '--index' in argv:
         qs = [a for a in argv if not a.startswith('--')]
         if not qs:
             raise SystemExit('색인을 확인할 제목(또는 그 일부)을 인자로 줄 것')
         rec = '--record' in argv
+        failed = 0
         for q in qs:
             hits, err = indexed(q)
             if err:
-                print('  ! %s — %s' % (q, err))
+                failed += 1
+                print('  ! %s — 조회 실패(색인 여부 모름): %s' % (q, err))
                 continue
             prev = hist_last('index', q) if rec else None
             if hits:
@@ -318,15 +381,20 @@ def main(argv):
         print('\n※ 색인 여부만 본 것이다. 통합검색 노출 순위는 사람이 직접 검색해야 안다.')
         if rec:
             print('※ %s 에 기록했다.' % os.path.relpath(HIST, ROOT))
-        return 0
+        if failed:
+            print('⚠️ %d건은 재시도까지 조회에 실패했다 — "없음"이 아니라 "모름"이다.' % failed)
+        return 1 if failed else 0
 
     as_json = '--json' in argv
     kws = [a for a in argv if not a.startswith('--')] or DEFAULT_KEYWORDS
     results = [probe(k) for k in kws]
+    # 재시도까지 실패한 코퍼스가 하나라도 있으면 종료 코드 1 — 결과가 반쪽이라는 신호다.
+    rc = 1 if any(r['failed'] for r in results) else 0
 
     if as_json:
+        # 실패한 코퍼스는 hits 값이 null이고 failed 목록에 이름이 있다([]는 '결과 없음').
         print(json.dumps(results, ensure_ascii=False, indent=1))
-        return 0
+        return rc
 
     for r in results:
         print('\n' + '=' * 72)
@@ -336,12 +404,19 @@ def main(argv):
         if r['ours']:
             for o in r['ours']:
                 print('  ★ 우리 노출: %s API순번 %d — %s' % (o['corpus'], o['n'], o['title'][:40]))
+        elif r['failed']:
+            # 조회가 실패한 코퍼스가 있으면 '없음'이라고 말할 근거가 없다(백로그 26).
+            print('  ✖ 우리 노출 판단 불가 — %s 조회 실패(재시도 뒤). "없음"으로 읽지 말 것'
+                  % '·'.join(r['failed']))
         else:
             # ⚠️ '없음'은 색인 안 됐다는 뜻이 아니다. 정확도순 상위 10에 없다는
             # 뜻일 뿐이다 — 이걸 미색인으로 읽어 두 번 오판했다(2026-08-15).
             print('  ☆ 정확도순 상위 10에는 없음 (색인 여부는 --index 로 확인)')
         for _, label in CORPORA:
-            rows = r['hits'].get(label) or []
+            rows = r['hits'].get(label)
+            if rows is None:
+                print('  -- %s -- 조회 실패: 경쟁 글 목록을 모른다(결과 없음이 아니다)' % label)
+                continue
             if not rows:
                 continue
             print('  -- %s --' % label)
@@ -351,7 +426,10 @@ def main(argv):
         # 회차 비교 — 지난번과 달라진 것만 짚는다. 매번 같은 목록을 다시 읽는 건
         # 사람이 못 한다.
         top = [x['title'] for x in (r['hits'].get('블로그') or [])[:10]]
-        if '--record' in argv:
+        if '--record' in argv and '블로그' in r['failed']:
+            # 빈 상위 목록을 기준으로 남기면 다음 회차가 10개 전부를 '새로 진입'으로 읽는다.
+            print('  ── 블로그 조회 실패 — 이번 회차는 기록하지 않았다 ──')
+        elif '--record' in argv:
             prev = hist_last('serp', r['keyword'])
             if prev:
                 fresh = [t for t in top if t not in (prev.get('top') or [])]
@@ -368,7 +446,9 @@ def main(argv):
     print('\n' + '=' * 72)
     print('⚠️ API 순번은 통합검색 실제 순위가 아니다(API 자체 정렬).')
     print('   경쟁 글의 각도를 보는 용도로 읽을 것.')
-    return 0
+    if rc:
+        print('⚠️ 재시도까지 조회에 실패한 코퍼스가 있다 — 위 ✖ 표시는 "없음"이 아니라 "모름"이다.')
+    return rc
 
 
 if __name__ == '__main__':

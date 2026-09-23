@@ -439,7 +439,7 @@ EXTRA_CSS = """
 .toc a:hover{background:var(--paper2)}
 table td:first-child,table th[scope=row]{white-space:nowrap}
 tbody tr.agg{background:var(--paper2)}
-.top3{font-size:13.5px;color:var(--ink2);margin:2px 0 10px;line-height:1.7}
+.top3{font-size:var(--fs-dense);color:var(--ink2);margin:2px 0 10px;line-height:1.7}
 .top3 b{color:var(--ink);font-weight:600;margin-right:4px}
 .top3 a{color:var(--ink)}
 """

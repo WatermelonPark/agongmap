@@ -64,6 +64,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
 <link rel="stylesheet" href="/app.css">
 <style>b,strong{font-weight:600}
+/* 절 제목은 375px 에서 한 줄(2026-09-23 오딧 8번: 9개가 두 줄로 꺾였다). 조건·부연은 제목 아래 부제 줄로 내린다.
+   제목을 고치면 375px 에서 다시 잴 것 — 23px 에서 한 줄에 공백 포함 약 15자가 든다. */
+h2.t .t-sub{display:block;font-size:clamp(16px,2.2vw,19px);font-weight:600;color:var(--ink2);letter-spacing:-.01em;line-height:1.45;margin-top:6px}
 /* 이 페이지에만 있는 요소. app.css의 토큰을 폴백과 함께 참조한다. */
 .links{display:flex;flex-direction:column;gap:10px;margin-top:14px}
 .links a{display:block;background:#fff;border:1px solid var(--line,#d8dfdc);border-radius:0;
@@ -90,7 +93,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <a class="cy-toc" href="#tldr" onclick="track('tldr_jump',{to:'toc'})">↑ 30초 요약</a>
 <section class="tldr" id="tldr"><div class="wrap">
   <div class="tldr-kicker">30초 요약</div>
-  <h2 class="tldr-h">부동산은 <b>공급</b>이 만드는 <b>사이클</b>로 돈다</h2>
+  <h2 class="tldr-h">부동산은 <b>공급 사이클</b>로 돈다</h2>
   <div class="tldr-grid">
     <div class="tldr-diagram"><svg viewBox="0 0 460 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="부동산 공급 사이클 순환 다이어그램" style="width:100%;max-width:440px;height:auto">
 <circle cx="230" cy="230" r="152" fill="none" stroke="#d2dad6" stroke-width="2.5"/>
@@ -179,7 +182,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- STEP 1 -->
 <section class="step" id="link1"><div class="wrap">
   <div class="stepnum"><span class="badge">고리 ①</span><span class="arc">공급 부족 → 전세가 상승</span></div>
-  <h2 class="t">집이 모자란 곳에서, 전세가 먼저 오른다</h2>
+  <h2 class="t">집이 모자라면 전세부터 오른다</h2>
   <span class="verdict v-strong"><span class="v-dot"></span>신뢰 높음 · 생활권 단위 · 시차 1분기</span>
   <div class="conf"><span class="clevel cl-high">신뢰 높음</span>
     <span class="gauge"><i class="on"></i><i class="on"></i><i class="on"></i><i class="mid"></i><i></i></span>
@@ -222,7 +225,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- STEP 3 -->
 <section class="step" id="link3"><div class="wrap">
   <div class="stepnum"><span class="badge">고리 ③</span><span class="arc">매매가 상승 → 인허가 증가</span></div>
-  <h2 class="t">오른 집값이 공급을 부른다 — 땅이 있는 곳에서는</h2>
+  <h2 class="t">오른 집값이 공급을 부른다<span class="t-sub"><span class="sr-only"> — </span>땅이 있는 곳에서는</span></h2>
   <span class="verdict v-mid"><span class="v-dot"></span>지역별로 갈림 · 시차 약 1년</span>
   <div class="conf"><span class="clevel cl-mid">지역에 따라 다름</span>
     <span class="gauge"><i class="on"></i><i class="on"></i><i class="on"></i><i class="mid"></i><i></i></span>
@@ -243,7 +246,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- STEP 4 -->
 <section class="step" id="link45"><div class="wrap">
   <div class="stepnum"><span class="badge">고리 ④⑤</span><span class="arc">인허가 → 착공 → 준공</span></div>
-  <h2 class="t">공급은 수 년에 걸쳐 현실이 된다 — 그 기간이 점점 길어지고 있다</h2>
+  <h2 class="t">공급은 수 년 뒤에 현실이 된다<span class="t-sub"><span class="sr-only"> — </span>그 기간이 점점 길어지고 있다</span></h2>
   <span class="verdict v-strong"><span class="v-dot"></span>신뢰 매우 높음 · 착공→준공 r <span data-d="lead_r">0.84</span></span>
   <div class="conf"><span class="clevel cl-high">신뢰 매우 높음</span>
     <span class="gauge"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span>
@@ -263,7 +266,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- STEP 5 -->
 <section class="step" id="link6"><div class="wrap">
   <div class="stepnum"><span class="badge">고리 ⑥</span><span class="arc">준공 → 전세가 하락 → 다시 처음으로</span></div>
-  <h2 class="t">입주가 시작되면, 전세가 먼저 꺾인다</h2>
+  <h2 class="t">입주가 몰리면 전세부터 꺾인다</h2>
   <span class="verdict v-strong"><span class="v-dot"></span>신뢰 높음 · 지역 단위에서만 보임</span>
   <div class="conf"><span class="clevel cl-high">신뢰 높음 (지역 한정)</span>
     <span class="gauge"><i class="on"></i><i class="on"></i><i class="on"></i><i class="mid"></i><i></i></span>
@@ -285,7 +288,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- 지역별 사이클 강도 -->
 <section class="step" id="score"><div class="wrap">
   <div class="stepnum"><span class="badge">종합</span><span class="arc">사이클은 지역마다 다르게 돈다</span></div>
-  <h2 class="t">어디서 사이클이 잘 돌고, 어디서 끊기나</h2>
+  <h2 class="t">사이클이 도는 곳, 끊기는 곳</h2>
   <p class="lead">같은 사이클이라도 지역마다 강도가 다르다. 6개 고리 중 몇 개가 제대로 작동하는지 점수로 매겨봤다.</p>
   <p>수도권·경기·인천·강원·경남은 사이클이 뚜렷하게 돈다(고리 대부분 작동). 반면 <strong>세종·충북</strong>은 거의 돌지 않는다 — 세종은 행정도시 공급폭탄이 사이클을 교란한 탓이다. 특히 <strong>서울은 '매매→공급' 고리가 끊겨</strong>, 사이클이 완결되지 못하고 상승 압력만 쌓이는 구조다.</p>
   <div class="chartbox">
@@ -305,7 +308,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- 참고1: 금리 -->
 <section class="step ref" id="ref1"><div class="wrap">
   <div class="stepnum"><span class="badge">참고 ①</span><span class="arc">사슬을 흔드는 외부 힘</span></div>
-  <h2 class="t">금리 — 사이클 밖에서 전체를 흔드는 변수</h2>
+  <h2 class="t">금리 — 사이클 밖의 변수<span class="t-sub"><span class="sr-only"> — </span>순환 전체를 한꺼번에 흔든다</span></h2>
   <p class="lead">금리는 사슬의 고리가 아니다. 사슬 <strong>바깥</strong>에서 순환 전체를 흔드는 <strong>외부 변수</strong>다. 공급 사이클은 정해진 순서로 천천히 도는 반면, 금리는 그 흐름과 무관하게 갑자기 움직여 순환 전체를 흔든다.</p>
   <p>저금리는 조달 비용을 전세가율·임대수익률 아래로 끌어내려, 대기하던 <strong>잠재 수요를 매수로 전환</strong>시킨다. 없던 수요를 만드는 게 아니라 있던 수요에 불을 붙이는 것이다. 그렇게 오른 가격이 추가 상승 기대를 낳는 재귀적 상승으로 번진다. <strong>2021년 저금리 국면에서는 공급 사이클상 상승기가 아닌데도 매매가가 단기 폭등했고, 2022년 고금리 전환은 예정보다 이른 시점에 시장을 얼어붙게 했다.</strong> 금리 충격이 잦아들면 공급 사이클은 다시 원래의 흐름을 되찾는다.</p>
   <div class="conf"><span class="clevel cl-high">신뢰 매우 높음</span>
@@ -334,7 +337,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- 참고2: 전세가율 -->
 <section class="step ref" id="ref2"><div class="wrap">
   <div class="stepnum"><span class="badge">참고 ②</span><span class="arc">사슬이 만든 지역 구조</span></div>
-  <h2 class="t">수도권은 투자 시장, 지방은 실거주 시장</h2>
+  <h2 class="t">수도권은 투자, 지방은 실거주</h2>
   <p class="lead">전세가율(전세÷매매)은 그 시장에 <strong>투자 수요가 얼마나 끼어 있는가</strong>를 보여주는 지표다.</p>
   <p>전세가율이 <strong>낮으면</strong>(수도권) 매매가가 전세보다 훨씬 높다는 뜻 — 사람들이 거주 가치보다 미래 상승 기대에 더 많이 지불하는, <strong>투자성이 강한 시장</strong>이다. 전세가율이 <strong>높으면</strong>(지방) 가격이 거주 가치에 수렴한, <strong>실거주성이 강한 시장</strong>이다. 광역시는 그 중간이다.</p>
   <div class="chartbox">
@@ -348,7 +351,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <!-- 참고3: 투자 호흡 -->
 <section class="step ref" id="ref3"><div class="wrap">
   <div class="stepnum"><span class="badge">참고 ③</span><span class="arc">그래서 어떻게 볼 것인가</span></div>
-  <h2 class="t">지방은 빠른 순환에 올라타고, 수도권은 긴 사이클을 안고 간다</h2>
+  <h2 class="t">지방은 빠르게, 수도권은 길게<span class="t-sub"><span class="sr-only"> — </span>올라타는 지방, 안고 가는 수도권</span></h2>
   <p class="lead">사이클의 길이가 지역마다 다른 건, 결국 <strong>공급이 얼마나 빨리 나오느냐</strong>의 차이다. 그리고 그 차이가 투자의 호흡을 가른다.</p>
   <p><strong>지방</strong>은 택지가 많아 공급이 금방 나오고, 시장이 작아 적은 물량도 전세·매매에 곧장 반영된다. 그래서 사이클이 <strong>짧고 또렷</strong>하다. <strong>수도권</strong>은 택지가 없어 공급이 굼뜨고, 투자 수요가 두꺼워 기대·금리가 펀더멘털을 자주 압도한다. 그래서 사이클이 <strong>길다</strong>.</p>
   <div class="hbox">
