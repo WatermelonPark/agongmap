@@ -125,3 +125,95 @@ def test_entry_points_exist():
     assert 'href="/monthly/"' in _read('zone', 'index.html'), '시도 허브에 이달의 통계 진입점이 없다'
     assert "/monthly/" in _read('tools', 'make_sido_pages.py'), '허브 진입점이 생성기가 아니라 출력물에만 있다'
     assert 'href="/monthly/"' in _read('weekly', 'index.html'), '주간 페이지에 이달의 통계 진입점이 없다'
+
+
+# ---------------------------------------------------------------------------
+# 표가 원천 계열의 올바른 칸을 싣는가(2026-09-23 전체 점검 시험 보강)
+# 위 시험은 요약과 표를 서로 대조할 뿐이라, 표의 '전세' 칸에 매매 값을 넣어도(요약은 매매 칸만 읽는다)
+# 초록이었다. 여기서는 build() 의 표를 **원천 계열**과 칸마다 대조한다.
+# ---------------------------------------------------------------------------
+import make_monthly_page as MP  # noqa: E402
+import make_weekly_page as MW  # noqa: E402
+
+
+def _fixture():
+    """data.js 와 같은 모양의 한 달치. 칸마다 값의 크기·부호가 달라 칸이 섞이면 바로 드러난다.
+
+    매매는 오르고(+), 전세는 내리고(−), 월세는 작게 오른다 — 매매·전세 방향이 갈린 달.
+    전세가율은 14개월, 달마다 0.3%p 씩 올라 '1년 전'(12개월 전)과 '11개월 전'이 다른 값이다.
+    """
+    regs = list(SZ.ORDER)
+    n = len(regs)
+    ma = [round(0.11 * (i + 1), 2) for i in range(n)]
+    je = [round(-0.07 * (i + 1), 2) for i in range(n)]
+    wo = [round(0.013 * (i + 1), 3) for i in range(n)]
+    adv = {'monthly': {'regions': regs, 'rows': [{'p': '2026.07', 'ma': ma, 'je': je, 'wo': wo}]}}
+    dates = ['2025.%02d' % m for m in range(6, 13)] + ['2026.%02d' % m for m in range(1, 8)]   # 14개월
+    jr = {r: [60.0 + i + 0.3 * k for k in range(len(dates))] for i, r in enumerate(regs)}
+    un = {r: [1000.0 * (i + 1), 1000.0 * (i + 1) + 37 * (i + 1)] for i, r in enumerate(regs)}
+    sts = {'전세가율': {'dates': dates, 'series': jr},
+           '미분양': {'dates': ['2026.06', '2026.07'], 'series': un}}
+    return adv, sts, dict(ma=ma, je=je, wo=wo)
+
+
+def _cells(adv, sts, sid):
+    secs, _ = MP.build(adv, sts)
+    return _rows(_section(''.join(secs), sid))
+
+
+def test_price_table_puts_each_series_in_its_own_column():
+    """'시도별 매매·전세·월세' 표의 세 칸이 ADV.monthly 의 ma·je·wo 와 지역마다 같아야 한다.
+
+    변이: build() 의 전세 칸 `pv2(je)` 를 `pv2(ma)` 로 바꾸면 빨개진다(실제로 바꿔 확인 — 옛 요약 대조
+          시험은 초록이었다). 매매·월세 칸을 서로 바꿔도 빨개진다.
+    픽스처: 매매 상승·전세 하락으로 방향이 갈린 한 달(_fixture 독스트링).
+    """
+    adv, sts, src = _fixture()
+    rows = _cells(adv, sts, 'price')
+    regs = adv['monthly']['regions']
+    assert set(rows) == set(regs)
+    for i, r in enumerate(regs):
+        want = [MW.pv2r(src[k][i]) for k in ('ma', 'je', 'wo')]
+        assert rows[r] == want, '%s: 표 %s ≠ 원천(매매·전세·월세) %s' % (r, rows[r], want)
+
+
+def test_jeonse_and_unsold_tables_use_the_right_reference_month():
+    """전세가율 표는 '최신값, 12개월 전 대비', 미분양 표는 '최신값, 전월 대비'다.
+
+    변이: 전세가율의 `series_at(jr, i - 12)` 를 `i - 11` 로 바꾸면 변화가 +3.60 이 아니라 +3.30 이 되어
+          빨개진다. 미분양의 전월 대비를 `prev[r] - c` 로 뒤집어도 빨개진다(둘 다 확인).
+    픽스처: 전세가율이 달마다 0.3%p 오르는 14개월, 미분양이 한 달 새 늘어난 두 달.
+    """
+    adv, sts, _ = _fixture()
+    jr = _cells(adv, sts, 'jeonse')
+    for r, ser in sts['전세가율']['series'].items():
+        assert jr[r][0] == float('%.1f' % ser[-1]), r
+        assert abs(jr[r][1] - MW.pv2r(ser[-1] - ser[-13])) < 1e-9, '%s: 1년 전 대비 %s' % (r, jr[r][1])
+    un = _cells(adv, sts, 'unsold')
+    for r, ser in sts['미분양']['series'].items():
+        assert un[r] == [ser[-1], ser[-1] - ser[-2]], '%s: %s' % (r, un[r])
+
+
+def test_price_table_matches_the_stored_monthly_row():
+    """실데이터에서도 표의 세 칸이 저장된 ADV.monthly 마지막 행과 같다(값이 아니라 **대응**을 본다).
+
+    변이: 위와 같은 칸 바꿔치기(전세 칸에 매매)로 빨개진다(확인).
+    픽스처: 저장소의 data.js 그대로.
+    """
+    import make_sido_pages as P
+    adv, sts = P.load()
+    rows = _cells(adv, sts, 'price')
+    mo = adv['monthly']
+    last = mo['rows'][-1]
+    n = len(mo['regions'])
+    checked = 0
+    for i, r in enumerate(mo['regions']):
+        if r not in rows:
+            continue
+        want = []
+        for k in ('ma', 'je', 'wo'):
+            v = (last.get(k) or [None] * n)[i]
+            want.append(None if v is None else MW.pv2r(v))
+        assert rows[r] == want, '%s: 표 %s ≠ 저장값 %s' % (r, rows[r], want)
+        checked += 1
+    assert checked == len(SZ.ORDER), '표에 실린 지역이 %d곳뿐이다' % checked
