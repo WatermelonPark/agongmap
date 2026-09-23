@@ -82,6 +82,9 @@ body{padding-bottom:66px}
   justify-content:center;gap:3px;color:#97a0b8;font-size:11.5px;font-weight:600;
   text-decoration:none}
 .nav-btn svg{display:block}
+/* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
+.skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
+.skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
 </head>
 <body>
