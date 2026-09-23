@@ -33,7 +33,7 @@
 
 | 도구 | 역할 |
 |---|---|
-| `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키 없이 로직만 검증하려면 `--dry-run` |
+| `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키가 필요하다(`--dry-run`은 없어졌다. 키 없이는 pytest로 검증한다) |
 | `split_data.py` | `data.js` → `data-core.js`, `data-*.json` 분리 |
 | `make_sido_pages.py`, `make_indicator_pages.py`, `make_monthly_page.py` | 시도·지표·월간 페이지 생성 |
 | `sido_zones.py` | 판정 단위(시도) 목록·등급·정렬의 **정본**. 순위는 반드시 `zone_order()`를 쓴다(등급군 → 절대량). 절대 세대수로 순위를 매기면 판정과 모순이 난다. 시도 **목록을 보여줄 때**는 순위가 아니라 `DISPLAY_ORDER`(관심 지역 고정 순서)를 쓴다. `/monthly/`처럼 정부 표와 대조하는 화면은 `ORDER`(발표 원천 순서)를 유지한다 |
@@ -48,7 +48,6 @@
 
 ```bash
 python -m pytest tools/tests -q          # 전체 테스트
-python tools/update_adv_data.py --dry-run
 python tools/make_sido_pages.py
 ```
 
@@ -68,7 +67,11 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
   실패하면 GitHub이 실패 알림 메일을 보낸다. 배치 안의 알림 코드는 배치가 안 뜨면 실행되지 않으므로 감시자를 밖에 둔 것이다.
 - **발행 알림**: `write-reminder.yml`이 화(지역·사이클 격주)·금(주간 시세) 아침에 블로그 발행 이슈를 연다.
   `publish-check.yml`이 발행을 확인하고 이슈를 닫는다.
-- 클라우드 세션에는 API 키가 없다. 데이터 갱신을 실제로 돌리지 말고 `--dry-run`과 테스트로 검증한다.
+- 클라우드 세션에는 API 키가 없다. 데이터 갱신(`update_adv_data.py`)을 돌리지 말고 pytest로 검증한다.
+  클라우드 세션은 컨테이너가 매번 새로 뜨므로 `.claude/hooks/session-start.sh`(SessionStart 훅)가 시작 때
+  `pytest`·`pillow`를 깐다. 컨테이너 파이썬이 3.12가 아닐 수 있으니 3.12 전용 문법은 CI에서 한 번 더 확인한다.
+- 로컬에서만 할 수 있는 일(블로그 초안·발행, `drafts/`·`logs/`, 네이버 검색 API, 로컬 러너)은
+  `docs/2026-09-23-로컬-전용-작업.md`에 모아 로컬 세션이 관리한다.
 
 ## 데이터 원칙
 
