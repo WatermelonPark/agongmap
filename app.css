@@ -12,6 +12,15 @@
     --gwaing:#1a5276;
     /* 잰 것은 각지고, 누르는 것만 둥글다 */
     --r-touch:3px;
+    /* 조판 치수(2026-09-23 오딧 6번): 페이지군마다 h1 6종·단 폭 4종·본문 4종이던 것을 두 단계씩으로.
+       이 파일을 안 쓰는 페이지(주간·FAQ·소개·개인정보·퀴즈 3종·지표 생성기)도 같은 값을 :root 에 둔다.
+       여기가 정본이고 test_design_tokens 가 사본의 일치를 고정한다 — 값을 바꾸면 사본도 같이 바꾼다. */
+    --h1-report:clamp(28px,6vw,40px);   /* 제목이 곧 답·표지인 화면: 시도 리포트·주간·사이클·퀴즈 */
+    --h1-doc:clamp(26px,5.6vw,34px);    /* 설명·참고 문서: 월간·지표·FAQ·소개·개인정보 */
+    --col-read:560px;                   /* 읽는 글 단(.wrap 최대 폭, 좌우 여백 포함) */
+    --col-wide:820px;                   /* 표·지도·차트가 주인인 단 */
+    --fs-read:16px;                     /* 읽는 글 본문 */
+    --fs-dense:14px;                    /* 표 주변 본문 */
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html{scroll-behavior:smooth}
@@ -20,13 +29,13 @@
    링크를 걸어도 폰트가 적용되지 않는다(정적 버전 대비 흔한 함정). */
   font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     line-height:1.75;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
-  .wrap{max-width:820px;margin:0 auto;padding:0 24px}
+  .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
 
   /* HERO */
   .hero{padding:56px 0 48px;position:relative;overflow:hidden}
   .eyebrow{font-size:13px;
     color:var(--ink);font-weight:500;margin-bottom:14px}
-  .hero h1{font-size:clamp(36px,6.4vw,62px);line-height:1.1;font-weight:700;
+  .hero h1{font-size:var(--h1-report);line-height:1.1;font-weight:700;
     letter-spacing:-.01em;position:relative;z-index:2}
   .hero h1 em{font-style:normal}
   .hero h1 em:first-of-type{color:var(--jeonse)}
@@ -61,7 +70,7 @@
   .stepnum .arc{font-size:14px;color:var(--part-ink);font-weight:600;letter-spacing:0}
   h2.t{font-size:clamp(23px,4vw,32px);font-weight:700;letter-spacing:-.02em;
     line-height:1.22;margin-bottom:18px}
-  p{font-size:16px;color:var(--ink2);margin-bottom:14px}
+  p{font-size:var(--fs-read);color:var(--ink2);margin-bottom:14px}
   p.lead{font-size:17.5px;color:var(--ink);font-weight:500}
   strong,b{color:var(--ink);font-weight:600}
 
@@ -115,14 +124,14 @@
 
   /* 본문 파트 배너 (청록) */
   .mainbanner{background:#1a6b54;padding:22px 0;margin-top:10px}   /* 흰 글자 대비 4.26 → 6.5 */
-  .mainbanner .wrap{max-width:880px;margin:0 auto;padding:0 24px}
+  .mainbanner .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
   .mainbanner .mainkicker{display:inline-block;font-size:12px;font-weight:500;
     background:#fff;color:#1a6b54;padding:3px 12px;border-radius:0;margin-bottom:10px}
   .mainbanner p{margin:0;color:#fff;font-size:15px;line-height:1.6}
   .mainbanner b{color:#fff}
   /* 참고 배너 & 섹션 */
   .refbanner{background:var(--paper2);padding:22px 0;margin-top:10px}
-  .refbanner .wrap{max-width:880px;margin:0 auto;padding:0 24px}
+  .refbanner .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
   .refbanner .refkicker{display:inline-block;font-size:12px;font-weight:500;
     background:#fff;color:#7a5800;padding:3px 12px;border-radius:0;margin-bottom:10px}
   .refbanner p{margin:0;color:#3a2e00;font-size:15px;line-height:1.6}
@@ -170,7 +179,7 @@
     .nav-btn svg{display:block}
 
   /* ===== 테스트 ===== */
-  .quiz-wrap{max-width:560px;margin:0 auto;padding:0 18px 120px;min-height:80vh}
+  .quiz-wrap{max-width:var(--col-read);margin:0 auto;padding:0 18px 120px;min-height:80vh}
   .quiz-hero{padding:56px 4px 0;text-align:center}
   .quiz-hero h2{font-size:32px;font-weight:700;line-height:1.25;margin:0 0 18px;letter-spacing:-.02em}
   .quiz-hero p{font-size:15.5px;line-height:1.7;color:var(--ink2);margin:0 auto 28px;max-width:420px}
@@ -356,7 +365,7 @@
   .shero .shero-link a{display:inline-block;padding:10px 0;color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1.5px solid var(--ink);margin-right:8px}
   .shero .shero-link span{color:var(--muted);font-size:13px;white-space:nowrap}
   .dash{padding:0 0 18px}
-  .dash .wrap{max-width:860px;margin:0 auto;padding:0 18px}
+  .dash .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 18px}
   .ctrl{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
     padding:14px 16px;margin-top:-6px;position:relative;z-index:2;}
   .ctrl-row{display:flex;align-items:center;gap:12px;padding:6px 0}
@@ -664,7 +673,7 @@
   .hs-kicker{font-size:12px;font-weight:500;color:var(--ink);margin-bottom:10px}
   .home-sec h2{font-size:clamp(21px,4.6vw,27px);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
   .home-sec h3{font-size:clamp(17px,3.6vw,20px);font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
-  .home-sec p{font-size:16px;line-height:1.75;color:var(--ink2);max-width:520px;margin:0 auto}
+  .home-sec p{font-size:var(--fs-read);line-height:1.75;color:var(--ink2);max-width:520px;margin:0 auto}
   /* 주간 시세 카드 격자. 예전엔 1200×630 PNG를 걸었는데 고정 비율이라 폭이
      좁아지면 글자가 뭉갰다(2026-08-17). auto-fit으로 4열→3열→2열로 접힌다.
      ⚠️ 격자선은 셀이 box-shadow로 그린다 — 컨테이너 배경으로 그리면 마지막 줄
@@ -975,8 +984,8 @@ table.adv thead th:first-child{text-align:center}
   .crumb a{color:var(--muted);text-decoration:none;
     display:inline-block;padding:9px 0}   /* 31×14 → 32px+ 표적(2026-08-14 검수) */
   .crumb a:hover{text-decoration:underline}
-  .zhead h1{font-size:clamp(28px,5vw,42px);line-height:1.15;font-weight:700;letter-spacing:-.01em}
-  .zlead{margin-top:14px;font-size:16px;color:var(--ink2);display:flex;align-items:center;
+  .zhead h1{font-size:var(--h1-report);line-height:1.15;font-weight:700;letter-spacing:-.01em}
+  .zlead{margin-top:14px;font-size:var(--fs-read);color:var(--ink2);display:flex;align-items:center;
     gap:9px;flex-wrap:wrap}
   .znote{margin-top:10px;font-size:12.5px;color:var(--muted);line-height:1.7}
   .zhead+section,section+section{padding-top:30px}
