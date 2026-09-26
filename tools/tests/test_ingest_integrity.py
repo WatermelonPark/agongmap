@@ -241,7 +241,7 @@ def test_supply_month_with_one_piece_is_held_not_undercounted(monkeypatch):
     assert D['series'] == D0['series'] and not failed and not U.SUPPLY_STALLED
 
 
-@pytest.mark.parametrize('shape', ['both', 'one', 'merged', 'merged+one', 'none'])
+@pytest.mark.parametrize('shape', sorted(SHAPES))
 def test_supply_batch_and_watchdog_agree_on_the_latest_complete_month(monkeypatch, shape):
     """배치가 받아 붙이는 마지막 달과 그 달 시도 합이, 감시(check_freshness.rone_latest_complete)가 원천의
     '완비된 최신 달'로 보는 것과 같다. 기준이 갈리면 한쪽 방어선이 다른 쪽 고장을 덮는다 — 배치가 한 조각 달을
@@ -249,9 +249,10 @@ def test_supply_batch_and_watchdog_agree_on_the_latest_complete_month(monkeypatc
 
     변이: _merge_gj 를 예전 규칙(한 조각만 와도 그 조각을 통합 지역에 싣고 원천 통합 행을 덮음)으로 되돌리면 'one'
           (배치는 새 달, 감시는 직전 달)과 'merged+one'(배치는 전남 조각, 감시는 통합 행)이 빨개진다(확인).
-    픽스처: 저장 STATS 미분양의 마지막 달(광주·전남 두 행) + 새 달. 새 달의 광주·전남 모양을 다섯으로 바꾼다.
-            ⚠️ '통합 행 + 두 조각이 다 있고 값이 다른' 모양은 넣지 않았다 — 배치는 통합 행을, 감시는 두 조각 합을
-            써서 지금 갈린다(check_freshness.rone_latest_complete 의 `v['전남광주'] = v.pop(old_a) + v.pop(old_b)`).
+          감시의 접기를 예전 인라인 규칙(두 조각이 다 있으면 `v['전남광주'] = v.pop(old_a) + v.pop(old_b)` 로 통합 행을
+          덮음)으로 되돌리면 'merged+both'(배치 4202, 감시 4100)가 빨개진다(2026-09-26 감사 #7 잔여, 확인).
+    픽스처: 저장 STATS 미분양의 마지막 달(광주·전남 두 행) + 새 달. 새 달의 광주·전남 모양을 SHAPES 여섯으로 바꾼다
+            ('merged+both' 는 통합 행과 값이 다른 두 조각이 함께 오는 전환기 모양이다).
     """
     st = _stats()
     D0 = copy.deepcopy(st['미분양'])
