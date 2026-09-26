@@ -18,6 +18,7 @@
 """
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -74,7 +75,11 @@ def quarterly(D, region, y_from):
             continue
         t = p[0] + (p[1] - 1) // 3 * 0.25
         acc.setdefault(t, []).append(v)
-    return {t: round(sum(a) / len(a), 1) for t, a in acc.items()}
+    # ⚠️ math.fsum 을 쓴다. 파이썬 3.12 부터 내장 sum() 이 실수에 보정 합산을 해서 3.11 과 끝자리가 갈린다.
+    #    .x5 경계에서 반올림이 뒤집혀(수도권 2011Q1 87.8↔87.9 등 세 칸) 개발 컨테이너(3.11)와 배치(3.12)가
+    #    같은 data.js 로 다른 값을 굽고, 커밋마다 그 세 칸이 번갈아 바뀌었다(2026-08-08~09-18). fsum 은
+    #    정확히 반올림한 합이라 판에 상관없이 같고, 배치(3.12)가 굽던 값과도 같다(2026-09-26 데이터 감사).
+    return {t: round(math.fsum(a) / len(a), 1) for t, a in acc.items()}
 
 
 def build_zones(S):
@@ -124,7 +129,7 @@ def build_jratio(S):
            for r, v in rows]
     sudo = [v for r, v in rows if r in SUDO]
     jib = [v for r, v in rows if r not in SUDO]
-    return lvl, round(sum(sudo) / len(sudo), 1), round(sum(jib) / len(jib), 1), D['dates'][k]
+    return lvl, round(math.fsum(sudo) / len(sudo), 1), round(math.fsum(jib) / len(jib), 1), D['dates'][k]
 
 
 # 사이클 본문의 전세가율 풀이 칸(2026-09-15 콘텐츠 세션 제안). 전세가율은 이 배치가 매일
