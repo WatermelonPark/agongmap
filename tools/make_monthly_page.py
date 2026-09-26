@@ -82,7 +82,12 @@ def cls(v):
 
 
 def num(v):
-    return '·' if v is None else format(int(round(v)), ',')
+    """표의 정수 칸. 사이트 반올림 정본(half-up, JS Math.round·make_sido_pages.rnd 와 같다)을 쓴다.
+
+    ⚠️ round() 는 은행가 반올림이라 입주물량 추정치(착공 × 0.958, 소수 셋째 자리)가 x.5 에 걸리면 홈·지역
+       페이지(719)와 이 표(718)가 갈렸다(2026-09-26 데이터 감사 #18).
+    """
+    return '·' if v is None else format(SZ.half_up(v), ',')
 
 
 def month_label(p):
@@ -359,7 +364,7 @@ def _rank(vals, n=3):
 
 
 def _signed(v):
-    r = int(round(v))
+    r = SZ.half_up(v)
     return ('+' if r > 0 else '') + format(r, ',')
 
 
@@ -390,7 +395,9 @@ def top3_lines(adv, sts):
     if orows and fut:
         last, nxt = (act[-1] if act else orows[-1]), fut[0]
         lv, nv = last.get('v') or [], nxt.get('v') or []
-        vals = {r: nv[i] - lv[i] for i, r in enumerate(oregs)
+        # 차이는 **표에 찍힌 두 정수**의 차로 낸다. 원값 차를 반올림하면 추정치가 x.5 일 때 요약이 표와
+        # 1세대 갈려('대구 -3,042세대' 위에 표는 3,281 → 240) 게이트가 그 분기 내내 막힌다(감사 #18).
+        vals = {r: SZ.half_up(nv[i]) - SZ.half_up(lv[i]) for i, r in enumerate(oregs)
                 if i < len(lv) and i < len(nv) and lv[i] is not None and nv[i] is not None}
         tops['moveins'] = ('%s 실적 대비 %s 예정, 증감이 큰 곳' % (last.get('p', ''), nxt.get('p', '')),
                            [(r, _signed(v) + '세대') for r, v in _rank(vals)])
