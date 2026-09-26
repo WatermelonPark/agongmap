@@ -499,22 +499,30 @@ def test_label_ladder_stays_one_notch_up_without_moving_the_cuts():
 
     둘은 한 몸으로 움직이기 쉽다("정리" 커밋이 라벨을 되돌리거나, 다음 사람이
     라벨에 맞춰 컷을 옮기거나). 양쪽을 같이 잠근다.
+
+    요구가 실제로 충족되는지는 결정 당시 집계 3곳의 순부족비(0.58~0.62)가 calc 를 거쳐 '부족'으로
+    읽히는지로 본다. ⚠️ 실데이터 ADV.sido 의 등급은 단정하지 않는다(2026-09-26 데이터 감사 #6). 예전엔
+    저장소 data.js 의 집계 3곳이 g2 이상인지 봤는데, 집계가 컷 0.5 아래로 정직하게 내려간 날(2024Q2 전국
+    0.473 이 실제로 그랬다) 게이트가 그 판정과 그날의 모든 데이터 커밋을 막는다. 배포 게이트에 실데이터
+    값을 단정하지 않는다(test_cycle_payload 의 규칙).
+
+    변이: grade() 의 `if ratio >= c[2]: return 'g2'` 를 `c[1]` 로 바꾸면 0.60 이 '균형'으로 읽혀 빨개진다
+          (실제로 바꿔 확인 — 컷·라벨 두 잠금은 초록인 채로). 라벨 g2 를 '다소 부족'으로 되돌리면 잠금이 빨개진다.
+    픽스처: 2026-08-15 결정 때의 모양 — 전국 0.60·수도권 0.58·지방 0.62(_edge_stats: 재고 0, 순부족비 =
+            1 − k×CONV), 그리고 컷 0.5 바로 위·아래 0.51·0.49(정확히 0.5 는 부동소수 오차로 양쪽에 걸칠 수
+            있어 피한다).
     """
     assert M.GRADE_CUTS == (1.5, 1.0, 0.5, 0.0), \
         '컷이 움직였다 — 가격 실측 근거를 대체할 새 근거가 문서에 있는지 확인할 것'
     assert M.GRADE_LABS == {'g4': '심각한 부족', 'g3': '매우 부족', 'g2': '부족',
                             'g1': '균형', 'g0': '공급 여유'}, '라벨 사다리가 되돌아갔다'
 
-    # 요구가 실제로 충족되는지 — 집계 3곳이 '부족' 이상으로 읽혀야 한다.
-    import io as _io, json, re
-    root = os.path.join(os.path.dirname(__file__), '..', '..')
-    src = _io.open(os.path.join(root, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
-    by = {z['z']: z for z in adv['sido']['zones']}
-    for agg in ('전국', '수도권', '지방'):
-        assert M.GRADE_LABS[by[agg]['grade']] in ('부족', '매우 부족', '심각한 부족'), \
-            '%s가 아직 약하게 읽힌다(%s)' % (agg, M.GRADE_LABS[by[agg]['grade']])
+    for z, ratio, lab in (('전국', 0.60, '부족'), ('수도권', 0.58, '부족'), ('지방', 0.62, '부족'),
+                          ('수도권', 0.51, '부족'), ('수도권', 0.49, '균형')):
+        row = _edge_row(z, k=(1 - ratio) / M.CONV)
+        assert abs(row['ratio'] - ratio) < 1e-4, (z, ratio, row['ratio'])
+        assert M.GRADE_LABS[row['grade']] == lab, \
+            '%s 순부족비 %.2f 가 %s 로 읽힌다(%s 여야 한다)' % (z, ratio, M.GRADE_LABS[row['grade']], lab)
 
 
 # ---------------------------------------------------------------------------
