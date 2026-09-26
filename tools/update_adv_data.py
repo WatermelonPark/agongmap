@@ -18,7 +18,7 @@ data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이�
   monthly  — 월간 매매·전세·월세 동향(R-ONE 단일 소스): 시장동향 월간 지도·그래프에
              쓰이는 라이브 데이터로 매 실행 갱신한다(fetch_monthly, adv['monthly']).
 """
-import io, os, re, sys, json, time
+import copy, io, os, re, sys, json, time
 import datetime
 import urllib.request
 import urllib.parse
@@ -1397,6 +1397,46 @@ def update_annual(stats, failed=None):
     return changed
 
 
+# sido_zones.calc 가 미래 시야 H(= 착공 끝 분기 − 준공 끝 분기 + LEAD_Q)를 재는 두 계열.
+_HORIZON_SERIES = ('준공', '착공')
+
+
+def _horizon_ok(stats):
+    """make_sido_pages 게이트와 **같은 측정**(sido_zones.calc 의 H == lead). 계산할 수 없으면 None."""
+    try:
+        r = SZ.calc(stats)
+    except Exception:
+        return None
+    return r['H'] == r['lead']
+
+
+def _hold_horizon(stats, before, failed):
+    """이번 회차 병합으로 준공·착공의 끝 분기가 갈라졌으면(H != lead) 두 계열을 병합 전으로 되돌린다.
+
+    ⚠️ 왜: 준공과 착공은 KOSIS 의 서로 다른 표(DT_MLTM_5373·5387)를 달마다 따로 부른다. 분기를 닫는 달
+    (03·06·09·12)이 처음 들어오는 회차에 착공 호출만 순단으로 죽으면(부분 실패라 rc=0, 러너는 clean) 준공만
+    새 분기로 넘어가 H=11 이 된다. make_sido_pages 는 STATS 로 다시 재서 H != lead 면 ABORT 하므로 그날
+    커밋 전체(주간·월간 시세 포함)가 막히고, 원천이 착공을 늦게 싣는 달이면 착공이 올 때까지 매 회차 막힌다
+    (2026-09-26 데이터 감사 #5). ADV.sido 만 옛것으로 두어서는 못 막는다 — 게이트는 STATS 에서 다시 잰다.
+    그래서 병합 전 STATS 가 정합(H == lead)이었을 때만, 두 계열을 병합 전으로 두고 'sido-h' 부분 실패를 남긴다.
+    다음 회차가 두 계열을 다시 받으므로 지워지는 것은 없다. 병합 전부터 어긋나 있었으면 지킬 상태가 없으니 둔다.
+    되돌렸으면 True.
+    """
+    if not before or _horizon_ok(stats) is not False:
+        return False
+    prev = dict(stats)
+    prev.update(before)
+    if _horizon_ok(prev) is not True:
+        return False
+    for k, D in before.items():
+        stats[k] = copy.deepcopy(D)
+    print('basic 준공·착공: 끝 분기가 갈라져(미래 시야 ≠ %d분기) 이번 회차 두 계열을 병합 전으로 둔다 — '
+          '한쪽만 새 분기를 받았다(부분 실패·원천 지연)' % SZ.LEAD_Q)
+    if 'sido-h' not in failed:
+        failed.append('sido-h')
+    return True
+
+
 def update_basic(failed=None):
     """기본통계(STATS) 증분 갱신. 변경 토큰 목록을 돌려주고, 실패한 계열 이름은 failed에 넣는다.
 
@@ -1412,6 +1452,8 @@ def update_basic(failed=None):
         changed += update_rate(stats)
     except Exception as e:
         failed.append('rate'); print('rate skip:', e)
+    before = {k: copy.deepcopy(stats[k]) for k in _HORIZON_SERIES if k in stats}
+    tokens = {}
     for name in BASIC_CONF:
         try:
             fetched, rates = _fetch_basic_one(name)
@@ -1419,9 +1461,12 @@ def update_basic(failed=None):
             n = merge_basic(stats[name], fetched)
             n += merge_prov(stats[name], rates, BASIC_CONF[name]['dec'])
             if n:
-                changed.append('%s(%d)' % (name, n))
+                tokens[name] = '%s(%d)' % (name, n)
+                changed.append(tokens[name])
         except Exception as e:
             failed.append(name); print('basic %s skip: %s' % (name, e))
+    if _hold_horizon(stats, before, failed):
+        changed[:] = [t for t in changed if t not in {tokens.get(k) for k in before}]
     try:
         changed += update_size(stats)
     except Exception as e:
@@ -1628,6 +1673,10 @@ def write_adv(adv):
 # 인허가 기반 준공예정으로 세던 게 1.29~1.68배 과대였던 게 직접적인 이유다.
 # 지금은 tools/sido_zones.py가 STATS의 준공·착공만으로 점수를 낸다.
 # 근거: docs/superpowers/specs/2026-08-06-sido-supply-table-design.md
+
+class _SidoHeld(Exception):
+    """시도 점수 가드(H ≠ lead)에 걸려 입주물량 갱신도 건너뛴다는 신호. 실패가 아니라 보류다."""
+
 
 def main():
     # 기본값을 --update로. --dry-run 핸들러는 사라졌는데 기본 인자만 남아
@@ -1908,6 +1957,15 @@ def main():
                   '(통계 부분 응답 의심. zone 페이지·sitemap 보존)'
                   % (n_new, want, n_old, ', '.join(gone) or '?'))
             failed.append('sido-shrink')
+        elif sd.get('H') != sd.get('lead'):
+            # 가드: 준공·착공의 끝 분기가 갈라진 점수(미래 시야 H ≠ lead)는 채택하지 않는다. 그런 점수는
+            # 전 지역 비율이 함께 움직인 값이고 make_sido_pages 가 어차피 ABORT 한다. 옛 점수·입주물량을
+            # 지키고 부분 실패('sido-h')로만 남긴다 — rc=3 판정(failed)에는 넣지 않는다(2026-09-26 데이터
+            # 감사 #5). 보통은 update_basic 의 _hold_horizon 이 STATS 단계에서 먼저 막는다.
+            print('sido GUARD: 미래 시야가 %s분기라 채택하지 않음(정상 %s — 준공 %s·착공 %s). 점수·입주물량 보존'
+                  % (sd.get('H'), sd.get('lead'), sd.get('L'), sd.get('S')))
+            if 'sido-h' not in soft_failed:
+                soft_failed.append('sido-h')
         elif differs(sd, adv.get('sido')):
             adv['sido'] = sd
             changed.append('sido(%d곳, 실적~%s, 미래 %d분기)' % (n_new, sd['L'], sd['H']))
@@ -1918,6 +1976,8 @@ def main():
         # (2026-08-07 감사).
         if 'sido-shrink' in failed:
             raise RuntimeError('sido 가드에 걸려 occupancy도 갱신하지 않는다')
+        if sd.get('H') != sd.get('lead'):
+            raise _SidoHeld()
         # 통계 탭 '입주물량'과 /moveins/도 **같은 소스**를 쓴다. 2026-08-07까지
         # 여기는 odcloud 입주예정이라 같은 서울 2027Q2를 홈은 2,107, 통계 탭은
         # 1,073으로 보여줬고 기준선도 셋(적정물량·밴드·ref)이 공존했다.
@@ -1930,6 +1990,8 @@ def main():
             adv['occupancy'] = occ
             changed.append('occupancy(공급표와 통일)')
             write_adv(adv)
+    except _SidoHeld:
+        pass            # 'sido-h' 는 위에서 soft_failed 에 남겼다 — failed(rc=3 판정)에 'sido'를 더하지 않는다
     except Exception as e:
         failed.append('sido'); print('sido skip:', e)
     # 후속 단계(뉴스레터 발송 등)에 변경 내역 전달 — 커밋 대상 아님

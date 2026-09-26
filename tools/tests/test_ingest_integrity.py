@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""수집 정합(2026-09-26 데이터 감사 #4·#7·#8)의 회귀 시험.
+"""수집 정합(2026-09-26 데이터 감사 #4·#5·#7·#8)의 회귀 시험.
 
 원천 호출 없이 돈다 — kosis·_rone_recent_rows·check_freshness.get_json 을 픽스처로 바꿔 끼운다. 픽스처는
 **저장소 data.js 의 실제 STATS·ADV 를 잘라** 원천 응답 모양으로 되돌린 것이고, 기대값도 같은 저장분에서
@@ -270,6 +270,72 @@ def test_supply_batch_and_watchdog_agree_on_the_latest_complete_month(monkeypatc
     w_last, w_total = C.rone_latest_complete(U.SUPPLY_CONF['미분양']['tbl'], want_total=True)
     assert '%d%02d' % b_last == w_last, (b_last, w_last)
     assert abs(b_total - w_total) < 1e-6, (b_total, w_total)
+
+
+# ── #5 준공·착공 끝 분기가 갈라지면 STATS 단계에서 되돌린다 ───────────────────────────────
+def _next_quarter_months(D):
+    """저장분 마지막 달 뒤로 다음 분기를 닫을 때까지의 달들."""
+    ym = U._label_ym(D['dates'][-1])
+    out = []
+    while True:
+        ym = _next(ym)
+        out.append(ym)
+        if ym[1] % 3 == 0:
+            return out
+
+
+def _basic_run(monkeypatch, st, give):
+    """update_basic 을 저장 STATS 사본 위에서 돌린다. give = {계열: fetched 또는 예외}."""
+    monkeypatch.setattr(U, 'read_current_stats', lambda: st)
+    monkeypatch.setattr(U, 'write_stats', lambda s: None)
+    for fn in ('update_rate', 'update_size', 'update_supply', 'update_annual'):
+        monkeypatch.setattr(U, fn, lambda *a, **k: [])
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+
+    def fetch(name, *a, **k):
+        g = give.get(name, {})
+        if isinstance(g, Exception):
+            raise g
+        return copy.deepcopy(g), {}
+    monkeypatch.setattr(U, '_fetch_basic_one', fetch)
+    failed = []
+    changed = U.update_basic(failed)
+    return failed, changed
+
+
+def _new_quarter(D):
+    last = {r: v[-1] for r, v in D['series'].items() if v[-1] is not None}
+    return {ym: dict(last) for ym in _next_quarter_months(D)}
+
+
+def test_quarter_closing_month_on_one_series_only_is_held(monkeypatch):
+    """분기를 닫는 달이 처음 들어오는 회차에 준공만 새 분기를 받고 착공 호출이 죽으면(부분 실패, rc=0), 준공·착공을
+    병합 전으로 두고 'sido-h' 를 남긴다 — STATS 가 정합(H == lead)한 채라 make_sido_pages 가 ABORT 하지 않고 그날
+    데이터(주간·월간 시세 등)가 커밋된다. 둘 다 받은 회차는 그대로 새 분기로 간다(대조군).
+
+    변이: update_basic 의 `if _hold_horizon(stats, before, failed):` 블록을 지우면 준공만 새 분기로 가 H = lead − 1 이
+          되어 빨개진다(확인 — 그 STATS 로 make_sido_pages 는 'ABORT: 준공(~…)과 착공(~…)의 끝 분기가 달라' 로 죽는다).
+    픽스처: 저장 STATS 준공·착공(둘 다 같은 달에서 끝남)과 그 뒤 분기를 닫는 달들. 준공 표(DT_MLTM_5373)는 새 달을
+            주고 착공 표(DT_MLTM_5387) 호출은 KOSIS 오류 — 감사 #5 재현(2026-08-07 '착공만 늦게 도착' 사례와 같은 모양).
+    """
+    st = _stats()
+    before = SZ.calc(st)
+    assert before['H'] == before['lead'], '픽스처: 저장분이 이미 어긋나 있다'
+    j0, c0 = copy.deepcopy(st['준공']), copy.deepcopy(st['착공'])
+    failed, changed = _basic_run(monkeypatch, st, {'준공': _new_quarter(j0),
+                                                  '착공': RuntimeError('KOSIS err 20: 픽스처')})
+    assert '착공' in failed and 'sido-h' in failed
+    assert st['준공'] == j0 and st['착공'] == c0, '한쪽만 새 분기인 STATS 가 남았다'
+    after = SZ.calc(st)
+    assert after['H'] == after['lead'] and after['L'] == before['L']
+    assert not any(t.startswith('준공') for t in changed)
+
+    st = _stats()
+    failed, changed = _basic_run(monkeypatch, st, {'준공': _new_quarter(st['준공']),
+                                                  '착공': _new_quarter(st['착공'])})
+    after = SZ.calc(st)
+    assert 'sido-h' not in failed and after['H'] == after['lead'] and after['L'] > before['L'], \
+        '둘 다 받은 회차는 새 분기로 가야 한다'
 
 
 # ── #8 서울구 열이 한 회차 빠져도 이력을 지운다 ───────────────────────────────────────────
