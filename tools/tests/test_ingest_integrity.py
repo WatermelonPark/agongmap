@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""수집 정합(2026-09-26 데이터 감사 #4·#7)의 회귀 시험.
+"""수집 정합(2026-09-26 데이터 감사 #4·#7·#8)의 회귀 시험.
 
 원천 호출 없이 돈다 — kosis·_rone_recent_rows·check_freshness.get_json 을 픽스처로 바꿔 끼운다. 픽스처는
 **저장소 data.js 의 실제 STATS·ADV 를 잘라** 원천 응답 모양으로 되돌린 것이고, 기대값도 같은 저장분에서
@@ -270,3 +270,37 @@ def test_supply_batch_and_watchdog_agree_on_the_latest_complete_month(monkeypatc
     w_last, w_total = C.rone_latest_complete(U.SUPPLY_CONF['미분양']['tbl'], want_total=True)
     assert '%d%02d' % b_last == w_last, (b_last, w_last)
     assert abs(b_total - w_total) < 1e-6, (b_total, w_total)
+
+
+# ── #8 서울구 열이 한 회차 빠져도 이력을 지운다 ───────────────────────────────────────────
+@pytest.mark.parametrize('kind,window', [('weekly', U.RECENT_WEEKS), ('monthly', U.RECENT_MONTHS)])
+def test_gu_missing_for_one_run_keeps_its_history(kind, window):
+    """최신 주(달)에 서울 구 하나가 빠진 부분 응답이 한 번 와도 그 구의 창 밖 이력이 남고, 다음 회차에 구가 돌아오면
+    전 구간이 저장분 그대로다. 빠진 회차는 부분 실패로 기록된다.
+
+    변이: _merge_hist 의 `if gone:` 합집합 블록을 지우면(예전처럼 새 응답의 열 목록만 쓰면) 첫 회차에 그 구 열이
+          통째로 사라지고 다음 회차에 창 밖이 전부 None 이 되어 빨개진다(확인 — 주간 136주·월간 106달 영구 손실).
+    픽스처: 저장 ADV 의 weekly/monthly.seoul(서울 25구 × 저장 구간)과, 그 끝 RECENT_WEEKS/RECENT_MONTHS 구간을 다시
+            받은 응답. 첫 회차 응답은 열 목록 첫 구가 빠졌다(fetch_*_rone 이 최신 주 매매값에서 gus 를 다시 만들 때
+            그 구 행이 페이지 경계에서 밀린 회차). 둘째 회차는 정상 응답.
+    """
+    cur = copy.deepcopy(U.read_current_adv()[3][kind]['seoul'])
+    regs = cur['regions']
+    gu = regs[0]
+    keep = U.CONF[kind]['sgg_hist']
+    full = {'regions': list(regs), 'rows': copy.deepcopy(cur['rows'][-window:])}
+    part = {'regions': regs[1:], 'rows': [dict(r, **{k: v[1:] for k, v in r.items() if isinstance(v, list)})
+                                          for r in copy.deepcopy(full['rows'])]}
+    old = {r['p']: r['ma'][0] for r in cur['rows']}
+    assert sum(v is not None for p, v in old.items() if p < full['rows'][0]['p']) > 0, '픽스처: 창 밖 이력이 없다'
+    soft = []
+    n1 = U._merge_hist(part, copy.deepcopy(cur), keep, '시험 서울구', soft)
+    assert n1['regions'] == regs, '빠진 구의 열이 사라졌다'
+    j = n1['regions'].index(gu)
+    for r in n1['rows']:
+        want = old[r['p']] if r['p'] < full['rows'][0]['p'] else None
+        assert r['ma'][j] == want, r['p']
+    assert soft == ['시험 서울구 열 빠짐(%s)' % gu]
+    n2 = U._merge_hist(copy.deepcopy(full), n1, keep, '시험 서울구', soft)
+    assert n2['regions'] == regs and [r['ma'][0] for r in n2['rows']] == [old[r['p']] for r in n2['rows']]
+    assert len(soft) == 1, '정상 회차에 실패가 기록됐다'

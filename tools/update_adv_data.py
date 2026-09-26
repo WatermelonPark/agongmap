@@ -712,17 +712,25 @@ def _align_rows(rows, old_cols, new_cols, label=''):
     바뀌면 156주치 옛 행이 **한 칸씩 밀린 채** 새 이름으로 읽힌다 — 강남구 값이 강동구로
     그려지고 아무 검사도 빨개지지 않는다(2026-09-23 전체 점검). 이름이 같으면 그대로 두고,
     다르면 이름으로 옮긴다. 새로 생긴 열의 과거는 None(모른다), 사라진 열의 과거는 버리고 알린다.
+    (주간·월간 **시도** 열은 모델 상수 WEEKLY_REGIONS 라 열이 사라지는 것은 모델 결정 — 2026-09-10 처럼
+    merge_regions 로 이력을 먼저 옮긴 뒤다. 응답에서 열을 만드는 서울구·시군구 블록은 _merge_hist 가
+    옛 열 ∪ 새 열을 넘기므로 이력 있는 열이 여기서 사라지지 않는다.)
     """
     # 새 응답에 열이 하나도 없으면(그 주 서울 구 행이 통째로 빠진 응답) 옮길 기준이 없다.
     # list(None) 으로 죽어 주간 섹션 전체를 잃지 말고 예전처럼 그대로 둔다(2026-09-23 재검토).
     if not rows or old_cols is None or not new_cols or list(old_cols) == list(new_cols):
         return rows
-    idx = {c: i for i, c in enumerate(old_cols)}
     gone = [c for c in old_cols if c not in set(new_cols)]
-    born = [c for c in new_cols if c not in idx]
+    born = [c for c in new_cols if c not in set(old_cols)]
     print('::warning::%s 열 목록이 바뀌어 과거 %d행을 이름으로 다시 맞춘다(사라짐 %s · 새로 생김 %s)'
           % (label or '시계열', len(rows), ', '.join(map(str, gone)) or '없음',
              ', '.join(map(str, born)) or '없음'))
+    return _reindex_rows(rows, old_cols, new_cols)
+
+
+def _reindex_rows(rows, old_cols, new_cols):
+    """rows 의 값 배열을 old_cols 순서에서 new_cols 순서로 이름으로 옮긴다(없는 열은 None). 알림 없음."""
+    idx = {c: i for i, c in enumerate(old_cols)}
     out = []
     n_old = len(old_cols)
     for r in rows:
@@ -737,21 +745,72 @@ def _align_rows(rows, old_cols, new_cols, label=''):
     return out
 
 
-def _merge_hist(new, cur, keep, label=''):
+def _union_cols(old_cols, new_cols):
+    """새 열 목록에 옛 열 중 빠진 것을 **옛 순서 자리에** 끼운 목록. 둘 다 정렬돼 있으면 결과도 정렬된다."""
+    out = list(new_cols)
+    have = set(out)
+    prev = None
+    for c in old_cols:
+        if c not in have:
+            out.insert(out.index(prev) + 1 if prev is not None else 0, c)
+            have.add(c)
+        prev = c
+    return out
+
+
+def _has_value(rows, j):
+    """rows 의 j 번째 열에 None 아닌 값이 하나라도 있나(값 배열 필드 전부)."""
+    return any(isinstance(v, list) and j < len(v) and v[j] is not None
+               for r in rows for v in r.values())
+
+
+def _merge_hist(new, cur, keep, label='', failed=None):
     """시군구·서울구 시계열도 시도처럼 과거를 살린다.
     매 실행은 최근 구간만 받아오므로, 이게 없으면 통째 교체돼 히스토리가 12개에서
     영영 늘지 않는다(구 단위 그래프가 '최근 12개'에 갇히던 원인).
-    열 목록이 바뀌었으면 옛 행을 이름으로 다시 맞춘 뒤 붙인다(_align_rows)."""
+    열 목록이 바뀌었으면 옛 행을 이름으로 다시 맞춘 뒤 붙인다(_align_rows).
+
+    ⚠️ **이력이 있는 열은 버리지 않는다.** 서울구 열 목록은 고정 상수가 아니라 매 회차 응답의 최신 주
+    매매값에서 다시 만든다(fetch_weekly_rone·fetch_monthly_rone 의 gus). 그래서 최신 주에 구 하나가 빠진
+    부분 응답(페이지 경계에서 행이 밀리거나 그 칸 DTA_VAL 이 비는 회차) 한 번이면, 예전 코드는 그 구의
+    창 밖 이력(주간 136주·월간 106달)을 영구히 지웠다 — 창 밖은 다시 받지 않고 --heal-price 도 서울구
+    블록은 안 고친다. 다음 회차에 구가 돌아와도 '새 열'이라 과거가 전부 None 이었다(2026-09-26 데이터
+    감사 #8). 이제 열 목록은 옛 열 ∪ 새 열이고, 응답에 없는 열의 이번 구간 값은 None(모름)이다.
+    한 칸도 값이 남지 않은 열(이력이 keep 밖으로 다 밀려난 열)만 뺀다.
+    응답에서 열이 빠진 회차는 failed 에 '<label> 열 빠짐(이름)'으로 남긴다(.fetch_failed → 배치 알림 ℹ️ 줄).
+    """
     if not (new and new.get('rows')):
         return cur if (cur and cur.get('rows')) else new
     if not (cur and cur.get('rows')):
         return new
+    old_cols, new_cols = _cols(cur), _cols(new)
     first = new['rows'][0]['p']
     older = [r for r in cur['rows'] if r['p'] < first]
+    key = 'regions' if (new.get('regions') is not None) else 'codes'
+    gone = [c for c in (old_cols or []) if new_cols and c not in set(new_cols)]
+    if gone:
+        name = label or '시계열'
+        print('::warning::%s 응답에서 열이 빠졌다(%s) — 이력을 지키려고 열을 남기고 이번 구간은 비운다'
+              % (name, ', '.join(map(str, gone))))
+        if failed is not None:
+            failed.append('%s 열 빠짐(%s)' % (name, '·'.join(map(str, gone))))
+        cols = _union_cols(old_cols, new_cols)
+        new = dict(new)
+        new['rows'] = _reindex_rows(new['rows'], new_cols, cols)
+        new[key] = cols
     if older:
-        older = _align_rows(older, _cols(cur), _cols(new), label)
+        older = _align_rows(older, old_cols, _cols(new), label)
         new = dict(new)
         new['rows'] = (older + new['rows'])[-keep:]
+    # 이력이 keep 밖으로 다 밀려나 값이 한 칸도 남지 않은 옛 열만 뺀다(정말로 없어진 열).
+    if gone:
+        cols = _cols(new)
+        dead = {c for j, c in enumerate(cols) if c in gone and not _has_value(new['rows'], j)}
+        if dead:
+            live = [c for c in cols if c not in dead]
+            new = dict(new)
+            new['rows'] = _reindex_rows(new['rows'], cols, live)
+            new[key] = live
     return new
 
 
@@ -1745,8 +1804,8 @@ def main():
             if older:
                 weekly['rows'] = (older + weekly['rows'])[-CONF['weekly'].get('weeks_hist', len(weekly['rows'])):]
         kw = CONF['weekly']['sgg_hist']
-        weekly['sgg'] = _merge_hist(weekly.get('sgg'), cur.get('sgg'), kw, '주간 시군구')
-        weekly['seoul'] = _merge_hist(weekly.get('seoul'), cur.get('seoul'), kw, '주간 서울구')
+        weekly['sgg'] = _merge_hist(weekly.get('sgg'), cur.get('sgg'), kw, '주간 시군구', soft_failed)
+        weekly['seoul'] = _merge_hist(weekly.get('seoul'), cur.get('seoul'), kw, '주간 서울구', soft_failed)
         if weekly['rows'] and differs(weekly, cur):
             adv['weekly'] = weekly
             # '바이트가 달라짐'과 '새 주차가 나옴'은 다르다. 부동산원이 과거 주차를
@@ -1782,8 +1841,8 @@ def main():
             if monthly.get(_p) and mo_cur.get(_p):
                 _keep_wolse(monthly[_p].get('rows'), mo_cur[_p].get('rows'))
         km = CONF['monthly']['sgg_hist']
-        monthly['sgg'] = _merge_hist(monthly.get('sgg'), mo_cur.get('sgg'), km, '월간 시군구')
-        monthly['seoul'] = _merge_hist(monthly.get('seoul'), mo_cur.get('seoul'), km, '월간 서울구')
+        monthly['sgg'] = _merge_hist(monthly.get('sgg'), mo_cur.get('sgg'), km, '월간 시군구', soft_failed)
+        monthly['seoul'] = _merge_hist(monthly.get('seoul'), mo_cur.get('seoul'), km, '월간 서울구', soft_failed)
         if monthly['rows'] and differs(monthly, adv.get('monthly')):
             adv['monthly'] = monthly
             # weekly와 같은 이유 — 소급 수정은 커밋만 하고 발송은 하지 않는다.

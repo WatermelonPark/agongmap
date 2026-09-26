@@ -147,6 +147,36 @@ def test_rows_without_wolse_keep_the_saved_wolse(monkeypatch, tmp_path):
             assert r.get('wo') == saved[r['p']], '%s %s 월세가 사라졌다' % (part, r['p'])
 
 
+def test_seoul_gu_dropped_from_one_response_is_kept_and_recorded(monkeypatch, tmp_path):
+    """주간 응답의 서울구 블록에서 구 하나가 빠져도 저장 블록은 그 구의 열과 창 밖 이력을 지키고, .fetch_failed 에
+    '주간 서울구 열 빠짐(구)' 이 남는다(배치 알림 ℹ️ 줄).
+
+    변이: main() 의 `_merge_hist(weekly.get('seoul'), cur.get('seoul'), kw, '주간 서울구', soft_failed)` 에서
+          soft_failed 를 빼면 기록 단정이 빨개지고(확인), _merge_hist 의 `if gone:` 합집합 블록을 지우면 열·이력
+          단정이 빨개진다(확인).
+    픽스처: 실제 저장분 주간 블록의 끝 RECENT_WEEKS 주를 다시 받은 응답에 소급 수정 한 칸(저장 경로가 실제로 돈다),
+            서울구 블록은 열 목록 첫 구가 빠진 부분 응답(데이터 감사 #8 — 최신 주 그 구 행이 페이지 경계에서 밀림).
+    """
+    run = _Run(monkeypatch, tmp_path)
+    cur = run.before['weekly']
+    resp = _truncated(cur, -U.RECENT_WEEKS, None)
+    _bump(resp['rows'][-1])
+    se = resp['seoul']
+    gu = se['regions'][0]
+    se['regions'] = se['regions'][1:]
+    for r in se['rows']:
+        for k in ('ma', 'je'):
+            r[k] = r[k][1:]
+    run.set('fetch_weekly', resp)
+    got = run.main()['weekly']['seoul']
+    assert got['regions'] == cur['seoul']['regions'], '빠진 구의 열이 사라졌다'
+    first = resp['rows'][0]['p']
+    j = got['regions'].index(gu)
+    old = {r['p']: r['ma'][j] for r in cur['seoul']['rows']}
+    assert [r['ma'][j] for r in got['rows'] if r['p'] < first] == [old[r['p']] for r in got['rows'] if r['p'] < first]
+    assert '주간 서울구 열 빠짐(%s)' % gu in run.file('.fetch_failed')
+
+
 # ── 2. 인허가 행 수 축소 가드 ────────────────────────────────────────────────
 def test_permits_shorter_response_is_not_adopted(monkeypatch, tmp_path):
     """인허가 응답의 반기 행이 저장분보다 적으면 채택하지 않는다(소급 수정이 섞여 있어도).

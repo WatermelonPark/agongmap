@@ -286,28 +286,37 @@ def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
 
 # ── 5. _merge_hist: 열 목록이 바뀐 회차 ─────────────────────────────────────
 def test_history_is_realigned_by_name_when_columns_change():
-    """최신 응답의 열 목록이 바뀌어도 옛 행 값이 한 칸씩 밀리지 않는다.
+    """최신 응답의 열 목록이 바뀌어도 옛 행 값이 한 칸씩 밀리지 않고, 응답에서 빠진 열도 이력이 있으면 남는다
+    (이번 구간은 None). 이력이 한 칸도 없는 옛 열만 빠진다.
 
-    변이: _merge_hist 의 `older = _align_rows(...)` 줄을 지우면 옛 행의 '다구' 자리에 '나구' 값이 읽혀
-          빨개진다(확인).
-    픽스처: 2026-07 인천 행정구역 개편처럼 구 하나가 없어지고 새 구가 생긴 회차. 옛 열 [가구, 나구, 다구],
-            새 열 [가구, 다구, 라구]. 저장분 두 주 + 새 응답 한 주.
+    변이: _merge_hist 의 `older = _align_rows(...)` 줄을 지우면 옛 행이 옛 열 순서 그대로 붙어 열 목록과 길이가
+          갈리고 값이 전부 비어 빨개진다(확인). _merge_hist 의 `if gone:` 합집합 블록을 지우면(2026-09-23 판처럼
+          사라진 열의 과거를 버리면) '나구' 열과 그 과거가 사라져 빨개진다(확인 — 데이터 감사 #8).
+    픽스처: 2026-07 인천 행정구역 개편처럼 구 하나가 응답에서 빠지고 새 구가 생긴 회차. 옛 열 [가구, 나구, 다구],
+            새 열 [가구, 다구, 라구]. 저장분 두 주 + 새 응답 한 주. 시군구 블록('codes')도 같은 방어를 탄다.
+            '마구'는 저장분에서도 값이 한 번도 없던 열이다.
     """
-    cur = {'regions': ['가구', '나구', '다구'],
-           'rows': [{'p': '2026-06-29', 'ma': [1.0, 2.0, 3.0], 'je': [4.0, 5.0, 6.0]},
-                    {'p': '2026-07-06', 'ma': [1.1, 2.1, 3.1], 'je': [4.1, 5.1, 6.1]}]}
+    cur = {'regions': ['가구', '나구', '다구', '마구'],
+           'rows': [{'p': '2026-06-29', 'ma': [1.0, 2.0, 3.0, None], 'je': [4.0, 5.0, 6.0, None]},
+                    {'p': '2026-07-06', 'ma': [1.1, 2.1, 3.1, None], 'je': [4.1, 5.1, 6.1, None]}]}
     new = {'regions': ['가구', '다구', '라구'],
            'rows': [{'p': '2026-07-13', 'ma': [1.2, 3.2, 9.2], 'je': [4.2, 6.2, 9.9]}]}
-    out = U._merge_hist(new, cur, 156, '시험')
-    assert out['regions'] == ['가구', '다구', '라구']
+    soft = []
+    out = U._merge_hist(new, cur, 156, '시험', soft)
+    assert out['regions'] == ['가구', '나구', '다구', '라구']
     by = {r['p']: r for r in out['rows']}
-    assert by['2026-06-29']['ma'] == [1.0, 3.0, None]
-    assert by['2026-07-06']['je'] == [4.1, 6.1, None]
-    assert by['2026-07-13']['ma'] == [1.2, 3.2, 9.2]
+    assert by['2026-06-29']['ma'] == [1.0, 2.0, 3.0, None]
+    assert by['2026-07-06']['je'] == [4.1, 5.1, 6.1, None]
+    assert by['2026-07-13']['ma'] == [1.2, None, 3.2, 9.2]
+    assert soft == ['시험 열 빠짐(나구·마구)']
     # 시군구 블록은 열 이름이 'codes' 다 — 같은 방어가 거기서도 돌아야 한다
     cur_s = {'codes': ['a1', 'a2'], 'rows': [{'p': '2026-06', 'ma': [1.0, 2.0]}]}
     new_s = {'codes': ['a2', 'a3'], 'rows': [{'p': '2026-07', 'ma': [2.5, 3.5]}]}
-    assert U._merge_hist(new_s, cur_s, 120)['rows'][0]['ma'] == [2.0, None]
+    out_s = U._merge_hist(new_s, cur_s, 120)
+    assert out_s['codes'] == ['a1', 'a2', 'a3']
+    assert [r['ma'] for r in out_s['rows']] == [[1.0, 2.0, None], [None, 2.5, 3.5]]
+    # 이력이 keep 밖으로 다 밀려나면 그 열은 이제 빠진다(정말로 없어진 구)
+    assert U._merge_hist(new_s, cur_s, 1)['codes'] == ['a2', 'a3']
 
 
 def test_history_untouched_when_columns_are_the_same():
