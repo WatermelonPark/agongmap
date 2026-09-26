@@ -31,6 +31,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
 import kst as KST            # noqa: E402  (오늘(KST) — 생성기가 찍는 날짜의 단일 출처)
+import make_indicator_pages as I  # noqa: E402  (전세가율 기준월 규칙·sitemap — /jeonse-ratio/ 와 같은 규칙)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
@@ -116,12 +117,14 @@ def build_overlay(S):
 def build_jratio(S):
     """전세가율 최신월 기준 시도 스펙트럼 + 수도권·지방 평균."""
     D = S['전세가율']
-    k = len(D['dates']) - 1
     # 계열에 아예 없는 지역은 목록이 낡았다는 신호다 — 조용히 빠뜨리지 않는다.
     gone = [r for r in SIDO if not D['series'].get(r)]
     if gone:
         raise RuntimeError('전세가율에 없는 지역: %s (모델과 저장분이 어긋났다)'
                            % ', '.join(gone))
+    # 기준월은 /jeonse-ratio/ 와 같은 규칙(모든 시도가 채워진 마지막 달)으로 고른다. dates[-1] 을 그대로
+    # 읽으면 원천이 행을 바꾼 달에 0 나누기·풀이 문장 RuntimeError 로 배치가 멈췄다(2026-09-26 데이터 감사).
+    k = I.jeonse_ref_index(D, SIDO)
     rows = [(r, D['series'][r][k]) for r in SIDO
             if D['series'][r][k] is not None]
     rows.sort(key=lambda x: x[1])
@@ -223,8 +226,7 @@ def main():
     if _strip_date(page) != _strip_date(old):
         today = _today_kst()
         page = re.sub(r'("dateModified":\s*")[^"]*(")', r'\g<1>%s\g<2>' % today, page, count=1)
-        import make_indicator_pages as _I
-        _I.bump_sitemap([('/cycle/', today)])
+        I.bump_sitemap([('/cycle/', today)])
     io.open(PAGE, 'w', encoding='utf-8', newline='').write(page)
     z0 = zones[ZONE_REGIONS[0]]
     print('cycle 갱신 (전세가율 기준 %s)' % prd)
