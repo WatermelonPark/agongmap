@@ -380,6 +380,46 @@ def test_holidays_empty_200_response_counts_as_failure(monkeypatch):
     assert failed == ['holidays:%d' % (yr + 1)]
 
 
+def test_holidays_next_year_not_yet_published_is_not_a_failure(monkeypatch):
+    """내년 조회가 오류 없는 정상 응답(resultCode 00)으로 0건(totalCount 0)이고 저장분에도 내년이 없으면 '아직 발표
+    전'이다 — 실패로 세지 않는다. 올해가 같은 모양이면, 또는 저장분에 내년이 이미 있으면 예전대로 실패다.
+
+    변이: fetch_holidays 의 '아직 발표 전' 분기(`if (y == yr + 1 and not had and …): continue`)를 지우면 첫 단정이
+          ['holidays:내년'] 으로 빨개지고(확인 — 1월부터 발표 때까지 매 회차 ℹ️ 줄에 실린다), 그 조건에서 `not had` 를
+          지우면 셋째 경우에 저장된 내년 공휴일이 사라져 빨개진다(확인).
+    픽스처: 공공데이터포털 특일 API 가 발표 전 해에 주는 정상 무자료 응답(header 00 · items '' · totalCount 0)과
+            올해 정상 응답. 저장분은 올해만 있는 연초 상태 · 내년까지 있는 연중 상태 두 가지.
+    """
+    yr = datetime.date.today().year
+    empty = {'response': {'header': {'resultCode': '00', 'resultMsg': 'NORMAL SERVICE.'},
+                          'body': {'items': '', 'numOfRows': 50, 'pageNo': 1, 'totalCount': 0}}}
+
+    def fake_for(blank_year):
+        def fake(url, tries=3):
+            if 'solYear=%d' % blank_year in url:
+                return empty
+            y = yr if blank_year != yr else yr + 1
+            return {'response': {'header': {'resultCode': '00'},
+                                 'body': {'items': {'item': [{'locdate': int('%d0101' % y)}]}, 'totalCount': 1}}}
+        return fake
+
+    monkeypatch.setattr(U, 'DATAGO_KEY', 'x')
+    monkeypatch.setattr(U, 'http_json', fake_for(yr + 1))
+    failed = []
+    got = U.fetch_holidays(['%d-01-01' % yr], failed)
+    assert failed == [] and got == ['%d-01-01' % yr]
+    # 올해가 0건이면 발표 전일 수 없다 — 실패
+    monkeypatch.setattr(U, 'http_json', fake_for(yr))
+    failed = []
+    U.fetch_holidays(['%d-01-01' % yr], failed)
+    assert failed == ['holidays:%d' % yr]
+    # 저장분에 내년이 이미 있으면(발표 뒤 빈 응답) 실패로 세고 저장분을 지킨다
+    monkeypatch.setattr(U, 'http_json', fake_for(yr + 1))
+    failed = []
+    got = U.fetch_holidays(['%d-01-01' % yr, '%d-03-01' % (yr + 1)], failed)
+    assert failed == ['holidays:%d' % (yr + 1)] and '%d-03-01' % (yr + 1) in got
+
+
 def test_align_rows_keeps_rows_when_new_block_has_no_columns():
     """그 주 응답에 서울 구 행이 하나도 없으면 새 블록의 열 목록이 None 이다. 여기서 죽으면 주간 섹션
     전체를 잃는다(예전 코드는 죽지 않았다 — 2026-09-23 재검토에서 TypeError 재현).

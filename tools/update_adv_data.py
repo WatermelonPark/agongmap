@@ -867,6 +867,18 @@ def fetch_holidays(prev=None, failed=None):
             # HTTP 200 인데 비었거나 오류 JSON 이면 예외 없이 0개가 된다. 한 해에 공휴일이 0개일 수는
             # 없으므로 실패로 다뤄 저장분을 지킨다(2026-09-23 재검토 — 예외 경로만 지키고 있었다).
             if len(out) == n0:
+                # ⚠️ 단, **내년**이 오류 없는 정상 응답(resultCode 00)으로 0건(totalCount 0)이면 실패가 아니라
+                # '아직 발표 전'이다. 다음 해 달력은 한 해의 중반쯤 나오므로, 이걸 실패로 세면 1월부터 발표
+                # 때까지 매 회차 .fetch_failed 에 'holidays:내년'이 실려 배치 알림의 ℹ️ 줄(준공·인허가 같은
+                # 핵심 계열의 부분 실패도 싣는 줄)이 반년 내내 '키·주소 확인'을 외친다(2026-09-26 데이터
+                # 감사 #16). 저장분에 그해가 이미 있으면 발표 뒤에 빈 응답이 온 것이므로 예전대로 실패다.
+                hdr = (d.get('response', {}) or {}).get('header') or {}
+                body = (d.get('response', {}) or {}).get('body') or {}
+                had = any(str(x).startswith('%d-' % y) for x in (prev or []))
+                if (y == yr + 1 and not had and str(hdr.get('resultCode')) == '00'
+                        and str(body.get('totalCount')) == '0'):
+                    print('holidays %d: 아직 발표 전(정상 응답 0건) — 실패로 세지 않는다' % y)
+                    continue
                 raise ValueError('공휴일 0개 응답')
         except Exception as e:
             print('holidays %d skip: %s' % (y, e))
