@@ -13,6 +13,7 @@ pytest 를 돌리는 워크플로가 데이터 배치 하나뿐이라, 개발 �
   - ci-tests.yml 의 fetch-depth 를 지우면 → 빨강
   - permissions 에 `contents: write` 를 넣거나 `git push` 를 넣으면 → 빨강
   - pull_request 트리거를 지우면 → 빨강
+  - schedule 트리거를 지우면 → 빨강(봇 데이터 커밋 뒤에 다음 분기 전진 시험이 실패로 도는 곳이 사라진다)
 픽스처 없이 두 워크플로 파일을 읽는다. 스텝 해석은 test_test_deps_are_installed 의 것을 같이 쓴다.
 """
 import io
@@ -82,6 +83,8 @@ def test_ci_workflow_can_not_write_anything():
     on = on.group(1) if on else ''
     assert re.search(r'^  pull_request:', on, re.M), 'PR 에서 돌지 않는다'
     assert re.search(r'^  push:[ \t]*\n[ \t]+branches:[ \t]*\[[ \t]*main[ \t]*\]', on, re.M), 'main 푸시에서 돌지 않는다'
+    assert re.search(r'^  schedule:[ \t]*\n[ \t]+- cron:', on, re.M), \
+        '예약 실행이 없다 — 봇 데이터 커밋은 push 로 이 워크플로를 부르지 못해 새 데이터 위 전진 시험이 안 돈다'
     assert re.search(r'^permissions:\s*\n\s+contents:\s*read\s*$', code, re.M), '권한이 읽기 전용이 아니다'
     assert not re.search(r':\s*write\b', code), '쓰기 권한이 있다'
     assert not re.search(r'\bgit\s+(push|commit)\b|gh\s+(pr|issue)\s', code), '커밋·푸시·이슈 명령이 있다'

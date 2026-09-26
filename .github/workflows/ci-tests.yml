@@ -16,6 +16,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  # 하루 한 번 main 에서도 돈다. stats-bot 의 데이터 커밋은 위 push 로 이 워크플로를 부르지 못하므로, 새 데이터
+  # 위에서 시험이 도는 곳이 배치 게이트뿐이었다. 그런데 배치 게이트는 '다음 분기 전진 시험'
+  # (test_gate_survives_next_period)을 경고로만 넘긴다 — 오늘 데이터 커밋을 막지 않기 위해서다. 여기서는 그 시험이
+  # 실패로 돌아, 다음 분기 데이터가 들어오는 날 게이트가 막힐 것을 그 전에 실패 알림 메일로 먼저 알린다
+  # (2026-09-26 데이터 감사 #0 후속). 예약 13:17 UTC = 22:17 KST — 배치(예약 13:00 KST, 실제 17시께)가 끝난 뒤.
+  schedule:
+    - cron: '17 13 * * *'
   workflow_dispatch: {}
 
 permissions:

@@ -606,22 +606,18 @@ def rone_latest_complete(tbl, since=None, want_total=False):
             pass
     if not by:
         raise RuntimeError('시점 파싱 실패')
-    # 원천이 아직 옛 이름(광주·전남)으로 주는 계열이 있다. 배치가 조회 뒤 합치므로
-    # 감시도 같은 규칙으로 센다 — 둘 다 있으면 통합 지역이 있는 것으로 본다.
-    old_a, old_b = U._GJ_OLD
+    # 원천이 아직 옛 이름(광주·전남)으로 주는 계열이 있다. 배치가 조회 뒤 접으므로 감시도 **같은 함수**
+    # (U._fold_gj)로 접는다 — 원천 통합 행이 있으면 그 값, 없으면 두 조각이 다 있을 때만 합. 예전엔 여기
+    # 인라인 규칙이 따로 있어, 통합 행과 두 조각이 함께 오면 배치는 통합 행을, 감시는 두 조각 합을 써서
+    # 값 대조가 갈렸다(2026-09-26 데이터 감사 #7 잔여).
     full = []
     for t, regs in by.items():
-        have = set(regs)
-        if old_a in have and old_b in have:
-            have.add('전남광주')
-        if not (want - have):
+        if not (want - set(U._fold_gj(dict.fromkeys(regs, 0)))):
             full.append(t)
     t = max(full) if full else max(by)
     # 시도 합. 원천이 '전국' 행을 주는 계열과 안 주는 계열이 섞여 있어, 양쪽에서
-    # 같은 방식으로 셀 수 있는 시도 합으로 잰다. 옛 이름 둘은 배치와 같게 합친다.
-    v = dict(vals.get(t) or {})
-    if old_a in v and old_b in v:
-        v['전남광주'] = v.pop(old_a) + v.pop(old_b)
+    # 같은 방식으로 셀 수 있는 시도 합으로 잰다.
+    v = U._fold_gj(dict(vals.get(t) or {}))
     total_val = sum(x for r, x in v.items() if r in want)
     _COMPLETE_CACHE[key] = (t, total_val)
     return (t, total_val) if want_total else t
