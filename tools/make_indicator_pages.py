@@ -289,10 +289,48 @@ def ld_pack(headline, desc, url, crumb_name, modified):
 
 
 # ---- 전세가율 (/jeonse-ratio/) --------------------------------------------
+# 전세가율 기준월에 값이 전부 있어야 하는 지역. /jeonse-ratio/ 는 전국 머리 숫자와 시도 표를 그린다.
+JEONSE_NEED = ('전국',) + tuple(SIDO17)
+
+
+def _warn(msg):
+    """배치 로그에 경고를 남긴다. GitHub Actions 에서는 실행 화면의 주석(::warning::)으로도 뜬다."""
+    print(('::warning::' if os.environ.get('GITHUB_ACTIONS') else '  ⚠️ ') + msg)
+
+
+def jeonse_ref_index(j, need):
+    """전세가율 기준월의 열 번호 — need 의 지역이 **전부** 채워진 마지막 달.
+
+    /jeonse-ratio/(build_jeonse)와 /cycle/ 전세가율 차트(refresh_cycle_data.build_jratio)가 이 규칙 하나로
+    달을 고른다. merge_basic 은 새 달을 전 지역 None 열로 먼저 만들고 원천이 준 지역만 채운다. 원천이 행
+    이름을 바꾸거나(2026.06 지방권, 2026.07 6대광역시·9개도가 그렇게 비었다) 통합 지역을 다시 쪼개면 최신
+    열에 필요한 지역이 빈다. 예전엔 dates[-1] 을 그대로 읽어 build_jeonse 가 TypeError, build_jratio 가 0
+    나누기·RuntimeError 로 죽었고, 둘 다 배치에서 `exit 1` 이라 그날 데이터 커밋 전체가 막혔다(2026-09-26
+    데이터 감사). '원천 분류가 바뀐 달은 보류한다'는 원칙대로 직전 완비 달을 쓰고 건너뛴 달은 경고로 남긴다.
+    화면에는 실제로 읽은 달이 찍히므로 감시(check_freshness 파생 페이지 대조)가 데이터 최신월과의 차이를
+    경보로 올린다. 완비 달이 하나도 없으면 멈춘다 — 모델과 원천이 통째로 어긋났다는 뜻이다.
+    """
+    dates, ser = j['dates'], j['series']
+
+    def ok(r, k):
+        s = ser.get(r) or []
+        return k < len(s) and s[k] is not None
+    for k in range(len(dates) - 1, -1, -1):
+        if all(ok(r, k) for r in need):
+            if k != len(dates) - 1:
+                held = ['%s(%s 없음)' % (dates[i], ', '.join(r for r in need if not ok(r, i)))
+                        for i in range(k + 1, len(dates))]
+                _warn('전세가율 최신 %d개월을 보류하고 %s 기준으로 굽는다 — %s'
+                      % (len(held), dates[k], '; '.join(held)))
+            return k
+    raise RuntimeError('전세가율에 %s 이(가) 전부 채워진 달이 없다 — 원천 분류가 바뀌었는지 확인'
+                       % ', '.join(need))
+
+
 def build_jeonse(sts):
     j = sts['전세가율']
     dates, ser = j['dates'], j['series']
-    li = len(dates) - 1
+    li = jeonse_ref_index(j, JEONSE_NEED)
     prd = dates[li]                       # '2026.05'
     prd_iso = prd.replace('.', '-') + '-01'
 
@@ -565,12 +603,15 @@ def hand_lastmods(root=None):
 
     ⚠️ 얕은 클론(배치 커밋 잡은 fetch-depth 200)에서 창 밖의 파일은 경계 커밋이 파일을 통째로
     '추가'한 것처럼 보여, 그 커밋 날짜가 마지막 수정일로 잘못 나온다. 경계 커밋(.git/shallow)이면 뺀다.
+    ⚠️ shallow 파일 위치는 `--git-path shallow` 로 묻는다. `--git-dir` 에 'shallow' 를 붙이면 작업
+    트리(git worktree)에서는 .git/worktrees/<이름>/shallow 라는 없는 파일을 보게 되어 경계 커밋을
+    믿었다 — shallow 는 공통 디렉터리에 있다(2026-09-26 데이터 감사).
     """
     root = root or ROOT
     shallow = set()
-    top = _git(root, 'rev-parse', '--git-dir')
-    if top:
-        sp = os.path.join(root, top, 'shallow') if not os.path.isabs(top) else os.path.join(top, 'shallow')
+    sp = _git(root, 'rev-parse', '--git-path', 'shallow')
+    if sp:
+        sp = sp if os.path.isabs(sp) else os.path.join(root, sp)
         if os.path.exists(sp):
             shallow = set(io.open(sp, encoding='utf-8').read().split())
     out = []
