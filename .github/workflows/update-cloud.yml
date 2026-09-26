@@ -279,7 +279,7 @@ jobs:
           # (2026-07-30 실사고). 그래서 '가장 최신 주간/월간을 가진 산출물'을 고른다.
           # 산출물별 최신 weekly(YYYY-MM-DD)를 뽑아 가장 신선한 것을 고른다.
           # 파이썬 heredoc은 YAML 블록 들여쓰기를 깨므로 순수 셸로 짠다.
-          SRC=""; BEST=""; BESTMO=""; BESTSL=""
+          SRC=""; BEST=""; BESTMO=""; BESTSL=""; BESTHOK=""
           for d in _art/data-*; do
             [ -f "$d/data-core.js" ] || continue
             wk=$(grep -oE '"p":"[0-9]{4}-[0-9]{2}-[0-9]{2}"' "$d/data-core.js" \
@@ -294,15 +294,23 @@ jobs:
             # 못 실었다(2026-08-08 감사에서 합성 아티팩트로 재현).
             sl=$(grep -oE '"L":"[0-9]{4}Q[1-4]"' "$d/data-core.js" \
                  | grep -oE '[0-9]{4}Q[1-4]' | sort | tail -1)
-            echo "후보 $d: weekly=${wk:--} monthly=${mo:--} sidoL=${sl:--}"
+            # 공급 축의 정합(ADV.sido H == lead). 착공 호출만 죽은 러너는 준공만 새 분기라 H=11 인데 rc=0·clean
+            # 으로 올라온다. 그 산출물은 make_sido_pages 가 ABORT 해 그날 커밋 전체를 막으므로, 주간·월간이
+            # 같으면 sidoL 보다 먼저 정합한 러너를 고른다(2026-09-26 데이터 감사 #5). 값을 못 읽으면 1(예전처럼).
+            # (파이프 끝은 tail — 셸이 bash -e 라 끝 명령이 grep 이면 못 찾았을 때 스텝이 죽는다.)
+            sh=$(grep -oE '"H":[0-9]+' "$d/data-core.js" | grep -oE '[0-9]+' | tail -1)
+            sld=$(grep -oE '"lead":[0-9]+' "$d/data-core.js" | grep -oE '[0-9]+' | tail -1)
+            hok=1; [ -n "$sh" ] && [ -n "$sld" ] && [ "$sh" != "$sld" ] && hok=0
+            echo "후보 $d: weekly=${wk:--} monthly=${mo:--} sidoL=${sl:--} H=${sh:--}/${sld:--}"
             newer=0
             if [ -n "$wk" ]; then
               if [ -z "$BEST" ] || [ "$wk" \> "$BEST" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ -n "$mo" ] && [ "$mo" \> "$BESTMO" ]; then newer=1
-              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ -n "$sl" ] && [ "$sl" \> "$BESTSL" ]; then newer=1
+              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" \> "$BESTHOK" ]; then newer=1
+              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ -n "$sl" ] && [ "$sl" \> "$BESTSL" ]; then newer=1
               fi
             fi
-            if [ "$newer" = "1" ]; then BEST="$wk"; BESTMO="$mo"; BESTSL="$sl"; SRC="$d"; fi
+            if [ "$newer" = "1" ]; then BEST="$wk"; BESTMO="$mo"; BESTSL="$sl"; BESTHOK="$hok"; SRC="$d"; fi
           done
           # weekly를 하나도 못 읽었으면(구조 변경 등) 예전처럼 아무거나
           [ -z "$SRC" ] && SRC=$(ls -d _art/data-* 2>/dev/null | head -1 || true)

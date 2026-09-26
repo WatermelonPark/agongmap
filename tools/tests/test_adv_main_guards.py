@@ -236,6 +236,34 @@ def test_sido_result_missing_a_region_is_not_adopted(monkeypatch, tmp_path, firs
     assert 'sido-shrink' in run.file('.fetch_failed')
 
 
+def test_sido_result_with_split_horizon_is_not_adopted(monkeypatch, tmp_path):
+    """시도 점수의 미래 시야가 어긋나면(H ≠ lead — 준공·착공 끝 분기가 갈라짐) ADV.sido 도 occupancy 도 쓰지 않고
+    'sido-h' 를 부분 실패로만 남긴다. rc=3 판정(failed)에는 아무것도 더하지 않는다('sido' 도 'sido-shrink' 도 없다).
+
+    변이: main() 의 `elif sd.get('H') != sd.get('lead'):` 가드 분기를 지우면 어긋난 점수가 채택돼 빨개지고,
+          `if sd.get('H') != sd.get('lead'): raise _SidoHeld()` 를 지우면 입주물량 단정이, `except _SidoHeld:` 를 지우면
+          'sido' 가 failed 에 들어가 마지막 단정이 빨개진다(셋 다 확인).
+    픽스처: 조용한 회차에, 분기를 닫는 달의 준공만 받고 착공 호출이 죽은 STATS 로 sido_zones.calc 가 낸 결과 —
+            저장분 점수에서 실적 끝 분기(L)만 한 분기 앞으로, 시야 H 는 lead − 1(데이터 감사 #5 재현값 H=11).
+            입주물량 표도 그 STATS 로 달라진 값(마지막 행 제거)을 낸다.
+    """
+    run = _Run(monkeypatch, tmp_path)
+    base = run.before
+    run.quiet()
+    sd = copy.deepcopy(base['sido'])
+    y, q = int(sd['L'][:4]), int(sd['L'][5])
+    sd['L'] = '%dQ%d' % ((y + 1, 1) if q == 4 else (y, q + 1))
+    sd['H'] = sd['lead'] - 1
+    monkeypatch.setattr(sido_zones, 'calc', lambda st: copy.deepcopy(sd))
+    occ_rows = base['occupancy']['rows'][:-1]
+    monkeypatch.setattr(sido_zones, 'supply_rows', lambda st: {'rows': copy.deepcopy(occ_rows)})
+    got = run.main()
+    assert got['sido'] == base['sido'], '시야가 어긋난 점수가 채택됐다 — make_sido_pages 가 ABORT 한다'
+    assert got['occupancy'] == base['occupancy'], '가드에 걸린 회차인데 입주물량을 썼다'
+    rec = run.file('.fetch_failed')
+    assert 'sido-h' in rec and 'sido' not in rec and 'sido-shrink' not in rec
+
+
 # ── 4. 전량 실패 rc=3 ────────────────────────────────────────────────────────
 def test_all_main_sources_down_exits_3(monkeypatch, tmp_path):
     """주요 원천 다섯 갈래(주간·월간·인허가·공휴일·버블)가 모두 죽고 바뀐 것이 없으면 rc=3으로 멈춘다.
