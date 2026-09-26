@@ -11,7 +11,6 @@
 
 사용: python tools/make_sido_pages.py
 """
-import datetime
 import io
 import json
 import math
@@ -31,6 +30,7 @@ ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import sido_zones as SZ                                            # noqa: E402
 import make_weekly_page as MW    # noqa: E402  주간 표기(반올림·조사일·발표일)를 /weekly/와 같이
+import kst as KST                # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
@@ -398,16 +398,27 @@ def series(stats, z, calc):
     return rows
 
 
+def _today():
+    """페이지 JSON-LD·sitemap·홈 도장에 찍는 오늘(KST).
+
+    러너는 TZ=UTC 라 date.today() 는 00~09시 KST 에 전날을 준다. /cycle/ 은 KST 를 찍어 한 배치 커밋 안에서
+    날짜가 하루 갈렸다(2026-09-26 데이터 감사). head() 와 main() 이 **같은 함수**를 불러야 keep_dates 의
+    datePublished 치환('"datePublished": 오늘')이 맞물린다.
+    """
+    return KST.today_iso()
+
+
 def head(z, desc, title, url=None, crumb=None):
     """⚠️ url을 안 넘기면 z를 지역명으로 보고 /zone/{z}/ 를 만든다. 허브처럼
     z 자리에 제목을 넘기는 곳은 반드시 url을 주어야 한다 — 안 그러면 canonical·
     og:url·JSON-LD가 존재하지 않는 /zone/시도별%20공급/ 을 가리킨다(2026-08-07 감사)."""
     u = url or (SITE + '/zone/' + urllib.parse.quote(z) + '/')
+    today = _today()
     ld = [
         {"@context": "https://schema.org", "@type": "Article", "headline": title,
          "description": desc,
-         "datePublished": datetime.date.today().isoformat(),
-         "dateModified": datetime.date.today().isoformat(),
+         "datePublished": today,
+         "dateModified": today,
          "author": {"@type": "Organization", "name": "아공맵"},
          "publisher": {"@type": "Organization", "name": "아공맵"},
          "mainEntityOfPage": u,
@@ -605,7 +616,8 @@ def next_links(z, weekly, stats):
     if ser and dates:
         li = len(dates) - 1
         cur = ser[li] if li < len(ser) else None
-        ago = ser[li - 12] if 12 <= li and li - 12 < len(ser) else None
+        ya = SZ.month_back(dates, li, 12)     # 라벨로 1년 전 칸을 찾는다(li-12 는 빠진 달이 있으면 13달 전 — 감사 #17)
+        ago = ser[ya] if ya is not None and ya < len(ser) else None
         if cur is not None:
             chg = '' if ago is None else ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
             cards.append('<a href="/jeonse-ratio/"><b>전세가율</b><i>%.1f%%%s · %s 기준</i></a>'
@@ -967,7 +979,7 @@ def main():
                 shutil.rmtree(p); gone.append(d)
     os.makedirs(OUT, exist_ok=True)
 
-    today = datetime.date.today().isoformat()
+    today = _today()
     lastmods, changed = {}, 0
     for z in names:
         d = os.path.join(OUT, z)

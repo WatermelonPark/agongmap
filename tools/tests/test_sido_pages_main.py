@@ -9,7 +9,7 @@
   ④ 내용이 바뀌어도 최초 발행일(datePublished)을 물려받는 것
 
 ⚠️ 저장소에 쓰지 않는다. data.js·data-core.js·sitemap.xml 과 zone/광주·zone/전남 을 tmp 로 복사하고
-   모듈의 ROOT·OUT·HOME_STAMP 를 그리로 돌린다. 날짜는 모듈의 datetime 을 가짜로 바꿔 정한다.
+   모듈의 ROOT·OUT·HOME_STAMP 를 그리로 돌린다. 날짜는 모듈의 _today() 를 가짜로 바꿔 정한다.
 """
 import datetime
 import io
@@ -17,7 +17,6 @@ import os
 import re
 import shutil
 import sys
-import types
 
 import pytest
 
@@ -30,13 +29,10 @@ DAY1, DAY2 = '2026-09-01', '2026-09-08'
 
 
 def _set_today(monkeypatch, iso):
-    y, m, d = (int(x) for x in iso.split('-'))
-
-    class _D(datetime.date):
-        @classmethod
-        def today(cls):
-            return cls(y, m, d)
-    monkeypatch.setattr(P, 'datetime', types.SimpleNamespace(date=_D, timedelta=datetime.timedelta))
+    # 생성기는 오늘을 P._today()(KST, tools/kst.py) 한 곳에서만 읽는다(2026-09-26 데이터 감사). 전에는 모듈의
+    # datetime 을 가짜로 바꿨는데, 날짜 출처가 kst 로 옮겨 간 뒤에는 그 자리를 바꿔야 날짜가 정해진다.
+    datetime.date.fromisoformat(iso)   # 형식 확인
+    monkeypatch.setattr(P, '_today', lambda: iso)
 
 
 @pytest.fixture
@@ -149,26 +145,44 @@ def test_changed_page_keeps_its_first_publish_date(site, monkeypatch):
     assert lm[P.urllib.parse.quote('부산')] == DAY1, '안 바뀐 페이지의 lastmod 가 움직였다'
 
 
+def _cut_start_one_quarter_before_done(stats):
+    """착공을 준공 끝 분기(L)보다 한 분기 앞에서 자른다 — 어느 회차의 데이터든 H = LEAD_Q − 1.
+
+    ⚠️ 자르는 달을 숫자로 박지 않는다. 예전엔 '2026.03' 으로 박아, L 이 2026Q2 인 동안만
+       H=11 이었다. 2026.09 준공·착공이 들어와 L=2026Q3 이 되면 같은 자름이 H=10 을 만들어
+       픽스처 단정이 빨개지고, 생성기는 다 성공했는데 배치 게이트가 그날 데이터 커밋 전체를
+       막는다(2026-09-26 데이터 감사 #0 — 분기마다 되풀이된다).
+    """
+    L = SZ.last_full_quarter(stats, '준공')
+    y, q = SZ.qparts(L - 1)
+    cut = '%d.%02d' % (y, q * 3)
+    st = stats['착공']
+    keep = [i for i, d in enumerate(st['dates']) if d[:7] <= cut]
+    st['dates'] = [st['dates'][i] for i in keep]
+    st['series'] = {r: [v[i] for i in keep if i < len(v)] for r, v in st['series'].items()}
+    return cut
+
+
 def test_aborts_when_start_series_arrives_a_quarter_late(site, monkeypatch):
-    """착공표가 한 분기 늦게 들어온 회차에는 H 가 11 이 되어 전 지역 비율이 함께 움직인다.
+    """착공표가 한 분기 늦게 들어온 회차에는 H 가 LEAD_Q − 1 이 되어 전 지역 비율이 함께 움직인다.
     점수(ADV.sido)도 같은 상태로 다시 구웠다면 첫 게이트(L·H 비교)는 통과하므로, H ≠ lead
     게이트가 페이지를 굽기 전에 멈춰야 한다.
 
     변이: main() 의 `if _live['H'] != _live['lead']:` 를 `if False:` 로 바꾸면 SystemExit 없이
-          20장이 구워져 빨개진다(실제로 바꿔 확인).
-    픽스처: 저장소 STATS 에서 착공만 2026.03 까지로 자른 것(2026-08-07 '착공만 늦게 도착'),
-            ADV.sido 는 그 STATS 로 --seed-sido 를 다시 돌린 것처럼 SZ.calc 로 맞춘다.
+          20장이 구워져 빨개진다(실제로 바꿔 확인, 2026-09-26 자름을 데이터 기준으로 바꾼 뒤에도 확인).
+    픽스처: 저장소 STATS 에서 착공만 준공 끝 분기(L)보다 한 분기 앞까지로 자른 것(2026-08-07
+            '착공만 늦게 도착'), ADV.sido 는 그 STATS 로 --seed-sido 를 다시 돌린 것처럼 SZ.calc 로
+            맞춘다. 자르는 달은 데이터에서 유도하므로 준공·착공이 2026Q3·Q4·2027Q1 로 나아가도
+            같은 상태를 만든다(데이터를 한 분기씩 밀어 실제로 확인 — 감사 #0,
+            test_gate_survives_next_period 가 그 전진을 매번 돌린다).
     """
     adv, stats = P.load()
-    st = stats['착공']
-    keep = [i for i, d in enumerate(st['dates']) if d[:7] <= '2026.03']
-    st['dates'] = [st['dates'][i] for i in keep]
-    st['series'] = {r: [v[i] for i in keep if i < len(v)] for r, v in st['series'].items()}
+    _cut_start_one_quarter_before_done(stats)
     adv['sido'] = SZ.calc(stats)
     assert adv['sido']['H'] == SZ.LEAD_Q - 1, '픽스처가 H ≠ lead 상태를 못 만들었다'
     monkeypatch.setattr(P, 'load', lambda: (adv, stats))
     _set_today(monkeypatch, DAY1)
     with pytest.raises(SystemExit) as e:
         P.main()
-    assert 'ABORT' in str(e.value) and 'H=11' in str(e.value)
+    assert 'ABORT' in str(e.value) and ('H=%d' % (SZ.LEAD_Q - 1)) in str(e.value)
     assert not (site / 'zone' / '서울').exists(), 'ABORT 전에 페이지를 썼다'

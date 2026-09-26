@@ -51,6 +51,24 @@ def sync_claim_lines():
     return []
 
 
+def quiz_review_lines(today, src=None):
+    """퀴즈 제도 문항의 검토 기한이 지났으면 ℹ️ 줄로 알린다. 형식기는 ℹ️ 줄을 월요일 확인 메일에 싣는다.
+
+    감시(check_freshness)는 2026-09-26 부터 기한 경과를 실패가 아닌 경고(주석·잡 요약)로만 남긴다 — 실패로 두면
+    첫 기한(2026-12-15)부터 감시가 매일 빨개져 진짜 뒤처짐 경보가 그 속에 묻힌다(데이터 감사 #13). 그런데 경고는
+    누구에게도 메일로 가지 않으므로, 사람에게 닿는 통로를 여기 둔다. ℹ️ 라 매 회차 메일을 부르지 않는다.
+    ⚠️ lines(adv) 에 넣지 않는다. lines() 를 부르는 시험이 '평소에는 한 줄도 없다'를 단정하므로, 넣으면 날짜가
+       지나는 날 그 시험이 빨개져 게이트가 데이터 커밋을 막는다. main() 이 따로 붙인다.
+    """
+    try:
+        import home_src as HS
+        import quiz_review as QR
+        qo = QR.overdue(HS.home_source() if src is None else src, today)
+    except Exception as e:   # 알림 곁가지라 배치를 멈추지 않는다 — 못 본 것도 알린다
+        return ['%s 퀴즈 검토 기한 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
+    return ['%s %s' % (ML.MARK, q) for q in qo]
+
+
 def lines(adv):
     out = []
     gaps = permit_gaps(adv)
@@ -71,7 +89,8 @@ def main(argv=None):
         # 알림용 곁가지다. 읽지 못해도 배치를 멈추지 않는다 — 대신 이유를 남긴다.
         sys.stderr.write('batch_notes: 데이터를 읽지 못했다 (%s)\n' % e)
         return 0
-    for ln in lines(adv):
+    import kst
+    for ln in lines(adv) + quiz_review_lines(kst.today()):
         sys.stdout.write(ln + '\n')
     return 0
 
