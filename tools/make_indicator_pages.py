@@ -289,21 +289,64 @@ def ld_pack(headline, desc, url, crumb_name, modified):
 
 
 # ---- 전세가율 (/jeonse-ratio/) --------------------------------------------
+# 전세가율 기준월에 값이 전부 있어야 하는 지역. /jeonse-ratio/ 는 전국 머리 숫자와 시도 표를 그린다.
+JEONSE_NEED = ('전국',) + tuple(SIDO17)
+
+
+def _warn(msg):
+    """배치 로그에 경고를 남긴다. GitHub Actions 에서는 실행 화면의 주석(::warning::)으로도 뜬다."""
+    print(('::warning::' if os.environ.get('GITHUB_ACTIONS') else '  ⚠️ ') + msg)
+
+
+def jeonse_ref_index(j, need):
+    """전세가율 기준월의 열 번호 — need 의 지역이 **전부** 채워진 마지막 달.
+
+    /jeonse-ratio/(build_jeonse)와 /cycle/ 전세가율 차트(refresh_cycle_data.build_jratio)가 이 규칙 하나로
+    달을 고른다. merge_basic 은 새 달을 전 지역 None 열로 먼저 만들고 원천이 준 지역만 채운다. 원천이 행
+    이름을 바꾸거나(2026.06 지방권, 2026.07 6대광역시·9개도가 그렇게 비었다) 통합 지역을 다시 쪼개면 최신
+    열에 필요한 지역이 빈다. 예전엔 dates[-1] 을 그대로 읽어 build_jeonse 가 TypeError, build_jratio 가 0
+    나누기·RuntimeError 로 죽었고, 둘 다 배치에서 `exit 1` 이라 그날 데이터 커밋 전체가 막혔다(2026-09-26
+    데이터 감사). '원천 분류가 바뀐 달은 보류한다'는 원칙대로 직전 완비 달을 쓰고 건너뛴 달은 경고로 남긴다.
+    화면에는 실제로 읽은 달이 찍히므로 감시(check_freshness 파생 페이지 대조)가 데이터 최신월과의 차이를
+    경보로 올린다. 완비 달이 하나도 없으면 멈춘다 — 모델과 원천이 통째로 어긋났다는 뜻이다.
+    """
+    dates, ser = j['dates'], j['series']
+
+    def ok(r, k):
+        s = ser.get(r) or []
+        return k < len(s) and s[k] is not None
+    for k in range(len(dates) - 1, -1, -1):
+        if all(ok(r, k) for r in need):
+            if k != len(dates) - 1:
+                held = ['%s(%s 없음)' % (dates[i], ', '.join(r for r in need if not ok(r, i)))
+                        for i in range(k + 1, len(dates))]
+                _warn('전세가율 최신 %d개월을 보류하고 %s 기준으로 굽는다 — %s'
+                      % (len(held), dates[k], '; '.join(held)))
+            return k
+    raise RuntimeError('전세가율에 %s 이(가) 전부 채워진 달이 없다 — 원천 분류가 바뀌었는지 확인'
+                       % ', '.join(need))
+
+
 def build_jeonse(sts):
     j = sts['전세가율']
     dates, ser = j['dates'], j['series']
-    li = len(dates) - 1
+    li = jeonse_ref_index(j, JEONSE_NEED)
     prd = dates[li]                       # '2026.05'
     prd_iso = prd.replace('.', '-') + '-01'
 
+    # 1년 전 칸은 인덱스 차(li-12)가 아니라 라벨로 찾는다 — 빠진 달이 있으면 13달 전과 견주게 된다(감사 #17).
+    ya = SZ.month_back(dates, li, 12)
+
     def at(name, i):
-        v = (ser.get(name) or [None])[i] if name in ser else None
-        return v
+        if i is None or name not in ser:
+            return None
+        v = ser.get(name) or []
+        return v[i] if i < len(v) else None
 
     aggs = ['전국', '수도권', '지방']
     rows, vals = [], []
     for name in aggs + SIDO17:
-        cur, ago = at(name, li), at(name, li - 12)
+        cur, ago = at(name, li), at(name, ya)
         if cur is None:
             continue
         d = None if ago is None else round(cur - ago, 1)
@@ -327,22 +370,29 @@ def build_jeonse(sts):
             '·' if ago is None else '%.1f%%' % ago, cell_d(d)))
 
     nat = at('전국', li)
-    nat_d = round(nat - at('전국', li - 12), 1)
+    nat_ago = at('전국', ya)
+    # 1년 전 값이 없으면 그 비교 문구만 뺀다. 예전엔 None 과 빼기를 해 생성기가 죽었고, 배치는 그날 커밋을 통째로 막았다.
+    nat_d = None if nat_ago is None else round(nat - nat_ago, 1)
     hi = max(vals, key=lambda v: v[1])
     lo = min(vals, key=lambda v: v[1])
-    up_most = max([v for v in vals if v[2] is not None], key=lambda v: v[2])
+    moved = [v for v in vals if v[2] is not None]
+    up_most = max(moved, key=lambda v: v[2]) if moved else None
+    natd_desc = '' if nat_d is None else '로 1년 전보다 %+.1f%%p' % nat_d
+    natd_sub = '' if nat_d is None else ' · 1년 전 대비 %+.1f%%p' % nat_d
+    upm_p = ('' if up_most is None else
+             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (up_most[0], up_most[2]))
 
     title = '전세가율이란 — 전국·시도별 아파트 전세가율 현황 %s | 아공맵' % prd
-    desc = ('전세가율은 매매가 대비 전세가 비율. %s 기준 전국 아파트 전세가율은 %.1f%%로 1년 전보다 %+.1f%%p. '
+    desc = ('전세가율은 매매가 대비 전세가 비율. %s 기준 전국 아파트 전세가율은 %.1f%%%s. '
             '%s %.1f%%로 가장 높고 %s %.1f%%. 시도별 현황과 사이클 신호로서의 의미를 데이터로 정리했다.'
-            ) % (prd, nat, nat_d, ga(hi[0]), hi[1], neun(lo[0]), lo[1])
+            ) % (prd, nat, natd_desc or '다', ga(hi[0]), hi[1], neun(lo[0]), lo[1])
     url = SITE + '/jeonse-ratio/'
 
     body = """<header class="wrap">
   <div class="chip">지표 해설</div>
   <h1>전세가율 — 매매가 대비 전세가,<br>실수요의 체온계</h1>
   <div class="big">%(nat).1f%%</div>
-  <div class="bigsub">전국 아파트 전세가율 · %(prd)s 기준 · 1년 전 대비 %(natd)+.1f%%p</div>
+  <div class="bigsub">전국 아파트 전세가율 · %(prd)s 기준%(natd)s</div>
 </header>
 
 <section class="wrap">
@@ -365,7 +415,7 @@ def build_jeonse(sts):
 <section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
   <p>가장 높은 곳은 <strong>%(hi)s %(hiv).1f%%</strong>, 가장 낮은 곳은 <strong>%(lo)s %(lov).1f%%</strong>다. 서울처럼 전세가율이 낮은 시장은 매매가가 거주 가치보다 기대에 기대어 있다는 뜻이고(투자성 시장), 전세가율이 높은 지방 시장은 가격이 실수요에 붙어 있어 갭이 작다(실거주성 시장).</p>
-  <p>1년 새 가장 크게 오른 곳은 <strong>%(upm)s(%(upmd)+.1f%%p)</strong>. 전세가율 상승은 사이클에서 중요한 신호다 — <strong>공급이 부족하면 전세가 먼저 오르고, 전세가율이 차오르면 매매를 밀어 올린다.</strong> 갭투자 비용이 줄어드는 지점이기도 하다. 이 연결고리는 20년 국가 통계로 검증해 리포트에 정리해 뒀다.</p>
+  <p>%(upm)s전세가율 상승은 사이클에서 중요한 신호다 — <strong>공급이 부족하면 전세가 먼저 오르고, 전세가율이 차오르면 매매를 밀어 올린다.</strong> 갭투자 비용이 줄어드는 지점이기도 하다. 이 연결고리는 20년 국가 통계로 검증해 리포트에 정리해 뒀다.</p>
 </section>
 
 <section class="wrap">
@@ -378,8 +428,8 @@ def build_jeonse(sts):
     <a href="/cycle/">아파트 사이클 리포트<span>전세가율이 매매를 미는 고리, 데이터 검증</span></a>
   </div>
 </section>
-""" % dict(nat=nat, natd=nat_d, prd=prd, trs='\n'.join(trs),
-           hi=hi[0], hiv=hi[1], lo=lo[0], lov=lo[1], upm=up_most[0], upmd=up_most[2])
+""" % dict(nat=nat, natd=natd_sub, prd=prd, trs='\n'.join(trs),
+           hi=hi[0], hiv=hi[1], lo=lo[0], lov=lo[1], upm=upm_p)
 
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,
@@ -565,12 +615,15 @@ def hand_lastmods(root=None):
 
     ⚠️ 얕은 클론(배치 커밋 잡은 fetch-depth 200)에서 창 밖의 파일은 경계 커밋이 파일을 통째로
     '추가'한 것처럼 보여, 그 커밋 날짜가 마지막 수정일로 잘못 나온다. 경계 커밋(.git/shallow)이면 뺀다.
+    ⚠️ shallow 파일 위치는 `--git-path shallow` 로 묻는다. `--git-dir` 에 'shallow' 를 붙이면 작업
+    트리(git worktree)에서는 .git/worktrees/<이름>/shallow 라는 없는 파일을 보게 되어 경계 커밋을
+    믿었다 — shallow 는 공통 디렉터리에 있다(2026-09-26 데이터 감사).
     """
     root = root or ROOT
     shallow = set()
-    top = _git(root, 'rev-parse', '--git-dir')
-    if top:
-        sp = os.path.join(root, top, 'shallow') if not os.path.isabs(top) else os.path.join(top, 'shallow')
+    sp = _git(root, 'rev-parse', '--git-path', 'shallow')
+    if sp:
+        sp = sp if os.path.isabs(sp) else os.path.join(root, sp)
         if os.path.exists(sp):
             shallow = set(io.open(sp, encoding='utf-8').read().split())
     out = []

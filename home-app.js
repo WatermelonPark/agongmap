@@ -478,11 +478,20 @@ function buildTable(D,labels,vals,idx,parsed){
   const isMonthly=!D.annual && parsed[0].m>0;
   const cum=DS_CUM.has(ST.ds), lag=cum?(isMonthly?12:1):1;
   thead.innerHTML=`<tr><th>${isMonthly?'연월':'연도'}</th><th>${DS_LABEL[ST.ds]}</th><th>${cum?'전년 동월 대비':'전기 대비'}</th></tr>`;
+  /* 비교 칸은 인덱스 차(k-lag)가 아니라 연월로 찾는다. 배치가 보류한 달(미분양 2026.07)이 끝내
+     안 채워지면 dates에 그 달 칸이 없어 k-1이 두 달 전이 되고 '전기 대비'에 두 달 치가 실린다
+     (2026-09-26 데이터 감사 #17, 생성기는 sido_zones.month_back). 연 자료는 12달 = 1기다. */
+  const ymk=p=>p.y*12+p.m, step=isMonthly?1:12;
+  const at=new Map(idx.map((i,k)=>[ymk(parsed[i]),k]));
   let html='';
   for(let k=labels.length-1;k>=0;k--){
     const v=vals[k]; if(v==null)continue;   // drawStat에서 이미 dsV를 거쳤다
     let chg='';
-    const prev=(k>=lag)?vals[k-lag]:null;
+    let pk=at.get(ymk(parsed[idx[k]])-lag*step);
+    /* 미분양은 2000~2006년이 해마다 12월 한 점이다. 그 구간의 '전기'는 전년 12월이므로, 바로 앞 칸이
+       정확히 12달 앞이면 그 칸과 견준다(빠진 달은 1~11달 차라 여기에 걸리지 않는다). */
+    if(pk==null&&k>=1&&ymk(parsed[idx[k]])-ymk(parsed[idx[k-1]])===12)pk=k-1;
+    const prev=pk==null?null:vals[pk];
     if(prev!=null){
       const d=v-prev;
       const cls=d>0?'chg-up':(d<0?'chg-dn':'');

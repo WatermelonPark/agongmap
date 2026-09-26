@@ -1,0 +1,104 @@
+name: 시험 (PR·main) · 배치 게이트와 같은 조건 · 하실 일 없음
+
+# 왜 있나(2026-09-26 데이터 감사): pytest 를 돌리는 워크플로가 데이터 배치(update-cloud.yml) 커밋 잡
+# 하나뿐이었다. 개발 컨테이너(3.11, 시스템 yaml, 전체 클론)에서는 초록인데 배치 조건(setup-python 3.12,
+# pytest·pillow 만 설치, GITHUB_ACTIONS 로 건너뜀도 실패, fetch-depth 200)에서는 빨간 변경이 **병합된 뒤
+# 다음 배치에서야** 드러났고, 그 결과가 '데이터 커밋 안 함'이었다. 2026-09-24~26 에 시험 하나의
+# `import yaml` 이 그렇게 다섯 회 연속 데이터 갱신을 멈췄다. 이 워크플로는 같은 조건의 시험을 PR 과
+# main 푸시에서 먼저 돌려, 같은 고장을 데이터 정지가 아니라 PR 의 빨간 체크로 보이게 한다.
+#
+# ⚠️ 아무것도 커밋·푸시하지 않는다. 권한은 읽기뿐이고 체크아웃에 토큰을 남기지 않는다. 생성기가 바꾼
+#    파일은 러너와 함께 버려진다(`git diff --stat` 로 보여 주기만 한다).
+# ⚠️ stats-bot 의 데이터 커밋은 GITHUB_TOKEN 으로 푸시하므로 이 워크플로를 다시 부르지 않는다.
+# 배치 커밋 잡을 고치면 여기도 같이 고친다 — 둘이 같은지는 tools/tests/test_ci_workflow_mirrors_gate.py 가 본다.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # 하루 한 번 main 에서도 돈다. stats-bot 의 데이터 커밋은 위 push 로 이 워크플로를 부르지 못하므로, 새 데이터
+  # 위에서 시험이 도는 곳이 배치 게이트뿐이었다. 그런데 배치 게이트는 '다음 분기 전진 시험'
+  # (test_gate_survives_next_period)을 경고로만 넘긴다 — 오늘 데이터 커밋을 막지 않기 위해서다. 여기서는 그 시험이
+  # 실패로 돌아, 다음 분기 데이터가 들어오는 날 게이트가 막힐 것을 그 전에 실패 알림 메일로 먼저 알린다
+  # (2026-09-26 데이터 감사 #0 후속). 예약 13:17 UTC = 22:17 KST — 배치(예약 13:00 KST, 실제 17시께)가 끝난 뒤.
+  schedule:
+    - cron: '17 13 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 배치 커밋 잡의 게이트를 순서 그대로 따라 한다: 설치 전에 생성기 다섯 → pytest·pillow 설치 → pytest.
+  # 생성기를 먼저 돌리는 이유도 배치와 같다 — 정합 시험 몇은 새로 구운 페이지와 data.js 를 대조한다.
+  # PR 은 생성 산출물을 싣지 않으므로(CLAUDE.md), 생성기를 고친 PR 은 여기서 다시 구워야 배치와 같은 답이 나온다.
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # 배치 커밋 잡과 같다. 기본값(depth 1)이면 sw.js 버전 단조 증가 시험이 이력을 못 읽는다.
+          fetch-depth: 200
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: 생성기 (배치와 같은 순서, 패키지 설치 전)
+        run: |
+          if ! python3 tools/make_sido_pages.py; then echo "::error::make_sido_pages 실패"; exit 1; fi
+          if ! python3 tools/make_indicator_pages.py; then echo "::error::make_indicator_pages 실패"; exit 1; fi
+          if ! python3 tools/make_monthly_page.py; then echo "::error::make_monthly_page 실패"; exit 1; fi
+          if ! python3 tools/make_weekly_page.py; then echo "::error::make_weekly_page 실패"; exit 1; fi
+          if ! python3 tools/refresh_cycle_data.py; then echo "::error::refresh_cycle_data 실패"; exit 1; fi
+
+      - name: 검증 게이트 (배치와 같은 설치·같은 명령)
+        run: |
+          python3 -m pip install --quiet pytest pillow
+          python3 -m pytest tools/tests/ -q
+
+      - name: 생성기가 바꾼 파일 (보여 주기만 한다 — 커밋하지 않는다)
+        if: always()
+        run: git diff --stat
+
+  # 패키지를 하나도 깔지 않은 3.12 에서 도는 자리들을 실제로 돌려 본다. 배치의 fetch 잡(split_data)·커밋 잡의
+  # 생성기 단계·감시(check_freshness)·발행 확인(close_published_issues)·결과 보고(format_batch_report)는
+  # pip 없이 돈다. 여기서 모듈 맨 위나 실행 경로에 PIL·pytest 같은 것이 끼면 ModuleNotFoundError 로 빨개진다.
+  # (전체 목록은 tools/tests/test_test_deps_are_installed.py 가 워크플로를 읽어 정적으로 본다. 이 잡은
+  #  그 정적 검사가 못 보는 함수 안 import 까지 실제 실행으로 확인한다.)
+  bare-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 200
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: 깔린 패키지 (pip 외에는 없어야 한다)
+        run: python3 -m pip list
+
+      - name: split_data + 생성기 다섯 (설치 없이)
+        run: |
+          python3 tools/split_data.py
+          python3 tools/make_sido_pages.py
+          python3 tools/make_indicator_pages.py
+          python3 tools/make_monthly_page.py
+          python3 tools/make_weekly_page.py
+          python3 tools/refresh_cycle_data.py
+
+      - name: 감시·발행 확인·결과 보고 진입점 불러오기 (설치 없이, 네트워크 없이)
+        run: |
+          python3 -c "import sys; sys.path.insert(0, 'tools'); import update_adv_data, check_freshness, close_published_issues, format_batch_report"
+
+      - name: 바뀐 파일 (보여 주기만 한다 — 커밋하지 않는다)
+        if: always()
+        run: git diff --stat

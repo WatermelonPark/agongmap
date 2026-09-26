@@ -18,6 +18,7 @@
 """
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -29,6 +30,8 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
+import kst as KST            # noqa: E402  (오늘(KST) — 생성기가 찍는 날짜의 단일 출처)
+import make_indicator_pages as I  # noqa: E402  (전세가율 기준월 규칙·sitemap — /jeonse-ratio/ 와 같은 규칙)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
@@ -74,7 +77,11 @@ def quarterly(D, region, y_from):
             continue
         t = p[0] + (p[1] - 1) // 3 * 0.25
         acc.setdefault(t, []).append(v)
-    return {t: round(sum(a) / len(a), 1) for t, a in acc.items()}
+    # ⚠️ math.fsum 을 쓴다. 파이썬 3.12 부터 내장 sum() 이 실수에 보정 합산을 해서 3.11 과 끝자리가 갈린다.
+    #    .x5 경계에서 반올림이 뒤집혀(수도권 2011Q1 87.8↔87.9 등 세 칸) 개발 컨테이너(3.11)와 배치(3.12)가
+    #    같은 data.js 로 다른 값을 굽고, 커밋마다 그 세 칸이 번갈아 바뀌었다(2026-08-08~09-18). fsum 은
+    #    정확히 반올림한 합이라 판에 상관없이 같고, 배치(3.12)가 굽던 값과도 같다(2026-09-26 데이터 감사).
+    return {t: round(math.fsum(a) / len(a), 1) for t, a in acc.items()}
 
 
 def build_zones(S):
@@ -110,12 +117,14 @@ def build_overlay(S):
 def build_jratio(S):
     """전세가율 최신월 기준 시도 스펙트럼 + 수도권·지방 평균."""
     D = S['전세가율']
-    k = len(D['dates']) - 1
     # 계열에 아예 없는 지역은 목록이 낡았다는 신호다 — 조용히 빠뜨리지 않는다.
     gone = [r for r in SIDO if not D['series'].get(r)]
     if gone:
         raise RuntimeError('전세가율에 없는 지역: %s (모델과 저장분이 어긋났다)'
                            % ', '.join(gone))
+    # 기준월은 /jeonse-ratio/ 와 같은 규칙(모든 시도가 채워진 마지막 달)으로 고른다. dates[-1] 을 그대로
+    # 읽으면 원천이 행을 바꾼 달에 0 나누기·풀이 문장 RuntimeError 로 배치가 멈췄다(2026-09-26 데이터 감사).
+    k = I.jeonse_ref_index(D, SIDO)
     rows = [(r, D['series'][r][k]) for r in SIDO
             if D['series'][r][k] is not None]
     rows.sort(key=lambda x: x[1])
@@ -124,7 +133,7 @@ def build_jratio(S):
            for r, v in rows]
     sudo = [v for r, v in rows if r in SUDO]
     jib = [v for r, v in rows if r not in SUDO]
-    return lvl, round(sum(sudo) / len(sudo), 1), round(sum(jib) / len(jib), 1), D['dates'][k]
+    return lvl, round(math.fsum(sudo) / len(sudo), 1), round(math.fsum(jib) / len(jib), 1), D['dates'][k]
 
 
 # 사이클 본문의 전세가율 풀이 칸(2026-09-15 콘텐츠 세션 제안). 전세가율은 이 배치가 매일
@@ -184,8 +193,9 @@ def _strip_date(page):
 
 
 def _today_kst():
-    import datetime
-    return (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).date().isoformat()
+    # make_sido_pages 와 같은 출처(kst.py)를 쓴다. 따로 계산하면 한 배치 커밋 안에서 /cycle/ 과 /zone/·홈의
+    # 날짜가 갈린다(2026-09-26 데이터 감사). 옛 utcnow() 는 3.12 에서 DeprecationWarning 도 냈다.
+    return KST.today_iso()
 
 
 def main():
@@ -216,8 +226,7 @@ def main():
     if _strip_date(page) != _strip_date(old):
         today = _today_kst()
         page = re.sub(r'("dateModified":\s*")[^"]*(")', r'\g<1>%s\g<2>' % today, page, count=1)
-        import make_indicator_pages as _I
-        _I.bump_sitemap([('/cycle/', today)])
+        I.bump_sitemap([('/cycle/', today)])
     io.open(PAGE, 'w', encoding='utf-8', newline='').write(page)
     z0 = zones[ZONE_REGIONS[0]]
     print('cycle 갱신 (전세가율 기준 %s)' % prd)

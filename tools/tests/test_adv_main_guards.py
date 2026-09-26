@@ -147,6 +147,36 @@ def test_rows_without_wolse_keep_the_saved_wolse(monkeypatch, tmp_path):
             assert r.get('wo') == saved[r['p']], '%s %s 월세가 사라졌다' % (part, r['p'])
 
 
+def test_seoul_gu_dropped_from_one_response_is_kept_and_recorded(monkeypatch, tmp_path):
+    """주간 응답의 서울구 블록에서 구 하나가 빠져도 저장 블록은 그 구의 열과 창 밖 이력을 지키고, .fetch_failed 에
+    '주간 서울구 열 빠짐(구)' 이 남는다(배치 알림 ℹ️ 줄).
+
+    변이: main() 의 `_merge_hist(weekly.get('seoul'), cur.get('seoul'), kw, '주간 서울구', soft_failed)` 에서
+          soft_failed 를 빼면 기록 단정이 빨개지고(확인), _merge_hist 의 `if gone:` 합집합 블록을 지우면 열·이력
+          단정이 빨개진다(확인).
+    픽스처: 실제 저장분 주간 블록의 끝 RECENT_WEEKS 주를 다시 받은 응답에 소급 수정 한 칸(저장 경로가 실제로 돈다),
+            서울구 블록은 열 목록 첫 구가 빠진 부분 응답(데이터 감사 #8 — 최신 주 그 구 행이 페이지 경계에서 밀림).
+    """
+    run = _Run(monkeypatch, tmp_path)
+    cur = run.before['weekly']
+    resp = _truncated(cur, -U.RECENT_WEEKS, None)
+    _bump(resp['rows'][-1])
+    se = resp['seoul']
+    gu = se['regions'][0]
+    se['regions'] = se['regions'][1:]
+    for r in se['rows']:
+        for k in ('ma', 'je'):
+            r[k] = r[k][1:]
+    run.set('fetch_weekly', resp)
+    got = run.main()['weekly']['seoul']
+    assert got['regions'] == cur['seoul']['regions'], '빠진 구의 열이 사라졌다'
+    first = resp['rows'][0]['p']
+    j = got['regions'].index(gu)
+    old = {r['p']: r['ma'][j] for r in cur['seoul']['rows']}
+    assert [r['ma'][j] for r in got['rows'] if r['p'] < first] == [old[r['p']] for r in got['rows'] if r['p'] < first]
+    assert '주간 서울구 열 빠짐(%s)' % gu in run.file('.fetch_failed')
+
+
 # ── 2. 인허가 행 수 축소 가드 ────────────────────────────────────────────────
 def test_permits_shorter_response_is_not_adopted(monkeypatch, tmp_path):
     """인허가 응답의 반기 행이 저장분보다 적으면 채택하지 않는다(소급 수정이 섞여 있어도).
@@ -204,6 +234,34 @@ def test_sido_result_missing_a_region_is_not_adopted(monkeypatch, tmp_path, firs
     assert got['sido'] == base['sido'], '빠진 결과가 채택됐다 — /zone/ 페이지가 지워진다'
     assert got['occupancy'] == base['occupancy'], '가드에 걸린 회차인데 입주물량을 썼다'
     assert 'sido-shrink' in run.file('.fetch_failed')
+
+
+def test_sido_result_with_split_horizon_is_not_adopted(monkeypatch, tmp_path):
+    """시도 점수의 미래 시야가 어긋나면(H ≠ lead — 준공·착공 끝 분기가 갈라짐) ADV.sido 도 occupancy 도 쓰지 않고
+    'sido-h' 를 부분 실패로만 남긴다. rc=3 판정(failed)에는 아무것도 더하지 않는다('sido' 도 'sido-shrink' 도 없다).
+
+    변이: main() 의 `elif sd.get('H') != sd.get('lead'):` 가드 분기를 지우면 어긋난 점수가 채택돼 빨개지고,
+          `if sd.get('H') != sd.get('lead'): raise _SidoHeld()` 를 지우면 입주물량 단정이, `except _SidoHeld:` 를 지우면
+          'sido' 가 failed 에 들어가 마지막 단정이 빨개진다(셋 다 확인).
+    픽스처: 조용한 회차에, 분기를 닫는 달의 준공만 받고 착공 호출이 죽은 STATS 로 sido_zones.calc 가 낸 결과 —
+            저장분 점수에서 실적 끝 분기(L)만 한 분기 앞으로, 시야 H 는 lead − 1(데이터 감사 #5 재현값 H=11).
+            입주물량 표도 그 STATS 로 달라진 값(마지막 행 제거)을 낸다.
+    """
+    run = _Run(monkeypatch, tmp_path)
+    base = run.before
+    run.quiet()
+    sd = copy.deepcopy(base['sido'])
+    y, q = int(sd['L'][:4]), int(sd['L'][5])
+    sd['L'] = '%dQ%d' % ((y + 1, 1) if q == 4 else (y, q + 1))
+    sd['H'] = sd['lead'] - 1
+    monkeypatch.setattr(sido_zones, 'calc', lambda st: copy.deepcopy(sd))
+    occ_rows = base['occupancy']['rows'][:-1]
+    monkeypatch.setattr(sido_zones, 'supply_rows', lambda st: {'rows': copy.deepcopy(occ_rows)})
+    got = run.main()
+    assert got['sido'] == base['sido'], '시야가 어긋난 점수가 채택됐다 — make_sido_pages 가 ABORT 한다'
+    assert got['occupancy'] == base['occupancy'], '가드에 걸린 회차인데 입주물량을 썼다'
+    rec = run.file('.fetch_failed')
+    assert 'sido-h' in rec and 'sido' not in rec and 'sido-shrink' not in rec
 
 
 # ── 4. 전량 실패 rc=3 ────────────────────────────────────────────────────────

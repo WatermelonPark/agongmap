@@ -311,6 +311,30 @@ def half_up(v):
     return int(math.floor(float(v) + 0.5))
 
 
+def month_back(dates, i, k):
+    """dates[i] 에서 정확히 k달 앞 시점의 인덱스. 그 달 칸이 계열에 없으면 None.
+
+    ⚠️ '전월'·'1년 전'을 인덱스 차(i-1, i-12)로 잡지 않는다. 배치는 불완비한 달을 보류한다
+       (update_adv_data._drop_incomplete — 미분양 2026.07). 그 달이 끝내 안 채워진 채 다음 달이
+       들어오면 dates 에 그 달 칸이 없어 i-1 이 두 달 전이 되고, '전월 대비'에 두 달 치 변화가
+       실린다(2026-09-26 데이터 감사 #17). 라벨('2026.07', '2026.07 p)')로 달을 세어 찾는다.
+    """
+    import re
+
+    def ym(s):
+        m = re.match(r'^(\d{4})[.\-/]\s*(\d{1,2})', str(s).strip())
+        return int(m.group(1)) * 12 + int(m.group(2)) - 1 if m else None
+    if not 0 <= i < len(dates):
+        return None
+    t = ym(dates[i])
+    if t is None:
+        return None
+    for j in range(i - 1, -1, -1):
+        if ym(dates[j]) == t - k:
+            return j
+    return None
+
+
 def card_text(dtot, ratio, H=LEAD_Q):
     """홈·허브 카드의 한 줄: '686,396세대 부족 · 3년 필요량의 60%'.
 

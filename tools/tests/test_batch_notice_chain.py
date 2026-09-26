@@ -51,7 +51,10 @@ def test_month_lag_cli_prints_the_lag_line(tmp_path):
 def test_batch_notes_cli_prints_the_permit_gap_line(tmp_path):
     adv = {'sido': {'zones': [{'z': '서울', 'pbr': 1.0}, {'z': '제주', 'pbr': None}]}}
     out = _cli('batch_notes.py', _data_js(tmp_path, adv, {}))
-    assert '인허가 신호 빠짐' in out and '제주' in out and '서울' not in out, out
+    # 인허가 줄만 본다. CLI 는 퀴즈 검토 기한 줄(batch_notes.quiz_review_lines)도 붙이는데, 그 줄은 날짜가 지나면
+    # 생기고 문항 글에 지역 이름이 들어갈 수 있다 — 출력 전체에 '서울'이 없다고 단정하면 날짜 시한폭탄이 된다.
+    permit = [ln for ln in out.splitlines() if '인허가 신호 빠짐' in ln]
+    assert len(permit) == 1 and '제주' in permit[0] and '서울' not in permit[0], out
 
 
 def test_lag_line_is_readable_by_the_report_formatter():
