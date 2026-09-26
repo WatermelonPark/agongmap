@@ -603,12 +603,15 @@ def hand_lastmods(root=None):
 
     ⚠️ 얕은 클론(배치 커밋 잡은 fetch-depth 200)에서 창 밖의 파일은 경계 커밋이 파일을 통째로
     '추가'한 것처럼 보여, 그 커밋 날짜가 마지막 수정일로 잘못 나온다. 경계 커밋(.git/shallow)이면 뺀다.
+    ⚠️ shallow 파일 위치는 `--git-path shallow` 로 묻는다. `--git-dir` 에 'shallow' 를 붙이면 작업
+    트리(git worktree)에서는 .git/worktrees/<이름>/shallow 라는 없는 파일을 보게 되어 경계 커밋을
+    믿었다 — shallow 는 공통 디렉터리에 있다(2026-09-26 데이터 감사).
     """
     root = root or ROOT
     shallow = set()
-    top = _git(root, 'rev-parse', '--git-dir')
-    if top:
-        sp = os.path.join(root, top, 'shallow') if not os.path.isabs(top) else os.path.join(top, 'shallow')
+    sp = _git(root, 'rev-parse', '--git-path', 'shallow')
+    if sp:
+        sp = sp if os.path.isabs(sp) else os.path.join(root, sp)
         if os.path.exists(sp):
             shallow = set(io.open(sp, encoding='utf-8').read().split())
     out = []
