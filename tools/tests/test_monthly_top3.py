@@ -50,6 +50,7 @@ def _rows(sec):
 
 
 def _top(sec):
+    """요약 줄의 (링크, 이름, 값) 목록. 줄이 없으면 None, 비교 달이 없어 사유만 적힌 줄이면 []."""
     m = re.search(r'<p class="top3"><b>[^<]*</b>(.*?)</p>', sec, re.S)
     if not m:
         return None
@@ -79,7 +80,7 @@ def _assert_summary_matches_table(sid, sec):
     pick, positive = PICK[sid]
     rows = _rows(sec)
     top = _top(sec)
-    assert top, '%s 요약을 읽지 못했다' % sid
+    assert top is not None, '%s 요약을 읽지 못했다' % sid
     assert len(top) <= 3
     change = {}
     for r, cells in rows.items():
@@ -89,6 +90,10 @@ def _assert_summary_matches_table(sid, sec):
         if v is None or v == 0 or (positive and v < 0):
             continue
         change[r] = v
+    if not top:
+        # 사유만 적힌 줄(비교 달이 없는 회차 — 감사 #17)은 표의 증감 칸도 전부 비어 있을 때만 맞다.
+        assert not change, '%s: 요약은 비교할 달이 없다는데 표에는 증감이 있다 %s' % (sid, sorted(change))
+        return
     for href, name, v in top:
         assert href == name, '%s: 링크(%s)와 이름(%s)이 다르다' % (sid, href, name)
         assert name not in SZ.AGG, '%s: 집계 %s 가 요약에 끼었다' % (sid, name)
