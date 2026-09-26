@@ -30,6 +30,7 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
+import kst as KST            # noqa: E402  (오늘(KST) — 생성기가 찍는 날짜의 단일 출처)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
@@ -189,8 +190,9 @@ def _strip_date(page):
 
 
 def _today_kst():
-    import datetime
-    return (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).date().isoformat()
+    # make_sido_pages 와 같은 출처(kst.py)를 쓴다. 따로 계산하면 한 배치 커밋 안에서 /cycle/ 과 /zone/·홈의
+    # 날짜가 갈린다(2026-09-26 데이터 감사). 옛 utcnow() 는 3.12 에서 DeprecationWarning 도 냈다.
+    return KST.today_iso()
 
 
 def main():
