@@ -59,9 +59,13 @@ def test_workflow_actually_carries_this_policy():
     # 날에만 경로가 평평해져 간헐적으로 깨진다(2026-09-12 배치 사고, 백로그 7번).
     # matrix 에서 러너 목록을 읽어 대조하므로, 러너를 늘리고 스텝을 안 늘리면 여기서
     # 잡힌다 — 개수를 시험에 박아 두면 그 결합이 조용히 끊긴다.
-    import yaml
-    wf = yaml.safe_load(io.open(WF, encoding='utf-8'))
-    runners = wf['jobs']['fetch']['strategy']['matrix']['n']
+    # ⚠️ PyYAML 을 쓰지 않는다. 배치 커밋 잡은 setup-python 3.12(hostedtoolcache)에 pytest·pillow 만
+    #    깔아서, 러너 시스템 파이썬에 있던 yaml 이 없다 — 2026-09-23 커밋 잡을 3.12 로 고정한 뒤 이 줄
+    #    하나가 ModuleNotFoundError 로 게이트를 막아 데이터 갱신이 5회 연속 멈췄다(09-24~26).
+    #    matrix 의 `n: [1, 2, 3]` 한 줄만 읽으면 되므로 정규식으로 충분하다.
+    m = re.search(r'matrix:\s*\n\s*n:\s*\[([^\]]*)\]', y)
+    assert m, 'fetch 잡의 matrix n 목록을 못 찾았다'
+    runners = [t.strip() for t in m.group(1).split(',') if t.strip()]
     assert len(runners) >= 2, '러너가 하나면 이중화가 아니다'
     for n in runners:
         assert re.search(r'name:\s*reason-%s(?![0-9])' % n, y), (

@@ -56,6 +56,9 @@ python tools/make_sido_pages.py
 ```
 
 Python 3.12. 별도 requirements 파일은 없고 표준 라이브러리 위주이며, 이미지 도구는 `pillow`를 쓴다.
+배치 게이트는 `pytest`·`pillow`만 깐다 — 시험과 배치 도구는 그 밖의 서드파티(yaml 등)를 모듈 맨 위에서 가져오지 않는다
+(`test_test_deps_are_installed`). 개발 컨테이너엔 시스템 yaml 이 있어 로컬 pytest 로는 안 드러나므로, CI 와 같은 조건은
+`python3 -m venv` 에 `pytest pillow` 만 깐 환경에서 확인한다(2026-09-24~26 게이트 정지 사례).
 Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
 로컬 미리보기는 `.claude/launch.json`의 `agongmap`(정적 서버, 8321 포트)을 쓴다.
 
