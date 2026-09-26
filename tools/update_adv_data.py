@@ -153,20 +153,43 @@ def _supply_region(full):
 # 정본은 과거 시계열을 합친 merge_regions.py 다 — 사본을 두면 이력 병합과 수집 병합이 서로
 # 다른 이름·가중치를 보게 된다.
 from merge_regions import SRC as _GJ_OLD, DST as _GJ_NEW, W_GJ  # noqa: E402
+from merge_regions import WEIGHTED as _GJ_WEIGHTED  # noqa: E402
+
+
+def _fold_gj(vals, weighted=False):
+    """한 시점의 {지역: 값}에서 통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 접는다. vals를 고쳐 돌려준다.
+
+    **수집 세 경로(아파트 인허가 표 · 기본통계 STATS · 분양·미분양)가 이 함수 하나를 쓴다.** 규칙이 경로마다
+    달랐다 — 인허가 표는 두 조각이 다 있어야 더했고, 공급은 한 조각만 와도 그 값을 통합 지역에 실었고,
+    기본통계(인허가·착공·준공 월별)는 옛 두 이름을 merge_basic 의 지역 필터에서 **조용히 버렸다.**
+    원천(DT_MLTM_1948/5387/5373)은 2026.06까지 두 이름으로만 주고 배치는 8개월 창을 매일 다시 받으므로,
+    창 안의 통합 전 달은 전국·지방만 원천을 따라가고 전남광주는 09-10 병합 스냅숏에 굳었다. 원천이 그 달
+    광주나 전남을 소급 정정하면 시도합≠전국이 되어 pytest 게이트가 그 달이 창을 벗어날 때까지 매일 빨개지고,
+    권하는 교정(--heal-basic)도 같은 경로라 못 고친다(2026-09-26 데이터 감사 #4).
+
+    규칙(merge_regions 의 이력 병합과 같은 정본 — 이름·가중치·반올림):
+      - 원천이 통합 행을 직접 주면 그 값을 쓴다(원천 숫자 우선).
+      - 아니면 **두 조각이 다 있을 때만** 만든다. 물량(호·세대)은 합, 지수·비율(merge_regions.WEIGHTED)은
+        W_GJ 가중평균(소수 2자리, merge_regions.merge_series 와 같다).
+      - 한 조각만 오면 통합 지역을 만들지 않는다. 한쪽만 싣는 것은 없는 쪽을 0으로 세는 것과 같다 —
+        미분양이면 전국 롤업까지 같은 만큼 모자라 합계 검사도 통과한다(감사 #7). 비워 두면 공급은
+        _drop_incomplete 가 그 달을 보류하고, 기본통계는 merge_basic 이 저장 값을 건드리지 않는다.
+    옛 두 이름은 어느 경우에도 빠진다(저장 계열에는 통합 지역만 있다).
+    """
+    g, j = (vals.pop(k, None) for k in _GJ_OLD)
+    if _GJ_NEW not in vals and g is not None and j is not None:
+        vals[_GJ_NEW] = round(W_GJ * g + (1 - W_GJ) * j, 2) if weighted else g + j
+    return vals
 
 
 def _merge_gj(fetched):
-    """광주·전남을 '전남광주'로 합친다(2026-09-10 통합).
+    """공급(분양·미분양) {(y,m): {지역: 값}}의 광주·전남을 '전남광주'로 접는다(2026-09-10 통합).
 
-    미분양·분양은 R-ONE이 아직 두 지역을 따로 주는데, 판정 단위가 합쳐졌으므로
-    여기서 더한다. 호·세대 단위라 합산이 곧 정답이다(지수라면 가중평균이 필요하다).
-    한쪽만 있으면 있는 쪽만 쓴다 — 결측을 0으로 세면 합이 줄어든다.
+    R-ONE이 아직 두 지역을 따로 준다. 규칙은 _fold_gj(수집 세 경로 공통)다 — 호·세대라 합이고,
+    두 조각이 다 있을 때만 만든다. 한 조각만 온 달은 전남광주가 비어 _drop_incomplete 가 보류한다.
     """
-    for ym, vals in fetched.items():
-        g, j = vals.pop(_GJ_OLD[0], None), vals.pop(_GJ_OLD[1], None)
-        parts = [x for x in (g, j) if x is not None]
-        if parts:
-            vals[_GJ_NEW] = sum(parts)
+    for vals in fetched.values():
+        _fold_gj(vals)
     return fetched
 
 
@@ -418,15 +441,11 @@ def discover(keyword):
 def _fold_old_permits(out):
     """통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 **합산**한다. out을 고쳐 돌려준다.
 
-    호(물량) 단위라 합이 곧 정답이다 — STATS 인허가 이력을 합친 merge_regions.merge_series와
-    같은 규칙이고 이름도 그 정본(SRC·DST)을 쓴다. 원천이 통합 행을 직접 주면 그 값을 쓴다
-    (원천 숫자 우선). ⚠️ 두 조각이 **다 있을 때만** 더한다. 한쪽만 더하면 모자란 값이
-    정상값처럼 실리고, 하반기 = 12월 누계 − 6월 누계 차감에서 가짜 급증·급감이 된다.
+    호(물량) 단위라 합이 곧 정답이다. 규칙은 수집 세 경로 공통의 _fold_gj 다 — 원천 통합 행 우선,
+    ⚠️ 두 조각이 **다 있을 때만** 더한다. 한쪽만 더하면 모자란 값이 정상값처럼 실리고,
+    하반기 = 12월 누계 − 6월 누계 차감에서 가짜 급증·급감이 된다.
     """
-    parts = [out.pop(k, None) for k in _GJ_OLD]
-    if _GJ_NEW not in out and all(v is not None for v in parts):
-        out[_GJ_NEW] = sum(parts)
-    return out
+    return _fold_gj(out)
 
 
 def _fetch_apt_permits(prd_de):
@@ -1018,6 +1037,13 @@ def _fetch_basic_one(name, months=None, upto=None):
             out.setdefault(ym, {})[reg] = v
 
     drop_unsplittable_months(name, out)
+    # 통합 전 두 이름(광주·전남)을 접는다 — 인허가 표·공급과 같은 함수(_fold_gj). 이게 없으면
+    # merge_basic 의 지역 필터가 두 이름을 버려, 창 안의 통합 전 달 전남광주가 병합 스냅숏에
+    # 굳고 원천 소급 정정이 전국·지방에만 실린다(2026-09-26 데이터 감사 #4). 잠정 증감률(rates)은
+    # 접지 않는다 — 두 조각의 전월 지수가 저장돼 있지 않아 통합 지수의 증감률을 원천 값에서 만들 수 없다.
+    weighted = name in _GJ_WEIGHTED
+    for vals in out.values():
+        _fold_gj(vals, weighted)
     return out, rates
 
 
