@@ -9,7 +9,7 @@
   ④ 내용이 바뀌어도 최초 발행일(datePublished)을 물려받는 것
 
 ⚠️ 저장소에 쓰지 않는다. data.js·data-core.js·sitemap.xml 과 zone/광주·zone/전남 을 tmp 로 복사하고
-   모듈의 ROOT·OUT·HOME_STAMP 를 그리로 돌린다. 날짜는 모듈의 datetime 을 가짜로 바꿔 정한다.
+   모듈의 ROOT·OUT·HOME_STAMP 를 그리로 돌린다. 날짜는 모듈의 _today() 를 가짜로 바꿔 정한다.
 """
 import datetime
 import io
@@ -17,7 +17,6 @@ import os
 import re
 import shutil
 import sys
-import types
 
 import pytest
 
@@ -30,13 +29,10 @@ DAY1, DAY2 = '2026-09-01', '2026-09-08'
 
 
 def _set_today(monkeypatch, iso):
-    y, m, d = (int(x) for x in iso.split('-'))
-
-    class _D(datetime.date):
-        @classmethod
-        def today(cls):
-            return cls(y, m, d)
-    monkeypatch.setattr(P, 'datetime', types.SimpleNamespace(date=_D, timedelta=datetime.timedelta))
+    # 생성기는 오늘을 P._today()(KST, tools/kst.py) 한 곳에서만 읽는다(2026-09-26 데이터 감사). 전에는 모듈의
+    # datetime 을 가짜로 바꿨는데, 날짜 출처가 kst 로 옮겨 간 뒤에는 그 자리를 바꿔야 날짜가 정해진다.
+    datetime.date.fromisoformat(iso)   # 형식 확인
+    monkeypatch.setattr(P, '_today', lambda: iso)
 
 
 @pytest.fixture

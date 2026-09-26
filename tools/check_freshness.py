@@ -42,10 +42,16 @@ import make_indicator_pages as I  # noqa: E402  (공개일·클램프 규칙 공
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
 import quiz_review as QR       # noqa: E402  (퀴즈 제도 문항 검토 기한)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import kst as KST      # noqa: E402  (오늘(KST) — 퀴즈 검토 기한은 한국 날짜로 본다)
 
 SITE = 'https://www.agongmap.co.kr'
 UA = {'User-Agent': 'agongmap-watchdog'}
 TODAY = datetime.date.today()
+# 감시를 실패시키지 않는 알림(퀴즈 제도 문항 검토 기한). fails 와 따로 둔다 — _emit_warnings 참고.
+WARN = []
+# 잡 요약 파일(GITHUB_STEP_SUMMARY). 스크립트로 돌 때만 채운다(맨 아래 __main__) — 시험이 main() 을 불러도
+# 배치 게이트의 실행 요약에 쓰지 않게 한다.
+SUMMARY = None
 SKIPPED = []           # 원천 조회 실패로 판정하지 못한 계열(재시도까지 실패)
 RETRYQ = []            # 1차 조회 실패 — 한 텀 쉬고 다시 볼 (label, ours, getter, grace)
 # 조회 **자체**가 실패한 것. SKIPPED가 대부분을 덮지만 SKIPPED는 'SKIPPED×2 >
@@ -950,6 +956,7 @@ def source_jobs(stats):
 
 
 def main():
+    del WARN[:]   # 시험이 main() 을 여러 번 부른다 — 앞 회차의 알림이 섞이지 않게
     # 키가 비면 모든 원천 조회가 '건너뜀'이 되어 감시가 조용히 통과한다.
     # 감시자가 무력해진 것을 감시할 사람은 없으니 여기서 바로 실패시킨다.
     missing = [k for k in ('KOSIS_API_KEY', 'RONE_API_KEY', 'ECOS_API_KEY')
@@ -1088,22 +1095,13 @@ def main():
     fails.extend(check_sido_sum(stats))
     fails.extend(check_derived_pages(adv, stats))
 
-    # 퀴즈의 제도 문항(6·27 대책, 추진 중인 법 개정 등)은 시간이 지나면 틀린 답이 된다. 검토 기한이
-    # 지나면 여기서 빨개진다(2026-09-15 점검 후속 ⑧). pytest 게이트에 두지 않은 이유: 날짜만 지나도
-    # 데이터 배치 커밋이 막히기 때문이다. ⚠️ extend 로 붙인다 — fails 길이는 검사한 계열 수로 쓰인다.
+    # 퀴즈의 제도 문항(6·27 대책, 추진 중인 법 개정 등)은 시간이 지나면 틀린 답이 된다(2026-09-15 점검
+    # 후속 ⑧). 기한 경과는 **경고**로만 남기고 감시를 실패시키지 않는다(check_quiz_review·_emit_warnings).
+    # ⚠️ extend 로 붙인다 — fails 길이는 검사한 계열 수로 쓰인다.
     print('[퀴즈 제도 문항 — 검토 기한]')
-    # ⚠️ 0개를 찾고 통과하면 감시가 조용히 꺼진다 — 백로그 10 이동 모의에서 실제로 그랬다. 못 읽었거나
-    #    0개면 실패로 올린다. 홈 스크립트는 home_src 로만 읽는다(옮겨도 EXTERNAL 한 줄로 따라온다).
-    try:
-        _qsrc = HS.home_source()
-        _qi = QR.items(_qsrc)
-        _qo = QR.overdue(_qsrc, datetime.date.today())
-        print('  제도 문항 %d개 · 기한 지남 %d개' % (len(_qi), len(_qo)))
-        if not _qi:
-            fails.append('퀴즈 제도 문항을 0개 찾았다 — 검토 기한 감시가 헛돈다(asof·review 형식이나 홈 스크립트 위치 확인)')
-        fails.extend(_qo)
-    except HS.HomeSourceError as e:
-        fails.append('홈 스크립트를 읽지 못해 퀴즈 검토 기한을 못 봤다: %s' % e)
+    _qf, _qw = check_quiz_review(KST.today())
+    fails.extend(_qf)
+    WARN.extend(_qw)
 
     # 커버리지 가드: 라이브에 있는데 위에서 한 번도 대조 안 한 계열을 잡는다.
     # 분양·미분양이 SUPPLY_CONF에 있다는 이유로 몇 주간 감시 밖에 있었다 — 사람이
@@ -1116,7 +1114,54 @@ def main():
                      % ', '.join(uncovered))
 
     retry_failed(fails)
+    _emit_warnings(WARN, SUMMARY)
     _gate(fails)
+
+
+def check_quiz_review(today, src=None):
+    """퀴즈 제도 문항의 검토 기한 → (fails, warns).
+
+    기한이 지난 문항은 warns 다. 데이터 사고가 아니라 콘텐츠 검토 알림이기 때문이다. 예전엔 fails 에 넣어
+    2026-12-15(1개)·2027-03-15(4개)부터 누가 home-app.js 를 고칠 때까지 감시가 **매일** 빨개졌고, 그 기간의
+    'Run failed' 메일은 퀴즈 때문인지 진짜 뒤처짐 때문인지 구별되지 않았다 — 진짜 경보가 이미 예상한 빨강
+    속에 묻힌다(2026-09-26 데이터 감사). write-reminder.yml 의 원칙과 같다: 실패 메일은 데이터 사고의 통로다.
+    ⚠️ 문항을 0개 찾았거나 홈 스크립트를 못 읽은 것은 fails 로 둔다. 기한 감시가 조용히 꺼진 것이고(백로그 10
+    이동 모의에서 실제로 그랬다), 날짜가 지나서 생기는 일이 아니다. 홈 스크립트는 home_src 로만 읽는다.
+    """
+    fails, warns = [], []
+    try:
+        src = HS.home_source() if src is None else src
+        qi = QR.items(src)
+        qo = QR.overdue(src, today)
+        print('  제도 문항 %d개 · 기한 지남 %d개' % (len(qi), len(qo)))
+        if not qi:
+            fails.append('퀴즈 제도 문항을 0개 찾았다 — 검토 기한 감시가 헛돈다(asof·review 형식이나 홈 스크립트 위치 확인)')
+        warns.extend(qo)
+    except HS.HomeSourceError as e:
+        fails.append('홈 스크립트를 읽지 못해 퀴즈 검토 기한을 못 봤다: %s' % e)
+    return fails, warns
+
+
+def _emit_warnings(warns, summary=None):
+    """감시를 실패시키지 않는 알림을 남긴다 — 로그의 WARN 목록, GitHub 실행 화면의 ::warning:: 주석,
+    그리고 summary(잡 요약 파일)가 있으면 거기에도. 판정(_gate)과 종료 코드에는 손대지 않는다."""
+    if not warns:
+        return
+    print('')
+    print('WARN: 알림 %d건 — 데이터 문제가 아니라서 감시를 실패시키지 않는다' % len(warns))
+    for w in warns:
+        print('  - %s' % w)
+        if os.environ.get('GITHUB_ACTIONS'):
+            # 워크플로 명령의 메시지는 %·줄바꿈을 이스케이프해야 한 줄로 뜬다.
+            print('::warning title=감시 알림(실패 아님)::%s'
+                  % w.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+    if summary:
+        try:
+            with open(summary, 'a', encoding='utf-8') as f:
+                f.write('### ⚠️ 감시 알림 %d건 (실패로 올리지 않음)\n\n' % len(warns))
+                f.write(''.join('- %s\n' % w for w in warns) + '\n')
+        except OSError as e:
+            print('  (잡 요약에 쓰지 못했다: %s)' % e)
 
 
 def _gate(fails):
@@ -1158,4 +1203,5 @@ def _gate(fails):
 
 
 if __name__ == '__main__':
+    SUMMARY = os.environ.get('GITHUB_STEP_SUMMARY')
     main()
