@@ -616,7 +616,8 @@ def next_links(z, weekly, stats):
     if ser and dates:
         li = len(dates) - 1
         cur = ser[li] if li < len(ser) else None
-        ago = ser[li - 12] if 12 <= li and li - 12 < len(ser) else None
+        ya = SZ.month_back(dates, li, 12)     # 라벨로 1년 전 칸을 찾는다(li-12 는 빠진 달이 있으면 13달 전 — 감사 #17)
+        ago = ser[ya] if ya is not None and ya < len(ser) else None
         if cur is not None:
             chg = '' if ago is None else ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
             cards.append('<a href="/jeonse-ratio/"><b>전세가율</b><i>%.1f%%%s · %s 기준</i></a>'

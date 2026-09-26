@@ -334,14 +334,19 @@ def build_jeonse(sts):
     prd = dates[li]                       # '2026.05'
     prd_iso = prd.replace('.', '-') + '-01'
 
+    # 1년 전 칸은 인덱스 차(li-12)가 아니라 라벨로 찾는다 — 빠진 달이 있으면 13달 전과 견주게 된다(감사 #17).
+    ya = SZ.month_back(dates, li, 12)
+
     def at(name, i):
-        v = (ser.get(name) or [None])[i] if name in ser else None
-        return v
+        if i is None or name not in ser:
+            return None
+        v = ser.get(name) or []
+        return v[i] if i < len(v) else None
 
     aggs = ['전국', '수도권', '지방']
     rows, vals = [], []
     for name in aggs + SIDO17:
-        cur, ago = at(name, li), at(name, li - 12)
+        cur, ago = at(name, li), at(name, ya)
         if cur is None:
             continue
         d = None if ago is None else round(cur - ago, 1)
@@ -365,22 +370,29 @@ def build_jeonse(sts):
             '·' if ago is None else '%.1f%%' % ago, cell_d(d)))
 
     nat = at('전국', li)
-    nat_d = round(nat - at('전국', li - 12), 1)
+    nat_ago = at('전국', ya)
+    # 1년 전 값이 없으면 그 비교 문구만 뺀다. 예전엔 None 과 빼기를 해 생성기가 죽었고, 배치는 그날 커밋을 통째로 막았다.
+    nat_d = None if nat_ago is None else round(nat - nat_ago, 1)
     hi = max(vals, key=lambda v: v[1])
     lo = min(vals, key=lambda v: v[1])
-    up_most = max([v for v in vals if v[2] is not None], key=lambda v: v[2])
+    moved = [v for v in vals if v[2] is not None]
+    up_most = max(moved, key=lambda v: v[2]) if moved else None
+    natd_desc = '' if nat_d is None else '로 1년 전보다 %+.1f%%p' % nat_d
+    natd_sub = '' if nat_d is None else ' · 1년 전 대비 %+.1f%%p' % nat_d
+    upm_p = ('' if up_most is None else
+             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (up_most[0], up_most[2]))
 
     title = '전세가율이란 — 전국·시도별 아파트 전세가율 현황 %s | 아공맵' % prd
-    desc = ('전세가율은 매매가 대비 전세가 비율. %s 기준 전국 아파트 전세가율은 %.1f%%로 1년 전보다 %+.1f%%p. '
+    desc = ('전세가율은 매매가 대비 전세가 비율. %s 기준 전국 아파트 전세가율은 %.1f%%%s. '
             '%s %.1f%%로 가장 높고 %s %.1f%%. 시도별 현황과 사이클 신호로서의 의미를 데이터로 정리했다.'
-            ) % (prd, nat, nat_d, ga(hi[0]), hi[1], neun(lo[0]), lo[1])
+            ) % (prd, nat, natd_desc or '다', ga(hi[0]), hi[1], neun(lo[0]), lo[1])
     url = SITE + '/jeonse-ratio/'
 
     body = """<header class="wrap">
   <div class="chip">지표 해설</div>
   <h1>전세가율 — 매매가 대비 전세가,<br>실수요의 체온계</h1>
   <div class="big">%(nat).1f%%</div>
-  <div class="bigsub">전국 아파트 전세가율 · %(prd)s 기준 · 1년 전 대비 %(natd)+.1f%%p</div>
+  <div class="bigsub">전국 아파트 전세가율 · %(prd)s 기준%(natd)s</div>
 </header>
 
 <section class="wrap">
@@ -403,7 +415,7 @@ def build_jeonse(sts):
 <section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
   <p>가장 높은 곳은 <strong>%(hi)s %(hiv).1f%%</strong>, 가장 낮은 곳은 <strong>%(lo)s %(lov).1f%%</strong>다. 서울처럼 전세가율이 낮은 시장은 매매가가 거주 가치보다 기대에 기대어 있다는 뜻이고(투자성 시장), 전세가율이 높은 지방 시장은 가격이 실수요에 붙어 있어 갭이 작다(실거주성 시장).</p>
-  <p>1년 새 가장 크게 오른 곳은 <strong>%(upm)s(%(upmd)+.1f%%p)</strong>. 전세가율 상승은 사이클에서 중요한 신호다 — <strong>공급이 부족하면 전세가 먼저 오르고, 전세가율이 차오르면 매매를 밀어 올린다.</strong> 갭투자 비용이 줄어드는 지점이기도 하다. 이 연결고리는 20년 국가 통계로 검증해 리포트에 정리해 뒀다.</p>
+  <p>%(upm)s전세가율 상승은 사이클에서 중요한 신호다 — <strong>공급이 부족하면 전세가 먼저 오르고, 전세가율이 차오르면 매매를 밀어 올린다.</strong> 갭투자 비용이 줄어드는 지점이기도 하다. 이 연결고리는 20년 국가 통계로 검증해 리포트에 정리해 뒀다.</p>
 </section>
 
 <section class="wrap">
@@ -416,8 +428,8 @@ def build_jeonse(sts):
     <a href="/cycle/">아파트 사이클 리포트<span>전세가율이 매매를 미는 고리, 데이터 검증</span></a>
   </div>
 </section>
-""" % dict(nat=nat, natd=nat_d, prd=prd, trs='\n'.join(trs),
-           hi=hi[0], hiv=hi[1], lo=lo[0], lov=lo[1], upm=up_most[0], upmd=up_most[2])
+""" % dict(nat=nat, natd=natd_sub, prd=prd, trs='\n'.join(trs),
+           hi=hi[0], hiv=hi[1], lo=lo[0], lov=lo[1], upm=upm_p)
 
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,

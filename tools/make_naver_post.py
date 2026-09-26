@@ -380,12 +380,17 @@ def _series_last(sts, key, region='전국'):
     d = sts.get(key) or {}
     s = (d.get('series') or {}).get(region) or []
     dates = d.get('dates') or []
-    idx = [i for i, v in enumerate(s) if v is not None]
+    idx = [i for i, v in enumerate(s) if v is not None and i < len(dates)]
     if len(idx) < 2 or not dates:
         return None, None, None
     i = idx[-1]
-    when = dates[i] if i < len(dates) else dates[-1]
-    return s[i], s[idx[-2]], when
+    # 직전값은 '결측을 건너뛴 앞 값'이 아니라 **바로 전 달** 값이다. 문장이 '전월'이라고 말하기 때문이다.
+    # 보류된 달(미분양 2026.07)이 비면 두 달 전 값을 전월로 적게 된다(2026-09-26 데이터 감사 #17).
+    # 전 달이 없으면 '전월 대비'를 쓸 수 없으므로 값이 하나뿐일 때처럼 섹션째 생략한다.
+    j = SZ.month_back(dates, i, 1)
+    if j is None or j >= len(s) or s[j] is None:
+        return None, None, None
+    return s[i], s[j], dates[i]
 
 
 def extra_section(adv, sts, rot):
