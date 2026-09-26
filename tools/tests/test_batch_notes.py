@@ -144,3 +144,53 @@ def test_main_never_appends_a_passing_value_check():
     assert not re.search(r'fails\.append\(\s*(?:check_supply_value|supply_value_fail)\(', code)
     m = re.search(r'r = supply_value_fail\([^\n]*\)\s*\n\s*if r:\s*\n\s*fails\.append\(r\)', code)
     assert m, '값 대조 결과를 참일 때만 넣는 구조가 아니다'
+
+
+# ── ③ 퀴즈 검토 기한 경과는 배치 기록의 ℹ️ 줄로 사람에게 간다 ─────────────────────────
+QUIZ_SRC = ("{q:'가상 제도 문항 <b>하나</b>', opts:['a','b'], asof:'2026-09-15', review:'2026-12-15', answer:0},"
+            "{q:'가상 제도 문항 둘', opts:['a','b'], asof:'2026-09-15', review:'2027-03-15', answer:1},")
+
+
+def test_overdue_quiz_item_becomes_an_info_line():
+    """기한이 지난 제도 문항만, 형식기가 '참고'로 싣는 ℹ️ 줄로 나온다. 기한 전날에는 아무것도 없다.
+
+    감시는 기한 경과를 경고(주석)로만 남겨 메일이 가지 않는다(2026-09-26 데이터 감사 #13). 이 줄이 사람에게
+    닿는 통로다 — 형식기는 ℹ️ 줄을 월요일 확인 메일에 싣는다.
+    변이: quiz_review_lines 가 빈 목록만 돌려주면 이 시험이, main() 에서 붙이는 줄을 지우면 아래 main 시험이
+          빨개진다(둘 다 확인). ⚠️ lines(adv) 에 넣으면 날짜가 지나는 날 위 '한 줄도 없다'
+          시험이 빨개져 게이트가 데이터 커밋을 막으므로 따로 둔다.
+    픽스처: 홈 퀴즈와 같은 모양(asof·review)의 가상 문항 둘 — 실제 첫 기한(2026-12-15)과 그다음(2027-03-15).
+    """
+    import datetime
+    D = datetime.date
+    assert N.quiz_review_lines(D(2026, 12, 14), QUIZ_SRC) == []
+    out = N.quiz_review_lines(D(2026, 12, 15), QUIZ_SRC)
+    assert len(out) == 1 and out[0].startswith(N.ML.MARK) and '가상 제도 문항 하나' in out[0], out
+    assert not F.LAG_LINE.match(out[0]), '뒤처짐 줄로 읽히면 형식기가 참고 줄로 싣지 않는다'
+    assert len(N.quiz_review_lines(D(2027, 3, 15), QUIZ_SRC)) == 2
+
+
+def test_quiz_line_reaches_the_monday_report():
+    """ℹ️ 퀴즈 줄이 형식기(format_batch_report.build)의 월요일 본문에 실린다 — 두 파일 사이의 형식 계약."""
+    import datetime
+    ln = N.quiz_review_lines(datetime.date(2026, 12, 15), QUIZ_SRC)[0]
+    body, mention = F.build(ln + '\n', '2026-12-21 17:10', 'https://example.invalid/run', 'owner', 0)
+    assert mention and '가상 제도 문항 하나' in body, body
+
+
+def test_main_appends_quiz_lines_from_the_real_home(tmp_path, monkeypatch, capsys):
+    """배치가 부르는 main() 이 실제 홈 스크립트로 퀴즈 검사를 해 줄을 붙인다(오늘을 먼 미래로 돌려 기한을 넘긴다).
+
+    변이: main() 에서 `+ quiz_review_lines(kst.today())` 를 지우면 빨개진다(확인).
+    픽스처: 인허가 신호가 모두 있는 최소 data.js(인허가 줄 없음) + 저장소의 실제 홈 스크립트, 오늘 = 2099-01-01.
+    """
+    import json
+    import kst
+    p = tmp_path / 'data.js'
+    p.write_text('/*ADV_DATA_START*/ const ADV=%s; /*ADV_DATA_END*/\nconst STATS={};\n'
+                 % json.dumps(_adv(('가', 0.8)), ensure_ascii=False), encoding='utf-8')
+    monkeypatch.setattr(kst, 'today', lambda now=None: __import__('datetime').date(2099, 1, 1))
+    assert N.main(['--data', str(p)]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out and all(ln.startswith(N.ML.MARK) and '검토 기한' in ln for ln in out), out
+    assert not any('검사 불가' in ln for ln in out), out

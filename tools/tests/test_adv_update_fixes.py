@@ -286,28 +286,37 @@ def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
 
 # ── 5. _merge_hist: 열 목록이 바뀐 회차 ─────────────────────────────────────
 def test_history_is_realigned_by_name_when_columns_change():
-    """최신 응답의 열 목록이 바뀌어도 옛 행 값이 한 칸씩 밀리지 않는다.
+    """최신 응답의 열 목록이 바뀌어도 옛 행 값이 한 칸씩 밀리지 않고, 응답에서 빠진 열도 이력이 있으면 남는다
+    (이번 구간은 None). 이력이 한 칸도 없는 옛 열만 빠진다.
 
-    변이: _merge_hist 의 `older = _align_rows(...)` 줄을 지우면 옛 행의 '다구' 자리에 '나구' 값이 읽혀
-          빨개진다(확인).
-    픽스처: 2026-07 인천 행정구역 개편처럼 구 하나가 없어지고 새 구가 생긴 회차. 옛 열 [가구, 나구, 다구],
-            새 열 [가구, 다구, 라구]. 저장분 두 주 + 새 응답 한 주.
+    변이: _merge_hist 의 `older = _align_rows(...)` 줄을 지우면 옛 행이 옛 열 순서 그대로 붙어 열 목록과 길이가
+          갈리고 값이 전부 비어 빨개진다(확인). _merge_hist 의 `if gone:` 합집합 블록을 지우면(2026-09-23 판처럼
+          사라진 열의 과거를 버리면) '나구' 열과 그 과거가 사라져 빨개진다(확인 — 데이터 감사 #8).
+    픽스처: 2026-07 인천 행정구역 개편처럼 구 하나가 응답에서 빠지고 새 구가 생긴 회차. 옛 열 [가구, 나구, 다구],
+            새 열 [가구, 다구, 라구]. 저장분 두 주 + 새 응답 한 주. 시군구 블록('codes')도 같은 방어를 탄다.
+            '마구'는 저장분에서도 값이 한 번도 없던 열이다.
     """
-    cur = {'regions': ['가구', '나구', '다구'],
-           'rows': [{'p': '2026-06-29', 'ma': [1.0, 2.0, 3.0], 'je': [4.0, 5.0, 6.0]},
-                    {'p': '2026-07-06', 'ma': [1.1, 2.1, 3.1], 'je': [4.1, 5.1, 6.1]}]}
+    cur = {'regions': ['가구', '나구', '다구', '마구'],
+           'rows': [{'p': '2026-06-29', 'ma': [1.0, 2.0, 3.0, None], 'je': [4.0, 5.0, 6.0, None]},
+                    {'p': '2026-07-06', 'ma': [1.1, 2.1, 3.1, None], 'je': [4.1, 5.1, 6.1, None]}]}
     new = {'regions': ['가구', '다구', '라구'],
            'rows': [{'p': '2026-07-13', 'ma': [1.2, 3.2, 9.2], 'je': [4.2, 6.2, 9.9]}]}
-    out = U._merge_hist(new, cur, 156, '시험')
-    assert out['regions'] == ['가구', '다구', '라구']
+    soft = []
+    out = U._merge_hist(new, cur, 156, '시험', soft)
+    assert out['regions'] == ['가구', '나구', '다구', '라구']
     by = {r['p']: r for r in out['rows']}
-    assert by['2026-06-29']['ma'] == [1.0, 3.0, None]
-    assert by['2026-07-06']['je'] == [4.1, 6.1, None]
-    assert by['2026-07-13']['ma'] == [1.2, 3.2, 9.2]
+    assert by['2026-06-29']['ma'] == [1.0, 2.0, 3.0, None]
+    assert by['2026-07-06']['je'] == [4.1, 5.1, 6.1, None]
+    assert by['2026-07-13']['ma'] == [1.2, None, 3.2, 9.2]
+    assert soft == ['시험 열 빠짐(나구·마구)']
     # 시군구 블록은 열 이름이 'codes' 다 — 같은 방어가 거기서도 돌아야 한다
     cur_s = {'codes': ['a1', 'a2'], 'rows': [{'p': '2026-06', 'ma': [1.0, 2.0]}]}
     new_s = {'codes': ['a2', 'a3'], 'rows': [{'p': '2026-07', 'ma': [2.5, 3.5]}]}
-    assert U._merge_hist(new_s, cur_s, 120)['rows'][0]['ma'] == [2.0, None]
+    out_s = U._merge_hist(new_s, cur_s, 120)
+    assert out_s['codes'] == ['a1', 'a2', 'a3']
+    assert [r['ma'] for r in out_s['rows']] == [[1.0, 2.0, None], [None, 2.5, 3.5]]
+    # 이력이 keep 밖으로 다 밀려나면 그 열은 이제 빠진다(정말로 없어진 구)
+    assert U._merge_hist(new_s, cur_s, 1)['codes'] == ['a2', 'a3']
 
 
 def test_history_untouched_when_columns_are_the_same():
@@ -369,6 +378,46 @@ def test_holidays_empty_200_response_counts_as_failure(monkeypatch):
     got = U.fetch_holidays(prev, failed)
     assert '%d-03-01' % (yr + 1) in got, '빈 응답이 저장분을 지웠다'
     assert failed == ['holidays:%d' % (yr + 1)]
+
+
+def test_holidays_next_year_not_yet_published_is_not_a_failure(monkeypatch):
+    """내년 조회가 오류 없는 정상 응답(resultCode 00)으로 0건(totalCount 0)이고 저장분에도 내년이 없으면 '아직 발표
+    전'이다 — 실패로 세지 않는다. 올해가 같은 모양이면, 또는 저장분에 내년이 이미 있으면 예전대로 실패다.
+
+    변이: fetch_holidays 의 '아직 발표 전' 분기(`if (y == yr + 1 and not had and …): continue`)를 지우면 첫 단정이
+          ['holidays:내년'] 으로 빨개지고(확인 — 1월부터 발표 때까지 매 회차 ℹ️ 줄에 실린다), 그 조건에서 `not had` 를
+          지우면 셋째 경우에 저장된 내년 공휴일이 사라져 빨개진다(확인).
+    픽스처: 공공데이터포털 특일 API 가 발표 전 해에 주는 정상 무자료 응답(header 00 · items '' · totalCount 0)과
+            올해 정상 응답. 저장분은 올해만 있는 연초 상태 · 내년까지 있는 연중 상태 두 가지.
+    """
+    yr = datetime.date.today().year
+    empty = {'response': {'header': {'resultCode': '00', 'resultMsg': 'NORMAL SERVICE.'},
+                          'body': {'items': '', 'numOfRows': 50, 'pageNo': 1, 'totalCount': 0}}}
+
+    def fake_for(blank_year):
+        def fake(url, tries=3):
+            if 'solYear=%d' % blank_year in url:
+                return empty
+            y = yr if blank_year != yr else yr + 1
+            return {'response': {'header': {'resultCode': '00'},
+                                 'body': {'items': {'item': [{'locdate': int('%d0101' % y)}]}, 'totalCount': 1}}}
+        return fake
+
+    monkeypatch.setattr(U, 'DATAGO_KEY', 'x')
+    monkeypatch.setattr(U, 'http_json', fake_for(yr + 1))
+    failed = []
+    got = U.fetch_holidays(['%d-01-01' % yr], failed)
+    assert failed == [] and got == ['%d-01-01' % yr]
+    # 올해가 0건이면 발표 전일 수 없다 — 실패
+    monkeypatch.setattr(U, 'http_json', fake_for(yr))
+    failed = []
+    U.fetch_holidays(['%d-01-01' % yr], failed)
+    assert failed == ['holidays:%d' % yr]
+    # 저장분에 내년이 이미 있으면(발표 뒤 빈 응답) 실패로 세고 저장분을 지킨다
+    monkeypatch.setattr(U, 'http_json', fake_for(yr + 1))
+    failed = []
+    got = U.fetch_holidays(['%d-01-01' % yr, '%d-03-01' % (yr + 1)], failed)
+    assert failed == ['holidays:%d' % (yr + 1)] and '%d-03-01' % (yr + 1) in got
 
 
 def test_align_rows_keeps_rows_when_new_block_has_no_columns():

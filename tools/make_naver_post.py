@@ -353,11 +353,19 @@ MORE_ROTATION = [
 ]
 
 
+# 4주 로테이션의 기준 월요일(ISO 2026-W01 첫날). 2026 년 안에서는 옛 식((ISO 주차-1) % 4)과 같은 순서를 낸다.
+ROT_ANCHOR = datetime.date(2025, 12, 29)
+
+
 def rot_index(p):
     """발표주차 기준 4주 로테이션 인덱스. 날짜에서 뽑으므로 상태 파일이 필요 없고,
-    주간 발행을 건너뛰어도 순서가 어긋나지 않는다."""
+    주간 발행을 건너뛰어도 순서가 어긋나지 않는다.
+
+    ⚠️ ISO 주차(`isocalendar()[1]`)로 세지 않는다. 53주인 해(2026·2032·2037)에는 W53(2026-12-28)과 다음 해
+    W01(2027-01-04)이 둘 다 0 이 되어 같은 '이번 주의 지표'가 두 주 연달아 나간다(회차 간 반복 금지 위반,
+    2026-09-26 데이터 감사). write-reminder.yml 처럼 고정 월요일에서 지난 주 수로 센다."""
     y, m, d = (int(x) for x in p.split('-'))
-    return (datetime.date(y, m, d).isocalendar()[1] - 1) % 4
+    return ((datetime.date(y, m, d) - ROT_ANCHOR).days // 7) % 4
 
 
 def _series_last(sts, key, region='전국'):
@@ -372,12 +380,17 @@ def _series_last(sts, key, region='전국'):
     d = sts.get(key) or {}
     s = (d.get('series') or {}).get(region) or []
     dates = d.get('dates') or []
-    idx = [i for i, v in enumerate(s) if v is not None]
+    idx = [i for i, v in enumerate(s) if v is not None and i < len(dates)]
     if len(idx) < 2 or not dates:
         return None, None, None
     i = idx[-1]
-    when = dates[i] if i < len(dates) else dates[-1]
-    return s[i], s[idx[-2]], when
+    # 직전값은 '결측을 건너뛴 앞 값'이 아니라 **바로 전 달** 값이다. 문장이 '전월'이라고 말하기 때문이다.
+    # 보류된 달(미분양 2026.07)이 비면 두 달 전 값을 전월로 적게 된다(2026-09-26 데이터 감사 #17).
+    # 전 달이 없으면 '전월 대비'를 쓸 수 없으므로 값이 하나뿐일 때처럼 섹션째 생략한다.
+    j = SZ.month_back(dates, i, 1)
+    if j is None or j >= len(s) or s[j] is None:
+        return None, None, None
+    return s[i], s[j], dates[i]
 
 
 def extra_section(adv, sts, rot):

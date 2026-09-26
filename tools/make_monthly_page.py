@@ -82,7 +82,12 @@ def cls(v):
 
 
 def num(v):
-    return '·' if v is None else format(int(round(v)), ',')
+    """표의 정수 칸. 사이트 반올림 정본(half-up, JS Math.round·make_sido_pages.rnd 와 같다)을 쓴다.
+
+    ⚠️ round() 는 은행가 반올림이라 입주물량 추정치(착공 × 0.958, 소수 셋째 자리)가 x.5 에 걸리면 홈·지역
+       페이지(719)와 이 표(718)가 갈렸다(2026-09-26 데이터 감사 #18).
+    """
+    return '·' if v is None else format(SZ.half_up(v), ',')
 
 
 def month_label(p):
@@ -301,7 +306,8 @@ def build(adv, sts):
     if un:
         i, p = last_idx(un)
         cur = series_at(un, i)
-        prev = series_at(un, i - 1) if i > 0 else {}
+        j = SZ.month_back(un['dates'], i, 1)    # 인덱스 차가 아니라 라벨로 전월 칸을 찾는다(감사 #17)
+        prev = series_at(un, j) if j is not None else {}
         cells = {}
         for r in ORDER:
             c = cur.get(r)
@@ -326,7 +332,8 @@ def build(adv, sts):
     if jr:
         i, p = last_idx(jr)
         cur = series_at(jr, i)
-        prev = series_at(jr, i - 12) if i >= 12 else {}
+        j = SZ.month_back(jr['dates'], i, 12)
+        prev = series_at(jr, j) if j is not None else {}
         cells = {}
         for r in ORDER:
             c = cur.get(r)
@@ -359,7 +366,7 @@ def _rank(vals, n=3):
 
 
 def _signed(v):
-    r = int(round(v))
+    r = SZ.half_up(v)
     return ('+' if r > 0 else '') + format(r, ',')
 
 
@@ -390,39 +397,65 @@ def top3_lines(adv, sts):
     if orows and fut:
         last, nxt = (act[-1] if act else orows[-1]), fut[0]
         lv, nv = last.get('v') or [], nxt.get('v') or []
-        vals = {r: nv[i] - lv[i] for i, r in enumerate(oregs)
+        # 차이는 **표에 찍힌 두 정수**의 차로 낸다. 원값 차를 반올림하면 추정치가 x.5 일 때 요약이 표와
+        # 1세대 갈려('대구 -3,042세대' 위에 표는 3,281 → 240) 게이트가 그 분기 내내 막힌다(감사 #18).
+        vals = {r: SZ.half_up(nv[i]) - SZ.half_up(lv[i]) for i, r in enumerate(oregs)
                 if i < len(lv) and i < len(nv) and lv[i] is not None and nv[i] is not None}
         tops['moveins'] = ('%s 실적 대비 %s 예정, 증감이 큰 곳' % (last.get('p', ''), nxt.get('p', '')),
                            [(r, _signed(v) + '세대') for r, v in _rank(vals)])
+    # 미분양·전세가율은 비교 달을 표와 같은 SZ.month_back 으로 찾는다. 그 달 칸이 없으면(보류한 달이
+    # 끝내 안 채워진 채 다음 달이 들어온 회차 — 감사 #17) 표의 증감 칸이 전부 '·'가 되므로, 요약도
+    # 3곳을 뽑지 않고 왜 비었는지를 한 줄로 적는다(세 번째 원소). 두 달 치 변화를 '전월 대비'로 싣지 않는다.
     un = sts.get('미분양')
     if un:
         i, _ = last_idx(un)
-        if i > 0:
-            cur, prev = series_at(un, i), series_at(un, i - 1)
+        j = SZ.month_back(un['dates'], i, 1)
+        head = '전월 대비 미분양 증감이 큰 곳'
+        if j is None:
+            tops['unsold'] = (head, [], '%s 자료가 비어 있어 증감을 싣지 않습니다.'
+                              % month_label(_months_before(un['dates'][i], 1)))
+        else:
+            cur, prev = series_at(un, i), series_at(un, j)
             vals = {r: cur[r] - prev[r] for r in ORDER
                     if cur.get(r) is not None and prev.get(r) is not None}
-            tops['unsold'] = ('전월 대비 미분양 증감이 큰 곳', [(r, _signed(v) + '호') for r, v in _rank(vals)])
+            tops['unsold'] = (head, [(r, _signed(v) + '호') for r, v in _rank(vals)])
     jr = sts.get('전세가율')
     if jr:
         i, _ = last_idx(jr)
-        if i >= 12:
-            cur, prev = series_at(jr, i), series_at(jr, i - 12)
+        j = SZ.month_back(jr['dates'], i, 12)
+        head = '1년 새 전세가율 변화가 큰 곳'
+        if j is None:
+            tops['jeonse'] = (head, [], '1년 전(%s) 자료가 없어 변화를 싣지 않습니다.'
+                              % month_label(_months_before(jr['dates'][i], 12)))
+        else:
+            cur, prev = series_at(jr, i), series_at(jr, j)
             vals = {r: cur[r] - prev[r] for r in ORDER
                     if cur.get(r) is not None and prev.get(r) is not None}
-            tops['jeonse'] = ('1년 새 전세가율 변화가 큰 곳',
-                              [(r, pv2(v) + '%p') for r, v in _rank(vals) if pv2(v) != '0.00'])
+            tops['jeonse'] = (head, [(r, pv2(v) + '%p') for r, v in _rank(vals) if pv2(v) != '0.00'])
     return tops
+
+
+def _months_before(label, k):
+    """'2026.08' 에서 k달 앞 라벨('2026.07'). 요약의 '어느 달이 비었나'를 적는 데만 쓴다."""
+    m = re.match(r'^(\d{4})[.\-]\s*(\d{1,2})', str(label))
+    if not m:
+        return str(label)
+    t = int(m.group(1)) * 12 + int(m.group(2)) - 1 - k
+    return '%d.%02d' % (t // 12, t % 12 + 1)
 
 
 def _with_top(section_html, tops):
     """섹션의 기준월 줄 바로 아래(표 위)에 요약 한 줄을 넣는다. 지역 이름은 그 지역 리포트로 잇는다."""
     m = re.match(r'<section id="([a-z]+)"', section_html)
     t = tops.get(m.group(1)) if m else None
-    if not t or not t[1]:
+    if t and not t[1] and len(t) > 2:       # 비교 달이 없어 3곳을 못 뽑은 회차 — 사유 한 줄(top3_lines)
+        line = '<p class="top3"><b>%s</b> %s</p>' % (esc(t[0]), esc(t[2]))
+    elif not t or not t[1]:
         return section_html
-    line = ('<p class="top3"><b>%s</b> %s</p>'
-            % (esc(t[0]), ' · '.join('<a href="/zone/%s/">%s</a> %s'
-                                     % (urllib.parse.quote(r), esc(r), esc(v)) for r, v in t[1])))
+    else:
+        line = ('<p class="top3"><b>%s</b> %s</p>'
+                % (esc(t[0]), ' · '.join('<a href="/zone/%s/">%s</a> %s'
+                                         % (urllib.parse.quote(r), esc(r), esc(v)) for r, v in t[1])))
     i = section_html.find('</p>') + len('</p>')
     return section_html[:i] + line + section_html[i:]
 

@@ -50,6 +50,7 @@ def _rows(sec):
 
 
 def _top(sec):
+    """요약 줄의 (링크, 이름, 값) 목록. 줄이 없으면 None, 비교 달이 없어 사유만 적힌 줄이면 []."""
     m = re.search(r'<p class="top3"><b>[^<]*</b>(.*?)</p>', sec, re.S)
     if not m:
         return None
@@ -75,33 +76,75 @@ def test_every_section_has_a_summary_line_above_its_table():
         assert sec.index('<p class="top3">') < sec.index('<table'), '%s 요약이 표 아래에 있다' % sid
 
 
+def _assert_summary_matches_table(sid, sec):
+    pick, positive = PICK[sid]
+    rows = _rows(sec)
+    top = _top(sec)
+    assert top is not None, '%s 요약을 읽지 못했다' % sid
+    assert len(top) <= 3
+    change = {}
+    for r, cells in rows.items():
+        if r in SZ.AGG:
+            continue
+        v = pick(cells)
+        if v is None or v == 0 or (positive and v < 0):
+            continue
+        change[r] = v
+    if not top:
+        # 사유만 적힌 줄(비교 달이 없는 회차 — 감사 #17)은 표의 증감 칸도 전부 비어 있을 때만 맞다.
+        assert not change, '%s: 요약은 비교할 달이 없다는데 표에는 증감이 있다 %s' % (sid, sorted(change))
+        return
+    for href, name, v in top:
+        assert href == name, '%s: 링크(%s)와 이름(%s)이 다르다' % (sid, href, name)
+        assert name not in SZ.AGG, '%s: 집계 %s 가 요약에 끼었다' % (sid, name)
+        assert name in change, '%s: 요약의 %s 가 표에서 변화가 없거나 없는 행이다' % (sid, name)
+        assert abs(change[name] - v) < 0.006, '%s: %s 요약 %s ≠ 표 %s' % (sid, name, v, change[name])
+    listed = {n for _, n, _ in top}
+    floor = min(abs(v) for _, _, v in top)
+    bigger = sorted(r for r, v in change.items() if r not in listed and abs(v) > floor + 0.006)
+    assert not bigger, '%s: 요약에 없는데 더 크게 움직인 시도 %s' % (sid, bigger)
+    if len(top) < 3:
+        assert len(change) == len(top), '%s: 3곳을 채울 수 있는데 %d곳만 실었다' % (sid, len(top))
+
+
 def test_summaries_match_the_tables_they_sit_on():
     h = _read('monthly', 'index.html')
-    for sid, (pick, positive) in PICK.items():
-        sec = _section(h, sid)
-        rows = _rows(sec)
-        top = _top(sec)
-        assert top, '%s 요약을 읽지 못했다' % sid
-        assert len(top) <= 3
-        change = {}
-        for r, cells in rows.items():
-            if r in SZ.AGG:
-                continue
-            v = pick(cells)
-            if v is None or v == 0 or (positive and v < 0):
-                continue
-            change[r] = v
-        for href, name, v in top:
-            assert href == name, '%s: 링크(%s)와 이름(%s)이 다르다' % (sid, href, name)
-            assert name not in SZ.AGG, '%s: 집계 %s 가 요약에 끼었다' % (sid, name)
-            assert name in change, '%s: 요약의 %s 가 표에서 변화가 없거나 없는 행이다' % (sid, name)
-            assert abs(change[name] - v) < 0.006, '%s: %s 요약 %s ≠ 표 %s' % (sid, name, v, change[name])
-        listed = {n for _, n, _ in top}
-        floor = min(abs(v) for _, _, v in top)
-        bigger = sorted(r for r, v in change.items() if r not in listed and abs(v) > floor + 0.006)
-        assert not bigger, '%s: 요약에 없는데 더 크게 움직인 시도 %s' % (sid, bigger)
-        if len(top) < 3:
-            assert len(change) == len(top), '%s: 3곳을 채울 수 있는데 %d곳만 실었다' % (sid, len(top))
+    for sid in PICK:
+        _assert_summary_matches_table(sid, _section(h, sid))
+
+
+def test_moveins_estimate_on_a_half_rounds_like_the_site_and_the_summary_follows_the_table():
+    """입주물량 추정치가 x.5 에 걸린 분기 — 표 칸은 사이트 규칙(half-up)으로, 요약 증감은 표의 두 정수 차로.
+
+    추정치는 착공 × 0.958 을 소수 셋째 자리로 싣는다. 착공이 500 으로 나눠 250 이 남는 분기(250·750세대
+    단지 하나로도 된다)면 x.5 가 되는데, 예전엔 표가 round()(은행가)로, 요약이 '원값 차의 반올림'으로 따로
+    반올림해 '대구 -3,042세대' 위에 표가 3,281 → 240(차 -3,041)을 보였다. 그 분기 내내 요약 대조 시험이
+    빨개져 게이트가 데이터 커밋 전체를 막는다(2026-09-26 데이터 감사 #18). 홈(occFmt, Math.round)과 지역
+    페이지(make_sido_pages.rnd)는 718.5 를 719 로 보이는데 이 표만 718 이었다.
+
+    변이: top3_lines 의 증감을 원값 차(`nv[i] - lv[i]`)로 되돌리고 _signed 를 `int(round(v))` 로 되돌리면
+          대구 요약이 -3,042 가 되어 빨개진다(실제로 바꿔 확인). num() 을 `int(round(v))` 로 되돌리면
+          서울 718.5 칸이 718 이 되어 빨개진다(확인).
+    픽스처: 감사가 재현한 모양 — 2026Q2 실적 대구 3,281(홀수)·2026Q3 추정 239.5(= 250 × 0.958),
+            서울 실적 5,001·추정 718.5(= 750 × 0.958). 다른 지역은 실적과 추정이 같아(변화 0) 요약에 오르지 않는다.
+    """
+    import make_sido_pages as SP
+    regs = list(SZ.ORDER)
+    act = {r: 1000.0 for r in regs}
+    est = {r: 1000.0 for r in regs}
+    act['대구'], est['대구'] = 3281.0, round(250 * SZ.CONV, 3)
+    act['서울'], est['서울'] = 5001.0, round(750 * SZ.CONV, 3)
+    assert (est['대구'], est['서울']) == (239.5, 718.5), '픽스처 전제(착공 250·750 → x.5)가 깨졌다'
+    adv = {'occupancy': {'regions': regs, 'rows': [
+        {'p': '2026Q2', 'v': [act[r] for r in regs]},
+        {'p': '2026Q3', 'v': [est[r] for r in regs], 'e': 1}]}}
+    secs, _ = MP.build(adv, {})
+    sec = _section(''.join(secs), 'moveins')
+    rows = _rows(sec)
+    assert rows['서울'] == [5001.0, float(SP.rnd(718.5))] == [5001.0, 719.0], '표 반올림이 사이트와 다르다: %s' % rows['서울']
+    assert rows['대구'] == [3281.0, 240.0], rows['대구']
+    _assert_summary_matches_table('moveins', sec)
+    assert {n: v for _, n, v in _top(sec)} == {'서울': 719.0 - 5001.0, '대구': 240.0 - 3281.0}
 
 
 def test_summary_links_point_to_existing_zone_reports():
