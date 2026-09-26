@@ -20,7 +20,7 @@ drafts/ 는 .gitignore 대상이다(사이트에 공개될 초안이 아니라 �
 2026-08-06 시도 재편(생활권 44곳 → 시도 20곳, 인허가 4년 → 착공 3년)으로 한 번
 전면 재작성했다. 다음에 모델이 바뀌면 '설명 구조'가 그대로인지부터 확인할 것.
 """
-import io, os, re, sys, json, datetime, subprocess
+import io, os, re, sys, json, base64, datetime, subprocess
 from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -618,7 +618,9 @@ def draft_weekly(adv, sts):
     # 일반 검색어라 남긴다.
     tags = ['주간아파트가격동향', '주간아파트동향', '아파트시세', '집값전망', '아공맵']
     return dict(title=title, body='\n'.join(body), tags=tags, kw='주간아파트가격동향',
-                img=(sgg or None), imgnote=sggnote)
+                img=(sgg or None), imgnote=sggnote,
+                # 본문 자리 표시자 순서대로(TOP10 → 지도). img_gallery 가 초안 안에 싣는다.
+                imgs=[(top10, '상승·하락 TOP10'), (sgg, '전국 시군구 지도')])
 
 
 # ---------------------------------------------------------------- 초안 ②
@@ -1118,7 +1120,11 @@ def draft_zone(adv, sts, r, seq, total):
             note += '<br><b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % thumb
     return dict(title=title, body='\n'.join(body), tags=tags, img=shot,
                 kw='%s 아파트 공급물량' % nm, imgnote=note,
-                seq='%d / %d번째 지역' % (seq, total))
+                seq='%d / %d번째 지역' % (seq, total),
+                # 본문 자리 표시자 순서대로. 썸네일은 글 맨 위(대표 이미지)다.
+                imgs=[(thumb, '썸네일 · 글 맨 위, 대표 이미지'), (shot, '리포트 캡처'),
+                      (shots.get('표'), '분기별 공급표'),
+                      (shots.get('판정표'), '%d개 시도 판정표' % total)])
 
 
 # ---------------------------------------------------------------- 렌더
@@ -1156,6 +1162,10 @@ code{background:#f1eee6;padding:1px 5px;border-radius:4px;font-size:12.5px}
 button.tag{font:500 13px/1.35 inherit;padding:5px 10px;border:1px solid #cfd6e8;
   background:#fff;color:#3d4a8a;border-radius:14px}
 button.tag.done{background:#1f8a70;border-color:#1f8a70;color:#fff}
+.shots{margin:10px 0 0}
+.shot{margin:0 0 14px;border:1px solid #dad5c9;border-radius:7px;background:#fcfbf8;padding:8px}
+.shot img{display:block;max-width:100%;height:auto;margin:0 auto}
+.shot figcaption{font-size:12.5px;color:#6f6a5c;margin:6px 2px 0}
 """
 
 JS = """
@@ -1622,6 +1632,55 @@ def tagfield(tags):
             % (len(tags), esc(','.join(tags)), chips))
 
 
+IMG_MIME = {'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg'}
+
+
+def _img_path(rel):
+    """캡처 함수는 ROOT 기준 상대 경로('drafts\\x.png')를, 이론 초안은 drafts/ 안의
+    파일명('x.png')을 넘긴다. 둘 다 받는다."""
+    if os.path.isabs(rel):
+        return rel if os.path.exists(rel) else None
+    for base in (ROOT, OUT):
+        c = os.path.join(base, rel)
+        if os.path.exists(c):
+            return c
+    return None
+
+
+def img_gallery(items):
+    """이미지를 초안 HTML 안에 직접 싣는다(base64).
+
+    2026-09-27 사용자: 초안에는 파일 이름만 적혀 있어 지도가 만들어졌는지도 안
+    보였다. 초안 파일 하나만 다른 기기로 보내도 그림이 빠지지 않게, 경로 링크가
+    아니라 데이터를 박는다.
+
+    ⚠️ 복사 상자(field) 바깥에 둔다. 본문 복사에 data URI 이미지가 섞이면
+    클립보드가 수 MB가 되고, 스마트에디터가 그것을 어떻게 받는지 확인할 수 없다.
+    본문의 [여기에 … 이미지] 자리 표시자와 같은 이름을 캡션에 달아 자리를 맞춘다.
+    items: [(경로 또는 None, 자리 이름)]. None 은 건너뛰고(캡처를 안 뜬 회차),
+    경로가 있는데 파일이 없으면 그 사실을 적는다(조용히 빠지면 없는 줄 모른다).
+    """
+    cards = []
+    for rel, label in items:
+        if not rel:
+            continue
+        path = _img_path(rel)
+        if not path:
+            cards.append('<p class="note">⚠ [%s] 이미지 파일이 없습니다: <code>%s</code></p>'
+                         % (esc(label), esc(rel)))
+            continue
+        mime = IMG_MIME.get(os.path.splitext(path)[1].lower(), 'image/png')
+        with io.open(path, 'rb') as f:
+            data = base64.b64encode(f.read()).decode('ascii')
+        cards.append('<figure class="shot"><img src="data:%s;base64,%s" alt="%s">'
+                     '<figcaption><b>[%s]</b> · <code>%s</code> · 끌어서 에디터에 놓거나 '
+                     '오른쪽 클릭으로 저장</figcaption></figure>'
+                     % (mime, data, esc(label), esc(label), esc(os.path.basename(path))))
+    if not cards:
+        return ''
+    return '<div class="shots">%s</div>' % ''.join(cards)
+
+
 def render(p, d1, d2):
     S = []
     S.append('<!doctype html><html lang="ko"><meta charset="utf-8">')
@@ -1654,6 +1713,7 @@ def render(p, d1, d2):
         # imgnote는 완결된 안내문이다. 예전엔 문장 안에 끼워 넣는 구조였는데,
         # 이미지가 여러 장이 되면서 문장이 깨졌다(2026-08-16).
         S.append('<p class="note">📎 %s</p>' % d['imgnote'])
+        S.append(img_gallery(d.get('imgs') or []))
         S.append('</section>')
 
     S.append('<p class="hint">같은 내용을 사이트·인스타와 똑같이 올리면 네이버가 '
