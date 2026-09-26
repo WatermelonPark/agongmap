@@ -18,7 +18,7 @@ data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이�
   monthly  — 월간 매매·전세·월세 동향(R-ONE 단일 소스): 시장동향 월간 지도·그래프에
              쓰이는 라이브 데이터로 매 실행 갱신한다(fetch_monthly, adv['monthly']).
 """
-import io, os, re, sys, json, time
+import copy, io, os, re, sys, json, time
 import datetime
 import urllib.request
 import urllib.parse
@@ -153,20 +153,43 @@ def _supply_region(full):
 # 정본은 과거 시계열을 합친 merge_regions.py 다 — 사본을 두면 이력 병합과 수집 병합이 서로
 # 다른 이름·가중치를 보게 된다.
 from merge_regions import SRC as _GJ_OLD, DST as _GJ_NEW, W_GJ  # noqa: E402
+from merge_regions import WEIGHTED as _GJ_WEIGHTED  # noqa: E402
+
+
+def _fold_gj(vals, weighted=False):
+    """한 시점의 {지역: 값}에서 통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 접는다. vals를 고쳐 돌려준다.
+
+    **수집 세 경로(아파트 인허가 표 · 기본통계 STATS · 분양·미분양)가 이 함수 하나를 쓴다.** 규칙이 경로마다
+    달랐다 — 인허가 표는 두 조각이 다 있어야 더했고, 공급은 한 조각만 와도 그 값을 통합 지역에 실었고,
+    기본통계(인허가·착공·준공 월별)는 옛 두 이름을 merge_basic 의 지역 필터에서 **조용히 버렸다.**
+    원천(DT_MLTM_1948/5387/5373)은 2026.06까지 두 이름으로만 주고 배치는 8개월 창을 매일 다시 받으므로,
+    창 안의 통합 전 달은 전국·지방만 원천을 따라가고 전남광주는 09-10 병합 스냅숏에 굳었다. 원천이 그 달
+    광주나 전남을 소급 정정하면 시도합≠전국이 되어 pytest 게이트가 그 달이 창을 벗어날 때까지 매일 빨개지고,
+    권하는 교정(--heal-basic)도 같은 경로라 못 고친다(2026-09-26 데이터 감사 #4).
+
+    규칙(merge_regions 의 이력 병합과 같은 정본 — 이름·가중치·반올림):
+      - 원천이 통합 행을 직접 주면 그 값을 쓴다(원천 숫자 우선).
+      - 아니면 **두 조각이 다 있을 때만** 만든다. 물량(호·세대)은 합, 지수·비율(merge_regions.WEIGHTED)은
+        W_GJ 가중평균(소수 2자리, merge_regions.merge_series 와 같다).
+      - 한 조각만 오면 통합 지역을 만들지 않는다. 한쪽만 싣는 것은 없는 쪽을 0으로 세는 것과 같다 —
+        미분양이면 전국 롤업까지 같은 만큼 모자라 합계 검사도 통과한다(감사 #7). 비워 두면 공급은
+        _drop_incomplete 가 그 달을 보류하고, 기본통계는 merge_basic 이 저장 값을 건드리지 않는다.
+    옛 두 이름은 어느 경우에도 빠진다(저장 계열에는 통합 지역만 있다).
+    """
+    g, j = (vals.pop(k, None) for k in _GJ_OLD)
+    if _GJ_NEW not in vals and g is not None and j is not None:
+        vals[_GJ_NEW] = round(W_GJ * g + (1 - W_GJ) * j, 2) if weighted else g + j
+    return vals
 
 
 def _merge_gj(fetched):
-    """광주·전남을 '전남광주'로 합친다(2026-09-10 통합).
+    """공급(분양·미분양) {(y,m): {지역: 값}}의 광주·전남을 '전남광주'로 접는다(2026-09-10 통합).
 
-    미분양·분양은 R-ONE이 아직 두 지역을 따로 주는데, 판정 단위가 합쳐졌으므로
-    여기서 더한다. 호·세대 단위라 합산이 곧 정답이다(지수라면 가중평균이 필요하다).
-    한쪽만 있으면 있는 쪽만 쓴다 — 결측을 0으로 세면 합이 줄어든다.
+    R-ONE이 아직 두 지역을 따로 준다. 규칙은 _fold_gj(수집 세 경로 공통)다 — 호·세대라 합이고,
+    두 조각이 다 있을 때만 만든다. 한 조각만 온 달은 전남광주가 비어 _drop_incomplete 가 보류한다.
     """
-    for ym, vals in fetched.items():
-        g, j = vals.pop(_GJ_OLD[0], None), vals.pop(_GJ_OLD[1], None)
-        parts = [x for x in (g, j) if x is not None]
-        if parts:
-            vals[_GJ_NEW] = sum(parts)
+    for vals in fetched.values():
+        _fold_gj(vals)
     return fetched
 
 
@@ -418,15 +441,11 @@ def discover(keyword):
 def _fold_old_permits(out):
     """통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 **합산**한다. out을 고쳐 돌려준다.
 
-    호(물량) 단위라 합이 곧 정답이다 — STATS 인허가 이력을 합친 merge_regions.merge_series와
-    같은 규칙이고 이름도 그 정본(SRC·DST)을 쓴다. 원천이 통합 행을 직접 주면 그 값을 쓴다
-    (원천 숫자 우선). ⚠️ 두 조각이 **다 있을 때만** 더한다. 한쪽만 더하면 모자란 값이
-    정상값처럼 실리고, 하반기 = 12월 누계 − 6월 누계 차감에서 가짜 급증·급감이 된다.
+    호(물량) 단위라 합이 곧 정답이다. 규칙은 수집 세 경로 공통의 _fold_gj 다 — 원천 통합 행 우선,
+    ⚠️ 두 조각이 **다 있을 때만** 더한다. 한쪽만 더하면 모자란 값이 정상값처럼 실리고,
+    하반기 = 12월 누계 − 6월 누계 차감에서 가짜 급증·급감이 된다.
     """
-    parts = [out.pop(k, None) for k in _GJ_OLD]
-    if _GJ_NEW not in out and all(v is not None for v in parts):
-        out[_GJ_NEW] = sum(parts)
-    return out
+    return _fold_gj(out)
 
 
 def _fetch_apt_permits(prd_de):
@@ -693,17 +712,25 @@ def _align_rows(rows, old_cols, new_cols, label=''):
     바뀌면 156주치 옛 행이 **한 칸씩 밀린 채** 새 이름으로 읽힌다 — 강남구 값이 강동구로
     그려지고 아무 검사도 빨개지지 않는다(2026-09-23 전체 점검). 이름이 같으면 그대로 두고,
     다르면 이름으로 옮긴다. 새로 생긴 열의 과거는 None(모른다), 사라진 열의 과거는 버리고 알린다.
+    (주간·월간 **시도** 열은 모델 상수 WEEKLY_REGIONS 라 열이 사라지는 것은 모델 결정 — 2026-09-10 처럼
+    merge_regions 로 이력을 먼저 옮긴 뒤다. 응답에서 열을 만드는 서울구·시군구 블록은 _merge_hist 가
+    옛 열 ∪ 새 열을 넘기므로 이력 있는 열이 여기서 사라지지 않는다.)
     """
     # 새 응답에 열이 하나도 없으면(그 주 서울 구 행이 통째로 빠진 응답) 옮길 기준이 없다.
     # list(None) 으로 죽어 주간 섹션 전체를 잃지 말고 예전처럼 그대로 둔다(2026-09-23 재검토).
     if not rows or old_cols is None or not new_cols or list(old_cols) == list(new_cols):
         return rows
-    idx = {c: i for i, c in enumerate(old_cols)}
     gone = [c for c in old_cols if c not in set(new_cols)]
-    born = [c for c in new_cols if c not in idx]
+    born = [c for c in new_cols if c not in set(old_cols)]
     print('::warning::%s 열 목록이 바뀌어 과거 %d행을 이름으로 다시 맞춘다(사라짐 %s · 새로 생김 %s)'
           % (label or '시계열', len(rows), ', '.join(map(str, gone)) or '없음',
              ', '.join(map(str, born)) or '없음'))
+    return _reindex_rows(rows, old_cols, new_cols)
+
+
+def _reindex_rows(rows, old_cols, new_cols):
+    """rows 의 값 배열을 old_cols 순서에서 new_cols 순서로 이름으로 옮긴다(없는 열은 None). 알림 없음."""
+    idx = {c: i for i, c in enumerate(old_cols)}
     out = []
     n_old = len(old_cols)
     for r in rows:
@@ -718,21 +745,72 @@ def _align_rows(rows, old_cols, new_cols, label=''):
     return out
 
 
-def _merge_hist(new, cur, keep, label=''):
+def _union_cols(old_cols, new_cols):
+    """새 열 목록에 옛 열 중 빠진 것을 **옛 순서 자리에** 끼운 목록. 둘 다 정렬돼 있으면 결과도 정렬된다."""
+    out = list(new_cols)
+    have = set(out)
+    prev = None
+    for c in old_cols:
+        if c not in have:
+            out.insert(out.index(prev) + 1 if prev is not None else 0, c)
+            have.add(c)
+        prev = c
+    return out
+
+
+def _has_value(rows, j):
+    """rows 의 j 번째 열에 None 아닌 값이 하나라도 있나(값 배열 필드 전부)."""
+    return any(isinstance(v, list) and j < len(v) and v[j] is not None
+               for r in rows for v in r.values())
+
+
+def _merge_hist(new, cur, keep, label='', failed=None):
     """시군구·서울구 시계열도 시도처럼 과거를 살린다.
     매 실행은 최근 구간만 받아오므로, 이게 없으면 통째 교체돼 히스토리가 12개에서
     영영 늘지 않는다(구 단위 그래프가 '최근 12개'에 갇히던 원인).
-    열 목록이 바뀌었으면 옛 행을 이름으로 다시 맞춘 뒤 붙인다(_align_rows)."""
+    열 목록이 바뀌었으면 옛 행을 이름으로 다시 맞춘 뒤 붙인다(_align_rows).
+
+    ⚠️ **이력이 있는 열은 버리지 않는다.** 서울구 열 목록은 고정 상수가 아니라 매 회차 응답의 최신 주
+    매매값에서 다시 만든다(fetch_weekly_rone·fetch_monthly_rone 의 gus). 그래서 최신 주에 구 하나가 빠진
+    부분 응답(페이지 경계에서 행이 밀리거나 그 칸 DTA_VAL 이 비는 회차) 한 번이면, 예전 코드는 그 구의
+    창 밖 이력(주간 136주·월간 106달)을 영구히 지웠다 — 창 밖은 다시 받지 않고 --heal-price 도 서울구
+    블록은 안 고친다. 다음 회차에 구가 돌아와도 '새 열'이라 과거가 전부 None 이었다(2026-09-26 데이터
+    감사 #8). 이제 열 목록은 옛 열 ∪ 새 열이고, 응답에 없는 열의 이번 구간 값은 None(모름)이다.
+    한 칸도 값이 남지 않은 열(이력이 keep 밖으로 다 밀려난 열)만 뺀다.
+    응답에서 열이 빠진 회차는 failed 에 '<label> 열 빠짐(이름)'으로 남긴다(.fetch_failed → 배치 알림 ℹ️ 줄).
+    """
     if not (new and new.get('rows')):
         return cur if (cur and cur.get('rows')) else new
     if not (cur and cur.get('rows')):
         return new
+    old_cols, new_cols = _cols(cur), _cols(new)
     first = new['rows'][0]['p']
     older = [r for r in cur['rows'] if r['p'] < first]
+    key = 'regions' if (new.get('regions') is not None) else 'codes'
+    gone = [c for c in (old_cols or []) if new_cols and c not in set(new_cols)]
+    if gone:
+        name = label or '시계열'
+        print('::warning::%s 응답에서 열이 빠졌다(%s) — 이력을 지키려고 열을 남기고 이번 구간은 비운다'
+              % (name, ', '.join(map(str, gone))))
+        if failed is not None:
+            failed.append('%s 열 빠짐(%s)' % (name, '·'.join(map(str, gone))))
+        cols = _union_cols(old_cols, new_cols)
+        new = dict(new)
+        new['rows'] = _reindex_rows(new['rows'], new_cols, cols)
+        new[key] = cols
     if older:
-        older = _align_rows(older, _cols(cur), _cols(new), label)
+        older = _align_rows(older, old_cols, _cols(new), label)
         new = dict(new)
         new['rows'] = (older + new['rows'])[-keep:]
+    # 이력이 keep 밖으로 다 밀려나 값이 한 칸도 남지 않은 옛 열만 뺀다(정말로 없어진 열).
+    if gone:
+        cols = _cols(new)
+        dead = {c for j, c in enumerate(cols) if c in gone and not _has_value(new['rows'], j)}
+        if dead:
+            live = [c for c in cols if c not in dead]
+            new = dict(new)
+            new['rows'] = _reindex_rows(new['rows'], cols, live)
+            new[key] = live
     return new
 
 
@@ -789,6 +867,18 @@ def fetch_holidays(prev=None, failed=None):
             # HTTP 200 인데 비었거나 오류 JSON 이면 예외 없이 0개가 된다. 한 해에 공휴일이 0개일 수는
             # 없으므로 실패로 다뤄 저장분을 지킨다(2026-09-23 재검토 — 예외 경로만 지키고 있었다).
             if len(out) == n0:
+                # ⚠️ 단, **내년**이 오류 없는 정상 응답(resultCode 00)으로 0건(totalCount 0)이면 실패가 아니라
+                # '아직 발표 전'이다. 다음 해 달력은 한 해의 중반쯤 나오므로, 이걸 실패로 세면 1월부터 발표
+                # 때까지 매 회차 .fetch_failed 에 'holidays:내년'이 실려 배치 알림의 ℹ️ 줄(준공·인허가 같은
+                # 핵심 계열의 부분 실패도 싣는 줄)이 반년 내내 '키·주소 확인'을 외친다(2026-09-26 데이터
+                # 감사 #16). 저장분에 그해가 이미 있으면 발표 뒤에 빈 응답이 온 것이므로 예전대로 실패다.
+                hdr = (d.get('response', {}) or {}).get('header') or {}
+                body = (d.get('response', {}) or {}).get('body') or {}
+                had = any(str(x).startswith('%d-' % y) for x in (prev or []))
+                if (y == yr + 1 and not had and str(hdr.get('resultCode')) == '00'
+                        and str(body.get('totalCount')) == '0'):
+                    print('holidays %d: 아직 발표 전(정상 응답 0건) — 실패로 세지 않는다' % y)
+                    continue
                 raise ValueError('공휴일 0개 응답')
         except Exception as e:
             print('holidays %d skip: %s' % (y, e))
@@ -1018,6 +1108,13 @@ def _fetch_basic_one(name, months=None, upto=None):
             out.setdefault(ym, {})[reg] = v
 
     drop_unsplittable_months(name, out)
+    # 통합 전 두 이름(광주·전남)을 접는다 — 인허가 표·공급과 같은 함수(_fold_gj). 이게 없으면
+    # merge_basic 의 지역 필터가 두 이름을 버려, 창 안의 통합 전 달 전남광주가 병합 스냅숏에
+    # 굳고 원천 소급 정정이 전국·지방에만 실린다(2026-09-26 데이터 감사 #4). 잠정 증감률(rates)은
+    # 접지 않는다 — 두 조각의 전월 지수가 저장돼 있지 않아 통합 지수의 증감률을 원천 값에서 만들 수 없다.
+    weighted = name in _GJ_WEIGHTED
+    for vals in out.values():
+        _fold_gj(vals, weighted)
     return out, rates
 
 
@@ -1312,6 +1409,46 @@ def update_annual(stats, failed=None):
     return changed
 
 
+# sido_zones.calc 가 미래 시야 H(= 착공 끝 분기 − 준공 끝 분기 + LEAD_Q)를 재는 두 계열.
+_HORIZON_SERIES = ('준공', '착공')
+
+
+def _horizon_ok(stats):
+    """make_sido_pages 게이트와 **같은 측정**(sido_zones.calc 의 H == lead). 계산할 수 없으면 None."""
+    try:
+        r = SZ.calc(stats)
+    except Exception:
+        return None
+    return r['H'] == r['lead']
+
+
+def _hold_horizon(stats, before, failed):
+    """이번 회차 병합으로 준공·착공의 끝 분기가 갈라졌으면(H != lead) 두 계열을 병합 전으로 되돌린다.
+
+    ⚠️ 왜: 준공과 착공은 KOSIS 의 서로 다른 표(DT_MLTM_5373·5387)를 달마다 따로 부른다. 분기를 닫는 달
+    (03·06·09·12)이 처음 들어오는 회차에 착공 호출만 순단으로 죽으면(부분 실패라 rc=0, 러너는 clean) 준공만
+    새 분기로 넘어가 H=11 이 된다. make_sido_pages 는 STATS 로 다시 재서 H != lead 면 ABORT 하므로 그날
+    커밋 전체(주간·월간 시세 포함)가 막히고, 원천이 착공을 늦게 싣는 달이면 착공이 올 때까지 매 회차 막힌다
+    (2026-09-26 데이터 감사 #5). ADV.sido 만 옛것으로 두어서는 못 막는다 — 게이트는 STATS 에서 다시 잰다.
+    그래서 병합 전 STATS 가 정합(H == lead)이었을 때만, 두 계열을 병합 전으로 두고 'sido-h' 부분 실패를 남긴다.
+    다음 회차가 두 계열을 다시 받으므로 지워지는 것은 없다. 병합 전부터 어긋나 있었으면 지킬 상태가 없으니 둔다.
+    되돌렸으면 True.
+    """
+    if not before or _horizon_ok(stats) is not False:
+        return False
+    prev = dict(stats)
+    prev.update(before)
+    if _horizon_ok(prev) is not True:
+        return False
+    for k, D in before.items():
+        stats[k] = copy.deepcopy(D)
+    print('basic 준공·착공: 끝 분기가 갈라져(미래 시야 ≠ %d분기) 이번 회차 두 계열을 병합 전으로 둔다 — '
+          '한쪽만 새 분기를 받았다(부분 실패·원천 지연)' % SZ.LEAD_Q)
+    if 'sido-h' not in failed:
+        failed.append('sido-h')
+    return True
+
+
 def update_basic(failed=None):
     """기본통계(STATS) 증분 갱신. 변경 토큰 목록을 돌려주고, 실패한 계열 이름은 failed에 넣는다.
 
@@ -1327,6 +1464,8 @@ def update_basic(failed=None):
         changed += update_rate(stats)
     except Exception as e:
         failed.append('rate'); print('rate skip:', e)
+    before = {k: copy.deepcopy(stats[k]) for k in _HORIZON_SERIES if k in stats}
+    tokens = {}
     for name in BASIC_CONF:
         try:
             fetched, rates = _fetch_basic_one(name)
@@ -1334,9 +1473,12 @@ def update_basic(failed=None):
             n = merge_basic(stats[name], fetched)
             n += merge_prov(stats[name], rates, BASIC_CONF[name]['dec'])
             if n:
-                changed.append('%s(%d)' % (name, n))
+                tokens[name] = '%s(%d)' % (name, n)
+                changed.append(tokens[name])
         except Exception as e:
             failed.append(name); print('basic %s skip: %s' % (name, e))
+    if _hold_horizon(stats, before, failed):
+        changed[:] = [t for t in changed if t not in {tokens.get(k) for k in before}]
     try:
         changed += update_size(stats)
     except Exception as e:
@@ -1544,6 +1686,10 @@ def write_adv(adv):
 # 지금은 tools/sido_zones.py가 STATS의 준공·착공만으로 점수를 낸다.
 # 근거: docs/superpowers/specs/2026-08-06-sido-supply-table-design.md
 
+class _SidoHeld(Exception):
+    """시도 점수 가드(H ≠ lead)에 걸려 입주물량 갱신도 건너뛴다는 신호. 실패가 아니라 보류다."""
+
+
 def main():
     # 기본값을 --update로. --dry-run 핸들러는 사라졌는데 기본 인자만 남아
     # 인자 없이 실행하면 AssertionError로 죽었다(2026-08-07 감사).
@@ -1719,8 +1865,8 @@ def main():
             if older:
                 weekly['rows'] = (older + weekly['rows'])[-CONF['weekly'].get('weeks_hist', len(weekly['rows'])):]
         kw = CONF['weekly']['sgg_hist']
-        weekly['sgg'] = _merge_hist(weekly.get('sgg'), cur.get('sgg'), kw, '주간 시군구')
-        weekly['seoul'] = _merge_hist(weekly.get('seoul'), cur.get('seoul'), kw, '주간 서울구')
+        weekly['sgg'] = _merge_hist(weekly.get('sgg'), cur.get('sgg'), kw, '주간 시군구', soft_failed)
+        weekly['seoul'] = _merge_hist(weekly.get('seoul'), cur.get('seoul'), kw, '주간 서울구', soft_failed)
         if weekly['rows'] and differs(weekly, cur):
             adv['weekly'] = weekly
             # '바이트가 달라짐'과 '새 주차가 나옴'은 다르다. 부동산원이 과거 주차를
@@ -1756,8 +1902,8 @@ def main():
             if monthly.get(_p) and mo_cur.get(_p):
                 _keep_wolse(monthly[_p].get('rows'), mo_cur[_p].get('rows'))
         km = CONF['monthly']['sgg_hist']
-        monthly['sgg'] = _merge_hist(monthly.get('sgg'), mo_cur.get('sgg'), km, '월간 시군구')
-        monthly['seoul'] = _merge_hist(monthly.get('seoul'), mo_cur.get('seoul'), km, '월간 서울구')
+        monthly['sgg'] = _merge_hist(monthly.get('sgg'), mo_cur.get('sgg'), km, '월간 시군구', soft_failed)
+        monthly['seoul'] = _merge_hist(monthly.get('seoul'), mo_cur.get('seoul'), km, '월간 서울구', soft_failed)
         if monthly['rows'] and differs(monthly, adv.get('monthly')):
             adv['monthly'] = monthly
             # weekly와 같은 이유 — 소급 수정은 커밋만 하고 발송은 하지 않는다.
@@ -1823,6 +1969,15 @@ def main():
                   '(통계 부분 응답 의심. zone 페이지·sitemap 보존)'
                   % (n_new, want, n_old, ', '.join(gone) or '?'))
             failed.append('sido-shrink')
+        elif sd.get('H') != sd.get('lead'):
+            # 가드: 준공·착공의 끝 분기가 갈라진 점수(미래 시야 H ≠ lead)는 채택하지 않는다. 그런 점수는
+            # 전 지역 비율이 함께 움직인 값이고 make_sido_pages 가 어차피 ABORT 한다. 옛 점수·입주물량을
+            # 지키고 부분 실패('sido-h')로만 남긴다 — rc=3 판정(failed)에는 넣지 않는다(2026-09-26 데이터
+            # 감사 #5). 보통은 update_basic 의 _hold_horizon 이 STATS 단계에서 먼저 막는다.
+            print('sido GUARD: 미래 시야가 %s분기라 채택하지 않음(정상 %s — 준공 %s·착공 %s). 점수·입주물량 보존'
+                  % (sd.get('H'), sd.get('lead'), sd.get('L'), sd.get('S')))
+            if 'sido-h' not in soft_failed:
+                soft_failed.append('sido-h')
         elif differs(sd, adv.get('sido')):
             adv['sido'] = sd
             changed.append('sido(%d곳, 실적~%s, 미래 %d분기)' % (n_new, sd['L'], sd['H']))
@@ -1833,6 +1988,8 @@ def main():
         # (2026-08-07 감사).
         if 'sido-shrink' in failed:
             raise RuntimeError('sido 가드에 걸려 occupancy도 갱신하지 않는다')
+        if sd.get('H') != sd.get('lead'):
+            raise _SidoHeld()
         # 통계 탭 '입주물량'과 /moveins/도 **같은 소스**를 쓴다. 2026-08-07까지
         # 여기는 odcloud 입주예정이라 같은 서울 2027Q2를 홈은 2,107, 통계 탭은
         # 1,073으로 보여줬고 기준선도 셋(적정물량·밴드·ref)이 공존했다.
@@ -1845,6 +2002,8 @@ def main():
             adv['occupancy'] = occ
             changed.append('occupancy(공급표와 통일)')
             write_adv(adv)
+    except _SidoHeld:
+        pass            # 'sido-h' 는 위에서 soft_failed 에 남겼다 — failed(rc=3 판정)에 'sido'를 더하지 않는다
     except Exception as e:
         failed.append('sido'); print('sido skip:', e)
     # 후속 단계(뉴스레터 발송 등)에 변경 내역 전달 — 커밋 대상 아님
