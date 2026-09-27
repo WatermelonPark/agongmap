@@ -179,14 +179,15 @@ def _cases(years):
 
 
 def _js_matches_python(holidays, cases):
-    """같은 공휴일·같은 사례로 JS(weeklyRelease·wkNextText·wkWhenText)와 파이썬 정본을 돌려 전부 같은지 본다.
+    """같은 공휴일·같은 사례로 JS(weeklyRelease·wkNextText·wkWhenText·wkPubLead)와 파이썬 정본을 돌려 전부 같은지 본다.
+    wkPubLead(늦은 주 '발표 기준' 머리말)는 2026-09-27 추가 — '기준'을 한쪽에서만 빼면 늦은 주 사례가 빨개진다(확인).
     유예는 감시 상수·10·없음(옛 캐시) 세 가지. 파이썬 쪽 결과를 돌려준다(갈래 확인용)."""
     if not shutil.which('node'):
         pytest.skip('node 없음')
     graces = (WR.GRACE_WEEKLY, 10, None)
     js = (_js_block() + '\n_HOLIDAYS=new Set(%s);\nconst C=%s, G=%s, out=[];\n'
           'for(const [p,ms] of C)for(const g of G){const r=weeklyRelease(p,new Date(ms),g);'
-          'out.push([r.survey,r.pub,r.next,r.hedge,r.due,r.stale,wkNextText(r),wkWhenText(r)]);}\n'
+          'out.push([r.survey,r.pub,r.next,r.hedge,r.due,r.stale,wkNextText(r),wkWhenText(r),wkPubLead(r)]);}\n'
           'process.stdout.write(JSON.stringify(out));'
           % (json.dumps(list(holidays)), json.dumps([[p, ms] for p, ms, _ in cases]), json.dumps(list(graces))))
     proc = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
@@ -197,7 +198,7 @@ def _js_matches_python(holidays, cases):
         for g in graces:
             st = WR.status(p, kst.today(t), holidays, g)
             want.append([st['survey'], st['pub'], st['next'], st['hedge'], st['due'], st['stale'],
-                         WR.next_text(st), WR.when_text(st)])
+                         WR.next_text(st), WR.when_text(st), WR.pub_lead(st)])
     assert len(got) == len(want)
     bad = [(c[0], c[2].isoformat(), g, a, b) for (c, g), a, b in
            zip(((c, g) for c in cases for g in graces), got, want) if a != b]

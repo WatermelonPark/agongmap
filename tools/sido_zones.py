@@ -97,13 +97,21 @@ GRADE_LABS = {'g4': '심각한 부족', 'g3': '매우 부족', 'g2': '부족',
               'g1': '균형', 'g0': '공급 여유'}
 
 
-def ratio_text(ratio, H=LEAD_Q, full=False):
+def ratio_text(ratio, H=LEAD_Q, full=False, inow=None, W=BACKLOG_WINDOW):
     """순부족비를 사람 말로 옮긴다. 판정 배지 옆에 붙는다(2026-09-13 PM 요청 ①).
 
     발단: 경기 리포트가 판정은 '균형'인데 바로 아래 '누적 순부족 50,579세대'라
     반대로 읽혔다. 등급은 '앞으로 H분기 필요량 대비 누적 순부족의 비율'로 자르는데
     화면에는 그 비율이 없고 절대 세대수만 있었다. 비율을 같이 보여주면 왜 균형인지가
     한 줄로 설명된다.
+
+    full=True(시도 리포트 판정 문장·블로그 지역 편)는 판정의 정의대로 **지난 W분기 재고까지 셈한** 문장이다
+    (홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 예전 여유 문장 '앞으로 3년 필요량보다 19% 더 들어옵니다'는
+    앞으로 3년만의 주장이었는데, 인천은 착공 기반 입주 추정(66,579)이 필요량(69,600)보다 적고 여유는 지난 4년
+    남은 재고(16,258)에서 온다 — 바로 옆의 식(formula_text)과 숫자로 부딪쳤다. 부족 문장의 '누적 순부족'도
+    09-13 고객 점검이 없앤 말이다. inow(지난 창 재고, 음수 = 모자람)를 주면 formula_text 와 같은 갈래
+    ('덜 지은 몫'/'남은 재고')로 쓰고, 없으면 방향 없는 '재고까지 셈하면'으로 쓴다.
+    짧은 문구(full=False, 허브 목록의 rtxt)는 비율만 말한다.
 
     ⚠️ 여기서만 만든다. 홈은 JS라 같은 문구를 거기서 또 만들면 이중 구현이 되고,
     이 프로젝트는 2026-08-06에 그런 미러를 전부 걷어냈다. calc()가 결과 행에
@@ -113,14 +121,24 @@ def ratio_text(ratio, H=LEAD_Q, full=False):
     # 필요량을 넘는 부족도 배가 아니라 퍼센트로 쓴다. '1.0배'로 쓰면 울산(1.012)·
     # 경남(1.007)이 '딱 같다'로 읽히고, 판정 규칙 문장('50%에 못 미쳐')과도 단위가 갈린다.
     pct = int(round(ratio * 100))
+    if not full:
+        if pct >= 1:
+            return '%s 필요량의 %d%% 부족' % (yrs, pct)
+        if pct <= -1:
+            return '%s 필요량보다 %d%% 여유' % (yrs, -pct)
+        return '%s 필요량과 거의 같음' % yrs
+    past = '지난 %g년' % (W / 4.0)
     if pct >= 1:
-        return (('누적 순부족이 앞으로 %s 필요량의 %d%%입니다' % (yrs, pct)) if full
-                else ('%s 필요량의 %d%% 부족' % (yrs, pct)))
+        lead = ('%s 재고까지 셈하면' % past if inow is None else
+                '%s 덜 지은 몫까지 더하면' % past if inow < 0 else
+                '%s 남은 재고를 빼고도' % past)
+        return '%s %s 필요량의 %d%%만큼 부족합니다' % (lead, yrs, pct)
     if pct <= -1:
-        return (('앞으로 %s 필요량보다 %d%% 더 들어옵니다' % (yrs, -pct)) if full
-                else ('%s 필요량보다 %d%% 여유' % (yrs, -pct)))
-    return (('누적 순부족이 앞으로 %s 필요량과 거의 같습니다' % yrs) if full
-            else ('%s 필요량과 거의 같음' % yrs))
+        lead = ('%s 재고까지 셈하면' % past if inow is None else
+                '%s 덜 지은 몫을 채우고도' % past if inow < 0 else
+                '%s 남은 재고까지 더하면' % past)
+        return '%s %s 필요량의 %d%%만큼 남습니다' % (lead, yrs, -pct)
+    return '%s 재고까지 셈하면 %s 필요량과 거의 같습니다' % (past, yrs)
 
 
 def qidx(y, q):
@@ -434,6 +452,19 @@ def dist_text(zones):
     return '시도 %d곳: %s' % (len(sido), ' · '.join(parts))
 
 
+# 분포 한 줄 끝 묶음(여유)의 지역 이름을 따로 굽는다(TRUST-3①, 2026-09-27 검토 지적). 카드 셋이 모두 '부족'인 첫 화면에서
+# 반례(여유 지역)를 바로 눌러 볼 수 있게, 홈이 '여유 3(인천·대전·충남)'처럼 각 이름을 /zone/<이름>/ 링크로 그린다.
+# 홈은 dist 문장 끝에 괄호를 잇기만 하므로 이 묶음이 DIST_GROUPS 의 마지막이어야 한다(아래 검사).
+DIST_LINK_KEYS = DIST_GROUPS[-1][1]
+if DIST_LINK_KEYS != ('g0',):
+    raise SystemExit('분포 한 줄의 마지막 묶음이 여유(g0)가 아니다 — 홈의 이름 링크가 다른 묶음 뒤에 붙는다: %s' % (DIST_GROUPS,))
+
+
+def dist_names(zones):
+    """분포 한 줄 끝 묶음(여유)의 시도 이름 — 판정 순서(zones 순서 = DISPLAY_ORDER) 그대로, 집계 3종은 뺀다."""
+    return [z['z'] for z in zones if not z.get('agg') and z['grade'] in DIST_LINK_KEYS]
+
+
 def refresh_texts(sido):
     """저장된 판정(ADV.sido)의 화면 문구를 **지금의 함수**로 다시 굽는다(제자리). 숫자는 건드리지 않는다.
 
@@ -445,6 +476,7 @@ def refresh_texts(sido):
     for z in sido.get('zones') or []:
         z.update(zone_texts(z, H))
     sido['dist'] = dist_text(sido.get('zones') or [])
+    sido['dist_g0'] = dist_names(sido.get('zones') or [])
     sido['ktxt'] = legend_text(H, sido.get('window') or BACKLOG_WINDOW)
     return sido
 

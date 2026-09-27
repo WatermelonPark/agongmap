@@ -112,3 +112,63 @@ def test_home_reads_the_baked_text_instead_of_rebuilding_it():
 def test_inner_spread_exemptions_are_real_regions():
     for z in P.NO_INNER_UNITS:
         assert z in SZ.ORDER and z not in SZ.AGG, '%s는 모델에 없는 지역이다' % z
+
+
+# ── 판정 설명(full)은 판정의 정의대로 지난 4년 재고까지 셈한다(홈 마케팅 검수 B2·C4·TRUST-2④, 2026-09-27 검토 지적) ──
+# 인천 실측 모양: 3년 필요량 69,600 · 착공 기반 입주 추정 66,579(필요량보다 적다) · 지난 4년 남은 재고 16,258 → 13,237세대
+# 여유(19%). 옛 문장 '앞으로 3년 필요량보다 19% 더 들어옵니다'는 바로 옆의 식(formula_text)과 숫자로 부딪쳤다.
+INCHEON = {'z': '인천', 'ref': 5800, 'fut': 66579, 'inow': 16258, 'dtot': -13237,
+           'ratio': round(-13237 / 69600.0, 4), 'grade': 'g0'}
+
+
+def test_full_sentence_counts_the_past_window_on_the_formula_branch():
+    """full 문장은 앞으로 3년만의 주장('더 들어옵니다', '앞으로 3년')을 하지 않고, 지난 4년 재고의 갈래가 식(formula_text)의
+    갈래와 같다 — 모자랐으면 '덜 지은 몫', 남았으면 '남은 재고'. 퍼센트는 비율 그대로이고 방향말은 비율 부호를 따른다.
+
+    변이(각각 실제로 확인): ratio_text(full=True) 를 옛 문장('앞으로 3년 필요량보다 N% 더 들어옵니다' / '누적 순부족이 …')으로
+          되돌리면 첫 단정이, inow 갈래를 뒤집으면('덜 지은 몫' ↔ '남은 재고') 식 갈래 단정이 빨개진다.
+    픽스처: 비율 부호(부족·여유·거의 0) × 지난 재고 부호(모자람·남음·모름) 아홉 칸 — 여유 × 남음이 인천, 부족 × 남음이 충북
+            (앞으로 3년 78% 인데 과거 여유 덕에 균형), 부족 × 모자람이 전국 모양이다.
+    """
+    past = '지난 %g년' % (SZ.BACKLOG_WINDOW / 4.0)
+    for r in (0.6, 0.009, -0.19, 0.004):
+        pct = int(round(r * 100))
+        for inow in (-260523, 16258, None):
+            t = SZ.ratio_text(r, SZ.LEAD_Q, full=True, inow=inow)
+            assert '더 들어옵니다' not in t and '앞으로' not in t and '누적 순부족' not in t, t
+            assert t.startswith(past), '판정 설명이 지난 창 재고를 말하지 않는다: %s' % t
+            if abs(pct) >= 1:
+                assert '%d%%만큼' % abs(pct) in t, t
+            assert ('부족합니다' in t) == (pct >= 1) and ('남습니다' in t) == (pct <= -1), t
+            if inow is not None and abs(pct) >= 1:   # 거의 0 이면 방향이 없어 갈래도 없다
+                tail = SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 1, 1, inow)
+                assert ('덜 지은 몫' in t) == ('쌓인 부족' in tail) and ('남은 재고' in t) == ('남은 재고' in tail), \
+                    (t, tail)
+
+
+def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypatch):
+    """여유 지역(입주 추정 < 필요량, 남은 재고 > 0)의 시도 리포트 판정 문장과 블로그 지역 편 판정 문단은 '지난 4년 남은 재고까지
+    더하면 3년 필요량의 19%만큼 남습니다'이고, 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
+
+    변이(각각 실제로 확인): verdict_line 이 inow 를 넘기지 않으면(갈래 없는 '재고까지 셈하면') 리포트 단정이, draft_zone 이
+          inow 를 넘기지 않으면 블로그 단정이, ratio_text 를 옛 여유 문장으로 되돌리면 둘 다 빨개진다.
+    픽스처: 인천 실측 모양의 합성 행(INCHEON). 블로그는 저장소 판정 행을 복사해 숫자만 이 모양으로 덮는다(데이터가 앞으로
+            가도 같은 숫자).
+    """
+    want = '지난 4년 남은 재고까지 더하면 3년 필요량의 19%만큼 남습니다'
+    line = P.verdict_line(INCHEON, SZ.LEAD_Q)
+    assert line.startswith(want + '. '), line
+    assert '더 들어옵니다' not in line
+
+    import make_naver_post as N
+    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
+    monkeypatch.setattr(N, 'thumb_zone', lambda *a, **k: None)
+    monkeypatch.setattr(N, 'series_links', lambda *a, **k: '')
+    adv, sts = P.load()
+    r = dict(next(z for z in adv['sido']['zones'] if z['z'] == '인천'), **INCHEON)
+    body = N.draft_zone(adv, sts, r, 1, 16)['body']
+    m = re.search(r'판정은 <b>[^<]+</b>입니다\. ([^<]+)\.</p>\s*<p>셈은 <b>([^<]+)</b>입니다\.</p>', body)
+    assert m, body[:600]
+    assert m.group(1) == want, m.group(1)
+    assert m.group(2) == SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 69600, 66579, 16258)
+    assert '더 들어옵니다' not in body

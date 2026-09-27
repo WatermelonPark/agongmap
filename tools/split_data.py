@@ -126,7 +126,7 @@ def main():
         return a
 
     core_adv = strip_units(core_adv)
-    # 판정 화면 문구(카드 ctxt·cnum·cdir·cpct, ⓘ 식 ftxt, 분포 dist, 범례 ktxt)는 지금의 정본 함수로 다시 굽는다. data.js 의 ADV.sido 는
+    # 판정 화면 문구(카드 ctxt·cnum·cdir·cpct, ⓘ 식 ftxt, 분포 dist·여유 이름 dist_g0, 범례 ktxt)는 지금의 정본 함수로 다시 굽는다. data.js 의 ADV.sido 는
     # 다음 배치가 점수를 다시 쓸 때까지 옛 문구를 싣는다 — 문구 함수를 고친 날 홈이 옛말을 하지 않게(B2·C4).
     # 숫자(dtot·ratio·grade)는 건드리지 않는다. adv['sido'] 와 같은 객체라 trend 쪽에도 같이 실린다.
     if _SZ is not None and (core_adv.get('sido') or {}).get('zones'):

@@ -1985,6 +1985,9 @@ function wkNextText(r){
   if(r.hedge)return '연휴로 발표 일정이 바뀔 수 있습니다';
   return '다음 발표 '+_md(r.next)+'('+'일월화수목금토'[_wd(_dn(r.next))]+')';
 }
+/* 결론 앞 발표일 머리말 — 평상 '9/24 발표', 늦은 주 '9/17 발표 기준'(파이썬 WR.pub_lead). 첫 화면 띠 첫 줄과 늦은 주의
+   주간 구역 h2 가 같이 쓴다 — 지연 주에 두 곳의 머리말이 갈리지 않게(B1·MOB-1). */
+function wkPubLead(r){return _md(r.pub)+' 발표'+(r.stale?' 기준':'');}
 function wkWhenText(r){
   if(r.stale)return '최근 반영: '+_md(r.pub)+' 발표 · '+wkNextText(r);
   return _md(r.survey)+' 조사 · '+_md(r.pub)+' 발표 · '+wkNextText(r);
@@ -2638,6 +2641,11 @@ function aggCard(n,z,i){
       +'ⓘ<span class="sr-only"> '+n+' 어떻게 계산했나</span></button>':'')
     +'</div>';
 }
+/* 분포 한 줄 끝의 '(인천·대전·충남)' — 이름마다 시도 리포트 링크. 빈 목록·옛 캐시는 빈 문자열. */
+function distLinks(ns){
+  if(!ns||!ns.length) return '';
+  return '('+ns.map(function(n){ return '<a href="/zone/'+encodeURIComponent(n)+'/">'+n+'</a>'; }).join('·')+')';
+}
 function renderSidoMap(){
   var el=document.getElementById('map-wrap');
   if(!el||el.dataset.done) return;
@@ -2662,8 +2670,10 @@ function renderSidoMap(){
   });
   h+='</div>'+how;
   /* 분포 한 줄(B2·HERO-4·TRUST-3) — 카드 셋이 모두 '부족'이어도 시도 전체가 어떻게 나뉘는지 보인다.
-     곳 수·묶음은 sido_zones.dist_text 가 판정에서 세어 굽는다(ADV.sido.dist). 옛 캐시엔 없어서 빠진다. */
-  if(ADV.sido.dist) h+='<p class="agg-dist">'+ADV.sido.dist+'</p>';
+     곳 수·묶음은 sido_zones.dist_text 가 판정에서 세어 굽는다(ADV.sido.dist). 옛 캐시엔 없어서 빠진다.
+     끝 묶음(여유)의 이름은 각 리포트로 링크한다(TRUST-3① — 반례를 바로 눌러 본다). 이름 목록도 sido_zones.dist_names 가
+     굽는다(ADV.sido.dist_g0). 여기서 등급을 다시 세지 않는다. 목록이 없는 옛 캐시는 링크 없이 분포만 남는다. */
+  if(ADV.sido.dist) h+='<p class="agg-dist">'+ADV.sido.dist+distLinks(ADV.sido.dist_g0)+'</p>';
   /* 행동 안내는 범례 속 11.5px 회색 각주였다('지역을 누르면 상세 리포트') — 첫 화면의 유일한 행동 안내인데
      읽히지 않았다(홈 마케팅 검수 A6·HERO-5①). 본문색 13.5px 한 줄로 키워 지도 바로 위에 둔다. 범례
      오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
@@ -3088,7 +3098,7 @@ function applyWeeklyStatus(r,hd){
   if(kk)kk.textContent=wkWhenText(r);
   const h2=document.getElementById('wk-h2');
   if(!h2)return;
-  if(hd)h2.textContent=(r.stale?_md(r.pub)+' 발표 기준 · ':'')+hd.text;
+  if(hd)h2.textContent=(r.stale?wkPubLead(r)+' · ':'')+hd.text;
   else if(r.stale)h2.textContent=_md(r.pub)+' 발표, 어디가 오르고 내렸을까?';
 }
 /* 이번 주 결론 한 줄(ADV.weekly.head, 홈 마케팅 검수 B1·IA-4). /weekly/ 제목과 같은 함수(make_weekly_page.conclusion)가
@@ -3100,7 +3110,7 @@ function weeklyHead(W){
 /* 첫 화면 '이번 주' 띠의 두 줄(B1·HERO-2·IA-5·TRUST-7). DOM 을 만지지 않는 순수 함수 — 시험이 node 로 돌린다.
    줄마다 [앞, 뒤] 두 조각이고 화면에는 ' · '로 이어진다(좁은 화면은 CSS 가 조각마다 줄을 바꿔 줄 수를 고정한다 —
    글자 길이에 따라 줄 수가 달라지면 미리 잡은 높이가 어긋나 아래 카드·지도가 밀린다).
-   첫 줄 = [발표일, 결론 →]. 둘째 줄 = [배경 지도 캡션, 다음 발표·반영 대기·연휴 안내(wkNextText — 주간 구역 머리줄·통계
+   첫 줄 = [발표일 머리말(wkPubLead — 늦은 주에는 '9/17 발표 기준', h2 와 같은 말), 결론 →]. 둘째 줄 = [배경 지도 캡션, 다음 발표·반영 대기·연휴 안내(wkNextText — 주간 구역 머리줄·통계
    탭과 같은 함수)]. 늦은 주에는 둘째 줄이 '이번 주 발표분 반영 대기'를 말하고 캡션도 '이번 주' 대신 발표일을 쓴다.
    배경 지도는 시군구 최신 주를 칠하므로(renderHeroMap) 그 주가 시도 주와 다르면 그 발표일을 적는다.
    결론이 없거나 유예(grace)가 없는 옛 캐시는 지연을 판정할 수 없어 null — 띠는 날짜를 약속하지 않는 정적 문구로 남는다. */
@@ -3110,7 +3120,7 @@ function heroBandLines(W,r){
   const S=W.sgg, sp=S&&S.rows&&S.rows.length?S.rows[S.rows.length-1].p:null;
   const bg=sp?'배경 지도: '+((sp===r.survey&&!r.stale)?'이번 주':_md(pubDate(sp))+' 발표')+' 시군구 매매 변동'
     :'한국부동산원 주간 통계';
-  return [[_md(r.pub)+' 발표',hd.text+' →'],[bg,wkNextText(r)]];
+  return [[wkPubLead(r),hd.text+' →'],[bg,wkNextText(r)]];
 }
 function _bandLine(el,parts){
   el.textContent='';

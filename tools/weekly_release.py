@@ -81,6 +81,15 @@ def next_text(st):
     return '다음 발표 %s(%s)' % (md(st['next']), WEEKDAYS[_d(st['next']).weekday()])
 
 
+def pub_lead(st):
+    """결론 문장 앞 발표일 머리말 — 평상 '9/24 발표', 늦은 주 '9/17 발표 기준'. 홈 JS wkPubLead 와 같은 문장.
+
+    홈 첫 화면 띠 첫 줄·홈 주간 구역 h2(늦은 주)·/weekly/ 제목(늦은 주에 '이번 주'를 바꾸는 말)이 이 한 말을 쓴다
+    (홈 마케팅 검수 B1·A2·MOB-1, 2026-09-27 검토 지적). 늦은 주에 '기준'을 붙여 그 값이 이번 주 것이 아님을 말한다.
+    """
+    return '%s 발표%s' % (md(st['pub']), ' 기준' if st['stale'] else '')
+
+
 def when_text(st):
     """'9/14 조사 · 9/17 발표 · 다음 발표 10/1(목)'. 지연이면 '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기'.
     홈 JS wkWhenText 와 같은 문장."""

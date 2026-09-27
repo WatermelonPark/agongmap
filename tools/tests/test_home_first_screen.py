@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.parse
 
 import pytest
 
@@ -192,6 +193,8 @@ def test_hero_band_lines_follow_the_release_state():
     변이(각각 실제로 확인): heroBandLines 의 `W.grace==null` 검사를 빼면 옛 캐시 사례가, 캡션 조건에서 `!r.stale` 을 빼면
     늦은 주 사례가, wkNextText(r) 대신 '다음 발표 '+_md(r.next) 를 쓰면 연휴·늦은 주 사례가, weeklyHead 의 조사일 비교를
     빼면 섞인 판 사례가 빨개진다.
+    늦은 주 첫 줄 머리말이 '9/17 발표 기준'인 것(요청서 지연 문구, 2026-09-27 검토 지적)은 heroBandLines 가 wkPubLead 대신
+    '발표'만 적으면 빨개진다(확인).
     픽스처: 2026 공휴일 표. 평상(9/7 조사, 오늘 9/11), 추석 연휴 주(9/14 조사, 9/18 — 다음 발표 9/24 가 휴일),
             배치 정지(9/14 조사, 9/29 — 기준일 9/28 이 지남), 시군구만 한 주 늦음(시도 9/21·시군구 9/14, 9/25).
     """
@@ -229,11 +232,48 @@ def test_hero_band_lines_follow_the_release_state():
     assert got[normal] == [['9/10 발표', T], ['배경 지도: 이번 주 시군구 매매 변동', nxt('2026-09-07', datetime.date(2026, 9, 11))]]
     assert got[normal][1][1] == '다음 발표 9/17(목)'
     assert got[hedge][1] == ['배경 지도: 이번 주 시군구 매매 변동', WR.HOLD]
-    assert got[stale] == [['9/17 발표', T], ['배경 지도: 9/17 발표 시군구 매매 변동', WR.WAIT]]
+    assert got[stale] == [['9/17 발표 기준', T], ['배경 지도: 9/17 발표 시군구 매매 변동', WR.WAIT]]
     assert nxt('2026-09-14', datetime.date(2026, 9, 29)) == WR.WAIT
     assert got[lag][1][0] == '배경 지도: 9/17 발표 시군구 매매 변동', got[lag]
     assert got[no_head] is None and got[no_grace] is None and got[mixed] is None
     assert got[no_sgg][1] == ['한국부동산원 주간 통계', '다음 발표 9/17(목)']
+
+
+def test_late_week_lead_is_one_phrase_on_band_h2_and_weekly_page():
+    """늦은 주의 발표일 머리말('9/17 발표 기준')은 첫 화면 띠 첫 줄·홈 주간 구역 h2·/weekly/ 제목이 같은 말이다
+    (요청서 '권하는 첫 화면 구성' 3번 지연 문구·MOB-1 '띠의 발표일 옆에', 2026-09-27 검토 지적). 한 말은 WR.pub_lead /
+    홈 wkPubLead 이고 둘의 일치는 test_weekly_release 가 본다. 평상 주에는 띠만 '9/10 발표'를 달고 h2 는 결론만 쓴다.
+
+    변이(각각 실제로 확인): heroBandLines 가 wkPubLead(r) 대신 _md(r.pub)+' 발표' 를 쓰면(검토 당시 코드) 띠 단정이,
+          applyWeeklyStatus 가 머리말을 자기 문장(' 발표 · ')으로 적으면 h2 단정이, make_weekly_page.when_line 이 '발표 기준'
+          대신 자기 말을 쓰면 /weekly/ 단정이 빨개진다.
+    픽스처: 09-24~26 배치 정지를 옮긴 합성 주 — 9/14 조사(9/17 발표)가 최신인 채 오늘 9/29 KST(기준일 9/28 이 지남),
+            그리고 같은 데이터의 평상 날(9/18). 공휴일 표는 2026.
+    """
+    text = '경기 +0.23%, 가장 크게 올랐습니다'
+    W, Q = _week({}, '2026-09-14')
+    W.pop('holidays')
+    W.update(grace=WR.GRACE_WEEKLY, head={'p': '2026-09-14', 'text': text, 'dir': 'up'})
+    out = []
+    for day in (29, 18):
+        js = (_band_js() + '\n_HOLIDAYS=new Set(%s);const W=%s;\n'
+              'const r=weeklyRelease(W.rows[0].p,new Date(%d),W.grace);\n'
+              'const el={"wk-kicker":{textContent:""},"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
+              'globalThis.document={getElementById:id=>el[id]||null};\n'
+              'applyWeeklyStatus(r,weeklyHead(W));\n'
+              'process.stdout.write(JSON.stringify([r.stale,heroBandLines(W,r),el["wk-h2"].textContent]));'
+              % (json.dumps(H2026), json.dumps(W, ensure_ascii=False), _kst_ms(2026, 9, day)))
+        out.append(_node(js))
+    (late, band, h2), (ok, band_ok, h2_ok) = out
+    st = WR.status('2026-09-14', datetime.date(2026, 9, 29), H2026)
+    assert late and st['stale'] and not ok
+    lead = WR.pub_lead(st)
+    assert lead == '9/17 발표 기준'
+    assert band[0] == [lead, text + ' →'], band
+    assert h2 == lead + ' · ' + text, h2
+    assert band_ok[0][0] == '9/17 발표' and h2_ok == text, (band_ok, h2_ok)
+    _, script = MW.when_line(dict(W, holidays=H2026), '2026-09-14')
+    assert 'replace(%s,%s)' % (json.dumps(MW.H1_WEEK, ensure_ascii=False), json.dumps(lead, ensure_ascii=False)) in script
 
 
 def _hero():
@@ -278,10 +318,13 @@ def test_home_hero_band_fits():
     하나가 한 줄 안에 들어가야 정적 문구 → 데이터 문구로 바뀔 때 높이가 같다(CLS 0). 운영 글꼴(Pretendard 서브셋)로 잰다.
 
     Chromium 실측(2026-09-27, playwright): 띠 높이가 정적·평상·연휴·반영 대기·옛 캐시·전남광주 하락에서 모두 같았다
-    (320px 91.3 · 360px 73.8 · 375px 74.2 · 414px 76.0 · 480px 이상 60).
+    (320px 91.3 · 360px 73.8 · 375px 74.2 · 414px 76.0 · 480px 이상 60). 늦은 주 머리말에 '기준'을 붙이며 첫 줄 글자를
+    3.4vw·12.5px → 3.2vw·11.5px 로 줄인 뒤 다시 잼: 평상·반영 대기(10/6) 모두 320 88.5 · 360 72.5 · 375 73.1 · 414 74.9 ·
+    480 이상 60. 옛 글자 크기로 되돌리면 360~399px 에서 빨개진다(확인).
     변이(각각 확인): 둘째 줄을 조각마다 바꾸는 폭을 479→399px 로 줄이면 400~479px 에서, 첫 줄 글자를 clamp(…,3.6vw,…)
     로 키우면 360px 에서, 첫 줄을 조각마다 바꾸는 규칙(359px)을 지우면 320px 에서 빨개진다.
-    픽스처: 가장 긴 경우를 함수로 만든다 — 이름이 가장 긴 시도의 하락 결론(conclusion), 두 자리 달·날짜(12/28),
+    픽스처: 가장 긴 경우를 함수로 만든다 — 이름이 가장 긴 시도의 하락 결론(conclusion), 두 자리 달·날짜와 늦은 주 머리말
+            ('12/28 발표 기준' — 2026-09-27 검토 지적으로 추가, 넣은 뒤에도 초록),
             가장 긴 다음 발표 문장(연휴 안내·반영 대기·'다음 발표 12/31(목)' 중), 시군구 주가 다른 캡션.
     """
     ImageFont = pytest.importorskip('PIL.ImageFont')
@@ -301,7 +344,7 @@ def test_home_hero_band_fits():
     longest = max((z for z in MW.SIDO), key=lambda z: ImageFont.truetype(bold, 13).getlength(z))
     W, _ = _week({longest: -1.23}, '2026-12-21')
     concl = MW.conclusion(W)['text'] + ' →'
-    date = '12/28 발표'
+    date = '12/28 발표 기준'   # 늦은 주 머리말(wkPubLead)이 평상 주보다 길다
     cap = '배경 지도: 12/28 발표 시군구 매매 변동'
     nxts = [WR.HOLD, WR.WAIT, '다음 발표 12/31(목)']
     bad = []
@@ -429,7 +472,37 @@ def test_distribution_line_counts_the_zones():
     keys = [k for _, ks in SZ.DIST_GROUPS for k in ks]
     assert sorted(keys) == sorted(SZ.GRADE_KEYS) and len(keys) == len(set(keys))
     assert [n for n, _ in SZ.DIST_GROUPS] == ['부족 이상', '균형', '여유']
-    assert "'<p class=\"agg-dist\">'+ADV.sido.dist+'</p>'" in _js_func(_home(), 'renderSidoMap')
+    assert "'<p class=\"agg-dist\">'+ADV.sido.dist+distLinks(ADV.sido.dist_g0)+'</p>'" in _js_func(_home(), 'renderSidoMap')
+
+
+def test_distribution_line_links_each_surplus_zone():
+    """분포 한 줄 끝 '여유 3(인천·대전·충남)' — 여유 지역 이름마다 /zone/<이름>/ 링크(TRUST-3①, 2026-09-27 검토 지적). 카드 셋이
+    모두 '부족'인 첫 화면에서 반례를 바로 눌러 본다. 이름 목록은 sido_zones.dist_names 가 판정에서 골라 굽고(refresh_texts →
+    ADV.sido.dist_g0) 홈 distLinks 는 그리기만 한다. 괄호가 '여유 N' 바로 뒤에 붙도록 여유가 분포의 마지막 묶음이다.
+
+    변이(각각 실제로 확인): dist_names 가 집계(agg)를 빼지 않으면 이름 단정이, g0 대신 g1 을 고르면 이름 단정이, distLinks 가
+          첫 이름만 링크하면(나머지는 평문) 링크 수 단정이, renderSidoMap 이 distLinks 를 안 부르면 앞 시험의 마지막 단정이,
+          refresh_texts 가 dist_g0 를 안 구우면 test_followup_texts 의 split 단정이 빨개진다.
+    픽스처: 집계 셋(그중 '지방'을 여유로 두어 집계가 섞이면 드러나게) + 시도 15곳(여유 3·균형 5 등) — 여유는 순서가
+            흩어진 자리(3·9·14번째)에 둔다. 옛 캐시(dist_g0 없음)·여유 0곳.
+    """
+    grades = ['g2', 'g1', 'g3', 'g0', 'g2', 'g1', 'g2', 'g1', 'g4', 'g0', 'g2', 'g1', 'g3', 'g1', 'g0']
+    zones = [{'z': a, 'agg': True, 'grade': 'g0' if a == '지방' else 'g2'} for a in SZ.AGG] + \
+            [{'z': '지역%d' % i, 'agg': False, 'grade': g} for i, g in enumerate(grades)]
+    names = SZ.dist_names(zones)
+    assert names == ['지역3', '지역9', '지역14'], names
+    assert SZ.dist_text(zones).endswith('%s %d' % (SZ.DIST_GROUPS[-1][0], len(names)))
+    assert SZ.DIST_LINK_KEYS == SZ.DIST_GROUPS[-1][1] == ('g0',)
+    sido = {'H': SZ.LEAD_Q, 'zones': []}
+    assert SZ.refresh_texts(sido)['dist_g0'] == []
+    js = (_js_func(_home(), 'distLinks') + '\nprocess.stdout.write(JSON.stringify([distLinks(%s),distLinks(undefined),'
+          'distLinks([])]));' % json.dumps(names, ensure_ascii=False))
+    got, old, empty = _node(js)
+    links = re.findall(r'<a href="(/zone/[^"]+/)">([^<]+)</a>', got)
+    assert [n for _, n in links] == names and len(links) == len(names), got
+    assert all(h == '/zone/%s/' % urllib.parse.quote(n) for h, n in links), links
+    assert re.fullmatch(r'\((<a [^>]+>[^<]+</a>·)*<a [^>]+>[^<]+</a>\)', got), got
+    assert old == '' and empty == ''
 
 
 # ── B2·C4①·MOB-7: 카드는 두 줄 링크, ⓘ 는 링크 밖 버튼 ─────────────────────────────────────────────

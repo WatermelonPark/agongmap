@@ -111,7 +111,7 @@ def split_stale(tmp_path_factory):
         z['ctxt'] = 'STALE'
         for k in ('cnum', 'cdir', 'cpct', 'ftxt'):
             z.pop(k, None)
-    for k in ('dist', 'ktxt'):
+    for k in ('dist', 'dist_g0', 'ktxt'):
         adv['sido'].pop(k, None)
     src = src[:m.start(2)] + json.dumps(adv, ensure_ascii=False) + src[m.end(2):]
     io.open(str(d / 'data.js'), 'w', encoding='utf-8').write(src)
@@ -148,6 +148,7 @@ def test_stored_cards_match_the_function_and_the_display_integer(split_stale, mo
             for k, v in SZ.zone_texts(z, H).items():
                 assert z[k] == v, (z['z'], k)
         assert sido['dist'] == SZ.dist_text(sido['zones'])
+        assert sido['dist_g0'] == SZ.dist_names(sido['zones'])
         assert sido['ktxt'] == SZ.legend_text(H, SZ.BACKLOG_WINDOW)
     monkeypatch.setattr(P, 'ROOT', root)   # 같은 옛 문구 사본을 허브·리포트 생성기가 읽는다
     adv, _ = P.load()

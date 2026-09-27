@@ -217,7 +217,9 @@ def verdict_line(row, H):
         'g1': '%s에 못 미쳐 균형으로 분류합니다' % _cut(c[2]),
         'g0': '모자라는 몫이 없어 공급 여유로 분류합니다',
     }[row['grade']]
-    return '%s. %s.' % (SZ.ratio_text(row['ratio'], H, full=True), rule)
+    # 지난 창 재고의 부호로 문장 갈래를 고른다 — '숫자로 보면'의 식(formula_text)과 같은 정수·같은 갈래(B2·TRUST-2).
+    inow = rnd(row['inow']) if 'inow' in row else None
+    return '%s. %s.' % (SZ.ratio_text(row['ratio'], H, full=True, inow=inow), rule)
 
 
 def split_block(sp):
