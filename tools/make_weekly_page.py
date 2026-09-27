@@ -159,6 +159,54 @@ def rank_list(title, cls, items, empty):
     return '<div class="rk"><h3 class="%s">%s</h3><ol>%s</ol></div>' % (cls, title, lis)
 
 
+# ── 공유 카드 주소와 하단 탭(홈 마케팅 검수 A7·A5, 2026-09-27). 뼈대에 손으로 적혀 있던 것을 생성기가 맡는다.
+# 공유 카드는 make_weekly_share 가 매주 **같은 이름**으로 덮어쓴다(감시 check_freshness 가 이 주소에서 조사일을 읽는다).
+SITE = 'https://www.agongmap.co.kr'
+# 카드 파일의 사이트 상대 경로 — 정본은 여기 하나다. make_weekly_share 는 이 경로(ROOT 아래)에 굽고, 이 페이지의
+# og:image·twitter:image 는 SITE 뒤에 이 경로를 붙여 가리킨다. 두 생성기가 경로를 따로 적으면 한쪽만 바뀌어도
+# 미리보기가 없는 파일을 가리키는데 아무것도 빨개지지 않았다(A7 검토 지적, test_weekly_share_version).
+SHARE_REL = 'share/weekly-map.png'
+SHARE_IMG = SITE + '/' + SHARE_REL
+# 이 페이지가 켜는 하단 탭. 홈 '통계' 탭의 기본 화면이 주간 시세 지도라 이 페이지는 통계 탭 아래에 있다(IA-6 1단계).
+NAV_ON = '/#stats'
+NAV_ON_CSS = '.nav-btn.on{color:#fff}'   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다
+_NAV_A = re.compile(r'<a class="nav-btn(?: on)?"(?: aria-current="page")? href="([^"]*)"')
+_NAV_NOTE_OLD = '활성 탭 없음 — 주간 지도는 네 탭 어디에도 속하지 않는다(퀴즈 뷰와 같은 처리).'
+_NAV_NOTE = "활성 탭은 '통계' — 홈 통계 탭의 기본 화면이 주간 시세다(생성기 put_nav 가 켠다, 2026-09-27)."
+
+
+def share_version(p):
+    """주간 공유 카드의 판 = 그 카드 머리에 찍힌 발표일. make_weekly_share 도 이 함수로 날짜를 찍는다.
+
+    카드 파일은 매주 같은 이름이라, 이미지 주소로 미리보기를 보관하는 카카오톡·네이버에는 지난주 지도가
+    남는다(VIRAL-2). og:image 주소에 이 값을 쿼리(?v=)로 붙여 주마다 다른 주소로 만든다. 파일 이름에 넣지
+    않은 이유: 매주 share/ 에 파일이 쌓이고, 감시가 조사일을 읽는 고정 주소도 바뀐다.
+    """
+    return pub(p)
+
+
+def put_share_image(s, W):
+    url = '%s?v=%s' % (SHARE_IMG, share_version(W['rows'][-1]['p']))
+    s = put_meta(s, 'property', 'og:image', url)
+    return put_meta(s, 'name', 'twitter:image', url)
+
+
+def put_nav(s):
+    """하단 탭바에서 NAV_ON(통계) 탭 하나만 켠다. 예전엔 켜진 탭이 없어 블로그 독자가 착지하는 이 페이지가
+    사이트의 어느 메뉴인지 보이지 않았다(IA-6). 공용 시트를 안 읽는 페이지라 켜진 색 규칙도 여기서 챙긴다."""
+    links = _NAV_A.findall(s)
+    if links.count(NAV_ON) != 1:
+        raise SystemExit('weekly/index.html 하단 탭바에서 %s 탭을 찾지 못했다(%s)' % (NAV_ON, links))
+    s = _NAV_A.sub(lambda m: '<a class="nav-btn%s" href="%s"' % (
+        ' on" aria-current="page' if m.group(1) == NAV_ON else '', m.group(1)), s)
+    if NAV_ON_CSS not in s:
+        anchor = '.nav-btn svg{display:block}'
+        if s.count(anchor) != 1:
+            raise SystemExit('weekly/index.html 에서 하단 탭 스타일 자리를 찾지 못했다')
+        s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
+    return s.replace(_NAV_NOTE_OLD, _NAV_NOTE)
+
+
 def build(W, Q):
     regs = W['regions']
     miss = [z for z in SZ.DISPLAY_ORDER if z not in regs]
@@ -303,6 +351,8 @@ def render(s, W, Q):
     s = put_source(s)
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
+    s = put_share_image(s, W)   # og:image·twitter:image 에 그 주 발표일(A7)
+    s = put_nav(s)              # 하단 탭바 '통계' 켜기(A5)
     return s
 
 

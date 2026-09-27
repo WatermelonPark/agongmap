@@ -87,6 +87,8 @@ def neun(w):
 # ---- 공통 템플릿 ----------------------------------------------------------
 # zone 페이지와 같은 뼈대·팔레트. CSS 인라인(자기완결) — app.css에 묶지 않는 건
 # zone 페이지와 같은 이유(페이지 단독 캐시·앱 셸과 수명 분리).
+# 하단 탭바는 '통계'를 켠다(.nav-btn.on) — 이 뼈대를 쓰는 /monthly/·/moveins/·/jeonse-ratio/ 는 홈 통계 탭 아래의
+# 읽을거리인데 켜진 탭이 없어 사이트의 어느 메뉴인지 보이지 않았다(홈 마케팅 검수 A5·IA-6 1단계, 2026-09-27).
 SHELL = """<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -163,6 +165,7 @@ footer a{color:var(--ink)}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:11.5px;font-weight:600;text-decoration:none}
 .nav-btn svg{display:block}
+.nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-3px}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
@@ -182,7 +185,7 @@ __BODY__
 <nav class="bottomnav">
   <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
   <a class="nav-btn" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>
-  <a class="nav-btn" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>통계</span></a>
+  <a class="nav-btn on" aria-current="page" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>통계</span></a>
   <a class="nav-btn" href="/cycle/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>사이클</span></a>
 </nav>
 
