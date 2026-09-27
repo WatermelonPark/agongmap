@@ -275,21 +275,23 @@ def test_home_blog_line_says_what_the_weekly_page_says():
     """홈 blogLine 이 ADV.blog 로 만드는 한 줄 = blog_feed.text(같은 글·같은 말). 남의 주소·빈 값은 칸을 안 연다. 부팅이 부르고,
     자리(#wk-blog)는 주간 구역에 숨은 채 있으며, 누르면 home_cta blog_weekly 로 잡힌다.
 
-    둘째 줄 이웃 안내(RET-4 A안)는 blog_feed.NEIGHBOR 한 상수 — /weekly/ 하단과 같은 문장이다(test_blog_feed 가 그쪽을 본다).
-    변이: blogLine 에서 src 나 note 를 빼거나 주소 검사를 지우거나, boot 에서 renderBlogLine() 줄을 지우면 빨개진다(넷 다 확인).
+    둘째 줄 이웃 안내(RET-4 A안 — '블로그 이웃이 되면 …')는 홈에서 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 그 문장은
+    /weekly/ 하단에만 남는다(blog_feed.NEIGHBOR, test_blog_feed 가 그쪽을 본다). 배치도 ADV.blog 에 note 를 싣지 않는다.
+    변이: blogLine 에서 src 를 빼거나 주소 검사를 지우거나, boot 에서 renderBlogLine() 줄을 지우면, renderBlogLine 에 이웃 안내
+          (wk-note)를 되살리면 빨개진다(넷 다 확인).
     """
     node = shutil.which('node')
     assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
     js = HS.home_source()
     b = BF.pick({'date': '2026-09-25', 'title': '주간 <글>', 'url': BF.BLOG_HOME + '/7'}, '2026-09-24')
     prog = (_js_func(js, 'blogLine') + ';const B=%s;const L=blogLine(B);'
-            'console.log(JSON.stringify([L.text+L.src,L.note,blogLine(Object.assign({},B,{url:"https://evil.test/x"})),'
+            'console.log(JSON.stringify([L.text+L.src,Object.keys(L).sort(),blogLine(Object.assign({},B,{url:"https://evil.test/x"})),'
             'blogLine(null),blogLine({})]));' % json.dumps(b, ensure_ascii=False))
     p = subprocess.run([node, '-e', prog], capture_output=True, timeout=60)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
     got = json.loads(p.stdout.decode('utf-8'))
-    assert got == [BF.text(b), BF.NEIGHBOR, None, None, None], got
-    assert "n.textContent=L.note" in _js_func(js, 'renderBlogLine')
+    assert got == [BF.text(b), ['href', 'src', 'text'], None, None, None], got
+    assert 'note' not in b and 'wk-note' not in js and BF.NEIGHBOR not in js, "홈에 블로그 이웃 안내가 남았다"
     boot = _js_func(js, 'boot')
     assert re.search(r'^\s*renderBlogLine\(\);', boot, re.M), '부팅이 renderBlogLine 을 부르지 않는다'
     assert "track('home_cta',{to:'blog_weekly'})" in _js_func(js, 'renderBlogLine')

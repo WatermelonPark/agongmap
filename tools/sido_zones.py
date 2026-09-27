@@ -405,15 +405,6 @@ def card_text(dtot, ratio, H=LEAD_Q):
     return ' · '.join(x for x in ((num + ' ' + dirw).strip(), share) if x)
 
 
-def legend_text(H=LEAD_Q, W=BACKLOG_WINDOW):
-    """홈 지도 범례의 뜻 한 줄: '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지'(TRUST-2①, 2026-09-27).
-
-    예전 '앞으로 3년 필요한 만큼 지어지는지'는 판정의 정의(지난 4년 누적 부족 포함)와 달랐다 — 충북은 앞으로 3년이
-    필요량의 78%인데 과거 여유 덕에 '균형'이다. 09-13 고객 점검이 없앤 '누적 순부족'이라는 말은 되살리지 않는다.
-    """
-    return '지난 %s 덜 지은 몫까지 더해 %s 필요량을 채우는지' % ('%g년' % (W / 4.0), '%g년' % (H / 4.0))
-
-
 # ── 부족 세대수의 식(홈 마케팅 검수 B2·C4, TRUST-2, 2026-09-27) ───────────────────────
 # 카드의 686,396 은 '앞으로 3년 필요량 − 착공 기반 입주 추정'(425,873)이 아니다. 지난 4년 덜 지은 몫(260,523)이
 # 더해진 값인데 홈에는 그 말이 없어 홈 재료만으로는 검산이 안 됐다. 식의 이름은 여기 하나에서 만들고
@@ -459,34 +450,10 @@ def zone_texts(row, H):
             'ftxt': '%s = %s' % (eq, ('%s %s' % (cnum, cdir)) if cnum else '0세대')}
 
 
-# 분포 한 줄의 묶음(홈 마케팅 검수 B2·HERO-4·TRUST-3, 2026-09-27). 첫 화면 카드 셋이 모두 '부족'이면 '늘 부족이라고만
-# 하는 사이트'로 읽힌다 — 시도 전체가 어떻게 나뉘는지를 카드 아래 한 줄로 센다. 등급 키는 GRADE_KEYS 정본이고
-# 묶음은 빠짐없이 한 번씩 덮는다(아래 검사). 이름은 GRADE_LABS 의 말을 쓴다('부족 이상' = g2 의 이름 + 이상).
-DIST_GROUPS = (('%s 이상' % GRADE_LABS['g2'], GRADE_KEYS[:GRADE_KEYS.index('g2') + 1]),
-               (GRADE_LABS['g1'], ('g1',)),
-               (GRADE_LABS['g0'].split()[-1], ('g0',)))
-if sorted(k for _, ks in DIST_GROUPS for k in ks) != sorted(GRADE_KEYS):
-    raise SystemExit('DIST_GROUPS 가 등급 키를 한 번씩 덮지 않는다: %s' % (DIST_GROUPS,))
-
-
-def dist_text(zones):
-    """'시도 16곳: 부족 이상 10 · 균형 3 · 여유 3' — 집계 3종을 뺀 판정 단위에서 센다(곳 수를 적지 않는다)."""
-    sido = [z for z in zones if not z.get('agg')]
-    parts = ['%s %d' % (name, sum(1 for z in sido if z['grade'] in keys)) for name, keys in DIST_GROUPS]
-    return '시도 %d곳: %s' % (len(sido), ' · '.join(parts))
-
-
-# 분포 한 줄 끝 묶음(여유)의 지역 이름을 따로 굽는다(TRUST-3①, 2026-09-27 검토 지적). 카드 셋이 모두 '부족'인 첫 화면에서
-# 반례(여유 지역)를 바로 눌러 볼 수 있게, 홈이 '여유 3(인천·대전·충남)'처럼 각 이름을 /zone/<이름>/ 링크로 그린다.
-# 홈은 dist 문장 끝에 괄호를 잇기만 하므로 이 묶음이 DIST_GROUPS 의 마지막이어야 한다(아래 검사).
-DIST_LINK_KEYS = DIST_GROUPS[-1][1]
-if DIST_LINK_KEYS != ('g0',):
-    raise SystemExit('분포 한 줄의 마지막 묶음이 여유(g0)가 아니다 — 홈의 이름 링크가 다른 묶음 뒤에 붙는다: %s' % (DIST_GROUPS,))
-
-
-def dist_names(zones):
-    """분포 한 줄 끝 묶음(여유)의 시도 이름 — 판정 순서(zones 순서 = DISPLAY_ORDER) 그대로, 집계 3종은 뺀다."""
-    return [z['z'] for z in zones if not z.get('agg') and z['grade'] in DIST_LINK_KEYS]
+# 홈 첫 화면에서 뺀 문구 필드(2026-09-28 대표 결정 — 작은 글씨 정리): 카드 아래 분포 한 줄(dist)·여유 지역 이름(dist_g0)·
+# 공급 범례 뜻 한 줄(ktxt). 읽는 곳이 홈뿐이라 함수째 지웠다. data.js 의 ADV.sido 는 다음 배치가 점수를 다시 쓸 때까지 옛
+# 필드를 싣고 있으므로 다시 구울 때 걷어 낸다 — 홈 코어(data-core)에 죽은 글자가 실리지 않게.
+RETIRED_TEXTS = ('dist', 'dist_g0', 'ktxt')
 
 
 def refresh_texts(sido):
@@ -499,9 +466,8 @@ def refresh_texts(sido):
     H = sido['H']
     for z in sido.get('zones') or []:
         z.update(zone_texts(z, H))
-    sido['dist'] = dist_text(sido.get('zones') or [])
-    sido['dist_g0'] = dist_names(sido.get('zones') or [])
-    sido['ktxt'] = legend_text(H, sido.get('window') or BACKLOG_WINDOW)
+    for k in RETIRED_TEXTS:
+        sido.pop(k, None)
     return sido
 
 
@@ -782,7 +748,7 @@ def calc(stats):
         print('⚠️ sido_zones: 준공·착공 시리즈가 없어 빠진 지역 %d곳 — %s '
               '(STATS 부분 응답 의심. 이 지역들은 표·페이지·sitemap에서 사라진다)'
               % (len(missing), ', '.join(missing)), file=_s.stderr)
-    # 화면 문구(ctxt·cnum·cdir·cpct·ftxt·dist·ktxt)는 refresh_texts 한 곳에서 붙인다 — split_data·make_sido_pages 가 읽을 때
+    # 화면 문구(ctxt·cnum·cdir·cpct·ftxt)는 refresh_texts 한 곳에서 붙인다 — split_data·make_sido_pages 가 읽을 때
     # 다시 굽는 것과 같은 함수다.
     return refresh_texts({'L': qkey(L), 'S': qkey(S), 'H': H,
             'lead': LEAD_Q, 'conv': CONV, 'window': BACKLOG_WINDOW,

@@ -100,6 +100,7 @@ def split_stale(tmp_path_factory):
 
     재현하는 실제 상태: 문구 함수를 고친 PR 이 병합된 날 — data.js 의 ADV.sido 는 다음 배치의 update_adv_data 가 점수를
     다시 쓸 때까지 옛 문구('… · 3년 필요량의 60%', cnum·ftxt 없음)를 싣는다. 홈 data-core 는 그날도 새 문구여야 한다.
+    2026-09-28 홈에서 뺀 필드(분포 dist·여유 이름 dist_g0·범례 뜻 ktxt)도 오늘 data.js 에 남아 있다 — 싣지 않아야 한다.
     """
     import shutil
     import split_data as S
@@ -111,8 +112,8 @@ def split_stale(tmp_path_factory):
         z['ctxt'] = 'STALE'
         for k in ('cnum', 'cdir', 'cpct', 'ftxt'):
             z.pop(k, None)
-    for k in ('dist', 'dist_g0', 'ktxt'):
-        adv['sido'].pop(k, None)
+    for k in SZ.RETIRED_TEXTS:   # 오늘 data.js 처럼 홈에서 뺀 옛 문구 필드가 남아 있다(2026-09-28 작은 글씨 정리)
+        adv['sido'][k] = 'STALE'
     src = src[:m.start(2)] + json.dumps(adv, ensure_ascii=False) + src[m.end(2):]
     io.open(str(d / 'data.js'), 'w', encoding='utf-8').write(src)
     paths = {'SRC': d / 'data.js', 'OUT': d / 'data-core.js', 'REST': d / 'data-rest.json',
@@ -134,7 +135,8 @@ def test_stored_cards_match_the_function_and_the_display_integer(split_stale, mo
     가 빨갛고, 병합 뒤 배치 전까지 홈도 옛말을 했다. 이제 split_data·make_sido_pages 가 읽을 때 refresh_texts 로 다시
     구우므로, 옛 문구를 넣은 사본에서도 data-core·data-trend·허브가 새 문구인지를 본다.
     변이: split_data 에서 `_SZ.refresh_texts(core_adv['sido'])` 를 지우면 data-core 에 'STALE' 이 남아 빨개진다(확인).
-          make_sido_pages.load 의 refresh_texts 를 지우면 마지막 단정이 빨개진다(확인).
+          make_sido_pages.load 의 refresh_texts 를 지우면 마지막 단정이 빨개진다(확인). refresh_texts 에서 RETIRED_TEXTS 를
+          걷어 내는 줄을 지우면 옛 필드 단정이 빨개진다(확인 — 픽스처가 오늘 data.js 처럼 dist·dist_g0·ktxt 를 싣는다).
     """
     stale, core, trend, root = split_stale
     H = stale['sido']['H']
@@ -147,9 +149,8 @@ def test_stored_cards_match_the_function_and_the_display_integer(split_stale, mo
             assert z['ctxt'] == SZ.card_text(z['dtot'], z['ratio'], H), z['z']
             for k, v in SZ.zone_texts(z, H).items():
                 assert z[k] == v, (z['z'], k)
-        assert sido['dist'] == SZ.dist_text(sido['zones'])
-        assert sido['dist_g0'] == SZ.dist_names(sido['zones'])
-        assert sido['ktxt'] == SZ.legend_text(H, SZ.BACKLOG_WINDOW)
+        # 홈에서 뺀 분포 한 줄·여유 이름·범례 뜻 한 줄(dist·dist_g0·ktxt)은 옛 data.js 에 남아 있어도 싣지 않는다
+        assert not set(SZ.RETIRED_TEXTS) & set(sido), sorted(set(SZ.RETIRED_TEXTS) & set(sido))
     monkeypatch.setattr(P, 'ROOT', root)   # 같은 옛 문구 사본을 허브·리포트 생성기가 읽는다
     adv, _ = P.load()
     for z in adv['sido']['zones']:
@@ -161,8 +162,10 @@ def test_home_and_hub_read_the_baked_card_text():
     home = _src('index.html')
     HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
     assert "z.ctxt" in home
-    for f in ('z.cnum', 'z.cdir', 'z.cpct', 'z.ftxt', 'ADV.sido.dist', 'ADV.sido.ktxt'):
+    for f in ('z.cnum', 'z.cdir', 'z.cpct', 'z.ftxt'):
         assert f in home, '홈 카드가 구워 둔 %s 를 읽지 않는다' % f
+    for f in ('ADV.sido.dist', 'ADV.sido.ktxt'):   # 2026-09-28 에 뺀 분포 한 줄·범례 뜻 한 줄
+        assert f not in home, '홈이 뺀 문구 %s 를 아직 읽는다' % f
     assert "tbSigned(z.tot)+'세대'+(z.rtxt" not in home, '홈 카드가 옛 부호 문구를 만든다'
     assert not re.search(r"'만큼'|필요량의'\s*\+", HS.home_source()), '홈이 카드 비율 문구를 따로 만든다 — 이중 구현'
     hub = _src('tools/make_sido_pages.py')
@@ -174,20 +177,17 @@ def test_unsold_multiple_reads_as_percent_below_one():
     assert P.umx(0.05) == '5%' and P.umx(0.53) == '53%' and P.umx(2.4) == '2.4배'
 
 
-def test_home_legend_says_what_the_color_means_and_when():
-    """범례 뜻 한 줄은 판정의 정의 그대로 — 지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지(B2·TRUST-2①, 2026-09-27).
-
-    예전 '앞으로 3년 필요한 만큼 지어지는지'는 지난 4년 누적 부족을 빼고 말해, 충북(앞으로 3년 78%)이 '균형'인 까닭과
-    카드의 686,396(= 425,873 + 지난 4년 260,523)을 홈에서 검산할 수 없었다. 문구는 sido_zones.legend_text 가 구워 싣고
-    (ADV.sido.ktxt) 홈은 읽기만 한다 — 옛 문구는 옛 캐시의 대체값으로만 남는다.
-    변이: legend_text 를 옛 문구로 되돌리면 첫 단정이, 홈이 ktxt 를 안 읽으면 둘째가 빨개진다(확인).
+def test_home_supply_legend_has_no_meaning_line():
+    """공급 지도 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지 · 2026년 2분기 기준')은 뺐다(2026-09-28
+    대표 결정 — 작은 글씨 정리). 식은 카드 ⓘ(ftxt)·산출 방법 첫 항목에, 3년 구간은 지도 아래 '앞으로 3년(…~…)' 줄에 남는다.
+    옛 문구('앞으로 3년 필요한 만큼 지어지는지', '적정물량 대비 누적 순부족 · 기준')도 되살아나지 않는다.
+    변이: mapKeyHtml 공급 갈래에 tk-n 뜻 한 줄을 되살리면(ADV.sido.ktxt 대체값 포함) 빨개진다(확인).
     """
-    assert SZ.legend_text() == '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지'
-    assert '4년' in SZ.legend_text(W=SZ.BACKLOG_WINDOW) and '2년' in SZ.legend_text(W=8)   # 창에서 센다
     home = _src('index.html')
     HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
-    assert "(ADV.sido.ktxt||'앞으로 3년 필요한 만큼 지어지는지')" in home and 'ADV.sido.Ltxt' in home
-    assert '적정물량 대비 누적 순부족 · 기준' not in home
+    for bad in ('ADV.sido.ktxt', '몫까지 더해 3년 필요량을 채우는지', '앞으로 3년 필요한 만큼 지어지는지', '적정물량 대비 누적 순부족 · 기준'):
+        assert bad not in home, bad
+    assert not hasattr(SZ, 'legend_text')
 
 
 # ---- ⑥ 입주물량 ----

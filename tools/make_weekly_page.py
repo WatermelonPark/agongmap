@@ -243,6 +243,7 @@ NAV_ON = N.HREF[NAV_TAB]
 NAV_ON_CSS = '.nav-btn.on{color:#fff}'   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다
 _NAV_A = re.compile(r'<a class="nav-btn(?: on)?"(?: aria-current="page")? href="([^"]*)"')
 _NAV_BLOCK = re.compile(r'<nav class="bottomnav">.*?</nav>', re.S)
+_NAV_BTN_CSS = re.compile(r'((?:^|[}\s])\.nav-btn\{[^}]*?font-size:)[\d.]+px')
 # 뼈대 CSS 주석의 옛 문장들 → 지금 문장. 앞의 것은 A5 이전, 뒤의 것은 A5(2026-09-27 1차 배포) 문장이다.
 _NAV_NOTES_OLD = ('활성 탭 없음 — 주간 지도는 네 탭 어디에도 속하지 않는다(퀴즈 뷰와 같은 처리).',
                   "활성 탭은 '통계' — 홈 통계 탭의 기본 화면이 주간 시세다(생성기 put_nav 가 켠다, 2026-09-27).")
@@ -394,6 +395,12 @@ def put_nav(s):
         if s.count(anchor) != 1:
             raise SystemExit('weekly/index.html 에서 하단 탭 스타일 자리를 찾지 못했다')
         s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
+    # 탭 라벨 글자 크기도 정본(site_nav.LABEL_PX — 홈 화면 글자 하한 13px, 2026-09-28)으로 맞춘다. 뼈대 <style> 은 배치 산출물이라
+    # PR 로 고치지 않고 여기서 고쳐 쓴다(옛 뼈대 11.5px).
+    rules = _NAV_BTN_CSS.findall(s)
+    if len(rules) != 1:
+        raise SystemExit('weekly/index.html 에서 하단 탭 글자 규칙(.nav-btn{…font-size…})을 찾지 못했다(%d개)' % len(rules))
+    s = _NAV_BTN_CSS.sub(lambda m: m.group(1) + '%gpx' % N.LABEL_PX, s)
     for old in _NAV_NOTES_OLD:
         s = s.replace(old, _NAV_NOTE)
     return s
