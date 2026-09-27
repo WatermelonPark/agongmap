@@ -1,6 +1,30 @@
 /* 아공맵 홈 본문 스크립트 — 2026-09-16 index.html 인라인에서 분리(백로그 10, 동결 창).
    ⚠️ index.html 과 한 몸이다. sw.js 는 이 파일을 network-first 로 받는다(새 마크업 + 옛 스크립트 조합 방지).
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 로 읽는다. */
+/* 판 표식(홈 마케팅 검수 C11·MOB-9, 2026-09-27). 서비스워커는 HTML 과 이 파일을 **따로** network-first(3.5초
+   한도)로 받는다. 배포 직후 느린 망에서 HTML(14KB)은 새 판으로 오고 이 파일(78KB)만 한도를 넘겨 옛 캐시로 오면
+   새 마크업 위에서 옛 스크립트가 돈다 — Chromium 에서 home-app.js 응답만 5초 늦춰 재현했다(2초면 안 섞인다).
+   그래서 HTML 의 <html data-build> 와 이 파일의 HOME_BUILD 를 견줘 다르면 **한 번** 새로고침한다. 그사이 늦게 온
+   응답이 캐시에 들어가 두 번째에는 맞는다. 같은 HTML 판으로는 두 번 새로고침하지 않고(sessionStorage), 저장소를
+   못 쓰면 아예 새로고침하지 않는다(무한 반복 방지). 판 표식이 없는 HTML(표식 이전 판)은 비교하지 않는다.
+   새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
+   판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기도 같이(test_home_build). */
+const HOME_BUILD='v161';
+let BUILD_RELOAD=false;
+(function(){
+  try{
+    const html=document.documentElement.getAttribute('data-build')||'', k='agongmap-build';
+    let seen=sessionStorage.getItem(k)||'';
+    if(seen.slice(-1)==='!'){   // 방금 판이 달라 새로고침했다
+      seen=seen.slice(0,-1); sessionStorage.setItem(k,seen);
+      track('build_reload',{build_html:html,build_js:HOME_BUILD,fixed:html===HOME_BUILD});
+    }
+    if(!html||html===HOME_BUILD||seen===html)return;
+    sessionStorage.setItem(k,html+'!');
+    BUILD_RELOAD=true;
+    location.reload();
+  }catch(e){}
+})();
 const LEADTIME={"lags": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], "all": [0.49, 0.526, 0.564, 0.603, 0.642, 0.679, 0.714, 0.747, 0.775, 0.797, 0.809, 0.817, 0.818, 0.813, 0.802, 0.782, 0.754, 0.718, 0.676, 0.629, 0.578, 0.515, 0.458, 0.399, 0.335, 0.264, 0.194, 0.122, 0.044, -0.03, -0.1], "old": [0.865, 0.886, 0.911, 0.933, 0.947, 0.955, 0.958, 0.959, 0.952, 0.944, 0.926, 0.905, 0.885, 0.868, 0.859, 0.839, 0.832, 0.819, 0.812, 0.808, 0.805, 0.766, 0.713, 0.661, 0.579, 0.481, 0.36, 0.213, 0.016, -0.142, -0.255], "new": [-0.261, -0.213, -0.156, -0.092, -0.01, 0.073, 0.154, 0.239, 0.325, 0.405, 0.467, 0.532, 0.596, 0.664, 0.72, 0.772, 0.8, 0.814, 0.811, 0.788, 0.753, 0.687, 0.669, 0.616, 0.575, 0.515, 0.485, 0.419, 0.338, 0.253, 0.17], "peak_old": [27, 0.96], "peak_new": [37, 0.81], "peak_all": [32, 0.82]};
 
 
@@ -3038,6 +3062,7 @@ function quizSample(){
     +'</div>';
 }
 function boot(){
+  if(BUILD_RELOAD)return;   // 판이 달라 새로고침하는 중 — 옛 스크립트로 새 마크업을 그리지 않는다(맨 위 판 표식)
   /* chartSetup 은 차트 라이브러리를 받은 뒤 loadChart 가 부른다 */
   renderWeeklyGrid();
   quizSample();
