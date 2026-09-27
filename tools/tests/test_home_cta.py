@@ -32,6 +32,10 @@ WANT = {
     # 푸터 '매주' 묶음의 블로그 링크(홈 마케팅 검수 B5·IA-9, 2026-09-27). 주간 구역의 해석 글 한 줄(blog_weekly)은 스크립트가
     # 그린다 — test_home_summary 가 본다.
     (BF.BLOG_HOME, '매주 해설 글'): 'blog_footer',
+    # 3차(2026-09-27): 이달의 통계 입구(B6·IA-8 — 푸터 '이달의 통계'와 가르려고 입구 이름 전체로 찾는다),
+    # 띠 앞 '내 지역' 줄(C5 — href 는 부팅이 그 시도 리포트로 바꾼다. 정적 마크업은 /zone/).
+    ('/monthly/', '이달의 통계 한 화면으로 보기'): 'monthly',
+    ('/zone/', '내 지역'): 'my_zone',
 }
 TO = re.compile(r"""onclick="track\('home_cta',\{to:'([^']*)'\}\)\"""")
 

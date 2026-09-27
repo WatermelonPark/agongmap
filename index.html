@@ -217,6 +217,15 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
     <span class="hero-kick">아공맵 · 아파트 공급 지도</span>
     <h1 class="hero-msg">공급은 3년, 시세는 매주<i class="hero-ramp" aria-hidden="true"></i></h1>
     <p class="hero-sub">국토교통부 착공·준공 실적으로 시도별 3년 공급을 판정하고, 한국부동산원 주간 시세를 매주 싣습니다.</p>
+    <!-- 내 지역(홈 마케팅 검수 C5·RET-6, 09-26 대표 승인 — 08-06 '되살리지 말 것'을 바꾼다). 기기에 시도 한 곳만 저장하고
+         (localStorage 한 키, 전송 없음) 그 시도의 이번 주 매매 변동과 공급 판정을 '이번 주' 띠 앞 한 줄로 보여 준다. 순위·생활권
+         모델은 되살리지 않는다. 고르는 곳은 공급 지도 아래 '내 지역을 첫 화면에 고정'(지도 지역 누름은 리포트로 가는 그대로).
+         줄은 두 줄 고정이라(app.css .myz) 아래 글자가 부팅 뒤 바뀌어도 높이가 같다. 바로 아래 인라인 스크립트가 첫 페인트 전에
+         저장값을 보고 자리를 연다 — 부팅 뒤에 열면 띠·카드·지도가 한 줄만큼 밀린다(CLS). 없는 시도 이름이면 부팅이 다시 닫고
+         저장값을 지운다(다음 방문부터는 열지 않는다).
+         저장소를 못 쓰는 기기(사생활 모드 등)는 조용히 빠진다. 키 이름은 home-app.js MYZ_KEY 와 같다(test_home_small). -->
+    <div class="myz" id="myz" hidden><a class="myz-a" id="myz-a" href="/zone/" onclick="track('home_cta',{to:'my_zone'})"><span class="myz-1"><span class="myz-k">내 지역</span> <b id="myz-n"></b></span><span class="myz-2" id="myz-v">공급 리포트 보기 →</span></a><button type="button" class="myz-x" onclick="myZoneSet('')">고정 해제</button></div>
+    <script>try{var _mz=localStorage.getItem('agongmap-myzone');if(_mz){document.getElementById('myz-n').textContent=_mz;document.getElementById('myz').hidden=false;}}catch(e){}</script>
     <!-- '이번 주' 띠(홈 마케팅 검수 B1·HERO-2·RET-1·IA-1 안 A·IA-5·MOB-1·TRUST-7, 2026-09-27). 첫 화면이 분기에 한 번
          바뀌는 공급 판정뿐이라 매주 오는 이유가 보이지 않았고, 배경의 이번 주 시군구 지도는 이름 없는 무늬였다.
          한 줄 전체가 /weekly/ 링크다. 첫 줄 = 발표일 · 이번 주 결론(ADV.weekly.head — /weekly/ 제목과 같은 함수의 문장,
@@ -279,7 +288,20 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
     </div>
     <div class="tb-scroll"><table id="tb-main" aria-label="시도별 공급·가격 통합표"></table></div>
     <p class="tb-refnote" id="tb-refnote" aria-live="polite" hidden></p>
+    <!-- 출처·구간 한 줄(홈 마케팅 검수 B9·TRUST-5①). '3년'이 어느 분기부터 어느 분기까지인지 홈 어디에도 없었다. 구간은
+         부팅 때 ADV.sido.L·H 에서 계산해 채운다(supplySpan — 판정 모델 sido_zones.calc 의 미래 창 L+1…L+H 와 같은 셈,
+         손으로 적지 않는다). 아래 정적 문구는 스크립트가 못 돌 때만 보인다 — 분기를 약속하지 않는다. 두 조각은 줄마다
+         따로라(app.css .map-src span) 글자가 바뀌어도 줄 수가 같다. -->
+    <p class="map-src"><span id="map-span">앞으로 3년 공급</span><span>국토교통부 착공·준공 실적 · 분기마다 갱신</span></p>
     <p class="tb-more"><a href="/zone/" onclick="track('home_cta',{to:'zone_hub'})">시도별로 자세히 보기 →</a></p>
+    <!-- 이달의 통계 입구(B6·IA-8). 매주(시세)·매달(월간 통계)·분기(공급 판정) 세 주기 중 매달만 홈 본문에 입구가 없었다
+         (푸터 링크 하나뿐). 구역을 늘리지 않고 이 한 줄만 둔다. 이름은 통계 화면 입구와 같은 말이다. -->
+    <p class="tb-sub"><a href="/monthly/" onclick="track('home_cta',{to:'monthly'})">이달의 통계 한 화면으로 보기 →</a></p>
+    <!-- 내 지역 고르기(C5). 저장소를 못 쓰면 부팅이 열지 않는다(hidden 그대로). 목록은 판정 단위(ADV.sido.zones)에서 굽는다. -->
+    <p class="myz-pick" id="myz-pick" hidden><label for="myz-sel">내 지역을 첫 화면에 고정</label> <select id="myz-sel" onchange="myZoneSet(this.value)"><option value="">시도 고르기</option></select> <span class="myz-msg" id="myz-msg" aria-live="polite"></span></p>
+    <!-- 운영 주체 한 줄(B9·TRUST-6). '누가, 어떤 이해관계로 부족이라고 말하는가'에 판정 가까이에서 답한다(/about/ 의 문장).
+         메일은 공개 연락처(CLAUDE.md 허용)라 mailto 링크로 둔다. '광고 없이'는 적지 않는다(확인한 적이 없다). -->
+    <p class="map-who">부동산 회사·중개업체가 아닌 개인이 운영합니다 · 숫자 오류 제보 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a> · <a href="/about/">아공맵 소개</a></p>
 
     <details class="sc-how"><summary><span class="t">산출 방법</span><span class="src">국토교통부 · 한국부동산원 · 공급 분기·시세 매주 갱신</span></summary><div class="body"><ul class="how-ls">
 <li class="how-formula"><b>지도·카드의 부족 세대</b> — <b>3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족</b>(멸실 반영). 앞으로 들어올 물량만 보지 않고 지난 4년 덜 지은 몫까지 더합니다. 지난 4년에 필요량보다 더 지은 곳은 남은 재고를 뺍니다. 지역마다 숫자를 넣은 식은 <a href="/zone/전국/#calc">시도 리포트 '숫자로 보면'</a>에 있습니다.</li>
