@@ -169,6 +169,9 @@
   footer{padding:44px 0 80px;font-size:13px;color:var(--muted)}
   footer .src{margin-top:10px;line-height:1.8}
   footer b{color:var(--ink2)}
+  /* 푸터 '만든이' 메일(mailto, 2026-09-28 작은 글씨 정리 — 홈 운영 주체 줄을 빼며 제보 경로를 푸터 메일 링크로 남겼다)은 둘레
+     글자색을 따른다. /cycle/ 푸터처럼 링크 색을 따로 두지 않은 곳에서 브라우저 기본 파랑으로 튀지 않게. */
+  footer a[href^="mailto:"]{color:inherit}
 
   /* ===== 하단 내비 ===== */
   body{padding-bottom:66px}
@@ -177,7 +180,7 @@
     box-shadow:0 -4px 18px rgba(19,30,36,.28)}
   .nav-btn{flex:1;max-width:220px;border:0;background:none;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:3px;color:#97a0b8;
-    font-size:11.5px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
+    font-size:13px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
     font-family:inherit}   /* 홈의 '홈'·'시세' 탭은 <button> 이라 상속하지 않으면 시스템 글꼴로 그려진다(B11 검토) */
   .nav-btn.on{color:#fff}
     .nav-btn svg{display:block}
@@ -250,7 +253,7 @@
      축소한다 — 홈에서 결과 화면만큼 커지면 그게 주인공이 돼 버린다.
      라벨은 카드 밖에 둔다. 안에 넣으면 실제 결과에도 있는 줄로 읽힌다. */
   .qsample{margin-top:20px}
-  .qs-label{font-size:11.5px;color:var(--muted);letter-spacing:.02em;margin-bottom:6px}
+  .qs-label{font-size:13px;color:var(--muted);letter-spacing:.02em;margin-bottom:6px}
   .rcard.rc-sample{max-width:300px;padding:20px 18px 16px;margin:0 auto}
   .rcard.rc-sample .rc-emoji{font-size:38px;margin:8px 0 2px}
   .rcard.rc-sample .rc-score{font-size:32px}
@@ -258,7 +261,7 @@
   .rcard.rc-sample .rc-dots{gap:5px;margin:8px 0 12px}
   .rcard.rc-sample .rc-dots i{width:9px;height:9px}
   .rcard.rc-sample .rc-grade{font-size:16px;margin-bottom:7px}
-  .rcard.rc-sample .rc-desc{font-size:12.5px;line-height:1.6}
+  .rcard.rc-sample .rc-desc{font-size:13px;line-height:1.6}
   .rcard .rc-head{font-size:13px;font-weight:600;color:rgba(232,235,242,.66)}
   .rcard .rc-emoji{font-size:54px;margin:12px 0 2px;line-height:1}
   .rcard .rc-score{font-size:46px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
@@ -676,23 +679,22 @@
      데스크톱은 폭을 묶어 제목 아래 두 줄로 모은다(한 줄 632px 는 제목 355px 보다 훨씬 길어 흩어져 보였다). */
   .home-hero .hero-sub{max-width:30em;margin:14px auto 0;font-size:clamp(13.5px,3.6vw,16px);font-weight:500;
     line-height:1.55;color:var(--ink2)}
-  /* 첫 화면 '이번 주' 띠(홈 마케팅 검수 B1, 2026-09-27). 한 줄 전체가 /weekly/ 링크 — 첫 줄 [발표일 · 결론 →], 둘째 줄
-     [배경 지도 캡션 · 다음 발표]. 글자는 부팅 뒤 스크립트가 채운다(정적 문구 → 데이터 문구). 줄 수가 글자 길이에 따라
-     달라지면 아래 카드·지도가 밀리므로(CLS) 줄 수를 **폭으로 고정**한다: 조각(.hw-a/.hw-b)마다 줄을 바꾸는 폭을 정해
-     두어 정적 문구와 데이터 문구가 같은 줄 수를 쓴다. 479px 이하는 둘째 줄을 조각마다, 359px 이하는 첫 줄도 조각마다
-     줄을 바꾼다. 조각 하나가 한 줄을 넘지 않는지는 운영 글꼴로 잰 최악 문구로 시험한다(test_home_hero_band_fits —
-     전남광주 하락, 두 자리 달, 늦은 주 머리말 '12/28 발표 기준', 연휴 안내, 시군구 주가 다른 주). 첫 줄 글자는 늦은 주
-     머리말이 360~399px 에서도 한 줄에 들도록 3.2vw(최소 11.5px)다 — 3.4vw·12.5px 이면 넘친다(검토 지적 뒤 다시 잼).
+  /* 첫 화면 '이번 주' 띠(홈 마케팅 검수 B1, 2026-09-27). 한 줄 전체가 /weekly/ 링크 — [발표일 · 결론 →]. 배경 지도 캡션·
+     다음 발표 둘째 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 글자는 부팅 뒤 스크립트가 채운다(정적 문구 → 데이터
+     문구). 줄 수가 글자 길이에 따라 달라지면 아래 카드·지도가 밀리므로(CLS) 줄 수를 **폭으로 고정**한다: 조각(.hw-a/.hw-b)
+     마다 줄을 바꾸는 폭을 정해 두어 정적 문구와 데이터 문구가 같은 줄 수를 쓴다 — 399px 이하는 조각마다 줄을 바꾼다(두 줄).
+     조각 하나가 한 줄을 넘지 않는지는 운영 글꼴로 잰 최악 문구로 시험한다(test_home_hero_band_fits — 시도마다 상승·하락 결론,
+     tabular 숫자, 늦은 주 머리말 '12/28 발표 기준'). 글자는 13px 이상(홈 작은 글씨 하한, test_home_min_font). Chromium 운영 글꼴
+     실측으로 가장 긴 한 줄('12/28 발표 기준 · 전남광주 +0.12%, 가장 크게 올랐습니다 →')이 324.8px 라 띠 안쪽이 그 폭에 닿는
+     395px 아래에서는 접힌다 — 조각마다 줄을 바꾸는 폭을 359 → 399px 로 올렸다(2026-09-28, 400px 에서 안쪽 330px).
      배경 지도(.hero-map)가 비치도록 반투명 바탕. */
   .hero-wk{display:block;max-width:460px;margin:16px auto 0;padding:9px 10px;text-decoration:none;color:var(--ink);
     background:rgba(255,255,255,.84);border:1px solid var(--line);border-radius:var(--r-touch);text-align:center}
-  .hero-wk .hw-1{display:block;font-size:clamp(11.5px,3.2vw,14.5px);font-weight:600;line-height:1.4;
+  .hero-wk .hw-1{display:block;font-size:clamp(13px,3.2vw,14.5px);font-weight:600;line-height:1.4;
     font-variant-numeric:tabular-nums}
-  .hero-wk .hw-2{display:block;margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--ink2)}
   .hero-wk span span{white-space:nowrap}
   .hero-wk:hover .hw-1,.hero-wk:focus-visible .hw-1{text-decoration:underline}
-  @media(max-width:479px){.hero-wk .hw-2 .hw-s{display:none}.hero-wk .hw-2 .hw-b{display:block}}
-  @media(max-width:359px){.hero-wk .hw-1 .hw-s{display:none}.hero-wk .hw-1 .hw-b{display:block}}
+  @media(max-width:399px){.hero-wk .hw-1 .hw-s{display:none}.hero-wk .hw-1 .hw-b{display:block}}
   /* 띠 앞 '내 지역' 한 줄(홈 마케팅 검수 C5, 2026-09-27). 고정한 기기에서만 보인다(hidden 은 index.html 인라인 스크립트가 첫
      페인트 전에 푼다). 두 줄을 **줄마다 한 줄로 고정**한다(nowrap + 말줄임) — 정적 문구('공급 리포트 보기 →')가 부팅 뒤
      '매매 +0.13% · [매우 부족] 311,689세대 →'로 바뀌어도 높이가 같다(CLS 0). 배지는 줄 높이를 넘지 않게 line-height 를 줄였다.
@@ -705,13 +707,13 @@
     background:rgba(255,255,255,.84);border:1px solid var(--line);border-radius:var(--r-touch)}
   .myz-1,.myz-2{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .myz-1{font-size:13px;line-height:1.45;padding-right:72px}
-  .myz-k{font-size:11.5px;font-weight:600;color:var(--muted)}
-  .myz-2{margin-top:2px;font-size:12.5px;font-weight:600;line-height:1.5;font-variant-numeric:tabular-nums}
+  .myz-k{font-weight:600;color:var(--muted)}
+  .myz-2{margin-top:2px;font-size:13px;font-weight:600;line-height:1.5;font-variant-numeric:tabular-nums}
   .myz-2 .sc-tier{display:inline-block;width:auto;padding:1px 5px;line-height:1.3;vertical-align:1px}
   .myz-dir{display:none}
   @media(min-width:480px){.myz-dir{display:inline}}
   .myz-a:hover .myz-2,.myz-a:focus-visible .myz-2{text-decoration:underline}
-  .myz-x{position:absolute;top:1px;right:1px;height:32px;padding:0 10px;font:inherit;font-size:12px;font-weight:500;
+  .myz-x{position:absolute;top:1px;right:1px;height:32px;padding:0 10px;font:inherit;font-size:13px;font-weight:500;
     color:var(--ink2);background:none;border:0;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   .myz-x:hover{color:var(--ink);text-decoration:underline}
   .hero-ramp{display:block;height:4px;margin-top:10px;
@@ -722,10 +724,10 @@
   .home-cta:active{transform:scale(.98)}
   .home-cta.alt{background:#fff;color:var(--ink);border:1.5px solid var(--ink);box-shadow:none;
     font-size:16px;padding:14px 24px}
-  .home-foot{text-align:center;font-size:12.5px;color:var(--muted);margin-top:26px;line-height:1.7;padding:0 18px 20px}
+  .home-foot{text-align:center;font-size:13px;color:var(--muted);margin-top:26px;line-height:1.7;padding:0 18px 20px}
   .home-sec{padding:38px 0;text-align:center}
   .home-sec.hs-alt{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .hs-kicker{font-size:12px;font-weight:500;color:var(--ink);margin-bottom:10px}
+  .hs-kicker{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:10px}
   .home-sec h2{font-size:clamp(21px,4.6vw,27px);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
   .home-sec h3{font-size:clamp(17px,3.6vw,20px);font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
   .home-sec p{font-size:var(--fs-read);line-height:1.75;color:var(--ink2);max-width:520px;margin:0 auto}
@@ -741,10 +743,10 @@
   /* 머리줄 = 기준 시점 + 범례. 범례는 홈 지도와 같은 .tb-key 어휘를 빌린다.
      시점은 muted 11.5px이라 묻혔다 — 날짜만 ink 600으로 올린다(2026-08-18). */
   .wg-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:.01em}
+    flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:8px;letter-spacing:.01em}
   .wg-when b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;
     border-bottom:1px solid transparent}
-  .wg-key{margin:0;font-size:11.5px}
+  .wg-key{margin:0}
   .wg-key .tk-ramp{width:44px;height:7px}
   .wg-key .tk i{width:9px;height:9px}
   /* 집계 3은 격자에서 떼어 위로 — 전국이 헤드라인이 되게 숫자를 키운다.
@@ -753,37 +755,33 @@
   /* 지리 배치 타일맵 — 칸마다 grid-column/row를 인라인으로 받는다(index.html
      TILE). 열 수가 고정이라야 지리가 유지되므로 auto-fit을 쓰지 않는다.
      빈 칸은 요소가 없어 격자선도 안 생긴다(셀이 선을 그리는 구조 덕). */
-  .wg-cells{display:grid;grid-template-columns:repeat(4,1fr);gap:1px}
+  /* 줄 높이는 모두 같게(1fr) — 표지('54주 연속 상승')가 칸 폭에 따라 한두 줄로 접혀 줄마다 높이가 들쭉날쭉하지 않게
+     가장 높은 줄에 맞춘다(2026-09-28 작은 글씨 정리 — 표지를 13px 로 키우며). */
+  .wg-cells{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;gap:1px}
   .wc{padding:9px 8px 8px;box-shadow:0 0 0 1px var(--line);text-align:center;
     display:flex;flex-direction:column;gap:1px;min-width:0}
-  /* 위계: 지역명은 이름표라 작고 흐리게, 매매가 주인공, 전세는 곁수치.
-     예전엔 지역명이 ink 600이라 숫자와 무게가 비슷했다(2026-08-17 재설계). */
-  .wc b{font-size:11px;font-weight:500;color:var(--ink);white-space:nowrap;   /* muted 는 붉은 틴트 위에서 2.8(Lighthouse 2026-09-18) */
+  /* 위계: 지역명은 이름표, 매매가 주인공, 표지는 곁말. 칸 = 이름 · 매매 · 표지 — 전세 값 줄은 뺐다(2026-09-28 대표 결정).
+     예전엔 지역명이 ink 600이라 숫자와 무게가 비슷했다(2026-08-17 재설계). 글자는 13px 이상(test_home_min_font). */
+  .wc b{font-size:13px;font-weight:500;color:var(--ink);white-space:nowrap;   /* muted 는 붉은 틴트 위에서 2.8(Lighthouse 2026-09-18) */
     overflow:hidden;text-overflow:ellipsis}
   .wc-ma{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
-  .wc-je{font-style:normal;font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums}
-  /* 방향 표지(B7) — '매매 3주 연속 상승'·'매매 상승 전환'. 매매 숫자 바로 아래(전세 줄 위)에 둔다 — 전세 줄 밑이면 전세
-     흐름으로 읽혔다. 숫자와 같은 먹색, 곁수치보다 작게. 좁은 칸에서는 두 줄로 접힌다. */
-  .wc-tag{font-style:normal;font-size:10.5px;font-weight:600;line-height:1.3;color:var(--ink);margin:1px 0;word-break:keep-all}
-  /* 격자 머리 두 줄(B7): 지난 방문 이후 새 발표(이 기기에만 저장)·지난주와 방향이 바뀐 곳 */
-  .home-sec p.wg-since,.home-sec p.wg-moves{font-size:13px;line-height:1.6;color:var(--ink2);margin:0 auto 4px}   /* .home-sec p(0,1,1)를 이긴다 */
-  .home-sec p.wg-since{font-weight:600;color:var(--ink)}
-  .home-sec p.wg-moves{margin-bottom:10px}
+  /* 방향 표지(B7) — '3주 연속 상승'·'상승 전환'(/weekly/ 타일과 같은 말). 매매 숫자 바로 아래. 숫자와 같은 먹색.
+     좁은 칸에서는 두 줄로 접힌다. */
+  .wc-tag{font-style:normal;font-size:13px;font-weight:600;line-height:1.3;color:var(--ink);margin:1px 0;word-break:keep-all}
+  /* 격자 머리 한 줄(B7): 지난 방문 이후 새 발표(이 기기에만 저장 — 재방문에만) */
+  .home-sec p.wg-since{font-size:13px;line-height:1.6;font-weight:600;color:var(--ink);margin:0 auto 10px}   /* .home-sec p(0,1,1)를 이긴다 */
   /* 공유 버튼(B8) — /weekly/·/monthly/ 의 두 버튼(tools/page_share.py)과 같은 모양 */
   .wg-share{display:flex;gap:8px;max-width:400px;margin:14px auto 0}
   .wg-sh{flex:1 1 0;min-width:0;min-height:46px;display:flex;align-items:center;justify-content:center;gap:5px;background:#fff;color:var(--ink);border:1.5px solid var(--ink);
     border-radius:3px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;padding:10px 6px;line-height:1.3;white-space:nowrap}
   .wg-sh-k{background:#FEE500;border-color:#FEE500;color:#191919}   /* 퀴즈 카카오 버튼(.qshare-btn.primary)과 같은 색 */
   .wc-agg{padding:12px 8px 10px}
-  .wc-agg b{font-size:12px;color:var(--ink);font-weight:600}
+  .wc-agg b{color:var(--ink);font-weight:600}
   .wc-agg .wc-ma{font-size:20px}
-  /* 4열 고정이라 좁은 화면에서 칸이 얇아진다 — 글자를 줄여 받는다.
+  /* 4열 고정이라 좁은 화면에서 칸이 얇아진다 — 안 여백과 집계 숫자만 줄여 받는다(글자는 13px 아래로 내리지 않는다).
      열을 줄이면 지리가 깨지므로 열 수는 건드리지 않는다. */
   @media(max-width:420px){
     .wc{padding:7px 4px 6px}
-    .wc b{font-size:11.5px}
-    .wc-ma{font-size:13.5px}
-    .wc-je{font-size:11px}
     .wc-agg .wc-ma{font-size:18px}
   }
   /* 홈 사이클 카드의 축약 도식(2026-08-17). /cycle/의 상호작용 다이어그램과 달리
@@ -803,14 +801,12 @@
   .bb-chip.lo{background:#eaf3fb;color:#1a5276}
   .sc-how{margin:24px 0 0;text-align:left;
     border-top:1px solid var(--line);padding-top:13px}
-  /* 한 줄 각주: 왼쪽 = 산출 방법 토글 · 오른쪽 = 출처·주기.
-     따로 떠 있던 텍스트 조각 두 개를 합친 것이다. */
+  /* 산출 방법 토글. 오른쪽 출처·주기 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리. 출처 기관은 펼치면 항목마다 있다). */
   .sc-how summary{list-style:none;cursor:pointer;font-size:13px;font-weight:600;
     color:var(--ink);display:flex;align-items:baseline;justify-content:space-between;gap:12px}
   .sc-how summary::-webkit-details-marker{display:none}
-  .sc-how summary .t::after{content:' ▾';font-size:11px;font-weight:600;color:var(--muted)}
+  .sc-how summary .t::after{content:' ▾';font-weight:600;color:var(--muted)}
   .sc-how[open] summary .t::after{content:' ▴'}
-  .sc-how .src{font-size:11.5px;font-weight:500;color:var(--muted)}
   .sc-how .body{margin-top:9px;font-size:13px;line-height:1.9;color:var(--ink2)}
   /* 통짜 서술 13줄이 정신없다(2026-08-08 사용자) — 항목별 왼쪽 괘선 리스트.
      왼쪽 세로선은 .w-lead(존 페이지 리드)와 같은 어휘다. */
@@ -826,6 +822,10 @@
   .sc-tier.g2{background:#faf3e7;color:#8f5806}
   .sc-tier.g1{background:#edf0ee;color:#5e6f74}
   .sc-tier.g0{background:#e9f0f7;color:#1a5276}
+  /* 홈 안의 공용 클래스(다른 페이지도 쓰는 배지·표 설명·푸터 줄)는 전역 규칙을 그대로 두고 홈에서만 13px 로 덮는다 —
+     홈 화면 글자 하한 13px(2026-09-28 대표 결정 — 작은 글씨 정리, test_home_min_font). 시도 리포트 등의 고정폭 배지(62px)는
+     바꾸지 않는다. #view-home(아이디)이라 공용 규칙보다 늘 이긴다. */
+  #view-home .sc-tier,#view-home .tb-refnote,#view-home .ft-src,#view-home .ft-meta,#view-home .legal-disc{font-size:13px}
   /* 좁은 화면: 고정폭 합이 커서 ▸(sc-go)가 화면 밖으로 밀려 가로 스크롤이 생겼다.
      반드시 .sc-val/.sc-tier 정의 '뒤'에 와야 덮어쓴다(같은 특이도라 순서가 승패를 가름). */
   @media(max-width:400px){
@@ -878,24 +878,25 @@ table.adv thead th:first-child{text-align:center}
   .agg-a{display:flex;flex-direction:column;gap:3px;height:100%;min-width:0;padding:9px 8px 8px 10px;
     text-decoration:none;color:var(--ink);text-align:left;font-size:13px;line-height:1.35}
   .agg-a:hover{background:var(--paper2)}
-  .agg-l1{display:flex;align-items:center;gap:5px;white-space:nowrap;padding-right:24px}
+  /* flex-wrap 은 안전망이다 — 지금 집계 셋의 배지는 두 글자('부족'·'균형')라 한 줄에 든다. 배지를 13px 로 키워(2026-09-28)
+     네다섯 글자 배지('매우 부족'·'공급 여유'·'심각한 부족')가 오면 320~460px 에서 ⓘ 밑으로 파고든다 — 그때만 그 칸의 배지가
+     다음 줄로 내려간다. */
+  .agg-l1{display:flex;flex-wrap:wrap;align-items:center;gap:3px 5px;white-space:nowrap;padding-right:24px}
   .agg-l1 b{font-weight:600}
-  .agg-l1 .sc-tier{width:auto;flex:none;padding:2px 5px;font-size:11px;line-height:1.3}
+  .agg-l1 .sc-tier{width:auto;flex:none;padding:2px 5px;line-height:1.3}
   .agg-l2{display:flex;flex-direction:column;gap:1px;min-width:0}
   .agg-n{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
   .agg-n.agg-old{white-space:normal}   /* 옛 캐시(cnum 없음)는 '686,396세대 부족'이 통째로 와 좁은 칸에서 줄을 바꾼다 */
   .agg-go{font-weight:500;color:var(--muted)}
-  .agg-p{font-style:normal;font-size:11.5px;color:var(--ink2)}
+  .agg-p{font-style:normal;color:var(--ink2)}
   /* ⓘ 표적 28px — 칸이 좁아(320px 에서 90px) 40px 는 첫 줄을 덮는다. WCAG 2.5.8 최소(24px)는 넘긴다. */
   .agg-i{position:absolute;top:2px;right:2px;width:28px;height:28px;padding:0;border:0;background:none;
     font:inherit;font-size:15px;line-height:28px;color:var(--ink2);cursor:pointer;border-radius:var(--r-touch)}
   .agg-i:hover{color:var(--ink);background:var(--paper2)}
   .agg-i[aria-expanded="true"]{color:var(--paper);background:var(--ink)}
-  .home-sec .agg-how{max-width:none;margin:0 0 8px;padding:8px 10px;font-size:12.5px;line-height:1.55;
+  .home-sec .agg-how{max-width:none;margin:0 0 8px;padding:8px 10px;font-size:13px;line-height:1.55;
     color:var(--ink2);text-align:left;background:#fff;border-left:3px solid var(--ink)}
   .home-sec .agg-how b{color:var(--ink)}
-  .home-sec .agg-dist{max-width:none;margin:0 0 10px;font-size:12.5px;line-height:1.45;color:var(--ink2)}
-  .home-sec .agg-dist a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
   @media(max-width:560px){
     .agg-dir,.agg-p{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
       overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -912,7 +913,15 @@ table.adv thead th:first-child{text-align:center}
   @media(max-width:374px){
     .agg-a{padding:8px 5px 7px 7px}
     .agg-l1{flex-direction:column;align-items:flex-start;gap:3px}
-    .agg-n{font-size:11.5px}
+    /* 둘째 줄로 내린 배지 위끝(28.5px)에 ⓘ 누름 면(2~30px)이 걸치지 않게 높이만 줄인다(26px — WCAG 2.5.8 24px 이상).
+       네 글자 배지('매우 부족')가 오면 겹친다(2026-09-28 13px 배지 실측). */
+    .agg-i{height:26px;line-height:26px}
+  }
+  /* 359px 이하는 세대수(13px — 홈 글자 하한, 2026-09-28)와 끝 '→'가 한 칸(320px 에서 90px)에 함께 들지 않는다(운영 글꼴 실측
+     '686,396세대 →' 가 칸 밖으로 10px). 화살표만 감추고 여백을 줄인다 — 칸 전체가 링크인 것은 그대로다. */
+  @media(max-width:359px){
+    .agg-a{padding:8px 4px 7px 6px}
+    .agg-go{display:none}
   }
   /* 지도는 JS 가 그린다. 빈 컨테이너에 최종 높이를 미리 잡아 두지 않으면 부팅 때 아래 구역(주간 격자)이
      600~900px 밀려 CLS 0.62 가 났다(2026-09-18 Lighthouse). :empty 라 그려진 뒤엔 사라진다. 값은 실측(320·375·430·768·1280).
@@ -936,13 +945,15 @@ table.adv thead th:first-child{text-align:center}
      어긋남 −0.5~+0.3px 이라 값은 그대로다. 요약(96px)은 예약보다 작아 부팅 전 높이를 바꾸지 않고, 저장된 '내 지역' 줄은
      히어로에 있어 이 상자 밖이다. 대체 글꼴(웹폰트가 오기 전·막힌 때, 측정 환경의 시스템 글꼴)에서는 분포 줄·범례 뜻 줄이
      줄을 바꾸는 폭이 달라(320~365px +18~38px, 383~422px +16px) 폭 구간으로는 두 글꼴을 함께 맞출 수 없다 — 운영 글꼴에
-     맞춘다. */
-  #map-wrap:not([data-done]){min-height:786px}
-  @media(max-width:560px){#map-wrap:not([data-done]){min-height:821px}}
-  @media(max-width:528px){#map-wrap:not([data-done]){min-height:calc(111px + 134.5vw)}}
-  @media(max-width:382px){#map-wrap:not([data-done]){min-height:calc(127px + 134.5vw)}}
-  @media(max-width:374px){#map-wrap:not([data-done]){min-height:calc(144px + 134.5vw)}}
-  @media(max-width:329px){#map-wrap:not([data-done]){min-height:calc(162px + 134.5vw)}}
+     맞춘다.
+     2026-09-28 작은 글씨 정리 뒤 다시 쟀다(1px 간격 320~1440px, 운영 글꼴 AgongHome, 스크립트 차단 ↔ 부팅 뒤): 분포 한 줄과
+     공급 범례 뜻 한 줄이 빠지고 카드 배지·범례가 13px 가 되어 줄을 바꾸는 폭이 둘만 남았다 — 카드 배지가 둘째 줄로 내려가는
+     374px, 지도가 480px 상한에 닿는 528px. 실제 높이 = 83 + 134.5vw(320~374px) · 64 + 134.5vw(375~528px) · 774.5(529~560px) ·
+     762.3(561px 이상, 데스크톱 2단 포함). 예약과의 어긋남 −0.5~+0.3px. */
+  #map-wrap:not([data-done]){min-height:762px}
+  @media(max-width:560px){#map-wrap:not([data-done]){min-height:775px}}
+  @media(max-width:528px){#map-wrap:not([data-done]){min-height:calc(64px + 134.5vw)}}
+  @media(max-width:374px){#map-wrap:not([data-done]){min-height:calc(83px + 134.5vw)}}
   .map-box{max-width:480px;margin:0 auto;position:relative}
   .map-box svg{display:block;width:100%;height:auto}
   .map-box path{stroke:var(--paper);stroke-width:1.2;transition:filter .12s}
@@ -966,14 +977,16 @@ table.adv thead th:first-child{text-align:center}
   .map-key .tk-ramp{width:56px}
   /* 범례 램프 — 가운데 '균형' 칸(홈 마케팅 검수 B2·TRUST-3②·C4②). 양끝 색은 지도 채움과 같은 끝점(TB_DN·TB_UP),
      가운데는 균형 판정의 중립색(--bal). .tb-key i(11px 네모)보다 구체적이어야 해서 두 단계 선택자다. */
-  .map-key .mk-ramp{display:inline-flex;align-items:stretch;height:15px}
+  .map-key .mk-ramp{display:inline-flex;align-items:stretch;height:17px}
   .map-key .mk-ramp i{display:block;height:auto;font-style:normal}
   .map-key .mk-ramp .mk-d{width:26px;background:linear-gradient(90deg,rgba(38,110,180,.78),rgba(38,110,180,.12))}
   .map-key .mk-ramp .mk-u{width:26px;background:linear-gradient(90deg,rgba(198,58,48,.36),rgba(198,58,48,.78))}
-  .map-key .mk-ramp .mk-b{width:auto;padding:0 5px;background:var(--bal);color:var(--ink);font-size:11px;line-height:15px;white-space:nowrap}
-  .map-key .tk-n{font-size:11.5px;line-height:1.4;margin:0}
-  /* 오버레이(561px 이상)에서는 뜻 한 줄이 길어져(B2 — '지난 4년 덜 지은 몫까지 더해 …') 강원 북쪽을 덮었다 — 서해 쪽
-     빈 폭 안에서 줄을 바꾼다. 모바일은 지도 위 정적 줄이라 폭 제한이 필요 없다. */
+  .map-key .mk-ramp .mk-b{width:auto;padding:0 5px;background:var(--bal);color:var(--ink);font-size:13px;line-height:17px;white-space:nowrap}
+  /* 뜻 한 줄은 주간 모드에만 있다('아파트 매매가격 전주 대비 변동률(%) · 9/24 발표'). 공급 모드의 뜻 한 줄은 뺐다
+     (2026-09-28 대표 결정 — 작은 글씨 정리). */
+  .map-key .tk-n{font-size:13px;line-height:1.4;margin:0}
+  /* 오버레이(561px 이상)에서는 뜻 한 줄이 강원 북쪽을 덮지 않게 서해 쪽 빈 폭 안에서 줄을 바꾼다. 모바일은 지도 위 정적 줄이라
+     폭 제한이 필요 없다. */
   @media(min-width:561px){.map-key .tk-n{max-width:16em}}
   /* 지도 행동 안내 — 범례 각주(11.5px 회색)에서 본문색 문장으로 올렸다(A6·HERO-5①). .home-sec p(16px·ink2)보다
      구체적이어야 해서 두 단계 선택자다. */
@@ -985,7 +998,6 @@ table.adv thead th:first-child{text-align:center}
   /* 주간 구역의 해석 글 한 줄(B5·RET-4). 링크는 새 창(블로그)이라 밑줄로 링크임을 드러낸다. */
   .wk-blog{margin:16px auto 0;font-size:13.5px;line-height:1.5;color:var(--ink2)}
   .wk-blog a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
-  .wk-blog .wk-note{display:block;margin-top:4px;font-size:12.5px;color:var(--muted)}
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:0 0 10px;max-width:none}
   /* 지도 모드 전환 '3년 공급 / 이번 주 시세'(홈 마케팅 검수 C3). 지도 보기에서만 보인다 — 그래프·표는 공급 전용이다.
      지도/그래프/표 줄(.tb-bar)의 빈 왼쪽에 두어 기본 모드의 첫 화면 높이가 늘지 않게 한다: 두 묶음이 한 줄에 들어야 하므로
@@ -1005,13 +1017,14 @@ table.adv thead th:first-child{text-align:center}
   .sc-tier.wk-u{background:#fdecea;color:#a93226}
   .sc-tier.wk-d{background:#e9f0f7;color:#1a5276}
   .sc-tier.wk-0{background:#edf0ee;color:#5e6f74}
-  /* 주간 모드의 발표 줄(분포 한 줄 자리) — 날짜가 이 모드의 기준이라 본문색으로 올린다. */
-  .home-sec .agg-dist.wk-when{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
+  /* 주간 모드의 발표 줄(카드 아래) — 날짜가 이 모드의 기준이라 본문색으로 올린다. */
+  .home-sec .wk-when{max-width:none;margin:0 0 10px;font-size:13px;line-height:1.45;color:var(--ink);font-weight:500;
+    font-variant-numeric:tabular-nums}
   .gr-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
-  .gr-lab{font-size:12.5px;color:var(--muted)}
+  .gr-lab{font-size:13px;color:var(--muted)}
   .gr-bar select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);
     background:var(--paper);color:var(--ink);border-radius:0;min-height:36px}
-  .gr-more{margin-left:auto;font-size:12.5px;color:var(--ink);text-decoration:none;
+  .gr-more{margin-left:auto;font-size:13px;color:var(--ink);text-decoration:none;
     border-bottom:1px solid var(--line);display:inline-block;padding:6px 0 4px}
   .gr-more:hover{border-bottom-color:var(--ink)}
   .gr-box{border:1px solid var(--line);background:var(--paper);position:relative}
@@ -1030,24 +1043,24 @@ table.adv thead th:first-child{text-align:center}
   .gr-box .gr-hit{cursor:pointer}
   /* 막대 탭 값 표시 — 존 페이지 .q-tip과 같은 어휘 */
   .gr-tip{position:absolute;background:var(--ink);color:#fff;padding:6px 9px;border-radius:3px;
-    font-size:12px;line-height:1.4;z-index:4;transform:translate(-50%,-100%);
+    font-size:13px;line-height:1.4;z-index:4;transform:translate(-50%,-100%);
     pointer-events:none;white-space:nowrap}
-  .gr-tip span{color:#c9d4d0;font-size:11.5px}
+  .gr-tip span{color:#c9d4d0}
   /* ⚠️ 전역 strong,b{color:var(--ink)}가 먹색 배경 위 먹색 숫자를 만든다
      (2026-08-08 사용자가 정확히 추정) — 툴팁 안 b는 흰색으로 되돌린다. */
   .gr-tip b{color:#fff}
   .gr-box .gr-xt{font-size:11.5px;fill:var(--muted);text-anchor:middle}
-  .gr-note{margin:10px 0 0;font-size:11.5px;color:var(--muted)}
+  .gr-note{margin:10px 0 0;font-size:13px;color:var(--muted)}
   .tb-seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r-touch);overflow:hidden}
   .tb-seg button{border:0;background:transparent;color:var(--muted);padding:6px 15px;
-    font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;border-right:1px solid var(--line)}
+    font:inherit;font-size:13px;font-weight:500;cursor:pointer;border-right:1px solid var(--line)}
   .tb-seg button:last-child{border-right:0}
   .tb-seg button.on{background:var(--ink);color:var(--paper);font-weight:600}
   .tb-seg button[disabled]{opacity:.4;cursor:default}
   /* 손가락 대상 최소 높이(2026-09-15 점검 후속 ⑦) — 지도/그래프/표 전환이 약 32px였다. */
   .tb-seg button{min-height:40px}
-  .tb-chk{font-size:12.5px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
-  .tb-key{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:11.5px;
+  .tb-chk{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .tb-key{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;
     color:var(--muted);flex-wrap:wrap}
   .tb-key .tk{display:inline-flex;align-items:center;gap:4px}
   .tb-key i{width:11px;height:11px;display:inline-block}
@@ -1059,7 +1072,7 @@ table.adv thead th:first-child{text-align:center}
   .tk-n{margin-left:2px}
   /* 과거 칸의 3등분(매매|전세|월세)을 말 대신 모양으로 — 실제 칸의 축소판 */
   .tk-tri{display:inline-flex;border:1px solid var(--line);cursor:help}
-  .tk-tri i{width:30px;height:18px;font-style:normal;font-size:11.5px;color:var(--ink2);
+  .tk-tri i{width:30px;height:18px;font-style:normal;font-size:13px;color:var(--ink2);
     display:inline-flex;align-items:center;justify-content:center;background:var(--paper)}
   .tk-tri i+i{border-left:1px solid var(--line)}
   /* 표는 1,198px인데 .wrap이 820px이라 1440px 화면에서도 13/21열만 보이고
@@ -1097,8 +1110,11 @@ table.adv thead th:first-child{text-align:center}
        운영 글꼴 1주·대체 글꼴 18주(연휴 주)만 두 줄이다 — 이 예약은 그린 뒤에도 남는 높이라 크면 빈 줄일 뿐 이동이 없고,
        작으면 부팅 때와 글꼴이 도착할 때 두 번 밀리므로 두 줄을 그대로 둔다.
        셋 다 두 단일 때만 건다(:not(.vm-table)) — 표 보기에서는 주간 구역이 전폭(976~1212px)이라 결론·머리줄이 한 줄인데
-       두 줄 예약 때문에 제목 아래 47px·머리줄 아래 21px 가 비었다(묶음 M 검토 5). */
-    .home-duo>#sec-score:not(.vm-table)~.home-sec #home-weekly-grid:empty{min-height:718px}
+       두 줄 예약 때문에 제목 아래 47px·머리줄 아래 21px 가 비었다(묶음 M 검토 5).
+       2026-09-28 작은 글씨 정리 뒤 다시 쟀다(같은 104주, 운영 글꼴·대체 글꼴 같음): 격자 칸의 전세 값 줄과 '방향이 바뀐 곳'
+       줄이 빠지고 표지(13px)가 칸 폭 90px 에서 두 줄로 접히는데 줄 높이를 1fr 로 맞춰, 첫 방문은 104주 모두 629.5px 다
+       (재방문 '새 발표 n회' 한 줄이 붙으면 660.3px). 머리줄·h2 예약은 em 이라 13px 머리줄에 맞춰 따라간다(두 줄 45.5px). */
+    .home-duo>#sec-score:not(.vm-table)~.home-sec #home-weekly-grid:empty{min-height:630px}
     .home-duo>#sec-score:not(.vm-table)~.home-sec #wk-h2{min-height:3.5em}
     .home-duo>#sec-score:not(.vm-table)~.home-sec .hs-kicker{min-height:3.5em}
   }
@@ -1190,9 +1206,10 @@ table.adv thead th:first-child{text-align:center}
     border-radius:var(--r-touch);transition:.15s}
   .tb-more a:hover{background:#000}
   .tb-more a:active{transform:scale(.98)}
-  /* 지도 아래 작은 줄들(홈 마케팅 검수 3차 묶음 S, 2026-09-27). 순서: 출처·구간(B9) → 시도별로 자세히 보기 → 이달의 통계(B6) →
-     내 지역 고르기(C5) → 운영 주체(B9·TRUST-6). 구간 줄은 두 조각이 줄마다 따로라 부팅 뒤 글자가 바뀌어도 줄 수가 같다. */
-  .home-sec p.map-src{margin:12px auto 0;max-width:none;font-size:12px;line-height:1.55;color:var(--muted)}
+  /* 지도 아래 줄들(홈 마케팅 검수 3차 묶음 S, 2026-09-27). 순서: 출처·구간(B9) → 시도별로 자세히 보기 → 이달의 통계(B6) →
+     내 지역 고르기(C5). 운영 주체 줄(B9·TRUST-6)은 뺐다(2026-09-28 대표 결정 — 제보 메일은 푸터 mailto). 구간 줄은 두 조각이
+     줄마다 따로라 부팅 뒤 글자가 바뀌어도 줄 수가 같다. 글자는 13px 이상(test_home_min_font). */
+  .home-sec p.map-src{margin:12px auto 0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted)}
   .map-src span{display:block}
   .map-src #map-span{color:var(--ink2);font-weight:600}
   .home-sec p.tb-sub{margin:4px auto 0;font-size:14px;line-height:1.5}
@@ -1200,10 +1217,8 @@ table.adv thead th:first-child{text-align:center}
   .home-sec p.myz-pick{margin:0 auto;font-size:13px;line-height:1.5;color:var(--ink2)}
   .myz-pick select{font:inherit;font-size:13px;min-height:36px;padding:4px 8px;margin-left:4px;color:var(--ink);
     background:#fff;border:1px solid var(--line);border-radius:var(--r-touch)}
-  .myz-msg{display:block;font-size:12px;line-height:1.5;color:var(--muted)}
+  .myz-msg{display:block;font-size:13px;line-height:1.5;color:var(--muted)}
   .myz-msg:empty{display:none}
-  .home-sec p.map-who{margin:12px auto 0;font-size:12px;line-height:1.6;color:var(--muted)}
-  .map-who a{color:var(--ink2);text-underline-offset:2px}
   /* 설치 안내(C10①) — 하단 탭바(62px) 바로 위에 뜨는 한 번짜리 알림. 본문 흐름에 끼우면 읽던 자리가 밀린다(CLS). */
   .inst{position:fixed;left:12px;right:12px;bottom:72px;z-index:101;max-width:440px;margin:0 auto;
     display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 14px;text-align:left;
