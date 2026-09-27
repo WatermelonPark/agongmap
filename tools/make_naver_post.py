@@ -1001,15 +1001,17 @@ def draft_zone(adv, sts, r, seq, total):
     body.append('<h3>%s 적정 공급량과 %d년 공급물량</h3>' % (esc(nm), yrs))
     # 판정 이름만 쓰면 '균형' 옆 '5만 세대 부족'이 반대로 읽힌다(2026-09-13 PM 요청).
     # 등급을 자르는 비율 문장을 사이트와 같은 함수로 붙인다 — 블로그가 따로 만들지 않는다.
+    # 셈 한 줄(홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 순부족에는 앞으로 3년뿐 아니라 지난 4년 덜 지은 몫이
+    # 더해져 있어 '필요량 − 공급'으로는 검산이 안 된다. 사이트(홈 카드 ⓘ·산출 방법·시도 리포트 '숫자로 보면')와
+    # 같은 함수·같은 정수로 적는다 — 블로그가 식을 따로 만들지 않는다(test_home_first_screen).
+    # 판정 설명 문장도 같은 inow 로 갈래를 고른다 — 여유 지역에 '앞으로 3년 … 더 들어옵니다'라고 쓰면 바로 아래
+    # 식(입주 추정 < 필요량, 여유는 지난 4년 남은 재고)과 숫자로 부딪친다(인천, 검토 지적 TRUST-2④).
+    need, fut, inow, _ = SZ.display_ints(r, SZ.LEAD_Q)
     body.append('<p>%s 아파트 공급물량을 적정 공급량과 견주면, 현재 '
                 '<b>%s세대가 %s</b> 상태입니다. 판정은 <b>%s</b>입니다. %s.</p>' % (
                     esc(nm), num(abs(t)), state,
                     SZ.GRADE_LABS[r['grade']],
-                    esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True))))
-    # 셈 한 줄(홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 순부족에는 앞으로 3년뿐 아니라 지난 4년 덜 지은 몫이
-    # 더해져 있어 '필요량 − 공급'으로는 검산이 안 된다. 사이트(홈 카드 ⓘ·산출 방법·시도 리포트 '숫자로 보면')와
-    # 같은 함수·같은 정수로 적는다 — 블로그가 식을 따로 만들지 않는다(test_home_first_screen).
-    need, fut, inow, _ = SZ.display_ints(r, SZ.LEAD_Q)
+                    esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True, inow=inow))))
     body.append('<p>셈은 <b>%s</b>입니다.</p>'
                 % esc(SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, need, fut, inow)))
     # 캡처는 이 바로 뒤에 온다 — 앞 문장이 말한 숫자가 화면에 그대로 찍혀 있어
