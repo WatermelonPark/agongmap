@@ -50,8 +50,8 @@ EXP_PLACEHOLDER = (
 
 
 def link(text, path='/cycle/', camp='cycle'):
-    return ('<a href="%s%s?utm_source=naver_blog&amp;utm_medium=social'
-            '&amp;utm_campaign=%s">%s</a>' % (SITE, path, camp, text))
+    # UTM 을 '#' 앞에 두는 규칙은 주간·지역 초안과 한 함수(P.site_link)를 쓴다(홈 마케팅 검수 A1).
+    return '<a href="%s">%s</a>' % (P.site_link(path, camp), text)
 
 
 # 12편. 제목은 검색어를 앞에 두되 결론이나 질문으로 끝낸다 — 2026-08-15
