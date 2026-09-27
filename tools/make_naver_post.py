@@ -1430,36 +1430,91 @@ def capture_zone(z):
         body = full.crop((0, 0, w, max(1, h - NAV_CSS_H * SHOT_SCALE)))
         body.crop((0, 0, w, _cut_after_cards(body))).save(out)
 
-        # 분기별 표와 다른 지역 그리드도 같이 뽑는다. 매주 손으로 자르면
-        # 결국 빠뜨린다(2026-08-16 사용자). 순번으로 잡으므로 머리말 길이가
-        # 달라져도 따라간다 — 실측에서 카드=1번, 표=2번, 다른지역=4번이고
-        # 그 높이는 지역과 무관하게 같다.
-        bs = _blocks(body)
-        X0, X1 = 320, w - 320                 # 본문 폭. 좌우 여백을 잘라 낸다
-        if len(bs) > 2:
-            t = os.path.join(OUT, 'capture-%s-표.png' % z)
-            body.crop((X0, bs[2][0] - 8, X1, bs[2][1] + 8)).save(t)
-            extra['표'] = os.path.relpath(t, ROOT)
-        if len(bs) > 4:
-            # 4번 덩어리는 '다른 지역' 제목 + 그리드 + 링크가 한 묶음이다.
-            # 그리드만 남기려고 위 60·아래는 시작+450에서 끊는다(실측 오프셋).
-            g0 = bs[4][0] + 60
-            t = os.path.join(OUT, 'capture-%s-판정표.png' % z)
-            # 높이를 박지 않는다. 예전엔 g0+400으로 잘랐는데, 2026-09 광주·전남
-            # 통합과 집계 행(전국·수도권·지방) 추가로 판정표가 네 줄이 되면서
-            # 셋째 줄 설명이 끊기고 넷째 줄(전북·강원·제주)이 통째로 빠졌다.
-            # 덩어리 끝까지 자르면 그 아래 '돌아가기' 링크와 공유 버튼이 딸려
-            # 온다. 그래서 그리드의 **마지막 가로 테두리**를 찾아 거기서 끊는다:
-            # 폭의 30% 이상을 긋고 왼쪽 가장자리에서 시작하는 선. 공유 버튼
-            # 테두리는 가운데에만 있어 걸리지 않는다(2026-09-15 경기 실측 588px).
-            region = body.crop((X0, g0, X1, bs[4][1]))
-            gb = _grid_bottom(region)
-            region.crop((0, 0, region.size[0],
-                         (gb + 6) if gb else region.size[1])).save(t)
-            extra['판정표'] = os.path.relpath(t, ROOT)
     except Exception as e:
         return os.path.relpath(out, ROOT), extra, '다듬기 실패(원본 그대로): %s' % e
+    # 분기별 표와 다른 지역 판정표도 같이 뽑는다. 매주 손으로 자르면 결국 빠뜨린다(2026-08-16 사용자).
+    # ⚠️ 화면 덩어리 순번이 아니라 **섹션 제목**으로 고른다(2026-09-27). 순번 방식(카드=1, 표=2, 다른
+    # 지역=4)은 리포트에 '시세도 함께' 칸이 들어오자 한 칸 밀려, 세종 편 초안의 판정표 자리에 시세
+    # 카드 두 칸이 찍혔다(대표가 발견). 리포트에는 칸이 계속 붙는다(시군구 주간 표 요청 D4).
+    for kind, key in ZONE_SECTIONS.items():
+        t = os.path.join(OUT, 'capture-%s-%s.png' % (z, kind))
+        err = _shoot_section(exe, z, key, t)
+        if err:
+            print('  ⚠ [%s] 캡처 생략 — %s' % (kind, err))
+            continue
+        extra[kind] = os.path.relpath(t, ROOT)
     return os.path.relpath(out, ROOT), extra, None
+
+
+# 캡처할 리포트 칸 → 그 섹션의 제목(h2)에 들어 있는 말. make_sido_pages.py 가 굽는 제목이다.
+ZONE_SECTIONS = {'표': '분기별 공급', '판정표': '다른 지역'}
+
+
+def _section_page(z, key):
+    """저장소의 zone/<지역>/index.html 에서 제목에 key 가 든 섹션 하나만 떼어 캡처용 페이지로 만든다.
+
+    머리말의 스타일·폰트·표 스크립트는 그대로 두고 GA 스크립트만 뺀다(캡처가 방문으로 잡히지 않게). 상대 주소가
+    풀리도록 base 를 그 리포트 폴더로 둔다. 판정표 칸 아래의 '돌아가기' 링크 줄은 뺀다. 없으면 None.
+    """
+    f = os.path.join(ROOT, 'zone', z, 'index.html')
+    if not os.path.exists(f):
+        return None
+    t = io.open(f, encoding='utf-8').read()
+    m = re.search(r'<head>(.*?)</head>', t, re.S)
+    # GA 스크립트만 뺀다(캡처가 방문으로 잡히지 않게). 표 동작 스크립트는 남긴다 — 분기별 표는 스크롤 상자라,
+    # 그 스크립트가 최근·미래 분기 쪽으로 스크롤해 둬야 사이트와 같은 화면이 찍힌다.
+    head = re.sub(r'<script\b[^>]*>(?:(?!</script>).)*?(?:gtag|googletagmanager|ga_off)(?:(?!</script>).)*</script>|<script[^>]*googletagmanager[^>]*></script>', '',
+                  m.group(1) if m else '', flags=re.S)
+    sec = next((s.group(0) for s in re.finditer(r'<section\b[^>]*>.*?</section>', t, re.S)
+                if re.search(r'<h2[^>]*>[^<]*%s' % re.escape(key), s.group(0))), None)
+    if not sec:
+        return None
+    sec = re.sub(r'<p\b[^>]*>\s*<a class="zback".*?</p>', '', sec, flags=re.S)
+    # 사이트는 스타일을 루트 기준 주소(/app.css)로 부른다. 로컬 파일에서는 드라이브 루트로 풀리므로,
+    # 기준 주소를 저장소 루트로 두고 '="/…'를 상대 주소로 바꾼다('="//…' 외부 주소는 그대로).
+    head = re.sub(r'(=\s*")/(?!/)', r'\1', head)
+    import urllib.request
+    base = 'file:' + urllib.request.pathname2url(ROOT) + '/'
+    return ('<!doctype html><html lang="ko"><head><base href="%s">%s'
+            '<style>main{padding:20px 0}</style></head><body><main id="main">%s</main></body></html>'
+            % (base, head, sec))
+
+
+def _shoot_section(exe, z, key, out):
+    """_section_page 를 헤드리스 크롬으로 찍고 배경 여백을 잘라 out 에 저장한다. 실패 사유 또는 None."""
+    page = _section_page(z, key)
+    if not page:
+        return "리포트에서 '%s' 칸을 찾지 못했습니다" % key
+    tmp = os.path.join(OUT, '_capture-section.html')
+    try:
+        if os.path.exists(out):
+            os.remove(out)                   # 지난 캡처가 성공처럼 남지 않게(capture_zone 과 같은 이유)
+        io.open(tmp, 'w', encoding='utf-8').write(page)
+        import urllib.request
+        subprocess.run([exe, '--headless=new', '--disable-gpu', '--hide-scrollbars',
+                        '--force-device-scale-factor=%d' % SHOT_SCALE,
+                        '--window-size=%d,%d' % (SHOT_W, 2400), '--screenshot=%s' % out,
+                        'file:' + urllib.request.pathname2url(tmp)],
+                       timeout=90, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if not os.path.exists(out):
+            return '캡처 파일이 생기지 않았습니다'
+        from PIL import Image, ImageChops
+        im = Image.open(out).convert('RGB')
+        bg = Image.new('RGB', im.size, im.getpixel((2, 2)))
+        box = ImageChops.difference(im, bg).point(lambda v: 255 if v > 12 else 0).getbbox()
+        if not box:
+            return '빈 화면이 찍혔습니다'
+        pad = 12 * SHOT_SCALE
+        im.crop((max(0, box[0] - pad), max(0, box[1] - pad),
+                 min(im.size[0], box[2] + pad), min(im.size[1], box[3] + pad))).save(out)
+        return None
+    except Exception as e:
+        return '%s: %s' % (type(e).__name__, e)
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
 
 
 # /#stats-market 의 시군구 타일 지도 — 매주 글에 넣을 두 장.
@@ -1538,30 +1593,6 @@ def capture_weekly_map():
         return os.path.relpath(a, ROOT), c, None
     except Exception as e:
         return None, None,'자르기 실패: %s' % e
-
-
-def _grid_bottom(im):
-    """판정표 그리드의 마지막 가로 테두리 y. 못 찾으면 None(자르지 않고 둔다).
-
-    폭의 30% 이상을 칠하고 왼쪽 가장자리(2~20px)에도 칠이 있는 행을 선으로 본다.
-    그리드 가로선은 전부 왼쪽 테두리에서 시작하고, 아래 공유 버튼 테두리는
-    가운데에만 있어 제외된다. 행 수가 바뀌어도 따라간다.
-    """
-    w, h = im.size
-    px = im.load()
-    bg = px[w - 3, h // 2]
-    xs = list(range(0, w, max(1, w // 200)))
-
-    def nonbg(x, y):
-        p = px[x, y]
-        return abs(p[0] - bg[0]) + abs(p[1] - bg[1]) + abs(p[2] - bg[2]) > 24
-
-    last = None
-    for y in range(h):
-        if (sum(nonbg(x, y) for x in xs) > 0.3 * len(xs)
-                and any(nonbg(x, y) for x in range(2, min(20, w)))):
-            last = y
-    return last
 
 
 def _blocks(im, gap=70, keep=60):
