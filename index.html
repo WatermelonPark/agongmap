@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v164">
+<html lang="ko" data-build="v165">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -255,13 +255,13 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <div class="myz" id="myz" hidden><a class="myz-a" id="myz-a" href="/zone/" onclick="track('home_cta',{to:'my_zone'})"><span class="myz-1"><span class="myz-k">내 지역</span> <b id="myz-n"></b></span><span class="myz-2" id="myz-v">공급 리포트 보기 →</span></a><button type="button" class="myz-x" onclick="myZoneSet('')">고정 해제</button></div>
     <script>try{var _mz=localStorage.getItem('agongmap-myzone');if(_mz){document.getElementById('myz-n').textContent=_mz;document.getElementById('myz').hidden=false;}}catch(e){}</script>
     <!-- '이번 주' 띠(홈 마케팅 검수 B1·HERO-2·RET-1·IA-1 안 A·IA-5·MOB-1·TRUST-7, 2026-09-27). 첫 화면이 분기에 한 번
-         바뀌는 공급 판정뿐이라 매주 오는 이유가 보이지 않았고, 배경의 이번 주 시군구 지도는 이름 없는 무늬였다.
-         한 줄 전체가 /weekly/ 링크다. 첫 줄 = 발표일 · 이번 주 결론(ADV.weekly.head — /weekly/ 제목과 같은 함수의 문장,
-         홈은 읽기만 한다), 둘째 줄 = 배경 지도 캡션 · 다음 발표(weeklyRelease/wkNextText — 주간 구역 머리줄과 같은 함수).
+         바뀌는 공급 판정뿐이라 매주 오는 이유가 보이지 않았다.
+         한 줄 전체가 /weekly/ 링크다 = 발표일 · 이번 주 결론(ADV.weekly.head — /weekly/ 제목과 같은 함수의 문장, 홈은 읽기만 한다).
+         배경 지도 캡션·다음 발표 둘째 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리. 다음 발표일은 주간 구역 머리줄에 있다).
          아래 정적 문구는 스크립트가 못 돌거나 옛 캐시(head·grace 없음)일 때만 보인다 — 날짜·'이번 주'를 약속하지 않는다.
-         줄마다 두 조각(hw-a · hw-b)이라 좁은 화면에서 CSS 가 조각마다 줄을 바꾼다 — 정적 문구와 데이터 문구의 줄 수가
+         두 조각(hw-a · hw-b)이라 좁은 화면에서 CSS 가 조각마다 줄을 바꾼다 — 정적 문구와 데이터 문구의 줄 수가
          같아 글자가 바뀌어도 아래 카드·지도가 밀리지 않는다(CLS, app.css .hero-wk). -->
-    <a class="hero-wk" id="hero-wk" href="/weekly/" onclick="track('home_cta',{to:'weekly_hero'})"><span class="hw-1" id="hw-1"><span class="hw-a">주간 아파트 시세</span><span class="hw-s"> · </span><span class="hw-b">요약 보기 →</span></span><span class="hw-2" id="hw-2"><span class="hw-a">배경 지도: 주간 시군구 매매 변동</span><span class="hw-s"> · </span><span class="hw-b">한국부동산원</span></span></a>
+    <a class="hero-wk" id="hero-wk" href="/weekly/" onclick="track('home_cta',{to:'weekly_hero'})"><span class="hw-1" id="hw-1"><span class="hw-a">주간 아파트 시세</span><span class="hw-s"> · </span><span class="hw-b">요약 보기 →</span></span></a>
   </div></header>
 
   <!-- 데스크톱 2단 뼈대(홈 마케팅 검수 C7·HERO-9, 2026-09-27). 1024px 이상에서만 왼쪽 = 공급 지도 구역, 오른쪽 = 이번 주
@@ -331,11 +331,10 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <p class="tb-sub"><a href="/monthly/" onclick="track('home_cta',{to:'monthly'})">이달의 통계 한 화면으로 보기 →</a></p>
     <!-- 내 지역 고르기(C5). 저장소를 못 쓰면 부팅이 열지 않는다(hidden 그대로). 목록은 판정 단위(ADV.sido.zones)에서 굽는다. -->
     <p class="myz-pick" id="myz-pick" hidden><label for="myz-sel">내 지역을 첫 화면에 고정</label> <select id="myz-sel" onchange="myZoneSet(this.value)"><option value="">시도 고르기</option></select> <span class="myz-msg" id="myz-msg" aria-live="polite"></span></p>
-    <!-- 운영 주체 한 줄(B9·TRUST-6). '누가, 어떤 이해관계로 부족이라고 말하는가'에 판정 가까이에서 답한다(/about/ 의 문장).
-         메일은 공개 연락처(CLAUDE.md 허용)라 mailto 링크로 둔다. '광고 없이'는 적지 않는다(확인한 적이 없다). -->
-    <p class="map-who">부동산 회사·중개업체가 아닌 개인이 운영합니다 · 숫자 오류 제보 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a> · <a href="/about/">아공맵 소개</a></p>
+    <!-- 운영 주체 한 줄(B9·TRUST-6)과 '산출 방법' 옆 출처 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 제보 메일은 푸터
+         '만든이 agongmap@gmail.com' mailto 링크로, 출처 기관은 산출 방법을 펼치면 항목마다 있다. -->
 
-    <details class="sc-how"><summary><span class="t">산출 방법</span><span class="src">국토교통부 · 한국부동산원 · 공급 분기·시세 매주 갱신</span></summary><div class="body"><ul class="how-ls">
+    <details class="sc-how"><summary><span class="t">산출 방법</span></summary><div class="body"><ul class="how-ls">
 <li class="how-formula"><b>지도·카드의 부족 세대</b> — <b>3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족</b>(멸실 반영). 앞으로 들어올 물량만 보지 않고 지난 4년 덜 지은 몫까지 더합니다. 지난 4년에 필요량보다 더 지은 곳은 남은 재고를 뺍니다. 지역마다 숫자를 넣은 식은 <a href="/zone/전국/#calc">시도 리포트 '숫자로 보면'</a>에 있습니다.</li>
 <li><b>칸의 숫자</b> — 그 기간에 준공된 아파트 세대수(국토교통부 주택건설 준공실적).</li>
 <li><b>경계선 아래 = 미래</b> — 착공 실적을 3년 뒤로 밀어 추정합니다. 착공한 것의 96%가 3년 뒤 준공되는 게 2012년 이후 실측입니다. 인허가는 삽을 안 뜬 계획이 섞여 같은 해 착공보다 15%쯤 많고 해마다 크게 흔들려서 쓰지 않습니다.</li>
@@ -451,7 +450,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
     <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a> · <a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener" onclick="track('home_cta',{to:'blog_footer'})">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a> · <a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a> · <a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/investor-test/">투자자 테스트</a> · <a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
-    <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · 만든이 agongmap@gmail.com</div>
+    <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div></div>
 </div>
 
@@ -626,7 +625,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
     <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a> · <a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a> · <a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a> · <a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/investor-test/">투자자 테스트</a> · <a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
-    <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · 만든이 agongmap@gmail.com</div>
+    <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
   </div>
 </div>
@@ -687,7 +686,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
     <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a> · <a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a> · <a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a> · <a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/investor-test/">투자자 테스트</a> · <a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
-    <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · 만든이 agongmap@gmail.com</div>
+    <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
   </div>
 </div>
