@@ -103,16 +103,18 @@ def test_weekly_title_head_line_and_dates_carry_the_week():
 
 @pytest.mark.parametrize('grade', sorted(M.GRADE_TXT))
 def test_zone_title_is_the_search_shape_for_every_grade(grade):
-    """'2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족' — 연도는 기준 분기, '3년'은 판정 창, 등급 말은 배지.
+    """'2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족' — 연도는 전망하는 해, '3년'은 판정 창, 등급 말은 배지.
 
-    연도는 전망이 시작되는 분기(L+1)의 해 — L=2026Q4 면 2027년(검토 09-27: L 의 해를 쓰면 다음 해 1~5월에 지난해 전망으로 보였다).
-    변이: page_title 의 연도를 '2026' 글자나 옛 원천 calc['L'][:4] 로 바꾸면 2026Q4 픽스처에서, '대비'를 '보다'로 되돌리면 모양 단정에서
-          빨개진다(둘 다 확인).
+    연도는 주간 최신 조사일에서 sido_zones.outlook_year 로(10월부터 다음 해 — 2026-09-27 대표 결정, 블로그 지역 편과 한 함수).
+    조사일이 없으면 연도를 뺀다(블로그와 같다).
+    변이: page_title 의 연도를 '2026' 글자나 조사일의 해(p[:4])로 바꾸면 10월 픽스처에서, 기준 분기(calc['L'])에서 읽으면 9월
+          픽스처에서, '대비'를 '보다'로 되돌리면 모양 단정에서 빨개진다(셋 다 확인).
     """
     lab = M.GRADE_TXT[grade][0]
-    t = M.page_title('서울', {'L': '2027Q1', 'H': 12}, lab)
+    t = M.page_title('서울', {'L': '2026Q2', 'H': 12}, lab, '2026-10-05')
     assert t == '2027년 서울 아파트 공급물량 전망, 3년 필요량 대비 %s' % lab
-    assert M.page_title('전국', {'L': '2026Q4', 'H': 8}, lab).startswith('2027년 전국 아파트 공급물량 전망, 2년 필요량 대비 ')
+    assert M.page_title('전국', {'L': '2026Q4', 'H': 8}, lab, '2027-09-28').startswith('2027년 전국 아파트 공급물량 전망, 2년 필요량 대비 ')
+    assert M.page_title('서울', {'L': '2026Q2', 'H': 12}, lab, '') == '서울 아파트 공급물량 전망, 3년 필요량 대비 %s' % lab
 
 
 def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
@@ -130,28 +132,29 @@ def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
         og = re.search(r'<meta property="og:title" content="([^"]*)"', s).group(1)
         head = [x for x in json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', s, re.S).group(1))
                 if x.get('@type') == 'Article'][0]['headline']
-        want = M.page_title(z['z'], calc, M.GRADE_TXT[z['grade']][0])
+        want = M.page_title(z['z'], calc, M.GRADE_TXT[z['grade']][0], SZ.latest_survey(adv))
         assert title == M.esc(want) + ' | 아공맵' and og == M.esc(want) and head == want, (z['z'], title, og, head)
-        assert want.startswith('%d년 %s 아파트 공급물량 전망, ' % (SZ.outlook_year(calc), z['z']))
+        assert want.startswith('%s년 %s 아파트 공급물량 전망, ' % (SZ.outlook_year(SZ.latest_survey(adv)), z['z']))
 
 
-@pytest.mark.parametrize('L,want', [('2026Q1', 2026), ('2026Q2', 2026), ('2026Q3', 2026), ('2026Q4', 2027)])
-def test_outlook_year_is_the_year_the_outlook_starts(L, want):
-    """전망 연도 = 기준 분기 다음 분기의 해. 변이: outlook_year 가 L 의 해를 돌려주면 2026Q4 에서 빨개진다(확인)."""
-    assert SZ.outlook_year({'L': L}) == want
+@pytest.mark.parametrize('p,want', [('2026-09-28', '2026'), ('2026-10-05', '2027'), ('2027-01-11', '2027'),
+                                    ('2026-12-28', '2027'), ('', ''), (None, '')])
+def test_outlook_year_is_the_year_being_forecast(p, want):
+    """전망 연도 = 조사일의 해, 10월부터는 다음 해(2026-09-27 대표 결정). 변이: OUTLOOK_NEXT_FROM_MONTH 를 13 으로 두면 10·12월에서,
+    기준 분기 규칙(L+1 의 해)으로 되돌리면 입력 모양이 달라 전부 빨개진다(확인)."""
+    assert SZ.outlook_year(p) == want
 
 
-@pytest.mark.parametrize('L,p,want', [('2026Q3', '2027-01-11', '2026'), ('2026Q4', '2027-03-08', '2027')])
+@pytest.mark.parametrize('L,p,want', [('2026Q2', '2026-10-05', '2027'), ('2026Q3', '2027-01-11', '2027'), ('2026Q2', '2026-09-28', '2026')])
 def test_site_and_blog_zone_titles_take_the_year_from_one_function(monkeypatch, L, p, want):
-    """사이트 시도 리포트 제목과 블로그 지역 편 제목의 연도가 같은 함수(sido_zones.outlook_year)에서 나온다(검토 09-27).
-    예전엔 사이트 = 기준 분기의 해, 블로그 = 주간 조사일의 해라 1~3월에 두 제목의 연도가 갈렸다.
+    """사이트 시도 리포트 제목과 블로그 지역 편 제목의 연도가 같은 함수(sido_zones.outlook_year)·같은 원천(주간 최신 조사일)에서
+    나온다(요청서 B4, 2026-09-27 대표 결정 '전망하는 해 — 10월부터 다음 해').
 
-    변이: make_naver_post 의 yr 줄을 옛 원천(주간 조사일 p[:4])으로 되돌리거나, make_sido_pages.page_title 을 calc['L'][:4]
-          로 되돌리면 빨개진다(둘 다 확인).
-    픽스처: 두 원천이 실제로 갈리는 두 때. ① 2027년 1월 — 준공 실적은 2026Q3 까지(4분기 실적은 2월께 나온다), 조사일
-            2027-01-11: 전망 연도 2026, 옛 블로그 원천(조사일)은 2027. ② 2027년 3월 — 기준 분기 2026Q4: 전망 연도 2027, 옛 사이트
-            원천(L 의 해)은 2026. draft_zone 을 끝까지 돌리지
-            않고, 그 안에서 제목을 만드는 zone_title 에 넘어가는 연도를 가로챈다.
+    변이: make_naver_post 의 yr 줄을 조사일의 해(p[:4])로, make_sido_pages.page_title 을 기준 분기 규칙으로 되돌리거나 build_page 가
+          조사일을 넘기지 않게 하면 빨개진다(확인).
+    픽스처: 두 옛 원천이 갈리는 때. ① 2026년 10월 첫 주(조사일 10-05, 기준 분기 2026Q2): 전망하는 해 2027, 옛 사이트 원천(L+1 의 해)
+            2026. ② 2027년 1월(조사일 01-11, 기준 분기 2026Q3 — 4분기 실적은 2월께): 2027, 옛 사이트 원천 2026. ③ 9월 말: 2026.
+            draft_zone 을 끝까지 돌리지 않고, 그 안에서 제목을 만드는 zone_title 에 넘어가는 연도를 가로챈다.
     """
     import make_naver_post as P
     seen = {}
@@ -167,5 +170,5 @@ def test_site_and_blog_zone_titles_take_the_year_from_one_function(monkeypatch, 
     row = {'z': '서울', 'dtot': 1000, 'ref': 1, 'fut': 1, 'inow': 1, 'ratio': 0.3, 'grade': 'g2'}
     with pytest.raises(Stop):
         P.draft_zone(adv, {}, row, 1, 1)
-    site = M.page_title('서울', adv['sido'], '부족')
-    assert seen['yr'] == str(SZ.outlook_year(adv['sido'])) == site[:4] == want, (seen, site)
+    site = M.page_title('서울', adv['sido'], '부족', SZ.latest_survey(adv))
+    assert seen['yr'] == SZ.outlook_year(SZ.latest_survey(adv)) == site[:4] == want, (seen, site)
