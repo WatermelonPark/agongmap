@@ -61,6 +61,11 @@ const PRECACHE = [
   '/sido-geo.js',    // 홈 지도 모드 경계(기본 모드라 프리캐시)
   '/app.css',
   '/home-app.js',   // 홈 본문 스크립트(2026-09-16 index.html 에서 분리) — HTML 과 한 몸이라 network-first
+  // 퀴즈·통계 화면 코드(B11·MOB-8 코드 분할). 홈이 그 화면을 열 때 '?v=<HOME_BUILD>' 를 붙여 받으므로(home-app.js
+  // loadPart) 같은 주소로 넣는다 — VERSION 과 HOME_BUILD 는 같은 값이다(test_home_build). 오프라인에서 #test-… 로 들어와도
+  // 퀴즈가 뜬다. 주소에 판이 붙어 있어 VERSION 을 올리면 두 파일은 새로 받는다(전송 약 40KB, test_home_parts).
+  '/home-quiz.js?v=' + VERSION,
+  '/home-stats.js?v=' + VERSION,
   '/404.html',
   '/favicon.svg',
   '/app_icon.png',
@@ -112,7 +117,10 @@ self.addEventListener('fetch', (e) => {
   //    따라온다 — 경계선이 한 방문 늦는 건 데이터 스테일과 달리 무해하고,
   //    network-first로 두면 파서 블로킹 스크립트가 매 방문 네트워크 왕복을 기다린다.
   // - home-app.js 는 index.html 에서 떼어낸 본문 스크립트다. app.css 와 같은 이유로 마크업과 함께 받는다.
+  // - home-quiz.js·home-stats.js 는 home-app.js 에서 떼어 낸 화면 코드다(B11). 같은 이유로 함께 받는다 — 판(?v=)이 붙은
+  //   주소째로 캐시하므로 네트워크가 늦어 캐시로 내려도 같은 판 파일만 나온다.
   if (url.pathname === '/data.js' || url.pathname === '/app.css' || url.pathname === '/home-app.js'
+      || url.pathname === '/home-quiz.js' || url.pathname === '/home-stats.js'
       || url.pathname === '/data-core.js' || url.pathname === '/data-rest.json'
       || url.pathname === '/data-size.json'
       || url.pathname === '/data-trend.json' || url.pathname === '/data-sgg.json') {

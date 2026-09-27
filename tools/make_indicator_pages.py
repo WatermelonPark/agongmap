@@ -45,9 +45,9 @@ def load():
     s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
     adv = json.loads(re.search(
         r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', s, re.S).group(1))
-    c = io.open(os.path.join(ROOT, 'data-core.js'), encoding='utf-8').read()
-    sts = json.loads(re.search(
-        r'const STATS=(\{.*?\});\nwindow\.__DATA_CORE__', c, re.S).group(1))
+    # 전세가율은 기본통계 파일(data-rest.json)에서 읽는다 — split_data 가 원천 계열을 그대로 싣는다. 예전엔 홈 코어
+    # (data-core.js)의 STATS 를 읽었는데, 홈 첫 화면이 쓰지 않아 2026-09-27 코어에서 뺐다(홈 마케팅 검수 B11 다이어트).
+    sts = json.load(io.open(os.path.join(ROOT, 'data-rest.json'), encoding='utf-8'))['STATS']
     return adv, sts
 
 

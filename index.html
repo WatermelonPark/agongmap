@@ -55,6 +55,20 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',idle);else idle();
 })();
 </script>
+<!-- ⑤ 퀴즈·통계로 바로 들어오는 주소는 그 화면 코드를 미리 받는다(홈 마케팅 검수 B11·MOB-8). 퀴즈·통계 코드는
+     home-quiz.js·home-stats.js 로 떼어 그 화면을 열 때 받는데(home-app.js loadPart), 퀴즈 랜딩의 '시작하기'(/#test-…)·
+     대결 링크(?c=&s=)·블로그 주간 링크(/#stats-market)는 첫 화면이 곧 그 화면이라 home-app.js 가 돈 뒤에야 받기 시작하면
+     한 번 더 기다린다. 여기서 같은 주소(?v=판)로 preload 해 두면 본문 스크립트와 나란히 받는다. 통계는 그래프 데이터도.
+     판은 <html data-build>(= home-app.js HOME_BUILD, test_home_build). ① 이 해시 속 쿼리를 옮긴 뒤라야 해시가 맞다. -->
+<script>
+try{(function(){
+  var b=document.documentElement.getAttribute('data-build')||'',h=location.hash,q=location.search,u=[];
+  if(/^#test/.test(h)||(/[?&]c=\d/.test(q)&&/[?&]s=(beginner|investor|calc)/.test(q)))u.push(['/home-quiz.js?v='+b,'script']);
+  else if(/^#stats/.test(h))u.push(['/home-stats.js?v='+b,'script'],['/data-trend.json','fetch']);
+  for(var i=0;i<u.length;i++){var l=document.createElement('link');l.rel='preload';l.href=u[i][0];l.as=u[i][1];
+    if(u[i][1]==='fetch')l.crossOrigin='anonymous';document.head.appendChild(l);}
+})();}catch(e){}
+</script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Pretendard: CSS는 예전부터 이 폰트를 지정하고 있었지만 실제로 불러온 적이 없어
@@ -64,6 +78,17 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
+<!-- 홈 첫 화면 글꼴(홈 마케팅 검수 B11·MOB-2, 2026-09-27). 위 CDN 가변 글꼴은 첫 화면 글자를 덮느라 17조각(약 436KB)을
+     받고, 조각이 따로 도착할 때마다 페이지 전체를 다시 배치해 CPU 4배 감속 모바일에서 지도 완성이 3초 넘게 늦었다
+     (글꼴을 막은 경우 대비, Chromium 망 속도 모사). 홈이 쓰는 글자만 담은 서브셋 하나(글자폭 표 HVAR 추가)를 자체
+     호스팅해 preload 하고, 홈 body 글꼴 목록 맨 앞에 둔다. 서브셋에 없는 글자는 목록의 다음 글꼴(CDN)이 그린다.
+     아래 구간은 tools/make_home_font.py 가 통째로 고쳐 쓴다 — 손으로 고치지 말 것. 홈 문구에 새 글자를 넣으면 그 도구를
+     다시 돌린다(test_home_font 가 알려 준다). -->
+<!--HOME_FONT_START-->
+<link rel="preload" href="/webfonts/home-bffba41e04.woff2" as="font" type="font/woff2" crossorigin fetchpriority="low">
+<style>@font-face{font-family:'AgongHome';font-style:normal;font-weight:45 920;font-display:swap;src:url(/webfonts/home-bffba41e04.woff2) format('woff2-variations'),url(/webfonts/home-bffba41e04.woff2) format('woff2');unicode-range:U+20-7E,U+B1,U+B7,U+2013-2014,U+2026,U+2039-203A,U+2191-2193,U+2212,U+25BC,U+300C-300D,U+AC00-AC01,U+AC04,U+AC08,U+AC10-AC13,U+AC15,U+AC19,U+AC1C,U+AC31,U+AC40,U+AC70,U+AC74,U+AC80,U+AC83,U+AC8C,U+ACA0,U+ACA9,U+ACAC,U+ACB0,U+ACBD,U+ACC4,U+ACE0-ACE1,U+ACE7,U+ACF3,U+ACF5,U+ACFC,U+AD00,U+AD11,U+AD50,U+AD6C-AD6D,U+AD70,U+AD8C,U+ADC0,U+ADE0,U+ADF8,U+ADFC,U+AE00,U+AE08-AE09,U+AE30,U+AE38,U+AE40,U+AE4C,U+AE68,U+AE6C,U+AECD,U+AFF0,U+B010,U+B014,U+B098,U+B09C,U+B0A0,U+B0A8-B0A9,U+B0AF,U+B0B3-B0B4,U+B0C5,U+B108,U+B118,U+B123-B124,U+B140,U+B144,U+B150,U+B178,U+B17C,U+B204,U+B208,U+B20C,U+B234,U+B294,U+B2C8,U+B2CC,U+B2D9,U+B2E4,U+B2E8,U+B2EB-B2ED,U+B2F9,U+B300,U+B354-B355,U+B35C,U+B370,U+B3C4,U+B3CC,U+B3D9,U+B410,U+B418,U+B41C,U+B429,U+B450,U+B458,U+B465,U+B4A4,U+B4DC,U+B4E0,U+B4E4,U+B4F1,U+B514,U+B54C,U+B5A8,U+B5B4,U+B5BB,U+B610,U+B6F0,U+B72C,U+B73B,U+B77C-B77D,U+B780,U+B78C,U+B790-B791,U+B798,U+B7C9,U+B7EC,U+B824-B825,U+B828,U+B837-B839,U+B85C-B85D,U+B8CC,U+B8E1,U+B958,U+B960,U+B974,U+B97C,U+B984-B985,U+B989,U+B9AC,U+B9B0,U+B9B4,U+B9BD,U+B9C1,U+B9C8-B9C9,U+B9CC,U+B9CE,U+B9D0,U+B9E4,U+B9E8,U+B9F5,U+BA38,U+BA70,U+BA74,U+BA78,U+BA85,U+BA87,U+BAA8-BAA9,U+BAAB,U+BABB,U+BB34,U+BB36,U+BB38,U+BB3B-BB3C,U+BBF8,U+BC00,U+BC14-BC16,U+BC18,U+BC1B-BC1C,U+BC29,U+BC30-BC31,U+BC84,U+BC88,U+BC95,U+BCC0,U+BCC4,U+BCD1,U+BCF4-BCF5,U+BCF8,U+BD05,U+BD09,U+BD24,U+BD80-BD81,U+BD84,U+BD88-BD89,U+BD99,U+BE0C,U+BE14,U+BE44,U+BE57,U+BE68,U+BE7C,U+BE8D,U+C090,U+C0AC,U+C0B0,U+C0BC-C0BD,U+C0C1,U+C0C8-C0C9,U+C11C,U+C11E,U+C120,U+C124,U+C12D,U+C131,U+C138,U+C154,U+C168,U+C18C-C18D,U+C190,U+C19C,U+C1A1,U+C218,U+C21C,U+C22B,U+C2A4,U+C2A8,U+C2AC,U+C2B5,U+C2B9,U+C2DC-C2DD,U+C2E0,U+C2E3-C2E4,U+C2EC,U+C313,U+C4F0,U+C501,U+C529,U+C544-C545,U+C548-C54A,U+C54C,U+C554,U+C55E,U+C57D,U+C591,U+C5B4,U+C5C5-C5C6,U+C5C8,U+C5D0,U+C5D4,U+C5EC-C5ED,U+C5F0,U+C5F4,U+C601,U+C608,U+C624,U+C62C,U+C635,U+C640,U+C644,U+C654-C655,U+C65C,U+C678,U+C67C,U+C694,U+C6A9,U+C6B0,U+C6B4,U+C6B8,U+C6C0,U+C6D0,U+C6D4,U+C6E0,U+C704,U+C720,U+C728,U+C73C,U+C740,U+C744,U+C74C-C74D,U+C758,U+C774-C775,U+C778,U+C77C-C77D,U+C784-C785,U+C788-C789,U+C790-C791,U+C7A1,U+C7A5,U+C7AC,U+C800-C801,U+C804,U+C810,U+C815,U+C81C,U+C870-C871,U+C885,U+C88B,U+C8E0,U+C8FC,U+C900,U+C904,U+C90D,U+C911,U+C989,U+C99D,U+C9C0-C9C1,U+C9C4,U+C9D1,U+C9D3,U+CABD,U+CB49,U+CBE4,U+CC28-CC29,U+CC2C,U+CC38,U+CC3D,U+CC44-CC45,U+CC59,U+CC98-CC99,U+CC9C,U+CCAB,U+CCAD,U+CCB4,U+CD08,U+CD5C,U+CD94-CD95,U+CD98,U+CD9C,U+CDA9,U+CE21,U+CE58,U+CE5C,U+CE60,U+CE68,U+CE74,U+CE78,U+CEE4,U+D06C,U+D074,U+D07C,U+D0C0,U+D0C4,U+D0C9,U+D0DC-D0DD,U+D130,U+D138,U+D14C-D14D,U+D1A0-D1A1,U+D1B5,U+D22C,U+D2B8,U+D2BC,U+D30C,U+D310,U+D314,U+D328,U+D3C9,U+D3EC,U+D45C,U+D478,U+D480,U+D488,U+D504,U+D544,U+D558,U+D55C,U+D560,U+D569,U+D56D,U+D574,U+D588-D589,U+D5A5,U+D5C8,U+D5F7,U+D600,U+D615,U+D638,U+D640,U+D648,U+D64D,U+D654-D655,U+D658,U+D669,U+D68C-D68D,U+D6A8,U+D6C4,U+D734,U+D750,U+D754,U+D765,U+D788,U+D799}
+body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}</style>
+<!--HOME_FONT_END-->
 <meta name="naver-site-verification" content="9f461a064c309c0d55284e1932be4d001b4f7ea9" />
 <link rel="canonical" href="https://www.agongmap.co.kr/">
 <script type="application/ld+json">
@@ -686,8 +711,9 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
      DOMContentLoaded 이전에 반드시 실행되므로, Chart를 만지는 코드는 전부
      아래 boot()(DOMContentLoaded)로 미뤄 두었다. -->
 
-<!-- 홈이 쓰는 조각만. 통계 탭을 열면 loadFullData()가 나머지를 받는다. 크기는 약 128KB(전송 gzip 약 37KB),
-     data.js 는 약 2.1MB 다(2026-09-27 실측 — 예전 주석 '48KB·393KB'는 표·가격 조각이 붙기 전 값이었다).
+<!-- 홈이 쓰는 조각만. 통계 탭을 열면 loadFullData()가 나머지를 받는다. 크기는 약 97KB(전송 gzip 약 27KB),
+     data.js 는 약 2.1MB 다(2026-09-27 B11 뒤 실측 — 통계 탭만 읽는 입주물량·인허가·버블밴드·전세가율을 빼기 전엔
+     약 134KB·gzip 약 38KB, 예전 주석 '48KB·393KB'는 표·가격 조각이 붙기 전 값이었다).
      배치가 매주 다시 굽는 파일이라 크기는 조금씩 움직인다. 상한은 test_split_payload 가 본다.
      data.js 는 그대로 두되 이 페이지는 더 이상 읽지 않는다. -->
 <script defer src="/data-core.js"></script>   <!-- defer: 렌더를 450ms 막았다(Lighthouse 2026-09-18). defer 끼리는 순서대로 실행되므로 sido-geo·home-app 보다 앞에 있으면 된다 -->
