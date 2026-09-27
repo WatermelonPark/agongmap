@@ -132,7 +132,8 @@ def test_committed_home_says_what_data_core_says():
 
     변이: 배치 커밋 잡에서 make_home_summary 를 빼면(ci-tests 도 같이) 표식 구간이 커밋된 빈 표식 그대로라 빨개진다
           (표식을 비운 index.html 로 확인).
-    픽스처: 저장소의 index.html·data-core.js(배치가 방금 쓴 것). 기대값은 data-core 에서 따로 읽는다.
+    픽스처: 저장소의 index.html·data-core.js(배치가 방금 쓴 것 — 또는 CI 게이트 잡처럼 split 없이 커밋된 옛 판). 기대값은
+    data-core 에서 따로 읽는다.
     """
     adv, s = _core(), _index()
     blk = s[s.index(START) + len(START):s.index(END)]
@@ -146,7 +147,9 @@ def test_committed_home_says_what_data_core_says():
     if (w.get('head') or {}).get('p') == row['p']:
         assert w['head']['text'] in blk
     desc = re.search(r'<meta name="description" content="([^"]*)"', s).group(1)
-    assert nat['cnum'] in desc and MW.pv2(nv) in desc
+    # cnum·head 는 2차 배포(09-27) 뒤 split 이 싣는 필드라, 옛 data-core(병합 직후 PR·main CI 의 게이트 잡은 split 을 돌리지
+    # 않는다)에는 없다 — 옛 판에도 있는 ctxt 로 본다(병합 직후 CI 에서 KeyError 로 빨갰던 것을 depth-200 클론으로 확인).
+    assert H.escape(nat['ctxt']) in desc and MW.pv2(nv) in desc
 
 
 # ── ③ 화면 중복 없음·자리 예약 ─────────────────────────────────────────────────────────────────────────
