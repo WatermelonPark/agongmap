@@ -1,26 +1,59 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-build="v161">
 <head>
 <meta charset="UTF-8">
-<!-- Google tag (gtag.js) -->
-<!-- 기기 단위 GA 제외: ?ga_off=1 로 한 번 들어온 기기는 이후 전송하지 않는다
+<!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
+<!-- ① 해시 속 쿼리를 진짜 쿼리로(2026-09-27 홈 마케팅 검수 A1). 발행한 주간 블로그 글의 '지도에서 직접
+     찾아보기' 링크가 /#stats-market?utm_… 모양이다(발행 글은 고치지 않는다 — 대표 결정). '#' 뒤의 '?…'는
+     쿼리가 아니라 해시의 일부라 GA 는 캠페인을 못 읽고, 홈 라우터(applyHash)도 화면을 못 알아봐 3년 공급
+     첫 화면에 떨어졌다. 그래서 무엇보다 먼저 주소를 /?utm_…#stats-market 으로 고친다(기존 쿼리가 있으면
+     그 뒤에 잇는다). ga_off 판정보다 앞이어야 해시 속 ?ga_off=1 도 먹는다.
+     ② 기기 단위 GA 제외: ?ga_off=1 로 한 번 들어온 기기는 이후 전송하지 않는다
      (되돌리기 ?ga_off=0). 개발자 본인 트래픽이 Direct 세션의 절반을 차지해
      블로그 유입 측정이 불가능했다. GA 콘솔의 IP 제외는 데스크톱만 커버되고
      모바일 데이터는 CGNAT이라 불가능해서 기기 쪽에 스위치를 둔다.
      ⚠️ gtag 로더보다 반드시 먼저 실행돼야 한다 — 뒤에 두면 안 먹는다. -->
 <script>
+try{var _h=location.hash,_i=_h.indexOf('?');
+if(_i>=0){var _s=location.search.slice(1),_m=_h.slice(_i+1),_f=_h.slice(0,_i),_q=_s&&_m?_s+'&'+_m:(_s||_m);
+history.replaceState(null,'',location.pathname+(_q?'?'+_q:'')+(_f.length>1?_f:''));}
+}catch(e){}
 try{var _p=new URLSearchParams(location.search);
 if(_p.has('ga_off')){if(_p.get('ga_off')==='0')localStorage.removeItem('ga_off');
 else localStorage.setItem('ga_off','1');}
 if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }catch(e){}
 </script>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-3FJNG6G1F3"></script>
+<!-- ③ GA 지연 로딩(C8, 09-23 결정을 09-26 대표 결정으로 바꿈). gtag.js(전송 약 194KB)가 홈 자사 파일 합계보다
+     크고, 첫 화면 지도를 그리는 defer 스크립트와 대역을 다퉈 느린 4G 에서 지도 완성을 0.5~0.65초 늦췄다(MOB-10).
+     큐(dataLayer·gtag·js·config)는 여기서 곧바로 쌓고 로더만 늦게 붙인다 — 쌓인 명령은 로더가 와서 순서대로
+     보내므로 잃지 않는다. 붙이는 때: DOMContentLoaded(= defer 인 home-app.js 의 boot() 가 지도를 그린 뒤) 다음
+     한가할 때, 늦어도 2초. 그 몇 초 안에 떠난 방문은 덜 잡힌다 — A3 과 같은 배포라 새 기준선은 이 방식으로만 쌓인다.
+     홈만 이렇게 한다: 다른 페이지는 본문이 정적 HTML 이라 GA 가 첫 화면을 늦추지 않는다.
+     ④ page_view 는 한 번(A3·MEAS-1). config 의 자동 page_view 가 부팅 때 showView 의 수동 page_view 와 겹쳐 두 번
+     갔다. 자동 전송을 끄고, 부팅 때 showView 가 착지 주소(① 로 옮긴 utm 쿼리·해시 그대로)에 화면 표시 view= 를
+     더해 한 번 보낸다(홈은 view 없음 — home-app.js viewLoc). 부팅이 page_view 를 못 보냈으면(스크립트 실패·
+     모르는 해시·요소 앵커 — 셋 다 홈 화면이 떠 있다) 로더를 붙이기 직전에 여기서 착지 주소 그대로 한 번 채운다. -->
 <script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-3FJNG6G1F3');
+window.dataLayer=window.dataLayer||[];
+function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());
+gtag('config','G-3FJNG6G1F3',{send_page_view:false});
+(function(){
+  var ID='G-3FJNG6G1F3',at=location.href,on=false;
+  function sent(){for(var i=0;i<dataLayer.length;i++){var a=dataLayer[i];
+    if(a&&a[0]==='event'&&a[1]==='page_view')return true;}return false;}
+  function load(){
+    if(on)return;on=true;
+    if(!sent())gtag('event','page_view',{page_location:at});
+    if(window['ga-disable-'+ID])return;   // 제외 기기는 194KB 를 받지도 않는다
+    var s=document.createElement('script');s.async=true;
+    s.src='https://www.googletagmanager.com/gtag/js?id='+ID;
+    document.head.appendChild(s);
+  }
+  function idle(){if(window.requestIdleCallback)requestIdleCallback(load,{timeout:2000});else setTimeout(load,200);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',idle);else idle();
+})();
 </script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -81,7 +114,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta name="twitter:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta name="twitter:title" content="아공맵 — 공급을 보면 집값이 보인다">
 <meta name="twitter:description" content="전국 16개 시도 아파트 공급 지도 · 준공·착공으로 본 입주물량 · 주간 시세">
-<title>전국 아파트 공급 지도 — 시도별 입주물량·주간 시세 | 아공맵</title>
+<title>전국 아파트 공급 지도 — 시도별 3년 공급·이번 주 시세 | 아공맵</title>
 <link rel="stylesheet" href="/app.css">
 <!-- 앱 스플래시: 홈화면에서 띄웠을 때만. OS 스플래시는 maskable 아이콘(글자 없는
      발산 막대)을 골라 쓰므로 icon-512의 워드마크가 끝내 안 보인다 — 런처 아이콘이
@@ -160,8 +193,12 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <main id="main">
 <div id="view-home">
   <header class="home-hero"><div class="hero-map" id="hero-map" aria-hidden="true"></div><div class="wrap">
-    <span class="hero-kick">아공맵</span>
-    <h1 class="hero-msg">국가 통계로 보는 3년 공급<i class="hero-ramp" aria-hidden="true"></i></h1>
+    <!-- 라벨·제목·부제(2026-09-26 대표 승인 C1, 홈 마케팅 검수). 라벨에 '아파트'와 서비스 정체를 싣고,
+         제목은 두 주기(분기 공급 판정·주간 시세)를 가른다 — 공급 판정을 '매주 갱신'으로 적지 않는다는
+         09-13 결정과 맞다. 제목은 한 줄이 조건이다(app.css .hero-msg, 폭 시험은 test_followup_texts). -->
+    <span class="hero-kick">아공맵 · 아파트 공급 지도</span>
+    <h1 class="hero-msg">공급은 3년, 시세는 매주<i class="hero-ramp" aria-hidden="true"></i></h1>
+    <p class="hero-sub">국토교통부 착공·준공 실적으로 시도별 3년 공급을 판정하고, 한국부동산원 주간 시세를 매주 싣습니다.</p>
   </div></header>
 
   <!-- 제목 텍스트는 히어로가 대신한다(2026-08-08 사용자: "텍스트 합치고 심플하게").
@@ -195,7 +232,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     </div>
     <div class="tb-scroll"><table id="tb-main" aria-label="시도별 공급·가격 통합표"></table></div>
     <p class="tb-refnote" id="tb-refnote" aria-live="polite" hidden></p>
-    <p class="tb-more"><a href="/zone/">시도별로 자세히 보기 →</a></p>
+    <p class="tb-more"><a href="/zone/" onclick="track('home_cta',{to:'zone_hub'})">시도별로 자세히 보기 →</a></p>
 
     <details class="sc-how"><summary><span class="t">산출 방법</span><span class="src">국토교통부 · 한국부동산원 · 공급 분기·시세 매주 갱신</span></summary><div class="body"><ul class="how-ls">
 <li><b>칸의 숫자</b> — 그 기간에 준공된 아파트 세대수(국토교통부 주택건설 준공실적).</li>
@@ -210,8 +247,11 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   </div></section>
 
   <section class="home-sec"><div class="wrap">
-    <div class="hs-kicker">매주 갱신 · 한국부동산원 발표 기준</div>
-    <h2>이번 주, 어디가 오르고 내렸을까?</h2>
+    <!-- 머리줄은 renderWeeklyGrid 가 데이터로 채운다: '9/14 조사 · 9/17 발표 · 다음 발표 10/1(목)',
+         발표가 늦으면 '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기'(홈 마케팅 검수 A2). 아래 정적
+         문구는 스크립트가 못 돌 때만 보인다 — '매주 갱신'처럼 지키지 못할 수 있는 약속을 적지 않는다. -->
+    <div class="hs-kicker"><span id="wk-kicker">주간 발표 기준</span> · 한국부동산원</div>
+    <h2 id="wk-h2">이번 주, 어디가 오르고 내렸을까?</h2>
     <!-- ⚠️ 아래 격자는 **시도 20곳**이다. 예전 문구는 '전국 시군구'라고 말해
          눈앞의 격자와 어긋났고, CTA도 '이미 보고 있는 것'으로 읽혔다(2026-09-01 리뷰).
          격자는 시도, 시군구는 눌러서 보는 것으로 갈라 적는다. -->
@@ -222,7 +262,11 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
          화면 폭에 따라 열이 접히고, 값은 라이브 데이터에서 읽으므로 주차가
          바뀌어도 캐시 버스터가 필요 없다. -->
     <div id="home-weekly-grid" class="wgrid"></div>
-    <div class="hs-cta"><button class="home-cta" onclick="goStats('market')">이번 주 시세 지도 보기</button></div>
+    <!-- 입구 둘은 목적지가 다르다: 격자는 /weekly/(요약·공유 주소), 이 링크는 통계 탭 시군구 지도·TOP 10.
+         예전엔 둘 다 '이번 주 시세 지도'라 불려 어느 쪽이 매주 오는 곳인지 익힐 수 없었다(A4·IA-3).
+         버튼이 아니라 링크라 길게 눌러 새 탭·주소 복사가 된다. 이름은 목적지를 말한다 — /weekly/ 의
+         '전체 TOP 10 · 시군구 지도 보기'와 같은 곳으로 간다. -->
+    <div class="hs-cta"><a class="home-cta" href="#stats-market" onclick="track('home_cta',{to:'weekly_map'})">시군구 시세 지도·TOP 10 보기</a></div>
   </div></section>
 
   <section class="home-sec hs-alt"><div class="wrap">
@@ -236,9 +280,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
          그대로 드러나 사회적 증거가 역효과다(PM 결정). -->
     <div id="quiz-sample" class="qsample" aria-hidden="true"></div>
     <div class="hs-cta">
-      <a class="home-cta" href="/burini-test/">🐣 부린이 테스트 · 난이도 하</a>
-      <a class="home-cta alt" href="/investor-test/">🦅 투자자 테스트 · 난이도 중</a>
-      <a class="home-cta alt" href="/redev-test/">🏗️ 재건축·재개발 테스트 · 난이도 상</a>
+      <a class="home-cta" href="/burini-test/" onclick="track('home_cta',{to:'quiz_burini'})">🐣 부린이 테스트 · 난이도 하</a>
+      <a class="home-cta alt" href="/investor-test/" onclick="track('home_cta',{to:'quiz_investor'})">🦅 투자자 테스트 · 난이도 중</a>
+      <a class="home-cta alt" href="/redev-test/" onclick="track('home_cta',{to:'quiz_redev'})">🏗️ 재건축·재개발 테스트 · 난이도 상</a>
     </div>
   </div></section>
 
@@ -249,7 +293,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
          고정한다(tools/tests/test_cycle_count_sync.py). 2026-09-13 까지 여기만 15로
          남아, 배너를 눌러 들어간 /cycle/ 은 14라고 말하는 모순이 라이브에 있었다. -->
     <div class="hs-kicker">14개 시도 · 20년</div>
-    <h3>집값은 왜 돌고 도는가</h3>
+    <h2>집값은 왜 돌고 도는가</h2>
     <p>공급 → 전세 → 매매 → 다시 공급, 20년 데이터로 검증한 순환의 6개 고리입니다.</p>
     <!-- 사이클 카드에도 그림을 준다(2026-08-17 사용자). /cycle/의 상호작용
          다이어그램(클릭 점프·고리 번호)을 그대로 옮기지 않고 축약 도식만 둔다 —
@@ -295,7 +339,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 
   <div class="home-foot">
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
-    <nav class="ft-nav" aria-label="주요 페이지"><a href="/weekly/">이번 주 시세 지도</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/zone/">시도별 공급</a> · <a href="/monthly/">이달의 통계</a> · <a href="/moveins/">입주물량</a> · <a href="/jeonse-ratio/">전세가율</a> · <a href="/cycle/">사이클 리포트</a></nav>
+    <nav class="ft-nav" aria-label="주요 페이지"><a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/zone/">시도별 공급</a> · <a href="/monthly/">이달의 통계</a> · <a href="/moveins/">입주물량</a> · <a href="/jeonse-ratio/">전세가율</a> · <a href="/cycle/">사이클 리포트</a></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · 만든이 agongmap@gmail.com</div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div></div>
@@ -564,8 +608,10 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
      DOMContentLoaded 이전에 반드시 실행되므로, Chart를 만지는 코드는 전부
      아래 boot()(DOMContentLoaded)로 미뤄 두었다. -->
 
-<!-- 홈이 쓰는 조각만(48KB). 통계 탭을 열면 loadFullData()가 나머지를 받는다.
-     data.js(393KB)는 그대로 두되 이 페이지는 더 이상 읽지 않는다. -->
+<!-- 홈이 쓰는 조각만. 통계 탭을 열면 loadFullData()가 나머지를 받는다. 크기는 약 128KB(전송 gzip 약 37KB),
+     data.js 는 약 2.1MB 다(2026-09-27 실측 — 예전 주석 '48KB·393KB'는 표·가격 조각이 붙기 전 값이었다).
+     배치가 매주 다시 굽는 파일이라 크기는 조금씩 움직인다. 상한은 test_split_payload 가 본다.
+     data.js 는 그대로 두되 이 페이지는 더 이상 읽지 않는다. -->
 <script defer src="/data-core.js"></script>   <!-- defer: 렌더를 450ms 막았다(Lighthouse 2026-09-18). defer 끼리는 순서대로 실행되므로 sido-geo·home-app 보다 앞에 있으면 된다 -->
 <!-- 경계 좌표는 boot()(DOMContentLoaded)에서만 쓰므로 defer로 파서를 막지 않는다.
      defer는 DOMContentLoaded 전 실행이 보장된다(chart.js와 같은 근거). -->
