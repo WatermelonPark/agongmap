@@ -890,17 +890,19 @@ def year_line(z, stats):
     return '<p class="zyear"><b>최근 %d개월</b> %s</p>' % (YEAR_MONTHS, ' · '.join(parts))
 
 
-def page_title(z, calc, lab):
+def page_title(z, calc, lab, p=''):
     """시도 리포트 제목 — '2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족'(홈 마케팅 검수 B4·SEO-7, 2026-09-27).
 
     예전 '서울 아파트 공급 분석 — 매우 부족'은 팀이 확인한 검색 형태(연도 + 지역 + 아파트 공급물량 + 전망, 08-14 네이버
     실측 — 블로그 지역 편 제목도 이 형태다)를 따르지 않았다. '전망'은 공급 물량의 전망이라 가격 예측이 아니다.
-    연도는 sido_zones.outlook_year(전망이 시작되는 분기 L+1 의 해 — 블로그 지역 편 제목과 같은 함수), '3년'은 판정 창(H),
+    연도는 sido_zones.outlook_year(p) — '전망하는 해', 10월부터 다음 해(09-27 대표 결정). p 는 주간 최신 조사일이고 블로그 지역 편
+    제목과 같은 함수·같은 원천이다. 조사일이 없으면 연도를 뺀다(블로그와 같다). '3년'은 판정 창(H),
     등급 말은 GRADE_TXT(= 배지)에서 읽는다 — 손으로 적지 않는다.
     head() 가 이 값을 <title>·og:title·JSON-LD headline 에 그대로 쓴다(세 곳이 한 값). '보다' 대신 '대비'인 이유:
     '균형'·'공급 여유' 등급에서도 문장이 된다.
     """
-    return '%d년 %s 아파트 공급물량 전망, %s 필요량 대비 %s' % (SZ.outlook_year(calc), z, '%g년' % (calc['H'] / 4.0), lab)
+    yr = SZ.outlook_year(p)
+    return '%s%s 아파트 공급물량 전망, %s 필요량 대비 %s' % ((yr + '년 ') if yr else '', z, '%g년' % (calc['H'] / 4.0), lab)
 
 
 def build_page(z, calc, stats, pq, others, weekly=None, names=None):
@@ -922,7 +924,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     # 설명 메타와 <main> 첫 숫자 문단(D3)은 같은 조각에서 나온다 — summary_parts 참고.
     parts = summary_parts(z, row, calc, lab)
     desc = summary_text(parts)
-    title = page_title(z, calc, lab)
+    title = page_title(z, calc, lab, SZ.latest_survey({'weekly': weekly}))
 
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'

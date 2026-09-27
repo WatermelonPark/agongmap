@@ -155,16 +155,28 @@ def qkey(i):
     return '%dQ%d' % (y, q)
 
 
-def outlook_year(sido):
-    """공급 전망의 연도 — 전망이 시작되는 분기(L+1)의 해(홈 마케팅 검수 B4 검토, 2026-09-27).
+# 제목 연도는 '전망하는 해'다(2026-09-27 대표 결정). 10월부터는 다음 해를 쓴다 — 내년 전망 검색 수요는 가을부터 커진다
+# (09-27 블로그 검색 실측 '2026 부동산 전망' 10,428건 대 '2027' 459건). 근거·실험은 make_naver_post 지역 편 제목 주석.
+OUTLOOK_NEXT_FROM_MONTH = 10
 
-    사이트 시도 리포트 제목('2026년 서울 아파트 공급물량 전망, …')과 블로그 지역 편 제목이 **이 함수 하나**로 연도를 쓴다.
-    예전엔 사이트는 기준 분기 L 의 해, 블로그는 주간 조사일의 해라 두 제목이 1~3월에 갈렸다. L 의 해를 쓰면 L=2026Q4
-    (다음 해 2~5월까지 기준 분기로 남는다)에 '2026년 … 전망'이 지난해 전망처럼 보였다 — 전망은 L 다음 분기부터다.
-    L=2026Q2 → 2026, L=2026Q4 → 2027.
+
+def outlook_year(p):
+    """주간 조사일 'YYYY-MM-DD' → 제목에 쓸 '전망하는 해' 문자열('2026'). 읽을 수 없으면 ''(제목에서 연도를 뺀다).
+
+    사이트 시도 리포트 제목(make_sido_pages.page_title)과 블로그 지역 편 제목(make_naver_post.draft_zone)이 **이 함수
+    하나**로 연도를 쓴다(요청서 B4, 2026-09-27 대표 결정). 날짜는 두 곳 모두 ADV.weekly 최신 행의 조사일이다.
     """
-    L = sido['L']
-    return qparts(qidx(int(L[:4]), int(L[5:])) + 1)[0]
+    try:
+        y, m = int(p[:4]), int(p[5:7])
+    except (TypeError, ValueError):
+        return ''
+    return str(y + 1 if m >= OUTLOOK_NEXT_FROM_MONTH else y)
+
+
+def latest_survey(adv):
+    """ADV.weekly 최신 행의 조사일('YYYY-MM-DD'), 없으면 '' — outlook_year 의 입력(사이트·블로그 같은 원천)."""
+    rows = ((adv or {}).get('weekly') or {}).get('rows') or []
+    return (rows[-1] or {}).get('p', '') if rows else ''
 
 
 def qlabel(i, per='q'):
