@@ -930,7 +930,12 @@ table.adv thead th:first-child{text-align:center}
      지도/그래프/표 줄에 들어가 이 상자 밖이다. 주간 모드는 기본 모드가 아니어서 따로 잡지 않는다(누른 뒤에만 그린다). */
   /* 예약은 :empty 가 아니라 '아직 안 그림'(renderSidoMap 이 data-done 을 단다)에 건다(홈 마케팅 검수 B3, 2026-09-27) — 부팅 전
      #map-wrap 안에는 배치가 구운 홈 요약(.home-sum)이 있어 :empty 가 맞지 않는다. 요약은 예약된 자리 맨 위에 보이고, 지도가
-     그려지면 innerHTML 로 통째로 바뀐다. */
+     그려지면 innerHTML 로 통째로 바뀐다.
+     2026-09-27 3차 네 묶음(G·H·M·S)을 합친 뒤 1px 간격으로 다시 쟀다(320~1440px, 운영 글꼴, 스크립트 차단 ↔ 부팅 뒤):
+     어긋남 −0.5~+0.3px 이라 값은 그대로다. 요약(96px)은 예약보다 작아 부팅 전 높이를 바꾸지 않고, 저장된 '내 지역' 줄은
+     히어로에 있어 이 상자 밖이다. 대체 글꼴(웹폰트가 오기 전·막힌 때, 측정 환경의 시스템 글꼴)에서는 분포 줄·범례 뜻 줄이
+     줄을 바꾸는 폭이 달라(320~365px +18~38px, 383~422px +16px) 폭 구간으로는 두 글꼴을 함께 맞출 수 없다 — 운영 글꼴에
+     맞춘다. */
   #map-wrap:not([data-done]){min-height:786px}
   @media(max-width:560px){#map-wrap:not([data-done]){min-height:821px}}
   @media(max-width:528px){#map-wrap:not([data-done]){min-height:calc(111px + 134.5vw)}}
@@ -1082,10 +1087,19 @@ table.adv thead th:first-child{text-align:center}
        빈 상자면 아래 버튼이 490px 밀렸다(실측 CLS 0.014 — 1024·1280·1440px 모두 360px 단이라 높이가 같다). h2 는 정적
        질문 → 이번 주 결론(ADV.weekly.head)으로 바뀌는데 결론 길이에 따라 1~2줄이라 두 줄을 잡는다(27px·줄 높이 1.75).
        머리줄(정적 '주간 발표 기준' → '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)')도 연휴 주 문구('… · 연휴로 발표 일정이
-       바뀔 수 있습니다 · 한국부동산원')가 360px 단에서 두 줄이라(운영 글꼴 367px·대체 글꼴 415px 실측) 두 줄을 잡는다. */
-    .home-duo #home-weekly-grid:empty{min-height:490px}
-    .home-duo #wk-h2{min-height:3.5em}
-    .home-duo .hs-kicker{min-height:3.5em}
+       바뀔 수 있습니다 · 한국부동산원')가 360px 단에서 두 줄이라(운영 글꼴 367px·대체 글꼴 415px 실측) 두 줄을 잡는다.
+       2026-09-27 3차 네 묶음을 합친 뒤 다시 쟀다(playwright, 부팅 전 스크립트 차단 ↔ 부팅 뒤, 운영 글꼴·대체 글꼴 같음):
+       격자는 방향 표지(B7 '매매 3주 연속 상승' — 칸마다 한 줄)·'지난주와 방향이 바뀐 곳' 줄·공유 버튼(B8)이 붙어
+       490 → 718.3px 이 됐다. 지난 104주 표지·결론을 넣어 보니 첫 방문 718.3px 이 77주(74%), 바뀐 곳 줄이 두 줄인 주
+       739.1px·725.5px(대체 글꼴 759.9px), 재방문('지난 방문 이후 새 발표 n회' 한 줄)은 +24.8px 이다 — 가장 흔한 첫 방문에
+       맞춘다. h2 결론은 104주 모두 두 줄(94.5px)이라 3.5em 이 그린 뒤 높이와 같다. 머리줄은 2026~2027 모든 주 가운데
+       운영 글꼴 1주·대체 글꼴 18주(연휴 주)만 두 줄이다 — 이 예약은 그린 뒤에도 남는 높이라 크면 빈 줄일 뿐 이동이 없고,
+       작으면 부팅 때와 글꼴이 도착할 때 두 번 밀리므로 두 줄을 그대로 둔다.
+       셋 다 두 단일 때만 건다(:not(.vm-table)) — 표 보기에서는 주간 구역이 전폭(976~1212px)이라 결론·머리줄이 한 줄인데
+       두 줄 예약 때문에 제목 아래 47px·머리줄 아래 21px 가 비었다(묶음 M 검토 5). */
+    .home-duo>#sec-score:not(.vm-table)~.home-sec #home-weekly-grid:empty{min-height:718px}
+    .home-duo>#sec-score:not(.vm-table)~.home-sec #wk-h2{min-height:3.5em}
+    .home-duo>#sec-score:not(.vm-table)~.home-sec .hs-kicker{min-height:3.5em}
   }
   /* 하단 탭바 → 상단 내비(C7, 1024px 이상·홈만 — body.home-app). 탭바 마크업은 하나다: 같은 <nav class="bottomnav"> 를
      자리만 위로 옮기므로 라벨·순서·주소가 정본(tools/site_nav.py TABS)과 저절로 같다(test_site_nav·test_home_desktop).
