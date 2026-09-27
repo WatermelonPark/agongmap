@@ -3145,12 +3145,12 @@ function renderHeroBand(){
   if(b)_bandLine(b,L[1]);
 }
 /* 주간 구역의 해석 글 한 줄(홈 마케팅 검수 B5·RET-4, 2026-09-27): '이번 주 해석 읽기: {제목} (네이버 블로그, 9/25)'.
-   글·말(lead·title·src)은 배치가 blog_feed.pick 으로 골라 data-core 의 ADV.blog 로 구운 것이다 — /weekly/ 하단과 같은 글.
+   글·말(lead·title·src·note)은 배치가 blog_feed.pick 으로 골라 data-core 의 ADV.blog 로 구운 것이다 — /weekly/ 하단과 같은 글.
    여기서 날짜를 다시 셈하지 않는다. 글이 없거나(RSS 를 못 읽었거나 오래됨) 옛 캐시면 칸은 숨은 채로 남는다.
    제목은 RSS 에서 온 글자라 textContent 로만 넣고, 주소는 네이버 블로그 주소만 받는다. */
 function blogLine(B){
   if(!B||!B.url||!B.title||!B.lead||!B.src||!/^https:\/\/blog\.naver\.com\//.test(B.url))return null;
-  return {href:B.url,text:B.lead+': '+B.title,src:' ('+B.src+')'};
+  return {href:B.url,text:B.lead+': '+B.title,src:' ('+B.src+')',note:B.note||''};
 }
 function renderBlogLine(){
   const el=document.getElementById('wk-blog');
@@ -3160,6 +3160,8 @@ function renderBlogLine(){
   a.href=L.href;a.target='_blank';a.rel='noopener';a.textContent=L.text;
   a.addEventListener('click',()=>track('home_cta',{to:'blog_weekly'}));
   el.textContent='';el.appendChild(a);el.appendChild(document.createTextNode(L.src));
+  /* 둘째 줄 = 이웃 안내(RET-4 A안, blog_feed.NEIGHBOR — /weekly/ 하단과 같은 문장). 알림을 약속하지 않는다. */
+  if(L.note){const n=document.createElement('span');n.className='wk-note';n.textContent=L.note;el.appendChild(n);}
   el.hidden=false;
 }
 /* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.

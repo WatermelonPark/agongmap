@@ -23,6 +23,7 @@ RSS 주소·카테고리 이름의 정본은 close_published_issues 다(발행 �
 """
 import datetime
 import io
+import threading
 import json
 import os
 import re
@@ -40,18 +41,29 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILE = os.path.join(ROOT, 'tools', 'data', 'blog_latest.json')
 
 CATEGORY = CP.KIND_TO_CATEGORY['주간 시세']
-_ID = re.match(r'^https://rss\.blog\.naver\.com/([A-Za-z0-9_-]+)\.xml$', CP.RSS)
-if not _ID:
-    raise SystemExit('close_published_issues.RSS 모양이 바뀌었다 — 블로그 주소를 만들 수 없다: %s' % CP.RSS)
-BLOG_HOME = 'https://blog.naver.com/' + _ID.group(1)   # 푸터·/weekly/ 의 '매주 해설 글' 링크도 이 값이다
+
+
+def blog_home(rss):
+    """RSS 주소 → 블로그 첫 화면 주소. 모양이 다르면 None — ⚠️ 예외를 던지지 않는다(검토 09-27). 이 모듈은 split_data·
+    make_weekly_page 가 불러오는데, 예전 판은 여기서 SystemExit(= BaseException, split 의 `except Exception` 이 못 잡는다)을
+    던져 RSS 주소 한 줄 때문에 수집 잡·생성기가 죽을 수 있었다. None 이면 글도 링크도 없이 칸만 빠진다."""
+    m = re.match(r'^https://rss\.blog\.naver\.com/([A-Za-z0-9_-]+)\.xml$', rss or '')
+    return ('https://blog.naver.com/' + m.group(1)) if m else None
+
+
+BLOG_HOME = blog_home(CP.RSS)   # 푸터·/weekly/ 의 '매주 해설 글' 링크도 이 값이다(None 이면 링크를 굽지 않는다)
 LABEL = '네이버 블로그'                                   # 대표 확인(09-27): 블로그 이름 없이 이 말만
 FRESH_DAYS = 7          # 이번 주 발표일보다 이만큼 앞선 글까지 보여 준다(= 지난주 글). 그보다 오래되면 칸을 뺀다
 LEAD_NOW, LEAD_PREV = '이번 주 해석 읽기', '지난주 해석 읽기'
 HOME_TEXT = '매주 해설 글'   # 블로그 첫 화면 링크 이름(홈 푸터·/weekly/). '매주 금요일'처럼 요일을 약속하지 않는다
+# 해석 글 칸 옆 한 줄(RET-4 A안). 알림을 약속하지 않는다 — 네이버 이웃 기능이 하는 일을 적을 뿐이다. 홈(ADV.blog.note →
+# renderBlogLine)과 /weekly/(blog_html)가 이 상수 하나를 쓴다.
+NEIGHBOR = '블로그 이웃이 되면 새 글이 이웃 새 글 목록에 올라옵니다.'
+WALL_SECONDS = 60   # RSS 읽기 벽시계 상한(소켓 타임아웃은 읽기마다 25초라 느린 응답이 이어지면 끝이 없다). 워크플로 timeout 90 이 바깥 상한
 
 
 def ours(url):
-    return isinstance(url, str) and url.startswith(BLOG_HOME + '/') and '"' not in url and '<' not in url
+    return bool(BLOG_HOME) and isinstance(url, str) and url.startswith(BLOG_HOME + '/') and '"' not in url and '<' not in url
 
 
 def latest_weekly(posts):
@@ -87,17 +99,21 @@ def _d(iso):
 def pick(entry, pub):
     """보여 줄 글과 그 말. pub = 최신 주간 발표일('YYYY-MM-DD', weekly_release.status(p)['pub']).
 
-    돌려주는 것 {'lead': '이번 주 해석 읽기', 'title', 'url', 'date', 'md': '9/25', 'src': '네이버 블로그, 9/25'} 또는 None.
+    돌려주는 것 {'lead': '이번 주 해석 읽기', 'title', 'url', 'date', 'md': '9/25', 'src': '네이버 블로그, 9/25',
+    'note': NEIGHBOR} 또는 None.
     발표일 당일·뒤에 올라온 글은 '이번 주', 그 전 FRESH_DAYS 일 안의 글은 '지난주'. 더 오래됐거나 없으면 None(칸을 뺀다).
     """
     if not entry or not pub:
         return None
-    d, p = _d(entry['date']), _d(pub)
+    try:
+        d, p = _d(entry['date']), _d(pub)
+    except (ValueError, TypeError, AttributeError, KeyError):   # '2026-13-40' 처럼 모양만 맞는 날짜 — 칸만 뺀다
+        return None
     if d < p - datetime.timedelta(days=FRESH_DAYS):
         return None
     md = '%d/%d' % (d.month, d.day)
     return {'lead': LEAD_NOW if d >= p else LEAD_PREV, 'title': entry['title'], 'url': entry['url'],
-            'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md)}
+            'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md), 'note': NEIGHBOR}
 
 
 def text(b):
@@ -119,14 +135,32 @@ def write(entry, path=None):
     return False
 
 
+def _fetch_with_wall(fetch):
+    """fetch() 를 WALL_SECONDS 안에서만 기다린다. 넘기거나 실패하면 None — 데몬 스레드라 남아도 프로세스는 끝난다.
+    (로컬 bat 에는 셸 timeout 이 없어 도구 안에 벽시계를 둔다.)"""
+    box = {}
+
+    def run():
+        try:
+            box['v'] = fetch()
+        except BaseException as e:   # noqa: BLE001 — 블로그 칸 때문에 데이터 갱신을 멈추지 않는다
+            box['e'] = e
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+    t.join(WALL_SECONDS)
+    if t.is_alive():
+        print('블로그 RSS 읽기가 %d초를 넘겨 그만둔다' % WALL_SECONDS)
+        return None
+    if 'e' in box:
+        print('블로그 RSS 읽기 실패: %s' % box['e'])
+        return None
+    return box.get('v')
+
+
 def main(path=None, fetch=None):
     """RSS 를 읽어 최신 주간 글을 적는다. 언제나 0 — 못 읽으면 파일을 그대로 둔다(없으면 빈 값으로 만든다)."""
     path = path or FILE
-    try:
-        posts = (fetch or CP.fetch_posts)()
-    except Exception as e:           # noqa: BLE001 — 블로그 칸 때문에 데이터 갱신을 멈추지 않는다
-        print('블로그 RSS 읽기 실패: %s' % e)
-        posts = None
+    posts = _fetch_with_wall(fetch or CP.fetch_posts)
     new = latest_weekly(posts) if posts else None
     if new is None:
         print('블로그 주간 글을 못 읽었다 — 지난 값을 그대로 둔다(칸은 오래되면 빠진다)')

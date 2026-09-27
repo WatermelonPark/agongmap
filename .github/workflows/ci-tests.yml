@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 배치 커밋 잡의 게이트를 순서 그대로 따라 한다: 설치 전에 생성기 다섯 → pytest·pillow 설치 → pytest.
+  # 배치 커밋 잡의 게이트를 순서 그대로 따라 한다: 설치 전에 생성기 여섯 → pytest·pillow 설치 → pytest.
   # 생성기를 먼저 돌리는 이유도 배치와 같다 — 정합 시험 몇은 새로 구운 페이지와 data.js 를 대조한다.
   # PR 은 생성 산출물을 싣지 않으므로(CLAUDE.md), 생성기를 고친 PR 은 여기서 다시 구워야 배치와 같은 답이 나온다.
   gate:

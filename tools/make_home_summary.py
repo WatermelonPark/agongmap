@@ -63,16 +63,21 @@ def load_core(path=None):
 
 
 def facts(adv):
-    """홈 요약에 쓰는 값 — 모두 data-core 에 실린 그대로. 없는 조각은 None(그 줄만 빠진다)."""
+    """홈 요약에 쓰는 값 — 모두 data-core 에 실린 그대로. 없는 조각은 None(그 줄·그 조각만 빠진다)."""
     out = {'nat': None, 'wk': None, 'n_sido': None}
     sido = adv.get('sido') or {}
     zones = sido.get('zones') or []
+    H = sido.get('H') or SZ.LEAD_Q
+    out['yrs'] = '%g년' % (H / 4.0)            # '3년' — 판정 창(H)에서 유도한다(손으로 적지 않는다)
     nat = next((z for z in zones if z.get('z') == '전국'), None)
     if zones:
         out['n_sido'] = len([z for z in zones if not z.get('agg')])
     if nat and nat.get('ctxt') and nat.get('grade') in SZ.GRADE_LABS:
-        num = ('%s %s' % (nat.get('cnum') or '', nat.get('cdir') or '')).strip()
-        out['nat'] = {'lab': SZ.GRADE_LABS[nat['grade']], 'ctxt': nat['ctxt'], 'short': num or nat['ctxt'],
+        # 세대수만: cnum(2차 배포 뒤 split 이 싣는다), 옛 data-core 면 ctxt 첫 조각의 숫자 부분
+        num = nat.get('cnum') or (nat['ctxt'].split(' · ')[0].rsplit(' ', 1)[0] if '세대' in nat['ctxt'] else '')
+        # 비율 문장: rtxt(허브 목록과 같은 정본 문구 '3년 필요량의 60% 부족'). 없으면 같은 정본 함수로.
+        rtxt = nat.get('rtxt') or (SZ.ratio_text(nat['ratio'], H) if nat.get('ratio') is not None else '')
+        out['nat'] = {'lab': SZ.GRADE_LABS[nat['grade']], 'ctxt': nat['ctxt'], 'num': num, 'rtxt': rtxt,
                       'basis': sido.get('Ltxt') or sido.get('L') or ''}
     w = adv.get('weekly') or {}
     rows = w.get('rows') or []
@@ -82,8 +87,14 @@ def facts(adv):
         v = ma[regs.index('전국')] if '전국' in regs and regs.index('전국') < len(ma) else None
         hd = w.get('head')
         head = hd['text'] if (hd and hd.get('p') == row['p'] and hd.get('text')) else None   # 홈 JS weeklyHead 와 같은 조건
+        # 설명 문장용 결론 — /weekly/ 제목·홈 띠와 같은 함수(conclusion)의 조각을 '경기 +0.23%로 가장 크게 올랐습니다'로 잇는다
+        try:
+            c = MW.conclusion(w)
+        except Exception:                   # noqa: BLE001 — 설명 한 조각 때문에 홈 굽기를 멈추지 않는다
+            c = None
+        lead = None if c is None else (c['text'] if c['who'] is None else '%s %s로 %s' % (c['who'], c['val'], c['verb']))
         out['wk'] = {'pub': WR.md(WR.status(row['p'])['pub']), 'nation': None if v is None else MW.pv2(v) + '%',
-                     'head': head}
+                     'head': head, 'lead': lead}
     return out
 
 
@@ -91,8 +102,17 @@ def _wk_bits(wk):
     return [x for x in ('전국 ' + wk['nation'] if wk['nation'] else None, wk['head']) if x]
 
 
+def _wk_sentence(wk):
+    """'전국 +0.09% · 경기 +0.23%로 가장 크게 올랐습니다' — 전국 값·결론 가운데 있는 것만."""
+    bits = [x for x in ('전국 ' + wk['nation'] if wk['nation'] else None, wk['lead']) if x]
+    if not bits:
+        return None
+    s = ' · '.join(bits)
+    return s if wk['lead'] else s + '입니다'
+
+
 def region_html(f):
-    """표식 구간 안에 넣을 마크업. 구울 것이 없으면 빈 문자열(표식만 남아 #map-wrap 이 비어 있던 옛 모습)."""
+    """표식 구간 안에 넣을 마크업. 구울 것이 없으면 빈 문자열(표식만 남는다)."""
     rows = []
     if f['nat']:
         n = f['nat']
@@ -108,28 +128,35 @@ def region_html(f):
 
 
 def meta_texts(f):
-    """(description, og·twitter description). 숫자가 하나도 없으면 None — 메타를 그대로 둔다."""
-    if not f['nat'] and not (f['wk'] and _wk_bits(f['wk'])):
+    """(description, og·twitter description). 숫자가 하나도 없으면 None — 메타를 그대로 둔다.
+
+    문장은 '…만큼.'으로 끝나지 않게 정본 비율 문구(rtxt)를 쓴다(검토 09-27):
+      '2026년 2분기 기준 전국 아파트 공급은 3년 필요량의 60% 부족(686,396세대)입니다. 9/24 발표 주간 아파트 매매가격은
+       전국 +0.09% · 경기 +0.23%로 가장 크게 올랐습니다. 국토교통부 착공·준공 실적으로 16개 시도의 3년 공급을 …'
+    """
+    wk = _wk_sentence(f['wk']) if f['wk'] else None
+    n = f['nat'] if (f['nat'] and f['nat']['rtxt']) else None
+    if not n and not wk:
         return None
     d, o = [], []
-    if f['nat']:
-        n = f['nat']
-        basis = ('(%s 기준)' % n['basis']) if n['basis'] else ''
-        d.append('전국 아파트 공급 %s%s: %s.' % (n['lab'], basis, n['ctxt']))
-        o.append('전국 %s%s.' % (n['short'], (' · %s 기준' % n['basis']) if n['basis'] else ''))
-    if f['wk'] and _wk_bits(f['wk']):
-        wk = f['wk']
-        d.append('%s 발표 주간 아파트 매매가격 %s.' % (wk['pub'], ', '.join(_wk_bits(wk))))
-        o.append('%s 발표 주간 매매 %s.' % (wk['pub'], ('전국 ' + wk['nation']) if wk['nation'] else wk['head']))
+    if n:
+        basis = ('%s 기준 ' % n['basis']) if n['basis'] else ''
+        body = n['rtxt'] + (('(%s)' % n['num']) if n['num'] else '')
+        sent = '%s전국 아파트 공급은 %s입니다.' % (basis, body)
+        d.append(sent.replace('거의 같음입니다.', '거의 같습니다.'))
+        o.append('%s전국 아파트 공급 %s.' % (basis, body))
+    if wk:
+        d.append('%s 발표 주간 아파트 매매가격은 %s.' % (f['wk']['pub'], wk))
+        o.append('%s 발표 주간 매매 %s.' % (f['wk']['pub'], ('전국 ' + f['wk']['nation']) if f['wk']['nation'] else wk))
     k = ('%d개 시도' % f['n_sido']) if f['n_sido'] else '시도별'
-    d.append('국토교통부 착공·준공 실적으로 %s의 3년 공급을 판정하고, 한국부동산원 주간 시세를 지도로 봅니다.' % k)
-    o.append('%s 3년 공급 판정과 주간 시세 지도, 국가 통계 기반.' % k)
+    d.append('국토교통부 착공·준공 실적으로 %s의 %s 공급을 판정하고, 한국부동산원 주간 시세를 지도로 봅니다.' % (k, f['yrs']))
+    o.append('%s %s 공급 판정과 주간 시세 지도, 국가 통계 기반.' % (k, f['yrs']))
     return ' '.join(d), ' '.join(o)
 
 
 def outside(s):
     """표식 구간 안과 세 메타의 값을 비운 나머지 — 이 도구가 바꾸면 안 되는 부분."""
-    s = _REGION.sub(START + END, s)
+    s = _REGION.sub(START + END, s)   # (안의 줄바꿈까지 비운다 — 구간 안은 전부 이 도구의 몫이다)
     for key, attr in METAS:
         s = _meta_pat(key, attr).sub(lambda m: m.group(1) + m.group(3), s)
     return s
@@ -145,7 +172,8 @@ def render(s, adv):
             raise SystemExit('index.html 에서 %s 메타를 하나로 찾지 못했다' % attr)
     f = facts(adv)
     body = region_html(f)
-    inner = (nl + body.replace('\n', nl) + nl) if body else ''
+    # 표식은 제 줄에 있다 — 두 표식 줄 사이에 줄을 끼우기만 한다(비었으면 줄바꿈 하나). 앞뒤 줄은 건드리지 않는다.
+    inner = nl + ((body.replace('\n', nl) + nl) if body else '')
     out = _REGION.sub(lambda m: START + inner + END, s)
     mt = meta_texts(f)
     if mt:

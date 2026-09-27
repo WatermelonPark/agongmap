@@ -116,6 +116,7 @@ if errorlevel 1 (
 
 rem Latest weekly blog post (Naver blog RSS) -> tools\data\blog_latest.json, read by split_data (ADV.blog)
 rem and make_weekly_page. Always exits 0; on RSS failure the previous value is kept (B5, 2026-09-27).
+rem cmd has no command timeout: the tool caps its own RSS read at WALL_SECONDS (60 s); the cloud adds `timeout 90`.
 python tools\blog_feed.py
 if errorlevel 1 echo WARN: blog_feed failed - blog line keeps the previous value
 
