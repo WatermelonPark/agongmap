@@ -181,3 +181,134 @@ def move_text(d):
     if d < 0:
         return '▼%d' % -d
     return '–'
+
+
+# ── 시군구 → 시도(판정 단위) · 누적 · 시도 리포트 주간 표(홈 마케팅 검수 D4, 2026-09-27) ─────────────────
+# 시도 리포트(make_sido_pages)가 그 시도의 시군구 주간 표를 굽는다. 순위·방향·연속은 위 함수(sgg_ranks·direction·
+# streak)를 그대로 쓴다 — /weekly/ 표·홈 격자 표지와 같은 숫자여야 한다(같은 값을 재는 코드는 같은 함수).
+
+# 시군구 코드(KOSIS 계열)의 시도 접두. home-app.js SIDO_PREFIX·sidoOf 의 파이썬 거울이다 — 홈 통계 탭의 '시도 → 시군구'
+# 선택(sggOfSido)과 시도 리포트 표가 같은 시군구를 같은 시도에 둔다. 일치는 test_zone_weekly 가 실데이터 전 코드로
+# node 대조한다(한쪽만 고치면 빨개진다). 수도권 셋(a7·a8·그 밖의 a)은 sidoOf 처럼 접두 두 글자가 아니라 첫 글자 뒤로 가른다.
+SGG_PREFIX = {'a7': '서울', 'a8': '경기', 'a9': '인천', 'b1': '부산', 'b2': '대구', 'b3': '광주', 'b4': '대전',
+              'b5': '울산', 'b6': '세종', 'c1': '강원', 'c2': '충북', 'c3': '충남', 'c4': '전북', 'c5': '전남',
+              'c6': '경북', 'c7': '경남', 'c8': '제주'}
+CUM_WEEKS = 12          # 시도 리포트 주간 표의 누적 창(주)
+
+
+def sgg_sido(code):
+    """시군구 코드 → 원천 시도 이름(home-app.js sidoOf 와 같은 답). 전국(a0)·모르는 접두는 None."""
+    if not code:
+        return None
+    if code[0] == 'a':
+        if code == 'a0':
+            return None
+        if code.startswith('a7'):
+            return '서울'
+        if code.startswith('a8'):
+            return '경기'
+        return '인천'
+    return SGG_PREFIX.get(code[:2])
+
+
+def sgg_zone(code):
+    """시군구 코드 → 판정 단위(sido_zones.ORDER 의 이름). 광주·전남 시군구는 통합 단위(전남광주)로 — 통합 이름은
+    과거 시계열 병합의 정본(merge_regions.SRC·DST)에서 읽는다. 시군구 주간 값 자체는 원천(R-ONE)이 계속 따로 낸다."""
+    from merge_regions import SRC, DST   # 쓸 때 가져온다(표준 라이브러리만 쓰는 모듈)
+    s = sgg_sido(code)
+    return DST if s in SRC else s
+
+
+def zone_names(codes, names, z):
+    """판정 단위 z 에 드는 시군구의 이름표 부분집합 {코드: 이름}. 집계(전국·수도권·지방)는 소속 시도의 권역(SZ.REGION)으로 모은다.
+    이름표(SGG_QNAME)에 없는 코드는 넣지 않는다 — 홈 TOP 10·/weekly/ 표와 같은 대상."""
+    out = {}
+    for c in codes:
+        if c not in names:
+            continue
+        zz = sgg_zone(c)
+        if zz is None:
+            continue
+        if z == '전국' or zz == z or (z in SZ.AGG and SZ.REGION.get(zz) == z):
+            out[c] = names[c]
+    return out
+
+
+def _iso(p):
+    import datetime
+    try:
+        return datetime.date(*(int(x) for x in str(p)[:10].split('-')))
+    except (TypeError, ValueError):
+        return None
+
+
+def cum_window(rows, weeks=CUM_WEEKS):
+    """최근 weeks 주 누적에 들어가는 행 번호 — **조사일로** 고른다(최신 조사일 − 7×weeks 일 < 조사일 ≤ 최신).
+
+    행 번호 차(rows[-12:])로 잡지 않는다: 발표를 한 주 거른 회차가 있으면 12행이 13주가 된다(CLAUDE.md '전월·1년 전 칸은
+    인덱스 차가 아니라 라벨로' 와 같은 이유). 거른 주의 변동은 다음 회차 값에 실려 있으므로(전 회차 대비) 창 안 행을 모두 이으면
+    그 기간의 지수 변화와 같다. 창의 기준 주(최신 − weeks 주) 또는 그보다 앞선 행이 없으면(이력이 창보다 짧다) None."""
+    if not rows:
+        return None
+    last = _iso(rows[-1].get('p'))
+    if last is None:
+        return None
+    import datetime
+    base = last - datetime.timedelta(days=7 * weeks)
+    ds = [_iso(r.get('p')) for r in rows]
+    if not any(d is not None and d <= base for d in ds):
+        return None
+    return [k for k, d in enumerate(ds) if d is not None and base < d <= last]
+
+
+def cum_change(rows, idx, i, met):
+    """창(idx) 안 주간 변동률을 이어 곱한 누적 변동률(%) — 지수로 되돌리면 (기말 ÷ 기초 − 1) × 100 과 같다.
+    창이 없거나 창 안에 결측이 하나라도 있으면 None(빈 주를 0 으로 세지 않는다)."""
+    if not idx:
+        return None
+    acc = 1.0
+    for k in idx:
+        src = rows[k].get(met) or []
+        v = src[i] if i < len(src) else None
+        if v is None:
+            return None
+        acc *= 1 + v / 100.0
+    return (acc - 1) * 100
+
+
+def zone_table(S, names, z):
+    """시도 리포트 주간 표의 행 — 판정 단위 z 의 시군구를 이번 주 매매 순(sgg_ranks 와 같은 순서·같은 대상)으로.
+
+    돌려주는 것: [{'c': 코드, 'name': 이름, 'ma'/'je': 이번 주 원값, 'ma12'/'je12': CUM_WEEKS 주 누적(원값) 또는 None,
+    'sma'/'sje': 연속(streak — 상승 +N·하락 −N·0), 'oma'/'oje': 연속이 보관 이력 첫 주까지 닿았나}] — 행이 둘 미만이면 [].
+    표시(반올림)는 부르는 쪽이 make_weekly_page.pv2 로 한다. 연속은 streak() 그대로(표시값 부호, 보합·결측에서 끊김, 전체 이력).
+    """
+    rows = (S or {}).get('rows') or []
+    codes = (S or {}).get('codes') or []
+    if len(rows) < 2:
+        return []
+    sub = zone_names(codes, names, z)
+    order, _ = sgg_ranks(codes, rows[-1], sub, 'ma')
+    idx = {c: k for k, c in enumerate(codes)}
+    win = cum_window(rows)
+    out = []
+    for c, _v in order:
+        i = idx[c]
+        r = {'c': c, 'name': names[c]}
+        for met in ('ma', 'je'):
+            vals = [((row.get(met) or [])[i] if i < len(row.get(met) or []) else None) for row in rows]
+            s = streak(vals)
+            r[met] = vals[-1]
+            r[met + '12'] = cum_change(rows, win, i, met)
+            r['s' + met] = s
+            r['o' + met] = 1 if s and abs(s) == len(vals) else 0
+        out.append(r)
+    return out
+
+
+def streak_text(s, opened=0):
+    """연속 → 표 칸 글자(칸 머리가 '연속(주)'라 단위는 뺀다). '▲5' · '▼3' · 이력 첫 주까지 닿으면 '▲156 이상'
+    (TXT_STREAK_OPEN 과 같은 뜻) · 보합·결측 '–'."""
+    if not s:
+        return '–'
+    return '%s%d%s' % ('▲' if s > 0 else '▼', abs(s), ' 이상' if opened else '')
