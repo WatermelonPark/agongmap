@@ -11,7 +11,7 @@
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
 // home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
 // — 하나라도 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v164'; // 홈 마케팅 검수 3차: 지도 보기 전환·두 단·내 지역·설치 안내·주간 표·공유 버튼, B11 홈 글꼴 서브셋·퀴즈/통계 코드 분할(분할 파일 주소가 이 판에 묶인다), D1 RSS
+const VERSION = 'v165'; // 홈 작은 글씨 정리(2026-09-28 대표 결정): 띠 둘째 줄·분포 한 줄·범례 뜻 한 줄·운영 주체 줄·출처 줄·블로그 이웃 안내·방향이 바뀐 곳 줄·격자 전세 값을 빼고, 남은 홈 글자를 13px 이상으로
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가

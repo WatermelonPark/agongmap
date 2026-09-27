@@ -103,6 +103,56 @@ def test_generators_bake_the_canonical_tabbar():
     assert "활성 탭은 '통계'" not in got, '/weekly/ CSS 주석에 옛 탭 이름이 남았다'
 
 
+NAV_BTN_RULE = re.compile(r'(?:^|[}\s])\.nav-btn\{([^}]*)\}')
+
+
+def _label_sizes(css):
+    """CSS 안 `.nav-btn{…}` 규칙들의 font-size(px). 주석은 벗긴다."""
+    css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+    return [float(m.group(1)) for r in NAV_BTN_RULE.findall(css) for m in [re.search(r'font-size:\s*([\d.]+)px', r)] if m]
+
+
+def test_every_tabbar_label_is_the_canonical_size():
+    """탭 라벨 글자가 모든 페이지에서 정본 크기(site_nav.LABEL_PX = 13px — 홈 화면 글자 하한, 2026-09-28 대표 결정)다.
+    탭바는 모든 페이지 공용이라 app.css 를 읽는 페이지(홈·시도 리포트·/cycle/·퀴즈 점수 페이지)는 공용 규칙이, 자기 <style> 을
+    쓰는 페이지(손 페이지·/weekly/·/monthly/·/moveins/·/jeonse-ratio/)는 그 규칙이 칠한다. 생성기도 같은 값을 굽는다 —
+    make_indicator_pages SHELL 은 상수를 넣고, /weekly/ 는 뼈대가 산출물이라 put_nav 가 옛 11.5px 를 고쳐 쓴다(픽스처로 확인).
+    데스크톱 홈 상단 내비(body.home-app .nav-btn, 1024px 이상)는 이보다 작지 않다.
+
+    재현하는 실제 상태(2026-09-28 검토): 홈 작은 글씨를 13px 이상으로 올린 뒤에도 하단 탭바 라벨(홈·지역·시세·사이클)만
+    11.5px 였다 — app.css·손 페이지 7곳·생성기 두 곳·/weekly/ 뼈대에 같은 값이 흩어져 있었다.
+    변이(각각 확인): app.css `.nav-btn` 을 11.5px 로 되돌리면 홈·시도 리포트가, 손 페이지 하나(about)의 규칙을 되돌리면 그
+    페이지가, SHELL 의 상수를 11.5px 로 박으면 SHELL 단정이, put_nav 의 글자 크기 고쳐 쓰기를 지우면 /weekly/ 픽스처 단정이
+    빨개진다. 픽스처: 생성기를 돌린 뒤의 저장소 HTML 전부 + 옛 11.5px 뼈대로 되돌린 /weekly/ 사본.
+    """
+    want = float(N.LABEL_PX)
+    assert want >= 13, '탭 라벨이 홈 글자 하한(13px)보다 작다'
+    app = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    app_sizes = _label_sizes(re.sub(r'@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}', '', app))
+    assert app_sizes == [want], 'app.css .nav-btn 글자 %s ≠ 정본 %s' % (app_sizes, want)
+    desk = re.search(r'body\.home-app \.nav-btn\{[^}]*font-size:([\d.]+)px', app)
+    assert desk and float(desk.group(1)) >= want, '데스크톱 상단 내비 라벨이 정본보다 작다'
+    bad, seen = {}, 0
+    for rel in _html_pages():
+        html = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        if not NAV.search(html):
+            continue
+        seen += 1
+        own = _label_sizes(''.join(re.findall(r'<style[^>]*>(.*?)</style>', html, re.S)))
+        if own:
+            if any(s != want for s in own):
+                bad[rel] = own
+        elif 'href="/app.css"' not in html:
+            bad[rel] = '탭 라벨 규칙이 없다'
+    assert seen > 10 and not bad, '탭 라벨 글자가 정본(%spx)과 다르다: %s' % (want, bad)
+    assert _label_sizes(I.SHELL) == [want], 'make_indicator_pages SHELL 탭 라벨: %s' % _label_sizes(I.SHELL)
+    page = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8', newline='').read()
+    old = NAV_BTN_RULE.sub(lambda m: m.group(0).replace('font-size:%gpx' % want, 'font-size:11.5px'), page)
+    assert _label_sizes(old) == [11.5], '픽스처가 옛 11.5px 뼈대가 아니다'
+    W, Q = MW.load()
+    assert _label_sizes(MW.render(old, W, Q)) == [want], '/weekly/ 생성기가 옛 탭 라벨 크기를 남긴다'
+
+
 def test_manifest_shortcut_to_the_tab_uses_the_tab_label():
     """설치 앱 바로가기 중 이 탭(/#stats)으로 가는 칸은 탭과 같은 이름을 쓴다(짧은 이름에 탭 라벨).
 

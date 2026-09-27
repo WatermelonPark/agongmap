@@ -119,13 +119,14 @@ def _base_js(src):
         _wk_block(src), _var(src, 'TB_MIN'), _var(src, 'TB_UP'), _var(src, 'TB_BAL'), _var(src, 'TB_GRADE'),
         _var(src, 'WK_MAP_REF'), _var(src, 'MAP_MODE'),
         _fns(src, ('pv2r', 'pv2', 'pvSign', 'mapColor', 'tintA', 'mapFill', 'supplyFill', 'opaqueOnPaper', 'wkFill',
-                   'wkPct', 'wkMapModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggCard', 'distLinks', 'tbSigned',
+                   'wkPct', 'wkMapModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggCard', 'tbSigned',
                    'renderSidoMap')),
     ])
 
 
 def _render(src, p, now_ms, mode):
     """renderSidoMap 을 실제 좌표·합성 데이터로 한 번 그려 map-wrap 의 HTML 과 모델을 돌려준다."""
+    # ktxt·dist 는 옛 data.js 모양(2026-09-28 에 홈에서 뺀 공급 범례 뜻 한 줄·분포 한 줄의 재료) — 그리지 않는지 본다
     ADV = {'sido': {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'ktxt': '뜻 한 줄', 'zones': _zones(), 'dist': '분포'},
            'weekly': _week(p), 'holidays': H2026}
     js = ('var ADV=%s, SIDO_GEO=%s;\n%s\n'
@@ -160,10 +161,12 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
     - 지도 위 발표 줄 = 주간 구역 머리줄과 같은 문장(파이썬 WR.when_text 와 글자까지 같다), 범례 뜻 한 줄 끝 = WR.pub_lead
       (늦은 주 '9/10 발표 기준'), 범례 끝말은 하락·보합·상승, 단위 '(%)'. 공급 범례의 말(공급 여유·균형·부족)은 없다.
     - 카드 셋(전국·수도권·지방)의 값은 pv2 표시값(MW.pv2 와 같다) + '%', 배지는 표시값의 부호로 상승·보합·하락.
-    - 공급 모드는 예전 범례·카드 그대로(공급 여유·균형·공급 부족, 판정 카드 → /zone/), 발표 줄 없음.
+    - 공급 모드는 범례 끝말(공급 여유·균형·공급 부족)과 판정 카드(→ /zone/)뿐이다 — 발표 줄 없음, 범례 뜻 한 줄('… · 2026년
+      2분기 기준')과 카드 아래 분포 한 줄은 없다(2026-09-28 대표 결정 — 작은 글씨 정리. 옛 data.js 의 ktxt·dist 가 있어도 안 그린다).
     변이(각각 실제로 넣어 빨간 것을 확인): wkMapModel 의 when 을 발표일만(_md(r.pub)) 으로 바꾸면 발표 줄 단정, mapKeyHtml 주간
           갈래의 '(%)' 를 빼면 단위 단정, 주간 범례가 공급 끝말('공급 여유')을 쓰면 끝말 단정, wkPct 가 pv2 대신 toFixed(2)
-          (−0.085 → '−0.08', −0.0012 → '−0.00')를 쓰면 카드·지역 이름표 값 단정, renderSidoMap 주간 갈래가 발표 줄을 안 그리면 발표 줄 단정.
+          (−0.085 → '−0.08', −0.0012 → '−0.00')를 쓰면 카드·지역 이름표 값 단정, renderSidoMap 주간 갈래가 발표 줄을 안 그리면 발표 줄 단정,
+          공급 범례에 뜻 한 줄(ADV.sido.ktxt · Ltxt 기준)을 되살리면 공급 단정.
     픽스처: 2026 추석 공휴일 표, 세 상태(평상·연휴·늦은 주), 반올림 경계 값(−0.0012·−0.085·0.005)과 자료 없음(제주).
     """
     src = _src()
@@ -173,7 +176,7 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
     M, h = wk['M'], wk['h']
     assert M['when'] == WR.when_text(st) and M['lead'] == WR.pub_lead(st), (M, st)
     assert M['stale'] == st['stale'] and (name == 'stale') == st['stale'] and (name == 'hedge') == st['hedge']
-    assert '<p class="agg-dist wk-when">%s</p>' % WR.when_text(st) in h, '지도 위 발표 줄이 없다'
+    assert '<p class="wk-when">%s</p>' % WR.when_text(st) in h, '지도 위 발표 줄이 없다'
     key = re.search(r'<div class="tb-key map-key mk-wk">(.*?)</div>', h).group(1)
     words = re.findall(r'</i>([^<]+)</span>', key)
     assert words == ['하락', '상승'] and '>보합</i>' in key, key
@@ -200,9 +203,10 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
 
     sup = _render(src, p, ms, 'supply')['h']
     assert '<i class="mk-b">균형</i>' in sup and '공급 여유' in sup and '공급 부족' in sup
-    assert '뜻 한 줄 · 2026년 2분기 기준' in sup and 'wk-when' not in sup and '/weekly/' not in sup
+    assert '뜻 한 줄' not in sup and '2026년 2분기 기준' not in sup and 'tk-n' not in sup
+    assert 'wk-when' not in sup and '/weekly/' not in sup
     assert 'aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유, 회색은 균형"' in sup
-    assert re.findall(r'<a class="agg-a" href="/zone/', sup) and '<p class="agg-dist">분포' in sup
+    assert re.findall(r'<a class="agg-a" href="/zone/', sup) and 'agg-dist' not in sup and '분포' not in sup
 
 
 def test_mode_switch_keeps_links_targets_and_labels_and_recolors_only():

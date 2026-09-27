@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v164';
+const HOME_BUILD='v165';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -490,7 +490,7 @@ function wkNextText(r){
   if(r.hedge)return '연휴로 발표 일정이 바뀔 수 있습니다';
   return '다음 발표 '+_md(r.next)+'('+'일월화수목금토'[_wd(_dn(r.next))]+')';
 }
-/* 결론 앞 발표일 머리말 — 평상 '9/24 발표', 늦은 주 '9/17 발표 기준'(파이썬 WR.pub_lead). 첫 화면 띠 첫 줄과 늦은 주의
+/* 결론 앞 발표일 머리말 — 평상 '9/24 발표', 늦은 주 '9/17 발표 기준'(파이썬 WR.pub_lead). 첫 화면 띠와 늦은 주의
    주간 구역 h2 가 같이 쓴다 — 지연 주에 두 곳의 머리말이 갈리지 않게(B1·MOB-1). */
 function wkPubLead(r){return _md(r.pub)+' 발표'+(r.stale?' 기준':'');}
 function wkWhenText(r){
@@ -955,11 +955,6 @@ function aggCard(n,z,i){
       +'ⓘ<span class="sr-only"> '+n+' 어떻게 계산했나</span></button>':'')
     +'</div>';
 }
-/* 분포 한 줄 끝의 '(인천·대전·충남)' — 이름마다 시도 리포트 링크. 빈 목록·옛 캐시는 빈 문자열. */
-function distLinks(ns){
-  if(!ns||!ns.length) return '';
-  return '('+ns.map(function(n){ return '<a href="/zone/'+encodeURIComponent(n)+'/">'+n+'</a>'; }).join('·')+')';
-}
 /* ── 지도 모드: 3년 공급 / 이번 주 시세(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27) ──────────────────────────────────────
    한 지도에 두 주기를 싣는다. 기본은 공급(분기 판정) — 첫 화면의 주인은 공급 지도다(IA-1). 같은 빨강·파랑이 모드마다
    다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이 되므로 모드마다 범례의 끝말·가운데 칸, 뜻 한 줄(제목과 단위), 지도 이름
@@ -971,9 +966,11 @@ function distLinks(ns){
    (--bal, C4②)은 주간 모드에 쓰지 않는다(균형은 판정 등급이지 가격이 아니다).
    지역을 누르면 두 모드 모두 시도 공급 리포트(/zone/<시도>/)가 열린다 — 탭 표적(A8 다각형)·링크·라벨은 모드와 무관하게
    같다. 시군구 시세는 주간 카드(→ /weekly/)와 아래 주간 구역이 맡는다.
-   판정 카드 셋·ⓘ 식·분포 한 줄은 공급 판정의 글이라 주간 모드에서는 같은 자리를 주간 카드 셋(전국·수도권·지방 변동률)과
+   판정 카드 셋·ⓘ 식은 공급 판정의 글이라 주간 모드에서는 같은 자리를 주간 카드 셋(전국·수도권·지방 변동률)과
    발표 줄로 바꾼다 — 공급 카드를 남기면 '부족' 배지 아래 가격 색 지도가 붙어 두 뜻이 섞여 읽힌다. 카드는 같은 틀(.agg-c)
-   이라 전환해도 지도가 거의 움직이지 않는다. 시험: test_home_map_mode. */
+   이다. 주간 모드에만 있는 두 줄(카드 아래 발표 줄, 범례 뜻 한 줄)만큼 전환하면 지도가 내려간다 — 2026-09-28 공급 모드의 분포
+   한 줄·범례 뜻 한 줄을 뺀 뒤 Chromium 실측 481px 이하 +55px(두 줄), 482px 이상 +28.9px(뜻 한 줄이 범례 줄에 붙거나 지도 위 오버레이로 간다).
+   누른 뒤의 이동이라 CLS 는 아니다. 공급 모드에 같은 높이의 빈 자리를 두지는 않는다(빈 줄이 생긴다). 시험: test_home_map_mode. */
 var MAP_MODE='supply';
 /* 주간 변동 지도 색의 만색 기준(±0.4%p). 통계 탭 시군구 주간 지도(drawNationMap)·히어로 배경(renderHeroMap)과 한 값이다. */
 var WK_MAP_REF=0.4;
@@ -996,13 +993,14 @@ function wkMapModel(W,r){
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
   return {v:v,when:wkWhenText(r),lead:wkPubLead(r),stale:!!r.stale};
 }
-/* 범례 한 덩어리 — M 이 없으면 공급(예전 그대로), 있으면 주간. 끝말·가운데 칸·뜻 한 줄(제목과 단위)을 모드마다 바꾼다.
+/* 범례 한 덩어리 — M 이 없으면 공급, 있으면 주간. 끝말·가운데 칸을 모드마다 바꾸고, 주간은 뜻 한 줄(제목과 단위)을 단다.
+   공급 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 … · 2026년 2분기 기준')은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리.
+   식은 카드 ⓘ·산출 방법에, 3년 구간은 지도 아래 '앞으로 3년(…~…)' 줄에 있다).
    주간 램프의 양끝·가운데 색은 지도 채움과 같은 wkFill 에서 뽑는다(범례와 지도가 다른 색을 말하지 않게). */
 function mapKeyHtml(M){
   if(!M) return '<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
     +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d"></i><i class="mk-b">균형</i><i class="mk-u"></i></span>'
-    +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span>'
-    +'<span class="tk-n">'+(ADV.sido.ktxt||'앞으로 3년 필요한 만큼 지어지는지')+' · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span></div>';
+    +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span></div>';
   var lo=wkFill(-WK_MAP_REF), lo0=wkFill(-0.01), hi0=wkFill(0.01), hi=wkFill(WK_MAP_REF);
   return '<div class="tb-key map-key mk-wk"><span class="mk-r"><span class="tk"><i style="background:'+lo+'"></i>하락</span>'
     +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d" style="background:linear-gradient(90deg,'+lo+','+lo0+')"></i>'
@@ -1070,14 +1068,10 @@ function renderSidoMap(){
       +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
   });
   h+='</div>'+how;
-  /* 주간 모드: 분포 한 줄 자리에 발표 줄 — 주간 구역 머리줄과 같은 문장(wkWhenText): '9/21 조사 · 9/24 발표 · 다음 발표
-     10/1(목)', 늦은 주 '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기', 연휴 주 '… · 연휴로 발표 일정이 바뀔 수 있습니다'. */
-  if(M) h+='<p class="agg-dist wk-when">'+M.when+'</p>';
-  /* 분포 한 줄(B2·HERO-4·TRUST-3) — 카드 셋이 모두 '부족'이어도 시도 전체가 어떻게 나뉘는지 보인다.
-     곳 수·묶음은 sido_zones.dist_text 가 판정에서 세어 굽는다(ADV.sido.dist). 옛 캐시엔 없어서 빠진다.
-     끝 묶음(여유)의 이름은 각 리포트로 링크한다(TRUST-3① — 반례를 바로 눌러 본다). 이름 목록도 sido_zones.dist_names 가
-     굽는다(ADV.sido.dist_g0). 여기서 등급을 다시 세지 않는다. 목록이 없는 옛 캐시는 링크 없이 분포만 남는다. */
-  else if(ADV.sido.dist) h+='<p class="agg-dist">'+ADV.sido.dist+distLinks(ADV.sido.dist_g0)+'</p>';
+  /* 주간 모드: 카드 아래 발표 줄 — 주간 구역 머리줄과 같은 문장(wkWhenText): '9/21 조사 · 9/24 발표 · 다음 발표
+     10/1(목)', 늦은 주 '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기', 연휴 주 '… · 연휴로 발표 일정이 바뀔 수 있습니다'.
+     공급 모드 카드 아래 분포 한 줄('시도 16곳: 부족 이상 10 · …')은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). */
+  if(M) h+='<p class="wk-when">'+M.when+'</p>';
   /* 행동 안내는 범례 속 11.5px 회색 각주였다('지역을 누르면 상세 리포트') — 첫 화면의 유일한 행동 안내인데
      읽히지 않았다(홈 마케팅 검수 A6·HERO-5①). 본문색 13.5px 한 줄로 키워 지도 바로 위에 둔다. 범례
      오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
@@ -1115,9 +1109,8 @@ function renderSidoMap(){
   /* 범례는 지도 좌상단(서해 빈 공간) 오버레이 — 지도 아래 한 줄로 떨어져
      있으면 지도와 안 붙어 읽힌다(2026-08-08 사용자). pointer-events:none이라
      밑의 경기 북부 탭을 막지 않는다. */
-  /* 범례: 램프 가운데 '균형' 칸(B2·TRUST-3②, C4② 중립색과 같은 --bal). 설명 문구는 sido_zones.legend_text 가 구워 싣는다
-     (ADV.sido.ktxt — '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지', TRUST-2①). 옛 캐시엔 없어 옛 문구로 떨어진다.
-     주간 모드(M)는 끝말·가운데 칸·뜻 한 줄이 바뀐다(mapKeyHtml, C3). */
+  /* 범례: 램프 가운데 '균형' 칸(B2·TRUST-3②, C4② 중립색과 같은 --bal). 주간 모드(M)는 끝말·가운데 칸이 바뀌고 뜻 한 줄이
+     붙는다(mapKeyHtml, C3). */
   h+='<div class="map-box">'+mapKeyHtml(M)
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
     +'" role="img" aria-label="'+mapAria(M)+'">';
@@ -1397,17 +1390,16 @@ function renderWeeklyGrid(){
      바뀌어도 같은 창). 값이 없는 옛 캐시는 코어 rows 그대로. */
   const recent=(ADV.weekly.rows||[]).slice(-(ADV.weekly.recent||(ADV.weekly.rows||[]).length));
   const cell=(r,i,cls,t)=>{
-    const ma=row.ma[i], je=row.je?row.je[i]:null;
+    const ma=row.ma[i];
     const gp=t?';grid-column:'+t[0]+';grid-row:'+t[1]:'';
     const tg=tags[r];
     const tip=recent.length>1?' title="최근 '+recent.length+'주 매매: '+recent.map(x=>mnus(pv2((x.ma||[])[i]))).join(' → ')+'"':'';
-    /* 표지는 매매 기준이다 — 매매 숫자 바로 아래에 두고 '매매'를 앞에 적는다. 전세 줄 아래에 두었더니 '전세 +0.01' 밑의
-       '하락 전환'처럼 전세 흐름으로 읽혔다(3차 검토). */
+    /* 칸 = 지역 이름 · 매매 값 · 표지. 전세 값 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 칸에 매매 값만 남아 표지는
+       '매매' 앞말 없이 /weekly/ 타일과 같은 말(weekly_moves 의 문구 그대로)을 쓴다 — 앞말은 전세 줄과 가르려고 붙였던 것이다. */
     return '<div class="'+cls+'"'+tip+' style="background:'+tint(ma)+gp+'">'
       +'<b>'+r+'</b>'
       +'<span class="wc-ma">'+mnus(pv2(ma))+'</span>'
-      +(tg?'<i class="wc-tag">매매 '+tg[1]+'</i>':'')
-      +'<i class="wc-je">전세 '+mnus(pv2(je))+'</i></div>';
+      +(tg?'<i class="wc-tag">'+tg[1]+'</i>':'')+'</div>';
   };
   /* 집계 3은 격자에서 떼어 위로 — 홈 지도의 집계 칩과 같은 구조다. */
   const AGG=3;
@@ -1431,11 +1423,12 @@ function renderWeeklyGrid(){
      칸이 사라지는 것보다 자리만 어긋나는 게 낫다. */
   const cells=regs.map((r,i)=>({r,i})).slice(AGG)
     .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
-  /* 격자 머리 두 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장), 지난주와 방향이 바뀐 곳(배치가 구운 문장).
-     링크 밖에 둔다 — 격자 링크의 이름(보이는 내용)을 길게 늘리지 않는다. */
+  /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). '지난주와 방향이 바뀐 곳'
+     줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리. 전환은 칸의 표지가 말한다). 링크 밖에 둔다 — 격자 링크의 이름(보이는
+     내용)을 길게 늘리지 않는다. */
   const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel);
   if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
-  const lines=(since?'<p class="wg-since">'+since+'</p>':'')+(mv&&mv.line?'<p class="wg-moves">'+mv.line+'</p>':'');
+  const lines=since?'<p class="wg-since">'+since+'</p>':'';
   const sh=weeklyShare(ADV.weekly);
   /* 공유 버튼(B8·VIRAL-1) — 내용은 /weekly/ 공유 버튼과 같은 함수가 구운 ADV.weekly.share. */
   const share=sh?'<div class="wg-share"><button type="button" class="wg-sh wg-sh-k" onclick="shareWeekly(\'kakao\')">'
@@ -1526,20 +1519,16 @@ function shareWeekly(m){
     navigator.share({title:d.title,text:d.text,url:d.url}).catch(e=>{if(e&&e.name!=='AbortError')copyText(txt);});
   }else{copyText(txt);}
 }
-/* 첫 화면 '이번 주' 띠의 두 줄(B1·HERO-2·IA-5·TRUST-7). DOM 을 만지지 않는 순수 함수 — 시험이 node 로 돌린다.
-   줄마다 [앞, 뒤] 두 조각이고 화면에는 ' · '로 이어진다(좁은 화면은 CSS 가 조각마다 줄을 바꿔 줄 수를 고정한다 —
+/* 첫 화면 '이번 주' 띠 한 줄(B1·HERO-2·IA-5·TRUST-7). DOM 을 만지지 않는 순수 함수 — 시험이 node 로 돌린다.
+   [앞, 뒤] 두 조각이고 화면에는 ' · '로 이어진다(좁은 화면은 CSS 가 조각마다 줄을 바꿔 줄 수를 고정한다 —
    글자 길이에 따라 줄 수가 달라지면 미리 잡은 높이가 어긋나 아래 카드·지도가 밀린다).
-   첫 줄 = [발표일 머리말(wkPubLead — 늦은 주에는 '9/17 발표 기준', h2 와 같은 말), 결론 →]. 둘째 줄 = [배경 지도 캡션, 다음 발표·반영 대기·연휴 안내(wkNextText — 주간 구역 머리줄·통계
-   탭과 같은 함수)]. 늦은 주에는 둘째 줄이 '이번 주 발표분 반영 대기'를 말하고 캡션도 '이번 주' 대신 발표일을 쓴다.
-   배경 지도는 시군구 최신 주를 칠하므로(renderHeroMap) 그 주가 시도 주와 다르면 그 발표일을 적는다.
+   [발표일 머리말(wkPubLead — 늦은 주에는 '9/17 발표 기준', h2 와 같은 말), 결론 →]. 배경 지도 캡션·다음 발표 둘째 줄은
+   뺐다(2026-09-28 대표 결정 — 작은 글씨 정리. 다음 발표·반영 대기는 주간 구역 머리줄 wkWhenText 가 말한다).
    결론이 없거나 유예(grace)가 없는 옛 캐시는 지연을 판정할 수 없어 null — 띠는 날짜를 약속하지 않는 정적 문구로 남는다. */
-function heroBandLines(W,r){
+function heroBandLine(W,r){
   const hd=weeklyHead(W);
   if(!r||!hd||W.grace==null)return null;
-  const S=W.sgg, sp=S&&S.rows&&S.rows.length?S.rows[S.rows.length-1].p:null;
-  const bg=sp?'배경 지도: '+((sp===r.survey&&!r.stale)?'이번 주':_md(pubDate(sp))+' 발표')+' 시군구 매매 변동'
-    :'한국부동산원 주간 통계';
-  return [[wkPubLead(r),hd.text+' →'],[bg,wkNextText(r)]];
+  return [wkPubLead(r),hd.text+' →'];
 }
 function _bandLine(el,parts){
   el.textContent='';
@@ -1550,19 +1539,18 @@ function _bandLine(el,parts){
 }
 function renderHeroBand(){
   let W;try{W=ADV.weekly;}catch(e){return;}
-  const L=heroBandLines(W,weeklyReleaseNow());
-  if(!L)return;
-  const a=document.getElementById('hw-1'), b=document.getElementById('hw-2');
-  if(a)_bandLine(a,L[0]);
-  if(b)_bandLine(b,L[1]);
+  const L=heroBandLine(W,weeklyReleaseNow());
+  const a=document.getElementById('hw-1');
+  if(L&&a)_bandLine(a,L);
 }
 /* 주간 구역의 해석 글 한 줄(홈 마케팅 검수 B5·RET-4, 2026-09-27): '이번 주 해석 읽기: {제목} (네이버 블로그, 9/25)'.
-   글·말(lead·title·src·note)은 배치가 blog_feed.pick 으로 골라 data-core 의 ADV.blog 로 구운 것이다 — /weekly/ 하단과 같은 글.
+   글·말(lead·title·src)은 배치가 blog_feed.pick 으로 골라 data-core 의 ADV.blog 로 구운 것이다 — /weekly/ 하단과 같은 글.
    여기서 날짜를 다시 셈하지 않는다. 글이 없거나(RSS 를 못 읽었거나 오래됨) 옛 캐시면 칸은 숨은 채로 남는다.
-   제목은 RSS 에서 온 글자라 textContent 로만 넣고, 주소는 네이버 블로그 주소만 받는다. */
+   제목은 RSS 에서 온 글자라 textContent 로만 넣고, 주소는 네이버 블로그 주소만 받는다. 둘째 줄 이웃 안내는 뺐다
+   (2026-09-28 대표 결정 — 작은 글씨 정리. /weekly/ 하단에는 남아 있다). */
 function blogLine(B){
   if(!B||!B.url||!B.title||!B.lead||!B.src||!/^https:\/\/blog\.naver\.com\//.test(B.url))return null;
-  return {href:B.url,text:B.lead+': '+B.title,src:' ('+B.src+')',note:B.note||''};
+  return {href:B.url,text:B.lead+': '+B.title,src:' ('+B.src+')'};
 }
 function renderBlogLine(){
   const el=document.getElementById('wk-blog');
@@ -1572,8 +1560,6 @@ function renderBlogLine(){
   a.href=L.href;a.target='_blank';a.rel='noopener';a.textContent=L.text;
   a.addEventListener('click',()=>track('home_cta',{to:'blog_weekly'}));
   el.textContent='';el.appendChild(a);el.appendChild(document.createTextNode(L.src));
-  /* 둘째 줄 = 이웃 안내(RET-4 A안, blog_feed.NEIGHBOR — /weekly/ 하단과 같은 문장). 알림을 약속하지 않는다. */
-  if(L.note){const n=document.createElement('span');n.className='wk-note';n.textContent=L.note;el.appendChild(n);}
   el.hidden=false;
 }
 /* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.
@@ -1821,7 +1807,7 @@ function boot(){
   renderWeeklyGrid();
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
-  renderHeroBand();   // 그 아래 '이번 주' 띠(결론 · 배경 지도 캡션 · 다음 발표)
+  renderHeroBand();   // 그 아래 '이번 주' 띠(발표일 · 결론)
   renderBlogLine();   // 주간 구역 아래 이번 주 해석 글 한 줄(B5)
   renderMyZone();     // 띠 앞 '내 지역' 한 줄(C5) — 자리는 index.html 인라인 스크립트가 첫 페인트 전에 열어 둔다
   renderSupplySpan(); // 지도 아래 '앞으로 3년(…~…)' 구간(B9)

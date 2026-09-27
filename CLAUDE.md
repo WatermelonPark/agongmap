@@ -19,7 +19,7 @@
 | 위치 | 내용 |
 |---|---|
 | `index.html`, `app.css`, `data.js`, `data-*.json` | 홈과 데이터 페이로드. 데이터는 `data.js`의 `ADV_DATA` 블록을 배치가 갈아끼우고 `tools/split_data.py`가 `data-*.json`으로 쪼갠다. `index.html`은 손으로 쓰는 파일이지만 `<!--HOME_SUMMARY_START-->` 표식 구간과 description·og·twitter 설명 메타만 `make_home_summary.py`가 매 회차 고쳐 쓴다(그 부분은 손으로 고치지 않는다) |
-| `home-app.js`, `home-quiz.js`, `home-stats.js` | 홈 본문 스크립트(2026-09-16 `index.html` 인라인에서 분리). 퀴즈·통계 화면 코드는 `home-quiz.js`·`home-stats.js`로 떼어 필요할 때 받는다(2026-09-27 B11, `home-app.js`의 `PARTS` 대기열 — 입구 함수 이름은 `test_home_parts`가 맞물림을 본다). 도구·시험은 이 파일들을 직접 열지 말고 `tools/home_src.py`의 `home_source()`(이어 붙인 전체)·`home_files()`(파일별)로 읽는다. 홈 첫 화면 글꼴은 `webfonts/`의 서브셋(`make_home_font.py`, 사람이 돌림 — fonttools·brotli 필요). 홈 문구에 새 글자를 넣으면 다시 돌린다(`test_home_font`가 알린다). 루트 `fonts/`는 카드 도구 자리라 쓰지 않는다 |
+| `home-app.js`, `home-quiz.js`, `home-stats.js` | 홈 본문 스크립트(2026-09-16 `index.html` 인라인에서 분리). 퀴즈·통계 화면 코드는 `home-quiz.js`·`home-stats.js`로 떼어 필요할 때 받는다(2026-09-27 B11, `home-app.js`의 `PARTS` 대기열 — 입구 함수 이름은 `test_home_parts`가 맞물림을 본다). 도구·시험은 이 파일들을 직접 열지 말고 `tools/home_src.py`의 `home_source()`(이어 붙인 전체)·`home_files()`(파일별)로 읽는다. 홈 첫 화면 글꼴은 `webfonts/`의 서브셋(`make_home_font.py`, 사람이 돌림 — fonttools·brotli 필요). 홈 문구에 새 글자를 넣으면 다시 돌린다(`test_home_font`가 알린다). 루트 `fonts/`는 카드 도구 자리라 쓰지 않는다. 홈 화면 글자는 13px 이상이다(2026-09-28 대표 결정, `test_home_min_font` — SVG 지도 라벨·그래프 축·표 보기 표·사이클 도식은 제외). 공용 클래스는 `#view-home`으로 덮어 다른 페이지를 바꾸지 않는다 |
 | `sw.js` | 서비스워커. `VERSION`을 올리면 `index.html`의 `<html data-build>`, `home-app.js`의 `HOME_BUILD`, `home-quiz.js`의 `HOME_QUIZ_BUILD`, `home-stats.js`의 `HOME_STATS_BUILD`도 같은 값으로 올린다(느린 망에서 새 HTML과 옛 스크립트가 섞이면 한 번 새로고침하는 판 표식, `test_home_build`). 홈 HTML·스크립트를 바꾸는 배포는 `VERSION`을 올려야 이 보호가 작동한다. 분할 스크립트(`home-quiz.js`·`home-stats.js`)는 판 표식으로 양방향 보호한다: `?v=판` 주소로 받고 사전 캐시해 옛 판 파일이 새 홈에 섞이지 않고, 파일 안의 판 표식을 홈이 견줘 열어 둔 옛 판 탭이 새 판 파일을 받으면 한 번 새로고침한다(GitHub Pages 는 쿼리를 무시한다). GA 사용자 속성 `home_variant`(`home-app.js`의 `HOME_VARIANT`)는 홈 구성을 크게 바꾸는 배포에서만 새 값으로 바꾼다(배포 구분값) |
 | `zone/`(시도별 리포트), `weekly/`, `monthly/`, `moveins/`, `jeonse-ratio/` | 배치가 매 회차 굽는 생성 페이지. 손으로 고치지 말고 생성기를 고친다 |
 | `cycle/` | 서술은 손으로 쓴 문서이고, 차트 데이터 배열만 `refresh_cycle_data.py`가 매 회차 갈아끼운다 |
@@ -49,7 +49,7 @@
 | `blog_feed.py` | 네이버 블로그 RSS에서 최신 주간 해설 글을 읽어 `tools/data/blog_latest.json`에 적는다(배치 fetch 잡, 실패하면 지난 값 유지) |
 | `robots_meta.py` | robots 메타(`max-image-preview:large`)의 정본. 저장소의 모든 `.html`에 정확히 하나씩(`test_robots_meta`) — 손 페이지를 새로 만들면 한 줄 넣는다 |
 | `ping_indexnow.py --changed HEAD~1` | 배치 커밋이 sitemap lastmod를 바꾼(새로 생긴·빠진) 주소만 IndexNow로 보내고 결과를 배치 기록에 한 줄 남긴다. 도메인은 `CNAME`, 생성기 `SITE` 상수와의 일치는 시험이 본다 |
-| `site_nav.py` | 하단 탭바(홈·지역·시세·사이클)의 정본. 생성기는 `bottomnav()`로 굽고, 손 페이지 탭바는 손으로 맞추되 `test_site_nav`가 저장소의 모든 HTML 탭바를 대조한다. 탭 식별자(`stats` 등)는 GA 값이라 라벨을 바꿔도 그대로 둔다 |
+| `site_nav.py` | 하단 탭바(홈·지역·시세·사이클)의 정본. 생성기는 `bottomnav()`로 굽고, 손 페이지 탭바는 손으로 맞추되 `test_site_nav`가 저장소의 모든 HTML 탭바를 대조한다. 탭 식별자(`stats` 등)는 GA 값이라 라벨을 바꿔도 그대로 둔다. 라벨 글자 크기도 여기(`LABEL_PX`)가 정본이다 |
 | `make_zone_cards.py`, `make_og_cards.py`, `make_weekly_share.py` | 공유용 이미지·OG 카드 |
 | `make_quiz_share_pages.py` | 퀴즈 점수별 정적 공유 페이지. 퀴즈 세트나 공유 이미지를 바꿨을 때 사람이 돌린다 |
 | `make_naver_post.py`, `make_theory_post.py <편번호>` | 네이버 블로그 초안 생성 → `drafts/`. 배치가 부르지 않고 사람이 발행 직전에 돌린다 |

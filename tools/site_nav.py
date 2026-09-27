@@ -34,6 +34,11 @@ TABS = (
     ('stats', '/#stats', '시세', _I_STATS),
     ('cycle', '/cycle/', '사이클', _I_CYCLE),
 )
+# 탭 라벨 글자 크기(px) — 홈 화면 글자 하한 13px(2026-09-28 대표 결정 — 홈 작은 글씨 정리, 예전 11.5px). 탭바는 모든 페이지
+# 공용이라 app.css·손 페이지 <style>·생성기(make_indicator_pages SHELL, make_weekly_page put_nav)가 이 값을 쓴다 —
+# test_site_nav 가 저장소의 모든 탭바 규칙과 대조한다. 320px 네 칸(80px)에 '사이클' 13px(약 40px)이 들고, 탭바 높이(62px)는
+# 고정이라 본문 아래 여백(padding-bottom 66px)은 그대로다.
+LABEL_PX = 13
 IDS = tuple(t[0] for t in TABS)
 LABELS = tuple(t[2] for t in TABS)
 HREF = {t[0]: t[1] for t in TABS}

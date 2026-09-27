@@ -74,6 +74,7 @@ def test_home_weekly_carries_the_newest_week(split):
     want = sorted(src_rows, key=lambda r: r['p'])[-S.RECENT_WEEKS:]
     assert wk['rows'] == want and wk['rows'][-1] == newest
     assert wk['moves']['p'] == newest['p'] and wk['share']['p'] == newest['p']
+    assert set(wk['moves']) == set(S.HOME_MOVES)   # 홈이 읽는 필드만(test_weekly_moves 가 홈 스크립트와 대조한다)
     # 홈 격자 도움말의 창(ADV.weekly.recent)은 싣는 행 수와 같은 값이고 통계 탭용 trend 에도 실린다 — JS 는 4 를 적지 않는다
     assert wk['recent'] == S.RECENT_WEEKS == len(wk['rows'])
     assert out['trend']['ADV']['weekly']['recent'] == S.RECENT_WEEKS
