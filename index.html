@@ -166,7 +166,8 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 }
 </style>
 </head>
-<body>
+<!-- home-app: 1024px 이상에서 하단 탭바를 상단 내비로 올리는 규칙(app.css, 홈 마케팅 검수 C7)의 범위 표지 — 홈에만 건다. -->
+<body class="home-app">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <div id="splash" aria-hidden="true">
@@ -226,11 +227,22 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
     <a class="hero-wk" id="hero-wk" href="/weekly/" onclick="track('home_cta',{to:'weekly_hero'})"><span class="hw-1" id="hw-1"><span class="hw-a">주간 아파트 시세</span><span class="hw-s"> · </span><span class="hw-b">요약 보기 →</span></span><span class="hw-2" id="hw-2"><span class="hw-a">배경 지도: 주간 시군구 매매 변동</span><span class="hw-s"> · </span><span class="hw-b">한국부동산원</span></span></a>
   </div></header>
 
+  <!-- 데스크톱 2단 뼈대(홈 마케팅 검수 C7·HERO-9, 2026-09-27). 1024px 이상에서만 왼쪽 = 공급 지도 구역, 오른쪽 = 이번 주
+       격자와 다음 발표일(주간 구역)로 나란히 놓는다. 1023px 이하는 이 상자가 없는 것과 같다(블록 하나 — 두 구역이 예전처럼
+       위아래로 쌓인다). 규칙은 app.css '.home-duo'. -->
+  <div class="home-duo">
   <!-- 제목 텍스트는 히어로가 대신한다(2026-08-08 사용자: "텍스트 합치고 심플하게").
        보이는 h2 없이도 이름은 남긴다 — 스크린리더·#score 목적지. -->
   <section class="home-sec vm-map" id="sec-score" aria-label="전국 공급 지도"><div class="wrap">
 
     <div class="tb-bar">
+      <!-- 지도 모드(홈 마케팅 검수 C3·IA-1 안 B): 한 지도에 3년 공급(기본)과 이번 주 시세를 번갈아 칠한다. 지도 보기에서만
+           보인다(그래프·표는 공급 전용). 지도/그래프/표 줄의 빈 왼쪽 자리에 두어 기본 모드의 첫 화면 높이가 늘지 않는다
+           (좁은 폭은 app.css 가 글자 간격을 줄이고 '시세'를 화면에서만 감춘다 — 이름에는 남는다). 동작은 home-app.js mapMode. -->
+      <div class="tb-seg map-mode" id="map-mode" role="group" aria-label="지도에 칠할 값">
+        <button type="button" data-m="supply" class="on" aria-pressed="true" onclick="mapMode('supply')">3년 공급</button>
+        <button type="button" data-m="weekly" aria-pressed="false" onclick="mapMode('weekly')">이번 주<span class="mm-x"> 시세</span></button>
+      </div>
       <!-- role=tablist는 자식이 role=tab이고 tabpanel을 제어할 때만 맞다. 여기서는
            같은 표를 다시 그리는 토글이라 group + aria-pressed가 정확하다. -->
       <div class="tb-seg" id="tb-per" role="group" aria-label="기간 단위">
@@ -308,6 +320,7 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
          알림·요일을 약속하지 않는다. -->
     <p class="wk-blog" id="wk-blog" hidden></p>
   </div></section>
+  </div><!-- /.home-duo -->
 
   <section class="home-sec hs-alt"><div class="wrap">
     <div class="hs-kicker">10문항 · 5분</div>

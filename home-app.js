@@ -1691,7 +1691,8 @@ function drawNationMap(k){
   const natP=(D.rows&&D.rows.length)?D.rows[D.rows.length-1].p:row.p;
   const gap=natP!==row.p;
   const SER=hasWo?'매매·전세·월세':'매매·전세';
-  const ref=k==='week'?0.4:1.0, TW=30, NH=15, G=2;
+  const ref=k==='week'?WK_MAP_REF:1.0,   // 주간 만색 기준은 홈 지도 주간 모드(C3)·히어로 배경과 한 값
+        TW=30, NH=15, G=2;
   /* 3단(월간)은 값 칸을 1px 낮춰 세로가 길어지는 걸 억제한다.
      9px 숫자에 12px 칸이면 충분하고, 2단(주간)은 기존 13px 그대로 둔다. */
   const VH=hasWo?12:13;
@@ -2653,6 +2654,87 @@ function distLinks(ns){
   if(!ns||!ns.length) return '';
   return '('+ns.map(function(n){ return '<a href="/zone/'+encodeURIComponent(n)+'/">'+n+'</a>'; }).join('·')+')';
 }
+/* ── 지도 모드: 3년 공급 / 이번 주 시세(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27) ──────────────────────────────────────
+   한 지도에 두 주기를 싣는다. 기본은 공급(분기 판정) — 첫 화면의 주인은 공급 지도다(IA-1). 같은 빨강·파랑이 모드마다
+   다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이 되므로 모드마다 범례의 끝말·가운데 칸, 뜻 한 줄(제목과 단위), 지도 이름
+   (aria-label)을 바꾸고(mapKeyHtml), 주간 모드는 발표일을 지도 바로 위 줄(wkWhenText)과 범례(wkPubLead)에 박는다.
+   발표일·지연·연휴 문구는 주간 구역 머리줄·첫 화면 띠와 같은 weeklyRelease/wkWhenText/wkPubLead 다 — 여기서 날짜를 다시
+   세지 않는다. 주간 값은 ADV.weekly 최신 행의 시도 매매 변동률, 글자는 pv2(표시 반올림 정본), 색은 통계 탭 시군구 주간
+   지도·히어로 배경과 같은 mapColor(v, WK_MAP_REF)를 지면색 위에 불투명하게 합성한다(도형이 겹쳐 그려져 반투명이면 경기
+   위 서울·인천만 진해진다 — mapFill 과 같은 까닭). 0.00 은 mapColor 가 보합 회색으로 칠한다 — 공급 모드의 '균형' 중립색
+   (--bal, C4②)은 주간 모드에 쓰지 않는다(균형은 판정 등급이지 가격이 아니다).
+   지역을 누르면 두 모드 모두 시도 공급 리포트(/zone/<시도>/)가 열린다 — 탭 표적(A8 다각형)·링크·라벨은 모드와 무관하게
+   같다. 시군구 시세는 주간 카드(→ /weekly/)와 아래 주간 구역이 맡는다.
+   판정 카드 셋·ⓘ 식·분포 한 줄은 공급 판정의 글이라 주간 모드에서는 같은 자리를 주간 카드 셋(전국·수도권·지방 변동률)과
+   발표 줄로 바꾼다 — 공급 카드를 남기면 '부족' 배지 아래 가격 색 지도가 붙어 두 뜻이 섞여 읽힌다. 카드는 같은 틀(.agg-c)
+   이라 전환해도 지도가 거의 움직이지 않는다. 시험: test_home_map_mode. */
+var MAP_MODE='supply';
+/* 주간 변동 지도 색의 만색 기준(±0.4%p). 통계 탭 시군구 주간 지도(drawNationMap)·히어로 배경(renderHeroMap)과 한 값이다. */
+var WK_MAP_REF=0.4;
+/* mapColor 가 낸 반투명 rgba 를 지면색(PAPER_RGB) 위에 합성한 불투명 rgb 로. 회색·#hex 는 그대로 둔다. */
+function opaqueOnPaper(c){
+  var m=/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/.exec(c);
+  if(!m) return c;
+  var a=+m[4], P=PAPER_RGB;
+  return 'rgb('+[0,1,2].map(function(k){ return Math.round(P[k]+(+m[k+1]-P[k])*a); }).join(',')+')';
+}
+function wkFill(v){ return v==null?'var(--paper2)':opaqueOnPaper(mapColor(v,WK_MAP_REF)); }
+/* '+0.13%' · '−0.03%' · '0.00%' — 값은 pv2(반올림 먼저, 부호는 표시값), 글리프만 하이픈 → 마이너스(주간 격자와 같다). */
+function wkPct(v){ return v==null?'자료 없음':pv2(v).replace('-','−')+'%'; }
+/* 주간 모드 재료 — 최신 주 시도 변동률과 발표 상태. r 은 weeklyRelease(…)(= weeklyReleaseNow()). 데이터가 없으면 null
+   (그때는 주간 버튼을 잠근다). DOM 을 만지지 않는 순수 함수라 시험이 node 로 돌린다. */
+function wkMapModel(W,r){
+  var row=W&&W.rows&&W.rows[W.rows.length-1];
+  if(!r||!row||!row.ma||!W.regions||!W.regions.length) return null;
+  var v={};
+  W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
+  return {v:v,when:wkWhenText(r),lead:wkPubLead(r),stale:!!r.stale};
+}
+/* 범례 한 덩어리 — M 이 없으면 공급(예전 그대로), 있으면 주간. 끝말·가운데 칸·뜻 한 줄(제목과 단위)을 모드마다 바꾼다.
+   주간 램프의 양끝·가운데 색은 지도 채움과 같은 wkFill 에서 뽑는다(범례와 지도가 다른 색을 말하지 않게). */
+function mapKeyHtml(M){
+  if(!M) return '<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
+    +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d"></i><i class="mk-b">균형</i><i class="mk-u"></i></span>'
+    +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span>'
+    +'<span class="tk-n">'+(ADV.sido.ktxt||'앞으로 3년 필요한 만큼 지어지는지')+' · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span></div>';
+  var lo=wkFill(-WK_MAP_REF), lo0=wkFill(-0.01), hi0=wkFill(0.01), hi=wkFill(WK_MAP_REF);
+  return '<div class="tb-key map-key mk-wk"><span class="mk-r"><span class="tk"><i style="background:'+lo+'"></i>하락</span>'
+    +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d" style="background:linear-gradient(90deg,'+lo+','+lo0+')"></i>'
+    +'<i class="mk-b" style="background:'+wkFill(0)+'">보합</i>'
+    +'<i class="mk-u" style="background:linear-gradient(90deg,'+hi0+','+hi+')"></i></span>'
+    +'<span class="tk"><i style="background:'+hi+'"></i>상승</span></span>'
+    +'<span class="tk-n">아파트 매매가격 전주 대비 변동률(%) · '+M.lead+'</span></div>';
+}
+/* 지도 이름(aria-label) — 색의 뜻을 모드마다 말한다. */
+function mapAria(M){
+  return M?'시도별 아파트 매매가격 주간 변동 지도 — 붉을수록 상승, 푸를수록 하락, 회색은 보합 · '+M.lead
+    :'시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유, 회색은 균형';
+}
+/* 주간 카드 한 칸 — 판정 카드(aggCard)와 같은 틀: '전국 [상승]' / '+0.09% →' (넓은 화면은 셋째 줄 '매매 전주 대비'). */
+function wkAggCard(n,v){
+  var s=pvSign(v), k=v==null?'':(s>0?'wk-u':s<0?'wk-d':'wk-0'), w=v==null?'자료 없음':(s>0?'상승':s<0?'하락':'보합');
+  return '<div class="agg-c"><a class="agg-a" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_map_card\'})">'
+    +'<span class="agg-l1"><b>'+n+'</b><span class="sc-tier '+k+'">'+w+'</span></span>'
+    +'<span class="agg-l2"><i class="agg-n">'+wkPct(v)+'<span class="agg-go" aria-hidden="true"> →</span></i>'
+    +'<i class="agg-p">매매 전주 대비</i></span></a></div>';
+}
+/* 모드 전환 — 버튼 상태(aria-pressed)를 맞추고 지도를 다시 그린다. 값 이름은 snake_case(supply·weekly), 측정은 map_mode. */
+function mapMode(m){
+  if(m!=='weekly') m='supply';
+  if(MAP_MODE===m) return;
+  if(m==='weekly'&&!wkMapModel(ADV.weekly,weeklyReleaseNow())) return;
+  MAP_MODE=m;
+  var seg=document.getElementById('map-mode');
+  if(seg) [].forEach.call(seg.querySelectorAll('button'),function(b){
+    var on=b.dataset.m===m;
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+  var el=document.getElementById('map-wrap');
+  if(el) el.dataset.done='';
+  renderSidoMap();
+  track('map_mode',{mode:m});
+}
 function renderSidoMap(){
   var el=document.getElementById('map-wrap');
   if(!el||el.dataset.done) return;
@@ -2666,8 +2748,14 @@ function renderSidoMap(){
     return;
   }
   var Z={}; ADV.sido.zones.forEach(function(z){ Z[z.z]=z; });
+  /* 주간 모드 재료(C3). 주간 데이터가 없으면 주간 버튼을 잠그고 공급으로 그린다. */
+  var M0=wkMapModel(ADV.weekly,weeklyReleaseNow()), M=(MAP_MODE==='weekly')?M0:null;
+  var wb=document.querySelector('#map-mode [data-m="weekly"]');
+  if(wb&&!M0){ wb.disabled=true; wb.title='주간 시세 데이터를 불러오지 못했습니다'; }
   var h='<div class="map-agg">', how='';
   ['전국','수도권','지방'].forEach(function(n,i){
+    /* 주간 모드는 같은 자리에 주간 카드(전국·수도권·지방 변동률 → /weekly/) — 판정 카드·ⓘ 식은 공급의 글이다. */
+    if(M){ h+=wkAggCard(n,M.v[n]); return; }
     var z=Z[n]; if(!z) return;
     /* 카드 문구는 sido_zones 가 구워 싣는다(card_parts·zone_texts) — 여기서 다시 만들지 않는다
        (이중 구현 금지). 부호 대신 '부족·여유'를 말로 써 배지와 이중 부정이 되지 않는다(2026-09-15). */
@@ -2676,11 +2764,14 @@ function renderSidoMap(){
       +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
   });
   h+='</div>'+how;
+  /* 주간 모드: 분포 한 줄 자리에 발표 줄 — 주간 구역 머리줄과 같은 문장(wkWhenText): '9/21 조사 · 9/24 발표 · 다음 발표
+     10/1(목)', 늦은 주 '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기', 연휴 주 '… · 연휴로 발표 일정이 바뀔 수 있습니다'. */
+  if(M) h+='<p class="agg-dist wk-when">'+M.when+'</p>';
   /* 분포 한 줄(B2·HERO-4·TRUST-3) — 카드 셋이 모두 '부족'이어도 시도 전체가 어떻게 나뉘는지 보인다.
      곳 수·묶음은 sido_zones.dist_text 가 판정에서 세어 굽는다(ADV.sido.dist). 옛 캐시엔 없어서 빠진다.
      끝 묶음(여유)의 이름은 각 리포트로 링크한다(TRUST-3① — 반례를 바로 눌러 본다). 이름 목록도 sido_zones.dist_names 가
      굽는다(ADV.sido.dist_g0). 여기서 등급을 다시 세지 않는다. 목록이 없는 옛 캐시는 링크 없이 분포만 남는다. */
-  if(ADV.sido.dist) h+='<p class="agg-dist">'+ADV.sido.dist+distLinks(ADV.sido.dist_g0)+'</p>';
+  else if(ADV.sido.dist) h+='<p class="agg-dist">'+ADV.sido.dist+distLinks(ADV.sido.dist_g0)+'</p>';
   /* 행동 안내는 범례 속 11.5px 회색 각주였다('지역을 누르면 상세 리포트') — 첫 화면의 유일한 행동 안내인데
      읽히지 않았다(홈 마케팅 검수 A6·HERO-5①). 본문색 13.5px 한 줄로 키워 지도 바로 위에 둔다. 범례
      오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
@@ -2719,14 +2810,11 @@ function renderSidoMap(){
      있으면 지도와 안 붙어 읽힌다(2026-08-08 사용자). pointer-events:none이라
      밑의 경기 북부 탭을 막지 않는다. */
   /* 범례: 램프 가운데 '균형' 칸(B2·TRUST-3②, C4② 중립색과 같은 --bal). 설명 문구는 sido_zones.legend_text 가 구워 싣는다
-     (ADV.sido.ktxt — '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지', TRUST-2①). 옛 캐시엔 없어 옛 문구로 떨어진다. */
-  h+='<div class="map-box">'
-    +'<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
-    +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d"></i><i class="mk-b">균형</i><i class="mk-u"></i></span>'
-    +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span>'
-    +'<span class="tk-n">'+(ADV.sido.ktxt||'앞으로 3년 필요한 만큼 지어지는지')+' · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span></div>'
+     (ADV.sido.ktxt — '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지', TRUST-2①). 옛 캐시엔 없어 옛 문구로 떨어진다.
+     주간 모드(M)는 끝말·가운데 칸·뜻 한 줄이 바뀐다(mapKeyHtml, C3). */
+  h+='<div class="map-box">'+mapKeyHtml(M)
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
-    +'" role="img" aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유, 회색은 균형">';
+    +'" role="img" aria-label="'+mapAria(M)+'">';
   /* 광주·전남은 2026-09-10 판정 단위가 하나로 합쳐졌다(국토부가 공급 통계를
      '전남광주'로만 발표). 지도의 두 도형은 지리 정보라 그대로 두고, 색·링크·라벨은
      통합 지역을 가리킨다 — 한 판정을 두 땅이 나눠 갖는 모양이다.
@@ -2747,10 +2835,12 @@ function renderSidoMap(){
   SIDO_GEO.p.forEach(function(a){
     var key=zoneOf(a.n);
     var z=Z[key]||{};
-    var lab=key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
+    /* 주간 모드(M)는 색·이름표만 바뀐다 — 링크(시도 공급 리포트)·탭 표적·라벨은 모드와 무관하다(C3). */
+    var lab=M?key+' — 이번 주 매매 '+wkPct(M.v[key])+' · '+M.lead+' · 누르면 공급 리포트'
+      :key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
     var small=SMALL[a.n]||key!==a.n;
     h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
-      +'<path d="'+a.d+'" fill="'+supplyFill(z)+'"></path>'
+      +'<path d="'+a.d+'" fill="'+(M?wkFill(M.v[key]):supplyFill(z))+'"></path>'
       +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
       +'<title>'+lab+'</title></a>';
@@ -2942,7 +3032,7 @@ function renderHeroMap(){
   const w=N.cols*(T+G)-G, h=N.rows*(T+G)-G;
   const p=['<svg viewBox="0 0 '+w+' '+h+'" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" role="presentation" focusable="false">'];
   N.t.forEach(a=>{
-    p.push('<rect x="'+(a[2]*(T+G)).toFixed(1)+'" y="'+(a[3]*(T+G)).toFixed(1)+'" width="'+T+'" height="'+T+'" rx="2.2" fill="'+mapColor(v[a[0]],0.4)+'"/>');
+    p.push('<rect x="'+(a[2]*(T+G)).toFixed(1)+'" y="'+(a[3]*(T+G)).toFixed(1)+'" width="'+T+'" height="'+T+'" rx="2.2" fill="'+mapColor(v[a[0]],WK_MAP_REF)+'"/>');   // 통계 탭 시군구 주간 지도·홈 지도 주간 모드와 같은 기준
   });
   p.push('</svg>');
   el.innerHTML=p.join('');
