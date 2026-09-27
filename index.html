@@ -31,8 +31,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
      한가할 때, 늦어도 2초. 그 몇 초 안에 떠난 방문은 덜 잡힌다 — A3 과 같은 배포라 새 기준선은 이 방식으로만 쌓인다.
      홈만 이렇게 한다: 다른 페이지는 본문이 정적 HTML 이라 GA 가 첫 화면을 늦추지 않는다.
      ④ page_view 는 한 번(A3·MEAS-1). config 의 자동 page_view 가 부팅 때 showView 의 수동 page_view 와 겹쳐 두 번
-     갔다. 자동 전송을 끄고, 부팅 때 showView 가 착지 주소(① 로 옮긴 utm 쿼리·해시 그대로)로 한 번 보낸다.
-     부팅이 page_view 를 못 보냈으면(스크립트 실패·모르는 해시) 로더를 붙이기 직전에 여기서 한 번 채운다. -->
+     갔다. 자동 전송을 끄고, 부팅 때 showView 가 착지 주소(① 로 옮긴 utm 쿼리·해시 그대로)에 화면 표시 view= 를
+     더해 한 번 보낸다(홈은 view 없음 — home-app.js viewLoc). 부팅이 page_view 를 못 보냈으면(스크립트 실패·
+     모르는 해시·요소 앵커 — 셋 다 홈 화면이 떠 있다) 로더를 붙이기 직전에 여기서 착지 주소 그대로 한 번 채운다. -->
 <script>
 window.dataLayer=window.dataLayer||[];
 function gtag(){dataLayer.push(arguments);}
