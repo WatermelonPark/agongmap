@@ -1,6 +1,30 @@
 /* 아공맵 홈 본문 스크립트 — 2026-09-16 index.html 인라인에서 분리(백로그 10, 동결 창).
    ⚠️ index.html 과 한 몸이다. sw.js 는 이 파일을 network-first 로 받는다(새 마크업 + 옛 스크립트 조합 방지).
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 로 읽는다. */
+/* 판 표식(홈 마케팅 검수 C11·MOB-9, 2026-09-27). 서비스워커는 HTML 과 이 파일을 **따로** network-first(3.5초
+   한도)로 받는다. 배포 직후 느린 망에서 HTML(14KB)은 새 판으로 오고 이 파일(78KB)만 한도를 넘겨 옛 캐시로 오면
+   새 마크업 위에서 옛 스크립트가 돈다 — Chromium 에서 home-app.js 응답만 5초 늦춰 재현했다(2초면 안 섞인다).
+   그래서 HTML 의 <html data-build> 와 이 파일의 HOME_BUILD 를 견줘 다르면 **한 번** 새로고침한다. 그사이 늦게 온
+   응답이 캐시에 들어가 두 번째에는 맞는다. 같은 HTML 판으로는 두 번 새로고침하지 않고(sessionStorage), 저장소를
+   못 쓰면 아예 새로고침하지 않는다(무한 반복 방지). 판 표식이 없는 HTML(표식 이전 판)은 비교하지 않는다.
+   새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
+   판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기도 같이(test_home_build). */
+const HOME_BUILD='v161';
+let BUILD_RELOAD=false;
+(function(){
+  try{
+    const html=document.documentElement.getAttribute('data-build')||'', k='agongmap-build';
+    let seen=sessionStorage.getItem(k)||'';
+    if(seen.slice(-1)==='!'){   // 방금 판이 달라 새로고침했다
+      seen=seen.slice(0,-1); sessionStorage.setItem(k,seen);
+      track('build_reload',{build_html:html,build_js:HOME_BUILD,fixed:html===HOME_BUILD});
+    }
+    if(!html||html===HOME_BUILD||seen===html)return;
+    sessionStorage.setItem(k,html+'!');
+    BUILD_RELOAD=true;
+    location.reload();
+  }catch(e){}
+})();
 const LEADTIME={"lags": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], "all": [0.49, 0.526, 0.564, 0.603, 0.642, 0.679, 0.714, 0.747, 0.775, 0.797, 0.809, 0.817, 0.818, 0.813, 0.802, 0.782, 0.754, 0.718, 0.676, 0.629, 0.578, 0.515, 0.458, 0.399, 0.335, 0.264, 0.194, 0.122, 0.044, -0.03, -0.1], "old": [0.865, 0.886, 0.911, 0.933, 0.947, 0.955, 0.958, 0.959, 0.952, 0.944, 0.926, 0.905, 0.885, 0.868, 0.859, 0.839, 0.832, 0.819, 0.812, 0.808, 0.805, 0.766, 0.713, 0.661, 0.579, 0.481, 0.36, 0.213, 0.016, -0.142, -0.255], "new": [-0.261, -0.213, -0.156, -0.092, -0.01, 0.073, 0.154, 0.239, 0.325, 0.405, 0.467, 0.532, 0.596, 0.664, 0.72, 0.772, 0.8, 0.814, 0.811, 0.788, 0.753, 0.687, 0.669, 0.616, 0.575, 0.515, 0.485, 0.419, 0.338, 0.253, 0.17], "peak_old": [27, 0.96], "peak_new": [37, 0.81], "peak_all": [32, 0.82]};
 
 
@@ -123,10 +147,23 @@ function ensureSizeStats(){ return loadData('/data-size.json'); }
    사용자가 세션 중 OS 설정을 바꿔도 따라가지 못한다. */
 const _rm=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
 const scrollBehavior=()=>(_rm&&_rm.matches)?'auto':'smooth';
+/* page_view 의 가상 주소 — 화면(뷰)은 쿼리 view= 로 가른다(A3·MEAS-1 권고, 2026-09-27). GA 는 페이지 경로에
+   해시를 넣지 않아서 예전 '/#stats'·'/#test' 는 홈 '/' 과 한 줄로 합쳐졌다. 쿼리는 '페이지 경로 + 쿼리 문자열'과
+   '방문 페이지 + 쿼리 문자열'에서 갈린다(page_title 의 view_* 도 그대로 둔다). 홈은 view 를 달지 않는다 — 첫 화면
+   '/' 과 홈으로 돌아온 전환이 같은 한 줄이어야 해서다. href 의 경로·다른 쿼리(착지 utm)·해시는 그대로 두고,
+   있던 view= 는 바꿔 끼운다(같은 값이 두 번 붙지 않게). 첫 page_view 는 착지 주소에, 전환은 origin+'/' 에 붙인다. */
+function viewLoc(v,href){
+  const i=href.indexOf('#'), hash=i<0?'':href.slice(i), pre=i<0?href:href.slice(0,i), j=pre.indexOf('?');
+  const q=(j<0?'':pre.slice(j+1)).split('&').filter(s=>s&&!/^view(=|$)/.test(s));
+  if(v!=='home')q.push('view='+v);
+  return (j<0?pre:pre.slice(0,j))+(q.length?'?'+q.join('&'):'')+hash;
+}
 function showView(v,updateHash){
   /* 퀴즈 뷰는 전용 탭이 없다(퀴즈 탭 → 지역 탭 교체, d6fe72e). 아무 탭도 안 켜면
      '지금 어디인가' 표시가 사라진다(2026-08-10 리뷰) — 퀴즈는 홈에서 진입하는
      하위 화면이므로 홈을 켠 채 둔다. */
+  // 아래 page_view 용 — 첫 호출의 착지 주소는 이 함수가 주소를 바꾸기(pushState) 전에 잡는다
+  const first=curView===null, changed=v!==curView, landing=location.href;
   const nv=(v==='test')?'home':v;
   document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('on',x.dataset.view===nv));
   vHome.style.display=v==='home'?'':'none';
@@ -153,12 +190,22 @@ function showView(v,updateHash){
   if(updateHash!==false){
     // 통계는 모드·하위탭까지 정규화한 해시로 — 뒤로가기 복원이 화면과 일치하게
     const full=v==='stats'?statsHashOf(statsMode):'#'+v;
-    const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname:full;
+    /* 홈으로 갈 때도 쿼리는 남긴다. 예전엔 location.pathname 만 써서 쿼리 착지(블로그 '/?utm…#stats-market',
+       설치 앱 start_url '/?utm_source=pwa…')에서 홈 → 뒤로 가기를 하면 쿼리까지 바뀌어 hashchange 가 오지 않았고,
+       주소는 통계인데 화면은 홈에 머물렀다(홈 마케팅 검수 1차 배포 검증, 2026-09-27). */
+    const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname+location.search:full;
     if(v===curView)history.replaceState(null,'',tgtUrl);
     else if(location.hash!==tgtHash)history.pushState(null,'',tgtUrl);
   }
+  /* page_view 는 화면이 실제로 바뀔 때만, 부팅 때는 한 번만(A3·MEAS-1, 2026-09-27). 예전엔 gtag config 의 자동
+     page_view 와 이것이 부팅마다 겹쳐 두 번 갔고, 같은 탭을 다시 눌러도 또 갔다 — GA4 는 '페이지 2회 이상'을
+     참여 세션으로 세므로 홈에 와서 첫 화면만 보고 나간 방문도 참여로 잡혀 이탈률이 0에 가까웠다.
+     config 는 자동 전송을 끄고(index.html 머리 ④), 첫 호출(부팅)은 착지 주소(머리 ① 이 옮긴 utm 쿼리와 해시까지)에
+     view= 만 더해 싣는다 — origin 에서 새로 만들면 쿼리가 빠져 블로그 캠페인이 안 잡힌다. 그 뒤 화면 전환은
+     origin+'/' 에 view= 를 단 가상 주소다(viewLoc): 세션 출처는 첫 hit 가 정하므로 utm 을 매 전환에 되풀이할
+     까닭이 없고, 착지 쿼리를 실으면 같은 화면이 착지 쿼리마다 다른 주소로 갈라진다. */
   curView=v;
-  track('page_view',{page_title:'view_'+v,page_location:location.origin+'/#'+v});
+  if(changed)track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});
 }
 // 리포트 탭은 <a href="/cycle/">라 dataset.view가 없다. 가드가 없으면
 // showView(undefined)가 불려 네 뷰가 전부 사라진다.
@@ -181,7 +228,9 @@ const R2C=new Set(["report", "c4", "c5", "c6", "cFlow", "cL1", "cL3", "cL6", "cM
    되는지부터 확인할 것. */
 function afterLayout(fn){ setTimeout(fn, 0); }
 function applyHash(){
-  const h=location.hash.replace('#','');
+  /* '#화면?utm_…'(발행한 주간 블로그 글의 옛 링크 모양)은 index.html 머리가 먼저 '?…#화면'으로 고친다(A1).
+     여기서도 '?' 뒤를 잘라 둔다 — 머리 스크립트가 못 돈 경우(옛 캐시의 HTML 등)에도 화면은 열리게. */
+  const h=location.hash.replace('#','').split('?')[0];
   if(!h){showView('home',false);return;}
   if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
   const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?$/);
@@ -1892,44 +1941,83 @@ function mkChart(id,cfg){ if(GCH[id])GCH[id].destroy(); return GCH[id]=new Chart
 const TRP={week:1,month:1};
 /* 발표 일정 안내: 부동산원 주간=매주 목요일, 월간=매월 15일(전월분). 낮 12시 공표.
    다음 발표일까지 계산해 보여준다 — 유저가 '언제 새로 나오나'를 알 수 있게. */
-/* 2026 법정공휴일(대체공휴일 포함). 발표일이 휴일이면 다음 영업일로 민다.
-   매년 갱신 필요 — 자동화하려면 공공데이터 특일정보 API 활용신청 후 배치에서 주입.
-   목요일에 걸리는 공휴일: 추석 09-24. 15일에 걸리는 것: 광복절 08-15(토). */
-/* 배치가 특일정보 API로 채운 ADV.holidays가 있으면 그걸, 없으면 이 하드코딩으로.
-   const가 아니라 let인 이유는 데이터 도착 시 갈아끼우기 위함이다. */
+// <wk-release> ── 이 구간은 test_weekly_release 가 통째로 node 에 올려 파이썬 정본(tools/weekly_release.py)과
+// 대조한다. 여기에는 DOM·ADV 를 만지지 않는 순수 함수만 둔다.
+/* 법정공휴일(대체공휴일 포함). 배치가 특일정보 API로 채운 ADV.holidays가 있으면 그걸(_syncHolidays),
+   없으면 이 하드코딩으로. const가 아니라 let인 이유는 데이터 도착 시 갈아끼우기 위함이다. */
 let _HOLIDAYS=new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18',
   '2026-03-01','2026-03-02','2026-05-05','2026-05-25','2026-06-06','2026-08-15',
   '2026-08-17','2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05',
   '2026-10-09','2026-12-25']);
-function _iso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function _bizDay(d){   // 주말·공휴일이면 다음 영업일까지 민다
-  while(d.getDay()===0||d.getDay()===6||_HOLIDAYS.has(_iso(d)))d.setDate(d.getDate()+1);
-  return d;
+/* 날짜는 'UTC 자정 기준 일수'(정수)로만 다룬다. Date 의 지역 시간 메서드를 쓰면 방문자 기기의 시간대에
+   따라 날짜가 하루 갈린다. '오늘'은 KST(+9, 일광 절약 없음) — tools/kst.py 와 같다. */
+const _DAY=864e5;
+function _dn(iso){const a=String(iso).split('-');return Date.UTC(+a[0],+a[1]-1,+a[2])/_DAY;}
+function _iso(n){return new Date(n*_DAY).toISOString().slice(0,10);}
+function _wd(n){return new Date(n*_DAY).getUTCDay();}       // 0=일 … 4=목
+function _kst(now){const k=now.getTime()+9*36e5;return {day:Math.floor(k/_DAY),hour:new Date(k).getUTCHours()};}
+function _bizDay(n){   // 주말·공휴일이면 다음 영업일까지 민다
+  while(_wd(n)===0||_wd(n)===6||_HOLIDAYS.has(_iso(n)))n++;
+  return n;
 }
-function _nextThu(now){
-  const d=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  let add=(4-d.getDay()+7)%7;                 // 목=4
-  if(add===0&&now.getHours()>=12)add=7;       // 오늘 목요일 정오 지나면 다음 주
-  d.setDate(d.getDate()+add);
-  return _bizDay(d);                          // 목요일이 공휴일이면 다음 영업일
+/* 주간 발표 상태 — 홈 주간 격자 머리줄과 통계 탭 rel-week 가 **이 함수 하나**를 쓴다(홈 마케팅 검수 A2).
+   예전엔 rel-week 만 '오늘 기준 다음 목요일'(_nextThu)을 셌고 홈은 '매주 갱신' 고정 문구였다. 그래서
+   09-24~26 배치가 멈춘 동안 홈은 9일 묵은 값을 '매주 갱신' 아래 보였고, rel-week 는 데이터가 아니라 오늘로
+   세어 밀린 회차를 건너뛴 날짜를 냈다.
+   p: 최신 조사기준일(월). grace: ADV.weekly.grace — 감시(check_freshness)와 같은 상수를 split_data 가 싣는다.
+   grace 가 없으면(옛 캐시) 지연을 판정하지 않는다 — 여기 숫자를 따로 적지 않는다.
+   · 다음 발표 = 다음 조사분의 목요일(p+10). 그 주 월~목에 공휴일이 끼면 hedge — 날짜를 단정하지 않는다.
+     2026 추석에 9/21 조사분은 휴일인 9/24(목) 당일에 올라왔다. 옛 규칙(다음 영업일 9/28)도, '연휴 전에
+     당긴다'는 추측도 틀렸다. 관측 한 번으로는 규칙을 못 세우므로 날짜 대신 안내 문구를 쓴다.
+   · 지연 = p+grace+1(감시가 실패로 보기 시작하는 날)을 휴일이면 영업일로 민 날이 **다 지났는데** 새 주차가
+     없을 때. 감시는 그날 배치 뒤에 돌지만 화면은 발표 당일 아침에도 보이므로 그 하루를 더 준다. */
+function weeklyRelease(p,now,grace){
+  const b=_dn(p), nx=b+10;
+  let hedge=false;
+  for(let k=0;k<=3;k++)if(_HOLIDAYS.has(_iso(nx-k)))hedge=true;   // 발표 주 월~목
+  const due=(grace==null)?null:_bizDay(b+grace+1);
+  return {survey:p,pub:_iso(b+3),next:_iso(nx),hedge:hedge,
+          due:due==null?null:_iso(due),stale:due!=null&&_kst(now).day>due};
+}
+function _md(iso){const a=String(iso).split('-');return (+a[1])+'/'+(+a[2]);}
+function wkNextText(r){
+  if(r.stale)return '이번 주 발표분 반영 대기';
+  if(r.hedge)return '연휴로 발표 일정이 바뀔 수 있습니다';
+  return '다음 발표 '+_md(r.next)+'('+'일월화수목금토'[_wd(_dn(r.next))]+')';
+}
+function wkWhenText(r){
+  if(r.stale)return '최근 반영: '+_md(r.pub)+' 발표 · '+wkNextText(r);
+  return _md(r.survey)+' 조사 · '+_md(r.pub)+' 발표 · '+wkNextText(r);
+}
+// </wk-release>
+function _syncHolidays(){
+  if(typeof ADV!=="undefined"&&Array.isArray(ADV.holidays)&&ADV.holidays.length)_HOLIDAYS=new Set(ADV.holidays);
+}
+/* 홈 주간 격자·통계 탭이 같이 읽는 '최신 주 발표 상태'. 데이터가 없으면 null. */
+function weeklyReleaseNow(){
+  _syncHolidays();
+  let W;try{W=ADV.weekly;}catch(e){return null;}
+  const row=W&&W.rows&&W.rows[W.rows.length-1];
+  if(!row||!/^\d{4}-\d{2}-\d{2}$/.test(row.p||''))return null;
+  return weeklyRelease(row.p,new Date(),W.grace);
 }
 function _next15(now){
-  let y=now.getFullYear(),m=now.getMonth();
-  const past=now.getDate()>15||(now.getDate()===15&&now.getHours()>=12);
+  const k=_kst(now), d=new Date(k.day*_DAY);
+  let y=d.getUTCFullYear(),m=d.getUTCMonth();
+  const past=d.getUTCDate()>15||(d.getUTCDate()===15&&k.hour>=12);
   if(past){m++; if(m>11){m=0;y++;}}
-  return _bizDay(new Date(y,m,15));
+  return _bizDay(Date.UTC(y,m,15)/_DAY);
 }
-function _fmtRel(d){
-  const wd=['일','월','화','수','목','금','토'][d.getDay()];
-  return (d.getMonth()+1)+'월 '+d.getDate()+'일('+wd+')';
+function _fmtRel(n){
+  const d=new Date(n*_DAY);
+  return (d.getUTCMonth()+1)+'월 '+d.getUTCDate()+'일('+'일월화수목금토'[d.getUTCDay()]+')';
 }
 function renderReleaseInfo(){
-  if(typeof ADV!=="undefined"&&Array.isArray(ADV.holidays)&&ADV.holidays.length)_HOLIDAYS=new Set(ADV.holidays);
-  const now=new Date();
-  const w=document.getElementById('rel-week');
-  if(w)w.textContent='한국부동산원 · 매주 목요일 발표 · 다음 '+_fmtRel(_nextThu(now));
+  _syncHolidays();
+  const w=document.getElementById('rel-week'), r=weeklyReleaseNow();
+  if(w)w.textContent='한국부동산원 · 매주 목요일 발표'+(r?' · '+wkNextText(r):'');
   const m=document.getElementById('rel-month');
-  if(m)m.textContent='한국부동산원 · 매월 15일 발표 · 다음 '+_fmtRel(_next15(now));
+  if(m)m.textContent='한국부동산원 · 매월 15일 발표 · 다음 '+_fmtRel(_next15(new Date()));
 }   /* 기본: 주간 1년 · 월간 3년 */
 function renderTrPeriods(k){
   const T=TREND[k], el=document.getElementById(k+'-period'); if(!el||!T.periods)return;
@@ -2537,9 +2625,40 @@ function renderSidoMap(){
       +'<i>'+(z.ctxt||(tbSigned(z.tot)+'세대'))+'</i></a>';
   });
   h+='</div>';
+  /* 행동 안내는 범례 속 11.5px 회색 각주였다('지역을 누르면 상세 리포트') — 첫 화면의 유일한 행동 안내인데
+     읽히지 않았다(홈 마케팅 검수 A6·HERO-5①). 본문색 13.5px 한 줄로 키워 지도 바로 위에 둔다. 범례
+     오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
+  h+='<p class="map-act">지도에서 지역을 누르면 공급 리포트가 열립니다</p>';
   /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
-     글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 원으로 넓힌다. */
+     글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 표적으로 넓힌다(아래 TAP_ 설명). */
   var SMALL={'서울':1,'인천':1,'대전':1,'광주':1,'대구':1,'부산':1,'울산':1,'세종':1};
+  /* 탭 표적(A8·MOB-6, 2026-09-27). 예전엔 8곳 모두 r=22 투명 원이었는데 세종·대전(중심 거리 25.7),
+     서울·인천(27.5), 부산·울산(39.9)은 반지름 합 44보다 가까워 원이 겹쳤고, 나중에 그린 원이 위에 놓여
+     세종 원의 30%·인천 원의 25%·인천 라벨의 29%가 대전·서울 리포트로 열렸다(375px 실측).
+     원을 통째로 줄이면 겹침은 풀리지만 라벨 가장자리가 원 밖으로 나가 옆 도(충남·충북·경기)로 샌다(같은 실측).
+     그래서 원(반지름 TAP_R)은 그대로 두고, 가까운 작은 지역 쪽만 두 중심의 수직이등분선에서 TAP_GAP 안쪽으로
+     잘라 낸다 — 두 표적 사이에 선을 긋는 셈이라 겹칠 수 없고, 라벨과 반대쪽은 예전 크기 그대로다.
+     원은 TAP_N 각형으로 근사해 반평면으로 차례로 자른다(Sutherland–Hodgman). 좌표(SIDO_GEO)에서 매번 계산하므로
+     경계 데이터가 바뀌어도 따라간다(겹치는 쌍을 손으로 적지 않는다). <path> 가 아니라 <polygon> 인 이유: 지도
+     도형용 CSS(.map-box path 의 테두리·hover)가 투명 표적에 선을 그리지 않게. 시험: test_home_map_tap_targets. */
+  var TAP_R=22, TAP_GAP=1, TAP_N=32;
+  function tapShape(a){
+    var pts=[],i;
+    for(i=0;i<TAP_N;i++){ var t=2*Math.PI*i/TAP_N; pts.push([a.x+TAP_R*Math.cos(t),a.y+TAP_R*Math.sin(t)]); }
+    SIDO_GEO.p.forEach(function(b){
+      if(b===a||!SMALL[b.n]) return;
+      var d=Math.hypot(b.x-a.x,b.y-a.y); if(d>=2*TAP_R) return;
+      var ux=(b.x-a.x)/d, uy=(b.y-a.y)/d, lim=d/2-TAP_GAP, out=[];
+      var f=function(p){ return (p[0]-a.x)*ux+(p[1]-a.y)*uy-lim; };   // ≤0 이면 내 쪽
+      for(var k=0;k<pts.length;k++){
+        var p=pts[k], q=pts[(k+1)%pts.length], fp=f(p), fq=f(q);
+        if(fp<=0) out.push(p);
+        if((fp<=0)!==(fq<=0)){ var s2=fp/(fp-fq); out.push([p[0]+(q[0]-p[0])*s2,p[1]+(q[1]-p[1])*s2]); }
+      }
+      pts=out;
+    });
+    return pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+  }
   /* 범례는 지도 좌상단(서해 빈 공간) 오버레이 — 지도 아래 한 줄로 떨어져
      있으면 지도와 안 붙어 읽힌다(2026-08-08 사용자). pointer-events:none이라
      밑의 경기 북부 탭을 막지 않는다. */
@@ -2547,8 +2666,7 @@ function renderSidoMap(){
     +'<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span>'
-    +'<span class="tk-n">앞으로 3년 필요한 만큼 지어지는지 · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span>'
-    +'<span class="tk-n">지역을 누르면 상세 리포트</span></div>'
+    +'<span class="tk-n">앞으로 3년 필요한 만큼 지어지는지 · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span></div>'
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
     +'" role="img" aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유">';
   /* 광주·전남은 2026-09-10 판정 단위가 하나로 합쳐졌다(국토부가 공급 통계를
@@ -2575,7 +2693,7 @@ function renderSidoMap(){
     var small=SMALL[a.n]||key!==a.n;
     h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
       +'<path d="'+a.d+'" fill="'+mapFill(z.ratio)+'"></path>'
-      +(SMALL[a.n]?'<circle cx="'+a.x+'" cy="'+a.y+'" r="22" fill="transparent"></circle>':'')
+      +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
       +'<title>'+lab+'</title></a>';
   });
@@ -2845,14 +2963,12 @@ function renderBubbleSec(){
    같은 규칙이다 — 2026-08-06 사용자 결정으로 '발표일'로 적기로 했는데, 격자만
    조사기준일을 찍고 있어 같은 데이터가 두 화면에서 다른 날짜로 보였다
    (2026-09-01 리뷰). 공휴일이 끼면 하루씩 밀리는 주가 있으나 그건 원천 일정이라
-   우리가 알 수 없다 — 통상 +3일로 적는다. */
+   우리가 알 수 없다 — 통상 +3일로 적는다(2026 추석 9/24(목) 휴일에도 +3일에 올라왔다).
+   날짜 셈은 발표 일정 구간(weeklyRelease)의 _dn/_iso 를 같이 쓴다 — 기기 시간대와 무관하다. */
 function pubDate(basis){
   if(!basis)return '';
-  const d=new Date(basis+'T00:00:00');
-  if(isNaN(d))return basis;
-  d.setDate(d.getDate()+3);
-  const z=n=>String(n).padStart(2,'0');
-  return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate());
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(basis))return basis;
+  return _iso(_dn(basis)+3);
 }
 function renderWeeklyGrid(){
   const box=document.getElementById('home-weekly-grid');
@@ -2906,13 +3022,27 @@ function renderWeeklyGrid(){
      칸이 사라지는 것보다 자리만 어긋나는 게 낫다. */
   const cells=regs.map((r,i)=>({r,i})).slice(AGG)
     .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
-  box.innerHTML='<a class="wg-link" href="/weekly/">'   // 이름은 보이는 내용 그대로 — aria-label(elledby)은 이름 불일치로 걸린다(Lighthouse)
-    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+pubDate(row.p)+'</b> 발표 · 매매 전주 대비(%)</span>'
+  /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
+  box.innerHTML='<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">'   // 이름은 보이는 내용 그대로 — aria-label(elledby)은 이름 불일치로 걸린다(Lighthouse)
+    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+(/^\d{4}-\d{2}-\d{2}$/.test(pubDate(row.p))?_md(pubDate(row.p)):pubDate(row.p))+'</b> 발표 · 매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
     +'<div class="wg-agg">'+aggHtml+'</div>'
     +'<div class="wg-cells">'+cells+'</div></a>';
+  /* 구역 머리줄 = 조사일·발표일·다음 발표(홈 마케팅 검수 A2). 예전엔 '매주 갱신' 고정 문구라 09-24~26 배치가
+     멈춘 동안 9일 묵은 값을 그 아래 보였다. 발표가 늦은 주에는 스스로 '반영 대기'라 적고, 제목도 '이번 주'를
+     약속하지 않는다. 판정은 통계 탭 rel-week 와 같은 weeklyRelease 하나다. */
+  applyWeeklyStatus(weeklyReleaseNow());
+}
+/* 주간 구역 머리줄과 h2 에 발표 상태를 적는다. 늦은 주에는 h2 도 '이번 주'를 약속하지 않고 발표일로 적는다
+   (TRUST-1②). 따로 떼어 둔 것은 시험이 이 두 줄을 직접 돌려 보게 하려는 것이다(test_weekly_release). */
+function applyWeeklyStatus(r){
+  if(!r)return;
+  const kk=document.getElementById('wk-kicker');
+  if(kk)kk.textContent=wkWhenText(r);
+  const h2=document.getElementById('wk-h2');
+  if(h2&&r.stale)h2.textContent=_md(r.pub)+' 발표, 어디가 오르고 내렸을까?';
 }
 /* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.
    티어 문구는 BLV 정본에서 읽는다. 가짜 데이터로 오해되지 않게 라벨을 붙인다.
@@ -2940,6 +3070,7 @@ function quizSample(){
     +'</div>';
 }
 function boot(){
+  if(BUILD_RELOAD)return;   // 판이 달라 새로고침하는 중 — 옛 스크립트로 새 마크업을 그리지 않는다(맨 위 판 표식)
   /* chartSetup 은 차트 라이브러리를 받은 뒤 loadChart 가 부른다 */
   renderWeeklyGrid();
   quizSample();

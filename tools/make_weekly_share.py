@@ -2,11 +2,13 @@
 """주간 시장상황 공유용 PNG 생성 — 블로그·카페·인스타 배포용.
 
 data.js의 ADV.weekly 최신 주차를 읽어 16개 시도 타일 지도를 그린다.
-출력: share/weekly-map.png (매주 덮어씀 — /weekly/ og:image로도 사용)
+출력: share/weekly-map.png (매주 덮어씀 — /weekly/ og:image로도 사용. 파일 이름은 그대로 두고 /weekly/ 의
+      og:image 주소에 카드 머리의 발표일을 ?v= 로 붙인다: make_weekly_page.share_version, 2026-09-27 A7.
+      경로의 정본도 make_weekly_page.SHARE_REL 하나다 — og:image 주소가 그 경로를 가리킨다)
 
 사용: python tools/make_weekly_share.py
 """
-import io, os, re, json, sys, datetime
+import io, os, re, json, sys
 from PIL import Image, ImageDraw, PngImagePlugin
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,9 +21,11 @@ def _pubdate(basis):
     주간 아파트가격동향은 월요일 조사·목요일 공표라 +3일이면 맞는다. 공휴일이
     끼면 하루씩 밀리는 주가 있는데, 그건 원천 공표 일정이라 우리가 알 수 없다 —
     통상 일정으로 적고, 어긋나도 하루 차이라 신선도 판별에는 지장이 없다.
+
+    ⚠️ 날짜 셈은 /weekly/ 생성기의 share_version 을 그대로 쓴다. 그 값이 /weekly/ og:image 주소의 판(?v=)이라,
+       따로 셈하면 카드에 찍힌 발표일과 미리보기 주소의 판이 갈린다(2026-09-27 A7·VIRAL-2, test_weekly_share_version).
     """
-    y, m, d = (int(x) for x in basis.split('-'))
-    return (datetime.date(y, m, d) + datetime.timedelta(days=3)).isoformat()
+    return _MW.share_version(basis)
 
 
 INK = (22, 32, 58)
@@ -130,7 +134,8 @@ def main():
     # (실제로 2026-07-18 카드가 3주간 '이번 주'로 나갔다).
     # ⚠️ 오늘 날짜를 쓰지 않는다. 배치가 하루 늦게 돌면 발표일이 아닌 날을 발표일로
     # 적게 된다. 데이터의 조사기준일에서 유도해야 언제 구워도 같은 값이 나온다.
-    d.text((IW // 2, 122), '%s 발표 · 매매가격 전주 대비 변동률(%%)' % _pubdate(row['p']),
+    pub = _pubdate(row['p'])   # 아래 PNG 메타(agongmap-pub)에도 같은 값을 심는다
+    d.text((IW // 2, 122), '%s 발표 · 매매가격 전주 대비 변동률(%%)' % pub,
            font=noto(24), fill=MUTED, anchor='mm')
     # 범례
     d.rounded_rectangle((IW // 2 - 190, 150, IW // 2 - 168, 172), 5, fill=UP)
@@ -180,7 +185,9 @@ def main():
     d.text((IW // 2, IH - 30), '자료: 한국부동산원 R-ONE 전국주택가격동향조사 · 매주 목요일 자동 갱신', font=noto(18), fill=MUTED, anchor='mm')
 
     # 과거 회차는 라이브 카드를 건드리지 않도록 drafts/로 뺀다(위 docstring 참고).
-    out = (os.path.join(ROOT, 'share', 'weekly-map.png') if not back
+    # 라이브 카드의 경로는 /weekly/ og:image 주소와 같은 정본(make_weekly_page.SHARE_REL)을 쓴다 — 따로 적으면
+    # 한쪽만 바뀌었을 때 미리보기가 없는 파일을 가리킨다(2026-09-27 A7 검토 지적, test_weekly_share_version).
+    out = (os.path.join(ROOT, *_MW.SHARE_REL.split('/')) if not back
            else os.path.join(ROOT, 'drafts', 'weekly-map-%s.png' % row['p']))
     # 조사기준일을 PNG 메타(tEXt)에 심는다 — 감시가 라이브 카드의 신선도를 읽을
     # 유일한 방법이다. 그림에서 날짜를 OCR할 수는 없고, 파일 해시로는 '배포가
@@ -188,6 +195,8 @@ def main():
     # 걸려 있었는데 아무 신호가 없던 이유가 이것이다(2026-08-06).
     meta = PngImagePlugin.PngInfo()
     meta.add_text('agongmap-basis', row['p'])
+    # 카드 머리에 찍은 발표일. /weekly/ og:image 주소의 판(?v=)과 같아야 한다 — 시험이 그림을 읽을 수 없어 메타로 본다.
+    meta.add_text('agongmap-pub', pub)
     img.save(out, 'PNG', pnginfo=meta)
     print('wrote %s (%s)' % (os.path.relpath(out, ROOT), row['p']))
 
