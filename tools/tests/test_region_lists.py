@@ -103,9 +103,11 @@ def test_no_generator_still_carries_the_old_split_names():
        시군구 매핑(gen_sgg_rone_map)은 광주 5개 구 때문에 개별 이름이 필요하며,
        원천 수집(update_adv_data)은 원천이 아직 옛 이름으로 주기 때문에 쓴다.
        안내 페이지(make_sido_pages)는 '광주를 찾아온 사람'을 보내 주는 자리다.
+       시군구 접두 표(weekly_moves.SGG_PREFIX)는 홈 sidoOf 의 거울이라 원천 시도 이름을 그대로 들고, 판정 단위로는
+       sgg_zone 이 merge_regions.SRC·DST 로 접는다(홈 마케팅 검수 D4 — 일치는 test_zone_weekly 가 본다).
     """
     ok = ('gen_sido_geo.py', 'gen_sgg_rone_map.py', 'update_adv_data.py',
-          'make_sido_pages.py', 'merge_regions.py')
+          'make_sido_pages.py', 'merge_regions.py', 'weekly_moves.py')
     bad = []
     tools = os.path.join(ROOT, 'tools')
     for fn in os.listdir(tools):
