@@ -18,12 +18,12 @@
 
 | 위치 | 내용 |
 |---|---|
-| `index.html`, `app.css`, `data.js`, `data-*.json` | 홈과 데이터 페이로드. 데이터는 `data.js`의 `ADV_DATA` 블록을 배치가 갈아끼우고 `tools/split_data.py`가 `data-*.json`으로 쪼갠다 |
+| `index.html`, `app.css`, `data.js`, `data-*.json` | 홈과 데이터 페이로드. 데이터는 `data.js`의 `ADV_DATA` 블록을 배치가 갈아끼우고 `tools/split_data.py`가 `data-*.json`으로 쪼갠다. `index.html`은 손으로 쓰는 파일이지만 `<!--HOME_SUMMARY_START-->` 표식 구간과 description·og·twitter 설명 메타만 `make_home_summary.py`가 매 회차 고쳐 쓴다(그 부분은 손으로 고치지 않는다) |
 | `home-app.js` | 홈 본문 스크립트(2026-09-16 `index.html` 인라인에서 분리). 홈 코드는 여기서 고치고, 도구·시험은 이 파일을 직접 열지 말고 `tools/home_src.py`의 `home_source()`로 읽는다 |
-| `sw.js` | 서비스워커. `VERSION`을 올리면 `index.html`의 `<html data-build>`와 `home-app.js`의 `HOME_BUILD`도 같은 값으로 올린다(느린 망에서 새 HTML과 옛 스크립트가 섞이면 한 번 새로고침하는 판 표식, `test_home_build`). 홈 HTML·스크립트를 바꾸는 배포는 `VERSION`을 올려야 이 보호가 작동한다 |
+| `sw.js` | 서비스워커. `VERSION`을 올리면 `index.html`의 `<html data-build>`와 `home-app.js`의 `HOME_BUILD`도 같은 값으로 올린다(느린 망에서 새 HTML과 옛 스크립트가 섞이면 한 번 새로고침하는 판 표식, `test_home_build`). 홈 HTML·스크립트를 바꾸는 배포는 `VERSION`을 올려야 이 보호가 작동한다. GA 사용자 속성 `home_variant`(`home-app.js`의 `HOME_VARIANT`)는 홈 구성을 크게 바꾸는 배포에서만 새 값으로 바꾼다(배포 구분값) |
 | `zone/`(시도별 리포트), `weekly/`, `monthly/`, `moveins/`, `jeonse-ratio/` | 배치가 매 회차 굽는 생성 페이지. 손으로 고치지 말고 생성기를 고친다 |
 | `cycle/` | 서술은 손으로 쓴 문서이고, 차트 데이터 배열만 `refresh_cycle_data.py`가 매 회차 갈아끼운다 |
-| `share/` | 공유 이미지. `weekly-map.png`만 배치가 굽고, 지역·퀴즈 카드(`make_zone_cards.py` 등)는 지역 구성이나 문항이 바뀔 때 사람이 돌린다 |
+| `share/` | 공유 이미지. `weekly-map.png`·`monthly-card.png`만 배치가 굽고(`make_weekly_share.py`·`make_monthly_share.py`, 게이트 뒤), 지역·퀴즈 카드(`make_zone_cards.py` 등)는 지역 구성이나 문항이 바뀔 때 사람이 돌린다 |
 | 퀴즈 3종(`burini-test/`, `investor-test/`, `redev-test/`) | 랜딩은 손으로 쓴 파일, 점수별 하위 페이지(`/0/`~)는 `make_quiz_share_pages.py`가 만든다 |
 | `about/`, `faq/`, `privacy/` | 운영 주체·설명·개인정보 페이지 |
 | `tools/` | 배치·생성기·발행 도구 (아래 표) |
@@ -39,11 +39,16 @@
 |---|---|
 | `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키가 필요하다(`--dry-run`은 없어졌다. 키 없이는 pytest로 검증한다) |
 | `split_data.py` | `data.js` → `data-core.js`, `data-*.json` 분리 |
-| `make_sido_pages.py`, `make_indicator_pages.py`, `make_monthly_page.py`, `make_weekly_page.py` | 시도·지표·월간·주간 페이지 생성. `refresh_cycle_data.py`와 함께 배치가 돌리는 생성기 다섯 개다 |
+| `make_sido_pages.py`, `make_indicator_pages.py`, `make_monthly_page.py`, `make_weekly_page.py` | 시도·지표·월간·주간 페이지 생성. `make_home_summary.py`(홈 표식 구간·설명 메타), `refresh_cycle_data.py`, `make_feed.py`(`/feed.xml` RSS)와 함께 배치가 이 순서로 돌리는 생성기 일곱 개다(`ci-tests.yml`·bat·`test_batch_parity`가 같은 목록). 시도 리포트 설명 메타와 `<main>` 첫 문단은 `summary_parts` 한 목록에서 나오고, `/zone/`·`/monthly/`의 dateModified·sitemap lastmod는 내용이 바뀐 날(`keep_dates`)이다 |
 | `sido_zones.py` | 판정 단위(시도) 목록·등급·정렬의 **정본**. 순위는 반드시 `zone_order()`를 쓴다(등급군 → 절대량). 절대 세대수로 순위를 매기면 판정과 모순이 난다. 시도 **목록을 보여줄 때**는 순위가 아니라 `DISPLAY_ORDER`(관심 지역 고정 순서)를 쓴다. `/monthly/`처럼 정부 표와 대조하는 화면은 `ORDER`(발표 원천 순서)를 유지한다 |
 | `check_freshness.py` | 데이터 신선도·정합성 검사. 감시 워크플로가 부른다 |
 | `weekly_release.py` | 주간 발표 일정(조사일·발표일·다음 발표·지연 판정)의 파이썬 정본. 감시의 주간 유예(`GRACE_WEEKLY`), `/weekly/` 머리줄, `split_data`가 싣는 `ADV.weekly.grace`가 여기서 나오고, 홈의 `weeklyRelease()`와 같은 답을 내는지 `test_weekly_release`가 node로 대조한다 |
 | `refresh_cycle_data.py` | `/cycle/` 사이클 리포트 데이터 |
+| `weekly_moves.py` | 주간 시세 움직임의 정본: 방향 표지·연속 주수(발표 기준 반올림 뒤 셈, 계열 첫 값까지 닿으면 '이상' — `opened`)·전환·순위 이동·12주 누적(창은 조사일로)·시군구→시도 매핑(`sgg_sido`는 홈 `sidoOf`의 거울, node 대조). `split_data`(홈 격자 표지·`ADV.weekly.moves`), `/weekly/` 표, 시도 리포트 시군구 표(`zone_table`), 블로그 초안이 같은 함수를 읽는다. `/weekly/` 표 앵커는 `make_weekly_page.TABLE_URL`(`#sgg-table`) |
+| `page_share.py` | 생성 페이지의 공유 버튼 조각(`/weekly/`·`/monthly/`) |
+| `blog_feed.py` | 네이버 블로그 RSS에서 최신 주간 해설 글을 읽어 `tools/data/blog_latest.json`에 적는다(배치 fetch 잡, 실패하면 지난 값 유지) |
+| `robots_meta.py` | robots 메타(`max-image-preview:large`)의 정본. 저장소의 모든 `.html`에 정확히 하나씩(`test_robots_meta`) — 손 페이지를 새로 만들면 한 줄 넣는다 |
+| `ping_indexnow.py --changed HEAD~1` | 배치 커밋이 sitemap lastmod를 바꾼(새로 생긴·빠진) 주소만 IndexNow로 보내고 결과를 배치 기록에 한 줄 남긴다. 도메인은 `CNAME`, 생성기 `SITE` 상수와의 일치는 시험이 본다 |
 | `site_nav.py` | 하단 탭바(홈·지역·시세·사이클)의 정본. 생성기는 `bottomnav()`로 굽고, 손 페이지 탭바는 손으로 맞추되 `test_site_nav`가 저장소의 모든 HTML 탭바를 대조한다. 탭 식별자(`stats` 등)는 GA 값이라 라벨을 바꿔도 그대로 둔다 |
 | `make_zone_cards.py`, `make_og_cards.py`, `make_weekly_share.py` | 공유용 이미지·OG 카드 |
 | `make_quiz_share_pages.py` | 퀴즈 점수별 정적 공유 페이지. 퀴즈 세트나 공유 이미지를 바꿨을 때 사람이 돌린다 |
@@ -69,7 +74,7 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
 ## 자동화
 
 - **데이터 갱신**: 배포 경로는 **클라우드 배치(`update-cloud.yml`) 하나**다. KOSIS가 해외 IP를 간헐 차단하므로
-  러너 3개를 띄워 IP 프리플라이트를 통과한 것의 산출물만 쓰고, 0/3이면 35분 뒤 자동 재시도한다(`update-cloud-retry.yml`). 생성기 다섯
+  러너 3개를 띄워 IP 프리플라이트를 통과한 것의 산출물만 쓰고, 0/3이면 35분 뒤 자동 재시도한다(`update-cloud-retry.yml`). 생성기 일곱
   개를 돌린 **뒤, 커밋 직전에 pytest를 돌려 실패하면 데이터를 커밋하지 않는다**(CI에서는 시험 건너뜀도 실패다).
   테스트가 깨져 있으면 배치가 며칠째 멈춘 것으로 나타난다. 로컬 러너(`run_weekly_update.bat`)는 2026-07-23
   이후 휴면 상태다(작업 스케줄러 항목이 꺼져 있음). 2026-09-23 대표 결정으로 **휴면 확정**이다(백로그 22). bat 은 비상용으로만 남긴다. 다시 켤 일이 생기면 로컬이
@@ -137,7 +142,7 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
 클라우드 세션(PR 브랜치):
 
 - **생성 산출물을 PR에 싣지 않는다.** `data.js`, `data-*.json`, `zone/`·`weekly/`·`monthly/`·`cycle/` 등 생성
-  페이지, `share/` 이미지는 `stats-bot`이 매일 `main`에 다시 쓰므로, PR 브랜치에서 고치면 병합 때 충돌하고 다음
+  페이지, `feed.xml`, `sitemap.xml`, `index.html`의 요약 표식 구간·설명 메타, `share/` 이미지는 `stats-bot`이 매일 `main`에 다시 쓰므로, PR 브랜치에서 고치면 병합 때 충돌하고 다음
   배치에서 덮인다. 생성기(`make_*.py`)와 시험만 고치고 산출물은 배치가 굽게 둔다. 생성기를 돌려 확인만 했다면
   산출물 변경은 커밋 전에 되돌린다.
 - 병합 전 CI(`ci-tests.yml` 시험·Netlify 미리보기)가 초록인지 본다. 운영 반영은 `main` 병합 뒤 GitHub Pages 배포로 이뤄진다. 병합이 늦어져 `main`과 충돌하면 `main`을 병합해 푼다.
