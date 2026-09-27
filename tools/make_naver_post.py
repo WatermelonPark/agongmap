@@ -559,7 +559,6 @@ def draft_weekly(adv, sts):
                     key=lambda x: -(x[1] if x[1] is not None else -9))[:3]
         gu = [t for t in gu if t[1] is not None and MW.pv2r(t[1]) > 0]
 
-    ymd = p.split('-')
     # 검색어를 맨 앞에 둔다. 2026-08-14 네이버 검색 실측에서 이 자리를 차지한
     # 블로그 글이 '한국부동산원 주간동향｜8월 1주 전국 아파트 시세 분석' 형태였고,
     # 웹문서 1위도 부동산원 공식 '주간아파트가격동향'이다. 출처명이 검색어로
@@ -579,9 +578,10 @@ def draft_weekly(adv, sts):
     # 자동완성 실측에서 '주간시장동향'은 제안어가 0개인 반면 '주간아파트'를 치면
     # 첫 제안이 '주간아파트가격동향'이었다(검색량 절대값은 우리 키로 못 잰다 —
     # 데이터랩·검색광고 API 모두 인증 불가). 사람이 실제로 치는 말로 라벨을 맞춘다.
-    ORD = ('첫째', '둘째', '셋째', '넷째', '다섯째')
-    title = '[한국부동산원] 주간 아파트가격 동향(%d월 %s 주) | 서울 %s 전국 %s' % (
-        int(ymd[1]), ORD[min((int(ymd[2]) - 1) // 7, 4)], pct(seoul[0]), pct(nat[0]))
+    # 주차 서수는 weekly_release.week_label 하나에서 만든다 — /weekly/ title·머리줄과 같은 이름(홈 마케팅 검수 B4·SEO-4).
+    # 라벨 말도 /weekly/ title 과 같은 상수(MW.TITLE_KW)다.
+    title = '[한국부동산원] %s(%s) | 서울 %s 전국 %s' % (
+        MW.TITLE_KW, MW.WR.week_label(p), pct(seoul[0]), pct(nat[0]))
 
     rowsHtml = ''
     for k in ['전국', '수도권', '서울', '경기', '인천', '부산', '대구', '대전', '전남광주', '울산']:

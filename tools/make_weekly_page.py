@@ -303,7 +303,8 @@ def build(W, Q):
                     % ('내린' if pv2r(best[1]) > 0 else '오른', other[0][0], pv2(other[0][1])))
     tiles = ''.join(tile(z, val[z], i) for i, z in enumerate(SZ.DISPLAY_ORDER) if val.get(z) is not None)
     head = '\n'.join([
-        '  <p class="eyebrow">%s · 한국부동산원 주간 통계</p>' % when,
+        '  <p class="eyebrow"><span class="wk-label">%s</span> · %s · 한국부동산원 주간 통계</p>'
+        % (WR.week_label(p, year=True), when),
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
         '  <p class="lead">%s</p>' % ' '.join(x for x in lead if x),
@@ -403,6 +404,53 @@ def put_source(s):
     return pat.sub(lambda m: m.group(1) + SOURCE_TEXT + m.group(3), s)
 
 
+# ── 검색어 정렬(홈 마케팅 검수 B4·SEO-3①·SEO-4, 2026-09-27) ────────────────────────────────────────
+# title 이 생성기가 안 쓰는 고정 문구('이번 주 아파트 시세 지도…')라, 배치가 멈추면 검색 결과에 '이번 주' 제목 아래 지난
+# 발표가 보였고 사람들이 실제로 치는 '주간아파트가격동향'·'9월 셋째 주'가 제목에 없었다. 블로그 주간 글 제목 라벨과 같은
+# 말(TITLE_KW)과 같은 주차 서수(weekly_release.week_label)를 굽는다 — 블로그가 링크로 보내는 페이지가 같은 주를 같은 이름으로
+# 부른다. 연도를 붙여 갱신이 늦어도 '날짜가 박힌 지난주'로 보이게 한다. og:title·twitter:title·JSON-LD name 도 같은 값.
+TITLE_KW = '주간 아파트가격 동향'   # 한국부동산원 보도자료 이름 — make_naver_post 주간 글 제목 라벨도 이 값을 쓴다
+
+
+def titles(p):
+    """(title, og:title) — '주간 아파트가격 동향 2026년 9월 셋째 주 | 아파트 시세 지도 | 아공맵'."""
+    lab = '%s %s' % (TITLE_KW, WR.week_label(p, year=True))
+    return '%s | 아파트 시세 지도 | 아공맵' % lab, '%s · 전국·서울 아파트 시세 지도' % lab
+
+
+def put_titles(s, p):
+    title, og = titles(p)
+    pat = re.compile(r'(<title>)[^<]*(</title>)')
+    if len(pat.findall(s)) != 1:
+        raise SystemExit('weekly/index.html 에서 <title> 을 찾지 못했다')
+    s = pat.sub(lambda m: m.group(1) + html.escape(title, quote=False) + m.group(2), s)
+    s = put_meta(s, 'property', 'og:title', og)
+    s = put_meta(s, 'name', 'twitter:title', og)
+    # JSON-LD WebPage 자신의 name([^{}] — 중첩 객체 isPartOf·about 의 name 은 건드리지 않는다)
+    pat = re.compile(r'("@type":\s*"WebPage",[^{}]*?"name":\s*")[^"]*(")', re.S)
+    if len(pat.findall(s)) != 1:
+        raise SystemExit('weekly/index.html 에서 WebPage name 을 찾지 못했다')
+    return pat.sub(lambda m: m.group(1) + og.replace('\\', '\\\\').replace('"', '\\"') + m.group(2), s)
+
+
+def put_ld_dates(s, pub_iso):
+    """JSON-LD WebPage 에 발표일을 datePublished·dateModified 로(SEO-4). 이 페이지는 발표마다 새 판이 되므로 둘 다 발표일이다.
+    뼈대에 없으면 WebPage 의 @type 줄 뒤에 넣고, 있으면 값만 바꾼다(zone·monthly·moveins·cycle 은 이미 있었다)."""
+    for key in ('dateModified', 'datePublished'):   # 넣을 때는 @type 바로 뒤에 차례로 끼우므로 역순
+        pat = re.compile(r'("%s":\s*")[^"]*(")' % key)
+        n = len(pat.findall(s))
+        if n == 1:
+            s = pat.sub(lambda m: m.group(1) + pub_iso + m.group(2), s)
+            continue
+        if n > 1:
+            raise SystemExit('weekly/index.html 에 %s 가 %d개다' % (key, n))
+        at = re.compile(r'("@type":\s*"WebPage",)([ \t]*\r?\n[ \t]*)')
+        if len(at.findall(s)) != 1:
+            raise SystemExit('weekly/index.html 에서 JSON-LD WebPage 를 찾지 못했다')
+        s = at.sub(lambda m: m.group(1) + m.group(2) + '"%s": "%s",' % (key, pub_iso) + m.group(2), s, 1)
+    return s
+
+
 def render(s, W, Q):
     nl = '\r\n' if '\r\n' in s else '\n'
     head, answer, desc, og = build(W, Q)
@@ -412,6 +460,9 @@ def render(s, W, Q):
     s = put_meta(s, 'property', 'og:description', og)
     s = put_dataset_url(s)
     s = put_source(s)
+    p = W['rows'][-1]['p']
+    s = put_titles(s, p)               # title·og:title·twitter:title·WebPage name 에 연도·주차(B4)
+    s = put_ld_dates(s, pub(p))        # JSON-LD 발표일(B4)
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
     s = put_share_image(s, W)   # og:image·twitter:image 에 그 주 발표일(A7)
