@@ -127,6 +127,8 @@ function showView(v,updateHash){
   /* 퀴즈 뷰는 전용 탭이 없다(퀴즈 탭 → 지역 탭 교체, d6fe72e). 아무 탭도 안 켜면
      '지금 어디인가' 표시가 사라진다(2026-08-10 리뷰) — 퀴즈는 홈에서 진입하는
      하위 화면이므로 홈을 켠 채 둔다. */
+  // 아래 page_view 용 — 첫 호출의 착지 주소는 이 함수가 주소를 바꾸기(pushState) 전에 잡는다
+  const first=curView===null, changed=v!==curView, landing=location.href;
   const nv=(v==='test')?'home':v;
   document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('on',x.dataset.view===nv));
   vHome.style.display=v==='home'?'':'none';
@@ -157,8 +159,15 @@ function showView(v,updateHash){
     if(v===curView)history.replaceState(null,'',tgtUrl);
     else if(location.hash!==tgtHash)history.pushState(null,'',tgtUrl);
   }
+  /* page_view 는 화면이 실제로 바뀔 때만, 부팅 때는 한 번만(A3·MEAS-1, 2026-09-27). 예전엔 gtag config 의 자동
+     page_view 와 이것이 부팅마다 겹쳐 두 번 갔고, 같은 탭을 다시 눌러도 또 갔다 — GA4 는 '페이지 2회 이상'을
+     참여 세션으로 세므로 홈에 와서 첫 화면만 보고 나간 방문도 참여로 잡혀 이탈률이 0에 가까웠다.
+     config 는 자동 전송을 끄고(index.html 머리 ④), 첫 호출(부팅)은 착지 주소를 그대로(머리 ① 이 옮긴 utm 쿼리와
+     해시까지) 싣는다 — '/#'+v 로 바꿔 보내면 쿼리가 빠져 블로그 캠페인이 안 잡힌다. 그 뒤 화면 전환은 예전
+     가상 주소('/#'+v)를 쓴다: 세션 출처는 첫 hit 가 정하므로 utm 을 매 전환에 되풀이할 까닭이 없고, 쿼리를
+     실으면 같은 화면이 착지 쿼리마다 다른 주소로 갈라진다. */
   curView=v;
-  track('page_view',{page_title:'view_'+v,page_location:location.origin+'/#'+v});
+  if(changed)track('page_view',{page_title:'view_'+v,page_location:first?landing:location.origin+'/#'+v});
 }
 // 리포트 탭은 <a href="/cycle/">라 dataset.view가 없다. 가드가 없으면
 // showView(undefined)가 불려 네 뷰가 전부 사라진다.
@@ -181,7 +190,9 @@ const R2C=new Set(["report", "c4", "c5", "c6", "cFlow", "cL1", "cL3", "cL6", "cM
    되는지부터 확인할 것. */
 function afterLayout(fn){ setTimeout(fn, 0); }
 function applyHash(){
-  const h=location.hash.replace('#','');
+  /* '#화면?utm_…'(발행한 주간 블로그 글의 옛 링크 모양)은 index.html 머리가 먼저 '?…#화면'으로 고친다(A1).
+     여기서도 '?' 뒤를 잘라 둔다 — 머리 스크립트가 못 돈 경우(옛 캐시의 HTML 등)에도 화면은 열리게. */
+  const h=location.hash.replace('#','').split('?')[0];
   if(!h){showView('home',false);return;}
   if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
   const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?$/);
