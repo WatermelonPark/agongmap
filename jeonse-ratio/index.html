@@ -19,6 +19,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3FJNG6G1F3"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-3FJNG6G1F3');</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="max-image-preview:large">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
@@ -197,9 +198,14 @@ footer a{color:var(--ink)}
 (function(){
   var t=document.getElementById('utable'); if(!t) return;
   var tb=t.tBodies[0], ths=t.tHead.rows[0].cells, cur=-1, dir=1;
+  /* 칸에 data-v 가 있으면 그 값으로 정렬한다 — '▲3'·'▼2' 처럼 글자로는 부호가 안 읽히는 칸(/weekly/ 순위 이동).
+     ⚠️ 예전엔 parseFloat(...)||-1e9 라 0 이 '값 없음'(-1e9)으로 밀려 맨 끝에 섰다 — 주간 변동률 표는 0.00 이
+     흔하다(홈 마케팅 검수 C10②, 2026-09-27). 숫자가 아닐 때만 맨 끝으로 보낸다. */
   function val(row,k,isNum){
-    var s=row.cells[k].textContent.trim();
-    return isNum ? (parseFloat(s.replace(/[^0-9.-]/g,''))||-1e9) : s;
+    var c=row.cells[k], d=c.getAttribute('data-v'), s=(d!=null?d:c.textContent).trim();
+    if(!isNum) return s;
+    var n=parseFloat(s.replace(/[^0-9.-]/g,''));
+    return isNaN(n) ? -1e9 : n;
   }
   /* 마우스로만 정렬되던 것을 키보드에서도 되게 한다 — 안내문이 '표두를 누르면 정렬'인데
      탭으로는 표두에 닿지도 않았다(2026-08-08 감사). aria-sort로 현재 정렬 상태도 알린다. */
