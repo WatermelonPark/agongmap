@@ -440,6 +440,31 @@ def test_install_prompt_shows_once_and_closing_keeps_it_closed():
     assert stand['out']['after'] == 0 and nostore['out']['after'] == 0
 
 
+def test_install_prompt_leaves_the_browser_default_alone_where_it_will_not_show():
+    """띄우지 않을 기기에서는 beforeinstallprompt 를 막지 않는다 — 막으면 브라우저 기본 설치 안내(미니바·주소창 설치 아이콘)까지
+    사라지는데 우리 안내도 뜨지 않아 설치 입구가 아예 없어진다. 이미 한 번 띄운 안드로이드, 앱으로 연(standalone) 안드로이드,
+    데스크톱 크롬(installPlatform 이 null), 저장소를 못 쓰는 안드로이드가 그 경우다.
+
+    변이(각각 실제로 확인): 처리기의 `s.platform!=='android'` 검사를 지우면 데스크톱 단정이, `s.stored` 검사를 지우면 띄운 기기 단정이,
+          `s.standalone` 검사를 지우면 standalone 단정이 빨개진다(셋 다 preventDefault 가 불린다).
+    픽스처: 주간 구역을 본 두 번째 방문 — 조건만으로는 띄울 날이어서, 막지 않는 이유가 기기 상태뿐이다.
+    """
+    js = '''VISIT=countVisit(); _instReady=true; SEEN.week=true;
+      let prevented=false; const ev={preventDefault(){prevented=true;}, prompt(){}, userChoice:Promise.resolve({})};
+      for(const f of (__rec.listeners.beforeinstallprompt||[])) f(ev);
+      OUT.prevented=prevented; OUT.shown=__rec.appended.length;'''
+    yday = {'agongmap-visit': json.dumps({'n': 1, 'f': 1, 'l': 1})}
+    stored, stand, desk, nostore, fresh = _run(
+        {'ua': ANDROID, 'store': dict(yday, **{'agongmap-install': 'shown'}), 'js': js},
+        {'ua': ANDROID, 'store': dict(yday), 'htmlClass': ['pwa'], 'js': js},
+        {'ua': WIN, 'store': dict(yday), 'js': js},
+        {'ua': ANDROID, 'storage': 'throw', 'js': js},
+        {'ua': ANDROID, 'store': dict(yday), 'js': js})
+    for name, r in (('띄운 기기', stored), ('standalone', stand), ('데스크톱', desk), ('저장소 불가', nostore)):
+        assert r['out'] == {'prevented': False, 'shown': 0}, (name, r['out'])
+    assert fresh['out'] == {'prevented': True, 'shown': 1}, '대조군(띄울 안드로이드)이 막지 않았다 — 하네스가 처리기를 못 부른다'
+
+
 def test_new_event_names_are_snake_case_and_listed():
     """이번에 넣은 이벤트·사용자 속성 이름 — GA 주석·맞춤 측정기준 등록에 그대로 옮기는 목록이다(보고서 notes 와 같다).
     이름이 바뀌면 여기서 빨개져 목록을 같이 고치게 한다.
