@@ -126,7 +126,12 @@ def rank_list(title, cls, items, empty):
 
 # ── 공유 카드 주소와 하단 탭(홈 마케팅 검수 A7·A5, 2026-09-27). 뼈대에 손으로 적혀 있던 것을 생성기가 맡는다.
 # 공유 카드는 make_weekly_share 가 매주 **같은 이름**으로 덮어쓴다(감시 check_freshness 가 이 주소에서 조사일을 읽는다).
-SHARE_IMG = 'https://www.agongmap.co.kr/share/weekly-map.png'
+SITE = 'https://www.agongmap.co.kr'
+# 카드 파일의 사이트 상대 경로 — 정본은 여기 하나다. make_weekly_share 는 이 경로(ROOT 아래)에 굽고, 이 페이지의
+# og:image·twitter:image 는 SITE 뒤에 이 경로를 붙여 가리킨다. 두 생성기가 경로를 따로 적으면 한쪽만 바뀌어도
+# 미리보기가 없는 파일을 가리키는데 아무것도 빨개지지 않았다(A7 검토 지적, test_weekly_share_version).
+SHARE_REL = 'share/weekly-map.png'
+SHARE_IMG = SITE + '/' + SHARE_REL
 # 이 페이지가 켜는 하단 탭. 홈 '통계' 탭의 기본 화면이 주간 시세 지도라 이 페이지는 통계 탭 아래에 있다(IA-6 1단계).
 NAV_ON = '/#stats'
 NAV_ON_CSS = '.nav-btn.on{color:#fff}'   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다

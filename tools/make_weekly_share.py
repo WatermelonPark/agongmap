@@ -3,7 +3,8 @@
 
 data.js의 ADV.weekly 최신 주차를 읽어 16개 시도 타일 지도를 그린다.
 출력: share/weekly-map.png (매주 덮어씀 — /weekly/ og:image로도 사용. 파일 이름은 그대로 두고 /weekly/ 의
-      og:image 주소에 카드 머리의 발표일을 ?v= 로 붙인다: make_weekly_page.share_version, 2026-09-27 A7)
+      og:image 주소에 카드 머리의 발표일을 ?v= 로 붙인다: make_weekly_page.share_version, 2026-09-27 A7.
+      경로의 정본도 make_weekly_page.SHARE_REL 하나다 — og:image 주소가 그 경로를 가리킨다)
 
 사용: python tools/make_weekly_share.py
 """
@@ -184,7 +185,9 @@ def main():
     d.text((IW // 2, IH - 30), '자료: 한국부동산원 R-ONE 전국주택가격동향조사 · 매주 목요일 자동 갱신', font=noto(18), fill=MUTED, anchor='mm')
 
     # 과거 회차는 라이브 카드를 건드리지 않도록 drafts/로 뺀다(위 docstring 참고).
-    out = (os.path.join(ROOT, 'share', 'weekly-map.png') if not back
+    # 라이브 카드의 경로는 /weekly/ og:image 주소와 같은 정본(make_weekly_page.SHARE_REL)을 쓴다 — 따로 적으면
+    # 한쪽만 바뀌었을 때 미리보기가 없는 파일을 가리킨다(2026-09-27 A7 검토 지적, test_weekly_share_version).
+    out = (os.path.join(ROOT, *_MW.SHARE_REL.split('/')) if not back
            else os.path.join(ROOT, 'drafts', 'weekly-map-%s.png' % row['p']))
     # 조사기준일을 PNG 메타(tEXt)에 심는다 — 감시가 라이브 카드의 신선도를 읽을
     # 유일한 방법이다. 그림에서 날짜를 OCR할 수는 없고, 파일 해시로는 '배포가
