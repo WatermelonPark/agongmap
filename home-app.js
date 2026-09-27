@@ -123,10 +123,23 @@ function ensureSizeStats(){ return loadData('/data-size.json'); }
    사용자가 세션 중 OS 설정을 바꿔도 따라가지 못한다. */
 const _rm=window.matchMedia?matchMedia('(prefers-reduced-motion: reduce)'):null;
 const scrollBehavior=()=>(_rm&&_rm.matches)?'auto':'smooth';
+/* page_view 의 가상 주소 — 화면(뷰)은 쿼리 view= 로 가른다(A3·MEAS-1 권고, 2026-09-27). GA 는 페이지 경로에
+   해시를 넣지 않아서 예전 '/#stats'·'/#test' 는 홈 '/' 과 한 줄로 합쳐졌다. 쿼리는 '페이지 경로 + 쿼리 문자열'과
+   '방문 페이지 + 쿼리 문자열'에서 갈린다(page_title 의 view_* 도 그대로 둔다). 홈은 view 를 달지 않는다 — 첫 화면
+   '/' 과 홈으로 돌아온 전환이 같은 한 줄이어야 해서다. href 의 경로·다른 쿼리(착지 utm)·해시는 그대로 두고,
+   있던 view= 는 바꿔 끼운다(같은 값이 두 번 붙지 않게). 첫 page_view 는 착지 주소에, 전환은 origin+'/' 에 붙인다. */
+function viewLoc(v,href){
+  const i=href.indexOf('#'), hash=i<0?'':href.slice(i), pre=i<0?href:href.slice(0,i), j=pre.indexOf('?');
+  const q=(j<0?'':pre.slice(j+1)).split('&').filter(s=>s&&!/^view(=|$)/.test(s));
+  if(v!=='home')q.push('view='+v);
+  return (j<0?pre:pre.slice(0,j))+(q.length?'?'+q.join('&'):'')+hash;
+}
 function showView(v,updateHash){
   /* 퀴즈 뷰는 전용 탭이 없다(퀴즈 탭 → 지역 탭 교체, d6fe72e). 아무 탭도 안 켜면
      '지금 어디인가' 표시가 사라진다(2026-08-10 리뷰) — 퀴즈는 홈에서 진입하는
      하위 화면이므로 홈을 켠 채 둔다. */
+  // 아래 page_view 용 — 첫 호출의 착지 주소는 이 함수가 주소를 바꾸기(pushState) 전에 잡는다
+  const first=curView===null, changed=v!==curView, landing=location.href;
   const nv=(v==='test')?'home':v;
   document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('on',x.dataset.view===nv));
   vHome.style.display=v==='home'?'':'none';
@@ -157,8 +170,15 @@ function showView(v,updateHash){
     if(v===curView)history.replaceState(null,'',tgtUrl);
     else if(location.hash!==tgtHash)history.pushState(null,'',tgtUrl);
   }
+  /* page_view 는 화면이 실제로 바뀔 때만, 부팅 때는 한 번만(A3·MEAS-1, 2026-09-27). 예전엔 gtag config 의 자동
+     page_view 와 이것이 부팅마다 겹쳐 두 번 갔고, 같은 탭을 다시 눌러도 또 갔다 — GA4 는 '페이지 2회 이상'을
+     참여 세션으로 세므로 홈에 와서 첫 화면만 보고 나간 방문도 참여로 잡혀 이탈률이 0에 가까웠다.
+     config 는 자동 전송을 끄고(index.html 머리 ④), 첫 호출(부팅)은 착지 주소(머리 ① 이 옮긴 utm 쿼리와 해시까지)에
+     view= 만 더해 싣는다 — origin 에서 새로 만들면 쿼리가 빠져 블로그 캠페인이 안 잡힌다. 그 뒤 화면 전환은
+     origin+'/' 에 view= 를 단 가상 주소다(viewLoc): 세션 출처는 첫 hit 가 정하므로 utm 을 매 전환에 되풀이할
+     까닭이 없고, 착지 쿼리를 실으면 같은 화면이 착지 쿼리마다 다른 주소로 갈라진다. */
   curView=v;
-  track('page_view',{page_title:'view_'+v,page_location:location.origin+'/#'+v});
+  if(changed)track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});
 }
 // 리포트 탭은 <a href="/cycle/">라 dataset.view가 없다. 가드가 없으면
 // showView(undefined)가 불려 네 뷰가 전부 사라진다.
@@ -181,7 +201,9 @@ const R2C=new Set(["report", "c4", "c5", "c6", "cFlow", "cL1", "cL3", "cL6", "cM
    되는지부터 확인할 것. */
 function afterLayout(fn){ setTimeout(fn, 0); }
 function applyHash(){
-  const h=location.hash.replace('#','');
+  /* '#화면?utm_…'(발행한 주간 블로그 글의 옛 링크 모양)은 index.html 머리가 먼저 '?…#화면'으로 고친다(A1).
+     여기서도 '?' 뒤를 잘라 둔다 — 머리 스크립트가 못 돈 경우(옛 캐시의 HTML 등)에도 화면은 열리게. */
+  const h=location.hash.replace('#','').split('?')[0];
   if(!h){showView('home',false);return;}
   if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
   const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?$/);
@@ -2540,6 +2562,33 @@ function renderSidoMap(){
   /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
      글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 원으로 넓힌다. */
   var SMALL={'서울':1,'인천':1,'대전':1,'광주':1,'대구':1,'부산':1,'울산':1,'세종':1};
+  /* 탭 표적(A8·MOB-6, 2026-09-27). 예전엔 8곳 모두 r=22 투명 원이었는데 세종·대전(중심 거리 25.7),
+     서울·인천(27.5), 부산·울산(39.9)은 반지름 합 44보다 가까워 원이 겹쳤고, 나중에 그린 원이 위에 놓여
+     세종 원의 30%·인천 원의 25%·인천 라벨의 29%가 대전·서울 리포트로 열렸다(375px 실측).
+     원을 통째로 줄이면 겹침은 풀리지만 라벨 가장자리가 원 밖으로 나가 옆 도(충남·충북·경기)로 샌다(같은 실측).
+     그래서 원(반지름 TAP_R)은 그대로 두고, 가까운 작은 지역 쪽만 두 중심의 수직이등분선에서 TAP_GAP 안쪽으로
+     잘라 낸다 — 두 표적 사이에 선을 긋는 셈이라 겹칠 수 없고, 라벨과 반대쪽은 예전 크기 그대로다.
+     원은 TAP_N 각형으로 근사해 반평면으로 차례로 자른다(Sutherland–Hodgman). 좌표(SIDO_GEO)에서 매번 계산하므로
+     경계 데이터가 바뀌어도 따라간다(겹치는 쌍을 손으로 적지 않는다). <path> 가 아니라 <polygon> 인 이유: 지도
+     도형용 CSS(.map-box path 의 테두리·hover)가 투명 표적에 선을 그리지 않게. 시험: test_home_map_tap_targets. */
+  var TAP_R=22, TAP_GAP=1, TAP_N=32;
+  function tapShape(a){
+    var pts=[],i;
+    for(i=0;i<TAP_N;i++){ var t=2*Math.PI*i/TAP_N; pts.push([a.x+TAP_R*Math.cos(t),a.y+TAP_R*Math.sin(t)]); }
+    SIDO_GEO.p.forEach(function(b){
+      if(b===a||!SMALL[b.n]) return;
+      var d=Math.hypot(b.x-a.x,b.y-a.y); if(d>=2*TAP_R) return;
+      var ux=(b.x-a.x)/d, uy=(b.y-a.y)/d, lim=d/2-TAP_GAP, out=[];
+      var f=function(p){ return (p[0]-a.x)*ux+(p[1]-a.y)*uy-lim; };   // ≤0 이면 내 쪽
+      for(var k=0;k<pts.length;k++){
+        var p=pts[k], q=pts[(k+1)%pts.length], fp=f(p), fq=f(q);
+        if(fp<=0) out.push(p);
+        if((fp<=0)!==(fq<=0)){ var s2=fp/(fp-fq); out.push([p[0]+(q[0]-p[0])*s2,p[1]+(q[1]-p[1])*s2]); }
+      }
+      pts=out;
+    });
+    return pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+  }
   /* 범례는 지도 좌상단(서해 빈 공간) 오버레이 — 지도 아래 한 줄로 떨어져
      있으면 지도와 안 붙어 읽힌다(2026-08-08 사용자). pointer-events:none이라
      밑의 경기 북부 탭을 막지 않는다. */
@@ -2575,7 +2624,7 @@ function renderSidoMap(){
     var small=SMALL[a.n]||key!==a.n;
     h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
       +'<path d="'+a.d+'" fill="'+mapFill(z.ratio)+'"></path>'
-      +(SMALL[a.n]?'<circle cx="'+a.x+'" cy="'+a.y+'" r="22" fill="transparent"></circle>':'')
+      +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
       +'<title>'+lab+'</title></a>';
   });

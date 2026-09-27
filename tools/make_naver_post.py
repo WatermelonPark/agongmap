@@ -51,6 +51,21 @@ def write_draft(path, html):
 SITE = 'https://www.agongmap.co.kr'
 
 
+def site_link(path, campaign):
+    """초안이 싣는 사이트 링크(href 값, & 는 &amp;) — 블로그 UTM 은 반드시 '#' **앞**(쿼리)에 둔다.
+
+    2026-09-27 홈 마케팅 검수 A1: 주간 글의 '지도에서 직접 찾아보기'가 `/#stats-market?utm_…`로 나가,
+    브라우저에는 쿼리가 비고 전부 해시가 됐다. GA 는 weekly_map 캠페인을 못 읽었고 홈 라우터도 화면을 못
+    찾아 3년 공급 첫 화면에 떨어졌다(09-11·09-17 발행본). 발행 글은 고치지 않으므로 옛 모양은 사이트 머리
+    스크립트가 받아 주고, 새 초안은 여기서 처음부터 `/?utm_…#stats-market`으로 만든다. 이 파일이 만드는
+    초안의 사이트 링크는 이 함수를 거친다. 이론 초안(make_theory_post)은 해시 없는 링크를 손으로 적는데,
+    어느 쪽이든 '?'가 '#' 앞에 오는지는 test_home_entry 의 초안 링크 검사가 본다.
+    """
+    base, hash_, frag = path.partition('#')
+    return ('%s%s?utm_source=naver_blog&amp;utm_medium=social&amp;utm_campaign=%s%s%s'
+            % (SITE, base, campaign, hash_, frag))
+
+
 # 숫자·이스케이프는 사이트가 쓰는 정본을 그대로 가져다 쓴다. 여기 사본을 두면
 # 발행 글과 사이트가 조용히 갈린다(2026-08-15 리뷰에서 둘 다 실제로 갈려 있었다):
 #  · 옛 num은 int(round(...)) — 파이썬 기본은 은행가 반올림이라 정확히 x.5인 칸에서
@@ -586,9 +601,8 @@ def draft_weekly(adv, sts):
     body.append('<p>[여기에 전국 시군구 지도 이미지를 넣어 주세요]</p>')
     body.append('<p>타일마다 위가 매매, 아래가 전세입니다. 붉을수록 오르고 '
                 '푸를수록 내린 곳입니다.<br>👉 '
-                '<a href="%s/#stats-market?utm_source=naver_blog&amp;'
-                'utm_medium=social&amp;utm_campaign=weekly_map">'
-                '지도에서 직접 찾아보기</a></p>' % SITE)
+                '<a href="%s">지도에서 직접 찾아보기</a></p>'
+                % site_link('/#stats-market', 'weekly_map'))
 
     # ── ② 해석 자리. 기계가 채울 수 없는 부분이라 비워 두고, 재료(위 표·순위)만
     # 앞에 깔아 둔다. 블로그 이웃들이 기대하는 건 숫자 나열이 아니라 해석이므로
@@ -608,11 +622,10 @@ def draft_weekly(adv, sts):
     # ── ⑤ 더 보기(4주 로테이션). 매번 같은 링크를 붙이면 무시당하므로 4주에 걸쳐
     # 사이트의 다른 코너를 하나씩 소개한다.
     body.append('<h3>%s</h3>' % more['h'])
-    utm = '?utm_source=naver_blog&amp;utm_medium=social&amp;utm_campaign=weekly'
     links = more.get('links') or [(more['path'], more['label'])]
     body.append('<p>%s%s</p>' % (
         more['desc'],
-        ''.join('<br>👉 <a href="%s%s%s">%s</a>' % (SITE, path, utm, label)
+        ''.join('<br>👉 <a href="%s">%s</a>' % (site_link(path, 'weekly'), label)
                 for path, label in links)))
     # ⚠️ 면책을 '권유하지 않습니다'로 쓰지 않는다. 본문이 방향을 분명히
     # 말하는데 말미에서 그걸 부인하면 글이 스스로를 무른다. 대신 **사실과
@@ -726,9 +739,9 @@ def series_links(nm, seq):
 def cta(nm, seq):
     """글 끝 유도문 한 줄. 문장은 회차마다 바뀌고, 목적지는 늘 그 지역 리포트다."""
     txt = ZONE_CTA[(seq - 1) % len(ZONE_CTA)]
-    return ('<p>%s<br>👉 <a href="%s/zone/%s/?utm_source=naver_blog&amp;'
-            'utm_medium=social&amp;utm_campaign=zone_deep_%d">%s 공급 리포트</a></p>'
-            % (txt % esc(nm) if '%s' in txt else txt, SITE, quote(nm), seq, esc(nm)))
+    return ('<p>%s<br>👉 <a href="%s">%s 공급 리포트</a></p>'
+            % (txt % esc(nm) if '%s' in txt else txt,
+               site_link('/zone/%s/' % quote(nm), 'zone_deep_%d' % seq), esc(nm)))
 
 
 # 지역 편 제목 앞머리 교대 실험(2026-09-27 대표 승인, 조회수 조사 SRCH-1).
