@@ -2551,6 +2551,33 @@ function renderSidoMap(){
   /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
      글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 원으로 넓힌다. */
   var SMALL={'서울':1,'인천':1,'대전':1,'광주':1,'대구':1,'부산':1,'울산':1,'세종':1};
+  /* 탭 표적(A8·MOB-6, 2026-09-27). 예전엔 8곳 모두 r=22 투명 원이었는데 세종·대전(중심 거리 25.7),
+     서울·인천(27.5), 부산·울산(39.9)은 반지름 합 44보다 가까워 원이 겹쳤고, 나중에 그린 원이 위에 놓여
+     세종 원의 30%·인천 원의 25%·인천 라벨의 29%가 대전·서울 리포트로 열렸다(375px 실측).
+     원을 통째로 줄이면 겹침은 풀리지만 라벨 가장자리가 원 밖으로 나가 옆 도(충남·충북·경기)로 샌다(같은 실측).
+     그래서 원(반지름 TAP_R)은 그대로 두고, 가까운 작은 지역 쪽만 두 중심의 수직이등분선에서 TAP_GAP 안쪽으로
+     잘라 낸다 — 두 표적 사이에 선을 긋는 셈이라 겹칠 수 없고, 라벨과 반대쪽은 예전 크기 그대로다.
+     원은 TAP_N 각형으로 근사해 반평면으로 차례로 자른다(Sutherland–Hodgman). 좌표(SIDO_GEO)에서 매번 계산하므로
+     경계 데이터가 바뀌어도 따라간다(겹치는 쌍을 손으로 적지 않는다). <path> 가 아니라 <polygon> 인 이유: 지도
+     도형용 CSS(.map-box path 의 테두리·hover)가 투명 표적에 선을 그리지 않게. 시험: test_home_map_tap_targets. */
+  var TAP_R=22, TAP_GAP=1, TAP_N=32;
+  function tapShape(a){
+    var pts=[],i;
+    for(i=0;i<TAP_N;i++){ var t=2*Math.PI*i/TAP_N; pts.push([a.x+TAP_R*Math.cos(t),a.y+TAP_R*Math.sin(t)]); }
+    SIDO_GEO.p.forEach(function(b){
+      if(b===a||!SMALL[b.n]) return;
+      var d=Math.hypot(b.x-a.x,b.y-a.y); if(d>=2*TAP_R) return;
+      var ux=(b.x-a.x)/d, uy=(b.y-a.y)/d, lim=d/2-TAP_GAP, out=[];
+      var f=function(p){ return (p[0]-a.x)*ux+(p[1]-a.y)*uy-lim; };   // ≤0 이면 내 쪽
+      for(var k=0;k<pts.length;k++){
+        var p=pts[k], q=pts[(k+1)%pts.length], fp=f(p), fq=f(q);
+        if(fp<=0) out.push(p);
+        if((fp<=0)!==(fq<=0)){ var s2=fp/(fp-fq); out.push([p[0]+(q[0]-p[0])*s2,p[1]+(q[1]-p[1])*s2]); }
+      }
+      pts=out;
+    });
+    return pts.map(function(p){ return p[0].toFixed(1)+','+p[1].toFixed(1); }).join(' ');
+  }
   /* 범례는 지도 좌상단(서해 빈 공간) 오버레이 — 지도 아래 한 줄로 떨어져
      있으면 지도와 안 붙어 읽힌다(2026-08-08 사용자). pointer-events:none이라
      밑의 경기 북부 탭을 막지 않는다. */
@@ -2586,7 +2613,7 @@ function renderSidoMap(){
     var small=SMALL[a.n]||key!==a.n;
     h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
       +'<path d="'+a.d+'" fill="'+mapFill(z.ratio)+'"></path>'
-      +(SMALL[a.n]?'<circle cx="'+a.x+'" cy="'+a.y+'" r="22" fill="transparent"></circle>':'')
+      +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
       +'<title>'+lab+'</title></a>';
   });
