@@ -172,3 +172,18 @@ def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypat
     assert m.group(1) == want, m.group(1)
     assert m.group(2) == SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 69600, 66579, 16258)
     assert '더 들어옵니다' not in body
+
+
+def test_faq_quotes_the_report_sentence_it_explains():
+    """FAQ '판정이 균형인데 왜 부족 세대수가 나오나요?'가 인용하는 지역 리포트 문장 틀이 지금 ratio_text 가 굽는 문장과 같다.
+
+    재현하는 실제 상태(2차 배포 검토, 2026-09-27): 판정 설명을 '지난 4년 덜 지은 몫까지 더하면 3년 필요량의 N%만큼
+    부족합니다'로 바꾼 뒤에도 손으로 쓴 faq/index.html 은 사라진 옛 문장('누적 순부족이 앞으로 3년 필요량의 N%입니다')을
+    따옴표로 인용하며 '지역 페이지 머리의 … 문장이 바로 그 기준'이라고 말했다. 어느 시험도 이 인용을 보지 않았다.
+    변이: ratio_text 의 모자람 갈래 문구를 바꾸거나 FAQ 인용을 옛 문장으로 되돌리면 빨개진다(실제로 확인).
+    """
+    faq = io.open(os.path.join(ROOT, 'faq', 'index.html'), encoding='utf-8').read()
+    m = re.search(r'지역 페이지</a> 머리의 "([^"]+)" 문장', faq)
+    assert m, 'FAQ 에서 지역 리포트 문장 인용을 찾지 못했다'
+    want = re.sub(r'\d+%', 'N%', SZ.ratio_text(0.6, full=True, inow=-1))
+    assert m.group(1) == want, 'FAQ 인용 "%s" ≠ 리포트 문장 틀 "%s"' % (m.group(1), want)
