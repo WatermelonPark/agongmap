@@ -300,6 +300,38 @@ def test_source_line_sits_under_the_map_and_the_report_mail_is_in_the_footer():
         assert f in boot, f
 
 
+def test_footer_mail_links_take_the_footer_color():
+    """손 페이지 푸터의 '만든이' 메일(mailto)은 모두 링크이고 푸터 글자색을 따른다 — 브라우저 기본 파랑이 아니다.
+
+    재현하는 실제 상태(2026-09-28 검토): /cycle/ 푸터 메일을 mailto 로 바꾸자 rgb(0,0,238) 파랑으로 보였다. 그 페이지는 공용
+    시트(app.css)만 읽고 푸터 링크 색이 따로 없었다(옆 링크는 인라인 color:inherit). 퀴즈 랜딩·개인정보는 자기 <style> 의
+    `footer a{color:…}` 가 칠한다. 공용 시트는 `footer a[href^="mailto:"]{color:inherit}` 로 칠한다(푸터 바로 옆 줄을 배치가
+    고치는 /cycle/ 를 손대지 않으려고 CSS 쪽에서 풀었다).
+    변이(각각 확인): app.css 의 mailto 규칙을 지우면 /cycle/ 가, 퀴즈 랜딩 하나의 메일을 일반 텍스트로 되돌리면 그 페이지가
+          빨개진다. 픽스처: 저장소의 손 페이지(푸터에 메일이 있는 곳 전부를 찾는다 — 목록을 적지 않는다).
+    """
+    import glob
+    import io
+    root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+    app = re.sub(r'/\*.*?\*/', '', io.open(os.path.join(root, 'app.css'), encoding='utf-8').read(), flags=re.S)
+    shared = re.search(r'(?:^|[}\s])footer a\[href\^="mailto:"\]\{[^}]*color:inherit', app)
+    pages = []
+    for path in glob.glob(os.path.join(root, '**', 'index.html'), recursive=True):
+        rel = os.path.relpath(path, root).replace(os.sep, '/')
+        if rel.startswith(('tools/', 'docs/')) or HS.is_home(rel):
+            continue
+        s = io.open(path, encoding='utf-8').read()
+        foot = re.search(r'<footer>(.*?)</footer>', s, re.S)
+        if not foot or 'agongmap@gmail.com' not in foot.group(1):
+            continue
+        pages.append(rel)
+        assert re.search(r'<a href="mailto:agongmap@gmail\.com">[^<]*agongmap@gmail\.com</a>', foot.group(1)), '%s 푸터 메일이 링크가 아니다' % rel
+        own = re.search(r'(?:^|[}\s])footer a\{[^}]*color:', ''.join(re.findall(r'<style>(.*?)</style>', s, re.S)))
+        uses_app = 'href="/app.css"' in s
+        assert own or (uses_app and shared), '%s 푸터 메일 링크가 브라우저 기본색이다(푸터 링크 색 규칙 없음)' % rel
+    assert 'cycle/index.html' in pages and len(pages) >= 5, pages
+
+
 # ── B10 측정 ────────────────────────────────────────────────────────────────────────────────────
 
 def test_visit_counter_counts_days_and_sends_home_visit_once_a_day():

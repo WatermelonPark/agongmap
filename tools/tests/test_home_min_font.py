@@ -8,7 +8,8 @@
 규칙이 13px 아래를 말하지 않는지 본다.
 
 어떻게 '홈 요소에 걸리는 규칙'을 가리나 — 손 목록 없이 마크업·스크립트에서 센다:
-  - 홈 토큰: index.html 의 #view-home 마크업(class·id)과 body 표지, home-app.js 문자열 안의 클래스 이름.
+  - 홈 토큰: index.html 의 #view-home 마크업(class·id)·하단 탭바(모든 페이지 공용 — 라벨 크기는 site_nav.LABEL_PX, test_site_nav)와
+    body 표지, home-app.js 문자열 안의 클래스 이름.
   - 규칙의 클래스·아이디가 모두 홈 토큰이어야 홈에 걸릴 수 있다(:not(…) 안은 세지 않는다). 하나라도 홈에 없는 토큰이면 다른
     화면(시도 리포트·통계 탭 등)의 규칙이다.
   - 홈에만 있는 토큰이 하나라도 있으면 그 규칙은 13px 이상이어야 한다.
@@ -23,7 +24,8 @@
 
 변이(각각 실제로 넣어 빨간 것을 확인): .hs-kicker 를 12px 로, .wc-tag 를 10.5px 로 되돌리면 홈 전용 규칙 단정이,
 420px 이하 미디어에 `.wc b{font-size:11.5px}` 를 되살리면 같은 단정이(미디어 안도 본다), 덮기 규칙에서 '#view-home .sc-tier' 를
-빼면 공용 규칙 단정이, 퀴즈 '결과 예시'(.qs-label)를 11.5px 로 되돌리면 홈 전용 규칙 단정이 빨개진다.
+빼면 공용 규칙 단정이, 퀴즈 '결과 예시'(.qs-label)를 11.5px 로 되돌리면 홈 전용 규칙 단정이, 하단 탭바 .nav-btn 을 11.5px 로
+되돌리면 공용 규칙 단정이 빨개진다.
 픽스처: 저장소 app.css·index.html·home-app.js 그대로(데이터와 무관 — 날짜가 앞으로 가도 같은 답).
 """
 import glob
@@ -200,7 +202,9 @@ def _home_tokens():
     f = _files()
     idx, app = f['index.html'], f['home-app.js']
     a, b = idx.index('<div id="view-home">'), idx.index(STATS_MARK)
-    view, outside = idx[a:b], idx[:a] + idx[b:]
+    nav = re.search(r'<nav class="bottomnav">.*?</nav>', idx, re.S)   # 하단 탭바도 홈 화면 글자다(2026-09-28 검토)
+    view = idx[a:b] + nav.group(0)
+    outside = idx[:a] + idx[b:nav.start()] + idx[nav.end():]
     home = set()
     for m in re.finditer(r'class="([^"]*)"', view):
         home |= set(m.group(1).split())
@@ -285,7 +289,7 @@ def test_home_text_is_at_least_13px():
     # 분류기 자체 점검 — 마크업에서 온 것(.hs-kicker), 스크립트에서만 온 것(.wc-tag·.gr-note, 인자로 붙는 .wc), 공용 덮기(.sc-tier),
     # 표 안(.ri), SVG(.gr-rt·지도 라벨)가 각자 제 자리에 가야 이 시험이 무엇이든 본다(추출이 비면 조용히 초록이 된다).
     sels = {s for _, s, _ in checked}
-    for want in ('.hs-kicker', '.wc-tag', '.wc b', '.gr-note', '.sc-tier', '#view-home .sc-tier'):
+    for want in ('.hs-kicker', '.wc-tag', '.wc b', '.gr-note', '.sc-tier', '#view-home .sc-tier', '.nav-btn'):
         assert want in sels or any(want in s for s in sels), '%s 규칙을 홈 규칙으로 읽지 못했다 — 추출기를 볼 것' % want
     ex = {(w, s) for w, _, s, _ in exempt}
     assert ('표 보기 20열 표', '.ri') in ex and ('SVG 글자', '.gr-box .gr-rt') in ex and ('SVG 글자', '.map-box text.ml-s') in ex, ex

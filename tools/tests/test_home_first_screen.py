@@ -17,6 +17,7 @@
 import datetime
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -317,18 +318,31 @@ def _rule(css, sel):
     return m.group(1)
 
 
-def test_home_hero_band_fits():
-    """띠의 줄 수는 폭으로 고정된다 — 조각(발표일 머리말 · 결론)이 정해진 폭(389px 이하)에서만 줄을 바꾸므로, 가장 긴 문구도
-    조각 하나가 한 줄 안에 들어가야 정적 문구 → 데이터 문구로 바뀔 때 높이가 같다(CLS 0). 운영 글꼴(Pretendard 서브셋)로 잰다.
-    글자는 홈 하한 13px 이상(test_home_min_font) — 13px 에서 늦은 주 한 줄('12/28 발표 기준 · 전남광주 −1.23%, …')이
-    375px 띠 안쪽(303px)보다 길어(316px) 조각마다 줄을 바꾸는 폭을 359 → 389px 로 올렸다(2026-09-28 작은 글씨 정리).
+def _band_width(font, text):
+    """띠 글자 폭 — 띠는 font-variant-numeric:tabular-nums 라 숫자가 모두 같은 폭(tnum)이다. 레이아웃 엔진(raqm)이 없는
+    Pillow 에서는 숫자마다 가장 넓은 숫자 폭으로 바꿔 잰다(tnum 폭 8.5 < 가장 넓은 숫자 8.58 — 더 길게 재는 쪽이다)."""
+    try:
+        return font.getlength(text, features=['tnum'])
+    except (KeyError, ValueError, OSError):
+        wide = max(font.getlength(d) for d in '0123456789')
+        return font.getlength(text) + sum(wide - font.getlength(c) for c in text if c.isdigit())
 
-    Chromium 실측(2026-09-28, playwright, 운영 글꼴): 띠 높이가 정적 문구(스크립트 차단)·데이터 문구에서 같다 — 320·360·375px
-    56.4(두 줄), 390·414px 38.2~38.5(한 줄), 768px 이상 40.3.
-    변이(각각 확인): 조각마다 줄을 바꾸는 폭을 389→359px 로 되돌리면 360~375px 에서, 글자를 clamp(…,3.6vw,…) 로 키우면
-    390~414px 에서, 조각마다 줄을 바꾸는 규칙을 지우면 320px 에서 빨개진다. 띠에 둘째 줄 규칙(.hw-2)을 되살리면 마지막 단정.
-    픽스처: 가장 긴 경우를 함수로 만든다 — 이름이 가장 긴 시도의 하락 결론(conclusion), 두 자리 달·날짜와 늦은 주 머리말
-            ('12/28 발표 기준').
+
+def test_home_hero_band_fits():
+    """띠의 줄 수는 폭으로 고정된다 — 조각(발표일 머리말 · 결론)이 정해진 폭(399px 이하)에서만 줄을 바꾸므로, 가장 긴 문구도
+    조각 하나가 한 줄 안에 들어가야 정적 문구 → 데이터 문구로 바뀔 때 높이가 같다(CLS 0). 운영 글꼴(Pretendard 서브셋)로 잰다.
+    글자는 홈 하한 13px 이상(test_home_min_font)이고 숫자는 tabular-nums(모두 같은 폭)다.
+
+    Chromium 실측(2026-09-28, playwright, 운영 글꼴 AgongHome 13px, tabular-nums): 가장 긴 한 줄은 상승 문구
+    '12/28 발표 기준 · 전남광주 +0.12%, 가장 크게 올랐습니다 →' 324.8px — '올랐습니다'·'+' 가 하락 문구보다 넓고, tabular 숫자가
+    비례 숫자보다 넓다. 띠 안쪽이 이 폭에 닿는 곳은 395px 라 조각마다 줄을 바꾸는 폭을 389 → 399px 로 올렸다(첫 판의 389px 는
+    Pillow 가 비례 숫자·하락 문구로만 재 390~394px 에서 부팅 뒤 한 줄이 두 줄로 접혔다 — 검토 지적, 띠 +18.2px).
+    변이(각각 확인): 조각마다 줄을 바꾸는 폭을 399→389px 로 되돌리면 390px 에서 빨개진다(326.3 > 318). 그 389px 판을 첫 판의
+    시험처럼 비례 숫자(tnum 없음)·하락 문구만으로 재면 초록이다(확인 — 첫 판이 결함을 놓친 까닭). 둘 중 하나만 빼도 389px 판은
+    빨갛다(tnum 없이 상승 318.6 > 318, 하락만 tnum 323.6 > 318 — 확인). 글자를 clamp(…,3.6vw,…) 로 키우면 400px 에서, 조각마다
+    줄을 바꾸는 규칙을 지우면 320px 에서 빨개진다. 띠에 둘째 줄 규칙(.hw-2)을 되살리면 마지막 단정.
+    픽스처: 결론 문장을 함수로 만든다 — 시도마다 상승·하락(MW.conclusion, 두 자리 소수 — 숫자는 tabular 라 값과 무관하게 폭이
+            같다), 두 자리 달·날짜와 늦은 주 머리말('12/28 발표 기준'), 가장 넓은 것을 고른다.
     """
     ImageFont = pytest.importorskip('PIL.ImageFont')
     css = _css()
@@ -337,22 +351,27 @@ def test_home_hero_band_fits():
     maxw = int(re.search(r'max-width:(\d+)px', band).group(1))
     bpad = int(re.search(r'padding:\d+px (\d+)px', band).group(1))
     bord = int(re.search(r'border:(\d+)px', band).group(1))
-    lo, mid, hi = (float(x) for x in re.search(r'font-size:clamp\(([\d.]+)px,([\d.]+)vw,([\d.]+)px\)',
-                                               _rule(css, '.hero-wk .hw-1')).groups())
+    hw1 = _rule(css, '.hero-wk .hw-1')
+    assert 'font-variant-numeric:tabular-nums' in hw1, '띠 숫자가 tabular 가 아니다 — 이 시험의 폭 셈을 다시 볼 것'
+    lo, mid, hi = (float(x) for x in re.search(r'font-size:clamp\(([\d.]+)px,([\d.]+)vw,([\d.]+)px\)', hw1).groups())
     split1 = int(re.search(r'@media\(max-width:(\d+)px\)\{\.hero-wk \.hw-1 \.hw-s\{display:none\}', css).group(1))
     bold = os.path.join(FONTS, 'Pretendard-Bold.subset.ttf')
-    longest = max((z for z in MW.SIDO), key=lambda z: ImageFont.truetype(bold, 13).getlength(z))
-    W, _ = _week({longest: -1.23}, '2026-12-21')
-    concl = MW.conclusion(W)['text'] + ' →'
+    concls = set()
+    for z in MW.SIDO:
+        for v in (1.23, -1.23):
+            W, _ = _week({z: v}, '2026-12-21')
+            concls.add(MW.conclusion(W)['text'] + ' →')
+    assert any('올랐' in c for c in concls) and any('내렸' in c for c in concls), concls
     date = '12/28 발표 기준'   # 늦은 주 머리말(wkPubLead)이 평상 주보다 길다
     bad = []
-    for vw in (320, 340, 359, 360, 375, 389, 390, 399, 400, 414, 430, 460, 479, 480, 560, 768, 1280):
+    for vw in (320, 340, 359, 360, 375, 389, 390, 394, 399, 400, 414, 430, 460, 479, 480, 560, 768, 1280):
         inner = min(vw - 2 * pad, maxw) - 2 * bpad - 2 * bord - 2   # 2px: 글꼴 래스터 차이 여유
         s1 = min(max(lo, mid * vw / 100), hi)
-        g1 = ImageFont.truetype(bold, round(s1 * 2) / 2)
-        for t in ([date, concl] if vw <= split1 else [date + ' · ' + concl]):
-            if g1.getlength(t) > inner:
-                bad.append('%dpx %.0f > %d: %s' % (vw, g1.getlength(t), inner, t))
+        g1 = ImageFont.truetype(bold, math.ceil(s1 * 2) / 2)
+        lines = [date] + sorted(concls) if vw <= split1 else [date + ' · ' + c for c in sorted(concls)]
+        t = max(lines, key=lambda x: _band_width(g1, x))
+        if _band_width(g1, t) > inner:
+            bad.append('%dpx %.1f > %d: %s' % (vw, _band_width(g1, t), inner, t))
     assert not bad, '띠 조각이 한 줄을 넘는다 — 데이터 문구가 들어오면 높이가 달라져 아래가 밀린다:\n' + '\n'.join(bad)
     assert '.hw-2' not in css, '띠 둘째 줄 규칙이 남아 있다(2026-09-28 에 뺀 줄)'
 

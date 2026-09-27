@@ -169,6 +169,9 @@
   footer{padding:44px 0 80px;font-size:13px;color:var(--muted)}
   footer .src{margin-top:10px;line-height:1.8}
   footer b{color:var(--ink2)}
+  /* 푸터 '만든이' 메일(mailto, 2026-09-28 작은 글씨 정리 — 홈 운영 주체 줄을 빼며 제보 경로를 푸터 메일 링크로 남겼다)은 둘레
+     글자색을 따른다. /cycle/ 푸터처럼 링크 색을 따로 두지 않은 곳에서 브라우저 기본 파랑으로 튀지 않게. */
+  footer a[href^="mailto:"]{color:inherit}
 
   /* ===== 하단 내비 ===== */
   body{padding-bottom:66px}
@@ -177,7 +180,7 @@
     box-shadow:0 -4px 18px rgba(19,30,36,.28)}
   .nav-btn{flex:1;max-width:220px;border:0;background:none;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:3px;color:#97a0b8;
-    font-size:11.5px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
+    font-size:13px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
     font-family:inherit}   /* 홈의 '홈'·'시세' 탭은 <button> 이라 상속하지 않으면 시스템 글꼴로 그려진다(B11 검토) */
   .nav-btn.on{color:#fff}
     .nav-btn svg{display:block}
@@ -679,10 +682,11 @@
   /* 첫 화면 '이번 주' 띠(홈 마케팅 검수 B1, 2026-09-27). 한 줄 전체가 /weekly/ 링크 — [발표일 · 결론 →]. 배경 지도 캡션·
      다음 발표 둘째 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 글자는 부팅 뒤 스크립트가 채운다(정적 문구 → 데이터
      문구). 줄 수가 글자 길이에 따라 달라지면 아래 카드·지도가 밀리므로(CLS) 줄 수를 **폭으로 고정**한다: 조각(.hw-a/.hw-b)
-     마다 줄을 바꾸는 폭을 정해 두어 정적 문구와 데이터 문구가 같은 줄 수를 쓴다 — 389px 이하는 조각마다 줄을 바꾼다(두 줄).
-     조각 하나가 한 줄을 넘지 않는지는 운영 글꼴로 잰 최악 문구로 시험한다(test_home_hero_band_fits — 전남광주 하락, 두 자리
-     달, 늦은 주 머리말 '12/28 발표 기준'). 글자는 13px 이상(홈 작은 글씨 하한, test_home_min_font) — 13px 에서 늦은 주 한 줄이
-     375px 에 넘쳐(316 > 303px) 조각마다 줄을 바꾸는 폭을 359 → 389px 로 올렸다.
+     마다 줄을 바꾸는 폭을 정해 두어 정적 문구와 데이터 문구가 같은 줄 수를 쓴다 — 399px 이하는 조각마다 줄을 바꾼다(두 줄).
+     조각 하나가 한 줄을 넘지 않는지는 운영 글꼴로 잰 최악 문구로 시험한다(test_home_hero_band_fits — 시도마다 상승·하락 결론,
+     tabular 숫자, 늦은 주 머리말 '12/28 발표 기준'). 글자는 13px 이상(홈 작은 글씨 하한, test_home_min_font). Chromium 운영 글꼴
+     실측으로 가장 긴 한 줄('12/28 발표 기준 · 전남광주 +0.12%, 가장 크게 올랐습니다 →')이 324.8px 라 띠 안쪽이 그 폭에 닿는
+     395px 아래에서는 접힌다 — 조각마다 줄을 바꾸는 폭을 359 → 399px 로 올렸다(2026-09-28, 400px 에서 안쪽 330px).
      배경 지도(.hero-map)가 비치도록 반투명 바탕. */
   .hero-wk{display:block;max-width:460px;margin:16px auto 0;padding:9px 10px;text-decoration:none;color:var(--ink);
     background:rgba(255,255,255,.84);border:1px solid var(--line);border-radius:var(--r-touch);text-align:center}
@@ -690,7 +694,7 @@
     font-variant-numeric:tabular-nums}
   .hero-wk span span{white-space:nowrap}
   .hero-wk:hover .hw-1,.hero-wk:focus-visible .hw-1{text-decoration:underline}
-  @media(max-width:389px){.hero-wk .hw-1 .hw-s{display:none}.hero-wk .hw-1 .hw-b{display:block}}
+  @media(max-width:399px){.hero-wk .hw-1 .hw-s{display:none}.hero-wk .hw-1 .hw-b{display:block}}
   /* 띠 앞 '내 지역' 한 줄(홈 마케팅 검수 C5, 2026-09-27). 고정한 기기에서만 보인다(hidden 은 index.html 인라인 스크립트가 첫
      페인트 전에 푼다). 두 줄을 **줄마다 한 줄로 고정**한다(nowrap + 말줄임) — 정적 문구('공급 리포트 보기 →')가 부팅 뒤
      '매매 +0.13% · [매우 부족] 311,689세대 →'로 바뀌어도 높이가 같다(CLS 0). 배지는 줄 높이를 넘지 않게 line-height 를 줄였다.
