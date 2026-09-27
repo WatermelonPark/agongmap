@@ -39,12 +39,12 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta property="og:title" content="이번 주 아파트 시세 지도 — 전국·서울 주간 변동률">
 <meta property="og:description" content="9/21 조사 · 9/24 발표 · 전국 +0.09%, 경기 +0.23%. 시군구·서울 구별 변동률 지도.">
 <meta property="og:url" content="https://www.agongmap.co.kr/weekly/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/weekly-map.png">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/weekly-map.png?v=2026-09-24">
 <meta property="og:image:width" content="900">
 <meta property="og:image:height" content="1130">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="이번 주 아파트 시세 지도 — 전국·서울 주간 변동률">
-<meta name="twitter:image" content="https://www.agongmap.co.kr/share/weekly-map.png">
+<meta name="twitter:image" content="https://www.agongmap.co.kr/share/weekly-map.png?v=2026-09-24">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -57,7 +57,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "@type": "Dataset",
     "name": "전국 아파트 주간·월간 가격 변동률 (시도·시군구·서울 구별)",
     "description": "한국부동산원 전국주택가격동향조사 기반 아파트 매매·전세가격지수 변동률. 주간(매주 목요일)·월간 자동 갱신, 전국 16개 시도·주요 시군구·서울 25개 구 단위.",
-    "url": "https://www.agongmap.co.kr/#stats-market",
+    "url": "https://www.agongmap.co.kr/weekly/",
     "isAccessibleForFree": true,
     "creator": {"@type": "Organization", "name": "아공맵 (agongmap.co.kr)"},
     "spatialCoverage": "대한민국",
@@ -124,7 +124,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 
 /* 하단 네비 — 이 페이지는 공용 스타일시트를 안 쓰므로 필요한 규칙만 동봉
    (2026-08-14 검수). 콘텐츠 페이지 중 유일하게 네비가 없어 막다른 페이지였다.
-   활성 탭 없음 — 주간 지도는 네 탭 어디에도 속하지 않는다(퀴즈 뷰와 같은 처리).
+   활성 탭은 '통계' — 홈 통계 탭의 기본 화면이 주간 시세다(생성기 put_nav 가 켠다, 2026-09-27).
    ⚠️ 주석에도 공용 시트의 파일명을 쓰지 말 것 — audit_design의 공유 판정이
    문자열 검색이라, 파일명이 주석에만 있어도 공유 페이지로 오인해 그 시트의
    그림자까지 이 페이지 몫으로 센다(2026-08-14 실제 발생). */
@@ -135,6 +135,7 @@ body{padding-bottom:66px}
   justify-content:center;gap:3px;color:#97a0b8;font-size:11.5px;font-weight:600;
   text-decoration:none}
 .nav-btn svg{display:block}
+.nav-btn.on{color:#fff}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -145,8 +146,9 @@ body{padding-bottom:66px}
 
 <header><div class="wrap">
 <!--WK:HEAD-->
-  <p class="eyebrow">9/21 조사 · 9/24 발표 · 한국부동산원 주간 통계</p>
+  <p class="eyebrow"><span id="wk-when">9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)</span> · 한국부동산원 주간 통계</p>
   <h1>이번 주 아파트,<br><em class="up">경기 +0.23%</em> 가장 크게 올랐다</h1>
+  <script>(function(){try{if(new Date(Date.now()+324e5).toISOString().slice(0,10)>"2026-10-01"){var e=document.getElementById('wk-when');if(e)e.textContent="최근 반영: 9/24 발표 · 이번 주 발표분 반영 대기";var h=document.querySelector('header h1'),t=h&&h.firstChild;if(t&&t.nodeType===3)t.nodeValue=t.nodeValue.replace("이번 주","9/24 발표 기준");}}catch(x){}})();</script>
   <p class="lead">전국 <b>+0.09%</b>. 시도 16곳 중 9곳 상승, 7곳 하락. 가장 많이 내린 곳은 제주 -0.06%다.</p>
   <a class="minimap" href="/#stats-market" aria-label="이번 주 시도별 매매가격 변동률, 눌러서 시군구 상세 지도 보기">
     <div class="mm-grid"><div class="mm-tile" style="background:rgba(224,86,74,0.31);animation-delay:0ms"><b style="color:#131e24">전국</b><span style="color:#131e24">+0.09%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.51);animation-delay:22ms"><b style="color:#131e24">수도권</b><span style="color:#131e24">+0.17%</span></div><div class="mm-tile" style="background:#e9edeb;animation-delay:44ms"><b style="color:#4c5f66">지방</b><span style="color:#4c5f66">0.00%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.42);animation-delay:66ms"><b style="color:#131e24">서울</b><span style="color:#131e24">+0.13%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.65);animation-delay:88ms"><b style="color:#131e24">경기</b><span style="color:#131e24">+0.23%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.13);animation-delay:110ms"><b style="color:#131e24">인천</b><span style="color:#131e24">+0.01%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.13);animation-delay:132ms"><b style="color:#131e24">부산</b><span style="color:#131e24">-0.01%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.11);animation-delay:154ms"><b style="color:#131e24">대구</b><span style="color:#131e24">-0.01%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.17);animation-delay:176ms"><b style="color:#131e24">대전</b><span style="color:#131e24">+0.03%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.17);animation-delay:198ms"><b style="color:#131e24">세종</b><span style="color:#131e24">-0.03%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.20);animation-delay:220ms"><b style="color:#131e24">울산</b><span style="color:#131e24">+0.04%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.14);animation-delay:242ms"><b style="color:#131e24">전남광주</b><span style="color:#131e24">+0.02%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.24);animation-delay:264ms"><b style="color:#131e24">충남</b><span style="color:#131e24">-0.06%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.26);animation-delay:286ms"><b style="color:#131e24">충북</b><span style="color:#131e24">+0.07%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.16);animation-delay:308ms"><b style="color:#131e24">경남</b><span style="color:#131e24">+0.02%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.15);animation-delay:330ms"><b style="color:#131e24">경북</b><span style="color:#131e24">-0.02%</span></div><div class="mm-tile" style="background:rgba(224,86,74,0.18);animation-delay:352ms"><b style="color:#131e24">전북</b><span style="color:#131e24">+0.03%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.15);animation-delay:374ms"><b style="color:#131e24">강원</b><span style="color:#131e24">-0.02%</span></div><div class="mm-tile" style="background:rgba(58,123,213,0.24);animation-delay:396ms"><b style="color:#131e24">제주</b><span style="color:#131e24">-0.06%</span></div></div>
@@ -171,7 +173,7 @@ body{padding-bottom:66px}
 
 <section><div class="wrap">
   <h2>숫자의 출처</h2>
-  <p>한국부동산원 「전국주택가격동향조사」 아파트 매매·전세가격지수를 그대로 쓴다 — 호가·광고가 아닌 국가 통계라, 뉴스 기사보다 하루 빠르다.</p>
+  <p>한국부동산원 「전국주택가격동향조사」 아파트 매매·전세가격지수 변동률을 그대로 쓴다. 호가·광고가가 아닌 국가 통계다. 매주 목요일 발표분을 발표 당일 반영하고, 반영이 늦어지면 맨 위 날짜 줄에 '이번 주 발표분 반영 대기'라고 적는다.</p>
 </div></section>
 
 <section><div class="wrap">
@@ -200,7 +202,7 @@ if('serviceWorker' in navigator){
 <nav class="bottomnav">
   <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
   <a class="nav-btn" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>
-  <a class="nav-btn" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>통계</span></a>
+  <a class="nav-btn on" aria-current="page" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>통계</span></a>
   <a class="nav-btn" href="/cycle/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>사이클</span></a>
 </nav>
 </body>
