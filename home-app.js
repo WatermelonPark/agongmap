@@ -211,6 +211,13 @@ function showView(v,updateHash){
 // showView(undefined)가 불려 네 뷰가 전부 사라진다.
 document.querySelectorAll('.nav-btn').forEach(b=>{if(b.dataset.view)
   b.addEventListener('click',()=>showView(b.dataset.view));});
+/* 하단 탭 클릭 수(홈 마케팅 검수 C2, 2026-09-27). '통계' 탭 이름을 '시세'로 바꾼 전후를 GA 에서 비교하려고 탭 클릭만
+   따로 센다 — page_view(view_stats)는 주간 링크·goStats 도 같이 내서 탭을 눌러 온 것만 가를 수 없었다. 값은 표시
+   문자열이 아니라 식별자다(버튼은 data-view, 링크는 주소의 영문 경로 → home·zone·stats·cycle). 이름을 다시 바꿔도
+   같은 줄에 쌓인다(매개변수 이름 tab 은 adv_tab·market_tab 과 같다). 링크 탭(지역·사이클)은 페이지를 떠나지만
+   GA4 는 이벤트를 beacon 으로 보내 떠나는 클릭도 남는다. */
+document.querySelectorAll('.bottomnav .nav-btn').forEach(b=>b.addEventListener('click',()=>
+  track('nav_tab',{tab:b.dataset.view||(b.getAttribute('href')||'').replace(/[^a-z]/g,'')})));
 function goQuiz(k){showView('test');startQuiz(k);}
 // 해시는 setStatsMode가 한 번만 쌓는다(showView까지 쌓으면 한 클릭에 두 칸)
 function goStats(m){showView('stats',false);setStatsMode(m);}
