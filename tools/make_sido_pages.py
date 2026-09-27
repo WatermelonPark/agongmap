@@ -282,6 +282,16 @@ def read_old(path):
         return None
 
 
+def ld_date(html, key='dateModified'):
+    """페이지 JSON-LD 의 datePublished·dateModified 값('YYYY-MM-DD'). 없으면 None.
+
+    keep_dates(시도 리포트·허브·/monthly/ 가 날짜를 굽고 물려받는 규칙)와 /feed.xml(make_feed — 새 판의 발행일을 그
+    페이지의 dateModified 에서 읽는다)이 **같은 눈**으로 읽는다(홈 마케팅 검수 D1 검토 B1).
+    """
+    m = re.search(r'"%s":\s*"(\d{4}-\d{2}-\d{2})"' % key, html or '')
+    return m.group(1) if m else None
+
+
 def keep_dates(new_html, old_html, today):
     """내용이 같고 날짜만 다르면 **옛 페이지를 그대로** 돌려준다.
 
@@ -299,15 +309,14 @@ def keep_dates(new_html, old_html, today):
     if not old_html:
         return new_html, today, True
     if DATE_RE.sub('@', new_html) == DATE_RE.sub('@', old_html):
-        m = re.search(r'"dateModified":\s*"(\d{4}-\d{2}-\d{2})"', old_html)
-        return old_html, (m.group(1) if m else today), False
+        return old_html, (ld_date(old_html) or today), False
     # ⚠️ 내용이 바뀌어도 **최초 발행일은 물려받는다**. 안 그러면 갱신 회차마다
     # datePublished가 오늘로 다시 찍혀, 8월에 색인된 페이지가 9월에 '어제 처음
     # 발행됨, 수정 이력 없음'이라고 선언한다(2026-08-07 감사).
-    pub = re.search(r'"datePublished":\s*"(\d{4}-\d{2}-\d{2})"', old_html)
+    pub = ld_date(old_html, 'datePublished')
     if pub:
         new_html = new_html.replace('"datePublished": "%s"' % today,
-                                    '"datePublished": "%s"' % pub.group(1), 1)
+                                    '"datePublished": "%s"' % pub, 1)
     return new_html, today, True
 
 

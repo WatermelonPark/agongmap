@@ -40,6 +40,8 @@ import make_indicator_pages as I           # noqa: E402  SHELL·fill·ld_pack �
 import sido_zones as SZ                    # noqa: E402  지역 정의 정본
 import make_weekly_page as MW              # noqa: E402  변동률 반올림 정본(pv2r)
 import page_share as PS                    # noqa: E402  공유 버튼(홈 마케팅 검수 B8)
+import make_sido_pages as SP              # noqa: E402  날짜 굽기·물려받기 규칙(keep_dates) — /zone/ 과 같은 함수
+import kst as KST                         # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 
 SITE = I.SITE
 OUT = os.path.join(ROOT, 'monthly')
@@ -177,16 +179,12 @@ def sort_key(p):
 
 
 def newest_basis(basis):
-    """지표별 기준 시점 목록 → (가장 최신 기준 원문, 'YYYY-MM-01' dateModified).
+    """지표별 기준 시점 목록 → 가장 최신 기준 원문('2026.08' 등). 없으면 ''.
 
-    dateModified는 가장 최신 기준 시점에서 유도한다. 데이터가 안 바뀌면 안 움직여야
-    sitemap lastmod가 매일 흔들리지 않는다(/moveins/와 같은 규칙).
     비교는 반드시 sort_key로 — 한글 라벨 어휘 비교는 10월을 9월보다 작다고 본다.
-    이 페이지의 JSON-LD·sitemap lastmod 와 /feed.xml 의 월간 항목(make_feed)이 이 한 함수를 쓴다(홈 마케팅 검수 D1).
+    이 페이지의 '기준' 표기와 /feed.xml 월간 항목의 guid(make_feed)가 이 한 함수를 쓴다(홈 마케팅 검수 D1).
     """
-    newest_raw = max(basis, key=sort_key) if basis else ''
-    key = sort_key(newest_raw)                       # 'YYYY-MM'
-    return newest_raw, ((key + '-01') if re.match(r'^\d{4}-\d{2}$', key) else PUBLISHED)
+    return max(basis, key=sort_key) if basis else ''
 
 
 # 페이지 설명(meta description·JSON-LD). /feed.xml 월간 항목의 설명도 이 문장이다.
@@ -577,8 +575,13 @@ def main():
         print('  원자료에 해당 계열이 없다. data.js와 update_adv_data 쪽을 볼 것.')
         return 1
 
-    newest_raw, mod_iso = newest_basis(basis)
-    newest = month_label(newest_raw)
+    newest = month_label(newest_basis(basis))
+    # 날짜: dateModified·sitemap lastmod 는 **내용이 실제로 바뀐 날**이다 — /zone/ 과 같은 함수(make_sido_pages.keep_dates).
+    # 예전에는 기준월의 1일('2026-08' → 08-01, 공개일 하한 때문에 09-01)을 적었다. 그 값은 이 판이 생길 수 없는 과거이고
+    # (8월 기준은 9월 하순에 들어온다), 하한에 눌려 8월 기준과 9월 기준이 같은 날짜(09-01)가 되어 9월 기준이 들어온 날
+    # sitemap lastmod 가 안 움직였다 — 그날 IndexNow(--changed)도 /monthly/ 를 보내지 않는다(홈 마케팅 검수 D1 검토 B1).
+    # /feed.xml 월간 항목은 새 기준월이 처음 구워진 날 이 dateModified 를 발행일로 가져간다.
+    today = KST.today_iso()
 
     toc = ('<div class="wrap"><nav class="toc" aria-label="지표 목록">'
            '<a href="#price">1 매매·전세·월세</a><a href="#permits">2 인허가</a>'
@@ -606,7 +609,7 @@ def main():
         I.SHELL,
         title=esc(title), ogtitle=esc('이달의 공급 통계 — 한 화면 정리'),
         desc=esc(desc), url=URL,
-        ld=ld_pack_here('이달의 공급 통계', desc, URL, mod_iso),
+        ld=ld_pack_here('이달의 공급 통계', desc, URL, today),
         src='한국부동산원 · 국토교통부 · KOSIS',
         body=body)
     # 이 페이지 전용 CSS를 SHELL 스타일 끝에 얹는다(SHELL을 건드리지 않는다).
@@ -624,14 +627,14 @@ def main():
         old = io.open(p, encoding='utf-8').read()
     except IOError:
         pass
-    # 날짜만 다른 재생성은 커밋하지 않는다(/zone/과 같은 규칙).
-    DATE = re.compile(r'\d{4}-\d{2}-\d{2}')
-    if old and DATE.sub('@', old) == DATE.sub('@', html):
-        I.update_sitemap([('/monthly/', max(mod_iso, PUBLISHED))])
+    # 날짜만 다른 재생성은 커밋하지 않는다(옛 판과 그 날짜를 그대로 둔다). 내용이 바뀌면 dateModified 만 오늘이 된다.
+    html, lastmod, changed = SP.keep_dates(html, old, today)
+    if not changed:
+        I.update_sitemap([('/monthly/', lastmod)])
         print('monthly: 내용 변경 없음 — 그대로 둠 (기준 %s)' % newest)
         return 0
     io.open(p, 'w', encoding='utf-8', newline='\n').write(html)
-    I.update_sitemap([('/monthly/', max(mod_iso, PUBLISHED))])
+    I.update_sitemap([('/monthly/', lastmod)])
     print('monthly: /monthly/ 생성 (기준 %s, %d개 지표, %.1f KB)'
           % (newest, len(secs), len(html.encode('utf-8')) / 1024))
     return 0

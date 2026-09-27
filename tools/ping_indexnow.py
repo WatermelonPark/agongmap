@@ -137,14 +137,25 @@ def changed_mode(ref, root=ROOT, opener=urllib.request.urlopen):
     if not sitemap_entries(new):
         return False, '⚠️ IndexNow 실패 — sitemap.xml 에 주소가 없음 · %s' % TAIL, []
     pre = site(root) + '/'
-    urls = [u for u in changed_locs(old, new) if u.startswith(pre) or u == site(root)]
+    changed = changed_locs(old, new)
+    urls = [u for u in changed if u.startswith(pre) or u == site(root)]
+    # 정식 도메인(CNAME) 밖의 loc 은 IndexNow 가 통째로 거절한다(host 불일치 422). 생성기의 SITE 상수와 CNAME 이 갈린 것이라
+    # '보낼 주소 없음'으로 조용히 넘기면 안 된다 — 나머지는 보내되 결과 줄을 ⚠️ 로 남긴다(D1 검토).
+    foreign = len(changed) - len(urls)
+    warn = ('sitemap 주소 %d개가 정식 도메인 %s 밖이라 빼고' % (foreign, host(root))) if foreign else ''
     if not urls:
+        if warn:
+            return False, '⚠️ IndexNow 실패 — %s 보낼 주소가 없음 · %s' % (warn, TAIL), []
         return True, '✅ IndexNow 보낼 주소 없음 — sitemap lastmod 변화 없음', []
     key = read_key(root)
     if not key:
         return False, '⚠️ IndexNow 실패 — 키 파일 없음 · 바뀐 주소 %d개 · %s' % (len(urls), TAIL), urls
     ok, line = submit(urls, key, root, opener)
-    return ok, line.replace('주소 %d개' % len(urls), '바뀐 주소 %d개' % len(urls)), urls
+    line = line.replace('주소 %d개' % len(urls), '바뀐 주소 %d개' % len(urls))
+    if warn:
+        return False, '⚠️ IndexNow 실패 — %s 나머지를 보냄(%s) · %s' % (
+            warn, line.split(' ', 1)[1].replace(' · ' + TAIL, ''), TAIL), urls
+    return ok, line, urls
 
 
 def main(argv=None):
