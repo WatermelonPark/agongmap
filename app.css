@@ -924,6 +924,26 @@ table.adv thead th:first-child{text-align:center}
   /* 지도 행동 안내 — 범례 각주(11.5px 회색)에서 본문색 문장으로 올렸다(A6·HERO-5①). .home-sec p(16px·ink2)보다
      구체적이어야 해서 두 단계 선택자다. */
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:0 0 10px;max-width:none}
+  /* 지도 모드 전환 '3년 공급 / 이번 주 시세'(홈 마케팅 검수 C3). 지도 보기에서만 보인다 — 그래프·표는 공급 전용이다.
+     지도/그래프/표 줄(.tb-bar)의 빈 왼쪽에 두어 기본 모드의 첫 화면 높이가 늘지 않게 한다: 두 묶음이 한 줄에 들어야 하므로
+     좁은 폭에서는 버튼 안 여백을 줄이고(419px 이하), 359px 이하는 '시세'를 화면에서만 감춘다(버튼 이름에는 남는다 —
+     .sr-only 와 같은 방식). 320~1440px 에서 한 줄(.tb-bar 42px 그대로)을 쟀다(2026-09-27, 운영 글꼴). */
+  #sec-score:not(.vm-map) .map-mode{display:none}
+  @media(max-width:419px){
+    #sec-score .tb-bar{gap:8px}
+    #sec-score .tb-seg button{padding:6px 10px}
+  }
+  @media(max-width:359px){
+    #sec-score .tb-seg button{padding:6px 8px}
+    .map-mode .mm-x{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  }
+  /* 주간 모드 카드 배지 — 판정 배지(.sc-tier.g4·g0·g1)와 같은 바탕·글자색(붉음 = 오름, 푸름 = 내림, 회색 = 보합). */
+  .sc-tier.wk-u{background:#fdecea;color:#a93226}
+  .sc-tier.wk-d{background:#e9f0f7;color:#1a5276}
+  .sc-tier.wk-0{background:#edf0ee;color:#5e6f74}
+  /* 주간 모드의 발표 줄(분포 한 줄 자리) — 날짜가 이 모드의 기준이라 본문색으로 올린다. */
+  .home-sec .agg-dist.wk-when{color:var(--ink);font-weight:500;font-variant-numeric:tabular-nums}
   .gr-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
   .gr-lab{font-size:12.5px;color:var(--muted)}
   .gr-bar select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);
