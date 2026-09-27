@@ -103,7 +103,9 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
   "keywords": ["아파트 실거래가격지수", "주간 아파트 시세", "전세가율", "인허가", "입주물량", "부동산 통계"]
 }
 </script>
+<!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
 <meta name="description" content="전국 16개 시도의 아파트 공급을 적정물량과 비교해 보여줍니다. 국토교통부 준공·착공 실적으로 앞으로 3년 입주물량을 보고, 한국부동산원 주간 시세를 지도로 정리했습니다. 국가 통계 기반, 매주 자동 갱신.">
+<!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <meta name="keywords" content="아파트 공급, 입주물량, 아파트 입주물량, 시도별 아파트 공급, 아파트 공급 지도, 주간 아파트 시세, 아파트 착공, 부동산 데이터, 집값 전망, 부동산 통계">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
@@ -116,7 +118,9 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 <meta name="apple-mobile-web-app-title" content="아공맵">
 <meta property="og:type" content="website">
 <meta property="og:title" content="아공맵 — 공급을 보면 집값이 보인다">
+<!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
 <meta property="og:description" content="전국 16개 시도의 아파트 공급을 적정물량과 비교. 준공·착공 실적으로 본 앞으로 3년 입주물량과 주간 시세 지도 — 국가 통계 기반, 매주 자동 갱신.">
+<!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <meta property="og:url" content="https://www.agongmap.co.kr/">
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta property="og:image:width" content="1200">
@@ -124,7 +128,9 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta name="twitter:title" content="아공맵 — 공급을 보면 집값이 보인다">
+<!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
 <meta name="twitter:description" content="전국 16개 시도 아파트 공급 지도 · 준공·착공으로 본 입주물량 · 주간 시세">
+<!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <title>전국 아파트 공급 지도 — 시도별 3년 공급·이번 주 시세 | 아공맵</title>
 <link rel="stylesheet" href="/app.css">
 <!-- 앱 스플래시: 홈화면에서 띄웠을 때만. OS 스플래시는 maskable 아이콘(글자 없는
@@ -243,8 +249,13 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
          <head> 의 설명 메타 셋뿐이다). tools/make_home_summary.py 가 전국 공급 판정 한 줄(기준 분기)과 발표일 박은
          주간 한 줄(/weekly/ 링크)을 data-core.js 값으로 굽는다 — 스크립트를 돌리지 않는 검색 로봇·링크 미리보기와
          스크립트가 늦는 첫 화면에 숫자가 보인다. #map-wrap 안에 두어, 지도가 그려지면(renderSidoMap 의 innerHTML)
-         같은 숫자를 싣는 카드·지도로 통째로 바뀐다(화면 중복 없음). 구간 안을 손으로 고치지 말 것 — 다음 배치가 되돌린다. -->
-    <div id="map-wrap"><!--HOME_SUMMARY_START--><!--HOME_SUMMARY_END--></div>
+         같은 숫자를 싣는 카드·지도로 통째로 바뀐다(화면 중복 없음). 구간 안을 손으로 고치지 말 것 — 다음 배치가 되돌린다.
+         표식은 제 줄에 둔다 — 배치는 두 표식 줄 **사이**에 줄을 끼우기만 해서, 앞뒤 줄(이 주석·닫는 div 줄)을 사람이 고쳐도
+         봇의 커밋과 같은 덩어리로 부딪히지 않는다(3-저장소 병합). -->
+    <div id="map-wrap">
+<!--HOME_SUMMARY_START-->
+<!--HOME_SUMMARY_END-->
+    </div>
     <div id="graph-wrap"></div>
     <div class="tb-key">
       <span class="tk"><i class="tk-d"></i>하락 · 공급 과잉</span>

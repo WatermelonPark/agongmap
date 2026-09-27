@@ -11,7 +11,9 @@ close_published_issues.parse_posts 가 한다). 네트워크는 쓰지 않는다
 무엇을 깨뜨리면 빨개지나는 시험마다 적었다(각각 실제로 바꿔 확인).
 """
 import datetime
+import importlib
 import io
+import time
 import json
 import os
 import re
@@ -86,6 +88,8 @@ def test_pick_says_this_week_or_last_week_and_drops_older_posts():
     assert BF.pick(dict(e, date='2026-09-16'), pub) is None
     assert BF.pick(None, pub) is None
     assert BF.text(BF.pick(dict(e, date='2026-09-25'), pub)) == '이번 주 해석 읽기: t (네이버 블로그, 9/25)'
+    assert b['note'] == BF.NEIGHBOR   # 홈 renderBlogLine 이 이 값을 둘째 줄로 쓴다(RET-4 A안)
+    assert BF.pick(dict(e, date='2026-13-40'), pub) is None, '모양만 맞는 날짜가 예외로 새면 생성기가 죽는다'
 
 
 def test_feed_failure_never_stops_the_batch_and_keeps_the_last_value(tmp_path):
@@ -148,8 +152,8 @@ def test_weekly_page_bakes_the_same_post_once_before_more_links(tmp_path, monkey
 
     픽스처: 9/21 조사(9/24 발표) 주, 저장 파일에 9/25 주간 글. 뼈대는 저장소 weekly/index.html 에서 표식을 뗀 것(표식 이전
     모양)과 붙은 것 둘 다.
-    변이: put_blog 의 표식 삽입을 '</main>' 앞으로만 하게 바꾸면 순서 단정이, blog_html 에서 글 줄을 지우면 글 단정이
-          빨개진다(둘 다 확인).
+    변이: put_blog 의 표식 삽입을 '</main>' 앞으로만 하게 바꾸면 순서 단정이, blog_html 에서 글 줄·이웃 안내 줄·onclick 을
+          지우면 각 단정이 빨개진다(넷 다 확인).
     """
     f = tmp_path / 'blog.json'
     f.write_text(json.dumps({'weekly': {'date': '2026-09-25', 'title': '제목 <b>&', 'url': BF.BLOG_HOME + '/9'}},
@@ -165,6 +169,9 @@ def test_weekly_page_bakes_the_same_post_once_before_more_links(tmp_path, monkey
     assert b['lead'] == BF.LEAD_NOW
     assert '>%s: 제목 &lt;b&gt;&amp;<span>%s</span></a>' % (b['lead'], b['src']) in blk, blk
     assert 'href="%s"' % BF.BLOG_HOME in blk and '금요일' not in blk and '알림' not in blk
+    # 이웃 안내(RET-4 A안)는 홈과 같은 상수, 클릭은 gtag blog_link 이벤트(이 페이지엔 홈 track 이 없다)
+    assert '<p class="blog-note">%s</p>' % BF.NEIGHBOR in blk
+    assert "gtag('event','blog_link',{to:'weekly_post'})" in blk and "gtag('event','blog_link',{to:'weekly_home'})" in blk
     f.write_text(json.dumps({'weekly': None}), encoding='utf-8')
     blk2 = re.search(r'<!--WK:BLOG-->(.*?)<!--/WK:BLOG-->', MW.render(out, W, Q), re.S).group(1)
     assert BF.LEAD_NOW not in blk2 and 'href="%s"' % BF.BLOG_HOME in blk2
@@ -217,13 +224,15 @@ def test_batch_reads_the_feed_before_split_and_ships_the_file():
     """수집 잡이 split_data **앞**에서 RSS 를 읽고(홈 data-core 에 실리려면), 그 파일을 아티팩트로 올려 커밋 잡이 옮기고,
     커밋 대상에 넣는다. 실패가 데이터 갱신을 막지 않는다(`||` 로 흡수 — 도구도 언제나 0).
 
-    변이: blog_feed 줄을 split_data 뒤로 옮기거나, 업로드 경로·커밋 잡 cp·TARGETS 에서 파일을 빼면 빨개진다(넷 다 확인).
+    변이: blog_feed 줄을 split_data 뒤로 옮기거나, `timeout 90` 을 빼거나, 업로드 경로·커밋 잡 cp·TARGETS 에서 파일을 빼면
+          빨개진다(다섯 다 확인).
     픽스처: 저장소의 update-cloud.yml·run_weekly_update.bat.
     """
     lines = _code_lines(WF)
     feed = [i for i, l in enumerate(lines) if 'tools/blog_feed.py' in l]
     split = [i for i, l in enumerate(lines) if re.search(r'python3? tools/split_data\.py', l)]
     assert len(feed) == 1 and split and feed[0] < split[0], (feed, split)
+    assert lines[feed[0]].strip().startswith('timeout 90 python tools/blog_feed.py'), '벽시계 상한(timeout 90)이 없다'
     assert '||' in lines[feed[0]], 'blog_feed 실패가 수집 잡을 죽일 수 있다'
     y = io.open(WF, encoding='utf-8').read()
     up = re.search(r'name: data-\$\{\{ matrix\.n \}\}\s*\n\s*path: \|\n((?:\s+\S.*\n)+?)\s+retention-days', y)
@@ -235,3 +244,45 @@ def test_batch_reads_the_feed_before_split_and_ships_the_file():
     bf = [i for i, l in enumerate(bl) if l.strip().startswith('python tools\\blog_feed.py')]
     bs = [i for i, l in enumerate(bl) if l.strip().startswith('python tools\\split_data.py')]
     assert len(bf) == 1 and bs and bf[0] < bs[0]
+
+
+def test_a_malformed_rss_address_empties_the_line_instead_of_killing_split(tmp_path, monkeypatch):
+    """RSS 정본 주소 모양이 바뀌어도 blog_feed 를 불러오는 split_data·make_weekly_page 가 죽지 않는다 — 칸만 빈다.
+    예전 판은 모듈 맨 위에서 SystemExit(BaseException)을 던져 split 의 `except Exception` 을 뚫고 수집 잡을 죽일 수 있었다.
+
+    변이: blog_home 을 옛 `raise SystemExit(...)` 로 되돌리면 reload 에서 빨개진다(확인).
+    픽스처: close_published_issues.RSS 가 다른 모양('https://example.com/feed')인 상태.
+    """
+    import make_weekly_page as MWP
+    try:
+        monkeypatch.setattr(CP, 'RSS', 'https://example.com/feed')
+        importlib.reload(BF)
+        assert BF.BLOG_HOME is None and not BF.ours('https://blog.naver.com/x/1')
+        assert BF.latest_weekly(CP.parse_posts(RSS)) is None
+        assert MWP.blog_html(None) == ''
+        f = str(tmp_path / 'b.json')
+        assert BF.main(path=f, fetch=lambda: CP.parse_posts(RSS)) == 0 and BF.read(f) is None
+    finally:
+        monkeypatch.undo()
+        importlib.reload(BF)
+    assert BF.BLOG_HOME and BF.BLOG_HOME.startswith('https://blog.naver.com/')
+
+
+def test_rss_read_has_a_wall_clock_cap(tmp_path, monkeypatch):
+    """RSS 읽기가 느리게 새도 도구가 WALL_SECONDS 에서 그만두고 0 으로 끝나며 지난 값을 둔다(로컬 bat 엔 셸 timeout 이 없다).
+
+    변이: _fetch_with_wall 의 `t.join(WALL_SECONDS)` 를 `t.join()` 으로 바꾸면 3초를 다 기다려 빨개진다(확인).
+    픽스처: 3초 걸리는 fetch, 상한 0.3초.
+    """
+    f = str(tmp_path / 'b.json')
+    BF.write({'date': '2026-09-19', 'title': '지난 글', 'url': BF.BLOG_HOME + '/1'}, f)
+    before = io.open(f, encoding='utf-8').read()
+    monkeypatch.setattr(BF, 'WALL_SECONDS', 0.3)
+
+    def slow():
+        time.sleep(3)
+        return CP.parse_posts(RSS)
+    t0 = time.time()
+    assert BF.main(path=f, fetch=slow) == 0
+    assert time.time() - t0 < 2, '벽시계 상한이 걸리지 않았다'
+    assert io.open(f, encoding='utf-8').read() == before

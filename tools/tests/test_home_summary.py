@@ -51,30 +51,35 @@ def _strip(s):
     return s
 
 
-def _adv(grade='g3', tot=412345, ratio=0.88, L='2027Q1', head=True, flat=False):
-    """합성 data-core ADV — 실데이터와 다른 등급·분기·주(전진한 날을 흉내)."""
-    zones = [{'z': z, 'agg': z in SZ.AGG, 'grade': 'g1', 'ratio': 0.1, 'dtot': 1000, 'H': 12} for z in SZ.ORDER]
+def _adv(grade='g3', tot=412345, ratio=0.88, L='2027Q1', head=True, flat=False, H=12, nation=True):
+    """합성 data-core ADV — 실데이터와 다른 등급·분기·주(전진한 날을 흉내). H=8 은 판정 창이 2년인 모델,
+    nation=False 는 R-ONE 이 전국 값을 비운 주(None)."""
+    zones = [{'z': z, 'agg': z in SZ.AGG, 'grade': 'g1', 'ratio': 0.1, 'dtot': 1000, 'H': H} for z in SZ.ORDER]
     nat = next(z for z in zones if z['z'] == '전국')
     nat.update(grade=grade, ratio=ratio)
     for z in zones:
-        num, d, pct = SZ.card_parts(tot if z is nat else 1000, z['ratio'])
-        z.update(ctxt=SZ.card_text(tot if z is nat else 1000, z['ratio']), cnum=num, cdir=d, cpct=pct)
+        num, d, pct = SZ.card_parts(tot if z is nat else 1000, z['ratio'], H)
+        z.update(ctxt=SZ.card_text(tot if z is nat else 1000, z['ratio'], H), cnum=num, cdir=d, cpct=pct,
+                 rtxt=SZ.ratio_text(z['ratio'], H))
     regs = list(SZ.DISPLAY_ORDER)
     ma = [0.0 if flat else 0.01] * len(regs)
     if not flat:
         ma[regs.index('전국')] = 0.126
         ma[regs.index('부산')] = -0.33
+    if not nation:
+        ma[regs.index('전국')] = None
     W = {'regions': regs, 'rows': [{'p': '2027-01-04', 'ma': ma}], 'grace': 9}
     if head:
         W['head'] = MW.head_payload(dict(W))
-    return {'sido': {'L': L, 'Ltxt': SZ.quarter_text(L), 'H': 12, 'zones': zones},
+    return {'sido': {'L': L, 'Ltxt': SZ.quarter_text(L), 'H': H, 'zones': zones},
             'weekly': W}
 
 
 # ── ① 표식 밖은 그대로 ─────────────────────────────────────────────────────────────────────────────────
-@pytest.mark.parametrize('kw', [{}, {'grade': 'g0', 'tot': -52000, 'ratio': -0.2}, {'head': False}, {'flat': True}])
+@pytest.mark.parametrize('kw', [{}, {'grade': 'g0', 'tot': -52000, 'ratio': -0.2}, {'head': False}, {'flat': True},
+                                {'nation': False}, {'H': 8}])
 def test_generator_touches_only_the_marker_block_and_three_metas(kw):
-    """합성 데이터 네 벌(부족·여유·주간 결론 없음·전부 보합)로 구워도 표식 구간과 메타 셋 말고는 같다. 다시 구워도 같다.
+    """합성 데이터 여섯 벌(부족·여유·주간 결론 없음·전부 보합·전국 값 없음·2년 창)로 구워도 표식 구간과 메타 셋 말고는 같다. 다시 구워도 같다.
 
     변이: make_home_summary.METAS 에 ('property', 'og:title') 을 더하면(생성기 자기 검사도 같이 눈감는다) 이 시험의
           따로 자른 비교가 빨개진다. render 가 끝 표식 뒤에 한 글자를 더 쓰면 생성기 자기 검사(SystemExit)로 빨개진다(둘 다 확인).
@@ -96,8 +101,9 @@ def test_generator_refuses_a_page_without_exactly_one_marker_pair():
 def test_baked_text_says_the_synthetic_numbers():
     """숫자는 data-core 필드 그대로(ctxt·Ltxt·ADV.weekly.head), 주간 값은 사이트 반올림(pv2), 발표일은 weekly_release.
 
-    변이: facts() 에서 pv2 대신 '%.1f' 로 적거나, 발표일 대신 조사일(p)을 쓰면 빨개진다(둘 다 확인). 원값 0.126 은
-          사이트 pv2 로 +0.13 이다(반올림 규칙이 다르면 끝자리가 갈린다).
+    변이: facts() 에서 pv2 대신 '%.1f' 로 적거나, 발표일 대신 조사일(p)을 쓰거나, meta_texts 의 '%s 공급' 연수를 '3년'으로
+          박거나, rtxt 대신 ctxt(…만큼)를 쓰거나, facts 가 전국 None 을 '전국 None%' 로 적으면 빨개진다(다섯 다 확인). 원값
+          0.126 은 사이트 pv2 로 +0.13 이다(반올림 규칙이 다르면 끝자리가 갈린다).
     """
     a = _adv()
     out = MH.render(_index(), a)
@@ -109,14 +115,28 @@ def test_baked_text_says_the_synthetic_numbers():
     desc = re.search(r'<meta name="description" content="([^"]*)"', out).group(1)
     og = re.search(r'<meta property="og:description" content="([^"]*)"', out).group(1)
     tw = re.search(r'<meta name="twitter:description" content="([^"]*)"', out).group(1)
-    assert nat['cnum'] in desc and '+0.13%' in desc and nat['cnum'] in og and '+0.13%' in og and og == tw
+    assert og == tw
+    # 문장(검토 09-27): 정본 비율 문구(rtxt)와 세대수, '전국 값 · 결론'을 '…로 가장 크게 내렸습니다'로 잇는다. '만큼.' 으로 끝나지 않는다.
+    assert '2027년 1분기 기준 전국 아파트 공급은 %s(%s)입니다.' % (nat['rtxt'], nat['cnum']) in desc, desc
+    assert '1/7 발표 주간 아파트 매매가격은 전국 +0.13% · 부산 -0.33%로 가장 크게 내렸습니다.' in desc, desc
+    assert nat['rtxt'] in og and nat['cnum'] in og and '+0.13%' in og
+    assert '만큼.' not in desc and '만큼.' not in og
     n = len([z for z in SZ.ORDER if z not in SZ.AGG])
-    assert ('%d개 시도' % n) in desc
+    assert ('%d개 시도의 3년 공급' % n) in desc and '3년 공급 판정' in og
     # 주간 결론이 없는 옛 data-core 면 결론만 빠진다 / 아무것도 없으면 표식만 남고 메타는 그대로
     blk2 = MH.render(_index(), _adv(head=False))
     assert '전국 +0.13%' in blk2 and a['weekly']['head']['text'] not in blk2[blk2.index(START):blk2.index(END)]
+    # 판정 창이 2년인 모델이면 '2년' — '3년' 을 손으로 적지 않는다
+    two = MH.render(_index(), _adv(H=8))
+    d2 = re.search(r'<meta name="description" content="([^"]*)"', two).group(1)
+    assert '2년 필요량' in d2 and '2년 공급을 판정' in d2 and '3년' not in d2, d2
+    # 전국 값이 빈 주: 전국 조각만 빠진다(요약·설명 둘 다)
+    nn = MH.render(_index(), _adv(nation=False))
+    assert '전국 +' not in nn[nn.index(START):nn.index(END)] and '부산 -0.33%' in nn[nn.index(START):nn.index(END)]
+    d3 = re.search(r'<meta name="description" content="([^"]*)"', nn).group(1)
+    assert '매매가격은 부산 -0.33%로 가장 크게 내렸습니다.' in d3 and '전국 +' not in d3, d3
     empty = MH.render(_index(), {})
-    assert START + END in empty and _strip(empty) == _strip(_index())
+    assert START + '\n' + END in empty and _strip(empty) == _strip(_index())
     assert re.search(r'<meta name="description" content="([^"]*)"', empty).group(1) == \
         re.search(r'<meta name="description" content="([^"]*)"', _index()).group(1)
 
@@ -142,14 +162,19 @@ def test_committed_home_says_what_data_core_says():
     assert (adv['sido'].get('Ltxt') or adv['sido']['L']) in blk
     w = adv['weekly']
     row = w['rows'][-1]
-    nv = row['ma'][w['regions'].index('전국')]
-    assert ('전국 %s%%' % MW.pv2(nv)) in blk and ('%s 발표' % WR.md(WR.status(row['p'])['pub'])) in blk
+    i = w['regions'].index('전국') if '전국' in w['regions'] else None
+    nv = row['ma'][i] if i is not None and i < len(row['ma']) else None   # R-ONE 이 전국 값을 비운 주도 있다
+    assert ('%s 발표' % WR.md(WR.status(row['p'])['pub'])) in blk
+    assert (('전국 %s%%' % MW.pv2(nv)) in blk) if nv is not None else ('전국 +' not in blk and '전국 -' not in blk)
     if (w.get('head') or {}).get('p') == row['p']:
         assert w['head']['text'] in blk
     desc = re.search(r'<meta name="description" content="([^"]*)"', s).group(1)
     # cnum·head 는 2차 배포(09-27) 뒤 split 이 싣는 필드라, 옛 data-core(병합 직후 PR·main CI 의 게이트 잡은 split 을 돌리지
-    # 않는다)에는 없다 — 옛 판에도 있는 ctxt 로 본다(병합 직후 CI 에서 KeyError 로 빨갰던 것을 depth-200 클론으로 확인).
-    assert H.escape(nat['ctxt']) in desc and MW.pv2(nv) in desc
+    # 않는다)에는 없다 — 옛 판에도 있는 ctxt 첫 조각으로 세대수를 본다(depth-200 클론 CI 흉내에서 KeyError 로 빨갰던 것).
+    # 주간 전국 값이 None 인 주(실데이터 11주 전례)에는 전국 조각이 빠져야 한다(검토 09-27 #8).
+    num = nat.get('cnum') or nat['ctxt'].split(' · ')[0].rsplit(' ', 1)[0]
+    assert num in desc and (nat.get('rtxt') or '') in desc
+    assert (MW.pv2(nv) in desc) if nv is not None else '매매가격은 전국' not in desc
 
 
 # ── ③ 화면 중복 없음·자리 예약 ─────────────────────────────────────────────────────────────────────────
@@ -162,7 +187,7 @@ def test_summary_lives_in_the_map_slot_and_the_map_replaces_it():
     """
     s = _index()
     m = re.search(r'<div id="map-wrap">(.*?)</div>\s*\n\s*<div id="graph-wrap">', s, re.S)
-    assert m and m.group(1).startswith(START) and m.group(1).rstrip().endswith(END), '표식 구간이 #map-wrap 바로 안에 있지 않다'
+    assert m and m.group(1).strip().startswith(START) and m.group(1).strip().endswith(END), '표식 구간이 #map-wrap 바로 안에 있지 않다'
     js = HS.home_source()
     i = js.index('function renderSidoMap(')
     body = js[i:js.index('\nfunction ', i + 10)]
@@ -249,22 +274,47 @@ def test_home_blog_line_says_what_the_weekly_page_says():
     """홈 blogLine 이 ADV.blog 로 만드는 한 줄 = blog_feed.text(같은 글·같은 말). 남의 주소·빈 값은 칸을 안 연다. 부팅이 부르고,
     자리(#wk-blog)는 주간 구역에 숨은 채 있으며, 누르면 home_cta blog_weekly 로 잡힌다.
 
-    변이: blogLine 에서 src 를 빼거나 주소 검사를 지우거나, boot 에서 renderBlogLine() 줄을 지우면 빨개진다(셋 다 확인).
+    둘째 줄 이웃 안내(RET-4 A안)는 blog_feed.NEIGHBOR 한 상수 — /weekly/ 하단과 같은 문장이다(test_blog_feed 가 그쪽을 본다).
+    변이: blogLine 에서 src 나 note 를 빼거나 주소 검사를 지우거나, boot 에서 renderBlogLine() 줄을 지우면 빨개진다(넷 다 확인).
     """
     node = shutil.which('node')
     assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
     js = HS.home_source()
     b = BF.pick({'date': '2026-09-25', 'title': '주간 <글>', 'url': BF.BLOG_HOME + '/7'}, '2026-09-24')
     prog = (_js_func(js, 'blogLine') + ';const B=%s;const L=blogLine(B);'
-            'console.log(JSON.stringify([L.text+L.src,blogLine(Object.assign({},B,{url:"https://evil.test/x"})),'
+            'console.log(JSON.stringify([L.text+L.src,L.note,blogLine(Object.assign({},B,{url:"https://evil.test/x"})),'
             'blogLine(null),blogLine({})]));' % json.dumps(b, ensure_ascii=False))
     p = subprocess.run([node, '-e', prog], capture_output=True, timeout=60)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
     got = json.loads(p.stdout.decode('utf-8'))
-    assert got == [BF.text(b), None, None, None], got
+    assert got == [BF.text(b), BF.NEIGHBOR, None, None, None], got
+    assert "n.textContent=L.note" in _js_func(js, 'renderBlogLine')
     boot = _js_func(js, 'boot')
     assert re.search(r'^\s*renderBlogLine\(\);', boot, re.M), '부팅이 renderBlogLine 을 부르지 않는다'
     assert "track('home_cta',{to:'blog_weekly'})" in _js_func(js, 'renderBlogLine')
     s = _index()
     sec = s[s.index('id="wk-h2"'):s.index('<!-- ===== 통계보기 대시보드 ===== -->')]
     assert re.search(r'<p class="wk-blog" id="wk-blog" hidden></p>', sec[:sec.index('</section>')])
+
+
+# ── ⑦ 3-저장소 병합 완충 ────────────────────────────────────────────────────────────────────────────────
+def test_batch_lines_are_buffered_from_hand_edited_neighbours():
+    """배치가 고쳐 쓰는 줄(메타 셋)의 앞뒤에 주석 한 줄씩, 표식은 제 줄에 — 사람이 <title>·og:title·keywords·#map-wrap 줄을
+    고친 PR 과 봇의 데이터 커밋이 같은 덩어리로 부딪히지 않는다(git 은 붙어 있는 변경 덩어리를 충돌로 본다). 굽기는 두 표식 줄
+    사이에 줄을 끼우기만 하고 그 밖의 줄 순서·내용은 그대로다.
+
+    변이: 메타 하나 앞의 완충 주석을 지우거나, 표식을 옛 한 줄 모양(`<div id="map-wrap"><!--…START--><!--…END--></div>`)으로
+          되돌리거나, render 의 inner 앞 줄바꿈을 빼면 빨개진다(셋 다 확인).
+    """
+    s = _index()
+    lines = s.split('\n')
+    for attr in ('name="description"', 'property="og:description"', 'name="twitter:description"'):
+        i = next(k for k, l in enumerate(lines) if l.startswith('<meta %s content=' % attr))
+        assert lines[i - 1].startswith('<!-- ↓') and lines[i + 1].startswith('<!-- ↑'), attr
+    for mk in (START, END):
+        assert mk + '\n' in s and '\n' + mk in s, '%s 가 제 줄에 있지 않다' % mk
+    out = MH.render(s, _adv()).split('\n')
+    a, b = out.index(START), out.index(END)
+    assert out[:a + 1] + out[b:] == [l if not re.match(r'<meta (name|property)="(description|og:description|twitter:description)"', l)
+                                     else next(o for o in out if o.startswith(l.split(' content=')[0]))
+                                     for l in lines[:lines.index(START) + 1] + lines[lines.index(END):]]

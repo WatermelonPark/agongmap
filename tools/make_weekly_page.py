@@ -456,17 +456,29 @@ def put_ld_dates(s, pub_iso):
 # 최신 주간 글(blog_feed.pick — 홈 주간 구역과 같은 선택·같은 말)과 블로그 첫 화면 링크를 '더 둘러보기' 앞에 굽는다.
 # 뼈대에 표식이 없으면 이 생성기가 넣는다(뼈대는 배치 산출물이라 손으로 커밋하지 않는다). 글을 못 골랐으면 글 줄만 빠진다.
 _BLOG_ANCHOR = re.compile(r'(<section><div class="wrap">\s*<h2>더 둘러보기</h2>)')
+_BLOG_MARK = re.compile(r'(<!--WK:BLOG-->)(.*?)(<!--/WK:BLOG-->)', re.S)
+
+
+# 클릭 측정: 이 페이지에는 홈의 track() 이 없어, 다른 생성 페이지(시도 리포트 공유·월간 view)처럼 gtag 이벤트를 직접
+# 보낸다. 이벤트 이름 blog_link, to = weekly_post(최신 글)·weekly_home(블로그 첫 화면). GA 차단·제외 기기에서는 조용히 넘어간다.
+def _track(to):
+    return ' onclick="try{gtag(\'event\',\'blog_link\',{to:\'%s\'})}catch(e){}"' % to
 
 
 def blog_html(b):
     rows = []
     if b:
-        rows.append('    <a href="%s" target="_blank" rel="noopener">%s: %s<span>%s</span></a>'
-                    % (html.escape(b['url']), html.escape(b['lead']), html.escape(b['title']), html.escape(b['src'])))
-    rows.append('    <a href="%s" target="_blank" rel="noopener">%s<span>%s</span></a>'
-                % (BF.BLOG_HOME, BF.HOME_TEXT, BF.LABEL))
+        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s: %s<span>%s</span></a>'
+                    % (html.escape(b['url']), _track('weekly_post'), html.escape(b['lead']),
+                       html.escape(b['title']), html.escape(b['src'])))
+    if BF.BLOG_HOME:
+        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s</span></a>'
+                    % (BF.BLOG_HOME, _track('weekly_home'), BF.HOME_TEXT, BF.LABEL))
+    if not rows:
+        return ''
     return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>해설 글</h2>', '  <div class="links">']
-                     + rows + ['  </div>', '</div></section>'])
+                     + rows + ['  </div>', '  <p class="blog-note">%s</p>' % html.escape(BF.NEIGHBOR),
+                               '</div></section>'])
 
 
 def put_blog(s, W):
@@ -480,7 +492,10 @@ def put_blog(s, W):
         else:
             raise SystemExit('weekly/index.html 에서 해설 글 칸을 넣을 자리를 찾지 못했다')
     b = BF.pick(BF.read(), pub(W['rows'][-1]['p']))
-    return put(s, 'BLOG', blog_html(b), nl)
+    body = blog_html(b)
+    if not body:   # 블로그 주소를 못 만든 경우(blog_feed.BLOG_HOME None) — 칸을 비운다
+        return _BLOG_MARK.sub(lambda m: m.group(1) + nl + m.group(3), s, 1)
+    return put(s, 'BLOG', body, nl)
 
 
 def render(s, W, Q):
