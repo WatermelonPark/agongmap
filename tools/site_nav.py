@@ -1,0 +1,51 @@
+# -*- coding: utf-8 -*-
+"""하단 탭바의 정본 — 탭 순서·주소·라벨·아이콘을 여기 하나에 둔다(홈 마케팅 검수 C2, 2026-09-27).
+
+탭바는 홈(index.html)과 손 페이지(소개·FAQ·개인정보·404·퀴즈 랜딩 3종·/cycle/)에 손으로, 생성기
+(make_sido_pages FOOT, make_indicator_pages SHELL — /monthly/ 도 이 뼈대, make_weekly_page put_nav)에 문자열로
+복제돼 있었다. '통계' 탭 이름을 '시세'로 바꾸는 한 번의 결정이 서른 곳 넘게 흩어져 있어, 한 곳만 빠져도 아무것도
+빨개지지 않았다(CLAUDE.md 데이터 원칙: 같은 대상을 재는 코드는 같은 상수를 쓴다). 생성기는 bottomnav() 로 굽고,
+손 페이지는 라벨을 손으로 맞추되 test_site_nav 가 저장소의 모든 HTML 탭바를 TABS 와 대조한다.
+
+탭 식별자(id)는 표시 이름과 따로 간다 — 홈의 data-view="stats", 해시 '#stats', GA page_title 'view_stats',
+탭 클릭 이벤트 nav_tab 의 tab 값이 모두 'stats' 그대로라 이름을 바꿔도 GA 에서 전후가 한 줄로 이어진다.
+'시세'로 바꾼 까닭: 이 탭의 기본 화면이 시장동향·주간 시세 지도라 이름과 내용이 맞는다. 투자지표·기본통계는
+그 안의 탭으로 남는다(요청서 C2, HERO-7·RET-8·IA-6 2단계·MOB-3).
+
+표준 라이브러리만 쓴다(생성기가 설치 없이 돈다).
+"""
+
+_SVG = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">%s</svg>'
+_I_HOME = ('<path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" '
+           'stroke-linecap="round" stroke-linejoin="round"/>')
+_I_ZONE = ('<path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" '
+           'stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" '
+           'stroke="currentColor" stroke-width="2"/>')
+_I_STATS = ('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" '
+            'stroke-linecap="round"/>')
+_I_CYCLE = ('<path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" '
+            'stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" '
+            'stroke-linecap="round" stroke-linejoin="round"/>')
+
+# (식별자, 주소, 라벨, 아이콘). 네 칸 — 칸 수를 바꾸면 375px 칸 폭(약 94px)이 바뀌므로 대표 결정 사항이다(IA-6 2단계).
+TABS = (
+    ('home', '/', '홈', _I_HOME),
+    ('zone', '/zone/', '지역', _I_ZONE),
+    ('stats', '/#stats', '시세', _I_STATS),
+    ('cycle', '/cycle/', '사이클', _I_CYCLE),
+)
+IDS = tuple(t[0] for t in TABS)
+LABELS = tuple(t[2] for t in TABS)
+HREF = {t[0]: t[1] for t in TABS}
+LABEL = {t[0]: t[2] for t in TABS}
+
+
+def bottomnav(on=None):
+    """하단 탭바 <nav> 한 덩어리. on 은 켤 탭의 식별자(없으면 켜진 탭 없음)."""
+    if on is not None and on not in IDS:
+        raise ValueError('없는 탭: %r' % (on,))
+    rows = []
+    for tid, href, label, icon in TABS:
+        cls = ' on" aria-current="page' if tid == on else ''
+        rows.append('  <a class="nav-btn%s" href="%s">%s<span>%s</span></a>' % (cls, href, _SVG % icon, label))
+    return '<nav class="bottomnav">\n' + '\n'.join(rows) + '\n</nav>'

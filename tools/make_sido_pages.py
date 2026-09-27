@@ -31,6 +31,7 @@ sys.path.insert(0, HERE)
 import sido_zones as SZ                                            # noqa: E402
 import make_weekly_page as MW    # noqa: E402  주간 표기(반올림·조사일·발표일)를 /weekly/와 같이
 import kst as KST                # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
+import site_nav as N             # noqa: E402  하단 탭바 정본(홈 마케팅 검수 C2)
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
@@ -534,12 +535,7 @@ FOOT = '''</main>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
-<nav class="bottomnav">
-  <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
-  <a class="nav-btn on" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>
-  <a class="nav-btn" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>통계</span></a>
-  <a class="nav-btn" href="/cycle/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>사이클</span></a>
-</nav>
+''' + N.bottomnav('zone') + '''
 </body>
 </html>
 '''
