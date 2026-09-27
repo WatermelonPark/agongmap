@@ -214,6 +214,13 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
   <section class="home-sec vm-map" id="sec-score" aria-label="전국 공급 지도"><div class="wrap">
 
     <div class="tb-bar">
+      <!-- 지도 모드(홈 마케팅 검수 C3·IA-1 안 B): 한 지도에 3년 공급(기본)과 이번 주 시세를 번갈아 칠한다. 지도 보기에서만
+           보인다(그래프·표는 공급 전용). 지도/그래프/표 줄의 빈 왼쪽 자리에 두어 기본 모드의 첫 화면 높이가 늘지 않는다
+           (좁은 폭은 app.css 가 글자 간격을 줄이고 '시세'를 화면에서만 감춘다 — 이름에는 남는다). 동작은 home-app.js mapMode. -->
+      <div class="tb-seg map-mode" id="map-mode" role="group" aria-label="지도에 칠할 값">
+        <button type="button" data-m="supply" class="on" aria-pressed="true" onclick="mapMode('supply')">3년 공급</button>
+        <button type="button" data-m="weekly" aria-pressed="false" onclick="mapMode('weekly')">이번 주<span class="mm-x"> 시세</span></button>
+      </div>
       <!-- role=tablist는 자식이 role=tab이고 tabpanel을 제어할 때만 맞다. 여기서는
            같은 표를 다시 그리는 토글이라 group + aria-pressed가 정확하다. -->
       <div class="tb-seg" id="tb-per" role="group" aria-label="기간 단위">

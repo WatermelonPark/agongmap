@@ -59,7 +59,9 @@ def _render(monthly):
     src = HS.home_source()
     tile = re.search(r'const NATION_TILE=\{.*?\};\n', src).group(0)
     fn = _func(src, 'drawNationMap')
-    js = (tile +
+    # 주간 만색 기준(WK_MAP_REF)은 홈 지도 주간 모드(C3)·히어로 배경과 한 상수다 — 선언 줄을 그대로 가져온다.
+    ref = re.search(r'^var WK_MAP_REF=.*$', src, re.M).group(0) + '\n'
+    js = (tile + ref +
           'var codes=NATION_TILE.t.map(function(t){return t[0]});\n'
           'var n=codes.length, vals=function(k){return codes.map(function(_,i){return ((i*37+k)%%120-60)/100})};\n'
           'var row={p:"2026-09-14",ma:vals(1),je:vals(2)}; if(%s)row.wo=vals(3);\n'
