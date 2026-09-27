@@ -48,6 +48,41 @@ def write_draft(path, html):
     with io.open(tmp, 'w', encoding='utf-8', newline='\n') as f:
         f.write(html)
     os.replace(tmp, path)
+
+
+# 바탕화면 바로가기(2026-09-27 대표 요청: "발행할 문서 html은 앞으로 바탕화면에 바로가기 아이콘").
+# 초안 종류마다 이름이 고정된 바로가기 하나를 두고, 초안을 만들 때마다 가장 최근 초안을 가리키게 바꾼다.
+# 회차마다 새 아이콘을 만들면 바탕화면에 쌓인다. 목요일 밤 예약 작업이 만든 초안도 같은 아이콘으로 열린다.
+# 윈도우에서만 돈다(작업 스케줄러·로컬 세션). 실패해도 초안 생성은 계속된다 — 아이콘은 편의일 뿐이다.
+# 시험 중에는 만들지 않는다(pytest 가 PYTEST_CURRENT_TEST 를 켠다). 임시 폴더 초안을 가리키는 아이콘이 생긴다.
+SHORTCUTS = {'naver': '아공맵 블로그 초안 (주간·지역)', 'theory': '아공맵 블로그 초안 (사이클)'}
+_LNK_PS = ("$d=[Environment]::GetFolderPath('Desktop');"
+           "$f=Join-Path $d ($env:AGM_LNK_NAME+'.lnk');"
+           "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($f);"
+           "$s.TargetPath=$env:AGM_LNK_TARGET;$s.Description=$env:AGM_LNK_NAME;$s.Save();"
+           "Write-Output $f")
+
+
+def desktop_shortcut(path, name, run=None):
+    """path 를 여는 바탕화면 바로가기 name.lnk 를 만들거나 새 대상으로 바꾼다. 만든 파일 경로 또는 None."""
+    if os.name != 'nt' or '--no-shortcut' in sys.argv:
+        return None
+    if run is None:
+        if 'PYTEST_CURRENT_TEST' in os.environ:
+            return None
+        run = subprocess.run
+    # 이름·경로는 환경 변수로 넘긴다 — 명령 문자열에 한글·공백·따옴표를 끼워 넣으면 인용이 깨진다.
+    env = dict(os.environ, AGM_LNK_NAME=name, AGM_LNK_TARGET=os.path.abspath(path))
+    try:
+        r = run(['powershell', '-NoProfile', '-NonInteractive', '-Command', _LNK_PS],
+                env=env, capture_output=True, timeout=30)
+    except Exception as e:
+        print('  ⚠ 바탕화면 바로가기 생략 — %s' % e)
+        return None
+    if r.returncode != 0:
+        print('  ⚠ 바탕화면 바로가기 생략 — PowerShell 종료 코드 %s' % r.returncode)
+        return None
+    return (r.stdout or b'').decode('utf-8', 'replace').strip() or name
 SITE = 'https://www.agongmap.co.kr'
 
 
@@ -1854,6 +1889,7 @@ def main():
         if INTERP_PLACEHOLDER[:20] not in old:
             alt = path[:-5] + '.new.html'
             write_draft(alt, html)
+            desktop_shortcut(path, SHORTCUTS['naver'])   # 발행할 것은 손본 쪽이다
             print('⚠ %s 는 이미 손댄 흔적이 있어 그대로 뒀다.' % os.path.basename(path))
             print('  새 초안은 %s 에 썼다. 비교 후 필요한 것만 옮길 것.'
                   % os.path.relpath(alt, ROOT))
@@ -1862,6 +1898,8 @@ def main():
             return 0
 
     write_draft(path, html)
+    if desktop_shortcut(path, SHORTCUTS['naver']):
+        print('  바탕화면 바로가기: %s' % SHORTCUTS['naver'])
     commit_rotation()          # 발행이 확인된 지역 편만 캐시에 적는다(지금 고른 지역은 안 적는다)
     print('네이버 초안 생성: %s' % os.path.relpath(path, ROOT))
     print('  ① %s' % d1['title'])
