@@ -38,13 +38,13 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 # ── 합성 네 주: 지역마다 규칙의 한 갈래를 재현한다(오래된 주 → 최신 주) ─────────────────────────────
 # 경계값은 사이트 반올림(half-up)에서 갈리는 값으로 둔다: 0.004 → '0.00'(보합), 0.005 → '+0.01'(상승), −0.005 → '−0.01'.
 CASES = {
-    '서울': ([0.05, 0.04, 0.03, 0.02], ('up', '4주 연속 상승')),       # 4주 연속(창 전체)
+    '서울': ([0.05, 0.04, 0.03, 0.02], ('up', '4주 이상 연속 상승')),  # 보관 이력 첫 주까지 이어짐 → '이상'
     '경기': ([-0.02, 0.01, 0.02, 0.03], ('up', '3주 연속 상승')),      # 연속 3주 = 문턱
     '인천': ([-0.02, -0.01, 0.02, 0.03], None),                        # 2주 연속은 새 소식이 아니다
     '부산': ([0.01, 0.02, -0.01, 0.02], ('up', '상승 전환')),          # 하락 → 상승
     '대구': ([0.01, 0.02, 0.004, 0.02], ('up', '상승 전환')),          # 보합(표시 0.00) → 상승
     '대전': ([0.01, 0.02, 0.03, 0.004], None),                         # 이번 주 표시 0.00 = 보합, 원값은 +
-    '세종': ([0.01, 0.02, 0.03, 0.005], ('up', '4주 연속 상승')),      # 0.005 → +0.01 표시, 상승이다
+    '세종': ([0.01, 0.02, 0.03, 0.005], ('up', '4주 이상 연속 상승')),  # 0.005 → +0.01 표시, 상승이다
     '울산': ([-0.01, -0.02, 0.01, -0.005], ('dn', '하락 전환')),       # −0.005 → −0.01 표시
     '전남광주': ([0.01, 0.01, None, 0.03], None),                       # 앞 회차 결측 → 전환이라 하지 않는다
     '충북': ([None, -0.02, -0.03, -0.04], ('dn', '3주 연속 하락')),    # 결측에서 연속이 끊긴다
@@ -93,7 +93,8 @@ def test_tag_rule_on_every_branch():
     """표지 규칙의 갈래마다 기대한 표지가 나온다(파이썬 정본).
 
     변이(각각 실제로 확인): direction 이 표시값 대신 원값 부호를 쓰면(`r = v`) 대전(0.004)·대구·세종에서, STREAK_MIN 을
-    2 로 내리면 인천에서, 전환에서 앞 회차 결측 검사를 빼면 전남광주에서, 보합→상승을 전환에서 빼면(앞 회차가 하락일 때만)
+    2 로 내리면 인천에서, '이상' 판정을 끄면(`opened = 0`) 서울에서, '이상'을 결측에서 끊긴 연속에도 붙이면 충북에서,
+    전환에서 앞 회차 결측 검사를 빼면 전남광주에서, 보합→상승을 전환에서 빼면(앞 회차가 하락일 때만)
     대구에서 빨개진다.
     픽스처: 합성 네 주 — 지역마다 규칙의 한 갈래(연속 문턱·보합·결측·반올림 경계 0.004/0.005/−0.005).
     """
@@ -111,41 +112,53 @@ def test_tag_rule_on_every_branch():
     assert WM.turned_line([]) == WM.LINE_NONE
 
 
-def _grid_js(W):
-    """홈 주간 격자(renderWeeklyGrid)를 가짜 DOM 에서 돌려 칸마다 (지역, 매매 표시, 표지)와 머리 두 줄을 돌려준다."""
+def _grid_js(W, seen=None):
+    """홈 주간 격자(renderWeeklyGrid)를 가짜 DOM·localStorage 에서 돌려 칸마다 (지역, 매매 표시, 표지, 도움말 주 수),
+    머리 두 줄, 렌더 뒤 저장된 wk_seen 을 돌려준다."""
     h = HS.home_source()
     names = ('pv2r', 'pv2', 'pvSign', '_syncHolidays', 'weeklyReleaseNow', 'pubDate', 'weeklyHead', 'applyWeeklyStatus',
-             'weeklyMoves', 'weeklyShare', 'wkSinceText', 'wkSeen', 'wkRemember', 'renderWeeklyGrid', 'track', 'loadKakao')
-    seen = re.search(r"^const WK_SEEN_KEY='[^']+';", h, re.M)
-    assert seen, 'home-app.js 에서 WK_SEEN_KEY 를 찾지 못했다'
-    return '\n'.join([_wk_block(h), seen.group(0), 'let KAKAO_P=null,KAKAO_FAIL=false;function loadScript(){return Promise.resolve();}']
+             'weeklyMoves', 'weeklyShare', 'wkSinceText', 'wkShouldRemember', 'wkSeen', 'wkRemember', 'renderWeeklyGrid',
+             'track', 'loadKakao')
+    key = re.search(r"^const WK_SEEN_KEY='[^']+';", h, re.M)
+    assert key, 'home-app.js 에서 WK_SEEN_KEY 를 찾지 못했다'
+    return '\n'.join([_wk_block(h), key.group(0), 'let KAKAO_P=null,KAKAO_FAIL=false;function loadScript(){return Promise.resolve();}']
                      + [_js_func(h, n) for n in names] + [
         'globalThis.ADV={weekly:%s,holidays:[]};' % json.dumps(W, ensure_ascii=False),
+        'const LS={};if(%s!==null)LS.wk_seen=%s;' % (json.dumps(seen), json.dumps(seen)),
+        'globalThis.localStorage={getItem:k=>k in LS?LS[k]:null,setItem:(k,v)=>{LS[k]=String(v);}};',
         'const box={style:{},innerHTML:"",querySelector:()=>null};',
         'globalThis.document={getElementById:id=>id==="home-weekly-grid"?box:null};',
         'renderWeeklyGrid();',
-        'const cells=[...box.innerHTML.matchAll(/<div class="wc[^"]*"[^>]*><b>([^<]+)<\\/b><span class="wc-ma">([^<]+)<\\/span>'
-        '<i class="wc-je">[^<]*<\\/i>(?:<i class="wc-tag">([^<]+)<\\/i>)?<\\/div>/g)].map(m=>[m[1],m[2],m[3]||null]);',
+        # 칸 순서: 이름 → 매매 → (표지) → 전세. 표지가 전세 줄 밑으로 돌아가면 이 정규식이 칸을 못 읽어 빨개진다.
+        'const cells=[...box.innerHTML.matchAll(/<div class="wc[^"]*"([^>]*)><b>([^<]+)<\\/b><span class="wc-ma">([^<]+)<\\/span>'
+        '(?:<i class="wc-tag">([^<]+)<\\/i>)?<i class="wc-je">[^<]*<\\/i><\\/div>/g)]'
+        '.map(m=>[m[2],m[3],m[4]||null,((m[1].match(/title="최근 (\\d+)주/)||[])[1])||null]);',
         'const moves=(box.innerHTML.match(/<p class="wg-moves">([^<]*)<\\/p>/)||[])[1]||null;',
-        'process.stdout.write(JSON.stringify({cells,moves}));'])
+        'const since=(box.innerHTML.match(/<p class="wg-since">([^<]*)<\\/p>/)||[])[1]||null;',
+        'process.stdout.write(JSON.stringify({cells,moves,since,seen:LS.wk_seen||null}));'])
 
 
 def test_home_grid_shows_the_python_tags_and_they_agree_with_the_displayed_sign():
     """홈 주간 격자는 배치가 구운 표지를 그대로 칸에 싣고, 표지의 방향은 그 칸에 찍힌 매매 숫자(JS pv2)의 부호와 같다 —
     JS·파이썬이 같은 결과를 낸다(0.00 칸에는 표지가 없다). 조사일이 다른 옛 표지(섞인 캐시)는 싣지 않는다.
 
+    표지는 매매 숫자 바로 아래(전세 줄 위)에 '매매 …'로 붙는다 — 전세 줄 밑에 붙어 전세 흐름으로 읽히던 것(3차 검토: 대구
+    '전세 +0.01' 밑 '하락 전환')을 막는다. 칸 도움말의 주 수는 배치가 싣는 ADV.weekly.recent 를 따른다(JS 에 4 를 적지 않는다).
+
     변이(각각 실제로 확인): weekly_moves.direction 이 원값 부호를 쓰면 '0.00'(대전)에 '상승' 표지가 붙어, 홈 cell 에서
-    표지(`wc-tag`)를 빼면 표지 대조에서, weeklyMoves 의 조사일 검사(`mv.p===row.p`)를 빼면 옛 표지 단정에서 빨개진다.
-    픽스처: 위 합성 네 주 + split_data 가 싣는 모양(ADV.weekly.moves). 홈은 격자 칸 19개를 그린다.
+    표지(`wc-tag`)를 빼면 표지 대조에서, 표지를 전세 줄 뒤로 되돌리면 칸 읽기에서, 표지 앞 '매매 '를 빼면 표지 대조에서,
+    도움말 창을 slice(-4) 로 적으면 주 수 단정에서, weeklyMoves 의 조사일 검사(`mv.p===row.p`)를 빼면 옛 표지 단정에서 빨개진다.
+    픽스처: 위 합성 네 주 + split_data 가 싣는 모양(ADV.weekly.moves·recent — 창은 일부러 3주로 줄였다). 홈 격자 칸은 19개.
     """
     W = _fixture()
-    WJ = dict(W, grace=9, moves=WM.moves(W))
+    WJ = dict(W, grace=9, moves=WM.moves(W), recent=3)
     out = _node(_grid_js(WJ))
-    cells = {r: (txt, tag) for r, txt, tag in out['cells']}
-    assert set(cells) == set(W['regions']), '격자 칸을 다 읽지 못했다: %s' % sorted(cells)
+    cells = {r: (txt, tag) for r, txt, tag, _ in out['cells']}
+    assert set(cells) == set(W['regions']), '격자 칸을 다 읽지 못했다(표지가 전세 줄 밑인가?): %s' % sorted(cells)
+    assert {n for _, _, _, n in out['cells']} == {'3'}, '칸 도움말이 배치의 창(recent=3)을 따르지 않는다'
     want = WJ['moves']['tags']
     for r, (txt, tag) in cells.items():
-        assert tag == (want[r][1] if r in want else None), (r, tag, want.get(r))
+        assert tag == ('매매 ' + want[r][1] if r in want else None), (r, tag, want.get(r))
         shown = txt.replace('−', '-')
         if tag:
             assert shown[0] == ('+' if want[r][0] == 'up' else '-'), '표지 %s 인데 칸에는 %s' % (tag, txt)
@@ -154,7 +167,25 @@ def test_home_grid_shows_the_python_tags_and_they_agree_with_the_displayed_sign(
     assert out['moves'] == WJ['moves']['line']
     stale = dict(WJ, moves=dict(WJ['moves'], p=PS[-2]))
     out = _node(_grid_js(stale))
-    assert all(t is None for _, _, t in out['cells']) and out['moves'] is None, '조사일이 다른 옛 표지를 실었다'
+    assert all(t is None for _, _, t, _ in out['cells']) and out['moves'] is None, '조사일이 다른 옛 표지를 실었다'
+
+
+def test_seen_release_is_only_moved_forward():
+    """wk_seen(지난 방문 발표일)은 더 새 발표일로만 바뀐다. 옛 data-core(서비스워커·브라우저 캐시)로 그린 화면이 이미 본 새
+    발표일을 옛 날짜로 덮으면 다음 방문에 '새 발표'를 한 번 더 센다(3차 검토).
+
+    변이(각각 실제로 확인): renderWeeklyGrid 가 조건 없이 wkRemember(rel.pub) 를 부르면 첫 단정, wkShouldRemember 가
+    `seen<pub` 대신 `seen!==pub` 를 보면 첫 단정, 처음 온 기기(seen 없음)에 적지 않으면 셋째 단정이 빨개진다.
+    픽스처: 합성 네 주(최신 조사 2030-01-28 → 발표 01-31)를 그리는 홈 격자와 가짜 localStorage.
+    """
+    W = _fixture()
+    WJ = dict(W, grace=9, moves=WM.moves(W), recent=4)
+    later = _node(_grid_js(WJ, seen='2030-02-07'))          # 더 새 발표를 이미 본 기기에 옛 판 화면
+    assert later['seen'] == '2030-02-07' and later['since'] is None
+    older = _node(_grid_js(WJ, seen='2030-01-24'))
+    assert older['seen'] == '2030-01-31' and older['since'] == '지난 방문(1/24 발표) 이후 새 발표 1회'
+    first = _node(_grid_js(WJ))
+    assert first['seen'] == '2030-01-31' and first['since'] is None
 
 
 def test_since_last_visit_line():
@@ -225,25 +256,50 @@ def test_weekly_page_tiles_and_table_use_the_same_moves():
     assert [(n, v, int(r), dv, t) for n, v, r, dv, t in rows] == [
         (Q[c], MW.pv2(v), r, '' if d is None else str(d), mark(d)) for c, v, r, d in want]
     assert 'id="utable"' in table and 'data-num' in table
+    # RET-7 한 줄은 가는 곳(시도 목록 /zone/)과 같은 말을 한다('이 지역'이라 적지 않는다 — 3차 검토)
+    assert '<a href="/zone/">시도별 공급 판정 보기 →</a>' in table and '이 지역' not in table
+
+
+def test_news_is_only_what_changed_this_week():
+    """블로그가 쓰는 '이번 주 새 변화'(weekly_moves.news): 전환, 연속 STREAK_MIN 주에 막 들어선 곳, 연속이 이정표(MILESTONES)에
+    막 닿은 곳만. 이정표가 아닌 긴 연속(매주 1씩 느는 85→86주)과 이력 끝까지 닿은 '이상' 연속, 집계는 싣지 않는다
+    (CLAUDE.md '회차 간 반복 금지' — 3차 검토).
+
+    변이(각각 실제로 확인): milestone 거름을 빼면(연속 3주 이상 전부) 둘째 단정, '이상' 연속을 빼지 않으면 인천이 들어와
+    둘째 단정, entered 가 `>= STREAK_MIN` 을 보면 첫째 단정, 집계를 빼지 않으면 전국이 들어와 빨개진다.
+    픽스처: 표지 모양(ADV.weekly.moves.tags)을 손으로 만든 한 주 — 서울 8주(이정표), 경기 9주(이정표 다음 주), 인천
+    8주 이상(이력 끝), 부산 3주(새 연속), 대구 4주, 울산 하락 전환, 전국 8주(집계).
+    """
+    mv = {'tags': {'서울': ['up', '8주 연속 상승', 8, 0], '경기': ['up', '9주 연속 상승', 9, 0],
+                   '인천': ['up', '8주 이상 연속 상승', 8, 1], '부산': ['dn', '3주 연속 하락', 3, 0],
+                   '대구': ['up', '4주 연속 상승', 4, 0], '울산': ['dn', '하락 전환', 1, 0],
+                   '전국': ['up', '8주 연속 상승', 8, 0]}}
+    nw = WM.news(mv)
+    assert nw['turned'] == [('울산', 'dn')] and nw['entered'] == [('부산', 'dn')]
+    assert nw['milestone'] == [('서울', 'up', 8)]
+    assert 8 in WM.MILESTONES and 9 not in WM.MILESTONES and 4 not in WM.MILESTONES
 
 
 def test_blog_draft_says_the_same_moves():
-    """블로그 주간 초안의 '방향이 바뀐 곳'·'가장 길게 이어진 흐름'·'순위가 가장 많이 뛴 곳' 문장이 사이트와 같은 함수의 값이다.
+    """블로그 주간 초안은 이번 주 새 변화(weekly_moves.news)와 '순위가 가장 많이 뛴 곳'만 싣고, 사이트와 같은 함수의 값이다.
+    매주 되풀이되는 긴 연속('서울 85주 연속 상승' 류)은 싣지 않는다.
 
-    변이(각각 실제로 확인): weekly_moves_sentences 가 전환 지역을 따로 걸러 대구를 빠뜨리면, streak_leaders 대신 표지 순서로
-    세 곳을 고르면 빨개진다.
-    픽스처: 합성 네 주(시도) + 저장소 시군구 최신 두 주.
+    변이(각각 실제로 확인): weekly_moves_sentences 가 전환 지역을 따로 걸러 대구를 빠뜨리면, news 대신 연속 표지 전부를
+    문장으로 옮기면(옛 '흐름이 가장 길게 이어진 곳') 빨개진다.
+    픽스처: 합성 네 주(시도 — 전환 셋, 새 3주 연속 둘, 4주 '이상' 연속 여럿) + 저장소 시군구 최신 두 주.
     """
     Wr, Q = MW.load()
     W = _fixture()
     W['sgg'] = dict(Wr['sgg'], rows=Wr['sgg']['rows'][-2:])
     para, rank = P.weekly_moves_sentences(W)
     mv = WM.moves(W)
-    for z, k in mv['turned']:
+    nw = WM.news(mv)
+    assert nw['turned'] and nw['entered'], '픽스처가 전환·새 연속을 담아야 한다'
+    for z, k in nw['turned']:
         assert '<b>%s</b>(%s)' % (z, WM.TXT_TURN[k]) in para, (z, para)
-    lead = WM.streak_leaders(mv)
-    assert lead and '흐름이 가장 길게 이어진 곳은 %s입니다.' % ' · '.join(
-        '%s(%s)' % (z, WM.TXT_STREAK[k] % n) for z, k, n in lead) in para, para
+    assert '새로 %d주 연속 흐름에 들어선 곳은 %s입니다.' % (WM.STREAK_MIN, ' · '.join(
+        '%s(%s)' % (z, '상승' if k == WM.UP else '하락') for z, k in nw['entered'])) in para, para
+    assert '이상 연속' not in para and '흐름이 가장 길게' not in para, para
     top = [(Q[c], d) for c, _, r, d in WM.rank_moves(W['sgg'], Q)[:10] if d is not None and d > 0]
     if top:
         name, d = max(top, key=lambda x: x[1])

@@ -170,6 +170,7 @@ def main():
     moves, share = _weekly_extra(w)
     if w.get('rows'):
         wk['rows'] = w['rows'][-RECENT_WEEKS:]   # 최근 4주(B7). 홈 격자·띠는 마지막 행을, 표지는 moves 를 읽는다
+        wk['recent'] = RECENT_WEEKS   # 홈 격자 풍선 도움말의 주 수 — JS 가 4 를 따로 적지 않게(통계 탭 뒤 rows 가 길어져도 같은 창)
         if head:
             wk['head'] = head
         if moves:
@@ -248,6 +249,7 @@ def main():
             w['grace'] = GRACE_WEEKLY
             if head:
                 w['head'] = head   # 같은 이유 — 통계 탭을 연 뒤에도 홈 띠·주간 h2 가 결론을 잃지 않는다
+            w['recent'] = RECENT_WEEKS   # 같은 이유 — 격자 도움말의 주 수
             if moves:
                 w['moves'] = moves   # 같은 이유 — 주간 격자 표지(B7)
             if share:

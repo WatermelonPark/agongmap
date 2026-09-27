@@ -62,7 +62,7 @@ def test_home_weekly_carries_the_newest_week(split):
 
     변이: split_data의 `w['rows'][-RECENT_WEEKS:]` 를 `w['rows'][:RECENT_WEEKS]` 로 바꾸면 156주 전(2023년) 행이 실려
           빨개진다(확인, 옛 `[-1:]` → `[:1]` 변이와 같은 자리). `[-1:]` 로 되돌려도 빨개진다(확인 — 4주가 아니다).
-          시군구 `sgg['rows'][-1:]` 를 `[:1]` 로 바꿔도 빨개진다(확인).
+          시군구 `sgg['rows'][-1:]` 를 `[:1]` 로 바꿔도 빨개진다(확인). `wk['recent']`(홈 격자 도움말 창)를 빼도 빨개진다(확인).
     픽스처: 실제 data.js — ADV.weekly.rows 가 오래된 주 → 최신 주 순으로 156행, sgg 도 같은 순서.
     """
     adv, _, out = split
@@ -74,6 +74,9 @@ def test_home_weekly_carries_the_newest_week(split):
     want = sorted(src_rows, key=lambda r: r['p'])[-S.RECENT_WEEKS:]
     assert wk['rows'] == want and wk['rows'][-1] == newest
     assert wk['moves']['p'] == newest['p'] and wk['share']['p'] == newest['p']
+    # 홈 격자 도움말의 창(ADV.weekly.recent)은 싣는 행 수와 같은 값이고 통계 탭용 trend 에도 실린다 — JS 는 4 를 적지 않는다
+    assert wk['recent'] == S.RECENT_WEEKS == len(wk['rows'])
+    assert out['trend']['ADV']['weekly']['recent'] == S.RECENT_WEEKS
     src_sgg = adv['weekly']['sgg']['rows']
     assert wk['sgg']['rows'] == [max(src_sgg, key=lambda r: r['p'])]
     assert wk['sgg']['codes'] == adv['weekly']['sgg']['codes']
