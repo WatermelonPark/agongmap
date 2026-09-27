@@ -88,6 +88,19 @@ def test_home_font_stack_is_the_site_stack_with_the_subset_first():
     assert m.group(1).strip() == "'%s',%s" % (F.FAMILY, F.body_stack(ROOT)), m.group(1)
 
 
+def test_button_tabs_inherit_the_page_font():
+    """하단 탭바의 <button> 탭('홈'·'시세')이 페이지 글꼴을 상속한다 — 버튼은 글꼴을 상속하지 않아(브라우저 기본값)
+    예전엔 '홈'·'시세'만 시스템 글꼴, '지역'·'사이클'(<a>)은 AgongHome 으로 그려져 한 줄 안에서 글꼴이 갈렸다(B11 검토).
+    버튼 탭은 홈에만 있고(다른 페이지 탭바는 site_nav 의 <a>) 규칙은 app.css .nav-btn 하나다.
+    무엇을 깨뜨리면 빨개지나(실제로 확인): app.css .nav-btn 규칙에서 font-family:inherit 를 빼면.
+    픽스처: 저장소 index.html 하단 탭바와 app.css.
+    """
+    assert re.search(r'<button class="nav-btn[^"]*" data-view=', _html()), '홈 탭바에서 <button> 탭을 못 찾았다 — 이 시험이 헛돈다'
+    css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    rule = re.search(r'(?m)^\s*\.nav-btn\{([^}]*)\}', css)
+    assert rule and re.search(r'font-family:inherit', rule.group(1)), 'app.css .nav-btn 이 글꼴을 상속하지 않는다 — 버튼 탭만 시스템 글꼴'
+
+
 def test_subset_is_cut_from_the_same_pretendard_as_the_cdn():
     """서브셋 원본 판(도구의 PRETENDARD)이 홈 CDN 링크의 판과 같다 — 다르면 서브셋 글자와 CDN 글자가 모양이 갈린다.
 
@@ -95,3 +108,29 @@ def test_subset_is_cut_from_the_same_pretendard_as_the_cdn():
     """
     vers = set(re.findall(r'orioncactus/pretendard@v([\d.]+)/', _html()))
     assert vers == {F.PRETENDARD}, 'CDN 판 %s 와 서브셋 원본 판 %s 가 다르다' % (sorted(vers), F.PRETENDARD)
+
+
+# 원본 글꼴(Pretendard)에 없는 글자 — 도구가 서브셋에서 빼고 CSS 글꼴 목록의 다음 글꼴(CDN·시스템 이모지)이 그린다.
+# 여기 없는 글자가 홈 스크립트 문자열에 있는데 서브셋에 없으면 빨개진다.
+NOT_IN_FONT = {'ⓘ', '\ufe0f'}                 # 원 안의 i(카드 도움말 단추), 이모지 표시 선택자
+EMOJI_BLOCK = (0x1F000, 0x1FAFF)              # 그림 문자(BLV 등급 이모지 등) — 원본 글꼴에 이 블록이 없다
+
+
+def test_home_script_strings_are_inside_the_subset():
+    """홈 첫 화면을 그리는 스크립트(home-app.js)의 문자열 리터럴 글자가 서브셋 안에 있다 — 카드·띠·범례·버튼 문구를
+    스크립트로 고치고 도구를 안 돌리면 빨개진다. 유니코드 이스케이프('\\u2212')는 푼 글자로 본다(도구와 같은 _js_strings).
+
+    분할 파일(home-quiz.js·home-stats.js)은 첫 화면이 쓰지 않아 보지 않는다(열 때 CDN 조각을 받는다). 데이터 문구
+    (data-core 의 판정·주간 결론·블로그 제목)도 보지 않는다 — 데이터가 앞으로 가면 게이트가 막히면 안 된다.
+    무엇을 깨뜨리면 빨개지나(실제로 확인): home-app.js 에 `const _X='뷁';` 를 넣으면, '\\u{BDC1}'(뷁) 이스케이프로 넣어도,
+    예외 목록에서 'ⓘ' 를 빼면.
+    픽스처: 저장소 home-app.js 와 index.html HOME_FONT 구간.
+    """
+    have = F.parse_ranges(re.search(r'unicode-range:([^;}]+)', _block()).group(1))
+    text = F._js_strings(dict(HS.home_files())[HS.EXTERNAL[0]])
+    assert len({c for c in text if 0xAC00 <= ord(c) <= 0xD7A3}) > 100, '홈 스크립트에서 한글을 거의 못 읽었다 — 이 시험이 헛돈다'
+    miss = sorted(c for c in set(text) if ord(c) > 0x20 and ord(c) not in have and c not in NOT_IN_FONT
+                  and not EMOJI_BLOCK[0] <= ord(c) <= EMOJI_BLOCK[1])
+    assert not miss, ('홈 스크립트 문구에 서브셋에 없는 글자가 있다: %s — `pip install fonttools brotli` 뒤 '
+                      '`python tools/make_home_font.py` 로 다시 구울 것(원본 글꼴에 없는 글자면 NOT_IN_FONT 에)'
+                      % ' '.join('%s(U+%04X)' % (c, ord(c)) for c in miss))

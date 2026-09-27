@@ -105,8 +105,12 @@ def static_home_text(html_text):
     return ''.join(p.out)
 
 
+_UESC = re.compile(r'\\u\{([0-9A-Fa-f]+)\}|\\u([0-9A-Fa-f]{4})')
+
+
 def _js_strings(js):
-    """자바스크립트의 문자열·템플릿 글자(주석 제외). 넉넉히 모으는 것이 목적이라 템플릿 안의 식도 그대로 담긴다."""
+    """자바스크립트의 문자열·템플릿 글자(주석 제외). 넉넉히 모으는 것이 목적이라 템플릿 안의 식도 그대로 담긴다.
+    유니코드 이스케이프('\\u2212'·'\\u{1F423}')는 실제 글자로 푼다 — 화면에 그려지는 것은 그 글자다."""
     out, i, n = [], 0, len(js)
     while i < n:
         c = js[i]
@@ -120,7 +124,7 @@ def _js_strings(js):
             j = i + 1
             while j < n and js[j] != c:
                 j += 2 if js[j] == '\\' else 1
-            out.append(js[i + 1:j])
+            out.append(_UESC.sub(lambda m: chr(int(m.group(1) or m.group(2), 16)), js[i + 1:j]))
             i = j + 1
         else:
             i += 1
