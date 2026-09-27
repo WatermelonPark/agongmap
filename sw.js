@@ -9,7 +9,8 @@
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
-// home-app.js 의 HOME_BUILD 도 같은 값으로 바꾼다 — 셋이 다르면 test_home_build 가 빨개진다.
+// home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
+// — 하나라도 다르면 test_home_build 가 빨개진다.
 const VERSION = 'v164'; // 홈 마케팅 검수 3차: 지도 보기 전환·두 단·내 지역·설치 안내·주간 표·공유 버튼, B11 홈 글꼴 서브셋·퀴즈/통계 코드 분할(분할 파일 주소가 이 판에 묶인다), D1 RSS
 const CACHE = `agongmap-${VERSION}`;
 
@@ -64,6 +65,7 @@ const PRECACHE = [
   // 퀴즈·통계 화면 코드(B11·MOB-8 코드 분할). 홈이 그 화면을 열 때 '?v=<HOME_BUILD>' 를 붙여 받으므로(home-app.js
   // loadPart) 같은 주소로 넣는다 — VERSION 과 HOME_BUILD 는 같은 값이다(test_home_build). 오프라인에서 #test-… 로 들어와도
   // 퀴즈가 뜬다. 주소에 판이 붙어 있어 VERSION 을 올리면 두 파일은 새로 받는다(전송 약 40KB, test_home_parts).
+  // 두 파일 안의 판 표식(HOME_QUIZ_BUILD·HOME_STATS_BUILD)도 VERSION 과 같이 올린다(test_home_build).
   '/home-quiz.js?v=' + VERSION,
   '/home-stats.js?v=' + VERSION,
   '/404.html',

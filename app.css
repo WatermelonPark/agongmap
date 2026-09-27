@@ -177,7 +177,8 @@
     box-shadow:0 -4px 18px rgba(19,30,36,.28)}
   .nav-btn{flex:1;max-width:220px;border:0;background:none;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:3px;color:#97a0b8;
-    font-size:11.5px;font-weight:600;cursor:pointer;transition:color .15s;position:relative}
+    font-size:11.5px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
+    font-family:inherit}   /* 홈의 '홈'·'시세' 탭은 <button> 이라 상속하지 않으면 시스템 글꼴로 그려진다(B11 검토) */
   .nav-btn.on{color:#fff}
     .nav-btn svg{display:block}
 
