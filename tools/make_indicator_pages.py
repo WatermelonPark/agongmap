@@ -85,6 +85,57 @@ def neun(w):
     return w + ('은' if 0xAC00 <= c <= 0xD7A3 and (c - 0xAC00) % 28 else '는')
 
 
+# 표두를 눌러 정렬하는 스크립트(id="utable" 표 하나에 붙는다). SHELL 페이지(/moveins/·/jeonse-ratio/)와 /weekly/ 시군구
+# 전체 표(make_weekly_page.table_html)가 같은 것을 쓴다 — 정렬 관례를 한 곳에 둔다(홈 마케팅 검수 C10②, 2026-09-27).
+SORT_SCRIPT = """<script>
+(function(){
+  var t=document.getElementById('utable'); if(!t) return;
+  var tb=t.tBodies[0], ths=t.tHead.rows[0].cells, cur=-1, dir=1;
+  /* 칸에 data-v 가 있으면 그 값으로 정렬한다 — '▲3'·'▼2' 처럼 글자로는 부호가 안 읽히는 칸(/weekly/ 순위 이동).
+     ⚠️ 예전엔 parseFloat(...)||-1e9 라 0 이 '값 없음'(-1e9)으로 밀려 맨 끝에 섰다 — 주간 변동률 표는 0.00 이
+     흔하다(홈 마케팅 검수 C10②, 2026-09-27). 숫자가 아닐 때만 맨 끝으로 보낸다. */
+  function val(row,k,isNum){
+    var c=row.cells[k], d=c.getAttribute('data-v'), s=(d!=null?d:c.textContent).trim();
+    if(!isNum) return s;
+    var n=parseFloat(s.replace(/[^0-9.-]/g,''));
+    return isNaN(n) ? -1e9 : n;
+  }
+  /* 마우스로만 정렬되던 것을 키보드에서도 되게 한다 — 안내문이 '표두를 누르면 정렬'인데
+     탭으로는 표두에 닿지도 않았다(2026-08-08 감사). aria-sort로 현재 정렬 상태도 알린다. */
+  Array.prototype.forEach.call(ths, function(h,i){
+    h.setAttribute('scope','col');
+    /* ⚠️ role="button"을 주면 columnheader 역할이 사라져 열 머리 연결이 끊기고
+       aria-sort도 무효가 된다(columnheader/rowheader에서만 유효). 키보드 접근은
+       tabindex + keydown으로 충분하다(2026-08-08 감사). */
+    h.tabIndex=0;
+    h.setAttribute('aria-sort','none');
+    h.title='누르면 이 열로 정렬';
+    function sort(){
+      var isNum=h.hasAttribute('data-num');
+      dir=(cur===i)?-dir:-1; cur=i;
+      var rows=Array.prototype.slice.call(tb.rows).filter(function(r){return !r.classList.contains('agg')});
+      var aggs=Array.prototype.slice.call(tb.rows).filter(function(r){return r.classList.contains('agg')});
+      rows.sort(function(a,b){var x=val(a,i,isNum),y=val(b,i,isNum);return (x<y?-1:x>y?1:0)*dir;});
+      aggs.concat(rows).forEach(function(r){tb.appendChild(r);});
+      Array.prototype.forEach.call(ths,function(o){o.setAttribute('aria-sort','none');});
+      h.setAttribute('aria-sort', dir>0?'ascending':'descending');
+    }
+    h.addEventListener('click', sort);
+    h.addEventListener('keydown', function(e){
+      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); sort(); }
+    });
+  });
+  /* 행 머리(지역명)를 프로그램적으로 붙인다 — 20열 표에서 이게 없으면 스크린리더가
+     칸을 읽을 때 어느 지역인지 말하지 않는다. */
+  Array.prototype.forEach.call(tb.rows, function(r){
+    var c=r.cells[0]; if(!c || c.tagName==='TH') return;
+    var th=document.createElement('th'); th.scope='row'; th.innerHTML=c.innerHTML;
+    th.className=c.className; c.parentNode.replaceChild(th,c);
+  });
+})();
+</script>"""
+
+
 # ---- 공통 템플릿 ----------------------------------------------------------
 # zone 페이지와 같은 뼈대·팔레트. CSS 인라인(자기완결) — app.css에 묶지 않는 건
 # zone 페이지와 같은 이유(페이지 단독 캐시·앱 셸과 수명 분리).
@@ -186,48 +237,7 @@ __BODY__
 
 """ + N.bottomnav('stats') + """
 
-<script>
-(function(){
-  var t=document.getElementById('utable'); if(!t) return;
-  var tb=t.tBodies[0], ths=t.tHead.rows[0].cells, cur=-1, dir=1;
-  function val(row,k,isNum){
-    var s=row.cells[k].textContent.trim();
-    return isNum ? (parseFloat(s.replace(/[^0-9.-]/g,''))||-1e9) : s;
-  }
-  /* 마우스로만 정렬되던 것을 키보드에서도 되게 한다 — 안내문이 '표두를 누르면 정렬'인데
-     탭으로는 표두에 닿지도 않았다(2026-08-08 감사). aria-sort로 현재 정렬 상태도 알린다. */
-  Array.prototype.forEach.call(ths, function(h,i){
-    h.setAttribute('scope','col');
-    /* ⚠️ role="button"을 주면 columnheader 역할이 사라져 열 머리 연결이 끊기고
-       aria-sort도 무효가 된다(columnheader/rowheader에서만 유효). 키보드 접근은
-       tabindex + keydown으로 충분하다(2026-08-08 감사). */
-    h.tabIndex=0;
-    h.setAttribute('aria-sort','none');
-    h.title='누르면 이 열로 정렬';
-    function sort(){
-      var isNum=h.hasAttribute('data-num');
-      dir=(cur===i)?-dir:-1; cur=i;
-      var rows=Array.prototype.slice.call(tb.rows).filter(function(r){return !r.classList.contains('agg')});
-      var aggs=Array.prototype.slice.call(tb.rows).filter(function(r){return r.classList.contains('agg')});
-      rows.sort(function(a,b){var x=val(a,i,isNum),y=val(b,i,isNum);return (x<y?-1:x>y?1:0)*dir;});
-      aggs.concat(rows).forEach(function(r){tb.appendChild(r);});
-      Array.prototype.forEach.call(ths,function(o){o.setAttribute('aria-sort','none');});
-      h.setAttribute('aria-sort', dir>0?'ascending':'descending');
-    }
-    h.addEventListener('click', sort);
-    h.addEventListener('keydown', function(e){
-      if(e.key==='Enter'||e.key===' '){ e.preventDefault(); sort(); }
-    });
-  });
-  /* 행 머리(지역명)를 프로그램적으로 붙인다 — 20열 표에서 이게 없으면 스크린리더가
-     칸을 읽을 때 어느 지역인지 말하지 않는다. */
-  Array.prototype.forEach.call(tb.rows, function(r){
-    var c=r.cells[0]; if(!c || c.tagName==='TH') return;
-    var th=document.createElement('th'); th.scope='row'; th.innerHTML=c.innerHTML;
-    th.className=c.className; c.parentNode.replaceChild(th,c);
-  });
-})();
-</script>
+""" + SORT_SCRIPT + """
 </body>
 </html>
 """

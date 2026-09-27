@@ -495,6 +495,14 @@ jobs:
               rep "⚠️ 공유카드 실패 — /weekly/ og:image가 옛 주차에 고정된다"
               echo "::error::make_weekly_share 실패 — 공유 카드가 옛 주차에 고정된다"
             fi
+            # /monthly/ 월간 카드(홈 마케팅 검수 B8). 페이지는 카드 파일이 있을 때만 그 카드(?v=기준월)를 가리키므로
+            # 첫 회차에 카드가 생기고 다음 회차부터 미리보기가 바뀐다. 실패하면 옛 달 카드가 남는다.
+            if python3 tools/make_monthly_share.py; then
+              rep "✅ 월간 공유카드"
+            else
+              rep "⚠️ 월간 공유카드 실패 — /monthly/ og:image가 옛 달에 고정된다"
+              echo "::error::make_monthly_share 실패 — 월간 공유 카드가 옛 달에 고정된다"
+            fi
           else
             rep "⚠️ 공유카드 건너뜀 — pillow 미설치(인프라)"
             echo "::warning::pillow 미설치로 공유 카드 생성을 건너뛴다(인프라 문제)"

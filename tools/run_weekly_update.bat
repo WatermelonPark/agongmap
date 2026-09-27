@@ -170,6 +170,13 @@ if errorlevel 1 (
   exit /b 13
 )
 
+rem /monthly/ og:image card (home marketing review B8, 2026-09-27) - same order as the cloud batch.
+python tools\make_monthly_share.py
+if errorlevel 1 (
+  echo ERROR: make_monthly_share failed
+  exit /b 13
+)
+
 rem 이중 구현 정합성 검사(check_dual_calc)는 2026-08-06에 폐지했다.
 rem 점수를 tools\sido_zones.py가 빌드 시점에 계산해 ADV.sido로 싣고 홈·지역
 rem 페이지가 그걸 읽기만 하므로, 갈릴 구현 자체가 없다.

@@ -737,6 +737,17 @@
     overflow:hidden;text-overflow:ellipsis}
   .wc-ma{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
   .wc-je{font-style:normal;font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+  /* 방향 표지(B7) — '3주 연속 상승'·'상승 전환'. 숫자와 같은 먹색, 곁수치보다 작게. 좁은 칸에서는 두 줄로 접힌다. */
+  .wc-tag{font-style:normal;font-size:10.5px;font-weight:600;line-height:1.3;color:var(--ink);margin-top:2px;word-break:keep-all}
+  /* 격자 머리 두 줄(B7): 지난 방문 이후 새 발표(이 기기에만 저장)·지난주와 방향이 바뀐 곳 */
+  .home-sec p.wg-since,.home-sec p.wg-moves{font-size:13px;line-height:1.6;color:var(--ink2);margin:0 auto 4px}   /* .home-sec p(0,1,1)를 이긴다 */
+  .home-sec p.wg-since{font-weight:600;color:var(--ink)}
+  .home-sec p.wg-moves{margin-bottom:10px}
+  /* 공유 버튼(B8) — /weekly/·/monthly/ 의 두 버튼(tools/page_share.py)과 같은 모양 */
+  .wg-share{display:flex;gap:8px;max-width:400px;margin:14px auto 0}
+  .wg-sh{flex:1 1 0;min-width:0;min-height:46px;display:flex;align-items:center;justify-content:center;gap:5px;background:#fff;color:var(--ink);border:1.5px solid var(--ink);
+    border-radius:3px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;padding:10px 6px;line-height:1.3;white-space:nowrap}
+  .wg-sh-k{background:#FEE500;border-color:#FEE500;color:#191919}   /* 퀴즈 카카오 버튼(.qshare-btn.primary)과 같은 색 */
   .wc-agg{padding:12px 8px 10px}
   .wc-agg b{font-size:12px;color:var(--ink);font-weight:600}
   .wc-agg .wc-ma{font-size:20px}
