@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>아공맵 — 아파트 공급 지도</title>
+  <link>https://www.agongmap.co.kr/</link>
+  <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 공급 통계를 알립니다.</description>
+  <language>ko</language>
+  <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
+  <lastBuildDate>Sun, 27 Sep 2026 00:00:00 +0900</lastBuildDate>
+  <item>
+    <title>시도별 아파트 공급 분석 — 2026년 2분기 기준</title>
+    <link>https://www.agongmap.co.kr/zone/</link>
+    <guid isPermaLink="false">agongmap-zone-2026Q2</guid>
+    <pubDate>Sun, 27 Sep 2026 00:00:00 +0900</pubDate>
+    <description>2026년 2분기 기준 전국 아파트 공급은 3년 필요량의 60% 부족(686,396세대)입니다. 국토교통부 착공·준공 실적으로 16개 시도의 3년 공급을 판정하고, 한국부동산원 주간 시세를 지도로 봅니다.</description>
+  </item>
+  <item>
+    <title>이달의 공급 통계 — 2026년 8월 기준</title>
+    <link>https://www.agongmap.co.kr/monthly/</link>
+    <guid isPermaLink="false">agongmap-monthly-2026-08</guid>
+    <pubDate>Sun, 27 Sep 2026 00:00:00 +0900</pubDate>
+    <description>매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.</description>
+  </item>
+  <item>
+    <title>주간 아파트가격 동향 2026년 9월 셋째 주 · 전국·서울 아파트 시세 지도</title>
+    <link>https://www.agongmap.co.kr/weekly/</link>
+    <guid isPermaLink="false">agongmap-weekly-2026-09-24</guid>
+    <pubDate>Thu, 24 Sep 2026 00:00:00 +0900</pubDate>
+    <description>9/21 조사 · 9/24 발표 기준 이번 주 아파트 매매가격은 전국 +0.09%, 경기 +0.23%로 가장 크게 올랐다. 시군구 상승 1위 수원 영통구 +1.09%, 하락 1위 서울 강남구 -0.42%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
+  </item>
+</channel>
+</rss>
