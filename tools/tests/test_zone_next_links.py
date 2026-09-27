@@ -80,9 +80,14 @@ def test_weekly_line_matches_saved_data():
 
 
 def test_jeonse_line_matches_saved_data():
+    """전세가율 칸의 기준월은 /jeonse-ratio/ 와 같다 — 전국·16개 시도가 **전부** 채워진 마지막 달(보류 달은 건너뛴다,
+    make_indicator_pages.jeonse_ref_index). 1년 전은 라벨로 찾은 12달 전(SZ.month_back). 여기서는 그 규칙을 다시 구현해 대조한다.
+    변이: next_links 가 dates[-1] 을 읽으면 최신 달이 보류된 날 빨개진다(합성 대조는 test_zone_weekly 가 늘 본다)."""
     _, sts = _data()
     j = sts['전세가율']
-    li = len(j['dates']) - 1
+    need = ['전국'] + [z for z in SZ.ORDER if z not in SZ.AGG]
+    li = max(k for k in range(len(j['dates']))
+             if all(k < len(j['series'].get(r) or []) and j['series'][r][k] is not None for r in need))
     for z in SZ.ORDER:
         _, blk, _ = _block(z)
         m = re.search(r'<a href="/jeonse-ratio/"><b>전세가율</b><i>(.*?)</i></a>', blk or '')
@@ -91,7 +96,8 @@ def test_jeonse_line_matches_saved_data():
         if cur is None:
             assert not m, '%s: 전세가율 값이 없는데 칸을 인쇄했다' % z
             continue
-        ago = ser[li - 12] if li >= 12 and li - 12 < len(ser) else None
+        ya = SZ.month_back(j['dates'], li, 12)
+        ago = ser[ya] if ya is not None and ya < len(ser) else None
         want = '%.1f%%' % cur
         if ago is not None:
             want += ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
