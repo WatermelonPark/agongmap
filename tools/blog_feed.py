@@ -56,8 +56,8 @@ LABEL = '네이버 블로그'                                   # 대표 확인(
 FRESH_DAYS = 7          # 이번 주 발표일보다 이만큼 앞선 글까지 보여 준다(= 지난주 글). 그보다 오래되면 칸을 뺀다
 LEAD_NOW, LEAD_PREV = '이번 주 해석 읽기', '지난주 해석 읽기'
 HOME_TEXT = '매주 해설 글'   # 블로그 첫 화면 링크 이름(홈 푸터·/weekly/). '매주 금요일'처럼 요일을 약속하지 않는다
-# 해석 글 칸 옆 한 줄(RET-4 A안). 알림을 약속하지 않는다 — 네이버 이웃 기능이 하는 일을 적을 뿐이다. 홈(ADV.blog.note →
-# renderBlogLine)과 /weekly/(blog_html)가 이 상수 하나를 쓴다.
+# 해석 글 칸 옆 한 줄(RET-4 A안). 알림을 약속하지 않는다 — 네이버 이웃 기능이 하는 일을 적을 뿐이다. /weekly/(blog_html)만 쓴다 —
+# 홈 주간 구역의 같은 줄(ADV.blog.note)은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리).
 NEIGHBOR = '블로그 이웃이 되면 새 글이 이웃 새 글 목록에 올라옵니다.'
 WALL_SECONDS = 60   # RSS 읽기 벽시계 상한(소켓 타임아웃은 읽기마다 25초라 느린 응답이 이어지면 끝이 없다). 워크플로 timeout 90 이 바깥 상한
 
@@ -99,8 +99,8 @@ def _d(iso):
 def pick(entry, pub):
     """보여 줄 글과 그 말. pub = 최신 주간 발표일('YYYY-MM-DD', weekly_release.status(p)['pub']).
 
-    돌려주는 것 {'lead': '이번 주 해석 읽기', 'title', 'url', 'date', 'md': '9/25', 'src': '네이버 블로그, 9/25',
-    'note': NEIGHBOR} 또는 None.
+    돌려주는 것 {'lead': '이번 주 해석 읽기', 'title', 'url', 'date', 'md': '9/25', 'src': '네이버 블로그, 9/25'}
+    또는 None.
     발표일 당일·뒤에 올라온 글은 '이번 주', 그 전 FRESH_DAYS 일 안의 글은 '지난주'. 더 오래됐거나 없으면 None(칸을 뺀다).
     """
     if not entry or not pub:
@@ -113,7 +113,7 @@ def pick(entry, pub):
         return None
     md = '%d/%d' % (d.month, d.day)
     return {'lead': LEAD_NOW if d >= p else LEAD_PREV, 'title': entry['title'], 'url': entry['url'],
-            'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md), 'note': NEIGHBOR}
+            'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md)}
 
 
 def text(b):

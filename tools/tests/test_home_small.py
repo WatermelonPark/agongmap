@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""홈 작은 장치 — 내 지역(C5)·이달의 통계 입구(B6)·출처·구간·운영 주체(B9)·측정(B10)·설치 안내(C10①). 2026-09-27 홈 마케팅 검수 3차.
+"""홈 작은 장치 — 내 지역(C5)·이달의 통계 입구(B6)·출처·구간(B9 — 운영 주체 줄은 2026-09-28 에 뺐다, 제보 메일은 푸터)·측정(B10)·설치 안내(C10①). 2026-09-27 홈 마케팅 검수 3차.
 
 재현하는 실제 상태
   - 재방문 장치(내 지역 저장 08-06)가 걷힌 뒤 대체가 없었다. 방문자는 매번 시도 격자에서 자기 지역을 찾았다(RET-6).
@@ -270,13 +270,15 @@ def test_supply_span_is_the_model_window_from_L_and_H():
     assert got['none'] == [None, None, None]
 
 
-def test_source_and_operator_lines_sit_under_the_map_without_promising_dates():
-    """공급 지도 구역(#sec-score) 안, 산출 방법 앞에 출처·구간 줄과 운영 주체 줄이 있다. 구간 자리의 정적 문구는 분기를 약속하지
-    않고(스크립트가 못 돌면 그대로 보인다), 운영 주체 줄은 대표 메일 mailto 링크와 /about/ 링크를 단다(TRUST-6). 부팅이 구간을 채운다.
-    이달의 통계 입구(B6)는 '시도별로 자세히 보기' 바로 아래다(to 값은 test_home_cta).
+def test_source_line_sits_under_the_map_and_the_report_mail_is_in_the_footer():
+    """공급 지도 구역(#sec-score) 안, 산출 방법 앞에 출처·구간 줄이 있다. 구간 자리의 정적 문구는 분기를 약속하지 않고(스크립트가
+    못 돌면 그대로 보인다) 부팅이 구간을 채운다. 이달의 통계 입구(B6)는 '시도별로 자세히 보기' 바로 아래다(to 값은 test_home_cta).
+    지도 아래 운영 주체 줄(B9·TRUST-6)과 '산출 방법' 옆 출처 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 제보 경로는 홈
+    푸터 '만든이' 메일이 mailto 링크로 남기고(같은 푸터 세 벌 모두), 출처 기관은 산출 방법을 펼치면 항목마다 있다.
 
-    변이(각각 실제로 확인): mailto 를 일반 텍스트로 되돌리면, 정적 구간 문구에 '2026년 3분기'를 적으면, boot 에서
-          renderSupplySpan() 을 지우면, 이달의 통계 줄을 산출 방법 뒤로 옮기면 빨개진다.
+    변이(각각 실제로 확인): 푸터 메일을 일반 텍스트로 되돌리면, 운영 주체 줄(map-who)이나 산출 방법 옆 출처(.src)를 되살리면,
+          정적 구간 문구에 '2026년 3분기'를 적으면, boot 에서 renderSupplySpan() 을 지우면, 이달의 통계 줄을 산출 방법 뒤로
+          옮기면 빨개진다.
     """
     h = _home()
     sec = re.search(r'<section class="home-sec vm-map" id="sec-score".*?</section>', h, re.S).group(0)
@@ -284,10 +286,13 @@ def test_source_and_operator_lines_sit_under_the_map_without_promising_dates():
     src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span><span>([^<]*)</span></p>', sec)
     assert src and src.start() < how, '지도 아래 출처·구간 줄이 없다'
     assert not re.search(r'\d{4}|분기~', src.group(1)) and '국토교통부' in src.group(2), src.groups()
-    who = re.search(r'<p class="map-who">(.*?)</p>', sec, re.S)
-    assert who and who.start() < how
-    assert '<a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a>' in who.group(1)
-    assert '<a href="/about/">' in who.group(1)
+    assert 'map-who' not in h and '개인이 운영합니다' not in sec, '지도 아래 운영 주체 줄이 되살아났다'
+    summ = re.search(r'<details class="sc-how"><summary>(.*?)</summary>(.*?)</details>', sec, re.S)
+    assert summ and summ.group(1) == '<span class="t">산출 방법</span>', summ and summ.group(1)
+    for org in ('국토교통부', '한국부동산원'):   # 출처 기관은 펼친 본문에 남는다
+        assert org in summ.group(2), org
+    metas = re.findall(r'<div class="ft-meta">(.*?)</div>', h)
+    assert len(metas) == 3 and all('<a href="mailto:agongmap@gmail.com">' in m for m in metas), metas
     more, sub = sec.index('<p class="tb-more">'), sec.index('<p class="tb-sub"><a href="/monthly/"')
     assert more < sub < how and sec[more:sub].count('<p') == 1
     boot = _js_func(h, 'boot')

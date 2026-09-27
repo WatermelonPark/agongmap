@@ -88,7 +88,7 @@ def test_pick_says_this_week_or_last_week_and_drops_older_posts():
     assert BF.pick(dict(e, date='2026-09-16'), pub) is None
     assert BF.pick(None, pub) is None
     assert BF.text(BF.pick(dict(e, date='2026-09-25'), pub)) == '이번 주 해석 읽기: t (네이버 블로그, 9/25)'
-    assert b['note'] == BF.NEIGHBOR   # 홈 renderBlogLine 이 이 값을 둘째 줄로 쓴다(RET-4 A안)
+    assert 'note' not in b   # 홈 이웃 안내 줄은 2026-09-28 에 뺐다 — /weekly/ 하단만 BF.NEIGHBOR 를 직접 쓴다
     assert BF.pick(dict(e, date='2026-13-40'), pub) is None, '모양만 맞는 날짜가 예외로 새면 생성기가 죽는다'
 
 
