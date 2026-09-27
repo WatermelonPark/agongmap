@@ -109,16 +109,36 @@ def test_two_columns_hold_the_supply_map_and_this_weeks_grid_from_1024px_only():
     assert inner.count('<section') == inner.count('</section>') == 2
 
 
+RIGHT_COL = '.home-duo>#sec-score:not(.vm-table)~.home-sec '   # 두 단일 때의 주간 구역(오른쪽 단)
+
+
 def test_first_screen_boxes_are_reserved_in_the_right_column():
-    """주간 구역이 1024px 이상에서 첫 화면에 올라오므로, 부팅 때 채워지는 격자(빈 상자 → 490px)와 결론 h2(1~2줄)의 높이를
-    데스크톱 블록이 미리 잡는다(없으면 1024·1280·1440px 에서 아래 버튼이 490px 밀려 CLS 0.014 — 실측). 발표 머리줄도 연휴 주
+    """주간 구역이 1024px 이상에서 첫 화면에 올라오므로, 부팅 때 채워지는 격자(빈 상자 → 그린 뒤 718px)와 결론 h2(두 줄)의
+    높이를 데스크톱 블록이 미리 잡는다(없으면 1024·1280·1440px 에서 아래 버튼이 밀려 CLS 0.014 — 실측). 발표 머리줄도 연휴 주
     문구가 360px 단에서 두 줄(운영 글꼴 367px)이라 두 줄을 잡는다.
-    변이(실제로 확인): 격자 예약이나 머리줄 예약을 지우면 빨개진다.
+    세 예약은 두 단일 때(오른쪽 360px 단)만 건다 — 표 보기(.vm-table)에서는 주간 구역이 전폭이라 결론·머리줄이 한 줄인데
+    두 줄 예약이 남으면 제목 아래 47px·머리줄 아래 21px 가 빈다(묶음 M 검토 5, 1024·1280·1440px 실측).
+    픽스처: 저장소 app.css 의 1024px 블록과 index.html 의 두 단 마크업(지도 구역 #sec-score 다음 형제가 주간 구역).
+    값(718px 등)은 브라우저 실측이라 여기서 박지 않는다 — 규칙이 있고, 오른쪽 단에만 걸리고, 그 선택자가 실제 마크업의
+    주간 구역을 가리키는지만 본다.
+    변이(각각 실제로 확인): 격자 예약이나 머리줄 예약을 지우면, 셋 중 하나의 선택자를 '.home-duo #wk-h2'처럼 표 보기까지
+          덮는 옛 모양으로 되돌리면, 주간 구역을 지도 구역 앞으로 옮겨 '~' 형제 관계가 끊기면 빨개진다.
     """
     d = _desktop_css()
-    assert re.search(r'min-height:\s*(\d+)px', _rule(d, '.home-duo #home-weekly-grid:empty')), '주간 격자 예약 높이가 없다'
-    assert 'min-height' in _rule(d, '.home-duo #wk-h2')
-    assert 'min-height' in _rule(d, '.home-duo .hs-kicker'), '발표 머리줄(연휴 주 두 줄) 예약이 없다'
+    assert re.search(r'min-height:\s*(\d+)px', _rule(d, RIGHT_COL + '#home-weekly-grid:empty')), '주간 격자 예약 높이가 없다'
+    assert 'min-height' in _rule(d, RIGHT_COL + '#wk-h2')
+    assert 'min-height' in _rule(d, RIGHT_COL + '.hs-kicker'), '발표 머리줄(연휴 주 두 줄) 예약이 없다'
+    # 표 보기까지 덮는 예약이 남아 있지 않다(두 단 밖에서도 걸리는 min-height)
+    for sel, body in re.findall(r'(?:^|[}\s])([^{}]*?(?:#home-weekly-grid|#wk-h2|\.hs-kicker)[^{}]*)\{([^}]*)\}', d):
+        if 'min-height' in body:
+            assert sel.strip().startswith(RIGHT_COL.strip()), '%s 예약이 표 보기(전폭)에도 걸린다' % sel.strip()
+    # 선택자가 가리키는 마크업: .home-duo 안에서 #sec-score 뒤 형제 구역에 머리줄·h2·격자가 있다
+    idx = _index()
+    inner = idx[idx.index('<div class="home-duo">'):idx.index('</div><!-- /.home-duo -->')]
+    after = inner[inner.index('id="sec-score"'):]
+    after = after[after.index('</section>'):]
+    for k in ('class="hs-kicker"', 'id="wk-h2"', 'id="home-weekly-grid"'):
+        assert re.search(r'<section class="home-sec"[^>]*>.*' + re.escape(k), after, re.S), '%s 가 지도 구역 뒤 형제 구역에 없다' % k
 
 
 def test_top_nav_is_the_one_canonical_tabbar_moved_up_on_home_only():
