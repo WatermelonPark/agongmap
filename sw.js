@@ -8,7 +8,9 @@
 // 실사고가 그렇게 났다(sed로 패턴을 잡아 하드코딩 값으로 치환). 되돌아간 번호는
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
-const VERSION = 'v160'; // 홈 통계표 '전기 대비'를 연월로 찾음(데이터 감사 #17)
+// ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
+// home-app.js 의 HOME_BUILD 도 같은 값으로 바꾼다 — 셋이 다르면 test_home_build 가 빨개진다.
+const VERSION = 'v161'; // 홈 판 표식(느린 망 새 HTML+옛 스크립트면 한 번 새로고침)·프리캐시 축소·no-cache(홈 마케팅 검수 A9·C11)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
@@ -47,36 +49,38 @@ function networkFirst(req, fallback) {
   });
 }
 
+// 프리캐시는 **오프라인에서 홈이 뜨는 데 필요한 것**만 둔다(2026-09-27 홈 마케팅 검수 A9·MOB-4).
+// VERSION 을 올릴 때마다 설치가 이 목록 전체를 다시 받는다. 예전엔 차트 라이브러리(전송 70KB)·/cycle/·퀴즈
+// 3종·512px 아이콘까지 17개(전송 약 294KB)를 받아, 재방문자가 배포마다 백그라운드에서 그만큼 모바일 데이터를
+// 썼다 — 홈은 차트 라이브러리를 첫 로딩에서 받지도 않는다(home-app.js 머리 주석). 뺀 것은 처음 쓸 때 아래
+// fetch 처리기가 런타임 캐시에 넣는다(페이지는 탐색 분기, 차트 라이브러리·아이콘은 정적 자산 분기).
+// 오프라인에서 한 번도 안 연 /cycle/·퀴즈는 홈으로 폴백한다(탐색 분기의 fallback). 시험: test_speed_a11y 의 test_sw_precache_*.
 const PRECACHE = [
   '/',
   '/data-core.js',   // 홈이 실제로 읽는 것
   '/sido-geo.js',    // 홈 지도 모드 경계(기본 모드라 프리캐시)
   '/app.css',
   '/home-app.js',   // 홈 본문 스크립트(2026-09-16 index.html 에서 분리) — HTML 과 한 몸이라 network-first
-  '/chart-4.4.1.umd.js',
-  '/cycle/',
   '/404.html',
-  '/burini-test/',
-  '/investor-test/',
-  '/redev-test/',
   '/favicon.svg',
   '/app_icon.png',
   '/icons/icon-192.png',
-  '/icons/icon-512.png',
   '/icons/maskable-192.png',
-  '/icons/maskable-512.png',
 ];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
       // 일부 자원이 실패해도 설치가 깨지지 않도록 개별 처리.
-      // ⚠️ cache:'reload' — 기본 모드면 c.add()가 **브라우저 HTTP 캐시**를 탄다.
+      // ⚠️ cache:'no-cache' — 기본 모드면 c.add()가 **브라우저 HTTP 캐시**를 그대로 탄다.
       //    GitHub Pages가 max-age=600을 주므로, 배포 직후 VERSION을 올려 설치되는
       //    회차가 옛 자산을 집어 새 캐시에 넣을 수 있다. 그러면 cache-first 자산은
       //    다음 VERSION 범프까지 스테일이 굳는다(2026-08-08 디자인 세션 제보).
+      //    'no-cache' 는 HTTP 캐시에 있어도 서버에 한 번 묻는다(ETag 조건부 요청) — 스테일은 똑같이 막고,
+      //    안 바뀐 파일은 304 로 끝난다. 예전 'reload' 는 매번 본문 전체를 다시 받아, 페이지가 방금 받은
+      //    홈 파일 다섯 개까지 배포마다 두 번 받았다(2026-09-27 A9·MOB-4). 시험: test_sw_precache_*.
       .then((c) => Promise.all(PRECACHE.map(
-        (u) => c.add(new Request(u, { cache: 'reload' })).catch(() => null))))
+        (u) => c.add(new Request(u, { cache: 'no-cache' })).catch(() => null))))
       .then(() => self.skipWaiting())
   );
 });
