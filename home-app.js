@@ -9,7 +9,7 @@
    못 쓰면 아예 새로고침하지 않는다(무한 반복 방지). 판 표식이 없는 HTML(표식 이전 판)은 비교하지 않는다.
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기도 같이(test_home_build). */
-const HOME_BUILD='v162';
+const HOME_BUILD='v163';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -3460,7 +3460,7 @@ function installMaybe(){
   const box=document.createElement('div');
   box.id='inst'; box.className='inst'; box.setAttribute('role','region'); box.setAttribute('aria-label','홈 화면에 추가 안내');
   box.innerHTML='<p class="inst-t">'+INSTALL_TEXT+'</p>'
-    +(plan==='ios'?'<p class="inst-d">아래 <b>공유</b> 버튼 → <b>홈 화면에 추가</b></p>'
+    +(plan==='ios'?'<p class="inst-d">브라우저의 <b>공유</b> 버튼 → <b>홈 화면에 추가</b></p>'
       :'<button type="button" class="inst-go">홈 화면에 추가</button>')
     +'<button type="button" class="inst-x">닫기</button>';
   box.querySelector('.inst-x').addEventListener('click',()=>{
