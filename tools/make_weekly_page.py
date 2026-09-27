@@ -315,6 +315,14 @@ TABLE_CSS = ('.sggt summary{cursor:pointer;font-size:15px;font-weight:600;color:
              '.sggt .note{font-size:12.5px;color:var(--muted);margin:10px 0 0}')
 
 
+# 시군구 전체 표의 앵커. 시도 리포트 주간 표(make_sido_pages, D4)의 '전국 시군구 전체 표 →' 가 이 주소로 온다. 표가 접힌
+# <details> 안이라 앵커로 들어오면(또는 같은 페이지에서 해시가 바뀌면) 펼치는 짧은 스크립트를 함께 싣는다.
+TABLE_ID = 'sgg-table'
+TABLE_URL = '/weekly/#' + TABLE_ID
+TABLE_OPEN_JS = ('<script>(function(){function o(){if(location.hash==="#%s"){var d=document.getElementById("%s");'
+                 'if(d){d.open=true;d.scrollIntoView();}}}o();addEventListener("hashchange",o);})();</script>' % (TABLE_ID, TABLE_ID))
+
+
 def _pct_cell(v):
     k = sign(v)
     return '<td%s>%s</td>' % ((' class="%s"' % k) if k else '', pv2(v))
@@ -344,7 +352,7 @@ def table_html(W, Q):
         '<section class="sggt"><div class="wrap">',
         '  <h2>시군구 전체 표</h2>',
         '  <p class="sub">매매·전세가격 전주 대비(%%) · 시군구 %d곳 · %s</p>' % (len(ranks), basis),
-        '  <details><summary>시군구 %d곳 펼쳐 보기</summary>' % len(ranks),
+        '  <details id="%s"><summary>시군구 %d곳 펼쳐 보기</summary>' % (TABLE_ID, len(ranks)),
         '  <div class="tbl"><table id="utable" aria-label="시군구 주간 매매·전세 변동률">'
         '<thead><tr><th scope="col">시군구</th><th scope="col" data-num>매매</th><th scope="col" data-num>전세</th>'
         '<th scope="col" data-num>순위</th><th scope="col" data-num>전주 대비</th></tr></thead><tbody>',
@@ -358,6 +366,7 @@ def table_html(W, Q):
         '</div></section>',
         '<style>%s</style>' % TABLE_CSS,
         I.SORT_SCRIPT,
+        TABLE_OPEN_JS,
     ])
 
 

@@ -18,8 +18,10 @@
   - 연속(streak): 최신 주부터 거꾸로 같은 방향(상승 또는 하락)이 이어진 주 수. 보합·결측(None)에서 끊긴다.
     최신 주가 보합이거나 결측이면 0. 전체 이력(data.js 156주)으로 센다 — 코어가 싣는 최근 WINDOW 주로 자르지 않는다.
   - 표지(하나만, 위에서 먼저 맞는 것):
-      · 'N주 연속 상승' / 'N주 연속 하락' — 연속이 STREAK_MIN(3)주 이상. 연속이 **보관 이력의 첫 주까지** 닿으면(그보다
+      · 'N주 연속 상승' / 'N주 연속 하락' — 연속이 STREAK_MIN(3)주 이상. 연속이 **그 지역의 첫 값까지** 닿으면(그보다
         앞은 우리 자료에 없다) 'N주 이상 연속 상승'이라 적는다 — 이력이 156주뿐이라 '156주 연속'은 사실보다 짧게 말할 수 있다.
+        첫 값 앞의 결측(보관 이력 중간에 새로 생긴 시군구 코드 — 화성 분구 등)은 '이력 없음'이라 같은 뜻이다. 첫 값 **뒤**의
+        결측에서 끊긴 연속은 '이상'이 아니다(그 앞 값이 있었다) — opened() 한 곳에서 판정한다(2026-09-27 D4 검토).
       · '상승 전환' / '하락 전환' — 이번 주가 상승(하락)인데 **바로 앞 회차**가 상승(하락)이 아니었다(하락·보합 → 상승).
         '보합에서 상승 전환'은 보도자료·기사가 쓰는 말과 같다. 앞 회차 값이 없으면(결측) 전환이라 하지 않는다.
       · 그 밖(2주 연속, 보합, 결측)은 표지 없음 — 새 소식이 아니다.
@@ -86,6 +88,11 @@ def streak(vals):
     return n * d
 
 
+def opened(vals, n):
+    """끝에서 n 주 이어진 연속이 그 계열의 **첫 값**까지 닿았나(앞은 전부 결측 = 보관 이력 밖). 1|0."""
+    return 1 if n and all(v is None for v in vals[:len(vals) - n]) else 0
+
+
 def tag(vals):
     """vals(오래된 주 → 최신 주)의 이번 주 표지. (방향 'up'|'dn', 문구, 연속 주 수, 이력 끝까지 닿았나 1|0) 또는 None
     — 규칙은 모듈 머리말."""
@@ -94,8 +101,8 @@ def tag(vals):
         return None
     k, n = (UP if s > 0 else DN), abs(s)
     if n >= STREAK_MIN:
-        opened = 1 if n == len(vals) else 0
-        return k, (TXT_STREAK_OPEN if opened else TXT_STREAK)[k] % n, n, opened
+        o = opened(vals, n)
+        return k, (TXT_STREAK_OPEN if o else TXT_STREAK)[k] % n, n, o
     if n == 1 and len(vals) >= 2 and direction(vals[-2]) is not None:
         return k, TXT_TURN[k], 1, 0
     return None
@@ -301,7 +308,7 @@ def zone_table(S, names, z):
             r[met] = vals[-1]
             r[met + '12'] = cum_change(rows, win, i, met)
             r['s' + met] = s
-            r['o' + met] = 1 if s and abs(s) == len(vals) else 0
+            r['o' + met] = opened(vals, abs(s))
         out.append(r)
     return out
 
