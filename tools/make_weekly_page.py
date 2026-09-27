@@ -327,7 +327,9 @@ def put_dataset_url(s):
     canon = re.findall(r'<link rel="canonical" href="([^"]+)">', s)
     if len(canon) != 1:
         raise SystemExit('weekly/index.html 에서 canonical 을 찾지 못했다')
-    pat = re.compile(r'("@type":\s*"Dataset",.*?"url":\s*")[^"]*(")', re.S)
+    # [^{}] — Dataset 자신의 url 만 잡는다. '.*?' 였으면 Dataset 의 url 줄이 빠졌을 때 그 뒤 중첩 객체(creator 등)의
+    # url 을 조용히 덮어쓰고 개수 검사(==1)도 통과했다(1차 배포 검토). 이제는 못 찾아 SystemExit 로 드러난다.
+    pat = re.compile(r'("@type":\s*"Dataset",[^{}]*?"url":\s*")[^"]*(")', re.S)
     if len(pat.findall(s)) != 1:
         raise SystemExit('weekly/index.html 에서 Dataset url 을 찾지 못했다 — 구조화 데이터 모양이 바뀌었는지 볼 것')
     return pat.sub(lambda m: m.group(1) + canon[0] + m.group(2), s)

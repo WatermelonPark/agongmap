@@ -130,6 +130,8 @@ def test_home_reads_grace_from_data_and_both_views_share_one_function():
 
     변이: renderReleaseInfo 를 옛 `_nextThu(now)` 계산으로 되돌리거나, weeklyReleaseNow 의 `W.grace` 를 9 로
           바꾸면 빨개진다(확인). 격자 머리줄이 wkWhenText 를 안 쓰면(정적 '매주 갱신' 복귀) 빨개진다.
+          (머리줄·h2 를 적는 줄은 1차 배포 검토 뒤 applyWeeklyStatus 로 옮겼고, 그 동작은 아래
+          test_home_kicker_and_h2_follow_the_release_state 가 node 로 돌려 본다.)
     """
     src = _home()
     assert '_nextThu(' not in src, '오늘 기준 다음 목요일 계산이 되살아났다 — 데이터 기준(weeklyRelease)으로 센다'
@@ -137,7 +139,9 @@ def test_home_reads_grace_from_data_and_both_views_share_one_function():
     assert 'weeklyRelease(row.p,new Date(),W.grace)' in now, '유예를 데이터(ADV.weekly.grace)가 아닌 곳에서 읽는다'
     rel, grid = _fn(src, 'renderReleaseInfo'), _fn(src, 'renderWeeklyGrid')
     assert 'weeklyReleaseNow()' in rel and 'wkNextText(r)' in rel
-    assert 'weeklyReleaseNow()' in grid and 'wkWhenText(r)' in grid and "getElementById('wk-kicker')" in grid
+    apply = _fn(src, 'applyWeeklyStatus')
+    assert 'applyWeeklyStatus(weeklyReleaseNow())' in grid
+    assert 'wkWhenText(r)' in apply and "getElementById('wk-kicker')" in apply
     assert 'id="wk-kicker"' in src and '매주 갱신 · 한국부동산원' not in src
 
 
@@ -288,3 +292,76 @@ def test_weekly_page_dataset_points_at_itself_and_source_claim_is_checkable():
     ds = re.search(r'"@type":\s*"Dataset",.*?"url":\s*"([^"]*)"', page, re.S).group(1)
     assert ds == re.search(r'<link rel="canonical" href="([^"]+)">', page).group(1), ds
     assert '뉴스 기사보다' not in page and MW.SOURCE_TEXT in page
+
+
+# ---- 화면에 적는 줄(1차 배포 검토에서 시험이 비어 있던 두 곳) ----
+
+def _node(js):
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    proc = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr.decode('utf-8', 'replace')
+    return json.loads(proc.stdout.decode('utf-8'))
+
+
+def test_home_kicker_and_h2_follow_the_release_state():
+    """홈 주간 구역: 머리줄은 늘 발표 상태 문장, h2 는 늦은 주에만 '이번 주' 대신 발표일로 바뀐다(TRUST-1②).
+
+    변이: applyWeeklyStatus 에서 h2 줄을 지우거나, 조건을 `r.stale` 없이 늘 바꾸게 하면 빨개진다(실제로 확인).
+          renderWeeklyGrid 가 applyWeeklyStatus 를 부르지 않으면 마지막 단정이 빨개진다(확인).
+    픽스처: 합성 조사일 2026-09-14(발표 9/17), 유예는 감시 상수. '늦은 날'은 9/27(KST), '제때'는 9/18(KST).
+    """
+    src = _home()
+    h2_default = '이번 주, 어디가 오르고 내렸을까?'
+    js = (_js_block() + '\n' + _fn(src, 'applyWeeklyStatus') + '\n'
+          '_HOLIDAYS=new Set([]);const out=[];\n'
+          'for(const iso of %s){const el={"wk-kicker":{textContent:""},"wk-h2":{textContent:%s}};\n'
+          '  globalThis.document={getElementById:id=>el[id]||null};\n'
+          '  applyWeeklyStatus(weeklyRelease("2026-09-14",new Date(iso),%d));\n'
+          '  out.push([el["wk-kicker"].textContent,el["wk-h2"].textContent]);}\n'
+          'process.stdout.write(JSON.stringify(out));'
+          % (json.dumps(['2026-09-18T03:00:00Z', '2026-09-27T03:00:00Z']), json.dumps(h2_default), WR.GRACE_WEEKLY))
+    (k_ok, h_ok), (k_late, h_late) = _node(js)
+    st = WR.status('2026-09-14', datetime.date(2026, 9, 18))
+    assert k_ok == WR.when_text(st) and h_ok == h2_default, (k_ok, h_ok)
+    st = WR.status('2026-09-14', datetime.date(2026, 9, 27))
+    assert st['stale'] and k_late == WR.when_text(st), k_late
+    assert h_late == '9/17 발표, 어디가 오르고 내렸을까?', h_late
+    assert 'applyWeeklyStatus(weeklyReleaseNow())' in _fn(src, 'renderWeeklyGrid')
+
+
+def test_weekly_page_script_compares_the_kst_date():
+    """/weekly/ 의 스스로 고치는 스크립트는 오늘을 **KST** 날짜로 센다 — UTC 로 세면 KST 새벽 9시간 동안 하루 늦는다.
+
+    변이: 스크립트의 `Date.now()+324e5` 를 `Date.now()` 로 바꾸면 'KST 는 다음 날, UTC 는 아직 그날'인 순간에 바꾸지
+          않아 빨개진다(실제로 확인). 비교를 `>` 에서 `>=` 로 바꾸면 기준일 당일에 바꿔 빨개진다(확인).
+    픽스처: 합성 주 2026-09-14(2026 공휴일 — 비교 날짜 due 는 9/28). 두 순간: KST 9/28 23:00(= UTC 14:00, 아직 제때)과
+            KST 9/29 05:00(= UTC 9/28 20:00, 늦음).
+    """
+    W, Q = _week('2026-09-14', H2026)
+    head = MW.build(W, Q)[0]
+    script = re.search(r'<script>(\(function\(\)\{try\{if\(new Date.*?)</script>', head, re.S).group(1)
+    js = ('const out=[];\n'
+          'for(const ms of %s){const e={textContent:"x"},t={nodeType:3,nodeValue:"이번 주 아파트"};\n'
+          '  globalThis.document={getElementById:()=>e,querySelector:()=>({firstChild:t})};\n'
+          '  Date.now=()=>ms;\n%s\n  out.push([e.textContent,t.nodeValue]);}\n'
+          'process.stdout.write(JSON.stringify(out));'
+          % (json.dumps([int(datetime.datetime(2026, 9, 28, 14, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000),
+                         int(datetime.datetime(2026, 9, 28, 20, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000)]),
+             script))
+    (k1, h1), (k2, h2) = _node(js)
+    assert (k1, h1) == ('x', '이번 주 아파트'), '기준일(KST 9/28) 당일에 벌써 바꿨다'
+    assert k2 == '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기' and h2 == '9/17 발표 아파트', (k2, h2)
+
+
+def test_dataset_url_rewrite_stays_inside_the_dataset_object():
+    """Dataset 자신의 url 줄이 없으면 중첩 객체(creator)의 url 을 덮어쓰지 않고 멈춘다.
+
+    변이: put_dataset_url 의 `[^{}]*?` 를 옛 `.*?` 로 되돌리면 creator 의 url 을 조용히 바꿔 빨개진다(실제로 확인).
+    픽스처: url 줄이 빠진 Dataset 뒤에 url 을 가진 creator 가 오는 모양(뼈대를 손으로 고치다 줄을 지운 경우).
+    """
+    broken = ('<link rel="canonical" href="https://www.agongmap.co.kr/weekly/">\n'
+              '{"@type": "Dataset", "name": "x",\n'
+              ' "creator": {"@type": "Organization", "url": "https://www.agongmap.co.kr/"}}')
+    with pytest.raises(SystemExit):
+        MW.put_dataset_url(broken)

@@ -2627,7 +2627,7 @@ function renderSidoMap(){
      오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
   h+='<p class="map-act">지도에서 지역을 누르면 공급 리포트가 열립니다</p>';
   /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
-     글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 원으로 넓힌다. */
+     글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 표적으로 넓힌다(아래 TAP_ 설명). */
   var SMALL={'서울':1,'인천':1,'대전':1,'광주':1,'대구':1,'부산':1,'울산':1,'세종':1};
   /* 탭 표적(A8·MOB-6, 2026-09-27). 예전엔 8곳 모두 r=22 투명 원이었는데 세종·대전(중심 거리 25.7),
      서울·인천(27.5), 부산·울산(39.9)은 반지름 합 44보다 가까워 원이 겹쳤고, 나중에 그린 원이 위에 놓여
@@ -3021,7 +3021,7 @@ function renderWeeklyGrid(){
     .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
   /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
   box.innerHTML='<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">'   // 이름은 보이는 내용 그대로 — aria-label(elledby)은 이름 불일치로 걸린다(Lighthouse)
-    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+pubDate(row.p)+'</b> 발표 · 매매 전주 대비(%)</span>'
+    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+(/^\d{4}-\d{2}-\d{2}$/.test(pubDate(row.p))?_md(pubDate(row.p)):pubDate(row.p))+'</b> 발표 · 매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
@@ -3030,11 +3030,16 @@ function renderWeeklyGrid(){
   /* 구역 머리줄 = 조사일·발표일·다음 발표(홈 마케팅 검수 A2). 예전엔 '매주 갱신' 고정 문구라 09-24~26 배치가
      멈춘 동안 9일 묵은 값을 그 아래 보였다. 발표가 늦은 주에는 스스로 '반영 대기'라 적고, 제목도 '이번 주'를
      약속하지 않는다. 판정은 통계 탭 rel-week 와 같은 weeklyRelease 하나다. */
-  const r=weeklyReleaseNow();
+  applyWeeklyStatus(weeklyReleaseNow());
+}
+/* 주간 구역 머리줄과 h2 에 발표 상태를 적는다. 늦은 주에는 h2 도 '이번 주'를 약속하지 않고 발표일로 적는다
+   (TRUST-1②). 따로 떼어 둔 것은 시험이 이 두 줄을 직접 돌려 보게 하려는 것이다(test_weekly_release). */
+function applyWeeklyStatus(r){
+  if(!r)return;
   const kk=document.getElementById('wk-kicker');
-  if(kk&&r)kk.textContent=wkWhenText(r);
+  if(kk)kk.textContent=wkWhenText(r);
   const h2=document.getElementById('wk-h2');
-  if(h2&&r&&r.stale)h2.textContent=_md(r.pub)+' 발표, 어디가 오르고 내렸을까?';
+  if(h2&&r.stale)h2.textContent=_md(r.pub)+' 발표, 어디가 오르고 내렸을까?';
 }
 /* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.
    티어 문구는 BLV 정본에서 읽는다. 가짜 데이터로 오해되지 않게 라벨을 붙인다.
