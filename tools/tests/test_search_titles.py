@@ -105,13 +105,14 @@ def test_weekly_title_head_line_and_dates_carry_the_week():
 def test_zone_title_is_the_search_shape_for_every_grade(grade):
     """'2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족' — 연도는 기준 분기, '3년'은 판정 창, 등급 말은 배지.
 
-    변이: page_title 의 연도를 오늘(KST)이나 '2026' 글자로 바꾸면 2027Q1 픽스처에서, '대비'를 '보다'로 되돌리면 모양 단정에서
+    연도는 전망이 시작되는 분기(L+1)의 해 — L=2026Q4 면 2027년(검토 09-27: L 의 해를 쓰면 다음 해 1~5월에 지난해 전망으로 보였다).
+    변이: page_title 의 연도를 '2026' 글자나 옛 원천 calc['L'][:4] 로 바꾸면 2026Q4 픽스처에서, '대비'를 '보다'로 되돌리면 모양 단정에서
           빨개진다(둘 다 확인).
     """
     lab = M.GRADE_TXT[grade][0]
     t = M.page_title('서울', {'L': '2027Q1', 'H': 12}, lab)
     assert t == '2027년 서울 아파트 공급물량 전망, 3년 필요량 대비 %s' % lab
-    assert M.page_title('전국', {'L': '2026Q4', 'H': 8}, lab).startswith('2026년 전국 아파트 공급물량 전망, 2년 필요량 대비 ')
+    assert M.page_title('전국', {'L': '2026Q4', 'H': 8}, lab).startswith('2027년 전국 아파트 공급물량 전망, 2년 필요량 대비 ')
 
 
 def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
@@ -131,4 +132,40 @@ def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
                 if x.get('@type') == 'Article'][0]['headline']
         want = M.page_title(z['z'], calc, M.GRADE_TXT[z['grade']][0])
         assert title == M.esc(want) + ' | 아공맵' and og == M.esc(want) and head == want, (z['z'], title, og, head)
-        assert want.startswith('%s년 %s 아파트 공급물량 전망, ' % (calc['L'][:4], z['z']))
+        assert want.startswith('%d년 %s 아파트 공급물량 전망, ' % (SZ.outlook_year(calc), z['z']))
+
+
+@pytest.mark.parametrize('L,want', [('2026Q1', 2026), ('2026Q2', 2026), ('2026Q3', 2026), ('2026Q4', 2027)])
+def test_outlook_year_is_the_year_the_outlook_starts(L, want):
+    """전망 연도 = 기준 분기 다음 분기의 해. 변이: outlook_year 가 L 의 해를 돌려주면 2026Q4 에서 빨개진다(확인)."""
+    assert SZ.outlook_year({'L': L}) == want
+
+
+@pytest.mark.parametrize('L,p,want', [('2026Q3', '2027-01-11', '2026'), ('2026Q4', '2027-03-08', '2027')])
+def test_site_and_blog_zone_titles_take_the_year_from_one_function(monkeypatch, L, p, want):
+    """사이트 시도 리포트 제목과 블로그 지역 편 제목의 연도가 같은 함수(sido_zones.outlook_year)에서 나온다(검토 09-27).
+    예전엔 사이트 = 기준 분기의 해, 블로그 = 주간 조사일의 해라 1~3월에 두 제목의 연도가 갈렸다.
+
+    변이: make_naver_post 의 yr 줄을 옛 원천(주간 조사일 p[:4])으로 되돌리거나, make_sido_pages.page_title 을 calc['L'][:4]
+          로 되돌리면 빨개진다(둘 다 확인).
+    픽스처: 두 원천이 실제로 갈리는 두 때. ① 2027년 1월 — 준공 실적은 2026Q3 까지(4분기 실적은 2월께 나온다), 조사일
+            2027-01-11: 전망 연도 2026, 옛 블로그 원천(조사일)은 2027. ② 2027년 3월 — 기준 분기 2026Q4: 전망 연도 2027, 옛 사이트
+            원천(L 의 해)은 2026. draft_zone 을 끝까지 돌리지
+            않고, 그 안에서 제목을 만드는 zone_title 에 넘어가는 연도를 가로챈다.
+    """
+    import make_naver_post as P
+    seen = {}
+
+    class Stop(Exception):
+        pass
+
+    def grab(nm, yr, yrs, ask, seq):
+        seen['yr'] = yr
+        raise Stop()
+    monkeypatch.setattr(P, 'zone_title', grab)
+    adv = {'sido': {'L': L, 'H': 12, 'zones': []}, 'weekly': {'rows': [{'p': p}]}}
+    row = {'z': '서울', 'dtot': 1000, 'ref': 1, 'fut': 1, 'inow': 1, 'ratio': 0.3, 'grade': 'g2'}
+    with pytest.raises(Stop):
+        P.draft_zone(adv, {}, row, 1, 1)
+    site = M.page_title('서울', adv['sido'], '부족')
+    assert seen['yr'] == str(SZ.outlook_year(adv['sido'])) == site[:4] == want, (seen, site)
