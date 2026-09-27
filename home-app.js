@@ -3050,12 +3050,23 @@ function renderWeeklyGrid(){
     const t=Math.min(1,Math.abs(v)/0.2), a=(0.06+t*0.30).toFixed(3);
     return (v>0?'rgba(169,50,38,':'rgba(26,82,118,')+a+')';
   };
+  /* 방향 표지(B7·RET-5 '지난주와 무엇이 달라졌나') — 판정은 배치(weekly_moves)가 전체 이력으로 해서 싣고 여기선 읽기만 한다. */
+  const mv=weeklyMoves(ADV.weekly), tags=(mv&&mv.tags)||{};
+  /* 코어가 싣는 최근 주(ADV.weekly.recent — split_data RECENT_WEEKS = weekly_moves.WINDOW)는 칸의 풍선 도움말로 보인다 —
+     표지가 말하는 흐름을 숫자로 확인하게. 주 수는 여기 적지 않고 배치가 싣는 값을 읽는다(통계 탭을 연 뒤 rows 가 156주로
+     바뀌어도 같은 창). 값이 없는 옛 캐시는 코어 rows 그대로. */
+  const recent=(ADV.weekly.rows||[]).slice(-(ADV.weekly.recent||(ADV.weekly.rows||[]).length));
   const cell=(r,i,cls,t)=>{
     const ma=row.ma[i], je=row.je?row.je[i]:null;
     const gp=t?';grid-column:'+t[0]+';grid-row:'+t[1]:'';
-    return '<div class="'+cls+'" style="background:'+tint(ma)+gp+'">'
+    const tg=tags[r];
+    const tip=recent.length>1?' title="최근 '+recent.length+'주 매매: '+recent.map(x=>mnus(pv2((x.ma||[])[i]))).join(' → ')+'"':'';
+    /* 표지는 매매 기준이다 — 매매 숫자 바로 아래에 두고 '매매'를 앞에 적는다. 전세 줄 아래에 두었더니 '전세 +0.01' 밑의
+       '하락 전환'처럼 전세 흐름으로 읽혔다(3차 검토). */
+    return '<div class="'+cls+'"'+tip+' style="background:'+tint(ma)+gp+'">'
       +'<b>'+r+'</b>'
       +'<span class="wc-ma">'+mnus(pv2(ma))+'</span>'
+      +(tg?'<i class="wc-tag">매매 '+tg[1]+'</i>':'')
       +'<i class="wc-je">전세 '+mnus(pv2(je))+'</i></div>';
   };
   /* 집계 3은 격자에서 떼어 위로 — 홈 지도의 집계 칩과 같은 구조다. */
@@ -3080,14 +3091,28 @@ function renderWeeklyGrid(){
      칸이 사라지는 것보다 자리만 어긋나는 게 낫다. */
   const cells=regs.map((r,i)=>({r,i})).slice(AGG)
     .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
+  /* 격자 머리 두 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장), 지난주와 방향이 바뀐 곳(배치가 구운 문장).
+     링크 밖에 둔다 — 격자 링크의 이름(보이는 내용)을 길게 늘리지 않는다. */
+  const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel);
+  if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
+  const lines=(since?'<p class="wg-since">'+since+'</p>':'')+(mv&&mv.line?'<p class="wg-moves">'+mv.line+'</p>':'');
+  const sh=weeklyShare(ADV.weekly);
+  /* 공유 버튼(B8·VIRAL-1) — 내용은 /weekly/ 공유 버튼과 같은 함수가 구운 ADV.weekly.share. */
+  const share=sh?'<div class="wg-share"><button type="button" class="wg-sh wg-sh-k" onclick="shareWeekly(\'kakao\')">'
+    +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
+    +'<button type="button" class="wg-sh" onclick="shareWeekly(\'link\')">'
+    +'<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>링크 공유</button></div>':'';
   /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
-  box.innerHTML='<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">'   // 이름은 보이는 내용 그대로 — aria-label(elledby)은 이름 불일치로 걸린다(Lighthouse)
+  box.innerHTML=lines+'<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">'   // 이름은 보이는 내용 그대로 — aria-label(elledby)은 이름 불일치로 걸린다(Lighthouse)
     +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+(/^\d{4}-\d{2}-\d{2}$/.test(pubDate(row.p))?_md(pubDate(row.p)):pubDate(row.p))+'</b> 발표 · 매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
     +'<div class="wg-agg">'+aggHtml+'</div>'
-    +'<div class="wg-cells">'+cells+'</div></a>';
+    +'<div class="wg-cells">'+cells+'</div></a>'+share;
+  /* 카카오 SDK 는 누르려는 순간 받기 시작한다(퀴즈 결과 화면의 선로딩과 같은 뜻 — 첫 로딩에는 받지 않는다). */
+  const kb=box.querySelector('.wg-sh-k');
+  if(kb)['pointerenter','touchstart','focus'].forEach(t=>kb.addEventListener(t,()=>{loadKakao().catch(()=>{});},{once:true,passive:true}));
   /* 구역 머리줄 = 조사일·발표일·다음 발표(홈 마케팅 검수 A2). 예전엔 '매주 갱신' 고정 문구라 09-24~26 배치가
      멈춘 동안 9일 묵은 값을 그 아래 보였다. 발표가 늦은 주에는 스스로 '반영 대기'라 적고, 제목도 '이번 주'를
      약속하지 않는다. 판정은 통계 탭 rel-week 와 같은 weeklyRelease 하나다. */
@@ -3113,6 +3138,53 @@ function applyWeeklyStatus(r,hd){
 function weeklyHead(W){
   const hd=W&&W.head, row=W&&W.rows&&W.rows[W.rows.length-1];
   return (hd&&hd.text&&row&&hd.p===row.p)?hd:null;
+}
+/* 방향 표지(ADV.weekly.moves, B7·RET-5)와 공유 내용(ADV.weekly.share, B8). 둘 다 배치가 파이썬 정본(weekly_moves.moves·
+   make_weekly_page.share_payload)으로 구워 싣고 홈은 읽기만 한다 — 판정 규칙(표시값 pv2r 기준, 0.00 은 보합)을 여기서
+   다시 만들지 않는다. 최신 행과 조사일이 같을 때만 쓴다(옛 캐시·섞인 판이면 null — 표지·버튼 없이 그린다). */
+function weeklyMoves(W){
+  const mv=W&&W.moves, row=W&&W.rows&&W.rows[W.rows.length-1];
+  return (mv&&mv.tags&&row&&mv.p===row.p)?mv:null;
+}
+function weeklyShare(W){
+  const s=W&&W.share, row=W&&W.rows&&W.rows[W.rows.length-1];
+  return (s&&s.url&&row&&s.p===row.p)?s:null;
+}
+/* 지난 방문 이후 새 발표(RET-5). 마지막으로 본 발표일을 이 기기에만 둔다(개인정보처리방침 '브라우저에만 저장').
+   seen: 지난번에 본 발표일(YYYY-MM-DD), r: weeklyRelease. 새 발표가 없거나 처음 온 기기면 null. 발표는 매주 한 번이라
+   두 발표일의 주 차이가 곧 새 발표 수다. */
+const WK_SEEN_KEY='wk_seen';
+function wkSinceText(seen,r){
+  if(!r||!seen||!/^\d{4}-\d{2}-\d{2}$/.test(seen)||!(seen<r.pub))return null;
+  const n=Math.round((_dn(r.pub)-_dn(seen))/7);
+  return n>=1?'지난 방문('+_md(seen)+' 발표) 이후 새 발표 '+n+'회':null;
+}
+/* 더 새 발표일만 적는다 — 서비스워커·브라우저 캐시의 옛 data-core 로 그린 화면이 이미 본 새 발표일을 옛 날짜로 덮으면
+   다음 방문에 '새 발표'를 한 번 더 센다(3차 검토). */
+function wkShouldRemember(seen,pub){return !!pub&&(!seen||!/^\d{4}-\d{2}-\d{2}$/.test(seen)||seen<pub);}
+function wkSeen(){try{return localStorage.getItem(WK_SEEN_KEY);}catch(e){return null;}}
+function wkRemember(pub){try{localStorage.setItem(WK_SEEN_KEY,pub);}catch(e){}}
+/* 주간 시세 공유(B8·VIRAL-1). 카카오는 퀴즈와 같은 지연 로딩(needKakao) — 못 받으면 OS 공유 → 링크 복사.
+   링크의 utm_campaign=week_YYYYMMDD 가 주마다 주소를 바꿔 카카오의 페이지 단위 미리보기 보관을 피한다(VIRAL-2). */
+function shareWeekly(m){
+  let d=null;try{d=weeklyShare(ADV.weekly);}catch(e){}
+  if(!d)return;
+  if(m==='kakao'){
+    if(needKakao(()=>shareWeekly(m)))return;
+    if(kakaoReady()){
+      try{Kakao.Share.sendDefault({objectType:'feed',
+        content:{title:d.title,description:d.text,imageUrl:d.img,imageWidth:d.w,imageHeight:d.h,
+          link:{mobileWebUrl:d.url,webUrl:d.url}},
+        buttons:[{title:d.btn,link:{mobileWebUrl:d.url,webUrl:d.url}}]});
+        track('share',{content_type:'weekly',method:'kakao'});return;}
+      catch(e){}
+    }
+  }
+  track('share',{content_type:'weekly',method:navigator.share?'os_share':'copy'});
+  const txt=d.title+'\n'+d.url;
+  if(navigator.share){
+    navigator.share({title:d.title,text:d.text,url:d.url}).catch(e=>{if(e&&e.name!=='AbortError')copyText(txt);});
+  }else{copyText(txt);}
 }
 /* 첫 화면 '이번 주' 띠의 두 줄(B1·HERO-2·IA-5·TRUST-7). DOM 을 만지지 않는 순수 함수 — 시험이 node 로 돌린다.
    줄마다 [앞, 뒤] 두 조각이고 화면에는 ' · '로 이어진다(좁은 화면은 CSS 가 조각마다 줄을 바꿔 줄 수를 고정한다 —
