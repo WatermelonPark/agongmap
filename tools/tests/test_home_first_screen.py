@@ -439,7 +439,8 @@ def test_supply_map_colors_balance_as_neutral():
     rgb = [tuple(int(x) for x in re.findall(r'\d+', c)) for c in got[5:]]
     assert rgb[0][0] > rgb[0][2] and rgb[2][0] > rgb[2][2], '부족 쪽이 붉지 않다: %s' % got[5:]
     assert rgb[1][2] > rgb[1][0], '여유 쪽이 푸르지 않다: %s' % got[5:]
-    assert "fill=\"'+supplyFill(z)+'\"" in _js_func(h, 'renderSidoMap'), '지도 도형이 균형 중립색 규칙을 쓰지 않는다'
+    # 공급 모드(M 없음)의 도형 채움은 supplyFill 이다 — 주간 모드(C3)의 wkFill 과 갈래로 나뉜다(test_home_map_mode 가 돌려 본다).
+    assert "fill=\"'+(M?wkFill(M.v[key]):supplyFill(z))+'\"" in _js_func(h, 'renderSidoMap'), '지도 도형이 균형 중립색 규칙을 쓰지 않는다'
 
     css = _css()
     root = _rule(css, ':root')

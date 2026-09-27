@@ -44,7 +44,10 @@ def _labels():
         pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
     js = ('var ADV={sido:{L:""}},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";'
-          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}\n%s\n'
+          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}'
+          # 지도 모드(C3): M 은 주간 모드 재료(null = 공급 모드). 주간 모드에서도 같은 표적·라벨인지는 test_home_map_mode 가 본다.
+          'var M=null;function wkFill(){return "#ccc"}function wkPct(){return ""}function mapKeyHtml(){return ""}'
+          'function mapAria(){return ""}\n%s\n'
           'var out=[],re=/<text[^>]*>([^<]*)<\\/text>/g,m;while((m=re.exec(h)))out.push(m[1]);'
           'var links=[],r2=/href="\\/zone\\/([^\\/]*)\\//g;while((m=r2.exec(h)))links.push(decodeURIComponent(m[1]));'
           'process.stdout.write(JSON.stringify({labels:out,links:links}));'
