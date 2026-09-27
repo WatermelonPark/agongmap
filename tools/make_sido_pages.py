@@ -635,11 +635,12 @@ def page_title(z, calc, lab):
 
     예전 '서울 아파트 공급 분석 — 매우 부족'은 팀이 확인한 검색 형태(연도 + 지역 + 아파트 공급물량 + 전망, 08-14 네이버
     실측 — 블로그 지역 편 제목도 이 형태다)를 따르지 않았다. '전망'은 공급 물량의 전망이라 가격 예측이 아니다.
-    연도는 기준 분기(calc['L'])에서, '3년'은 판정 창(H)에서, 등급 말은 GRADE_TXT(= 배지)에서 읽는다 — 손으로 적지 않는다.
+    연도는 sido_zones.outlook_year(전망이 시작되는 분기 L+1 의 해 — 블로그 지역 편 제목과 같은 함수), '3년'은 판정 창(H),
+    등급 말은 GRADE_TXT(= 배지)에서 읽는다 — 손으로 적지 않는다.
     head() 가 이 값을 <title>·og:title·JSON-LD headline 에 그대로 쓴다(세 곳이 한 값). '보다' 대신 '대비'인 이유:
     '균형'·'공급 여유' 등급에서도 문장이 된다.
     """
-    return '%s년 %s 아파트 공급물량 전망, %s 필요량 대비 %s' % (calc['L'][:4], z, '%g년' % (calc['H'] / 4.0), lab)
+    return '%d년 %s 아파트 공급물량 전망, %s 필요량 대비 %s' % (SZ.outlook_year(calc), z, '%g년' % (calc['H'] / 4.0), lab)
 
 
 def build_page(z, calc, stats, pq, others, weekly=None):
