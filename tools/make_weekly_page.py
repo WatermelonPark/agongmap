@@ -36,6 +36,7 @@ import sido_zones as SZ  # noqa: E402
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
 import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
+import blog_feed as BF  # noqa: E402  (최신 주간 해설 글 — 홈 주간 구역과 같은 pick, 홈 마케팅 검수 B5)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
@@ -303,7 +304,8 @@ def build(W, Q):
                     % ('내린' if pv2r(best[1]) > 0 else '오른', other[0][0], pv2(other[0][1])))
     tiles = ''.join(tile(z, val[z], i) for i, z in enumerate(SZ.DISPLAY_ORDER) if val.get(z) is not None)
     head = '\n'.join([
-        '  <p class="eyebrow">%s · 한국부동산원 주간 통계</p>' % when,
+        '  <p class="eyebrow"><span class="wk-label">%s</span> · %s · 한국부동산원 주간 통계</p>'
+        % (WR.week_label(p, year=True), when),
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
         '  <p class="lead">%s</p>' % ' '.join(x for x in lead if x),
@@ -403,6 +405,99 @@ def put_source(s):
     return pat.sub(lambda m: m.group(1) + SOURCE_TEXT + m.group(3), s)
 
 
+# ── 검색어 정렬(홈 마케팅 검수 B4·SEO-3①·SEO-4, 2026-09-27) ────────────────────────────────────────
+# title 이 생성기가 안 쓰는 고정 문구('이번 주 아파트 시세 지도…')라, 배치가 멈추면 검색 결과에 '이번 주' 제목 아래 지난
+# 발표가 보였고 사람들이 실제로 치는 '주간아파트가격동향'·'9월 셋째 주'가 제목에 없었다. 블로그 주간 글 제목 라벨과 같은
+# 말(TITLE_KW)과 같은 주차 서수(weekly_release.week_label)를 굽는다 — 블로그가 링크로 보내는 페이지가 같은 주를 같은 이름으로
+# 부른다. 연도를 붙여 갱신이 늦어도 '날짜가 박힌 지난주'로 보이게 한다. og:title·twitter:title·JSON-LD name 도 같은 값.
+TITLE_KW = '주간 아파트가격 동향'   # 한국부동산원 보도자료 이름 — make_naver_post 주간 글 제목 라벨도 이 값을 쓴다
+
+
+def titles(p):
+    """(title, og:title) — '주간 아파트가격 동향 2026년 9월 셋째 주 | 아파트 시세 지도 | 아공맵'."""
+    lab = '%s %s' % (TITLE_KW, WR.week_label(p, year=True))
+    return '%s | 아파트 시세 지도 | 아공맵' % lab, '%s · 전국·서울 아파트 시세 지도' % lab
+
+
+def put_titles(s, p):
+    title, og = titles(p)
+    pat = re.compile(r'(<title>)[^<]*(</title>)')
+    if len(pat.findall(s)) != 1:
+        raise SystemExit('weekly/index.html 에서 <title> 을 찾지 못했다')
+    s = pat.sub(lambda m: m.group(1) + html.escape(title, quote=False) + m.group(2), s)
+    s = put_meta(s, 'property', 'og:title', og)
+    s = put_meta(s, 'name', 'twitter:title', og)
+    # JSON-LD WebPage 자신의 name([^{}] — 중첩 객체 isPartOf·about 의 name 은 건드리지 않는다)
+    pat = re.compile(r'("@type":\s*"WebPage",[^{}]*?"name":\s*")[^"]*(")', re.S)
+    if len(pat.findall(s)) != 1:
+        raise SystemExit('weekly/index.html 에서 WebPage name 을 찾지 못했다')
+    return pat.sub(lambda m: m.group(1) + og.replace('\\', '\\\\').replace('"', '\\"') + m.group(2), s)
+
+
+def put_ld_dates(s, pub_iso):
+    """JSON-LD WebPage 에 발표일을 datePublished·dateModified 로(SEO-4). 이 페이지는 발표마다 새 판이 되므로 둘 다 발표일이다.
+    뼈대에 없으면 WebPage 의 @type 줄 뒤에 넣고, 있으면 값만 바꾼다(zone·monthly·moveins·cycle 은 이미 있었다)."""
+    for key in ('dateModified', 'datePublished'):   # 넣을 때는 @type 바로 뒤에 차례로 끼우므로 역순
+        pat = re.compile(r'("%s":\s*")[^"]*(")' % key)
+        n = len(pat.findall(s))
+        if n == 1:
+            s = pat.sub(lambda m: m.group(1) + pub_iso + m.group(2), s)
+            continue
+        if n > 1:
+            raise SystemExit('weekly/index.html 에 %s 가 %d개다' % (key, n))
+        at = re.compile(r'("@type":\s*"WebPage",)([ \t]*\r?\n[ \t]*)')
+        if len(at.findall(s)) != 1:
+            raise SystemExit('weekly/index.html 에서 JSON-LD WebPage 를 찾지 못했다')
+        s = at.sub(lambda m: m.group(1) + m.group(2) + '"%s": "%s",' % (key, pub_iso) + m.group(2), s, 1)
+    return s
+
+
+# ── 해설 글(네이버 블로그) 칸(홈 마케팅 검수 B5·RET-4·SEO-8, 2026-09-27) ──────────────────────────────────
+# 최신 주간 글(blog_feed.pick — 홈 주간 구역과 같은 선택·같은 말)과 블로그 첫 화면 링크를 '더 둘러보기' 앞에 굽는다.
+# 뼈대에 표식이 없으면 이 생성기가 넣는다(뼈대는 배치 산출물이라 손으로 커밋하지 않는다). 글을 못 골랐으면 글 줄만 빠진다.
+_BLOG_ANCHOR = re.compile(r'(<section><div class="wrap">\s*<h2>더 둘러보기</h2>)')
+_BLOG_MARK = re.compile(r'(<!--WK:BLOG-->)(.*?)(<!--/WK:BLOG-->)', re.S)
+
+
+# 클릭 측정: 이 페이지에는 홈의 track() 이 없어, 다른 생성 페이지(시도 리포트 공유·월간 view)처럼 gtag 이벤트를 직접
+# 보낸다. 이벤트 이름 blog_link, to = weekly_post(최신 글)·weekly_home(블로그 첫 화면). GA 차단·제외 기기에서는 조용히 넘어간다.
+def _track(to):
+    return ' onclick="try{gtag(\'event\',\'blog_link\',{to:\'%s\'})}catch(e){}"' % to
+
+
+def blog_html(b):
+    rows = []
+    if b:
+        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s: %s<span>%s</span></a>'
+                    % (html.escape(b['url']), _track('weekly_post'), html.escape(b['lead']),
+                       html.escape(b['title']), html.escape(b['src'])))
+    if BF.BLOG_HOME:
+        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s</span></a>'
+                    % (BF.BLOG_HOME, _track('weekly_home'), BF.HOME_TEXT, BF.LABEL))
+    if not rows:
+        return ''
+    return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>해설 글</h2>', '  <div class="links">']
+                     + rows + ['  </div>', '  <p class="blog-note">%s</p>' % html.escape(BF.NEIGHBOR),
+                               '</div></section>'])
+
+
+def put_blog(s, W):
+    nl = '\r\n' if '\r\n' in s else '\n'
+    if '<!--WK:BLOG-->' not in s:
+        m = _BLOG_ANCHOR.findall(s)
+        if len(m) == 1:
+            s = _BLOG_ANCHOR.sub(lambda x: '<!--WK:BLOG-->' + nl + '<!--/WK:BLOG-->' + nl + nl + x.group(1), s, 1)
+        elif s.count('</main>') == 1:
+            s = s.replace('</main>', '<!--WK:BLOG-->' + nl + '<!--/WK:BLOG-->' + nl + '</main>', 1)
+        else:
+            raise SystemExit('weekly/index.html 에서 해설 글 칸을 넣을 자리를 찾지 못했다')
+    b = BF.pick(BF.read(), pub(W['rows'][-1]['p']))
+    body = blog_html(b)
+    if not body:   # 블로그 주소를 못 만든 경우(blog_feed.BLOG_HOME None) — 칸을 비운다
+        return _BLOG_MARK.sub(lambda m: m.group(1) + nl + m.group(3), s, 1)
+    return put(s, 'BLOG', body, nl)
+
+
 def render(s, W, Q):
     nl = '\r\n' if '\r\n' in s else '\n'
     head, answer, desc, og = build(W, Q)
@@ -412,6 +507,10 @@ def render(s, W, Q):
     s = put_meta(s, 'property', 'og:description', og)
     s = put_dataset_url(s)
     s = put_source(s)
+    p = W['rows'][-1]['p']
+    s = put_titles(s, p)               # title·og:title·twitter:title·WebPage name 에 연도·주차(B4)
+    s = put_ld_dates(s, pub(p))        # JSON-LD 발표일(B4)
+    s = put_blog(s, W)                 # 해설 글(네이버 블로그) 칸(B5)
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
     s = put_share_image(s, W)   # og:image·twitter:image 에 그 주 발표일(A7)

@@ -77,6 +77,17 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
   "inLanguage": "ko"
 }
 </script>
+<!-- 운영 주체(홈 마케팅 검수 B5·SEO-8, 2026-09-27). sameAs(블로그 등 운영 채널 묶기)는 네이버 서치어드바이저의
+     '연관 채널' 안내 원문을 확인한 뒤에 넣는다 — 지금은 name·url·logo 만. logo 는 워드마크가 든 512px 아이콘. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "아공맵",
+  "url": "https://www.agongmap.co.kr/",
+  "logo": "https://www.agongmap.co.kr/icons/icon-512.png"
+}
+</script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -92,7 +103,9 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
   "keywords": ["아파트 실거래가격지수", "주간 아파트 시세", "전세가율", "인허가", "입주물량", "부동산 통계"]
 }
 </script>
+<!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
 <meta name="description" content="전국 16개 시도의 아파트 공급을 적정물량과 비교해 보여줍니다. 국토교통부 준공·착공 실적으로 앞으로 3년 입주물량을 보고, 한국부동산원 주간 시세를 지도로 정리했습니다. 국가 통계 기반, 매주 자동 갱신.">
+<!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <meta name="keywords" content="아파트 공급, 입주물량, 아파트 입주물량, 시도별 아파트 공급, 아파트 공급 지도, 주간 아파트 시세, 아파트 착공, 부동산 데이터, 집값 전망, 부동산 통계">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
@@ -105,7 +118,9 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 <meta name="apple-mobile-web-app-title" content="아공맵">
 <meta property="og:type" content="website">
 <meta property="og:title" content="아공맵 — 공급을 보면 집값이 보인다">
+<!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
 <meta property="og:description" content="전국 16개 시도의 아파트 공급을 적정물량과 비교. 준공·착공 실적으로 본 앞으로 3년 입주물량과 주간 시세 지도 — 국가 통계 기반, 매주 자동 갱신.">
+<!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <meta property="og:url" content="https://www.agongmap.co.kr/">
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta property="og:image:width" content="1200">
@@ -113,7 +128,9 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta name="twitter:title" content="아공맵 — 공급을 보면 집값이 보인다">
+<!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
 <meta name="twitter:description" content="전국 16개 시도 아파트 공급 지도 · 준공·착공으로 본 입주물량 · 주간 시세">
+<!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <title>전국 아파트 공급 지도 — 시도별 3년 공급·이번 주 시세 | 아공맵</title>
 <link rel="stylesheet" href="/app.css">
 <!-- 앱 스플래시: 홈화면에서 띄웠을 때만. OS 스플래시는 maskable 아이콘(글자 없는
@@ -228,7 +245,17 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
         <button type="button" data-v="table" aria-pressed="false" onclick="tbView('table')">표</button>
       </div>
     </div>
-    <div id="map-wrap"></div>
+    <!-- 홈 요약 표식 구간(홈 마케팅 검수 B3·SEO-1·MOB-5, 2026-09-27 대표 확인 — 배치가 고쳐 쓰는 곳은 이 구간과
+         <head> 의 설명 메타 셋뿐이다). tools/make_home_summary.py 가 전국 공급 판정 한 줄(기준 분기)과 발표일 박은
+         주간 한 줄(/weekly/ 링크)을 data-core.js 값으로 굽는다 — 스크립트를 돌리지 않는 검색 로봇·링크 미리보기와
+         스크립트가 늦는 첫 화면에 숫자가 보인다. #map-wrap 안에 두어, 지도가 그려지면(renderSidoMap 의 innerHTML)
+         같은 숫자를 싣는 카드·지도로 통째로 바뀐다(화면 중복 없음). 구간 안을 손으로 고치지 말 것 — 다음 배치가 되돌린다.
+         표식은 제 줄에 둔다 — 배치는 두 표식 줄 **사이**에 줄을 끼우기만 해서, 앞뒤 줄(이 주석·닫는 div 줄)을 사람이 고쳐도
+         봇의 커밋과 같은 덩어리로 부딪히지 않는다(3-저장소 병합). -->
+    <div id="map-wrap">
+<!--HOME_SUMMARY_START-->
+<!--HOME_SUMMARY_END-->
+    </div>
     <div id="graph-wrap"></div>
     <div class="tb-key">
       <span class="tk"><i class="tk-d"></i>하락 · 공급 과잉</span>
@@ -276,6 +303,10 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
          버튼이 아니라 링크라 길게 눌러 새 탭·주소 복사가 된다. 이름은 목적지를 말한다 — /weekly/ 의
          '전체 TOP 10 · 시군구 지도 보기'와 같은 곳으로 간다. -->
     <div class="hs-cta"><a class="home-cta" href="#stats-market" onclick="track('home_cta',{to:'weekly_map'})">시군구 시세 지도·TOP 10 보기</a></div>
+    <!-- 이번 주 해석 글(홈 마케팅 검수 B5·RET-4, 2026-09-27). 배치가 블로그 RSS 에서 읽어 data-core 에 실은 ADV.blog 를
+         renderBlogLine 이 채운다 — /weekly/ 하단과 같은 글·같은 말(blog_feed.pick). 글이 없으면 숨은 채로 남는다.
+         알림·요일을 약속하지 않는다. -->
+    <p class="wk-blog" id="wk-blog" hidden></p>
   </div></section>
 
   <section class="home-sec hs-alt"><div class="wrap">
@@ -346,9 +377,12 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 
 
 
+  <!-- 푸터 링크를 갱신 주기(매주·매달·분기)와 읽을거리로 묶는다(홈 마케팅 검수 B5·IA-9, 2026-09-27) — 푸터까지 내려온 사람에게
+       무엇이 언제 새로 나오는지 보인다. 블로그 링크 이름은 '네이버 블로그'만(대표 확인 09-27), 알림·요일은 약속하지 않는다.
+       같은 푸터가 이 파일에 세 벌(홈·통계·퀴즈) 있다 — 셋을 같이 고친다(test_home_summary 가 같은지 본다). -->
   <div class="home-foot">
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
-    <nav class="ft-nav" aria-label="주요 페이지"><a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/zone/">시도별 공급</a> · <a href="/monthly/">이달의 통계</a> · <a href="/moveins/">입주물량</a> · <a href="/jeonse-ratio/">전세가율</a> · <a href="/cycle/">사이클 리포트</a></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a> · <a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener" onclick="track('home_cta',{to:'blog_footer'})">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a> · <a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a> · <a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/investor-test/">투자자 테스트</a> · <a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · 만든이 agongmap@gmail.com</div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div></div>
@@ -523,7 +557,7 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 
   <div class="minifooter">
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
-    <nav class="ft-nav" aria-label="주요 페이지"><a href="/weekly/">이번 주 시세 지도</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/zone/">시도별 공급</a> · <a href="/monthly/">이달의 통계</a> · <a href="/moveins/">입주물량</a> · <a href="/jeonse-ratio/">전세가율</a> · <a href="/cycle/">사이클 리포트</a></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a> · <a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a> · <a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a> · <a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/investor-test/">투자자 테스트</a> · <a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · 만든이 agongmap@gmail.com</div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
@@ -584,7 +618,7 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
   </div>
   <div class="minifooter">
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
-    <nav class="ft-nav" aria-label="주요 페이지"><a href="/weekly/">이번 주 시세 지도</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/zone/">시도별 공급</a> · <a href="/monthly/">이달의 통계</a> · <a href="/moveins/">입주물량</a> · <a href="/jeonse-ratio/">전세가율</a> · <a href="/cycle/">사이클 리포트</a></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a> · <a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a> · <a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a> · <a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a> · <a href="/faq/">부동산 FAQ</a> · <a href="/burini-test/">부린이 테스트</a> · <a href="/investor-test/">투자자 테스트</a> · <a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a> · <a href="/privacy/">개인정보처리방침</a> · 만든이 agongmap@gmail.com</div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>

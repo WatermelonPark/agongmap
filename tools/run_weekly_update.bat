@@ -15,7 +15,7 @@ rem   (a local script cannot report that it never ran).
 rem
 rem   exit codes: 10 keys 11 pull 12 update 20 split 13 share
 rem               14 add 15 commit 16 push 17 zone-pages 18 indicator-pages
-rem               19 already-running 21 cycle-data 22 weekly-page 23 monthly-page 24 pytest
+rem               19 already-running 21 cycle-data 22 weekly-page 23 monthly-page 24 pytest 25 home-summary
 rem   (2026-07-24: 이메일/인스타 자동 발행 제거.
 rem    rc=18은 옛 newsletter 코드가 아니라 make_indicator_pages 실패에 쓴다
 rem    — 2026-08-04 감사에서 표와 실물이 어긋난 것을 맞춤.
@@ -44,7 +44,7 @@ rem SHARED worktree, which blocks other sessions' merges (review 2026-09-18, bac
 rem Put the batch targets back to HEAD. rc 10/11/19 never touched them; after a failed push
 rem (rc 16) the commit exists so this is a no-op. The list must equal TARGETS in update-cloud.yml.
 if not "%RC%"=="0" if not "%RC%"=="10" if not "%RC%"=="11" if not "%RC%"=="19" (
-  git restore --staged --worktree -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp >> "%LOG%" 2>&1
+  git restore --staged --worktree -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json >> "%LOG%" 2>&1
 )
 if not "%RC%"=="0" (
   echo [%date% %time%] FAILED rc=%RC% - see %LOG%
@@ -114,6 +114,12 @@ if errorlevel 1 (
   exit /b 12
 )
 
+rem Latest weekly blog post (Naver blog RSS) -> tools\data\blog_latest.json, read by split_data (ADV.blog)
+rem and make_weekly_page. Always exits 0; on RSS failure the previous value is kept (B5, 2026-09-27).
+rem cmd has no command timeout: the tool caps its own RSS read at WALL_SECONDS (60 s); the cloud adds `timeout 90`.
+python tools\blog_feed.py
+if errorlevel 1 echo WARN: blog_feed failed - blog line keeps the previous value
+
 rem split data.js -> data-core.js / data-trend.json / data-rest.json.
 rem home reads data-core.js, so skipping this step leaves home stale.
 python tools\split_data.py
@@ -150,6 +156,13 @@ if errorlevel 1 (
   exit /b 22
 )
 
+rem Home summary: bakes only the HOME_SUMMARY marker block and the three description metas in index.html (B3).
+python tools\make_home_summary.py
+if errorlevel 1 (
+  echo ERROR: make_home_summary failed
+  exit /b 25
+)
+
 python tools\refresh_cycle_data.py
 if errorlevel 1 (
   echo ERROR: refresh_cycle_data failed
@@ -179,16 +192,19 @@ rem split_data.py emits 5 files (core/trend/rest/sgg/size) and
 rem make_indicator_pages.py emits jeonse-ratio/ and moveins/.
 rem A file missing here is silently never deployed (2026-08-04 audit:
 rem data-sgg.json and data-size.json were absent from every list).
-git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp
+rem index.html is hand-written: the batch rewrites only its HOME_SUMMARY block and description metas (B3),
+rem but the add / restore commands take the whole file. Do not leave uncommitted index.html edits in this
+rem worktree while the runner is switched on - they would be committed or wiped with the batch.
+git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json
 if errorlevel 1 (
-  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp
+  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json
   if errorlevel 1 (
     echo ERROR: git add failed
     exit /b 14
   )
   rem Commit ONLY the batch targets. A bare `git commit` sweeps whatever another session left
   rem staged in the shared index (it happened on 2026-09-16, commit 930b4534).
-  git commit -m "stats: weekly auto-update (KOSIS, local)" -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp
+  git commit -m "stats: weekly auto-update (KOSIS, local)" -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json
   if errorlevel 1 (
     echo ERROR: git commit failed
     exit /b 15
