@@ -1006,6 +1006,12 @@ def draft_zone(adv, sts, r, seq, total):
                     esc(nm), num(abs(t)), state,
                     SZ.GRADE_LABS[r['grade']],
                     esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True))))
+    # 셈 한 줄(홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 순부족에는 앞으로 3년뿐 아니라 지난 4년 덜 지은 몫이
+    # 더해져 있어 '필요량 − 공급'으로는 검산이 안 된다. 사이트(홈 카드 ⓘ·산출 방법·시도 리포트 '숫자로 보면')와
+    # 같은 함수·같은 정수로 적는다 — 블로그가 식을 따로 만들지 않는다(test_home_first_screen).
+    need, fut, inow, _ = SZ.display_ints(r, SZ.LEAD_Q)
+    body.append('<p>셈은 <b>%s</b>입니다.</p>'
+                % esc(SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, need, fut, inow)))
     # 캡처는 이 바로 뒤에 온다 — 앞 문장이 말한 숫자가 화면에 그대로 찍혀 있어
     # 글이 주장한 것을 곧바로 확인시켜 준다.
     body.append('<p>[여기에 리포트 캡처 이미지를 넣어 주세요]</p>')

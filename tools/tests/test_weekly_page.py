@@ -238,7 +238,8 @@ def _rank(answer, cls, nth=0):
 
 
 def test_down_week_headline_names_the_biggest_fall():
-    """하락이 주도한 주에는 제목이 '대구 −0.31% 가장 크게 내렸다'여야 한다.
+    """하락이 주도한 주에는 제목이 '대구 −0.31%, 가장 크게 내렸습니다'여야 한다(결론 문장은 make_weekly_page.conclusion —
+    홈 띠·홈 주간 h2 와 같은 문장이라 2026-09-27 B1 부터 습니다체다. 설명문(description)은 그대로 다체).
 
     변이: build() 의 `max(sido, key=lambda x: abs(pv2r(x[1])))` 에서 abs 를 빼면 서울 +0.12 가
           제목에 올라 빨개진다(실제로 바꿔 확인). 실데이터 시험은 그 주가 상승 주도여서 초록이었다.
@@ -246,7 +247,7 @@ def test_down_week_headline_names_the_biggest_fall():
     """
     head, _, desc, og = MW.build(*_week(_DOWN_SIDO, _DOWN_SGG, _DOWN_GU))
     h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
-    assert '대구 -0.31%' in h1 and '내렸다' in h1, h1
+    assert '대구 -0.31%' in h1 and '가장 크게 내렸습니다' in h1, h1
     assert '가장 많이 오른 곳은 서울 +0.12%다.' in head, '반대 방향 1위가 빠졌다'
     assert '대구 -0.31%로 가장 크게 내렸다' in desc and '대구 -0.31%' in og
 
@@ -259,7 +260,7 @@ def test_up_week_headline_names_the_biggest_rise():
     """
     head, _, desc, _ = MW.build(*_week(_UP_SIDO, _DOWN_SGG, _DOWN_GU))
     h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
-    assert '서울 +0.40%' in h1 and '올랐다' in h1, h1
+    assert '서울 +0.40%' in h1 and '가장 크게 올랐습니다' in h1, h1
     assert '가장 많이 내린 곳은 대구 -0.10%다.' in head
 
 

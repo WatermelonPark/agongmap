@@ -140,7 +140,7 @@ def test_home_reads_grace_from_data_and_both_views_share_one_function():
     rel, grid = _fn(src, 'renderReleaseInfo'), _fn(src, 'renderWeeklyGrid')
     assert 'weeklyReleaseNow()' in rel and 'wkNextText(r)' in rel
     apply = _fn(src, 'applyWeeklyStatus')
-    assert 'applyWeeklyStatus(weeklyReleaseNow())' in grid
+    assert 'applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly))' in grid
     assert 'wkWhenText(r)' in apply and "getElementById('wk-kicker')" in apply
     assert 'id="wk-kicker"' in src and '매주 갱신 · 한국부동산원' not in src
 
@@ -327,7 +327,7 @@ def test_home_kicker_and_h2_follow_the_release_state():
     st = WR.status('2026-09-14', datetime.date(2026, 9, 27))
     assert st['stale'] and k_late == WR.when_text(st), k_late
     assert h_late == '9/17 발표, 어디가 오르고 내렸을까?', h_late
-    assert 'applyWeeklyStatus(weeklyReleaseNow())' in _fn(src, 'renderWeeklyGrid')
+    assert 'applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly))' in _fn(src, 'renderWeeklyGrid')
 
 
 def test_weekly_page_script_compares_the_kst_date():

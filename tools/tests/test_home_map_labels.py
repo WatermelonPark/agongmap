@@ -44,7 +44,7 @@ def _labels():
         pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
     js = ('var ADV={sido:{L:""}},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";'
-          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}\n%s\n'
+          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}\n%s\n'
           'var out=[],re=/<text[^>]*>([^<]*)<\\/text>/g,m;while((m=re.exec(h)))out.push(m[1]);'
           'var links=[],r2=/href="\\/zone\\/([^\\/]*)\\//g;while((m=r2.exec(h)))links.push(decodeURIComponent(m[1]));'
           'process.stdout.write(JSON.stringify({labels:out,links:links}));'

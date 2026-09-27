@@ -77,8 +77,27 @@ try:
     import sido_zones as _SZ
     TABLE_REGIONS = set(_SZ.ORDER)
 except Exception:                     # 산식 모듈이 없어도 스플릿은 돌아야 한다
+    _SZ = None
     TABLE_REGIONS = {'전국', '수도권', '지방', '서울', '경기', '인천', '부산', '대구', '전남광주',
                      '대전', '세종', '울산', '강원', '충북', '충남', '전북', '경북', '경남', '제주'}
+# 이번 주 결론 한 줄(ADV.weekly.head, 홈 마케팅 검수 B1·IA-4). /weekly/ 제목과 같은 함수(make_weekly_page.conclusion)
+# 에서 만들어 싣고 홈은 읽기만 한다. 생성기를 못 불러오면 head 없이 쪼갠다 — 홈은 head 가 없으면 띠를 데이터 없는
+# 기본 문구로 두고 주간 h2 는 고정 질문으로 둔다(옛 캐시와 같은 동작). 게이트 시험이 head 가 실리는지 본다.
+try:
+    import make_weekly_page as _MW
+except Exception as _e:               # noqa: BLE001 — 결론 한 줄 때문에 데이터 스플릿을 멈추지 않는다
+    _MW = None
+    print('⚠️ split_data: make_weekly_page 를 못 불러와 ADV.weekly.head 를 싣지 않는다 — %s' % _e, file=sys.stderr)
+
+
+def _weekly_head(w):
+    if _MW is None:
+        return None
+    try:
+        return _MW.head_payload(w)
+    except Exception as e:            # noqa: BLE001
+        print('⚠️ split_data: 주간 결론 한 줄을 만들지 못했다 — %s' % e, file=sys.stderr)
+        return None
 
 
 def _r2(a):
@@ -107,6 +126,11 @@ def main():
         return a
 
     core_adv = strip_units(core_adv)
+    # 판정 화면 문구(카드 ctxt·cnum·cdir·cpct, ⓘ 식 ftxt, 분포 dist, 범례 ktxt)는 지금의 정본 함수로 다시 굽는다. data.js 의 ADV.sido 는
+    # 다음 배치가 점수를 다시 쓸 때까지 옛 문구를 싣는다 — 문구 함수를 고친 날 홈이 옛말을 하지 않게(B2·C4).
+    # 숫자(dtot·ratio·grade)는 건드리지 않는다. adv['sido'] 와 같은 객체라 trend 쪽에도 같이 실린다.
+    if _SZ is not None and (core_adv.get('sido') or {}).get('zones'):
+        _SZ.refresh_texts(core_adv['sido'])
 
     # 히어로 배경 지도는 마지막 한 주만 쓴다(renderHeroMap: rows[rows.length-1]).
     # 전체 sgg는 59.7KB인데 그중 필요한 건 4.8KB뿐이다.
@@ -118,8 +142,11 @@ def main():
     # 빈다(2026-09-01 리뷰). 배너(시도)와 히어로 지도(시군구)는 서로 다른
     # 입력이라, 한쪽이 비어도 다른 쪽은 그려야 한다.
     wk = {'regions': w.get('regions', []), 'grace': GRACE_WEEKLY}
+    head = _weekly_head(w)
     if w.get('rows'):
         wk['rows'] = w['rows'][-1:]
+        if head:
+            wk['head'] = head
     if sgg.get('rows'):
         wk['sgg'] = {'codes': sgg.get('codes', []), 'rows': sgg['rows'][-1:]}
     if wk.get('rows') or wk.get('sgg'):
@@ -190,6 +217,8 @@ def main():
             # 통계 탭을 열면 loadFullData 가 ADV.weekly 를 이 파일 것으로 통째로 바꾼다 — 여기에도 실어야
             # 그 뒤 rel-week·주간 격자가 유예를 잃지 않는다.
             w['grace'] = GRACE_WEEKLY
+            if head:
+                w['head'] = head   # 같은 이유 — 통계 탭을 연 뒤에도 홈 띠·주간 h2 가 결론을 잃지 않는다
         trend_adv[k] = w
     io.open(TREND, 'w', encoding='utf-8', newline=NL).write(
         dump({'ADV': trend_adv}))
