@@ -36,6 +36,7 @@ import sido_zones as SZ  # noqa: E402
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
 import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
+import blog_feed as BF  # noqa: E402  (최신 주간 해설 글 — 홈 주간 구역과 같은 pick, 홈 마케팅 검수 B5)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
@@ -451,6 +452,37 @@ def put_ld_dates(s, pub_iso):
     return s
 
 
+# ── 해설 글(네이버 블로그) 칸(홈 마케팅 검수 B5·RET-4·SEO-8, 2026-09-27) ──────────────────────────────────
+# 최신 주간 글(blog_feed.pick — 홈 주간 구역과 같은 선택·같은 말)과 블로그 첫 화면 링크를 '더 둘러보기' 앞에 굽는다.
+# 뼈대에 표식이 없으면 이 생성기가 넣는다(뼈대는 배치 산출물이라 손으로 커밋하지 않는다). 글을 못 골랐으면 글 줄만 빠진다.
+_BLOG_ANCHOR = re.compile(r'(<section><div class="wrap">\s*<h2>더 둘러보기</h2>)')
+
+
+def blog_html(b):
+    rows = []
+    if b:
+        rows.append('    <a href="%s" target="_blank" rel="noopener">%s: %s<span>%s</span></a>'
+                    % (html.escape(b['url']), html.escape(b['lead']), html.escape(b['title']), html.escape(b['src'])))
+    rows.append('    <a href="%s" target="_blank" rel="noopener">%s<span>%s</span></a>'
+                % (BF.BLOG_HOME, BF.HOME_TEXT, BF.LABEL))
+    return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>해설 글</h2>', '  <div class="links">']
+                     + rows + ['  </div>', '</div></section>'])
+
+
+def put_blog(s, W):
+    nl = '\r\n' if '\r\n' in s else '\n'
+    if '<!--WK:BLOG-->' not in s:
+        m = _BLOG_ANCHOR.findall(s)
+        if len(m) == 1:
+            s = _BLOG_ANCHOR.sub(lambda x: '<!--WK:BLOG-->' + nl + '<!--/WK:BLOG-->' + nl + nl + x.group(1), s, 1)
+        elif s.count('</main>') == 1:
+            s = s.replace('</main>', '<!--WK:BLOG-->' + nl + '<!--/WK:BLOG-->' + nl + '</main>', 1)
+        else:
+            raise SystemExit('weekly/index.html 에서 해설 글 칸을 넣을 자리를 찾지 못했다')
+    b = BF.pick(BF.read(), pub(W['rows'][-1]['p']))
+    return put(s, 'BLOG', blog_html(b), nl)
+
+
 def render(s, W, Q):
     nl = '\r\n' if '\r\n' in s else '\n'
     head, answer, desc, og = build(W, Q)
@@ -463,6 +495,7 @@ def render(s, W, Q):
     p = W['rows'][-1]['p']
     s = put_titles(s, p)               # title·og:title·twitter:title·WebPage name 에 연도·주차(B4)
     s = put_ld_dates(s, pub(p))        # JSON-LD 발표일(B4)
+    s = put_blog(s, W)                 # 해설 글(네이버 블로그) 칸(B5)
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
     s = put_share_image(s, W)   # og:image·twitter:image 에 그 주 발표일(A7)
