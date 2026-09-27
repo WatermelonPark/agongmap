@@ -3169,6 +3169,220 @@ function quizSample(){
     +'<div class="rc-desc">'+g.d+'</div>'
     +'</div>';
 }
+// <home-small> ── 이 구간은 test_home_small 이 통째로 node 에 올려 돌린다(DOM·저장소·gtag 는 흉내).
+/* ===== 홈 작은 장치(홈 마케팅 검수 3차 묶음 S, 2026-09-27) — 내 지역(C5)·출처 구간(B9)·측정(B10)·설치 안내(C10①) =====
+   네 장치 모두 순수 함수(시험이 node 로 돌린다)와 DOM 을 만지는 얇은 함수로 나눴다. 시험: tools/tests/test_home_small.py. */
+
+/* 기기 저장소. 사생활 모드·차단된 사이트 데이터에서는 접근만 해도 던진다 — 모든 장치가 이 셋만 거쳐 조용히 빠진다.
+   lsSet 의 v 가 null 이면 지운다. 성공 여부를 돌려준다(저장 못 하면 '한 번만'·'고정'을 약속할 수 없어 장치를 열지 않는다). */
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,String(v));return true;}catch(e){return false;}}
+function lsOk(){try{localStorage.setItem('agongmap-ls','1');localStorage.removeItem('agongmap-ls');return true;}catch(e){return false;}}
+
+/* ── 측정(B10·MEAS-3) ──────────────────────────────────────────────────────────────────────────────
+   ① home_variant 사용자 속성 — 첫 화면을 바꾼 배포를 GA 에서 가르는 값. 홈 첫 화면 구성을 바꾸는 배포에서만 이 한 상수를
+      올린다(HOME_BUILD 는 모든 배포에서 오르므로 쓰지 않는다). 동시 A/B 는 하지 않는다 — 배포 전후 비교의 구분값이다.
+      이 줄은 부팅(showView 의 첫 page_view)보다 먼저 돈다 — 큐(dataLayer)에서 'set' 이 이벤트 앞에 있어야 속성이 붙는다.
+      GA 로더는 늦게 붙어도(C8) 큐를 순서대로 보낸다. */
+const HOME_VARIANT='home3';
+try{if(typeof gtag==='function')gtag('set','user_properties',{home_variant:HOME_VARIANT});}catch(e){}
+/* ② 코호트 재방문 신호 — 기기에 '방문한 날 수(n)·첫 방문일(f)·마지막 방문일(l)'만 센다(KST 날짜 수, 개인 식별 정보 없음, 밖으로
+      나가는 것은 GA 이벤트 매개변수뿐). 그날 첫 홈 부팅에 home_visit 을 한 번 보낸다: visit_n(방문한 날 수), gap_days(직전 방문과의
+      날 차), first_week(첫 방문 주의 월요일 — 코호트 열쇠). 주 재방문율 = first_week 별로 visit_n ≥ 2 인 기기의 비율.
+      저장 못 하는 기기는 세지 않는다(매번 '첫 방문'으로 부풀지 않게). 설치 안내의 '두 번째 방문'도 이 값 하나를 쓴다. */
+const VISIT_KEY='agongmap-visit';
+function visitNext(prev,day){
+  const ok=prev&&typeof prev==='object'&&Number.isInteger(prev.n)&&prev.n>=1&&Number.isInteger(prev.f)&&Number.isInteger(prev.l);
+  if(!ok)return {n:1,f:day,l:day,gap:0,fresh:true};
+  if(day<=prev.l)return {n:prev.n,f:prev.f,l:prev.l,gap:0,fresh:false};   // 같은 날(기기 시계가 거꾸로 가도 세지 않는다)
+  return {n:prev.n+1,f:prev.f,l:day,gap:day-prev.l,fresh:true};
+}
+function weekOf(day){return _iso(day-(_wd(day)+6)%7);}   // 그 날이 든 주의 월요일(ISO 날짜)
+let VISIT=null;
+function countVisit(){
+  let prev=null;
+  const raw=lsGet(VISIT_KEY);
+  if(raw){try{prev=JSON.parse(raw);}catch(e){}}
+  const v=visitNext(prev,_kst(new Date()).day);
+  if(v.fresh){
+    if(!lsSet(VISIT_KEY,JSON.stringify({n:v.n,f:v.f,l:v.l})))return null;
+    track('home_visit',{visit_n:v.n,gap_days:v.gap,first_week:weekOf(v.f)});
+  }
+  return v;
+}
+/* ③ 구역 노출 section_view — 주간 구역(격자)이 화면에 들어오면 한 번(페이지당). 클릭(home_cta)을 이 분모로 나눠 클릭률을 낸다.
+      IntersectionObserver 가 아니라 스크롤 위치 계산이다 — 그리지 않는 창에서 IO 콜백이 영영 오지 않은 사고가 있었다(afterLayout
+      주석). 판정: 보이는 높이가 (요소 높이와 화면 높이 중 작은 쪽)의 절반 이상. 숨은 뷰(통계·퀴즈)의 요소는 높이 0 이라 안 본 것이다. */
+function inView(top,bottom,vh){
+  const h=bottom-top;
+  if(!(h>0)||!(vh>0))return false;
+  return Math.min(bottom,vh)-Math.max(top,0)>=Math.min(h,vh)/2;
+}
+const SEEN={};
+const SECTIONS=[['week',()=>{const g=document.getElementById('home-weekly-grid');
+  return (g&&g.style.display!=='none')?g:document.getElementById('wk-h2');}]];   // 격자가 빠진 옛 캐시는 제목으로
+let _secT=0;
+function checkSections(){
+  _secT=0;
+  let left=0;
+  SECTIONS.forEach(([name,get])=>{
+    if(SEEN[name])return;
+    const el=get(), r=el&&el.getBoundingClientRect();
+    if(r&&inView(r.top,r.bottom,window.innerHeight||document.documentElement.clientHeight)){
+      SEEN[name]=true;
+      track('section_view',{section:name});
+      if(name==='week')installMaybe();
+    }else left++;
+  });
+  if(!left)['scroll','resize','popstate'].forEach(ev=>window.removeEventListener(ev,onSecMove));
+}
+function onSecMove(){if(!_secT)_secT=setTimeout(checkSections,150);}
+function watchSections(){
+  ['scroll','resize','popstate'].forEach(ev=>window.addEventListener(ev,onSecMove,{passive:true}));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',onSecMove));   // 통계 → 홈 탭(스크롤 없이 돌아온 경우)
+  setTimeout(checkSections,0);   // 첫 배치가 잡힌 뒤(afterLayout 과 같은 이유로 rAF 가 아니라 타이머)
+}
+
+/* ── 설치 안내(C10①·PWA-1) ────────────────────────────────────────────────────────────────────────
+   안드로이드는 beforeinstallprompt 를 받아 두었다가, 두 번째 방문(VISIT.n ≥ 2)이거나 주간 구역을 본 뒤(SEEN.week) 한 번만
+   "매주 시세를 홈 화면에서 바로 보기" 안내를 띄운다. iOS 는 그 이벤트가 없어 '공유 → 홈 화면에 추가' 문구로 대신한다(인앱 브라우저는
+   홈 화면 추가가 없어 뺀다). 띄운 순간 기기에 적어 다시 띄우지 않는다(닫아도, 무시해도). 이미 설치해 앱으로 연 경우(index.html 머리의
+   html.pwa — standalone)와 저장소를 못 쓰는 기기는 띄우지 않는다. 첫 화면을 가리지 않게 부팅 뒤 INSTALL_DELAY 가 지나야 뜬다.
+   측정: pwa_prompt{step: shown·accept·dismiss·close, platform}, 설치 완료는 appinstalled → pwa_installed{platform}. */
+const INSTALL_KEY='agongmap-install', INSTALL_DELAY=3000;
+const INSTALL_TEXT='매주 시세를 홈 화면에서 바로 보기';
+const INAPP=/KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|BAND\//i;
+function installPlatform(ua,touch){
+  if(/Android/i.test(ua))return 'android';
+  if(/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&touch>1))return 'ios';
+  return null;
+}
+/* o: {standalone, storageOk, stored, platform, inapp, hasPrompt, visitN, weekSeen} → 'android' | 'ios' | null */
+function installPlan(o){
+  if(o.standalone||!o.storageOk||o.stored||!o.platform)return null;
+  if(!(o.visitN>=2||o.weekSeen))return null;
+  if(o.platform==='android')return o.hasPrompt?'android':null;
+  return o.inapp?null:'ios';
+}
+let _bip=null, _instReady=false;
+function _installState(){
+  const ua=navigator.userAgent||'';
+  return {standalone:document.documentElement.classList.contains('pwa'),storageOk:lsOk(),stored:lsGet(INSTALL_KEY)!=null,
+    platform:installPlatform(ua,navigator.maxTouchPoints||0),inapp:INAPP.test(ua),hasPrompt:!!_bip,
+    visitN:VISIT?VISIT.n:0,weekSeen:!!SEEN.week};
+}
+function installMaybe(){
+  if(!_instReady||curView!=='home'||document.getElementById('inst'))return;
+  const plan=installPlan(_installState());
+  if(!plan||!lsSet(INSTALL_KEY,'shown'))return;
+  const box=document.createElement('div');
+  box.id='inst'; box.className='inst'; box.setAttribute('role','region'); box.setAttribute('aria-label','홈 화면에 추가 안내');
+  box.innerHTML='<p class="inst-t">'+INSTALL_TEXT+'</p>'
+    +(plan==='ios'?'<p class="inst-d">아래 <b>공유</b> 버튼 → <b>홈 화면에 추가</b></p>'
+      :'<button type="button" class="inst-go">홈 화면에 추가</button>')
+    +'<button type="button" class="inst-x">닫기</button>';
+  box.querySelector('.inst-x').addEventListener('click',()=>{
+    lsSet(INSTALL_KEY,'closed'); box.remove(); track('pwa_prompt',{step:'close',platform:plan});
+  });
+  const go=box.querySelector('.inst-go');
+  if(go)go.addEventListener('click',()=>{
+    const e=_bip; _bip=null; box.remove();
+    if(!e)return;
+    e.prompt();
+    e.userChoice.then(c=>track('pwa_prompt',{step:c&&c.outcome==='accepted'?'accept':'dismiss',platform:plan})).catch(()=>{});
+  });
+  document.body.appendChild(box);
+  track('pwa_prompt',{step:'shown',platform:plan});
+}
+window.addEventListener('beforeinstallprompt',e=>{
+  const s=_installState();
+  if(s.platform!=='android'||s.standalone||s.stored||!s.storageOk)return;   // 안 띄울 기기는 브라우저 기본 동작 그대로
+  e.preventDefault(); _bip=e; installMaybe();
+});
+window.addEventListener('appinstalled',()=>{
+  lsSet(INSTALL_KEY,'installed');
+  const b=document.getElementById('inst'); if(b)b.remove();
+  track('pwa_installed',{platform:installPlatform(navigator.userAgent||'',navigator.maxTouchPoints||0)||'other'});
+});
+
+/* ── 내 지역(C5·RET-6) ─────────────────────────────────────────────────────────────────────────────
+   기기에 시도 이름 하나(MYZ_KEY — index.html 히어로의 인라인 스크립트와 같은 키)만 둔다. 판정 단위(ADV.sido.zones, 집계 3종 제외)에
+   없는 이름(지역 개편으로 없어진 이름 등)은 무시한다 — 보여 주지 않고, 판정 데이터가 실린 부팅이면 저장값도 지운다(renderMyZone). 값은 이번 주 시도 매매 변동
+   (ADV.weekly 최신 행, 격자와 같은 pv2 반올림)과 공급 판정(등급 이름 TB_GRADE = sido_zones.GRADE_LABS, 세대수는 카드와 같은
+   cnum·cdir — 새로 짓지 않는다). 측정: 고정·해제 = myzone{action: pin·unpin}(08-14 에 죽은 이벤트로 해제했던 이름을 복원),
+   줄 누름 = home_cta{to:'my_zone'}. 고른 시도 이름은 보내지 않는다 — 개인정보처리방침이 '선택 지역은 브라우저에만 저장되며
+   서버로 전송·수집되지 않는다'고 적고 있다. */
+const MYZ_KEY='agongmap-myzone';
+function myZoneOf(name,S,W){
+  if(!name||!S||!S.zones)return null;
+  const z=S.zones.find(x=>x.z===name&&!x.agg);
+  if(!z)return null;
+  const i=W&&W.regions?W.regions.indexOf(name):-1, row=W&&W.rows&&W.rows[W.rows.length-1];
+  return {n:z.z,grade:z.grade,lab:TB_GRADE[z.grade]||'',
+    num:z.cnum||(z.ctxt?String(z.ctxt).split(' · ')[0]:(tbSigned(z.tot)+'세대')),dir:z.cnum?(z.cdir||''):'',
+    ma:(i>=0&&row&&row.ma&&row.ma[i]!=null)?row.ma[i]:null};
+}
+/* 둘째 줄: '매매 +0.13% · [매우 부족] 311,689세대( 부족) →' — 매매 값이 없으면 판정만. 방향 말(cdir)은 넓은 화면에서만 보인다(카드와 같다). */
+function myZoneLine(o){
+  return (o.ma!=null?'매매 '+pv2(o.ma).replace('-','−')+'% · ':'')
+    +'<span class="sc-tier '+o.grade+'">'+o.lab+'</span> '+o.num
+    +(o.dir?'<span class="myz-dir"> '+o.dir+'</span>':'')+' →';
+}
+function _myZoneData(){let S=null,W=null;try{S=ADV.sido;W=ADV.weekly;}catch(e){}return [S,W];}
+function renderMyZone(){
+  const box=document.getElementById('myz');
+  if(!box)return;
+  const [S,W]=_myZoneData(), name=lsGet(MYZ_KEY), o=myZoneOf(name,S,W);
+  if(!o){
+    box.hidden=true;
+    /* 판정 단위가 실려 있는데 그 이름이 없으면(개편으로 사라진 이름) 저장값을 지운다 — 남겨 두면 인라인 스크립트가 방문마다
+       자리를 열었다가 여기서 닫아 띠·카드·지도가 한 줄씩 들썩인다(Chromium 실측 CLS 0.07). 데이터가 안 왔으면(옛 캐시 등) 그대로 둔다. */
+    if(name&&S&&S.zones&&S.zones.length)lsSet(MYZ_KEY,null);
+    return;
+  }
+  document.getElementById('myz-n').textContent=o.n;
+  document.getElementById('myz-a').href='/zone/'+encodeURIComponent(o.n)+'/';
+  document.getElementById('myz-v').innerHTML=myZoneLine(o);
+  box.hidden=false;
+}
+function initMyZonePick(){
+  const p=document.getElementById('myz-pick'), sel=document.getElementById('myz-sel'), S=_myZoneData()[0];
+  if(!p||!sel||!S||!S.zones||!lsOk())return;   // 저장 못 하는 기기에는 고르기 줄을 열지 않는다
+  S.zones.forEach(z=>{if(z.agg)return;const o=document.createElement('option');o.value=o.textContent=z.z;sel.appendChild(o);});
+  const cur=myZoneOf(lsGet(MYZ_KEY),S,null);
+  sel.value=cur?cur.n:'';
+  p.hidden=false;
+}
+function myZoneSet(name){
+  const [S,W]=_myZoneData(), prev=myZoneOf(lsGet(MYZ_KEY),S,W), o=name?myZoneOf(name,S,W):null;
+  if(name&&!o)return;
+  if(!lsSet(MYZ_KEY,o?o.n:null))return;
+  if(o)track('myzone',{action:'pin'});
+  else if(prev)track('myzone',{action:'unpin'});
+  renderMyZone();
+  const sel=document.getElementById('myz-sel'); if(sel)sel.value=o?o.n:'';
+  const m=document.getElementById('myz-msg'); if(m)m.textContent=o?'첫 화면 맨 위에 고정했습니다':'고정을 풀었습니다';
+}
+
+/* ── 출처·구간 한 줄(B9·TRUST-5) ─────────────────────────────────────────────────────────────────────
+   '3년'의 구간 = 판정 기준 분기 L 다음 분기부터 H 분기(sido_zones.calc 의 미래 창 range(L+1, L+H+1)). 손으로 적지 않는다. */
+function qShift(key,k){
+  const m=/^(\d{4})Q([1-4])$/.exec(key||'');
+  if(!m)return null;
+  const i=(+m[1])*4+(+m[2])-1+k;
+  return Math.floor(i/4)+'년 '+(i%4+1)+'분기';
+}
+function supplySpan(S){
+  if(!S||!(S.H>0))return null;
+  const a=qShift(S.L,1), b=qShift(S.L,S.H);
+  return (a&&b)?'앞으로 '+(S.H/4)+'년('+a+'~'+b+')':null;
+}
+function renderSupplySpan(){
+  const el=document.getElementById('map-span'), t=supplySpan(_myZoneData()[0]);
+  if(el&&t)el.textContent=t;
+}
+// </home-small>
+
 function boot(){
   if(BUILD_RELOAD)return;   // 판이 달라 새로고침하는 중 — 옛 스크립트로 새 마크업을 그리지 않는다(맨 위 판 표식)
   /* chartSetup 은 차트 라이브러리를 받은 뒤 loadChart 가 부른다 */
@@ -3176,6 +3390,9 @@ function boot(){
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
   renderHeroBand();   // 그 아래 '이번 주' 띠(결론 · 배경 지도 캡션 · 다음 발표)
+  renderMyZone();     // 띠 앞 '내 지역' 한 줄(C5) — 자리는 index.html 인라인 스크립트가 첫 페인트 전에 열어 둔다
+  renderSupplySpan(); // 지도 아래 '앞으로 3년(…~…)' 구간(B9)
+  initMyZonePick();
   /* ⚠️ 표(분기 1,000칸 HTML 조립)는 여기서 굽지 않는다. 기본 모드가 지도인데
      숨은 표를 먼저 구우면 그 비용(월 모드 실측 200ms+)이 기본 화면 페인트를 막고,
      숨은 상태의 tbAnchor 재시도 타이머 6발이 전부 헛돈다(2026-08-10 리뷰).
@@ -3190,6 +3407,9 @@ renderSidoMap();    // 기본 모드 — 보이는 것부터
   }else{
     applyHash();
   }
+  VISIT=countVisit();   // 그날 첫 홈 부팅에 home_visit 한 번(B10) — 부팅 page_view(applyHash·showView) 뒤
+  watchSections();      // 주간 구역 노출 section_view(B10)
+  setTimeout(()=>{_instReady=true;installMaybe();},INSTALL_DELAY);   // 설치 안내(C10①)는 첫 화면이 자리 잡은 뒤에만
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);
 else boot();
