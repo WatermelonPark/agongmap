@@ -8,6 +8,10 @@
 페이지 뼈대(스타일·더 둘러보기·네비)는 손으로 관리하고, 아래 자리만 이 도구가 채운다.
   <!--WK:HEAD-->   … <!--/WK:HEAD-->    조사일·발표일·다음 발표·결론 제목·시도 타일
   <!--WK:ANSWER--> … <!--/WK:ANSWER-->  시군구 상승·하락 TOP 3, 서울 구별 요약
+  <!--WK:SHARE-->  … <!--/WK:SHARE-->   공유 버튼(B8·VIRAL-1). 표식이 없으면 ANSWER 뒤에 자리를 낸다
+  <!--WK:TABLE-->  … <!--/WK:TABLE-->   시군구 전체 표(C10②·SEO-2③). 표식이 없으면 SHARE 뒤에 자리를 낸다
+  <!--WK:SHARE-->  … <!--/WK:SHARE-->   공유 버튼(B8·VIRAL-1). 표식이 없으면 ANSWER 뒤에 새로 만든다
+  <!--WK:TABLE-->  … <!--/WK:TABLE-->   시군구 전체 표(C10②·SEO-2③). 표식이 없으면 SHARE 뒤에 새로 만든다
   <meta name="description">, og:description, 'N개 시도' 문구
   구조화 데이터(Dataset)의 url, '숫자의 출처' 문단 — 홈 마케팅 검수 A4·A6(2026-09-27). 뼈대에 손으로 적혀 있던
   것을 생성기가 맡는다(Dataset url 이 '/#stats-market' 라 검색엔진에는 홈 주소였고, 출처 문단은 근거 없는
@@ -36,6 +40,8 @@ import sido_zones as SZ  # noqa: E402
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
 import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
+import page_share as PS  # noqa: E402  (공유 버튼 — 홈 마케팅 검수 B8)
+import weekly_moves as WM  # noqa: E402  (방향 표지·시군구 순위 이동 정본 — 홈 마케팅 검수 B7)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
@@ -164,8 +170,14 @@ def h1_html(c):
             % (H1_WEEK, c['dir'], html.escape(c['who']), c['val'], c['verb']))
 
 
-def tile(name, v, i):
-    """홈 옛 라이브 미니맵과 같은 색 규칙 — 색도 표시값 기준."""
+# 타일 표지(B7)와 '방향이 바뀐 곳' 한 줄의 모양. 뼈대 <style> 은 손으로 관리하는 자리라 이 규칙은 HEAD 표식 안에
+# 싣는다(배치가 매주 다시 쓴다). 표지 글자는 타일 숫자와 같은 먹색 — 진한 빨강 바탕(알파 .78)에서도 대비를 지킨다.
+MOVES_CSS = ('.mm-tag{display:block;font-style:normal;font-size:10.5px;font-weight:600;line-height:1.3;margin-top:1px}'
+             '.mm-moves{font-size:13px;color:var(--ink2);margin:10px 0 0}')
+
+
+def tile(name, v, i, tg=None):
+    """홈 옛 라이브 미니맵과 같은 색 규칙 — 색도 표시값 기준. tg: weekly_moves 표지(['up'|'dn', 문구, N]) 또는 None."""
     a = min(.78, .10 + abs(v) * 2.4)
     rv = pv2r(v)
     bg = ('rgba(224,86,74,%.2f)' % a if rv > 0 else
@@ -173,9 +185,10 @@ def tile(name, v, i):
     # 글자는 항상 먹색 — 흰 글자는 연한 바탕(알파 .1~.78) 위에서 대비 2.2, 색 글자도 4.1 이었다(2026-09-18 오딧).
     # 방향은 바탕색이 이미 말한다. 보합 칸은 ink2(5.7).
     tc = '#131e24' if rv else '#4c5f66'
+    tag = ('<i class="mm-tag" style="color:%s">%s</i>' % (tc, html.escape(tg[1]))) if tg else ''
     return ('<div class="mm-tile" style="background:%s;animation-delay:%dms">'
-            '<b style="color:%s">%s</b><span style="color:%s">%s%%</span></div>'
-            % (bg, i * 22, tc, html.escape(name), tc, pv2(v)))
+            '<b style="color:%s">%s</b><span style="color:%s">%s%%</span>%s</div>'
+            % (bg, i * 22, tc, html.escape(name), tc, pv2(v), tag))
 
 
 def counts(vals):
@@ -218,6 +231,10 @@ SITE = 'https://www.agongmap.co.kr'
 # 미리보기가 없는 파일을 가리키는데 아무것도 빨개지지 않았다(A7 검토 지적, test_weekly_share_version).
 SHARE_REL = 'share/weekly-map.png'
 SHARE_IMG = SITE + '/' + SHARE_REL
+# 카드 크기(가로·세로 px). make_weekly_share 가 이 크기로 굽고, 공유 버튼의 카카오 피드가 이 비율로 싣는다.
+# 뼈대의 og:image:width·height 와 같은지는 test_weekly_share_buttons 가 본다.
+SHARE_SIZE = (900, 1130)
+SHARE_SOURCE = 'weekly_share'   # 공유 링크의 utm_source(유입 장치) — 홈 주간 격자·/weekly/ 버튼이 같은 값
 # 이 페이지가 켜는 하단 탭. 홈 '시세'(식별자 stats) 탭의 기본 화면이 주간 시세 지도라 이 페이지는 그 탭 아래에
 # 있다(IA-6 1단계). 탭바 마크업·라벨은 site_nav 가 정본이다 — 뼈대의 손 탭바를 통째로 정본으로 갈아 끼우므로
 # 탭 이름을 바꿔도(C2 '통계' → '시세') 이 페이지를 손으로 고칠 일이 없다.
@@ -241,6 +258,107 @@ def share_version(p):
     않은 이유: 매주 share/ 에 파일이 쌓이고, 감시가 조사일을 읽는 고정 주소도 바뀐다.
     """
     return pub(p)
+
+
+def share_campaign(p):
+    """공유 링크의 회차(utm_campaign) — 'week_' + 발표일(YYYYMMDD). og:image 판(share_version)과 같은 날짜다.
+
+    카카오톡은 페이지 주소 단위로 미리보기를 보관하므로(VIRAL-2) 링크 주소가 주마다 달라야 새로 긁어 간다.
+    """
+    return 'week_' + share_version(p).replace('-', '')
+
+
+def share_payload(W):
+    """주간 공유 내용 — /weekly/ 공유 버튼과 홈 주간 격자 공유 버튼(split_data → ADV.weekly.share)이 **이것 하나**를 쓴다.
+
+    돌려주는 것: {'p': 조사일, 'ct': 'weekly', 'url': 공유 링크, 'title', 'text', 'img': 카드 주소(?v=발표일), 'w', 'h',
+    'btn': 카카오 피드 버튼 글자}. 결론을 못 만드는 주(시도 값이 반도 없음)는 None — 반쯤 빈 카드를 보내지 않는다.
+    """
+    rows = W.get('rows') or []
+    c = conclusion(W)
+    if not rows or c is None:
+        return None
+    p = rows[-1]['p']
+    regs = W.get('regions') or []
+    ma = rows[-1].get('ma') or []
+    i = regs.index('전국') if '전국' in regs else len(ma)
+    nation = ma[i] if i < len(ma) else None
+    text = c['text'] + ('' if nation is None else ' · 전국 %s%%' % pv2(nation))
+    return {'p': p, 'ct': 'weekly', 'url': PS.link(SITE + '/weekly/', SHARE_SOURCE, share_campaign(p)),
+            'title': '이번 주 아파트 시세 · %s 발표' % md(pub(p)), 'text': text,
+            'img': '%s?v=%s' % (SHARE_IMG, share_version(p)), 'w': SHARE_SIZE[0], 'h': SHARE_SIZE[1],
+            'btn': '이번 주 시세 보기'}
+
+
+SHARE_LEAD = '이번 주 시세 지도를 단톡방에 보내 보세요'
+
+
+def share_html(W):
+    d = share_payload(W)
+    return PS.block(d, SHARE_LEAD) if d else ''
+
+
+# ── 시군구 전체 표(C10②·SEO-2③, 2026-09-27) ───────────────────────────────────────────────────
+# 예전엔 시군구 값이 TOP 3 여섯 곳만 HTML 에 있고 나머지는 홈 해시(/#stats-market)의 스크립트 지도로 넘겼다 — 검색엔진이
+# 보는 이 페이지에는 '우리 동네' 답이 없었다. 홈 TOP 10 과 같은 대상(SGG_QNAME 에 이름이 있고 값이 있는 시군구)을 전부
+# 굽는다. 순위·이동은 weekly_moves.rank_moves(홈 TOP 10 sggRanks 와 같은 규칙, 블로그도 같은 함수)가 낸다.
+# 표는 접어 둔다(<details>) — 펼치지 않아도 HTML 에 있어 검색엔진은 읽고, 사람은 결론·TOP 3 뒤에 긴 표를 밀어내지 않는다.
+TABLE_CSS = ('.sggt summary{cursor:pointer;font-size:15px;font-weight:600;color:var(--ink);padding:12px 0;'
+             'border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}'
+             '.sggt .tbl{overflow-x:auto}'
+             '.sggt table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}'
+             '.sggt thead th{font-size:12px;font-weight:600;color:var(--muted);text-align:right;padding:8px 5px;'
+             'border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}'
+             '.sggt thead th:first-child,.sggt tbody th{text-align:left}'
+             '.sggt tbody th{font-weight:400;color:var(--ink);padding:7px 5px;border-bottom:1px solid var(--line)}'
+             '.sggt td{padding:7px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;color:var(--ink2)}'
+             '.sggt td.up{color:var(--up2)}.sggt td.dn{color:var(--dn2)}'
+             '.sggt .note{font-size:12.5px;color:var(--muted);margin:10px 0 0}')
+
+
+def _pct_cell(v):
+    k = sign(v)
+    return '<td%s>%s</td>' % ((' class="%s"' % k) if k else '', pv2(v))
+
+
+def table_html(W, Q):
+    """시군구 전체 표 구역(스타일·정렬 스크립트 포함). 시군구 값이 없으면 빈 문자열."""
+    import make_indicator_pages as I   # 정렬 스크립트 정본(SORT_SCRIPT). 쓸 때 가져온다
+    S = W.get('sgg') or {}
+    ranks = WM.rank_moves(S, Q)
+    if not ranks:
+        return ''
+    srow = S['rows'][-1]
+    je = srow.get('je') or []
+    idx = {c: i for i, c in enumerate(S['codes'])}
+    prev_p = S['rows'][-2]['p'] if len(S['rows']) > 1 else None
+    trs = []
+    for c, v, r, d in ranks:
+        j = idx[c]
+        jv = je[j] if j < len(je) else None
+        trs.append('<tr><th scope="row">%s</th>%s%s<td>%d</td><td data-v="%s">%s</td></tr>'
+                   % (html.escape(Q[c]), _pct_cell(v), _pct_cell(jv), r, '' if d is None else d, WM.move_text(d)))
+    basis = '%s 조사 · %s 발표' % (md(srow['p']), md(pub(srow['p'])))
+    how = ('순위는 매매 변동률 순(1 = 가장 많이 오른 곳)이고, 전주 대비는 %s 순위와의 차입니다(▲ 순위 상승). '
+           '홈 상승·하락 TOP 10 과 같은 순위입니다.' % (('지난주(%s 조사)' % md(prev_p)) if prev_p else '지난주'))
+    return '\n'.join([
+        '<section class="sggt"><div class="wrap">',
+        '  <h2>시군구 전체 표</h2>',
+        '  <p class="sub">매매·전세가격 전주 대비(%%) · 시군구 %d곳 · %s</p>' % (len(ranks), basis),
+        '  <details><summary>시군구 %d곳 펼쳐 보기</summary>' % len(ranks),
+        '  <div class="tbl"><table id="utable" aria-label="시군구 주간 매매·전세 변동률">'
+        '<thead><tr><th scope="col">시군구</th><th scope="col" data-num>매매</th><th scope="col" data-num>전세</th>'
+        '<th scope="col" data-num>순위</th><th scope="col" data-num>전주 대비</th></tr></thead><tbody>',
+        '\n'.join(trs),
+        '  </tbody></table></div>',
+        '  <p class="note">%s 표두를 누르면 정렬합니다.</p>' % how,
+        '  </details>',
+        # RET-7: 두 주기를 느슨하게 잇는다 — 타일에 판정 칩을 붙이지 않고 한 줄로 시도 리포트에 보낸다.
+        '  <p class="note">이 지역 공급 판정 보기 → <a href="/zone/">시도별 공급 리포트</a></p>',
+        '</div></section>',
+        '<style>%s</style>' % TABLE_CSS,
+        I.SORT_SCRIPT,
+    ])
 
 
 def put_share_image(s, W):
@@ -301,7 +419,10 @@ def build(W, Q):
     if other and pv2r(best[1]) != 0:
         lead.append('가장 많이 %s 곳은 %s %s%%다.'
                     % ('내린' if pv2r(best[1]) > 0 else '오른', other[0][0], pv2(other[0][1])))
-    tiles = ''.join(tile(z, val[z], i) for i, z in enumerate(SZ.DISPLAY_ORDER) if val.get(z) is not None)
+    # 방향 표지(B7): '지난주와 무엇이 달라졌나'. 규칙은 weekly_moves 하나 — 홈 격자·블로그와 같은 표지다.
+    mv = WM.moves(W) or {}
+    tg = mv.get('tags') or {}
+    tiles = ''.join(tile(z, val[z], i, tg.get(z)) for i, z in enumerate(SZ.DISPLAY_ORDER) if val.get(z) is not None)
     head = '\n'.join([
         '  <p class="eyebrow">%s · 한국부동산원 주간 통계</p>' % when,
         '  <h1>%s</h1>' % h1,
@@ -313,7 +434,8 @@ def build(W, Q):
         '<span><i style="background:#3a7bd5"></i>하락</span><span>매매가격 전주 대비</span>'
         '<span class="go">시군구 상세 →</span></div>',
         '  </a>',
-    ])
+    ] + (['  <p class="mm-moves">%s</p>' % html.escape(mv['line']), '  <style>%s</style>' % MOVES_CSS]
+         if mv.get('line') else []))
 
     # ── 시군구 TOP 3 (홈 TOP 10 과 같은 대상: SGG_QNAME 에 이름이 있고 값이 있는 곳)
     S = W['sgg']
@@ -367,6 +489,17 @@ def build(W, Q):
     return head, answer, desc, og
 
 
+def ensure_block(s, name, after, nl):
+    """표식 구간 WK:name 이 없으면 WK:after 구간 바로 뒤에 빈 구간을 만든다 — 뼈대(생성 페이지)를 PR 로 고치지 않고
+    생성기가 첫 배치에서 자리를 낸다(생성 페이지를 PR 에 싣지 않는 규칙. 뼈대 CSS 를 채우는 put_nav 와 같은 방식)."""
+    if '<!--WK:%s-->' % name in s:
+        return s
+    end = '<!--/WK:%s-->' % after
+    if s.count(end) != 1:
+        raise SystemExit('weekly/index.html 에 %s 가 %d개다 — WK:%s 자리를 낼 수 없다' % (end, s.count(end), name))
+    return s.replace(end, end + nl + '<!--WK:%s-->' % name + nl + '<!--/WK:%s-->' % name, 1)
+
+
 def put(s, name, body, nl):
     pat = re.compile(r'(<!--WK:%s-->)(.*?)(<!--/WK:%s-->)' % (name, name), re.S)
     n = len(pat.findall(s))
@@ -408,6 +541,9 @@ def render(s, W, Q):
     head, answer, desc, og = build(W, Q)
     s = put(s, 'HEAD', head, nl)
     s = put(s, 'ANSWER', answer, nl)
+    # 공유 버튼(B8)·시군구 전체 표(C10②) — 표식이 없던 뼈대에는 ANSWER 뒤에 자리를 낸다
+    s = put(ensure_block(s, 'SHARE', 'ANSWER', nl), 'SHARE', share_html(W), nl)
+    s = put(ensure_block(s, 'TABLE', 'SHARE', nl), 'TABLE', table_html(W, Q), nl)
     s = put_meta(s, 'name', 'description', desc)
     s = put_meta(s, 'property', 'og:description', og)
     s = put_dataset_url(s)

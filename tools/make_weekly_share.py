@@ -122,7 +122,7 @@ def main():
     val = {r: row['ma'][i] for i, r in enumerate(regs)}
     je = {r: row['je'][i] for i, r in enumerate(regs)}
 
-    IW, IH = 900, 1130
+    IW, IH = _MW.SHARE_SIZE   # 크기 정본 — /weekly/ 공유 버튼의 카카오 피드가 같은 비율로 싣는다(B8)
     img = Image.new('RGB', (IW, IH), PAPER)
     d = ImageDraw.Draw(img)
 
