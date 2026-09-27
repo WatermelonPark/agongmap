@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 배치 커밋 잡의 게이트를 순서 그대로 따라 한다: 설치 전에 생성기 여섯 → pytest·pillow 설치 → pytest.
+  # 배치 커밋 잡의 게이트를 순서 그대로 따라 한다: 설치 전에 생성기 일곱 → pytest·pillow 설치 → pytest.
   # 생성기를 먼저 돌리는 이유도 배치와 같다 — 정합 시험 몇은 새로 구운 페이지와 data.js 를 대조한다.
   # PR 은 생성 산출물을 싣지 않으므로(CLAUDE.md), 생성기를 고친 PR 은 여기서 다시 구워야 배치와 같은 답이 나온다.
   gate:
@@ -57,6 +57,7 @@ jobs:
           if ! python3 tools/make_weekly_page.py; then echo "::error::make_weekly_page 실패"; exit 1; fi
           if ! python3 tools/make_home_summary.py; then echo "::error::make_home_summary 실패"; exit 1; fi
           if ! python3 tools/refresh_cycle_data.py; then echo "::error::refresh_cycle_data 실패"; exit 1; fi
+          if ! python3 tools/make_feed.py; then echo "::error::make_feed 실패"; exit 1; fi
 
       - name: 검증 게이트 (배치와 같은 설치·같은 명령)
         run: |
@@ -87,7 +88,7 @@ jobs:
       - name: 깔린 패키지 (pip 외에는 없어야 한다)
         run: python3 -m pip list
 
-      - name: split_data + 생성기 여섯 (설치 없이)
+      - name: split_data + 생성기 일곱 (설치 없이)
         run: |
           python3 tools/split_data.py
           python3 tools/make_sido_pages.py
@@ -96,6 +97,7 @@ jobs:
           python3 tools/make_weekly_page.py
           python3 tools/make_home_summary.py
           python3 tools/refresh_cycle_data.py
+          python3 tools/make_feed.py
 
       - name: 감시·발행 확인·결과 보고 진입점 불러오기 (설치 없이, 네트워크 없이)
         run: |
