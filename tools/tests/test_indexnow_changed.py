@@ -12,6 +12,8 @@
   - changed_mode 가 바뀐 것이 없을 때도 보내면(if not urls 분기를 지우면) → 보내지 않음 시험 빨강(가짜 전송기가 불린다)
   - submit 이 HTTPError 를 성공으로 치면 → 실패 줄 시험 빨강
   - 배치가 다시 --sitemap 으로 보내거나, bat 이 커밋 블록 밖에서 보내면 → 배선 시험 빨강
+  - 생성기 하나의 SITE 상수를 다른 도메인으로 바꾸면(CNAME 과 갈리면) → 도메인 일치 시험 빨강
+  - 바뀐 loc 이 전부 도메인 밖일 때 '✅ 보낼 주소 없음'으로 넘기면(foreign 분기를 지우면) → 도메인 밖 시험 빨강
 픽스처: 실제 sitemap 모양(여러 줄 <url> 블록과 lastmod 없이 한 줄로 적힌 /privacy/ 항목, 퍼센트 인코딩된 /zone/ 주소)을
 작게 줄인 것. changed_mode 는 임시 git 저장소에 두 커밋(이전 라이브·배치 커밋)을 만들어 실제 `git show HEAD~1:sitemap.xml`
 경로로 돈다. 네트워크는 가짜 전송기로 바꾼다.
@@ -176,3 +178,26 @@ def test_batches_send_only_changed_urls():
     i = lines.index(r'python tools\ping_indexnow.py --changed HEAD~1')
     assert lines.index('git push origin main') < i < lines.index(') else (', i), \
         'bat 은 커밋·푸시한 블록 안에서만 보낸다 — 커밋이 없으면 HEAD~1 은 남의 변경이다'
+
+
+def test_every_site_constant_and_sitemap_loc_is_the_cname_domain():
+    """sitemap 을 굽는 생성기들의 SITE 상수·피드·IndexNow(CNAME)·감시가 한 도메인이다. 갈리면 IndexNow 는 host 불일치로
+    전부 거절하고, 피드와 페이지가 다른 주소를 가리킨다(D1 검토)."""
+    import make_sido_pages, make_indicator_pages, make_monthly_page, make_weekly_page, make_quiz_share_pages
+    import check_freshness, make_feed
+    want = 'https://' + io.open(os.path.join(ROOT, 'CNAME'), encoding='utf-8').read().strip()
+    got = {m.__name__: m.SITE for m in (make_sido_pages, make_indicator_pages, make_monthly_page, make_weekly_page,
+                                        make_quiz_share_pages, check_freshness, make_feed)}
+    got['ping_indexnow'] = P.site()
+    assert all(v == want for v in got.values()), '도메인이 CNAME(%s)과 다르다: %s' % (want, got)
+    locs = [u for u, _ in P.sitemap_entries(io.open(os.path.join(ROOT, 'sitemap.xml'), encoding='utf-8').read())]
+    assert locs and all(u.startswith(want + '/') for u in locs), [u for u in locs if not u.startswith(want + '/')]
+
+
+def test_changed_locs_outside_the_domain_are_a_warning(repo):
+    other = OLD.replace(S, 'https://agongmap.example')   # 생성기 SITE 상수가 CNAME 과 갈린 채 두 회차가 돈 모양
+    _commit(repo, other)
+    _commit(repo, other.replace('2026-07-16', '2026-09-27'))
+    calls = []
+    ok, line, urls = P.changed_mode('HEAD~1', root=repo, opener=_opener(calls))
+    assert not ok and calls == [] and line.startswith('⚠️ IndexNow 실패') and '정식 도메인' in line, line
