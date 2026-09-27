@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import blog_feed as BF  # noqa: E402  (블로그 첫 화면 주소의 정본 — 푸터 링크, 홈 마케팅 검수 B5)
 
 # 입구(목적지) → to 값. 목적지가 같은 입구도 값이 달라야 한다(/weekly/ 격자·푸터).
 WANT = {
@@ -28,6 +29,9 @@ WANT = {
     ('/weekly/', '이번 주 시세 지도'): 'weekly_footer',
     # 첫 화면 '이번 주' 띠(홈 마케팅 검수 B1, 2026-09-27) — 정적 문구로 찾는다(데이터 문구는 부팅 뒤 스크립트가 채운다).
     ('/weekly/', '주간 아파트 시세'): 'weekly_hero',
+    # 푸터 '매주' 묶음의 블로그 링크(홈 마케팅 검수 B5·IA-9, 2026-09-27). 주간 구역의 해석 글 한 줄(blog_weekly)은 스크립트가
+    # 그린다 — test_home_summary 가 본다.
+    (BF.BLOG_HOME, '매주 해설 글'): 'blog_footer',
 }
 TO = re.compile(r"""onclick="track\('home_cta',\{to:'([^']*)'\}\)\"""")
 

@@ -55,6 +55,7 @@ jobs:
           if ! python3 tools/make_indicator_pages.py; then echo "::error::make_indicator_pages 실패"; exit 1; fi
           if ! python3 tools/make_monthly_page.py; then echo "::error::make_monthly_page 실패"; exit 1; fi
           if ! python3 tools/make_weekly_page.py; then echo "::error::make_weekly_page 실패"; exit 1; fi
+          if ! python3 tools/make_home_summary.py; then echo "::error::make_home_summary 실패"; exit 1; fi
           if ! python3 tools/refresh_cycle_data.py; then echo "::error::refresh_cycle_data 실패"; exit 1; fi
 
       - name: 검증 게이트 (배치와 같은 설치·같은 명령)
@@ -86,18 +87,19 @@ jobs:
       - name: 깔린 패키지 (pip 외에는 없어야 한다)
         run: python3 -m pip list
 
-      - name: split_data + 생성기 다섯 (설치 없이)
+      - name: split_data + 생성기 여섯 (설치 없이)
         run: |
           python3 tools/split_data.py
           python3 tools/make_sido_pages.py
           python3 tools/make_indicator_pages.py
           python3 tools/make_monthly_page.py
           python3 tools/make_weekly_page.py
+          python3 tools/make_home_summary.py
           python3 tools/refresh_cycle_data.py
 
       - name: 감시·발행 확인·결과 보고 진입점 불러오기 (설치 없이, 네트워크 없이)
         run: |
-          python3 -c "import sys; sys.path.insert(0, 'tools'); import update_adv_data, check_freshness, close_published_issues, format_batch_report"
+          python3 -c "import sys; sys.path.insert(0, 'tools'); import update_adv_data, check_freshness, close_published_issues, format_batch_report, blog_feed"
 
       - name: 바뀐 파일 (보여 주기만 한다 — 커밋하지 않는다)
         if: always()

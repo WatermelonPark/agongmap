@@ -351,6 +351,9 @@
 @media(max-width:560px){.ft-nav{max-width:340px;margin-left:auto;margin-right:auto}}
 .ft-nav a{color:inherit;text-decoration:none;white-space:nowrap;display:inline-block;padding:5px 2px;margin:-5px 0}   /* 누르는 면만 26px 로, 줄 간격은 그대로(2026-09-18 오딧 3번) */
 .ft-nav a:hover{text-decoration:underline}
+/* 푸터 링크 묶음(홈 마케팅 검수 B5·IA-9, 2026-09-27): 매주·매달·분기·읽을거리. 묶음마다 한 줄, 머리말만 먹색 굵게. */
+.ft-grp .fg{display:block}
+.ft-grp .fg b{color:var(--ink);font-weight:600;margin-right:3px}
 /* 홈에서 뺀 '통계 원자료' 카드의 신뢰 신호만 남긴 줄(2026-08-17). 링크가 아니라
    출처 표기라 ft-meta보다 한 톤 죽인다 — 클릭을 유도하는 자리가 아니다. */
 .ft-src{font-size:11.5px;color:var(--muted);margin-bottom:6px;letter-spacing:.01em}
@@ -884,11 +887,14 @@ table.adv thead th:first-child{text-align:center}
      2026-09-27 B2 뒤 다시 쟀다(부팅 전 예약 → 부팅 뒤 실제, playwright): 카드가 두 줄 고정형이 되어 모바일 칸이 141→56px로
      줄고 분포 한 줄·범례 '균형' 칸이 붙었다 — 320px 575 · 375px 632 · 430px 690 · 480px 757 · 560px 822 · 600px 이상 786.
      구간마다 대표 폭(320·375·430·560·데스크톱)에 맞췄다. 카드나 범례를 바꾸면 다시 잴 것. */
-  #map-wrap:empty{min-height:786px}
-  @media(max-width:560px){#map-wrap:empty{min-height:790px}}
-  @media(max-width:479px){#map-wrap:empty{min-height:690px}}
-  @media(max-width:399px){#map-wrap:empty{min-height:632px}}
-  @media(max-width:359px){#map-wrap:empty{min-height:575px}}
+  /* 예약은 :empty 가 아니라 '아직 안 그림'(renderSidoMap 이 data-done 을 단다)에 건다(홈 마케팅 검수 B3, 2026-09-27) — 부팅 전
+     #map-wrap 안에는 배치가 구운 홈 요약(.home-sum)이 있어 :empty 가 맞지 않는다. 요약은 예약된 자리 맨 위에 보이고, 지도가
+     그려지면 innerHTML 로 통째로 바뀐다. */
+  #map-wrap:not([data-done]){min-height:786px}
+  @media(max-width:560px){#map-wrap:not([data-done]){min-height:790px}}
+  @media(max-width:479px){#map-wrap:not([data-done]){min-height:690px}}
+  @media(max-width:399px){#map-wrap:not([data-done]){min-height:632px}}
+  @media(max-width:359px){#map-wrap:not([data-done]){min-height:575px}}
   .map-box{max-width:480px;margin:0 auto;position:relative}
   .map-box svg{display:block;width:100%;height:auto}
   .map-box path{stroke:var(--paper);stroke-width:1.2;transition:filter .12s}
@@ -923,6 +929,14 @@ table.adv thead th:first-child{text-align:center}
   @media(min-width:561px){.map-key .tk-n{max-width:16em}}
   /* 지도 행동 안내 — 범례 각주(11.5px 회색)에서 본문색 문장으로 올렸다(A6·HERO-5①). .home-sec p(16px·ink2)보다
      구체적이어야 해서 두 단계 선택자다. */
+  /* 홈 요약(B3·SEO-1·MOB-5): 부팅 전 #map-wrap 안에 배치가 구운 두 줄 — 지도가 그려지면 사라진다. 카드와 같은 먹색·크기 계열. */
+  .home-sum{text-align:left;max-width:480px;margin:0 auto;padding:4px 0 0}
+  .home-sum p{margin:0 0 8px;font-size:14px;line-height:1.5;color:var(--ink2);max-width:none}
+  .home-sum a{color:inherit;text-decoration:none}
+  .home-sum b{color:var(--ink);font-weight:600}
+  /* 주간 구역의 해석 글 한 줄(B5·RET-4). 링크는 새 창(블로그)이라 밑줄로 링크임을 드러낸다. */
+  .wk-blog{margin:16px auto 0;font-size:13.5px;line-height:1.5;color:var(--ink2)}
+  .wk-blog a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:0 0 10px;max-width:none}
   .gr-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
   .gr-lab{font-size:12.5px;color:var(--muted)}

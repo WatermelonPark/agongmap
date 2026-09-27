@@ -68,6 +68,12 @@ def fetch_posts():
     except Exception as e:
         print('RSS를 못 읽었다 — 아무것도 닫지 않는다: %s' % e)
         return None
+    return parse_posts(raw)
+
+
+def parse_posts(raw):
+    """RSS 본문 → [{date, cat, title, url}]. 네트워크 없이 시험하려고 fetch_posts 에서 뗐다
+    (사이트의 블로그 연결 칸 blog_feed 도 이 파서를 쓴다 — 홈 마케팅 검수 B5)."""
     out = []
     for item in re.findall(r'<item>(.*?)</item>', raw, re.S):
         def pick(tag, cdata=True):
