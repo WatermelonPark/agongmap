@@ -1272,6 +1272,27 @@ document.querySelectorAll('button[data-t]').forEach(function(b){
     } else { legacy(el); ok(); }
   };
 });
+// 이미지 복사: 그림 데이터(image/png)만 싣는다. text/html 을 같이 실으면 스마트에디터가
+// <img src="data:..."> 를 "허용되지 않는 형식의 이미지"로 빼 버린다(2026-09-27 사용자 실측).
+// 캔버스로 다시 그려 PNG 로 만든다(클립보드 이미지는 PNG 만 받는다). Blob 대신 Promise 를
+// 넘겨 clipboard.write 를 클릭 안에서 곧바로 부른다 — 비동기 뒤로 미루면 사용자 동작이 끊긴다.
+document.querySelectorAll('button.imgcopy').forEach(function(b){
+  b.onclick=function(){
+    var img=b.parentNode.parentNode.querySelector('img'), old=b.textContent;
+    var fail=function(){b.textContent='\\uBCF5\\uC0AC \\uC2E4\\uD328';};
+    if(!(navigator.clipboard&&window.ClipboardItem)){fail();return;}
+    var png=new Promise(function(res,rej){
+      var c=document.createElement('canvas');
+      c.width=img.naturalWidth; c.height=img.naturalHeight;
+      c.getContext('2d').drawImage(img,0,0);
+      c.toBlob(function(x){if(x)res(x);else rej();},'image/png');
+    });
+    navigator.clipboard.write([new ClipboardItem({'image/png':png})]).then(function(){
+      b.textContent='\\uBCF5\\uC0AC\\uB428'; b.classList.add('done');
+      setTimeout(function(){b.textContent=old;b.classList.remove('done');},1500);
+    },fail);
+  };
+});
 """
 
 
@@ -1685,9 +1706,13 @@ def img_gallery(items):
         mime = IMG_MIME.get(os.path.splitext(path)[1].lower(), 'image/png')
         with io.open(path, 'rb') as f:
             data = base64.b64encode(f.read()).decode('ascii')
+        # 브라우저의 오른쪽 클릭 '이미지 복사'·끌어 놓기는 <img src="data:…"> HTML 을 같이
+        # 실어 보내고, 스마트에디터는 그것을 "허용되지 않는 형식의 이미지"로 뺀다(2026-09-27
+        # 사용자 실측). 그래서 그림 데이터(image/png)만 싣는 버튼을 단다(JS 의 button.imgcopy).
         cards.append('<figure class="shot"><img src="data:%s;base64,%s" alt="%s">'
-                     '<figcaption><b>[%s]</b> · <code>%s</code> · 끌어서 에디터에 놓거나 '
-                     '오른쪽 클릭으로 저장</figcaption></figure>'
+                     '<figcaption><button class="imgcopy">이미지 복사</button> '
+                     '<b>[%s]</b> · 복사 후 에디터에 붙여넣기. 안 되면 drafts 폴더의 '
+                     '<code>%s</code> 파일을 끌어 놓으세요</figcaption></figure>'
                      % (mime, data, esc(label), esc(label), esc(os.path.basename(path))))
     if not cards:
         return ''
