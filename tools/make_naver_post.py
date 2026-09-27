@@ -28,6 +28,7 @@ import make_sido_pages as M  # noqa: E402  (load 재사용)
 import sido_zones as SZ      # noqa: E402  (zone_order·GRADE_LABS·상수)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import make_weekly_page as MW  # noqa: E402  (주간 변동률 반올림 정본 pv2 — 사이트 pv2 와 같다)
+import weekly_moves as WM  # noqa: E402  (방향 표지·시군구 순위 이동 정본 — 홈 마케팅 검수 B7)
 import close_published_issues as CP  # noqa: E402  (RSS·카테고리 이름의 정본)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -334,15 +335,53 @@ def _tile_counts():
     타일은 `SGG_QNAME`에 이름이 있는 코드만 그려진다(index.html의 그리기 조건이
     `SGG_QNAME[c] && …`). 그래서 그 목록이 곧 타일 수다.
     """
+    q = _sgg_names()
+    seoul = sum(1 for n in q.values() if n.startswith('서울 '))
+    return len(q) - seoul, seoul
+
+
+def _sgg_names():
+    """홈 시군구 이름표(SGG_QNAME) — 지도 타일·TOP 10·/weekly/ 시군구 표가 같은 표를 쓴다."""
     import json
     import re
     h = HS.home_source()
     m = re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S)
     if not m:
         raise RuntimeError('index.html에서 SGG_QNAME을 찾지 못했다 — 타일 수를 못 맞춘다')
-    q = json.loads(m.group(1))
-    seoul = sum(1 for n in q.values() if n.startswith('서울 '))
-    return len(q) - seoul, seoul
+    return json.loads(m.group(1))
+
+
+def weekly_moves_sentences(W):
+    """'지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5) — 홈 주간 격자·/weekly/ 타일과 **같은 함수**(weekly_moves)의 결과를
+    문장으로 옮긴다. 재료만 깔고 해석은 사람이 쓴다. (방향 문단, 순위 이동 문장) — 없으면 빈 문자열.
+
+    순위 이동은 이 초안에 붙이는 상승 TOP 10 이미지(홈 통계 탭 표 캡처, home-app.js sggRanks)와 같은 규칙이다 —
+    일치는 test_weekly_moves 가 node 로 본다.
+    """
+    # 이번 주에 새로 생긴 변화만 쓴다(weekly_moves.news). 오래된 연속을 매주 다시 쓰면 숫자만 1씩 느는 같은 문장이
+    # 회차마다 나간다(CLAUDE.md '회차 간 반복 금지') — 긴 연속은 이정표(8·13·26·52주 …)에 닿은 주에만 쓴다.
+    nw = WM.news(WM.moves(W) or {})
+    lab = {WM.UP: '상승', WM.DN: '하락'}
+    parts = []
+    if nw['turned']:
+        parts.append('지난주와 방향이 바뀐 곳은 %s입니다.'
+                     % ' · '.join('<b>%s</b>(%s)' % (z, WM.TXT_TURN[k]) for z, k in nw['turned']))
+    if nw['entered']:
+        parts.append('새로 %d주 연속 흐름에 들어선 곳은 %s입니다.'
+                     % (WM.STREAK_MIN, ' · '.join('%s(%s)' % (z, lab[k]) for z, k in nw['entered'])))
+    if nw['milestone']:
+        parts.append('이번 주로 %s을 채웠습니다.'
+                     % ' · '.join('%s%s %s' % (z, eunneun(z), WM.TXT_STREAK[k] % n) for z, k, n in nw['milestone']))
+    para = ('<p>%s</p>' % ' '.join(parts)) if parts else ''
+    rank = ''
+    S = W.get('sgg') or {}
+    if len(S.get('rows') or []) > 1:
+        q = _sgg_names()
+        top = [(q[c], d) for c, _, r, d in WM.rank_moves(S, q)[:10] if d is not None and d > 0]
+        if top:
+            name, d = max(top, key=lambda x: x[1])   # 같은 폭이면 순위가 앞선 곳
+            rank = ('<p>상승 TOP 10 가운데 지난주보다 순위가 가장 많이 뛴 곳은 <b>%s</b>(▲%d위)입니다.</p>' % (name, d))
+    return para, rank
 
 
 SGG_N, SEOUL_N = _tile_counts()
@@ -559,7 +598,6 @@ def draft_weekly(adv, sts):
                     key=lambda x: -(x[1] if x[1] is not None else -9))[:3]
         gu = [t for t in gu if t[1] is not None and MW.pv2r(t[1]) > 0]
 
-    ymd = p.split('-')
     # 검색어를 맨 앞에 둔다. 2026-08-14 네이버 검색 실측에서 이 자리를 차지한
     # 블로그 글이 '한국부동산원 주간동향｜8월 1주 전국 아파트 시세 분석' 형태였고,
     # 웹문서 1위도 부동산원 공식 '주간아파트가격동향'이다. 출처명이 검색어로
@@ -579,9 +617,10 @@ def draft_weekly(adv, sts):
     # 자동완성 실측에서 '주간시장동향'은 제안어가 0개인 반면 '주간아파트'를 치면
     # 첫 제안이 '주간아파트가격동향'이었다(검색량 절대값은 우리 키로 못 잰다 —
     # 데이터랩·검색광고 API 모두 인증 불가). 사람이 실제로 치는 말로 라벨을 맞춘다.
-    ORD = ('첫째', '둘째', '셋째', '넷째', '다섯째')
-    title = '[한국부동산원] 주간 아파트가격 동향(%d월 %s 주) | 서울 %s 전국 %s' % (
-        int(ymd[1]), ORD[min((int(ymd[2]) - 1) // 7, 4)], pct(seoul[0]), pct(nat[0]))
+    # 주차 서수는 weekly_release.week_label 하나에서 만든다 — /weekly/ title·머리줄과 같은 이름(홈 마케팅 검수 B4·SEO-4).
+    # 라벨 말도 /weekly/ title 과 같은 상수(MW.TITLE_KW)다.
+    title = '[한국부동산원] %s(%s) | 서울 %s 전국 %s' % (
+        MW.TITLE_KW, MW.WR.week_label(p), pct(seoul[0]), pct(nat[0]))
 
     rowsHtml = ''
     for k in ['전국', '수도권', '서울', '경기', '인천', '부산', '대구', '대전', '전남광주', '울산']:
@@ -621,6 +660,10 @@ def draft_weekly(adv, sts):
     if gu:
         body.append('<p>서울 안에서는 %s 순으로 올랐습니다.</p>' %
                     ' · '.join('<b>%s %s</b>' % (k, pct(v)) for k, v in gu))
+    # 지난주와 무엇이 달라졌나(B7) — 사이트 격자·/weekly/ 타일과 같은 표지(weekly_moves)
+    moves_p, rank_p = weekly_moves_sentences(W)
+    if moves_p:
+        body.append(moves_p)
     # 시도 타일 지도(share/weekly-map.png)를 넣던 자리다. 뺐다 — 그 값들은 바로
     # 위 표에 그대로 있어 중복이고, 시군구 지도가 훨씬 값어치 있다(2026-08-30
     # 사용자). 시도 지도는 /weekly/ og:image로는 계속 쓴다.
@@ -630,6 +673,8 @@ def draft_weekly(adv, sts):
     body.append('<p>가장 많이 오르고 내린 곳을 순위로 보면 이렇습니다. '
                 '맨 오른쪽은 <b>지난주 순위에서 몇 계단 움직였는지</b>입니다.</p>')
     body.append('<p>[여기에 상승·하락 TOP10 이미지를 넣어 주세요]</p>')
+    if rank_p:
+        body.append(rank_p)
     body.append('<p>시군구로 내려가 보면 같은 권역 안에서도 갈립니다.</p>')
     # 지도는 한 장으로 간다(2026-09-07 사용자: 둘로 잘리니 보기 안 좋다). 원래
     # 모바일 가독성 때문에 둘로 나눴던 것인데(3ea4781), 잘린 자리가 더 거슬린다.
@@ -792,16 +837,8 @@ TITLE_ARM_FROM = 5
 # '2026 부동산 전망' 10,428건 대 '2027 부동산 전망' 459건이었고 2027 글이 매일 새로 올라오고 있었다 —
 # 내년 전망 수요는 가을부터 커지는데 경쟁은 아직 적다. 지역 편이 말하는 '앞으로 3년'의 한가운데이기도 하다.
 # 사이트 시도 리포트 제목(요청서 B4)도 같은 규칙을 쓴다.
-OUTLOOK_NEXT_FROM_MONTH = 10
-
-
-def outlook_year(p):
-    """주간 조사일 'YYYY-MM-DD' → 제목에 쓸 전망 연도 문자열. 읽을 수 없으면 ''."""
-    try:
-        y, m = int(p[:4]), int(p[5:7])
-    except (TypeError, ValueError):
-        return ''
-    return str(y + 1 if m >= OUTLOOK_NEXT_FROM_MONTH else y)
+OUTLOOK_NEXT_FROM_MONTH = SZ.OUTLOOK_NEXT_FROM_MONTH   # 규칙·상수의 정본은 sido_zones — 사이트 시도 리포트 제목과 한 함수
+outlook_year = SZ.outlook_year                         # 주간 조사일 'YYYY-MM-DD' → 전망하는 해('2026'), 못 읽으면 ''
 # 검색창에 사람들이 치는 표기(키워드도구 기준). 없는 지역은 그대로 쓴다.
 SEARCH_NAME = {'세종': '세종시'}
 

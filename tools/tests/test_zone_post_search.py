@@ -74,7 +74,8 @@ def test_tags_are_the_zone_search_terms(monkeypatch):
 
 
 def test_title_year_is_the_outlook_year():
-    """10월부터는 다음 해를 쓴다(2026-09-27 대표 결정). 변이: OUTLOOK_NEXT_FROM_MONTH 를 13 으로 두면 빨개진다."""
+    """10월부터는 다음 해를 쓴다(2026-09-27 대표 결정). 변이: sido_zones.OUTLOOK_NEXT_FROM_MONTH(정본 — 블로그는 그 이름을 가져다
+    쓴다)를 13 으로 두면 빨개진다."""
     assert P.outlook_year('2026-09-21') == '2026'
     assert P.outlook_year('2026-10-05') == '2027'
     assert P.outlook_year('2026-12-28') == '2027'

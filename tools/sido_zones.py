@@ -155,6 +155,30 @@ def qkey(i):
     return '%dQ%d' % (y, q)
 
 
+# 제목 연도는 '전망하는 해'다(2026-09-27 대표 결정). 10월부터는 다음 해를 쓴다 — 내년 전망 검색 수요는 가을부터 커진다
+# (09-27 블로그 검색 실측 '2026 부동산 전망' 10,428건 대 '2027' 459건). 근거·실험은 make_naver_post 지역 편 제목 주석.
+OUTLOOK_NEXT_FROM_MONTH = 10
+
+
+def outlook_year(p):
+    """주간 조사일 'YYYY-MM-DD' → 제목에 쓸 '전망하는 해' 문자열('2026'). 읽을 수 없으면 ''(제목에서 연도를 뺀다).
+
+    사이트 시도 리포트 제목(make_sido_pages.page_title)과 블로그 지역 편 제목(make_naver_post.draft_zone)이 **이 함수
+    하나**로 연도를 쓴다(요청서 B4, 2026-09-27 대표 결정). 날짜는 두 곳 모두 ADV.weekly 최신 행의 조사일이다.
+    """
+    try:
+        y, m = int(p[:4]), int(p[5:7])
+    except (TypeError, ValueError):
+        return ''
+    return str(y + 1 if m >= OUTLOOK_NEXT_FROM_MONTH else y)
+
+
+def latest_survey(adv):
+    """ADV.weekly 최신 행의 조사일('YYYY-MM-DD'), 없으면 '' — outlook_year 의 입력(사이트·블로그 같은 원천)."""
+    rows = ((adv or {}).get('weekly') or {}).get('rows') or []
+    return (rows[-1] or {}).get('p', '') if rows else ''
+
+
 def qlabel(i, per='q'):
     """기간 표기 — 월 '17.1' / 분기 '17Q4' / 연 '2017' (2026-08-06 확정)."""
     y, q = qparts(i)

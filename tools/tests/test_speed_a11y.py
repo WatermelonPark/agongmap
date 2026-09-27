@@ -199,8 +199,9 @@ def test_skip_link_has_its_hiding_rule():
 
 
 def _site_file(url):
-    """사이트 주소 → 저장소 파일('/' 는 index.html, '/x/' 는 x/index.html)."""
-    rel = url.lstrip('/')
+    """사이트 주소 → 저장소 파일('/' 는 index.html, '/x/' 는 x/index.html). 쿼리('?v=판', B11 분할 파일)는 뗀다 —
+    GitHub Pages 는 쿼리와 무관하게 같은 파일을 준다."""
+    rel = url.split('?')[0].lstrip('/')
     if not rel or rel.endswith('/'):
         rel += 'index.html'
     return os.path.join(ROOT, *rel.split('/'))
