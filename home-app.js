@@ -9,7 +9,8 @@
    응답이 캐시에 들어가 두 번째에는 맞는다. 같은 HTML 판으로는 두 번 새로고침하지 않고(sessionStorage), 저장소를
    못 쓰면 아예 새로고침하지 않는다(무한 반복 방지). 판 표식이 없는 HTML(표식 이전 판)은 비교하지 않는다.
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
-   판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기도 같이(test_home_build). */
+   판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
+   판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
 const HOME_BUILD='v164';
 let BUILD_RELOAD=false;
 (function(){
@@ -18,7 +19,12 @@ let BUILD_RELOAD=false;
     let seen=sessionStorage.getItem(k)||'';
     if(seen.slice(-1)==='!'){   // 방금 판이 달라 새로고침했다
       seen=seen.slice(0,-1); sessionStorage.setItem(k,seen);
-      track('build_reload',{build_html:html,build_js:HOME_BUILD,fixed:html===HOME_BUILD});
+      /* 분할 파일 판이 달라 새로고침했으면 'quiz:v165' 식(B11). 그때는 fixed 를 싣지 않는다 — 분할 파일은 그 화면을 다시
+         열어야 받으므로 새로고침 직후엔 맞았는지 모른다(HTML·본문 판만 보고 true 라 적으면 틀린 기록이 된다). */
+      const part=sessionStorage.getItem('agongmap-build-part')||'';
+      sessionStorage.removeItem('agongmap-build-part');
+      track('build_reload',part?{build_html:html,build_js:HOME_BUILD,part:part}
+                               :{build_html:html,build_js:HOME_BUILD,fixed:html===HOME_BUILD});
     }
     if(!html||html===HOME_BUILD||seen===html)return;
     sessionStorage.setItem(k,html+'!');
@@ -71,10 +77,13 @@ function needKakao(redo){ if(window.Kakao||KAKAO_FAIL)return false; loadKakao().
      목록과 분할 파일의 선언·홈이 부르는 이름이 어긋나지 않는지는 test_home_parts 가 본다.
    - 기다리는 동안: 통계는 #stats-loading 에 '불러오는 중', 퀴즈 시작은 문항 칸에 '불러오는 중'. 못 받으면 알리고
      다음 누름에서 다시 받는다(실패한 약속을 지운다).
-   - 판(HOME_BUILD)을 주소에 붙인다(?v=). HTML·이 파일과 같은 판의 분할 파일만 받게 하려는 것이다 — 브라우저 HTTP
-     캐시(GitHub Pages max-age=600)와 서비스워커 캐시가 주소째로 갈리므로 배포 직후에도 옛 판 분할 파일이 섞이지
-     않는다. sw.js 는 같은 주소('?v='+VERSION, VERSION = HOME_BUILD)를 사전 캐시한다(오프라인). 판이 같으면 파일도
-     같다는 전제는 '홈 스크립트를 바꾸는 배포는 VERSION 을 올린다'(CLAUDE.md)는 규칙 그대로다.
+   - 판 표식으로 양방향 보호한다. ① 주소에 판(HOME_BUILD)을 붙인다(?v=) — 브라우저 HTTP 캐시(GitHub Pages
+     max-age=600)와 서비스워커 캐시가 주소째로 갈려 **옛** 판 분할 파일이 새 홈에 섞이지 않는다. sw.js 는 같은
+     주소('?v='+VERSION)를 사전 캐시한다(오프라인). ② 분할 파일도 자기 판(HOME_QUIZ_BUILD·HOME_STATS_BUILD)을 싣고
+     받은 뒤 HOME_BUILD 와 견준다(partBuildOk) — GitHub Pages 는 쿼리를 무시하므로, 열어 둔 옛 판 탭이 배포 뒤에
+     퀴즈·통계를 열면 ?v=옛판 주소로 **새** 판 파일이 온다(새 서비스워커가 network-first 로 받고 옛 캐시는 activate 때
+     지운다 — 검토에서 재현). 다르면 맨 위 판 표식과 같은 길(한 번만 새로고침, 다음 부팅이 build_reload 로 잰다)로
+     새로고침한다. 네 판 값(sw VERSION·data-build·HOME_BUILD·분할 파일 둘)이 같은지는 test_home_build 가 본다.
    - 통계는 그래프 데이터(data-trend.json)도 함께 기다린다. 투자지표·버블밴드 입력(occupancy·permits·bubble·전세가율)은
      data-core 에서 빠져 그 파일들로만 온다(B11 data-core 다이어트, tools/split_data.py). */
 const PARTS={
@@ -88,9 +97,26 @@ let PART_WAIT=0;   // 받고 있는 분할 파일 수 — loadData 가 그 사�
 function loadPart(n){
   if(!PART_P[n]){
     PART_WAIT++;
-    PART_P[n]=loadScript(partURL(n)).then(()=>{ PART_WAIT--; },e=>{ PART_WAIT--; delete PART_P[n]; throw e; });
+    PART_P[n]=loadScript(partURL(n)).then(()=>{ PART_WAIT--;
+      if(!partBuildOk(n))return new Promise(()=>{});   // 새로고침하는 중 — 대기열을 풀지 않는다(옛 홈 위에서 새 판 코드를 돌리지 않게)
+    },e=>{ PART_WAIT--; delete PART_P[n]; throw e; });
   }
   return PART_P[n];
+}
+/* 받은 분할 파일의 판이 이 홈 스크립트 판과 같은가(위 PARTS 주석 ②). 다르면 맨 위 판 표식과 같은 저장 키로 **한 번만**
+   새로고침한다 — 이 HTML 판으로 이미 한 번 새로고침했거나 저장소를 못 쓰면 새로고침하지 않고 그대로 쓴다(무한 반복 방지).
+   판 표식이 없는 분할 파일은 비교하지 않는다. */
+function partBuildOk(n){
+  const b=window['HOME_'+n.toUpperCase()+'_BUILD'];
+  if(!b||b===HOME_BUILD)return true;
+  try{
+    const html=document.documentElement.getAttribute('data-build')||'', k='agongmap-build';
+    if((sessionStorage.getItem(k)||'')===html)return true;
+    sessionStorage.setItem(k,html+'!');
+    sessionStorage.setItem('agongmap-build-part',n+':'+b);
+    location.reload();
+    return false;
+  }catch(e){return true;}
 }
 function partReady(n){ return n==='stats'?Promise.all([loadPart(n),loadFullData()]):loadPart(n); }
 function partBusy(n,fn,state){
