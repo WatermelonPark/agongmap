@@ -630,6 +630,18 @@ def next_links(z, weekly, stats):
             % (esc(z), ''.join(cards)))
 
 
+def page_title(z, calc, lab):
+    """시도 리포트 제목 — '2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족'(홈 마케팅 검수 B4·SEO-7, 2026-09-27).
+
+    예전 '서울 아파트 공급 분석 — 매우 부족'은 팀이 확인한 검색 형태(연도 + 지역 + 아파트 공급물량 + 전망, 08-14 네이버
+    실측 — 블로그 지역 편 제목도 이 형태다)를 따르지 않았다. '전망'은 공급 물량의 전망이라 가격 예측이 아니다.
+    연도는 기준 분기(calc['L'])에서, '3년'은 판정 창(H)에서, 등급 말은 GRADE_TXT(= 배지)에서 읽는다 — 손으로 적지 않는다.
+    head() 가 이 값을 <title>·og:title·JSON-LD headline 에 그대로 쓴다(세 곳이 한 값). '보다' 대신 '대비'인 이유:
+    '균형'·'공급 여유' 등급에서도 문장이 된다.
+    """
+    return '%s년 %s 아파트 공급물량 전망, %s 필요량 대비 %s' % (calc['L'][:4], z, '%g년' % (calc['H'] / 4.0), lab)
+
+
 def build_page(z, calc, stats, pq, others, weekly=None):
     row = [x for x in calc['zones'] if x['z'] == z][0]
     lab, color = GRADE_TXT[row['grade']]
@@ -651,7 +663,7 @@ def build_page(z, calc, stats, pq, others, weekly=None):
             '분기 적정물량 %s호. %s 기준, 국토교통부 준공·착공 실적으로 분기마다 갱신.'
             % (z, row.get('ctxt') or signed(d_tot), lab, yrs, num(d_fut), num(d_ref),
                calc.get('Ltxt') or calc['L']))
-    title = '%s 아파트 공급 분석 — %s' % (z, lab)
+    title = page_title(z, calc, lab)
 
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'

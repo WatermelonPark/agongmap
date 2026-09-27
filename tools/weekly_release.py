@@ -96,3 +96,17 @@ def when_text(st):
     if st['stale']:
         return '최근 반영: %s 발표 · %s' % (md(st['pub']), WAIT)
     return '%s 조사 · %s 발표 · %s' % (md(st['survey']), md(st['pub']), next_text(st))
+
+
+# 주차 서수(홈 마케팅 검수 B4·SEO-4, 2026-09-27). 블로그 주간 글 제목 '주간 아파트가격 동향(9월 셋째 주)'과 /weekly/ 의
+# title·머리줄이 **이 함수 하나**를 쓴다 — 블로그가 링크로 보내는 사이트 페이지가 같은 주를 다른 이름으로 부르지 않게.
+# 규칙은 2026-09-12 블로그 제목 형식 그대로: 조사기준일(월)의 달, 그 날짜의 (일−1)//7 번째 주. 달력 주(1일이 든 주를
+# 첫째 주로 세는 방식)와는 1일이 화~일요일인 달에 하루 이상 어긋날 수 있다 — 바꾸려면 여기 한 곳만 고치면 둘이 같이 바뀐다.
+ORDINALS = ('첫째', '둘째', '셋째', '넷째', '다섯째')
+
+
+def week_label(p, year=False):
+    """조사기준일 p('YYYY-MM-DD') → '9월 셋째 주'(year=True 면 '2026년 9월 셋째 주')."""
+    d = _d(p)
+    s = '%d월 %s 주' % (d.month, ORDINALS[min((d.day - 1) // 7, len(ORDINALS) - 1)])
+    return ('%d년 %s' % (d.year, s)) if year else s
