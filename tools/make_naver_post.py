@@ -142,14 +142,17 @@ ZONE_CAT = CP.KIND_TO_CATEGORY['지역 공급']   # 손으로 복제하면 한�
 
 
 def _zone_of_title(title, names):
-    """제목이 어느 지역 편인지. '<지역>(시|도)? 아파트' 가 **가장 앞에** 나오는 지역을 고른다.
+    """제목이 어느 지역 편인지. '<지역>(시|도)? 아파트|부동산' 이 **가장 앞에** 나오는 지역을 고른다.
 
     같은 길이 이름을 set 순회 순서로 맞추면 '부산 … 서울 아파트' 같은 제목이 실행마다 다른 지역으로
     세어졌고(PYTHONHASHSEED 에 좌우), '세종시 아파트' 처럼 접미사가 붙으면 못 셌다(리뷰 09-18 19번).
+    '부동산'도 받는다: 제목 교대 실험 B안('2026 세종시 부동산 전망, …', 2026-09-27)은 '아파트'가
+    앞머리에 없어서, 받지 않으면 발행한 세종 편을 못 세고 다음 회차에 세종을 또 고른다.
     """
     best = None
     for nm in names:
-        m = re.search(r'(?<![가-힣])%s(?:시|도|특별자치시|특별자치도)? 아파트' % re.escape(nm), title or '')
+        m = re.search(r'(?<![가-힣])%s(?:시|도|특별자치시|특별자치도)? (?:아파트|부동산)' % re.escape(nm),
+                      title or '')
         if m and (best is None or m.start() < best[0]):
             best = (m.start(), nm)
     return best[1] if best else None

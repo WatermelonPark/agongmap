@@ -275,30 +275,91 @@ def rank_on(keyword, display=30):
     return None, None
 
 
-def track_keywords():
-    """발행된 지역 편에서 타겟 키워드를 뽑는다 — "2026년 부산 아파트 공급물량".
+def track_keywords(posts=None):
+    """발행된 지역 편에서 추적할 블로그 검색어를 뽑는다.
 
-    2026-08-14 실측에서 확인한 형태다(상위 1위가 "2026년 부산 아파트 공급물량과
-    향후 부동산 시장 전망은"). 제목이 "…전망, <결론절>" 구조라 '전망' 앞까지가
-    곧 타겟 키워드다.
+    ① 제목의 '전망' 앞부분("2026년 부산 아파트 공급물량") — 09-02부터 재 온 것이라 추이를 잇는다.
+    ② 2026-09-27 조회수 조사(SRCH-7)로 더한 두 말. ①은 월 검색량이 집계 하한에도 못 미쳐서
+       순위가 올라도 사람이 안 온다.
+       - '{지역} 적정 공급량' — 우리 고유어. 경쟁 글이 적어 먼저 잡힐 후보다(첫 검색 유입이 이 말).
+       - '{검색 표기} 부동산 전망' — 수요가 있는 말(대구부동산전망 1,180/월). 제목 교대 실험 B안의 앞머리.
+    지역은 make_naver_post._zone_of_title 로 가린다(제목 교대 실험의 두 형태를 다 받는다).
     """
-    try:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import close_published_issues as CP
-        posts = CP.fetch_posts()
-    except Exception as e:
-        print('발행 목록을 못 읽었다: %s' % e)
-        return []
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    if posts is None:
+        try:
+            import close_published_issues as CP
+            posts = CP.fetch_posts()
+        except Exception as e:
+            print('발행 목록을 못 읽었다: %s' % e)
+            return []
     if not posts:
         return []
+    import make_naver_post as P
+    import sido_zones as SZ
+    names = [z for z in SZ.ORDER if z not in SZ.AGG]
     out = []
     for p in sorted(posts, key=lambda x: x['date']):
         if p['cat'] != '지역별 아파트 공급':
             continue
-        kw = p['title'].split('전망')[0].strip(' ,')
-        if kw and kw not in out:
-            out.append(kw)
+        kws = [p['title'].split('전망')[0].strip(' ,')]
+        nm = P._zone_of_title(p['title'], names)
+        if nm:
+            kws += ['%s 적정 공급량' % nm, '%s 부동산 전망' % P.SEARCH_NAME.get(nm, nm)]
+        for kw in kws:
+            if kw and kw not in out:
+                out.append(kw)
     return out
+
+
+# 전국 질의 — 사이트(웹문서)가 이미 잡히는 자리와 블로그가 노릴 자리를 같이 잰다(2026-09-27 SRCH-7).
+# 09-27 실측에서 웹문서 '시도별 아파트 공급' 1위·'시도별 전세가율' 2위였다.
+NATIONAL = ['시도별 아파트 공급', '아파트 공급 부족 지역 순위', '2027년 입주물량 부족', '시도별 전세가율']
+
+
+def _norm(s):
+    return ''.join(ch for ch in (s or '') if ch.isalnum())
+
+
+def site_title(link):
+    """우리 사이트 주소 → 저장소에 있는 그 페이지의 지금 <title>. 모르면 None."""
+    import re
+    path = urllib.parse.unquote(urllib.parse.urlsplit(link).path).strip('/')
+    f = os.path.join(ROOT, *(path.split('/') if path else []), 'index.html')
+    if not os.path.exists(f):
+        return None
+    m = re.search(r'<title>(.*?)</title>', io.open(f, encoding='utf-8').read(), re.S)
+    return m.group(1).strip() if m else None
+
+
+def stale_copy(api_title, current):
+    """네이버가 보여 주는 제목이 지금 페이지 제목과 다르면 True — 네이버 사본이 옛것이다.
+
+    API 제목은 길면 '...'로 잘리고 <b> 가 섞여 온다. 글자·숫자만 남겨 앞 15자를 견준다.
+    09-27 실측: 시도 리포트 사본이 6주 넘게 옛 제목·옛 라벨('다소 부족', '생활권 44곳')을 보였다.
+    """
+    if not api_title or not current:
+        return None
+    a, c = _norm(_clean(api_title)), _norm(current)
+    n = min(15, len(a), len(c))
+    return a[:n] != c[:n]
+
+
+def rank_web(keyword, display=30):
+    """정확도순 웹문서 결과에서 우리 사이트가 몇 번째인지와, 그 사본이 옛것인지."""
+    try:
+        d = _get('webkr', keyword, display=display, sort='sim')
+    except SystemExit:
+        raise
+    except Exception as e:
+        return None, str(e)
+    for i, it in enumerate(d.get('items') or [], 1):
+        link = it.get('link', '')
+        if OURS[0] in link:
+            cur = site_title(link)
+            return dict(n=i, title=_clean(it.get('title', '')), link=link,
+                        stale=stale_copy(it.get('title', ''), cur)), None
+    return None, None
 
 
 def main(argv):
@@ -306,7 +367,7 @@ def main(argv):
         # 링크를 줄인 게 순위에 해가 됐는지는 회차마다 같은 키워드를 재야 답이
         # 나온다. 자기 제목 검색(--index)은 색인만 알려주지 경쟁 키워드에서
         # 밀렸는지는 말해주지 않는다(2026-09-01 사용자 우려).
-        kws = [a for a in argv if not a.startswith('--')] or track_keywords()
+        kws = [a for a in argv if not a.startswith('--')] or (track_keywords() + NATIONAL)
         if not kws:
             raise SystemExit('추적할 키워드가 없다 — 발행된 지역 편이 아직 없거나 '
                              'RSS를 못 읽었다.')
@@ -340,6 +401,26 @@ def main(argv):
             hist_append(dict(mode='rank', key=kw,
                              n=(hit['n'] if hit else None),
                              link=(hit['link'] if hit else None)))
+        if not [a for a in argv if not a.startswith('--')]:
+            # 인자로 키워드를 주지 않은 기본 추적에서만 전국 질의를 웹문서로도 잰다.
+            print('\n전국 질의 %d개 — 사이트(웹문서 상위 30)\n' % len(NATIONAL))
+            for kw in NATIONAL:
+                hit, err = rank_web(kw)
+                if err:
+                    failed += 1
+                    print('  ! %-28s — 조회 실패: %s' % (kw[:28], err))
+                    continue
+                prev = hist_last('rank_web', kw)
+                if hit:
+                    print('  %-30s  %2d번째  %s%s' % (kw[:30], hit['n'], hit['title'][:34],
+                                                    '  ⚠ 네이버 사본이 옛 제목' if hit['stale'] else ''))
+                else:
+                    print('  %-30s  상위 30 밖' % kw[:30])
+                if prev:
+                    print('      ↳ 직전 %s: %s' % (prev['d'], '%s번째' % prev['n'] if prev.get('n') else '30 밖'))
+                hist_append(dict(mode='rank_web', key=kw, n=(hit['n'] if hit else None),
+                                 link=(hit['link'] if hit else None),
+                                 stale=(hit['stale'] if hit else None)))
         print('\n※ API 순번은 통합검색 실제 순위가 아니다. 절대값이 아니라 '
               '회차 간 **변화**를 읽을 것.')
         print('※ %s 에 기록했다.' % os.path.relpath(HIST, ROOT))
