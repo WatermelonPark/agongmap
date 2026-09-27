@@ -149,7 +149,8 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
 }
 </style>
 </head>
-<body>
+<!-- home-app: 1024px 이상에서 하단 탭바를 상단 내비로 올리는 규칙(app.css, 홈 마케팅 검수 C7)의 범위 표지 — 홈에만 건다. -->
+<body class="home-app">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <div id="splash" aria-hidden="true">
@@ -209,6 +210,10 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
     <a class="hero-wk" id="hero-wk" href="/weekly/" onclick="track('home_cta',{to:'weekly_hero'})"><span class="hw-1" id="hw-1"><span class="hw-a">주간 아파트 시세</span><span class="hw-s"> · </span><span class="hw-b">요약 보기 →</span></span><span class="hw-2" id="hw-2"><span class="hw-a">배경 지도: 주간 시군구 매매 변동</span><span class="hw-s"> · </span><span class="hw-b">한국부동산원</span></span></a>
   </div></header>
 
+  <!-- 데스크톱 2단 뼈대(홈 마케팅 검수 C7·HERO-9, 2026-09-27). 1024px 이상에서만 왼쪽 = 공급 지도 구역, 오른쪽 = 이번 주
+       격자와 다음 발표일(주간 구역)로 나란히 놓는다. 1023px 이하는 이 상자가 없는 것과 같다(블록 하나 — 두 구역이 예전처럼
+       위아래로 쌓인다). 규칙은 app.css '.home-duo'. -->
+  <div class="home-duo">
   <!-- 제목 텍스트는 히어로가 대신한다(2026-08-08 사용자: "텍스트 합치고 심플하게").
        보이는 h2 없이도 이름은 남긴다 — 스크린리더·#score 목적지. -->
   <section class="home-sec vm-map" id="sec-score" aria-label="전국 공급 지도"><div class="wrap">
@@ -284,6 +289,7 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
          '전체 TOP 10 · 시군구 지도 보기'와 같은 곳으로 간다. -->
     <div class="hs-cta"><a class="home-cta" href="#stats-market" onclick="track('home_cta',{to:'weekly_map'})">시군구 시세 지도·TOP 10 보기</a></div>
   </div></section>
+  </div><!-- /.home-duo -->
 
   <section class="home-sec hs-alt"><div class="wrap">
     <div class="hs-kicker">10문항 · 5분</div>

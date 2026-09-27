@@ -883,12 +883,21 @@ table.adv thead th:first-child{text-align:center}
      빠진 만큼 상쇄돼 +5px 안팎이다. 430px 은 그 전에도 724px 로 675 예약과 어긋나 있어 함께 고쳤다.
      2026-09-27 B2 뒤 다시 쟀다(부팅 전 예약 → 부팅 뒤 실제, playwright): 카드가 두 줄 고정형이 되어 모바일 칸이 141→56px로
      줄고 분포 한 줄·범례 '균형' 칸이 붙었다 — 320px 575 · 375px 632 · 430px 690 · 480px 757 · 560px 822 · 600px 이상 786.
-     구간마다 대표 폭(320·375·430·560·데스크톱)에 맞췄다. 카드나 범례를 바꾸면 다시 잴 것. */
+     구간마다 대표 폭(320·375·430·560·데스크톱)에 맞췄다. 카드나 범례를 바꾸면 다시 잴 것.
+     2026-09-27 C3·C7 뒤 1px 간격으로 다시 쟀다(320~1440px, 운영 글꼴, 부팅 전 예약 ↔ 부팅 뒤 실제). 대표 폭에만 맞춘 고정값은
+     구간 안에서 −53~+41px 어긋났다(470px −53, 400px +41). 모바일 구간(528px 이하)은 지도 폭이 화면 폭 − 48px 로 늘어
+     높이가 폭에 비례하므로 폭을 따라가는 식으로 잡는다: 높이 = 고정분 + 134.5vw. 134.5 는 지도 도형의 세로/가로 비
+     (SIDO_GEO 565/420 = 1.345, test_home_desktop 이 좌표와 대조한다), 고정분은 카드·분포·안내·범례 줄과 −48×1.345 를 합친
+     실측값이다 — 카드 배지가 둘째 줄로 내려가는 374px·범례 뜻 줄이 한 줄이 되는 383px·카드 칸 글자가 줄을 바꾸는 329px 에서
+     바뀐다. 529~560px 은 지도가 480px 상한이라 821, 561px 이상은 범례가 지도 위에 겹쳐 786 이다 — 데스크톱 2단(1024px
+     이상, 왼쪽 단 576~812px)도 지도·카드가 같은 높이라 786 그대로다(C7). 모든 폭에서 어긋남 0~1px(반올림). 모드 전환 버튼은
+     지도/그래프/표 줄에 들어가 이 상자 밖이다. 주간 모드는 기본 모드가 아니어서 따로 잡지 않는다(누른 뒤에만 그린다). */
   #map-wrap:empty{min-height:786px}
-  @media(max-width:560px){#map-wrap:empty{min-height:790px}}
-  @media(max-width:479px){#map-wrap:empty{min-height:690px}}
-  @media(max-width:399px){#map-wrap:empty{min-height:632px}}
-  @media(max-width:359px){#map-wrap:empty{min-height:575px}}
+  @media(max-width:560px){#map-wrap:empty{min-height:821px}}
+  @media(max-width:528px){#map-wrap:empty{min-height:calc(111px + 134.5vw)}}
+  @media(max-width:382px){#map-wrap:empty{min-height:calc(127px + 134.5vw)}}
+  @media(max-width:374px){#map-wrap:empty{min-height:calc(144px + 134.5vw)}}
+  @media(max-width:329px){#map-wrap:empty{min-height:calc(162px + 134.5vw)}}
   .map-box{max-width:480px;margin:0 auto;position:relative}
   .map-box svg{display:block;width:100%;height:auto}
   .map-box path{stroke:var(--paper);stroke-width:1.2;transition:filter .12s}
@@ -1005,6 +1014,40 @@ table.adv thead th:first-child{text-align:center}
      1260 = 표 1198 + 테두리 2 + .wrap 좌우 패딩 48 + 여유 12.
      1240으로 잡았다가 패딩을 안 세어 20/21열에서 멈췄다(실측). */
   @media(min-width:1340px){ #sec-score>.wrap{max-width:1260px} }
+  /* ===== 데스크톱 배치(홈 마케팅 검수 C7·HERO-9, 2026-09-27) — 1024px 이상에서만 ======================================
+     히어로 아래를 2단으로: 왼쪽 = 공급 지도 구역(#sec-score), 오른쪽 = 이번 주 격자와 다음 발표일(주간 구역 — 머리줄이
+     '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)'). 예전엔 820px 단 하나라 1366px 에서 좌우가 비었고 주간 시세는 두 화면
+     아래였다. 표 보기는 1,198px 표라 두 단을 다 쓰고 주간 구역은
+     그 아래로 내려간다(1340px 이상 1260px 단 — 아래 표 규칙과 같은 폭). 1023px 이하는 이 블록이 전부 꺼져 예전과 같다.
+     폭: 1260 = 표 1198 + 여유(위 표 규칙과 같은 값), 오른쪽 단 360px 는 주간 격자 4열이 칸마다 85px 이상(시도 이름·
+     두 자리 변동률이 한 줄)이 되는 폭이다. */
+  @media(min-width:1024px){
+    .home-duo{display:grid;grid-template-columns:minmax(0,1fr) 360px;column-gap:40px;align-items:start;
+      max-width:1260px;margin:0 auto;padding:0 24px}
+    .home-duo>.home-sec>.wrap{max-width:none;padding:0}
+    .home-duo>.home-sec{padding-top:22px}
+    .home-duo>#sec-score~.home-sec{grid-column:2;grid-row:1}
+    .home-duo>#sec-score{grid-column:1;grid-row:1}
+    .home-duo>#sec-score.vm-table{grid-column:1/-1}
+    .home-duo>#sec-score.vm-table~.home-sec{grid-column:1/-1;grid-row:2}
+    /* 주간 구역이 첫 화면에 올라왔으므로 부팅 때 채워지는 두 곳의 높이를 미리 잡는다(CLS). 격자는 스크립트가 그리는데
+       빈 상자면 아래 버튼이 490px 밀렸다(실측 CLS 0.014 — 1024·1280·1440px 모두 360px 단이라 높이가 같다). h2 는 정적
+       질문 → 이번 주 결론(ADV.weekly.head)으로 바뀌는데 결론 길이에 따라 1~2줄이라 두 줄을 잡는다(27px·줄 높이 1.75). */
+    .home-duo #home-weekly-grid:empty{min-height:490px}
+    .home-duo #wk-h2{min-height:3.5em}
+  }
+  /* 하단 탭바 → 상단 내비(C7, 1024px 이상·홈만 — body.home-app). 탭바 마크업은 하나다: 같은 <nav class="bottomnav"> 를
+     자리만 위로 옮기므로 라벨·순서·주소가 정본(tools/site_nav.py TABS)과 저절로 같다(test_site_nav·test_home_desktop).
+     아이콘과 글자를 한 줄로 눕히고 높이를 줄인다. 본문은 내비 높이만큼 위를 비우고(처음부터 CSS 라 밀림 없음), 해시
+     이동(#score 등 scrollIntoView)이 내비 밑으로 숨지 않게 scroll-padding 을 준다. */
+  @media(min-width:1024px){
+    body.home-app{padding-bottom:0;padding-top:52px}
+    html:has(body.home-app){scroll-padding-top:60px}
+    body.home-app .bottomnav{top:0;bottom:auto;height:52px;box-shadow:0 4px 18px rgba(19,30,36,.18)}
+    body.home-app .nav-btn{flex:0 1 150px;flex-direction:row;gap:8px;font-size:14px}
+    body.home-app .nav-btn svg{width:18px;height:18px}
+    body.home-app .skip{z-index:101}   /* 본문 건너뛰기 링크(top:8px)가 같은 z-index 의 내비 밑에 깔리지 않게 */
+  }
   .tb-scroll{overflow:auto;max-height:min(70vh,620px);border:1px solid var(--line);
     background:var(--paper)}
   #tb-main{border-collapse:separate;border-spacing:0;font-variant-numeric:tabular-nums}
