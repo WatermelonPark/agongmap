@@ -141,10 +141,21 @@ except Exception as _e:               # noqa: BLE001
 RECENT_WEEKS = _WM.WINDOW if _WM is not None else 1
 
 
+# 홈이 읽는 방향 표지 필드(weeklyMoves — 조사일 p 와 칸 표지 tags). weekly_moves.moves 의 나머지('방향이 바뀐 곳' 한 줄 line·
+# 전환 목록 turned·앞 회차 prev)는 /weekly/ 와 블로그 초안이 같은 함수를 직접 불러 쓰고, 홈 격자 머리의 그 줄은 뺐다
+# (2026-09-28 대표 결정 — 작은 글씨 정리). 홈 코어에는 읽는 것만 싣는다.
+HOME_MOVES = ('p', 'tags')
+
+
+def _home_moves(w):
+    mv = _WM and _WM.moves(w)
+    return {k: mv[k] for k in HOME_MOVES} if mv else None
+
+
 def _weekly_extra(w):
     """(moves, share) — 만들지 못한 것은 None."""
     out = []
-    for name, fn in (('방향 표지', lambda: _WM and _WM.moves(w)), ('공유 내용', lambda: _MW and _MW.share_payload(w))):
+    for name, fn in (('방향 표지', lambda: _home_moves(w)), ('공유 내용', lambda: _MW and _MW.share_payload(w))):
         try:
             out.append(fn() or None)
         except Exception as e:        # noqa: BLE001
@@ -179,7 +190,7 @@ def main():
         return a
 
     core_adv = strip_units(core_adv)
-    # 판정 화면 문구(카드 ctxt·cnum·cdir·cpct, ⓘ 식 ftxt, 분포 dist·여유 이름 dist_g0, 범례 ktxt)는 지금의 정본 함수로 다시 굽는다. data.js 의 ADV.sido 는
+    # 판정 화면 문구(카드 ctxt·cnum·cdir·cpct, ⓘ 식 ftxt)는 지금의 정본 함수로 다시 굽는다(홈에서 뺀 옛 필드는 걷어 낸다). data.js 의 ADV.sido 는
     # 다음 배치가 점수를 다시 쓸 때까지 옛 문구를 싣는다 — 문구 함수를 고친 날 홈이 옛말을 하지 않게(B2·C4).
     # 숫자(dtot·ratio·grade)는 건드리지 않는다. adv['sido'] 와 같은 객체라 trend 쪽에도 같이 실린다.
     if _SZ is not None and (core_adv.get('sido') or {}).get('zones'):
