@@ -471,6 +471,14 @@ jobs:
             exit 1
           fi
           rep "✅ 사이클 리포트"
+          # /feed.xml(RSS 2.0) — 주간 발표·시도 리포트 분기·월간 통계의 최신 판(홈 마케팅 검수 D1). 날짜는 데이터 시점에서만
+          # 나오므로 데이터가 같으면 diff 도 없다. 실패하면 커밋하지 않는다 — 다른 생성기와 같다(코드 회귀이고 게이트도 같은 것을 본다).
+          if ! python3 tools/make_feed.py; then
+            rep "❌ RSS 피드 실패 — 커밋 안 함"
+            echo "::error::make_feed 실패 — 커밋하지 않는다"
+            exit 1
+          fi
+          rep "✅ RSS 피드"
           # ── 검증 게이트 ────────────────────────────────────────────────
           # PC-less 체제에선 이 워크플로가 유일한 배포 경로다. 예전엔 여기에 검증이
           # 전혀 없어서, 한쪽 구현만 고친 커밋이 들어와도 옛 산식으로 존 페이지를
@@ -544,7 +552,7 @@ jobs:
               if [ -n "$LN" ]; then rep "$LN"; fi
             done <<< "$NOTES"
           fi
-          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp index.html tools/data/blog_latest.json"
+          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp index.html tools/data/blog_latest.json feed.xml"
           git add -A -- $TARGETS || { rep "❌ git add 실패 — TARGETS 경로 확인"; exit 1; }
           if git diff --cached --quiet; then
             rep "➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)"
@@ -573,12 +581,14 @@ jobs:
               # 색인 요청. PC 배치(run_weekly_update.bat)에만 있던 스텝이라
               # 클라우드 전환 뒤로는 어느 경로에서도 안 돌았다 — 그 사이 URL 집합이
               # 통째로 바뀌었는데(2026-08-06 생활권 31곳 → 시도 20곳) 제출이 없었다.
-              if python3 tools/ping_indexnow.py --sitemap; then
-                rep "✅ IndexNow 제출"
-              else
-                rep "⚠️ IndexNow 실패 — 색인 지연만 발생(데이터는 정상)"
-                echo "::warning::IndexNow 핑 실패(색인 지연만 발생)"
-              fi
+              # 이번 커밋(HEAD)과 그 부모(HEAD~1 = pull --rebase 뒤 라이브)의 sitemap lastmod 가 다른 주소만 보낸다(홈 마케팅
+              # 검수 D1). 도구가 결과 한 줄(응답 코드·보낸 개수)을 찍고 그 줄을 그대로 리포트에 싣는다. 실패해도 배포는 끝난 뒤다.
+              IXN=$(python3 tools/ping_indexnow.py --changed HEAD~1) || true
+              case "$IXN" in
+                "✅"*) rep "$IXN" ;;
+                *) rep "${IXN:-⚠️ IndexNow 실패 — 도구가 결과를 남기지 못함 · 색인 지연만 발생(데이터는 정상)}"
+                   echo "::warning::IndexNow 핑 실패(색인 지연만 발생)" ;;
+              esac
               break
             fi
             # rebase가 중간 상태로 남으면 다음 회차도 연쇄 실패한다 — 정리 후 재시도.

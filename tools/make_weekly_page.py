@@ -41,6 +41,7 @@ import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검�
 import blog_feed as BF  # noqa: E402  (최신 주간 해설 글 — 홈 주간 구역과 같은 pick, 홈 마케팅 검수 B5)
 import page_share as PS  # noqa: E402  (공유 버튼 — 홈 마케팅 검수 B8)
 import weekly_moves as WM  # noqa: E402  (방향 표지·시군구 순위 이동 정본 — 홈 마케팅 검수 B7)
+import robots_meta as RM  # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
@@ -650,6 +651,7 @@ def render(s, W, Q):
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
     s = put_share_image(s, W)   # og:image·twitter:image 에 그 주 발표일(A7)
     s = put_nav(s)              # 하단 탭바 정본·'시세' 탭 켜기(A5·C2)
+    s = RM.ensure(s)            # 검색 로봇 메타 max-image-preview:large(D2) — 뼈대에 없으면 viewport 뒤에 넣는다
     return s
 
 
