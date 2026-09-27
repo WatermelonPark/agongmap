@@ -195,7 +195,8 @@ def test_summary_lives_in_the_map_slot_and_the_map_replaces_it():
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
     code = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
     assert '#map-wrap:empty' not in code, '지도 자리 예약이 :empty 다 — 요약이 들면 예약이 풀린다'
-    assert len(re.findall(r'#map-wrap:not\(\[data-done\]\)\{min-height:\d+px\}', code)) >= 3
+    # 폭 구간마다 예약이 있다(고정 px 또는 3차 C7 의 '고정분 + vw' 식) — 전부 '아직 안 그림' 선택자에 건다
+    assert len(re.findall(r'#map-wrap:not\(\[data-done\]\)\{min-height:(?:\d+px|calc\([^)]*\))\}', code)) >= 3
 
 
 # ── ④ 배치 배선 ─────────────────────────────────────────────────────────────────────────────────────────

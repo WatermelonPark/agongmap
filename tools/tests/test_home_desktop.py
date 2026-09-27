@@ -154,7 +154,7 @@ def test_top_nav_is_the_one_canonical_tabbar_moved_up_on_home_only():
 
 
 def test_map_reserve_follows_the_map_geometry():
-    """지도 예약 높이(#map-wrap:empty): 528px 이하는 '고정분 + K·vw' 식이고 K 는 지도 도형의 세로/가로 비(SIDO_GEO h/w ×100,
+    """지도 예약 높이(#map-wrap:not([data-done]) — 3차 B3 로 :empty 대신 '아직 안 그림'에 건다): 528px 이하는 '고정분 + K·vw' 식이고 K 는 지도 도형의 세로/가로 비(SIDO_GEO h/w ×100,
     소수 첫째)다 — 지도 폭이 화면 폭 − 48px 로 늘어 높이가 폭에 비례하기 때문이다(1px 간격 실측으로 320~1440px 어긋남 0px).
     529px 이상은 고정값이고, 데스크톱 2단(1024px 이상)도 같은 값을 쓴다(왼쪽 단의 지도·카드 높이가 같다 — 실측 786px).
     변이(각각 실제로 확인): 134.5vw 를 130vw 로 바꾸면 비율 단정, 1024px 블록에서 예약을 다른 값으로 덮으면 마지막 단정이
@@ -166,9 +166,9 @@ def test_map_reserve_follows_the_map_geometry():
     css = _css()
     calcs = []
     for c, b in _media_blocks(css):
-        for v in re.findall(r'#map-wrap:empty\{min-height:([^}]*)\}', b):
+        for v in re.findall(r'#map-wrap:not\(\[data-done\]\)\{min-height:([^}]*)\}', b):
             calcs.append((c, v))
-    fixed = re.findall(r'#map-wrap:empty\{min-height:(\d+)px\}', _outside_media(css))
+    fixed = re.findall(r'#map-wrap:not\(\[data-done\]\)\{min-height:(\d+)px\}', _outside_media(css))
     assert fixed, '기본(가장 넓은 폭) 예약 높이가 없다'
     vw = [(c, v) for c, v in calcs if 'vw' in v]
     assert vw, '폭을 따라가는 예약 식이 없다'
