@@ -266,7 +266,7 @@ def test_weekly_page_bakes_the_shared_when_line():
     assert '<span id="wk-when">9/14 조사 · 9/17 발표 · 연휴로 발표 일정이 바뀔 수 있습니다</span>' in head
     assert '>"2026-09-28"){' in head and '"최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기"' in head
     # 제목의 '이번 주'도 발표일로 — 스크립트가 h1 보다 뒤에 있어야 h1 을 찾는다(TRUST-1③)
-    assert '.replace("이번 주","9/17 발표")' in head and head.index('<h1>') < head.index('<script>')
+    assert '.replace("이번 주","9/17 발표 기준")' in head and head.index('<h1>') < head.index('<script>')
     # 실데이터: 구운 페이지의 머리줄이 정본 함수 결과와 같다(날짜는 데이터에서 유도)
     W2, _ = MW.load()
     st = WR.status(W2['rows'][-1]['p'], None, W2['holidays'])
@@ -351,7 +351,7 @@ def test_weekly_page_script_compares_the_kst_date():
              script))
     (k1, h1), (k2, h2) = _node(js)
     assert (k1, h1) == ('x', '이번 주 아파트'), '기준일(KST 9/28) 당일에 벌써 바꿨다'
-    assert k2 == '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기' and h2 == '9/17 발표 아파트', (k2, h2)
+    assert k2 == '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기' and h2 == '9/17 발표 기준 아파트', (k2, h2)
 
 
 def test_dataset_url_rewrite_stays_inside_the_dataset_object():
