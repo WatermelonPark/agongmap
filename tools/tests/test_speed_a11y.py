@@ -61,14 +61,20 @@ const self = { addEventListener: (t, f) => { handlers[t] = f; }, location: { ori
 const store = new Map();
 // 실제 Cache API 처럼 문자열·Request 를 같은 URL 로 정규화하고, 쿼리까지 키에 넣는다(쿼리를 떼는 건 sw.js 의 몫).
 const keyOf = (r) => { const u = new URL(typeof r === 'string' ? r : r.url, 'https://example.test'); return u.pathname + u.search; };
+const added = [];   // 설치(install)가 c.add 에 넘긴 요청 — 주소와 캐시 모드(A9·MOB-4)
 const caches = {
-  open: async () => ({ put: async (r, v) => { store.set(keyOf(r), v); }, add: async () => {} }),
+  open: async () => ({ put: async (r, v) => { store.set(keyOf(r), v); },
+                       add: async (r) => { added.push(typeof r === 'string' ? { url: r, cache: 'default' }
+                                                                             : { url: r.url, cache: r.cache }); } }),
   match: async (r) => store.get(keyOf(r)),
   keys: async () => [], delete: async () => true,
 };
+// 브라우저 Request 처럼 주소·캐시 모드만 담는다. node 의 Request 는 상대 주소('/')를 받지 못한다.
+class Request { constructor(u, o) { this.url = u; this.cache = (o && o.cache) || 'default'; } }
 let NET = () => new Promise(() => {});
 const fetch = (req) => NET(req);
-new Function('self', 'caches', 'fetch', SRC.replace(/const NET_TIMEOUT_MS = \d+;/, 'const NET_TIMEOUT_MS = 60;'))(self, caches, fetch);
+new Function('self', 'caches', 'fetch', 'Request',
+             SRC.replace(/const NET_TIMEOUT_MS = \d+;/, 'const NET_TIMEOUT_MS = 60;'))(self, caches, fetch, Request);
 
 const resp = (tag) => ({ ok: true, status: 200, type: 'basic', tag, clone() { return this; } });
 const later = (ms, v) => new Promise((r) => setTimeout(r, ms, v));
@@ -83,6 +89,10 @@ async function run(path, mode) {
 }
 (async () => {
   const out = {};
+  let installing = null;
+  handlers.install({ waitUntil(p) { installing = p; } });
+  await installing;
+  out.install = added;
   for (const [path, mode] of [['/data-core.js', 'no-cors'], ['/zone/', 'navigate']]) {
     store.clear(); store.set(path, resp('cache'));
     NET = () => new Promise(() => {});                       // 응답이 오지 않는 망
@@ -186,3 +196,55 @@ def test_skip_link_has_its_hiding_rule():
     shell = __import__('make_indicator_pages').SHELL
     assert re.search(r'\.skip\{[^}]*top:-\d+px', shell), '지표 생성기 껍데기에 .skip 규칙이 없다'
     assert not bad, '건너뛰기 링크가 늘 보이는 페이지: %s' % bad
+
+
+def _site_file(url):
+    """사이트 주소 → 저장소 파일('/' 는 index.html, '/x/' 는 x/index.html)."""
+    rel = url.lstrip('/')
+    if not rel or rel.endswith('/'):
+        rel += 'index.html'
+    return os.path.join(ROOT, *rel.split('/'))
+
+
+def test_sw_precache_revalidates_instead_of_reloading():
+    """설치가 프리캐시를 'no-cache'(조건부 요청)로 받는지 — 설치 처리기를 node 로 돌려 c.add 에 넘긴 요청을 본다.
+
+    재현하는 실제 상태(홈 마케팅 검수 A9·MOB-4, 2026-09-26): 'reload' 는 HTTP 캐시를 건너뛰고 본문 전체를 다시 받아,
+    VERSION 을 올릴 때마다 재방문자가 목록 전체(전송 약 294KB, 그중 158.5KB 는 페이지가 방금 받은 홈 파일)를 또 받았다.
+    'no-cache' 는 ETag 로 한 번 묻고 안 바뀐 파일은 304 로 끝나며, 기본 모드와 달리 max-age=600 동안의 옛 자산을
+    새 캐시에 집어넣지도 않는다(2026-08-08 제보). 두 가지를 다 만족하는 모드는 'no-cache' 하나다.
+    무엇을 깨뜨리면 빨개지나: sw.js 설치의 { cache: 'no-cache' } 를 'reload' 로 되돌리거나 옵션을 빼면(기본 모드)
+    빨개진다(둘 다 실제로 확인). 픽스처: 저장소 sw.js 의 설치 처리기 그대로.
+    """
+    adds = _sw_run()['install']
+    assert adds, '설치가 아무것도 프리캐시하지 않았다 — 하네스가 설치 처리기를 못 찾았는지 볼 것'
+    bad = ['%s(%s)' % (a['url'], a['cache']) for a in adds if a['cache'] != 'no-cache']
+    assert not bad, '프리캐시 요청이 no-cache 가 아니다 — reload 는 배포마다 전부 다시 받고, 기본 모드는 옛 자산을 굳힌다: %s' % bad
+
+
+def test_sw_precache_is_the_offline_home_only():
+    """프리캐시 목록이 '오프라인에서 홈이 뜨는 데 필요한 것'과 같은지 본다(A9·MOB-4).
+
+    ① 홈 HTML 이 부르는 같은 출처 스크립트·스타일시트는 모두 있다 — index.html 에서 세고 손으로 적지 않는다.
+    ② 홈이 첫 로딩에서 받지 않는 차트 라이브러리(home-app.js loadChart 의 주소), '/'·404 밖의 페이지(/cycle/·퀴즈),
+       512px 아이콘은 없다 — 처음 쓸 때 런타임 캐시가 맡는다.
+    ③ 목록의 파일은 저장소에 실제로 있다 — 설치는 실패를 삼키므로(.catch) 이름이 바뀐 파일은 조용히 빠진다.
+    재현하는 실제 상태: 2026-09-26 까지 17개(차트 70KB·/cycle/·퀴즈 3종·512px 아이콘 포함)였다.
+    무엇을 깨뜨리면 빨개지나(각각 실제로 확인): PRECACHE 에 '/chart-4.4.1.umd.js' 나 '/cycle/' 나
+    '/icons/icon-512.png' 를 되살리면 ②, '/app.css' 를 빼거나 '/app2.css' 로 바꾸면 ①, 저장소에 없는
+    '/icons/nope.png' 를 넣으면 ③ 이 빨개진다.
+    픽스처: 저장소 sw.js 설치 처리기가 실제로 넘긴 요청, index.html·home-app.js(home_source).
+    """
+    urls = [a['url'] for a in _sw_run()['install']]
+    home = _read('index.html')   # 홈 마크업+스크립트(home_source)
+    need = set(re.findall(r'<script\b[^>]*\bsrc="(/(?!/)[^"?#]+)"', home))
+    need |= set(re.findall(r'<link\b[^>]*rel="stylesheet"[^>]*href="(/(?!/)[^"?#]+)"', home))
+    assert {'/home-app.js', '/app.css'} <= need, '홈 HTML 에서 본문 스크립트·스타일시트를 못 읽었다 — 이 시험이 헛돈다: %s' % need
+    miss = sorted((need | {'/'}) - set(urls))
+    assert not miss, '오프라인 홈에 필요한 파일이 프리캐시에 없다: %s' % miss
+    chart = re.search(r"function loadChart\(\)\{.*?loadScript\('(/[^']+)'\)", home, re.S)
+    assert chart, 'home-app.js 에서 차트 라이브러리 주소를 못 읽었다'
+    extra = [u for u in urls if u == chart.group(1) or (u.endswith('/') and u != '/') or '512' in u]
+    assert not extra, '홈 첫 화면이 쓰지 않는 것을 배포마다 다시 받는다: %s' % extra
+    ghost = [u for u in urls if not os.path.isfile(_site_file(u))]
+    assert not ghost, '프리캐시에 저장소에 없는 파일이 있다(설치가 조용히 건너뛴다): %s' % ghost
