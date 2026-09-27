@@ -97,13 +97,21 @@ GRADE_LABS = {'g4': '심각한 부족', 'g3': '매우 부족', 'g2': '부족',
               'g1': '균형', 'g0': '공급 여유'}
 
 
-def ratio_text(ratio, H=LEAD_Q, full=False):
+def ratio_text(ratio, H=LEAD_Q, full=False, inow=None, W=BACKLOG_WINDOW):
     """순부족비를 사람 말로 옮긴다. 판정 배지 옆에 붙는다(2026-09-13 PM 요청 ①).
 
     발단: 경기 리포트가 판정은 '균형'인데 바로 아래 '누적 순부족 50,579세대'라
     반대로 읽혔다. 등급은 '앞으로 H분기 필요량 대비 누적 순부족의 비율'로 자르는데
     화면에는 그 비율이 없고 절대 세대수만 있었다. 비율을 같이 보여주면 왜 균형인지가
     한 줄로 설명된다.
+
+    full=True(시도 리포트 판정 문장·블로그 지역 편)는 판정의 정의대로 **지난 W분기 재고까지 셈한** 문장이다
+    (홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 예전 여유 문장 '앞으로 3년 필요량보다 19% 더 들어옵니다'는
+    앞으로 3년만의 주장이었는데, 인천은 착공 기반 입주 추정(66,579)이 필요량(69,600)보다 적고 여유는 지난 4년
+    남은 재고(16,258)에서 온다 — 바로 옆의 식(formula_text)과 숫자로 부딪쳤다. 부족 문장의 '누적 순부족'도
+    09-13 고객 점검이 없앤 말이다. inow(지난 창 재고, 음수 = 모자람)를 주면 formula_text 와 같은 갈래
+    ('덜 지은 몫'/'남은 재고')로 쓰고, 없으면 방향 없는 '재고까지 셈하면'으로 쓴다.
+    짧은 문구(full=False, 허브 목록의 rtxt)는 비율만 말한다.
 
     ⚠️ 여기서만 만든다. 홈은 JS라 같은 문구를 거기서 또 만들면 이중 구현이 되고,
     이 프로젝트는 2026-08-06에 그런 미러를 전부 걷어냈다. calc()가 결과 행에
@@ -113,14 +121,24 @@ def ratio_text(ratio, H=LEAD_Q, full=False):
     # 필요량을 넘는 부족도 배가 아니라 퍼센트로 쓴다. '1.0배'로 쓰면 울산(1.012)·
     # 경남(1.007)이 '딱 같다'로 읽히고, 판정 규칙 문장('50%에 못 미쳐')과도 단위가 갈린다.
     pct = int(round(ratio * 100))
+    if not full:
+        if pct >= 1:
+            return '%s 필요량의 %d%% 부족' % (yrs, pct)
+        if pct <= -1:
+            return '%s 필요량보다 %d%% 여유' % (yrs, -pct)
+        return '%s 필요량과 거의 같음' % yrs
+    past = '지난 %g년' % (W / 4.0)
     if pct >= 1:
-        return (('누적 순부족이 앞으로 %s 필요량의 %d%%입니다' % (yrs, pct)) if full
-                else ('%s 필요량의 %d%% 부족' % (yrs, pct)))
+        lead = ('%s 재고까지 셈하면' % past if inow is None else
+                '%s 덜 지은 몫까지 더하면' % past if inow < 0 else
+                '%s 남은 재고를 빼고도' % past)
+        return '%s %s 필요량의 %d%%만큼 부족합니다' % (lead, yrs, pct)
     if pct <= -1:
-        return (('앞으로 %s 필요량보다 %d%% 더 들어옵니다' % (yrs, -pct)) if full
-                else ('%s 필요량보다 %d%% 여유' % (yrs, -pct)))
-    return (('누적 순부족이 앞으로 %s 필요량과 거의 같습니다' % yrs) if full
-            else ('%s 필요량과 거의 같음' % yrs))
+        lead = ('%s 재고까지 셈하면' % past if inow is None else
+                '%s 덜 지은 몫을 채우고도' % past if inow < 0 else
+                '%s 남은 재고까지 더하면' % past)
+        return '%s %s 필요량의 %d%%만큼 남습니다' % (lead, yrs, -pct)
+    return '%s 재고까지 셈하면 %s 필요량과 거의 같습니다' % (past, yrs)
 
 
 def qidx(y, q):
@@ -335,21 +353,132 @@ def month_back(dates, i, k):
     return None
 
 
-def card_text(dtot, ratio, H=LEAD_Q):
-    """홈·허브 카드의 한 줄: '686,396세대 부족 · 3년 필요량의 60%'.
+def card_parts(dtot, ratio, H=LEAD_Q):
+    """홈·허브 카드의 세 조각: ('686,396세대', '부족', '3년 필요량의 60%만큼').
 
     예전엔 '−686,396세대 · 3년 필요량의 60% 부족'이라 배지('부족') 옆에 음수 부호가
     또 붙어 이중 부정으로 읽혔다(2026-09-15 점검후속 ⑤). 부호 대신 부족·여유를 말로 쓰고
-    비율은 크기만 적는다. 여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다.
+    비율은 크기만 적는다 — 그 결정의 목적(부호 이중 부정 제거)은 그대로다.
+    비율 뒤에 '만큼'을 붙인다(홈 마케팅 검수 B2·HERO-4, 2026-09-27). '3년 필요량의 60%'만 두면
+    '필요량의 60%만 지어진다'로도 읽혔다 — 이 60%는 앞의 세대수(누적 순부족)가 필요량의 몇 %인지다.
+    조각으로 나눈 것은 모바일 카드가 세대수만 한 줄에 싣기 때문이다(MOB-7 — '전국 [부족]' / '686,396세대').
+    화면은 읽기만 한다. 순부족이 0이면 세대수·방향이 비고 비율 조각만 남는다.
     """
     yrs = '%g년' % (H / 4.0)
     pct = int(round(abs(ratio) * 100))
-    share = ('%s 필요량과 거의 같음' % yrs) if pct < 1 else ('%s 필요량의 %d%%' % (yrs, pct))
+    share = ('%s 필요량과 거의 같음' % yrs) if pct < 1 else ('%s 필요량의 %d%%만큼' % (yrs, pct))
     if dtot > 0:
-        return '%s세대 부족 · %s' % (format(dtot, ','), share)
+        return '%s세대' % format(dtot, ','), '부족', share
     if dtot < 0:
-        return '%s세대 여유 · %s' % (format(-dtot, ','), share)
-    return share
+        return '%s세대' % format(-dtot, ','), '여유', share
+    return '', '', share
+
+
+def card_text(dtot, ratio, H=LEAD_Q):
+    """홈·허브 카드의 한 줄: '686,396세대 부족 · 3년 필요량의 60%만큼'(card_parts 를 잇는다).
+    여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다."""
+    num, dirw, share = card_parts(dtot, ratio, H)
+    return ' · '.join(x for x in ((num + ' ' + dirw).strip(), share) if x)
+
+
+def legend_text(H=LEAD_Q, W=BACKLOG_WINDOW):
+    """홈 지도 범례의 뜻 한 줄: '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지'(TRUST-2①, 2026-09-27).
+
+    예전 '앞으로 3년 필요한 만큼 지어지는지'는 판정의 정의(지난 4년 누적 부족 포함)와 달랐다 — 충북은 앞으로 3년이
+    필요량의 78%인데 과거 여유 덕에 '균형'이다. 09-13 고객 점검이 없앤 '누적 순부족'이라는 말은 되살리지 않는다.
+    """
+    return '지난 %s 덜 지은 몫까지 더해 %s 필요량을 채우는지' % ('%g년' % (W / 4.0), '%g년' % (H / 4.0))
+
+
+# ── 부족 세대수의 식(홈 마케팅 검수 B2·C4, TRUST-2, 2026-09-27) ───────────────────────
+# 카드의 686,396 은 '앞으로 3년 필요량 − 착공 기반 입주 추정'(425,873)이 아니다. 지난 4년 덜 지은 몫(260,523)이
+# 더해진 값인데 홈에는 그 말이 없어 홈 재료만으로는 검산이 안 됐다. 식의 이름은 여기 하나에서 만들고
+# 홈 산출 방법(손으로 쓴 index.html — 시험이 이 문구와 대조)·홈 카드 ⓘ(split_data 가 구운 ftxt)·시도 리포트의
+# '숫자로 보면' 식(make_sido_pages)·블로그 지역 편(make_naver_post)이 같이 쓴다.
+def formula_text(H=LEAD_Q, W=BACKLOG_WINDOW, need=None, fut=None, inow=None):
+    """'3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'. 숫자를 주면 각 항 뒤에 붙인다.
+
+    inow 는 지난 창의 재고(준공 − 멸실 − 적정의 합, 음수 = 모자람). 모자라면 '쌓인 부족'을 더하고, 남으면
+    '남은 재고'를 뺀다 — 음수 재고를 빼는 이중 부호를 읽는 사람에게 넘기지 않는다(점검후속 ⑤). 숫자 없이
+    부르면(일반식) 모자란 쪽으로 적는다 — 식의 뜻을 설명하는 자리라 흔한 경우를 쓴다.
+    """
+    ahead, past = '%g년' % (H / 4.0), '%g년' % (W / 4.0)
+
+    def n(v):
+        return '' if v is None else ' ' + format(abs(v), ',')
+    tail = (('+ 지난 %s 쌓인 부족' % past) if (inow is None or inow < 0)
+            else ('− 지난 %s 남은 재고' % past))
+    return '%s 필요량%s − 착공 기반 입주 추정%s %s%s' % (ahead, n(need), n(fut), tail, n(inow))
+
+
+def display_ints(row, H):
+    """화면이 찍는 정수 넷(필요량·입주 추정·지난 재고·순부족) — 서로 검산된다.
+    make_sido_pages 의 카드(rnd = half_up)와 같은 정수다. dtot 가 없으면(옛 행) 같은 식으로 센다."""
+    need, fut, inow = half_up(row['ref']) * H, half_up(row['fut']), half_up(row['inow'])
+    tot = row['dtot'] if 'dtot' in row else need - fut - inow
+    return need, fut, inow, tot
+
+
+def zone_texts(row, H):
+    """한 판정 단위의 화면 문구 — 결과 행에 구워 싣는 필드들. 화면(JS)은 읽기만 한다.
+      ctxt  '686,396세대 부족 · 3년 필요량의 60%만큼'   (허브·지도 이름표·데스크톱 카드)
+      cnum  '686,396세대'                            (카드 둘째 줄 — 모바일은 이것만)
+      cdir  '부족' | '여유' | ''                      (넓은 화면 카드에서 세대수 뒤에)
+      cpct  '3년 필요량의 60%만큼'
+      ftxt  '3년 필요량 1,140,000 − 착공 기반 입주 추정 714,127 + 지난 4년 쌓인 부족 260,523 = 686,396세대 부족'
+            (홈 카드 ⓘ '어떻게 계산했나' 한 줄, C4①)
+    """
+    need, fut, inow, tot = display_ints(row, H)
+    cnum, cdir, cpct = card_parts(tot, row['ratio'], H)
+    eq = formula_text(H, BACKLOG_WINDOW, need, fut, inow)
+    return {'ctxt': card_text(tot, row['ratio'], H), 'cnum': cnum, 'cdir': cdir, 'cpct': cpct,
+            'ftxt': '%s = %s' % (eq, ('%s %s' % (cnum, cdir)) if cnum else '0세대')}
+
+
+# 분포 한 줄의 묶음(홈 마케팅 검수 B2·HERO-4·TRUST-3, 2026-09-27). 첫 화면 카드 셋이 모두 '부족'이면 '늘 부족이라고만
+# 하는 사이트'로 읽힌다 — 시도 전체가 어떻게 나뉘는지를 카드 아래 한 줄로 센다. 등급 키는 GRADE_KEYS 정본이고
+# 묶음은 빠짐없이 한 번씩 덮는다(아래 검사). 이름은 GRADE_LABS 의 말을 쓴다('부족 이상' = g2 의 이름 + 이상).
+DIST_GROUPS = (('%s 이상' % GRADE_LABS['g2'], GRADE_KEYS[:GRADE_KEYS.index('g2') + 1]),
+               (GRADE_LABS['g1'], ('g1',)),
+               (GRADE_LABS['g0'].split()[-1], ('g0',)))
+if sorted(k for _, ks in DIST_GROUPS for k in ks) != sorted(GRADE_KEYS):
+    raise SystemExit('DIST_GROUPS 가 등급 키를 한 번씩 덮지 않는다: %s' % (DIST_GROUPS,))
+
+
+def dist_text(zones):
+    """'시도 16곳: 부족 이상 10 · 균형 3 · 여유 3' — 집계 3종을 뺀 판정 단위에서 센다(곳 수를 적지 않는다)."""
+    sido = [z for z in zones if not z.get('agg')]
+    parts = ['%s %d' % (name, sum(1 for z in sido if z['grade'] in keys)) for name, keys in DIST_GROUPS]
+    return '시도 %d곳: %s' % (len(sido), ' · '.join(parts))
+
+
+# 분포 한 줄 끝 묶음(여유)의 지역 이름을 따로 굽는다(TRUST-3①, 2026-09-27 검토 지적). 카드 셋이 모두 '부족'인 첫 화면에서
+# 반례(여유 지역)를 바로 눌러 볼 수 있게, 홈이 '여유 3(인천·대전·충남)'처럼 각 이름을 /zone/<이름>/ 링크로 그린다.
+# 홈은 dist 문장 끝에 괄호를 잇기만 하므로 이 묶음이 DIST_GROUPS 의 마지막이어야 한다(아래 검사).
+DIST_LINK_KEYS = DIST_GROUPS[-1][1]
+if DIST_LINK_KEYS != ('g0',):
+    raise SystemExit('분포 한 줄의 마지막 묶음이 여유(g0)가 아니다 — 홈의 이름 링크가 다른 묶음 뒤에 붙는다: %s' % (DIST_GROUPS,))
+
+
+def dist_names(zones):
+    """분포 한 줄 끝 묶음(여유)의 시도 이름 — 판정 순서(zones 순서 = DISPLAY_ORDER) 그대로, 집계 3종은 뺀다."""
+    return [z['z'] for z in zones if not z.get('agg') and z['grade'] in DIST_LINK_KEYS]
+
+
+def refresh_texts(sido):
+    """저장된 판정(ADV.sido)의 화면 문구를 **지금의 함수**로 다시 굽는다(제자리). 숫자는 건드리지 않는다.
+
+    ⚠️ 왜: 문구 함수(card_text 등)를 고친 PR 이 병합되어도 data.js 의 ADV.sido 는 다음 배치의 update_adv_data 가
+    점수를 다시 쓸 때까지 옛 문구를 싣는다. split_data(홈 data-core)와 make_sido_pages(허브·리포트)는 이 함수로
+    읽을 때마다 다시 구워, 화면이 늘 정본 함수의 문장을 말하게 한다. 새 필드가 없는 옛 행도 여기서 채워진다.
+    """
+    H = sido['H']
+    for z in sido.get('zones') or []:
+        z.update(zone_texts(z, H))
+    sido['dist'] = dist_text(sido.get('zones') or [])
+    sido['dist_g0'] = dist_names(sido.get('zones') or [])
+    sido['ktxt'] = legend_text(H, sido.get('window') or BACKLOG_WINDOW)
+    return sido
 
 
 PERMIT_WIN = 24          # 3년 너머 신호의 창. 12월을 두 번 담아 한 해의 이례를 반으로 줄인다
@@ -576,11 +705,10 @@ def calc(stats):
             # 저장되는 ratio(소수 넷째 자리)로 만든다. 반올림 전 값으로 만들면 퍼센트 경계에서
             # 화면의 문구와 저장된 숫자가 1%p 어긋날 수 있다.
             'rtxt': ratio_text(round(ratio, 4), H),
-            # 화면에 찍는 순부족 정수(카드의 적정·공급·재고 정수로 검산되는 값)와 카드 문구
+            # 화면에 찍는 순부족 정수(카드의 적정·공급·재고 정수로 검산되는 값). 카드 문구는 refresh_texts 가 붙인다.
             # 저장되는 fut·inow(round 결과)와 같은 정수로 만든다 — 반올림 전 값으로 하면
             # 리포트 카드의 세 정수로 검산한 값과 1세대 어긋난다(경기 50,578 vs 50,579).
             'dtot': half_up(ref) * H - round(fut) - round(inow),
-            'ctxt': card_text(half_up(ref) * H - round(fut) - round(inow), round(ratio, 4), H),
             'unsold': (None if un is None else round(un)),
             'um': (None if um is None else round(um, 3)),
             'uwarn': bool(um is not None and um >= 1.0 and g in ('g4', 'g3', 'g2')),
@@ -630,9 +758,11 @@ def calc(stats):
         print('⚠️ sido_zones: 준공·착공 시리즈가 없어 빠진 지역 %d곳 — %s '
               '(STATS 부분 응답 의심. 이 지역들은 표·페이지·sitemap에서 사라진다)'
               % (len(missing), ', '.join(missing)), file=_s.stderr)
-    return {'L': qkey(L), 'S': qkey(S), 'H': H,
+    # 화면 문구(ctxt·cnum·cdir·cpct·ftxt·dist·ktxt)는 refresh_texts 한 곳에서 붙인다 — split_data·make_sido_pages 가 읽을 때
+    # 다시 굽는 것과 같은 함수다.
+    return refresh_texts({'L': qkey(L), 'S': qkey(S), 'H': H,
             'lead': LEAD_Q, 'conv': CONV, 'window': BACKLOG_WINDOW,
-            'unsold_prd': un_prd, 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))}
+            'unsold_prd': un_prd, 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))})
 
 
 def supply_rows(stats):

@@ -21,6 +21,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ  # noqa: E402
+import site_nav as N  # noqa: E402  하단 탭바 정본(C2)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://www.agongmap.co.kr'
@@ -87,8 +88,9 @@ def neun(w):
 # ---- 공통 템플릿 ----------------------------------------------------------
 # zone 페이지와 같은 뼈대·팔레트. CSS 인라인(자기완결) — app.css에 묶지 않는 건
 # zone 페이지와 같은 이유(페이지 단독 캐시·앱 셸과 수명 분리).
-# 하단 탭바는 '통계'를 켠다(.nav-btn.on) — 이 뼈대를 쓰는 /monthly/·/moveins/·/jeonse-ratio/ 는 홈 통계 탭 아래의
-# 읽을거리인데 켜진 탭이 없어 사이트의 어느 메뉴인지 보이지 않았다(홈 마케팅 검수 A5·IA-6 1단계, 2026-09-27).
+# 하단 탭바는 '시세'(식별자 stats, /#stats) 탭을 켠다(.nav-btn.on) — 이 뼈대를 쓰는 /monthly/·/moveins/·/jeonse-ratio/ 는
+# 홈 시세 탭 아래의 읽을거리인데 켜진 탭이 없어 사이트의 어느 메뉴인지 보이지 않았다(홈 마케팅 검수 A5·IA-6 1단계,
+# 2026-09-27). 탭바 마크업·라벨은 site_nav.bottomnav 가 정본이다(C2 — '통계' → '시세').
 SHELL = """<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -182,12 +184,7 @@ __BODY__
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
-<nav class="bottomnav">
-  <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
-  <a class="nav-btn" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>
-  <a class="nav-btn on" aria-current="page" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>통계</span></a>
-  <a class="nav-btn" href="/cycle/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>사이클</span></a>
-</nav>
+""" + N.bottomnav('stats') + """
 
 <script>
 (function(){
@@ -443,6 +440,11 @@ def build_jeonse(sts):
 
 
 # ---- 입주물량 (/moveins/) --------------------------------------------------
+# 준공 실적이 끝난 뒤의 분기는 착공 실적을 3년(12분기) 밀어 추정한 값이다(표 아래 주석·SZ.CONV). 제목·설명에
+# 그 사실을 붙이는 문구의 정본(C9). 바꾸면 test_moveins_term 이 title·description·og 에서 이 값을 찾는다.
+MOVEINS_EST = '착공 기준 추정'
+
+
 def build_moveins(adv):
     o = adv['occupancy']
     regs, rows = o['regions'], o['rows']
@@ -514,18 +516,21 @@ def build_moveins(adv):
                      for r in SIDO17 if ref.get(r)], key=lambda x: x[1])
     lo1, hi1 = shorts[0], shorts[-1]
 
-    title = '아파트 입주물량 — %s·%s 전국 시도별 입주 예정 | 아공맵' % (Y, Y1)
-    desc = ('아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. %s년 전국 %s세대, '
-            '%s년 %s세대 예정. 수도권은 %s→%s세대. 적정수요와 비교한 시도별 부족·과잉과 '
+    # 검색 수요가 있는 '입주물량'은 머리에 두고, 이 숫자가 분양 단지 목록이 아니라 '착공 기준 추정'이라는 것을
+    # title·description(og 포함)에서 드러낸다(홈 마케팅 검수 C9·SEO-5). 블로그는 추정치를 입주물량이라 부르지
+    # 않는다 — 사이트는 검색어를 유지하는 대신 이 표시로 그 차이를 메운다. 표시 문구는 MOVEINS_EST 하나다.
+    title = '아파트 입주물량 — %s·%s 전국 시도별 %s | 아공맵' % (Y, Y1, MOVEINS_EST)
+    desc = ('아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 %s으로, '
+            '%s년 전국 %s세대, %s년 %s세대 예정. 수도권은 %s→%s세대. 적정수요와 비교한 시도별 부족·과잉과 '
             '전세·매매에 미치는 영향을 정리했다.') % (
-        Y, num(nat26), Y1, num(nat27), num(sudo[Y] or 0), num(sudo[Y1] or 0))
+        MOVEINS_EST, Y, num(nat26), Y1, num(nat27), num(sudo[Y] or 0), num(sudo[Y1] or 0))
     url = SITE + '/moveins/'
 
     body = """<header class="wrap">
   <div class="chip">지표 해설</div>
   <h1>아파트 입주물량 —<br>공급이 시장에 도착하는 순간</h1>
   <div class="big">%(nat26)s</div>
-  <div class="bigsub">%(Y)s년 전국 입주물량(실적+예정, 세대) · %(Y1)s년 %(nat27)s세대</div>
+  <div class="bigsub">%(Y)s년 전국 입주물량(준공 실적+%(est)s, 세대) · %(Y1)s년 %(nat27)s세대</div>
 </header>
 
 <section class="wrap">
@@ -565,10 +570,10 @@ def build_moveins(adv):
            conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
            lo1=lo1[0], lo1p=round(lo1[1]), hi1=hi1[0], hi1p=round(hi1[1]),
            sudo26=num(sudo[Y] or 0), sudo27=num(sudo[Y1] or 0),
-           sudodir=updown(sudo[Y], sudo[Y1]), Y0=years[0], Y=Y, Y1=Y1)
+           sudodir=updown(sudo[Y], sudo[Y1]), Y0=years[0], Y=Y, Y1=Y1, est=MOVEINS_EST)
 
     html = fill(SHELL, title=title,
-                ogtitle='아파트 입주물량 — %s년 전국 %s세대' % (Y, num(nat26)),
+                ogtitle='아파트 입주물량 — %s년 전국 %s세대(%s 포함)' % (Y, num(nat26), MOVEINS_EST),
                 desc=desc, url=url, body=body,
                 ld=ld_pack('아파트 입주물량 — 시도별 입주 예정과 의미', desc, url, '입주물량', mod_iso),
                 src='국토교통부 주택건설실적(준공·착공)',

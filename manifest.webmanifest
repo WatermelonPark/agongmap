@@ -32,8 +32,8 @@
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "부동산 데이터 통계",
-      "short_name": "통계 보기",
+      "name": "시군구 시세 지도·투자지표",
+      "short_name": "시세·투자지표",
       "url": "/?utm_source=pwa&utm_medium=shortcut#stats",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
