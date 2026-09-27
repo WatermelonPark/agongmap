@@ -12,6 +12,10 @@ data URI 이미지를 어떻게 받는지 확인할 수 없다).
   - draft_weekly 의 imgs 에서 지도(sgg)를 빼면 → 주간 지도 시험
   - img_gallery 가 없는 파일을 조용히 건너뛰게 바꾸면 → 없는 파일 시험
   - make_theory_post.render 에서 P.img_gallery 줄을 지우면 → 이론 초안 시험
+  - 그림마다 단 '이미지 복사' 버튼을 빼거나, 그 JS 가 text/html 을 같이 싣게 하거나,
+    JS 처리기를 지우면 → PNG 전용 복사 시험. 브라우저의 오른쪽 클릭 '이미지 복사'는
+    <img src="data:…"> HTML 을 같이 실어 스마트에디터가 "허용되지 않는 형식의 이미지"로
+    뺐다(2026-09-27 사용자 실측). 버튼은 image/png 만 싣는다.
 픽스처: tmp_path 에 만든 작은 PNG 바이트(실제 캡처 파일의 이름·자리 이름을 그대로 쓴다).
 네이버 경쟁 글 조회는 막는다(키 없는 PC와 같은 경로). 저장소의 drafts/ 는 건드리지 않는다.
 """
@@ -78,6 +82,19 @@ def test_missing_file_is_reported_not_dropped(tmp_path):
     out = P.img_gallery([(str(tmp_path / 'nope.png'), '전국 시군구 지도')])
     assert '이미지 파일이 없습니다' in out and '전국 시군구 지도' in out
     assert P.img_gallery([(None, '전국 시군구 지도')]) == ''   # 캡처를 안 뜬 회차는 조용히
+
+
+def test_each_image_has_a_png_only_copy_button(tmp_path, monkeypatch):
+    monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
+    top = _png(tmp_path, 'weekly-top10.png')
+    sgg = _png(tmp_path, 'weekly-sgg.png')
+    html = P.render('2026-09-21', _draft([(top, '상승·하락 TOP10'), (sgg, '전국 시군구 지도')]), None)
+    figs = re.findall(r'<figure class="shot">.*?</figure>', html, re.S)
+    assert len(figs) == 2 and all('<button class="imgcopy">' in f for f in figs)
+    s = P.JS.index("querySelectorAll('button.imgcopy')")
+    handler = P.JS[s:P.JS.index('\n});', s)]   # 이 처리기 한 덩어리만
+    assert "new ClipboardItem({'image/png'" in handler
+    assert 'text/html' not in handler and 'text/plain' not in handler
 
 
 def test_theory_draft_embeds_images(tmp_path, monkeypatch):
