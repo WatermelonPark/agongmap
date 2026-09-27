@@ -18,11 +18,14 @@
   - 연속(streak): 최신 주부터 거꾸로 같은 방향(상승 또는 하락)이 이어진 주 수. 보합·결측(None)에서 끊긴다.
     최신 주가 보합이거나 결측이면 0. 전체 이력(data.js 156주)으로 센다 — 코어가 싣는 최근 WINDOW 주로 자르지 않는다.
   - 표지(하나만, 위에서 먼저 맞는 것):
-      · 'N주 연속 상승' / 'N주 연속 하락' — 연속이 STREAK_MIN(3)주 이상
+      · 'N주 연속 상승' / 'N주 연속 하락' — 연속이 STREAK_MIN(3)주 이상. 연속이 **보관 이력의 첫 주까지** 닿으면(그보다
+        앞은 우리 자료에 없다) 'N주 이상 연속 상승'이라 적는다 — 이력이 156주뿐이라 '156주 연속'은 사실보다 짧게 말할 수 있다.
       · '상승 전환' / '하락 전환' — 이번 주가 상승(하락)인데 **바로 앞 회차**가 상승(하락)이 아니었다(하락·보합 → 상승).
         '보합에서 상승 전환'은 보도자료·기사가 쓰는 말과 같다. 앞 회차 값이 없으면(결측) 전환이라 하지 않는다.
       · 그 밖(2주 연속, 보합, 결측)은 표지 없음 — 새 소식이 아니다.
   - '앞 회차'는 rows 의 바로 앞 행이다(홈 TOP 10 의 '지난주'와 같다). 발표가 한 주 빠진 회차라도 날짜로 건너뛰지 않는다.
+  - 표지는 매주 화면에 다시 그려지는 **상태**다. 블로그는 회차 간 반복을 피해(CLAUDE.md '회차 간 반복 금지') 이번 주에
+    **새로 생긴 변화**만 쓴다 — news() 참고: 전환, 연속 STREAK_MIN 주에 막 들어선 곳, 연속이 이정표(MILESTONES)에 닿은 곳.
 
 ■ 시군구 순위 규칙(home-app.js sggRanks 와 같다)
   - 대상: 이름표(SGG_QNAME)에 있고 그 주 값이 있는 시군구. 순위는 **원값** 내림차순(1 = 가장 많이 오른 곳),
@@ -47,6 +50,10 @@ STREAK_MIN = 3
 UP, DN = 'up', 'dn'
 TXT_TURN = {UP: '상승 전환', DN: '하락 전환'}
 TXT_STREAK = {UP: '%d주 연속 상승', DN: '%d주 연속 하락'}
+TXT_STREAK_OPEN = {UP: '%d주 이상 연속 상승', DN: '%d주 이상 연속 하락'}   # 연속이 보관 이력 첫 주까지 닿았을 때
+# 블로그가 '오래 이어진 연속'을 다시 쓰는 주(연속 주 수가 이 값에 막 닿은 주만). 3주(STREAK_MIN)는 '새로 연속에 들어선 곳'으로
+# 따로 쓰고, 4주는 그 바로 다음 주라 두 주 연달아 같은 곳을 말하게 되므로 뺐다. 대략 두 달·한 분기·반년·1년·2년·3년.
+MILESTONES = (8, 13, 26, 52, 104, 156)
 LINE_HEAD = '지난주와 방향이 바뀐 곳'
 LINE_NONE = '지난주와 방향이 바뀐 시도는 없습니다'
 
@@ -80,15 +87,17 @@ def streak(vals):
 
 
 def tag(vals):
-    """vals(오래된 주 → 최신 주)의 이번 주 표지. (방향 'up'|'dn', 문구, 연속 주 수) 또는 None — 규칙은 모듈 머리말."""
+    """vals(오래된 주 → 최신 주)의 이번 주 표지. (방향 'up'|'dn', 문구, 연속 주 수, 이력 끝까지 닿았나 1|0) 또는 None
+    — 규칙은 모듈 머리말."""
     s = streak(vals)
     if not s:
         return None
     k, n = (UP if s > 0 else DN), abs(s)
     if n >= STREAK_MIN:
-        return k, TXT_STREAK[k] % n, n
+        opened = 1 if n == len(vals) else 0
+        return k, (TXT_STREAK_OPEN if opened else TXT_STREAK)[k] % n, n, opened
     if n == 1 and len(vals) >= 2 and direction(vals[-2]) is not None:
-        return k, TXT_TURN[k], 1
+        return k, TXT_TURN[k], 1, 0
     return None
 
 
@@ -97,7 +106,7 @@ def moves(W):
 
     돌려주는 것(split_data 가 ADV.weekly.moves 로 싣는 모양 그대로):
       {'p': 최신 조사일, 'prev': 앞 회차 조사일,
-       'tags': {지역: ['up'|'dn', 문구, 연속 주 수]}   — 표지가 있는 지역만(집계 포함). 전환은 연속 1,
+       'tags': {지역: ['up'|'dn', 문구, 연속 주 수, 이력 끝 1|0]}   — 표지가 있는 지역만(집계 포함). 전환은 연속 1,
        'turned': [[시도, 'up'|'dn'], …]   — 전환 표지가 붙은 시도(집계 제외), 표시 순서(DISPLAY_ORDER),
        'line': '지난주와 방향이 바뀐 곳: 부산 상승 전환 · 대구 하락 전환' 또는 LINE_NONE}
     """
@@ -124,12 +133,19 @@ def turned_line(turned):
     return '%s: %s' % (LINE_HEAD, ' · '.join('%s %s' % (z, TXT_TURN[k]) for z, k in turned))
 
 
-def streak_leaders(mv, n=3):
-    """표지 중 'N주 연속'만 골라 연속이 긴 순서로 n곳 [(지역, 'up'|'dn', N)] — 블로그 문장용. 집계는 뺀다."""
-    out = [(z, k, c) for z, (k, _, c) in (mv or {}).get('tags', {}).items() if z not in SZ.AGG and c >= STREAK_MIN]
+def news(mv):
+    """이번 주에 **새로 생긴** 방향 변화 — 블로그 주간 초안이 쓴다(회차 간 반복 금지). 집계는 뺀다.
+
+    돌려주는 것 {'turned': [(시도, 'up'|'dn')], 'entered': [(시도, 'up'|'dn')] — 연속 STREAK_MIN 주에 막 들어선 곳,
+    'milestone': [(시도, 'up'|'dn', N)] — 연속이 MILESTONES 에 막 닿은 곳(이력 끝까지 닿은 '이상' 연속은 빼다 — 실제 길이를
+    모른다)}. 목록은 표시 순서(DISPLAY_ORDER). 연속이 매주 1씩 느는 곳(예: 85주 → 86주)은 이정표가 아니면 싣지 않는다.
+    """
     order = {z: i for i, z in enumerate(SZ.DISPLAY_ORDER)}
-    out.sort(key=lambda x: (-x[2], order.get(x[0], 99)))
-    return out[:n]
+    tags = sorted(((z, t) for z, t in ((mv or {}).get('tags') or {}).items() if z not in SZ.AGG),
+                  key=lambda x: order.get(x[0], 99))
+    return {'turned': [(z, t[0]) for z, t in tags if t[2] == 1],
+            'entered': [(z, t[0]) for z, t in tags if t[2] == STREAK_MIN and not t[3]],
+            'milestone': [(z, t[0], t[2]) for z, t in tags if t[2] in MILESTONES and not t[3]]}
 
 
 # ── 시군구 순위 ───────────────────────────────────────────────────────────────────────────────

@@ -3052,18 +3052,22 @@ function renderWeeklyGrid(){
   };
   /* 방향 표지(B7·RET-5 '지난주와 무엇이 달라졌나') — 판정은 배치(weekly_moves)가 전체 이력으로 해서 싣고 여기선 읽기만 한다. */
   const mv=weeklyMoves(ADV.weekly), tags=(mv&&mv.tags)||{};
-  /* 코어가 싣는 최근 4주(split_data RECENT_WEEKS)는 칸의 풍선 도움말로 보인다 — 표지가 말하는 흐름을 숫자로 확인하게. */
-  const recent=(ADV.weekly.rows||[]).slice(-4);
+  /* 코어가 싣는 최근 주(ADV.weekly.recent — split_data RECENT_WEEKS = weekly_moves.WINDOW)는 칸의 풍선 도움말로 보인다 —
+     표지가 말하는 흐름을 숫자로 확인하게. 주 수는 여기 적지 않고 배치가 싣는 값을 읽는다(통계 탭을 연 뒤 rows 가 156주로
+     바뀌어도 같은 창). 값이 없는 옛 캐시는 코어 rows 그대로. */
+  const recent=(ADV.weekly.rows||[]).slice(-(ADV.weekly.recent||(ADV.weekly.rows||[]).length));
   const cell=(r,i,cls,t)=>{
     const ma=row.ma[i], je=row.je?row.je[i]:null;
     const gp=t?';grid-column:'+t[0]+';grid-row:'+t[1]:'';
     const tg=tags[r];
     const tip=recent.length>1?' title="최근 '+recent.length+'주 매매: '+recent.map(x=>mnus(pv2((x.ma||[])[i]))).join(' → ')+'"':'';
+    /* 표지는 매매 기준이다 — 매매 숫자 바로 아래에 두고 '매매'를 앞에 적는다. 전세 줄 아래에 두었더니 '전세 +0.01' 밑의
+       '하락 전환'처럼 전세 흐름으로 읽혔다(3차 검토). */
     return '<div class="'+cls+'"'+tip+' style="background:'+tint(ma)+gp+'">'
       +'<b>'+r+'</b>'
       +'<span class="wc-ma">'+mnus(pv2(ma))+'</span>'
-      +'<i class="wc-je">전세 '+mnus(pv2(je))+'</i>'
-      +(tg?'<i class="wc-tag">'+tg[1]+'</i>':'')+'</div>';
+      +(tg?'<i class="wc-tag">매매 '+tg[1]+'</i>':'')
+      +'<i class="wc-je">전세 '+mnus(pv2(je))+'</i></div>';
   };
   /* 집계 3은 격자에서 떼어 위로 — 홈 지도의 집계 칩과 같은 구조다. */
   const AGG=3;
@@ -3090,7 +3094,7 @@ function renderWeeklyGrid(){
   /* 격자 머리 두 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장), 지난주와 방향이 바뀐 곳(배치가 구운 문장).
      링크 밖에 둔다 — 격자 링크의 이름(보이는 내용)을 길게 늘리지 않는다. */
   const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel);
-  if(rel)wkRemember(rel.pub);
+  if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
   const lines=(since?'<p class="wg-since">'+since+'</p>':'')+(mv&&mv.line?'<p class="wg-moves">'+mv.line+'</p>':'');
   const sh=weeklyShare(ADV.weekly);
   /* 공유 버튼(B8·VIRAL-1) — 내용은 /weekly/ 공유 버튼과 같은 함수가 구운 ADV.weekly.share. */
@@ -3155,6 +3159,9 @@ function wkSinceText(seen,r){
   const n=Math.round((_dn(r.pub)-_dn(seen))/7);
   return n>=1?'지난 방문('+_md(seen)+' 발표) 이후 새 발표 '+n+'회':null;
 }
+/* 더 새 발표일만 적는다 — 서비스워커·브라우저 캐시의 옛 data-core 로 그린 화면이 이미 본 새 발표일을 옛 날짜로 덮으면
+   다음 방문에 '새 발표'를 한 번 더 센다(3차 검토). */
+function wkShouldRemember(seen,pub){return !!pub&&(!seen||!/^\d{4}-\d{2}-\d{2}$/.test(seen)||seen<pub);}
 function wkSeen(){try{return localStorage.getItem(WK_SEEN_KEY);}catch(e){return null;}}
 function wkRemember(pub){try{localStorage.setItem(WK_SEEN_KEY,pub);}catch(e){}}
 /* 주간 시세 공유(B8·VIRAL-1). 카카오는 퀴즈와 같은 지연 로딩(needKakao) — 못 받으면 OS 공유 → 링크 복사.

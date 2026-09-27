@@ -358,17 +358,20 @@ def weekly_moves_sentences(W):
     순위 이동은 이 초안에 붙이는 상승 TOP 10 이미지(홈 통계 탭 표 캡처, home-app.js sggRanks)와 같은 규칙이다 —
     일치는 test_weekly_moves 가 node 로 본다.
     """
-    mv = WM.moves(W) or {}
+    # 이번 주에 새로 생긴 변화만 쓴다(weekly_moves.news). 오래된 연속을 매주 다시 쓰면 숫자만 1씩 느는 같은 문장이
+    # 회차마다 나간다(CLAUDE.md '회차 간 반복 금지') — 긴 연속은 이정표(8·13·26·52주 …)에 닿은 주에만 쓴다.
+    nw = WM.news(WM.moves(W) or {})
+    lab = {WM.UP: '상승', WM.DN: '하락'}
     parts = []
-    if mv:
-        turned = mv.get('turned') or []
-        parts.append(('지난주와 방향이 바뀐 곳은 %s입니다.'
-                      % ' · '.join('<b>%s</b>(%s)' % (z, WM.TXT_TURN[k]) for z, k in turned))
-                     if turned else WM.LINE_NONE + '.')
-        lead = WM.streak_leaders(mv)
-        if lead:
-            parts.append('흐름이 가장 길게 이어진 곳은 %s입니다.'
-                         % ' · '.join('%s(%s)' % (z, WM.TXT_STREAK[k] % n) for z, k, n in lead))
+    if nw['turned']:
+        parts.append('지난주와 방향이 바뀐 곳은 %s입니다.'
+                     % ' · '.join('<b>%s</b>(%s)' % (z, WM.TXT_TURN[k]) for z, k in nw['turned']))
+    if nw['entered']:
+        parts.append('새로 %d주 연속 흐름에 들어선 곳은 %s입니다.'
+                     % (WM.STREAK_MIN, ' · '.join('%s(%s)' % (z, lab[k]) for z, k in nw['entered'])))
+    if nw['milestone']:
+        parts.append('이번 주로 %s을 채웠습니다.'
+                     % ' · '.join('%s%s %s' % (z, eunneun(z), WM.TXT_STREAK[k] % n) for z, k, n in nw['milestone']))
     para = ('<p>%s</p>' % ' '.join(parts)) if parts else ''
     rank = ''
     S = W.get('sgg') or {}

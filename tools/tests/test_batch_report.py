@@ -105,6 +105,18 @@ def test_failure_names_what_broke():
     assert '고장 난 것이 아닙니다' in body, '막은 것과 고장 난 것을 구별해 줘야 한다'
 
 
+def test_monthly_card_failure_speaks_of_the_month():
+    """월간 공유카드 실패 줄(update-cloud.yml '⚠️ 월간 공유카드 실패 — …', 홈 마케팅 검수 B8)은 월간 문구로 읽힌다.
+    주간 카드 문구('옛 주차 그림')에 걸리면 받는 사람이 주간 카드가 멈춘 줄 안다(3차 검토). 주간 줄은 그대로 주간 문구다.
+
+    변이(실제로 확인): format_batch_report 의 '월간 공유카드 실패' 대응을 지우면(주간 대응이 먼저 걸린다) 빨개진다.
+    픽스처: 배치가 실제로 찍는 두 줄(월간·주간 카드 실패).
+    """
+    say = F.plain('⚠️ 월간 공유카드 실패 — /monthly/ og:image가 옛 달에 고정된다')
+    assert '이달의 통계' in say and '주차' not in say, say
+    assert '옛 주차' in F.plain('⚠️ 공유카드 실패 — /weekly/ og:image가 옛 주차에 고정된다')
+
+
 def test_first_lines_are_conclusion_then_todo():
     """첫 줄이 결론, 그 다음이 할 일."""
     for raw, head in ((CLEAN, '✅'), (FAILED, '⚠️')):

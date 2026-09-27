@@ -10,8 +10,6 @@
   <!--WK:ANSWER--> … <!--/WK:ANSWER-->  시군구 상승·하락 TOP 3, 서울 구별 요약
   <!--WK:SHARE-->  … <!--/WK:SHARE-->   공유 버튼(B8·VIRAL-1). 표식이 없으면 ANSWER 뒤에 자리를 낸다
   <!--WK:TABLE-->  … <!--/WK:TABLE-->   시군구 전체 표(C10②·SEO-2③). 표식이 없으면 SHARE 뒤에 자리를 낸다
-  <!--WK:SHARE-->  … <!--/WK:SHARE-->   공유 버튼(B8·VIRAL-1). 표식이 없으면 ANSWER 뒤에 새로 만든다
-  <!--WK:TABLE-->  … <!--/WK:TABLE-->   시군구 전체 표(C10②·SEO-2③). 표식이 없으면 SHARE 뒤에 새로 만든다
   <meta name="description">, og:description, 'N개 시도' 문구
   구조화 데이터(Dataset)의 url, '숫자의 출처' 문단 — 홈 마케팅 검수 A4·A6(2026-09-27). 뼈대에 손으로 적혀 있던
   것을 생성기가 맡는다(Dataset url 이 '/#stats-market' 라 검색엔진에는 홈 주소였고, 출처 문단은 근거 없는
@@ -353,8 +351,9 @@ def table_html(W, Q):
         '  </tbody></table></div>',
         '  <p class="note">%s 표두를 누르면 정렬합니다.</p>' % how,
         '  </details>',
-        # RET-7: 두 주기를 느슨하게 잇는다 — 타일에 판정 칩을 붙이지 않고 한 줄로 시도 리포트에 보낸다.
-        '  <p class="note">이 지역 공급 판정 보기 → <a href="/zone/">시도별 공급 리포트</a></p>',
+        # RET-7: 두 주기를 느슨하게 잇는다 — 타일에 판정 칩을 붙이지 않고 한 줄로 시도 리포트 목록(/zone/)에 보낸다.
+        # 가는 곳이 시도 목록이라 문구도 '시도별'이다('이 지역'이라 적으면 그 시군구의 리포트로 가는 줄 안다 — 3차 검토).
+        '  <p class="note"><a href="/zone/">시도별 공급 판정 보기 →</a></p>',
         '</div></section>',
         '<style>%s</style>' % TABLE_CSS,
         I.SORT_SCRIPT,
