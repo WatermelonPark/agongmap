@@ -5,10 +5,13 @@
 그려져 검색엔진과 카카오·네이버 링크 미리보기에 결론이 보이지 않았다. 답(시군구 TOP·서울 구)을
 보려면 한 번 더 눌러야 했고, 광주·전남 타일은 판정 단위가 합쳐진 뒤에도 따로 나왔다.
 
-페이지 뼈대(스타일·출처·더 둘러보기·네비)는 손으로 관리하고, 아래 자리만 이 도구가 채운다.
-  <!--WK:HEAD-->   … <!--/WK:HEAD-->    기준일·결론 제목·시도 타일
+페이지 뼈대(스타일·더 둘러보기·네비)는 손으로 관리하고, 아래 자리만 이 도구가 채운다.
+  <!--WK:HEAD-->   … <!--/WK:HEAD-->    조사일·발표일·다음 발표·결론 제목·시도 타일
   <!--WK:ANSWER--> … <!--/WK:ANSWER-->  시군구 상승·하락 TOP 3, 서울 구별 요약
   <meta name="description">, og:description, 'N개 시도' 문구
+  구조화 데이터(Dataset)의 url, '숫자의 출처' 문단 — 홈 마케팅 검수 A4·A6(2026-09-27). 뼈대에 손으로 적혀 있던
+  것을 생성기가 맡는다(Dataset url 이 '/#stats-market' 라 검색엔진에는 홈 주소였고, 출처 문단은 근거 없는
+  '뉴스 기사보다 하루 빠르다'를 말했다). 손으로 되돌려도 다음 배치가 다시 고친다.
 
 ⚠️ 값은 전부 data.js 에서 온다. 시도 목록은 sido_zones.DISPLAY_ORDER, 시군구 이름은 index.html 의
    SGG_QNAME(홈 TOP 10 과 같은 표)을 쓴다. 반올림은 사이트 pv2r 와 같은 규칙이다 — 여기서 다르게
@@ -18,7 +21,6 @@
 
 사용: python tools/make_weekly_page.py
 """
-import datetime
 import html
 import io
 import json
@@ -32,6 +34,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import sido_zones as SZ  # noqa: E402
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
@@ -44,7 +47,10 @@ def load():
     m = re.search(r'const SGG_QNAME=(\{.*?\});', h)
     if not m:
         raise SystemExit('index.html 에서 SGG_QNAME 을 찾지 못했다 — 시군구 이름표 위치가 바뀌었는지 볼 것')
-    return adv['weekly'], json.loads(m.group(1))
+    # 다음 발표가 연휴에 걸리는지는 배치가 특일정보 API 로 채운 ADV.holidays 로 본다(홈 JS 와 같은 입력).
+    # 반환 모양(W, Q)을 바꾸지 않으려고 W 사본에 얹는다 — 합성 픽스처처럼 없으면 공휴일 없음으로 본다.
+    W = dict(adv['weekly'], holidays=adv.get('holidays') or [])
+    return W, json.loads(m.group(1))
 
 
 def pv2r(v):
@@ -73,9 +79,38 @@ def md(p):
 
 
 def pub(p):
-    """조사기준일(월) → 발표일(목). make_weekly_share._pubdate 와 같은 규칙."""
-    y, m, d = (int(x) for x in p.split('-'))
-    return (datetime.date(y, m, d) + datetime.timedelta(days=3)).isoformat()
+    """조사기준일(월) → 발표일(목). make_weekly_share._pubdate 와 같은 규칙(정본은 weekly_release)."""
+    return WR.status(p)['pub']
+
+
+# '숫자의 출처' 문단. 예전 문장('호가·광고가 아닌 국가 통계라, 뉴스 기사보다 하루 빠르다')은 확인한 적 없는
+# 비교였다 — 부동산원 주간 동향은 발표 당일 기사화되는 일이 많고, 배치가 멈춘 주에는 정면으로 틀린 말이
+# 된다(TRUST-8). 우리가 확인할 수 있고 지킬 수 있는 사실만 적는다. 반영이 늦는 주는 위 날짜 줄이 스스로 알린다.
+SOURCE_TEXT = ('한국부동산원 「전국주택가격동향조사」 아파트 매매·전세가격지수 변동률을 그대로 쓴다. '
+               '호가·광고가가 아닌 국가 통계다. 매주 목요일 발표분을 발표 당일 반영하고, 반영이 늦어지면 '
+               '맨 위 날짜 줄에 \'%s\'라고 적는다.' % WR.WAIT)
+
+
+H1_WEEK = '이번 주'   # 결론 제목 머리. 발표가 늦은 주에는 스크립트가 이 말을 발표일로 바꾼다
+
+
+def when_line(W, p):
+    """머리줄 날짜 — '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)'과, 배치가 멈췄을 때 스스로 바꿔 적는 스크립트.
+
+    페이지는 배치가 구울 때만 바뀐다. 배치가 멈추면 '다음 발표' 날짜가 지난 채로 남으므로, 그 날짜(휴일이면
+    영업일로 민 날, weekly_release.status 의 due)가 다 지났는데도 이 페이지면 문구를 '반영 대기'로 바꾸고 제목의
+    '이번 주'도 발표일로 바꾼다(TRUST-1③ — 홈 주간 구역 h2 와 같은 처리). 그래서 스크립트는 h1 뒤에 둔다.
+    날짜 셈은 여기(파이썬)에서 끝내고 스크립트는 오늘(KST)과 문자열 비교만 한다 — 셈을 세 번 구현하지 않는다.
+    """
+    st = WR.status(p, holidays=W.get('holidays') or ())
+    late = WR.when_text(dict(st, stale=True))
+    script = ('<script>(function(){try{if(new Date(Date.now()+324e5).toISOString().slice(0,10)>%s){'
+              'var e=document.getElementById(\'wk-when\');if(e)e.textContent=%s;'
+              'var h=document.querySelector(\'header h1\'),t=h&&h.firstChild;'
+              'if(t&&t.nodeType===3)t.nodeValue=t.nodeValue.replace(%s,%s);}}catch(x){}})();</script>'
+              % (json.dumps(st['due']), json.dumps(late, ensure_ascii=False),
+                 json.dumps(H1_WEEK, ensure_ascii=False), json.dumps('%s 발표' % md(st['pub']), ensure_ascii=False)))
+    return '<span id="wk-when">%s</span>' % html.escape(WR.when_text(st)), script
 
 
 def tile(name, v, i):
@@ -140,15 +175,16 @@ def build(W, Q):
     nation = val.get('전국')
     survey, release = md(p), md(pub(p))
     datestr = '%s 조사 · %s 발표' % (survey, release)
+    when, stale_js = when_line(W, p)
 
     # ── 결론 한 줄: 절대 변동이 가장 큰 시도(동률이면 표시 순서가 앞선 곳)
     best = max(sido, key=lambda x: abs(pv2r(x[1])))
     up_s, dn_s = top3(sido)
     if pv2r(best[1]) == 0:
-        h1 = '이번 주 아파트,<br>시도 모두 보합'
+        h1 = '%s 아파트,<br>시도 모두 보합' % H1_WEEK
     else:
-        h1 = ('이번 주 아파트,<br><em class="%s">%s %s%%</em> 가장 크게 %s'
-              % (sign(best[1]), best[0], pv2(best[1]), '올랐다' if pv2r(best[1]) > 0 else '내렸다'))
+        h1 = ('%s 아파트,<br><em class="%s">%s %s%%</em> 가장 크게 %s'
+              % (H1_WEEK, sign(best[1]), best[0], pv2(best[1]), '올랐다' if pv2r(best[1]) > 0 else '내렸다'))
     lead = ['전국 <b>%s%%</b>.' % pv2(nation) if nation is not None else '',
             '%s.' % count_text('시도 %d곳' % len(sido), [v for _, v in sido])]
     # 제목이 이미 말한 쪽은 되풀이하지 않고, 반대 방향 1위만 덧붙인다.
@@ -158,8 +194,9 @@ def build(W, Q):
                     % ('내린' if pv2r(best[1]) > 0 else '오른', other[0][0], pv2(other[0][1])))
     tiles = ''.join(tile(z, val[z], i) for i, z in enumerate(SZ.DISPLAY_ORDER) if val.get(z) is not None)
     head = '\n'.join([
-        '  <p class="eyebrow">%s · 한국부동산원 주간 통계</p>' % datestr,
+        '  <p class="eyebrow">%s · 한국부동산원 주간 통계</p>' % when,
         '  <h1>%s</h1>' % h1,
+        '  ' + stale_js,
         '  <p class="lead">%s</p>' % ' '.join(x for x in lead if x),
         '  <a class="minimap" href="/#stats-market" aria-label="이번 주 시도별 매매가격 변동률, 눌러서 시군구 상세 지도 보기">',
         '    <div class="mm-grid">%s</div>' % tiles,
@@ -236,6 +273,25 @@ def put_meta(s, key, attr, text):
     return pat.sub(lambda m: m.group(1) + html.escape(text, quote=True) + m.group(2), s)
 
 
+def put_dataset_url(s):
+    """구조화 데이터 Dataset 의 url 을 이 페이지(canonical)로. 예전엔 '/#stats-market' 이라 검색엔진에는 홈
+    주소('/')였다 — 주간 시세 검색어를 홈과 나눠 가지면서 정작 이 페이지를 가리키지 않았다(SEO-2①)."""
+    canon = re.findall(r'<link rel="canonical" href="([^"]+)">', s)
+    if len(canon) != 1:
+        raise SystemExit('weekly/index.html 에서 canonical 을 찾지 못했다')
+    pat = re.compile(r'("@type":\s*"Dataset",.*?"url":\s*")[^"]*(")', re.S)
+    if len(pat.findall(s)) != 1:
+        raise SystemExit('weekly/index.html 에서 Dataset url 을 찾지 못했다 — 구조화 데이터 모양이 바뀌었는지 볼 것')
+    return pat.sub(lambda m: m.group(1) + canon[0] + m.group(2), s)
+
+
+def put_source(s):
+    pat = re.compile(r'(<h2>숫자의 출처</h2>\s*<p>)(.*?)(</p>)', re.S)
+    if len(pat.findall(s)) != 1:
+        raise SystemExit("weekly/index.html 에서 '숫자의 출처' 문단을 찾지 못했다")
+    return pat.sub(lambda m: m.group(1) + SOURCE_TEXT + m.group(3), s)
+
+
 def render(s, W, Q):
     nl = '\r\n' if '\r\n' in s else '\n'
     head, answer, desc, og = build(W, Q)
@@ -243,6 +299,8 @@ def render(s, W, Q):
     s = put(s, 'ANSWER', answer, nl)
     s = put_meta(s, 'name', 'description', desc)
     s = put_meta(s, 'property', 'og:description', og)
+    s = put_dataset_url(s)
+    s = put_source(s)
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
     return s
