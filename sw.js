@@ -93,12 +93,18 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// 서비스워커가 손대지 않는 같은 출처 경로(fetch 처리기 참조). 시험(test_feed)이 /feed.xml 이 여기 있는지 본다.
+const NO_SW = new Set(['/feed.xml', '/sitemap.xml', '/robots.txt']);
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // GA·카카오 등은 통과
+  // 새 소식 피드(/feed.xml, 배치가 굽는 RSS)·sitemap·robots 는 가로채지 않는다(홈 마케팅 검수 D1). 아래 cache-first 에
+  // 떨어지면 옛 판을 주고, 탭에서 열면 navigate 폴백이 홈을 준다 — 늘 네트워크의 그 파일이어야 한다.
+  if (NO_SW.has(url.pathname)) return;
 
   // data.js·app.css: HTML과 한 몸이라 network-first.
   //  - data.js를 cache-first로 두면 통계가 stale 된다.

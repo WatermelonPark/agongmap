@@ -176,6 +176,24 @@ def sort_key(p):
     return s
 
 
+def newest_basis(basis):
+    """지표별 기준 시점 목록 → (가장 최신 기준 원문, 'YYYY-MM-01' dateModified).
+
+    dateModified는 가장 최신 기준 시점에서 유도한다. 데이터가 안 바뀌면 안 움직여야
+    sitemap lastmod가 매일 흔들리지 않는다(/moveins/와 같은 규칙).
+    비교는 반드시 sort_key로 — 한글 라벨 어휘 비교는 10월을 9월보다 작다고 본다.
+    이 페이지의 JSON-LD·sitemap lastmod 와 /feed.xml 의 월간 항목(make_feed)이 이 한 함수를 쓴다(홈 마케팅 검수 D1).
+    """
+    newest_raw = max(basis, key=sort_key) if basis else ''
+    key = sort_key(newest_raw)                       # 'YYYY-MM'
+    return newest_raw, ((key + '-01') if re.match(r'^\d{4}-\d{2}$', key) else PUBLISHED)
+
+
+# 페이지 설명(meta description·JSON-LD). /feed.xml 월간 항목의 설명도 이 문장이다.
+DESC = ('매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 '
+        '변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.')
+
+
 def last_idx(d):
     """계열의 마지막 시점 인덱스와 라벨."""
     dates = d['dates']
@@ -559,13 +577,8 @@ def main():
         print('  원자료에 해당 계열이 없다. data.js와 update_adv_data 쪽을 볼 것.')
         return 1
 
-    # dateModified는 가장 최신 기준 시점에서 유도한다. 데이터가 안 바뀌면 안 움직여야
-    # sitemap lastmod가 매일 흔들리지 않는다(/moveins/와 같은 규칙).
-    # 비교는 반드시 sort_key로 — 한글 라벨 어휘 비교는 10월을 9월보다 작다고 본다.
-    newest_raw = max(basis, key=sort_key) if basis else ''
+    newest_raw, mod_iso = newest_basis(basis)
     newest = month_label(newest_raw)
-    key = sort_key(newest_raw)                       # 'YYYY-MM'
-    mod_iso = (key + '-01') if re.match(r'^\d{4}-\d{2}$', key) else PUBLISHED
 
     toc = ('<div class="wrap"><nav class="toc" aria-label="지표 목록">'
            '<a href="#price">1 매매·전세·월세</a><a href="#permits">2 인허가</a>'
@@ -577,8 +590,7 @@ def main():
     share_block = PS.block(share, SHARE_LEAD) if share else ''
 
     title = '이달의 공급 통계 — 시도별 매매·전세·인허가·입주물량·미분양 | 아공맵'
-    desc = ('매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 '
-            '변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.')
+    desc = DESC
     body = ('<header><div class="wrap"><div class="chip">이달의 공급 통계</div>'
             '<h1>이번 달 통계, 한 화면에서</h1>'
             '<p class="lead">매달 흩어져 발표되는 공개 통계를 보는 순서 그대로 모았습니다. '
