@@ -190,7 +190,10 @@ function showView(v,updateHash){
   if(updateHash!==false){
     // 통계는 모드·하위탭까지 정규화한 해시로 — 뒤로가기 복원이 화면과 일치하게
     const full=v==='stats'?statsHashOf(statsMode):'#'+v;
-    const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname:full;
+    /* 홈으로 갈 때도 쿼리는 남긴다. 예전엔 location.pathname 만 써서 쿼리 착지(블로그 '/?utm…#stats-market',
+       설치 앱 start_url '/?utm_source=pwa…')에서 홈 → 뒤로 가기를 하면 쿼리까지 바뀌어 hashchange 가 오지 않았고,
+       주소는 통계인데 화면은 홈에 머물렀다(홈 마케팅 검수 1차 배포 검증, 2026-09-27). */
+    const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname+location.search:full;
     if(v===curView)history.replaceState(null,'',tgtUrl);
     else if(location.hash!==tgtHash)history.pushState(null,'',tgtUrl);
   }

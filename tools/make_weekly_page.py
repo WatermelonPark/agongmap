@@ -109,7 +109,7 @@ def when_line(W, p):
               'var h=document.querySelector(\'header h1\'),t=h&&h.firstChild;'
               'if(t&&t.nodeType===3)t.nodeValue=t.nodeValue.replace(%s,%s);}}catch(x){}})();</script>'
               % (json.dumps(st['due']), json.dumps(late, ensure_ascii=False),
-                 json.dumps(H1_WEEK, ensure_ascii=False), json.dumps('%s 발표' % md(st['pub']), ensure_ascii=False)))
+                 json.dumps(H1_WEEK, ensure_ascii=False), json.dumps('%s 발표 기준' % md(st['pub']), ensure_ascii=False)))
     return '<span id="wk-when">%s</span>' % html.escape(WR.when_text(st)), script
 
 

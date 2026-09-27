@@ -20,7 +20,7 @@ import home_src as HS  # noqa: E402
 # 입구(목적지) → to 값. 목적지가 같은 입구도 값이 달라야 한다(/weekly/ 격자·푸터).
 WANT = {
     ('/zone/', '시도별로 자세히 보기'): 'zone_hub',
-    ('/#stats-market', '시군구 시세 지도·TOP 10 보기'): 'weekly_map',
+    ('#stats-market', '시군구 시세 지도·TOP 10 보기'): 'weekly_map',
     ('/burini-test/', '부린이 테스트 · 난이도'): 'quiz_burini',
     ('/investor-test/', '투자자 테스트 · 난이도'): 'quiz_investor',
     ('/redev-test/', '재건축·재개발 테스트 · 난이도'): 'quiz_redev',
@@ -61,3 +61,22 @@ def test_weekly_grid_link_is_tagged_and_values_are_distinct_snake_case():
     assert all(re.match(r'^[a-z][a-z0-9_]*$', v) for v in vals), vals
     # 홈 뷰의 home_cta 가 모두 이 표 안에 있다 — 표에 없는 값이 생기면 여기서 표를 늘린다
     assert set(TO.findall(_home_view())) == set(WANT.values())
+
+
+def test_in_page_entrances_keep_the_landing_query():
+    """홈 안에서 화면만 바꾸는 입구는 쿼리를 버리지 않는다 — 쿼리 착지에서 문서를 다시 불러오거나 뒤로 가기가 어긋나지 않게.
+
+    재현하는 실제 상태(1차 배포 검증, 2026-09-27): 설치 앱 start_url 이 '/?utm_source=pwa…', 블로그 주간 링크가
+    '/?utm…#stats-market' 로 바뀌어 쿼리 착지가 가장 흔한 진입이 됐다. 그때 ① 주간 버튼이 '/#stats-market'(절대
+    경로)이면 '/?q' 에서 눌렀을 때 쿼리가 달라 해시 이동이 아니라 문서 전체를 다시 불러왔고(GA 착지 hit 도 다시
+    나감), ② showView('home') 이 location.pathname 만 pushState 하면 홈 → 뒤로 가기에서 쿼리까지 바뀌어 hashchange
+    가 오지 않아 주소는 통계, 화면은 홈에 머물렀다(Chromium 375px 재현).
+    변이: 버튼 href 를 '/#stats-market' 으로, showView 의 홈 tgtUrl 을 location.pathname 으로 되돌리면 각각
+    빨개진다(실제로 확인).
+    """
+    home = _home_view()
+    bad = re.findall(r'<a class="home-cta" href="(/#[^"]*)"', home)
+    assert not bad, '같은 문서 안 화면 전환 입구가 절대 경로(%s)다 — 쿼리 착지에서 문서를 다시 불러온다' % bad
+    src = HS.home_source()
+    m = re.search(r"tgtUrl=v==='home'\?([^:]+):full", src)
+    assert m and 'location.search' in m.group(1), "홈으로 갈 때 pushState 주소가 쿼리를 버린다: %s" % (m and m.group(1))

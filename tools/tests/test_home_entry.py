@@ -306,11 +306,12 @@ def test_anchor_or_unknown_hash_still_counts_once(start, ids):
 
 
 def test_click_before_the_loader_keeps_the_landing_address():
-    """앵커로 들어와 로더가 붙기 전에 홈 탭을 누르면: page_view 는 그 클릭의 한 번뿐이고, 주소를 '/'로 바꾸기
-    전의 착지 주소(utm 쿼리 포함)를 싣는다 — 세션의 첫 hit 라 캠페인이 여기서 정해진다."""
+    """앵커로 들어와 로더가 붙기 전에 홈 탭을 누르면: page_view 는 그 클릭의 한 번뿐이고, 해시를 걷어 내기
+    전의 착지 주소(utm 쿼리 포함)를 싣는다 — 세션의 첫 hit 라 캠페인이 여기서 정해진다. 홈으로 가는 pushState 는
+    쿼리를 남긴다(뒤로 가기 때 hashchange 가 오게 — test_home_cta.test_in_page_entrances_keep_the_landing_query)."""
     start = SITE + '/?utm_source=x#sec-week'
     got = _run(start, ids=['sec-week'], beforeDCL=["showView('home')"])
-    assert got['rec']['push'] == ['/'], got['rec']['push']
+    assert got['rec']['push'] == ['/?utm_source=x'], got['rec']['push']
     assert _views(got) == ['view_home'] and got['pv'][0]['page_location'] == start
 
 
