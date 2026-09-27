@@ -32,6 +32,7 @@ import sido_zones as SZ                                            # noqa: E402
 import make_weekly_page as MW    # noqa: E402  주간 표기(반올림·조사일·발표일)를 /weekly/와 같이
 import kst as KST                # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 import site_nav as N             # noqa: E402  하단 탭바 정본(홈 마케팅 검수 C2)
+import robots_meta as RM          # noqa: E402  검색 로봇 메타 정본(홈 마케팅 검수 D2)
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
@@ -458,6 +459,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 <script async src="https://www.googletagmanager.com/gtag/js?id=%(ga)s"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','%(ga)s');</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+%(robots)s
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
@@ -483,7 +485,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 </head>
 <body>
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-''' % {'ga': GA, 'zjs': zone_js_src(),
+''' % {'ga': GA, 'zjs': zone_js_src(), 'robots': RM.TAG,
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,
        # 지역 카드(make_zone_cards.py 산출물). 없으면 브랜드 카드로 떨어진다 —
        # 카드를 아직 안 구웠거나 지역이 새로 생긴 회차에도 미리보기가 깨지지 않게.
@@ -565,6 +567,7 @@ def _write_merged_stub(path, old, new):
     url = SITE + '/zone/' + urllib.parse.quote(new) + '/'
     h = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
          '<meta name="viewport" content="width=device-width,initial-scale=1">'
+         + RM.TAG +   # 검색 로봇 메타 정본(D2) — 통합 안내도 큰 미리보기 조건을 같이 싣는다
          '<title>%s 아파트 공급 분석 — %s로 통합 | 아공맵</title>'
          '<link rel="canonical" href="%s">'
          '<meta http-equiv="refresh" content="3;url=%s">'

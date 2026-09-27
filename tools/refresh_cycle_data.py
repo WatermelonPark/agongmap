@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
 import kst as KST            # noqa: E402  (오늘(KST) — 생성기가 찍는 날짜의 단일 출처)
 import make_indicator_pages as I  # noqa: E402  (전세가율 기준월 규칙·sitemap — /jeonse-ratio/ 와 같은 규칙)
+import robots_meta as RM     # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
@@ -222,8 +223,11 @@ def main():
     # 데이터 칸이 실제로 바뀐 회차에만 JSON-LD dateModified 와 sitemap lastmod 를 오늘(KST)로 올린다.
     # 둘 다 07-19·07-16 에 멈춰 있었다 — 매달 값이 바뀌는데 검색엔진엔 두 달째 그대로라고 말했다
     # (2026-09-23 점검, 백로그 29). 안 바뀐 날 날짜만 바꾸면 매일 커밋이 생기므로 비교 뒤에만 올린다.
+    # 검색 로봇 메타(D2): 서술은 손 문서지만 <head> 한 줄은 여기서 넣는다(없을 때만). 비교는 옛 판에도 같은 줄을 넣은 뒤에
+    # 한다 — 메타 한 줄 때문에 데이터가 그대로인 날 dateModified·sitemap lastmod 가 오늘로 올라가지 않게.
+    page = RM.ensure(page)
     old = io.open(PAGE, encoding='utf-8').read()
-    if _strip_date(page) != _strip_date(old):
+    if _strip_date(page) != _strip_date(RM.ensure(old)):
         today = _today_kst()
         page = re.sub(r'("dateModified":\s*")[^"]*(")', r'\g<1>%s\g<2>' % today, page, count=1)
         I.bump_sitemap([('/cycle/', today)])
