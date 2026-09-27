@@ -111,12 +111,14 @@ def test_two_columns_hold_the_supply_map_and_this_weeks_grid_from_1024px_only():
 
 def test_first_screen_boxes_are_reserved_in_the_right_column():
     """주간 구역이 1024px 이상에서 첫 화면에 올라오므로, 부팅 때 채워지는 격자(빈 상자 → 490px)와 결론 h2(1~2줄)의 높이를
-    데스크톱 블록이 미리 잡는다(없으면 1024·1280·1440px 에서 아래 버튼이 490px 밀려 CLS 0.014 — 실측).
-    변이(실제로 확인): 격자 예약을 지우면 빨개진다.
+    데스크톱 블록이 미리 잡는다(없으면 1024·1280·1440px 에서 아래 버튼이 490px 밀려 CLS 0.014 — 실측). 발표 머리줄도 연휴 주
+    문구가 360px 단에서 두 줄(운영 글꼴 367px)이라 두 줄을 잡는다.
+    변이(실제로 확인): 격자 예약이나 머리줄 예약을 지우면 빨개진다.
     """
     d = _desktop_css()
     assert re.search(r'min-height:\s*(\d+)px', _rule(d, '.home-duo #home-weekly-grid:empty')), '주간 격자 예약 높이가 없다'
     assert 'min-height' in _rule(d, '.home-duo #wk-h2')
+    assert 'min-height' in _rule(d, '.home-duo .hs-kicker'), '발표 머리줄(연휴 주 두 줄) 예약이 없다'
 
 
 def test_top_nav_is_the_one_canonical_tabbar_moved_up_on_home_only():

@@ -1032,9 +1032,12 @@ table.adv thead th:first-child{text-align:center}
     .home-duo>#sec-score.vm-table~.home-sec{grid-column:1/-1;grid-row:2}
     /* 주간 구역이 첫 화면에 올라왔으므로 부팅 때 채워지는 두 곳의 높이를 미리 잡는다(CLS). 격자는 스크립트가 그리는데
        빈 상자면 아래 버튼이 490px 밀렸다(실측 CLS 0.014 — 1024·1280·1440px 모두 360px 단이라 높이가 같다). h2 는 정적
-       질문 → 이번 주 결론(ADV.weekly.head)으로 바뀌는데 결론 길이에 따라 1~2줄이라 두 줄을 잡는다(27px·줄 높이 1.75). */
+       질문 → 이번 주 결론(ADV.weekly.head)으로 바뀌는데 결론 길이에 따라 1~2줄이라 두 줄을 잡는다(27px·줄 높이 1.75).
+       머리줄(정적 '주간 발표 기준' → '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)')도 연휴 주 문구('… · 연휴로 발표 일정이
+       바뀔 수 있습니다 · 한국부동산원')가 360px 단에서 두 줄이라(운영 글꼴 367px·대체 글꼴 415px 실측) 두 줄을 잡는다. */
     .home-duo #home-weekly-grid:empty{min-height:490px}
     .home-duo #wk-h2{min-height:3.5em}
+    .home-duo .hs-kicker{min-height:3.5em}
   }
   /* 하단 탭바 → 상단 내비(C7, 1024px 이상·홈만 — body.home-app). 탭바 마크업은 하나다: 같은 <nav class="bottomnav"> 를
      자리만 위로 옮기므로 라벨·순서·주소가 정본(tools/site_nav.py TABS)과 저절로 같다(test_site_nav·test_home_desktop).
