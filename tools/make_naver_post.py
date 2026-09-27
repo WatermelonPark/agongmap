@@ -28,6 +28,7 @@ import make_sido_pages as M  # noqa: E402  (load 재사용)
 import sido_zones as SZ      # noqa: E402  (zone_order·GRADE_LABS·상수)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import make_weekly_page as MW  # noqa: E402  (주간 변동률 반올림 정본 pv2 — 사이트 pv2 와 같다)
+import weekly_moves as WM  # noqa: E402  (방향 표지·시군구 순위 이동 정본 — 홈 마케팅 검수 B7)
 import close_published_issues as CP  # noqa: E402  (RSS·카테고리 이름의 정본)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -334,15 +335,53 @@ def _tile_counts():
     타일은 `SGG_QNAME`에 이름이 있는 코드만 그려진다(index.html의 그리기 조건이
     `SGG_QNAME[c] && …`). 그래서 그 목록이 곧 타일 수다.
     """
+    q = _sgg_names()
+    seoul = sum(1 for n in q.values() if n.startswith('서울 '))
+    return len(q) - seoul, seoul
+
+
+def _sgg_names():
+    """홈 시군구 이름표(SGG_QNAME) — 지도 타일·TOP 10·/weekly/ 시군구 표가 같은 표를 쓴다."""
     import json
     import re
     h = HS.home_source()
     m = re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S)
     if not m:
         raise RuntimeError('index.html에서 SGG_QNAME을 찾지 못했다 — 타일 수를 못 맞춘다')
-    q = json.loads(m.group(1))
-    seoul = sum(1 for n in q.values() if n.startswith('서울 '))
-    return len(q) - seoul, seoul
+    return json.loads(m.group(1))
+
+
+def weekly_moves_sentences(W):
+    """'지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5) — 홈 주간 격자·/weekly/ 타일과 **같은 함수**(weekly_moves)의 결과를
+    문장으로 옮긴다. 재료만 깔고 해석은 사람이 쓴다. (방향 문단, 순위 이동 문장) — 없으면 빈 문자열.
+
+    순위 이동은 이 초안에 붙이는 상승 TOP 10 이미지(홈 통계 탭 표 캡처, home-app.js sggRanks)와 같은 규칙이다 —
+    일치는 test_weekly_moves 가 node 로 본다.
+    """
+    # 이번 주에 새로 생긴 변화만 쓴다(weekly_moves.news). 오래된 연속을 매주 다시 쓰면 숫자만 1씩 느는 같은 문장이
+    # 회차마다 나간다(CLAUDE.md '회차 간 반복 금지') — 긴 연속은 이정표(8·13·26·52주 …)에 닿은 주에만 쓴다.
+    nw = WM.news(WM.moves(W) or {})
+    lab = {WM.UP: '상승', WM.DN: '하락'}
+    parts = []
+    if nw['turned']:
+        parts.append('지난주와 방향이 바뀐 곳은 %s입니다.'
+                     % ' · '.join('<b>%s</b>(%s)' % (z, WM.TXT_TURN[k]) for z, k in nw['turned']))
+    if nw['entered']:
+        parts.append('새로 %d주 연속 흐름에 들어선 곳은 %s입니다.'
+                     % (WM.STREAK_MIN, ' · '.join('%s(%s)' % (z, lab[k]) for z, k in nw['entered'])))
+    if nw['milestone']:
+        parts.append('이번 주로 %s을 채웠습니다.'
+                     % ' · '.join('%s%s %s' % (z, eunneun(z), WM.TXT_STREAK[k] % n) for z, k, n in nw['milestone']))
+    para = ('<p>%s</p>' % ' '.join(parts)) if parts else ''
+    rank = ''
+    S = W.get('sgg') or {}
+    if len(S.get('rows') or []) > 1:
+        q = _sgg_names()
+        top = [(q[c], d) for c, _, r, d in WM.rank_moves(S, q)[:10] if d is not None and d > 0]
+        if top:
+            name, d = max(top, key=lambda x: x[1])   # 같은 폭이면 순위가 앞선 곳
+            rank = ('<p>상승 TOP 10 가운데 지난주보다 순위가 가장 많이 뛴 곳은 <b>%s</b>(▲%d위)입니다.</p>' % (name, d))
+    return para, rank
 
 
 SGG_N, SEOUL_N = _tile_counts()
@@ -621,6 +660,10 @@ def draft_weekly(adv, sts):
     if gu:
         body.append('<p>서울 안에서는 %s 순으로 올랐습니다.</p>' %
                     ' · '.join('<b>%s %s</b>' % (k, pct(v)) for k, v in gu))
+    # 지난주와 무엇이 달라졌나(B7) — 사이트 격자·/weekly/ 타일과 같은 표지(weekly_moves)
+    moves_p, rank_p = weekly_moves_sentences(W)
+    if moves_p:
+        body.append(moves_p)
     # 시도 타일 지도(share/weekly-map.png)를 넣던 자리다. 뺐다 — 그 값들은 바로
     # 위 표에 그대로 있어 중복이고, 시군구 지도가 훨씬 값어치 있다(2026-08-30
     # 사용자). 시도 지도는 /weekly/ og:image로는 계속 쓴다.
@@ -630,6 +673,8 @@ def draft_weekly(adv, sts):
     body.append('<p>가장 많이 오르고 내린 곳을 순위로 보면 이렇습니다. '
                 '맨 오른쪽은 <b>지난주 순위에서 몇 계단 움직였는지</b>입니다.</p>')
     body.append('<p>[여기에 상승·하락 TOP10 이미지를 넣어 주세요]</p>')
+    if rank_p:
+        body.append(rank_p)
     body.append('<p>시군구로 내려가 보면 같은 권역 안에서도 갈립니다.</p>')
     # 지도는 한 장으로 간다(2026-09-07 사용자: 둘로 잘리니 보기 안 좋다). 원래
     # 모바일 가독성 때문에 둘로 나눴던 것인데(3ea4781), 잘린 자리가 더 거슬린다.

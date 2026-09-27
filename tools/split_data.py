@@ -122,6 +122,30 @@ def _weekly_head(w):
         return None
 
 
+# '지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5). 홈 코어에 최근 WINDOW 주를 싣고, 방향 표지(상승 전환·N주 연속)는
+# weekly_moves 가 **전체 이력**으로 판정해 ADV.weekly.moves 로 싣는다 — 홈 JS 는 규칙을 다시 만들지 않고 읽기만 한다.
+# 공유 내용(ADV.weekly.share, B8)은 /weekly/ 공유 버튼과 같은 함수(make_weekly_page.share_payload)에서 온다.
+# 둘 다 결론 한 줄(head)처럼 못 만들면 빼고 쪼갠다 — 홈은 없으면 표지·공유 버튼 없이 그린다.
+try:
+    import weekly_moves as _WM
+except Exception as _e:               # noqa: BLE001
+    _WM = None
+    print('⚠️ split_data: weekly_moves 를 못 불러와 ADV.weekly.moves 를 싣지 않는다 — %s' % _e, file=sys.stderr)
+RECENT_WEEKS = _WM.WINDOW if _WM is not None else 1
+
+
+def _weekly_extra(w):
+    """(moves, share) — 만들지 못한 것은 None."""
+    out = []
+    for name, fn in (('방향 표지', lambda: _WM and _WM.moves(w)), ('공유 내용', lambda: _MW and _MW.share_payload(w))):
+        try:
+            out.append(fn() or None)
+        except Exception as e:        # noqa: BLE001
+            print('⚠️ split_data: 주간 %s 를 만들지 못했다 — %s' % (name, e), file=sys.stderr)
+            out.append(None)
+    return out
+
+
 def _r2(a):
     """변동률 소수 2자리 — 원자료는 자리수가 들쭉날쭉해 그대로 실으면 30% 커진다."""
     return None if a is None else [None if v is None else round(v, 2) for v in a]
@@ -165,10 +189,16 @@ def main():
     # 입력이라, 한쪽이 비어도 다른 쪽은 그려야 한다.
     wk = {'regions': w.get('regions', []), 'grace': GRACE_WEEKLY}
     head = _weekly_head(w)
+    moves, share = _weekly_extra(w)
     if w.get('rows'):
-        wk['rows'] = w['rows'][-1:]
+        wk['rows'] = w['rows'][-RECENT_WEEKS:]   # 최근 4주(B7). 홈 격자·띠는 마지막 행을, 표지는 moves 를 읽는다
+        wk['recent'] = RECENT_WEEKS   # 홈 격자 풍선 도움말의 주 수 — JS 가 4 를 따로 적지 않게(통계 탭 뒤 rows 가 길어져도 같은 창)
         if head:
             wk['head'] = head
+        if moves:
+            wk['moves'] = moves
+        if share:
+            wk['share'] = share
     if sgg.get('rows'):
         wk['sgg'] = {'codes': sgg.get('codes', []), 'rows': sgg['rows'][-1:]}
     if wk.get('rows') or wk.get('sgg'):
@@ -244,6 +274,11 @@ def main():
             w['grace'] = GRACE_WEEKLY
             if head:
                 w['head'] = head   # 같은 이유 — 통계 탭을 연 뒤에도 홈 띠·주간 h2 가 결론을 잃지 않는다
+            w['recent'] = RECENT_WEEKS   # 같은 이유 — 격자 도움말의 주 수
+            if moves:
+                w['moves'] = moves   # 같은 이유 — 주간 격자 표지(B7)
+            if share:
+                w['share'] = share   # 같은 이유 — 주간 격자 공유 버튼(B8)
         trend_adv[k] = w
     io.open(TREND, 'w', encoding='utf-8', newline=NL).write(
         dump({'ADV': trend_adv}))
