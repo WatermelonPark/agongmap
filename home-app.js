@@ -9,7 +9,7 @@
    못 쓰면 아예 새로고침하지 않는다(무한 반복 방지). 판 표식이 없는 HTML(표식 이전 판)은 비교하지 않는다.
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기도 같이(test_home_build). */
-const HOME_BUILD='v161';
+const HOME_BUILD='v162';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -2601,6 +2601,43 @@ function mapFill(r,sc){
   return 'rgb('+Math.round(P[0]+(C[0]-P[0])*a)+','+Math.round(P[1]+(C[1]-P[1])*a)+','
     +Math.round(P[2]+(C[2]-P[2])*a)+')';
 }
+/* 지도의 시도 채움(홈 마케팅 검수 C4②, 2026-09-27 대표 승인 — 09-13 결정 ② '지도 색 불변'을 바꾼다).
+   '균형'(g1) 판정 지역은 중립 회색(--bal)으로 칠한다. 예전엔 비율이 0보다 크면 TB_MIN 바닥 때문에 연한 빨강이라
+   균형으로 판정된 충북(1%)·세종(13%)·경기(17%)까지 붉게 보여, 16곳 중 13곳이 '부족'처럼 읽혔다(TRUST-3).
+   등급은 파이썬(sido_zones.grade)이 구워 싣는다 — 여기서 비율 경계(0.5)를 다시 적지 않는다. 나머지 등급은
+   예전 연속 농도(mapFill) 그대로다. --bal 은 범례 램프 가운데 '균형' 칸, 시도 리포트·허브의 균형 배지(.sc-tier.g1)
+   와 같은 회색 계열이다(test_home_first_screen). */
+var TB_BAL='var(--bal)';
+function supplyFill(z){
+  if(z&&z.grade==='g1') return TB_BAL;
+  return mapFill(z?z.ratio:null);
+}
+/* 카드 ⓘ — '어떻게 계산했나' 한 줄을 펼치고 접는다(C4①). 기본은 접힘(첫 화면 높이를 지킨다). */
+function aggHow(b){
+  var p=document.getElementById(b.getAttribute('aria-controls'));
+  if(!p) return;
+  var on=b.getAttribute('aria-expanded')!=='true';
+  b.setAttribute('aria-expanded',on?'true':'false');
+  p.hidden=!on;
+}
+/* 판정 카드 한 칸(B2·MOB-7·HERO-5②·C4①). 두 줄 고정형: '전국 [부족]' / '686,396세대 →'. 넓은 화면(561px~)은 둘째 줄에
+   '부족'을 잇고 셋째 줄에 '3년 필요량의 60%만큼'을 싣는다 — 모바일은 칸이 좁아 둘을 화면에서 감추고 스크린리더에만
+   남긴다(비율은 ⓘ 줄과 지도 이름표에도 있다). 칸 끝 '→'는 카드가 링크임을 드러낸다(HERO-5②).
+   글자는 전부 sido_zones 가 구운 필드(cnum·cdir·cpct·ctxt·ftxt)를 읽는다 — 이중 구현 금지. 옛 캐시(필드 없음)는
+   ctxt 앞 조각이나 세대수만 보이고 ⓘ 는 빠진다. ⓘ 는 링크 밖의 형제 버튼이다(링크 안에 버튼을 넣으면 안 된다) —
+   칸 오른쪽 위에 겹쳐 두고, 첫 줄은 그 자리만큼 비워 둔다. */
+function aggCard(n,z,i){
+  var num=z.cnum||(z.ctxt?String(z.ctxt).split(' · ')[0]:(tbSigned(z.tot)+'세대'));
+  return '<div class="agg-c">'
+    +'<a class="agg-a" href="/zone/'+encodeURIComponent(n)+'/">'
+    +'<span class="agg-l1"><b>'+n+'</b><span class="sc-tier '+z.grade+'">'+TB_GRADE[z.grade]+'</span></span>'
+    +'<span class="agg-l2"><i class="agg-n'+(z.cnum?'':' agg-old')+'">'+num+(z.cdir?'<span class="agg-dir"> '+z.cdir+'</span>':'')
+    +'<span class="agg-go" aria-hidden="true"> →</span></i>'
+    +(z.cpct?'<i class="agg-p">'+z.cpct+'</i>':'')+'</span></a>'
+    +(z.ftxt?'<button type="button" class="agg-i" aria-expanded="false" aria-controls="agg-how-'+i+'" onclick="aggHow(this)">'
+      +'ⓘ<span class="sr-only"> '+n+' 어떻게 계산했나</span></button>':'')
+    +'</div>';
+}
 function renderSidoMap(){
   var el=document.getElementById('map-wrap');
   if(!el||el.dataset.done) return;
@@ -2614,17 +2651,19 @@ function renderSidoMap(){
     return;
   }
   var Z={}; ADV.sido.zones.forEach(function(z){ Z[z.z]=z; });
-  var h='<div class="map-agg">';
-  ['전국','수도권','지방'].forEach(function(n){
+  var h='<div class="map-agg">', how='';
+  ['전국','수도권','지방'].forEach(function(n,i){
     var z=Z[n]; if(!z) return;
-    h+='<a href="/zone/'+encodeURIComponent(n)+'/"><b>'+n+'</b>'
-      +'<span class="sc-tier '+z.grade+'">'+TB_GRADE[z.grade]+'</span>'
-      /* 카드 문구는 sido_zones.card_text가 구워 싣는다 — 여기서 다시 만들지 않는다
-         (이중 구현 금지). 부호 대신 '부족·여유'를 말로 써 배지와 이중 부정이 되지 않는다
-         (2026-09-15). 옛 캐시에 필드가 없으면 세대수만 보인다. */
-      +'<i>'+(z.ctxt||(tbSigned(z.tot)+'세대'))+'</i></a>';
+    /* 카드 문구는 sido_zones 가 구워 싣는다(card_parts·zone_texts) — 여기서 다시 만들지 않는다
+       (이중 구현 금지). 부호 대신 '부족·여유'를 말로 써 배지와 이중 부정이 되지 않는다(2026-09-15). */
+    h+=aggCard(n,z,i);
+    if(z.ftxt) how+='<p class="agg-how" id="agg-how-'+i+'" hidden><b>'+n+'</b> '+(z.ctxt||'')
+      +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
   });
-  h+='</div>';
+  h+='</div>'+how;
+  /* 분포 한 줄(B2·HERO-4·TRUST-3) — 카드 셋이 모두 '부족'이어도 시도 전체가 어떻게 나뉘는지 보인다.
+     곳 수·묶음은 sido_zones.dist_text 가 판정에서 세어 굽는다(ADV.sido.dist). 옛 캐시엔 없어서 빠진다. */
+  if(ADV.sido.dist) h+='<p class="agg-dist">'+ADV.sido.dist+'</p>';
   /* 행동 안내는 범례 속 11.5px 회색 각주였다('지역을 누르면 상세 리포트') — 첫 화면의 유일한 행동 안내인데
      읽히지 않았다(홈 마케팅 검수 A6·HERO-5①). 본문색 13.5px 한 줄로 키워 지도 바로 위에 둔다. 범례
      오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
@@ -2662,13 +2701,15 @@ function renderSidoMap(){
   /* 범례는 지도 좌상단(서해 빈 공간) 오버레이 — 지도 아래 한 줄로 떨어져
      있으면 지도와 안 붙어 읽힌다(2026-08-08 사용자). pointer-events:none이라
      밑의 경기 북부 탭을 막지 않는다. */
+  /* 범례: 램프 가운데 '균형' 칸(B2·TRUST-3②, C4② 중립색과 같은 --bal). 설명 문구는 sido_zones.legend_text 가 구워 싣는다
+     (ADV.sido.ktxt — '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지', TRUST-2①). 옛 캐시엔 없어 옛 문구로 떨어진다. */
   h+='<div class="map-box">'
     +'<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
-    +'<span class="tk-ramp" aria-hidden="true"></span>'
+    +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d"></i><i class="mk-b">균형</i><i class="mk-u"></i></span>'
     +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span>'
-    +'<span class="tk-n">앞으로 3년 필요한 만큼 지어지는지 · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span></div>'
+    +'<span class="tk-n">'+(ADV.sido.ktxt||'앞으로 3년 필요한 만큼 지어지는지')+' · '+(ADV.sido.Ltxt||ADV.sido.L)+' 기준</span></div>'
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
-    +'" role="img" aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유">';
+    +'" role="img" aria-label="시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유, 회색은 균형">';
   /* 광주·전남은 2026-09-10 판정 단위가 하나로 합쳐졌다(국토부가 공급 통계를
      '전남광주'로만 발표). 지도의 두 도형은 지리 정보라 그대로 두고, 색·링크·라벨은
      통합 지역을 가리킨다 — 한 판정을 두 땅이 나눠 갖는 모양이다.
@@ -2692,7 +2733,7 @@ function renderSidoMap(){
     var lab=key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
     var small=SMALL[a.n]||key!==a.n;
     h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
-      +'<path d="'+a.d+'" fill="'+mapFill(z.ratio)+'"></path>'
+      +'<path d="'+a.d+'" fill="'+supplyFill(z)+'"></path>'
       +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
       +'<title>'+lab+'</title></a>';
@@ -3033,16 +3074,58 @@ function renderWeeklyGrid(){
   /* 구역 머리줄 = 조사일·발표일·다음 발표(홈 마케팅 검수 A2). 예전엔 '매주 갱신' 고정 문구라 09-24~26 배치가
      멈춘 동안 9일 묵은 값을 그 아래 보였다. 발표가 늦은 주에는 스스로 '반영 대기'라 적고, 제목도 '이번 주'를
      약속하지 않는다. 판정은 통계 탭 rel-week 와 같은 weeklyRelease 하나다. */
-  applyWeeklyStatus(weeklyReleaseNow());
+  applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly));
 }
-/* 주간 구역 머리줄과 h2 에 발표 상태를 적는다. 늦은 주에는 h2 도 '이번 주'를 약속하지 않고 발표일로 적는다
-   (TRUST-1②). 따로 떼어 둔 것은 시험이 이 두 줄을 직접 돌려 보게 하려는 것이다(test_weekly_release). */
-function applyWeeklyStatus(r){
+/* 주간 구역 머리줄과 h2 에 발표 상태를 적는다. 따로 떼어 둔 것은 시험이 이 두 줄을 직접 돌려 보게 하려는 것이다
+   (test_weekly_release·test_home_first_screen).
+   h2 = 이번 주 결론 한 줄(hd.text — /weekly/ 제목·첫 화면 띠와 같은 문장, IA-4). 예전엔 매주 같은 질문
+   ('이번 주, 어디가 오르고 내렸을까?')이라 지난주 화면과 구별되지 않았다. 늦은 주에는 결론 앞에 발표일을 붙여
+   '이번 주' 값처럼 보이지 않게 한다(TRUST-1②, 1차의 '반영 대기' 처리와 같은 조건 r.stale). 결론이 없는 옛 캐시는
+   1차 동작 그대로 — 늦은 주에만 질문 앞에 발표일. */
+function applyWeeklyStatus(r,hd){
   if(!r)return;
   const kk=document.getElementById('wk-kicker');
   if(kk)kk.textContent=wkWhenText(r);
   const h2=document.getElementById('wk-h2');
-  if(h2&&r.stale)h2.textContent=_md(r.pub)+' 발표, 어디가 오르고 내렸을까?';
+  if(!h2)return;
+  if(hd)h2.textContent=(r.stale?_md(r.pub)+' 발표 기준 · ':'')+hd.text;
+  else if(r.stale)h2.textContent=_md(r.pub)+' 발표, 어디가 오르고 내렸을까?';
+}
+/* 이번 주 결론 한 줄(ADV.weekly.head, 홈 마케팅 검수 B1·IA-4). /weekly/ 제목과 같은 함수(make_weekly_page.conclusion)가
+   split_data 에서 구운 문장이다 — 홈은 읽기만 한다. 최신 행과 조사일이 같을 때만 쓴다(옛 캐시·섞인 판이면 null). */
+function weeklyHead(W){
+  const hd=W&&W.head, row=W&&W.rows&&W.rows[W.rows.length-1];
+  return (hd&&hd.text&&row&&hd.p===row.p)?hd:null;
+}
+/* 첫 화면 '이번 주' 띠의 두 줄(B1·HERO-2·IA-5·TRUST-7). DOM 을 만지지 않는 순수 함수 — 시험이 node 로 돌린다.
+   줄마다 [앞, 뒤] 두 조각이고 화면에는 ' · '로 이어진다(좁은 화면은 CSS 가 조각마다 줄을 바꿔 줄 수를 고정한다 —
+   글자 길이에 따라 줄 수가 달라지면 미리 잡은 높이가 어긋나 아래 카드·지도가 밀린다).
+   첫 줄 = [발표일, 결론 →]. 둘째 줄 = [배경 지도 캡션, 다음 발표·반영 대기·연휴 안내(wkNextText — 주간 구역 머리줄·통계
+   탭과 같은 함수)]. 늦은 주에는 둘째 줄이 '이번 주 발표분 반영 대기'를 말하고 캡션도 '이번 주' 대신 발표일을 쓴다.
+   배경 지도는 시군구 최신 주를 칠하므로(renderHeroMap) 그 주가 시도 주와 다르면 그 발표일을 적는다.
+   결론이 없거나 유예(grace)가 없는 옛 캐시는 지연을 판정할 수 없어 null — 띠는 날짜를 약속하지 않는 정적 문구로 남는다. */
+function heroBandLines(W,r){
+  const hd=weeklyHead(W);
+  if(!r||!hd||W.grace==null)return null;
+  const S=W.sgg, sp=S&&S.rows&&S.rows.length?S.rows[S.rows.length-1].p:null;
+  const bg=sp?'배경 지도: '+((sp===r.survey&&!r.stale)?'이번 주':_md(pubDate(sp))+' 발표')+' 시군구 매매 변동'
+    :'한국부동산원 주간 통계';
+  return [[_md(r.pub)+' 발표',hd.text+' →'],[bg,wkNextText(r)]];
+}
+function _bandLine(el,parts){
+  el.textContent='';
+  parts.forEach((t,i)=>{
+    if(i){const s=document.createElement('span');s.className='hw-s';s.textContent=' · ';el.appendChild(s);}
+    const s=document.createElement('span');s.className=i?'hw-b':'hw-a';s.textContent=t;el.appendChild(s);
+  });
+}
+function renderHeroBand(){
+  let W;try{W=ADV.weekly;}catch(e){return;}
+  const L=heroBandLines(W,weeklyReleaseNow());
+  if(!L)return;
+  const a=document.getElementById('hw-1'), b=document.getElementById('hw-2');
+  if(a)_bandLine(a,L[0]);
+  if(b)_bandLine(b,L[1]);
 }
 /* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.
    티어 문구는 BLV 정본에서 읽는다. 가짜 데이터로 오해되지 않게 라벨을 붙인다.
@@ -3075,6 +3158,7 @@ function boot(){
   renderWeeklyGrid();
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
+  renderHeroBand();   // 그 아래 '이번 주' 띠(결론 · 배경 지도 캡션 · 다음 발표)
   /* ⚠️ 표(분기 1,000칸 HTML 조립)는 여기서 굽지 않는다. 기본 모드가 지도인데
      숨은 표를 먼저 구우면 그 비용(월 모드 실측 200ms+)이 기본 화면 페인트를 막고,
      숨은 상태의 tbAnchor 재시도 타이머 6발이 전부 헛돈다(2026-08-10 리뷰).

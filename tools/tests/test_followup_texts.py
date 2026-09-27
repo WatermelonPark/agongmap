@@ -75,29 +75,95 @@ def test_home_supply_captions_say_quarterly():
         assert bad not in home, bad
 
 
-# ---- ⑤ 카드 부호와 용어 ----
+# ---- ⑤ 카드 부호와 용어 (+ 홈 마케팅 검수 B2 퍼센트 해석, 2026-09-27) ----
 
 def test_card_text_never_pairs_a_minus_sign_with_shortfall():
+    """부호 이중 부정 제거(09-15 ⑤)는 그대로, 비율은 '3년 필요량의 60%만큼'으로(B2·HERO-4 — '60%만 지어진다'로도 읽혔다).
+
+    변이: card_parts 의 '%%만큼' 을 옛 '%%' 로 되돌리면 빨개진다(확인). 음수 부호를 붙이면 첫 단정이 빨개진다.
+    픽스처: 실제 카드 넷 — 전국(686,396 부족·60%), 인천(13,237 여유·19%), 세종(907 부족·13%), 충북(281 부족·1%).
+    """
     for dtot, ratio in ((686396, 0.60), (-13237, -0.19), (907, 0.126), (281, 0.009)):
         t = SZ.card_text(dtot, ratio)
         assert '−' not in t and '-' not in t, t
         assert ('부족' in t) == (dtot > 0) and ('여유' in t) == (dtot < 0), t
+        num, dirw, share = SZ.card_parts(dtot, ratio)
+        assert t == '%s %s · %s' % (num, dirw, share), t
+        assert share == '3년 필요량의 %d%%만큼' % int(round(abs(ratio) * 100)), share
+    assert SZ.card_text(686396, 0.60) == '686,396세대 부족 · 3년 필요량의 60%만큼'
+    assert SZ.card_text(0, 0.004) == '3년 필요량과 거의 같음'
 
 
-def test_stored_cards_match_the_function_and_the_display_integer():
-    adv = _adv()
-    H = adv['sido']['H']
+@pytest.fixture(scope='module')
+def split_stale(tmp_path_factory):
+    """저장소 data.js 사본의 판정 문구를 **옛 문구로 덮은 뒤** split 을 돌린다(저장소에는 쓰지 않는다).
+
+    재현하는 실제 상태: 문구 함수를 고친 PR 이 병합된 날 — data.js 의 ADV.sido 는 다음 배치의 update_adv_data 가 점수를
+    다시 쓸 때까지 옛 문구('… · 3년 필요량의 60%', cnum·ftxt 없음)를 싣는다. 홈 data-core 는 그날도 새 문구여야 한다.
+    """
+    import shutil
+    import split_data as S
+    d = tmp_path_factory.mktemp('split_ft')
+    src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
+    m = re.search(r'(/\*ADV_DATA_START\*/\s*const ADV=)(\{.*?\})(;?\s*/\*ADV_DATA_END\*/)', src, re.S)
+    adv = json.loads(m.group(2))
     for z in adv['sido']['zones']:
+        z['ctxt'] = 'STALE'
+        for k in ('cnum', 'cdir', 'cpct', 'ftxt'):
+            z.pop(k, None)
+    for k in ('dist', 'ktxt'):
+        adv['sido'].pop(k, None)
+    src = src[:m.start(2)] + json.dumps(adv, ensure_ascii=False) + src[m.end(2):]
+    io.open(str(d / 'data.js'), 'w', encoding='utf-8').write(src)
+    paths = {'SRC': d / 'data.js', 'OUT': d / 'data-core.js', 'REST': d / 'data-rest.json',
+             'TREND': d / 'data-trend.json', 'SGG': d / 'data-sgg.json', 'SIZE': d / 'data-size.json'}
+    with pytest.MonkeyPatch.context() as mp:
+        for k, v in paths.items():
+            mp.setattr(S, k, str(v))
+        S.main()
+    core = io.open(str(paths['OUT']), encoding='utf-8').read()
+    core_adv = json.loads(re.search(r'const ADV=(\{.*?\});\nconst STATS', core, re.S).group(1))
+    trend = json.loads(paths['TREND'].read_text(encoding='utf-8'))
+    return adv, core_adv, trend['ADV'], str(d)
+
+
+def test_stored_cards_match_the_function_and_the_display_integer(split_stale, monkeypatch):
+    """저장된 순부족 정수(dtot)는 카드 세 정수로 검산되고, 화면이 읽는 카드 문구는 **지금의 정본 함수**다.
+
+    예전엔 data.js 에 저장된 ctxt 를 함수와 대조했다. 문구 함수를 고치면 data.js 는 다음 배치까지 옛 문구라 그 PR 의 CI
+    가 빨갛고, 병합 뒤 배치 전까지 홈도 옛말을 했다. 이제 split_data·make_sido_pages 가 읽을 때 refresh_texts 로 다시
+    구우므로, 옛 문구를 넣은 사본에서도 data-core·data-trend·허브가 새 문구인지를 본다.
+    변이: split_data 에서 `_SZ.refresh_texts(core_adv['sido'])` 를 지우면 data-core 에 'STALE' 이 남아 빨개진다(확인).
+          make_sido_pages.load 의 refresh_texts 를 지우면 마지막 단정이 빨개진다(확인).
+    """
+    stale, core, trend, root = split_stale
+    H = stale['sido']['H']
+    for z in stale['sido']['zones']:
         want = P.rnd(z['ref']) * H - P.rnd(z['fut']) - P.rnd(z['inow'])
         assert z['dtot'] == want, z['z']
-        assert z['ctxt'] == SZ.card_text(z['dtot'], z['ratio'], H), z['z']
+    for payload in (core, trend):
+        sido = payload['sido']
+        for z in sido['zones']:
+            assert z['ctxt'] == SZ.card_text(z['dtot'], z['ratio'], H), z['z']
+            for k, v in SZ.zone_texts(z, H).items():
+                assert z[k] == v, (z['z'], k)
+        assert sido['dist'] == SZ.dist_text(sido['zones'])
+        assert sido['ktxt'] == SZ.legend_text(H, SZ.BACKLOG_WINDOW)
+    monkeypatch.setattr(P, 'ROOT', root)   # 같은 옛 문구 사본을 허브·리포트 생성기가 읽는다
+    adv, _ = P.load()
+    for z in adv['sido']['zones']:
+        assert z['ctxt'] == SZ.card_text(z['dtot'], z['ratio'], adv['sido']['H']), z['z']
+        assert z['ftxt'] == SZ.zone_texts(z, adv['sido']['H'])['ftxt'], z['z']
 
 
 def test_home_and_hub_read_the_baked_card_text():
     home = _src('index.html')
     HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
     assert "z.ctxt" in home
+    for f in ('z.cnum', 'z.cdir', 'z.cpct', 'z.ftxt', 'ADV.sido.dist', 'ADV.sido.ktxt'):
+        assert f in home, '홈 카드가 구워 둔 %s 를 읽지 않는다' % f
     assert "tbSigned(z.tot)+'세대'+(z.rtxt" not in home, '홈 카드가 옛 부호 문구를 만든다'
+    assert not re.search(r"'만큼'|필요량의'\s*\+", HS.home_source()), '홈이 카드 비율 문구를 따로 만든다 — 이중 구현'
     hub = _src('tools/make_sido_pages.py')
     assert "esc(o['ctxt'])" in hub
     assert '모자란 재고' not in hub and "'지난 4년 재고'" not in hub
@@ -108,9 +174,18 @@ def test_unsold_multiple_reads_as_percent_below_one():
 
 
 def test_home_legend_says_what_the_color_means_and_when():
+    """범례 뜻 한 줄은 판정의 정의 그대로 — 지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지(B2·TRUST-2①, 2026-09-27).
+
+    예전 '앞으로 3년 필요한 만큼 지어지는지'는 지난 4년 누적 부족을 빼고 말해, 충북(앞으로 3년 78%)이 '균형'인 까닭과
+    카드의 686,396(= 425,873 + 지난 4년 260,523)을 홈에서 검산할 수 없었다. 문구는 sido_zones.legend_text 가 구워 싣고
+    (ADV.sido.ktxt) 홈은 읽기만 한다 — 옛 문구는 옛 캐시의 대체값으로만 남는다.
+    변이: legend_text 를 옛 문구로 되돌리면 첫 단정이, 홈이 ktxt 를 안 읽으면 둘째가 빨개진다(확인).
+    """
+    assert SZ.legend_text() == '지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지'
+    assert '4년' in SZ.legend_text(W=SZ.BACKLOG_WINDOW) and '2년' in SZ.legend_text(W=8)   # 창에서 센다
     home = _src('index.html')
     HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
-    assert '앞으로 3년 필요한 만큼 지어지는지' in home and 'ADV.sido.Ltxt' in home
+    assert "(ADV.sido.ktxt||'앞으로 3년 필요한 만큼 지어지는지')" in home and 'ADV.sido.Ltxt' in home
     assert '적정물량 대비 누적 순부족 · 기준' not in home
 
 

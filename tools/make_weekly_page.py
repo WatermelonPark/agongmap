@@ -113,6 +113,56 @@ def when_line(W, p):
     return '<span id="wk-when">%s</span>' % html.escape(WR.when_text(st)), script
 
 
+# ── 이번 주 결론 한 줄(홈 마케팅 검수 B1·IA-4, 2026-09-27) ─────────────────────────────────────────
+# /weekly/ 제목(h1)·홈 첫 화면 '이번 주' 띠·홈 주간 구역 h2 가 **이 함수 하나**의 문장을 쓴다. split_data 가 결과를
+# ADV.weekly.head 로 구워 싣고 홈은 읽기만 한다 — 홈 JS 가 같은 규칙을 다시 만들면(이중 구현) 한쪽만 고쳐질 때
+# 두 화면이 다른 결론을 말한다(home-app.js 카드 문구와 같은 원칙). 일치는 test_home_first_screen 이 고정한다.
+HEAD_UP, HEAD_DN, HEAD_FLAT = '가장 크게 올랐습니다', '가장 크게 내렸습니다', '시도 모두 보합입니다'
+
+
+def conclusion(W):
+    """최신 주의 결론: 표시값(pv2r) 기준 절대 변동이 가장 큰 시도(동률이면 표시 순서가 앞선 곳).
+
+    돌려주는 것 {'p': 조사일, 'text': '경기 +0.23%, 가장 크게 올랐습니다', 'dir': 'up'|'dn'|'',
+    'who': '경기', 'val': '+0.23%', 'verb': '가장 크게 올랐습니다'}. 모두 보합이면 who·val 이 None 이고
+    text 는 '시도 모두 보합입니다'. 시도 값이 절반도 없거나 날짜 모양이 다르면 None — 반쯤 빈 결론을 싣지 않는다.
+    """
+    rows = W.get('rows') or []
+    if not rows:
+        return None
+    row = rows[-1]
+    p = row.get('p') or ''
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', p):
+        return None
+    regs = W.get('regions') or []
+    ma = row.get('ma') or []
+    val = {r: ma[i] for i, r in enumerate(regs) if i < len(ma)}
+    sido = [(z, val[z]) for z in SIDO if val.get(z) is not None]
+    if len(sido) < len(SIDO) // 2:
+        return None
+    best = max(sido, key=lambda x: abs(pv2r(x[1])))
+    r = pv2r(best[1])
+    if r == 0:
+        return {'p': p, 'text': HEAD_FLAT, 'dir': '', 'who': None, 'val': None, 'verb': HEAD_FLAT, 'best': best}
+    verb = HEAD_UP if r > 0 else HEAD_DN
+    return {'p': p, 'text': '%s %s%%, %s' % (best[0], pv2(best[1]), verb), 'dir': sign(best[1]),
+            'who': best[0], 'val': pv2(best[1]) + '%', 'verb': verb, 'best': best}
+
+
+def head_payload(W):
+    """split_data 가 ADV.weekly.head 로 싣는 모양(홈이 읽는 필드만). 결론을 못 만들면 None."""
+    c = conclusion(W)
+    return None if c is None else {k: c[k] for k in ('p', 'text', 'dir')}
+
+
+def h1_html(c):
+    """/weekly/ 제목. 결론 문장 앞에 '이번 주 아파트,'(발표가 늦은 주에는 스크립트가 '이번 주'를 발표일로 바꾼다)."""
+    if c['who'] is None:
+        return '%s 아파트,<br>%s' % (H1_WEEK, c['text'])
+    return ('%s 아파트,<br><em class="%s">%s %s</em>, %s'
+            % (H1_WEEK, c['dir'], html.escape(c['who']), c['val'], c['verb']))
+
+
 def tile(name, v, i):
     """홈 옛 라이브 미니맵과 같은 색 규칙 — 색도 표시값 기준."""
     a = min(.78, .10 + abs(v) * 2.4)
@@ -225,14 +275,11 @@ def build(W, Q):
     datestr = '%s 조사 · %s 발표' % (survey, release)
     when, stale_js = when_line(W, p)
 
-    # ── 결론 한 줄: 절대 변동이 가장 큰 시도(동률이면 표시 순서가 앞선 곳)
-    best = max(sido, key=lambda x: abs(pv2r(x[1])))
+    # ── 결론 한 줄: 규칙은 conclusion() 하나 — 홈 띠·홈 주간 구역 h2 와 같은 문장이다(B1·IA-4)
+    c = conclusion(W)
+    best = c['best']
     up_s, dn_s = top3(sido)
-    if pv2r(best[1]) == 0:
-        h1 = '%s 아파트,<br>시도 모두 보합' % H1_WEEK
-    else:
-        h1 = ('%s 아파트,<br><em class="%s">%s %s%%</em> 가장 크게 %s'
-              % (H1_WEEK, sign(best[1]), best[0], pv2(best[1]), '올랐다' if pv2r(best[1]) > 0 else '내렸다'))
+    h1 = h1_html(c)
     lead = ['전국 <b>%s%%</b>.' % pv2(nation) if nation is not None else '',
             '%s.' % count_text('시도 %d곳' % len(sido), [v for _, v in sido])]
     # 제목이 이미 말한 쪽은 되풀이하지 않고, 반대 방향 1위만 덧붙인다.

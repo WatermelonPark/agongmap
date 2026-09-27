@@ -7,6 +7,9 @@
     --ink:#131e24; --ink2:#4c5f66; --paper:#f4f6f5; --paper2:#e9edeb;
     --maemae:#c0392b; --jeonse:#6c4ab6; --stock:#1f8a70; --flow:#d99a00;
     --line:#c4cec9; --muted:#5e6f74;
+    /* '균형'(g1) 판정의 중립 회색 — 홈 지도 채움(supplyFill)과 범례 램프 가운데 칸이 같이 쓴다(홈 마케팅 검수 C4②).
+       무채색이어야 하고 '자료 없음'(--paper2)·지면(--paper)과 갈려야 한다(test_home_first_screen). */
+    --bal:#d3d9d6;
     /* 하락·공급과잉 파랑. 가장 많이 쓰인 검증된 값에 이름만 준다 —
        이 축에 토큰이 없어서 #1565c0·#2c5f9e 같은 변종이 생겼다. */
     --gwaing:#1a5276;
@@ -669,6 +672,21 @@
      데스크톱은 폭을 묶어 제목 아래 두 줄로 모은다(한 줄 632px 는 제목 355px 보다 훨씬 길어 흩어져 보였다). */
   .home-hero .hero-sub{max-width:30em;margin:14px auto 0;font-size:clamp(13.5px,3.6vw,16px);font-weight:500;
     line-height:1.55;color:var(--ink2)}
+  /* 첫 화면 '이번 주' 띠(홈 마케팅 검수 B1, 2026-09-27). 한 줄 전체가 /weekly/ 링크 — 첫 줄 [발표일 · 결론 →], 둘째 줄
+     [배경 지도 캡션 · 다음 발표]. 글자는 부팅 뒤 스크립트가 채운다(정적 문구 → 데이터 문구). 줄 수가 글자 길이에 따라
+     달라지면 아래 카드·지도가 밀리므로(CLS) 줄 수를 **폭으로 고정**한다: 조각(.hw-a/.hw-b)마다 줄을 바꾸는 폭을 정해
+     두어 정적 문구와 데이터 문구가 같은 줄 수를 쓴다. 479px 이하는 둘째 줄을 조각마다, 359px 이하는 첫 줄도 조각마다
+     줄을 바꾼다. 조각 하나가 한 줄을 넘지 않는지는 운영 글꼴로 잰 최악 문구로 시험한다(test_home_hero_band_fits —
+     전남광주 하락, 두 자리 달, 연휴 안내, 시군구 주가 다른 주). 배경 지도(.hero-map)가 비치도록 반투명 바탕. */
+  .hero-wk{display:block;max-width:460px;margin:16px auto 0;padding:9px 10px;text-decoration:none;color:var(--ink);
+    background:rgba(255,255,255,.84);border:1px solid var(--line);border-radius:var(--r-touch);text-align:center}
+  .hero-wk .hw-1{display:block;font-size:clamp(12.5px,3.4vw,14.5px);font-weight:600;line-height:1.4;
+    font-variant-numeric:tabular-nums}
+  .hero-wk .hw-2{display:block;margin-top:3px;font-size:11.5px;line-height:1.45;color:var(--ink2)}
+  .hero-wk span span{white-space:nowrap}
+  .hero-wk:hover .hw-1,.hero-wk:focus-visible .hw-1{text-decoration:underline}
+  @media(max-width:479px){.hero-wk .hw-2 .hw-s{display:none}.hero-wk .hw-2 .hw-b{display:block}}
+  @media(max-width:359px){.hero-wk .hw-1 .hw-s{display:none}.hero-wk .hw-1 .hw-b{display:block}}
   .hero-ramp{display:block;height:4px;margin-top:10px;
     background:linear-gradient(90deg,rgba(38,110,180,.85),rgba(38,110,180,.16) 44%,
       rgba(198,58,48,.16) 56%,rgba(198,58,48,.85))}
@@ -810,21 +828,55 @@ table.adv thead th:first-child{text-align:center}
   #sec-score:not(.vm-table) .tb-scroll{display:none}
   #sec-score:not(.vm-map) #map-wrap{display:none}
   #sec-score:not(.vm-graph) #graph-wrap{display:none}
-  .map-agg{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);margin:0 0 12px}
-  .map-agg a{flex:1;background:var(--paper);padding:9px 12px;text-decoration:none;color:var(--ink);
-    display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13px;min-height:44px}
-  .map-agg a:hover{background:var(--paper2)}
-  .map-agg a b{font-weight:600}
-  .map-agg a i{font-style:normal;font-size:11px;color:var(--muted);margin-left:auto;
-    font-variant-numeric:tabular-nums}
+  /* 판정 카드 3칸(홈 마케팅 검수 B2·MOB-7·C4①, 2026-09-27). 두 줄 고정형: '전국 [부족]' / '686,396세대 →'.
+     예전엔 한 칸 안에서 flex-wrap 으로 줄이 바뀌어 375px 에서 수도권만 배지가 둘째 줄로 내려가 세 칸이 어긋났고
+     칸 높이가 141px 였다. 이제 첫 줄은 줄바꿈 금지, 아주 좁은 폭(359px 이하)에서는 세 칸 모두 배지를 둘째 줄로 내려
+     정렬을 맞춘다. 넓은 화면(561px 이상)은 세대수 뒤 '부족'과 셋째 줄 '3년 필요량의 60%만큼'까지 보인다 — 모바일은
+     칸이 좁아 둘을 화면에서 감추되 스크린리더에는 남긴다(.sr-only 와 같은 방식). ⓘ(칸 오른쪽 위, 링크 밖의 형제
+     버튼)는 식 한 줄을 편다(C4①) — 첫 줄은 그 자리만큼 오른쪽을 비운다. */
+  .map-agg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;padding:1px;margin:0 0 8px}
+  .agg-c{position:relative;background:var(--paper);min-width:0;box-shadow:0 0 0 1px var(--line)}   /* 격자선은 칸이 그린다(test_grid_line_trick) */
+  .agg-a{display:flex;flex-direction:column;gap:3px;height:100%;min-width:0;padding:9px 8px 8px 10px;
+    text-decoration:none;color:var(--ink);text-align:left;font-size:13px;line-height:1.35}
+  .agg-a:hover{background:var(--paper2)}
+  .agg-l1{display:flex;align-items:center;gap:5px;white-space:nowrap;padding-right:24px}
+  .agg-l1 b{font-weight:600}
+  .agg-l1 .sc-tier{width:auto;flex:none;padding:2px 5px;font-size:11px;line-height:1.3}
+  .agg-l2{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .agg-n{font-style:normal;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .agg-n.agg-old{white-space:normal}   /* 옛 캐시(cnum 없음)는 '686,396세대 부족'이 통째로 와 좁은 칸에서 줄을 바꾼다 */
+  .agg-go{font-weight:500;color:var(--muted)}
+  .agg-p{font-style:normal;font-size:11.5px;color:var(--ink2)}
+  /* ⓘ 표적 28px — 칸이 좁아(320px 에서 90px) 40px 는 첫 줄을 덮는다. WCAG 2.5.8 최소(24px)는 넘긴다. */
+  .agg-i{position:absolute;top:2px;right:2px;width:28px;height:28px;padding:0;border:0;background:none;
+    font:inherit;font-size:15px;line-height:28px;color:var(--ink2);cursor:pointer;border-radius:var(--r-touch)}
+  .agg-i:hover{color:var(--ink);background:var(--paper2)}
+  .agg-i[aria-expanded="true"]{color:var(--paper);background:var(--ink)}
+  .home-sec .agg-how{max-width:none;margin:0 0 8px;padding:8px 10px;font-size:12.5px;line-height:1.55;
+    color:var(--ink2);text-align:left;background:#fff;border-left:3px solid var(--ink)}
+  .home-sec .agg-how b{color:var(--ink)}
+  .home-sec .agg-dist{max-width:none;margin:0 0 10px;font-size:12.5px;line-height:1.45;color:var(--ink2)}
+  @media(max-width:560px){
+    .agg-dir,.agg-p{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  }
+  @media(max-width:359px){
+    .agg-a{padding:8px 5px 7px 7px}
+    .agg-l1{flex-direction:column;align-items:flex-start;gap:3px}
+    .agg-n{font-size:11.5px}
+  }
   /* 지도는 JS 가 그린다. 빈 컨테이너에 최종 높이를 미리 잡아 두지 않으면 부팅 때 아래 구역(주간 격자)이
      600~900px 밀려 CLS 0.62 가 났다(2026-09-18 Lighthouse). :empty 라 그려진 뒤엔 사라진다. 값은 실측(320·375·430·768·1280).
      2026-09-27 다시 쟀다 — 지도 위 행동 안내 한 줄(.map-act)이 붙어 768px 이상은 730→760, 모바일은 범례 각주 한 줄이
-     빠진 만큼 상쇄돼 +5px 안팎이다. 430px 은 그 전에도 724px 로 675 예약과 어긋나 있어 함께 고쳤다. */
-  #map-wrap:empty{min-height:760px}
-  @media(max-width:479px){#map-wrap:empty{min-height:729px}}
-  @media(max-width:399px){#map-wrap:empty{min-height:674px}}
-  @media(max-width:359px){#map-wrap:empty{min-height:600px}}
+     빠진 만큼 상쇄돼 +5px 안팎이다. 430px 은 그 전에도 724px 로 675 예약과 어긋나 있어 함께 고쳤다.
+     2026-09-27 B2 뒤 다시 쟀다(부팅 전 예약 → 부팅 뒤 실제, playwright): 카드가 두 줄 고정형이 되어 모바일 칸이 141→56px로
+     줄고 분포 한 줄·범례 '균형' 칸이 붙었다 — 320px 575 · 375px 632 · 430px 690 · 480px 757 · 560px 822 · 600px 이상 786.
+     구간마다 대표 폭(320·375·430·560·데스크톱)에 맞췄다. 카드나 범례를 바꾸면 다시 잴 것. */
+  #map-wrap:empty{min-height:786px}
+  @media(max-width:560px){#map-wrap:empty{min-height:790px}}
+  @media(max-width:479px){#map-wrap:empty{min-height:690px}}
+  @media(max-width:399px){#map-wrap:empty{min-height:632px}}
+  @media(max-width:359px){#map-wrap:empty{min-height:575px}}
   .map-box{max-width:480px;margin:0 auto;position:relative}
   .map-box svg{display:block;width:100%;height:auto}
   .map-box path{stroke:var(--paper);stroke-width:1.2;transition:filter .12s}
@@ -846,7 +898,17 @@ table.adv thead th:first-child{text-align:center}
   }
   .map-key .mk-r{display:inline-flex;align-items:center;gap:6px}
   .map-key .tk-ramp{width:56px}
+  /* 범례 램프 — 가운데 '균형' 칸(홈 마케팅 검수 B2·TRUST-3②·C4②). 양끝 색은 지도 채움과 같은 끝점(TB_DN·TB_UP),
+     가운데는 균형 판정의 중립색(--bal). .tb-key i(11px 네모)보다 구체적이어야 해서 두 단계 선택자다. */
+  .map-key .mk-ramp{display:inline-flex;align-items:stretch;height:15px}
+  .map-key .mk-ramp i{display:block;height:auto;font-style:normal}
+  .map-key .mk-ramp .mk-d{width:26px;background:linear-gradient(90deg,rgba(38,110,180,.78),rgba(38,110,180,.12))}
+  .map-key .mk-ramp .mk-u{width:26px;background:linear-gradient(90deg,rgba(198,58,48,.36),rgba(198,58,48,.78))}
+  .map-key .mk-ramp .mk-b{width:auto;padding:0 5px;background:var(--bal);color:var(--ink);font-size:11px;line-height:15px;white-space:nowrap}
   .map-key .tk-n{font-size:11.5px;line-height:1.4;margin:0}
+  /* 오버레이(561px 이상)에서는 뜻 한 줄이 길어져(B2 — '지난 4년 덜 지은 몫까지 더해 …') 강원 북쪽을 덮었다 — 서해 쪽
+     빈 폭 안에서 줄을 바꾼다. 모바일은 지도 위 정적 줄이라 폭 제한이 필요 없다. */
+  @media(min-width:561px){.map-key .tk-n{max-width:16em}}
   /* 지도 행동 안내 — 범례 각주(11.5px 회색)에서 본문색 문장으로 올렸다(A6·HERO-5①). .home-sec p(16px·ink2)보다
      구체적이어야 해서 두 단계 선택자다. */
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:0 0 10px;max-width:none}

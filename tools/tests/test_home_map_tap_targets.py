@@ -79,7 +79,7 @@ def _targets():
         pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
     js = ('var ADV={sido:{L:""}},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";'
-          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}\n%s\n'
+          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}\n%s\n'
           'var out=[],m,names=SIDO_GEO.p.map(function(a){return a.n}),i=0,'
           're2=/<a href="[^"]*"[^>]*><path[^>]*><\\/path>(<(?:circle|polygon)[^>]*>)?/g;'
           'while((m=re2.exec(h))){if(m[1])out.push({n:names[i],el:m[1]});i++;}'
