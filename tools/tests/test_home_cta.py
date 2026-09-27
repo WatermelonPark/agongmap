@@ -26,6 +26,8 @@ WANT = {
     ('/redev-test/', '재건축·재개발 테스트 · 난이도'): 'quiz_redev',
     ('/cycle/', '사이클 리포트 읽기'): 'cycle',
     ('/weekly/', '이번 주 시세 지도'): 'weekly_footer',
+    # 첫 화면 '이번 주' 띠(홈 마케팅 검수 B1, 2026-09-27) — 정적 문구로 찾는다(데이터 문구는 부팅 뒤 스크립트가 채운다).
+    ('/weekly/', '주간 아파트 시세'): 'weekly_hero',
 }
 TO = re.compile(r"""onclick="track\('home_cta',\{to:'([^']*)'\}\)\"""")
 
