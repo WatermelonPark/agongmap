@@ -10,8 +10,8 @@
   - rel-week 는 데이터가 아니라 오늘 날짜로 다음 목요일을 세어, 밀린 회차를 건너뛴 날짜를 냈다.
   - 2026 추석: 9/21 조사분은 휴일인 9/24(목) 당일 R-ONE 에 올라왔다(9/24 09:10 KST 배치에는 없고 18:12 KST 배치에
     'updated: weekly(~2026-09-21)'). 옛 규칙(_bizDay)은 9/28(월)을 말했다.
-픽스처: 날짜를 박은 합성 주차(2026 공휴일 표)와, 저장소 data.js 의 실제 ADV.holidays 로 2025-12~2027-12 모든 월요일.
-실데이터의 '최신 주'에 기대는 단정은 두지 않는다(데이터가 앞으로 가도 초록).
+픽스처: 날짜를 박은 합성 주차(2026 공휴일 표 H2026)와, 저장소 data.js 의 실제 ADV.holidays 로 그 목록의 연도 전체
+모든 월요일. 실데이터의 '최신 주'나 공휴일 목록의 연도에 기대는 단정은 두지 않는다(데이터가 앞으로 가도 초록).
 """
 import datetime
 import io
@@ -149,11 +149,23 @@ def _js_block():
     return m.group(1)
 
 
-def _cases(holidays):
-    """2025-12 ~ 2027-12 의 모든 월요일 × 발표 전후 여러 날 × KST 자정 전후·정오 전후 시각."""
+def _years(holidays):
+    return sorted({int(str(h)[:4]) for h in holidays})
+
+
+def _cases(years):
+    """years 의 모든 월요일 × 발표 전후 여러 날 × KST 자정 전후·정오 전후 시각.
+
+    범위는 첫 해 1/1 이 든 주의 **한 주 앞** 월요일(다음 발표가 1월 첫 주에 걸리는 조사분)부터 마지막 해
+    12/31 이 든 주의 월요일까지다. 범위를 날짜로 박지 않고 공휴일 목록의 연도에서 잡는다 — 배치
+    (update_adv_data.fetch_holidays)는 ADV.holidays 를 '올해+내년'으로 통째로 바꾸므로, 박아 둔 범위는 해가
+    바뀌면 공휴일이 하나도 없는 구간이 된다.
+    """
+    first, last = datetime.date(years[0], 1, 1), datetime.date(years[-1], 12, 31)
+    p = first - datetime.timedelta(days=first.weekday() + 7)
+    end = last - datetime.timedelta(days=last.weekday())
     out = []
-    p = datetime.date(2025, 12, 22)
-    while p <= datetime.date(2027, 12, 27):
+    while p <= end:
         for dd in (3, 9, 10, 11, 12, 13, 17):
             for hh, mm in ((0, 30), (11, 59), (23, 30)):
                 t = datetime.datetime.combine(p + datetime.timedelta(days=dd), datetime.time(hh, mm), tzinfo=kst.KST)
@@ -162,23 +174,17 @@ def _cases(holidays):
     return out
 
 
-def test_js_and_python_give_the_same_dates_and_sentences():
-    """홈(JS)과 /weekly/(파이썬)가 모든 주에 같은 발표일·다음 발표·연휴 여부·반영 대기·문장을 낸다.
-
-    변이(각각 실제로 확인): JS 의 연휴 창 `k<=3` → `k<3`, 유예 `b+grace+1` → `b+grace`, KST 보정(+9h) 제거
-    (23:30 KST 가 전날로 셈), 파이썬 WEEKDAYS 순서 어긋남 — 모두 빨개진다.
-    픽스처: 저장소 data.js 의 ADV.holidays(특일정보 API 값, 2026·2027 설·추석·대체공휴일 포함)와 유예 9·10·없음.
-    """
+def _js_matches_python(holidays, cases):
+    """같은 공휴일·같은 사례로 JS(weeklyRelease·wkNextText·wkWhenText)와 파이썬 정본을 돌려 전부 같은지 본다.
+    유예는 감시 상수·10·없음(옛 캐시) 세 가지. 파이썬 쪽 결과를 돌려준다(갈래 확인용)."""
     if not shutil.which('node'):
         pytest.skip('node 없음')
-    holidays = _adv().get('holidays') or H2026
-    cases = _cases(holidays)
     graces = (WR.GRACE_WEEKLY, 10, None)
     js = (_js_block() + '\n_HOLIDAYS=new Set(%s);\nconst C=%s, G=%s, out=[];\n'
           'for(const [p,ms] of C)for(const g of G){const r=weeklyRelease(p,new Date(ms),g);'
           'out.push([r.survey,r.pub,r.next,r.hedge,r.due,r.stale,wkNextText(r),wkWhenText(r)]);}\n'
           'process.stdout.write(JSON.stringify(out));'
-          % (json.dumps(holidays), json.dumps([[p, ms] for p, ms, _ in cases]), json.dumps(list(graces))))
+          % (json.dumps(list(holidays)), json.dumps([[p, ms] for p, ms, _ in cases]), json.dumps(list(graces))))
     proc = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
     assert proc.returncode == 0, proc.stderr.decode('utf-8', 'replace')
     got = json.loads(proc.stdout.decode('utf-8'))
@@ -192,9 +198,41 @@ def test_js_and_python_give_the_same_dates_and_sentences():
     bad = [(c[0], c[2].isoformat(), g, a, b) for (c, g), a, b in
            zip(((c, g) for c in cases for g in graces), got, want) if a != b]
     assert not bad, '홈 JS 와 파이썬 정본이 %d건 다르다. 예: %s' % (len(bad), bad[:3])
+    return want
+
+
+def test_js_and_python_give_the_same_dates_and_sentences():
+    """홈(JS)과 /weekly/(파이썬)가 2026 한 해의 모든 주에 같은 발표일·다음 발표·연휴 여부·반영 대기·문장을 낸다.
+
+    변이(각각 실제로 확인): JS 의 연휴 창 `k<=3` → `k<3`, 유예 `b+grace+1` → `b+grace`, KST 보정(+9h) 제거
+    (23:30 KST 가 전날로 셈), JS _bizDay 가 공휴일을 보지 않음(추석 주 지연 판정이 갈림), 파이썬 WEEKDAYS 순서
+    어긋남 — 모두 빨개진다. 공휴일을 빈 목록으로 돌리면(평평한 픽스처) 마지막 갈래 단정이 빨개진다.
+    픽스처: 고정 표 H2026(추석 9/24~26 목~토, 설 2/16~18 월~수)과 유예 9·10·없음. 갈래(평상·연휴·반영 대기)가
+    모두 나오는지는 **이 고정 픽스처에만** 건다 — 실데이터 공휴일은 해마다 바뀌므로 갈래 단정을 걸면 게이트가
+    날짜에 묶인다(아래 실데이터 대조 시험의 독스트링).
+    """
+    want = _js_matches_python(H2026, _cases(_years(H2026)))
     # 픽스처가 실제로 세 갈래(평상·연휴·반영 대기)를 모두 지났는지 — 평평한 픽스처로 초록이 되지 않게
     kinds = {(w[3], w[5]) for w in want}
     assert {(False, False), (True, False)} <= kinds and any(w[5] for w in want), kinds
+
+
+def test_js_and_python_agree_on_the_live_holiday_list():
+    """저장소 data.js 의 ADV.holidays(배치가 특일정보 API 로 매 회차 '올해+내년'을 채운다)로도 JS 와 파이썬이 같다.
+
+    범위는 그 목록의 연도에서 잡는다(_cases). 예전엔 2025-12-22~2027-12-27 로 박고 갈래 단정까지 여기 걸어,
+    data.js 의 holidays 를 2028·2029 목록(2028-01-01, 설 01-26~28, 추석 10-02~05 … 2029-12-25)으로 바꾸면
+    박힌 범위에 공휴일이 하나도 없어 `(True, False)` 갈래가 사라지고 빨개졌다(실제로 확인) — 2028 첫 배치부터
+    데이터 커밋이 막혔을 것이다. 지금은 같은 치환에서 초록이다(확인).
+    변이: 위 시험의 변이 다섯(연휴 창·유예·KST·_bizDay·WEEKDAYS)이 여기서도 모두 빨개진다(확인). 갈래 확인은
+    데이터에서 유도한다 — 목록에 월~목 공휴일이 하나라도 있으면 연휴 주가 한 번은 나와야 한다(양쪽에 빈 목록을
+    주면 빨개짐, 확인).
+    픽스처: data.js 의 실제 ADV.holidays. 비어 있으면(키 없는 회차) 올해 한 해를 빈 공휴일로 대조만 한다.
+    """
+    holidays = _adv().get('holidays') or []
+    want = _js_matches_python(holidays, _cases(_years(holidays) or [kst.today().year]))
+    if any(_d(h).weekday() <= 3 for h in holidays):
+        assert any(w[3] for w in want), '월~목 공휴일이 있는데 연휴 주가 한 번도 나오지 않았다'
 
 
 # ---- /weekly/ ----
