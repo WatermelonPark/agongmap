@@ -79,7 +79,10 @@ def _targets():
         pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
     js = ('var ADV={sido:{L:""}},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";'
-          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}\n%s\n'
+          'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}'
+          # 지도 모드(C3): M 은 주간 모드 재료(null = 공급 모드). 주간 모드에서도 같은 표적·라벨인지는 test_home_map_mode 가 본다.
+          'var M=null;function wkFill(){return "#ccc"}function wkPct(){return ""}function mapKeyHtml(){return ""}'
+          'function mapAria(){return ""}\n%s\n'
           'var out=[],m,names=SIDO_GEO.p.map(function(a){return a.n}),i=0,'
           're2=/<a href="[^"]*"[^>]*><path[^>]*><\\/path>(<(?:circle|polygon)[^>]*>)?/g;'
           'while((m=re2.exec(h))){if(m[1])out.push({n:names[i],el:m[1]});i++;}'

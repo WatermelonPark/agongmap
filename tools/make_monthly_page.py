@@ -39,10 +39,74 @@ except Exception:
 import make_indicator_pages as I           # noqa: E402  SHELL·fill·ld_pack 공유
 import sido_zones as SZ                    # noqa: E402  지역 정의 정본
 import make_weekly_page as MW              # noqa: E402  변동률 반올림 정본(pv2r)
+import page_share as PS                    # noqa: E402  공유 버튼(홈 마케팅 검수 B8)
+import make_sido_pages as SP              # noqa: E402  날짜 굽기·물려받기 규칙(keep_dates) — /zone/ 과 같은 함수
+import kst as KST                         # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 
 SITE = I.SITE
 OUT = os.path.join(ROOT, 'monthly')
 URL = SITE + '/monthly/'
+
+# ── 공유 카드·공유 버튼(홈 마케팅 검수 B8·VIRAL-1, 2026-09-27) ────────────────────────────────────
+# 예전 og:image 는 범용 og-brand.png 라 링크를 붙여 넣으면 그 달의 숫자가 아니라 매달 같은 브랜드 카드가 떴다.
+# make_monthly_share 가 그 달 시도별 매매 변동률 카드를 SHARE_REL 에 굽고(배치 pytest 뒤 pillow 구역), 이 페이지의
+# og:image 는 그 파일에 기준월 판(?v=YYYY-MM)을 붙여 가리킨다 — 주간 카드(make_weekly_page.share_version)와 같은 방식.
+# 카드 파일이 아직 없으면(병합 직후 첫 배치 전) og-brand 로 둔다: 없는 파일을 미리보기로 가리키지 않는다. 카드 생성은
+# 페이지 생성 뒤(pillow 가 pip 뒤에 깔린다)라 첫 배치에서 카드가 생기고, 다음 배치부터 페이지가 카드를 가리킨다.
+SHARE_REL = 'share/monthly-card.png'
+SHARE_SIZE = (1200, 675)                 # 16:9, 폭 1200 이상(요청서 D2 조건)
+SHARE_SOURCE = 'monthly_share'           # 공유 링크 utm_source
+BRAND_IMG = (SITE + '/og-brand.png', 1200, 630)
+SHARE_LEAD = '이번 달 통계를 필요한 사람에게 보내 보세요'
+
+
+def load():
+    """data.js → (ADV, STATS)."""
+    src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
+    adv = json.loads(re.search(
+        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/',
+        src, re.S).group(1))
+    sts = json.loads(re.search(
+        r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    return adv, sts
+
+
+def share_version(adv):
+    """월간 카드의 판 = 카드가 그리는 기준월(월간 시세 최신 달, 'YYYY-MM'). 카드 생성기도 이 함수로 기준월을 정한다."""
+    rows = (adv.get('monthly') or {}).get('rows') or []
+    return str(rows[-1]['p'])[:7].replace('.', '-') if rows else None
+
+
+def share_image(adv, root=None):
+    """(og:image 주소, 가로, 세로). 카드 파일이 있으면 카드?v=기준월, 없으면 브랜드 카드."""
+    v = share_version(adv)
+    if v and os.path.isfile(os.path.join(root or ROOT, *SHARE_REL.split('/'))):
+        return '%s/%s?v=%s' % (SITE, SHARE_REL, v), SHARE_SIZE[0], SHARE_SIZE[1]
+    return BRAND_IMG
+
+
+def share_payload(adv, sts, root=None):
+    """/monthly/ 공유 버튼 내용. 링크 회차는 month_YYYYMM — 카카오의 페이지 단위 미리보기 보관을 달마다 새로 한다."""
+    v = share_version(adv)
+    if not v:
+        return None
+    img, w, h = share_image(adv, root)
+    top = top3_lines(adv, sts).get('price')
+    text = ('%s: %s' % (top[0], ' · '.join('%s %s' % x for x in top[1]))) if top and top[1] else \
+        '시도별 매매·전세·월세, 인허가, 입주물량, 미분양, 전세가율을 한 화면에'
+    return {'p': v, 'ct': 'monthly', 'url': PS.link(URL, SHARE_SOURCE, 'month_' + v.replace('-', '')),
+            'title': '이달의 공급 통계 · %s 기준' % month_label(v), 'text': text,
+            'img': img, 'w': w, 'h': h, 'btn': '이달의 통계 보기'}
+
+
+def put_share_meta(html, img, w, h):
+    """SHELL 의 og:image(브랜드 카드)를 이 달 카드로 바꾸고 크기·twitter:image 를 붙인다."""
+    old = '<meta property="og:image" content="%s">' % BRAND_IMG[0]
+    if html.count(old) != 1:
+        raise SystemExit('monthly: SHELL 에서 og:image 자리를 찾지 못했다')
+    return html.replace(old, '<meta property="og:image" content="%s">\n'
+                        '<meta property="og:image:width" content="%d">\n<meta property="og:image:height" content="%d">\n'
+                        '<meta name="twitter:image" content="%s">' % (esc(img), w, h, esc(img)), 1)
 
 # ⚠️ 이 페이지의 최초 공개일. make_indicator_pages.PUBLISHED(2026-07-29)를
 # 물려쓰면 안 된다 — 그건 /moveins/·/jeonse-ratio/의 날짜다. 그대로 쓰면 이 URL이
@@ -112,6 +176,20 @@ def sort_key(p):
     if m:
         return '%s-%02d' % (m.group(1), int(m.group(2)) * 3)
     return s
+
+
+def newest_basis(basis):
+    """지표별 기준 시점 목록 → 가장 최신 기준 원문('2026.08' 등). 없으면 ''.
+
+    비교는 반드시 sort_key로 — 한글 라벨 어휘 비교는 10월을 9월보다 작다고 본다.
+    이 페이지의 '기준' 표기와 /feed.xml 월간 항목의 guid(make_feed)가 이 한 함수를 쓴다(홈 마케팅 검수 D1).
+    """
+    return max(basis, key=sort_key) if basis else ''
+
+
+# 페이지 설명(meta description·JSON-LD). /feed.xml 월간 항목의 설명도 이 문장이다.
+DESC = ('매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 '
+        '변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.')
 
 
 def last_idx(d):
@@ -479,12 +557,7 @@ tbody tr.agg{background:var(--paper2)}
 
 
 def main():
-    src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/',
-        src, re.S).group(1))
-    sts = json.loads(re.search(
-        r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    adv, sts = load()
 
     secs, basis = build(adv, sts)
     # ⚠️ 계열 하나가 비면 그 섹션만 조용히 빠진 4섹션 페이지가 커밋된다.
@@ -502,27 +575,31 @@ def main():
         print('  원자료에 해당 계열이 없다. data.js와 update_adv_data 쪽을 볼 것.')
         return 1
 
-    # dateModified는 가장 최신 기준 시점에서 유도한다. 데이터가 안 바뀌면 안 움직여야
-    # sitemap lastmod가 매일 흔들리지 않는다(/moveins/와 같은 규칙).
-    # 비교는 반드시 sort_key로 — 한글 라벨 어휘 비교는 10월을 9월보다 작다고 본다.
-    newest_raw = max(basis, key=sort_key) if basis else ''
-    newest = month_label(newest_raw)
-    key = sort_key(newest_raw)                       # 'YYYY-MM'
-    mod_iso = (key + '-01') if re.match(r'^\d{4}-\d{2}$', key) else PUBLISHED
+    newest = month_label(newest_basis(basis))
+    # 날짜: dateModified·sitemap lastmod 는 **내용이 실제로 바뀐 날**이다 — /zone/ 과 같은 함수(make_sido_pages.keep_dates).
+    # 예전에는 기준월의 1일('2026-08' → 08-01, 공개일 하한 때문에 09-01)을 적었다. 그 값은 이 판이 생길 수 없는 과거이고
+    # (8월 기준은 9월 하순에 들어온다), 하한에 눌려 8월 기준과 9월 기준이 같은 날짜(09-01)가 되어 9월 기준이 들어온 날
+    # sitemap lastmod 가 안 움직였다 — 그날 IndexNow(--changed)도 /monthly/ 를 보내지 않는다(홈 마케팅 검수 D1 검토 B1).
+    # /feed.xml 월간 항목은 새 기준월이 처음 구워진 날 이 dateModified 를 발행일로 가져간다.
+    today = KST.today_iso()
 
     toc = ('<div class="wrap"><nav class="toc" aria-label="지표 목록">'
            '<a href="#price">1 매매·전세·월세</a><a href="#permits">2 인허가</a>'
            '<a href="#moveins">3 입주물량</a><a href="#unsold">4 미분양</a>'
            '<a href="#jeonse">5 전세가율</a></nav></div>')
 
+    # 공유 버튼(B8) — 다섯 지표를 다 본 자리(표 뒤)에 둔다. 시도 리포트 공유 구역과 같은 자리다.
+    share = share_payload(adv, sts)
+    share_block = PS.block(share, SHARE_LEAD) if share else ''
+
     title = '이달의 공급 통계 — 시도별 매매·전세·인허가·입주물량·미분양 | 아공맵'
-    desc = ('매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 '
-            '변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.')
+    desc = DESC
     body = ('<header><div class="wrap"><div class="chip">이달의 공급 통계</div>'
             '<h1>이번 달 통계, 한 화면에서</h1>'
             '<p class="lead">매달 흩어져 발표되는 공개 통계를 보는 순서 그대로 모았습니다. '
             '지표마다 <b>기준월과 발표 원천</b>을 함께 적었습니다.</p></div></header>'
             + toc + ''.join(secs)
+            + share_block
             + '<section><div class="wrap"><p class="note">'
             '모든 값은 공개 통계 원자료에서 그대로 가져옵니다. 가공은 단위 환산과 '
             '합계뿐이며, 없는 값을 추정해 채우지 않습니다.'
@@ -532,11 +609,12 @@ def main():
         I.SHELL,
         title=esc(title), ogtitle=esc('이달의 공급 통계 — 한 화면 정리'),
         desc=esc(desc), url=URL,
-        ld=ld_pack_here('이달의 공급 통계', desc, URL, mod_iso),
+        ld=ld_pack_here('이달의 공급 통계', desc, URL, today),
         src='한국부동산원 · 국토교통부 · KOSIS',
         body=body)
     # 이 페이지 전용 CSS를 SHELL 스타일 끝에 얹는다(SHELL을 건드리지 않는다).
     html = html.replace('</style>', EXTRA_CSS + '</style>', 1)
+    html = put_share_meta(html, *share_image(adv))   # og:image = 그 달 카드(?v=기준월), 없으면 브랜드 카드
     # 진입 측정 — 기존 view/to 패턴과 같은 이름을 쓴다.
     html = html.replace('</body>',
                         "<script>try{gtag('event','view',{screen_name:'monthly'});}"
@@ -549,14 +627,14 @@ def main():
         old = io.open(p, encoding='utf-8').read()
     except IOError:
         pass
-    # 날짜만 다른 재생성은 커밋하지 않는다(/zone/과 같은 규칙).
-    DATE = re.compile(r'\d{4}-\d{2}-\d{2}')
-    if old and DATE.sub('@', old) == DATE.sub('@', html):
-        I.update_sitemap([('/monthly/', max(mod_iso, PUBLISHED))])
+    # 날짜만 다른 재생성은 커밋하지 않는다(옛 판과 그 날짜를 그대로 둔다). 내용이 바뀌면 dateModified 만 오늘이 된다.
+    html, lastmod, changed = SP.keep_dates(html, old, today)
+    if not changed:
+        I.update_sitemap([('/monthly/', lastmod)])
         print('monthly: 내용 변경 없음 — 그대로 둠 (기준 %s)' % newest)
         return 0
     io.open(p, 'w', encoding='utf-8', newline='\n').write(html)
-    I.update_sitemap([('/monthly/', max(mod_iso, PUBLISHED))])
+    I.update_sitemap([('/monthly/', lastmod)])
     print('monthly: /monthly/ 생성 (기준 %s, %d개 지표, %.1f KB)'
           % (newest, len(secs), len(html.encode('utf-8')) / 1024))
     return 0

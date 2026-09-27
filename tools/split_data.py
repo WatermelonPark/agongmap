@@ -52,16 +52,23 @@ NL = chr(10)
 # 각 0건), 옛 주석이 '러닝재고가 직접 읽는다'고 적혀 있어 아무도 못 지웠다.
 # 멸실은 이제 빌드 시점에 sido_zones가 data.js에서 읽어 점수에 녹인다.
 # 기본통계 화면은 data-rest.json 사본을 쓰므로 손실 없다(동일 바이트 확인).
-CORE_STATS = ['전세가율', '준공', '착공']
+# ⚠️ 전세가율은 2026-09-27 에 뺐다(홈 마케팅 검수 B11·MOB-8 data-core 다이어트). 홈에서 읽는 곳은 통계 탭 버블밴드
+# (renderBubbleSec, home-stats.js) 하나뿐인데, 그 화면은 어차피 data-rest.json(전세가율 원천 그대로 포함)을 받은 뒤에
+# 그린다. /jeonse-ratio/ 생성기(make_indicator_pages.load)도 같은 날부터 data-rest.json 에서 읽는다.
+CORE_STATS = ['준공', '착공']
 
-# 홈이 통째로 쓰는 ADV 키
-CORE_ADV = ['sido', 'occupancy', 'permits', 'bubble', 'holidays']
+# 홈이 통째로 쓰는 ADV 키.
+# ⚠️ occupancy·permits·bubble 은 2026-09-27 에 뺐다(B11 다이어트, 합쳐 약 15KB·gzip 약 7KB). 셋 다 통계 탭(투자지표·
+# 버블밴드)만 읽고, 통계 화면은 data-trend.json(ADV 전체, permits 는 KEEP_PERMITS 만)을 받은 뒤에 돈다(home-app.js 의
+# 분할 파일 대기열이 trend 를 함께 기다린다). 홈 첫 화면(지도·표·주간)은 sido·holidays·weekly·monthly·준공·착공만 읽는다.
+CORE_ADV = ['sido', 'holidays']
 
 # ⚠️ 거부목록이 아니라 **허용목록**이다. 예전엔 뺄 키를 나열했더니 새로 생긴 키가
 # 아무도 안 막아준 채 홈 페이로드로 새어 나갔다 — permits.city(150KB)로 data-core가
 # 131KB -> 311KB가 됐고(2026-08-05), 생활권 시대 잔재 meas·fwd_far는 그 뒤로도
 # 계속 실려 나갔다(2026-08-07 감사). 홈이 실제로 읽는 건 ref 하나(index.html의
 # `ADV.permits.ref[region]`)이고 나머지는 표기용이다. 여기 없는 키는 자동으로 빠진다.
+# permits 가 data-core 에서 빠진 뒤(2026-09-27 B11)에도 통계 탭 파일(data-trend.json)이 같은 규칙으로 싣는다.
 KEEP_PERMITS = ('regions', 'ref', 'rows', 'note')
 
 # 홈 통합표가 그리는 구간·지역. 적정물량 기준표와 같은 시작점(2017)이다.
@@ -90,6 +97,28 @@ except Exception as _e:               # noqa: BLE001 — 결론 한 줄 때문�
     print('⚠️ split_data: make_weekly_page 를 못 불러와 ADV.weekly.head 를 싣지 않는다 — %s' % _e, file=sys.stderr)
 
 
+# 최신 주간 해설 글(ADV.blog, 홈 마케팅 검수 B5). 배치 fetch 잡이 이 스크립트 앞에서 blog_feed 로 RSS 를 읽어 둔 것을
+# /weekly/ 와 같은 규칙(blog_feed.pick)으로 골라 싣는다. 홈 주간 구역이 읽기만 한다. 최상위 키라 통계 탭을 열어도
+# (loadFullData 는 trend 에 있는 키만 바꾼다) 사라지지 않는다. 못 불러오거나 고를 글이 없으면 싣지 않는다 — 칸이 빠지기만.
+try:
+    import blog_feed as _BF
+    import weekly_release as _WR
+except Exception as _e:               # noqa: BLE001 — 블로그 칸 때문에 데이터 스플릿을 멈추지 않는다
+    _BF = None
+    print('⚠️ split_data: blog_feed 를 못 불러와 ADV.blog 를 싣지 않는다 — %s' % _e, file=sys.stderr)
+
+
+def _blog(w):
+    rows = (w or {}).get('rows') or []
+    if _BF is None or not rows:
+        return None
+    try:
+        return _BF.pick(_BF.read(), _WR.status(rows[-1]['p'])['pub'])
+    except Exception as e:            # noqa: BLE001
+        print('⚠️ split_data: 블로그 칸을 만들지 못했다 — %s' % e, file=sys.stderr)
+        return None
+
+
 def _weekly_head(w):
     if _MW is None:
         return None
@@ -98,6 +127,30 @@ def _weekly_head(w):
     except Exception as e:            # noqa: BLE001
         print('⚠️ split_data: 주간 결론 한 줄을 만들지 못했다 — %s' % e, file=sys.stderr)
         return None
+
+
+# '지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5). 홈 코어에 최근 WINDOW 주를 싣고, 방향 표지(상승 전환·N주 연속)는
+# weekly_moves 가 **전체 이력**으로 판정해 ADV.weekly.moves 로 싣는다 — 홈 JS 는 규칙을 다시 만들지 않고 읽기만 한다.
+# 공유 내용(ADV.weekly.share, B8)은 /weekly/ 공유 버튼과 같은 함수(make_weekly_page.share_payload)에서 온다.
+# 둘 다 결론 한 줄(head)처럼 못 만들면 빼고 쪼갠다 — 홈은 없으면 표지·공유 버튼 없이 그린다.
+try:
+    import weekly_moves as _WM
+except Exception as _e:               # noqa: BLE001
+    _WM = None
+    print('⚠️ split_data: weekly_moves 를 못 불러와 ADV.weekly.moves 를 싣지 않는다 — %s' % _e, file=sys.stderr)
+RECENT_WEEKS = _WM.WINDOW if _WM is not None else 1
+
+
+def _weekly_extra(w):
+    """(moves, share) — 만들지 못한 것은 None."""
+    out = []
+    for name, fn in (('방향 표지', lambda: _WM and _WM.moves(w)), ('공유 내용', lambda: _MW and _MW.share_payload(w))):
+        try:
+            out.append(fn() or None)
+        except Exception as e:        # noqa: BLE001
+            print('⚠️ split_data: 주간 %s 를 만들지 못했다 — %s' % (name, e), file=sys.stderr)
+            out.append(None)
+    return out
 
 
 def _r2(a):
@@ -143,14 +196,23 @@ def main():
     # 입력이라, 한쪽이 비어도 다른 쪽은 그려야 한다.
     wk = {'regions': w.get('regions', []), 'grace': GRACE_WEEKLY}
     head = _weekly_head(w)
+    moves, share = _weekly_extra(w)
     if w.get('rows'):
-        wk['rows'] = w['rows'][-1:]
+        wk['rows'] = w['rows'][-RECENT_WEEKS:]   # 최근 4주(B7). 홈 격자·띠는 마지막 행을, 표지는 moves 를 읽는다
+        wk['recent'] = RECENT_WEEKS   # 홈 격자 풍선 도움말의 주 수 — JS 가 4 를 따로 적지 않게(통계 탭 뒤 rows 가 길어져도 같은 창)
         if head:
             wk['head'] = head
+        if moves:
+            wk['moves'] = moves
+        if share:
+            wk['share'] = share
     if sgg.get('rows'):
         wk['sgg'] = {'codes': sgg.get('codes', []), 'rows': sgg['rows'][-1:]}
     if wk.get('rows') or wk.get('sgg'):
         core_adv['weekly'] = wk
+    blog = _blog(w)
+    if blog:
+        core_adv['blog'] = blog
 
     # 홈 통합표가 쓰는 가격 변동률 — 매매·전세·월세만, 시도 20곳만.
     # 전체 monthly는 753.9KB(대부분 seoul 76.8 + sgg 617.1)라 통째로는 못 싣는다.
@@ -219,6 +281,11 @@ def main():
             w['grace'] = GRACE_WEEKLY
             if head:
                 w['head'] = head   # 같은 이유 — 통계 탭을 연 뒤에도 홈 띠·주간 h2 가 결론을 잃지 않는다
+            w['recent'] = RECENT_WEEKS   # 같은 이유 — 격자 도움말의 주 수
+            if moves:
+                w['moves'] = moves   # 같은 이유 — 주간 격자 표지(B7)
+            if share:
+                w['share'] = share   # 같은 이유 — 주간 격자 공유 버튼(B8)
         trend_adv[k] = w
     io.open(TREND, 'w', encoding='utf-8', newline=NL).write(
         dump({'ADV': trend_adv}))

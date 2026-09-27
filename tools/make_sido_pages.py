@@ -32,6 +32,8 @@ import sido_zones as SZ                                            # noqa: E402
 import make_weekly_page as MW    # noqa: E402  주간 표기(반올림·조사일·발표일)를 /weekly/와 같이
 import kst as KST                # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 import site_nav as N             # noqa: E402  하단 탭바 정본(홈 마케팅 검수 C2)
+import weekly_moves as WM        # noqa: E402  시군구 순위·방향·연속의 정본(/weekly/ 표·홈 격자 표지와 같은 함수, D4)
+import robots_meta as RM          # noqa: E402  검색 로봇 메타 정본(홈 마케팅 검수 D2)
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
@@ -280,6 +282,16 @@ def read_old(path):
         return None
 
 
+def ld_date(html, key='dateModified'):
+    """페이지 JSON-LD 의 datePublished·dateModified 값('YYYY-MM-DD'). 없으면 None.
+
+    keep_dates(시도 리포트·허브·/monthly/ 가 날짜를 굽고 물려받는 규칙)와 /feed.xml(make_feed — 새 판의 발행일을 그
+    페이지의 dateModified 에서 읽는다)이 **같은 눈**으로 읽는다(홈 마케팅 검수 D1 검토 B1).
+    """
+    m = re.search(r'"%s":\s*"(\d{4}-\d{2}-\d{2})"' % key, html or '')
+    return m.group(1) if m else None
+
+
 def keep_dates(new_html, old_html, today):
     """내용이 같고 날짜만 다르면 **옛 페이지를 그대로** 돌려준다.
 
@@ -297,15 +309,14 @@ def keep_dates(new_html, old_html, today):
     if not old_html:
         return new_html, today, True
     if DATE_RE.sub('@', new_html) == DATE_RE.sub('@', old_html):
-        m = re.search(r'"dateModified":\s*"(\d{4}-\d{2}-\d{2})"', old_html)
-        return old_html, (m.group(1) if m else today), False
+        return old_html, (ld_date(old_html) or today), False
     # ⚠️ 내용이 바뀌어도 **최초 발행일은 물려받는다**. 안 그러면 갱신 회차마다
     # datePublished가 오늘로 다시 찍혀, 8월에 색인된 페이지가 9월에 '어제 처음
     # 발행됨, 수정 이력 없음'이라고 선언한다(2026-08-07 감사).
-    pub = re.search(r'"datePublished":\s*"(\d{4}-\d{2}-\d{2})"', old_html)
+    pub = ld_date(old_html, 'datePublished')
     if pub:
         new_html = new_html.replace('"datePublished": "%s"' % today,
-                                    '"datePublished": "%s"' % pub.group(1), 1)
+                                    '"datePublished": "%s"' % pub, 1)
     return new_html, today, True
 
 
@@ -458,6 +469,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 <script async src="https://www.googletagmanager.com/gtag/js?id=%(ga)s"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','%(ga)s');</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+%(robots)s
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
@@ -483,7 +495,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 </head>
 <body>
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-''' % {'ga': GA, 'zjs': zone_js_src(),
+''' % {'ga': GA, 'zjs': zone_js_src(), 'robots': RM.TAG,
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,
        # 지역 카드(make_zone_cards.py 산출물). 없으면 브랜드 카드로 떨어진다 —
        # 카드를 아직 안 구웠거나 지역이 새로 생긴 회차에도 미리보기가 깨지지 않게.
@@ -565,6 +577,7 @@ def _write_merged_stub(path, old, new):
     url = SITE + '/zone/' + urllib.parse.quote(new) + '/'
     h = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
          '<meta name="viewport" content="width=device-width,initial-scale=1">'
+         + RM.TAG +   # 검색 로봇 메타 정본(D2) — 통합 안내도 큰 미리보기 조건을 같이 싣는다
          '<title>%s 아파트 공급 분석 — %s로 통합 | 아공맵</title>'
          '<link rel="canonical" href="%s">'
          '<meta http-equiv="refresh" content="3;url=%s">'
@@ -594,6 +607,184 @@ def _topic(word):
     return '은' if (ord(last) - 0xAC00) % 28 else '는'
 
 
+def _iga(word):
+    """받침에 맞는 주격 조사 이/가(_topic 과 같은 판정). 한글로 안 끝나면 '가'."""
+    last = word[-1] if word else ''
+    if not ('가' <= last <= '힣'):
+        return '가'
+    return '이' if (ord(last) - 0xAC00) % 28 else '가'
+
+
+# ── <main> 첫 문단(D3) ────────────────────────────────────────────────────────────────────────
+def summary_parts(z, row, calc, lab):
+    """meta description 과 <main> 첫 숫자 문단이 **같이** 쓰는 조각 [(글, 굵게 1|0)] — 홈 마케팅 검수 D3·SEO-4.
+
+    네이버 스니펫은 <main> 첫 구역에서 나오는데, 예전 첫 구역은 '숫자로 보면'이라는 칸 제목뿐이라 색인된 리포트 대부분이
+    '숫자로 보면 ; 누적 순부족 ; …'처럼 숫자 없이 보였다. 설명 메타(head)와 이 문단이 한 목록에서 나오므로 둘의 세대수가
+    갈릴 수 없다(test_zone_weekly 가 19장 전부 대조). 헤더의 판정 문장(verdict_line)은 그대로 둔다.
+    ⚠️ 주간 갱신처럼 쓰지 않는다. 배치는 매일 돌지만 판정은 분기 실적으로 정해져 분기마다 바뀐다(2026-09-15 점검후속 ④).
+    """
+    d_tot = disp_tot(row, calc['H'])
+    return [('%s의 아파트 공급은 ' % z, 0), (row.get('ctxt') or signed(d_tot), 1),
+            ('(%s). 앞으로 %.0f년 착공 기준 공급 ' % (lab, calc['H'] / 4.0), 0), ('%s세대' % num(rnd(row['fut'])), 1),
+            (', 분기 적정물량 ', 0), ('%s호' % num(rnd(row['ref'])), 1),
+            ('. %s 기준, 국토교통부 준공·착공 실적으로 분기마다 갱신.' % (calc.get('Ltxt') or calc['L']), 0)]
+
+
+def summary_text(parts):
+    """조각 → 설명 메타 문장(태그 없음)."""
+    return ''.join(t for t, _ in parts)
+
+
+def summary_html(parts):
+    """조각 → <main> 첫 문단. 글자는 summary_text 와 같고 숫자 조각만 굵게."""
+    return ('<section class="zsum"><div class="wrap"><p>%s</p></div></section>'
+            % ''.join(('<b>%s</b>' if b else '%s') % esc(t) for t, b in parts))
+
+
+# ── 시군구 주간 표(D4) ────────────────────────────────────────────────────────────────────────
+# 19장이 표를 뺀 본문을 크게 공유하고 있어(요청서 D4 — 5-gram Jaccard 0.69~0.88) 매주 바뀌는 그 지역만의 본문을 늘린다.
+# 숫자는 weekly_moves 가 낸다: 순서 = sgg_ranks(홈 TOP 10·/weekly/ 표와 같은 규칙), 방향·연속 = direction·streak(발표 표기
+# 반올림 뒤 셈 — 홈 격자·/weekly/ 타일 표지와 같은 함수), 12주 누적 = cum_window·cum_change. 반올림 표기는 MW.pv2(사이트 pv2r).
+# 집계 3장(전국·수도권·지방)은 많이 오른 곳·많이 내린 곳 AGG_TOP 곳씩만 싣는다(요청서 D4).
+AGG_TOP = 5
+WK_CSS = ('.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'
+          '.zcell b span{color:var(--ink)}'
+          '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
+          # 가로로 넘치는 표(375px 에서 전세 칸)는 오른쪽 가장자리에 그림자가 진다 — 끝까지 밀면 사라진다(배경 local/scroll 겹침).
+          '.zwk-scroll{overflow-x:auto;border:1px solid var(--line);margin-bottom:6px;'
+          'background:linear-gradient(to left,var(--paper) 40%,rgba(244,246,245,0)) right/28px 100% no-repeat local,'
+          'radial-gradient(farthest-side at 100% 50%,rgba(19,30,36,.22),rgba(19,30,36,0)) right/12px 100% no-repeat scroll}'
+          # 시군구 칸은 머리·몸 모두 붙박이(가로로 밀어도 이름이 남고, 둘째 머리줄이 그 위로 걸치지 않는다)
+          '.zwk .ztb td:first-child,.zwk .ztb thead tr:first-child th:first-child{position:sticky;left:0;background:var(--paper);z-index:1}'
+          '.zwk .ztb td:first-child{color:var(--ink);font-size:12.5px}'
+          '.zwk .ztb thead tr:first-child th:first-child{z-index:2}'
+          '.zwk .ztb th:not(:first-child),.zwk .ztb thead tr+tr th{position:static}.zwk .ztb th,.zwk .ztb td{padding:5px 6px}'
+          '.zwk-none{font-size:13px;color:var(--muted);margin:0 0 6px}'
+          '.zwk .ztb thead tr:first-child th{text-align:center}.zwk .ztb thead tr:first-child th:first-child{text-align:left}'
+          '.zwk .ztb thead tr+tr th:first-child{text-align:right}'
+          '.zwk .ztb .up{color:#a93226}.zwk .ztb .dn{color:var(--gwaing)}'
+          '.zwk h3{font-size:14px;font-weight:600;margin:14px 0 6px}'
+          '.zyear{font-size:13px;line-height:1.7;color:var(--ink2);margin-top:12px}.zyear b{color:var(--ink);margin-right:4px}')
+
+
+def _wk_cell(v):
+    k = MW.sign(v)
+    return '<td%s>%s</td>' % ((' class="%s"' % k) if k else '', MW.pv2(v))
+
+
+def _wk_streak(s, o):
+    k = 'up' if s > 0 else ('dn' if s < 0 else '')
+    return '<td%s>%s</td>' % ((' class="%s"' % k) if k else '', WM.streak_text(s, o))
+
+
+def _wk_table(rows, label):
+    head = ('<div class="zwk-scroll"><table class="ztb" aria-label="%s"><thead>'
+            '<tr><th rowspan="2">시군구</th><th colspan="3">매매</th><th colspan="3">전세</th></tr>'
+            '<tr>%s%s</tr></thead><tbody>'
+            % (esc(label), *(['<th>주간</th><th>%d주</th><th>연속(주)</th>' % WM.CUM_WEEKS] * 2)))
+    body = ''.join('<tr><td>%s</td>%s%s%s%s%s%s</tr>'
+                   % (esc(r['name']), _wk_cell(r['ma']), _wk_cell(r['ma12']), _wk_streak(r['sma'], r['oma']),
+                      _wk_cell(r['je']), _wk_cell(r['je12']), _wk_streak(r['sje'], r['oje'])) for r in rows)
+    return head + body + '</tbody></table></div>'
+
+
+def _wk_lead(z, rows):
+    """표 위 요약 — 오른 곳·내린 곳 수, 가장 많이 오른·내린 곳, 12주 누적 맨 앞·맨 뒤, 연속 N주 이상 곳 수.
+    전부 표의 행(zone_table)에서 센다. 방향은 WM.direction(표시값 부호, 0.00 은 보합)."""
+    pct = lambda v: MW.pv2(v) + '%'
+    if len(rows) == 1:
+        r = rows[0]
+        s = r['sma']
+        tail = ('매매는 %d주%s 연속 %s입니다.' % (abs(s), ' 이상' if r['oma'] else '', '상승' if s > 0 else '하락')
+                if s else '매매는 이번 주 보합입니다.')
+        # 값이 없는 조각은 뺀다('전세 ·%' 를 찍지 않는다)
+        now = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma'), ('전세', 'je')) if r[m] is not None]
+        cum = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma12'), ('전세', 'je12')) if r[m] is not None]
+        return ('이번 주 %s 아파트 %s. %s%s'
+                % (esc(r['name']), ', '.join(now),
+                   ('최근 %d주 누적은 %s입니다. ' % (WM.CUM_WEEKS, ', '.join(cum))) if cum else '', tail))
+    d = [WM.direction(r['ma']) for r in rows]
+    out = ['%s 시군구 %d곳 가운데 이번 주 매매가 오른 곳은 %d곳, 내린 곳은 %d곳, 보합은 %d곳입니다.'
+           % (esc(z), len(rows), d.count(1), d.count(-1), d.count(0))]
+    ends = []
+    if d[0] == 1:
+        ends.append('가장 많이 오른 곳은 %s(%s)' % (esc(rows[0]['name']), pct(rows[0]['ma'])))
+    if d[-1] == -1:
+        ends.append('가장 많이 내린 곳은 %s(%s)' % (esc(rows[-1]['name']), pct(rows[-1]['ma'])))
+    if ends:
+        out.append(', '.join(ends) + '입니다.')
+    c12 = [r for r in rows if r['ma12'] is not None]
+    if len(c12) >= 2:
+        hi = max(c12, key=lambda r: r['ma12'])
+        lo = min(c12, key=lambda r: r['ma12'])
+        out.append('최근 %d주 누적 매매는 %s(%s)%s 가장 높고 %s(%s)%s 가장 낮습니다.'
+                   % (WM.CUM_WEEKS, esc(hi['name']), pct(hi['ma12']), _iga(hi['name']),
+                      esc(lo['name']), pct(lo['ma12']), _iga(lo['name'])))
+    up = sum(1 for r in rows if r['sma'] >= WM.STREAK_MIN)
+    dn = sum(1 for r in rows if r['sma'] <= -WM.STREAK_MIN)
+    out.append('매매가 %d주 이상 연속 오른 곳은 %d곳, 연속 내린 곳은 %d곳입니다.' % (WM.STREAK_MIN, up, dn))
+    return ' '.join(out)
+
+
+def short_name(z, name):
+    """시도 리포트 표에서는 이름표 앞의 시도 이름을 뗀다('서울 서대문구' → '서대문구') — 그 시도 페이지라 겹치는 말이고,
+    375px 에서 표가 한 화면에 들어온다. 집계 장·전남광주('광주 동구')는 앞말이 페이지 이름과 달라 그대로 둔다."""
+    pre = z + ' '
+    return name[len(pre):] if name.startswith(pre) and len(name) > len(pre) else name
+
+
+def weekly_section(z, weekly, names):
+    """그 시도(집계면 권역)의 시군구 주간 표 구역. 시군구 계열이 없거나 한 주뿐이면 빈 문자열 — 생성기를 죽이지 않고
+    표만 뺀다(배치 중단 금지, 2026-09-26 감사 15번 유형).
+
+    세종은 시·군·구가 없는 단일 행정구역이라(NO_INNER_UNITS) 원천의 '세종' 한 줄이 곧 시 전체다 — 제목에서 '시군구'를 빼고
+    한 줄 요약으로 쓴다. 전남광주는 원천이 따로 내는 광주 구·전남 시군을 한 표에 모은다(sgg_zone). 집계 3장은 많이 오른 곳·
+    많이 내린 곳 AGG_TOP 곳씩(곳이 2×AGG_TOP 이하면 전부).
+    """
+    S = (weekly or {}).get('sgg') or {}
+    if not names:
+        return ''
+    try:
+        rows = WM.zone_table(S, names, z)
+    except (KeyError, IndexError, TypeError, ValueError):
+        rows = []
+    if not rows:
+        return ''
+    for r in rows:
+        r['name'] = short_name(z, r['name'])
+    p = S['rows'][-1].get('p')
+    try:
+        basis = '%s 조사 · %s 발표 · ' % (MW.md(p), MW.md(MW.pub(p)))
+    except Exception:          # 조사일 모양이 틀어져도 표는 굽는다(날짜 줄만 뺀다)
+        basis = ''
+    single = len(rows) == 1
+    title = ('%s 주간 아파트 시세' % z) if single else ('%s 시군구 주간 아파트 시세' % z)
+    h = ['<section class="zwk" id="weekly-sgg"><div class="wrap"><h2>%s</h2>' % esc(title),
+         '<p class="zsub">%s한국부동산원 주간 아파트가격 동향 · 전주 대비(%%)%s</p>'
+         % (basis, '' if single else ' · 시군구 %d곳' % len(rows)),
+         '<p class="zwk-lead">%s</p>' % _wk_lead(z, rows)]
+    split = z in SZ.AGG and len(rows) > 2 * AGG_TOP
+    if split:
+        # 오른 표에는 오른 곳만, 내린 표에는 내린 곳만(표시값 부호 — WM.direction). 모자라면 그만큼, 없으면 표 대신 한 줄.
+        for key, word, d, pool in (('up', '오른', 1, rows), ('dn', '내린', -1, rows[::-1])):
+            pick = [r for r in pool if WM.direction(r['ma']) == d][:AGG_TOP]
+            if pick:
+                h.append('<h3>매매가 가장 많이 %s %d곳</h3>' % (word, len(pick)))
+                h.append(_wk_table(pick, '%s 시군구 매매 %s 상위 %d곳' % (z, '상승' if d > 0 else '하락', len(pick))))
+            else:
+                h.append('<h3>매매가 %s 곳</h3><p class="zwk-none">이번 주 매매가 %s 시군구는 없습니다.</p>' % (word, word))
+        order = '위 표는 많이 오른 곳부터, 아래 표는 많이 내린 곳부터 적었습니다. '
+    else:
+        h.append(_wk_table(rows, '%s 시군구 주간 매매·전세 변동률' % z))
+        order = '' if single else '이번 주 매매 변동률이 큰 곳부터 적었습니다. '
+    h.append('<p class="zsub">%s%d주는 최근 %d주 변동률을 이어 곱한 누적이고, 연속은 발표 표기(소수 '
+             '둘째 자리)로 같은 방향이 이어진 주 수입니다. <a href="%s">전국 시군구 전체 표 →</a></p>'
+             % (order, WM.CUM_WEEKS, WM.CUM_WEEKS, MW.TABLE_URL))
+    h.append('</div></section>')
+    return ''.join(h)
+
+
 def next_links(z, weekly, stats):
     """리포트 끝에서 '이 지역 이번 주 시세는?'으로 가는 길(2026-09-15 점검 후속 ⑤).
 
@@ -601,6 +792,7 @@ def next_links(z, weekly, stats):
     읽고, 표기는 그 값을 싣는 페이지와 같은 규칙을 쓴다 — 주간은 make_weekly_page(사이트 pv2r 반올림,
     조사일·발표일 병기), 전세가율은 /jeonse-ratio/ 와 같은 소수 첫째 자리와 1년 전 대비 %p.
     ⚠️ 값이 없으면 그 칸을 싣지 않는다. '매매 ·%' 같은 빈 칸을 인쇄하지 않는다.
+    카드 아래에 '최근 12개월' 한 줄(미분양·전세가율, year_line)을 붙인다(홈 마케팅 검수 D4).
     """
     cards = []
     w = weekly or {}
@@ -615,8 +807,8 @@ def next_links(z, weekly, stats):
                          % (' · '.join(parts), MW.md(row['p']), MW.md(MW.pub(row['p']))))
     j = (stats or {}).get('전세가율') or {}
     ser, dates = (j.get('series') or {}).get(z), j.get('dates') or []
-    if ser and dates:
-        li = len(dates) - 1
+    li = jeonse_index(j) if ser and dates else None
+    if li is not None:
         cur = ser[li] if li < len(ser) else None
         ya = SZ.month_back(dates, li, 12)     # 라벨로 1년 전 칸을 찾는다(li-12 는 빠진 달이 있으면 13달 전 — 감사 #17)
         ago = ser[ya] if ya is not None and ya < len(ser) else None
@@ -624,13 +816,97 @@ def next_links(z, weekly, stats):
             chg = '' if ago is None else ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
             cards.append('<a href="/jeonse-ratio/"><b>전세가율</b><i>%.1f%%%s · %s 기준</i></a>'
                          % (cur, chg, esc(dates[li])))
-    if not cards:
+    year = year_line(z, stats)
+    if not cards and not year:
         return ''
-    return ('<section><div class="wrap"><h2>%s 시세도 함께</h2><div class="zlinks">%s</div></div></section>'
-            % (esc(z), ''.join(cards)))
+    return ('<section><div class="wrap"><h2>%s 시세도 함께</h2>%s%s</div></section>'
+            % (esc(z), ('<div class="zlinks">%s</div>' % ''.join(cards)) if cards else '', year))
 
 
-def build_page(z, calc, stats, pq, others, weekly=None):
+# 전세가율 기준월 한 번 계산해 둔다(19장이 같은 STATS 를 읽는다 — 보류 경고가 장마다 찍히지 않게). [계열 객체, 열 번호]
+_JREF = [None, None]
+
+
+def jeonse_index(j):
+    """전세가율 기준월의 열 번호 — /jeonse-ratio/ 와 같은 함수(make_indicator_pages.jeonse_ref_index)·같은 필요 지역(JEONSE_NEED).
+
+    예전 이 칸은 dates[-1] 을 읽어, 원천이 최신 달 일부 지역을 비운 달(보류 달)에는 /jeonse-ratio/ 와 다른 달을 말하거나
+    칸이 사라졌다. 같은 값을 재는 두 화면이 같은 함수를 쓴다(홈 마케팅 검수 D4 '12개월 한 줄'과 함께 맞춤).
+    완비 달이 하나도 없으면 None — 생성기를 죽이지 않고 칸만 뺀다(배치 중단 금지, 2026-09-26 감사 15번 유형)."""
+    if _JREF[0] is j:
+        return _JREF[1]
+    import make_indicator_pages as I   # 쓸 때 가져온다(지표 생성기 모듈 — 읽기만 한다)
+    try:
+        k = I.jeonse_ref_index(j, I.JEONSE_NEED)
+    except (RuntimeError, KeyError, TypeError, AttributeError):
+        k = None
+    _JREF[:] = [j, k]
+    return k
+
+
+YEAR_MONTHS = 12   # '최근 12개월' 한 줄의 창(달)
+
+
+def _span(dates, i, k=YEAR_MONTHS):
+    """dates[i] 부터 k 달 앞까지의 열 번호(오래된 달 → i). 달은 라벨로 센다(SZ.month_back) — 빠진 달은 건너뛴다."""
+    out = [SZ.month_back(dates, i, n) for n in range(k, 0, -1)] + [i]
+    return [x for x in out if x is not None]
+
+
+def year_line(z, stats):
+    """'최근 12개월' 한 줄 — 미분양과 전세가율의 12개월 전 → 기준월, 그 사이 가장 많던(미분양)·범위(전세가율).
+
+    기준월은 같은 페이지의 다른 칸과 같다: 미분양은 '숫자로 보면' 카드와 같은 SZ.unsold_latest(그 지역의 최신 값),
+    전세가율은 위 카드·/jeonse-ratio/ 와 같은 jeonse_index. 12개월 전 칸은 SZ.month_back(라벨)로 찾는다. 양 끝 값이
+    없으면 그 항목만 빼고, 둘 다 없으면 빈 문자열(홈 마케팅 검수 D4).
+    """
+    parts = []
+    u = (stats or {}).get('미분양') or {}
+    useries, udates = (u.get('series') or {}).get(z) or [], u.get('dates') or []
+    uv, up = SZ.unsold_latest(stats or {}, z)
+    if uv is not None and up in udates:
+        i = udates.index(up)
+        j = SZ.month_back(udates, i, YEAR_MONTHS)
+        a = useries[j] if j is not None and j < len(useries) else None
+        if a is not None:
+            txt = '미분양 %s호(%s) → %s호(%s)' % (num(a), esc(udates[j]), num(uv), esc(up))
+            span = [(useries[k], udates[k]) for k in _span(udates, i) if k < len(useries) and useries[k] is not None]
+            mx = max(span, key=lambda x: x[0])
+            if rnd(mx[0]) > max(rnd(a), rnd(uv)):
+                txt += ', 가장 많던 달 %s호(%s)' % (num(mx[0]), esc(mx[1]))
+            parts.append(txt)
+    jr = (stats or {}).get('전세가율') or {}
+    jseries, jdates = (jr.get('series') or {}).get(z) or [], jr.get('dates') or []
+    li = jeonse_index(jr) if jseries and jdates else None
+    if li is not None and li < len(jseries) and jseries[li] is not None:
+        ya = SZ.month_back(jdates, li, YEAR_MONTHS)
+        a = jseries[ya] if ya is not None and ya < len(jseries) else None
+        if a is not None:
+            vals = [jseries[k] for k in _span(jdates, li) if k < len(jseries) and jseries[k] is not None]
+            parts.append('전세가율 %.1f%%(%s) → %.1f%%(%s), 그 사이 %.1f~%.1f%%'
+                         % (a, esc(jdates[ya]), jseries[li], esc(jdates[li]), min(vals), max(vals)))
+    if not parts:
+        return ''
+    return '<p class="zyear"><b>최근 %d개월</b> %s</p>' % (YEAR_MONTHS, ' · '.join(parts))
+
+
+def page_title(z, calc, lab, p=''):
+    """시도 리포트 제목 — '2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족'(홈 마케팅 검수 B4·SEO-7, 2026-09-27).
+
+    예전 '서울 아파트 공급 분석 — 매우 부족'은 팀이 확인한 검색 형태(연도 + 지역 + 아파트 공급물량 + 전망, 08-14 네이버
+    실측 — 블로그 지역 편 제목도 이 형태다)를 따르지 않았다. '전망'은 공급 물량의 전망이라 가격 예측이 아니다.
+    연도는 sido_zones.outlook_year(p) — '전망하는 해', 10월부터 다음 해(09-27 대표 결정). p 는 주간 최신 조사일이고 블로그 지역 편
+    제목과 같은 함수·같은 원천이다. 조사일이 없으면 연도를 뺀다(블로그와 같다). '3년'은 판정 창(H),
+    등급 말은 GRADE_TXT(= 배지)에서 읽는다 — 손으로 적지 않는다.
+    head() 가 이 값을 <title>·og:title·JSON-LD headline 에 그대로 쓴다(세 곳이 한 값). '보다' 대신 '대비'인 이유:
+    '균형'·'공급 여유' 등급에서도 문장이 된다.
+    """
+    yr = SZ.outlook_year(p)
+    return '%s%s 아파트 공급물량 전망, %s 필요량 대비 %s' % ((yr + '년 ') if yr else '', z, '%g년' % (calc['H'] / 4.0), lab)
+
+
+def build_page(z, calc, stats, pq, others, weekly=None, names=None):
+    """시도 리포트 한 장. names 는 시군구 이름표(SGG_QNAME, /weekly/ 와 같은 MW.load 의 것) — 없으면 시군구 주간 표를 뺀다."""
     row = [x for x in calc['zones'] if x['z'] == z][0]
     lab, color = GRADE_TXT[row['grade']]
     rows = series(stats, z, calc)
@@ -645,13 +921,10 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     d_tot = disp_tot(row, calc['H'])
     fut_sum = d_fut
 
-    # ⚠️ 주간 갱신처럼 쓰지 않는다. 배치는 매일 돌지만 판정은 분기 실적으로
-    # 정해져 분기마다 바뀐다(2026-09-15 점검후속 ④).
-    desc = ('%s의 아파트 공급은 %s(%s). 앞으로 %.0f년 착공 기준 공급 %s세대, '
-            '분기 적정물량 %s호. %s 기준, 국토교통부 준공·착공 실적으로 분기마다 갱신.'
-            % (z, row.get('ctxt') or signed(d_tot), lab, yrs, num(d_fut), num(d_ref),
-               calc.get('Ltxt') or calc['L']))
-    title = '%s 아파트 공급 분석 — %s' % (z, lab)
+    # 설명 메타와 <main> 첫 숫자 문단(D3)은 같은 조각에서 나온다 — summary_parts 참고.
+    parts = summary_parts(z, row, calc, lab)
+    desc = summary_text(parts)
+    title = page_title(z, calc, lab, SZ.latest_survey({'weekly': weekly}))
 
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'
@@ -681,7 +954,11 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     # 열린다(2026-08-08 사용자). sessionStorage라 탭을 닫으면 사라진다.
     h.append('<script>try{sessionStorage.setItem("agong_gr",%s)}catch(e){}</script>'
              % json.dumps(z, ensure_ascii=False))
+    # 이 페이지만 쓰는 스타일(첫 문단·카드 제목 안 숫자·주간 표·12개월 줄). <main> 첫 요소가 숫자 문단이어야 해서(D3) 여기 둔다.
+    h.append('<style>%s</style>' % WK_CSS)
     h.append('</div></header><main id="main">')
+    # <main> 첫 요소 = 설명 메타와 같은 조각의 숫자 문단(D3). 네이버 스니펫이 여기서 나온다.
+    h.append(summary_html(parts))
 
     # ── 핵심 수치 ──
     # id="calc" — 홈 산출 방법 첫 항목이 이 식 블록으로 링크한다(/zone/전국/#calc, 홈 마케팅 검수 B2·TRUST-2②).
@@ -721,7 +998,9 @@ def build_page(z, calc, stats, pq, others, weekly=None):
           % (calc.get('unsold_prd') or '', num(d_ref), umx(row['um'])))
          if row.get('um') is not None else '자료 없음'),
     ):
-        h.append('<div class="zcell"><b>%s</b><span>%s</span><i>%s</i></div>' % (k, v, note))
+        # 값(<span>)을 칸 제목 <b> 안에 둔다(D3) — 검색 스니펫이 '누적 순부족'만 뽑지 않고 '누적 순부족 311,689세대 부족'을
+        # 뽑게. 겉모습은 그대로다(.zcell span 이 block·큰 글자, 색은 WK_CSS 의 .zcell b span).
+        h.append('<div class="zcell"><b>%s <span>%s</span></b><i>%s</i></div>' % (k, v, note))
     h.append('</div></section>')
 
     # ── 기간별 표 ──
@@ -812,6 +1091,7 @@ def build_page(z, calc, stats, pq, others, weekly=None):
                 '%g년' % (SZ.BACKLOG_WINDOW / 4.0)))
 
     h.append(next_links(z, weekly, stats))
+    h.append(weekly_section(z, weekly, names))
 
     # ── 다른 지역 ──
     h.append('<section><div class="wrap"><h2>다른 지역</h2><div class="zlinks">')
@@ -962,6 +1242,12 @@ def main():
                          % (len(calc['zones']), len(_live['zones'])))
     pq = price_quarters(adv)
     names = [z['z'] for z in calc['zones']]
+    # 시군구 이름표 — /weekly/ 표와 같은 출처(MW.load: 홈 스크립트의 SGG_QNAME). 못 읽으면 주간 표만 빼고 굽는다.
+    try:
+        sgg_names = MW.load()[1]
+    except (SystemExit, Exception) as e:   # MW.load 는 이름표가 없으면 SystemExit — 이 생성기는 죽지 않는다
+        print('  ⚠️ 시군구 이름표를 못 읽어 시도 리포트의 주간 표를 뺀다: %s' % e)
+        sgg_names = None
 
     # 옛 생활권 디렉터리 정리. 이름이 통째로 바뀌었으므로 남겨두면 stale 페이지가
     # 색인에 그대로 남는다(리다이렉트도 두지 않기로 함 — 2026-08-06 사용자 결정).
@@ -989,7 +1275,7 @@ def main():
         d = os.path.join(OUT, z)
         os.makedirs(d, exist_ok=True)
         fp = os.path.join(d, 'index.html')
-        html, lm, ch = keep_dates(build_page(z, calc, stats, pq, calc['zones'], adv.get('weekly')),
+        html, lm, ch = keep_dates(build_page(z, calc, stats, pq, calc['zones'], adv.get('weekly'), names=sgg_names),
                                   read_old(fp), today)
         if ch:
             changed += 1

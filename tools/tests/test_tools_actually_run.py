@@ -95,7 +95,9 @@ def test_the_script_list_is_derived_and_covers_the_batch_tools():
     must = {'update_adv_data.py', 'split_data.py', 'make_sido_pages.py', 'make_indicator_pages.py',
             'make_monthly_page.py', 'make_weekly_page.py', 'refresh_cycle_data.py',
             'make_weekly_share.py', 'month_lag.py', 'batch_notes.py', 'format_batch_report.py',
-            'make_naver_post.py', 'make_theory_post.py', 'check_freshness.py'}
+            'make_naver_post.py', 'make_theory_post.py', 'check_freshness.py',
+            'make_home_summary.py', 'blog_feed.py',   # 홈 마케팅 검수 B3·B5(2026-09-27) — 배치가 부른다
+            'make_feed.py', 'ping_indexnow.py'}      # 홈 마케팅 검수 D1(2026-09-27) — 배치가 부른다
     assert must <= got, '대상 목록 파생이 깨졌다 — 빠진 도구: %s' % sorted(must - got)
 
 

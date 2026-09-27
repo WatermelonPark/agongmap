@@ -19,6 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import robots_meta as RM  # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://www.agongmap.co.kr'
@@ -26,6 +27,7 @@ SITE = 'https://www.agongmap.co.kr'
 PAGE = '''<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+%(robots)s
 <title>%(title)s %(sc)d점 · 같은 문제로 도전 | 아공맵</title>
 <link rel="canonical" href="%(landing)s">
 <meta name="description" content="친구가 %(title)s에서 %(sc)d/%(n)d점을 받았습니다. 같은 %(n)d문항으로 도전해 보세요.">
@@ -89,7 +91,7 @@ def pages():
                 raise SystemExit('공유 이미지가 없다: share/%s-%d.png' % (key, sc))
             w, h = png_size(img)
             body = PAGE % {
-                'title': html.escape(title), 'emoji': emoji, 'sc': sc, 'n': n, 'slug': slug[key], 'w': w, 'h': h,
+                'robots': RM.TAG, 'title': html.escape(title), 'emoji': emoji, 'sc': sc, 'n': n, 'slug': slug[key], 'w': w, 'h': h,
                 'landing': '%s/%s/' % (SITE, slug[key]), 'url': '%s/%s/%d/' % (SITE, slug[key], sc),
                 'img': '%s/share/%s-%d.png' % (SITE, key, sc)}
             out.append((os.path.join(ROOT, slug[key], str(sc), 'index.html'), body))

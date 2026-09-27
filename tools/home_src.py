@@ -19,7 +19,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = 'index.html'
 
 # 동결 창에서 인라인 스크립트를 외부 파일로 옮기면 여기에 그 파일(저장소 루트 기준)을 적는다. 예: ('home-app.js',)
-EXTERNAL = ('home-app.js',)
+# 퀴즈·통계 화면 코드는 2026-09-27 홈 마케팅 검수 B11 에 home-app.js 에서 떼어 냈다(홈이 그 화면을 열 때 받는다).
+# 이어 붙이는 순서는 브라우저가 실행하는 순서와 같다 — 본문 스크립트가 먼저고, 분할 파일은 그 전역 위에서 돈다.
+# 분할 파일을 늘리면 여기와 home-app.js 의 PARTS·sw.js 사전 캐시를 같이 고친다(test_home_parts 가 셋을 대조한다).
+PARTS = ('home-quiz.js', 'home-stats.js')
+EXTERNAL = ('home-app.js',) + PARTS
 
 # 읽는 쪽이 기대는 식별자. 하나라도 없으면 '스크립트를 못 읽었다'로 본다.
 MARKERS = ('const QUIZSETS', 'const QUIZ_LEN', 'const QUIZ_SLUG', 'const SGG_QNAME',
@@ -57,6 +61,17 @@ def home_source(root=None, external=None):
         raise HomeSourceError('홈 스크립트에서 %s 를 찾지 못했다 — 스크립트를 옮겼다면 tools/home_src.py 의 '
                               'EXTERNAL 에 그 파일을 적을 것' % ', '.join(missing))
     return text
+
+
+def home_files(root=None):
+    """home_source() 와 같은 검사를 거친 뒤 파일별로 나눈 [(경로, 텍스트)] — index.html, home-app.js, 분할 파일 순.
+
+    마크업만·본문 스크립트만 따로 봐야 하는 도구(make_home_font 의 글자 모으기)가 쓴다. 검사를 통과하지 못하면
+    home_source 처럼 HomeSourceError 를 던진다.
+    """
+    root = root or ROOT
+    home_source(root)
+    return [(rel, io.open(os.path.join(root, rel), encoding='utf-8').read()) for rel in (HOME,) + tuple(EXTERNAL)]
 
 
 def is_home(*parts):
