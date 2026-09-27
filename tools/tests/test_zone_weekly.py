@@ -61,7 +61,8 @@ def test_first_block_of_main_says_the_description_numbers():
 
     변이(각각 실제로 확인): build_page 에서 summary_html 을 </header> 앞으로 옮기면(문단을 헤더로 되돌리면) 첫 요소가
     '숫자로 보면' 구역이 되어 빨개진다. 설명 메타만 옛 문장으로 따로 만들어도(세대수 조각을 빼면) 빨개진다. zcell 의
-    값 <span> 을 </b> 뒤로 되돌리면 칸 제목 단정이 빨개진다.
+    값 <span> 을 </b> 뒤로 되돌리면 칸 제목 단정이 빨개진다. 값이 없는 칸('–' — 미분양 계열이 없을 때)은 숫자를 요구하지 않는다
+    (생성기 계약: 그 칸은 '–'로 남는다 — D4 검토).
     픽스처: 배치가 방금 구운 zone/<지역>/index.html 19장(허브·통합 안내 페이지는 뺀다).
     """
     _, names = _zones()
@@ -79,7 +80,10 @@ def test_first_block_of_main_says_the_description_numbers():
         assert first not in _text(head), '%s: 숫자 문단이 헤더에도 있다' % z
         cells = re.findall(r'<div class="zcell"><b>(.*?)</b><i>', s, re.S)
         assert len(cells) >= 4, z
-        assert all(re.search(r'\d', _text(c)) for c in cells), '%s: 숫자 없는 칸 제목이 있다 %s' % (z, cells)
+        for c in cells:          # 값은 칸 제목 <b> 안의 <span> — 값이 숫자면 칸 제목에 숫자가 있다
+            v = re.search(r'<span>(.*?)</span>', c, re.S)
+            assert v, '%s: 칸 값이 제목 <b> 밖에 있다 %s' % (z, c)
+            assert not re.search(r'\d', _text(v.group(1))) or re.search(r'\d', _text(c)), (z, c)
         assert nums(desc)[0] in _text(cells[0]), '%s: 누적 순부족 칸 제목에 세대수가 없다' % z
 
 
@@ -176,19 +180,22 @@ def _expected(W, Q, z):
         for met in ('ma', 'je'):
             vals = [(row.get(met) or [None] * (i + 1))[i] for row in S['rows']]
             s = WM.streak(vals)
-            r += [MW.pv2(vals[-1]), MW.pv2(_cum12(S['rows'], i, met)), WM.streak_text(s, abs(s) == len(vals) if s else 0)]
+            # '이상' = 연속이 그 계열의 첫 값까지 닿음(앞은 전부 결측) — 여기서 다시 판정한다
+            op = bool(s) and all(v is None for v in vals[:len(vals) - abs(s)])
+            r += [MW.pv2(vals[-1]), MW.pv2(_cum12(S['rows'], i, met)), WM.streak_text(s, op)]
         out.append(r)
     return out
 
 
-def _tables(s):
+def _tables(s, labels=False):
     sec = re.search(r'<section class="zwk" id="weekly-sgg">(.*?)</section>', s, re.S)
     if not sec:
         return None, []
     tabs = []
-    for t in re.findall(r'<tbody>(.*?)</tbody>', sec.group(1), re.S):
-        tabs.append([[_text(c) for c in re.findall(r'<td[^>]*>(.*?)</td>', tr, re.S)]
-                     for tr in re.findall(r'<tr>(.*?)</tr>', t, re.S)])
+    for lab, t in re.findall(r'<table class="ztb" aria-label="([^"]*)">.*?<tbody>(.*?)</tbody>', sec.group(1), re.S):
+        rows = [[_text(c) for c in re.findall(r'<td[^>]*>(.*?)</td>', tr, re.S)]
+                for tr in re.findall(r'<tr>(.*?)</tr>', t, re.S)]
+        tabs.append((lab, rows) if labels else rows)
     return sec.group(1), tabs
 
 
@@ -199,25 +206,38 @@ def test_zone_tables_match_weekly_moves_and_the_weekly_page_order():
 
     변이(각각 실제로 확인): zone_table 이 원값 대신 계열 순서(codes)로 줄을 세우면 순서 단정, cum_window 가 rows[-12:] 같은 행 번호
     창을 쓰면 12주 단정(실데이터에 발표를 거른 주가 있으면 — 아래 합성 시험이 늘 본다), streak 대신 원값 부호로 연속을 세면
-    연속 단정, AGG_TOP 을 3으로 줄이면 5+5 단정이 빨개진다.
+    연속 단정, AGG_TOP 을 3으로 줄이면 5+5 단정, 집계 '내린' 표에 오른 곳까지 채우면(부호 거름을 빼면) 집계 단정이 빨개진다.
+    생성기 계약: 이번 주 값이 있는 시군구가 없으면(세종 최신 주 결측 등) 표를 빼고 굽는다 — 그때 이 시험도 '표가 없어야 한다'고 본다
+    (D4 검토: 세종 b6 최신 주를 결측으로 두면 생성기는 초록인데 게이트만 빨개졌다).
     픽스처: 배치가 구운 zone/<지역>/index.html 19장과 저장소 data.js ADV.weekly.sgg(156주 — 길이는 박지 않는다).
     """
     adv, names = _zones()
     W, Q = MW.load()
     for z in names:
-        sec, tabs = _tables(_page(z))
+        sec, tabs = _tables(_page(z), labels=True)
         want = _expected(W, Q, z)
-        assert sec is not None and want, '%s: 시군구 주간 표가 없다' % z
-        if z in SZ.AGG:
-            # 요청서 D4: 집계 3장은 상위·하위 5곳만(생성기 상수를 읽지 않는다 — 상수를 바꾸면 빨개져야 한다)
-            assert len(tabs) == 2 and [len(t) for t in tabs] == [5, 5], (z, [len(t) for t in tabs])
-            assert tabs[0] == want[:5], (z, tabs[0][:2], want[:2])
-            assert tabs[1] == want[::-1][:5], (z, tabs[1][:2], want[-2:])
+        if not want:
+            assert sec is None, '%s: 이번 주 값이 있는 시군구가 없는데 표 구역이 있다' % z
+            continue
+        assert sec is not None, '%s: 시군구 주간 표가 없다' % z
+        if z in SZ.AGG and len(want) > 10:
+            # 요청서 D4: 집계 3장은 상위·하위 5곳만 — 오른 표에는 오른 곳만, 내린 표에는 내린 곳만(생성기 상수를 읽지 않는다)
+            ups = [r for r in want if r[1].startswith('+')][:5]
+            dns = [r for r in want[::-1] if r[1].startswith('-')][:5]
+            got = {('상승' if '상승' in lab else '하락'): rows for lab, rows in tabs}
+            assert got.get('상승', []) == ups and got.get('하락', []) == dns, (z, got.get('하락', [])[:2], dns[:2])
+            assert len(tabs) == bool(ups) + bool(dns), z
+            for word, lst in (('오른', ups), ('내린', dns)):
+                assert bool(lst) != ('이번 주 매매가 %s 시군구는 없습니다' % word in sec), (z, word)
         else:
-            assert len(tabs) == 1 and tabs[0] == want, (z, [a for a, b in zip(tabs[0], want) if a != b][:3] if tabs else None)
-    # 세종은 원천이 시 전체 한 줄만 낸다 — 표는 한 줄, 제목에 '시군구'가 없다
+            rows = tabs[0][1] if len(tabs) == 1 else None
+            assert rows == want, (z, [a for a, b in zip(rows or [], want) if a != b][:3])
+    # 세종은 원천이 시 전체 한 줄만 낸다 — 표는 한 줄, 제목에 '시군구'가 없고 '큰 곳부터' 순서 안내도 없다
     s = _page('세종')
-    assert '<h2>세종 주간 아파트 시세</h2>' in s and len(_tables(s)[1][0]) == 1
+    if _expected(W, Q, '세종'):
+        sec = _tables(s)[0]
+        assert '<h2>세종 주간 아파트 시세</h2>' in s and len(_tables(s)[1][0]) == 1
+        assert '큰 곳부터' not in sec and '·%' not in sec
     # 전남광주는 광주 구와 전남 시군을 한 표에 모은다
     got = {r[0] for r in _tables(_page('전남광주'))[1][0]}
     assert any(n.startswith('광주 ') for n in got) and any(not n.startswith('광주 ') for n in got), got
@@ -363,14 +383,34 @@ def test_year_line_uses_the_card_months_and_labels_not_row_offsets():
 
 def test_every_report_has_the_year_line_from_saved_data():
     """배치가 구운 19장 모두 '최근 12개월' 줄이 있고, 그 줄의 기준월이 같은 페이지 '숫자로 보면' 미분양 카드의 기준월과 같다.
-    변이: year_line 이 미분양을 dates[-1](다른 지역이 먼저 채운 달)로 읽게 바꾸면, 지역 최신 달이 늦은 날 빨개진다.
-    픽스처: 배치가 구운 zone/<지역>/index.html 19장.
+    생성기 계약: 두 항목 모두 12개월 전 값이 없으면 줄을 뺀다 — 그때는 '줄이 없어야 한다'고 본다(D4 검토).
+    변이: year_line 이 미분양을 dates[-1](다른 지역이 먼저 채운 달)로 읽게 바꾸면, 지역 최신 달이 늦은 날 빨개진다. 줄을 늘 빼면
+    (year = '') 빨개진다(확인).
+    픽스처: 배치가 구운 zone/<지역>/index.html 19장과 저장소 data.js STATS(기대 여부는 여기서 SZ.month_back 으로 다시 셈).
     """
     _, names = _zones()
+    _, stats = M.load()
+
+    def both_ends(d, i):
+        ser = (d.get('series') or {})
+        return lambda z: (i is not None and SZ.month_back(d['dates'], i, 12) is not None
+                          and all(k < len(ser.get(z) or []) and ser[z][k] is not None
+                                  for k in (i, SZ.month_back(d['dates'], i, 12))))
+    jr = stats.get('전세가율') or {'dates': [], 'series': {}}
+    j_ok = both_ends(jr, I.jeonse_ref_index(jr, I.JEONSE_NEED) if jr['dates'] else None)
+    un = stats.get('미분양') or {'dates': [], 'series': {}}
+
+    def u_ok(z):
+        v, p = SZ.unsold_latest(stats, z)
+        return v is not None and both_ends(un, un['dates'].index(p))(z)
     for z in names:
         s = _page(z)
         m = re.search(r'<p class="zyear">(.*?)</p>', s, re.S)
+        if not (u_ok(z) or j_ok(z)):
+            assert not m, '%s: 12개월 값이 없는데 줄이 있다' % z
+            continue
         assert m, '%s: 12개월 줄이 없다' % z
+        assert ('미분양' in m.group(1)) == u_ok(z) and ('전세가율' in m.group(1)) == j_ok(z), (z, _text(m.group(1)))
         card = re.search(r'([\d.]+) 기준 · 분기 적정물량', s)
         if card and '미분양' in m.group(1):
             assert '호(%s)' % card.group(1) in m.group(1), (z, card.group(1), _text(m.group(1)))
@@ -413,14 +453,19 @@ def test_report_body_outside_tables_is_mostly_its_own():
     않는다)·칸 이름·안내 문구처럼 틀에서 오는 글이라 데이터가 바뀌어도 거의 그대로이고, 지역마다 다른 글(첫 숫자 문단·주간 요약·
     12개월 줄)은 지역 이름과 숫자가 들어 있어 다른 장과 문장 단위로 겹치지 않는다. 그래서 주·분기가 바뀌어도 비율은 틀과 고유 글의
     길이 비로 정해지고, 틀을 늘리거나 고유 글을 빼는 변경만 이 선을 넘는다.
-    변이(각각 실제로 확인): build_page 에서 weekly_section 과 year_line 을 빼면(D4 이전 모양) 0.77~0.80 으로 빨개지고, 주간 요약
-    문단(_wk_lead)만 비워도 빨개진다.
+    상한은 **고유 글이 실제로 실린 장**(주간 표 구역과 12개월 줄이 둘 다 있는 장)에만 건다. 생성기는 자료가 없으면 그 구역을 빼고
+    굽는데(배치 중단 금지), 그 장은 D4 이전 모양(0.77~0.80)이 되어 상한을 넘는다 — 그날 데이터 커밋을 막지 않으려는 것이다(D4 검토:
+    표 한 장만 빠져도 대구 0.7485·세종 0.7477 로 턱밑이었다). 구역이 **있어야 할 때 빠지는** 결함은 표·12개월 시험이 잡는다.
+    변이(각각 실제로 확인): 주간 요약 문단(_wk_lead)을 비우면 빨개진다. 판정 대상이 0장이면(시군구 계열이 통째로 빠진 날) 아무것도
+    막지 않는다 — 그날도 배치는 커밋해야 한다.
     픽스처: 배치가 구운 zone/<지역>/index.html 19장(허브·통합 안내 페이지는 뺀다).
     """
     _, names = _zones()
-    r = shared_ratio({z: _page(z) for z in names})
+    pages = {z: _page(z) for z in names}
+    r = shared_ratio(pages)
     assert len(r) == len(SZ.ORDER)
-    over = {z: round(v, 3) for z, v in r.items() if v > SHARED_CAP}
+    full = [z for z, s in pages.items() if 'id="weekly-sgg"' in s and 'class="zyear"' in s]
+    over = {z: round(r[z], 3) for z in full if r[z] > SHARED_CAP}
     assert not over, '표를 뺀 본문의 공통 문장 비율이 %.2f 를 넘는다: %s' % (SHARED_CAP, over)
 
 
@@ -435,3 +480,60 @@ def test_shared_ratio_measure_sees_boilerplate():
     assert min(base.values()) > 0.8
     b = {k: v.replace('</main>', '<p>%s만의 긴 고유 문단이 여기에 있고 숫자 1,234 도 있습니다.</p></main>' % k) for k, v in a.items()}
     assert max(shared_ratio(b).values()) < min(base.values())
+
+
+# ── D4 검토(09-27) 반영: 집계 표의 부호·세종 한 줄·전체 표 앵커 ───────────────────────────────────
+
+def _sgg(vals, je=None, n=14):
+    """합성 계열 — 서울 구 len(vals) 곳, 2031년 n 주. 최신 주 매매 = vals, 그 앞 주는 모두 +0.01."""
+    codes = ['a70101%02d' % (k + 1) for k in range(len(vals))]
+    rows = [{'p': p, 'ma': [0.01] * len(vals), 'je': [0.01] * len(vals)} for p in _weeks('2031-01-06', n)]
+    rows[-1] = dict(rows[-1], ma=list(vals), je=list(je) if je is not None else [0.01] * len(vals))
+    return {'codes': codes, 'rows': rows}, {c: '서울 %d구' % (k + 1) for k, c in enumerate(codes)}
+
+
+def test_aggregate_tables_carry_only_their_direction():
+    """집계 장의 '많이 오른' 표에는 오른 곳만, '많이 내린' 표에는 내린 곳만 싣는다 — 모자라면 그만큼, 없으면 표 대신 한 줄.
+
+    변이(각각 실제로 확인): 부호 거름을 빼고 rows[::-1][:AGG_TOP] 로 되돌리면 '내린' 표에 오른 곳이 실려 빨개진다. 0곳일 때 빈 표를
+    그리면 빨개진다.
+    픽스처: 합성 12곳(3곳 상승·1곳 보합(0.004 → 0.00)·8곳 하락) — 09-21 주처럼 한쪽이 5곳에 못 미치는 주. 그리고 전부 하락인 주.
+    """
+    S, Q = _sgg([0.3, 0.2, 0.1, 0.004] + [-0.01 * (k + 1) for k in range(8)])
+    sec, tabs = _tables(M.weekly_section('전국', {'sgg': S}, Q), labels=True)
+    got = {('상승' if '상승' in lab else '하락'): [r[0] for r in rows] for lab, rows in tabs}
+    assert got['상승'] == ['서울 1구', '서울 2구', '서울 3구'], got
+    assert got['하락'] == ['서울 12구', '서울 11구', '서울 10구', '서울 9구', '서울 8구'], got
+    assert '가장 많이 오른 3곳' in sec and '가장 많이 내린 5곳' in sec
+    S, Q = _sgg([-0.01 * (k + 1) for k in range(12)])
+    sec, tabs = _tables(M.weekly_section('수도권', {'sgg': S}, Q), labels=True)
+    assert len(tabs) == 1 and '하락' in tabs[0][0] and '이번 주 매매가 오른 시군구는 없습니다' in sec, sec
+
+
+def test_single_row_lead_drops_missing_pieces_and_order_note():
+    """세종처럼 한 줄뿐인 표: 값이 없는 조각('전세 ·%')을 찍지 않고, '큰 곳부터 적었습니다' 순서 안내를 붙이지 않는다.
+
+    변이(각각 실제로 확인): 한 줄 요약이 전세를 늘 찍게 되돌리면 '·%' 단정, 순서 안내를 한 줄 표에도 붙이면 둘째 단정이 빨개진다.
+    픽스처: 합성 세종(b6) 14주 — 최신 주 전세 결측(원천이 한 주 비운 모양).
+    """
+    S = {'codes': ['b6'], 'rows': [{'p': p, 'ma': [0.02], 'je': [0.03]} for p in _weeks('2031-01-06', 14)]}
+    S['rows'][-1] = dict(S['rows'][-1], je=[None])
+    sec = M.weekly_section('세종', {'sgg': S}, {'b6': '세종'})
+    lead = _text(re.search(r'<p class="zwk-lead">(.*?)</p>', sec, re.S).group(1))
+    assert '·%' not in lead and '전세' not in lead.split('.')[0] and '매매 +0.02%' in lead, lead
+    assert '큰 곳부터' not in sec and '<h2>세종 주간 아파트 시세</h2>' in sec
+
+
+def test_link_goes_to_the_weekly_table_anchor_and_it_opens():
+    """시도 리포트의 '전국 시군구 전체 표 →' 는 /weekly/ 표 앵커(MW.TABLE_URL)로 가고, /weekly/ 는 그 id 를 표 <details> 에 달고
+    앵커로 들어오면 펼치는 스크립트를 싣는다(표가 접혀 있어 앵커만으로는 닫힌 요약 줄에 떨어진다).
+
+    변이(각각 실제로 확인): 링크를 '/weekly/' 로 되돌리면 첫 단정, details 의 id 를 빼면 둘째, 여는 스크립트를 빼면 셋째가 빨개진다.
+    픽스처: 합성 시군구 두 주 + 배치가 구운 weekly/index.html.
+    """
+    S, Q = _sgg([0.1, -0.1], n=2)
+    assert 'href="%s"' % MW.TABLE_URL in M.weekly_section('서울', {'sgg': S}, Q)
+    t = MW.table_html({'sgg': S}, Q)
+    assert re.search(r'<details id="%s">' % MW.TABLE_ID, t) and MW.TABLE_OPEN_JS in t
+    w = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8').read()
+    assert '<details id="%s">' % MW.TABLE_ID in w and 'd.open=true' in w

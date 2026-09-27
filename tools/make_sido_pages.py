@@ -642,9 +642,16 @@ AGG_TOP = 5
 WK_CSS = ('.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'
           '.zcell b span{color:var(--ink)}'
           '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
-          '.zwk-scroll{overflow-x:auto;border:1px solid var(--line);margin-bottom:6px}'
-          '.zwk .ztb td:first-child{color:var(--ink);font-size:12.5px;position:sticky;left:0;background:var(--paper);z-index:1}'
-          '.zwk .ztb th{position:static}.zwk .ztb th,.zwk .ztb td{padding:5px 6px}'
+          # 가로로 넘치는 표(375px 에서 전세 칸)는 오른쪽 가장자리에 그림자가 진다 — 끝까지 밀면 사라진다(배경 local/scroll 겹침).
+          '.zwk-scroll{overflow-x:auto;border:1px solid var(--line);margin-bottom:6px;'
+          'background:linear-gradient(to left,var(--paper) 40%,rgba(244,246,245,0)) right/28px 100% no-repeat local,'
+          'radial-gradient(farthest-side at 100% 50%,rgba(19,30,36,.22),rgba(19,30,36,0)) right/12px 100% no-repeat scroll}'
+          # 시군구 칸은 머리·몸 모두 붙박이(가로로 밀어도 이름이 남고, 둘째 머리줄이 그 위로 걸치지 않는다)
+          '.zwk .ztb td:first-child,.zwk .ztb thead tr:first-child th:first-child{position:sticky;left:0;background:var(--paper);z-index:1}'
+          '.zwk .ztb td:first-child{color:var(--ink);font-size:12.5px}'
+          '.zwk .ztb thead tr:first-child th:first-child{z-index:2}'
+          '.zwk .ztb th:not(:first-child),.zwk .ztb thead tr+tr th{position:static}.zwk .ztb th,.zwk .ztb td{padding:5px 6px}'
+          '.zwk-none{font-size:13px;color:var(--muted);margin:0 0 6px}'
           '.zwk .ztb thead tr:first-child th{text-align:center}.zwk .ztb thead tr:first-child th:first-child{text-align:left}'
           '.zwk .ztb thead tr+tr th:first-child{text-align:right}'
           '.zwk .ztb .up{color:#a93226}.zwk .ztb .dn{color:var(--gwaing)}'
@@ -682,10 +689,12 @@ def _wk_lead(z, rows):
         s = r['sma']
         tail = ('매매는 %d주%s 연속 %s입니다.' % (abs(s), ' 이상' if r['oma'] else '', '상승' if s > 0 else '하락')
                 if s else '매매는 이번 주 보합입니다.')
-        cum = ('최근 %d주 누적은 매매 %s, 전세 %s입니다. ' % (WM.CUM_WEEKS, pct(r['ma12']), pct(r['je12']))
-               if r['ma12'] is not None and r['je12'] is not None else '')
-        return ('이번 주 %s 아파트 매매 %s, 전세 %s. %s%s'
-                % (esc(r['name']), pct(r['ma']), pct(r['je']), cum, tail))
+        # 값이 없는 조각은 뺀다('전세 ·%' 를 찍지 않는다)
+        now = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma'), ('전세', 'je')) if r[m] is not None]
+        cum = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma12'), ('전세', 'je12')) if r[m] is not None]
+        return ('이번 주 %s 아파트 %s. %s%s'
+                % (esc(r['name']), ', '.join(now),
+                   ('최근 %d주 누적은 %s입니다. ' % (WM.CUM_WEEKS, ', '.join(cum))) if cum else '', tail))
     d = [WM.direction(r['ma']) for r in rows]
     out = ['%s 시군구 %d곳 가운데 이번 주 매매가 오른 곳은 %d곳, 내린 곳은 %d곳, 보합은 %d곳입니다.'
            % (esc(z), len(rows), d.count(1), d.count(-1), d.count(0))]
@@ -748,17 +757,21 @@ def weekly_section(z, weekly, names):
          '<p class="zwk-lead">%s</p>' % _wk_lead(z, rows)]
     split = z in SZ.AGG and len(rows) > 2 * AGG_TOP
     if split:
-        top, bot = rows[:AGG_TOP], rows[::-1][:AGG_TOP]
-        h.append('<h3>매매가 많이 오른 %d곳</h3>' % AGG_TOP)
-        h.append(_wk_table(top, '%s 시군구 매매 상승 상위 %d곳' % (z, AGG_TOP)))
-        h.append('<h3>매매가 많이 내린 %d곳</h3>' % AGG_TOP)
-        h.append(_wk_table(bot, '%s 시군구 매매 하락 상위 %d곳' % (z, AGG_TOP)))
+        # 오른 표에는 오른 곳만, 내린 표에는 내린 곳만(표시값 부호 — WM.direction). 모자라면 그만큼, 없으면 표 대신 한 줄.
+        for key, word, d, pool in (('up', '오른', 1, rows), ('dn', '내린', -1, rows[::-1])):
+            pick = [r for r in pool if WM.direction(r['ma']) == d][:AGG_TOP]
+            if pick:
+                h.append('<h3>매매가 가장 많이 %s %d곳</h3>' % (word, len(pick)))
+                h.append(_wk_table(pick, '%s 시군구 매매 %s 상위 %d곳' % (z, '상승' if d > 0 else '하락', len(pick))))
+            else:
+                h.append('<h3>매매가 %s 곳</h3><p class="zwk-none">이번 주 매매가 %s 시군구는 없습니다.</p>' % (word, word))
+        order = '위 표는 많이 오른 곳부터, 아래 표는 많이 내린 곳부터 적었습니다. '
     else:
         h.append(_wk_table(rows, '%s 시군구 주간 매매·전세 변동률' % z))
-    h.append('<p class="zsub">%s %d주는 최근 %d주 변동률을 이어 곱한 누적이고, 연속은 발표 표기(소수 '
-             '둘째 자리)로 같은 방향이 이어진 주 수입니다. <a href="/weekly/">전국 시군구 전체 표 →</a></p>'
-             % ('이번 주 매매가 많이 움직인 곳부터 적었습니다.' if split else '이번 주 매매 변동률이 큰 곳부터 적었습니다.',
-                WM.CUM_WEEKS, WM.CUM_WEEKS))
+        order = '' if single else '이번 주 매매 변동률이 큰 곳부터 적었습니다. '
+    h.append('<p class="zsub">%s%d주는 최근 %d주 변동률을 이어 곱한 누적이고, 연속은 발표 표기(소수 '
+             '둘째 자리)로 같은 방향이 이어진 주 수입니다. <a href="%s">전국 시군구 전체 표 →</a></p>'
+             % (order, WM.CUM_WEEKS, WM.CUM_WEEKS, MW.TABLE_URL))
     h.append('</div></section>')
     return ''.join(h)
 
