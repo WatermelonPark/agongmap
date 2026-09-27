@@ -8,9 +8,11 @@
     떨어졌다(브라우저 실측: 통계 뷰 안 열림). 발행 글은 고치지 않는다(대표 결정) — 사이트가 받아 준다.
   - 부팅 때 gtag config 의 자동 page_view 와 showView 의 수동 page_view 가 겹쳐 홈 한 번 방문에 page_view 가
     두 번 갔다(실측: '/' 2건, '/#stats-market-week' 2건, 홈 탭을 다시 누르면 또 1건).
+  - 화면 전환 page_view 의 page_location 이 '/#stats'·'/#test' 였다. GA 는 페이지 경로·쿼리에 해시를 넣지 않아
+    홈('/')과 통계·퀴즈가 페이지 경로 보고서에서 한 줄로 합쳐졌다(MEAS-1 권고: '/?view=stats' 처럼 쿼리로 가른다).
   - gtag.js 는 `<script async>` 로 머리에서 바로 받아 첫 화면 지도와 대역을 다퉜다(MOB-10).
 
-방법: index.html <head> 의 인라인 스크립트 전부와 home-app.js 의 track·showView·applyHash(홈 스크립트는
+방법: index.html <head> 의 인라인 스크립트 전부와 home-app.js 의 track·viewLoc·showView·applyHash(홈 스크립트는
 tools/home_src.home_source() 로 읽는다)를 그대로 잘라 node vm 에서 돌린다. location·history·localStorage·
 document 는 흉내 내고 DOM 을 만지는 이웃 함수(setStatsMode 등)는 호출 기록만 남긴다. 부팅 순서는 브라우저와
 같게 둔다: 머리 스크립트 → (defer) boot 의 applyHash → DOMContentLoaded → requestIdleCallback.
@@ -21,6 +23,12 @@ CI 에서는 건너뜀도 실패다(conftest) — node 는 러너에 있다.
   - home-app.js applyHash 의 `.split('?')[0]` 을 지우면 → 머리 없이도 통계가 열리는지 보는 방어 시험
   - gtag('config', …) 의 {send_page_view:false} 를 지우면 → page_view 한 번 시험(2건)
   - showView 의 첫 호출 page_location 을 옛 `location.origin+'/#'+v` 로 되돌리면 → 캠페인 시험(쿼리를 잃는다)
+  - 전환 page_location 을 옛 `location.origin+'/#'+v` 로 되돌리면 → 전환 시험·페이지 경로 보고서 시험(홈과 통계가
+    한 줄로 합쳐진다). 첫 호출에 view= 를 달지 않고 착지 주소 그대로 보내면 → 부팅 한 번·캠페인·페이지 경로
+    보고서 시험
+  - viewLoc 의 홈 예외(`if(v!=='home')`)를 빼면 → 부팅 한 번·전환·로더 전 클릭·페이지 경로 보고서 시험('/' 가
+    '/?view=home' 이 된다)
+  - viewLoc 에서 있던 view= 를 걸러 내는 조건을 빼면 → 페이지 경로 보고서 시험(view= 가 두 번 붙는다)
   - 첫 호출의 착지 주소를 pushState 뒤의 location.href 로 잡으면 → 로더 전 클릭 시험(쿼리가 빠진 '/')
   - showView 의 `if(changed)` 를 빼면 → 같은 화면을 다시 누르는 시험
   - 머리 로더의 `if(!sent())gtag('event','page_view',…)` 를 지우면 → 부팅 실패·모르는 해시 시험(0건)
@@ -35,6 +43,7 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.parse
 
 import pytest
 
@@ -47,6 +56,8 @@ SITE = 'https://www.agongmap.co.kr'
 # 09-11·09-17 발행본에 실제로 박혀 있는 링크(발행 글은 고치지 않는다)
 BLOG_URL = (SITE + '/#stats-market?utm_source=naver_blog&utm_medium=social&utm_campaign=weekly_map')
 FIXED_URL = (SITE + '/?utm_source=naver_blog&utm_medium=social&utm_campaign=weekly_map#stats-market')
+# 그 착지의 첫 page_view 주소: 캠페인 쿼리는 그대로, 화면 표시 view= 를 해시 앞에 더한다(MEAS-1)
+FIXED_PV = (SITE + '/?utm_source=naver_blog&utm_medium=social&utm_campaign=weekly_map&view=stats#stats-market')
 
 
 def _head_scripts():
@@ -75,7 +86,8 @@ def _home_parts():
     src = HS.home_source()
     r2c = re.search(r'^const R2C=new Set\(\[.*?\]\);', src, re.M)
     assert r2c, 'R2C(리포트로 넘기는 옛 해시) 선언을 찾지 못했다'
-    return '\n'.join([_js_func(src, 'track'), _js_func(src, 'showView'), _js_func(src, 'applyHash'), r2c.group(0)])
+    return '\n'.join([_js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
+                      _js_func(src, 'applyHash'), r2c.group(0)])
 
 
 HARNESS = r'''
@@ -213,11 +225,13 @@ def test_router_survives_a_hash_query_without_the_head():
 
 
 def test_first_page_view_carries_the_blog_campaign():
-    """부팅의 단 한 번 page_view 가 utm 쿼리를 '#' 앞에 둔 착지 주소를 싣는다 — 그래야 캠페인이 잡힌다."""
+    """부팅의 단 한 번 page_view 가 utm 쿼리를 '#' 앞에 둔 착지 주소를 싣는다 — 그래야 캠페인이 잡힌다.
+
+    화면 표시 view=stats 는 그 쿼리 뒤에 붙고 utm 은 하나도 빠지지 않는다(MEAS-1)."""
     got = _run(BLOG_URL)
     assert len(got['pv']) == 1
     loc = got['pv'][0]['page_location']
-    assert loc == FIXED_URL, loc
+    assert loc == FIXED_PV, loc
 
 
 def _site_links(html):
@@ -266,19 +280,22 @@ def test_weekly_map_link_lands_on_stats_with_campaign(monkeypatch):
 
 
 # ── A3 page_view 한 번 ─────────────────────────────────────────────────────────
-@pytest.mark.parametrize('start,view', [
-    (SITE + '/', 'view_home'),
-    (SITE + '/?utm_source=x&utm_medium=y', 'view_home'),
-    (SITE + '/#stats-market-week', 'view_stats'),
-    (SITE + '/#stats-adv-occ', 'view_stats'),
-    (SITE + '/#score', 'view_home'),
-    (SITE + '/#test', 'view_test'),
-    (BLOG_URL, 'view_stats'),
+@pytest.mark.parametrize('start,view,loc', [
+    (SITE + '/', 'view_home', SITE + '/'),
+    (SITE + '/?utm_source=x&utm_medium=y', 'view_home', SITE + '/?utm_source=x&utm_medium=y'),
+    (SITE + '/#stats-market-week', 'view_stats', SITE + '/?view=stats#stats-market-week'),
+    (SITE + '/#stats-adv-occ', 'view_stats', SITE + '/?view=stats#stats-adv-occ'),
+    (SITE + '/#score', 'view_home', SITE + '/#score'),
+    (SITE + '/#test', 'view_test', SITE + '/?view=test#test'),
+    (BLOG_URL, 'view_stats', FIXED_PV),
 ])
-def test_boot_sends_exactly_one_page_view(start, view):
+def test_boot_sends_exactly_one_page_view(start, view, loc):
+    """부팅 page_view 는 한 번이고, 착지 주소(머리가 고친 뒤)에 화면 표시 view= 만 더한 주소를 싣는다.
+
+    홈은 view 를 달지 않는다 — 착지 주소 그대로다."""
     got = _run(start)
     assert _views(got) == [view], '부팅 page_view 가 한 번이 아니다: %s' % got['pv']
-    assert got['pv'][0]['page_location'] == got['afterHead'], '첫 page_view 가 착지 주소(쿼리 포함)가 아니다'
+    assert got['pv'][0]['page_location'] == loc, '첫 page_view 주소가 착지 주소+view 가 아니다: %s' % got['pv'][0]
 
 
 @pytest.mark.parametrize('start,ids', [(SITE + '/#sec-week', ['sec-week']), (SITE + '/#no-such-view', [])])
@@ -304,9 +321,44 @@ def test_boot_failure_still_counts_the_visit_once():
 
 
 def test_view_changes_send_one_each_and_repeats_send_none():
+    """전환은 origin+'/' 에 view= 를 단 가상 주소 — 홈으로 돌아오면 view 없는 '/'(첫 화면과 같은 한 줄)."""
     got = _run(SITE + '/', after=["showView('stats')", "showView('stats')", "showView('home')", "showView('home')"])
     assert _views(got) == ['view_home', 'view_stats', 'view_home']
-    assert [pv['page_location'] for pv in got['pv'][1:]] == [SITE + '/#stats', SITE + '/#home']
+    assert [pv['page_location'] for pv in got['pv'][1:]] == [SITE + '/?view=stats', SITE + '/']
+
+
+def _ga_path_query(u):
+    """GA 의 '페이지 경로 + 쿼리 문자열' 측정기준 — 호스트 뒤부터 해시 앞까지(해시는 들어가지 않는다)."""
+    s = urllib.parse.urlsplit(u)
+    return s.path + ('?' + s.query if s.query else '')
+
+
+def test_page_path_report_tells_views_apart():
+    """MEAS-1 권고: GA 페이지 경로 보고서에서 홈·통계·퀴즈가 서로 다른 한 줄씩이어야 한다.
+
+    픽스처: 캠페인 없는 세 착지('/', 통계 해시, 퀴즈 해시)에서 부팅한 뒤 탭을 오가는 실제 순서, 그리고
+    요소 앵커(#sec-week — 홈 화면이 뜬 채 머리 로더가 채운 한 건, page_title 없음). 화면 하나는 부팅이든
+    전환이든 같은 한 줄로, 화면끼리는 다른 줄로 모여야 한다. 옛 '/#'+v 는 셋 다 '/' 한 줄이었다.
+    주소창에 GA 보고서의 가상 주소를 붙여 넣고 다른 화면 해시로 들어와도 view= 가 두 번 붙지 않는다.
+    """
+    seen = {}
+    runs = [(SITE + '/', ["showView('stats')", "showView('test')", "showView('home')"], []),
+            (SITE + '/#stats-market-week', ["showView('home')", "showView('stats')"], []),
+            (SITE + '/#test', ["showView('stats')", "showView('home')", "showView('test')"], []),
+            (SITE + '/#sec-week', ["showView('stats')"], ['sec-week'])]
+    for start, after, ids in runs:
+        got = _run(start, after=after, ids=ids)
+        assert len(got['pv']) == len(after) + 1, got['pv']
+        for pv in got['pv']:
+            seen.setdefault(pv.get('page_title') or 'view_home', set()).add(_ga_path_query(pv['page_location']))
+    assert set(seen) == {'view_home', 'view_stats', 'view_test'}, seen
+    for title, rows in seen.items():
+        assert len(rows) == 1, '%s 가 부팅·전환에서 다른 주소로 갈라진다: %s' % (title, sorted(rows))
+    rows = {title: next(iter(r)) for title, r in seen.items()}
+    assert len(set(rows.values())) == len(rows), '화면끼리 페이지 경로 한 줄로 합쳐진다: %s' % rows
+    assert rows['view_home'] == '/', rows
+    got = _run(SITE + '/?view=test#stats-market-week')
+    assert got['pv'][0]['page_location'] == SITE + '/?view=stats#stats-market-week', got['pv']
 
 
 # ── C8 GA 지연 로딩 ───────────────────────────────────────────────────────────
