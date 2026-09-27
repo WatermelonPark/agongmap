@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""앱 바로가기·설치 사용자 측정·'통계' 탭 위치 표시(홈 마케팅 검수 A5 — RET-8, IA-6 1단계, PWA-1 일부, 2026-09-27).
+"""앱 바로가기·설치 사용자 측정·'시세'(옛 '통계', 식별자 stats) 탭 위치 표시(홈 마케팅 검수 A5 — RET-8, IA-6 1단계,
+PWA-1 일부, 2026-09-27). 탭 이름은 C2 에서 '시세'로 바뀌었다 — 라벨 일치는 test_site_nav 가 본다.
 
 재현하는 실제 상태(2026-09-26 검수):
   - 홈 화면 아이콘을 길게 누르면 부린이·투자자 테스트가 먼저 나왔고, 가장 자주 바뀌는 주간 시세는 없었다.
@@ -69,7 +70,7 @@ def test_first_shortcut_is_this_weeks_prices_and_all_shortcuts_land():
         assert '?' not in u.fragment, "UTM 이 '#' 뒤에 있다 — 쿼리가 아니라 해시라 GA 가 못 읽는다: %s" % s['url']
 
 
-# 통계 탭 아래 읽을거리 — 이 페이지들의 하단 탭바는 '통계'(/#stats)를 켠다.
+# 시세 탭 아래 읽을거리 — 이 페이지들의 하단 탭바는 '시세'(/#stats)를 켠다.
 STATS_PAGES = ('weekly', 'monthly', 'moveins', 'jeonse-ratio')
 
 
@@ -80,10 +81,10 @@ def _nav(html):
 
 
 def test_stats_pages_light_the_stats_tab():
-    """/weekly/·/monthly/·/moveins/·/jeonse-ratio/ 의 탭바에서 '통계'(/#stats) 하나만 켜지고, 켜진 색 규칙이 있다.
+    """/weekly/·/monthly/·/moveins/·/jeonse-ratio/ 의 탭바에서 '시세'(/#stats) 하나만 켜지고, 켜진 색 규칙이 있다.
 
     이 페이지들은 공용 시트를 안 읽으므로 .nav-btn.on 규칙이 페이지 안에 있어야 켜진 것이 보인다.
-    무엇을 깨뜨리면 빨개지나(각각 실제로 확인): 지표 생성기 SHELL 의 '통계' 링크에서 on 을 빼거나 .nav-btn.on 규칙을
+    무엇을 깨뜨리면 빨개지나(각각 실제로 확인): 지표 생성기 SHELL 의 시세 탭(bottomnav('stats'))에서 on 을 빼거나 .nav-btn.on 규칙을
     지우면(생성기를 돌린 뒤) 빨개진다. /weekly/ 는 뼈대를 페이지 파일에 두고 표식 자리만 다시 쓰므로, 한 번 켜진 뒤에는
     생성기에서 put_nav 를 빼도 이 시험은 초록이다(실제로 확인) — 그 변이는 아래 시험이 잡는다.
     픽스처: 생성기가 구운 저장소의 네 페이지(배치·CI 는 생성기를 먼저 돌린다).
@@ -91,15 +92,15 @@ def test_stats_pages_light_the_stats_tab():
     for d in STATS_PAGES:
         html = io.open(os.path.join(ROOT, d, 'index.html'), encoding='utf-8').read()
         on = [href for flag, href in _nav(html) if flag]
-        assert on == ['/#stats'], '/%s/ 탭바에서 켜진 탭이 통계 하나가 아니다: %s' % (d, on)
+        assert on == ['/#stats'], '/%s/ 탭바에서 켜진 탭이 시세 하나가 아니다: %s' % (d, on)
         assert re.search(r'\.nav-btn\.on\{[^}]*color:#fff', html), '/%s/ 에 켜진 탭 색 규칙이 없다' % d
 
 
 def test_generators_light_the_stats_tab_on_any_page():
     """생성기 자체가 탭을 켠다 — 손으로 켠 페이지가 우연히 초록이 되지 않게, 탭이 꺼진 뼈대에서 굽는다.
 
-    무엇을 깨뜨리면 빨개지나(각각 실제로 확인): make_weekly_page.render 에서 put_nav 를 빼면, NAV_ON 을 '/zone/' 로
-    바꾸면, 뼈대에 .nav-btn.on 규칙이 없을 때 넣는 분기를 지우면, SHELL 의 '통계' 링크에서 on 을 빼면 빨개진다.
+    무엇을 깨뜨리면 빨개지나(각각 실제로 확인): make_weekly_page.render 에서 put_nav 를 빼면, NAV_TAB 을 'zone' 으로
+    바꾸면, 뼈대에 .nav-btn.on 규칙이 없을 때 넣는 분기를 지우면, SHELL 의 시세 탭에서 on 을 빼면 빨개진다.
     픽스처: 켜진 탭·규칙이 없던 2026-09-26 /weekly/ 뼈대 모양과 저장소 data.js 의 주간 계열.
     """
     page = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8', newline='').read()
@@ -108,6 +109,6 @@ def test_generators_light_the_stats_tab_on_any_page():
     assert not [f for f, _ in _nav(off) if f] and MW.NAV_ON_CSS not in off, '픽스처가 꺼진 뼈대가 아니다'
     W, Q = MW.load()
     got = MW.render(off, W, Q)
-    assert [h for f, h in _nav(got) if f] == ['/#stats'] and MW.NAV_ON_CSS in got, '/weekly/ 생성기가 통계 탭을 켜지 않는다'
+    assert [h for f, h in _nav(got) if f] == ['/#stats'] and MW.NAV_ON_CSS in got, '/weekly/ 생성기가 시세 탭을 켜지 않는다'
     assert MW.render(got, W, Q) == got, '생성기가 멱등이 아니다 — 배치마다 페이지가 바뀐다'
-    assert [h for f, h in _nav(I.SHELL) if f] == ['/#stats'], '지표 생성기 뼈대가 통계 탭을 켜지 않는다'
+    assert [h for f, h in _nav(I.SHELL) if f] == ['/#stats'], '지표 생성기 뼈대가 시세 탭을 켜지 않는다'

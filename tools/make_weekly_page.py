@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import sido_zones as SZ  # noqa: E402
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
+import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
@@ -109,8 +110,58 @@ def when_line(W, p):
               'var h=document.querySelector(\'header h1\'),t=h&&h.firstChild;'
               'if(t&&t.nodeType===3)t.nodeValue=t.nodeValue.replace(%s,%s);}}catch(x){}})();</script>'
               % (json.dumps(st['due']), json.dumps(late, ensure_ascii=False),
-                 json.dumps(H1_WEEK, ensure_ascii=False), json.dumps('%s 발표 기준' % md(st['pub']), ensure_ascii=False)))
+                 json.dumps(H1_WEEK, ensure_ascii=False), json.dumps(WR.pub_lead(dict(st, stale=True)), ensure_ascii=False)))
     return '<span id="wk-when">%s</span>' % html.escape(WR.when_text(st)), script
+
+
+# ── 이번 주 결론 한 줄(홈 마케팅 검수 B1·IA-4, 2026-09-27) ─────────────────────────────────────────
+# /weekly/ 제목(h1)·홈 첫 화면 '이번 주' 띠·홈 주간 구역 h2 가 **이 함수 하나**의 문장을 쓴다. split_data 가 결과를
+# ADV.weekly.head 로 구워 싣고 홈은 읽기만 한다 — 홈 JS 가 같은 규칙을 다시 만들면(이중 구현) 한쪽만 고쳐질 때
+# 두 화면이 다른 결론을 말한다(home-app.js 카드 문구와 같은 원칙). 일치는 test_home_first_screen 이 고정한다.
+HEAD_UP, HEAD_DN, HEAD_FLAT = '가장 크게 올랐습니다', '가장 크게 내렸습니다', '시도 모두 보합입니다'
+
+
+def conclusion(W):
+    """최신 주의 결론: 표시값(pv2r) 기준 절대 변동이 가장 큰 시도(동률이면 표시 순서가 앞선 곳).
+
+    돌려주는 것 {'p': 조사일, 'text': '경기 +0.23%, 가장 크게 올랐습니다', 'dir': 'up'|'dn'|'',
+    'who': '경기', 'val': '+0.23%', 'verb': '가장 크게 올랐습니다'}. 모두 보합이면 who·val 이 None 이고
+    text 는 '시도 모두 보합입니다'. 시도 값이 절반도 없거나 날짜 모양이 다르면 None — 반쯤 빈 결론을 싣지 않는다.
+    """
+    rows = W.get('rows') or []
+    if not rows:
+        return None
+    row = rows[-1]
+    p = row.get('p') or ''
+    if not re.match(r'^\d{4}-\d{2}-\d{2}$', p):
+        return None
+    regs = W.get('regions') or []
+    ma = row.get('ma') or []
+    val = {r: ma[i] for i, r in enumerate(regs) if i < len(ma)}
+    sido = [(z, val[z]) for z in SIDO if val.get(z) is not None]
+    if len(sido) < len(SIDO) // 2:
+        return None
+    best = max(sido, key=lambda x: abs(pv2r(x[1])))
+    r = pv2r(best[1])
+    if r == 0:
+        return {'p': p, 'text': HEAD_FLAT, 'dir': '', 'who': None, 'val': None, 'verb': HEAD_FLAT, 'best': best}
+    verb = HEAD_UP if r > 0 else HEAD_DN
+    return {'p': p, 'text': '%s %s%%, %s' % (best[0], pv2(best[1]), verb), 'dir': sign(best[1]),
+            'who': best[0], 'val': pv2(best[1]) + '%', 'verb': verb, 'best': best}
+
+
+def head_payload(W):
+    """split_data 가 ADV.weekly.head 로 싣는 모양(홈이 읽는 필드만). 결론을 못 만들면 None."""
+    c = conclusion(W)
+    return None if c is None else {k: c[k] for k in ('p', 'text', 'dir')}
+
+
+def h1_html(c):
+    """/weekly/ 제목. 결론 문장 앞에 '이번 주 아파트,'(발표가 늦은 주에는 스크립트가 '이번 주'를 발표일로 바꾼다)."""
+    if c['who'] is None:
+        return '%s 아파트,<br>%s' % (H1_WEEK, c['text'])
+    return ('%s 아파트,<br><em class="%s">%s %s</em>, %s'
+            % (H1_WEEK, c['dir'], html.escape(c['who']), c['val'], c['verb']))
 
 
 def tile(name, v, i):
@@ -167,12 +218,19 @@ SITE = 'https://www.agongmap.co.kr'
 # 미리보기가 없는 파일을 가리키는데 아무것도 빨개지지 않았다(A7 검토 지적, test_weekly_share_version).
 SHARE_REL = 'share/weekly-map.png'
 SHARE_IMG = SITE + '/' + SHARE_REL
-# 이 페이지가 켜는 하단 탭. 홈 '통계' 탭의 기본 화면이 주간 시세 지도라 이 페이지는 통계 탭 아래에 있다(IA-6 1단계).
-NAV_ON = '/#stats'
+# 이 페이지가 켜는 하단 탭. 홈 '시세'(식별자 stats) 탭의 기본 화면이 주간 시세 지도라 이 페이지는 그 탭 아래에
+# 있다(IA-6 1단계). 탭바 마크업·라벨은 site_nav 가 정본이다 — 뼈대의 손 탭바를 통째로 정본으로 갈아 끼우므로
+# 탭 이름을 바꿔도(C2 '통계' → '시세') 이 페이지를 손으로 고칠 일이 없다.
+NAV_TAB = 'stats'
+NAV_ON = N.HREF[NAV_TAB]
 NAV_ON_CSS = '.nav-btn.on{color:#fff}'   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다
 _NAV_A = re.compile(r'<a class="nav-btn(?: on)?"(?: aria-current="page")? href="([^"]*)"')
-_NAV_NOTE_OLD = '활성 탭 없음 — 주간 지도는 네 탭 어디에도 속하지 않는다(퀴즈 뷰와 같은 처리).'
-_NAV_NOTE = "활성 탭은 '통계' — 홈 통계 탭의 기본 화면이 주간 시세다(생성기 put_nav 가 켠다, 2026-09-27)."
+_NAV_BLOCK = re.compile(r'<nav class="bottomnav">.*?</nav>', re.S)
+# 뼈대 CSS 주석의 옛 문장들 → 지금 문장. 앞의 것은 A5 이전, 뒤의 것은 A5(2026-09-27 1차 배포) 문장이다.
+_NAV_NOTES_OLD = ('활성 탭 없음 — 주간 지도는 네 탭 어디에도 속하지 않는다(퀴즈 뷰와 같은 처리).',
+                  "활성 탭은 '통계' — 홈 통계 탭의 기본 화면이 주간 시세다(생성기 put_nav 가 켠다, 2026-09-27).")
+_NAV_NOTE = ("활성 탭은 '%s' — 홈 %s 탭의 기본 화면이 주간 시세다(생성기 put_nav 가 켠다, 2026-09-27)."
+             % (N.LABEL[NAV_TAB], N.LABEL[NAV_TAB]))
 
 
 def share_version(p):
@@ -192,19 +250,25 @@ def put_share_image(s, W):
 
 
 def put_nav(s):
-    """하단 탭바에서 NAV_ON(통계) 탭 하나만 켠다. 예전엔 켜진 탭이 없어 블로그 독자가 착지하는 이 페이지가
-    사이트의 어느 메뉴인지 보이지 않았다(IA-6). 공용 시트를 안 읽는 페이지라 켜진 색 규칙도 여기서 챙긴다."""
-    links = _NAV_A.findall(s)
-    if links.count(NAV_ON) != 1:
-        raise SystemExit('weekly/index.html 하단 탭바에서 %s 탭을 찾지 못했다(%s)' % (NAV_ON, links))
-    s = _NAV_A.sub(lambda m: '<a class="nav-btn%s" href="%s"' % (
-        ' on" aria-current="page' if m.group(1) == NAV_ON else '', m.group(1)), s)
+    """하단 탭바를 정본(site_nav)으로 갈아 끼우고 NAV_TAB(시세) 탭 하나만 켠다. 예전엔 켜진 탭이 없어 블로그 독자가
+    착지하는 이 페이지가 사이트의 어느 메뉴인지 보이지 않았다(IA-6). 탭 라벨도 정본을 따른다(C2) — 옛 뼈대처럼
+    켜짐 표시만 바꾸면 '통계' 라벨이 이 페이지에만 남는다. 공용 시트를 안 읽는 페이지라 켜진 색 규칙도 여기서 챙긴다."""
+    blocks = _NAV_BLOCK.findall(s)
+    if len(blocks) != 1 or _NAV_A.findall(blocks[0]).count(NAV_ON) != 1:
+        raise SystemExit('weekly/index.html 하단 탭바에서 %s 탭을 찾지 못했다(%s)'
+                         % (NAV_ON, [_NAV_A.findall(b) for b in blocks]))
+    nav = N.bottomnav(NAV_TAB)
+    if '\r\n' in s:
+        nav = nav.replace('\n', '\r\n')
+    s = _NAV_BLOCK.sub(lambda m: nav, s)
     if NAV_ON_CSS not in s:
         anchor = '.nav-btn svg{display:block}'
         if s.count(anchor) != 1:
             raise SystemExit('weekly/index.html 에서 하단 탭 스타일 자리를 찾지 못했다')
         s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
-    return s.replace(_NAV_NOTE_OLD, _NAV_NOTE)
+    for old in _NAV_NOTES_OLD:
+        s = s.replace(old, _NAV_NOTE)
+    return s
 
 
 def build(W, Q):
@@ -225,14 +289,11 @@ def build(W, Q):
     datestr = '%s 조사 · %s 발표' % (survey, release)
     when, stale_js = when_line(W, p)
 
-    # ── 결론 한 줄: 절대 변동이 가장 큰 시도(동률이면 표시 순서가 앞선 곳)
-    best = max(sido, key=lambda x: abs(pv2r(x[1])))
+    # ── 결론 한 줄: 규칙은 conclusion() 하나 — 홈 띠·홈 주간 구역 h2 와 같은 문장이다(B1·IA-4)
+    c = conclusion(W)
+    best = c['best']
     up_s, dn_s = top3(sido)
-    if pv2r(best[1]) == 0:
-        h1 = '%s 아파트,<br>시도 모두 보합' % H1_WEEK
-    else:
-        h1 = ('%s 아파트,<br><em class="%s">%s %s%%</em> 가장 크게 %s'
-              % (H1_WEEK, sign(best[1]), best[0], pv2(best[1]), '올랐다' if pv2r(best[1]) > 0 else '내렸다'))
+    h1 = h1_html(c)
     lead = ['전국 <b>%s%%</b>.' % pv2(nation) if nation is not None else '',
             '%s.' % count_text('시도 %d곳' % len(sido), [v for _, v in sido])]
     # 제목이 이미 말한 쪽은 되풀이하지 않고, 반대 방향 1위만 덧붙인다.
@@ -354,7 +415,7 @@ def render(s, W, Q):
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
     s = put_share_image(s, W)   # og:image·twitter:image 에 그 주 발표일(A7)
-    s = put_nav(s)              # 하단 탭바 '통계' 켜기(A5)
+    s = put_nav(s)              # 하단 탭바 정본·'시세' 탭 켜기(A5·C2)
     return s
 
 

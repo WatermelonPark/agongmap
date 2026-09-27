@@ -31,6 +31,7 @@ sys.path.insert(0, HERE)
 import sido_zones as SZ                                            # noqa: E402
 import make_weekly_page as MW    # noqa: E402  주간 표기(반올림·조사일·발표일)를 /weekly/와 같이
 import kst as KST                # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
+import site_nav as N             # noqa: E402  하단 탭바 정본(홈 마케팅 검수 C2)
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
@@ -217,7 +218,9 @@ def verdict_line(row, H):
         'g1': '%s에 못 미쳐 균형으로 분류합니다' % _cut(c[2]),
         'g0': '모자라는 몫이 없어 공급 여유로 분류합니다',
     }[row['grade']]
-    return '%s. %s.' % (SZ.ratio_text(row['ratio'], H, full=True), rule)
+    # 지난 창 재고의 부호로 문장 갈래를 고른다 — '숫자로 보면'의 식(formula_text)과 같은 정수·같은 갈래(B2·TRUST-2).
+    inow = rnd(row['inow']) if 'inow' in row else None
+    return '%s. %s.' % (SZ.ratio_text(row['ratio'], H, full=True, inow=inow), rule)
 
 
 def split_block(sp):
@@ -352,6 +355,10 @@ def load():
         r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
     stats = json.loads(re.search(
         r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    # 판정 화면 문구(ctxt 등)는 지금의 정본 함수로 다시 굽는다 — data.js 의 문구는 다음 배치까지 옛말일 수 있다
+    # (sido_zones.refresh_texts, 홈 data-core 도 split_data 가 같은 함수로 굽는다).
+    if (adv.get('sido') or {}).get('zones'):
+        SZ.refresh_texts(adv['sido'])
     return adv, stats
 
 
@@ -534,12 +541,7 @@ FOOT = '''</main>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
-<nav class="bottomnav">
-  <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
-  <a class="nav-btn on" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>
-  <a class="nav-btn" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>통계</span></a>
-  <a class="nav-btn" href="/cycle/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>사이클</span></a>
-</nav>
+''' + N.bottomnav('zone') + '''
 </body>
 </html>
 '''
@@ -682,7 +684,8 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     h.append('</div></header><main id="main">')
 
     # ── 핵심 수치 ──
-    h.append('<section><div class="wrap"><h2>숫자로 보면</h2><div class="zgrid">')
+    # id="calc" — 홈 산출 방법 첫 항목이 이 식 블록으로 링크한다(/zone/전국/#calc, 홈 마케팅 검수 B2·TRUST-2②).
+    h.append('<section id="calc"><div class="wrap"><h2>숫자로 보면</h2><div class="zgrid">')
     # 적정물량 카드는 분기값이 아니라 **산식에 실제로 들어가는 3년치**로 보여준다
     # (2026-08-08 사용자: "누적 순부족이 어떻게 계산된 숫자인지 직관적으로 와닿지
     # 않는다"). 분기값과의 다리는 부제(분기 X호 × H분기)가 놓는다 — 홈 표의
@@ -692,9 +695,9 @@ def build_page(z, calc, stats, pq, others, weekly=None):
     # '지난 4년 쌓인 부족'을 더하는 식으로 풀어 이중 부호를 읽는 사람에게 떠넘기지 않는다.
     # 부호를 쓰지 않고 말로 푼다(2026-09-15 점검후속 ⑤: 음수 재고와 '더하기 부족' 등식이
     # 부호를 두 번 뒤집어 읽혔다). 등식은 여전히 카드의 세 정수로 검산된다.
-    eq = (('= 적정 %s − 공급 %s + 지난 4년 쌓인 부족 %s' % (num(d_need), num(d_fut), num(-d_inow)))
-          if d_inow < 0 else
-          ('= 적정 %s − 공급 %s − 지난 4년 남은 재고 %s' % (num(d_need), num(d_fut), num(d_inow))))
+    # 식의 이름은 sido_zones.formula_text 정본 — 홈 산출 방법·홈 카드 ⓘ·블로그 지역 편이 같은 말을 쓴다
+    # (홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 예전 '적정 − 공급'은 홈의 '3년 필요량'과 이름이 달랐다.
+    eq = '= ' + SZ.formula_text(calc['H'], SZ.BACKLOG_WINDOW, d_need, d_fut, d_inow)
     for k, v, note in (
         # ⚠️ 부호를 뒤집지 않는다. tot는 '양수=부족'인데 signed()로 −를 붙이면
         # 부제의 등식(적정 − 공급 ∓ 재고)으로 검산했을 때 부호가 반대가 된다
@@ -791,7 +794,7 @@ def build_page(z, calc, stats, pq, others, weekly=None):
              '해마다 크게 흔들리기 때문입니다. 위의 \'3년 너머\' 줄은 최근 2년 인허가를 그 지역의 '
              '착공 비율로 환산한 <b>참고</b> 값입니다. 서울·경기처럼 기준표에 없는 지역은 '
              '적정물량을 추정했고, 그 지역은 \'추정\'으로 표시합니다.</p>'
-             '<p>누적 순부족은 <b>앞으로 %d분기 적정물량 − 지어질 물량 − 지난 16분기에 쌓인 재고</b>입니다. '
+             '<p>누적 순부족은 <b>%s</b>입니다(지난 %s 동안 필요량보다 더 지었으면 남은 재고를 뺍니다). '
              '재고에서는 멸실(철거)을 뺐지만 <b>앞으로 헐릴 집은 빼지 않았습니다</b> — '
              '재건축 시기를 미리 알 방법이 없어서입니다. 그만큼 부족이 덜 잡힙니다.</p>'
              # ⚠️ '0은 자료 없음이 아니다' 문단을 두지 않는다(2026-08-15 사용자).
@@ -805,7 +808,8 @@ def build_page(z, calc, stats, pq, others, weekly=None):
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
              '</div></section>'
              # 전환율·기준 연도는 모델 상수에서 읽는다(2026-09-23 점검 — '96%·15년치'가 박혀 있었다).
-             % (round(calc['conv'] * 100), SZ.CONV_FROM, calc['H']))
+             % (round(calc['conv'] * 100), SZ.CONV_FROM, esc(SZ.formula_text(calc['H'])),
+                '%g년' % (SZ.BACKLOG_WINDOW / 4.0)))
 
     h.append(next_links(z, weekly, stats))
 

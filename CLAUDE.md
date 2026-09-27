@@ -44,6 +44,7 @@
 | `check_freshness.py` | 데이터 신선도·정합성 검사. 감시 워크플로가 부른다 |
 | `weekly_release.py` | 주간 발표 일정(조사일·발표일·다음 발표·지연 판정)의 파이썬 정본. 감시의 주간 유예(`GRACE_WEEKLY`), `/weekly/` 머리줄, `split_data`가 싣는 `ADV.weekly.grace`가 여기서 나오고, 홈의 `weeklyRelease()`와 같은 답을 내는지 `test_weekly_release`가 node로 대조한다 |
 | `refresh_cycle_data.py` | `/cycle/` 사이클 리포트 데이터 |
+| `site_nav.py` | 하단 탭바(홈·지역·시세·사이클)의 정본. 생성기는 `bottomnav()`로 굽고, 손 페이지 탭바는 손으로 맞추되 `test_site_nav`가 저장소의 모든 HTML 탭바를 대조한다. 탭 식별자(`stats` 등)는 GA 값이라 라벨을 바꿔도 그대로 둔다 |
 | `make_zone_cards.py`, `make_og_cards.py`, `make_weekly_share.py` | 공유용 이미지·OG 카드 |
 | `make_quiz_share_pages.py` | 퀴즈 점수별 정적 공유 페이지. 퀴즈 세트나 공유 이미지를 바꿨을 때 사람이 돌린다 |
 | `make_naver_post.py`, `make_theory_post.py <편번호>` | 네이버 블로그 초안 생성 → `drafts/`. 배치가 부르지 않고 사람이 발행 직전에 돌린다 |

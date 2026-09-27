@@ -10,7 +10,7 @@
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
 // home-app.js 의 HOME_BUILD 도 같은 값으로 바꾼다 — 셋이 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v161'; // 홈 판 표식(느린 망 새 HTML+옛 스크립트면 한 번 새로고침)·프리캐시 축소·no-cache(홈 마케팅 검수 A9·C11)
+const VERSION = 'v162'; // 홈 첫 화면 '이번 주' 띠·판정 카드 두 줄·분포 한 줄·카드 ⓘ 식·지도 균형 중립색(홈 마케팅 검수 B1·B2·C4)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
