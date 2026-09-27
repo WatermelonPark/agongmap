@@ -67,6 +67,12 @@ KEEP_PERMITS = ('regions', 'ref', 'rows', 'note')
 # 홈 통합표가 그리는 구간·지역. 적정물량 기준표와 같은 시작점(2017)이다.
 TABLE_FROM = '2017.01'
 TABLE_STATS = ('준공', '착공')
+# 주간 '반영 대기' 판정 유예(일). 감시(check_freshness)와 같은 상수를 홈이 읽게 ADV.weekly.grace 로 싣는다
+# (홈 마케팅 검수 A2, 2026-09-27). 홈 JS 가 9 를 따로 적으면 감시를 옮길 때 화면과 감시가 갈린다.
+# weekly_release 는 표준 라이브러리만 쓰므로 sido_zones 처럼 없을 때를 대비하지 않는다 — 없으면 배치가 멈춰야 한다.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from weekly_release import GRACE_WEEKLY  # noqa: E402
+
 try:
     import sido_zones as _SZ
     TABLE_REGIONS = set(_SZ.ORDER)
@@ -111,12 +117,12 @@ def main():
     # 통째로 사라졌다 — display:none이라 에러도 테스트 실패도 없이 조용히
     # 빈다(2026-09-01 리뷰). 배너(시도)와 히어로 지도(시군구)는 서로 다른
     # 입력이라, 한쪽이 비어도 다른 쪽은 그려야 한다.
-    wk = {'regions': w.get('regions', [])}
+    wk = {'regions': w.get('regions', []), 'grace': GRACE_WEEKLY}
     if w.get('rows'):
         wk['rows'] = w['rows'][-1:]
     if sgg.get('rows'):
         wk['sgg'] = {'codes': sgg.get('codes', []), 'rows': sgg['rows'][-1:]}
-    if len(wk) > 1:
+    if wk.get('rows') or wk.get('sgg'):
         core_adv['weekly'] = wk
 
     # 홈 통합표가 쓰는 가격 변동률 — 매매·전세·월세만, 시도 20곳만.
@@ -180,6 +186,10 @@ def main():
                 w[part] = dict(sec, rows=sec['rows'][-TREND_SGG_KEEP:])
         if keep:
             sgg_full[k] = keep
+        if k == 'weekly':
+            # 통계 탭을 열면 loadFullData 가 ADV.weekly 를 이 파일 것으로 통째로 바꾼다 — 여기에도 실어야
+            # 그 뒤 rel-week·주간 격자가 유예를 잃지 않는다.
+            w['grace'] = GRACE_WEEKLY
         trend_adv[k] = w
     io.open(TREND, 'w', encoding='utf-8', newline=NL).write(
         dump({'ADV': trend_adv}))

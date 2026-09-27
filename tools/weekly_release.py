@@ -1,0 +1,89 @@
+# -*- coding: utf-8 -*-
+"""주간 발표 일정 — 조사일·발표일·다음 발표·지연 판정의 파이썬 정본(홈 마케팅 검수 A2, 2026-09-27).
+
+같은 규칙을 세 곳이 쓴다.
+  - 홈 주간 격자 머리줄과 통계 탭 rel-week : home-app.js 의 weeklyRelease()
+  - /weekly/ 머리줄                          : make_weekly_page 가 이 모듈로 굽는다
+  - 감시(check_freshness)                    : GRACE_WEEKLY 를 여기서 가져간다
+JS 와 파이썬이 같은 날짜·같은 문장을 내는지는 tools/tests/test_weekly_release.py 가 node 로 대조한다.
+
+규칙
+  - 조사기준일 p 는 월요일, 발표는 그 주 목요일(p+3). 다음 발표는 다음 조사분의 목요일(p+10).
+  - 지연: 감시는 조사기준일부터 GRACE_WEEKLY 일이 지나면(= 다음 목요일) 원천보다 늦은 값을 실패로 본다.
+    감시는 그날 배치 **뒤에** 돌지만 화면은 발표 당일 아침에도 보이므로, 화면은 그 날(p+GRACE_WEEKLY+1)을
+    휴일이면 영업일로 민 날이 **다 지나야** '반영 대기'로 적는다. 같은 상수를 split_data 가 ADV.weekly.grace 로
+    실어 홈이 읽는다 — 홈이 9 를 따로 적으면 감시를 옮길 때 둘이 갈린다.
+  - 연휴 주: 다음 발표 목요일이 든 주(월~목)에 공휴일이 끼면 날짜를 단정하지 않는다.
+    2026 추석 실측: 9/21 조사분은 휴일인 9/24(목) 당일 R-ONE 에 올라왔다(09:10 KST 배치에는 없고 18:12 KST
+    배치에는 있었다. 9/23 18:13 KST 배치에도 없었다). 앞당겨지지도, 옛 규칙(_bizDay)대로 다음 영업일 9/28(월)로
+    밀리지도 않았다. 관측 한 번으로는 일반 규칙을 세울 수 없어, 날짜 대신 '연휴로 발표 일정이 바뀔 수 있습니다'를
+    적는다. 지연 판정만은 늦게 나오는 쪽(영업일로 민 날)을 기준으로 삼아 연휴에 헛경보를 내지 않는다.
+
+표준 라이브러리만 쓴다(배치의 생성기·감시 단계는 pip 설치 전에 돈다).
+"""
+import datetime
+
+# 조사기준일부터 센 주간 정상 최대 나이(일). 감시 cron 과 짝이다 — watchdog.yml 의 schedule 주석을 볼 것.
+# 감시를 배치 앞으로 옮기면 매주 목요일 오탐이 나니 그때는 10 으로 올린다(그러면 화면의 지연 표시도 하루 늦춰진다).
+GRACE_WEEKLY = 9
+
+PUB_OFFSET = 3     # 월요일 조사 → 목요일 발표
+WEEK = 7
+WEEKDAYS = '월화수목금토일'   # date.weekday() 순서
+
+HOLD = '연휴로 발표 일정이 바뀔 수 있습니다'
+WAIT = '이번 주 발표분 반영 대기'
+
+
+def _d(iso):
+    y, m, d = (int(x) for x in iso.split('-'))
+    return datetime.date(y, m, d)
+
+
+def _add(day, n):
+    return day + datetime.timedelta(days=n)
+
+
+def biz_day(day, holidays):
+    """주말·공휴일이면 다음 영업일까지 민다. holidays 는 'YYYY-MM-DD' 집합."""
+    while day.weekday() >= 5 or day.isoformat() in holidays:
+        day = _add(day, 1)
+    return day
+
+
+def status(p, today=None, holidays=(), grace=GRACE_WEEKLY):
+    """최신 조사기준일 p('YYYY-MM-DD') 의 발표 상태.
+
+    today 는 KST 날짜(datetime.date, tools/kst.today()). None 이면 지연을 판정하지 않는다(정적 페이지를 구울 때).
+    grace 가 None 이면 지연을 판정하지 않는다 — 홈에서 옛 캐시(data-core 에 grace 가 없을 때)와 같은 동작.
+    """
+    hs = set(holidays or ())
+    b = _d(p)
+    nxt = _add(b, WEEK + PUB_OFFSET)
+    hedge = any(_add(nxt, -k).isoformat() in hs for k in range(PUB_OFFSET + 1))
+    due = biz_day(_add(b, grace + 1), hs) if grace is not None else None
+    stale = bool(today is not None and due is not None and today > due)
+    return {'survey': p, 'pub': _add(b, PUB_OFFSET).isoformat(), 'next': nxt.isoformat(),
+            'hedge': hedge, 'due': due.isoformat() if due else None, 'stale': stale}
+
+
+def md(iso):
+    d = _d(iso)
+    return '%d/%d' % (d.month, d.day)
+
+
+def next_text(st):
+    """'다음 발표 10/1(목)' · 연휴 주 · 지연. 홈 JS wkNextText 와 같은 문장."""
+    if st['stale']:
+        return WAIT
+    if st['hedge']:
+        return HOLD
+    return '다음 발표 %s(%s)' % (md(st['next']), WEEKDAYS[_d(st['next']).weekday()])
+
+
+def when_text(st):
+    """'9/14 조사 · 9/17 발표 · 다음 발표 10/1(목)'. 지연이면 '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기'.
+    홈 JS wkWhenText 와 같은 문장."""
+    if st['stale']:
+        return '최근 반영: %s 발표 · %s' % (md(st['pub']), WAIT)
+    return '%s 조사 · %s 발표 · %s' % (md(st['survey']), md(st['pub']), next_text(st))
