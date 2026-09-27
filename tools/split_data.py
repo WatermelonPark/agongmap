@@ -52,16 +52,23 @@ NL = chr(10)
 # 각 0건), 옛 주석이 '러닝재고가 직접 읽는다'고 적혀 있어 아무도 못 지웠다.
 # 멸실은 이제 빌드 시점에 sido_zones가 data.js에서 읽어 점수에 녹인다.
 # 기본통계 화면은 data-rest.json 사본을 쓰므로 손실 없다(동일 바이트 확인).
-CORE_STATS = ['전세가율', '준공', '착공']
+# ⚠️ 전세가율은 2026-09-27 에 뺐다(홈 마케팅 검수 B11·MOB-8 data-core 다이어트). 홈에서 읽는 곳은 통계 탭 버블밴드
+# (renderBubbleSec, home-stats.js) 하나뿐인데, 그 화면은 어차피 data-rest.json(전세가율 원천 그대로 포함)을 받은 뒤에
+# 그린다. /jeonse-ratio/ 생성기(make_indicator_pages.load)도 같은 날부터 data-rest.json 에서 읽는다.
+CORE_STATS = ['준공', '착공']
 
-# 홈이 통째로 쓰는 ADV 키
-CORE_ADV = ['sido', 'occupancy', 'permits', 'bubble', 'holidays']
+# 홈이 통째로 쓰는 ADV 키.
+# ⚠️ occupancy·permits·bubble 은 2026-09-27 에 뺐다(B11 다이어트, 합쳐 약 15KB·gzip 약 7KB). 셋 다 통계 탭(투자지표·
+# 버블밴드)만 읽고, 통계 화면은 data-trend.json(ADV 전체, permits 는 KEEP_PERMITS 만)을 받은 뒤에 돈다(home-app.js 의
+# 분할 파일 대기열이 trend 를 함께 기다린다). 홈 첫 화면(지도·표·주간)은 sido·holidays·weekly·monthly·준공·착공만 읽는다.
+CORE_ADV = ['sido', 'holidays']
 
 # ⚠️ 거부목록이 아니라 **허용목록**이다. 예전엔 뺄 키를 나열했더니 새로 생긴 키가
 # 아무도 안 막아준 채 홈 페이로드로 새어 나갔다 — permits.city(150KB)로 data-core가
 # 131KB -> 311KB가 됐고(2026-08-05), 생활권 시대 잔재 meas·fwd_far는 그 뒤로도
 # 계속 실려 나갔다(2026-08-07 감사). 홈이 실제로 읽는 건 ref 하나(index.html의
 # `ADV.permits.ref[region]`)이고 나머지는 표기용이다. 여기 없는 키는 자동으로 빠진다.
+# permits 가 data-core 에서 빠진 뒤(2026-09-27 B11)에도 통계 탭 파일(data-trend.json)이 같은 규칙으로 싣는다.
 KEEP_PERMITS = ('regions', 'ref', 'rows', 'note')
 
 # 홈 통합표가 그리는 구간·지역. 적정물량 기준표와 같은 시작점(2017)이다.
