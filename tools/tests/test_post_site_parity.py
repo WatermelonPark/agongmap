@@ -177,8 +177,8 @@ def test_zone_post_net_shortage_is_the_site_card_number(monkeypatch):
         if not m:
             continue                      # 0세대(비율만 있는 문구)는 대조할 수가 없다
         body = P.draft_zone(adv, sts, z, 1, len(zones))['body']
-        g = re.search(r'현재 <b>([\d,]+)세대가 (모자란|남아도는)</b>', body)
-        want = (m.group(1), '모자란' if m.group(2) == '부족' else '남아도는')
+        g = re.search(r'현재 <b>([\d,]+)세대가 (부족한|남아도는)</b>', body)
+        want = (m.group(1), '부족한' if m.group(2) == '부족' else '남아도는')
         if not g or g.groups() != want:
             bad.append('%s: 사이트 %s · 블로그 %s' % (z['z'], want, g and g.groups()))
     assert not bad, '지역 편 순부족이 사이트 카드와 다르다: %s' % '; '.join(bad)
