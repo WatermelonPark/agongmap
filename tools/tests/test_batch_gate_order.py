@@ -18,8 +18,10 @@ WF = os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml')
 
 # make_home_summary 는 2026-09-27(홈 마케팅 검수 B3) — 홈 요약 정합 시험(test_home_summary)도 방금 구운 index.html 을 본다.
 # make_feed 는 2026-09-27(홈 마케팅 검수 D1) — 피드 시험(test_feed)이 방금 구운 feed.xml 을 본다.
+# make_llms_txt 는 2026-09-28(홈 마케팅 검수 D5) — test_llms_txt 가 방금 구운 llms.txt 를 방금 구운 sitemap.xml 과 대조한다.
 GENERATORS = ('make_sido_pages.py', 'make_indicator_pages.py', 'make_monthly_page.py',
-              'make_weekly_page.py', 'make_home_summary.py', 'refresh_cycle_data.py', 'make_feed.py')
+              'make_weekly_page.py', 'make_home_summary.py', 'refresh_cycle_data.py', 'make_feed.py',
+              'make_llms_txt.py')
 GATE = r'python3 -m pytest tools/tests/'
 COMMIT = r'git commit -m "데이터 자동 갱신"'
 

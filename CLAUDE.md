@@ -39,7 +39,7 @@
 |---|---|
 | `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키가 필요하다(`--dry-run`은 없어졌다. 키 없이는 pytest로 검증한다) |
 | `split_data.py` | `data.js` → `data-core.js`, `data-*.json` 분리 |
-| `make_sido_pages.py`, `make_indicator_pages.py`, `make_monthly_page.py`, `make_weekly_page.py` | 시도·지표·월간·주간 페이지 생성. `make_home_summary.py`(홈 표식 구간·설명 메타), `refresh_cycle_data.py`, `make_feed.py`(`/feed.xml` RSS)와 함께 배치가 이 순서로 돌리는 생성기 일곱 개다(`ci-tests.yml`·bat·`test_batch_parity`가 같은 목록). 시도 리포트 설명 메타와 `<main>` 첫 문단은 `summary_parts` 한 목록에서 나오고, `/zone/`·`/monthly/`의 dateModified·sitemap lastmod는 내용이 바뀐 날(`keep_dates`)이다 |
+| `make_sido_pages.py`, `make_indicator_pages.py`, `make_monthly_page.py`, `make_weekly_page.py` | 시도·지표·월간·주간 페이지 생성. `make_home_summary.py`(홈 표식 구간·설명 메타), `refresh_cycle_data.py`, `make_feed.py`(`/feed.xml` RSS), `make_llms_txt.py`(`/llms.txt` AI 검색 요약 — 숫자 없이, 시도 목록은 sitemap 에서)와 함께 배치가 이 순서로 돌리는 생성기 여덟 개다(`ci-tests.yml`·bat·`test_batch_parity`가 같은 목록). 시도 리포트 설명 메타와 `<main>` 첫 문단은 `summary_parts` 한 목록에서 나오고, `/zone/`·`/monthly/`의 dateModified·sitemap lastmod는 내용이 바뀐 날(`keep_dates`)이다 |
 | `sido_zones.py` | 판정 단위(시도) 목록·등급·정렬의 **정본**. 순위는 반드시 `zone_order()`를 쓴다(등급군 → 절대량). 절대 세대수로 순위를 매기면 판정과 모순이 난다. 시도 **목록을 보여줄 때**는 순위가 아니라 `DISPLAY_ORDER`(관심 지역 고정 순서)를 쓴다. `/monthly/`처럼 정부 표와 대조하는 화면은 `ORDER`(발표 원천 순서)를 유지한다 |
 | `check_freshness.py` | 데이터 신선도·정합성 검사. 감시 워크플로가 부른다 |
 | `weekly_release.py` | 주간 발표 일정(조사일·발표일·다음 발표·지연 판정)의 파이썬 정본. 감시의 주간 유예(`GRACE_WEEKLY`), `/weekly/` 머리줄, `split_data`가 싣는 `ADV.weekly.grace`가 여기서 나오고, 홈의 `weeklyRelease()`와 같은 답을 내는지 `test_weekly_release`가 node로 대조한다 |
@@ -74,7 +74,7 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
 ## 자동화
 
 - **데이터 갱신**: 배포 경로는 **클라우드 배치(`update-cloud.yml`) 하나**다. KOSIS가 해외 IP를 간헐 차단하므로
-  러너 3개를 띄워 IP 프리플라이트를 통과한 것의 산출물만 쓰고, 0/3이면 35분 뒤 자동 재시도한다(`update-cloud-retry.yml`). 생성기 일곱
+  러너 3개를 띄워 IP 프리플라이트를 통과한 것의 산출물만 쓰고, 0/3이면 35분 뒤 자동 재시도한다(`update-cloud-retry.yml`). 생성기 여덟
   개를 돌린 **뒤, 커밋 직전에 pytest를 돌려 실패하면 데이터를 커밋하지 않는다**(CI에서는 시험 건너뜀도 실패다).
   테스트가 깨져 있으면 배치가 며칠째 멈춘 것으로 나타난다. 로컬 러너(`run_weekly_update.bat`)는 2026-07-23
   이후 휴면 상태다(작업 스케줄러 항목이 꺼져 있음). 2026-09-23 대표 결정으로 **휴면 확정**이다(백로그 22). bat 은 비상용으로만 남긴다. 다시 켤 일이 생기면 로컬이
@@ -142,7 +142,7 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
 클라우드 세션(PR 브랜치):
 
 - **생성 산출물을 PR에 싣지 않는다.** `data.js`, `data-*.json`, `zone/`·`weekly/`·`monthly/`·`cycle/` 등 생성
-  페이지, `feed.xml`, `sitemap.xml`, `index.html`의 요약 표식 구간·설명 메타, `share/` 이미지는 `stats-bot`이 매일 `main`에 다시 쓰므로, PR 브랜치에서 고치면 병합 때 충돌하고 다음
+  페이지, `feed.xml`, `llms.txt`, `sitemap.xml`, `index.html`의 요약 표식 구간·설명 메타, `share/` 이미지는 `stats-bot`이 매일 `main`에 다시 쓰므로, PR 브랜치에서 고치면 병합 때 충돌하고 다음
   배치에서 덮인다. 생성기(`make_*.py`)와 시험만 고치고 산출물은 배치가 굽게 둔다. 생성기를 돌려 확인만 했다면
   산출물 변경은 커밋 전에 되돌린다.
 - 병합 전 CI(`ci-tests.yml` 시험·Netlify 미리보기)가 초록인지 본다. 운영 반영은 `main` 병합 뒤 GitHub Pages 배포로 이뤄진다. 병합이 늦어져 `main`과 충돌하면 `main`을 병합해 푼다.
