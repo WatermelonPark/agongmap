@@ -181,13 +181,13 @@ def test_batches_send_only_changed_urls():
 
 
 def test_every_site_constant_and_sitemap_loc_is_the_cname_domain():
-    """sitemap 을 굽는 생성기들의 SITE 상수·피드·IndexNow(CNAME)·감시가 한 도메인이다. 갈리면 IndexNow 는 host 불일치로
+    """sitemap 을 굽는 생성기들의 SITE 상수·피드·/llms.txt·IndexNow(CNAME)·감시가 한 도메인이다. 갈리면 IndexNow 는 host 불일치로
     전부 거절하고, 피드와 페이지가 다른 주소를 가리킨다(D1 검토)."""
     import make_sido_pages, make_indicator_pages, make_monthly_page, make_weekly_page, make_quiz_share_pages
-    import check_freshness, make_feed
+    import check_freshness, make_feed, make_llms_txt
     want = 'https://' + io.open(os.path.join(ROOT, 'CNAME'), encoding='utf-8').read().strip()
     got = {m.__name__: m.SITE for m in (make_sido_pages, make_indicator_pages, make_monthly_page, make_weekly_page,
-                                        make_quiz_share_pages, check_freshness, make_feed)}
+                                        make_quiz_share_pages, check_freshness, make_feed, make_llms_txt)}
     got['ping_indexnow'] = P.site()
     assert all(v == want for v in got.values()), '도메인이 CNAME(%s)과 다르다: %s' % (want, got)
     locs = [u for u, _ in P.sitemap_entries(io.open(os.path.join(ROOT, 'sitemap.xml'), encoding='utf-8').read())]

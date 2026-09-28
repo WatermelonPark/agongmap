@@ -80,7 +80,7 @@ def _bat_list(cmd):
 def test_parsers_actually_read_the_steps():
     for name, steps in (('클라우드', _cloud_steps()), ('로컬', _bat_steps())):
         for must in ('update_adv_data', 'blog_feed', 'split_data', 'make_sido_pages', 'make_monthly_page',
-                     'make_home_summary', 'refresh_cycle_data', 'make_feed', 'pytest'):
+                     'make_home_summary', 'refresh_cycle_data', 'make_feed', 'make_llms_txt', 'pytest'):
             assert must in steps, '%s 배치에서 %s 를 읽지 못했다 — 파서가 깨졌거나 단계가 빠졌다: %s' % (name, must, steps)
 
 
@@ -92,8 +92,8 @@ def test_local_runs_the_same_generators_in_the_same_order():
 def test_local_commits_the_same_targets():
     cloud = _cloud_targets()
     # index.html(홈 요약 표식 구간)·blog_latest.json(최신 주간 해설 글)은 2026-09-27 홈 마케팅 검수 B3·B5 에서 더했다.
-    # feed.xml(새 소식 RSS)은 2026-09-27 홈 마케팅 검수 D1 에서 더했다.
-    assert {'monthly', 'cycle', 'weekly', 'index.html', 'tools/data/blog_latest.json', 'feed.xml'} <= cloud, \
+    # feed.xml(새 소식 RSS)은 2026-09-27 홈 마케팅 검수 D1, llms.txt(AI 검색 요약)는 2026-09-28 D5 에서 더했다.
+    assert {'monthly', 'cycle', 'weekly', 'index.html', 'tools/data/blog_latest.json', 'feed.xml', 'llms.txt'} <= cloud, \
         '클라우드 TARGETS 를 제대로 읽지 못했다: %s' % sorted(cloud)
     # 커밋은 경로 지정(남이 스테이징한 파일을 쓸어 담지 않게), 실패 복원도 같은 목록(리뷰 09-18 백로그 22).
     for cmd in ('git add', 'git diff --quiet',
