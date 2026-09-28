@@ -165,7 +165,7 @@ def report(lines, today=None):
            '|---|---|---|---|---|---|---|---|---|']
     for r in rows:
         out.append('| %s | %s | %s | %s | %s(+%d) | %s |' % (
-            r['date'], r['title'][:40], '—' if r['base'] is None else '%g' % r['base'],
+            r['date'], r['title'].replace('|', '｜')[:40], '—' if r['base'] is None else '%g' % r['base'],
             ' | '.join(f(v) for v in r['excess']), r['share'], r['share_gain'],
             r['same_day'] or ''))
     out.append('')
