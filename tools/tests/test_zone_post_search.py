@@ -50,8 +50,8 @@ def test_cta_always_points_to_that_zone_report():
 def test_title_arms_alternate_from_seq5():
     arms = [P.title_arm(s) for s in range(1, 10)]
     assert arms == ['A', 'A', 'A', 'A', 'B', 'A', 'B', 'A', 'B']
-    b = P.zone_title('세종', '2026', 3, '모자랄까', 5)
-    a = P.zone_title('대전', '2026', 3, '모자랄까', 6)
+    b = P.zone_title('세종', '2026', 3, '부족할까', 5)
+    a = P.zone_title('대전', '2026', 3, '부족할까', 6)
     assert b.startswith('2026 세종시 부동산 전망, ') and '공급물량' in b
     assert a.startswith('2026년 대전 아파트 공급물량 전망, ')
 
@@ -80,3 +80,9 @@ def test_title_year_is_the_outlook_year():
     assert P.outlook_year('2026-10-05') == '2027'
     assert P.outlook_year('2026-12-28') == '2027'
     assert P.outlook_year('') == ''
+
+
+def test_no_mojara_in_zone_title_or_lead(monkeypatch):
+    """'모자랍니다'가 블덱스에서 '#모자'로 뽑혔다(2026-09-28). 변이: ask 를 '모자랄까'로 되돌리면 빨개진다."""
+    d = _zone(monkeypatch)
+    assert '모자' not in d['title'] and '모자라' not in d['body'].split('</p>', 3)[1]
