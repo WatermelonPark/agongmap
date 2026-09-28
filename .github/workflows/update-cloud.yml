@@ -479,6 +479,14 @@ jobs:
             exit 1
           fi
           rep "✅ RSS 피드"
+          # /llms.txt — AI 검색이 읽는 사이트 요약(홈 마케팅 검수 D5). 숫자 없이 정의·계산법·출처·핵심 페이지를 싣고, 시도 리포트
+          # 목록은 방금 구운 sitemap.xml 에서 읽으므로 make_sido_pages 뒤에 돈다. 실패하면 커밋하지 않는다 — 다른 생성기와 같다.
+          if ! python3 tools/make_llms_txt.py; then
+            rep "❌ AI 요약 파일 실패 — 커밋 안 함"
+            echo "::error::make_llms_txt 실패 — 커밋하지 않는다"
+            exit 1
+          fi
+          rep "✅ AI 요약 파일"
           # ── 검증 게이트 ────────────────────────────────────────────────
           # PC-less 체제에선 이 워크플로가 유일한 배포 경로다. 예전엔 여기에 검증이
           # 전혀 없어서, 한쪽 구현만 고친 커밋이 들어와도 옛 산식으로 존 페이지를
@@ -552,7 +560,7 @@ jobs:
               if [ -n "$LN" ]; then rep "$LN"; fi
             done <<< "$NOTES"
           fi
-          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp index.html tools/data/blog_latest.json feed.xml"
+          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp index.html tools/data/blog_latest.json feed.xml llms.txt"
           git add -A -- $TARGETS || { rep "❌ git add 실패 — TARGETS 경로 확인"; exit 1; }
           if git diff --cached --quiet; then
             rep "➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)"
