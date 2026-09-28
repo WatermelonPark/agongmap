@@ -27,9 +27,16 @@ import datetime
 # 감시를 배치 앞으로 옮기면 매주 목요일 오탐이 나니 그때는 10 으로 올린다(그러면 화면의 지연 표시도 하루 늦춰진다).
 GRACE_WEEKLY = 9
 
+SURVEY_WEEKDAY = 0  # 조사기준일은 월요일(date.weekday() 값)
 PUB_OFFSET = 3     # 월요일 조사 → 목요일 발표
 WEEK = 7
 WEEKDAYS = '월화수목금토일'   # date.weekday() 순서
+
+
+def pub_weekday():
+    """평상 주의 발표 요일 한 글자('목'). 날짜 없이 요일만 말하는 자리(/llms.txt 갱신 주기 문장)가 쓴다."""
+    return WEEKDAYS[(SURVEY_WEEKDAY + PUB_OFFSET) % WEEK]
+
 
 HOLD = '연휴로 발표 일정이 바뀔 수 있습니다'
 WAIT = '이번 주 발표분 반영 대기'
