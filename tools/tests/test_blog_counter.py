@@ -6,6 +6,7 @@
   - 평소 방문자를 중앙값 대신 평균(statistics.mean)으로 바꾸면 → 피드에 걸린 날 시험
   - 기록 없는 날을 None 대신 0 으로 채우면 → 빈 날 시험
   - 같은 날 여러 번 기록했을 때 늦은 기록 대신 첫 기록을 쓰면 → 하루 끝 값 시험
+  - 제목의 '|' 를 표 칸 구분자와 다른 글자로 바꾸지 않으면 → 표 칸 시험(주간 글 제목에 '|' 가 있다)
 픽스처: 2026-09-27 실제 응답의 모양(BlogInfo 는 `)]}',` 줄 + JSON, post-list 는 addDate 밀리초·readCount null)을
 줄여 재현한다. 네트워크는 쓰지 않는다.
 """
@@ -74,3 +75,10 @@ def test_missing_day_is_unknown_not_zero():
 def test_latest_record_of_the_day_wins():
     lines = [_line('2026-09-17', 2, hh='09:00:00'), _line('2026-09-17', 11, hh='23:55:00')]
     assert B.daily_visitors(lines) == {'2026-09-17': 11}
+
+
+def test_title_pipe_does_not_break_the_table():
+    posts = [(1, '[한국부동산원] 주간 아파트가격 동향(9월 셋째 주) | 강남 3구는', '2026-09-17', 0)]
+    lines = [_line('2026-09-%02d' % d, 3, posts) for d in range(10, 21)]
+    row = [l for l in B.report(lines, today='2026-09-20').splitlines() if l.startswith('| 2026-09-17')][0]
+    assert row.count('|') == 10, row
