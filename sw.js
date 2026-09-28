@@ -11,7 +11,7 @@
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
 // home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
 // — 하나라도 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v165'; // 홈 작은 글씨 정리(2026-09-28 대표 결정): 띠 둘째 줄·분포 한 줄·범례 뜻 한 줄·운영 주체 줄·출처 줄·블로그 이웃 안내·방향이 바뀐 곳 줄·격자 전세 값을 빼고, 남은 홈 글자를 13px 이상으로
+const VERSION = 'v166'; // /llms.txt(홈 마케팅 검수 D5)를 서비스워커가 가로채지 않게 NO_SW 에 더함
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
@@ -100,8 +100,8 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// 서비스워커가 손대지 않는 같은 출처 경로(fetch 처리기 참조). 시험(test_feed)이 /feed.xml 이 여기 있는지 본다.
-const NO_SW = new Set(['/feed.xml', '/sitemap.xml', '/robots.txt']);
+// 서비스워커가 손대지 않는 같은 출처 경로(fetch 처리기 참조). 시험(test_feed·test_llms_txt)이 /feed.xml·/llms.txt 가 여기 있는지 본다.
+const NO_SW = new Set(['/feed.xml', '/llms.txt', '/sitemap.xml', '/robots.txt']);
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
