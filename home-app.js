@@ -475,12 +475,14 @@ function _bizDay(n){   // 주말·공휴일이면 다음 영업일까지 민다
      2026 추석에 9/21 조사분은 휴일인 9/24(목) 당일에 올라왔다. 옛 규칙(다음 영업일 9/28)도, '연휴 전에
      당긴다'는 추측도 틀렸다. 관측 한 번으로는 규칙을 못 세우므로 날짜 대신 안내 문구를 쓴다.
    · 지연 = p+grace+1(감시가 실패로 보기 시작하는 날)을 휴일이면 영업일로 민 날이 **다 지났는데** 새 주차가
-     없을 때. 감시는 그날 배치 뒤에 돌지만 화면은 발표 당일 아침에도 보이므로 그 하루를 더 준다. */
+     없을 때. 감시는 그날 배치 뒤에 돌지만 화면은 발표 당일 아침에도 보이므로 그 하루를 더 준다.
+   · 연휴 주(hedge)는 원천이 조사를 한 주 거르기도 해서(2025 설·추석 실측) 기준일을 한 주 늦춘다
+     (전수리뷰 #10, 대표 결정 ④ — 파이썬 WR.status 와 같이). */
 function weeklyRelease(p,now,grace){
   const b=_dn(p), nx=b+10;
   let hedge=false;
   for(let k=0;k<=3;k++)if(_HOLIDAYS.has(_iso(nx-k)))hedge=true;   // 발표 주 월~목
-  const due=(grace==null)?null:_bizDay(b+grace+1);
+  const due=(grace==null)?null:_bizDay(b+grace+1+(hedge?7:0));
   return {survey:p,pub:_iso(b+3),next:_iso(nx),hedge:hedge,
           due:due==null?null:_iso(due),stale:due!=null&&_kst(now).day>due};
 }
