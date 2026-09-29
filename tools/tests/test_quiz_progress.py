@@ -63,6 +63,7 @@ const window = { scrollTo(){} };
 function scrollBehavior(){ return 'auto'; }
 function renderChalBar(){}
 function versusHTML(){ return ''; }
+function chalActive(){ return false; }   // 대결 판정(전수리뷰 #57) — showResult 뒤에 선언돼 잘라 온 구간 밖이다
 function loadKakao(){ return Promise.resolve(); }
 let CHALLENGE = null;
 %(src)s
@@ -187,7 +188,11 @@ def test_blocked_storage_does_not_break_the_quiz():
 
 
 def test_time_copy_matches_real_duration():
-    """해설 포함 실제 4~6분(요청서 실측) — '3분'으로 약속하지 않는다."""
+    """해설 포함 실제 4~6분(요청서 실측) — '3분'으로 약속하지 않는다.
+
+    '3분' 앞에 숫자가 오면(예: make_naver_post 주석의 '33분의 1') 시간 표기가 아니라 빼고 본다(2026-09-30 — 그 주석이
+    들어온 main 0649df8 부터 이 시험이 헛되게 빨갰다). 변이: 퀴즈 랜딩에 '3분이면 끝'을 적으면 빨개진다(확인).
+    """
     files = ['index.html', 'weekly/index.html', 'faq/index.html', 'cycle/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html',
              'tools/make_og_cards.py', 'tools/make_investor_cards.py', 'tools/make_naver_post.py']
     import re
@@ -195,5 +200,5 @@ def test_time_copy_matches_real_duration():
     for f in files:
         s = HS.home_source() if HS.is_home(f) else io.open(os.path.join(ROOT, f), encoding='utf-8').read()
         HS.require(s, '5분', what=f)   # 고친 표기를 실제로 읽었는가 — 못 읽으면 '3분 없음'이 헛돈다
-        bad += ['%s: %s' % (f, m.group(0)) for m in re.finditer(r'.{0,12}3분(?![기위]).{0,6}', s)]
+        bad += ['%s: %s' % (f, m.group(0)) for m in re.finditer(r'.{0,12}(?<!\d)3분(?![기위]).{0,6}', s)]
     assert not bad, "퀴즈 시간 표기에 '3분'이 남았다: %s" % bad
