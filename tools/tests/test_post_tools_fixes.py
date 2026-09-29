@@ -163,4 +163,6 @@ def test_sync_claim_mismatch_is_noted(monkeypatch):
     monkeypatch.setattr(T, 'CYCLE_SYNC', sorted(rows, key=lambda x: -x['corr']))
     out = N.sync_claim_lines()
     assert out and out[0].startswith(N.ML.MARK) and '3편' in out[0], out
-    assert N.lines({'sido': {'zones': [{'z': '서울', 'pbr': 1.0}]}}) == out, '알림 줄에 실려야 한다'
+    # 알림 줄은 main() 이 붙인다 — lines(adv) 는 인자만 보고 실데이터 점검을 싣지 않는다(전수리뷰 #32·#94,
+    # main 쪽은 test_batch_notes.test_main_appends_sync_claim_lines 가 본다)
+    assert N.lines({'sido': {'zones': [{'z': '서울', 'pbr': 1.0}]}}) == []
