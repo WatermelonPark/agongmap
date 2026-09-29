@@ -308,6 +308,8 @@ def track_keywords(posts=None):
             kws += ['%s 적정 공급량' % nm, '%s 부동산 전망' % P.SEARCH_NAME.get(nm, nm)]
             if nm in P.TAG_NAME:            # 사람들이 실제로 치는 짧은 표기(전남광주 → '광주 부동산 전망')
                 kws.append('%s 부동산 전망' % P.TAG_NAME[nm])
+            if nm in P.CITY_TAG:            # 도 단위는 대표 도시로 찾는다(경남 → '창원 부동산 전망')
+                kws.append('%s 부동산 전망' % P.CITY_TAG[nm])
         for kw in kws:
             if kw and kw not in out:
                 out.append(kw)
