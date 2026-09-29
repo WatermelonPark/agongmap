@@ -48,3 +48,19 @@ def test_stale_naver_copy_is_flagged():
     assert NS.stale_copy('<b>서울</b> 생활권 공급 분석 — 다소 부족 | 아공맵', cur) is True
     assert NS.stale_copy('<b>%s</b>...' % cur[:20], cur) is False
     assert NS.stale_copy(None, cur) is None
+
+
+def test_track_records_date_rank_too(monkeypatch, tmp_path):
+    """--track 은 정확도순과 함께 최신순 자리(n_date)를 기록한다(2026-09-29). 변이: 최신순 조회를 빼면 빨개진다."""
+    calls = []
+
+    def fake_get(kind, q, display=10, sort='sim'):
+        calls.append(sort)
+        items = [{'link': 'https://blog.naver.com/startupbd/1', 'title': 't'}] if sort == 'date' else []
+        return {'items': items, 'total': 1}
+    monkeypatch.setattr(NS, '_get', fake_get)
+    monkeypatch.setattr(NS, 'HIST', str(tmp_path / 'h.jsonl'))
+    NS.main(['--track', '세종시 부동산 전망'])
+    import json
+    rec = [json.loads(l) for l in open(NS.HIST, encoding='utf-8')][0]
+    assert 'date' in calls and rec['n'] is None and rec['n_date'] == 1

@@ -59,7 +59,7 @@ def test_title_arms_alternate_from_seq5():
 def test_first_heading_and_sentence_carry_search_terms(monkeypatch):
     d = _zone(monkeypatch)
     yrs = SZ.LEAD_Q // 4
-    h = '<h3>세종 적정 공급량과 %d년 공급물량</h3>' % yrs
+    h = '<h3>세종시 적정 공급량과 %d년 공급물량</h3>' % yrs   # 검색 표기(SEARCH_NAME)
     assert h in d['body']
     first = d['body'].split(h, 1)[1].split('</p>', 1)[0]
     assert '적정 공급량' in first and '공급물량' in first
@@ -86,3 +86,15 @@ def test_no_mojara_in_zone_title_or_lead(monkeypatch):
     """'모자랍니다'가 블덱스에서 '#모자'로 뽑혔다(2026-09-28). 변이: ask 를 '모자랄까'로 되돌리면 빨개진다."""
     d = _zone(monkeypatch)
     assert '모자' not in d['title'] and '모자라' not in d['body'].split('</p>', 3)[1]
+
+
+def test_gwangju_jeonnam_uses_search_forms(monkeypatch):
+    """전남광주는 제목·첫 문장 '광주·전남', 태그 '광주'(2026-09-29 키워드도구: 광주아파트 5,740 대 전남광주부동산 160/월).
+    변이: SEARCH_NAME·TAG_NAME 에서 전남광주를 빼면 빨개지고, _zone_of_title 이 검색 표기를 안 받으면 역매핑 시험이 빨개진다."""
+    d = _zone(monkeypatch, name='전남광주', seq=6)
+    assert d['title'].startswith('2027년 광주·전남 아파트 공급물량 전망, ') or d['title'].startswith('2026년 광주·전남 아파트 공급물량 전망, ')
+    assert '<h3>광주·전남 적정 공급량과' in d['body']
+    assert '광주아파트' in d['tags'] or '광주미분양' in d['tags']
+    assert '광주부동산전망' in d['tags']
+    names = [z for z in SZ.ORDER if z not in SZ.AGG]
+    assert P._zone_of_title(d['title'], names) == '전남광주'

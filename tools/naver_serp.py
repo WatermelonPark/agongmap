@@ -251,7 +251,7 @@ def indexed(query, display=50):
     return out, None
 
 
-def rank_on(keyword, display=30):
+def rank_on(keyword, display=30, sort='sim'):
     """정확도순 블로그 결과에서 우리 글이 몇 번째인지. 없으면 (None, None).
 
     ⚠️ indexed()와 목적이 다르다. 저쪽은 **최신순**으로 넓게 훑어 "색인됐나"만
@@ -262,7 +262,7 @@ def rank_on(keyword, display=30):
     회차마다 재면 그 사이의 변화는 읽을 수 있다. 절대값이 아니라 추이를 본다.
     """
     try:
-        d = _get('blog', keyword, display=display, sort='sim')
+        d = _get('blog', keyword, display=display, sort=sort)
     except SystemExit:
         raise
     except Exception as e:
@@ -306,6 +306,8 @@ def track_keywords(posts=None):
         nm = P._zone_of_title(p['title'], names)
         if nm:
             kws += ['%s 적정 공급량' % nm, '%s 부동산 전망' % P.SEARCH_NAME.get(nm, nm)]
+            if nm in P.TAG_NAME:            # 사람들이 실제로 치는 짧은 표기(전남광주 → '광주 부동산 전망')
+                kws.append('%s 부동산 전망' % P.TAG_NAME[nm])
         for kw in kws:
             if kw and kw not in out:
                 out.append(kw)
@@ -398,9 +400,15 @@ def main(argv):
                           % (a, b, '+' if b < a else '', a - b, prev['d']))
             # 남의 블로그 제목은 남기지 않는다 — HIST 주석의 이유 그대로다.
             # 우리 자리만 기록하면 추이를 보는 데 충분하다.
+            # 최신순 자리도 잰다(2026-09-29). 발행 직후 며칠의 노출은 최신순이 좌우한다 — 세종 편이 '세종시
+            # 부동산 전망' 정확도순 100 밖인데 최신순 1위였고, 대표가 실제 검색에서 본 것도 그 자리였다.
+            hd, _ = rank_on(kw, display=100, sort='date')
+            if hd:
+                print('      ↳ 최신순 %d번째' % hd['n'])
             hist_append(dict(mode='rank', key=kw,
                              n=(hit['n'] if hit else None),
-                             link=(hit['link'] if hit else None)))
+                             link=(hit['link'] if hit else None),
+                             n_date=(hd['n'] if hd else None)))
         if not [a for a in argv if not a.startswith('--')]:
             # 인자로 키워드를 주지 않은 기본 추적에서만 전국 질의를 웹문서로도 잰다.
             print('\n전국 질의 %d개 — 사이트(웹문서 상위 30)\n' % len(NATIONAL))
