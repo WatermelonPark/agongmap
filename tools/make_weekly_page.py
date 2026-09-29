@@ -581,8 +581,9 @@ def build(W, Q):
         desc_bits.append('시군구 상승 1위 %s %s%%%s.' % (su[0][0], pv2(su[0][1]),
                          (', 하락 1위 %s %s%%' % (sd[0][0], pv2(sd[0][1]))) if sd else ''))
     desc = ' '.join(desc_bits) + ' 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.'
-    og = '%s · 전국 %s%%, %s %s%%. 시군구·서울 구별 변동률 지도.' % (
-        datestr, pv2(nation), best[0], pv2(best[1]))
+    # 전국 값이 없는 주(R-ONE 부분 응답)엔 desc·리드·공유 문구처럼 전국 조각을 뺀다 — '전국 ·%' 를 굽지 않는다(전수리뷰 #29).
+    og = '%s · %s%s %s%%. 시군구·서울 구별 변동률 지도.' % (
+        datestr, ('전국 %s%%, ' % pv2(nation)) if nation is not None else '', best[0], pv2(best[1]))
     return head, answer, desc, og
 
 
@@ -742,9 +743,12 @@ def render(s, W, Q, root=None):
     p = W['rows'][-1]['p']
     s = put_titles(s, p)               # title·og:title·twitter:title·WebPage name 에 연도·주차(B4)
     s = put_ld_dates(s, pub(p))        # JSON-LD 발표일(B4)
-    s = put_blog(s, W)                 # 해설 글(네이버 블로그) 칸(B5)
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
+    # ⚠️ put_blog **앞에서** 한다 — 해설 칸은 RSS 에서 온 남의 글 제목이라, 뒤에서 치환하면 '5개 시도만 올랐습니다' 같은
+    #    제목을 '16개 시도만'으로 고쳐 인용했다(전수리뷰 #26). BLOG 구간은 put_blog 가 매번 통째로 다시 쓰므로 여기서
+    #    지난 회차 제목이 치환돼 있어도 남지 않는다.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
+    s = put_blog(s, W)                 # 해설 글(네이버 블로그) 칸(B5)
     s = put_share_image(s, W, root)   # og:image·twitter:image 에 카드가 그린 판(A7·전수리뷰 #85)
     s = put_nav(s)              # 하단 탭바 정본·'시세' 탭 켜기(A5·C2)
     s = RM.ensure(s)            # 검색 로봇 메타 max-image-preview:large(D2) — 뼈대에 없으면 viewport 뒤에 넣는다
