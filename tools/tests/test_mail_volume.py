@@ -180,6 +180,43 @@ def test_long_lag_body_header_matches_the_subject():
     assert '### ✅' not in body and '옛 기준' in body.splitlines()[0], body[:80]
 
 
+def test_long_lag_on_a_no_commit_run_does_not_claim_an_update():
+    """뒤처짐이 길어진 기간의 '커밋 없음' 회차에 '갱신됐습니다'라고 쓰지 않고, 기준 시점 줄을 싣는다(전수리뷰 #33).
+    계열 이름 뒤 조사는 받침을 따른다('규모별이', '매매가').
+
+    변이(각각 확인): build() 의 lag_hard 분기에서 nothing 갈래를 지우면 '갱신됐습니다'로 빨강, basis 줄을 지우면
+          '기준' 단정이 빨강, lag_notice 의 조사를 '가' 고정으로 되돌리면 '규모별가'로 빨강.
+    픽스처: 배치가 실제로 남기는 순서의 기록 — 채택 줄, 테스트 통과, month_lag 의 4개월 뒤처짐 줄(update-cloud.yml 이
+            커밋 전에 남긴다), 바뀐 파일이 없어 남는 '➖ 커밋 없음' 줄. 수요일(평일) 회차.
+    """
+    raw = ('✅ 러너 3/3 clean · 채택 주간 2026-09-14 / 월간 2026-08 / 공급 2026Q2\n✅ 테스트\n'
+           'ℹ️ 월간 뒤처짐 4개월 · 규모별 2026.04 · 최신 2026.08\n'
+           '➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)\n')
+    body, mention = F.build(raw, KST, 'u', 'O', 2)
+    assert mention and '옛 기준' in body.splitlines()[0], body[:80]
+    assert '갱신됐습니다' not in body and '갱신은 정상' not in body and '바뀐 내용이 없습니다' in body, body
+    assert F.basis_line(raw.splitlines()) in body
+    assert '규모별이 2026년 4월 기준' in body and '규모별가' not in body, body
+    body2, _ = F.build(raw.replace('규모별', '매매'), KST, 'u', 'O', 2)
+    assert '매매가 2026년 4월 기준' in body2, body2
+    # 커밋이 있던 회차는 그대로 '갱신됐습니다'
+    body3, _ = F.build(raw.replace('➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)\n', OK.splitlines()[1] + '\n'),
+                       KST, 'u', 'O', 2)
+    assert '최신 데이터로 갱신됐습니다' in body3, body3
+
+
+def test_iga_matches_the_generator():
+    """결과 보고의 조사 함수가 생성기(make_sido_pages._iga)와 같은 답을 낸다 — 같은 판정을 두 곳에 둔 대신 일치를 잠근다.
+
+    변이: format_batch_report._iga 의 조건을 뒤집으면('이'↔'가') 빨개진다(확인).
+    픽스처: 실제 계열·지역 이름(받침 있음·없음·영문 끝).
+    """
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import make_sido_pages as M
+    for w in ('규모별', '미분양', '전세가율', '착공', '매매', '서울', '대구', '분양', 'R-ONE', ''):
+        assert F._iga(w) == M._iga(w), w
+
+
 def test_no_change_plus_warning_does_not_claim_an_update():
     raw = OK + '➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)\n⚠️ 공급 갱신 멈춤 — 분양\n⚠️ 감시 실행 이력을 읽지 못했다\n'
     h = F.headline(raw, KST, 3)

@@ -143,6 +143,16 @@ LAG_LINE = re.compile(r'^\s*%s\s*월간 뒤처짐\s*(\d+)개월\s*·\s*(.+?)\s*�
                       % re.escape(ML.MARK))
 
 
+def _iga(word):
+    """받침에 맞는 주격 조사 이/가 — '규모별이', '착공이', '매매가'. 한글로 안 끝나면 '가'.
+    make_sido_pages._iga 와 같은 판정이다(이 도구는 설치 없이 도는 결과 보고라 생성기를 불러오지 않는다 —
+    일치는 test_mail_volume.test_iga_matches_the_generator 가 본다)."""
+    last = word[-1] if word else ''
+    if not ('가' <= last <= '힣'):
+        return '가'
+    return '이' if (ord(last) - 0xAC00) % 28 else '가'
+
+
 def lag_notice(lines):
     """뒤처짐 줄 → (사람이 읽는 문장, 가장 큰 뒤처짐 개월). 없으면 (None, 0).
 
@@ -164,7 +174,7 @@ def lag_notice(lines):
                 by[-1][1].append(name)
             else:
                 by.append((ym, [name]))
-        say = ' · '.join('%s가 %s 기준' % ('·'.join(names), _year_month(ym)) for ym, names in by)
+        say = ' · '.join('%s%s %s 기준' % ('·'.join(names), _iga(names[-1]), _year_month(ym)) for ym, names in by)
         return ('%s입니다. 가장 최신 월간 통계는 %s입니다(%s개월 차이). 원천이 아직 그 달을 '
                 '내놓지 않았다는 뜻이며, 사이트 수치는 그 기준월 그대로 정확합니다.'
                 % (say, _year_month(m.group(3)), m.group(1))), int(m.group(1))
@@ -280,9 +290,18 @@ def build(raw, kst, run_url, owner, weekday):
             out.append(basis)
     elif lag_hard:
         # 제목(🟡 옛 기준)과 본문 머리가 다른 말을 하면 안 된다(리뷰 2026-09-18 20번).
-        out.append('### 🟡 데이터 갱신은 정상 · 일부 통계가 %d개월째 옛 기준 · %s' % (lag_months, kst))
-        out.append('')
-        out.append('사이트는 최신 데이터로 갱신됐습니다. 하실 일 없습니다.')
+        # 커밋 없음(➖) 회차에 '갱신됐습니다'라고 하면 안 된다 — 뒤처진 기간은 원천이 그대로라 대부분 그 회차다(전수리뷰 #33).
+        if nothing:
+            out.append('### 🟡 갱신 없음 · 일부 통계가 %d개월째 옛 기준 · %s' % (lag_months, kst))
+            out.append('')
+            out.append('원천 통계가 그대로라 바뀐 내용이 없습니다. 하실 일 없습니다.')
+        else:
+            out.append('### 🟡 데이터 갱신은 정상 · 일부 통계가 %d개월째 옛 기준 · %s' % (lag_months, kst))
+            out.append('')
+            out.append('사이트는 최신 데이터로 갱신됐습니다. 하실 일 없습니다.')
+        if basis:
+            out.append('')
+            out.append(basis)
     else:
         out.append('### ✅ 데이터 갱신 정상 · %s' % kst)
         out.append('')
