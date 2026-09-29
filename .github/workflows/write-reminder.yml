@@ -66,6 +66,8 @@ jobs:
           wd = {'주간 시세': 4, '지역 공급': 1, '사이클 이론': 1}.get(force, d.weekday())
           alt_override = 1 if force == '사이클 이론' else (0 if force == '지역 공급' else None)
 
+          # 종류·카테고리(와 위 force 선택지)는 닫는 도구 close_published_issues.KIND_TO_CATEGORY 와 같아야 자동으로
+          # 닫힌다. 한쪽만 바꾸면 test_mail_volume.test_reminder_kinds_and_categories_match_the_closer 가 빨개진다.
           if wd == 4:                     # 금요일
               kind = '주간 시세'
               cmd = 'python tools/make_naver_post.py'
