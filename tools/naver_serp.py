@@ -295,6 +295,7 @@ def track_keywords(posts=None):
             return []
     if not posts:
         return []
+    import close_published_issues as CP
     import make_naver_post as P
     import sido_zones as SZ
     names = [z for z in SZ.ORDER if z not in SZ.AGG]
@@ -302,7 +303,9 @@ def track_keywords(posts=None):
     for p in sorted(posts, key=lambda x: x['date']):
         if p['cat'] != '지역별 아파트 공급':
             continue
-        kws = [p['title'].split('전망')[0].strip(' ,')]
+        # 도시 입주물량 편은 제목에 '전망'이 없어 통째로 질의가 된다 — 쉼표 앞 앞머리('2027년 청주 아파트 입주물량')로 잰다.
+        kws = [p['title'].split(',')[0].strip() if CP.is_city_post(p['title'])
+               else p['title'].split('전망')[0].strip(' ,')]
         nm = P._zone_of_title(p['title'], names)
         if nm:
             kws += ['%s 적정 공급량' % nm, '%s 부동산 전망' % P.SEARCH_NAME.get(nm, nm)]

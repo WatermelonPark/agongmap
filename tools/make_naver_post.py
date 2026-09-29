@@ -200,7 +200,10 @@ def _zone_of_title(title, names):
     '부동산'도 받는다: 제목 교대 실험 B안('2026 세종시 부동산 전망, …', 2026-09-27)은 '아파트'가
     앞머리에 없어서, 받지 않으면 발행한 세종 편을 못 세고 다음 회차에 세종을 또 고른다.
     검색 표기(SEARCH_NAME, 예: '광주·전남')로 쓴 제목도 그 지역으로 센다(2026-09-29).
+    같은 카테고리에 싣는 도시 입주물량 편('2027년 서울 아파트 입주물량, …')은 지역 편이 아니다(CP.is_city_post).
     """
+    if CP.is_city_post(title):
+        return None
     best = None
     for nm in names:
         for form in dict.fromkeys((nm, SEARCH_NAME.get(nm, nm))):
@@ -805,6 +808,8 @@ def series_links(nm, seq):
             if p['cat'] != cat or not p['url']:
                 continue
             if skip_self and nm in p['title']:
+                continue
+            if CP.is_city_post(p['title']):      # 같은 카테고리의 도시 입주물량 편은 '같은 기준'의 글이 아니다
                 continue
             return p
         return None
