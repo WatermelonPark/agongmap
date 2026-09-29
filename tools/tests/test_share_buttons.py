@@ -353,3 +353,37 @@ def test_batch_bakes_the_monthly_card_after_the_gate():
     gate, wk, mo = at(r'python3 -m pytest tools/tests'), at(r'python3 tools/make_weekly_share\.py'), \
         at(r'python3 tools/make_monthly_share\.py')
     assert gate < wk < mo
+
+
+def test_pressing_share_twice_restores_the_button():
+    """링크 공유 버튼을 안내 문구가 떠 있는 2초 안에 다시 눌러도, 타이머가 다 돈 뒤 버튼은 원래 모양(아이콘 + '링크 공유')으로
+    돌아온다(전수리뷰 #28). 예전 say() 는 누를 때마다 지금 innerHTML 을 '원래 모양'으로 저장해, 두 번째 호출이 안내 문구를
+    저장하고 첫 타이머 뒤에 그것으로 다시 덮어 새로고침 전까지 '링크를 복사했어요'로 굳고 아이콘이 사라졌다.
+
+    변이(실제로 확인): say 를 예전 식 `var o=b.innerHTML;b.textContent=m;setTimeout(function(){b.innerHTML=o;},2000);` 으로
+    되돌리면 빨개진다.
+    픽스처: navigator.share 가 없는 데스크톱 브라우저(복사 경로)에서 0.7초 간격으로 두 번 누른 상태를 node 에서 흉내 낸다 —
+    타이머는 모아 두었다가 시간 순서대로 돌리고, 버튼은 textContent 를 쓰면 innerHTML 이 그 글자로 바뀌는 흉내다.
+    """
+    d = {'ct': 'weekly', 'url': 'https://example.invalid/weekly/', 'title': 't', 'text': 'x', 'img': 'i', 'w': 1, 'h': 1,
+         'btn': 'b'}
+    html = PS.block(d, 'lead')
+    m = re.search(r'<script>(\(function\(\)\{var D=.*?\}\)\(\);)</script>', html, re.S)
+    btn0 = re.search(r'onclick="agShare\(\'link\',this\)">(.*?)</button>', html, re.S).group(1)
+    js = r'''
+const T=[];let now=0;
+globalThis.setTimeout=(f,ms)=>{const t={f,at:now+(ms||0),on:true};T.push(t);return t;};
+globalThis.clearTimeout=t=>{if(t)t.on=false;};
+globalThis.window=globalThis;globalThis.gtag=()=>{};
+globalThis.document={querySelector:()=>null,createElement:()=>({}),head:{appendChild:()=>{}}};
+Object.defineProperty(globalThis,'navigator',{value:{clipboard:{writeText:()=>Promise.resolve()}},configurable:true});
+const b={_h:BTN,get innerHTML(){return this._h;},set innerHTML(v){this._h=v;},set textContent(v){this._h=v;}};
+''' + m.group(1) + r'''
+function run(until){T.sort((a,b)=>a.at-b.at);for(const t of T.slice()){if(t.on&&t.at<=until){t.on=false;now=t.at;t.f();}}now=until;}
+(async()=>{agShare('link',b);await null;await null;const mid=b.innerHTML;
+run(700);agShare('link',b);await null;await null;
+run(10000);process.stdout.write(JSON.stringify({mid,after:b.innerHTML}));})();
+'''
+    out = _node(js.replace('BTN', json.dumps(btn0)))
+    assert out['mid'] == '링크를 복사했어요', out
+    assert out['after'] == btn0 and '<svg' in out['after'], '두 번 누른 뒤 버튼이 %r 로 굳었다' % out['after']
