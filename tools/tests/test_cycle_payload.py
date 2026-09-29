@@ -77,9 +77,10 @@ def test_prose_is_what_the_analysis_computed():
     """보관한 분석 결과와 페이지의 prose가 같은 회차의 것이어야 한다."""
     D, _, _ = _page()
     A = _analysis()
-    # 전세가율 풀이 칸(jr_)은 매일 배치가 차트와 함께 채워 보관 분석에 없다 — 비교에서 뺀다.
-    # 빼지 않으면 전세가율이 바뀌는 날마다 이 시험이 배치의 커밋 게이트를 막는다.
-    mine = {k: v for k, v in (D.get('prose') or {}).items() if not k.startswith('jr_')}
+    # 전세가율 풀이 칸(jr_)과 페이지 차트 데이터에서 바로 나오는 칸(str_·sup_·span_)은 매일 배치가 채워 보관
+    # 분석에 없다 — 비교에서 뺀다. 빼지 않으면 전세가율이 바뀌는 날마다 이 시험이 배치의 커밋 게이트를 막는다.
+    import rebuild_cycle_analysis as RC
+    mine = {k: v for k, v in (D.get('prose') or {}).items() if not k.startswith(RC.BATCH_PROSE_PREFIX)}
     assert mine == A.get('prose'), '페이지와 보관 분석의 prose가 다르다 — --write를 다시 돌릴 것'
 
 
@@ -97,10 +98,25 @@ def test_jeonse_ratio_spans_follow_the_chart_on_the_same_page():
 
 
 def test_jratio_mid_band_is_only_a_decade_when_both_share_it():
+    """'70%대'는 두 값의 십의 자리(반올림 전 값의 내림)가 같을 때만 쓴다. 정수는 half-up(전수 리뷰 #25).
+
+    변이(각각 실제로 확인, 2026-09-30): 십 단위 판정을 옛 `int(round(v))//10` 으로 되돌리면 (69.6, 71.8) 이
+    '70%대', (70.9, 79.6) 이 '71~80%' 가 되어 빨강. jr_seoul·jr_jnl 을 `int(round(v))` 로 되돌리면 52.5 → '52',
+    78.5 → '78'(은행가 반올림)이 되어 빨강.
+    픽스처: 2026.08 실측 대구 70.9·대전 71.8 근처의 경계값과, 소수 첫째 자리로 저장된 값에서 실제로 나오는 .5.
+    """
     import refresh_cycle_data as RF
     base = [{'region': '서울', 'val': 52.4}, {'region': '전남광주', 'val': 78.6}]
-    assert RF.jratio_prose(base + [{'region': '대구', 'val': 70.8}, {'region': '대전', 'val': 71.8}], '2026.07')['jr_mid'] == '70%대'
-    assert RF.jratio_prose(base + [{'region': '대구', 'val': 69.4}, {'region': '대전', 'val': 71.8}], '2026.07')['jr_mid'] == '69~72%'
+
+    def mid(a, b):
+        return RF.jratio_prose(base + [{'region': '대구', 'val': a}, {'region': '대전', 'val': b}], '2026.07')['jr_mid']
+    assert mid(70.8, 71.8) == '70%대'
+    assert mid(69.4, 71.8) == '69~72%'
+    assert mid(69.6, 71.8) == '70~72%', '69.6 은 60%대다 — 반올림한 정수로 십 단위를 보면 70%대가 된다'
+    assert mid(70.9, 79.6) == '70%대', '두 값 모두 70%대인데 범위로 적었다'
+    half = RF.jratio_prose([{'region': '서울', 'val': 52.5}, {'region': '전남광주', 'val': 78.5},
+                            {'region': '대구', 'val': 70.9}, {'region': '대전', 'val': 71.8}], '2026.07')
+    assert (half['jr_seoul'], half['jr_jnl']) == ('53', '79'), '정수는 사이트 규칙(half-up)으로 만든다'
 
 
 def test_jratio_caption_month_comes_with_the_values():
@@ -137,11 +153,11 @@ def test_caption_month_is_the_month_the_values_were_read_from():
 
     깨뜨리면 빨개지는 것: build_jratio 가 dates[-1] 대신 다른 달을 돌려주거나, main 이
     `jratio_prose(lvl, prd)` 가 아니라 고정 문자열을 넘기면(원문 검사) 빨강.
-    픽스처: 모델의 모든 시도에 값이 있는 합성 전세가율 계열.
+    픽스처: 모델의 모든 시도와 전국에 값이 있는 합성 전세가율 계열(기준월 필요 지역은 JEONSE_NEED — 전수 리뷰 #24).
     """
     import refresh_cycle_data as RF
     S = {'전세가율': {'dates': ['2026.06', '2026.07'],
-                     'series': {r: [70.0, 71.0 + i] for i, r in enumerate(RF.SIDO)}}}
+                     'series': {r: [70.0, 71.0 + i] for i, r in enumerate(('전국',) + tuple(RF.SIDO))}}}
     lvl, _, _, prd = RF.build_jratio(S)
     assert prd == '2026.07'
     assert RF.jratio_prose(lvl, prd)['jr_prd'] == '2026.07'
@@ -169,7 +185,7 @@ def test_jratio_types_and_capital_vs_rest_means():
     import refresh_cycle_data as RF
     assert set(_JR_2026_07) == set(RF.SIDO), '픽스처가 모델 지역과 다르다'
     S = {'전세가율': {'dates': ['2026.06', '2026.07'],
-                     'series': {r: [None, v] for r, v in _JR_2026_07.items()}}}
+                     'series': dict({r: [None, v] for r, v in _JR_2026_07.items()}, 전국=[None, 69.1])}}
     lvl, sudo, jib, prd = RF.build_jratio(S)
     by = {x['region']: x for x in lvl}
     assert by['서울']['type'] == by['세종']['type'] == '투자성'
@@ -183,6 +199,6 @@ def test_jratio_types_and_capital_vs_rest_means():
     assert sudo < jib
 
     edge = dict(_JR_2026_07, 서울=59.9, 세종=60.0, 대구=72.9, 대전=73.0)
-    S['전세가율']['series'] = {r: [None, v] for r, v in edge.items()}
+    S['전세가율']['series'] = dict({r: [None, v] for r, v in edge.items()}, 전국=[None, 69.1])
     by = {x['region']: x['type'] for x in RF.build_jratio(S)[0]}
     assert (by['서울'], by['세종'], by['대구'], by['대전']) == ('투자성', '중간', '중간', '실거주성')

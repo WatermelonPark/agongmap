@@ -13,6 +13,11 @@
 사용법:
     python tools/rebuild_cycle_analysis.py           # 계산 결과를 표로 출력
     python tools/rebuild_cycle_analysis.py --write   # cycle/index.html의 D를 갱신
+    python tools/rebuild_cycle_analysis.py --write --force   # 지금 페이지와 크게 달라도 쓴다(모델을 바꿨을 때만)
+
+두 가지 방어선이 있다(전수 리뷰 #73, 2026-09-30). ① 매매·전세지수에 기준 단절(원천의 기준시점 변경을 옛 계열에
+이어 붙인 절벽)이 있으면 계산하지 않고 멈춘다(index_breaks). ② --write 는 결과가 지금 페이지 D 와 크게 다르면
+(drift) --force 없이는 쓰지 않는다.
 """
 import argparse
 import json
@@ -118,6 +123,71 @@ def load_stats(path=None):
     txt = open(path or os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
     m = re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', txt, re.S)
     return json.loads(m.group(1))
+
+
+# ---------- 지수 연속성 (전수 리뷰 #61·#73, 2026-09-30) ----------
+# 원천(한국부동산원 실거래가격지수)이 기준시점을 바꿨는데(2017.11=100 → 2026.06=100) 수집이 최근 여덟 달만
+# 다시 받아 옛 계열 끝에 이어 붙였다. 서울 매매가 한 달 새 189.8 → 94.6 이 되는 가짜 절벽이 생겼고, 이 계열로
+# 재산정하면 −40%대 분기 변화가 상관을 지배해 정본 수치가 뒤집힌다(서울 동조성 0.55 → 0.82, 고리⑥ 유의
+# 11곳 → 3곳). 대표 결정(09-30 ①)은 '전 기간 재수집, 연결계수 금지, 재수집 전까지 그 계열 갱신 보류'다.
+# 그래서 지수를 읽는 사이클 도구는 계열이 이어져 있는지 먼저 보고, 끊겨 있으면 계산하지 않는다.
+INDEX_KEYS = ('매매지수', '전세지수')
+# 한 달 사이 이만큼 넘게 움직인 지역이 BREAK_REGIONS 곳 이상이면 기준 단절로 본다. 실측 근거(2006.01~2026.07,
+# 단절 전 계열): 한 지역의 한 달 변화 최대는 13.4%(제주 전세 2014.05)이고 같은 달에 12% 넘게 움직인 지역이
+# 둘인 달은 없다. 기준 단절 달에는 서울 −50%, 수도권 −38% 처럼 수십 곳이 한꺼번에 넘는다.
+BREAK_JUMP = 0.15
+BREAK_REGIONS = 2
+
+
+def index_breaks(st, keys=INDEX_KEYS):
+    """지수 계열에서 기준 단절로 보이는 달. [(계열, 달, 넘은 지역 수, (가장 크게 움직인 지역, 전달 값, 그달 값))].
+
+    비어 있는 칸은 건너뛰고 바로 앞의 값과 견준다(원천이 한 달 비운 지역도 이어서 본다).
+    """
+    out = []
+    for key in keys:
+        blk = st.get(key) or {}
+        dates = blk.get('dates') or []
+        prev = {}
+        hits = {}
+        for k, d in enumerate(dates):
+            for r, s in (blk.get('series') or {}).items():
+                v = s[k] if k < len(s) else None
+                if v is None:
+                    continue
+                p = prev.get(r)
+                if p:
+                    jump = abs(v / p - 1.0)
+                    if jump > BREAK_JUMP:
+                        hits.setdefault(k, []).append((jump, r, p, v))
+                prev[r] = v
+        for k in sorted(hits):
+            if len(hits[k]) >= BREAK_REGIONS:
+                _, r, p, v = max(hits[k])
+                out.append((key, dates[k], len(hits[k]), (r, p, v)))
+    return out
+
+
+def first_break(st, key):
+    """그 계열의 첫 기준 단절 달('2026.01'), 없으면 None."""
+    for k, d, _, _ in index_breaks(st, (key,)):
+        return d
+    return None
+
+
+def break_message(br):
+    return '; '.join('%s %s (%d개 지역, 예: %s %.2f→%.2f)' % (k, d, n, ex[0], ex[1], ex[2])
+                     for k, d, n, ex in br)
+
+
+def require_continuous(st, who):
+    """지수 계열이 끊겨 있으면 이유를 적고 멈춘다. 사람이 돌리는 분석 도구의 첫 줄에서 부른다."""
+    br = index_breaks(st)
+    if br:
+        raise SystemExit(
+            '%s: 지수 계열에 기준 단절이 있어 계산하지 않는다 — %s. 원천의 기준시점이 바뀐 계열을 옛 계열에 '
+            '이어 붙인 모양이다. 전 기간을 새 기준으로 다시 받은 뒤(update_adv_data.py --heal-basic) 돌린다.'
+            % (who, break_message(br)))
 
 
 def qkey(d):
@@ -611,6 +681,9 @@ def make_prose(sync, l1, l3, l3split, l4, lead, l6, l6_sig, l6_mean, l6_scale,
 
 
 def build(st):
+    # 지수가 끊겨 있으면 재산정하지 않는다(전수 리뷰 #73). prep 이 아니라 여기서 보는 까닭: prep 은 인허가 풀이
+    # 시험처럼 지수와 무관한 확인에도 쓰인다. 사이트에 닿는 수치는 모두 build 를 지난다.
+    require_continuous(st, 'rebuild_cycle_analysis')
     P = prep(st)
     sync = link2_sync(P)
     lagc = link2_lagcurve(P)
@@ -715,6 +788,142 @@ def build(st):
     }
 
 
+# ---------- 같은 페이지 데이터에서 채우는 본문 칸 ----------
+# 재산정이 아니라 페이지의 D(차트 데이터)에서 바로 나오는 칸이다. 매일 배치(refresh_cycle_data)가 채우고,
+# 재산정(--write)도 cycle_strength 를 바꾼 뒤 같은 함수로 다시 채운다. 보관 분석(cycle_analysis.json)의
+# prose 와 견주지 않는다 — 아래 접두사의 칸은 배치 몫이다. jr_ 는 전세가율 풀이(refresh_cycle_data.jratio_prose).
+BATCH_PROSE_PREFIX = ('jr_', 'str_', 'sup_', 'span_')
+# 멸실 절이 '40년 연한 도달'을 세기 시작하는 해. 절 제목('2028년, 멸실의 시간이 온다')과 차트 색(cSuper)이
+# 같은 해를 쓴다 — 시험(test_cycle_hand_figures)이 페이지 스크립트의 문턱과 대조한다.
+SUPER_FROM = 2028
+
+
+def _jong(word):
+    """마지막 글자에 받침이 있는가(조사 은/는 고르기)."""
+    ch = word[-1]
+    return 0xAC00 <= ord(ch) <= 0xD7A3 and (ord(ch) - 0xAC00) % 28 != 0
+
+
+def _man(v):
+    """호 → 만 호 정수(half-up). 5,655,703 → 566."""
+    return SZ.half_up(v / 10000.0)
+
+
+def strength_prose(cs):
+    """'종합' 절의 가장 센 곳·가장 약한 곳(전수 리뷰 #62). 점수가 같은 곳은 모두, 차트 순서대로."""
+    if not cs:
+        raise RuntimeError('cycle_strength 가 비었다')
+    hi = max(x['score'] for x in cs)
+    lo = min(x['score'] for x in cs)
+    top = [x['region'] for x in cs if x['score'] == hi]
+    low = [x['region'] for x in cs if x['score'] == lo]
+    return {'str_top': '·'.join(top), 'str_top_j': '은' if _jong(top[-1]) else '는',
+            'str_top_n': str(hi),
+            'str_low': '·'.join(low), 'str_low_j': '은' if _jong(low[-1]) else '는',
+            'str_low_n': str(lo)}
+
+
+def super_prose(sp):
+    """참고 ④(멸실) 절의 수·연도(전수 리뷰 #66, 대표 결정 09-30 ⑦). 손으로 적던 값을 같은 화면 차트 데이터에서 채운다.
+
+    옛 본문은 '연평균 33만 호'(17로 나눔, 차트 데이터는 18개 해 평균 31만), '2051년'(차트 라벨 2052),
+    '50년 상한은 2038년'(차트는 2040년 완료를 상한 안으로 칠함)이라 한 화면에서 문장과 막대가 달랐다.
+    """
+    reach = [t for t in sp['timeline'] if t['reach40'] >= SUPER_FROM]
+    if not reach:
+        raise RuntimeError('멸실 타임라인에 %d년 이후 도달분이 없다' % SUPER_FROM)
+    total = sum(t['units'] for t in reach)
+    if total != sp['reach_2845_total']:
+        raise RuntimeError('멸실 도달 누계가 타임라인 합과 다르다: %s vs %s' % (sp['reach_2845_total'], total))
+    avg = total / float(len(reach))
+    if abs(avg - sp['reach_2845_avg']) >= 1:
+        raise RuntimeError('멸실 도달 연평균이 타임라인과 다르다: %s vs %.1f' % (sp['reach_2845_avg'], avg))
+    sc = sp['melt_scenarios']
+    ok = [s for s in sc if s['ok']]
+    bad = [s for s in sc if not s['ok']]
+    if not ok or not bad:
+        raise RuntimeError('멸실 시나리오에 상한 안·밖이 모두 있어야 문장이 선다')
+    fail = max(bad, key=lambda s: s['melt'])        # 상한을 넘기는 시나리오 가운데 가장 빠른 것
+    if fail['melt'] >= min(s['melt'] for s in ok):
+        raise RuntimeError('멸실 시나리오의 상한 판정이 속도 순서와 어긋난다')
+    return {'sup_span': '%d~%d' % (reach[0]['reach40'], reach[-1]['reach40']),
+            'sup_total': str(_man(total)),
+            'sup_avg': str(_man(avg)),
+            'sup_ratio': str(SZ.half_up(avg / sp['recent_melt'])),
+            'sup_recent': str(_man(sp['recent_melt'])),
+            'sup_peak_y': str(sp['peak_year']),
+            'sup_peak': str(_man(sp['peak_units'])),
+            'sup_acc': str(_man(sp['acc_8895'])),
+            'sup_fail_melt': str(fail['melt']),
+            'sup_fail_done': str(fail['done']),
+            'sup_ok_min': str(min(s['melt'] for s in ok)),
+            'sup_stock30': str(_man(sp['stock30_2024']))}
+
+
+def span_prose(zones):
+    """머리 설명의 자료 기간(전수 리뷰 #69). '2006–2026'을 손으로 적어 두면 새해 자료가 들어와도 그대로였다."""
+    ts = [t for z in zones.values() for t in z['t']]
+    if not ts:
+        raise RuntimeError('zones 가 비었다')
+    return {'span_y': '%d–%d' % (int(math.floor(min(ts))), int(math.floor(max(ts))))}
+
+
+def page_prose(D):
+    """페이지 D 에서 바로 나오는 본문 칸 전부."""
+    out = strength_prose(D['cycle_strength'])
+    out.update(super_prose(D['super']))
+    out.update(span_prose(D['zones']))
+    return out
+
+
+# ---------- 재산정 결과가 지금 페이지와 크게 다르면 멈춘다 (전수 리뷰 #73) ----------
+DRIFT_R = 0.15          # 상관계수가 이만큼 바뀌면
+DRIFT_SIG = 3           # 고리⑥ 유의 곳 수가 이만큼 바뀌면
+DRIFT_RISE = 1.0        # 고리① 3분위 전세 상승률(%p)이 이만큼 바뀌면
+DRIFT_SCORE = 2         # 한 지역의 작동 점수가 이만큼 바뀌면
+DRIFT_PROSE_R = ('l1_r', 'sync_mean', 'seoul_sync', 'rate_r', 'l6_mean', 'lead_r', 'l4_r', 'sudo_l6')
+
+
+def _num(s):
+    return float(str(s).replace('−', '-'))
+
+
+def drift(cur, new):
+    """지금 페이지 D(cur)와 새 재산정(new)의 큰 차이를 사람이 읽을 줄로. 같으면 빈 목록.
+
+    데이터 한두 분기가 더해진 재산정은 이 문턱 안에서 움직인다. 넘으면 모델이 바뀌었거나 입력이 망가진 것이니
+    사람이 보고 --force 로 쓴다. 2026-09-28 기준 단절 계열로 돌리면 서울 동조성 0.55→0.82, 고리⑥ 11→3곳,
+    고리① 적은 분기 2.66→0.86 이 나왔다.
+    """
+    out = []
+    cp, np_ = cur.get('prose') or {}, new.get('prose') or {}
+    for k in DRIFT_PROSE_R:
+        if k in cp and k in np_:
+            a, b = _num(cp[k]), _num(np_[k])
+            if abs(a - b) >= DRIFT_R:
+                out.append('%s %s → %s' % (k, cp[k], np_[k]))
+    if 'l6_sig' in cp and 'l6_sig' in np_ and abs(int(cp['l6_sig']) - int(np_['l6_sig'])) >= DRIFT_SIG:
+        out.append('고리⑥ 유의 %s곳 → %s곳' % (cp['l6_sig'], np_['l6_sig']))
+    a = (cur.get('link1_new') or {}).get('jeonse_rise') or []
+    b = (new.get('link1_new') or {}).get('jeonse_rise') or []
+    for i, (x, y) in enumerate(zip(a, b)):
+        if abs(x - y) >= DRIFT_RISE:
+            out.append('고리① %d분위 전세 상승률 %s → %s' % (i + 1, x, y))
+    cs = {x['region']: x['score'] for x in cur.get('cycle_strength') or []}
+    for x in new.get('cycle_strength') or []:
+        if x['region'] in cs and abs(cs[x['region']] - x['score']) >= DRIFT_SCORE:
+            out.append('작동 점수 %s %d → %d' % (x['region'], cs[x['region']], x['score']))
+    return out
+
+
+def current_payload(page):
+    txt = open(page, encoding='utf-8').read()
+    m = re.search(r'const D=(\{.*?\});\n', txt, re.S)
+    if not m:
+        raise RuntimeError('cycle 페이지에서 const D를 찾지 못했다')
+    return json.loads(m.group(1))
+
+
 def splice(page, D):
     """cycle/index.html의 const D에서 우리가 다시 계산한 키만 갈아끼운다."""
     txt = open(page, encoding='utf-8').read()
@@ -727,8 +936,10 @@ def splice(page, D):
         if k not in D:
             raise RuntimeError('재계산 결과에 %s가 없다' % k)
         cur[k] = D[k]
-    # 전세가율 풀이 칸(jr_)은 매일 배치(refresh_cycle_data)가 채운다 — 재산정이 지우지 않는다
+    # 전세가율 풀이 칸(jr_)은 매일 배치(refresh_cycle_data)가 채운다 — 재산정이 지우지 않는다.
+    # 페이지 D 에서 바로 나오는 칸(str_·sup_·span_)은 바뀐 cycle_strength 로 여기서 다시 채운다.
     cur['prose'] = dict(keep_jr, **cur['prose'])
+    cur['prose'].update(page_prose(cur))
     for k in DROP:
         cur.pop(k, None)
     dead = [k for k in cur if not re.search(r'D\.%s\b|D\[.%s.\]' % (k, k),
@@ -813,12 +1024,21 @@ def main():
     ap.add_argument('--write', action='store_true', help='cycle/index.html을 갱신한다')
     ap.add_argument('--data', default=None, help='읽을 data.js 경로')
     ap.add_argument('--json', default=None, help='계산 결과를 이 경로에 저장한다')
+    ap.add_argument('--force', action='store_true',
+                    help='지금 페이지와 크게 다른 결과도 쓴다(모델을 바꾼 재산정일 때만)')
     a = ap.parse_args()
     st = load_stats(a.data)
     D = build(st)
     report(D)
     if a.write:
-        n = splice(os.path.join(ROOT, 'cycle', 'index.html'), D)
+        page = os.path.join(ROOT, 'cycle', 'index.html')
+        moved = drift(current_payload(page), D)
+        if moved:
+            print('\n지금 /cycle/ 과 크게 다르다:\n  ' + '\n  '.join(moved))
+            if not a.force:
+                raise SystemExit('쓰지 않았다. 입력(지수 기준 단절·지역 모델)을 확인하고, 모델을 바꾼 재산정이 맞으면 '
+                                 '--force 로 다시 돌린다.')
+        n = splice(page, D)
         path = a.json or ANALYSIS
         d = os.path.dirname(path)
         if d and not os.path.isdir(d):
