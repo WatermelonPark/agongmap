@@ -45,6 +45,16 @@ KIND_TO_CATEGORY = {
     '사이클 이론': '부동산 사이클',
 }
 
+# 도시별 입주물량 편도 '지역별 아파트 공급' 카테고리에 싣는다(2026-09-30 대표 결정). 두 시리즈는 제목의 이 말로
+# 가른다 — 지역 편 제목에는 '입주물량'이 들어가지 않는다(착공 기반 추정이라 분양 확정분을 뜻하는 이 말을 일부러
+# 피한다, make_naver_post.draft_zone). 가르지 않으면 도시 편이 지역 편 알림 이슈를 닫고, '서울 아파트 입주물량'
+# 같은 제목이 서울 지역 편으로 세어져 지역 순번이 밀린다.
+CITY_MARK = '입주물량'
+
+
+def is_city_post(title):
+    return CITY_MARK in (title or '')
+
 def norm(s):
     """눈에 보이는 글자만 남긴다.
 
@@ -160,7 +170,8 @@ def match(posts, issues):
     for iss in issues:
         start = iss['due'] - datetime.timedelta(days=EARLY_DAYS)
         cand = [p for p in posts
-                if p['cat'] == iss['cat'] and p['date'] >= start and p['url'] not in used]
+                if p['cat'] == iss['cat'] and p['date'] >= start and p['url'] not in used
+                and not (iss['kind'] == '지역 공급' and is_city_post(p.get('title')))]
         if not cand:
             continue
         cand.sort(key=lambda p: p['date'])
