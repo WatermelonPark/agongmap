@@ -6,6 +6,7 @@
 지역 이름은 모델(sido_zones)·정본 상수(merge_regions.SRC/DST)에서 가져온다 — 손 목록을 두면
 모델이 바뀔 때 이 시험만 낡는다.
 """
+import copy
 import datetime
 import io
 import os
@@ -429,3 +430,23 @@ def test_align_rows_keeps_rows_when_new_block_has_no_columns():
     """
     old = [{'p': '2026-01-05', 'v': [1, 2]}]
     assert U._align_rows(old, ['가구', '나구'], None) is old
+
+
+def test_size_token_only_when_the_payload_changes(monkeypatch):
+    """update_size 는 규모별 페이로드가 실제로 바뀐 회차에만 '규모별(N)' 토큰을 낸다(전수리뷰 #2).
+
+    변이: update_size 의 같은 값 비교 `if json.dumps(old, …) == json.dumps(…): return []` 를 지우면(예전처럼 성공하면 늘 토큰)
+          첫 단정이 빨개진다(확인) — 그 토큰이 changed 를 채워 원천 전면 장애 rc=3 판정(`and not changed`)을 무디게 했다.
+    픽스처: 저장 STATS 의 규모별 페이로드를 KOSIS 가 그대로 다시 준 조용한 회차, 그리고 한 칸이 바뀐 회차.
+    """
+    st = copy.deepcopy(U.read_current_stats())
+    saved = copy.deepcopy(st['규모별'])
+    monkeypatch.setattr(U, 'kosis', lambda p: [])
+    monkeypatch.setattr(U, '_size_series', lambda rows, is_idx: {})
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    monkeypatch.setattr(U, 'build_size', lambda metrics, prev: copy.deepcopy(saved))
+    assert U.update_size(st) == []
+    changed = copy.deepcopy(saved)
+    changed['dates'] = changed['dates'] + ['9999.12']
+    monkeypatch.setattr(U, 'build_size', lambda metrics, prev: copy.deepcopy(changed))
+    assert U.update_size(st) == ['규모별(%d)' % len(changed['dates'])]
