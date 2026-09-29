@@ -19,6 +19,8 @@ merge_regions.W_GJ 정본을 쓴다(merge_regions.WEIGHTED와 같은 근거).
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import update_adv_data as U  # noqa: E402
 import sido_zones as SZ      # noqa: E402
@@ -66,7 +68,80 @@ def test_rate_is_weighted_not_summed():
     assert '광주' not in got['202606'] and '전남' not in got['202606'],         '옛 이름이 남아 있다 — 필터에서 버려지거나 중복 집계된다'
 
 
-def test_rate_merge_keeps_the_single_side():
-    """한쪽만 온 달. 없는 값을 0으로 세면 비율이 절반으로 내려앉는다."""
-    got = U._merge_gj_rate({'202606': {'광주': 5.0}})
-    assert got['202606']['전남광주'] == 5.0
+def test_rate_merge_follows_the_canonical_fold_rule():
+    """버블밴드 전환율 접기는 정본 _fold_gj(weighted=True)와 같다 — 원천 통합 행이 있으면 그 값, 두 조각이 다 있을 때만
+    가중평균, 한 조각만 오면 전남광주를 만들지 않는다(옛 이름은 어느 경우에도 빠진다).
+
+    변이: _merge_gj_rate 를 예전 본문(두 조각이면 통합 행을 덮어 가중평균, 한 조각이면 `vals[_GJ_NEW] = g if g is not None
+          else j`)으로 되돌리면 'merged+both'(6.0 이 5.9 로)·'one'(5.5 가 실림)·'merged+one' 이 빨개진다(확인).
+    픽스처: 2026 전환기에 KOSIS DT_30404_N0010 이 줄 수 있는 모양 — 두 조각, 한 조각(광주만, 원천 순단), 통합 행과 옛 행
+            섞임. 값은 전환율 수준(5~7%).
+    """
+    shapes = {
+        'both': {'광주': 5.5, '전남': 6.5},
+        'one': {'광주': 5.5},
+        'merged': {'전남광주': 6.0},
+        'merged+one': {'전남광주': 6.0, '전남': 6.5},
+        'merged+both': {'전남광주': 6.0, '광주': 5.5, '전남': 6.5},
+    }
+    want = {'both': round(W_GJ * 5.5 + (1 - W_GJ) * 6.5, 2), 'one': None, 'merged': 6.0,
+            'merged+one': 6.0, 'merged+both': 6.0}
+    for k, vals in shapes.items():
+        got = U._merge_gj_rate({'202606': dict(vals)})['202606']
+        assert got.get('전남광주') == want[k], (k, got)
+        assert got == U._fold_gj(dict(vals), weighted=True), k
+        assert not ({'광주', '전남'} & set(got)), k
+
+
+# ── fetch_bubble: 모델 전 지역이 찬 달만 채택(전수리뷰 #6·#108) ─────────────────────
+FULL = {v: k for k, v in U.BUBBLE_SHORT.items()}     # 축약 → 원천 전체명(아무거나 하나)
+
+
+def _bubble_rows(month_regions):
+    """{PRD_DE: [지역]} → KOSIS DT_30404_N0010 응답 모양. 전남광주는 광주광역시·전라남도 두 조각으로 준다
+    (원천이 통합 행을 아직 안 내는 달의 실제 모양). 집계(전국·수도권·지방)는 원천 이름 그대로."""
+    rows = []
+    for prd, regs in month_regions.items():
+        for k, r in enumerate(regs):
+            names = [FULL['광주'], FULL['전남']] if r == '전남광주' else [FULL.get(r, r)]
+            for n, nm in enumerate(names):
+                rows.append({'C1_NM': '아파트', 'C2_NM': nm, 'C2': 'a%02d%d' % (k, n), 'PRD_DE': prd,
+                             'DT': str(5.0 + k / 100)})
+    return rows
+
+
+def _run_bubble(monkeypatch, month_regions, extra=()):
+    monkeypatch.setattr(U, 'KEY', 'x')
+    monkeypatch.setattr(U, 'ECOS_KEY', 'x')
+    rows = _bubble_rows(month_regions) + list(extra)
+    monkeypatch.setattr(U, 'kosis', lambda p: [dict(r) for r in rows])
+    monkeypatch.setattr(U, 'http_json', lambda url, tries=3: {'StatisticSearch': {'row': [
+        {'TIME': '202607', 'DATA_VALUE': '4.1'}]}})
+    return U.fetch_bubble()
+
+
+def test_bubble_skips_a_partial_latest_month(monkeypatch):
+    """최신 달에 모델 지역 일부만 온 응답이면 그 달을 버리고 직전 완비 달을 쓴다. 싣는 지역은 모델 전부다.
+
+    변이: 완비 판정을 예전 `len(by_prd[p]) >= 10` 으로 되돌리면 12곳뿐인 2026.08 이 채택되어 빨개진다(확인 — 서울·경기
+          ·인천·강원·전북·제주·전남광주가 버블밴드에서 조용히 사라진다).
+    픽스처: 원천이 최신 달을 일부만 낸 회차 — 202606·202607 은 모델 19곳(전남광주는 광주·전남 두 조각), 202608 은 앞에서
+            12곳만.
+    """
+    regs = list(U.BUBBLE_REGIONS)
+    got = _run_bubble(monkeypatch, {'202606': regs, '202607': regs, '202608': regs[:12]})
+    assert got['prd'] == '2026.07'
+    assert got['regions'] == regs and set(got['conv']) == set(regs)
+
+
+def test_bubble_without_any_complete_month_raises(monkeypatch):
+    """모든 달에서 한 지역이라도 빠지면 예외를 올린다 — main() 이 'bubble' 실패로 남기고 직전 값을 지킨다.
+
+    변이: 완비 판정을 예전 `len(by_prd[p]) >= 10` 으로 되돌리면 18곳뿐인 달이 채택되어 예외가 안 나고 빨개진다(확인).
+    픽스처: 원천이 전남 조각을 석 달 내내 비운 회차(광주 조각만 있어 전남광주를 만들 수 없다).
+    """
+    regs = [r for r in U.BUBBLE_REGIONS if r != '전남광주']
+    months = ('202606', '202607', '202608')
+    gwangju = [{'C1_NM': '아파트', 'C2_NM': FULL['광주'], 'C2': 'g', 'PRD_DE': p, 'DT': '5.5'} for p in months]
+    with pytest.raises(RuntimeError, match='GUARD'):
+        _run_bubble(monkeypatch, {p: regs for p in months}, gwangju)
