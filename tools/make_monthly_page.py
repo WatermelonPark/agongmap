@@ -198,6 +198,18 @@ def last_idx(d):
     return len(dates) - 1, dates[-1]
 
 
+def jeonse_idx(jr):
+    """전세가율 기준월의 (열 번호, 라벨) — /jeonse-ratio/·/cycle/·시도 리포트와 같은 정본 규칙.
+
+    I.jeonse_ref_index(JEONSE_NEED 가 전부 채워진 마지막 달)를 그대로 쓴다. 예전엔 last_idx(dates[-1])라
+    원천이 일부 지역만 채운 최신 달을 '기준'으로 달고 빈 지역 행을 조용히 빼, 같은 날 /jeonse-ratio/ 와
+    다른 기준월·다른 전국 값을 말하고 피드에 새 판까지 만들었다(전수리뷰 #24·#106). 표와 요약(top3_lines)이
+    이 한 함수를 쓴다.
+    """
+    i = I.jeonse_ref_index(jr, I.JEONSE_NEED)
+    return i, jr['dates'][i]
+
+
 def series_at(d, i):
     """지역 → 그 시점 값. 없는 지역은 None."""
     ser = d.get('series') or {}
@@ -408,7 +420,7 @@ def build(adv, sts):
     # ── 5. 전세가율 ──────────────────────────────────────────────
     jr = sts.get('전세가율')
     if jr:
-        i, p = last_idx(jr)
+        i, p = jeonse_idx(jr)
         cur = series_at(jr, i)
         j = SZ.month_back(jr['dates'], i, 12)
         prev = series_at(jr, j) if j is not None else {}
@@ -499,7 +511,7 @@ def top3_lines(adv, sts):
             tops['unsold'] = (head, [(r, _signed(v) + '호') for r, v in _rank(vals)])
     jr = sts.get('전세가율')
     if jr:
-        i, _ = last_idx(jr)
+        i, _ = jeonse_idx(jr)
         j = SZ.month_back(jr['dates'], i, 12)
         head = '1년 새 전세가율 변화가 큰 곳'
         if j is None:
