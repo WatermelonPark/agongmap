@@ -58,6 +58,26 @@ def test_quiz_period_wording_follows_the_canon():
         assert int(m.group(2)) == SZ.START_DONE_MONTHS_NEW
 
 
+def test_supply_jeonse_item_teaches_the_cycle_canon():
+    """투자자 퀴즈의 '입주 물량 → 전세' 문항은 사이클 리포트 고리①과 같은 원리를 가르친다(전수리뷰 #51, 대표 결정 ⑤).
+
+    예전 해설은 '누적 재고 수준이 함께 높아야 꺾인다'며 정본(쌓인 총량이 아니라 그 분기 입주가 다음 분기 전세를 누른다)과
+    반대 결론을 '데이터로 보면'이라 가르쳤고, 어떤 분석 산출물에도 없는 +1.88%·0.00% 를 썼다.
+    변이(실제로 확인): 옛 문항(정답 X, '+1.88%')으로 되돌리면 빨개진다. 해설에 '분기당 +2.1%' 같은 손 퍼센트를 넣어도 빨개진다.
+    픽스처: 실제 home-quiz.js 와 손으로 쓴 /cycle/ 고리① 주석(정본 분석 문장).
+    """
+    qs = _quizsets()
+    m = re.search(r"\{q:'([^']*입주 물량이 몰리면[^']*)',\s*opts:\['O','X'\],\s*answer:(\d),\s*exp:'([^']*)'", qs)
+    assert m, "'입주 물량이 몰리면' 문항을 찾지 못했다"
+    q, ans, exp = m.group(1), int(m.group(2)), m.group(3)
+    assert ans == 0, '정본은 그 분기 입주가 다음 분기 전세를 누른다(O)'
+    canon = '쌓인 총량이 아니라 지금 쏟아지는 물량이 전세를 누른다.'
+    assert canon in _read('cycle', 'index.html'), '/cycle/ 고리① 문장이 바뀌었다 — 퀴즈 해설도 같이 볼 것'
+    assert canon in exp
+    assert not re.search(r'\d+(?:\.\d+)?%', q + exp), '해설에 출처 없는 퍼센트가 있다 — 숫자는 사이클 리포트로 보낸다'
+    assert '1.88' not in qs
+
+
 # ── 제도 문항 기준일·검토 기한 ─────────────────────────────────────────────
 def test_dated_policy_items_carry_asof_and_review():
     qs = _quizsets()
