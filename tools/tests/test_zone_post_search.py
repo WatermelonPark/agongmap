@@ -98,3 +98,11 @@ def test_gwangju_jeonnam_uses_search_forms(monkeypatch):
     assert '광주부동산전망' in d['tags']
     names = [z for z in SZ.ORDER if z not in SZ.AGG]
     assert P._zone_of_title(d['title'], names) == '전남광주'
+
+
+def test_province_tags_use_the_city_people_search(monkeypatch):
+    """도 단위 편의 태그는 대표 도시(2026-09-29 키워드도구: 충북아파트 70 대 청주아파트 11,310/월). 제목은 도 이름 유지.
+    변이: CITY_TAG 에서 충북을 빼면 빨개진다."""
+    d = _zone(monkeypatch, name='충북', seq=7, patch={'uwarn': False})
+    assert '청주부동산전망' in d['tags'] and '청주아파트' in d['tags'] and '충북아파트공급물량' in d['tags']
+    assert '충북' in d['title']
