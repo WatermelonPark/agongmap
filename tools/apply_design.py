@@ -16,6 +16,11 @@ except Exception:
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# 감사 도구와 같은 기준을 쓴다 — 감사가 준수로 본 원형(50%)·데이터 틴트를 적용 도구가
+# 네모·회색으로 바꾸던 어긋남(전수리뷰 #88). 기준은 audit_design 한 곳에만 둔다.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from audit_design import RADIUS_SHAPE, warm_neutral   # noqa: E402
+
 FONT_LINK = ('<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>\n'
              '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard'
              '@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"'
@@ -38,13 +43,6 @@ def cool(h):
     d = 50.0 * (255.0 - L) / 255.0
     return '%02x%02x%02x' % tuple(max(0, min(255, int(round(x))))
                                   for x in (L - 0.4*d, L + 0.6*d, L + 0.1*d))
-
-
-def is_warm(h):
-    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-    ch = max(r, g, b) - min(r, g, b)
-    L = 0.299*r + 0.587*g + 0.114*b
-    return ch <= 32 and (g - b) >= (r - g) and r > b + 4 and 40 <= L <= 254
 
 
 def apply(path):
@@ -90,13 +88,15 @@ def apply(path):
         s = re.sub(r'\s*text-transform:\s*uppercase;?', '', s)
         log.append('uppercase')
 
-    # 4) radius 두 값 — 누르는 것만 3px
+    # 4) radius 두 값 — 누르는 것만 3px. 원형(RADIUS_SHAPE)은 모양 자체라 그대로 둔다
     def rad(mo):
         sel, body = mo.group(1), mo.group(2)
         key = re.sub(r'\s+', ' ', sel.strip())
         touch = any(t in key for t in TOUCH)
-        return sel + '{' + re.sub(r'border-radius:[^;}]+',
-                                  'border-radius:' + ('3px' if touch else '0'), body) + '}'
+        new = 'border-radius:' + ('3px' if touch else '0')
+        return sel + '{' + re.sub(r'border-radius:([^;}]+)',
+                                  lambda d: d.group(0) if d.group(1).strip() in RADIUS_SHAPE else new,
+                                  body) + '}'
     s2 = re.sub(r'([^{};]+)\{([^{}]*border-radius:[^{}]*)\}', rad, s)
     if s2 != s: log.append('radius')
     s = s2
@@ -107,7 +107,7 @@ def apply(path):
     s = s.replace('var(--accent)', 'var(--ink)')
     s = s.replace('var(--gold-ink)', 'var(--muted)').replace('var(--gold)', 'var(--ink2)')
     s = re.sub(r'--(?:accent|gold|gold-ink):\s*#[0-9a-fA-F]{3,6};?', '', s)
-    warm = [h for h in {x.lower() for x in re.findall(r'#([0-9a-fA-F]{6})\b', s)} if is_warm(h)]
+    warm = [h for h in {x.lower() for x in re.findall(r'#([0-9a-fA-F]{6})\b', s)} if warm_neutral(h)]
     for h in warm:
         s = re.sub('#' + h, '#' + cool(h), s, flags=re.I)
     if warm: log.append('웜색%d종' % len(warm))

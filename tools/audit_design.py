@@ -24,9 +24,14 @@ except Exception:
     pass
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-os.chdir(ROOT)
 
-SHARED = io.open('app.css', encoding='utf-8').read()
+# 불러올 때 작업 디렉터리를 바꾸지 않는다 — apply_design 과 시험이 이 모듈의 상수를 가져다 쓴다.
+SHARED = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+
+# radius 허용 값 — 데이터=0 / 터치=3px(var(--r-touch)) 두 값, 그리고 모양 자체인 원형(50%).
+# apply_design 이 같은 상수를 읽는다: 감사가 허용한 값을 적용 도구가 깨뜨리면 안 된다(전수리뷰 #88).
+RADIUS_SHAPE = {'50%'}   # 범례 점 같은 원형 — 두 값 규칙의 대상이 아니다
+RADIUS_OK = {'0', '0px', 'var(--r-touch)', '3px'} | RADIUS_SHAPE
 
 
 # 데이터 스케일 틴트 예외 — 웜 뉴트럴 판정은 '넓은 면의 베이지'를 잡으라고 만든
@@ -53,9 +58,10 @@ def audit(path):
     style = ''.join(re.findall(r'<style[^>]*>(.*?)</style>', s, re.S))
     scope = css if uses_shared else (style or s)
 
-    radii = set(re.findall(r'border-radius:\s*([^;}\n]+)', scope))
-    OK = {'0', '0px', 'var(--r-touch)', '3px', '50%'}
-    radii = {r.strip() for r in radii if r.strip() not in OK}
+    # 따옴표에서 멈춘다 — 세미콜론 없는 인라인 style="...border-radius:var(--r-touch)" 에서
+    # 뒤따르는 마크업 꼬리를 값으로 읽던 오탐(전수리뷰 #89)
+    radii = set(re.findall(r'border-radius:\s*([^;}\n"\']+)', scope))
+    radii = {r.strip() for r in radii if r.strip() not in RADIUS_OK}
     hexes = {h.lower() for h in re.findall(r'#([0-9a-fA-F]{6})\b', s)}
     warms = sorted(h for h in hexes if warm_neutral(h))
 
@@ -80,7 +86,25 @@ def audit(path):
     }
 
 
+def violations(a):
+    """audit() 결과 → 위반 표지 목록. radius 는 규칙 밖 값이 한 종이라도 있으면 위반이다
+    (예전 문턱 '>2'는 규칙 밖 값 두 종까지 통과시켰다, 전수리뷰 #89)."""
+    flags = []
+    nr = len(a['radii'])
+    if not a['font']: flags.append('폰트')
+    if a['w800']: flags.append('800×%d' % a['w800'])
+    if a['upper']: flags.append('UP×%d' % a['upper'])
+    if a['track']: flags.append('자간×%d' % a['track'])
+    if nr: flags.append('radius%d종(%s)' % (nr, ', '.join(a['radii'])))
+    if a['gold']: flags.append('금색×%d' % a['gold'])
+    if a['warm']: flags.append('웜색%d종' % len(a['warm']))
+    if a['shadow'] > 1: flags.append('그림자×%d' % a['shadow'])
+    if a['thalign']: flags.append('표헤더우측정렬')
+    return flags
+
+
 def main():
+    os.chdir(ROOT)
     # 검사 대상은 자동 발견한다. 하드코딩 목록이던 시절 investor-test·redev-test·
     # weekly·faq·지표 페이지 2종이 통째로 빠져 있었다(2026-08-01 발견) — 퀴즈 3종은
     # 같은 위반을 갖고 있었는데 burini-test만 잡혔다. 새 페이지를 만들 때마다 목록
@@ -104,16 +128,7 @@ def main():
             continue
         a = audit(p)
         nr = len(a['radii'])
-        flags = []
-        if not a['font']: flags.append('폰트')
-        if a['w800']: flags.append('800×%d' % a['w800'])
-        if a['upper']: flags.append('UP×%d' % a['upper'])
-        if a['track']: flags.append('자간×%d' % a['track'])
-        if nr > 2: flags.append('radius%d종' % nr)
-        if a['gold']: flags.append('금색×%d' % a['gold'])
-        if a['warm']: flags.append('웜색%d종' % len(a['warm']))
-        if a['shadow'] > 1: flags.append('그림자×%d' % a['shadow'])
-        if a['thalign']: flags.append('표헤더우측정렬')
+        flags = violations(a)
         print('%-26s %-4s %-5s %-4d %-4d %-4d %-7d %-4d %-5d %d'
               % (p[:26], 'O' if a['shared'] else '-', 'O' if a['font'] else 'X',
                  a['w800'], a['upper'], a['track'], nr, a['gold'], len(a['warm']), a['shadow']))
