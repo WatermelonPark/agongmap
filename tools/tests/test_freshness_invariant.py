@@ -87,11 +87,53 @@ def test_missing_sido_row_is_reported_as_such():
 
 def test_missing_row_does_not_become_a_false_sum_alarm():
     """없는 행을 0으로 세고 비교하면 '값이 틀렸다'는 오탐이 된다 — 그 규칙은
-    건너뛰고 결측만 보고해야 한다."""
+    건너뛰고 결측만 보고해야 한다.
+
+    결측 보고까지 본다(전수리뷰 #39). 예전엔 '(축없음)' 표시만 하고 실패로 올리지 않아 이 시험이 '오탐 없음'만
+    확인하며 초록이었다. 변이(확인): check_sido_sum 의 agg_gone 보고를 지우면 빨개진다.
+    """
     st = _stats([30])
     del st['준공']['series']['수도권']
     fails = C.check_sido_sum(st)
     assert not any('수도권=' in f for f in fails), fails
+    assert any('집계 행 결측' in f and '수도권' in f for f in fails), fails
+
+
+def test_latest_national_cell_missing_is_reported():
+    """최신 달 전국 칸만 None 이다. merge_basic 은 새 달을 전 지역 None 열로 만든 뒤 원천이 준 지역만 채우므로,
+    KOSIS 가 '총계' 행을 빼거나 이름을 바꾸면 이 모양이 된다 — 기본 탭인 전국의 최신 달이 빈다.
+
+    변이(확인): 집계 칸 구멍 검사(`holes`)를 지우면 빨개진다(예전엔 None 칸을 위치 불문 건너뛰어 [] 였다).
+    픽스처: 전 축이 갖춰진 두 달에서 전국 마지막 칸만 None.
+    """
+    st = _stats([30, 40])
+    st['준공']['series']['전국'][-1] = None
+    fails = C.check_sido_sum(st)
+    assert any('전국 칸 결측' in f and '2011.02' in f for f in fails), fails
+
+
+def test_short_national_column_is_a_hole_too():
+    """전국 열이 다른 열보다 짧다(끝 칸이 아예 없다) — None 과 같은 결측이다.
+
+    변이(확인): holes 조건에서 `i >= len(col)` 을 지우면 빨개진다.
+    픽스처: 두 달 중 전국 열만 한 칸.
+    """
+    st = _stats([30, 40])
+    st['준공']['series']['전국'] = [30]
+    fails = C.check_sido_sum(st)
+    assert any('전국 칸 결측' in f for f in fails), fails
+
+
+def test_missing_national_row_is_not_silently_skipped():
+    """전국 행이 통째로 없으면 예전엔 그 계열이 출력 줄도 남기지 않고 빠졌다(초록).
+
+    변이(확인): 계열 머리의 `continue` 조건에 `not ser.get('전국')` 을 되살리면 빨개진다.
+    픽스처: 인허가에서 전국 행만 삭제.
+    """
+    st = _stats([30], name='인허가')
+    del st['인허가']['series']['전국']
+    fails = C.check_sido_sum(st)
+    assert any('인허가 집계 행 결측' in f and '전국' in f for f in fails), fails
 
 
 def test_rule_set_does_not_shrink_silently():
@@ -348,23 +390,30 @@ def test_seeding_never_narrows_the_window(monkeypatch):
 
 def test_watchdog_supply_check_lower_bounds_by_our_own_date(monkeypatch):
     """감시의 하한은 **우리 시점**이어야 한다. 오늘 날짜 기준으로 잡으면 우리가
-    많이 뒤처졌을 때 창 밖이 되어 뒤처짐을 못 본다."""
+    많이 뒤처졌을 때 창 밖이 되어 뒤처짐을 못 본다.
+
+    생산 함수(_supply_since)와 그것을 부르는 source_jobs 의 공급 getter 를 직접 본다(전수리뷰 #93). 예전 시험은
+    하한을 시험 안에서 스스로 계산해 가짜에 넣었으므로, _supply_since 를 오늘 기준으로 바꿔도 초록이었다.
+    변이(확인): _supply_since 본문을 `t = datetime.date.today(); return '%04d%02d' % (t.year, t.month)` 로 바꾸면
+    빨개진다.
+    픽스처: 미분양이 2026.06 에 멈춰 있고(백로그 4의 실제 보류 상태) 원천은 2026.07 을 낸 날.
+    """
+    assert C._supply_since('2026.06') == '202605'
+    assert C._supply_since('2026.01') == '202512'      # 연 넘김
+    assert C._supply_since(None) is None
+    assert C._supply_since('2026') is None
     got = {}
 
-    def fake_latest(tbl, cycle, since=None):
-        got['since'] = since
+    def fake_complete(tbl, since=None, want_total=False):
+        got[tbl] = since
         return '202607'
 
-    monkeypatch.setattr(C, 'rone_latest', fake_latest)
-    monkeypatch.setattr(C.time, 'sleep', lambda s: None)
-    cfg = {'tbl': 'T1'}
-    last = '2026.06'
-    since = C.digits(last)[:6]
-    y, m = int(since[:4]), int(since[4:6]) - 1
-    since = '%04d%02d' % ((y, m) if m > 0 else (y - 1, 12))
-    assert since == '202605'
-    r = C.check('미분양', last, lambda: fake_latest(cfg['tbl'], 'MM', since), C.GRACE_MONTHLY)
-    assert got['since'] == '202605'
+    monkeypatch.setattr(C, 'rone_latest_complete', fake_complete)
+    stats = {'미분양': {'dates': ['2026.05', '2026.06'], 'series': {}}}
+    jobs = C.source_jobs(stats)
+    tbl = U.SUPPLY_CONF['미분양']['tbl']
+    r = C.check('미분양', '2026.06', jobs[('supply', '미분양')], C.GRACE_MONTHLY)
+    assert got[tbl] == '202605', got
     assert r and '미분양' in r, '원천이 더 최신인데 뒤처짐을 못 잡았다'
 
 
@@ -442,7 +491,17 @@ def test_lookup_failure_is_not_read_as_healthy(monkeypatch):
     monkeypatch.setattr(C, 'rone_region_names', dead)
     assert C.check_region_rows() == []
     assert len(C.FETCH_FAIL) == 2, C.FETCH_FAIL
-    C.FETCH_FAIL[:] = []
+    # 판정까지 본다(전수리뷰 #37). 예전엔 다른 실패가 없는 날 _gate 가 'VERDICT=ok' 를 찍고 돌아왔다 —
+    # FETCH_FAIL 은 다른 실패가 이미 있을 때 종료 코드를 가를 때만 쓰였다.
+    # 변이(확인): _gate 의 `if FETCH_FAIL:` 분기를 지우면 SystemExit 이 안 나 빨개진다.
+    C.SKIPPED[:] = []
+    try:
+        import pytest
+        with pytest.raises(SystemExit) as e:
+            C._gate([None] * 17)
+        assert e.value.code == C.EXIT_RETRYABLE
+    finally:
+        C.FETCH_FAIL[:] = []
 
 
 def test_batch_and_watchdog_resolve_regions_identically():
