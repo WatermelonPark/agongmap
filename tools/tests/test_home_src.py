@@ -49,6 +49,36 @@ def test_moved_script_fails_loudly_until_external_is_set(tmp_path):
     assert all(m in s for m in HS.MARKERS), 'EXTERNAL 한 줄로 옮긴 스크립트를 따라가지 못한다'
 
 
+def test_emptied_body_script_raises_even_if_the_total_is_big_enough(tmp_path):
+    """본문 스크립트(home-app.js)가 비면 — 나머지 파일만으로 합계 하한·공용 표식을 넘어도 — 예외를 던진다(전수리뷰 #13).
+
+    변이: home_source 에서 `_check_file(rel, body)` 호출을 빼면 이 시험이 빨개진다(실제로 확인 — 예전엔 206KB 부분
+          소스를 조용히 돌려줬다).
+    픽스처: 저장소의 index.html·home-quiz.js·home-stats.js 사본 + 주석 한 줄뿐인 home-app.js — 본문을 EXTERNAL 에
+            없는 새 파일로 옮기고 원래 파일을 비워 둔 상태. 둘째 모양은 크기는 넘지만 표식 하나(boot)가 빠진 본문.
+    """
+    for rel in (HS.HOME,) + HS.PARTS:
+        shutil.copyfile(os.path.join(ROOT, rel), str(tmp_path / rel))
+    (tmp_path / 'home-app.js').write_text('// moved\n', encoding='utf-8')
+    with pytest.raises(HS.HomeSourceError):
+        HS.home_source(root=str(tmp_path))
+    with pytest.raises(HS.HomeSourceError):
+        HS.home_files(root=str(tmp_path))
+    body = io.open(os.path.join(ROOT, 'home-app.js'), encoding='utf-8').read().replace('function boot(', 'function bo0t(')
+    (tmp_path / 'home-app.js').write_text(body, encoding='utf-8')
+    with pytest.raises(HS.HomeSourceError):
+        HS.home_source(root=str(tmp_path))
+
+
+def test_every_file_marker_is_in_its_own_file():
+    """FILE_MARKERS 가 지금 저장소에서 제 파일에 있다 — 표식을 잘못 적으면 여기서 먼저 빨개진다."""
+    files = dict(HS.home_files())
+    for rel, marks in HS.FILE_MARKERS.items():
+        assert rel in files, rel
+        assert all(m in files[rel] for m in marks), (rel, [m for m in marks if m not in files[rel]])
+        assert len(files[rel].encode('utf-8')) >= HS.FILE_MIN_BYTES.get(rel, 0), rel
+
+
 def test_missing_file_raises(tmp_path):
     with pytest.raises(HS.HomeSourceError):
         HS.home_source(root=str(tmp_path))
