@@ -50,23 +50,27 @@ def _js_func(src, name):
 
 
 def _home_bubble_js():
-    """홈 renderBubbleSec 의 '최신 전세가율' 함수와 월세수익률 식을 그대로 뽑는다."""
+    """홈 renderBubbleSec 의 '최신 전세가율' 함수, 월세수익률·위험선 식, 상단 초과·매수 신호권 판정 조건을 그대로 뽑는다.
+    판정 조건도 홈에서 뽑는다 — 시험 안에 `loan<=lo` 를 복사해 두면 홈 경계가 바뀌어도 옛 경계를 '홈 판정'으로 기대한다
+    (전수리뷰 #96)."""
     f = _js_func(HS.home_source(), 'renderBubbleSec')
     lat = re.search(r'const latest=(r=>\{.*?return null;\});', f)
-    lo = re.search(r'const lo=([^,;]+),hi=', f)
-    assert lat and lo, '버블밴드의 latest()·월세수익률 식을 찾지 못했다 — 홈 코드 모양이 바뀌었는지 볼 것'
-    return lat.group(1), lo.group(1)
+    band = re.search(r'const lo=([^,;]+),hi=([^;]+);', f)
+    hi_c = re.search(r"if\(([^)]*)\)\{cls='hi';", f)
+    lo_c = re.search(r"else if\(([^)]*)\)\{cls='lo';txt='매수 신호권'", f)
+    assert lat and band and hi_c and lo_c, '버블밴드의 latest()·월세수익률 식·판정 조건을 찾지 못했다 — 홈 코드 모양이 바뀌었는지 볼 것'
+    return lat.group(1), band.group(1), band.group(2), hi_c.group(1), lo_c.group(1)
 
 
 def _site_bubble(adv, sts):
-    """홈 코드로 계산한 {지역: [lo.toFixed(2), loan<=lo]}."""
-    latest, expr = _home_bubble_js()
-    js = ('const J=%s,B=%s;const latest=%s;const out={};'
+    """홈 코드로 계산한 {지역: [lo.toFixed(2), 매수 신호권인가]} — 판정은 홈의 if/else if 순서 그대로(상단 초과가 먼저)."""
+    latest, expr, hexpr, hcond, lcond = _home_bubble_js()
+    js = ('const J=%s,B=%s;const latest=%s;const out={};const loan=B.loan.v;'
           'for(const rg of (B.regions||Object.keys(B.conv))){const cv=B.conv[rg],jr=latest(rg);'
-          'if(cv==null||jr==null)continue;const lo=%s;out[rg]=[lo.toFixed(2),B.loan.v<=lo];}'
+          'if(cv==null||jr==null)continue;const lo=%s,hi=%s;out[rg]=[lo.toFixed(2),(%s)?false:!!(%s)];}'
           'process.stdout.write(JSON.stringify(out));'
           % (json.dumps(sts['전세가율'], ensure_ascii=False), json.dumps(adv['bubble'], ensure_ascii=False),
-             latest, expr))
+             latest, expr, hexpr, hcond, lcond))
     return _node(js)
 
 
@@ -115,6 +119,23 @@ def test_rent_yield_section_prints_the_site_value_and_verdict():
     assert '5.37' not in html, '전월세전환율을 월세수익률로 찍었다'
     want = '월세로 사는 비용이 대출 이자보다 비싼 상태' if site[1] else '대출 이자가 월세보다 비싼 상태'
     assert want in html, '판정이 홈(loan<=lo → 매수 신호권)과 반대다: %s' % html
+
+
+# 경계 픽스처: 전세가율 62.5 × 전환율 5.0 = 월세수익률 3.125(이진수로 정확), 위험선 6.25. 대출금리를 경계 아래·같음·
+# 밴드 안·위험선 위로 둔다. 홈과 블로그가 같은 판정을 내야 한다.
+@pytest.mark.parametrize('loan,buy', [(3.12, True), (3.125, True), (5.0, False), (7.0, False)])
+def test_rent_yield_verdict_matches_the_home_at_the_boundaries(loan, buy):
+    """블로그 판정 문구(extra_section)가 홈 renderBubbleSec 의 판정(홈 코드에서 뽑은 조건)과 경계에서도 같다(전수리뷰 #96).
+    변이(실제로 확인): home-stats.js 의 매수 신호권 조건 `loan<=lo` 를 `loan<lo` 로 바꾸면 3.125 칸이, `loan<=hi` 로 바꾸면
+    5.0 칸이 빨개진다(예전 하네스는 판정식을 시험 안에 복사해 둬서 둘 다 초록이었다).
+    픽스처: 경계를 정확히 재도록 만든 합성 한 지역(전국) — 값의 모양은 FIX_ADV·FIX_STS 와 같다."""
+    adv = {'bubble': {'prd': '2026.06', 'loan': {'v': loan, 'p': '2026.07'}, 'regions': ['전국'], 'conv': {'전국': 5.0}}}
+    sts = {'전세가율': {'dates': ['2026.06', '2026.07'], 'series': {'전국': [62.0, 62.5]}}}
+    site = _site_bubble(adv, sts)['전국']
+    assert site == ['3.13', buy], (site, '홈 판정이 픽스처 기대와 다르다 — 홈 경계가 바뀌었다면 블로그와 함께 고칠 것')
+    html = P.extra_section(adv, sts, 2)
+    want = '월세로 사는 비용이 대출 이자보다 비싼 상태' if site[1] else '대출 이자가 월세보다 비싼 상태'
+    assert want in html, (loan, html)
 
 
 def test_fixed2_matches_js_tofixed_on_ties():

@@ -395,7 +395,14 @@ def test_refnote_copy_is_identical_on_home_and_zone():
 def test_unsold_ratio_reads_the_same_everywhere():
     """같은 미분양 배수가 카드와 표에서 다르게 보이면 안 된다(2026-08-12 리뷰:
     0.38배 / 0.4배). 1 미만은 둘째 자리까지 — 0.01배를 '0.0배'로 뭉개면 0과
-    구별이 안 된다."""
+    구별이 안 된다.
+
+    페이지 대조는 미분양 배수가 있는 **모든** 시도 리포트에서 카드·표의 표기를 '배'·'%'·'1% 미만' 모두로 모아, 각각 하나 이상
+    잡혔는지와 umx(um) 하나로 같은지를 본다. 예전엔 '배' 표기만 잡아 1 미만(% 표기) 지역에서 아무것도 못 모으고 늘 참이었다
+    — 원래 사고(0.38배 / 0.4배)가 바로 1 미만 구간의 일이다(전수리뷰 #102). 대상 지역은 데이터(ADV.sido 의 um)에서 고른다.
+    변이(실제로 확인): make_sido_pages 표 칸을 `umx(um) if um >= 1 else '%.2f배' % um` 으로 바꾸면 1 미만 지역(2026-09 전국
+    71% 등 — 표가 0.71배로 갈린다)에서 빨개진다.
+    픽스처: 배치가 구운 zone/<지역>/index.html 과 저장소 data.js 의 ADV.sido(um 이 1 이상·미만인 지역이 섞인 현재 상태)."""
     import io, os, re, sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
     import make_sido_pages as M
@@ -407,11 +414,17 @@ def test_unsold_ratio_reads_the_same_everywhere():
     assert M.umx(0.996) == '1.0배' and M.umx(0.95) == '95%'
 
     root = os.path.join(os.path.dirname(__file__), '..', '..')
-    for z in ('수도권', '제주', '세종'):
-        h = io.open(os.path.join(root, 'zone', z, 'index.html'), encoding='utf-8').read()
-        seen = set(re.findall(r'분기 적정물량(?:\([\d,]+호\))?의 ([\d.]+배)', h))
-        seen |= set(re.findall(r'data-ref="un">.*?</td><td>[\d,]+</td><td>([\d.]+배)', h))
-        assert len(seen) <= 1, '%s: 같은 배수가 여러 표기로 보인다 %s' % (z, sorted(seen))
+    V = r'(\d+(?:\.\d+)?배|1% 미만|\d+%)'
+    adv, _ = M.load()
+    zs = [z for z in adv['sido']['zones'] if z.get('um') is not None and z.get('unsold') is not None]
+    assert zs, '미분양 배수가 있는 지역이 없다 — 대조할 페이지가 없다'
+    for z in zs:
+        h = io.open(os.path.join(root, 'zone', z['z'], 'index.html'), encoding='utf-8').read()
+        card = set(re.findall(r'분기 적정물량(?:\([\d,]+호\))?의 ' + V, h))
+        table = set(re.findall(r'data-ref="un">.*?</td><td>[\d,]+</td><td>' + V, h))
+        assert card and table, '%s: 카드(%s)·표(%s)에서 미분양 배수 표기를 못 찾았다' % (z['z'], card, table)
+        assert card == table == {M.umx(z['um'])}, '%s: 같은 배수가 여러 표기로 보인다 카드 %s · 표 %s · 정본 %s' % (
+            z['z'], sorted(card), sorted(table), M.umx(z['um']))
 
 
 def test_reference_rows_are_keyboard_reachable():

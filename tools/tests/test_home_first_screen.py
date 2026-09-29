@@ -378,6 +378,28 @@ def test_home_hero_band_fits():
 
 # ── B2·C4①: 식 한 줄은 홈 산출 방법·홈 카드 ⓘ·시도 리포트·블로그에서 같은 말 ──────────────────────────
 
+def _check_formula(eq, need, fut, inow, tot, who):
+    """식 문장(eq)을 읽는 사람처럼 검산한다: 적힌 세 항과 '+ 쌓인 부족 / − 남은 재고' 부호로 순부족(tot)이 나와야 하고,
+    적힌 세 항은 화면 정수(display_ints)와 같아야 한다. 햇수('3년'·'4년')는 숫자 항이 아니다.
+    한 자리 항(0~9)도 읽는다 — 옛 추출식 [\\d,]{2,} 는 지난 재고가 0 근처인 분기에 IndexError 로 게이트를 막았다(전수리뷰 #95)."""
+    nums = [int(x.replace(',', '')) for x in re.findall(r'(?<![\d,])\d[\d,]*(?![\d,]|년)', eq)]
+    assert len(nums) == 3, (who, eq, nums)
+    sign = 1 if '쌓인 부족' in eq else -1
+    assert nums == [need, fut, abs(inow)], (who, eq, (need, fut, inow))
+    assert nums[0] - nums[1] + sign * nums[2] == tot == need - fut - inow, (who, eq, tot)
+
+
+@pytest.mark.parametrize('inow', [-329, -5, 0, 7, 1434])
+def test_formula_check_reads_single_digit_terms(inow):
+    """식 검산이 지난 재고가 한 자리(0 포함)여도 게이트를 막지 않고 검산한다(전수리뷰 #95).
+    픽스처: 세종 실데이터 모양(필요량 7,200·입주 추정 6,622)에 지난 재고만 실제 값(−329·1,434)과 0 근처 경계(−5·0·7)로 바꾼 행.
+    변이(실제로 확인): _check_formula 의 추출식을 옛 [\\d,]{2,} 로 되돌리면 −5·0·7 칸이 빨개지고, sido_zones.formula_text 의
+    갈래 조건을 뒤집어(inow > 0 이면 '쌓인 부족') 부호와 말이 어긋나게 하면 0 을 뺀 칸이 모두 빨개진다."""
+    need, fut = 7200, 6622
+    tot = need - fut - inow
+    _check_formula(SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, need, fut, inow), need, fut, inow, tot, inow)
+
+
 def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
     """'3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'(sido_zones.formula_text) 하나를 홈 산출 방법 첫 항목(손으로
     쓴 index.html)·홈 카드 ⓘ(구운 ftxt)·시도 리포트 '숫자로 보면'(생성기)·블로그 지역 편(초안 생성기)이 같이 쓴다.
@@ -404,10 +426,7 @@ def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
         need, fut, inow, tot = SZ.display_ints(z, H)
         eq, res = z['ftxt'].split(' = ')
         assert eq == SZ.formula_text(H, SZ.BACKLOG_WINDOW, need, fut, inow), z['z']
-        nums = [int(x.replace(',', '')) for x in re.findall(r'[\d,]{2,}', eq.replace('%s년' % (H // 4), '')
-                                                                             .replace('%d년' % (SZ.BACKLOG_WINDOW // 4), ''))]
-        sign = 1 if '쌓인 부족' in eq else -1
-        assert nums[0] - nums[1] + sign * nums[2] == tot, (z['z'], eq, tot)
+        _check_formula(eq, need, fut, inow, tot, z['z'])
         assert res == ('%s세대 %s' % (format(abs(tot), ','), '부족' if tot > 0 else '여유') if tot else '0세대'), res
     nat = next(z for z in adv['sido']['zones'] if z['z'] == '전국')
     page = _src(os.path.join('zone', '전국', 'index.html'))
