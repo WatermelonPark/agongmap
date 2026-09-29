@@ -204,6 +204,11 @@ def main():
     meta.add_text('agongmap-pub', pub)
     img.save(out, 'PNG', pnginfo=meta)
     print('wrote %s (%s)' % (os.path.relpath(out, ROOT), row['p']))
+    if not back:
+        # 페이지·홈 데이터는 카드보다 먼저 구워져 지난 판(?v=)을 가리킨다 — 카드가 구워진 지금 판을 맞춘다(전수리뷰 #85).
+        # 카드가 실패한 회차엔 여기까지 오지 않으므로 주소가 옛 판 그대로 남아 옛 그림과 같은 판을 말한다.
+        for rel in _MW.restamp_share(ROOT):
+            print('restamped %s (?v=%s)' % (rel, pub))
 
 
 if __name__ == '__main__':
