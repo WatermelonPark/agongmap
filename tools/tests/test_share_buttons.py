@@ -62,18 +62,21 @@ def _page_share(html):
     return json.loads(m.group(1)), json.loads(m.group(2)), json.loads(m.group(3))
 
 
-def test_weekly_share_link_and_card_change_every_week():
+def test_weekly_share_link_and_card_change_every_week(tmp_path):
     """공유 링크는 /weekly/ 정식 주소 + utm_source=weekly_share·utm_medium=viral·utm_campaign=week_발표일, 그림은 카드?v=발표일 —
     새 주차가 들어오면 링크와 그림 주소가 같이 바뀐다(카카오가 새로 긁어 간다).
 
     변이(각각 실제로 확인): share_campaign 이 고정값('week')을 돌려주면, share_payload 의 img 에서 ?v= 를 빼면,
     utm_source 를 'weekly' 로 바꾸면 빨개진다.
-    픽스처: 저장소 data.js 주간 계열에 먼 미래 주차를 하나씩 덧붙인 두 주.
+    픽스처: 저장소 data.js 주간 계열에 먼 미래 주차를 하나씩 덧붙인 두 주. 그림 주소의 판은 구워진 카드에서 읽으므로
+    (전수리뷰 #85) 주마다 그 주 카드(메타만 든 PNG)를 임시 폴더에 둔다.
     """
+    from test_weekly_share_version import fake_card
     seen = set()
     for p, ymd, pub in WEEKS:
         W, _ = _week(p)
-        d = MW.share_payload(W)
+        fake_card(tmp_path.joinpath(*MW.SHARE_REL.split('/')), agongmap_basis=p, agongmap_pub=pub)
+        d = MW.share_payload(W, root=str(tmp_path))
         u = urlsplit(d['url'])
         q = parse_qs(u.query)
         assert '%s://%s%s' % (u.scheme, u.netloc, u.path) == MW.SITE + '/weekly/'
@@ -229,17 +232,24 @@ def test_monthly_share_link_and_og_follow_the_month(tmp_path):
     """월간 공유 링크의 회차는 month_기준월, og:image 는 카드 파일이 있을 때만 카드?v=기준월(없으면 브랜드 카드).
 
     변이(각각 실제로 확인): share_payload 의 회차를 고정값('month')으로 바꾸면, share_image 가 파일 유무를 보지 않으면
-    (없는 파일을 가리킨다) 빨개진다.
+    (없는 파일을 가리킨다), share_image 가 판을 카드 메타가 아니라 데이터(share_version)에서 셈하면(#85) 빨개진다.
     픽스처: 저장소 data.js 의 월간 계열에 먼 미래 달(2030-02)을 하나 덧붙인 것, 카드 파일은 임시 폴더에 두고 빼 본다.
     """
     adv, sts = MP.load()
     adv = copy.deepcopy(adv)
     adv['monthly']['rows'].append(dict(adv['monthly']['rows'][-1], p='2030-02'))
+    from test_weekly_share_version import fake_card
     assert MP.share_version(adv) == '2030-02'
     assert MP.share_image(adv, root=str(tmp_path)) == MP.BRAND_IMG
     card = tmp_path.joinpath(*MP.SHARE_REL.split('/'))
     card.parent.mkdir(parents=True)
     card.write_bytes(b'png')
+    assert MP.share_image(adv, root=str(tmp_path)) == MP.BRAND_IMG, '판 메타가 없는 카드를 새 판 주소로 가리켰다'
+    # 카드 생성이 실패해 지난달 카드가 남은 회차(#85): 주소의 판은 그림의 판(2030-01)이지 데이터의 달(2030-02)이 아니다.
+    fake_card(card, agongmap_basis='2030-01')
+    assert MP.share_image(adv, root=str(tmp_path)) == (
+        '%s/%s?v=2030-01' % (MP.SITE, MP.SHARE_REL), MP.SHARE_SIZE[0], MP.SHARE_SIZE[1])
+    fake_card(card, agongmap_basis='2030-02')
     assert MP.share_image(adv, root=str(tmp_path)) == (
         '%s/%s?v=2030-02' % (MP.SITE, MP.SHARE_REL), MP.SHARE_SIZE[0], MP.SHARE_SIZE[1])
     d = MP.share_payload(adv, sts, root=str(tmp_path))
@@ -262,8 +272,10 @@ def test_monthly_page_og_image_is_the_card_only_when_it_exists():
     tw = re.findall(r'<meta name="twitter:image" content="([^"]*)">', html)
     want = MP.share_image(adv)
     assert og == [want[0]] and tw == og, (og, tw, want)
-    if os.path.isfile(os.path.join(ROOT, *MP.SHARE_REL.split('/'))):
-        assert og[0].endswith('?v=' + MP.share_version(adv))
+    if MP.card_version():
+        # 판은 구워진 카드의 기준월이다(#85). 게이트는 카드보다 먼저 돌므로 새 달이 들어온 회차엔 데이터의 달보다 한 달
+        # 앞선 카드 판이 정상이다 — 데이터의 달(share_version)과 견주면 새 달이 오는 날 게이트가 커밋을 막는다.
+        assert og[0].endswith('?v=' + MP.card_version())
     else:
         assert og[0] == MP.BRAND_IMG[0]
     d, _, _ = _page_share(html)
@@ -292,6 +304,40 @@ def test_monthly_card_is_baked_where_the_page_points_with_its_month(tmp_path, mo
     newest = str(adv['monthly']['rows'][-1]['p'])[:7]
     assert im.text.get('agongmap-basis') == newest
     assert MP.share_image(adv, root=str(tmp_path))[0].endswith('?v=' + im.text['agongmap-basis'])
+
+
+def test_monthly_card_generator_restamps_the_page(tmp_path, monkeypatch):
+    """배치 순서(페이지 → 게이트 → 카드) 그대로: /monthly/ 는 카드보다 먼저 구워져 지난달 카드 판(?v=)을 가리키고, 월간 카드
+    생성기가 새 카드를 구운 직후 restamp_share 로 같은 회차 안에서 og:image·twitter:image·공유 버튼 그림 주소를 새 판으로
+    고친다(전수리뷰 #85). 카드 생성이 실패하면 이 단계에 닿지 않아 주소는 남은 그림의 판에 머문다(위 시험).
+
+    변이(실제로 확인): make_monthly_share.main 에서 restamp_share 호출을 지우면 빨개진다.
+    픽스처: 임시 저장소 뿌리에 지난달 카드(메타만 든 PNG, 기준월 = 데이터 최신 달의 한 달 앞 라벨)와 그 판으로 구운
+    monthly/index.html 을 두고, 저장소 data.js 로 카드 생성기를 돌린다.
+    """
+    pytest.importorskip('PIL')
+    import make_monthly_share as MS
+    from test_weekly_share_version import fake_card
+    adv, sts = MP.load()
+    new = MP.share_version(adv)
+    y, m = (int(x) for x in new.split('-'))
+    old = '%04d-%02d' % (y - (m == 1), (m - 2) % 12 + 1)
+    fake_card(tmp_path.joinpath(*MP.SHARE_REL.split('/')), agongmap_basis=old)
+    page = MP.put_share_meta('<meta property="og:image" content="%s">' % MP.BRAND_IMG[0],
+                             *MP.share_image(adv, root=str(tmp_path)))
+    d = MP.share_payload(adv, sts, root=str(tmp_path))
+    page += PS.block(d, MP.SHARE_LEAD)
+    (tmp_path / 'monthly').mkdir()
+    (tmp_path / 'monthly' / 'index.html').write_text(page, encoding='utf-8')
+    assert page.count('?v=' + old) >= 3, '픽스처가 지난 판 주소 셋(og·twitter·버튼)을 담지 않는다'
+
+    monkeypatch.setattr(MS, 'ROOT', str(tmp_path))
+    MS.main()
+    html = (tmp_path / 'monthly' / 'index.html').read_text(encoding='utf-8')
+    want = '%s/%s?v=%s' % (MP.SITE, MP.SHARE_REL, new)
+    assert re.findall(r'<meta property="og:image" content="([^"]*)">', html) == [want]
+    assert re.findall(r'<meta name="twitter:image" content="([^"]*)">', html) == [want]
+    assert '?v=' + old not in html, '카드를 새로 구웠는데 지난 판 주소가 남았다'
 
 
 def test_batch_bakes_the_monthly_card_after_the_gate():
