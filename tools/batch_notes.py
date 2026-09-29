@@ -39,6 +39,9 @@ def sync_claim_lines():
     예전엔 이것이 pytest 게이트의 실데이터 단정이었다(test_theory_sync_claims). 재산정으로 최저 지역이
     바뀌면 "발행본은 고치지 않는다"는 결정과 맞물려 데이터 커밋이 막혔을 것이다(리뷰 09-18 19번).
     게이트는 코드 회귀만 막고, 데이터 상태는 여기서 알린다. 생성 가드(make_theory_post)는 그대로다.
+    ⚠️ lines(adv) 에 넣지 않는다(전수리뷰 #32·#94). 이 함수는 인자 adv 가 아니라 저장소 cycle/index.html 의 D.sync 를
+       읽는다. lines() 를 부르는 합성 픽스처 시험이 '줄이 정확히 몇 개'를 단정하므로, 안에 두면 재산정으로 최저 지역이
+       바뀌는 날 무관한 시험이 빨개져 알림으로 돌린 데이터 상태가 다시 게이트 실패가 된다. main() 이 따로 붙인다.
     """
     try:
         import make_theory_post as T
@@ -70,12 +73,12 @@ def quiz_review_lines(today, src=None):
 
 
 def lines(adv):
+    """인자 adv 만 보고 찍을 줄. 저장소 파일·오늘 날짜를 읽는 곁가지(sync_claim_lines·quiz_review_lines)는 main() 이 붙인다."""
     out = []
     gaps = permit_gaps(adv)
     if gaps:
         out.append("%s 인허가 신호 빠짐 — %s: 리포트의 '3년 너머' 줄이 빠진다(인허가 누계 결측 확인)"
                    % (WARN, ', '.join(gaps)))
-    out.extend(sync_claim_lines())
     return out
 
 
@@ -90,7 +93,7 @@ def main(argv=None):
         sys.stderr.write('batch_notes: 데이터를 읽지 못했다 (%s)\n' % e)
         return 0
     import kst
-    for ln in lines(adv) + quiz_review_lines(kst.today()):
+    for ln in lines(adv) + sync_claim_lines() + quiz_review_lines(kst.today()):
         sys.stdout.write(ln + '\n')
     return 0
 
