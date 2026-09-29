@@ -10,6 +10,12 @@
 정말로 건너뛰어야 하는 회차는 AGONGMAP_ALLOW_SKIP=1 로 풀 수 있다(인프라 문제를 코드 회귀로 오인하지 않게).
 
 무엇을 깨뜨리면 빨개지나: 이 훅을 지우면 test_ci_skips_are_failures 가 빨개진다(실제로 확인).
+
+모듈 수준 건너뜀(모듈 맨 위 `pytest.importorskip(...)`, `pytest.skip(..., allow_module_level=True)`, unittest.SkipTest)은
+시험 실행(runtest)이 아니라 수집 단계의 CollectReport 로 끝나 위 훅을 지나지 않는다 — 파일 전체가 'N skipped' 로
+초록인 채 빠졌다(전수리뷰 #91). pytest_collectreport 가 그것을 모아 실행 끝(sessionfinish)에 종료 코드를 1로 바꾼다.
+수집 오류로 바꾸지 않는 이유: 수집 오류는 나머지 시험 전체를 중단시켜 다른 결과까지 가린다.
+무엇을 깨뜨리면 빨개지나: pytest_collectreport 를 지우면 test_ci_module_skips_are_failures 가 빨개진다(확인).
 """
 import os
 
@@ -31,6 +37,28 @@ def pytest_runtest_makereport(item, call):
         reason = rep.longrepr[2] if isinstance(rep.longrepr, tuple) else str(rep.longrepr)
         rep.longrepr = ('CI 에서는 건너뜀이 실패다 — 방어선이 안 돌았는데 초록이 되면 안 된다. 사유: %s '
                         '(인프라 문제면 AGONGMAP_ALLOW_SKIP=1)' % reason)
+
+
+_COLLECT_SKIPS = []
+
+
+def pytest_collectreport(report):
+    if report.skipped and _ci_forbids_skip():
+        reason = report.longrepr[2] if isinstance(report.longrepr, tuple) else str(report.longrepr)
+        _COLLECT_SKIPS.append('%s — %s' % (report.nodeid or '?', reason))
+
+
+def _fail_collect_skips(session):
+    if not _COLLECT_SKIPS:
+        return
+    tr = session.config.pluginmanager.get_plugin('terminalreporter')
+    msg = ('CI 에서는 건너뜀이 실패다 — 모듈 수준 건너뜀으로 파일 전체가 안 돌았다(%d개): %s '
+           '(인프라 문제면 AGONGMAP_ALLOW_SKIP=1)' % (len(_COLLECT_SKIPS), '; '.join(_COLLECT_SKIPS[:10])))
+    if tr:
+        tr.write_line(msg, red=True)
+    else:
+        print(msg)
+    session.exitstatus = 1
 
 
 # ── 시험이 저장소 파일을 고치면 전체 실행을 실패로 만든다 ─────────────────────────────
@@ -73,6 +101,7 @@ def pytest_sessionstart(session):
 
 
 def pytest_sessionfinish(session, exitstatus):
+    _fail_collect_skips(session)
     if _BEFORE is None:
         return
     after = _dirty()
