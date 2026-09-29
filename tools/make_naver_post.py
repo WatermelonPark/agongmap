@@ -199,13 +199,15 @@ def _zone_of_title(title, names):
     세어졌고(PYTHONHASHSEED 에 좌우), '세종시 아파트' 처럼 접미사가 붙으면 못 셌다(리뷰 09-18 19번).
     '부동산'도 받는다: 제목 교대 실험 B안('2026 세종시 부동산 전망, …', 2026-09-27)은 '아파트'가
     앞머리에 없어서, 받지 않으면 발행한 세종 편을 못 세고 다음 회차에 세종을 또 고른다.
+    검색 표기(SEARCH_NAME, 예: '광주·전남')로 쓴 제목도 그 지역으로 센다(2026-09-29).
     """
     best = None
     for nm in names:
-        m = re.search(r'(?<![가-힣])%s(?:시|도|특별자치시|특별자치도)? (?:아파트|부동산)' % re.escape(nm),
-                      title or '')
-        if m and (best is None or m.start() < best[0]):
-            best = (m.start(), nm)
+        for form in dict.fromkeys((nm, SEARCH_NAME.get(nm, nm))):
+            m = re.search(r'(?<![가-힣])%s(?:시|도|특별자치시|특별자치도)? (?:아파트|부동산)' % re.escape(form),
+                          title or '')
+            if m and (best is None or m.start() < best[0]):
+                best = (m.start(), nm)
     return best[1] if best else None
 
 
@@ -840,7 +842,11 @@ TITLE_ARM_FROM = 5
 OUTLOOK_NEXT_FROM_MONTH = SZ.OUTLOOK_NEXT_FROM_MONTH   # 규칙·상수의 정본은 sido_zones — 사이트 시도 리포트 제목과 한 함수
 outlook_year = SZ.outlook_year                         # 주간 조사일 'YYYY-MM-DD' → 전망하는 해('2026'), 못 읽으면 ''
 # 검색창에 사람들이 치는 표기(키워드도구 기준). 없는 지역은 그대로 쓴다.
-SEARCH_NAME = {'세종': '세종시'}
+SEARCH_NAME = {'세종': '세종시', '전남광주': '광주·전남'}
+# 태그는 가운뎃점 없이 붙여 쓴다. 전남광주는 사람들이 '광주'로 찾는다(2026-09-29 대표 키워드도구 조회:
+# 광주아파트 5,740·광주부동산 3,390·광주부동산전망 220 대 전남광주부동산 160·광주전남부동산 20 미만/월).
+# 제목은 판정 범위(광주+전남)가 틀리지 않게 '광주·전남'으로 쓰고, 태그만 검색량이 큰 '광주'로 단다.
+TAG_NAME = {'전남광주': '광주'}
 
 
 def title_arm(seq):
@@ -852,7 +858,7 @@ def zone_title(nm, yr, yrs, ask, seq):
         return '%s%s 부동산 전망, 앞으로 %d년 아파트 공급물량은 얼마나 %s' % (
             (yr + ' ') if yr else '', SEARCH_NAME.get(nm, nm), yrs, ask)
     return '%s%s 아파트 공급물량 전망, 앞으로 %d년 얼마나 %s' % (
-        (yr + '년 ') if yr else '', nm, yrs, ask)
+        (yr + '년 ') if yr else '', SEARCH_NAME.get(nm, nm), yrs, ask)
 
 
 # 댓글 유도문 — 글 끝(면책 바로 앞) 한 줄. 2026-09-17 사용자 결정.
@@ -1086,7 +1092,7 @@ def draft_zone(adv, sts, r, seq, total):
     # 소제목·첫 문장에 검색어를 둔다(2026-09-27 조회수 조사 SRCH-1). '결론부터'는 검색되지 않는
     # 말이었다. 우리 고유어 '적정 공급량'은 경쟁 글이 적고(부산 적정 공급량 5천 건대, 상위는 청약
     # 일정 목록) 첫 검색 유입도 이 말로 들어왔다(09-02 '부산 적정 공급량').
-    body.append('<h3>%s 적정 공급량과 %d년 공급물량</h3>' % (esc(nm), yrs))
+    body.append('<h3>%s 적정 공급량과 %d년 공급물량</h3>' % (esc(SEARCH_NAME.get(nm, nm)), yrs))
     # 판정 이름만 쓰면 '균형' 옆 '5만 세대 부족'이 반대로 읽힌다(2026-09-13 PM 요청).
     # 등급을 자르는 비율 문장을 사이트와 같은 함수로 붙인다 — 블로그가 따로 만들지 않는다.
     # 셈 한 줄(홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 순부족에는 앞으로 3년뿐 아니라 지난 4년 덜 지은 몫이
@@ -1097,7 +1103,7 @@ def draft_zone(adv, sts, r, seq, total):
     need, fut, inow, _ = SZ.display_ints(r, SZ.LEAD_Q)
     body.append('<p>%s 아파트 공급물량을 적정 공급량과 견주면, 현재 '
                 '<b>%s세대가 %s</b> 상태입니다. 판정은 <b>%s</b>입니다. %s.</p>' % (
-                    esc(nm), num(abs(t)), state,
+                    esc(SEARCH_NAME.get(nm, nm)), num(abs(t)), state,
                     SZ.GRADE_LABS[r['grade']],
                     esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True, inow=inow))))
     body.append('<p>셈은 <b>%s</b>입니다.</p>'
@@ -1230,8 +1236,9 @@ def draft_zone(adv, sts, r, seq, total):
     # 2026-09-27 조회수 조사(SRCH-1): '아파트공급'·'집값전망' 같은 일반어 대신 그 지역의 검색어
     # 셋(공급물량·적정공급량·부동산전망)을 단다. 미분양 경고 지역은 '{지역}아파트' 자리에
     # '{지역}미분양'을 단다 — 그 지역 사람들이 실제로 찾는 말이다(대구 편 때 '미분양' 검색 열기).
-    tags = [nm + '아파트공급물량', nm + '적정공급량', nm + '부동산전망',
-            nm + ('미분양' if r.get('uwarn') else '아파트'), '아공맵']
+    tn = TAG_NAME.get(nm, nm)
+    tags = [tn + '아파트공급물량', tn + '적정공급량', tn + '부동산전망',
+            tn + ('미분양' if r.get('uwarn') else '아파트'), '아공맵']
     shot, shots, err = (None, {}, '--no-shot 로 건너뜀')
     if '--no-shot' not in sys.argv:
         shot, shots, err = capture_zone(nm)
