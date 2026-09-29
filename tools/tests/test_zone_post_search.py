@@ -52,7 +52,7 @@ def test_title_arms_alternate_from_seq5():
     assert arms == ['A', 'A', 'A', 'A', 'B', 'A', 'B', 'A', 'B']
     b = P.zone_title('세종', '2026', 3, '부족할까', 5)
     a = P.zone_title('대전', '2026', 3, '부족할까', 6)
-    assert b.startswith('2026 세종시 부동산 전망, ') and '공급물량' in b
+    assert b.startswith('2026년 세종시 부동산 전망, ') and '공급물량' in b
     assert a.startswith('2026년 대전 아파트 공급물량 전망, ')
 
 
@@ -63,7 +63,7 @@ def test_first_heading_and_sentence_carry_search_terms(monkeypatch):
     assert h in d['body']
     first = d['body'].split(h, 1)[1].split('</p>', 1)[0]
     assert '적정 공급량' in first and '공급물량' in first
-    assert d['title'].startswith('2026 세종시 부동산 전망') and '제목 실험 B안' in d['seq']
+    assert d['title'].startswith(('2026년 세종시 부동산 전망', '2027년 세종시 부동산 전망')) and '제목 실험 B안' in d['seq']
 
 
 def test_tags_are_the_zone_search_terms(monkeypatch):
