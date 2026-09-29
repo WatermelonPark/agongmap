@@ -43,16 +43,12 @@ SUFFIX = re.compile(r'(특별자치시|특별자치도|광역시|특별시|시|�
 
 
 def _key():
-    k = os.environ.get('RONE_API_KEY', '')
+    """RONE_API_KEY 는 환경 변수로만 읽는다(공개 저장소 규칙 — 키 파일 경로를 코드에 적지 않는다).
+    로컬에서는 러너처럼 저장소 밖 키 파일을 먼저 불러 환경 변수로 넘긴 뒤 돌린다."""
+    k = os.environ.get('RONE_API_KEY', '').strip()
     if k:
         return k
-    p = os.path.expanduser('~/.aptweather_keys.bat')
-    if os.path.exists(p):
-        for ln in io.open(p, encoding='utf-8', errors='ignore'):
-            m = re.search(r'RONE_API_KEY=(\S+)', ln)
-            if m:
-                return m.group(1).strip()
-    raise SystemExit('RONE_API_KEY 필요 (환경변수 또는 ~/.aptweather_keys.bat)')
+    raise SystemExit('RONE_API_KEY 환경 변수 필요')
 
 
 def qname_map():
