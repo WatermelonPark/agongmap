@@ -2,7 +2,8 @@
 rem ============================================================
 rem aptweather weekly stats update (local runner)
 rem - KOSIS blocks GitHub-hosted runners (foreign IP), so run locally.
-rem - API keys: %USERPROFILE%\.aptweather_keys.bat (NOT in the repo)
+rem - API keys: a key file OUTSIDE the repo; its path comes from the AGONGMAP_KEYS
+rem   environment variable (set it once per machine; never write the path here).
 rem - Task Scheduler: daily 18:00 + Thu 13/15 + Fri 09:30 (StartWhenAvailable)
 rem
 rem FAIL-FAST POLICY (added 2026-07-18)
@@ -82,11 +83,15 @@ mkdir "%LOCK%"
 rem Stamp for staleness detection by the next run.
 type nul > "%LOCK%\stamp.txt"
 
-if not exist "%USERPROFILE%\.aptweather_keys.bat" (
-  echo ERROR: key file not found
+if not defined AGONGMAP_KEYS (
+  echo ERROR: AGONGMAP_KEYS env var not set ^(path of the key file^)
   exit /b 10
 )
-call "%USERPROFILE%\.aptweather_keys.bat"
+if not exist "%AGONGMAP_KEYS%" (
+  echo ERROR: key file not found ^(AGONGMAP_KEYS^)
+  exit /b 10
+)
+call "%AGONGMAP_KEYS%"
 
 rem A prior run may have died mid-rebase, leaving the repo wedged. Clear it first,
 rem otherwise every later run fails at pull forever with no way out.

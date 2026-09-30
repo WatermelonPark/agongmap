@@ -10,6 +10,10 @@ pytest 를 돌리는 워크플로가 데이터 배치 하나뿐이라, 개발 �
   - ci-tests.yml 의 python-version 을 '3.11' 로 → 빨강
   - ci-tests.yml 의 pip 줄에 pyyaml 을 더하면 → 빨강(배치에 없는 패키지로 시험이 초록이 된다)
   - ci-tests.yml gate 잡에서 생성기 하나를 빼거나 pip 뒤로 옮기면 → 빨강
+  - ci-tests.yml gate 잡에서 split_data 줄을 지우거나 생성기 뒤로 옮기면 → 빨강(전수리뷰 #31 — 배치 게이트는 fetch 잡이
+    지금 코드로 새로 쓴 split 산출물 위에서 도는데, CI 는 커밋된 옛 산출물 위에서 돌게 된다. 기준 커밋 0649df8 이 이
+    상태였고, split_data.CORE_ADV 에 폐기 키를 넣은 변이가 CI 순서에서는 초록·배치 순서에서는 빨강이었다)
+  - update-cloud.yml fetch 잡의 update_adv_data 뒤에 새 도구를 넣고 CI gate 잡에 안 넣으면 → 빨강
   - ci-tests.yml 의 fetch-depth 를 지우면 → 빨강
   - permissions 에 `contents: write` 를 넣거나 `git push` 를 넣으면 → 빨강
   - pull_request 트리거를 지우면 → 빨강
@@ -59,8 +63,38 @@ def _gate_sequence(path, job):
     return pre, mods, pytest_cmd, ver and ver.group(1), depth and depth.group(1)
 
 
+# fetch 잡에서 원천 수집 뒤에 돌지만 CI 게이트가 돌리지 않는 도구와 그 이유. 나머지(split_data 등)는 전부 CI 게이트 맨 앞에
+# 같은 순서로 있어야 한다 — 배치 게이트는 그 도구들이 **지금 코드로** 새로 쓴 산출물 위에서 돈다.
+FETCH_NOT_IN_CI = {
+    'update_adv_data': '원천 API 키가 필요하다(CI 에는 없다) — 커밋된 data.js 가 그 산출물이다',
+    'blog_feed': '네트워크 원천(RSS) 곁가지 — 실패하면 지난 값을 쓰고, 결과 파일은 커밋돼 있다',
+}
+
+
+def _fetch_tools_after_update(path):
+    """fetch 잡에서 update_adv_data 뒤에 도는 도구(FETCH_NOT_IN_CI 제외), 순서대로."""
+    seq = []
+    for st in _steps(path):
+        if st['job'] != 'fetch':
+            continue
+        for line in st['run']:
+            if not line.lstrip().startswith('#'):
+                seq += TOOL_CMD.findall(line)
+    assert 'update_adv_data' in seq, 'fetch 잡에서 update_adv_data 를 못 찾았다: %s' % seq
+    after = seq[seq.index('update_adv_data') + 1:]
+    return [t for t in after if t not in FETCH_NOT_IN_CI]
+
+
+def _batch_gate_sequence():
+    """배치 게이트가 딛는 순서 = fetch 잡의 수집 뒤 도구 + 커밋 잡의 설치 전 생성기."""
+    fetch = _fetch_tools_after_update(BATCH)
+    assert 'split_data' in fetch, 'fetch 잡에서 split_data 를 못 찾았다: %s' % fetch
+    pre, mods, cmd, ver, depth = _gate_sequence(BATCH, 'commit')
+    return fetch + pre, mods, cmd, ver, depth
+
+
 def test_ci_gate_runs_like_the_batch_gate():
-    want = _gate_sequence(BATCH, 'commit')
+    want = _batch_gate_sequence()
     got = _gate_sequence(CI, 'gate')
     assert want[0] and want[2] and want[3] and want[4], '배치 커밋 잡을 못 읽었다: %s' % (want,)
     labels = ('설치 전 생성기(순서)', '설치 패키지', 'pytest 명령', '파이썬 판', 'fetch-depth')

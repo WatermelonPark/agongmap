@@ -13,6 +13,7 @@
 ⚠️ 워크플로는 실행해 볼 수 없어 원문을 본다. 문구가 아니라 **구조**(무엇 뒤에 무엇이 오는가)를
    단정해, 주석을 고쳤다고 깨지지 않게 한다.
 """
+import ast
 import datetime
 import io
 import os
@@ -138,6 +139,30 @@ def test_reminder_title_round_trips_through_the_closer():
     assert '오늘 발행할 글' in title
 
 
+def test_reminder_kinds_and_categories_match_the_closer():
+    """발행 알림(write-reminder.yml 의 plan 파이썬)이 내는 종류·카테고리 쌍과 시험용 force 선택지가 닫는 도구의
+    KIND_TO_CATEGORY 와 정확히 같다(전수리뷰 #34). 한쪽만 바꾸면 닫는 쪽이 `if not cat: continue` 로 그 종류의 이슈를
+    조용히 건너뛰어 알림이 영원히 안 닫히거나, 본문이 안내한 카테고리로 발행해도 닫는 도구는 다른 카테고리를 찾는다.
+
+    변이(각각 확인): plan 의 `kind = '사이클 이론'` 을 '사이클 편' 으로 → 빨강(기준 커밋에선 관련 시험 5개가 초록이었다),
+          `cat = '부동산 사이클'` 을 '사이클 이론' 으로 → 빨강, force options 에서 '지역 공급' 을 지우면 → 빨강.
+    픽스처: 저장소의 실제 write-reminder.yml 원문과 close_published_issues.KIND_TO_CATEGORY.
+    """
+    wf = _wf('write-reminder.yml')
+    code = '\n'.join(ln for ln in wf.splitlines() if not ln.lstrip().startswith('#'))
+    pairs = re.findall(r"^\s*kind = '([^']+)'\n(?:(?!^\s*kind = ).*\n)*?^\s*cat = '([^']+)'", code, re.M)
+    want = dict(C.KIND_TO_CATEGORY)
+    assert len(pairs) == len(want) and dict(pairs) == want, \
+        '발행 알림의 종류·카테고리가 닫는 도구와 다르다: 알림 %s / 닫는 도구 %s' % (pairs, want)
+    opts = re.search(r"options:\s*\[([^\]]*)\]", code)
+    assert opts, 'force 선택지를 못 찾았다'
+    assert set(ast.literal_eval('[%s]' % opts.group(1))) - {''} == set(want), opts.group(1)
+    wd = re.search(r"wd = \{([^}]*)\}\.get\(force", code)
+    assert wd and set(re.findall(r"'([^']+)':", wd.group(1))) == set(want), wd and wd.group(1)
+    alt = re.search(r"alt_override = [^\n]*", code)
+    assert alt and set(re.findall(r"force == '([^']+)'", alt.group(0))) <= set(want), alt and alt.group(0)
+
+
 def test_closer_still_reads_titles_made_before_the_change():
     assert C.parse_title('[발행] 2026-09-15 지역 공급') == (datetime.date(2026, 9, 15), '지역 공급')
     for other in ('🟢 주간 확인 · 데이터 정상 · 하실 일 없음 (9/21)',
@@ -178,6 +203,43 @@ def test_long_lag_body_header_matches_the_subject():
     h = F.headline(raw, KST, 3)
     assert h.startswith('🟡') and mention
     assert '### ✅' not in body and '옛 기준' in body.splitlines()[0], body[:80]
+
+
+def test_long_lag_on_a_no_commit_run_does_not_claim_an_update():
+    """뒤처짐이 길어진 기간의 '커밋 없음' 회차에 '갱신됐습니다'라고 쓰지 않고, 기준 시점 줄을 싣는다(전수리뷰 #33).
+    계열 이름 뒤 조사는 받침을 따른다('규모별이', '매매가').
+
+    변이(각각 확인): build() 의 lag_hard 분기에서 nothing 갈래를 지우면 '갱신됐습니다'로 빨강, basis 줄을 지우면
+          '기준' 단정이 빨강, lag_notice 의 조사를 '가' 고정으로 되돌리면 '규모별가'로 빨강.
+    픽스처: 배치가 실제로 남기는 순서의 기록 — 채택 줄, 테스트 통과, month_lag 의 4개월 뒤처짐 줄(update-cloud.yml 이
+            커밋 전에 남긴다), 바뀐 파일이 없어 남는 '➖ 커밋 없음' 줄. 수요일(평일) 회차.
+    """
+    raw = ('✅ 러너 3/3 clean · 채택 주간 2026-09-14 / 월간 2026-08 / 공급 2026Q2\n✅ 테스트\n'
+           'ℹ️ 월간 뒤처짐 4개월 · 규모별 2026.04 · 최신 2026.08\n'
+           '➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)\n')
+    body, mention = F.build(raw, KST, 'u', 'O', 2)
+    assert mention and '옛 기준' in body.splitlines()[0], body[:80]
+    assert '갱신됐습니다' not in body and '갱신은 정상' not in body and '바뀐 내용이 없습니다' in body, body
+    assert F.basis_line(raw.splitlines()) in body
+    assert '규모별이 2026년 4월 기준' in body and '규모별가' not in body, body
+    body2, _ = F.build(raw.replace('규모별', '매매'), KST, 'u', 'O', 2)
+    assert '매매가 2026년 4월 기준' in body2, body2
+    # 커밋이 있던 회차는 그대로 '갱신됐습니다'
+    body3, _ = F.build(raw.replace('➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)\n', OK.splitlines()[1] + '\n'),
+                       KST, 'u', 'O', 2)
+    assert '최신 데이터로 갱신됐습니다' in body3, body3
+
+
+def test_iga_matches_the_generator():
+    """결과 보고의 조사 함수가 생성기(make_sido_pages._iga)와 같은 답을 낸다 — 같은 판정을 두 곳에 둔 대신 일치를 잠근다.
+
+    변이: format_batch_report._iga 의 조건을 뒤집으면('이'↔'가') 빨개진다(확인).
+    픽스처: 실제 계열·지역 이름(받침 있음·없음·영문 끝).
+    """
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import make_sido_pages as M
+    for w in ('규모별', '미분양', '전세가율', '착공', '매매', '서울', '대구', '분양', 'R-ONE', ''):
+        assert F._iga(w) == M._iga(w), w
 
 
 def test_no_change_plus_warning_does_not_claim_an_update():

@@ -152,7 +152,7 @@ def test_committed_home_says_what_data_core_says():
 
     변이: 배치 커밋 잡에서 make_home_summary 를 빼면(ci-tests 도 같이) 표식 구간이 커밋된 빈 표식 그대로라 빨개진다
           (표식을 비운 index.html 로 확인).
-    픽스처: 저장소의 index.html·data-core.js(배치가 방금 쓴 것 — 또는 CI 게이트 잡처럼 split 없이 커밋된 옛 판). 기대값은
+    픽스처: 저장소의 index.html·data-core.js(배치·CI 게이트 잡이 지금 코드의 split 으로 방금 쓴 것). 기대값은
     data-core 에서 따로 읽는다.
     """
     adv, s = _core(), _index()
@@ -169,10 +169,10 @@ def test_committed_home_says_what_data_core_says():
     if (w.get('head') or {}).get('p') == row['p']:
         assert w['head']['text'] in blk
     desc = re.search(r'<meta name="description" content="([^"]*)"', s).group(1)
-    # cnum·head 는 2차 배포(09-27) 뒤 split 이 싣는 필드라, 옛 data-core(병합 직후 PR·main CI 의 게이트 잡은 split 을 돌리지
-    # 않는다)에는 없다 — 옛 판에도 있는 ctxt 첫 조각으로 세대수를 본다(depth-200 클론 CI 흉내에서 KeyError 로 빨갰던 것).
+    # cnum 은 split 이 싣는 필드다. 예전엔 CI 게이트 잡이 split 을 돌리지 않아 옛 data-core 에 없을 수 있어 ctxt 로 우회했는데,
+    # 이제 게이트가 split 을 먼저 돌리므로(전수리뷰 #31) 그대로 읽는다 — split 이 cnum 을 빼면 여기서 KeyError 로 빨갛다.
     # 주간 전국 값이 None 인 주(실데이터 11주 전례)에는 전국 조각이 빠져야 한다(검토 09-27 #8).
-    num = nat.get('cnum') or nat['ctxt'].split(' · ')[0].rsplit(' ', 1)[0]
+    num = nat['cnum']
     assert num in desc and (nat.get('rtxt') or '') in desc
     assert (MW.pv2(nv) in desc) if nv is not None else '매매가격은 전국' not in desc
 

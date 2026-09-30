@@ -64,7 +64,7 @@ def test_lag_line_is_readable_by_the_report_formatter():
     say, months = F.lag_notice([line])
     assert months == 3 and say and '2026년 8월' in say, (line, say)
     # 계열마다 제 기준월이 붙어야 한다 — 구분자가 바뀌면 두 계열이 한 덩어리로 읽혀 한쪽 달이 사라진다
-    assert '미분양가 2026년 5월 기준' in say and '분양가 2026년 6월 기준' in say, say
+    assert '미분양이 2026년 5월 기준' in say and '분양이 2026년 6월 기준' in say, say
 
 
 def _code():
