@@ -33,6 +33,7 @@ import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목�
 import kst as KST            # noqa: E402  (오늘(KST) — 생성기가 찍는 날짜의 단일 출처)
 import make_indicator_pages as I  # noqa: E402  (전세가율 기준월 규칙·sitemap — /jeonse-ratio/ 와 같은 규칙)
 import robots_meta as RM     # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
+import rebuild_cycle_analysis as RC  # noqa: E402  (지수 연속성 검사·페이지 데이터에서 채우는 본문 칸의 정본)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
@@ -63,8 +64,12 @@ def ym(label):
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 
-def quarterly(D, region, y_from):
-    """{연.분기(2026.25 형식): 그 분기 평균}. 값이 하나도 없는 분기는 넣지 않는다."""
+def quarterly(D, region, y_from, nd=1):
+    """{연.분기(2026.25 형식): 그 분기 평균}. 값이 하나도 없는 분기는 넣지 않는다.
+
+    nd 는 소수 자릿수다. 지수·전세가율은 1, CD금리는 원천(한국은행)이 소수 둘째 자리로 발표하므로 2 로 부른다
+    (전수 리뷰 #30: 여기서 첫째 자리로 반올림한 뒤 build_overlay 가 round(…, 2) 를 해 2026Q3 2.94 가 2.9 로 실렸다).
+    """
     ser = (D.get('series') or {}).get(region)
     if not ser:
         return {}
@@ -82,7 +87,45 @@ def quarterly(D, region, y_from):
     #    .x5 경계에서 반올림이 뒤집혀(수도권 2011Q1 87.8↔87.9 등 세 칸) 개발 컨테이너(3.11)와 배치(3.12)가
     #    같은 data.js 로 다른 값을 굽고, 커밋마다 그 세 칸이 번갈아 바뀌었다(2026-08-08~09-18). fsum 은
     #    정확히 반올림한 합이라 판에 상관없이 같고, 배치(3.12)가 굽던 값과도 같다(2026-09-26 데이터 감사).
-    return {t: round(math.fsum(a) / len(a), 1) for t, a in acc.items()}
+    return {t: round(math.fsum(a) / len(a), nd) for t, a in acc.items()}
+
+
+def hold_index_breaks(S):
+    """매매·전세지수에 기준 단절이 있으면 그 달부터를 빼고 돌려준다(대표 결정 09-30 ①: 재수집 전까지 그 계열 갱신 보류).
+
+    원천이 기준시점을 바꿨는데(2017.11=100 → 2026.06=100) 수집이 최근 여덟 달만 새 기준으로 덮어써, 2026-09-28
+    배치가 수도권 매매 154.6 → 96.6 같은 가짜 폭락을 차트에 실었다(전수 리뷰 #61). 두 기준의 값을 비율로 이어
+    붙이지 않는다(원천 값 가공 금지) — 단절 앞의 옛 기준 구간만 그리고, 전 기간 재수집으로 단절이 사라지면 저절로
+    전 구간이 다시 실린다. 단절 판정은 사이클 재산정과 같은 함수(RC.index_breaks)다.
+    """
+    out = dict(S)
+    for key in RC.INDEX_KEYS:
+        cut = RC.first_break(S, key)
+        if not cut:
+            continue
+        blk = S[key]
+        k0 = blk['dates'].index(cut)
+        out[key] = dict(blk, series={r: list(v[:k0]) + [None] * (len(v) - k0) for r, v in blk['series'].items()})
+        print('  ⚠️ %s 기준 단절(%s부터) — 전 기간 재수집 전까지 그 달부터는 싣지 않는다: %s'
+              % (key, cut, RC.break_message(RC.index_breaks(S, (key,)))))
+    return out
+
+
+def index_basis(D):
+    """지수 계열 unit 의 기준시점('2017.11'·'2026.06'). 표기가 없으면 None. 재수집(update_adv_data.refetch_basic_full)이
+    unit 을 새 기준으로 고쳐 쓰고, 보류한 계열은 옛 unit 그대로다."""
+    m = re.search(r'(\d{4}\.\d{2})=100', (D or {}).get('unit') or '')
+    return m.group(1) if m else None
+
+
+def index_bases_agree(S):
+    """매매·전세지수가 같은 기준시점인가. 둘은 zones·rate_overlay 에서 한 y축('지수')에 겹쳐 그려진다.
+
+    수집은 계열마다 따로 재수집·보류한다(update_basic). 매매만 재수집에 성공하면 매매는 2026.06=100, 전세는
+    2017.11=100 인 채로 같은 축에 올라, 수도권 2021Q4 매매 106.8 · 전세 128.7 처럼 '매매가 전세를 크게 이탈해
+    솟구쳤다'는 캡션과 반대 그림이 나왔다(통합 검토). 원천 값을 비율로 맞추지 않는다(대표 결정 ① — 연결계수 금지).
+    """
+    return len({index_basis(S.get(k)) for k in RC.INDEX_KEYS}) <= 1
 
 
 def build_zones(S):
@@ -106,12 +149,12 @@ def build_overlay(S):
     ma = quarterly(S['매매지수'], '수도권', OVERLAY_FROM)
     je = quarterly(S['전세지수'], '수도권', OVERLAY_FROM)
     jr = quarterly(S['전세가율'], '수도권', OVERLAY_FROM)
-    rt = quarterly(S['금리'], 'CD(91일)', OVERLAY_FROM)
+    rt = quarterly(S['금리'], 'CD(91일)', OVERLAY_FROM, nd=2)
     ts = sorted(t for t in ma if t in rt)
     return {'t': ts,
             'maemae': [ma[t] for t in ts],
             'jeonse': [je.get(t) for t in ts],
-            'rate': [round(rt[t], 2) for t in ts],
+            'rate': [rt[t] for t in ts],
             'jratio': [jr.get(t) for t in ts]}
 
 
@@ -123,9 +166,11 @@ def build_jratio(S):
     if gone:
         raise RuntimeError('전세가율에 없는 지역: %s (모델과 저장분이 어긋났다)'
                            % ', '.join(gone))
-    # 기준월은 /jeonse-ratio/ 와 같은 규칙(모든 시도가 채워진 마지막 달)으로 고른다. dates[-1] 을 그대로
-    # 읽으면 원천이 행을 바꾼 달에 0 나누기·풀이 문장 RuntimeError 로 배치가 멈췄다(2026-09-26 데이터 감사).
-    k = I.jeonse_ref_index(D, SIDO)
+    # 기준월은 /jeonse-ratio/·시도 리포트와 같은 규칙·같은 필요 지역(JEONSE_NEED = 전국 + 시도)으로 고른다.
+    # dates[-1] 을 그대로 읽으면 원천이 행을 바꾼 달에 0 나누기·풀이 문장 RuntimeError 로 배치가 멈췄다
+    # (2026-09-26 데이터 감사). 전에는 시도만 봐서 전국만 빈 달에 /cycle/ 과 /jeonse-ratio/ 의 기준월이 한 달
+    # 갈렸다(전수 리뷰 #24·#106) — 서로 링크된 화면이 다른 달을 말하지 않게 한 정본을 쓴다.
+    k = I.jeonse_ref_index(D, I.JEONSE_NEED)
     rows = [(r, D['series'][r][k]) for r in SIDO
             if D['series'][r][k] is not None]
     rows.sort(key=lambda x: x[1])
@@ -159,11 +204,15 @@ def jratio_prose(lvl, prd):
     if gone:
         raise RuntimeError('전세가율 풀이 문장의 지역이 차트에 없다: %s' % ', '.join(gone))
     lo, hi = sorted((by['대구'], by['대전']))
-    a, b = int(round(lo)), int(round(hi))
-    # '70%대'는 두 곳이 같은 십 단위일 때만 참이다. 갈리면 범위로 쓴다.
-    mid = ('%d%%대' % (a // 10 * 10)) if a // 10 == b // 10 else ('%d~%d%%' % (a, b))
-    return {'jr_seoul': '%d' % int(round(by['서울'])),
-            'jr_jnl': '%d' % int(round(by['전남광주'])),
+    # '70%대'는 두 곳 값의 십의 자리(반올림 전 값의 내림)가 같을 때만 참이다. 갈리면 범위로 쓴다.
+    # 반올림한 정수로 십 단위를 보면 69.6 이 '70%대'가 되고 70.9·79.6 이 '71~80%'가 됐다(전수 리뷰 #25).
+    # 정수는 사이트 규칙(half-up, SZ.half_up)으로 만든다 — 파이썬 round() 는 52.5 를 52 로 내린다.
+    if int(math.floor(lo)) // 10 == int(math.floor(hi)) // 10:
+        mid = '%d%%대' % (int(math.floor(lo)) // 10 * 10)
+    else:
+        mid = '%d~%d%%' % (SZ.half_up(lo), SZ.half_up(hi))
+    return {'jr_seoul': '%d' % SZ.half_up(by['서울']),
+            'jr_jnl': '%d' % SZ.half_up(by['전남광주']),
             'jr_mid': mid,
             'jr_prd': str(prd)}
 
@@ -203,8 +252,16 @@ def main():
     S = load_stats()
     page = io.open(PAGE, encoding='utf-8').read()
 
-    zones = build_zones(S)
-    overlay = build_overlay(S)
+    SI = hold_index_breaks(S)
+    if index_bases_agree(S):
+        zones = build_zones(SI)
+        overlay = build_overlay(SI)
+    else:
+        # 한 계열만 새 기준이면 두 지수를 겹친 차트는 어제 판을 둔다 — 다른 계열의 재수집이 끝나 기준이 같아지면 다시 굽는다.
+        prev = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+        zones, overlay = prev['zones'], prev['rate_overlay']
+        print('  ⚠️ 매매·전세지수 기준시점이 다르다(%s) — zones·rate_overlay 는 어제 판을 둔다(재수집 보류 중인 계열이 복구되면 다시 굽는다)'
+              % ', '.join('%s %s' % (k, index_basis(S.get(k))) for k in RC.INDEX_KEYS))
     lvl, sudo_mean, jib_mean, prd = build_jratio(S)
 
     page = splice(page, 'zones', zones)
@@ -212,8 +269,12 @@ def main():
     page = splice(page, 'jratio_level', lvl)
     # 전세가율 풀이 칸 — 차트와 같은 값으로 D.prose와 본문을 함께 갱신한다
     m = re.search(r'const D=(\{.*?\});\n', page, re.S)
-    prose = dict(json.loads(m.group(1)).get('prose') or {})
+    cur = json.loads(m.group(1))
+    prose = dict(cur.get('prose') or {})
     jr = jratio_prose(lvl, prd)
+    # 같은 페이지 차트 데이터에서 바로 나오는 칸(종합 절 상·하위 지역, 멸실 절 수·연도, 자료 기간 — 전수 리뷰
+    # #62·#66·#69). 손으로 적어 두면 차트와 문장이 갈렸다.
+    jr.update(RC.page_prose(cur))
     prose.update(jr)
     page = splice(page, 'prose', prose)
     page = fill_spans(page, jr)

@@ -120,6 +120,10 @@ async function run(path, mode) {
   store.clear(); store.set('/', resp('home'));
   NET = () => later(150, resp('net'));
   out['/zone/ slow+home-cached'] = await run('/zone/', 'navigate');
+  // 한도를 넘겨 매달렸다가 끝내 끊기는 망, 그 문서 캐시 없음 → 그때는 홈(전수리뷰 #67). 예전엔 거부(브라우저 오류 화면).
+  store.clear(); store.set('/', resp('home'));
+  NET = () => later(150).then(() => { throw new TypeError('Failed to fetch'); });
+  out['/zone/ slow-fail'] = await run('/zone/', 'navigate').catch((e) => ({ handled: true, tag: 'REJECTED ' + e, ms: 0 }));
   process.stdout.write(JSON.stringify(out));
 })();
 """
@@ -149,6 +153,10 @@ def test_sw_serves_cache_when_network_hangs_and_network_when_fast():
     assert o['/zone/ offline']['tag'] == 'home', '오프라인 문서 요청이 홈 캐시로 폴백하지 않았다'
     slow = o['/zone/ slow+home-cached']
     assert slow['tag'] == 'net', '느린 망에서 캐시에 없는 문서를 홈으로 바꿔치기했다 — %s' % slow
+    # 전수리뷰 #67: 한도를 넘긴 뒤 끝내 실패한 탐색은 홈으로 폴백한다. 변이: sw.js 의 net.catch(…fallback…) 를 옛
+    # `hit || net` 으로 되돌리면 respondWith 가 거부돼 빨개진다(실제로 확인). 픽스처: 홈만 캐시된 배포 직후, 150ms
+    # 매달렸다가 끊기는 망(한도 60ms).
+    assert o['/zone/ slow-fail']['tag'] == 'home', o['/zone/ slow-fail']
 
 
 def test_sw_caches_pages_by_path_not_query():

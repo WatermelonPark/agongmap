@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v166';
+const HOME_BUILD='v167';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -153,6 +153,7 @@ Object.keys(PARTS).forEach(n=>PARTS[n].api.forEach(fn=>{
     },()=>{
       partBusy(n,fn,'fail');
       if(n==='stats')statsInited=false;   // 다음 진입에서 statsOpen 을 다시 부르게
+      if(fn==='bootChallenge')showView('test',false);   // 부팅 page_view 를 빠뜨리지 않게(boot 는 quiet 로 띄웠다, #46)
     });
   };
   window[fn]=wait;
@@ -224,14 +225,22 @@ function viewLoc(v,href){
   if(v!=='home')q.push('view='+v);
   return (j<0?pre:pre.slice(0,j))+(q.length?'?'+q.join('&'):'')+hash;
 }
-function showView(v,updateHash){
+let PV_SENT=false;   // 부팅 page_view 를 보냈는가(showView)
+/* 부팅 page_view 를 보낸 **뒤** 할 일(대결 부팅의 home_visit). 대결 부팅은 page_view 를 home-quiz.js 도착 뒤로 미루므로
+   home_visit 이 그 앞에 가지 않게 여기에 걸어 둔다(통합 검토 — '부팅 page_view 뒤' 순서가 대결 경로에서 뒤집혔다). */
+let PV_AFTER=null;
+function showView(v,updateHash,quiet){
   /* 퀴즈 뷰는 전용 탭이 없다(퀴즈 탭 → 지역 탭 교체, d6fe72e). 아무 탭도 안 켜면
      '지금 어디인가' 표시가 사라진다(2026-08-10 리뷰) — 퀴즈는 홈에서 진입하는
      하위 화면이므로 홈을 켠 채 둔다. */
   // 아래 page_view 용 — 첫 호출의 착지 주소는 이 함수가 주소를 바꾸기(pushState) 전에 잡는다
-  const first=curView===null, changed=v!==curView, landing=location.href;
+  /* quiet: 부팅이 대결 링크를 풀기 전에 퀴즈 화면만 먼저 띄울 때(boot). page_view 를 보내지 않고, 다음 호출을 여전히
+     '첫 호출'로 둔다 — 값이 틀린 대결 링크가 홈으로 돌아가면 부팅 page_view 가 두 번(view_test·view_home) 갔다(전수리뷰 #46). */
+  const first=!PV_SENT, changed=v!==curView||!PV_SENT, landing=location.href;
   const nv=(v==='test')?'home':v;
-  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.toggle('on',x.dataset.view===nv));
+  /* 켠 탭은 aria-current="page" 도 단다 — 다른 페이지 탭바(site_nav.bottomnav)와 같은 의미(전수리뷰 #47) */
+  document.querySelectorAll('.nav-btn').forEach(x=>{const on=x.dataset.view===nv;x.classList.toggle('on',on);
+    if(on)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current');});
   vHome.style.display=v==='home'?'':'none';
   vStats.style.display=v==='stats'?'':'none';
   vTest.style.display=v==='test'?'':'none';
@@ -249,7 +258,14 @@ function showView(v,updateHash){
     /* 홈으로 갈 때도 쿼리는 남긴다. 예전엔 location.pathname 만 써서 쿼리 착지(블로그 '/?utm…#stats-market',
        설치 앱 start_url '/?utm_source=pwa…')에서 홈 → 뒤로 가기를 하면 쿼리까지 바뀌어 hashchange 가 오지 않았고,
        주소는 통계인데 화면은 홈에 머물렀다(홈 마케팅 검수 1차 배포 검증, 2026-09-27). */
-    const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname+location.search:full;
+    /* 대결 쿼리(c·s·q)는 퀴즈 화면에서만 남긴다 — 홈·시세로 옮기면서 걷지 않으면 그 화면에서 새로고침·탭 복원·주소 복사 때
+       부팅이 해시 대신 대결 퀴즈를 띄웠다(전수리뷰 #44·#49). utm 등 다른 쿼리는 둔다. */
+    /* 퀴즈를 떠날 때는 지금 항목(퀴즈)의 주소에서도 대결 쿼리를 먼저 걷는다. 새 항목만 걷어 pushState 하면 두 항목의
+       쿼리가 달라져, 뒤로 가기에 hashchange 가 오지 않고(popstate 만) 주소는 퀴즈인데 화면은 홈·시세에 머물렀다 —
+       위 2026-09-27 결함이 대결 경로에서 되살아난 모양(통합 검토). */
+    if(curView==='test'&&v!=='test'&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
+    const q=v==='test'?location.search:chalSearch();
+    const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname+q:(q===location.search?full:location.pathname+q+full);
     if(v===curView)history.replaceState(null,'',tgtUrl);
     else if(location.hash!==tgtHash)history.pushState(null,'',tgtUrl);
   }
@@ -260,8 +276,23 @@ function showView(v,updateHash){
      view= 만 더해 싣는다 — origin 에서 새로 만들면 쿼리가 빠져 블로그 캠페인이 안 잡힌다. 그 뒤 화면 전환은
      origin+'/' 에 view= 를 단 가상 주소다(viewLoc): 세션 출처는 첫 hit 가 정하므로 utm 을 매 전환에 되풀이할
      까닭이 없고, 착지 쿼리를 실으면 같은 화면이 착지 쿼리마다 다른 주소로 갈라진다. */
+  else if(v!=='test'&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
   curView=v;
-  if(changed)track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});
+  if(changed&&!quiet){PV_SENT=true;track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});
+    if(first&&PV_AFTER){const f=PV_AFTER;PV_AFTER=null;f();}}
+}
+/* 대결 쿼리(c·s·q)를 걷은 쿼리 문자열. 대결 링크가 아니면 그대로. */
+function chalSearch(){
+  if(!chalInURL(location.search))return location.search;
+  const q=location.search.slice(1).split('&').filter(x=>x&&!/^(c|s|q)(=|$)/.test(x));
+  return q.length?'?'+q.join('&'):'';
+}
+/* 부팅이 대결로 들어갈 주소인가 — 대결 쿼리가 있고, 해시가 없거나 그 대결 세트의 퀴즈(#test-<s>)일 때만. 다른 화면의
+   해시(#stats-… 등)가 붙어 있으면 그 화면이 이긴다(전수리뷰 #44 — 옛 탭·복사한 주소에 남은 쿼리). */
+function chalBootable(){
+  if(!chalInURL(location.search))return false;
+  const m=location.search.match(/[?&]s=(beginner|investor|calc)/);
+  return !location.hash||location.hash==='#test-'+m[1];
 }
 // 리포트 탭은 <a href="/cycle/">라 dataset.view가 없다. 가드가 없으면
 // showView(undefined)가 불려 네 뷰가 전부 사라진다.
@@ -306,7 +337,12 @@ function applyHash(){
   }
   if(h==='score'){showView('home',false);afterLayout(()=>{const el=document.getElementById('sec-score');if(el)el.scrollIntoView();});return;}
   if(h==='test'){showView('test',false);backToPick(true);return;}
-  if(h==='home'||h==='stats'||h==='test'){showView(h,false);return;}
+  /* 맨 #stats(모든 페이지 탭바의 '시세' 링크·PWA 바로가기)는 #stats-market 과 같게 모드·하위 탭까지 맞추고 주소도 정규
+     해시로 바꿔 둔다 — 예전엔 화면만 열어, 투자지표로 옮긴 뒤 뒤로 가면 주소만 #stats 로 돌아오고 화면은 그대로였다
+     (전수리뷰 #45). */
+  if(h==='stats'){showView('stats',false);setStatsMode('market',false);setMarketTab('week',false);
+    history.replaceState(null,'','#stats-market-week');return;}
+  if(h==='home'||h==='test'){showView(h,false);return;}
   // 리포트는 /cycle/로 이전했다. 옛 해시로 들어온 링크·북마크를 넘긴다.
   // replace를 쓰는 이유: push면 뒤로가기가 이 페이지로 되돌아와 무한 왕복한다.
   if(R2C.has(h)){location.replace('/cycle/'+(h==='report'?'':'#'+h));return;}
@@ -475,12 +511,14 @@ function _bizDay(n){   // 주말·공휴일이면 다음 영업일까지 민다
      2026 추석에 9/21 조사분은 휴일인 9/24(목) 당일에 올라왔다. 옛 규칙(다음 영업일 9/28)도, '연휴 전에
      당긴다'는 추측도 틀렸다. 관측 한 번으로는 규칙을 못 세우므로 날짜 대신 안내 문구를 쓴다.
    · 지연 = p+grace+1(감시가 실패로 보기 시작하는 날)을 휴일이면 영업일로 민 날이 **다 지났는데** 새 주차가
-     없을 때. 감시는 그날 배치 뒤에 돌지만 화면은 발표 당일 아침에도 보이므로 그 하루를 더 준다. */
+     없을 때. 감시는 그날 배치 뒤에 돌지만 화면은 발표 당일 아침에도 보이므로 그 하루를 더 준다.
+   · 연휴 주(hedge)는 원천이 조사를 한 주 거르기도 해서(2025 설·추석 실측) 기준일을 한 주 늦춘다
+     (전수리뷰 #10, 대표 결정 ④ — 파이썬 WR.status 와 같이). */
 function weeklyRelease(p,now,grace){
   const b=_dn(p), nx=b+10;
   let hedge=false;
   for(let k=0;k<=3;k++)if(_HOLIDAYS.has(_iso(nx-k)))hedge=true;   // 발표 주 월~목
-  const due=(grace==null)?null:_bizDay(b+grace+1);
+  const due=(grace==null)?null:_bizDay(b+grace+1+(hedge?7:0));
   return {survey:p,pub:_iso(b+3),next:_iso(nx),hedge:hedge,
           due:due==null?null:_iso(due),stale:due!=null&&_kst(now).day>due};
 }
@@ -599,6 +637,9 @@ function tbLabel(i,per){
 var TB_BCACHE=null;   // 원천(ADV/STATS)은 페이지 수명 내내 불변 — 한 번만 짓는다
 function tbBuild(){
   if(TB_BCACHE) return TB_BCACHE;
+  /* data-core.js 를 못 받은 부팅(전수리뷰 #43)에도 공급 구역의 '표'·'그래프'·기간 단추는 켜져 있다 — ADV 가 없으면
+     ReferenceError 대신 null 로 돌아가 tbDraw 가 구역을 숨긴다(정적 요약은 남는다, 통합 검토). */
+  if(typeof ADV==='undefined'||typeof STATS==='undefined') return null;
   var S=ADV.sido; if(!S||!S.zones||!S.zones.length) return null;
   var D=STATS['준공'], K=STATS['착공']; if(!D||!K) return null;
   var regs=S.zones.map(function(z){return z.z;});
@@ -644,33 +685,49 @@ function tbBuild(){
      본문으로 말한다. */
   var un={},pm={};
   S.zones.forEach(function(z){ un[z.z]=z.unsold; pm[z.z]=z.pm12; });
+  /* 분기·연 가격 합은 split_data 가 원값으로 한 번 더해 실은 ADV.monthly.agg 를 읽는다(tbAgg). pidx 는 regs → 그 배열의 칸. */
   return TB_BCACHE={regs:regs,refs:refs,est:est,rows:rows,H:S.H,L:S.L,
-          un:un,pm:pm,uprd:S.unsold_prd};
+          un:un,pm:pm,uprd:S.unsold_prd,
+          pagg:P.agg||null,pidx:regs.map(function(r){return pi[r];})};
 }
 /* 월 원장 → 기간 단위. n(합친 달 수)을 같이 돌려줘야 부분 기간의 적정물량이
    같은 비율로 줄어든다 — 안 그러면 2029년(2분기치)이 1년치 기준과 비교돼
    과대 부족으로 보인다. */
+/* 가격 변동(매매·전세·월세)의 기간 합은 **달이 다 찬 칸만** 낸다(전수 리뷰 #15, 대표 결정 ⑧). 값이 있는 달만 더하면
+   전남광주 25Q2(6월 결측)가 두 달 합으로, 연 보기의 마지막 해가 몇 달 합으로 '그 기간 변동률'처럼 칠해졌다. 덜 찬 칸은
+   null('자료 없음'·무색). 분기·연 합은 split_data 가 정본 sido_zones.price_periods 로 **원값**을 한 번 더해 실은
+   ADV.monthly.agg 를 읽는다(#110 — 소수 둘째 자리로 반올림한 월값을 여기서 더하면 시도 리포트와 칸의 5%에서 갈렸다).
+   agg 가 없는 옛 데이터면 같은 규칙(달 수가 모자라면 null)으로 여기서 더한다. */
+var TB_PF={m:'ma',j:'je',w:'wo'};
 function tbAgg(rows,per){
   var size=TB_SIZE[per]||3, out=[], cur=null, key=null;
+  var B=TB_BCACHE, A=(size>1&&B&&B.pagg)?B.pagg[per]:null;
   rows.forEach(function(r){
     var g=Math.floor(r.i/size);
     if(cur===null||g!==key){
       key=g;
-      cur={i:g*size,n:0,nf:0,s:r.s.map(function(){return 0;}),m:null,j:null,w:null};
+      cur={i:g*size,g:g,n:0,nf:0,s:r.s.map(function(){return 0;}),m:null,j:null,w:null,c:{}};
       out.push(cur);
     }
     cur.n++; if(r.fut) cur.nf++;
     r.s.forEach(function(v,k){ cur.s[k]+=v; });
     ['m','j','w'].forEach(function(f){
       if(!r[f]) return;
-      if(!cur[f]) cur[f]=r.s.map(function(){return null;});
-      r[f].forEach(function(v,k){ if(v!=null) cur[f][k]=(cur[f][k]||0)+v; });
+      if(!cur[f]){ cur[f]=r.s.map(function(){return null;}); cur.c[f]=r.s.map(function(){return 0;}); }
+      r[f].forEach(function(v,k){ if(v!=null){ cur[f][k]=(cur[f][k]||0)+v; cur.c[f][k]++; } });
     });
   });
   out.forEach(function(c){
     c.fut=(c.nf===c.n);                 // 전부 미래일 때만 미래 행
     c.mix=(c.nf>0&&c.nf<c.n);           // 실적과 추정이 한 칸에 섞였다
     c.part=(c.n<size);                  // 기간이 덜 찼다(표 시작·끝)
+    var lab=per==='q'?(Math.floor(c.g/4)+'Q'+(c.g%4+1)):String(c.g), got=A?(A[lab]||null):null;
+    ['m','j','w'].forEach(function(f){
+      if(!c[f]) return;
+      if(A){ var arr=got&&got[TB_PF[f]]; c[f]=B.pidx.map(function(p){ return (arr&&p!=null&&arr[p]!=null)?arr[p]:null; }); }
+      else c[f]=c[f].map(function(v,k){ return c.c[f][k]===size?v:null; });
+    });
+    delete c.c;
   });
   return out;
 }
@@ -1042,6 +1099,12 @@ function mapMode(m){
 function renderSidoMap(){
   var el=document.getElementById('map-wrap');
   if(!el||el.dataset.done) return;
+  /* data-core 가 안 오면(ADV 없음) 표도 못 굽는다 — 지도 버튼만 잠그고 돌아가 부팅의 라우팅(대결·해시)이 돌게 한다(전수리뷰 #43) */
+  if(typeof ADV==='undefined'){
+    var mb0=document.querySelector('#tb-view [data-v="map"]');
+    if(mb0){ mb0.disabled=true; mb0.title='지도 데이터를 불러오지 못했습니다'; }
+    return;
+  }
   if(typeof SIDO_GEO==='undefined'||!ADV.sido||!ADV.sido.zones){
     /* 지도는 기본 모드다 — sido-geo.js가 안 오면(404·차단) 조용히 빠지면
        홈 첫 화면이 빈 상자가 된다(2026-08-08 감사 세션 지적). 표로 폴백하고
@@ -1323,7 +1386,7 @@ function grWireTip(el){
 function renderHeroMap(){
   const el=document.getElementById('hero-map');
   if(!el||typeof NATION_TILE==='undefined'||typeof mapColor!=='function')return;
-  const S=ADV.weekly&&ADV.weekly.sgg;
+  let S;try{S=ADV.weekly&&ADV.weekly.sgg;}catch(e){return;}   // data-core 가 안 오면 ADV 가 없다 — 부팅(라우팅)을 끊지 않는다(전수리뷰 #43)
   if(!S||!S.rows||!S.rows.length)return;
   const row=S.rows[S.rows.length-1], v={};
   (S.codes||[]).forEach((c,i)=>{v[c]=row.ma[i];});
@@ -1819,13 +1882,17 @@ function boot(){
 renderSidoMap();    // 기본 모드 — 보이는 것부터
   /* 대결 링크(?c=&s=, 퀴즈 랜딩이 넘겨준다)는 퀴즈 화면을 먼저 띄우고 해석·시작은 home-quiz.js 의 bootChallenge 가
      한다(B11 — 점수 상한 QUIZ_LEN 이 그 파일에 있다). 모양만 보는 chalInURL 은 랜딩의 넘김 조건과 같다. */
-  if(chalInURL(location.search)){
-    showView('test',false);
+  if(chalInURL(location.search)&&chalBootable()){
+    /* page_view 는 bootChallenge 가 대결을 확정한 뒤(또는 applyHash 가) 한 번 보낸다(#46). 그 사이 머리 스크립트의 idle
+       폴백(index.html, dataLayer 에 page_view 가 없으면 보냄)이 먼저 돌면 두 건이 됐다 — 폴백에 미룬다고 알린다(통합 검토). */
+    window.__pvDefer=true;
+    PV_AFTER=()=>{VISIT=countVisit();};
+    showView('test',false,true);
     bootChallenge();
   }else{
     applyHash();
   }
-  VISIT=countVisit();   // 그날 첫 홈 부팅에 home_visit 한 번(B10) — 부팅 page_view(applyHash·showView) 뒤
+  if(!PV_AFTER)VISIT=countVisit();   // 그날 첫 홈 부팅에 home_visit 한 번(B10) — 부팅 page_view(applyHash·showView) 뒤
   watchSections();      // 주간 구역 노출 section_view(B10)
   setTimeout(()=>{_instReady=true;installMaybe();},INSTALL_DELAY);   // 설치 안내(C10①)는 첫 화면이 자리 잡은 뒤에만
 }

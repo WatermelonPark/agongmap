@@ -63,6 +63,7 @@ const window = { scrollTo(){} };
 function scrollBehavior(){ return 'auto'; }
 function renderChalBar(){}
 function versusHTML(){ return ''; }
+function chalActive(){ return false; }   // 대결 판정(전수리뷰 #57) — showResult 뒤에 선언돼 잘라 온 구간 밖이다
 function loadKakao(){ return Promise.resolve(); }
 let CHALLENGE = null;
 %(src)s

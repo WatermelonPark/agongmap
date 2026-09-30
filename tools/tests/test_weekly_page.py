@@ -276,3 +276,27 @@ def test_down_top3_lists_the_largest_falls_first():
     assert _rank(answer, 'up', 0) == [('자구', '+0.15'), ('다시', '+0.08'), ('바구', '+0.02')]
     assert _rank(answer, 'dn', 1) == [('마포구', '-0.15'), ('성동구', '-0.11'), ('송파구', '-0.09')]
     assert '하락 1위 마시 -0.62%' in desc
+
+
+def test_og_description_drops_the_nation_part_when_it_is_missing():
+    """전국 값이 없는 주(R-ONE 부분 응답 — update_adv_data 의 chg 는 원천이 없으면 None)에 og:description 이 '전국 ·%'를
+    굽지 않는다. desc·리드·공유 문구처럼 전국 조각을 뺀다(전수리뷰 #29).
+
+    픽스처: 저장소 data.js 주간 계열의 최신 행에서 '전국' 칸만 None 으로 바꾼 것(값·날짜는 데이터에서).
+    변이(실제로 확인): build 의 og 를 예전 식('%s · 전국 %s%%, %s %s%%.' % (datestr, pv2(nation), …))으로 되돌리면 빨개진다.
+    """
+    import copy
+    W, Q = MW.load()
+    W = copy.deepcopy(W)
+    W['rows'][-1]['ma'][W['regions'].index('전국')] = None
+    _, _, desc, og = MW.build(W, Q)
+    for name, s in (('og', og), ('desc', desc)):
+        assert '·%' not in s and '전국 ·' not in s, '%s: %s' % (name, s)
+    best = MW.conclusion(W)['best']
+    assert best[0] in og and '전국' not in og.split('발표')[1].split(best[0])[0], og
+    # 전국 값이 있으면 예전처럼 싣는다
+    W2, _ = MW.load()
+    _, _, _, og2 = MW.build(W2, Q)
+    nat = W2['rows'][-1]['ma'][W2['regions'].index('전국')]
+    if nat is not None:
+        assert '전국 %s%%' % MW.pv2(nat) in og2

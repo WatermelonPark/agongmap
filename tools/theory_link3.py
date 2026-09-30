@@ -17,17 +17,30 @@ import json
 import os
 import re
 
+import rebuild_cycle_analysis as RC     # 지수 기준 단절 판정의 정본(index_breaks·break_message, 전수리뷰 #61·#73)
 import sido_zones as SZ
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LATEST_H = '2026H1'      # 본문이 '지금'·'최근 1년'으로 부르는 인허가 반기. 새 반기가 들어오면 본문과 함께 고친다
 
 
 class Link3ClaimError(Exception):
     """4편 본문의 단정이 데이터와 어긋난다."""
 
 
+class Link3DataError(Link3ClaimError):
+    """문장이 아니라 입력 계열이 깨졌다(지수 기준 단절 등) — 문장을 고칠 일이 아니라 원천 데이터를 복구할 일이다."""
+
+
 def link3_numbers(adv, sts):
-    """4편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link3ClaimError."""
+    """4편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link3ClaimError, 입력 계열이 끊겼으면 Link3DataError."""
+    # 계열 연속성부터 본다(전수리뷰 #73). 기준시점이 바뀐 매매지수로 세면 '서울은 지난 꼭대기를 넘어섰다'(사실)가
+    # 거짓으로 판정돼 'se_pk: '(빈 메시지)로 멈추고, 글쓴이에게 맞는 문장을 고치라고 잘못 안내했다.
+    # 판정은 사이클 도구와 한 정본(rebuild_cycle_analysis.index_breaks — 같은 문턱·같은 '여러 지역 동시' 규칙)이다.
+    br = RC.index_breaks(sts, ('매매지수',))
+    if br:
+        raise Link3DataError('매매지수 기준 단절 — %s. 원천 재수집 전까지 이 계열로 글을 만들지 않는다'
+                             % RC.break_message(br))
     p = adv['permits']
     R = p['regions']
     SIDO = [rg for rg in R if rg not in SZ.AGG]
@@ -70,10 +83,13 @@ def link3_numbers(adv, sts):
 
     def _sudo_px():
         # [공통] 각 python은 def f(adv, sts): 의 본문이고 전역에 P(make_naver_post)와 json이 있어야 한다. 위치 슬라이스 대신 SIDO·JB를 sido_zones의 AGG·REGION으로 센다. 이 키: 수도권 아파트 실거래가격지수 상승률 2019.06→2021.12
+        # 본문 '값이 더 많이 오른 쪽에서 공급이 줄었습니다'(수도권 상승률 > 지방, 수도권 인허가 감소·지방 증가)를 assert로 고정
+        assert G('수도권') > G('지방') and Q('수도권') < 1 < Q('지방')
         return '%.0f%%' % G('수도권')
 
     def _sudo_pm():
-        # 수도권 아파트 인허가 감소율: 2018~19 연평균 → 2021~22 연평균
+        # 수도권 아파트 인허가 감소율: 2018~19 연평균 → 2021~22 연평균. 본문 '오히려 N% 적었습니다'(Q<1)
+        assert Q('수도권') < 1
         return '%.0f%%' % ((1-Q('수도권'))*100)
 
     def _jb_px():
@@ -81,7 +97,8 @@ def link3_numbers(adv, sts):
         return '%.0f%%' % G('지방')
 
     def _jb_pm():
-        # 지방 인허가 증가율: 2018~19 연평균 → 2021~22 연평균
+        # 지방 인허가 증가율: 2018~19 연평균 → 2021~22 연평균. 본문 '인허가가 N% 늘었습니다'(Q>1)
+        assert Q('지방') > 1
         return '%.0f%%' % ((Q('지방')-1)*100)
 
     def _boom_n():
@@ -110,11 +127,15 @@ def link3_numbers(adv, sts):
         return '%.0f%%' % G('서울')
 
     def _se_pm():
-        # 서울 인허가 증가율 2018~19 → 2021~22 연평균
+        # 서울 인허가 증가율 2018~19 → 2021~22 연평균. 본문 '인허가가 N% 느는 데 그쳤습니다'(Q>1)
+        assert Q('서울') > 1
         return '%.0f%%' % ((Q('서울')-1)*100)
 
     def _ic_q():
-        # 인천 인허가 배수(본문 '절반')
+        # 인천 인허가 배수. 본문 '인천은 절반(N배)이 됐습니다'를 assert로 고정(반올림해 0.5배로 적히는 범위).
+        # 같은 문단 '경기도 인허가가 줄었고'도 여기서 본다
+        assert 0.45 <= Q('인천') < 0.55, Q('인천')
+        assert Q('경기') < 1
         return '%.1f배' % Q('인천')
 
     def _jb_sido_n():
@@ -304,7 +325,10 @@ def link3_numbers(adv, sts):
         return format(round(sum(A('수도권',y) for y in range(2007,2026))/19),',')
 
     def _jb_h1():
-        # 지방 인허가 2026년 상반기
+        # 지방 인허가 2026년 상반기. 본문은 이 반기를 '지금'·'최근 1년치'로 말한다 — 새 반기가 들어오면 낡은 값을
+        # 최근이라 부르게 되므로 멈춘다(theory_link4 의 CUR_Y 가드와 같은 원칙)
+        assert p['rows'][-1]['p'] == LATEST_H, '인허가 최신 반기가 %s — 본문의 %s 문장을 다시 쓸 것' % (
+            p['rows'][-1]['p'], LATEST_H)
         return format(H('지방','2026H1'),',')
 
     def _jb_h1since():
@@ -321,8 +345,12 @@ def link3_numbers(adv, sts):
 
     def _min2025():
         # 2025년 인허가가 2007년 이후 최저인 시도. 2025년 반기 값이 0이거나 비어 있는 시도(현재 세종, 원천 확인 전)는 이름을 박지 않고 규칙으로 제외한다. 본문은 전체 목록처럼 쓰지 않고 해당 시도 이름만 적는다
+        # 조사(은/는)도 여기서 붙인다 — 받침으로 끝나는 지역이 끝에 오면 본문에 박힌 '는'이 '서울는'이 된다
         z=[rg for rg in SIDO if any(not r['v'][R.index(rg)] for r in p['rows'] if r['p'][:4]=='2025')]
-        return '·'.join(rg for rg in SIDO if rg not in z and min(range(2007,2026), key=lambda y: A(rg,y))==2025)
+        d=[rg for rg in SIDO if rg not in z and min(range(2007,2026), key=lambda y: A(rg,y))==2025]
+        assert d, '2025년이 2007년 이후 최저인 시도가 없다'
+        import make_naver_post as NP      # 조사 정본(eunneun). 4편은 make_theory_post 가 이미 불러 둔 모듈이다
+        return '·'.join(d) + NP.eunneun(d[-1])
 
     def _sd_fut():
         # 사이트 판정 정본(adv['sido'] zones split): 수도권 앞으로 3년 들어올 물량 / 필요량
@@ -389,6 +417,8 @@ def link3_numbers(adv, sts):
     for k, f in sorted((k[1:], f) for k, f in locals().items() if k.startswith('_') and callable(f)):
         try:
             out[k] = f()
-        except AssertionError as e:
-            raise Link3ClaimError('4편 본문의 단정이 데이터와 어긋난다 — %s: %s' % (k, e))
+        except (AssertionError, StopIteration, ValueError, KeyError, IndexError) as e:
+            # 단정(assert)만이 아니다. 반기 행이 없거나(StopIteration) 달이 없으면(ValueError) 날 트레이스백으로
+            # 죽었다 — theory_link4 처럼 모두 같은 멈춤으로 모은다
+            raise Link3ClaimError('4편 본문의 단정이 데이터와 어긋난다 — %s: %s %s' % (k, type(e).__name__, e))
     return out

@@ -58,14 +58,27 @@ def test_tile_counts_match_what_the_map_draws():
 
     2026-09-12: '187개 시군구'라고 적혀 있었으나 실제 타일은 182개(서울 25 + 157)였다.
     사이트에 187이라는 수가 어디에도 없어 대조할 데가 없었고 4주마다 발행됐다.
+
+    기대값은 지도 재료(NATION_TILE.t — 시군구 지도 drawNationMap 이 그리는 칸)에서 따로 센다: 칸 가운데 SGG_QNAME 에 이름이
+    있는 것이 시군구 타일이다(시도·부모 시 칸은 이름표에 없다). 예전 시험은 도구(_tile_counts)와 같은 SGG_QNAME 셈을 되풀이해
+    지도에 없는 코드가 이름표에 들어와도 초록이었다(전수리뷰 #97).
+    변이(실제로 확인): home-stats.js 의 SGG_QNAME 맨 앞에 지도에 없는 코드 "zz999":"가상시" 를 넣으면 빨개진다.
+    픽스처: 실제 홈 소스(home_source) — NATION_TILE 212칸, SGG_QNAME 182곳(2026-09).
     """
     import json
     import re
-    root = os.path.join(os.path.dirname(__file__), '..', '..')
     h = HS.home_source()
     q = json.loads(re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S).group(1))
-    seoul = sum(1 for n in q.values() if n.startswith('서울 '))
-    assert (P.SGG_N, P.SEOUL_N) == (len(q) - seoul, seoul)
+    m = re.search(r'const NATION_TILE=(\{.*?\]\]\})', h, re.S)
+    assert m, 'NATION_TILE(시군구 지도 칸)을 찾지 못했다'
+    tile = json.loads(re.sub(r'([{,])\s*(\w+)\s*:', r'\1"\2":', m.group(1)))
+    tiles = [r[0] for r in tile['t']]
+    assert len(tiles) == len(set(tiles)), '지도 칸 코드가 겹친다'
+    assert set(q) <= set(tiles), '지도에 없는 시군구 코드가 SGG_QNAME 에 있다: %s' % sorted(set(q) - set(tiles))
+    drawn = [c for c in tiles if c in q]
+    seoul = sum(1 for c in drawn if q[c].startswith('서울 '))
+    assert seoul and len(drawn) > seoul, '지도 칸을 못 셌다'
+    assert (P.SGG_N, P.SEOUL_N) == (len(drawn) - seoul, seoul)
     said = [m['desc'] for m in P.MORE_ROTATION if '시군구' in m['desc']]
     assert said, 'MORE_ROTATION 에서 시군구 문장을 찾지 못했다'
     for s in said:

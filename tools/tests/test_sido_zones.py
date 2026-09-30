@@ -240,15 +240,18 @@ def test_멸실은_분기의_연도에_맞춘다():
 # ---------------------------------------------------------------------------
 
 def test_permit_trail12_handles_yearly_reset():
-    """인허가는 '연내 누계'라 1월마다 리셋된다. 최근 12개월 = 올해 최신 누계 +
-    (작년 12월 − 작년 같은 달). 그냥 합산하면 이중계상으로 수십만이 나온다
-    (실제로 그렇게 계산했다가 잡은 전례, 2026-08-11)."""
-    stats = {'인허가': {
-        'dates': ['2025.06', '2025.12', '2026.06'],
-        'series': {'서울': [50, 100, 30]},
-    }}
+    """인허가는 '연내 누계'라 1월마다 리셋된다. 최근 12개월 = 누계를 월별로 푼 값(permit_monthly)의 12개월 합이다.
+    그냥 합산하면 이중계상으로 수십만이 나온다(실제로 그렇게 계산했다가 잡은 전례, 2026-08-11).
+
+    픽스처: 2025.01~2026.06 월별 누계(매달 10호씩 쌓이고 1월에 리셋). 최근 12개월(2025.07~2026.06) = 120.
+    전수 리뷰 #11 로 함수가 permit_monthly 위에서 다시 쓰였다 — 예전 픽스처는 세 달(06·12·06)만 둔 성긴 계열이었다.
+    변이: 월 값을 누계 그대로 더하면(이중계상) 빨개진다.
+    """
+    dates = ['%d.%02d' % (y, m) for y in (2025, 2026) for m in range(1, 13)][:18]
+    cum = [10.0 * int(d[5:]) for d in dates]
+    stats = {'인허가': {'dates': dates, 'series': {'서울': cum}}}
     v, ym = M.permit_trail12(stats, '서울')
-    assert v == 30 + 100 - 50 and ym == '2026.06'
+    assert v == 120 and ym == '2026.06'
 
 
 def test_permit_trail12_refuses_partial_data():
@@ -395,7 +398,14 @@ def test_refnote_copy_is_identical_on_home_and_zone():
 def test_unsold_ratio_reads_the_same_everywhere():
     """같은 미분양 배수가 카드와 표에서 다르게 보이면 안 된다(2026-08-12 리뷰:
     0.38배 / 0.4배). 1 미만은 둘째 자리까지 — 0.01배를 '0.0배'로 뭉개면 0과
-    구별이 안 된다."""
+    구별이 안 된다.
+
+    페이지 대조는 미분양 배수가 있는 **모든** 시도 리포트에서 카드·표의 표기를 '배'·'%'·'1% 미만' 모두로 모아, 각각 하나 이상
+    잡혔는지와 umx(um) 하나로 같은지를 본다. 예전엔 '배' 표기만 잡아 1 미만(% 표기) 지역에서 아무것도 못 모으고 늘 참이었다
+    — 원래 사고(0.38배 / 0.4배)가 바로 1 미만 구간의 일이다(전수리뷰 #102). 대상 지역은 데이터(ADV.sido 의 um)에서 고른다.
+    변이(실제로 확인): make_sido_pages 표 칸을 `umx(um) if um >= 1 else '%.2f배' % um` 으로 바꾸면 1 미만 지역(2026-09 전국
+    71% 등 — 표가 0.71배로 갈린다)에서 빨개진다.
+    픽스처: 배치가 구운 zone/<지역>/index.html 과 저장소 data.js 의 ADV.sido(um 이 1 이상·미만인 지역이 섞인 현재 상태)."""
     import io, os, re, sys
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
     import make_sido_pages as M
@@ -407,11 +417,17 @@ def test_unsold_ratio_reads_the_same_everywhere():
     assert M.umx(0.996) == '1.0배' and M.umx(0.95) == '95%'
 
     root = os.path.join(os.path.dirname(__file__), '..', '..')
-    for z in ('수도권', '제주', '세종'):
-        h = io.open(os.path.join(root, 'zone', z, 'index.html'), encoding='utf-8').read()
-        seen = set(re.findall(r'분기 적정물량(?:\([\d,]+호\))?의 ([\d.]+배)', h))
-        seen |= set(re.findall(r'data-ref="un">.*?</td><td>[\d,]+</td><td>([\d.]+배)', h))
-        assert len(seen) <= 1, '%s: 같은 배수가 여러 표기로 보인다 %s' % (z, sorted(seen))
+    V = r'(\d+(?:\.\d+)?배|1% 미만|\d+%)'
+    adv, _ = M.load()
+    zs = [z for z in adv['sido']['zones'] if z.get('um') is not None and z.get('unsold') is not None]
+    assert zs, '미분양 배수가 있는 지역이 없다 — 대조할 페이지가 없다'
+    for z in zs:
+        h = io.open(os.path.join(root, 'zone', z['z'], 'index.html'), encoding='utf-8').read()
+        card = set(re.findall(r'분기 적정물량(?:\([\d,]+호\))?의 ' + V, h))
+        table = set(re.findall(r'data-ref="un">.*?</td><td>[\d,]+</td><td>' + V, h))
+        assert card and table, '%s: 카드(%s)·표(%s)에서 미분양 배수 표기를 못 찾았다' % (z['z'], card, table)
+        assert card == table == {M.umx(z['um'])}, '%s: 같은 배수가 여러 표기로 보인다 카드 %s · 표 %s · 정본 %s' % (
+            z['z'], sorted(card), sorted(table), M.umx(z['um']))
 
 
 def test_reference_rows_are_keyboard_reachable():

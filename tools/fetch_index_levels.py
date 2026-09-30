@@ -5,7 +5,7 @@
 바꿔 버려서 지수 절대값(레벨)이 남지 않는다. 생활권별 저점(가격 사이클 바닥)을
 찾으려면 레벨이 필요해서 별도로 전량(2003-11~)을 받아 캐시한다.
 """
-import io, json, os, re, sys, time, urllib.parse, urllib.request
+import io, json, os, sys, time, urllib.parse, urllib.request
 
 API = 'https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do'
 TBL = {'maega': 'A_2024_00045', 'jeonse': 'A_2024_00050'}
@@ -13,16 +13,12 @@ OUT = os.path.join(os.path.dirname(__file__), 'cache', 'index_levels.json')
 
 
 def _key():
-    k = os.environ.get('RONE_API_KEY', '')
+    """RONE_API_KEY 는 환경 변수로만 읽는다(공개 저장소 규칙 — 키 파일 경로를 코드에 적지 않는다).
+    로컬에서는 러너처럼 저장소 밖 키 파일을 먼저 불러 환경 변수로 넘긴 뒤 돌린다."""
+    k = os.environ.get('RONE_API_KEY', '').strip()
     if k:
         return k
-    p = os.path.expanduser('~/.aptweather_keys.bat')
-    if os.path.exists(p):
-        for ln in io.open(p, encoding='utf-8', errors='ignore'):
-            m = re.search(r'RONE_API_KEY=(\S+)', ln)
-            if m:
-                return m.group(1).strip()
-    raise SystemExit('RONE_API_KEY 필요')
+    raise SystemExit('RONE_API_KEY 환경 변수 필요')
 
 
 def _get(url, tries=3):

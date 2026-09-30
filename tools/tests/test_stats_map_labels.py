@@ -58,7 +58,8 @@ def _render(monthly):
         pytest.skip('node 없음')
     src = HS.home_source()
     tile = re.search(r'const NATION_TILE=\{.*?\};\n', src).group(0)
-    fn = _func(src, 'drawNationMap')
+    # 밀기 안내 판정(syncSwipe)은 drawNationMap 이 부르는 도우미다(전수리뷰 #54) — 같이 싣는다(HOST 는 요소가 없어 판정을 건너뛴다)
+    fn = _func(src, 'syncSwipe') + '\n' + _func(src, 'drawNationMap')
     # 주간 만색 기준(WK_MAP_REF)은 홈 지도 주간 모드(C3)·히어로 배경과 한 상수다 — 선언 줄을 그대로 가져온다.
     ref = re.search(r'^var WK_MAP_REF=.*$', src, re.M).group(0) + '\n'
     js = (tile + ref +

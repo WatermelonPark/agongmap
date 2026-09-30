@@ -19,13 +19,27 @@ import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로�
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
+# 한 문항: 따옴표 안 escape 를 아는 문자열, 한 문항 안에 갇힌 opts([^\]]*), opts 와 answer 사이의 선택 필드(asof·review 문자열, m·k 수 등).
+# 예전 식은 opts 를 (.*?) 로 읽고 opts 바로 뒤 answer 를 요구해, asof 가 달린 문항에서 다음 문항들까지 한 덩어리로 삼켰다 —
+# 원문 57문항 중 48개만 읽혔고 빠진 9개에 규제 문항('광범위한 대출 규제')이 있었다(전수리뷰 #101).
+_STR = r"'((?:[^'\\]|\\.)*)'"
+ITEM = re.compile(r"\{q:" + _STR + r",\s*opts:\[([^\]]*)\],\s*(?:\w+:(?:'[^']*'|[\w.]+),\s*)*answer:(\d+),\s*exp:" + _STR)
+
+
 def _items():
+    """홈 퀴즈 문항 전부. 원문의 문항 수({q: 개수)와 읽은 수가 같아야 한다 — 파서가 문항을 삼키면 여기서 빨개진다.
+    변이(실제로 확인): 예전 정규식으로 되돌리면 개수 단정이 빨개지고(48 != 57), home-quiz.js 의 대출 규제 문항을
+    '…호재일까 악재일까?'·['호재','악재'] 로 바꾸면 test_no_binary_good_bad_options_remain 이 빨개진다(예전엔 초록).
+    픽스처: 실제 home-quiz.js — asof·review 가 달린 제도 문항이 섞인 현재 상태."""
     s = HS.home_source()
     out = []
-    for m in re.finditer(r"\{q:'(.*?)',\s*opts:\[(.*?)\],\s*answer:(\d+),\s*exp:'(.*?)'\}", s, re.S):
+    for m in ITEM.finditer(s):
         opts = re.findall(r"'([^']*)'", m.group(2))
         out.append({'q': m.group(1), 'opts': opts, 'answer': int(m.group(3)), 'exp': m.group(4)})
-    assert len(out) >= 20, '퀴즈 문항을 %d개밖에 못 읽었다 — 형식이 바뀌었으면 이 시험도 고칠 것' % len(out)
+    n = len(re.findall(r"\{q:'", s))
+    assert n and len(out) == n, '퀴즈 문항 %d개 가운데 %d개만 읽었다 — 형식이 바뀌었으면 이 시험도 고칠 것' % (n, len(out))
+    for x in out:
+        assert 2 <= len(x['opts']) <= 6 and 0 <= x['answer'] < len(x['opts']), ('문항을 잘못 잘랐다', x['q'], x['opts'])
     return out
 
 
