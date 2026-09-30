@@ -111,6 +111,23 @@ def hold_index_breaks(S):
     return out
 
 
+def index_basis(D):
+    """지수 계열 unit 의 기준시점('2017.11'·'2026.06'). 표기가 없으면 None. 재수집(update_adv_data.refetch_basic_full)이
+    unit 을 새 기준으로 고쳐 쓰고, 보류한 계열은 옛 unit 그대로다."""
+    m = re.search(r'(\d{4}\.\d{2})=100', (D or {}).get('unit') or '')
+    return m.group(1) if m else None
+
+
+def index_bases_agree(S):
+    """매매·전세지수가 같은 기준시점인가. 둘은 zones·rate_overlay 에서 한 y축('지수')에 겹쳐 그려진다.
+
+    수집은 계열마다 따로 재수집·보류한다(update_basic). 매매만 재수집에 성공하면 매매는 2026.06=100, 전세는
+    2017.11=100 인 채로 같은 축에 올라, 수도권 2021Q4 매매 106.8 · 전세 128.7 처럼 '매매가 전세를 크게 이탈해
+    솟구쳤다'는 캡션과 반대 그림이 나왔다(통합 검토). 원천 값을 비율로 맞추지 않는다(대표 결정 ① — 연결계수 금지).
+    """
+    return len({index_basis(S.get(k)) for k in RC.INDEX_KEYS}) <= 1
+
+
 def build_zones(S):
     ma, je = S['매매지수'], S['전세지수']
     out = {}
@@ -236,8 +253,15 @@ def main():
     page = io.open(PAGE, encoding='utf-8').read()
 
     SI = hold_index_breaks(S)
-    zones = build_zones(SI)
-    overlay = build_overlay(SI)
+    if index_bases_agree(S):
+        zones = build_zones(SI)
+        overlay = build_overlay(SI)
+    else:
+        # 한 계열만 새 기준이면 두 지수를 겹친 차트는 어제 판을 둔다 — 다른 계열의 재수집이 끝나 기준이 같아지면 다시 굽는다.
+        prev = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+        zones, overlay = prev['zones'], prev['rate_overlay']
+        print('  ⚠️ 매매·전세지수 기준시점이 다르다(%s) — zones·rate_overlay 는 어제 판을 둔다(재수집 보류 중인 계열이 복구되면 다시 굽는다)'
+              % ', '.join('%s %s' % (k, index_basis(S.get(k))) for k in RC.INDEX_KEYS))
     lvl, sudo_mean, jib_mean, prd = build_jratio(S)
 
     page = splice(page, 'zones', zones)
