@@ -84,7 +84,7 @@ def _stats_js(body, pre=''):
     files = dict(HS.home_files())
     app = files['home-app.js']
     return (DOM + _wk_block(app) + '\n'
-            'var ADV={}, STATS={}, statsInited=true, statsMode="market";\n'
+            'var ADV={}, STATS={}, statsInited=true, statsMode="market", curView="stats";\n'
             'const __NAV=[]; function statsNav(h,r){__NAV.push([h,!!r]);}\n'
             'function statsHashOf(m){return "#stats-"+m;}\n'
             'function afterLayout(){}\n'
@@ -354,7 +354,7 @@ def test_home_tabbar_marks_the_current_view():
     """
     files = dict(HS.home_files())
     app = files['home-app.js']
-    js = (DOM + 'var PV_SENT=false,statsInited=true,curView=null,statsMode="market";\n'
+    js = (DOM + 'var PV_SENT=false,PV_AFTER=null,statsInited=true,curView=null,statsMode="market";\n'
           'const vHome={style:{}},vStats={style:{}},vTest={style:{}};document.body={classList:{toggle(){}}};\n'
           'const location={href:"https://x/",search:"",hash:"",pathname:"/",origin:"https://x"};\n'
           'const history={pushState(){},replaceState(){}};function statsHashOf(){return "#stats-market-week";}\n'
@@ -371,3 +371,70 @@ def test_home_tabbar_marks_the_current_view():
     assert re.search(r'<button class="nav-btn on" data-view="home" aria-current="page">', nav)
     for b in re.findall(r'<button[^>]*>\s*<svg[^>]*>', nav):
         assert 'aria-hidden="true"' in b, b
+
+
+
+# ── 통합 검토: 재진입 없이 모드 탭으로 다시 열기(#42 잔여) ─────────────────────────
+def test_mode_tab_reopens_stats_after_a_failed_first_open():
+    """첫 진입(statsOpen)이 data-trend 를 못 받아 statsInited 가 풀린 뒤, 화면을 떠나지 않고 모드 탭(투자지표)을 누르면
+    statsOpen 을 다시 돌려 시장동향(주간·월간)까지 그린다. 예전엔 투자지표 분기만 데이터를 다시 받아 그 화면만 그리고,
+    loadData 성공이 '불러오지 못했습니다' 안내를 숨겨 시장동향·기본통계가 안내 없이 빈 채로 남았다(통합 검토 재현:
+    L3 시장동향 {weekMap:0, weekTbl:0, monthTbl:0}).
+
+    변이(실제로 확인): setStatsMode 의 `if(curView==='stats'&&!statsInited){…statsOpen();}` 줄을 지우면 둘째 기록에
+          week·month 가 없어 빨개진다.
+    픽스처: 첫 trend 요청만 실패하고 다음은 성공(망이 흔들린 경우) — test_reentry_after_trend_failure 와 같은 순서.
+    """
+    o = _node(_stats_js(r"""
+let calls=0; const R=[];
+loadFullData=function(){ calls++; if(calls===1)return Promise.reject(new Error('trend'));
+  ADV.permits={regions:[]}; ADV.occupancy={regions:[]}; return Promise.resolve(); };
+ensureBasicStats=()=>Promise.resolve();
+renderReleaseInfo=()=>R.push('rel'); renderWeekSec=()=>R.push('week'); renderMonthSec=()=>R.push('month');
+renderBubbleSec=()=>R.push('bubble'); initStats=()=>R.push('init');
+renderAdvPermits=()=>R.push('permits'); renderAdvOcc=()=>R.push('occ'); drawPermitChart=()=>{}; drawOccChart=()=>{};
+await statsOpen(); OUT.first={inited:statsInited};
+setStatsMode('adv');
+for(let i=0;i<5;i++) await new Promise(r=>setTimeout(r,0));
+OUT.second={inited:statsInited, drawn:R.slice()};
+""", pre='function loadFullData(){} function ensureBasicStats(){}'))
+    assert o['first'] == {'inited': False}, o
+    assert o['second']['inited'] is True and {'week', 'month'} <= set(o['second']['drawn']), o['second']
+
+
+# ── 통합 검토: 리드타임도 표 먼저(#53 잔여) ─────────────────────────────────────
+def test_leadtime_table_draws_without_the_chart_library():
+    """차트 라이브러리를 못 받아도 '착공·준공 리드타임'을 고르면 그 표·메타·출처를 그리고 그래프 실패 안내를 단다.
+    예전엔 drawLeadtime 첫 줄에서 돌아가, 단추는 리드타임인데 표·메타는 앞 데이터셋(매매 실거래지수 248행)이 남았다
+    (통합 검토 재현: chart-4.4.1.umd.js abort).
+
+    변이(실제로 확인): drawLeadtime 첫 줄을 옛 `if(needChart(()=>drawLeadtime()))return;` 로 되돌리면 표 머리가 비어 빨개진다.
+    픽스처: needChart 는 늘 '기다림', loadChart 는 거부(첫 방문에서 라이브러리 요청 실패). 앞 데이터셋 표가 남아 있는 상태.
+    """
+    got = _node(_stats_js(r"""
+document.querySelector=(q)=>document.getElementById(q);
+document.getElementById('#stat-tbl thead').innerHTML='<tr><th>연월</th><th>매매 실거래지수</th></tr>';
+document.getElementById('meta-bar').innerHTML='<span>단위 <b>지수(2017.11=100)</b></span>';
+drawLeadtime(); await new Promise(r=>setTimeout(r,0));
+OUT={th:document.getElementById('#stat-tbl thead').innerHTML, rows:document.getElementById('#stat-tbl tbody').innerHTML,
+  meta:document.getElementById('meta-bar').innerHTML, note:document.getElementById('src-note').innerHTML};
+""").replace('function needChart(){return false;}', 'function needChart(){return true;}').replace(
+        'function loadChart(){return Promise.resolve();}', 'function loadChart(){return Promise.reject(new Error("x"));}'))
+    assert '시차(개월)' in got['th'] and '<tr>' in got['rows'], got
+    assert '상관계수' in got['meta'] and '매매 실거래지수' not in got['th'], got
+    assert '그래프를 불러오지 못했습니다' in got['note'], got['note']
+
+
+# ── 통합 검토: data-core 없이 공급 표 단추(#43 잔여) ───────────────────────────
+def test_supply_table_buttons_survive_a_missing_data_core():
+    """data-core.js 가 오지 않아 ADV·STATS 가 선언조차 없어도, 공급 구역의 '표'·기간 단추가 부르는 tbBuild 는 던지지 않고
+    null 을 돌려준다(tbDraw 가 구역을 숨긴다). 예전엔 renderSidoMap 이 지도 단추만 잠가 '표'를 누르면 ReferenceError 였다.
+
+    변이(실제로 확인): tbBuild 의 `typeof ADV==='undefined'` 가드를 지우면 ReferenceError 로 빨개진다.
+    픽스처: data-core.js 요청이 실패한 착지(통합 검토 fr_s15) — ADV·STATS 선언 없음.
+    """
+    app = dict(HS.home_files())['home-app.js']
+    js = ('var TB_BCACHE=null;\n' + _fn(app, 'tbBuild') + '\n'
+          'let OUT={};try{OUT.b=tbBuild();}catch(e){OUT.err=String(e);}\n'
+          'process.stdout.write(JSON.stringify(OUT));')
+    assert _node(js) == {'b': None}

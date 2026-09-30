@@ -391,11 +391,28 @@ function buildTable(D,labels,vals,idx,parsed){
 /* 착공→준공 리드타임 시차곡선 (시기별 비교) */
 function leadPeak(a){ let b=-1; a.forEach((v,i)=>{ if(v!=null&&(b<0||v>a[b]))b=i; }); return b<0?null:[LEADTIME.lags[b],a[b]]; }
 function drawLeadtime(){
-  if(needChart(()=>drawLeadtime()))return;
   const L=LEADTIME, pOld=leadPeak(L.old), pNew=leadPeak(L.new);
   document.getElementById('stat-tbl').classList.remove('szpivot');
   document.getElementById('sec-basicmain').classList.add('single');
   document.getElementById('stat-matrix').innerHTML='';
+  /* 표·메타·출처를 먼저 그리고 그래프만 라이브러리를 기다린다(drawStat 과 같은 규칙, 전수리뷰 #53). 예전엔 첫 줄에서
+     돌아가, 라이브러리를 못 받으면 단추는 '리드타임'인데 표·메타는 앞 데이터셋(매매 실거래지수 248행)이 남았다(통합 검토). */
+  document.getElementById('prange').innerHTML=
+    `과거 최강 시차 <b>${pOld[0]}개월</b> → 최근 <b>${pNew[0]}개월</b>`;
+  document.getElementById('meta-bar').innerHTML=
+    `<span>단위 <b>상관계수 r</b></span><span>대상 <b>전국 착공·준공(12개월 이동평균)</b></span><span>출처 <b>국토교통부</b></span>`;
+  // 테이블: 시차별 r 비교
+  const thead=document.querySelector('#stat-tbl thead'),tbody=document.querySelector('#stat-tbl tbody');
+  thead.innerHTML=`<tr><th>시차(개월)</th><th>2011~2017</th><th>2018~</th></tr>`;
+  let h='';
+  L.lags.forEach((lg,i)=>{
+    if(lg<24||lg>44||lg%2)return;
+    h+=`<tr><td>${lg}</td><td>${L.old[i]??'-'}</td><td>${L.new[i]??'-'}</td></tr>`;
+  });
+  tbody.innerHTML=h;
+  document.getElementById('src-note').innerHTML=
+    `※ 착공량과 준공량의 12개월 이동평균을 시차를 두고 비교한 것. 곡선의 봉우리가 평균 공사기간을 뜻한다. 과거 약 ${pOld[0]}개월에서 최근 약 ${pNew[0]}개월로 길어졌다 — 공사비·인력·안전기준 변화 등이 원인으로 추정된다.`;
+  if(needChart(()=>drawLeadtime())){ chartFailNote(); return; }
   {const _o=Chart.getChart('statChart'); if(_o)_o.destroy();}
   statChartObj=new Chart(document.getElementById('statChart'),{
     type:'line',
@@ -422,21 +439,6 @@ function drawLeadtime(){
       });
     }}]
   });
-  document.getElementById('prange').innerHTML=
-    `과거 최강 시차 <b>${pOld[0]}개월</b> → 최근 <b>${pNew[0]}개월</b>`;
-  document.getElementById('meta-bar').innerHTML=
-    `<span>단위 <b>상관계수 r</b></span><span>대상 <b>전국 착공·준공(12개월 이동평균)</b></span><span>출처 <b>국토교통부</b></span>`;
-  // 테이블: 시차별 r 비교
-  const thead=document.querySelector('#stat-tbl thead'),tbody=document.querySelector('#stat-tbl tbody');
-  thead.innerHTML=`<tr><th>시차(개월)</th><th>2011~2017</th><th>2018~</th></tr>`;
-  let h='';
-  L.lags.forEach((lg,i)=>{
-    if(lg<24||lg>44||lg%2)return;
-    h+=`<tr><td>${lg}</td><td>${L.old[i]??'-'}</td><td>${L.new[i]??'-'}</td></tr>`;
-  });
-  tbody.innerHTML=h;
-  document.getElementById('src-note').innerHTML=
-    `※ 착공량과 준공량의 12개월 이동평균을 시차를 두고 비교한 것. 곡선의 봉우리가 평균 공사기간을 뜻한다. 과거 약 ${pOld[0]}개월에서 최근 약 ${pNew[0]}개월로 길어졌다 — 공사비·인력·안전기준 변화 등이 원인으로 추정된다.`;
 }
 
 /* ── 규모별 동향 피벗 (지표×규모 멀티선택, 전월비% 표) ──
@@ -550,6 +552,10 @@ function setStatsMode(m,push){
   });
   /* 투자지표 입력(permits·occupancy)은 data-trend 로만 온다. 아직 없으면(다시 받는 중) 온 뒤에 그린다 — 없는 채로
      그리면 renderAdvPermits 가 TypeError 로 이 함수를 중간에 끊어 화면과 주소가 갈렸다(전수리뷰 #42). */
+  /* 첫 진입(statsOpen)이 그래프 데이터를 못 받아 statsInited 가 풀린 채면, 재진입 없이 모드 탭을 눌러도 다시 연다 —
+     예전엔 투자지표 분기만 데이터를 다시 받아 그 화면만 그리고, loadData 성공이 '불러오지 못했습니다' 안내를 숨겨
+     시장동향·기본통계가 안내 없이 빈 채로 남았다(통합 검토, #42 잔여). */
+  if(curView==='stats'&&!statsInited){ statsInited=true; statsOpen(); }
   if(m==='adv' && !advRendered){
     if(advReady()){ renderAdvAll(); advRendered=true; }
     else loadFullData().then(()=>{ if(!advRendered&&advReady()){ renderAdvAll(curAdvTab()); advRendered=true; } }).catch(()=>{});
