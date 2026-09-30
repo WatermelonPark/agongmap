@@ -27,6 +27,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -38,7 +39,8 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import update_adv_data as U  # noqa: E402  (표 설정을 배치와 공유 — 단일 출처)
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
-import make_indicator_pages as I  # noqa: E402  (공개일·클램프 규칙 공유)
+import make_indicator_pages as I  # noqa: E402  (/moveins/ 시점 문구 공유)
+import make_weekly_page as MW  # noqa: E402  (주간 공유 카드 주소·PNG 메타 읽기 공유)
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
 import quiz_review as QR       # noqa: E402  (퀴즈 제도 문항 검토 기한)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
@@ -126,6 +128,12 @@ SOURCE_WORKERS = 4
 #   1차 합계 ≈ 244 + 140 + 45 = 429초 ≈ 7.2분
 #   → 대기 75초 → 재시도(같은 병렬 4, 타임아웃 20s) 27×20/4 + 3×20 = 195초
 #   합계 ≈ 699초 ≈ 11.7분 (같은 셈으로 직렬이면 1차 860초 + 75 + 540 ≈ 24.6분).
+# ⚠️ 재계산(2026-09-30, 전수리뷰 #35·#36·#109): 버블밴드 조회 2건(KOSIS 1·ECOS 1)이 붙어 작업 21건이 됐고,
+#   R-ONE 창 조회가 마지막 쪽 하나가 아니라 창의 모든 쪽을 읽는다(공급 head+1~2쪽, 주간 지역 head+2쪽,
+#   월간 지역 head+1쪽). 정상 최악 호출 ≈ 30회, 가장 긴 한 건은 창이 비어 전량으로 되돌리는 공급·지역 조회
+#   (head 2회 + 뒤에서 3쪽 = 5회 × 25s = 125초).
+#   1차   30×25s / 4 + 125s ≈ 188 + 125 = 313초, 사이트 140 + 45 = 185초 → 약 8.3분
+#   재시도 30×20/4 + 5×20 = 250초 → 합계 ≈ 313 + 185 + 75 + 250 = 823초 ≈ 13.7분(30분 예산 안).
 #   watchdog.yml의 timeout-minutes: 30은 그대로 둔다 — 잡 시간은 체크아웃·파이썬
 #   설치·프리플라이트(최대 15초)도 먹고, 산수가 또 틀렸을 때 판정 없이 죽는 쪽을 막는
 #   여유다. 줄여서 얻는 것은 장애 밤에 알림이 몇 분 빨라지는 것뿐이다.
@@ -143,12 +151,95 @@ SOURCE_WORKERS = 4
 from weekly_release import GRACE_WEEKLY  # noqa: E402
 GRACE_MONTHLY = 50     # 매월 15일경 전월분 발표
 GRACE_BASIC = 100      # 인허가·착공·준공이 약 2개월 지연(정상 최대 ~95일)
+# 버블밴드 두 계열은 발표가 더 늦다 — 새 달이 원천에 올라온 날 우리 값(전달)의 나이가 이미 GRACE_MONTHLY(50)를
+# 넘어, 감시가 발표 뒤·배치 반영 전에 한 번만 돌아도(감시 예약 18:07 KST 는 배치보다 앞선다) 그날 실패 메일이 났다
+# (전수 리뷰 통합 검토). 실측(2026): 전월세전환율 새 달이 올라온 날 우리 값 나이 132일(09-10, 2026.05)·119일
+# (09-28, 2026.06), 주담대 금리 86일(08-26, 2026.06). 정상 최대에 여유를 둔다 — 배치가 그 달을 놓친 것은 이만큼 늦게 잡힌다.
+GRACE_BUBBLE_CONV = 150
+GRACE_BUBBLE_LOAN = 100
 
 
 def get_json(url):
     return json.loads(urllib.request.urlopen(
         urllib.request.Request(url, headers=UA), timeout=FETCH_TIMEOUT
     ).read().decode('utf-8', 'replace'))
+
+
+def _hard_http(e):
+    """HTTP 4xx 인가 — 주소에 파일이 **없다**는 결정론적 답이다(전수리뷰 #38).
+
+    404 는 배포에서 파일이 빠진 사고라 새 IP 로 다시 봐도 같다 → 실패(fails)로 올린다.
+    그 밖(타임아웃·연결 끊김·5xx)은 망 사정이라 '못 봤다'로 분류한다(SKIPPED·FETCH_FAIL → 재확인).
+    예전엔 거꾸로였다: 지역 페이지 타임아웃 한 번이 즉시 결정론 red 가 되고, 공유 카드·전세가율·
+    입주물량 404 는 SKIPPED '참고' 한 줄로 초록 통과했다.
+    """
+    return isinstance(e, urllib.error.HTTPError) and 400 <= e.code < 500
+
+
+# R-ONE 쪽 나눔. 한 쪽은 1000행이고 과거부터 쌓이므로 최신은 뒤쪽에 있다.
+RONE_PAGE = 1000
+# 기간 창(START_WRTTIME)이 비어 전량으로 되돌릴 때 뒤에서부터 읽는 행 수. 배치 공급 조회의 하한
+# (update_adv_data._fetch_supply_one 의 max(..., 3000))과 같은 크기 — 한 시점이 여러 쪽에 걸쳐도
+# 최신 시점을 온전히 담는다(주간 한 주 ~236행, 미분양 한 달 ~246행).
+RONE_FALLBACK_ROWS = 3000
+
+
+def _rone_base(tbl, cycle, since=None):
+    base = ('https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do'
+            '?KEY=%s&Type=json&STATBL_ID=%s&DTACYCLE_CD=%s'
+            % (os.environ.get('RONE_API_KEY', ''), tbl, cycle))
+    if since:
+        base += '&START_WRTTIME=%s' % since
+    return base
+
+
+def _rone_total(base):
+    total = None
+    for blk in get_json(base + '&pIndex=1&pSize=1').get('SttsApiTblData', []):
+        for h in blk.get('head', []) or []:
+            if 'list_total_count' in h:
+                total = h['list_total_count']
+    return total
+
+
+def _rone_rows(tbl, cycle, since=None):
+    """R-ONE 표의 최근 행 — 쪽 나눔을 지켜 **여러 쪽을** 읽는다(전수리뷰 #35·#36).
+
+    since(START_WRTTIME)가 있으면 그 창의 **모든 쪽**을 읽는다. 창은 몇 쪽뿐이다. 창이 비면
+    전량으로 되돌려 뒤에서부터 RONE_FALLBACK_ROWS 행까지 읽는다(배치 _rone_recent_rows 와 같은 방식).
+    ⚠️ 예전엔 마지막 쪽 하나(total % 1000 행의 꼬리)만 읽었다. 최신 시점이 쪽 경계에 걸리면 그 시점의
+    앞부분이 빠지고(→ 지역 결측 오탐, 완비 달 판정 붕괴), 쪽이 넉넉하면 앞선 시점들이 섞였다(→ 개칭을
+    놓치고 서울 구 충돌 오탐). 배치는 이미 여러 쪽을 읽고 있었다 — 감시만 다른 대상을 쟀다.
+    """
+    base = _rone_base(tbl, cycle, since)
+    total = _rone_total(base)
+    if not total:
+        if since:
+            # 창이 통째로 비면 {'RESULT':{'CODE':'INFO-200'}}가 온다 — 예외를 던지면 '원천 조회
+            # 실패'로 읽혀 오경보가 된다. 필터를 풀고 다시 본다.
+            return _rone_rows(tbl, cycle)
+        raise RuntimeError('list_total_count 없음')
+    rows = []
+    # ⚠️ 마지막 페이지 번호는 **올림**이다. `total // 1000 + 1`로 쓰면 total이 1000의 배수일 때
+    #    존재하지 않는 다음 페이지를 집어 rows가 빈다.
+    p = -(-total // RONE_PAGE)
+    while p >= 1 and (since or len(rows) < RONE_FALLBACK_ROWS):
+        page = []
+        for blk in get_json(base + '&pIndex=%d&pSize=%d' % (p, RONE_PAGE)).get('SttsApiTblData', []):
+            if 'row' in blk:
+                page = blk['row'] or []
+        rows = page + rows
+        p -= 1
+    return rows
+
+
+def _rone_time(r, cycle):
+    """행의 시점 키 — 주간 WRTTIME_DESC(YYYY-MM-DD), 월간 WRTTIME_IDTFR_ID(YYYYMM). 못 읽으면 None."""
+    if cycle == 'WK':
+        t = (r.get('WRTTIME_DESC') or '').strip()
+        return t if len(t) == 10 else None
+    t = str(r.get('WRTTIME_IDTFR_ID') or '').strip()
+    return t if len(t) == 6 and t.isdigit() else None
 
 
 class _Fetched:
@@ -226,9 +317,6 @@ def live_adv_stats():
     return adv, stats
 
 
-PNG_SIG = bytes([137, 80, 78, 71, 13, 10, 26, 10])
-
-
 def live_card_basis():
     """라이브 공유 카드(share/weekly-map.png)에 심긴 조사기준일.
 
@@ -237,26 +325,12 @@ def live_card_basis():
     시세 지도'로 걸려 있었는데 아무 신호도 없었다(2026-08-06 발견). 원인은 클라우드
     배치에 pillow가 없어 생성 스텝이 매 회차 조용히 죽은 것.
 
-    PIL 없이 PNG tEXt 청크를 직접 읽는다 — 감시 잡에 이미지 라이브러리를 들이지
-    않으려는 것이다. 청크는 [길이4][타입4][데이터][CRC4]의 배열이고, tEXt 데이터는
-    키와 값을 NUL 하나로 이어 붙인 형태다.
+    PIL 없이 PNG tEXt 청크를 읽는다 — 감시 잡에 이미지 라이브러리를 들이지 않으려는 것이다.
+    카드 주소(SHARE_REL)와 읽기(png_text_bytes)는 /weekly/ 생성기의 것을 그대로 쓴다(두 벌이면 한쪽만 바뀐다).
     """
     raw = urllib.request.urlopen(
-        urllib.request.Request(SITE + '/share/weekly-map.png', headers=UA), timeout=SITE_TIMEOUT).read()
-    if raw[:8] != PNG_SIG:
-        return None
-    i = 8
-    while i + 8 <= len(raw):
-        n = int.from_bytes(raw[i:i + 4], 'big')
-        typ = raw[i + 4:i + 8]
-        if typ == b'IEND':
-            break
-        if typ == b'tEXt':
-            k, _, v = raw[i + 8:i + 8 + n].partition(bytes([0]))
-            if k == b'agongmap-basis':
-                return v.decode('ascii', 'replace')
-        i += 12 + n
-    return None
+        urllib.request.Request(SITE + '/' + MW.SHARE_REL, headers=UA), timeout=SITE_TIMEOUT).read()
+    return MW.png_text_bytes(raw).get('agongmap-basis') or None
 
 
 def _q_to_date(q):
@@ -308,16 +382,22 @@ def check_sido_sum(stats):
     미분양 241/241 전부 정확히 성립함을 확인하고 넣었다.
 
     ⚠️ null은 결측이 아니라 0으로 센다(KOSIS 규약, 위 실측이 그 증거다). 다만
-    계열이 그 지역에서 **시작되기 전**의 null은 0이 아니므로, 전국 행이 None인
-    시점은 건너뛴다(세종 2012.07 출범 같은 경우가 여기 걸린다).
+    계열이 **시작되기 전**의 null은 0이 아니므로, 집계 칸(전국·수도권·지방)의 **선행** None 은
+    건너뛴다(세종 2012.07 출범 같은 경우가 여기 걸린다).
+
+    ⚠️ 집계 칸·행의 결측은 따로 실패로 올린다(전수리뷰 #39). 예전엔 None 칸을 위치와 상관없이
+    건너뛰고, 전국 행이 없는 계열은 줄도 남기지 않고 빼고, 수도권·지방 행이 없으면 '(축없음)'만
+    적어서 셋 다 초록이었다. merge_basic 은 새 달을 전 지역 None 열로 만든 뒤 원천이 준 지역만
+    채우므로, 원천이 '총계' 행을 빼거나 이름을 바꾸면 **최신 달 전국만 None** 으로 저장된다 —
+    기본 탭인 전국의 최신 달이 빈 채로 감시와 게이트를 통과한다.
     """
     out = []
     print('[저장분 정합 — 합계 관계 4종 (API 호출 없음)]')
     for k in SUM_SERIES:
         d = stats.get(k)
-        if not d or not d.get('dates') or not (d.get('series') or {}).get('전국'):
+        if not d or not d.get('dates'):
             continue
-        ser, dates = d['series'], d['dates']
+        ser, dates = d.get('series') or {}, d['dates']
         # 시도 행이 통째로 사라진 것 자체가 사고다(2026-08-06 세종 36110이 존
         # 매핑에서 소거된 전례). 그 경우 아래 합계는 자연히 어긋나지만, 원인이
         # '값이 틀렸다'가 아니라 '행이 없다'라는 걸 따로 말해줘야 헤매지 않는다.
@@ -325,6 +405,22 @@ def check_sido_sum(stats):
         if gone:
             out.append('%s 시도 행 결측: %s — 수집이 그 지역을 통째로 흘렸다'
                        % (k, ', '.join(gone)))
+        agg_gone = [r for r in ('전국', '수도권', '지방') if not ser.get(r)]
+        if agg_gone:
+            out.append('%s 집계 행 결측: %s — 원천 합계 행의 이름·구성이 바뀌었는지 확인'
+                       % (k, ', '.join(agg_gone)))
+        # 집계 칸 구멍: 계열이 시작된 뒤(첫 유효값 뒤)의 None — 끝에 칸이 모자란 것도 구멍이다.
+        for whole in ('전국', '수도권', '지방'):
+            col = ser.get(whole) or []
+            first = next((i for i, x in enumerate(col) if x is not None), None)
+            if first is None:
+                continue
+            holes = [dt for i, dt in enumerate(dates)
+                     if i > first and (i >= len(col) or col[i] is None)]
+            if holes:
+                out.append('%s %s 칸 결측 %d건: %s%s — 원천이 그 달 %s 행을 주지 않았다'
+                           % (k, whole, len(holes), ', '.join(holes[-3:]),
+                              ' 외' if len(holes) > 3 else '', whole))
         marks = []
         for parts, whole, label in SUM_RULES:
             # 행이 빠졌으면 합을 **검증할 수 없다**. 없는 걸 0으로 세고 비교하면
@@ -358,9 +454,9 @@ def check_sido_sum(stats):
     return out
 
 
-# 공개일은 생성기의 것을 그대로 쓴다 — 값 사본은 한쪽만 바뀌는 순간 클램프
-# 기대값이 갈라져 매일 오탐이거나 진짜 스테일이 가려진다.
-INDICATOR_PUBLISHED = I.PUBLISHED
+# /moveins/ 화면의 데이터 시점 문구는 생성기의 것을 그대로 쓴다 — 사본은 한쪽만 바뀌는 순간 매일 '표기 없음'이다.
+MOVEINS_BASIS = I.MOVEINS_BASIS
+MOVEINS_BASIS_RE = re.escape(MOVEINS_BASIS).replace('%s', r'(\d{4})', 1).replace('%s', '([1-4])', 1)
 
 
 def check_derived_pages(adv, stats):
@@ -410,7 +506,11 @@ def check_derived_pages(adv, stats):
         bad = []
         for n, h in got:
             if isinstance(h, Exception):
-                bad.append('%s(조회실패 %s)' % (n, str(h)[:20]))
+                if _hard_http(h):      # 404 — 페이지가 배포에 없다(결정론)
+                    bad.append('%s(HTTP %d — 배포에 없음)' % (n, h.code))
+                else:                  # 타임아웃·끊김·5xx — 못 봤다(새 IP 재확인)
+                    FETCH_FAIL.append('파생 페이지(지역:%s)' % n)
+                    print('  지역 %s 조회 실패 (%s) — 재확인 대상' % (n, str(h)[:40]))
                 continue
             m = re.search(r'(\d{4}\.\d{2}) 기준 · 분기 적정물량', h)
             if not m:
@@ -430,10 +530,11 @@ def check_derived_pages(adv, stats):
         SKIPPED.append('파생 페이지(지역)')
         print('  지역 판정 못 함 — %s' % str(e)[:60])
 
-    # 지표 페이지 둘. 전세가율은 화면 문구, 입주물량은 JSON-LD의 dateModified를 쓴다
-    # (화면에 시점 문구가 없다). ⚠️ dateModified는 datePublished보다 과거가 되지
-    # 않도록 클램프된다 — 그 규칙을 모르고 비교하면 매일 오탐이 난다(실제로 처음에
-    # 그렇게 짰다가 2026-08-08 예행에서 잡았다).
+    # 지표 페이지 둘 다 **화면의 데이터 시점 문구**를 읽는다. 전세가율은 'YYYY.MM 기준', 입주물량은 표 아래 주석의
+    # 'YYYY년 N분기까지 준공 실적'. 입주물량은 예전에 JSON-LD dateModified 를 읽었는데(화면에 시점 문구가 없었다),
+    # 전수 리뷰 #18(2026-09-30)로 두 지표 페이지의 dateModified 가 '내용이 바뀐 날(keep_dates·KST)'이 되어 데이터
+    # 시점을 말하지 않는다 — 그대로 두면 본문이 처음 바뀌는 날부터 매일 오탐이다. 문구는 생성기 시험
+    # (test_indicator_page_fixes.test_moveins_keeps_the_data_basis_on_screen)이 지킨다.
     try:
         jr = (stats.get('전세가율') or {}).get('dates', [None])[-1]
         h = urllib.request.urlopen(urllib.request.Request(
@@ -448,8 +549,12 @@ def check_derived_pages(adv, stats):
         else:
             print('  전세가율  %s 일치' % m.group(1))
     except Exception as e:
-        SKIPPED.append('파생 페이지(전세가율)')
-        print('  전세가율  판정 못 함 — %s' % str(e)[:60])
+        if _hard_http(e):
+            out.append('/jeonse-ratio/ HTTP %d — 페이지가 배포에 없다' % e.code)
+            print('  전세가율  HTTP %d — 배포에 없음' % e.code)
+        else:
+            SKIPPED.append('파생 페이지(전세가율)')
+            print('  전세가율  판정 못 함 — %s' % str(e)[:60])
 
     try:
         o = adv.get('occupancy') or {}
@@ -458,23 +563,25 @@ def check_derived_pages(adv, stats):
         if act:
             m = re.match(r'^(\d{4})Q([1-4])$', act[-1])
             if m:
-                want = max('%s-%02d-01' % (m.group(1), int(m.group(2)) * 3),
-                           INDICATOR_PUBLISHED)
+                want = MOVEINS_BASIS % (m.group(1), m.group(2))
         h = urllib.request.urlopen(urllib.request.Request(
             SITE + '/moveins/', headers=UA), timeout=SITE_TIMEOUT).read().decode('utf-8', 'replace')
-        m = re.search(r'"dateModified":\s*"(\d{4}-\d{2}-\d{2})"', h)
+        m = re.search(MOVEINS_BASIS_RE, h)
         if not m:
-            out.append('/moveins/에 dateModified가 없다 — 페이지 구조가 바뀌었는지 확인')
-            print('  입주물량  dateModified 없음')
-        elif want and m.group(1) != want:
-            out.append('/moveins/ dateModified가 %s인데 데이터 기준으로는 %s'
-                       % (m.group(1), want))
-            print('  입주물량  %s (기대 %s) — 어긋남' % (m.group(1), want))
+            out.append('/moveins/에 시점 표기(…분기까지 준공 실적)가 없다 — 페이지 구조가 바뀌었는지 확인')
+            print('  입주물량  시점 표기 없음')
+        elif want and m.group(0) != want:
+            out.append('/moveins/가 %s인데 데이터는 %s' % (m.group(0), want))
+            print('  입주물량  %s (데이터 %s) — 어긋남' % (m.group(0), want))
         else:
-            print('  입주물량  %s 일치' % m.group(1))
+            print('  입주물량  %s 일치' % m.group(0))
     except Exception as e:
-        SKIPPED.append('파생 페이지(입주물량)')
-        print('  입주물량  판정 못 함 — %s' % str(e)[:60])
+        if _hard_http(e):
+            out.append('/moveins/ HTTP %d — 페이지가 배포에 없다' % e.code)
+            print('  입주물량  HTTP %d — 배포에 없음' % e.code)
+        else:
+            SKIPPED.append('파생 페이지(입주물량)')
+            print('  입주물량  판정 못 함 — %s' % str(e)[:60])
     return out
 
 
@@ -572,29 +679,10 @@ def rone_latest_complete(tbl, since=None, want_total=False):
     if key in _COMPLETE_CACHE:
         t, total = _COMPLETE_CACHE[key]
         return (t, total) if want_total else t
-    base = ('https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do'
-            '?KEY=%s&Type=json&STATBL_ID=%s&DTACYCLE_CD=MM'
-            % (os.environ.get('RONE_API_KEY', ''), tbl))
-    if since:
-        base += '&START_WRTTIME=%s' % since
-    head = get_json(base + '&pIndex=1&pSize=1')
-    total = None
-    for blk in head.get('SttsApiTblData', []):
-        for h in blk.get('head', []) or []:
-            if 'list_total_count' in h:
-                total = h['list_total_count']
-    if not total:
-        if since:
-            return rone_latest_complete(tbl, want_total=want_total)
-        raise RuntimeError('list_total_count 없음')
-    # ⚠️ 마지막 페이지 번호는 **올림**이다. `total // 1000 + 1`로 쓰면 total이
-    #    1000의 배수일 때 존재하지 않는 다음 페이지를 집어 rows가 비고
-    #    '시점 파싱 실패'가 난다(조회 실패로 분류돼 오경보 red까지 간다).
-    rows = []
-    for blk in get_json(base + '&pIndex=%d&pSize=1000'
-                        % (-(-total // 1000))).get('SttsApiTblData', []):
-        if 'row' in blk:
-            rows = blk['row']
+    # 완비 기준(배치 _drop_incomplete 와 같은 기준)은 창 안의 행을 **다** 볼 때만 성립한다. 미분양은 달마다
+    # ~246행이라, 보류 중(since 고정)에 원천이 앞서 나가면 창이 1000행을 넘는다 — 마지막 쪽만 읽으면
+    # 미완비 최신 달의 꼬리만 남아 의도된 보류가 매일 결정론 red 가 된다(전수리뷰 #36).
+    rows = _rone_rows(tbl, 'MM', since)
     want = {z for z in U.WEEKLY_REGIONS if z not in ('전국', '수도권', '지방')}
     by, vals = {}, {}
     for r in rows:
@@ -678,32 +766,33 @@ def supply_value_fail(label, D, tbl, since):
     return check_supply_value(label, D, tbl, since)
 
 
-def rone_region_names(tbl, cycle):
-    """R-ONE 표의 지역 계층 이름 집합(최신 한 시점).
+# 지역 계층 조회의 기간 창(개월). 주간은 지난달 1일부터(4~9주 · 2쪽 안팎), 월간은 석 달 전부터(3~4달 · 1쪽).
+# 창은 **최신 시점을 온전히 담기만** 하면 된다 — 이름은 최신 시점 행에서만 뽑는다.
+REGION_WINDOW = {'WK': 1, 'MM': 3}
 
-    이름만 필요하므로 최신 한 페이지만 받는다 — 시점 값은 안 본다.
+
+def _region_since(cycle):
+    """지역 계층 조회의 START_WRTTIME — 배치와 같은 함수(U._rone_since)로 만든다."""
+    return U._rone_since(cycle, REGION_WINDOW[cycle])
+
+
+def rone_region_names(tbl, cycle):
+    """R-ONE 표의 지역 계층 이름 집합 — **최신 한 시점**의 행만.
+
+    배치(fetch_weekly_rone 의 sido()·seoul_gu())는 한 시점씩 집는다. 감시도 같은 대상을 봐야 한다
+    (전수리뷰 #35). 예전엔 마지막 쪽 하나의 모든 행을 시점 구분 없이 모아 (a) 최신 시점에서만 이름이
+    바뀌면 앞 시점의 옛 이름이 결측을 가렸고, (b) 서울 중간 계층이 바뀌면 옛 경로·새 경로가 한데 섞여
+    구 충돌 오탐을 냈고, (c) 쪽 경계가 최신 시점을 자르면 앞 행(전국·수도권…)이 빠져 결측 오탐을 냈다.
     """
-    base = ('https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do'
-            '?KEY=%s&Type=json&STATBL_ID=%s&DTACYCLE_CD=%s'
-            % (os.environ.get('RONE_API_KEY', ''), tbl, cycle))
-    head = get_json(base + '&pIndex=1&pSize=1')
-    total = None
-    for blk in head.get('SttsApiTblData', []):
-        for h in blk.get('head', []) or []:
-            if 'list_total_count' in h:
-                total = h['list_total_count']
-    if not total:
-        raise RuntimeError('list_total_count 없음')
-    names = set()
-    for blk in get_json(base + '&pIndex=%d&pSize=1000'
-                        % (-(-total // 1000))).get('SttsApiTblData', []):
-        for r in blk.get('row', []) or []:
-            nm = (r.get('CLS_FULLNM') or '').strip()
-            if nm:
-                names.add(nm)
-    if not names:
+    by = {}
+    for r in _rone_rows(tbl, cycle, _region_since(cycle)):
+        t = _rone_time(r, cycle)
+        nm = (r.get('CLS_FULLNM') or '').strip()
+        if t and nm:
+            by.setdefault(t, set()).add(nm)
+    if not by:
         raise RuntimeError('지역 행 없음')
-    return names
+    return by[max(by)]
 
 
 def check_age(label, stamp, grace):
@@ -767,6 +856,15 @@ def rone_latest(tbl, cycle, since=None):
     return max(vals)
 
 
+# 원천 조회 인자 중 배치(update_adv_data)가 표 설정 상수 없이 **호출 자리에 문자로** 적어 둔 것들.
+# 감시는 여기 한 곳에 모으고, 배치가 실제로 부르는 인자와 같은지는 test_freshness_sources 가 배치 함수를
+# 가짜 원천으로 돌려 본다(전수리뷰 #40·#109). 배치가 계열을 바꾸면 그 시험이 빨개진다 — 이 값을 함께 바꿀 것.
+RATE_ECOS = ('721Y001', 'M', '2010000')          # CD(91일) — update_rate
+SIZE_KOSIS = ('408', {'objL1': '01'})             # 규모별 — update_size
+BUBBLE_KOSIS = ('408', 'DT_30404_N0010')          # 전월세전환율 — fetch_bubble
+BUBBLE_ECOS = ('121Y006', 'M', 'BECBLA0302')      # 주담대 신규취급 금리 — fetch_bubble
+
+
 def kosis_latest(org, tbl, objn, prd, extra=None):
     p = {'method': 'getList', 'apiKey': os.environ.get('KOSIS_API_KEY', ''),
          'format': 'json', 'jsonVD': 'Y', 'orgId': org, 'tblId': tbl,
@@ -784,18 +882,46 @@ def kosis_latest(org, tbl, objn, prd, extra=None):
     return prds[-1]
 
 
-def ecos_latest():
-    """한국은행 ECOS CD금리(721Y001, 월). 최근 1년만 받아 최신 시점을 본다."""
-    url = ('https://ecos.bok.or.kr/api/StatisticSearch/%s/json/kr/1/50/721Y001/M'
-           '/%d%02d/%d%02d/2010000'
-           % (os.environ.get('ECOS_API_KEY', ''),
-              TODAY.year - 1, TODAY.month, TODAY.year, TODAY.month))
+def ecos_url(code, start, end):
+    """ECOS StatisticSearch 주소 — code 는 (통계표, 주기, 항목)."""
+    stat, cycle, item = code
+    return ('https://ecos.bok.or.kr/api/StatisticSearch/%s/json/kr/1/50/%s/%s/%s/%s/%s'
+            % (os.environ.get('ECOS_API_KEY', ''), stat, cycle, start, end, item))
+
+
+def ecos_latest(code=None):
+    """한국은행 ECOS 월 계열의 최신 시점(기본은 CD금리 RATE_ECOS). 최근 1년만 받아 본다."""
+    url = ecos_url(code or RATE_ECOS, '%d%02d' % (TODAY.year - 1, TODAY.month),
+                   '%d%02d' % (TODAY.year, TODAY.month))
     rows = (get_json(url).get('StatisticSearch') or {}).get('row') or []
     times = [str(r.get('TIME') or '') for r in rows]
     times = [t for t in times if len(t) == 6 and t.isdigit()]
     if not times:
         raise RuntimeError('시점 없음')
     return max(times)
+
+
+def bubble_conv_latest():
+    """전월세전환율(KOSIS 408/DT_30404_N0010)의 **배치가 쓸 수 있는** 가장 최신 달(YYYYMM).
+
+    배치 fetch_bubble 과 같은 조회(아파트·시도, 최근 3개월)를 **배치의 함수 그대로** 읽는다 — 응답 해석은
+    U.bubble_conv_by_prd(시군구 동명 행은 짧은 코드, 광주·전남은 두 조각이 다 있거나 통합 행일 때만 전남광주),
+    완비 판정은 U.bubble_full_months(모델 지역 전부). 예전엔 옛 배치 규칙('10곳 이상', 한 조각만 와도 전남광주)을
+    여기 따로 적어, 원천이 최신 달을 일부 지역만 낸 회차에 배치는 그 달을 보류하는데 감시는 원천 최신으로 읽고
+    매일 뒤처짐 경보를 냈다(전수 리뷰 통합 검토).
+    """
+    org, tbl = BUBBLE_KOSIS
+    p = {'method': 'getList', 'apiKey': os.environ.get('KOSIS_API_KEY', ''),
+         'format': 'json', 'jsonVD': 'Y', 'orgId': org, 'tblId': tbl, 'itmId': 'ALL',
+         'objL1': 'ALL', 'objL2': 'ALL', 'prdSe': 'M', 'newEstPrdCnt': '3'}
+    d = get_json('https://kosis.kr/openapi/Param/statisticsParameterData.do?'
+                 + urllib.parse.urlencode(p))
+    if isinstance(d, dict) and d.get('err'):
+        raise RuntimeError('KOSIS err %s' % d.get('err'))
+    full = U.bubble_full_months(U.bubble_conv_by_prd(d or []))
+    if not full:
+        raise RuntimeError('전월세전환율 완비 달 없음')
+    return full[-1]
 
 
 def digits(s):
@@ -941,12 +1067,14 @@ def source_jobs(stats):
         jobs[('basic', name)] = lambda c=cfg: kosis_latest(c['org'], c['tbl'], c['objn'], 'M')
     if '규모별' in stats:
         sz = U.SIZE_TBLS[0][1]
-        jobs['규모별'] = lambda: kosis_latest('408', sz, 3, 'M', {'objL1': '01'})
+        jobs['규모별'] = lambda: kosis_latest(SIZE_KOSIS[0], sz, 3, 'M', SIZE_KOSIS[1])
     for name, cfg in sorted(U.SUPPLY_CONF.items()):
         last = ((stats.get(name) or {}).get('dates') or [None])[-1]
         jobs[('supply', name)] = (lambda c=cfg, sc=_supply_since(last):
                                   rone_latest_complete(c['tbl'], sc))
     jobs['금리'] = lambda: ecos_latest()
+    jobs[('bubble', '전환율')] = lambda: bubble_conv_latest()
+    jobs[('bubble', '주담대')] = lambda: ecos_latest(BUBBLE_ECOS)
     for name, cfg in sorted(U.ANNUAL_CONF.items()):
         jobs[('annual', name)] = lambda c=cfg: kosis_latest(c['org'], c['tbl'], c['objn'], 'Y')
     for _, tbl, cycle in REGION_TABLES:
@@ -989,8 +1117,13 @@ def main():
         else:
             print('  공유카드: %s — 라이브 주간과 일치' % cb)
     except Exception as e:
-        SKIPPED.append('공유카드')
-        print('  공유카드: 조회 실패(%s) — 이번 회차 판정 못 함' % str(e)[:50])
+        if _hard_http(e):
+            # 카드 파일이 없다 — '신호 없이 옛(또는 없는) 카드'를 막으려고 둔 감시다(전수리뷰 #38).
+            print('  공유카드: HTTP %d — 배포에 없음' % e.code)
+            fails.append('공유카드 HTTP %d — share/weekly-map.png 가 배포에 없다' % e.code)
+        else:
+            SKIPPED.append('공유카드')
+            print('  공유카드: 조회 실패(%s) — 이번 회차 판정 못 함' % str(e)[:50])
 
     mo = ((adv.get('monthly') or {}).get('rows') or [{}])[-1].get('p')
     fails.append(check('월간', mo, pre['월간'], GRACE_MONTHLY))
@@ -1045,6 +1178,15 @@ def main():
     print('[금리 — 원천 한국은행 ECOS]')
     D = stats.get('금리') or {}
     fails.append(check('금리', (D.get('dates') or [None])[-1], pre['금리'], GRACE_MONTHLY))
+
+    # 버블밴드(ADV.bubble)는 STATS 가 아니라 ADV 에 있어 감시 밖이었다(전수리뷰 #109). fetch_bubble 이
+    # 매일 실패해도 배치는 ℹ️ 줄만 남기므로, 홈 버블밴드와 블로그의 주담대 금리 문장이 옛 값으로 무기한
+    # 나갈 수 있었다. 같은 성격의 CD 금리는 감시하면서 주담대 금리는 보지 않는 비대칭이기도 했다.
+    print('[버블밴드 — 원천 KOSIS 전월세전환율 · ECOS 주담대 금리]')
+    bub = adv.get('bubble') or {}
+    fails.append(check('전월세전환율', bub.get('prd'), pre[('bubble', '전환율')], GRACE_BUBBLE_CONV))
+    fails.append(check('주담대 금리', (bub.get('loan') or {}).get('p'),
+                       pre[('bubble', '주담대')], GRACE_BUBBLE_LOAN))
 
     print('[연간 — 원천 KOSIS]')
     for name, cfg in sorted(U.ANNUAL_CONF.items()):
@@ -1111,10 +1253,29 @@ def main():
     if uncovered:
         fails.append('감시 누락 계열 %s — check_freshness.py에 대조를 추가할 것'
                      % ', '.join(uncovered))
+    # ADV 쪽도 같은 가드를 둔다. STATS 만 훑어서 ADV.bubble 이 감시 밖에 있는 걸 몰랐다(전수리뷰 #109).
+    # 새 ADV 키는 ADV_WATCHED 나 ADV_UNWATCHED(이유와 함께) 중 한쪽에 넣을 때까지 감시를 실패시킨다.
+    unknown = sorted(set(adv) - set(ADV_WATCHED) - set(ADV_UNWATCHED))
+    if unknown:
+        fails.append('감시 누락 ADV 키 %s — check_freshness.py의 ADV_WATCHED/ADV_UNWATCHED에 분류할 것'
+                     % ', '.join(unknown))
 
     retry_failed(fails)
     _emit_warnings(WARN, SUMMARY)
     _gate(fails)
+
+
+# ADV 키 분류. main() 끝의 커버리지 가드가 본다.
+ADV_WATCHED = ('weekly',     # 원천 대조('주간') + 공유 카드
+               'monthly',    # 원천 대조('월간')
+               'sido',       # data-core.js ADV.sido 나이·지역 수 + 지역 페이지
+               'occupancy',  # /moveins/ dateModified
+               'bubble')     # 원천 대조('전월세전환율'·'주담대 금리')
+ADV_UNWATCHED = {
+    'permits': '반기 인허가(KOSIS 누적월 조회) — 원천 대조가 아직 없다(알려진 공백)',
+    'holidays': '공휴일 달력 — 배치가 실패해도 지난 목록을 유지하고, 연 단위로만 바뀐다',
+    'aged30': '30년 넘은 아파트 — 배치가 받지 않는 시딩 자료다',
+}
 
 
 def check_quiz_review(today, src=None):
@@ -1180,6 +1341,12 @@ def _gate(fails):
         for b in bad:
             print('  - %s' % b)
         print('  → update-cloud 실행 이력, 해당 KOSIS 표 ID 변경/폐지 여부 확인')
+        _verdict_exit()
+    if FETCH_FAIL:
+        # 조회 자체가 실패한 검사(지역 계층·지역 페이지 등)는 fails 에 항목이 없다. 여기서 보지 않으면
+        # 다른 실패가 없는 날 'OK: 모든 계열이 원천과 같은 시점'이 찍힌다 — 광주·전남 결측을 잡는 유일한
+        # 장치가 조회에 실패해도 초록이었다(전수리뷰 #37). 못 본 것이므로 새 IP 재확인(retry)으로 보낸다.
+        print('FAIL: 조회 실패로 판정하지 못한 검사 — %s' % ', '.join(FETCH_FAIL))
         _verdict_exit()
     lost = [s for s in CRITICAL_SERIES if s in SKIPPED]
     if lost:

@@ -20,20 +20,35 @@ import re
 import sys
 from urllib.parse import quote
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import make_naver_post as P  # noqa: E402
 import make_sido_pages as M  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 
 
-def _zone(monkeypatch, name='세종', seq=5, patch=None):
+# 조사일 전진 픽스처 — 실데이터 그대로(None), 전망 연도가 넘어가는 10월 첫 조사분, 한 해 더 뒤의 10월 조사분.
+# 배치가 새 주를 덧붙이는 모양(마지막 행 복제 + 조사일만 바꿈)을 흉내 낸다.
+SURVEYS = [None, '2026-10-05', '2027-10-04']
+
+
+def _zone(monkeypatch, name='세종', seq=5, patch=None, survey=None):
+    """실데이터로 지역 편 초안을 굽는다. survey 를 주면 ADV.weekly 끝에 그 조사일 행을 덧붙여 데이터 전진을 흉내 낸다.
+    초안에 '_yr'(그 데이터의 전망 연도 — 정본 SZ.outlook_year(SZ.latest_survey(adv)))를 실어 기대값을 데이터에서 유도한다."""
     monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
     monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
     monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
     adv, sts = M.load()
+    if survey:
+        rows = adv['weekly']['rows']
+        rows.append(dict(rows[-1], p=survey))
     r = dict(next(z for z in adv['sido']['zones'] if z['z'] == name))
     r.update(patch or {})
-    return P.draft_zone(adv, sts, r, seq, 16)
+    d = P.draft_zone(adv, sts, r, seq, 16)
+    d['_yr'] = SZ.outlook_year(SZ.latest_survey(adv))
+    assert d['_yr'], '조사일에서 전망 연도를 못 읽었다'
+    return d
 
 
 def test_cta_always_points_to_that_zone_report():
@@ -56,14 +71,19 @@ def test_title_arms_alternate_from_seq5():
     assert a.startswith('2026년 대전 아파트 공급물량 전망, ')
 
 
-def test_first_heading_and_sentence_carry_search_terms(monkeypatch):
-    d = _zone(monkeypatch)
+@pytest.mark.parametrize('survey', SURVEYS)
+def test_first_heading_and_sentence_carry_search_terms(monkeypatch, survey):
+    """제목 연도는 데이터(최신 주간 조사일)의 전망 연도다 — 연도를 박으면 10월 조사분이 들어오는 날 게이트가 데이터 커밋을
+    막는다(전수리뷰 #98: '2026' 을 박아 2026-10-05 조사분에서 빨개졌고, 임시로 둔 ('2026년','2027년') 목록도 2027-10 조사분에서
+    같은 일이 난다). 변이(실제로 확인): make_naver_post.draft_zone 의 yr 를 '2026' 으로 고정하면 2026-10-05·2027-10-04 칸이
+    빨개지고, 단정을 옛 연도 목록으로 되돌리면 2027-10-04 칸이 빨개진다."""
+    d = _zone(monkeypatch, survey=survey)
     yrs = SZ.LEAD_Q // 4
     h = '<h3>세종시 적정 공급량과 %d년 공급물량</h3>' % yrs   # 검색 표기(SEARCH_NAME)
     assert h in d['body']
     first = d['body'].split(h, 1)[1].split('</p>', 1)[0]
     assert '적정 공급량' in first and '공급물량' in first
-    assert d['title'].startswith(('2026년 세종시 부동산 전망', '2027년 세종시 부동산 전망')) and '제목 실험 B안' in d['seq']
+    assert d['title'].startswith('%s년 세종시 부동산 전망' % d['_yr']) and '제목 실험 B안' in d['seq']
 
 
 def test_tags_are_the_zone_search_terms(monkeypatch):
@@ -88,11 +108,13 @@ def test_no_mojara_in_zone_title_or_lead(monkeypatch):
     assert '모자' not in d['title'] and '모자라' not in d['body'].split('</p>', 3)[1]
 
 
-def test_gwangju_jeonnam_uses_search_forms(monkeypatch):
+@pytest.mark.parametrize('survey', SURVEYS)
+def test_gwangju_jeonnam_uses_search_forms(monkeypatch, survey):
     """전남광주는 제목·첫 문장 '광주·전남', 태그 '광주'(2026-09-29 키워드도구: 광주아파트 5,740 대 전남광주부동산 160/월).
-    변이: SEARCH_NAME·TAG_NAME 에서 전남광주를 빼면 빨개지고, _zone_of_title 이 검색 표기를 안 받으면 역매핑 시험이 빨개진다."""
-    d = _zone(monkeypatch, name='전남광주', seq=6)
-    assert d['title'].startswith('2027년 광주·전남 아파트 공급물량 전망, ') or d['title'].startswith('2026년 광주·전남 아파트 공급물량 전망, ')
+    변이: SEARCH_NAME·TAG_NAME 에서 전남광주를 빼면 빨개지고, _zone_of_title 이 검색 표기를 안 받으면 역매핑 시험이 빨개진다.
+    연도는 데이터에서 유도한다(전수리뷰 #98 — 박힌 연도 목록은 2027-10 조사분에서 게이트를 막는다)."""
+    d = _zone(monkeypatch, name='전남광주', seq=6, survey=survey)
+    assert d['title'].startswith('%s년 광주·전남 아파트 공급물량 전망, ' % d['_yr'])
     assert '<h3>광주·전남 적정 공급량과' in d['body']
     assert '광주아파트' in d['tags'] or '광주미분양' in d['tags']
     assert '광주부동산전망' in d['tags']

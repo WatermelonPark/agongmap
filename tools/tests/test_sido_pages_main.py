@@ -186,3 +186,22 @@ def test_aborts_when_start_series_arrives_a_quarter_late(site, monkeypatch):
         P.main()
     assert 'ABORT' in str(e.value) and ('H=%d' % (SZ.LEAD_Q - 1)) in str(e.value)
     assert not (site / 'zone' / '서울').exists(), 'ABORT 전에 페이지를 썼다'
+
+
+def test_home_lastmod_ignores_a_share_card_restamp(site, monkeypatch):
+    """홈·/weekly/ lastmod 도장(_home_lastmod)은 data-core.js 의 공유 그림 판(?v=)만 바뀐 것을 내용 변경으로 치지 않는다.
+
+    배치 순서가 split → make_sido_pages(도장) → 게이트 → 주간 카드·restamp_share(data-core.js 의 ?v= 만 고침)라, 커밋되는
+    도장 해시와 data-core.js 가 어긋나 새 주차 다음 날 내용이 그대로인데 lastmod 가 한 번 더 올랐다(통합 검토 재현:
+    도장 2026-09-30 → 다음 날 2026-10-01, sitemap / · /weekly/ 가 함께 오름).
+    변이(실제로 확인): _home_lastmod 의 ?v= 가리기(re.sub 한 줄)를 지우면 둘째 단정이 빨개진다.
+    픽스처: 저장소 data-core.js 사본. 판만 바꾼 경우와 다른 글자를 바꾼 경우.
+    """
+    core = site / 'data-core.js'
+    src = _read(core)
+    assert re.search(r'share/weekly-map\.png\?v=', src), '픽스처: data-core.js 에 주간 카드 주소가 없다'
+    assert P._home_lastmod('2026-09-30') == '2026-09-30'
+    core.write_text(re.sub(r'(share/weekly-map\.png\?v=)[0-9A-Za-z-]+', r'\g<1>2099-01-01', src), encoding='utf-8')
+    assert P._home_lastmod('2026-10-01') == '2026-09-30', '카드 판만 바뀌었는데 홈 lastmod 가 올랐다'
+    core.write_text(src.replace('"ADV', '"ADV ', 1) if '"ADV' in src else src + '\n// 바뀜\n', encoding='utf-8')
+    assert P._home_lastmod('2026-10-02') == '2026-10-02', '내용이 바뀌었는데 lastmod 를 그대로 뒀다'

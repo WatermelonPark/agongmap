@@ -8,7 +8,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_QUIZ_BUILD='v166';
+var HOME_QUIZ_BUILD='v167';
 const QUIZSETS={
   beginner:{
     title:'부린이 테스트', emoji:'🐣',
@@ -184,10 +184,10 @@ const QUIZSETS={
    answer:0,
    exp:'정답은 <b>착공해야 셀 수 있다</b>. 인허가는 착공과 같은 흐름으로 움직이지만 <b>허가 뒤 착공하지 않는 물량</b>이 섞여 있고 착공 시점도 제각각이라, 입주까지의 시차가 일정하지 않다. 착공한 뒤부터는 잰 값이 있다. 전국 평균이 <b>과거 28개월에서 최근 37개월</b>이다. 그래서 공급을 판정할 때는 착공 실적을 쓰고 인허가는 참고로만 본다.'},
 
-  {q:'전세가 <b>상승 중</b>일 때 입주 물량이 늘어나면, 전세 가격은 즉각 하락으로 반전한다. O일까 X일까?',
+  {q:'전세가 오르던 중에 한 분기 <b>입주 물량이 몰리면</b>, 바로 다음 분기 전세가 눌린다. O일까 X일까?',
    opts:['O','X'],
-   answer:1,
-   exp:'정답은 <b>X</b>. 데이터로 보면 입주가 늘어도 <b>누적 재고 수준이 낮은</b> 구간에서는 전세가 오히려 분기당 <b>+1.88%</b> 올랐고, <b>누적 수준까지 높아졌을 때</b>에야 0.00%로 눌렸다. 물량의 <b>증가</b>만으로는 부족하고 쌓인 <b>수준</b>이 함께 높아야 꺾인다 — 그래서 반전은 즉각적이지 않고 시차를 두고 온다.'},
+   answer:0,
+   exp:'정답은 <b>O</b>. <b>쌓인 총량이 아니라 지금 쏟아지는 물량이 전세를 누른다.</b> 같은 자료로 그 분기에 실제로 입주한 물량을 보면, 입주가 몰린 분기의 다음 분기 전세는 입주가 적었던 분기 다음보다 뚜렷하게 낮았다. 반면 최근 3년 <b>누적</b> 입주량으로는 전세 변화와의 관계가 잡히지 않는다 — 그래서 입주 물량 달력이 누적 통계보다 실전에서 쓸모가 있다(숫자는 사이클 리포트 고리① 참고).'},
 
   {q:'사이클 <b>한 바퀴</b>가 도는 데 더 오래 걸리는 쪽은?',
    opts:['수도권','지방'],
@@ -321,6 +321,13 @@ const QUIZSETS={
    m:1, answer:1,
    exp:'1인당 18평이면 조합원이 살 집으로도 빠듯해 <b>일반분양이 거의 없다</b>. 일반분양이 없어도 <b>구축과 신축의 평당 가격차가 공사비보다 크면</b> 사업은 성립하지만, 그건 아주 비싼 동네에서나 가능해 이런 구역 대부분은 사업성이 나오지 않는다. 그런데 상승장 후반이 되면 이런 구역까지 돈이 돌아 가격은 <b>오르긴 오른다</b>. 문제는 그 상승을 받쳐줄 펀더멘털이 없다는 것 — 장이 꺾이면 가장 먼저·가장 깊게 빠진다. <b>오르는 것과 안전한 것은 다르다.</b> 용적률보다 대지지분이 먼저다.'},
     ],
+    /* 점수별 공유 문구(0~10점) — 공유 카드 그림(share/calc-N.png, tools/make_calc_cards.py)이 **이 표를 읽어** 두 줄로
+       굽는다. 예전엔 카드는 재건축 문구, 공유 설명·본문은 투자자 문구로 나가 한 공유에 두 말이 실렸다(전수리뷰 #86).
+       한 칸 = 카드의 두 줄, 공유 문구는 두 줄을 한 칸 띄어 잇는다(shareTaunt). 고치면 카드도 다시 굽는다. */
+    taunt:[["공식부터","다시 볼까요?"],["용적률이","어디에 곱해지더라?"],["분담금 고지서","조심하세요"],
+      ["뼈대는 잡혔고","연습만 남았어요"],["절반까지","거의 왔어요"],["공식은 압니다","손이 느릴 뿐"],
+      ["눈대중 견적","슬슬 됩니다"],["예비 조합원","자격 충분"],["사업성이","보이기 시작했죠?"],
+      ["조합 총회에서","마이크 잡으세요"],["이제 임장 가서","대지지분 물어보세요"]],
     grade:s=>{
       if(s>=9)return{lv:'LV5',g:'사업성이 한눈에 보이는 선수',d:'공식이 완전히 손에 붙었습니다. 매물 정보만 보면 사업성이 바로 나오는 단계 — 이제 임장 가서 대지지분부터 물어보세요.',emoji:'🏗️'};
       if(s>=7)return{lv:'LV4',g:'눈대중 견적이 되는 예비 조합원',d:'큰 틀은 정확합니다. 공사비 인상이 용적률 배수로 증폭되는 것 같은 디테일까지 다듬으면 완성.',emoji:'📐'};
@@ -537,7 +544,8 @@ function showResult(){
   track('quiz_complete',{quiz_type:curSet,score:qScore});
   qClear();qMarkDone(curSet);
   loadKakao().catch(()=>{});   // 결과 화면에 공유 버튼이 뜬다 — 누르기 전에 받아 둔다
-  if(CHALLENGE&&CHALLENGE.set===curSet){
+  const vs=chalActive();
+  if(vs){
     track('challenge_result',{quiz_type:curSet,score:qScore,friend_score:CHALLENGE.score,
       outcome:qScore>CHALLENGE.score?'win':(qScore<CHALLENGE.score?'lose':'draw')});
   }
@@ -549,7 +557,7 @@ function showResult(){
   const dots=qResults.map((ok,i)=>`<button type="button" class="rc-dot ${ok?'ok':'no'}" aria-expanded="false" aria-label="${i+1}번 ${ok?'정답':'오답'}, 해설 보기" onclick="showDotExp(${i})"></button>`).join('');
   r.innerHTML=`
     <div class="qresult">
-      ${versusHTML()}
+      ${vs?versusHTML():''}
       
       <div class="rcard">
         <div class="rc-head">${QUIZSETS[curSet].title}</div>
@@ -564,7 +572,7 @@ function showResult(){
       </div>
       <div class="rc-exp" id="rc-exp" hidden></div>
       <div class="qshare-box">
-        <h4>${CHALLENGE&&CHALLENGE.set===curSet?'친구에게 되받아치기 🔥':'친구는 몇 점일까? 🔥'}</h4>
+        <h4>${vs?'친구에게 되받아치기 🔥':'친구는 몇 점일까? 🔥'}</h4>
         <div class="qshare-btns">
           <button class="qshare-btn primary" onclick="shareResult()"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡으로 공유하기</button>
         </div>
@@ -573,10 +581,17 @@ function showResult(){
       <button class="qretry" onclick="startQuiz()">다시 풀기</button>
       <button class="qback" style="display:block;margin:14px auto 0" onclick="backToPick()">← 다른 테스트 풀어보기</button>
     </div>`;
+  if(vs&&CHALLENGE.seed==null)CHALLENGE.done=true;   // 시드 없는 옛 대결 링크는 첫 판만 겨룬다(chalActive)
   window.scrollTo(0,0);
 }
 /* ===== 친구 대결 (서버 없이 URL 파라미터로) ===== */
 let CHALLENGE=null;
+/* 지금 푸는 시험지가 친구와 같은 시험지인가(전수리뷰 #57). 대결은 같은 시드로 겨루는 것이다 — 결과 화면의 '다시 풀기'는
+   새 난수 시험지를 뽑는데, 예전엔 세트만 보고 도전 띠·VS 판정·challenge_result 를 다시 냈다. 친구 시드가 없는 옛 링크는
+   첫 판만(showResult 가 done 을 세운다). 같은 시드 재도전('다시 도전하기')은 여전히 대결이다. */
+function chalActive(){
+  return !!(CHALLENGE&&CHALLENGE.set===curSet&&(CHALLENGE.seed!=null?curSeed===(CHALLENGE.seed>>>0):!CHALLENGE.done));
+}
 function readChallenge(){
   try{
     const p=new URLSearchParams(location.search);
@@ -607,6 +622,7 @@ function challengeFirstSeen(ch){
 function bootChallenge(){
   CHALLENGE=readChallenge();
   if(!CHALLENGE){applyHash();return;}
+  showView('test',false);   // 부팅 page_view 는 대결이 확정된 여기서 한 번 — boot 는 화면만 먼저 띄웠다(전수리뷰 #46)
   if(challengeFirstSeen(CHALLENGE))track('challenge_accepted',{quiz_type:CHALLENGE.set,friend_score:CHALLENGE.score,
     same_paper:CHALLENGE.seed!=null});
   startQuiz(CHALLENGE.set,CHALLENGE.seed);
@@ -623,13 +639,13 @@ function challengeURL(){
 function renderChalBar(){
   const b=document.getElementById('chal-bar');
   if(!b)return;
-  if(CHALLENGE&&CHALLENGE.set===curSet){
+  if(chalActive()){
     b.style.display='';
     b.innerHTML=`🔥 친구가 <b>${CHALLENGE.score}점</b>으로 도전장을 보냈습니다 — 넘어보세요`;
   }else{b.style.display='none';}
 }
 function versusHTML(){
-  if(!CHALLENGE||CHALLENGE.set!==curSet)return '';
+  if(!chalActive())return '';
   const mine=qScore,theirs=CHALLENGE.score,d=Math.abs(mine-theirs);
   const st=mine>theirs?'win':(mine<theirs?'lose':'draw');
   const verdict=st==='win'?`${d}점 차로 이겼습니다 🎉`
@@ -648,8 +664,13 @@ function versusHTML(){
       ${cta}
     </div>`;
 }
+/* 공유 문구 — 세트마다 카드 그림(share/<세트>-N.png)과 같은 말(전수리뷰 #86, test_quiz_share_text 가 세 세트의 카드
+   생성기 문구와 대조한다). 부린이는 BLV, 재건축은 QUIZSETS.calc.taunt(카드 생성기가 읽는 표), 투자자는 아래 구간. */
 function shareTaunt(s){
-  if(curSet==='beginner')return BLV[Math.max(0,Math.min(10,s|0))].taunt;
+  const i=Math.max(0,Math.min(10,s|0));
+  if(curSet==='beginner')return BLV[i].taunt;
+  const tt=QUIZSETS[curSet]&&QUIZSETS[curSet].taunt;
+  if(tt&&tt[i])return tt[i].join(' ');
   if(s>=9)return '이걸 다 맞히네… 혹시 업자세요?';
   if(s>=7)return '머릿속엔 이미 다주택자시네요';
   if(s>=5)return '감은 있어요. 계약은 아직 이르지만';
@@ -658,7 +679,7 @@ function shareTaunt(s){
 }
 function shareTxt(){
   const gr=gradeOf(qScore),name=QUIZSETS[curSet].shareName;
-  return `${gr.emoji} 내 점수 ${qScore}/10 — ${name}\n${shareTaunt(qScore)}\n\n내 점수 넘어봐 👇\n${challengeURL()}`;
+  return `${gr.emoji} 내 점수 ${qScore}/${QUIZ.length} — ${name}\n${shareTaunt(qScore)}\n\n내 점수 넘어봐 👇\n${challengeURL()}`;
 }
 function shareResult(){
   if(needKakao(shareResult))return;
@@ -667,7 +688,7 @@ function shareResult(){
   track('share',{content_type:'quiz_result',method:kakaoReady()?'kakao':(navigator.share?'os_share':'copy'),quiz_type:curSet,score:qScore});
   track('challenge_sent',{quiz_type:curSet,score:qScore});
   if(kakaoReady()){
-    try{kakaoFeed(`${gr.emoji} ${qScore}/10점 — ${name}`,
+    try{kakaoFeed(`${gr.emoji} ${qScore}/${QUIZ.length}점 — ${name}`,
       `${shareTaunt(qScore)} · 내 점수 넘어봐`,
       `https://www.agongmap.co.kr/share/${curSet}-${qScore}.png`,
       url,'도전 받기');return;}
@@ -675,7 +696,7 @@ function shareResult(){
   }
   if(navigator.share){
     navigator.share({title:name,
-      text:`${gr.emoji} 내 점수 ${qScore}/10 — ${name}. ${shareTaunt(qScore)} 넘어봐!`,
+      text:`${gr.emoji} 내 점수 ${qScore}/${QUIZ.length} — ${name}. ${shareTaunt(qScore)} 넘어봐!`,
       url:url}).catch(e=>{if(e&&e.name!=='AbortError')copyText(shareTxt());});
   }else{copyText(shareTxt());}
 }

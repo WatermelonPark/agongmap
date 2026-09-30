@@ -36,8 +36,15 @@ def test_home_does_not_load_chart_or_kakao_upfront():
 
 def test_every_chart_drawer_waits_for_the_library():
     s = _read('index.html')
-    for fn in ('drawStat\\(\\)', 'drawLeadtime\\(\\)', 'drawTrendChart\\(k\\)', 'drawPermitChart\\(\\)', 'drawOccChart\\(\\)'):
+    for fn in ('drawTrendChart\\(k\\)', 'drawPermitChart\\(\\)', 'drawOccChart\\(\\)'):
         assert re.search(r'function %s\{\s*if\(needChart\(' % fn, s), '%s 가 차트 라이브러리를 기다리지 않는다' % fn
+    # drawStat·drawLeadtime 은 표·메타·출처를 먼저 그리고 그래프만 기다린다(전수리뷰 #53, drawLeadtime 은 통합 검토 —
+    # 라이브러리를 못 받아도 표는 남는다). 변이: 옛 모양(첫 줄에서 needChart)으로 되돌리면 표보다 앞이라 빨개진다(실제로 확인).
+    for name, table_mark in (('drawStat', 'buildTable('), ('drawLeadtime', 'tbody.innerHTML=')):
+        a = s.index('function %s(){' % name)
+        body = s[a:s.index('\n}', a)]
+        wait, table, chart = body.find('if(needChart(()=>%s()))' % name), body.find(table_mark), body.find('new Chart(')
+        assert 0 <= table < wait < chart, '%s 가 표보다 먼저 차트 라이브러리를 기다리거나 그래프 앞에서 기다리지 않는다' % name
     # new Chart 는 기다리는 함수 안에서만 — 새 그리기 함수가 가드 없이 생기면 빈 차트가 된다.
     # 주인은 **줄 첫머리의** 최상위 함수로 잡는다. 그냥 마지막 'function' 을 잡으면 그리기 함수 안의
     # 도우미(areaGrad 등)를 주인으로 오인해 멀쩡한 호출을 가드 없음으로 본다(처음 짰을 때 그랬다).

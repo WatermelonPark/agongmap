@@ -32,6 +32,19 @@ MARKERS = ('const QUIZSETS', 'const QUIZ_LEN', 'const QUIZ_SLUG', 'const SGG_QNA
 # 홈(마크업+스크립트) 크기 하한. 2026-09-16 기준 약 250KB 다. 스크립트가 빠지면 50KB 안팎으로 준다.
 MIN_BYTES = 150000
 
+# 파일마다 제 안에 있어야 하는 표식과 크기 하한(전수리뷰 #13). 위 MARKERS 는 모두 분할 파일에 있고 합계 하한은
+# index.html 과 분할 두 파일만으로도 넘어서, 본문 스크립트(home-app.js)가 비거나 EXTERNAL 에 없는 파일로 옮겨져도
+# 이어 붙인 텍스트 기준 검사는 통과했다(주석 한 줄짜리 home-app.js 로 실제로 확인). 그래서 읽는 파일 가운데 여기
+# 적힌 파일은 **그 파일 안에서** 표식과 하한을 따로 본다. 본문을 다른 파일로 옮기면 여기 표식도 같이 옮긴다.
+FILE_MARKERS = {
+    'home-app.js': ('const PARTS', 'function showView', 'function applyHash', 'function weeklyRelease',
+                    'function tbBuild', 'function boot'),
+    'home-quiz.js': ('const QUIZSETS', 'const QUIZ_LEN', 'const QUIZ_SLUG', 'function nextStepHTML'),
+    'home-stats.js': ('const SGG_QNAME', 'const MATRIX_REGIONS', 'function statsOpen'),
+}
+# 2026-09-30 기준 home-app.js 약 130KB, home-quiz.js 약 59KB, home-stats.js 약 81KB. 하한은 그 절반 남짓.
+FILE_MIN_BYTES = {'home-app.js': 60000, 'home-quiz.js': 25000, 'home-stats.js': 35000}
+
 
 class HomeSourceError(RuntimeError):
     """홈 스크립트를 찾지 못했거나 일부만 읽었다."""
@@ -41,7 +54,7 @@ def home_source(root=None, external=None):
     """index.html 과 EXTERNAL 파일을 이어 붙인 텍스트. 마크업과 스크립트를 함께 담는다.
 
     ⚠️ 빈 문자열·일부만 담긴 문자열을 돌려주지 않는다. 파일이 없거나, 크기가 하한보다 작거나, 표식 식별자가
-       하나라도 없으면 HomeSourceError 를 던진다.
+       하나라도 없으면 HomeSourceError 를 던진다. FILE_MARKERS 에 적힌 파일은 파일마다 따로 본다.
     """
     root = root or ROOT
     files = (HOME,) + tuple(EXTERNAL if external is None else external)
@@ -50,7 +63,9 @@ def home_source(root=None, external=None):
         path = os.path.join(root, rel)
         if not os.path.isfile(path):
             raise HomeSourceError('홈 소스 파일이 없다: %s' % rel)
-        parts.append(io.open(path, encoding='utf-8').read())
+        body = io.open(path, encoding='utf-8').read()
+        _check_file(rel, body)
+        parts.append(body)
     text = '\n'.join(parts)
     size = len(text.encode('utf-8'))
     if size < MIN_BYTES:
@@ -61,6 +76,19 @@ def home_source(root=None, external=None):
         raise HomeSourceError('홈 스크립트에서 %s 를 찾지 못했다 — 스크립트를 옮겼다면 tools/home_src.py 의 '
                               'EXTERNAL 에 그 파일을 적을 것' % ', '.join(missing))
     return text
+
+
+def _check_file(rel, body):
+    """FILE_MARKERS·FILE_MIN_BYTES 에 적힌 파일이면 그 파일 안에서 표식과 크기 하한을 본다."""
+    size = len(body.encode('utf-8'))
+    low = FILE_MIN_BYTES.get(rel)
+    if low and size < low:
+        raise HomeSourceError('%s 가 %d바이트뿐이다(하한 %d) — 본문을 다른 파일로 옮겼다면 tools/home_src.py 의 '
+                              'EXTERNAL·FILE_MARKERS 를 같이 고칠 것' % (rel, size, low))
+    missing = [m for m in FILE_MARKERS.get(rel, ()) if m not in body]
+    if missing:
+        raise HomeSourceError('%s 에서 %s 를 찾지 못했다 — 본문을 다른 파일로 옮겼다면 tools/home_src.py 의 '
+                              'EXTERNAL·FILE_MARKERS 를 같이 고칠 것' % (rel, ', '.join(missing)))
 
 
 def home_files(root=None):

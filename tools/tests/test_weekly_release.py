@@ -52,16 +52,18 @@ def _d(iso):
 # ---- 파이썬 정본: 추석 주·평상 주 ----
 
 def test_chuseok_week_hedges_instead_of_guessing_a_date():
-    """다음 발표 목요일이 휴일(9/24)이면 날짜를 단정하지 않고, 지연 판정은 영업일로 민 날(9/28)까지 참는다.
+    """다음 발표 목요일이 휴일(9/24)이면 날짜를 단정하지 않고, 지연 판정은 한 주 늦춘 날(10/1)까지 참는다.
 
-    변이: weekly_release.status 에서 biz_day 를 빼면(due = p+grace+1 그대로) 9/28 에 '반영 대기'가 떠 빨개진다.
-          hedge 창을 목요일 하루(range(1))로 좁혀도 설 연휴(2/16~18 월~수) 주에서 빨개진다(둘 다 실제로 확인).
+    연휴 주는 원천이 조사를 거르기도 해서 기준일을 한 주(WEEK) 늦춘다(전수리뷰 #10, 대표 결정 ④ — 아래
+    test_skipped_survey_week_does_not_raise_a_false_wait 가 실제 거른 주를 본다).
+    변이: status 에서 hedge 의 한 주 늦춤을 빼면(due 9/28) 9/29 에 '반영 대기'가 떠 빨개진다(확인).
+          hedge 창을 목요일 하루(range(1))로 좁혀도 설 연휴(2/16~18 월~수) 주에서 빨개진다(확인).
     픽스처: 9/14 조사분(9/17 발표) — 09-24~26 배치가 멈췄던 바로 그 주.
     """
-    st = WR.status('2026-09-14', _d('2026-09-28'), H2026)
-    assert st['next'] == '2026-09-24' and st['hedge'] and st['due'] == '2026-09-28' and not st['stale']
+    st = WR.status('2026-09-14', _d('2026-09-29'), H2026)
+    assert st['next'] == '2026-09-24' and st['hedge'] and st['due'] == '2026-10-01' and not st['stale']
     assert WR.when_text(st) == '9/14 조사 · 9/17 발표 · 연휴로 발표 일정이 바뀔 수 있습니다'
-    late = WR.status('2026-09-14', _d('2026-09-29'), H2026)
+    late = WR.status('2026-09-14', _d('2026-10-02'), H2026)
     assert late['stale'] and WR.when_text(late) == '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기'
     # 설 연휴가 월~수에 걸린 주 — 목요일은 평일이어도 그 주 일정은 단정하지 않는다
     assert WR.status('2026-02-09', None, H2026)['hedge']
@@ -80,6 +82,32 @@ def test_normal_week_names_the_next_thursday_and_waits_one_day():
     assert WR.status('2026-09-21', _d('2026-10-02'), H2026)['stale']
     # 정적 페이지(오늘 없음)는 지연을 판정하지 않는다
     assert not WR.status('2026-09-21', None, H2026)['stale']
+
+
+
+# 2025 법정공휴일(대체·임시 포함) — 원천이 조사를 거른 두 번(설·추석)을 재현하는 데 쓴다.
+H2025 = ['2025-01-01', '2025-01-27', '2025-01-28', '2025-01-29', '2025-01-30', '2025-03-01', '2025-03-03',
+         '2025-05-05', '2025-05-06', '2025-06-03', '2025-06-06', '2025-08-15', '2025-10-03', '2025-10-05',
+         '2025-10-06', '2025-10-07', '2025-10-08', '2025-10-09', '2025-12-25']
+
+
+@pytest.mark.parametrize('p, nxt_real', [('2025-01-20', '2025-02-03'), ('2025-09-29', '2025-10-13')])
+def test_skipped_survey_week_does_not_raise_a_false_wait(p, nxt_real):
+    """원천이 연휴로 조사를 한 주 거른 주에는, 다음 실제 발표일까지 '반영 대기'를 띄우지 않는다(전수리뷰 #10).
+
+    변이: status 의 `(WEEK if hedge else 0)` 를 빼면 2025-02-01~05·10-11~15 에 '반영 대기'가 떠 빨개진다(실제로 확인).
+          JS 거울만 빼면 test_js_and_python_* 가 빨개진다(확인).
+    픽스처: 저장소 data.js 의 실제 주간 행에서 거른 두 번 — 2025-01-20 다음 조사분이 2025-02-03(설),
+            2025-09-29 다음이 2025-10-13(추석). 공휴일은 2025 달력(H2025). 다음 실제 발표 = 그 조사분 목요일.
+    """
+    real_pub = _d(nxt_real) + datetime.timedelta(days=WR.PUB_OFFSET)
+    day = _d(p) + datetime.timedelta(days=WR.PUB_OFFSET + 1)
+    while day <= real_pub:
+        st = WR.status(p, day, H2025)
+        assert st['hedge'] and not st['stale'], (p, day.isoformat(), WR.when_text(st))
+        day += datetime.timedelta(days=1)
+    # 그 발표일이 지나도 새 주차가 없으면 그때는 알린다
+    assert WR.status(p, real_pub + datetime.timedelta(days=1), H2025)['stale']
 
 
 # ---- 같은 상수: 감시 ↔ split_data ↔ 홈 ----
@@ -260,12 +288,13 @@ def test_weekly_page_bakes_the_shared_when_line():
 
     변이: build() 가 옛 datestr('9/21 조사 · 9/24 발표')만 굽거나, 스크립트의 비교 날짜를 due 가 아닌 next 로 쓰거나,
           스크립트를 h1 앞(eyebrow 바로 뒤)에 두면 추석 주 픽스처에서 빨개진다(확인).
-    픽스처: 합성 주(9/14 조사, 2026 공휴일) — 다음 발표 9/24 가 추석이라 날짜 대신 안내 문구, 비교 날짜는 9/28.
+    픽스처: 합성 주(9/14 조사, 2026 공휴일) — 다음 발표 9/24 가 추석이라 날짜 대신 안내 문구, 비교 날짜는 한 주
+            늦춘 10/1(대표 결정 ④).
     """
     W, Q = _week('2026-09-14', H2026)
     head = MW.build(W, Q)[0]
     assert '<span id="wk-when">9/14 조사 · 9/17 발표 · 연휴로 발표 일정이 바뀔 수 있습니다</span>' in head
-    assert '>"2026-09-28"){' in head and '"최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기"' in head
+    assert '>"2026-10-01"){' in head and '"최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기"' in head
     # 제목의 '이번 주'도 발표일로 — 스크립트가 h1 보다 뒤에 있어야 h1 을 찾는다(TRUST-1③)
     assert '.replace("이번 주","9/17 발표 기준")' in head and head.index('<h1>') < head.index('<script>')
     # 실데이터: 구운 페이지의 머리줄이 정본 함수 결과와 같다(날짜는 데이터에서 유도)
@@ -336,8 +365,8 @@ def test_weekly_page_script_compares_the_kst_date():
 
     변이: 스크립트의 `Date.now()+324e5` 를 `Date.now()` 로 바꾸면 'KST 는 다음 날, UTC 는 아직 그날'인 순간에 바꾸지
           않아 빨개진다(실제로 확인). 비교를 `>` 에서 `>=` 로 바꾸면 기준일 당일에 바꿔 빨개진다(확인).
-    픽스처: 합성 주 2026-09-14(2026 공휴일 — 비교 날짜 due 는 9/28). 두 순간: KST 9/28 23:00(= UTC 14:00, 아직 제때)과
-            KST 9/29 05:00(= UTC 9/28 20:00, 늦음).
+    픽스처: 합성 주 2026-09-14(2026 공휴일 — 연휴 주라 비교 날짜 due 는 한 주 늦춘 10/1). 두 순간: KST 10/1 23:00
+            (= UTC 14:00, 아직 제때)과 KST 10/2 05:00(= UTC 10/1 20:00, 늦음).
     """
     W, Q = _week('2026-09-14', H2026)
     head = MW.build(W, Q)[0]
@@ -347,11 +376,11 @@ def test_weekly_page_script_compares_the_kst_date():
           '  globalThis.document={getElementById:()=>e,querySelector:()=>({firstChild:t})};\n'
           '  Date.now=()=>ms;\n%s\n  out.push([e.textContent,t.nodeValue]);}\n'
           'process.stdout.write(JSON.stringify(out));'
-          % (json.dumps([int(datetime.datetime(2026, 9, 28, 14, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000),
-                         int(datetime.datetime(2026, 9, 28, 20, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000)]),
+          % (json.dumps([int(datetime.datetime(2026, 10, 1, 14, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000),
+                         int(datetime.datetime(2026, 10, 1, 20, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000)]),
              script))
     (k1, h1), (k2, h2) = _node(js)
-    assert (k1, h1) == ('x', '이번 주 아파트'), '기준일(KST 9/28) 당일에 벌써 바꿨다'
+    assert (k1, h1) == ('x', '이번 주 아파트'), '기준일(KST 10/1) 당일에 벌써 바꿨다'
     assert k2 == '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기' and h2 == '9/17 발표 기준 아파트', (k2, h2)
 
 

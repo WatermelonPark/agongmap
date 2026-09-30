@@ -7,6 +7,7 @@
 감시는 매일 OK였다 — '언제 것이냐'는 보면서 '무슨 값이냐'는 아무도 안 봤다.
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -87,11 +88,53 @@ def test_missing_sido_row_is_reported_as_such():
 
 def test_missing_row_does_not_become_a_false_sum_alarm():
     """없는 행을 0으로 세고 비교하면 '값이 틀렸다'는 오탐이 된다 — 그 규칙은
-    건너뛰고 결측만 보고해야 한다."""
+    건너뛰고 결측만 보고해야 한다.
+
+    결측 보고까지 본다(전수리뷰 #39). 예전엔 '(축없음)' 표시만 하고 실패로 올리지 않아 이 시험이 '오탐 없음'만
+    확인하며 초록이었다. 변이(확인): check_sido_sum 의 agg_gone 보고를 지우면 빨개진다.
+    """
     st = _stats([30])
     del st['준공']['series']['수도권']
     fails = C.check_sido_sum(st)
     assert not any('수도권=' in f for f in fails), fails
+    assert any('집계 행 결측' in f and '수도권' in f for f in fails), fails
+
+
+def test_latest_national_cell_missing_is_reported():
+    """최신 달 전국 칸만 None 이다. merge_basic 은 새 달을 전 지역 None 열로 만든 뒤 원천이 준 지역만 채우므로,
+    KOSIS 가 '총계' 행을 빼거나 이름을 바꾸면 이 모양이 된다 — 기본 탭인 전국의 최신 달이 빈다.
+
+    변이(확인): 집계 칸 구멍 검사(`holes`)를 지우면 빨개진다(예전엔 None 칸을 위치 불문 건너뛰어 [] 였다).
+    픽스처: 전 축이 갖춰진 두 달에서 전국 마지막 칸만 None.
+    """
+    st = _stats([30, 40])
+    st['준공']['series']['전국'][-1] = None
+    fails = C.check_sido_sum(st)
+    assert any('전국 칸 결측' in f and '2011.02' in f for f in fails), fails
+
+
+def test_short_national_column_is_a_hole_too():
+    """전국 열이 다른 열보다 짧다(끝 칸이 아예 없다) — None 과 같은 결측이다.
+
+    변이(확인): holes 조건에서 `i >= len(col)` 을 지우면 빨개진다.
+    픽스처: 두 달 중 전국 열만 한 칸.
+    """
+    st = _stats([30, 40])
+    st['준공']['series']['전국'] = [30]
+    fails = C.check_sido_sum(st)
+    assert any('전국 칸 결측' in f for f in fails), fails
+
+
+def test_missing_national_row_is_not_silently_skipped():
+    """전국 행이 통째로 없으면 예전엔 그 계열이 출력 줄도 남기지 않고 빠졌다(초록).
+
+    변이(확인): 계열 머리의 `continue` 조건에 `not ser.get('전국')` 을 되살리면 빨개진다.
+    픽스처: 인허가에서 전국 행만 삭제.
+    """
+    st = _stats([30], name='인허가')
+    del st['인허가']['series']['전국']
+    fails = C.check_sido_sum(st)
+    assert any('인허가 집계 행 결측' in f and '전국' in f for f in fails), fails
 
 
 def test_rule_set_does_not_shrink_silently():
@@ -147,14 +190,17 @@ class _FakeWeb:
         return type('R', (), {'read': lambda _self: body.encode('utf-8')})()
 
 
-def _derived(monkeypatch, seoul, gyeonggi, jr='2026.06 기준', mv='2026-07-29',
+MVP = '<div class="note">표두를 누르면 정렬. %s, 이후는 <b>착공 실적을 3년 뒤로 밀어</b> 추정한 값입니다.</div>'
+
+
+def _derived(monkeypatch, seoul, gyeonggi, jr='2026.06 기준', mv=MVP % '2026년 2분기까지 준공 실적',
              nat=None):
     pages = {
         C.SITE + '/zone/' + _up.quote('전국') + '/': (nat if nat is not None else OKP),
         C.SITE + '/zone/' + _up.quote('서울') + '/': seoul,
         C.SITE + '/zone/' + _up.quote('경기') + '/': gyeonggi,
         C.SITE + '/jeonse-ratio/': jr,
-        C.SITE + '/moveins/': '"dateModified": "%s"' % mv,
+        C.SITE + '/moveins/': mv,
     }
     monkeypatch.setattr(C.urllib.request, 'urlopen', _FakeWeb(pages))
     # ⚠️ 기대 시점은 준공이 아니라 unsold_prd다 — 페이지가 찍는 문자열('기준 ·
@@ -185,12 +231,41 @@ def test_derived_pages_treat_missing_marker_as_failure(monkeypatch):
     assert len(f) == 1 and '표기 없음' in f[0], f
 
 
-def test_indicator_dateModified_respects_the_publish_clamp(monkeypatch):
-    """dateModified는 datePublished보다 과거가 되지 않게 클램프된다. 그 규칙을
-    모르고 비교하면 매일 오탐이 난다(2026-08-08 예행에서 실제로 그랬다)."""
-    assert _derived(monkeypatch, OKP, OKP, mv=C.INDICATOR_PUBLISHED) == []
-    f = _derived(monkeypatch, OKP, OKP, mv='2025-01-01')
-    assert any('moveins' in x for x in f), f
+def test_moveins_reads_the_on_screen_basis(monkeypatch):
+    """/moveins/ 시점은 화면 주석의 'YYYY년 N분기까지 준공 실적'을 데이터 마지막 실적 분기와 대조한다.
+
+    전수 리뷰 #18 로 두 지표 페이지의 dateModified 가 '내용이 바뀐 날(keep_dates·KST)'이 되어 데이터 시점을 말하지
+    않는다. 예전 감시는 dateModified 를 max(분기 끝 달 1일, datePublished) 와 견줬으므로, 새 분기가 들어온 날
+    본문이 바뀌면 dateModified 가 그날(예: 2026-10-02)이 되어 매일 오탐이 났다.
+    픽스처: 생성기 주석과 같은 모양의 한 줄(맞음·한 분기 옛값·표기 없음·옛 JSON-LD 만 있는 페이지).
+    변이(실제로 확인): check_derived_pages 를 옛 dateModified 대조로 되돌리면 첫 단정(맞음 → [])이 빨개지고,
+    `m.group(0) != want` 를 빼면 옛 분기 단정이, 표기 없음 분기를 통과로 바꾸면 마지막 두 단정이 빨개진다.
+    """
+    assert _derived(monkeypatch, OKP, OKP) == []
+    f = _derived(monkeypatch, OKP, OKP, mv=MVP % '2026년 1분기까지 준공 실적')
+    assert len(f) == 1 and 'moveins' in f[0] and '2026년 2분기' in f[0], f
+    f = _derived(monkeypatch, OKP, OKP, mv='<p>없음</p>')
+    assert len(f) == 1 and 'moveins' in f[0] and '없다' in f[0], f
+    f = _derived(monkeypatch, OKP, OKP, mv='"dateModified": "2026-10-02"')
+    assert len(f) == 1 and 'moveins' in f[0], f
+
+
+def test_moveins_basis_marker_is_what_the_generator_prints():
+    """감시가 찾는 문구(C.MOVEINS_BASIS·_RE)가 생성기(make_indicator_pages.build_moveins)가 실제로 찍는 문구다.
+
+    같은 문구를 두 코드가 따로 적었으니 한쪽만 바뀌면 감시가 '표기 없음'으로 매일 빨개지거나, 정규식이 넓어져
+    엉뚱한 분기를 읽는다. 픽스처: 저장소 ADV(마지막 실적 분기는 데이터에서 — 박지 않는다).
+    변이(실제로 확인): 생성기 주석을 상수 대신 손 문구('%(lastact)s 준공 실적')로 되돌리거나, 감시의 MOVEINS_BASIS 를
+    생성기 상수 대신 따로 적은 사본('%s년 %s분기 준공 실적')으로 바꾸면 빨개진다.
+    """
+    import make_indicator_pages as I
+    import make_sido_pages as P
+    adv, _ = P.load()
+    html, _ = I.build_moveins(adv, '2031-03-03')
+    last = [r['p'] for r in adv['occupancy']['rows'] if not r.get('e')][-1]
+    found = re.findall(C.MOVEINS_BASIS_RE, html)
+    assert found and set(found) == {(last[:4], last[5:])}, found
+    assert C.MOVEINS_BASIS % (last[:4], last[5:]) in html
 
 
 # ---------------------------------------------------------------------------
@@ -348,23 +423,30 @@ def test_seeding_never_narrows_the_window(monkeypatch):
 
 def test_watchdog_supply_check_lower_bounds_by_our_own_date(monkeypatch):
     """감시의 하한은 **우리 시점**이어야 한다. 오늘 날짜 기준으로 잡으면 우리가
-    많이 뒤처졌을 때 창 밖이 되어 뒤처짐을 못 본다."""
+    많이 뒤처졌을 때 창 밖이 되어 뒤처짐을 못 본다.
+
+    생산 함수(_supply_since)와 그것을 부르는 source_jobs 의 공급 getter 를 직접 본다(전수리뷰 #93). 예전 시험은
+    하한을 시험 안에서 스스로 계산해 가짜에 넣었으므로, _supply_since 를 오늘 기준으로 바꿔도 초록이었다.
+    변이(확인): _supply_since 본문을 `t = datetime.date.today(); return '%04d%02d' % (t.year, t.month)` 로 바꾸면
+    빨개진다.
+    픽스처: 미분양이 2026.06 에 멈춰 있고(백로그 4의 실제 보류 상태) 원천은 2026.07 을 낸 날.
+    """
+    assert C._supply_since('2026.06') == '202605'
+    assert C._supply_since('2026.01') == '202512'      # 연 넘김
+    assert C._supply_since(None) is None
+    assert C._supply_since('2026') is None
     got = {}
 
-    def fake_latest(tbl, cycle, since=None):
-        got['since'] = since
+    def fake_complete(tbl, since=None, want_total=False):
+        got[tbl] = since
         return '202607'
 
-    monkeypatch.setattr(C, 'rone_latest', fake_latest)
-    monkeypatch.setattr(C.time, 'sleep', lambda s: None)
-    cfg = {'tbl': 'T1'}
-    last = '2026.06'
-    since = C.digits(last)[:6]
-    y, m = int(since[:4]), int(since[4:6]) - 1
-    since = '%04d%02d' % ((y, m) if m > 0 else (y - 1, 12))
-    assert since == '202605'
-    r = C.check('미분양', last, lambda: fake_latest(cfg['tbl'], 'MM', since), C.GRACE_MONTHLY)
-    assert got['since'] == '202605'
+    monkeypatch.setattr(C, 'rone_latest_complete', fake_complete)
+    stats = {'미분양': {'dates': ['2026.05', '2026.06'], 'series': {}}}
+    jobs = C.source_jobs(stats)
+    tbl = U.SUPPLY_CONF['미분양']['tbl']
+    r = C.check('미분양', '2026.06', jobs[('supply', '미분양')], C.GRACE_MONTHLY)
+    assert got[tbl] == '202605', got
     assert r and '미분양' in r, '원천이 더 최신인데 뒤처짐을 못 잡았다'
 
 
@@ -442,7 +524,17 @@ def test_lookup_failure_is_not_read_as_healthy(monkeypatch):
     monkeypatch.setattr(C, 'rone_region_names', dead)
     assert C.check_region_rows() == []
     assert len(C.FETCH_FAIL) == 2, C.FETCH_FAIL
-    C.FETCH_FAIL[:] = []
+    # 판정까지 본다(전수리뷰 #37). 예전엔 다른 실패가 없는 날 _gate 가 'VERDICT=ok' 를 찍고 돌아왔다 —
+    # FETCH_FAIL 은 다른 실패가 이미 있을 때 종료 코드를 가를 때만 쓰였다.
+    # 변이(확인): _gate 의 `if FETCH_FAIL:` 분기를 지우면 SystemExit 이 안 나 빨개진다.
+    C.SKIPPED[:] = []
+    try:
+        import pytest
+        with pytest.raises(SystemExit) as e:
+            C._gate([None] * 17)
+        assert e.value.code == C.EXIT_RETRYABLE
+    finally:
+        C.FETCH_FAIL[:] = []
 
 
 def test_batch_and_watchdog_resolve_regions_identically():

@@ -184,7 +184,7 @@ def test_lag_is_quiet_on_ordinary_days():
 
 def test_lag_rides_the_monday_summary():
     body, mention = _b(LAG2, weekday=0)
-    assert '가계열·나계열가 2026년 6월 기준' in body, body
+    assert '가계열·나계열이 2026년 6월 기준' in body, body
     assert '가장 최신 월간 통계는 2026년 8월' in body
     assert '2026.06' not in body, '내부 표기가 그대로 새면 안 된다'
     assert mention is True  # 월요일 회차는 원래 멘션이 붙는다

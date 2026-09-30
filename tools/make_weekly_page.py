@@ -261,6 +261,91 @@ def share_version(p):
     return pub(p)
 
 
+PNG_SIG = b'\x89PNG\r\n\x1a\n'
+
+
+def png_text(path):
+    """PNG 파일의 tEXt 청크 → {키: 값}. 파일이 없거나 PNG 가 아니면 {}."""
+    try:
+        with open(path, 'rb') as f:
+            raw = f.read()
+    except OSError:
+        return {}
+    return png_text_bytes(raw)
+
+
+def png_text_bytes(raw):
+    """PNG 바이트의 tEXt 청크 → {키: 값}. PNG 가 아니면 {}.
+
+    PIL 없이 읽는다 — 이 생성기와 감시(check_freshness.live_card_basis)는 pip 앞, 설치 없이 돈다. 두 코드가 이 함수
+    하나로 카드 메타를 읽는다(전수 리뷰 통합 — 예전엔 같은 읽기를 두 벌 적었다). 청크는 [길이4][타입4][데이터][CRC4]
+    배열이고 tEXt 데이터는 키와 값을 NUL 하나로 이은 것이다.
+    """
+    if raw[:8] != PNG_SIG:
+        return {}
+    out, i = {}, 8
+    while i + 8 <= len(raw):
+        n = int.from_bytes(raw[i:i + 4], 'big')
+        typ = raw[i + 4:i + 8]
+        if typ == b'IEND':
+            break
+        if typ == b'tEXt':
+            k, _, v = raw[i + 8:i + 8 + n].partition(b'\x00')
+            out[k.decode('latin-1')] = v.decode('latin-1')
+        i += 12 + n
+    return out
+
+
+def card_version(root=None):
+    """디스크에 **실제로 구워진** 주간 카드의 판(PNG 메타 agongmap-pub = 카드 머리의 발표일). 읽지 못하면 None."""
+    return png_text(os.path.join(root or ROOT, *SHARE_REL.split('/'))).get('agongmap-pub') or None
+
+
+def share_img(W, root=None):
+    """og:image·twitter:image·공유 버튼 그림의 주소 — 카드?v=**카드가 실제로 그린 판**.
+
+    예전엔 판을 데이터(최신 주차의 발표일)에서만 셈했다. 카드 생성기는 배치에서 게이트 뒤에 돌고 실패해도 경고로만
+    넘어가므로, 카드가 안 구워진 회차엔 새 판 주소(?v=새 발표일)가 지난 카드를 가리킨 채 커밋됐다. 카카오톡·네이버는
+    이미지 주소 단위로 미리보기를 보관하므로, 그때 긁힌 옛 그림이 새 판 주소에 붙어 그 주 내내 나갔다 — ?v= 가 막으려던
+    바로 그 상태다(전수리뷰 #85). 이제 판은 카드 PNG 메타에서 읽는다: 카드가 실패하면 주소는 옛 판 그대로(그림과
+    주소가 같은 판)이고, 카드가 구워지면 make_weekly_share 가 restamp_share 로 같은 회차 안에 주소를 새 판으로 고친다.
+    카드 파일이나 메타가 없을 때만(저장소 밖 임시 폴더 등) 데이터의 발표일로 둔다.
+    """
+    v = card_version(root) or share_version(W['rows'][-1]['p'])
+    return '%s?v=%s' % (SHARE_IMG, v)
+
+
+_SHARE_IMG_RE = re.compile(re.escape(SHARE_IMG) + r'\?v=[0-9A-Za-z-]+')
+
+
+def restamp_share(root=None):
+    """카드를 구운 **뒤** 카드 주소의 판(?v=)을 카드 메타의 판으로 고쳐 쓴다 → 고친 파일 목록.
+
+    페이지(/weekly/)와 홈 데이터(split_data 의 ADV.weekly.share)는 카드보다 먼저 구워지므로(카드는 pillow 가 깔리는
+    게이트 뒤), 카드가 새로 구워진 회차엔 그 둘이 아직 지난 판을 가리킨다. 카드 생성기가 성공한 직후 이 함수를 불러
+    같은 커밋 안에서 주소를 맞춘다. 판 말고는 아무것도 바꾸지 않는다.
+    """
+    root = root or ROOT
+    v = card_version(root)
+    if not v:
+        return []
+    names = [os.path.join('weekly', 'index.html'), 'data-core.js'] + sorted(
+        f for f in (os.listdir(root) if os.path.isdir(root) else []) if re.match(r'^data-[\w-]+\.json$', f))
+    done = []
+    for rel in names:
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            continue
+        with io.open(path, encoding='utf-8', newline='') as f:
+            old = f.read()
+        new = _SHARE_IMG_RE.sub(SHARE_IMG + '?v=' + v, old)
+        if new != old:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(new)
+            done.append(rel.replace(os.sep, '/'))
+    return done
+
+
 def share_campaign(p):
     """공유 링크의 회차(utm_campaign) — 'week_' + 발표일(YYYYMMDD). og:image 판(share_version)과 같은 날짜다.
 
@@ -269,7 +354,7 @@ def share_campaign(p):
     return 'week_' + share_version(p).replace('-', '')
 
 
-def share_payload(W):
+def share_payload(W, root=None):
     """주간 공유 내용 — /weekly/ 공유 버튼과 홈 주간 격자 공유 버튼(split_data → ADV.weekly.share)이 **이것 하나**를 쓴다.
 
     돌려주는 것: {'p': 조사일, 'ct': 'weekly', 'url': 공유 링크, 'title', 'text', 'img': 카드 주소(?v=발표일), 'w', 'h',
@@ -287,15 +372,15 @@ def share_payload(W):
     text = c['text'] + ('' if nation is None else ' · 전국 %s%%' % pv2(nation))
     return {'p': p, 'ct': 'weekly', 'url': PS.link(SITE + '/weekly/', SHARE_SOURCE, share_campaign(p)),
             'title': '이번 주 아파트 시세 · %s 발표' % md(pub(p)), 'text': text,
-            'img': '%s?v=%s' % (SHARE_IMG, share_version(p)), 'w': SHARE_SIZE[0], 'h': SHARE_SIZE[1],
+            'img': share_img(W, root), 'w': SHARE_SIZE[0], 'h': SHARE_SIZE[1],
             'btn': '이번 주 시세 보기'}
 
 
 SHARE_LEAD = '이번 주 시세 지도를 단톡방에 보내 보세요'
 
 
-def share_html(W):
-    d = share_payload(W)
+def share_html(W, root=None):
+    d = share_payload(W, root)
     return PS.block(d, SHARE_LEAD) if d else ''
 
 
@@ -372,8 +457,8 @@ def table_html(W, Q):
     ])
 
 
-def put_share_image(s, W):
-    url = '%s?v=%s' % (SHARE_IMG, share_version(W['rows'][-1]['p']))
+def put_share_image(s, W, root=None):
+    url = share_img(W, root)
     s = put_meta(s, 'property', 'og:image', url)
     return put_meta(s, 'name', 'twitter:image', url)
 
@@ -502,8 +587,9 @@ def build(W, Q):
         desc_bits.append('시군구 상승 1위 %s %s%%%s.' % (su[0][0], pv2(su[0][1]),
                          (', 하락 1위 %s %s%%' % (sd[0][0], pv2(sd[0][1]))) if sd else ''))
     desc = ' '.join(desc_bits) + ' 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.'
-    og = '%s · 전국 %s%%, %s %s%%. 시군구·서울 구별 변동률 지도.' % (
-        datestr, pv2(nation), best[0], pv2(best[1]))
+    # 전국 값이 없는 주(R-ONE 부분 응답)엔 desc·리드·공유 문구처럼 전국 조각을 뺀다 — '전국 ·%' 를 굽지 않는다(전수리뷰 #29).
+    og = '%s · %s%s %s%%. 시군구·서울 구별 변동률 지도.' % (
+        datestr, ('전국 %s%%, ' % pv2(nation)) if nation is not None else '', best[0], pv2(best[1]))
     return head, answer, desc, og
 
 
@@ -647,13 +733,14 @@ def put_blog(s, W):
     return put(s, 'BLOG', body, nl)
 
 
-def render(s, W, Q):
+def render(s, W, Q, root=None):
+    """root: 공유 카드를 읽을 저장소 뿌리(시험이 임시 폴더를 준다). 없으면 ROOT."""
     nl = '\r\n' if '\r\n' in s else '\n'
     head, answer, desc, og = build(W, Q)
     s = put(s, 'HEAD', head, nl)
     s = put(s, 'ANSWER', answer, nl)
     # 공유 버튼(B8)·시군구 전체 표(C10②) — 표식이 없던 뼈대에는 ANSWER 뒤에 자리를 낸다
-    s = put(ensure_block(s, 'SHARE', 'ANSWER', nl), 'SHARE', share_html(W), nl)
+    s = put(ensure_block(s, 'SHARE', 'ANSWER', nl), 'SHARE', share_html(W, root), nl)
     s = put(ensure_block(s, 'TABLE', 'SHARE', nl), 'TABLE', table_html(W, Q), nl)
     s = put_meta(s, 'name', 'description', desc)
     s = put_meta(s, 'property', 'og:description', og)
@@ -662,10 +749,13 @@ def render(s, W, Q):
     p = W['rows'][-1]['p']
     s = put_titles(s, p)               # title·og:title·twitter:title·WebPage name 에 연도·주차(B4)
     s = put_ld_dates(s, pub(p))        # JSON-LD 발표일(B4)
-    s = put_blog(s, W)                 # 해설 글(네이버 블로그) 칸(B5)
     # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
+    # ⚠️ put_blog **앞에서** 한다 — 해설 칸은 RSS 에서 온 남의 글 제목이라, 뒤에서 치환하면 '5개 시도만 올랐습니다' 같은
+    #    제목을 '16개 시도만'으로 고쳐 인용했다(전수리뷰 #26). BLOG 구간은 put_blog 가 매번 통째로 다시 쓰므로 여기서
+    #    지난 회차 제목이 치환돼 있어도 남지 않는다.
     s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
-    s = put_share_image(s, W)   # og:image·twitter:image 에 그 주 발표일(A7)
+    s = put_blog(s, W)                 # 해설 글(네이버 블로그) 칸(B5)
+    s = put_share_image(s, W, root)   # og:image·twitter:image 에 카드가 그린 판(A7·전수리뷰 #85)
     s = put_nav(s)              # 하단 탭바 정본·'시세' 탭 켜기(A5·C2)
     s = RM.ensure(s)            # 검색 로봇 메타 max-image-preview:large(D2) — 뼈대에 없으면 viewport 뒤에 넣는다
     return s

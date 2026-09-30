@@ -54,11 +54,13 @@ def _core(L, S, H):
     return re.sub(KEYS['H'], '"H":%d' % H, src)
 
 
-def _pick(tmp_path, arts):
+def _pick(tmp_path, arts, failed=None):
     for n, body in enumerate(arts, 1):
         d = tmp_path / '_art' / ('data-%d' % n)
         d.mkdir(parents=True)
         (d / 'data-core.js').write_text(body, encoding='utf-8')
+        if failed and failed[n - 1]:
+            (d / '.fetch_failed').write_text(failed[n - 1], encoding='utf-8')
     out = subprocess.run(['bash', '-e', '-c', _picker()], cwd=str(tmp_path),
                          capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
@@ -85,3 +87,24 @@ def test_picker_prefers_the_runner_whose_supply_horizon_is_consistent(tmp_path):
     assert _pick(tmp_path / 'b', [good_new, bad]) == '1'
     assert _pick(tmp_path / 'c', [bad, good_old]) == '2', '실적 분기가 새것이라고 어긋난 산출물을 골랐다'
     assert _pick(tmp_path / 'd', [good_old, good_new]) == '2', '정합한 둘 중에는 실적 분기가 새것인 쪽이다'
+
+
+@pytest.mark.skipif(not shutil.which('bash'), reason='bash 없음(워크플로 러너에는 있다)')
+def test_picker_prefers_the_runner_that_recovered_the_index_basis(tmp_path):
+    """다른 키가 같으면 지수 기준시점 변경 재수집(대표 결정 09-30 ①)에 성공한 러너를 고른다 — 보류한 러너는 .fetch_failed 에
+    '<계열>:기준변경 보류'를 남긴다. 채택 키가 같아 번호가 앞선 보류 러너가 이기면 복구가 하루씩 밀렸다(통합 검토).
+    다른 실패만 적힌 러너는 보류로 치지 않는다. 시야 정합(H == lead)이 먼저다 — 보류보다 ABORT 가 더 나쁘다.
+
+    변이(실제로 확인): 고르기에서 `[ "$bok" \\> "$BESTBOK" ]` 줄을 지우면 첫 단정이 1번을 골라 빨개진다. 기준복구 비교를
+    시야 비교 앞으로 옮기면 넷째 단정이 빨개진다.
+    픽스처: 저장소 data-core.js 사본(키가 모두 같음)과 러너별 .fetch_failed(배치가 쓰는 모양 그대로 공백 구분 토큰).
+    """
+    _, y, q, lead = _saved()
+    cur = _q(y, q, 0)
+    same = _core(cur, cur, lead)
+    held = '매매지수:기준변경 보류 전세지수:기준변경 보류'
+    assert _pick(tmp_path / 'a', [same, same], [held, None]) == '2', '보류한 1번을 골랐다 — 복구가 하루 밀린다'
+    assert _pick(tmp_path / 'b', [same, same], [None, held]) == '1'
+    assert _pick(tmp_path / 'c', [same, same], ['holidays:2027', None]) == '1', '다른 실패는 기준 보류가 아니다'
+    assert _pick(tmp_path / 'd', [same, _core(_q(y, q, 1), cur, lead - 1)], [held, None]) == '1', (
+        '보류를 피하려다 시야가 어긋난(ABORT) 러너를 골랐다')

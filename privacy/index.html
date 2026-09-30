@@ -85,6 +85,10 @@ body{padding-bottom:66px}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
+/* 이용 이벤트 목록(1항) — 접어 두고 펼쳐 본다 */
+details.ev{margin:.8em 0}
+details.ev summary{cursor:pointer;font-weight:600}
+details.ev code{font-size:.88em;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -93,7 +97,7 @@ body{padding-bottom:66px}
 <header><div class="wrap">
   <div class="chip">🔒 개인정보처리방침</div>
   <h1>아공맵 개인정보처리방침</h1>
-  <p class="lead">시행일 2026년 8월 1일</p>
+  <p class="lead">시행일 2026년 8월 1일 · 최근 개정 2026년 9월 30일</p>
 </div></header>
 <main id="main">
 
@@ -110,10 +114,68 @@ body{padding-bottom:66px}
         <td>서비스 이용 현황 파악 및 개선</td>
         <td>수집일로부터 14개월</td>
       </tr>
+      <tr>
+        <td>이용 이벤트<br>(자동 수집)</td>
+        <td>화면·버튼 이용 기록, 퀴즈 점수·문항별 정답 여부, 친구 대결 점수(아래 목록)</td>
+        <td>서비스 이용 현황 파악 및 개선</td>
+        <td>수집일로부터 14개월</td>
+      </tr>
     </tbody>
   </table>
   </div>
-  <p>퀴즈 결과·선택 지역 등 이용자가 서비스에서 만든 정보는 <b>이용자 브라우저에만 저장</b>되며 서버로 전송·수집되지 않습니다.</p>
+  <p>퀴즈 점수·문항별 정답 여부와 화면·버튼 이용 기록은 <b>이름·연락처 없이 익명 이용 통계로 Google Analytics에 전송</b>됩니다. 고정한 내 지역, 풀던 퀴즈의 진행 상태처럼 다음 방문을 위해 기억하는 정보는 <b>이용자 브라우저에만 저장</b>되며, 그 내용 자체는 서버로 보내지 않습니다.</p>
+  <details class="ev" id="ga-events">
+    <summary>Google Analytics로 보내는 이용 이벤트 전체 목록</summary>
+    <p>이벤트 이름과 함께 보내는 값의 이름입니다. 모두 화면에서 무엇을 눌렀는지, 퀴즈를 어떻게 풀었는지에 관한 값이며 이름·연락처·입력한 글은 없습니다.</p>
+    <div class="scroll">
+    <table>
+      <thead><tr><th>이벤트</th><th>함께 보내는 값</th><th>보내는 때</th></tr></thead>
+      <tbody>
+        <tr><th colspan="3">페이지·홈</th></tr>
+        <tr data-ev="page_view"><td><code>page_view</code></td><td><code>page_location</code> <code>page_title</code></td><td>페이지나 홈 화면을 열 때(주소, 화면 이름)</td></tr>
+        <tr data-ev="user_properties"><td><code>user_properties</code></td><td><code>home_variant</code></td><td>홈을 열 때(홈 화면 구성의 판 구분값, 이벤트가 아닌 사용자 속성)</td></tr>
+        <tr data-ev="home_visit"><td><code>home_visit</code></td><td><code>visit_n</code> <code>gap_days</code> <code>first_week</code></td><td>홈을 다시 열 때(방문 횟수, 지난 방문 뒤 지난 날수, 첫 방문 주)</td></tr>
+        <tr data-ev="nav_tab"><td><code>nav_tab</code></td><td><code>tab</code></td><td>하단 탭을 누를 때</td></tr>
+        <tr data-ev="home_cta"><td><code>home_cta</code></td><td><code>to</code></td><td>홈의 안내 링크를 누를 때(가는 곳)</td></tr>
+        <tr data-ev="section_view"><td><code>section_view</code></td><td><code>section</code></td><td>홈의 구역이 화면에 보일 때</td></tr>
+        <tr data-ev="map_mode"><td><code>map_mode</code></td><td><code>mode</code></td><td>지도 보기 방식을 바꿀 때</td></tr>
+        <tr data-ev="supply_table"><td><code>supply_table</code></td><td><code>period</code></td><td>공급 표의 기간을 바꿀 때</td></tr>
+        <tr data-ev="supply_view"><td><code>supply_view</code></td><td><code>view</code></td><td>공급 화면의 보기를 바꿀 때</td></tr>
+        <tr data-ev="myzone"><td><code>myzone</code></td><td><code>action</code></td><td>내 지역을 고정하거나 풀 때(지역 이름은 보내지 않음)</td></tr>
+        <tr data-ev="pwa_prompt"><td><code>pwa_prompt</code></td><td><code>step</code> <code>platform</code></td><td>홈 화면 추가 안내가 뜨거나 닫힐 때</td></tr>
+        <tr data-ev="pwa_installed"><td><code>pwa_installed</code></td><td><code>platform</code></td><td>홈 화면에 추가했을 때</td></tr>
+        <tr data-ev="build_reload"><td><code>build_reload</code></td><td><code>build_html</code> <code>build_js</code> <code>fixed</code> <code>part</code></td><td>새 판이 배포돼 한 번 새로 고칠 때(판 번호)</td></tr>
+        <tr><th colspan="3">통계 화면</th></tr>
+        <tr data-ev="stats_dataset"><td><code>stats_dataset</code></td><td><code>dataset</code></td><td>통계 자료를 고를 때</td></tr>
+        <tr data-ev="stats_mode"><td><code>stats_mode</code></td><td><code>mode</code></td><td>통계 보기 방식을 바꿀 때</td></tr>
+        <tr data-ev="stats_size"><td><code>stats_size</code></td><td><code>met</code> <code>siz</code> <code>sort</code> <code>tr</code></td><td>규모별 표의 조건을 바꿀 때</td></tr>
+        <tr data-ev="stats_transpose"><td><code>stats_transpose</code></td><td><code>section</code> <code>on</code></td><td>표의 행과 열을 바꿀 때</td></tr>
+        <tr data-ev="stats_period"><td><code>stats_period</code></td><td><code>section</code> <code>period</code></td><td>그래프 기간을 바꿀 때</td></tr>
+        <tr data-ev="stats_gt"><td><code>stats_gt</code></td><td><code>section</code> <code>view</code></td><td>그래프와 표 보기를 바꿀 때</td></tr>
+        <tr data-ev="adv_tab"><td><code>adv_tab</code></td><td><code>tab</code></td><td>투자지표 탭을 바꿀 때</td></tr>
+        <tr data-ev="market_tab"><td><code>market_tab</code></td><td><code>tab</code></td><td>시세 탭을 바꿀 때</td></tr>
+        <tr data-ev="bubble_detail"><td><code>bubble_detail</code></td><td><code>region</code></td><td>지역 상세를 펼칠 때(지역 이름)</td></tr>
+        <tr data-ev="adv_link"><td><code>adv_link</code></td><td><code>to</code></td><td>외부 통계 사이트 링크를 누를 때</td></tr>
+        <tr><th colspan="3">퀴즈</th></tr>
+        <tr data-ev="quiz_start"><td><code>quiz_start</code></td><td><code>quiz_type</code> <code>start_type</code></td><td>퀴즈를 시작할 때(퀴즈 종류, 처음·이어 풀기·다시 풀기)</td></tr>
+        <tr data-ev="quiz_answer"><td><code>quiz_answer</code></td><td><code>quiz_type</code> <code>idx</code> <code>correct</code></td><td>문항에 답할 때(문항 번호, 정답 여부)</td></tr>
+        <tr data-ev="quiz_review"><td><code>quiz_review</code></td><td><code>quiz_type</code> <code>idx</code></td><td>결과 화면에서 문항 해설을 다시 볼 때</td></tr>
+        <tr data-ev="quiz_complete"><td><code>quiz_complete</code></td><td><code>quiz_type</code> <code>score</code></td><td>퀴즈를 끝낼 때(점수)</td></tr>
+        <tr data-ev="next_step"><td><code>next_step</code></td><td><code>from</code> <code>to</code></td><td>결과 화면의 다음 안내를 누를 때</td></tr>
+        <tr data-ev="challenge_accepted"><td><code>challenge_accepted</code></td><td><code>quiz_type</code> <code>friend_score</code> <code>same_paper</code></td><td>친구가 보낸 대결 링크를 열 때(친구 점수, 같은 문제지 여부)</td></tr>
+        <tr data-ev="challenge_result"><td><code>challenge_result</code></td><td><code>quiz_type</code> <code>score</code> <code>friend_score</code> <code>outcome</code></td><td>대결을 끝낼 때(내 점수, 친구 점수, 승패)</td></tr>
+        <tr data-ev="challenge_retry"><td><code>challenge_retry</code></td><td><code>quiz_type</code></td><td>대결을 다시 할 때</td></tr>
+        <tr data-ev="challenge_sent"><td><code>challenge_sent</code></td><td><code>quiz_type</code> <code>score</code></td><td>대결 링크를 보낼 때(내 점수)</td></tr>
+        <tr><th colspan="3">공유·기타 페이지</th></tr>
+        <tr data-ev="share"><td><code>share</code></td><td><code>content_type</code> <code>method</code> <code>quiz_type</code> <code>score</code> <code>page</code> <code>region</code></td><td>공유 단추를 누를 때(공유한 내용, 공유 방법, 퀴즈 결과 공유면 점수, 지역 리포트면 지역 이름)</td></tr>
+        <tr data-ev="view"><td><code>view</code></td><td><code>screen_name</code></td><td>이달의 통계 페이지를 열 때</td></tr>
+        <tr data-ev="blog_link"><td><code>blog_link</code></td><td><code>to</code></td><td>주간 시세 페이지에서 블로그 링크를 누를 때</td></tr>
+        <tr data-ev="cycle_jump"><td><code>cycle_jump</code></td><td><code>to</code></td><td>사이클 리포트의 도식에서 본문으로 이동할 때</td></tr>
+        <tr data-ev="tldr_jump"><td><code>tldr_jump</code></td><td><code>to</code></td><td>사이클 리포트의 요약에서 본문으로 이동할 때</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </details>
 </div></section>
 
 <section><div class="wrap">
@@ -125,7 +187,7 @@ body{padding-bottom:66px}
     <tbody>
       <tr>
         <td>Google LLC<br>(Google Analytics)</td>
-        <td>쿠키·이용 기록</td>
+        <td>쿠키·이용 기록(1항의 이용 이벤트 포함)</td>
         <td>미국 · 페이지 접속 시 즉시</td>
         <td>이용 현황 분석 · 14개월</td>
       </tr>
@@ -177,6 +239,7 @@ body{padding-bottom:66px}
   <p>법령·서비스 변경에 따라 이 방침이 수정될 수 있습니다. 중요한 변경이 있을 경우 시행 7일 전부터 이 페이지에 공지합니다.</p>
   <ul>
     <li>2026년 8월 1일 — 최초 제정·시행</li>
+    <li>2026년 9월 30일 — 설명을 실제 처리에 맞게 바로잡음: 퀴즈 점수·문항별 정답 여부 등 이용 이벤트가 Google Analytics로 전송된다는 사실과 전송 목록을 1항에 적음(처리 방식은 바뀌지 않았고, 이전 문구가 “서버로 전송되지 않는다”고 잘못 적고 있었음)</li>
   </ul>
   <a class="cta" href="/">🏠 아공맵 — 홈으로</a>
 </div></section>
