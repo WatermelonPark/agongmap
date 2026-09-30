@@ -175,6 +175,11 @@ def pv2(v):
     return ('%+.2f' % r) if r != 0 else '0.00'
 
 
+def jr_delta(v):
+    """전세가율 1년 변화(I.jeonse_delta 값, 소수 첫째 자리) → '+0.9'. /jeonse-ratio/ 표기와 같은 자릿수. 없으면 '·'."""
+    return '·' if v is None else '%+.1f' % v
+
+
 def cls(v):
     """색도 표시값 기준 — 표시가 0.00인데 원값 부호로 칠하면 글자와 색이 갈린다."""
     if v is None:
@@ -467,9 +472,12 @@ def build(adv, sts):
             c = cur.get(r)
             if c is None:
                 continue
-            d = None if prev.get(r) is None else c - prev[r]
+            # 1년 변화는 /jeonse-ratio/·시도 리포트와 같은 정본(I.jeonse_delta — 표시값(소수 첫째 자리)끼리의 차)이다.
+            # 예전엔 원값 차를 둘째 자리로 찍어 같은 달 전남광주가 /monthly/ +0.92 · /jeonse-ratio/ +0.9%p 로 갈렸고,
+            # 한 자리로 반올림하면 값이 다른 달도 있었다(2014.01 +1.50 대 +1.6 — 통합 검토).
+            d = I.jeonse_delta(c, prev.get(r))
             cells[r] = ('<td>%s</td><td%s>%s</td>'
-                        % ('·' if c is None else '%.1f' % c, cls(d), pv2(d)))
+                        % ('·' if c is None else '%.1f' % c, cls(d), jr_delta(d)))
         raw = p
         lab = month_label(raw)
         basis_list.append(raw)
@@ -557,9 +565,8 @@ def top3_lines(adv, sts):
                               % month_label(_months_before(jr['dates'][i], 12)))
         else:
             cur, prev = series_at(jr, i), series_at(jr, j)
-            vals = {r: cur[r] - prev[r] for r in ORDER
-                    if cur.get(r) is not None and prev.get(r) is not None}
-            tops['jeonse'] = (head, [(r, pv2(v) + '%p') for r, v in _rank(vals) if pv2(v) != '0.00'])
+            vals = {r: I.jeonse_delta(cur.get(r), prev.get(r)) for r in ORDER}
+            tops['jeonse'] = (head, [(r, jr_delta(v) + '%p') for r, v in _rank(vals)])
     return tops
 
 
