@@ -159,7 +159,8 @@ from merge_regions import WEIGHTED as _GJ_WEIGHTED  # noqa: E402
 def _fold_gj(vals, weighted=False):
     """한 시점의 {지역: 값}에서 통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 접는다. vals를 고쳐 돌려준다.
 
-    **수집 세 경로(아파트 인허가 표 · 기본통계 STATS · 분양·미분양)가 이 함수 하나를 쓴다.** 규칙이 경로마다
+    **수집 다섯 경로(아파트 인허가 표 · 기본통계 STATS · 분양·미분양 · 연간 계열 · 버블밴드 전월세전환율)가 이 함수
+    하나를 쓴다**(연간·버블은 2026-09-30 전수리뷰 #1·#5에서 합류). 규칙이 경로마다
     달랐다 — 인허가 표는 두 조각이 다 있어야 더했고, 공급은 한 조각만 와도 그 값을 통합 지역에 실었고,
     기본통계(인허가·착공·준공 월별)는 옛 두 이름을 merge_basic 의 지역 필터에서 **조용히 버렸다.**
     원천(DT_MLTM_1948/5387/5373)은 2026.06까지 두 이름으로만 주고 배치는 8개월 창을 매일 다시 받으므로,
@@ -185,7 +186,7 @@ def _fold_gj(vals, weighted=False):
 def _merge_gj(fetched):
     """공급(분양·미분양) {(y,m): {지역: 값}}의 광주·전남을 '전남광주'로 접는다(2026-09-10 통합).
 
-    R-ONE이 아직 두 지역을 따로 준다. 규칙은 _fold_gj(수집 세 경로 공통)다 — 호·세대라 합이고,
+    R-ONE이 아직 두 지역을 따로 준다. 규칙은 _fold_gj(수집 경로 공통)다 — 호·세대라 합이고,
     두 조각이 다 있을 때만 만든다. 한 조각만 온 달은 전남광주가 비어 _drop_incomplete 가 보류한다.
     """
     for vals in fetched.values():
@@ -310,7 +311,11 @@ def update_supply(stats, months=None, failed=None):
             # 줄어든다(2026-09-10 실측: 전국이 3,894호 모자랐다).
             fetched = _fetch_supply_one(cfg, regions | set(_GJ_OLD), months)
             if not fetched:
-                print('supply %s: 빈 응답 — 건너뜀' % name)
+                # 기간 필터가 비면 _rone_recent_rows 가 이미 전량 재조회로 되돌린 뒤다 — 26년치 표에서 '빈 응답'은
+                # 정상일 수 없다. 실패로 올려 .fetch_failed(배치 알림 ℹ️ 줄)에 닿게 한다(전수리뷰 #8 — 예전엔 print 뿐).
+                print('supply %s: 빈 응답 — 건너뜀(실패로 기록)' % name)
+                if failed is not None:
+                    failed.append(name)
                 continue
             _merge_gj(fetched)
             # ⚠️ 완비 기준은 regions가 아니라 SUPPLY_SIDO(실제 시도 16곳)다.
@@ -441,7 +446,7 @@ def discover(keyword):
 def _fold_old_permits(out):
     """통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 **합산**한다. out을 고쳐 돌려준다.
 
-    호(물량) 단위라 합이 곧 정답이다. 규칙은 수집 세 경로 공통의 _fold_gj 다 — 원천 통합 행 우선,
+    호(물량) 단위라 합이 곧 정답이다. 규칙은 수집 경로 공통의 _fold_gj 다 — 원천 통합 행 우선,
     ⚠️ 두 조각이 **다 있을 때만** 더한다. 한쪽만 더하면 모자란 값이 정상값처럼 실리고,
     하반기 = 12월 누계 − 6월 누계 차감에서 가짜 급증·급감이 된다.
     """
@@ -585,7 +590,15 @@ def _rone_recent_rows(tbl, need_rows, cycle='WK', since=None):
         k = list(d.keys())[0]
         # 조회 결과가 없으면 표 블록 대신 {'RESULT':{'CODE':'INFO-200'}}가 온다 —
         # 그대로 인덱싱하면 KeyError로 죽어 아래 폴백이 영영 안 돈다.
-        if k == 'RESULT' or not isinstance(d[k], list):
+        # ⚠️ INFO-200(자료 없음)만 빈 결과다. 인증·트래픽·표 폐지 같은 오류 코드까지 []로 돌려주면 부른 쪽이
+        # '원천에 자료가 없다'로 읽어 실패 기록 없이 넘어가거나(공급), 월세처럼 빈 값으로 덮는다(전수리뷰 #3·#8).
+        if k == 'RESULT':
+            res = d.get('RESULT') or {}
+            code = str(res.get('CODE') or '')
+            if code != 'INFO-200':
+                raise RuntimeError('R-ONE %s %s: %s' % (tbl, code or '?', res.get('MESSAGE') or ''))
+            return []
+        if not isinstance(d[k], list):
             return []
         total = d[k][0]['head'][0]['list_total_count']
         got = []
@@ -687,16 +700,32 @@ def fetch_weekly_rone(weeks=None):
 
 
 
-def _keep_wolse(new_rows, cur_rows):
-    """새 rows에 wo(월세)가 없는데 기존에 있으면 살려 준다. KOSIS 폴백 시절
-    월세 12개월이 통째로 지워진 실사고(2026-07)의 재발 방지 — 폴백은 제거했지만
-    부분 응답 등 어떤 경로로든 wo 없는 rows가 오면 같은 사고가 나므로 유지한다."""
+def _no_wo(r):
+    """행에 월세 값이 하나도 없나 — wo 키가 없거나, 목록이 전부 None."""
+    w = r.get('wo')
+    return not isinstance(w, list) or all(v is None for v in w)
+
+
+def _keep_wolse(new_rows, cur_rows, new_cols=None, cur_cols=None):
+    """새 rows에 wo(월세)가 없는데(키 없음·전부 None) 기존에 값이 있으면 살려 준다. KOSIS 폴백 시절
+    월세 12개월이 통째로 지워진 실사고(2026-07)의 재발 방지.
+
+    ⚠️ 예전 판정은 'wo 키가 없을 때'뿐이었는데 fetch_monthly_rone 은 wo 를 늘 목록으로 만들어서, 월세 표만
+    빈 응답인 회차에 [None,…] 목록이 14달 창을 통째로 덮었다 — 이 방어선은 실제 경로에서 한 번도 돌지 않았다
+    (전수리뷰 #3). 열 목록(new_cols·cur_cols)을 주면 이름으로 옮겨 싣는다(서울구 열은 회차마다 다시 만든다)."""
     if not (new_rows and cur_rows):
         return
-    old = {r['p']: r.get('wo') for r in cur_rows if isinstance(r.get('wo'), list)}
+    old = {r['p']: r.get('wo') for r in cur_rows if not _no_wo(r)}
+    move = new_cols is not None and cur_cols is not None and list(new_cols) != list(cur_cols)
+    idx = {c: i for i, c in enumerate(cur_cols or [])}
     for r in new_rows:
-        if not isinstance(r.get('wo'), list) and r['p'] in old:
-            r['wo'] = old[r['p']]
+        if _no_wo(r) and r['p'] in old:
+            w = old[r['p']]
+            if move:
+                if len(w) != len(cur_cols):
+                    continue
+                w = [w[idx[c]] if c in idx else None for c in new_cols]
+            r['wo'] = list(w)
 
 
 def _cols(blk):
@@ -784,6 +813,16 @@ def _merge_hist(new, cur, keep, label='', failed=None):
     if not (cur and cur.get('rows')):
         return new
     old_cols, new_cols = _cols(cur), _cols(new)
+    if old_cols and not new_cols:
+        # 응답에 열이 하나도 없다(최신 주에 서울 구 행이 통째로 빠진 부분 응답 — fetch_*_rone 의 gus 가 빈다).
+        # 예전엔 _cols 가 [] 를 None 으로 보아 gone 이 비고 regions=[] 블록이 저장돼, 실데이터를 읽는 게이트 시험이
+        # regions[0] IndexError 로 그날 커밋 전체를 막았다(전수리뷰 #4). 합집합 경로로 보내면 창 안 기존 값을 이번 회차
+        # None 으로 덮고 창 밖으로 밀리는 한 주를 영구히 잃으므로, 직전 블록을 그대로 두고 부분 실패로만 남긴다.
+        name = label or '시계열'
+        print('::warning::%s 응답에 열이 하나도 없다 — 직전 블록을 그대로 둔다' % name)
+        if failed is not None:
+            failed.append('%s 열 빠짐(전부)' % name)
+        return cur
     first = new['rows'][0]['p']
     older = [r for r in cur['rows'] if r['p'] < first]
     key = 'regions' if (new.get('regions') is not None) else 'codes'
@@ -946,6 +985,9 @@ def fetch_monthly_rone(months=None):
         return None if (a in (None, 0) or b is None) else round((b / a - 1) * 100, 4)
 
     wo = by.get('wolse', {})
+    # 월세 표가 비었거나(빈 응답) 창의 어느 달도 없으면 wo 키를 아예 싣지 않는다 — [None,…] 목록을 실으면 저장된
+    # 월세 14달을 덮는다. main() 의 _keep_wolse 가 저장분을 살리고 '_wolse_missing' 표지로 부분 실패를 남긴다(전수리뷰 #3).
+    wo_ok = any(d in wo for d in dates[1:])
     rows, se_rows = [], []
     gus = sorted(seoul_gu(by['maega'][dates[-1]]))
     for prev, cur in zip(dates, dates[1:]):
@@ -954,6 +996,8 @@ def fetch_monthly_rone(months=None):
                      'ma': [chg(sido(by['maega'][prev], r), sido(by['maega'][cur], r)) for r in WEEKLY_REGIONS],
                      'je': [chg(sido(by['jeonse'][prev], r), sido(by['jeonse'][cur], r)) for r in WEEKLY_REGIONS],
                      'wo': [chg(sido(wo_p, r), sido(wo_c, r)) for r in WEEKLY_REGIONS]})
+        if not wo_ok:
+            rows[-1].pop('wo')
         ma_p, ma_c = seoul_gu(by['maega'][prev]), seoul_gu(by['maega'][cur])
         je_p, je_c = seoul_gu(by['jeonse'][prev]), seoul_gu(by['jeonse'][cur])
         wg_p, wg_c = seoul_gu(wo_p), seoul_gu(wo_c)
@@ -961,6 +1005,8 @@ def fetch_monthly_rone(months=None):
                         'ma': [chg(ma_p.get(g), ma_c.get(g)) for g in gus],
                         'je': [chg(je_p.get(g), je_c.get(g)) for g in gus],
                         'wo': [chg(wg_p.get(g), wg_c.get(g)) for g in gus]})
+        if not wo_ok:
+            se_rows[-1].pop('wo')
     # 시군구 지도(전국 187) — KOSIS(수일 지연) 대신 R-ONE에서 직접 산출해 최신월로.
     sg_rows = []
     for prev, cur in zip(dates, dates[1:]):
@@ -971,10 +1017,15 @@ def fetch_monthly_rone(months=None):
             'ma': [chg(mp.get(SGG_RONE_CLS.get(c)), mc2.get(SGG_RONE_CLS.get(c))) for c in SGG_CODES],
             'je': [chg(jp.get(SGG_RONE_CLS.get(c)), jc2.get(SGG_RONE_CLS.get(c))) for c in SGG_CODES],
             'wo': [chg(wp.get(SGG_RONE_CLS.get(c)), wc2.get(SGG_RONE_CLS.get(c))) for c in SGG_CODES]})
-    return {'regions': WEEKLY_REGIONS, 'rows': rows,
+        if not wo_ok:
+            sg_rows[-1].pop('wo')
+    out = {'regions': WEEKLY_REGIONS, 'rows': rows,
             'seoul': {'regions': gus, 'rows': se_rows[-CONF['monthly']['sgg_hist']:]},
             'sgg': {'codes': SGG_CODES, 'rows': sg_rows[-CONF['monthly']['sgg_hist']:]},
             'note': '월간 아파트 매매·전세·월세가격지수 변동률(%) · 매월 발표 (지수 전월비 환산)'}
+    if not wo_ok:
+        out['_wolse_missing'] = True     # main() 이 떼어 내고 부분 실패로 남긴다(저장되지 않는다)
+    return out
 
 
 def fetch_monthly():
@@ -1204,25 +1255,211 @@ def merge_prov(D, rates, dec):
     return changed
 
 
-def _merge_gj_rate(by_prd):
-    """광주·전남 → 전남광주. **비율(%)이라 합산이 아니라 가중평균**이다.
+# ---- 지수 기준시점 변경(리베이스) — 전 기간 재수집 ---------------------------
+# ⚠️ 왜 필요한가(전수리뷰 #61, 2026-09-30): 한국부동산원 실거래가격지수(DT_KAB_11672_S1·S23)가 기준시점을
+# 2017.11=100 에서 2026.06=100 으로 바꿨다. 평소 배치는 최근 8개월만 다시 받아 옛 계열 끝에 덮어쓰므로
+# 매매지수는 2026.01, 전세지수는 2025.12 에서 한 달에 −25~−54% 짜리 가짜 절벽이 생겼고(서울 매매 189.83 →
+# 94.62), /cycle/ 차트·홈 기본통계·블로그 썸네일이 그것을 폭락으로 그렸다. unit 도 옛 기준을 적은 채였다.
+# 대표 결정(2026-09-30): **전 기간을 새 기준으로 다시 받아 원천 그대로 둔다. 연결계수로 잇지 않는다.**
+# 다시 받지 못하면 그 계열은 갱신을 보류한다(옛 값 유지, 새 달 안 붙임) — 다음 회차가 또 시도한다.
+#
+# 문턱의 근거(저장소 data.js 이력 58판, 2026-07-30~09-28 · 단절 전 계열 2006.01~2026.07):
+#   - BREAK_JUMP 15% · BREAK_REGIONS 2곳: 한 달 사이 15% 넘게 움직인 지역이 두 곳 이상이면 기준 단절로 본다.
+#     옛 기준 계열의 실제 월간 최대 변동은 한 지역 13.4%(제주 전세 2014.05)·11.9%(세종 매매 2020.08)였고, 같은 달에
+#     15% 넘게 움직인 지역이 둘인 달은 없다. 기준 단절 달에는 매매 12곳·전세 20곳이 한꺼번에 넘었다.
+#     **사이클 도구(rebuild_cycle_analysis.index_breaks — 묶음 C)와 같은 규칙·같은 값이다.** 같은 대상(저장 지수 계열의
+#     단절)을 재는 두 코드이므로 통합 때 한 정본으로 합친다(이름·반환 모양을 맞춰 두었다).
+#   - REVISION_TOL 5% · REBASE_SHARE 1/3: 겹치는 달의 배치 간 소급 정정은 최대 2.0%(전세지수)·0.6%(매매지수)였다.
+#     실제 기준 변경 회차(3a823bc)에서는 5%를 넘은 지역이 매매 21/27·전세 26/27 이었다. 기준 변경은 지역마다 다른
+#     배수(100 ÷ 새 기준 달 옛 값)라 기준 달 값이 100 근처였던 지역은 거의 안 바뀐다 — 모든 지역을 요구하면 놓친다.
+# 대상 계열은 BASIC_CONF 에서 항목이 '지수'인 것(손 목록을 두지 않는다).
+BASIS_SERIES = [n for n, c in BASIC_CONF.items() if c.get('itm') == '지수']
+BREAK_JUMP = 0.15
+BREAK_REGIONS = 2
+REVISION_TOL = 0.05
+REBASE_SHARE = 1 / 3
+_BASIS_MIN_REGIONS = 3          # 이보다 적은 지역으로는 기준시점 표지·겹침 어긋남을 말하지 않는다
+BASIS_CHUNK = 12                # 재수집 한 번에 받는 달 수 — flat 표 27지역 × 12달은 40,000셀에 한참 못 미친다
 
-    merge_regions.py의 WEIGHTED 규칙과 같은 근거이고 가중치도 그 정본(W_GJ)을 쓴다.
-    합산하면 두 배에 가까운 값이 되어 버블밴드가 전 지역 중 유일하게 터무니없는
-    수치를 보여준다. 한쪽만 오면 있는 쪽을 그대로 쓴다 — 없는 값을 0으로 세면
-    비율이 내려앉는다.
 
-    ⚠️ fetch_bubble 안에 인라인으로 두면 원천 호출 없이는 시험할 수 없다. 실제로
-    처음엔 인라인이었고, 그 상태의 시험은 생산 코드가 아니라 시험 안의 산식을
-    검사하고 있어서 **합산으로 바꿔도 통과했다**(2026-09-12 깨뜨리기 확인).
+def basis_months(D):
+    """확정 달 가운데 값이 있는 모든 지역이 정확히 100.0 인 달(기준시점 표지) 라벨 목록. 지역이 적으면 세지 않는다."""
+    out = []
+    for i, d in enumerate(D['dates']):
+        if 'p' in str(d):
+            continue
+        vs = [a[i] for a in D['series'].values() if i < len(a) and a[i] is not None]
+        if len(vs) >= _BASIS_MIN_REGIONS and all(v == 100.0 for v in vs):
+            out.append(d)
+    return out
+
+
+def index_breaks(st, keys=None):
+    """지수 계열에서 기준 단절로 보이는 달. [(계열, 달, 넘은 지역 수, (가장 크게 움직인 지역, 전달 값, 그달 값))].
+
+    한 달 사이 BREAK_JUMP 넘게 움직인 지역이 BREAK_REGIONS 곳 이상인 달이다. 비어 있는 칸은 건너뛰고 그 지역의 바로
+    앞 값과 견준다(원천이 한 달 비운 지역도 이어서 본다). rebuild_cycle_analysis.index_breaks(묶음 C)와 같은 규칙·
+    같은 반환 모양이다 — 통합 때 한 정본으로 합친다. keys 를 안 주면 BASIS_SERIES."""
+    out = []
+    for key in (BASIS_SERIES if keys is None else keys):
+        blk = st.get(key) or {}
+        dates = blk.get('dates') or []
+        prev, hits = {}, {}
+        for k in range(len(dates)):
+            for r, s in (blk.get('series') or {}).items():
+                v = s[k] if k < len(s) else None
+                if v is None:
+                    continue
+                p = prev.get(r)
+                if p:
+                    jump = abs(v / p - 1.0)
+                    if jump > BREAK_JUMP:
+                        hits.setdefault(k, []).append((jump, r, p, v))
+                prev[r] = v
+        for k in sorted(hits):
+            if len(hits[k]) >= BREAK_REGIONS:
+                _, r, p, v = max(hits[k])
+                out.append((key, dates[k], len(hits[k]), (r, p, v)))
+    return out
+
+
+def basis_breaks(D):
+    """한 계열(D = STATS[계열])의 기준 단절 달 라벨 목록 — index_breaks 의 한 계열판."""
+    return [d for _, d, _, _ in index_breaks({'_': D}, ('_',))]
+
+
+def rebase_in_overlap(D, fetched):
+    """이번에 받은 달과 저장분이 겹치는 확정 달에서 신·구 비(지역별 중앙값)가 REVISION_TOL 넘게 어긋난 지역이
+    REBASE_SHARE 이상이면 True — 원천이 기준시점을 바꿨다고 본다(평소 소급 정정은 2% 안쪽)."""
+    idx = {}
+    for i, d in enumerate(D['dates']):
+        ym = _label_ym(d)
+        if ym and 'p' not in str(d):
+            idx[ym] = i
+    ratios = {}
+    for ym, vals in fetched.items():
+        i = idx.get(ym)
+        if i is None:
+            continue
+        for r, v in vals.items():
+            old = (D['series'].get(r) or [])[i] if r in D['series'] and i < len(D['series'][r]) else None
+            if old and v is not None:
+                ratios.setdefault(r, []).append(v / old)
+    if len(ratios) < _BASIS_MIN_REGIONS:
+        return False
+    off = 0
+    for rs in ratios.values():
+        rs = sorted(rs)
+        if abs(rs[len(rs) // 2] - 1) > REVISION_TOL:
+            off += 1
+    return off >= REBASE_SHARE * len(ratios)
+
+
+def basis_unit(D, unit):
+    """unit 문자열의 기준시점 표기('(YYYY.MM=100)')를 데이터의 마지막 기준시점 표지로 맞춘다. 표지가 없으면 그대로."""
+    marks = basis_months(D)
+    if not marks:
+        return unit
+    ym = _label_ym(marks[-1])
+    tag = '%d.%02d=100' % ym
+    if re.search(r'\d{4}\.\d{2}=100', unit or ''):
+        return re.sub(r'\d{4}\.\d{2}=100', tag, unit)
+    return '지수(%s)' % tag
+
+
+def _basis_reason(D, fetched):
+    """update_basic 이 이 지수 계열을 전 기간 재수집해야 하는 이유. 없으면 None.
+    ① 저장 계열 안에 이미 단절이 있다(index_breaks — 이미 이어 붙인 판을 다음 배치가 스스로 고친다)
+    ② 저장 계열에 기준시점 표지(모든 지역 100.0 인 달)가 둘 이상이다(옛 기준과 새 기준이 한 계열에 섞였다 —
+       단절 달의 움직임이 문턱에 못 미쳐도 잡는다) ③ 겹치는 달의 신·구 비가 지역 전반에서 어긋난다(이번 회차에
+       원천이 기준을 바꿨다)."""
+    br = basis_breaks(D)
+    if br:
+        return '저장 계열 기준 단절(%s)' % ', '.join(br)
+    marks = basis_months(D)
+    if len(marks) >= 2:
+        return '저장 계열에 기준시점 표지가 둘 이상(%s)' % ', '.join(marks)
+    if fetched and rebase_in_overlap(D, fetched):
+        return '겹치는 달 신·구 비가 지역 전반에서 %d%% 넘게 어긋남(기준시점 변경)' % round(REVISION_TOL * 100)
+    return None
+
+
+def refetch_basic_full(name, D, today=None):
+    """지수 계열을 저장분 첫 달부터 오늘까지 원천에서 다시 받아 **새 계열**을 만든다(저장 값은 하나도 쓰지 않는다).
+
+    받은 것이 온전하지 않으면 RuntimeError — 부른 쪽이 그 계열 갱신을 보류한다. 온전함의 기준:
+      - 받은 확정 달이 끊김 없이 이어진다(중간 달이 빠지면 조회가 부분 실패한 것이다).
+      - 마지막 확정 달이 저장분의 마지막 확정 달보다 앞서지 않는다.
+      - 저장분 마지막 확정 달에 값이 있던 지역이 새 계열 마지막 확정 달에도 모두 있다.
+      - 새 계열 안에 기준 단절(basis_breaks)도, 기준시점 표지 둘도 없다 — 원천 자체가 섞여 있으면 싣지 않는다.
+        (원천에 실제로 두 지역 넘게 15% 넘는 급변이 생기면 여기서 보류가 이어진다 — 20년 동안 없던 일이라 사람이
+        .fetch_failed 의 '기준변경 보류'를 보고 판단한다.)
+    원천에 옛 달이 아예 없으면(err 30) 새 계열이 늦게 시작한다 — 정의가 다른 옛 값을 잇는 것보다 정직하다.
     """
-    from merge_regions import W_GJ      # 가중치 정본. 사본을 두면 조용히 갈린다.
+    today = today or datetime.date.today()
+    conf = [_label_ym(d) for d in D['dates'] if 'p' not in str(d) and _label_ym(d)]
+    assert conf, '%s: 저장 확정 달 없음' % name
+    start, last_old = min(conf), max(conf)
+    y, m = today.year, today.month
+    fetched, rates, first_rates = {}, {}, True
+    while (y, m) >= start:
+        k = min(BASIS_CHUNK, (y - start[0]) * 12 + m - start[1] + 1)
+        try:
+            f, r = _fetch_basic_one(name, months=k, upto=(y, m))
+        except RuntimeError as e:
+            if 'err 30' not in str(e):
+                raise
+            f, r = {}, {}
+        fetched.update(f)
+        if first_rates:
+            rates, first_rates = r, False     # 잠정 증감률은 가장 최근 조각의 것만 쓴다
+        m -= k
+        while m <= 0:
+            y, m = y - 1, m + 12
+        time.sleep(0.2)
+    got = sorted(fetched)
+    if not got:
+        raise RuntimeError('%s 재수집: 받은 달이 없다' % name)
+    seq, ym = [], got[0]
+    while ym <= got[-1]:
+        seq.append(ym)
+        ym = (ym[0] + 1, 1) if ym[1] == 12 else (ym[0], ym[1] + 1)
+    if seq != got:
+        raise RuntimeError('%s 재수집: 중간 달이 빠졌다(%d달 중 %d달)' % (name, len(seq), len(got)))
+    if got[-1] < last_old:
+        raise RuntimeError('%s 재수집: 마지막 달 %d.%02d 가 저장분 %d.%02d 보다 이르다' % ((name,) + got[-1] + last_old))
+    i_old = [i for i, d in enumerate(D['dates']) if _label_ym(d) == last_old and 'p' not in str(d)][0]
+    need = {r for r, a in D['series'].items() if i_old < len(a) and a[i_old] is not None}
+    lost = sorted(need - {r for r, v in fetched[got[-1]].items() if v is not None})
+    if lost:
+        raise RuntimeError('%s 재수집: 마지막 달에 지역이 빠졌다(%s)' % (name, ', '.join(lost)))
+    new = {k: copy.deepcopy(v) for k, v in D.items() if k not in ('dates', 'series')}
+    new['dates'] = []
+    new['series'] = {r: [] for r in D['series']}
+    merge_basic(new, fetched)
+    merge_prov(new, rates, BASIC_CONF[name]['dec'])
+    br = basis_breaks(new)
+    marks = basis_months(new)
+    if br or len(marks) >= 2:
+        raise RuntimeError('%s 재수집: 원천 계열 안에도 기준 단절이 있다(%s)'
+                           % (name, ', '.join(br) or '기준시점 표지 %s' % ', '.join(marks)))
+    new['unit'] = basis_unit(new, D.get('unit'))
+    return new
+
+
+def _merge_gj_rate(by_prd):
+    """버블밴드 전월세전환율 {PRD_DE: {지역: %}}의 광주·전남을 전남광주로 접는다. **규칙은 정본 _fold_gj(weighted=True)다.**
+
+    비율(%)이라 합산이 아니라 W_GJ 가중평균(merge_regions.WEIGHTED 와 같은 근거)이다. 원천이 통합 행을 주면 그 값을
+    쓰고, 두 조각이 다 있을 때만 만들며, 한 조각만 온 달은 만들지 않는다 — 그 달은 fetch_bubble 의 완비 판정에서
+    빠져 직전 완비 달이 쓰인다. 예전 규칙(통합 행을 가중평균으로 덮고, 한 조각만 오면 그 도시 값을 전남광주로 실음)은
+    같은 KOSIS 408 표를 다른 경로와 반대로 접었다(전수리뷰 #5·#107).
+
+    ⚠️ fetch_bubble 안에 인라인으로 두면 원천 호출 없이는 시험할 수 없다(2026-09-12 — 인라인 시절 시험은 자기 산식을
+    검사해 합산으로 바꿔도 통과했다). 그래서 이름을 시험 입구로 남긴다.
+    """
     for vals in by_prd.values():
-        g, j = vals.pop(_GJ_OLD[0], None), vals.pop(_GJ_OLD[1], None)
-        if g is not None and j is not None:
-            vals[_GJ_NEW] = round(g * W_GJ + j * (1 - W_GJ), 2)
-        elif g is not None or j is not None:
-            vals[_GJ_NEW] = g if g is not None else j
+        _fold_gj(vals, weighted=True)
     return by_prd
 
 
@@ -1262,8 +1499,16 @@ def fetch_bubble():
         won[(prd, rg)] = code
         by_prd.setdefault(prd, {})[rg] = v
     _merge_gj_rate(by_prd)
-    full = [p for p in sorted(by_prd) if len(by_prd[p]) >= 10]   # 값이 충분히 채워진 최신 월
-    assert full, '전월세전환율 응답 없음'
+    # 모델의 모든 지역이 찬 최신 달만 쓴다(전수리뷰 #6·#108). 예전 문턱은 손으로 센 '10곳 이상'이라, 원천이 최신 달을
+    # 일부만 낸 회차에 서울·경기 같은 지역이 빠진 달이 채택되고 payload 의 regions 필터가 그 지역을 조용히 지웠다.
+    # 최신 달이 덜 찼으면 직전 완비 달로 물러난다. 완비된 달이 하나도 없으면 예외 → main 이 'bubble' 실패로
+    # 남기고 직전 값을 지킨다(build_size 의 '모델 전체 요구'와 같은 정책).
+    need = set(BUBBLE_REGIONS)
+    full = [p for p in sorted(by_prd) if need <= set(by_prd[p])]
+    if not full:
+        last = max(by_prd) if by_prd else None
+        raise RuntimeError('전월세전환율 GUARD: 모델 %d곳을 다 채운 달이 없다(최신 %s 빠짐 %s) — 직전 값 유지'
+                           % (len(need), last, ', '.join(sorted(need - set(by_prd.get(last) or {}))) or '응답 없음'))
     prd, conv = full[-1], by_prd[full[-1]]
     import datetime
     today = datetime.date.today()
@@ -1365,6 +1610,12 @@ def _fetch_annual_one(name, years=None):
             continue
         if len(y) == 4 and y.isdigit():
             out.setdefault(y, {})[reg] = v
+    # 통합 전 두 이름(광주·전남)을 접는다 — 기본통계·인허가 표·공급과 같은 함수(_fold_gj). 이게 없으면
+    # merge_annual 의 지역 필터가 두 이름을 버려, 새 연도에 전남광주만 None 이 되고(멸실은 sido_zones.demol_of 가
+    # 직전 연도 값으로 조용히 대체한다) 3년 창 안의 원천 소급 정정도 전남광주에 실리지 않는다(전수리뷰 #1).
+    weighted = name in _GJ_WEIGHTED
+    for vals in out.values():
+        _fold_gj(vals, weighted)
     return out
 
 
@@ -1470,6 +1721,22 @@ def update_basic(failed=None):
         try:
             fetched, rates = _fetch_basic_one(name)
             time.sleep(0.2)
+            why = _basis_reason(stats[name], fetched) if name in BASIS_SERIES else None
+            if why:
+                # 기준시점 변경 — 이어 붙이지 않고 전 기간을 새로 받는다(전수리뷰 #61, 대표 결정 2026-09-30).
+                # 못 받으면 이 계열만 보류: 저장분 그대로, 이번 회차의 새 달도 붙이지 않는다(섞인 판을 늘리지 않는다).
+                print('basic %s: %s — 전 기간 재수집' % (name, why))
+                try:
+                    new = refetch_basic_full(name, stats[name])
+                except Exception as e:
+                    print('basic %s: 재수집 실패, 갱신 보류(저장분 유지) — %s' % (name, e))
+                    failed.append('%s:기준변경 보류' % name)
+                    continue
+                stats[name] = new
+                tokens[name] = '%s(기준변경 전기간 재수집 %s~%s · %s)' % (
+                    name, new['dates'][0], new['dates'][-1], new.get('unit'))
+                changed.append(tokens[name])
+                continue
             n = merge_basic(stats[name], fetched)
             n += merge_prov(stats[name], rates, BASIC_CONF[name]['dec'])
             if n:
@@ -1604,7 +1871,12 @@ def update_size(stats):
                       'newEstPrdCnt': str(SIZE_MONTHS)})
         time.sleep(0.2)
         metrics[name] = _size_series(rows, is_idx)
+    old = copy.deepcopy(stats.get('규모별'))
     stats['규모별'] = build_size(metrics, stats.get('규모별') or {})
+    # 값이 그대로면 토큰을 내지 않는다 — 매 회차 '규모별(N)'이 changed 를 채우면 rc=3 판정(`and not changed`)이
+    # 무뎌지고 커밋 메시지도 헛 변경을 적는다(전수리뷰 #2).
+    if json.dumps(old, sort_keys=True, ensure_ascii=False) == json.dumps(stats['규모별'], sort_keys=True, ensure_ascii=False):
+        return []
     return ['규모별(%d)' % len(stats['규모별']['dates'])]
 
 
@@ -1686,6 +1958,13 @@ def write_adv(adv):
 # 지금은 tools/sido_zones.py가 STATS의 준공·착공만으로 점수를 낸다.
 # 근거: docs/superpowers/specs/2026-08-06-sido-supply-table-design.md
 
+# rc=3(원천 전면 장애 → 35분 뒤 재시도) 판정에 쓰는 주요 원천 갈래. **다섯이 모두 실패하고 바뀐 것이 없을 때**만
+# 멈춘다. 예전 문턱 `len(failed) >= 5` 는 '여섯 갈래(…·공휴일·버블·시도)'를 전제로 한 손 숫자였는데, 공휴일은
+# 연도별 실패만 부분 실패로 남겨 failed 에 들어가지 않았고 시도는 저장 STATS 로 다시 재서 장애 때 실패하지 않아
+# 도달할 수 없었다(전수리뷰 #2). 이제 갈래 목록 자체가 문턱이다. 클라우드 배치는 네 키를 모두 가진다.
+MAIN_SOURCES = ('weekly', 'monthly', 'permits', 'holidays', 'bubble')
+
+
 class _SidoHeld(Exception):
     """시도 점수 가드(H ≠ lead)에 걸려 입주물량 갱신도 건너뛴다는 신호. 실패가 아니라 보류다."""
 
@@ -1736,7 +2015,9 @@ def main():
                 if not g:
                     continue
                 for f in ('ma', 'je', 'wo'):
-                    if isinstance(g.get(f), list) and r.get(f) != g[f]:
+                    # 전부 None 인 목록(그 표가 빈 응답)으로는 덮지 않는다(전수리뷰 #3)
+                    if (isinstance(g.get(f), list) and any(v is not None for v in g[f])
+                            and r.get(f) != g[f]):
                         r[f] = g[f]; n += 1
             print('  %s: %d주/월 조회, %d개 계열행 교정 (%s ~ %s)'
                   % (kind, len(got), n, min(got or ['-']), max(got or ['-'])))
@@ -1833,9 +2114,8 @@ def main():
     changed = []
     failed = []     # 어떤 지표 fetch가 죽었는지 집계 — 전량 실패를 '변경 없음'과 구분한다
     # 부분 실패(기본통계 계열 하나, 공휴일 한 해 등)는 **따로** 모은다. .fetch_failed(알림의
-    # ℹ️ 줄)에는 함께 적지만 아래 rc=3 판정(len(failed) >= 5)에는 넣지 않는다. 그 문턱은
-    # 여섯 갈래(주간·월간·인허가·공휴일·버블·시도)를 두고 맞춘 값이라, 기본통계 열 갈래
-    # 남짓이 더해지면 KOSIS만 잠깐 막힌 조용한 날(새 주차 없음 = changed 비어 있음)도
+    # ℹ️ 줄)에는 함께 적지만 아래 rc=3 판정(MAIN_SOURCES 가 모두 failed)에는 넣지 않는다. 기본통계
+    # 열 갈래 남짓을 그 판정에 섞으면 KOSIS만 잠깐 막힌 조용한 날(새 주차 없음 = changed 비어 있음)도
     # '원천 전면 장애'로 올라가 재시도 경로를 탄다. 기록은 늘리되 rc 의미는 바꾸지 않는다
     # (2026-09-23 전체 점검 — 예전엔 update_basic 안의 실패가 print로만 끝났다).
     soft_failed = []
@@ -1880,6 +2160,9 @@ def main():
         failed.append('weekly'); print('weekly skip:', e)
     try:
         monthly = fetch_monthly()
+        if monthly.pop('_wolse_missing', None):
+            print('monthly: 월세 표가 빈 응답 — 저장된 월세를 유지한다')
+            soft_failed.append('monthly:월세 빈 응답')
         mo_cur = adv.get('monthly') or {}
         mo_last = mo_cur['rows'][-1]['p'] if mo_cur.get('rows') else ''
         # 역행 방지(weekly와 동일 가드). 부분 응답으로 옛 월만 받아졌더라도
@@ -1900,7 +2183,15 @@ def main():
         _keep_wolse(monthly.get('rows'), mo_cur.get('rows'))
         for _p in ('sgg', 'seoul'):
             if monthly.get(_p) and mo_cur.get(_p):
-                _keep_wolse(monthly[_p].get('rows'), mo_cur[_p].get('rows'))
+                _keep_wolse(monthly[_p].get('rows'), mo_cur[_p].get('rows'),
+                            _cols(monthly[_p]), _cols(mo_cur[_p]))
+        # 저장분에도 없던 달(월세 빈 응답 회차의 새 달)은 예전과 같은 모양(열 수만큼 None)으로 둔다 — 소비처는
+        # 모든 행에 wo 목록이 있다고 읽는다.
+        for blk in (monthly, monthly.get('seoul'), monthly.get('sgg')):
+            n_cols = len(_cols(blk) or []) if blk else 0
+            for r in (blk or {}).get('rows') or []:
+                if not isinstance(r.get('wo'), list):
+                    r['wo'] = [None] * n_cols
         km = CONF['monthly']['sgg_hist']
         monthly['sgg'] = _merge_hist(monthly.get('sgg'), mo_cur.get('sgg'), km, '월간 시군구', soft_failed)
         monthly['seoul'] = _merge_hist(monthly.get('seoul'), mo_cur.get('seoul'), km, '월간 서울구', soft_failed)
@@ -1924,7 +2215,16 @@ def main():
     except Exception as e:
         failed.append('permits'); print('permits skip:', e)
     try:
+        n0 = len(soft_failed)
         h = fetch_holidays(adv.get('holidays'), soft_failed)
+        # fetch_holidays 는 연도별 예외를 안에서 삼키고 'holidays:연도'만 부분 실패로 남긴다(한 해 실패는 저장분 유지).
+        # 조회한 해가 **모두** 예외로 실패했으면 공휴일 원천 자체가 죽은 것이므로 주요 실패로 올린다 — 이게 없으면
+        # 'holidays'가 failed 에 들어갈 길이 없어 원천 전면 장애에도 rc=3 문턱에 닿지 못했다(전수리뷰 #2).
+        # 내년 달력 '발표 전'(정상 응답 0건)은 실패로 세지 않으므로 조용한 날이 여기로 올라오지 않는다.
+        import datetime      # main() 안에 같은 이름의 지역 import 가 있어 모듈 이름을 바로 못 쓴다
+        yr = datetime.date.today().year
+        if DATAGO_KEY and {'holidays:%d' % y for y in (yr, yr + 1)} <= set(soft_failed[n0:]):
+            failed.append('holidays')
         if h and h != adv.get('holidays'):
             # changed에 넣지 않으면 main()의 `if changed: write_adv(adv)`가 그 회차에
             # 호출되지 않을 때 새 공휴일 목록이 메모리에서 그대로 버려진다
@@ -2024,7 +2324,7 @@ def main():
     # 전량 실패는 '변경 없음'과 겉모습이 같다. 예전에는 이 둘이 구분되지 않아
     # 데이터 소스가 멎어도 배치가 매일 'OK'를 보고했다(watchdog 13일 임계까지 무증상).
     # 주요 지표가 하나도 안 살아 돌아왔으면 배치를 중단시킨다(배치 rc=12).
-    if len(failed) >= 5 and not changed:
+    if set(MAIN_SOURCES) <= set(failed) and not changed:
         print('ERROR: 주요 지표 fetch가 모두 실패했다 — 데이터 소스 장애로 판단해 중단한다')
         sys.exit(3)
 

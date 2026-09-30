@@ -147,6 +147,80 @@ def test_rows_without_wolse_keep_the_saved_wolse(monkeypatch, tmp_path):
             assert r.get('wo') == saved[r['p']], '%s %s 월세가 사라졌다' % (part, r['p'])
 
 
+def _rone_monthly_rows(months, gus=('강남구', '중구')):
+    """R-ONE 월간 지수표(A_2024_00045·00050·00054) 응답 모양 — 시도(평평한 이름, 지방은 '지방권')·서울구·시군구 한 곳."""
+    rows = []
+    for k, ym in enumerate(months):
+        for j, r in enumerate(U.WEEKLY_REGIONS):
+            rows.append({'CLS_FULLNM': {'지방': '지방권'}.get(r, r), 'CLS_ID': 9000 + j,
+                         'WRTTIME_IDTFR_ID': ym, 'DTA_VAL': str(100 + k + j / 10)})
+        for j, g in enumerate(gus):
+            rows.append({'CLS_FULLNM': '서울>' + g, 'CLS_ID': 9500 + j, 'WRTTIME_IDTFR_ID': ym,
+                         'DTA_VAL': str(100 + 2 * k + j)})
+        rows.append({'CLS_FULLNM': '서울', 'CLS_ID': U.SGG_RONE_CLS['a7'], 'WRTTIME_IDTFR_ID': ym,
+                     'DTA_VAL': str(100 + k)})
+    return rows
+
+
+def test_fetch_monthly_without_wolse_table_carries_no_wolse(monkeypatch):
+    """월세 표만 빈 응답이면 fetch_monthly_rone 은 어느 블록에도 wo 를 싣지 않고 '_wolse_missing' 표지를 단다.
+
+    변이: 시도 행의 `if not wo_ok: rows[-1].pop('wo')` 를 지우면(예전처럼 [None,…] 목록을 실으면) 빨개진다(확인 —
+          그 목록이 저장된 월세 14달을 덮던 경로).
+    픽스처: 매매(A_2024_00045)·전세(A_2024_00050) 표는 석 달치 정상, 월세 표(A_2024_00054)는 빈 결과(INFO-200)인 회차.
+    """
+    months = ['202606', '202607', '202608']
+    ok = _rone_monthly_rows(months)
+    wtbl = U.RONE_MONTHLY_TBL['wolse']
+    monkeypatch.setattr(U, '_rone_recent_rows',
+                        lambda tbl, need, cycle='WK', since=None: [] if tbl == wtbl else [dict(r) for r in ok])
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    got = U.fetch_monthly_rone(2)
+    assert got.get('_wolse_missing') is True
+    for blk in (got, got['seoul'], got['sgg']):
+        assert blk['rows'] and all('wo' not in r for r in blk['rows'])
+    # 월세 표가 정상이면 표지도 없고 wo 가 실린다(대조군)
+    monkeypatch.setattr(U, '_rone_recent_rows', lambda tbl, need, cycle='WK', since=None: [dict(r) for r in ok])
+    got = U.fetch_monthly_rone(2)
+    assert '_wolse_missing' not in got and all(isinstance(r.get('wo'), list) for r in got['rows'])
+
+
+@pytest.mark.parametrize('shape', ['none-lists', 'no-key'])
+def test_empty_wolse_table_keeps_the_saved_wolse_and_is_recorded(monkeypatch, tmp_path, shape):
+    """월세 표만 빈 응답인 회차에 저장된 월세(시도·서울구·시군구 14달)가 그대로 남는다. fetch 가 표지를 달았으면
+    .fetch_failed 에 'monthly:월세 빈 응답'이 남는다.
+
+    변이: _keep_wolse 의 판정을 예전 `not isinstance(r.get('wo'), list)` 로 되돌리면 none-lists 가(14달 월세가 None 으로
+          덮임 — 리뷰 재현 wo 값 2267→2013), main() 의 `soft_failed.append('monthly:월세 빈 응답')` 을 지우면 no-key 의 기록
+          단정이 빨개진다(둘 다 확인).
+    픽스처: 실제 저장분 월간 블록의 최근 14달을 다시 받은 응답에 매매 한 칸 소급 수정. none-lists 는 예전 fetch_monthly_rone
+            이 월세 빈 응답에서 만들던 모양(wo = 열 수만큼 None), no-key 는 지금 모양(wo 키 없음 + '_wolse_missing').
+    """
+    run = _Run(monkeypatch, tmp_path)
+    cur = run.before['monthly']
+    resp = _truncated(cur, -U.RECENT_MONTHS, None)
+    for blk in (resp, resp['seoul'], resp['sgg']):
+        n = len(blk.get('regions') or blk.get('codes'))
+        for r in blk['rows']:
+            if shape == 'none-lists':
+                r['wo'] = [None] * n
+            else:
+                r.pop('wo', None)
+    if shape == 'no-key':
+        resp['_wolse_missing'] = True
+    _bump(resp['rows'][-1])
+    run.set('fetch_monthly', resp)
+    got = run.main()['monthly']
+    assert got['rows'][-1]['ma'] == resp['rows'][-1]['ma'], '저장 경로가 돌지 않았다'
+    assert '_wolse_missing' not in got
+    for part, g, c in (('시도', got, cur), ('서울구', got['seoul'], cur['seoul']), ('시군구', got['sgg'], cur['sgg'])):
+        saved = {r['p']: r.get('wo') for r in c['rows']}
+        for r in g['rows']:
+            assert r.get('wo') == saved[r['p']], '%s %s 월세가 바뀌었다' % (part, r['p'])
+    if shape == 'no-key':
+        assert 'monthly:월세 빈 응답' in run.file('.fetch_failed')
+
+
 def test_seoul_gu_dropped_from_one_response_is_kept_and_recorded(monkeypatch, tmp_path):
     """주간 응답의 서울구 블록에서 구 하나가 빠져도 저장 블록은 그 구의 열과 창 밖 이력을 지키고, .fetch_failed 에
     '주간 서울구 열 빠짐(구)' 이 남는다(배치 알림 ℹ️ 줄).
@@ -265,24 +339,65 @@ def test_sido_result_with_split_horizon_is_not_adopted(monkeypatch, tmp_path):
 
 
 # ── 4. 전량 실패 rc=3 ────────────────────────────────────────────────────────
-def test_all_main_sources_down_exits_3(monkeypatch, tmp_path):
-    """주요 원천 다섯 갈래(주간·월간·인허가·공휴일·버블)가 모두 죽고 바뀐 것이 없으면 rc=3으로 멈춘다.
-    같은 실패라도 기본통계에서 바뀐 것이 있으면 멈추지 않는다.
+REAL_FETCH = {fn: getattr(U, fn) for fn in ('fetch_weekly', 'fetch_monthly', 'fetch_permits', 'fetch_holidays',
+                                            'fetch_bubble')}
 
-    변이: 문턱 `len(failed) >= 5` 를 `>= 6` 으로 바꾸면 첫 단정이(SystemExit 없음), `and not changed` 를
-          지우면 둘째 단정이 빨개진다(둘 다 확인). 넷만 죽은 회차가 rc=0인 것은
-          test_main_records_soft_failures_without_changing_rc 가 본다.
-    픽스처: KOSIS·R-ONE·ECOS·공공데이터포털이 모두 예외를 낸 회차(ECOS 키는 있다), 시도 점수는 저장분과 같다.
+
+def _all_keys(monkeypatch):
+    for k in ('KEY', 'ECOS_KEY', 'RONE_KEY', 'DATAGO_KEY'):
+        monkeypatch.setattr(U, k, 'x')
+
+
+def test_all_main_sources_down_exits_3(monkeypatch, tmp_path):
+    """프리플라이트를 통과한 뒤 원천이 모두 끊긴 회차(주간·월간·인허가·공휴일·버블의 실제 fetch 함수가 http_json 에서
+    예외를 받는다)는 rc=3 으로 멈춘다. 같은 실패라도 기본통계에서 바뀐 것이 있으면 멈추지 않는다.
+
+    변이: main() 의 공휴일 승격 `failed.append('holidays')` 줄을 지우면 첫 단정이 빨개진다(확인 — 기준 커밋에서도 이
+          시험은 exit 0 으로 빨갛다: 'holidays' 가 failed 에 들어갈 길이 없었다). rc 판정의 `and not changed` 를 지우면
+          둘째 단정이 빨개진다(확인). 예전 시험은 fetch_holidays 를 예외를 던지는 가짜로 바꿔, 실제 함수가 만들 수 없는
+          모양으로 초록이었다(전수리뷰 #2).
+    픽스처: 키 넷이 다 있고 fetch_* 는 실제 코드, http_json 만 OSError(연결 거부)를 던진다. 시도 점수는 저장분과 같다.
     """
     run = _Run(monkeypatch, tmp_path)
-    monkeypatch.setattr(U, 'ECOS_KEY', 'x')
+    _all_keys(monkeypatch)
+    for fn, f in REAL_FETCH.items():
+        monkeypatch.setattr(U, fn, f)
+
+    def down(url, tries=3):
+        raise OSError('픽스처: 원천 전면 장애(연결 거부)')
+    monkeypatch.setattr(U, 'http_json', down)
     with pytest.raises(SystemExit) as e:
         run.main()
     assert e.value.code == 3
-    assert set(run.file('.fetch_failed')) >= {'weekly', 'monthly', 'permits', 'holidays', 'bubble'}
+    assert set(run.file('.fetch_failed')) >= set(U.MAIN_SOURCES)
 
     monkeypatch.setattr(U, 'update_basic', lambda failed=None: ['준공(3)'])
     run.main()   # SystemExit 없이 끝나야 한다
+
+
+def test_one_holiday_year_down_is_not_a_main_failure(monkeypatch, tmp_path):
+    """공휴일 두 해 중 한 해만 실패한 회차는 'holidays:연도' 부분 실패일 뿐 주요 실패 'holidays' 가 아니다.
+
+    변이: 승격 조건 `{'holidays:%d' % y for y in (yr, yr + 1)} <= set(soft_failed[n0:])` 를 `soft_failed[n0:]`(하나라도)
+          로 바꾸면 빨개진다(확인).
+    픽스처: 조용한 회차(주간·월간·인허가가 저장분 그대로)에 공공데이터포털이 내년 조회만 순단으로 끊은 상태.
+    """
+    import datetime
+    run = _Run(monkeypatch, tmp_path)
+    run.quiet()
+    _all_keys(monkeypatch)
+    monkeypatch.setattr(U, 'fetch_holidays', REAL_FETCH['fetch_holidays'])
+    yr = datetime.date.today().year
+
+    def fake(url, tries=3):
+        if 'solYear=%d' % (yr + 1) in url:
+            raise OSError('픽스처: 순단')
+        return {'response': {'header': {'resultCode': '00'}, 'body': {'totalCount': 1, 'items': {'item': [
+            {'locdate': int('%d0101' % yr)}]}}}}
+    monkeypatch.setattr(U, 'http_json', fake)
+    run.main()
+    rec = run.file('.fetch_failed')
+    assert 'holidays:%d' % (yr + 1) in rec and 'holidays' not in rec
 
 
 # ── 5. 기본통계 잠정치(merge_prov)·확정치(merge_basic) ───────────────────────
