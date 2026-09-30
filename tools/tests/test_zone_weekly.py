@@ -238,9 +238,13 @@ def test_zone_tables_match_weekly_moves_and_the_weekly_page_order():
         sec = _tables(s)[0]
         assert '<h2>세종 주간 아파트 시세</h2>' in s and len(_tables(s)[1][0]) == 1
         assert '큰 곳부터' not in sec and '·%' not in sec
-    # 전남광주는 광주 구와 전남 시군을 한 표에 모은다
-    got = {r[0] for r in _tables(_page('전남광주'))[1][0]}
-    assert any(n.startswith('광주 ') for n in got) and any(not n.startswith('광주 ') for n in got), got
+    # 전남광주는 광주 구와 전남 시군을 한 표에 모은다 — 이번 주 값이 양쪽 다 있을 때만 두 종류를 본다(원천이 광주 구만 한 주
+    # 비우면 생성기는 전남 시군만으로 정상 표를 굽는다. 그때 게이트가 막히면 안 된다 — 전수리뷰 #100). 기대 이름은 데이터에서.
+    want = {r[0] for r in _expected(W, Q, '전남광주')}
+    gj = {n for n in want if n.startswith('광주 ')}
+    if gj and want - gj:
+        got = {r[0] for r in _tables(_page('전남광주'))[1][0]}
+        assert got & gj and got & (want - gj), (sorted(got), sorted(gj))
 
 
 def test_lead_counts_come_from_the_table_rows():
@@ -249,10 +253,17 @@ def test_lead_counts_come_from_the_table_rows():
     변이: _wk_lead 가 방향을 원값 부호로 세면(0.00 을 상승·하락으로) 또는 STREAK_MIN 대신 2를 쓰면 빨개진다(확인 — 실데이터에
     표시 0.00 칸이 있는 주와 2주 연속인 곳이 있어야 드러나므로 합성 표로도 본다).
     픽스처: 배치가 구운 시도 16장(집계 3장은 표가 5+5 라 행으로 셀 수 없어 뺀다) + 합성 네 주.
+    생성기 계약: 이번 주 값이 있는 시군구가 없으면 표 구역을 빼고 굽는다 — 그때는 '표가 없어야 한다'고 보고 넘어간다(전수리뷰 #100:
+    가드 없이 tabs[0] 을 읽어, 제주 시군구 최신 주를 모두 결측으로 두면 생성기는 초록인데 여기서 IndexError 로 게이트가 막혔다 —
+    실제로 data.js 를 그렇게 바꾸고 생성기를 돌려 확인. 가드를 빼면 다시 IndexError).
     """
     _, names = _zones()
+    W, Q = MW.load()
     for z in [n for n in names if n not in SZ.AGG and n not in M.NO_INNER_UNITS]:
         sec, tabs = _tables(_page(z))
+        if not _expected(W, Q, z):
+            assert sec is None, (z, '이번 주 값이 없는데 표 구역이 있다')
+            continue
         rows = tabs[0]
         sign = lambda t: 1 if t.startswith('+') else (-1 if t.startswith('-') else 0)
         up, dn = sum(sign(r[1]) > 0 for r in rows), sum(sign(r[1]) < 0 for r in rows)

@@ -127,12 +127,36 @@ def test_no_tool_dies_at_top_level_when_run_as_a_script():
         + '\n  '.join(broken))
 
 
+def _imported_modules(src):
+    """소스가 가져오는 최상위 모듈 이름 집합 — `import x`·`import x as y`·`from x import y`, 함수 안의 늦은 import 까지(ast)."""
+    mods = set()
+    for n in ast.walk(ast.parse(src)):
+        if isinstance(n, ast.Import):
+            mods |= {a.name.split('.')[0] for a in n.names}
+        elif isinstance(n, ast.ImportFrom) and n.module and n.level == 0:
+            mods.add(n.module.split('.')[0])
+    return mods
+
+
+def test_imported_modules_sees_every_import_form():
+    """판정 함수가 사고 형태를 본다(전수리뷰 #103). 2026-09-12 사고는 `from make_theory_post import …` 였는데 예전 부분 문자열
+    판정('import make_theory_post' in a)은 이 형태를 못 봤다. 변이(실제로 확인): _imported_modules 를 부분 문자열 판정으로
+    되돌리면 from 형태 칸이 빨개진다. 픽스처: 사고 형태 한 줄 + 별칭·함수 안 import 를 합성한 소스."""
+    assert 'make_theory_post' in _imported_modules('from make_theory_post import CYCLE_SYNC_N\n')
+    assert 'make_theory_post' in _imported_modules('import make_theory_post as T\n')
+    assert 'make_theory_post' in _imported_modules('def f():\n    from make_theory_post import X\n    return X\n')
+    assert 'make_theory_post' not in _imported_modules('# import make_theory_post\nx = "import make_theory_post"\n')
+
+
 def test_the_two_publishing_tools_have_one_way_dependency():
-    """의존 방향이 한 쪽만 남아야 한다. 양방향이면 위 시험이 터지기 전에 여기서 걸린다."""
+    """의존 방향이 한 쪽만 남아야 한다. 양방향이면 위 시험이 터지기 전에 여기서 걸린다.
+    판정은 ast 로 한다 — `from make_theory_post import …`(2026-09-12 사고 형태)도 의존이다(전수리뷰 #103).
+    변이(실제로 확인): make_naver_post.py 맨 앞에 `from make_theory_post import CYCLE_SYNC_N` 을 넣으면 빨개진다(예전엔 초록)."""
     a = open(os.path.join(TOOLS, 'make_naver_post.py'), encoding='utf-8').read()
     b = open(os.path.join(TOOLS, 'make_theory_post.py'), encoding='utf-8').read()
-    a_uses_b = 'import make_theory_post' in a
-    b_uses_a = 'import make_naver_post' in b
+    a_uses_b = 'make_theory_post' in _imported_modules(a)
+    b_uses_a = 'make_naver_post' in _imported_modules(b)
+    assert b_uses_a, '정본 방향(make_theory_post → make_naver_post)을 못 읽었다 — 판정 함수가 헛돈다'
     assert not (a_uses_b and b_uses_a), (
         '두 발행 도구가 서로를 import한다 — 스크립트로 띄우면 ImportError로 죽는다. '
         '정본은 make_naver_post 에 두고 make_theory_post 가 받아 쓴다.')
