@@ -622,6 +622,7 @@ function challengeFirstSeen(ch){
 function bootChallenge(){
   CHALLENGE=readChallenge();
   if(!CHALLENGE){applyHash();return;}
+  showView('test',false);   // 부팅 page_view 는 대결이 확정된 여기서 한 번 — boot 는 화면만 먼저 띄웠다(전수리뷰 #46)
   if(challengeFirstSeen(CHALLENGE))track('challenge_accepted',{quiz_type:CHALLENGE.set,friend_score:CHALLENGE.score,
     same_paper:CHALLENGE.seed!=null});
   startQuiz(CHALLENGE.set,CHALLENGE.seed);

@@ -86,7 +86,9 @@ def _home_parts():
     src = HS.home_source()
     r2c = re.search(r'^const R2C=new Set\(\[.*?\]\);', src, re.M)
     assert r2c, 'R2C(리포트로 넘기는 옛 해시) 선언을 찾지 못했다'
-    return '\n'.join([_js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
+    # PV_SENT(부팅 page_view 를 보냈는가)와 대결 쿼리 걷기(chalInURL·chalSearch)는 showView 가 쓴다(전수리뷰 #44·#46)
+    return '\n'.join(['var PV_SENT=false;', _js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
+                      _js_func(src, 'chalInURL'), _js_func(src, 'chalSearch'), _js_func(src, 'chalBootable'),
                       _js_func(src, 'applyHash'), r2c.group(0)])
 
 
@@ -391,3 +393,60 @@ def test_ga_off_device_is_still_excluded():
     assert got['flag'] is True and got['rec']['appended'] == []
     got = _run(SITE + '/?ga_off=0', store={'ga_off': '1'})
     assert got['flag'] is False and got['store'].get('ga_off') is None and got['rec']['appended']
+
+
+# ── 전수리뷰(2026-09-30) #45·#46·#44 ──────────────────────────────────────────
+def test_bare_stats_hash_sets_the_default_screen_and_normalizes_the_address():
+    """모든 페이지 탭바의 '시세'(/#stats)로 들어오면 #stats-market 과 같게 모드·하위 탭을 기본값으로 맞추고 주소를
+    #stats-market-week 로 바꿔 둔다 — 뒤로 가기로 #stats 에 돌아와도 같은 화면을 재현한다(전수리뷰 #45).
+
+    변이: applyHash 의 `if(h==='stats'){…}` 분기를 빼면(옛 `h==='stats'` 는 showView 만) 빨개진다(실제로 확인).
+    픽스처: /zone/ 등 다른 페이지 탭바의 '/#stats' 착지, 그 뒤 투자지표로 옮겼다가 뒤로 가기로 '/#stats' 에 돌아온 순간.
+    """
+    got = _run(SITE + '/#stats', after=["history.pushState(null,'','/#stats-adv-occ')",
+                                         "history.pushState(null,'','/#stats'); applyHash()"])
+    assert got['rec']['stats'] == [['market', False], ['market', False]], got['rec']['stats']
+    assert got['rec']['market'] == [['week', False], ['week', False]], got['rec']['market']
+    assert got['href'] == SITE + '/#stats-market-week', got['href']
+    assert _views(got) == ['view_stats']
+
+
+def test_bad_challenge_link_sends_one_boot_page_view():
+    """값이 틀린 대결 링크(점수 상한 초과)는 부팅 page_view 가 한 번(view_home, 착지 주소)이다(전수리뷰 #46).
+    맞는 대결 링크도 한 번(view_test).
+
+    변이: showView 의 quiet 인자를 무시하면(`if(changed&&!quiet)` → `if(changed)`) view_test·view_home 두 건이 나가
+          빨개진다(실제로 확인).
+    픽스처: boot 의 실제 순서 — showView('test',false,true) 뒤 bootChallenge 가 readChallenge 실패로 applyHash, 또는
+            성공해 showView('test',false). 착지 주소 '/?c=11&s=beginner'(QUIZ_LEN 10 초과)와 '/?c=7&s=beginner&q=abc'.
+    """
+    bad = _run(SITE + '/?c=11&s=beginner', bootFails=True, beforeDCL=["showView('test',false,true)", 'applyHash()'])
+    assert _views(bad) == ['view_home'], bad['pv']
+    assert bad['pv'][0]['page_location'] == SITE + '/?c=11&s=beginner', bad['pv']
+    assert bad['href'] == SITE + '/', '값이 틀린 대결 쿼리가 홈 주소에 남았다: %s' % bad['href']
+    ok = _run(SITE + '/?c=7&s=beginner&q=abc', bootFails=True,
+              beforeDCL=["showView('test',false,true)", "showView('test',false)"])
+    assert _views(ok) == ['view_test'], ok['pv']
+
+
+def test_challenge_query_leaves_with_the_quiz_and_other_hashes_win():
+    """대결 쿼리(c·s·q)는 퀴즈 화면에서만 남는다 — 시세·홈으로 옮기면 걷고 utm 은 둔다. 부팅은 그 대결 세트 퀴즈 해시
+    (또는 해시 없음)일 때만 대결로 간다(전수리뷰 #44·#49).
+
+    변이(실제로 확인): showView 의 `q` 를 location.search 로 되돌리면 옮긴 주소에 c·s·q 가 남아, chalBootable 이 늘 참을
+          내면 '#stats-…' 부팅 단정이 빨개진다.
+    픽스처: 대결 링크로 들어와 퀴즈(#test-beginner)를 보다가 하단 '시세' → '홈'을 누른 실제 순서, 그리고 옛 탭에 남은
+            '?c=7&s=beginner#stats-market-week' 주소.
+    """
+    start = SITE + '/?c=7&s=beginner&q=abc&utm_source=quiz_challenge#test-beginner'
+    got = _run(start, bootFails=True, beforeDCL=["__rec.quiz.push(['boot', chalBootable()])",
+                                                  "showView('test',false,true)", "showView('test',false)"],
+               after=["showView('stats')", "__rec.quiz.push(['stats', location.href])",
+                      "showView('home')", "__rec.quiz.push(['home', location.href])"])
+    q = dict((k, v) for k, v in got['rec']['quiz'])
+    assert q['boot'] is True
+    assert q['stats'] == SITE + '/?utm_source=quiz_challenge#stats-market-week', q['stats']
+    assert q['home'] == SITE + '/?utm_source=quiz_challenge', q['home']
+    old = _run(SITE + '/?c=7&s=beginner#stats-market-week', bootFails=True,
+               beforeDCL=["__rec.quiz.push(['boot', chalBootable()])"])
+    assert old['rec']['quiz'] == [['boot', False]], '다른 화면 해시가 붙은 대결 주소를 대결로 부팅한다'
