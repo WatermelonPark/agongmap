@@ -6,6 +6,9 @@ og-test.png(부린이)·og-investor.png·og-redev.png 세 장을 같은 템플�
   ink #131e24 / paper #f4f6f5 / green #1a6b54 / red #c0392b / muted #5e6f74 / line #c4cec9
 
 이모지는 Segoe UI Emoji(컬러)로 렌더한다 — 원본 og-test.png의 병아리와 동일 서체다.
+Segoe가 없는 OS(리눅스·맥)에서는 EMOJI_FONTS의 다음 후보(Noto Color Emoji, Apple Color
+Emoji)로 굽는다. 서체가 달라 이모지 모양이 바뀌므로 운영 카드는 Windows에서 굽는 것이 원칙이다.
+후보가 하나도 없으면 경로를 나열한 오류로 멈추되, 이모지를 쓰지 않는 og-brand.png는 먼저 굽는다.
 문구는 각 랜딩의 h1/부제와 대응한다. 랜딩을 고치면 이 문구도 같이 볼 것.
 
 사용:  python tools/make_og_cards.py
@@ -28,7 +31,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_DIR = os.path.join(ROOT, 'fonts') if os.path.exists(os.path.join(ROOT, 'fonts')) \
     else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 FONT_FILES = {'Bold': 'Pretendard-Bold.subset.ttf', 'Medium': 'Pretendard-Medium.subset.ttf'}
-EMOJI_FONT = 'C:/Windows/Fonts/seguiemj.ttf'
+# 컬러 이모지 서체 후보 (경로, 렌더 px). 컬러 글리프는 고정 비트맵이라 서체마다 받는 크기가 다르다
+# (Noto Color Emoji는 109px만 받는다). draw_emoji가 칸에 맞춰 리샘플하므로 크기는 선명도에만 쓰인다.
+EMOJI_FONTS = (
+    ('C:/Windows/Fonts/seguiemj.ttf', 240),
+    ('/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf', 109),
+    ('/usr/share/fonts/noto/NotoColorEmoji.ttf', 109),
+    ('/System/Library/Fonts/Apple Color Emoji.ttc', 160),
+)
 
 # (출력파일, 칩, h1 1줄(먹색), h1 2줄(빨강·훅), 부제, 푸터 좌측, 이모지)
 CARDS = [
@@ -51,8 +61,14 @@ def font(size, weight='Bold'):
     return ImageFont.truetype(os.path.join(FONT_DIR, FONT_FILES[weight]), size)
 
 
-def emoji_font(size):
-    return ImageFont.truetype(EMOJI_FONT, size)
+def emoji_font():
+    """(글꼴, 렌더 px) — EMOJI_FONTS에서 있는 첫 후보. 없으면 후보 경로를 나열해 멈춘다
+    (예전에는 Windows 경로 하나를 박아 리눅스에서 'cannot open resource'로만 죽었다, 전수리뷰 #87)."""
+    for path, px in EMOJI_FONTS:
+        if os.path.exists(path):
+            return ImageFont.truetype(path, px), px
+    raise FileNotFoundError('컬러 이모지 글꼴이 없습니다. 다음 중 하나를 두십시오: '
+                            + ', '.join(p for p, _ in EMOJI_FONTS))
 
 
 def fit_width(text, target, weight='Bold', hi=96, lo=28):
@@ -74,10 +90,9 @@ def draw_emoji(img, ch, box):
     큰 사이즈로 렌더 후 리샘플해 선명도를 확보한다."""
     bx0, by0, bx1, by1 = box
     bw, bh = bx1 - bx0, by1 - by0
-    render_px = 240  # Segoe 컬러 글리프의 실제 비트맵 크기
+    ef, render_px = emoji_font()   # 서체의 실제 컬러 비트맵 크기
     tile = Image.new('RGBA', (render_px + 40, render_px + 40), (0, 0, 0, 0))
     td = ImageDraw.Draw(tile)
-    ef = emoji_font(render_px)
     td.text((20, 20), ch, font=ef, embedded_color=True)
     bb = tile.getbbox()
     if bb:
@@ -168,7 +183,17 @@ def make_brand():
     return 'og-brand.png'
 
 
-if __name__ == '__main__':
+def main():
+    # og-brand는 이모지를 쓰지 않으므로 먼저 굽는다 — 이모지 글꼴이 없는 환경에서도
+    # 홈·about·faq·cycle·zone 허브의 og:image는 다시 구울 수 있어야 한다(전수리뷰 #87).
+    print('written ->', make_brand())
+    try:
+        emoji_font()
+    except FileNotFoundError as e:
+        raise SystemExit('퀴즈 카드 %d장은 굽지 못했습니다: %s' % (len(CARDS), e))
     for c in CARDS:
         print('written ->', make(*c))
-    print('written ->', make_brand())
+
+
+if __name__ == '__main__':
+    main()
