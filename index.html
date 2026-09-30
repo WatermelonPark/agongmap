@@ -342,7 +342,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 <li><b>빗금</b> — 그 기간 가격 자료가 없는 칸입니다. 변동이 0인 것과 다릅니다.</li>
 <li><b>적정물량</b> — 가격이 하락에서 상승으로 돌아선 시점의 입주물량으로 잡은 기준표의 고정 상수. 해마다 다시 계산하지 않습니다. 서울·경기·인천은 수도권 몫을 세대수 비중으로 나눴고, 세종·제주는 세대당 원단위로 추정한 값입니다.</li>
 <li><b>기호</b> — <b>0</b> 그 기간에 실제로 없었음(경계선 위는 준공, 아래는 착공) · <b>±</b> 실적과 추정이 섞인 기간 · <b>·</b> 기간이 덜 찬 칸(적정물량도 같은 비율로 줄여 견줍니다).</li>
-<li><b>미분양</b> — 지금 안 팔리고 남은 집(국토교통부 집계, 한국부동산원 R-ONE 제공). 결과값이라 순위에는 넣지 않습니다 — 공급에서 빼면 이중으로 세입니다. 부족인데 미분양이 쌓인 곳은 안 팔려서 안 짓는 것일 수 있습니다.</li>
+<li><b>미분양</b> — 지금 안 팔리고 남은 집(국토교통부). 결과값이라 순위에는 넣지 않습니다 — 공급에서 빼면 이중으로 세입니다. 부족인데 미분양이 쌓인 곳은 안 팔려서 안 짓는 것일 수 있습니다.</li>
 <li><b>한계</b> — 공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</li>
 </ul></div></details>
   </div></section>
@@ -596,7 +596,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="adv-tblwrap matrix" id="adv-occ-matrix"></div>
         <div class="adv-tblwrap compact" id="adv-occ-compact"></div>
       </div>
-      <div class="adv-legend"><span><i style="background:#eaf3fb"></i>분기 적정물량 이상</span><span><i style="background:#fdecea"></i>적정물량의 60% 미만</span><span><i style="background:#f6f8f7"></i>착공 기준 추정(실적 미확정)</span></div>
+      <div class="adv-legend"><span><i style="background:#eaf3fb"></i>적정물량의 130% 초과</span><span><i style="background:#fdecea"></i>적정물량의 70% 미만</span><span><i style="background:#f6f8f7"></i>착공 기준 추정(실적 미확정)</span></div>
       <div class="src-note">자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.958) · 분기 합산 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
     </section>
 

@@ -61,9 +61,13 @@ def test_permit_surplus_percent_follows_the_measured_ratio():
     """
     m = re.search(r'같은 해 착공보다 (\d+)%쯤 많', _html())
     assert m
-    c = SZ.permit_start_conv(SZ._load_stats(), '전국')
-    assert c, '전국 착공÷인허가를 재지 못했다'
-    surplus = (1 / c - 1) * 100
+    st = SZ._load_stats()
+    if hasattr(SZ, 'permit_over_start_pct'):   # Z1 정본(시도 리포트 문장이 같은 함수를 쓴다)
+        surplus = SZ.permit_over_start_pct(st, '전국')
+    else:
+        c = SZ.permit_start_conv(st, '전국')
+        assert c, '전국 착공÷인허가를 재지 못했다'
+        surplus = (1 / c - 1) * 100
     stated = int(m.group(1))
     assert stated % 5 == 0 and abs(stated - surplus) < 5, (stated, round(surplus, 1))
 
@@ -84,3 +88,34 @@ def test_unsold_source_on_home_agrees_with_the_reference_note():
     assert li, '홈 산출 방법의 미분양 줄을 찾지 못했다'
     for o in orgs:
         assert o in li.group(0), '홈 산출 방법 미분양 줄에 %s 가 없다: %s' % (o, li.group(0))
+    import make_sido_pages as M
+    if hasattr(M, 'UN_SOURCE'):   # Z1 정본(시도 리포트 참고 안내·방법론 문단이 같은 상수를 쓴다)
+        assert '(%s)' % M.UN_SOURCE in li.group(0), (M.UN_SOURCE, li.group(0))
+
+
+def _occ_thresholds():
+    """입주물량 적정 대비 문턱(%) — 대표 결정 ③ 정본 SZ.OCC_LO_PCT·OCC_HI_PCT(Z1). 통합 전 이 브랜치에는 그 상수가
+    없어 /moveins/ 생성기의 판정 줄(같은 결정의 값 출처)에서 읽는다."""
+    if hasattr(SZ, 'OCC_LO_PCT') and hasattr(SZ, 'OCC_HI_PCT'):
+        return SZ.OCC_LO_PCT, SZ.OCC_HI_PCT
+    import io
+    src = io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'make_indicator_pages.py'),
+                  encoding='utf-8').read()
+    m = re.search(r"cls = 'up' if p < (\d+) else 'dn' if p > (\d+) else 'mut'", src)
+    assert m, '입주물량 문턱을 정본에서 찾지 못했다'
+    return int(m.group(1)), int(m.group(2))
+
+
+def test_occupancy_legend_uses_the_canonical_thresholds():
+    """투자지표 입주물량 범례의 문턱(적정물량의 N% 초과 / M% 미만)은 대표 결정 ③ 정본(/moveins/ 와 한 값, 70%·130%)이다.
+    예전 범례는 '분기 적정물량 이상'·'적정물량의 60% 미만'으로 /moveins/ 와 달랐다(전수리뷰 #60·#113 홈 쪽 문구).
+
+    변이(실제로 확인): 범례를 옛 '적정물량의 60% 미만'으로 되돌리면 빨개진다.
+    픽스처: 실제 index.html 범례. 통합 뒤에는 SZ.OCC_LO_PCT·OCC_HI_PCT 와 대조한다(home-stats.js occCls 는 Z1 이 같은
+            상수로 고친다 — 이 브랜치의 occCls 는 아직 60/100 이다).
+    """
+    lo, hi = _occ_thresholds()
+    legs = [x for x in re.findall(r'<div class="adv-legend">(.*?)</div>', _html(), re.S) if '적정물량' in x]
+    assert len(legs) == 1, '입주물량 범례를 찾지 못했다'
+    assert re.findall(r'적정물량의 (\d+)% 초과', legs[0]) == [str(hi)], legs[0]
+    assert re.findall(r'적정물량의 (\d+)% 미만', legs[0]) == [str(lo)], legs[0]
