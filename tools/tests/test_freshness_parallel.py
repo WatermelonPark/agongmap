@@ -16,6 +16,10 @@
     → 조회는 결국 다 성공했으니 결정론적 실패(rc=2, 재확인 없이 바로 경보)여야 한다.
   - 시나리오 B: 핵심 계열 '주간'의 원천이 재시도까지 계속 죽는다(R-ONE 장애의 날).
     → SKIPPED=['주간'], 새 IP로 다시 볼 값어치가 있는 실패(rc=1)여야 한다.
+  - 시나리오 C: 분양의 원천 시점은 라이브와 같은데 그 달 시도 합이 다르다(2026-09-08~12 처럼 시점은 같고 수집이
+    멈춘 상태). → '분양 값(' 실패, 결정론(rc=2). 가짜 rone_latest_complete 는 진짜처럼 _COMPLETE_CACHE 를 채운다
+    (전수리뷰 #92 — 예전 가짜는 시점만 돌려줘 main() 의 값 대조가 어떤 시험에서도 돌지 않았다).
+  - 시나리오 D: 공유 카드 파일이 배포에 없다(HTTP 404). → 결정론 실패(rc=2)(전수리뷰 #38).
 """
 import io
 import os
@@ -56,6 +60,14 @@ def _site(unexpected):
     return urlopen
 
 
+def _live_stats():
+    import json
+    stats = {}
+    for f in ('data-rest.json', 'data-size.json'):
+        stats.update(json.load(open(os.path.join(ROOT, f), encoding='utf-8'))['STATS'])
+    return stats
+
+
 def _live():
     """라이브 판본(저장소 파일)의 우리 시점 — 가짜 원천이 '같은 시점'을 돌려주는 기준."""
     import json
@@ -81,7 +93,8 @@ def _kosis_tables():
 
 def _expected_calls():
     """정상이면 조회마다 한 번 — 한 표를 두 계열이 보면 그 표는 두 번."""
-    exp = {'주간': 1, '월간': 1, '금리': 1, ('지역', 'WK'): 1, ('지역', 'MM'): 1}
+    exp = {'주간': 1, '월간': 1, '금리': 1, '전환율': 1, '주담대': 1,
+           ('지역', 'WK'): 1, ('지역', 'MM'): 1}
     for tbl, names in _kosis_tables().items():
         exp[tbl] = len(names)
     for n in U.SUPPLY_CONF:
@@ -93,7 +106,7 @@ class _Sources:
     """정상 날의 원천. fault[계열]가 'flaky'면 첫 호출만, 'dead'면 매번 타임아웃이 난다.
     KOSIS 계열의 fault·bump·호출 수는 그 계열의 표 이름으로 센다."""
 
-    def __init__(self, fault=None, bump=None):
+    def __init__(self, fault=None, bump=None, vbump=None):
         self.adv, self.last = _live()
         self.tables = _kosis_tables()
         byname = {n: t for t, ns in self.tables.items() for n in ns}
@@ -104,6 +117,15 @@ class _Sources:
         self._lock = threading.Lock()
         self._n = 0
         self.supply = {c['tbl']: n for n, c in U.SUPPLY_CONF.items()}
+        self.vbump = dict(vbump or {})
+        self.supply_since = {}
+        # 라이브 공급 계열의 마지막 달 시도 합 — 정상 날의 원천이 같은 달에 내는 값.
+        stats = _live_stats()
+        self.total = {}
+        for n in U.SUPPLY_CONF:
+            ser = stats[n]['series']
+            self.total[n] = sum((ser.get(r) or [None])[-1] or 0 for r in U.SUPPLY_SIDO)
+        self.live_last = {n: stats[n]['dates'][-1] for n in U.SUPPLY_CONF}
 
     def _hit(self, key):
         with self._lock:
@@ -134,30 +156,47 @@ class _Sources:
         return self._val(tbl, max(self.last[n] for n in self.tables[tbl]))
 
     def rone_latest_complete(self, tbl, since=None, want_total=False):
+        """진짜처럼 (시점, 그 달 시도 합)을 캐시에 채운다 — main() 의 값 대조(supply_value_fail)가 이 캐시를
+        (tbl, since) 키로 읽는다. 받은 since 를 적어 두어 prefetch 와 main 이 같은 창을 쓰는지 본다."""
+        if (tbl, since) in C._COMPLETE_CACHE:          # 진짜 함수처럼 같은 조회를 두 번 하지 않는다
+            t, tot = C._COMPLETE_CACHE[(tbl, since)]
+            return (t, tot) if want_total else t
         key = self.supply[tbl]
         self._hit(key)
-        return self._val(key, self.last[key])
+        t = self._val(key, self.last[key])
+        with self._lock:
+            self.supply_since[key] = since
+        tot = self.total[key] + self.vbump.get(key, 0)
+        C._COMPLETE_CACHE[(tbl, since)] = (t, tot)
+        return (t, tot) if want_total else t
 
-    def ecos_latest(self):
+    def ecos_latest(self, code=None):
+        if code == C.BUBBLE_ECOS:
+            self._hit('주담대')
+            return C.digits(self.adv['bubble']['loan']['p'])
         self._hit('금리')
         return self.last['금리']
+
+    def bubble_conv_latest(self):
+        self._hit('전환율')
+        return C.digits(self.adv['bubble']['prd'])
 
     def rone_region_names(self, tbl, cycle):
         self._hit(('지역', cycle))
         return {{'지방': '지방권'}.get(z, z) for z in U.WEEKLY_REGIONS}
 
 
-def _run(monkeypatch, capsys, workers, **src_kw):
+def _run(monkeypatch, capsys, workers, card=None, **src_kw):
     src = _Sources(**src_kw)
     unexpected = []
     for k in ('KOSIS_API_KEY', 'RONE_API_KEY', 'ECOS_API_KEY'):
         monkeypatch.setenv(k, 'test')
     monkeypatch.setattr(C.urllib.request, 'urlopen', _site(unexpected))
     for fn in ('rone_latest', 'kosis_latest', 'rone_latest_complete', 'ecos_latest',
-               'rone_region_names'):
+               'bubble_conv_latest', 'rone_region_names'):
         monkeypatch.setattr(C, fn, getattr(src, fn))
     wk = src.adv['weekly']['rows'][-1]['p']
-    monkeypatch.setattr(C, 'live_card_basis', lambda: wk)          # 카드는 라이브 주간과 같다
+    monkeypatch.setattr(C, 'live_card_basis', card or (lambda: wk))  # 카드는 라이브 주간과 같다
     monkeypatch.setattr(C, 'check_derived_pages', lambda adv, stats: [])  # 따로 시험한다
     monkeypatch.setattr(C, 'RETRY_WAIT', 0)
     monkeypatch.setattr(C, 'FETCH_TIMEOUT', 25)                   # retry_failed가 20으로 바꾼다
@@ -204,6 +243,14 @@ def test_parallel_source_phase_is_faster_and_judges_like_serial(monkeypatch, cap
     want = int(par['src'].last['보급률']) + 1
     assert '보급률(라이브' in par['out'] and '< 원천 %d' % want in par['out']
     assert '착공' not in par['skipped'], '재시도에 살아난 계열이 건너뜀으로 남았다'
+    # 공급 값 대조가 main() 경로에서 실제로 돌았다(전수리뷰 #92). prefetch 의 창과 main 의 창이 같아야 캐시가
+    # 맞는다 — 둘 다 _supply_since(라이브 마지막 달)다. 변이(확인): main() 의 `since = _supply_since(last)` 를
+    # `since = None` 으로, 또는 source_jobs 의 `sc=_supply_since(last)` 를 `sc=None` 으로 바꾸면 '값 일치' 줄이
+    # 사라져 빨개진다.
+    for s in (ser, par):
+        for n in U.SUPPLY_CONF:
+            assert s['src'].supply_since[n] == C._supply_since(s['src'].live_last[n]), n
+            assert '%s 값' % n in s['out'] and '값 일치' in s['out'], s['out'][-1500:]
     # 조회마다 한 번씩만 부른다(재시도한 '착공'만 한 번 더).
     exp = _expected_calls()
     exp[U.BASIC_CONF['착공']['tbl']] += 1
@@ -250,3 +297,37 @@ def test_prefetch_preserves_order_and_exceptions():
     with pytest.raises(OSError):
         got[2]()
     assert C.prefetch([]) == []
+
+
+def test_supply_value_mismatch_fails_through_main(monkeypatch, capsys):
+    """시나리오 C. 분양의 원천 시점은 라이브와 같은데 그 달 시도 합이 500 다르다 — 시점만 보는 검사는 초록이고,
+    main() 의 값 대조만 잡는다(2026-09-08~12 실사고: 완비 기준 착오로 받은 달을 전부 버려 저장분이 멈췄다).
+    직렬·병렬 모두 '분양 값(' 실패와 결정론 종료(rc=2)여야 한다.
+
+    변이(확인): main() 의 `since = _supply_since(last)` 를 `since = None` 으로 바꾸면 캐시 키가 어긋나 값 대조가
+    조용히 꺼지고 rc 0(초록)이 되어 빨개진다. source_jobs 의 `sc=_supply_since(last)` 를 `sc=None` 으로 바꿔도 같다.
+    """
+    kw = dict(vbump={'분양': 500})
+    ser = _run(monkeypatch, capsys, 1, **kw)
+    par = _run(monkeypatch, capsys, 4, **kw)
+    assert par['out'] == ser['out']
+    assert par['rc'] == ser['rc'] == C.EXIT_DETERMINISTIC, par['out'][-800:]
+    assert '분양 값(' in par['out']
+    assert '미분양 값(' not in par['out'], '값이 같은 계열까지 실패로 올렸다'
+
+
+def test_missing_share_card_is_a_deterministic_failure(monkeypatch, capsys):
+    """시나리오 D. share/weekly-map.png 가 HTTP 404 — 파일이 배포에서 빠진 결정론적 사고다. 예전엔 SKIPPED
+    '참고' 한 줄로 VERDICT=ok 초록이었다(전수리뷰 #38) — 공유 카드 감시가 막으려던 '신호 없이 옛(또는 없는)
+    카드' 상태가 그대로 통과했다.
+
+    변이(확인): C._hard_http 를 `return False` 로 바꾸면 rc 0 이 되어 빨개진다.
+    """
+    import urllib.error
+
+    def gone():
+        raise urllib.error.HTTPError(C.SITE + '/share/weekly-map.png', 404, 'Not Found', {}, None)
+    r = _run(monkeypatch, capsys, 4, card=gone)
+    assert r['rc'] == C.EXIT_DETERMINISTIC, r['out'][-800:]
+    assert '공유카드 HTTP 404' in r['out']
+    assert '공유카드' not in r['skipped']
