@@ -21,10 +21,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = sys.argv[1] if len(sys.argv) > 1 else None
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import sido_zones as SZ  # noqa: E402
+import rebuild_cycle_analysis as RC  # noqa: E402  (지수 연속성 검사 — 사이클 재산정과 같은 문턱)
 
 st = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)',
                           io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read(),
                           re.S).group(1))
+# 매매지수가 기준 단절된 채면(2026-09-28 배치: 2026.01 부터 새 기준 2026.06=100) L+16 분기가 새 기준에 걸린 표본의
+# 실질 상승률이 −40%대로 들어가 문서 수치를 재현하지 못한다(전수 리뷰 #73). 물가를 받기 전에 멈춘다.
+RC.require_continuous(st, 'study_grade_bands')
 
 # ---- 물가: ECOS 901Y009 총지수, 분기 ----
 k = os.environ['ECOS_API_KEY']

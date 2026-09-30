@@ -50,6 +50,7 @@ def test_capital_and_rest_means_use_the_same_sum(monkeypatch):
         called.append(1)
         return _left_to_right_sum(xs, start)
     monkeypatch.setattr(RF, 'sum', spy, raising=False)
-    S = {'전세가율': {'dates': ['2026.07'], 'series': {r: [60.0 + i] for i, r in enumerate(RF.SIDO)}}}
+    # 전국도 채운다 — 기준월은 /jeonse-ratio/ 와 같은 필요 지역(JEONSE_NEED)으로 고른다(전수 리뷰 #24).
+    S = {'전세가율': {'dates': ['2026.07'], 'series': {r: [60.0 + i] for i, r in enumerate(('전국',) + tuple(RF.SIDO))}}}
     RF.build_jratio(S)
     assert not called, 'build_jratio 가 내장 sum() 으로 평균을 낸다 — 판에 따라 값이 갈린다'

@@ -17,9 +17,9 @@ dates[-1] 을 그대로 읽어 build_jeonse 가 TypeError(전국 None), build_jr
   - 'fresh'         : 서울만 찬 새 달 하나 — 감사가 재현한 merge_basic 직후 모양.
   - 'batch_partial' : 서울만 찬 달이 이미 data.js 최신 열에 있고(리뷰가 게이트를 빨갛게 만든 배치 당일 상태),
                       시험이 서울만 찬 달을 하나 더 붙인다 — 보류가 두 달 연속.
-  - 'no_jeonguk'    : 전국만 빈 달이 최신 열에 있고 서울만 찬 달이 그 뒤에 붙는다. /jeonse-ratio/ 는 전국 머리
-                      숫자를 그리므로 전국까지 본다(JEONSE_NEED). /cycle/ 차트는 시도만 그리므로 시도만 본다
-                      (refresh_cycle_data.SIDO). 이 경우 두 페이지의 기준월이 한 달 갈리는 것이 의도된 동작이다.
+  - 'no_jeonguk'    : 전국만 빈 달이 최신 열에 있고 서울만 찬 달이 그 뒤에 붙는다. 두 페이지 모두 같은 필요 지역
+                      (JEONSE_NEED = 전국 + 시도)으로 보고 직전 완비 달을 쓴다. 전에는 /cycle/ 만 시도로 봐서 서로
+                      링크된 두 화면의 기준월이 한 달 갈렸다(전수 리뷰 #24·#106, 2026-09-30 한 정본으로 통일).
 
 무엇을 깨뜨리면 빨개지나(각각 실제로 적용해 확인):
   - build_jeonse 의 `li = jeonse_ref_index(j, JEONSE_NEED)` 를 `li = len(dates) - 1` 로 되돌리면 → 세 픽스처 모두
@@ -29,7 +29,7 @@ dates[-1] 을 그대로 읽어 build_jeonse 가 TypeError(전국 None), build_jr
   - jeonse_ref_index 가 완비 여부를 안 보고 마지막 열을 돌려주면 → 두 시험 모두 빨강
   - jeonse_ref_index 가 한 달만 보류하고(마지막 열이 비면 그 앞 열을 확인 없이) 돌려주면 → 'batch_partial'(두
     페이지)·'no_jeonguk'(/jeonse-ratio/)가 빨강('fresh' 만으로는 못 잡는다)
-  - build_jratio 가 SIDO 대신 JEONSE_NEED(전국 포함)로 고르면 → /cycle/ 의 'no_jeonguk' 가 빨강
+  - build_jratio 가 JEONSE_NEED 대신 SIDO(전국 빠짐)로 고르면 → /cycle/ 의 'no_jeonguk' 가 빨강(2026-09-30 확인)
   - 완비 달이 없을 때 RuntimeError 대신 마지막 열로 넘어가면 → 마지막 시험이 빨강
 시험 쪽 회귀도 확인했다: 기대하는 달을 다시 실제 계열의 dates[-1] 로 두면, 저장소 data.js 에 서울만 찬 달을
 붙여 둔 상태(리뷰 재현)에서 게이트가 다시 빨개진다. 이 시험은 그 상태에서도 초록이다.
@@ -102,8 +102,7 @@ def _fixture(block, case):
     if case == 'batch_partial':
         held.append(_append_month(b, _only_seoul))
     elif case == 'no_jeonguk':
-        cycle_pick = _append_month(b, _all_but_jeonguk)   # 시도는 다 찼다 — /cycle/ 는 이 달을 쓴다
-        held.append(cycle_pick)                           # /jeonse-ratio/ 는 전국이 비어 보류한다
+        held.append(_append_month(b, _all_but_jeonguk))   # 전국이 비었다 — 두 페이지 모두 보류한다
     held.append(_append_month(b, _only_seoul))
     return b, complete, cycle_pick, held
 
