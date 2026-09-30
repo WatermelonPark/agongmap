@@ -834,7 +834,9 @@ def render(post):
             n4 = L3.link3_numbers(adv, sts)
         except L3.Link3DataError as e:
             # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
-            raise SystemExit('4편을 만들 수 없다 — %s. 원천 데이터를 먼저 복구할 것.' % e)
+            raise SystemExit('4편을 만들 수 없다 — %s. 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
+                             '(update_adv_data._basis_reason) — git pull 로 그 데이터를 받은 뒤 다시 돌린다. 로컬에서 '
+                             '--heal-basic 으로 최근 달만 다시 받으면 단절이 다시 생긴다.' % e)
         except L3.Link3ClaimError as e:
             raise SystemExit('4편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
         n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')

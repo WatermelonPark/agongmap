@@ -86,11 +86,12 @@ def test_no_local_paths_in_tracked_files():
 
 def test_patterns_catch_the_old_shapes_and_spare_public_paths():
     # 기준 커밋의 옛 모양(이 시험이 막으려는 것) — 문자열을 쪼개 적어 이 파일이 스스로 걸리지 않게 한다
-    home_key = '~/.' + 'aptweather' + '_keys.bat'
+    # 파일 이름은 합성('example')이다 — 실제 로컬 키 파일 이름을 여기서 다시 조립하지 않는다(공개 저장소 규칙).
+    home_key = '~/.' + 'example' + '_keys.bat'
     old = [
         "    p = os.path.expanduser('" + home_key + "')",
         "raise SystemExit('RONE_API_KEY 필요 (환경변수 또는 " + home_key + ")')",
-        'call "%USER' + 'PROFILE%\\.' + 'aptweather' + '_keys.bat"',
+        'call "%USER' + 'PROFILE%\\.' + 'example' + '_keys.bat"',
         'C:' + '\\Users\\someone\\Documents\\manuscripts',
         '/Us' + 'ers/someone/Desktop/lectures',
         '/ho' + 'me/someone/keys',
