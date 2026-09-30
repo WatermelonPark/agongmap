@@ -379,3 +379,32 @@ def test_cycle_jeonse_month_uses_the_shared_need():
     lvl, _, _, prd = RF.build_jratio({'전세가율': {'dates': ['2026.07', '2026.08'], 'series': ser}})
     assert prd == '2026.07' == ['2026.07', '2026.08'][I.jeonse_ref_index({'dates': ['2026.07', '2026.08'],
                                                                            'series': ser}, I.JEONSE_NEED)]
+
+
+def _boom_gap(z):
+    """2019Q2→2021Q4(전국 동반 상승기, theory_link3 의 2019.06→2021.12 와 같은 창) 매매 상승률 − 전세 상승률(%p).
+    비율이라 지수 기준시점(2017.11=100 이든 2026.06=100 이든)에 따라 바뀌지 않는다."""
+    a, b = z['t'].index(2019.25), z['t'].index(2021.75)
+    return (z['maemae'][b] / z['maemae'][a] - z['jeonse'][b] / z['jeonse'][a]) * 100
+
+
+def test_zone_captions_compare_growth_not_index_levels():
+    """/cycle/ 지역별 매매·전세 차트와 금리 오버레이 캡션은 **상승률**로 말하고, 그 말이 같은 화면 차트 데이터와 맞는다.
+
+    예전 캡션('수도권만 2021년 매매가 전세를 크게 따돌린다', '매매가 전세를 크게 이탈해 솟구쳤다')은 두 지수의 **높이**를
+    견줬다. 높이 차는 기준시점에 따라 달라져, 두 지수를 2026.06=100 으로 다시 받는 날 부산(17.0)이 수도권(13.7)보다 커져
+    거짓이 됐다(통합 검토). 상승률의 차는 기준시점과 무관하다(2026-09-30 실측: 수도권 31.7%p · 대전 26.0 · 부산 10.8 · 대구 7.2).
+    변이(실제로 확인): 캡션 지역을 '대전'으로 바꾸거나, 옛 높이 문구('수도권만 … 따돌린다')로 되돌리면 빨개진다.
+    픽스처: 저장소 cycle/index.html 의 D.zones·D.rate_overlay 와 두 캡션.
+    """
+    page = io.open(RF.PAGE, encoding='utf-8').read()
+    D = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+    gaps = {r: _boom_gap(z) for r, z in D['zones'].items()}
+    m = re.search(r'매매 상승률이 전세를 가장 크게 앞선 곳은 ([^<.]+?)이다', page)
+    assert m, '지역 차트 캡션을 못 찾았다 — 문구를 바꿨으면 이 시험도 고칠 것'
+    assert m.group(1) == max(gaps, key=gaps.get), (m.group(1), gaps)
+    assert '따돌린다' not in page and '크게 이탈해' not in page, '두 지수의 높이를 견주는 캡션이 남았다'
+    ov = D['rate_overlay']
+    a, b = ov['t'].index(2019.25), ov['t'].index(2021.75)
+    ma, je = ov['maemae'][b] / ov['maemae'][a] - 1, ov['jeonse'][b] / ov['jeonse'][a] - 1
+    assert '매매(빨강)가 전세(보라)보다 훨씬 가파르게' in page and ma > 1.5 * je, (ma, je)
