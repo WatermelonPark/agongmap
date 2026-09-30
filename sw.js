@@ -22,7 +22,9 @@ const CACHE = `agongmap-${VERSION}`;
 // ⚠️ fallback(홈 '/' 캐시)은 **오프라인(fetch 거부)에서만** 쓴다. 타임아웃까지 fallback 으로 내리면
 //    홈은 항상 프리캐시돼 있으므로, 캐시에 없는 문서(/weekly/·/zone/서울/)가 느린 망에서 3.5초 뒤
 //    **홈 HTML 로 바꿔치기**된다(2026-09-16 리뷰에서 처리기를 돌려 재현). 타임아웃은 그 요청의
-//    캐시만 쓰고, 없으면 네트워크를 끝까지 기다린다.
+//    캐시만 쓰고, 없으면 네트워크를 끝까지 기다린다. 그렇게 기다린 네트워크가 **끝내 실패하면**(한도를 넘겨 매달렸다가
+//    끊기는 지하철 같은 망) 그때는 오프라인과 같으니 fallback 을 쓴다 — 예전엔 net 을 그대로 돌려줘 respondWith 가
+//    거부되고 브라우저 오류 화면이 떴다(전수리뷰 #67, test_speed_a11y 의 'slow-fail' 경우).
 const NET_TIMEOUT_MS = 3500;
 // 페이지(navigation)는 쿼리를 뺀 경로로 캐시한다. 쿼리를 키에 넣으면 ?utm_…·대결 링크(?c=&s=)·광고
 // 클릭 파라미터마다 같은 페이지가 따로 쌓여 VERSION 을 올릴 때까지 캐시가 계속 커진다(2026-09-23
@@ -46,7 +48,8 @@ function networkFirst(req, fallback) {
     if (first !== 'timeout' && first !== 'error') return first;
     return caches.match(key)
       .then((hit) => hit || (first === 'error' && fallback ? fallback() : undefined))
-      .then((hit) => hit || net);
+      .then((hit) => hit || net.catch((err) => Promise.resolve(fallback ? fallback() : undefined)
+        .then((fb) => fb || Promise.reject(err))));
   });
 }
 
