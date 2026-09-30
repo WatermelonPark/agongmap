@@ -68,8 +68,9 @@ def test_indicator_date_is_the_day_the_content_changed(tmp_path):
 
     재현하는 실제 상태: 예전엔 데이터 기준월 1일(2026Q2 → '2026-06-01', 공개일 하한에 눌려 '2026-07-29')을 적어, 본문이 바뀐
     09-26·27 배치에도 lastmod 가 07-29 에 묶였고, /jeonse-ratio/ 는 09-28 에 '2026-08-01'(58일 전)로 올라갔다.
-    변이(실제로 확인): build_moveins 가 today 대신 옛 mod_iso 를 넘기면 첫 단정이, main 에서 keep_dates 를 빼면(내용이 같은데
-          오늘로 다시 찍힘) 둘째 단정이 빨개진다.
+    변이(실제로 확인): build_moveins 가 today 대신 옛 mod_iso 를 넘기면 첫 단정이 빨개진다. (main 의 keep_dates 호출은 이
+          시험이 부르지 않는다 — 아래 test_indicator_main_keeps_dates_across_same_content_runs 가 main 을 직접 돌려 본다.
+          통합 검토에서 이 줄의 옛 설명 'main 에서 keep_dates 를 빼면 빨개진다'가 실제로는 초록임이 드러났다.)
     픽스처: 저장소 ADV.occupancy 로 세 번 굽는다 — 가짜 오늘 2031-03-03(처음) · 03-04(내용 같음) · 03-05(실적 한 칸이 바뀜).
     """
     adv, _ = P.load()
@@ -173,3 +174,29 @@ def test_hand_page_lastmod_is_the_kst_day(tmp_path):
     _git(str(tmp_path), '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'faq', '--date', when,
          GIT_COMMITTER_DATE=when)
     assert dict(I.hand_lastmods(str(tmp_path)))['/faq/'] == '2026-09-28'
+
+
+def test_indicator_main_keeps_dates_across_same_content_runs(tmp_path, monkeypatch):
+    """make_indicator_pages.main() 을 가짜 오늘 두 날로 돌리면, 내용이 같은 둘째 날에도 /jeonse-ratio/·/moveins/ 의
+    dateModified 와 sitemap lastmod 는 첫날에 머문다(#18 — main 이 keep_dates 로 옛 판을 둔다).
+
+    변이(실제로 확인): main 의 `html, lm, _ = SP.keep_dates(...)` 줄을 지우면 둘째 날 날짜가 03-04 로 움직여 빨개진다.
+    픽스처: 저장소 data.js·data-rest.json·sitemap.xml·app.css 사본을 tmp ROOT 에 두고 손 페이지 lastmod(git 이력)는 뺀다.
+    """
+    import shutil
+    for f in ('data.js', 'data-rest.json', 'sitemap.xml', 'app.css'):   # 생성기가 ROOT 에서 읽는 파일 전부
+        shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', f), str(tmp_path / f))
+    monkeypatch.setattr(I, 'ROOT', str(tmp_path))
+    monkeypatch.setattr(I, 'hand_lastmods', lambda root=None: [])
+    got = {}
+    for day in ('2031-03-03', '2031-03-04'):
+        monkeypatch.setattr(I.KST, 'today_iso', lambda d=day: d)
+        I.main()
+        sm = io.open(str(tmp_path / 'sitemap.xml'), encoding='utf-8').read()
+        for sub in ('jeonse-ratio', 'moveins'):
+            page = io.open(str(tmp_path / sub / 'index.html'), encoding='utf-8').read()
+            lm = re.search(r'<loc>[^<]*/%s/</loc>\s*<lastmod>([^<]*)</lastmod>' % sub, sm).group(1)
+            got.setdefault(sub, []).append((P.ld_date(page), lm))
+    for sub, (first, second) in got.items():
+        assert first == ('2031-03-03', '2031-03-03'), (sub, first)
+        assert second == first, '%s: 내용이 같은데 날짜가 %s 로 움직였다' % (sub, second)
