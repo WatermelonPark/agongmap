@@ -104,13 +104,17 @@ def test_refresh_keeps_the_overlay_charts_while_index_bases_differ(monkeypatch, 
 
     변이(실제로 확인): main 의 `if index_bases_agree(S):` 를 `if True:` 로 두면 첫 단정이, index_basis 가 늘 None 을
     돌려주면(기준 비교가 헛돎) 첫 단정이 빨개진다.
-    픽스처: 저장소 STATS 에서 수도권 매매지수를 1.1배(차트가 달라지게) 한 사본 — 매매 unit 만 '지수(2026.06=100)'로 바꾼
-            경우(통합 검토가 재현한 '매매만 복구' 회차)와 두 unit 이 같은 경우.
+    픽스처: 저장소 STATS 에서 수도권 매매지수를 1.1배(차트가 달라지게) 한 사본 — 두 unit 을 픽스처 안에서 **직접** 같은 옛
+            기준으로 둔 경우와 매매 unit 만 새 기준으로 바꾼 경우(통합 검토가 재현한 '매매만 복구' 회차). 저장소 unit 을 그대로
+            쓰면 배치가 두 지수를 새 기준으로 다시 받은 날(2026-09-30 첫 재수집 회차) 두 경우가 같아져 게이트가 데이터 커밋을
+            막았다 — 데이터가 앞으로 가도 초록이게 기준을 픽스처가 정한다.
     """
     S = RF.load_stats()
     old = json.loads(re.search(r'const D=(\{.*?\});\n', io.open(RF.PAGE, encoding='utf-8').read(), re.S).group(1))
     S['매매지수']['series']['수도권'] = [None if v is None else round(v * 1.1, 2)
                                       for v in S['매매지수']['series']['수도권']]
+    for k in RC.INDEX_KEYS:
+        S[k]['unit'] = '지수(2017.11=100)'
     split = copy.deepcopy(S)
     split['매매지수']['unit'] = '지수(2026.06=100)'
     assert not RF.index_bases_agree(split) and RF.index_bases_agree(S)
