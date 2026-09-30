@@ -171,10 +171,10 @@ def test_watchdog_reads_the_card_the_page_points_at(monkeypatch):
     """감시(check_freshness.live_card_basis)가 조사일을 읽는 주소가 /weekly/ og:image 주소(판 쿼리를 뺀 것)와 같다.
 
     감시가 다른 파일을 읽으면 라이브 미리보기 카드가 몇 주째 옛 주차여도 감시는 초록이다(2026-08-06 카드 3주
-    정지와 같은 모양). 감시 잡은 설치 없이 돌아 이 생성기를 가져오지 않으므로 주소를 따로 적고 있다 — 그 일치를
-    여기서 고정한다.
-    무엇을 깨뜨리면 빨개지나(실제로 확인): make_weekly_page.SHARE_REL 을 'share/weekly-card.png' 로 바꾸면(두 생성기는
-    같이 움직여 위 시험은 초록), 또는 check_freshness 의 카드 주소를 '/share/weekly-map2.png' 로 바꾸면 빨개진다.
+    정지와 같은 모양). 감시는 이 생성기의 SHARE_REL·png_text_bytes 를 그대로 쓴다(전수 리뷰 통합 — 예전엔 주소와 PNG
+    읽기를 따로 적었다). 이 시험은 감시가 다시 손 주소로 돌아가는 것을 막는다.
+    무엇을 깨뜨리면 빨개지나(실제로 확인): check_freshness 의 카드 주소를 손 문자열 '/share/weekly-map2.png' 로 바꾸면
+    빨개진다.
     픽스처: 네트워크 없이 urlopen 을 가로채 요청 주소만 모은다(빈 응답이라 감시는 None 을 돌려준다).
     """
     import check_freshness as C
