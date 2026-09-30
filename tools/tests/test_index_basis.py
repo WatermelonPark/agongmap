@@ -117,12 +117,15 @@ def _stored(kind):
             'series': series, 'source': '한국부동산원 아파트 실거래가격지수'}
 
 
-def _rows(months, rate=None):
+def _rows(months, rate=None, drop_last=None, old_regions=()):
     rows = []
     for ym in months:
         i = MONTHS.index(ym)
         for j, r in enumerate(NEW):
-            rows.append({'ITM_NM': '지수', 'C1_NM': r, 'C1': 'k%02d' % j, 'PRD_DE': '%d%02d' % ym, 'DT': str(NEW[r][i])})
+            if ym == LAST and r == drop_last:
+                continue
+            src = OLD if r in old_regions else NEW
+            rows.append({'ITM_NM': '지수', 'C1_NM': r, 'C1': 'k%02d' % j, 'PRD_DE': '%d%02d' % ym, 'DT': str(src[r][i])})
     if rate is not None:
         nxt = (LAST[0], LAST[1] + 1) if LAST[1] < 12 else (LAST[0] + 1, 1)
         for j, r in enumerate(NEW):
@@ -131,7 +134,7 @@ def _rows(months, rate=None):
     return rows
 
 
-def _run(monkeypatch, stored, range_ok=True, gap=None):
+def _run(monkeypatch, stored, range_ok=True, gap=None, drop_last=None, old_regions=()):
     """update_basic 을 합성 STATS({NAME: stored}) 위에서 돈다. kosis 는 새 기준 원천을 흉내 낸다:
     newEstPrdCnt 는 최근 n 확정 달(+잠정 증감률), startPrdDe~endPrdDe 는 그 구간(range_ok=False 면 KOSIS 오류)."""
     st = {NAME: copy.deepcopy(stored)}
@@ -146,12 +149,12 @@ def _run(monkeypatch, stored, range_ok=True, gap=None):
     def kosis(p):
         calls.append(p)
         if 'newEstPrdCnt' in p:
-            return _rows(MONTHS[-int(p['newEstPrdCnt']):], rate=0.3)
+            return _rows(MONTHS[-int(p['newEstPrdCnt']):], rate=0.3, drop_last=drop_last, old_regions=old_regions)
         if not range_ok:
             raise RuntimeError('KOSIS err 21: 픽스처(조회 한도)')
         lo, hi = p['startPrdDe'], p['endPrdDe']
         ms = [ym for ym in MONTHS if lo <= '%d%02d' % ym <= hi and ym != gap]
-        return _rows(ms, rate=0.3 if hi >= '%d%02d' % LAST else None)
+        return _rows(ms, rate=0.3 if hi >= '%d%02d' % LAST else None, drop_last=drop_last, old_regions=old_regions)
     monkeypatch.setattr(U, 'kosis', kosis)
     failed = []
     changed = U.update_basic(failed)
@@ -201,19 +204,25 @@ def test_spliced_store_heals_itself_on_the_next_run(monkeypatch):
     _assert_rebuilt(D, changed)
 
 
-@pytest.mark.parametrize('mode', ['kosis-error', 'gap'])
+@pytest.mark.parametrize('mode', ['kosis-error', 'gap', 'lost', 'mixed'])
 def test_failed_refetch_holds_the_series_and_is_recorded(monkeypatch, mode):
     """전 기간 재수집이 실패하거나(KOSIS 오류) 받은 것이 온전하지 않으면(중간 달 빠짐) 그 계열은 보류한다 — 저장분
     그대로이고 이번 회차의 새 달도 붙이지 않으며, '<계열>:기준변경 보류'가 부분 실패로 남는다(.fetch_failed → ℹ️ 줄).
 
     변이: update_basic 의 재수집 except 블록에서 `continue` 를 지우면 평소 병합으로 넘어가 잠정 달이 붙어 빨개진다(확인).
           refetch_basic_full 의 연속성 검사 `if seq != got: raise` 를 지우면 gap 경우가 빠진 달 없이 저장돼 빨개진다(확인).
+          (통합 검토) 재수집의 `lost` 검사를 지우면 lost 경우가, 표지 검사를 옛 `len(marks) >= 2` 로 되돌리면 mixed 경우가
+          저장돼 빨개진다(확인 — 예전엔 두 변이 모두 초록이었다).
     픽스처: 이어 붙은 저장 계열(지금 data.js 모양). kosis-error 는 기간 조회가 KOSIS 오류, gap 은 2025.03 한 달이 빠진 응답
-            (조회 한 조각이 비어 돌아온 회차).
+            (조회 한 조각이 비어 돌아온 회차), lost 는 마지막 확정 달에 지역 하나가 빠진 응답, mixed 는 지역 절반만 새 기준
+            (나머지는 옛 기준 값 그대로)인 원천 — 시간축 단절이 없어 표지 둘 검사로는 못 잡는다.
     """
     stored = _stored('spliced')
+    regs = list(NEW)
     D, failed, changed, _ = _run(monkeypatch, stored, range_ok=(mode != 'kosis-error'),
-                                 gap=(2025, 3) if mode == 'gap' else None)
+                                 gap=(2025, 3) if mode == 'gap' else None,
+                                 drop_last=regs[-1] if mode == 'lost' else None,
+                                 old_regions=set(regs[::2]) if mode == 'mixed' else ())
     assert D == stored, '보류해야 할 계열이 바뀌었다'
     assert failed == ['%s:기준변경 보류' % NAME]
     assert changed == []
