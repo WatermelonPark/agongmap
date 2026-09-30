@@ -348,7 +348,8 @@ def _all_keys(monkeypatch):
         monkeypatch.setattr(U, k, 'x')
 
 
-def test_all_main_sources_down_exits_3(monkeypatch, tmp_path):
+@pytest.mark.parametrize('stored', ['repo', 'last_year'])
+def test_all_main_sources_down_exits_3(monkeypatch, tmp_path, stored):
     """프리플라이트를 통과한 뒤 원천이 모두 끊긴 회차(주간·월간·인허가·공휴일·버블의 실제 fetch 함수가 http_json 에서
     예외를 받는다)는 rc=3 으로 멈춘다. 같은 실패라도 기본통계에서 바뀐 것이 있으면 멈추지 않는다.
 
@@ -357,8 +358,18 @@ def test_all_main_sources_down_exits_3(monkeypatch, tmp_path):
           둘째 단정이 빨개진다(확인). 예전 시험은 fetch_holidays 를 예외를 던지는 가짜로 바꿔, 실제 함수가 만들 수 없는
           모양으로 초록이었다(전수리뷰 #2).
     픽스처: 키 넷이 다 있고 fetch_* 는 실제 코드, http_json 만 OSError(연결 거부)를 던진다. 시도 점수는 저장분과 같다.
+    'last_year' 는 해가 바뀐 뒤 첫 회차 — 저장 공휴일이 작년·올해 두 해다(오늘 날짜에서 만든다, 날짜를 박지 않는다).
+    그때 fetch_holidays 는 저장분 중 올해만 돌려줘 저장 목록과 달라진다. 변이(확인): main 의 공휴일 적용 조건에서
+    `'holidays' not in failed` 를 빼면 'last_year' 가 exit 0 으로 빨개진다(통합 검토 — 예전엔 2027-01-01 부터 이
+    시험이 날짜만으로 빨개졌다).
     """
     run = _Run(monkeypatch, tmp_path)
+    if stored == 'last_year':
+        import datetime
+        yr = datetime.date.today().year
+        adv = run.adv()
+        adv['holidays'] = ['%d-01-01' % (yr - 1), '%d-03-01' % (yr - 1), '%d-01-01' % yr, '%d-03-01' % yr]
+        run.save(adv)
     _all_keys(monkeypatch)
     for fn, f in REAL_FETCH.items():
         monkeypatch.setattr(U, fn, f)
