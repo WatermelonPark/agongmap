@@ -98,38 +98,37 @@ def find_art(art_dir, score):
     return None
 
 
-def _largest_component(opaque):
-    """opaque: 2D bool ndarray. 가장 큰 4연결 성분만 True로 남긴 마스크를 반환.
-    (점선 테두리·드롭섀도우처럼 배경 flood-fill 뒤에도 남는 얇은 조각을 걸러낸다.)"""
-    import numpy as np
+def _largest_component(opaque, w, h):
+    """opaque: 길이 w*h 의 0/1 bytearray(행 우선). 가장 큰 4연결 성분만 255로 남긴
+    'L' 마스크 바이트를 돌려준다(크기가 같으면 먼저 만난 성분). 성분이 없으면 opaque 그대로.
+    (점선 테두리·드롭섀도우처럼 배경 flood-fill 뒤에도 남는 얇은 조각을 걸러낸다.)
+    Pillow·표준 라이브러리만 쓴다 — 이미지 도구는 pillow 만 깐 환경에서 돈다(전수리뷰 #90)."""
+    from array import array
     from collections import deque
-    H, W = opaque.shape
-    labels = np.zeros((H, W), dtype=np.int32)
-    visited = np.zeros((H, W), dtype=bool)
-    cur = 0
-    sizes = [0]
-    for y in range(H):
-        row = opaque[y]
-        for x in range(W):
-            if row[x] and not visited[y, x]:
-                cur += 1
-                q = deque([(y, x)])
-                visited[y, x] = True
-                size = 0
-                while q:
-                    cy, cx = q.popleft()
-                    labels[cy, cx] = cur
-                    size += 1
-                    for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                        ny, nx = cy + dy, cx + dx
-                        if 0 <= ny < H and 0 <= nx < W and opaque[ny, nx] and not visited[ny, nx]:
-                            visited[ny, nx] = True
-                            q.append((ny, nx))
-                sizes.append(size)
+    n = w * h
+    labels = array('i', bytes(4 * n))
+    cur, best, best_size = 0, 0, 0
+    for start in range(n):
+        if not opaque[start] or labels[start]:
+            continue
+        cur += 1
+        labels[start] = cur
+        q = deque([start])
+        size = 0
+        while q:
+            i = q.popleft()
+            size += 1
+            x = i % w
+            for j in ((i + w) if i + w < n else -1, (i - w) if i >= w else -1,
+                      (i + 1) if x + 1 < w else -1, (i - 1) if x else -1):
+                if j >= 0 and opaque[j] and not labels[j]:
+                    labels[j] = cur
+                    q.append(j)
+        if size > best_size:
+            best, best_size = cur, size
     if cur == 0:
-        return opaque
-    biggest = int(np.argmax(sizes))
-    return labels == biggest
+        return bytes(255 if v else 0 for v in opaque)
+    return bytes(255 if v == best else 0 for v in labels)
 
 
 def cutout(path, thresh=48):
@@ -137,7 +136,6 @@ def cutout(path, thresh=48):
     이미 알파 채널이 있는 소스(사전 가공된 PNG)는 그대로 크롭만 한다.
     그 외에는 가장자리 flood-fill로 배경을 지운 뒤, 점선 테두리·드롭섀도우 같은
     잔여 조각을 떨어내기 위해 가장 큰 연결 성분(피사체)만 남긴다."""
-    import numpy as np
     src = Image.open(path)
     if src.mode == 'RGBA':
         alpha = src.getchannel('A')
@@ -153,18 +151,10 @@ def cutout(path, thresh=48):
     for sd in seeds:
         ImageDraw.floodfill(im, sd, key, thresh=thresh)
 
-    arr = np.array(im)
-    opaque = ~np.all(arr == np.array(key), axis=2)
-    keep = _largest_component(opaque)
-
-    px = im.load()
-    out = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    op = out.load()
-    for y in range(h):
-        for x in range(w):
-            if keep[y, x]:
-                c = px[x, y]
-                op[x, y] = (c[0], c[1], c[2], 255)
+    raw, kb = im.tobytes(), bytes(key)
+    opaque = bytearray(0 if raw[i:i + 3] == kb else 1 for i in range(0, len(raw), 3))
+    keep = Image.frombytes('L', (w, h), _largest_component(opaque, w, h))
+    out = Image.composite(im.convert('RGBA'), Image.new('RGBA', (w, h), (0, 0, 0, 0)), keep)
     bbox = out.getbbox()
     return out.crop(bbox) if bbox else out
 
