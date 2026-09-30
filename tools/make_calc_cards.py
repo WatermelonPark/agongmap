@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
 """재건축·재개발 테스트 점수별 공유 카드 11장 (800x800) — 숫자 히어로(v3) 스타일.
 
-문구는 index.html QUIZSETS.calc.grade와 톤을 맞춘다. 둘 중 하나를 고치면 같이 볼 것.
+도발 문구 두 줄은 홈 QUIZSETS.calc.taunt(home-quiz.js)를 **읽는다** — 사이트 공유 문구(shareTaunt)와 한 표다
+(전수리뷰 #86: 예전엔 여기 따로 적어, 카드는 재건축 문구인데 공유 설명·본문은 투자자 문구로 나갔다).
+배지·이름은 QUIZSETS.calc.grade 구간과 톤을 맞춘다.
 
 사용:  python tools/make_calc_cards.py
 """
-import os, sys
+import json
+import os
+import re
+import sys
+
 from PIL import Image, ImageDraw, ImageFilter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_beginner_cards import noto  # noqa: E402  (번들 폰트 로더 공유)
+import home_src as HS  # noqa: E402  (공유 문구 표 — 홈 스크립트 입구)
 
 W = H = 800
 PAPER = (246, 244, 238)
@@ -27,20 +34,33 @@ RAMP = [
     (184, 134, 47),
 ]
 
-# (LV배지, 이름, 도발 문구 2줄) — QUIZSETS.calc.grade 구간과 대응
-LEVELS = [
-    ('LV1', '묻지마 매수 직전', ['공식부터', '다시 볼까요?']),
-    ('LV1', '묻지마 매수 직전', ['용적률이', '어디에 곱해지더라?']),
-    ('LV1', '묻지마 매수 직전', ['분담금 고지서', '조심하세요']),
-    ('LV2', '분담금 주의보', ['뼈대는 잡혔고', '연습만 남았어요']),
-    ('LV2', '분담금 주의보', ['절반까지', '거의 왔어요']),
-    ('LV3', '공식 암기 완료', ['공식은 압니다', '손이 느릴 뿐']),
-    ('LV3', '공식 암기 완료', ['눈대중 견적', '슬슬 됩니다']),
-    ('LV4', '눈대중 견적사', ['예비 조합원', '자격 충분']),
-    ('LV4', '눈대중 견적사', ['사업성이', '보이기 시작했죠?']),
-    ('LV5', '사업성 스캐너', ['조합 총회에서', '마이크 잡으세요']),
-    ('LV5', '재건축 계산 선수', ['이제 임장 가서', '대지지분 물어보세요']),
+
+
+def calc_taunts(src=None):
+    """홈 QUIZSETS.calc.taunt — 점수(0~10)별 [두 줄]. 못 찾으면 멈춘다(빈 카드를 굽지 않는다)."""
+    src = src if src is not None else dict(HS.home_files())['home-quiz.js']
+    m = re.search(r'\n  calc:\{.*?\n    taunt:(\[\[.*?\]\]),\n', src, re.S)
+    if not m:
+        raise SystemExit('home-quiz.js 에서 QUIZSETS.calc.taunt 를 찾지 못했다')
+    t = json.loads(m.group(1))
+    if len(t) != 11 or not all(isinstance(x, list) and len(x) == 2 for x in t):
+        raise SystemExit('QUIZSETS.calc.taunt 는 11칸 × 두 줄이어야 한다')
+    return t
+
+
+# (LV배지, 이름) — QUIZSETS.calc.grade 구간과 대응. 도발 문구 두 줄은 calc_taunts()
+BADGES = [
+    ('LV1', '묻지마 매수 직전'), ('LV1', '묻지마 매수 직전'), ('LV1', '묻지마 매수 직전'),
+    ('LV2', '분담금 주의보'), ('LV2', '분담금 주의보'),
+    ('LV3', '공식 암기 완료'), ('LV3', '공식 암기 완료'),
+    ('LV4', '눈대중 견적사'), ('LV4', '눈대중 견적사'),
+    ('LV5', '사업성 스캐너'), ('LV5', '재건축 계산 선수'),
 ]
+
+
+def levels():
+    """(LV배지, 이름, 도발 문구 2줄) 11칸."""
+    return [(lv, name, t) for (lv, name), t in zip(BADGES, calc_taunts())]
 
 
 
@@ -58,8 +78,8 @@ def fit_font(text, target, weight='Bold', axis='h', lo=10, hi=460):
     return noto(best, weight)
 
 
-def make_card(score, out_path):
-    lv, name, taunt2 = LEVELS[score]
+def make_card(score, out_path, lv_table=None):
+    lv, name, taunt2 = (lv_table or levels())[score]
     accent = RAMP[score]
 
     img = Image.new('RGBA', (W, H), PAPER)
@@ -127,6 +147,7 @@ if __name__ == '__main__':
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     share = os.path.join(root, 'share')
     os.makedirs(share, exist_ok=True)
+    table = levels()
     for s in range(11):
-        make_card(s, os.path.join(share, 'calc-%d.png' % s))
+        make_card(s, os.path.join(share, 'calc-%d.png' % s), table)
     print('11 cards written -> %s' % share)

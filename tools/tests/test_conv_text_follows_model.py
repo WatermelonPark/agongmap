@@ -27,9 +27,8 @@ def test_home_how_text_matches_model_conversion():
     m = PAT.search(HS.home_source())
     assert m, '홈 산출 방법 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것'
     assert int(m.group(1)) == round(SZ.CONV * 100), (m.group(1), SZ.CONV)
-    # ⚠️ 연도는 아직 CONV_FROM(착공÷인허가를 재는 첫 해 2012)과 대조한다 — 홈 index.html 은 H 묶음이 '2011년'으로 고친다.
-    # 그때 이 줄을 SZ.CONV_START_FROM 으로 바꾼다(전수 리뷰 #111). 시도 리포트 쪽은 아래 시험이 이미 CONV_START_FROM 을 본다.
-    assert int(m.group(2)) == SZ.CONV_FROM, (m.group(2), SZ.CONV_FROM)
+    # 기준 연도는 CONV 를 잰 첫 착공 연도(CONV_START_FROM, 2011)이지 CONV_FROM(착공÷인허가의 첫 해, 2012)이 아니다(전수리뷰 #111).
+    assert int(m.group(2)) == SZ.CONV_START_FROM, (m.group(2), SZ.CONV_START_FROM)
 
 
 def test_zone_generator_does_not_hardcode_conversion():

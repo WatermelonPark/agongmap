@@ -198,7 +198,8 @@ def test_hero_band_line_follows_the_release_state():
     사례가, heroBandLine 이 wkPubLead 대신 _md(r.pub)+' 발표' 를 쓰면 늦은 주 사례가, 띠에 wkNextText(r) 조각을 되살리면(옛
     둘째 줄) '다음 발표 없음' 단정이, index.html 에 hw-2 줄을 되살리면 마크업 단정이 빨개진다.
     픽스처: 2026 공휴일 표. 평상(9/7 조사, 오늘 9/11), 추석 연휴 주(9/14 조사, 9/18 — 다음 발표 9/24 가 휴일),
-            배치 정지(9/14 조사, 9/29 — 기준일 9/28 이 지남), 시군구만 한 주 늦음(시도 9/21·시군구 9/14, 9/25).
+            배치 정지(9/14 조사, 10/2 — 연휴 주라 한 주 늦춘 기준일 10/1 이 지남, 대표 결정 ④), 시군구만 한 주 늦음
+            (시도 9/21·시군구 9/14, 9/25).
     """
     base = {'p': None, 'text': '경기 +0.23%, 가장 크게 올랐습니다', 'dir': 'up'}
     cases = []
@@ -217,7 +218,7 @@ def test_hero_band_line_follows_the_release_state():
 
     normal = case('2026-09-07', (2026, 9, 11))
     hedge = case('2026-09-14', (2026, 9, 18))
-    stale = case('2026-09-14', (2026, 9, 29))
+    stale = case('2026-09-14', (2026, 10, 2))
     lag = case('2026-09-21', (2026, 9, 25), sgg_p='2026-09-14')
     no_head = case('2026-09-07', (2026, 9, 11), head=False)
     no_grace = case('2026-09-07', (2026, 9, 11), grace=None)
@@ -252,7 +253,8 @@ def test_late_week_lead_is_one_phrase_on_band_h2_and_weekly_page():
     변이(각각 실제로 확인): heroBandLine 이 wkPubLead(r) 대신 _md(r.pub)+' 발표' 를 쓰면(검토 당시 코드) 띠 단정이,
           applyWeeklyStatus 가 머리말을 자기 문장(' 발표 · ')으로 적으면 h2 단정이, make_weekly_page.when_line 이 '발표 기준'
           대신 자기 말을 쓰면 /weekly/ 단정이 빨개진다.
-    픽스처: 09-24~26 배치 정지를 옮긴 합성 주 — 9/14 조사(9/17 발표)가 최신인 채 오늘 9/29 KST(기준일 9/28 이 지남),
+    픽스처: 09-24~26 배치 정지를 옮긴 합성 주 — 9/14 조사(9/17 발표)가 최신인 채 오늘 10/2 KST(연휴 주라 한 주 늦춘
+            기준일 10/1 이 지남, 대표 결정 ④),
             그리고 같은 데이터의 평상 날(9/18). 공휴일 표는 2026.
     """
     text = '경기 +0.23%, 가장 크게 올랐습니다'
@@ -260,17 +262,17 @@ def test_late_week_lead_is_one_phrase_on_band_h2_and_weekly_page():
     W.pop('holidays')
     W.update(grace=WR.GRACE_WEEKLY, head={'p': '2026-09-14', 'text': text, 'dir': 'up'})
     out = []
-    for day in (29, 18):
+    for mon, day in ((10, 2), (9, 18)):
         js = (_band_js() + '\n_HOLIDAYS=new Set(%s);const W=%s;\n'
               'const r=weeklyRelease(W.rows[0].p,new Date(%d),W.grace);\n'
               'const el={"wk-kicker":{textContent:""},"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
               'globalThis.document={getElementById:id=>el[id]||null};\n'
               'applyWeeklyStatus(r,weeklyHead(W));\n'
               'process.stdout.write(JSON.stringify([r.stale,heroBandLine(W,r),el["wk-h2"].textContent]));'
-              % (json.dumps(H2026), json.dumps(W, ensure_ascii=False), _kst_ms(2026, 9, day)))
+              % (json.dumps(H2026), json.dumps(W, ensure_ascii=False), _kst_ms(2026, mon, day)))
         out.append(_node(js))
     (late, band, h2), (ok, band_ok, h2_ok) = out
-    st = WR.status('2026-09-14', datetime.date(2026, 9, 29), H2026)
+    st = WR.status('2026-09-14', datetime.date(2026, 10, 2), H2026)
     assert late and st['stale'] and not ok
     lead = WR.pub_lead(st)
     assert lead == '9/17 발표 기준'

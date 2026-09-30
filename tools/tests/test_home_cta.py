@@ -88,5 +88,8 @@ def test_in_page_entrances_keep_the_landing_query():
     bad = re.findall(r'<a class="home-cta" href="(/#[^"]*)"', home)
     assert not bad, '같은 문서 안 화면 전환 입구가 절대 경로(%s)다 — 쿼리 착지에서 문서를 다시 불러온다' % bad
     src = HS.home_source()
-    m = re.search(r"tgtUrl=v==='home'\?([^:]+):full", src)
-    assert m and 'location.search' in m.group(1), "홈으로 갈 때 pushState 주소가 쿼리를 버린다: %s" % (m and m.group(1))
+    # 홈 주소의 쿼리는 q — 퀴즈가 아니면 대결 쿼리(c·s·q)만 걷은 location.search(chalSearch, 전수리뷰 #44)
+    m = re.search(r"tgtUrl=v==='home'\?([^:]+):", src)
+    assert m and m.group(1) == 'location.pathname+q', "홈으로 갈 때 pushState 주소가 쿼리를 버린다: %s" % (m and m.group(1))
+    assert "const q=v==='test'?location.search:chalSearch();" in src
+    assert re.search(r"function chalSearch\(\)\{\s*if\(!chalInURL\(location\.search\)\)return location\.search;", src)
