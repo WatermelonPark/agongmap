@@ -27,7 +27,8 @@ def test_home_how_text_matches_model_conversion():
     m = PAT.search(HS.home_source())
     assert m, '홈 산출 방법 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것'
     assert int(m.group(1)) == round(SZ.CONV * 100), (m.group(1), SZ.CONV)
-    assert int(m.group(2)) == SZ.CONV_FROM, (m.group(2), SZ.CONV_FROM)
+    # 기준 연도는 CONV 를 잰 첫 착공 연도(2011)이지 CONV_FROM(착공÷인허가의 첫 해, 2012)이 아니다(전수리뷰 #111).
+    # 홈 쪽 대조는 test_home_hand_numbers 가 데이터에서 센다 — Z1 이 CONV_START_FROM 을 만들면 통합 때 여기로 맞춘다.
 
 
 def test_zone_generator_does_not_hardcode_conversion():
