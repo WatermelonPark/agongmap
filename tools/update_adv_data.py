@@ -1440,9 +1440,12 @@ def refetch_basic_full(name, D, today=None):
     merge_prov(new, rates, BASIC_CONF[name]['dec'])
     br = basis_breaks(new)
     marks = basis_months(new)
-    if br or len(marks) >= 2:
-        raise RuntimeError('%s 재수집: 원천 계열 안에도 기준 단절이 있다(%s)'
-                           % (name, ', '.join(br) or '기준시점 표지 %s' % ', '.join(marks)))
+    # 한 기준의 계열은 기준시점 표지(모든 지역 100.0 인 달)가 **정확히 하나**다(2026-09-30 data.js 실측: 옛 2017.11·새
+    # 2026.06 모두 전 지역 100.0). 둘이면 시간축으로 섞였고, 없으면 지역마다 기준이 다르게 섞인 원천이다 — 예전엔 둘만
+    # 걸러, 일부 지역만 새 기준인 원천이 통과해 unit 은 옛 기준으로 남고 다음 회차도 다시 잡지 않았다(통합 검토).
+    if br or len(marks) != 1:
+        raise RuntimeError('%s 재수집: 원천 계열이 한 기준이 아니다(%s)'
+                           % (name, ', '.join(br) or '기준시점 표지 %s' % (', '.join(marks) or '없음 — 지역마다 기준이 다름')))
     new['unit'] = basis_unit(new, D.get('unit'))
     return new
 
