@@ -187,7 +187,11 @@ def test_blocked_storage_does_not_break_the_quiz():
 
 
 def test_time_copy_matches_real_duration():
-    """해설 포함 실제 4~6분(요청서 실측) — '3분'으로 약속하지 않는다."""
+    """해설 포함 실제 4~6분(요청서 실측) — '3분'으로 약속하지 않는다.
+
+    변이(확인): 퀴즈 랜딩에 '약 3분'을 넣으면 빨갛다. '33분의 1'(분수)·'13분' 같은 다른 수는 시간 약속이 아니라 잡지 않는다
+    (09-29 make_naver_post 주석 '165,931 로 33분의 1)' 이 오탐으로 게이트를 막았다).
+    """
     files = ['index.html', 'weekly/index.html', 'faq/index.html', 'cycle/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html',
              'tools/make_og_cards.py', 'tools/make_investor_cards.py', 'tools/make_naver_post.py']
     import re
@@ -195,5 +199,6 @@ def test_time_copy_matches_real_duration():
     for f in files:
         s = HS.home_source() if HS.is_home(f) else io.open(os.path.join(ROOT, f), encoding='utf-8').read()
         HS.require(s, '5분', what=f)   # 고친 표기를 실제로 읽었는가 — 못 읽으면 '3분 없음'이 헛돈다
-        bad += ['%s: %s' % (f, m.group(0)) for m in re.finditer(r'.{0,12}3분(?![기위]).{0,6}', s)]
+        # 앞이 숫자면 다른 수('33분의 1' 같은 분수)라 시간 표기가 아니다(2026-09-29 make_naver_post 주석이 오탐으로 게이트를 막았다).
+        bad += ['%s: %s' % (f, m.group(0)) for m in re.finditer(r'.{0,12}(?<![0-9])3분(?![기위의]).{0,6}', s)]
     assert not bad, "퀴즈 시간 표기에 '3분'이 남았다: %s" % bad
