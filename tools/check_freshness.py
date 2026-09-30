@@ -193,9 +193,34 @@ def _rone_base(tbl, cycle, since=None):
     return base
 
 
+RONE_TRIES = 3          # 쪽 하나를 받는 시도 수 — 배치 http_json(tries=3)과 같다
+RONE_PAGE_PAUSE = 0.15  # 쪽 사이 쉼 — 배치 _rone_recent_rows 와 같다
+
+
+def _rone_get(url):
+    """R-ONE 한 쪽. 연결이 응답 없이 끊기면(RemoteDisconnected·타임아웃) 잠시 쉬고 다시 받는다.
+
+    R-ONE 은 요청이 몰리면 연결을 응답 없이 끊는다(update_adv_data._rone_recent_rows 주석, 2026-08-11·14 실측).
+    배치는 http_json 이 세 번까지 다시 받고 쪽 사이를 쉰다. 감시는 예전에 두 번만 불러 괜찮았는데, 전수 리뷰
+    #35 로 창의 모든 쪽을 읽게 되면서 쉬지도 다시 받지도 않고 여러 쪽을 연달아 불러, 첫 실행(2026-10-01 00:52 KST)에
+    두 러너 모두 지역 계층 조회가 끊겨 감시가 빨갛게 끝났다. HTTP 4xx 는 결정론적 답이라 다시 받지 않는다.
+    """
+    last = None
+    for i in range(RONE_TRIES):
+        try:
+            return get_json(url)
+        except Exception as e:
+            if _hard_http(e):
+                raise
+            last = e
+            if i + 1 < RONE_TRIES:
+                time.sleep(2 * (i + 1))
+    raise last
+
+
 def _rone_total(base):
     total = None
-    for blk in get_json(base + '&pIndex=1&pSize=1').get('SttsApiTblData', []):
+    for blk in _rone_get(base + '&pIndex=1&pSize=1').get('SttsApiTblData', []):
         for h in blk.get('head', []) or []:
             if 'list_total_count' in h:
                 total = h['list_total_count']
@@ -225,11 +250,13 @@ def _rone_rows(tbl, cycle, since=None):
     p = -(-total // RONE_PAGE)
     while p >= 1 and (since or len(rows) < RONE_FALLBACK_ROWS):
         page = []
-        for blk in get_json(base + '&pIndex=%d&pSize=%d' % (p, RONE_PAGE)).get('SttsApiTblData', []):
+        for blk in _rone_get(base + '&pIndex=%d&pSize=%d' % (p, RONE_PAGE)).get('SttsApiTblData', []):
             if 'row' in blk:
                 page = blk['row'] or []
         rows = page + rows
         p -= 1
+        if p >= 1:
+            time.sleep(RONE_PAGE_PAUSE)
     return rows
 
 
