@@ -226,6 +226,9 @@ function viewLoc(v,href){
   return (j<0?pre:pre.slice(0,j))+(q.length?'?'+q.join('&'):'')+hash;
 }
 let PV_SENT=false;   // 부팅 page_view 를 보냈는가(showView)
+/* 부팅 page_view 를 보낸 **뒤** 할 일(대결 부팅의 home_visit). 대결 부팅은 page_view 를 home-quiz.js 도착 뒤로 미루므로
+   home_visit 이 그 앞에 가지 않게 여기에 걸어 둔다(통합 검토 — '부팅 page_view 뒤' 순서가 대결 경로에서 뒤집혔다). */
+let PV_AFTER=null;
 function showView(v,updateHash,quiet){
   /* 퀴즈 뷰는 전용 탭이 없다(퀴즈 탭 → 지역 탭 교체, d6fe72e). 아무 탭도 안 켜면
      '지금 어디인가' 표시가 사라진다(2026-08-10 리뷰) — 퀴즈는 홈에서 진입하는
@@ -257,6 +260,10 @@ function showView(v,updateHash,quiet){
        주소는 통계인데 화면은 홈에 머물렀다(홈 마케팅 검수 1차 배포 검증, 2026-09-27). */
     /* 대결 쿼리(c·s·q)는 퀴즈 화면에서만 남긴다 — 홈·시세로 옮기면서 걷지 않으면 그 화면에서 새로고침·탭 복원·주소 복사 때
        부팅이 해시 대신 대결 퀴즈를 띄웠다(전수리뷰 #44·#49). utm 등 다른 쿼리는 둔다. */
+    /* 퀴즈를 떠날 때는 지금 항목(퀴즈)의 주소에서도 대결 쿼리를 먼저 걷는다. 새 항목만 걷어 pushState 하면 두 항목의
+       쿼리가 달라져, 뒤로 가기에 hashchange 가 오지 않고(popstate 만) 주소는 퀴즈인데 화면은 홈·시세에 머물렀다 —
+       위 2026-09-27 결함이 대결 경로에서 되살아난 모양(통합 검토). */
+    if(curView==='test'&&v!=='test'&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
     const q=v==='test'?location.search:chalSearch();
     const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname+q:(q===location.search?full:location.pathname+q+full);
     if(v===curView)history.replaceState(null,'',tgtUrl);
@@ -271,7 +278,8 @@ function showView(v,updateHash,quiet){
      까닭이 없고, 착지 쿼리를 실으면 같은 화면이 착지 쿼리마다 다른 주소로 갈라진다. */
   else if(v!=='test'&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
   curView=v;
-  if(changed&&!quiet){PV_SENT=true;track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});}
+  if(changed&&!quiet){PV_SENT=true;track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});
+    if(first&&PV_AFTER){const f=PV_AFTER;PV_AFTER=null;f();}}
 }
 /* 대결 쿼리(c·s·q)를 걷은 쿼리 문자열. 대결 링크가 아니면 그대로. */
 function chalSearch(){
@@ -629,6 +637,9 @@ function tbLabel(i,per){
 var TB_BCACHE=null;   // 원천(ADV/STATS)은 페이지 수명 내내 불변 — 한 번만 짓는다
 function tbBuild(){
   if(TB_BCACHE) return TB_BCACHE;
+  /* data-core.js 를 못 받은 부팅(전수리뷰 #43)에도 공급 구역의 '표'·'그래프'·기간 단추는 켜져 있다 — ADV 가 없으면
+     ReferenceError 대신 null 로 돌아가 tbDraw 가 구역을 숨긴다(정적 요약은 남는다, 통합 검토). */
+  if(typeof ADV==='undefined'||typeof STATS==='undefined') return null;
   var S=ADV.sido; if(!S||!S.zones||!S.zones.length) return null;
   var D=STATS['준공'], K=STATS['착공']; if(!D||!K) return null;
   var regs=S.zones.map(function(z){return z.z;});
@@ -1872,12 +1883,16 @@ renderSidoMap();    // 기본 모드 — 보이는 것부터
   /* 대결 링크(?c=&s=, 퀴즈 랜딩이 넘겨준다)는 퀴즈 화면을 먼저 띄우고 해석·시작은 home-quiz.js 의 bootChallenge 가
      한다(B11 — 점수 상한 QUIZ_LEN 이 그 파일에 있다). 모양만 보는 chalInURL 은 랜딩의 넘김 조건과 같다. */
   if(chalInURL(location.search)&&chalBootable()){
-    showView('test',false,true);   // page_view 는 bootChallenge 가 대결을 확정한 뒤(또는 applyHash 가) 한 번 보낸다(#46)
+    /* page_view 는 bootChallenge 가 대결을 확정한 뒤(또는 applyHash 가) 한 번 보낸다(#46). 그 사이 머리 스크립트의 idle
+       폴백(index.html, dataLayer 에 page_view 가 없으면 보냄)이 먼저 돌면 두 건이 됐다 — 폴백에 미룬다고 알린다(통합 검토). */
+    window.__pvDefer=true;
+    PV_AFTER=()=>{VISIT=countVisit();};
+    showView('test',false,true);
     bootChallenge();
   }else{
     applyHash();
   }
-  VISIT=countVisit();   // 그날 첫 홈 부팅에 home_visit 한 번(B10) — 부팅 page_view(applyHash·showView) 뒤
+  if(!PV_AFTER)VISIT=countVisit();   // 그날 첫 홈 부팅에 home_visit 한 번(B10) — 부팅 page_view(applyHash·showView) 뒤
   watchSections();      // 주간 구역 노출 section_view(B10)
   setTimeout(()=>{_instReady=true;installMaybe();},INSTALL_DELAY);   // 설치 안내(C10①)는 첫 화면이 자리 잡은 뒤에만
 }

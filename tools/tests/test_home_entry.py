@@ -87,7 +87,7 @@ def _home_parts():
     r2c = re.search(r'^const R2C=new Set\(\[.*?\]\);', src, re.M)
     assert r2c, 'R2C(리포트로 넘기는 옛 해시) 선언을 찾지 못했다'
     # PV_SENT(부팅 page_view 를 보냈는가)와 대결 쿼리 걷기(chalInURL·chalSearch)는 showView 가 쓴다(전수리뷰 #44·#46)
-    return '\n'.join(['var PV_SENT=false;', _js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
+    return '\n'.join(['var PV_SENT=false, PV_AFTER=null;', _js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
                       _js_func(src, 'chalInURL'), _js_func(src, 'chalSearch'), _js_func(src, 'chalBootable'),
                       _js_func(src, 'applyHash'), r2c.group(0)])
 
@@ -450,3 +450,55 @@ def test_challenge_query_leaves_with_the_quiz_and_other_hashes_win():
     old = _run(SITE + '/?c=7&s=beginner#stats-market-week', bootFails=True,
                beforeDCL=["__rec.quiz.push(['boot', chalBootable()])"])
     assert old['rec']['quiz'] == [['boot', False]], '다른 화면 해시가 붙은 대결 주소를 대결로 부팅한다'
+
+
+
+def test_leaving_the_challenge_quiz_strips_the_query_from_both_entries():
+    """대결 퀴즈(/?c=&s=&q=#test-…)에서 시세로 옮기면, 새 항목만이 아니라 떠나는 퀴즈 항목의 주소에서도 대결 쿼리를 먼저
+    걷는다(replaceState). 두 항목의 쿼리가 다르면 뒤로 가기에 hashchange 가 오지 않아(popstate 만) 주소는 퀴즈인데 화면은
+    시세에 머물렀다(통합 검토, Chromium 재현: 새 판 view=stats hc=0 · 기준 커밋 view=test hc=1).
+
+    변이(실제로 확인): showView 의 `if(curView==='test'&&v!=='test'&&chalInURL(location.search))history.replaceState(…)` 줄을
+          지우면 퀴즈 항목을 걷는 replace 가 없어 빨개진다.
+    픽스처: 퀴즈 랜딩이 넘기는 대결 링크 모양과 utm 한 개(걷지 않고 남아야 한다).
+    """
+    got = _run('https://www.agongmap.co.kr/?utm_source=kakao&c=6&s=investor&q=abc12#test-investor',
+               after=["showView('stats')"])
+    rep = [u for u in got['rec']['replace'] if u.endswith('#test-investor')]
+    assert rep and all('c=' not in u and 'q=' not in u for u in rep) and 'utm_source=kakao' in rep[-1], got['rec']
+    pushed = got['rec']['push'][-1]
+    assert pushed.endswith('#stats-market-week'), pushed
+    left = rep[-1].split('#')[0]
+    assert (pushed.split('#')[0] or left) == left, '두 항목의 쿼리가 다르다 — 뒤로 가기에 hashchange 가 오지 않는다: %s · %s' % (left, pushed)
+
+
+def test_head_fallback_leaves_the_boot_page_view_to_a_deferred_challenge_boot():
+    """머리 스크립트의 idle 폴백은 dataLayer 에 page_view 가 없으면 보낸다. 대결 부팅은 page_view 를 home-quiz.js 도착 뒤로
+    미루므로(#46) 그 파일만 늦으면 폴백과 bootChallenge 가 한 건씩 두 건을 보냈다(통합 검토 — home-quiz.js 800ms 지연 재현).
+    부팅이 window.__pvDefer 를 세우면 폴백은 보내지 않는다. 표지가 없으면 예전처럼 한 건을 보낸다.
+
+    변이(실제로 확인): index.html 머리 load() 의 `&&!window.__pvDefer` 를 지우면 첫 단정이 빨개진다.
+    픽스처: 홈 스크립트 없이 머리만 돈 상태(home-quiz.js 가 아직 안 온 대결 부팅과 같다).
+    """
+    got = _run('https://www.agongmap.co.kr/?c=6&s=investor&q=abc12', noHome=True, beforeDCL=['window.__pvDefer=true'])
+    assert got['pv'] == [], got['pv']
+    got = _run('https://www.agongmap.co.kr/', noHome=True)
+    assert len(got['pv']) == 1, got['pv']
+
+
+def test_deferred_boot_runs_the_visit_after_the_first_page_view():
+    """대결 부팅의 home_visit 은 부팅 page_view 뒤에 간다 — boot 가 countVisit 를 PV_AFTER 로 걸어 두고, showView 가 첫
+    page_view 를 보낸 직후 한 번 부른다. 예전엔 page_view 가 bootChallenge 로 미뤄진 뒤에도 boot 가 곧바로 home_visit 을
+    보내 순서가 늘 뒤집혔다(통합 검토).
+
+    변이(실제로 확인): showView 의 `if(first&&PV_AFTER){…}` 를 지우면 기록이 비어 빨개지고, boot 의 대결 분기에서
+          `PV_AFTER=()=>{VISIT=countVisit();};` 를 지우면 정적 단정이 빨개진다.
+    픽스처: 부팅 applyHash 없이(bootFails), 부팅처럼 __pvDefer 를 세우고 quiet 로 퀴즈를 띄운 뒤 대결 확정
+            (showView('test',false))을 흉내 낸다.
+    """
+    got = _run('https://www.agongmap.co.kr/?c=6&s=investor&q=abc12', bootFails=True, beforeDCL=['window.__pvDefer=true'], after=[
+        "PV_AFTER=()=>{__rec.quiz.push(['visit',(dataLayer||[]).filter(a=>a&&a[1]==='page_view').length]);}",
+        "showView('test',false,true)", "showView('test',false)", "showView('home')"])
+    assert got['rec']['quiz'] == [['visit', 1]], got['rec']['quiz']
+    boot = _js_func(HS.home_source(), 'boot')
+    assert 'PV_AFTER=()=>{VISIT=countVisit();};' in boot and 'if(!PV_AFTER)VISIT=countVisit();' in boot
