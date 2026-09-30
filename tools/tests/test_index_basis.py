@@ -33,12 +33,14 @@ LAST = (2026, 7)          # 마지막 확정 달. 그 다음 달은 잠정 증�
 # ── 1. 게이트 ─────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize('name', U.BASIS_SERIES)
 def test_stored_index_break_is_scheduled_for_full_refetch(name):
-    """저장 지수 계열에 지역 전반의 인접 월 단절(±JUMP_TOL 을 넘은 지역이 BROAD_SHARE 이상)이 있으면 update_basic 이
-    다음 회차에 전 기간을 다시 받게 돼 있다. 단절이 없으면 unit 의 기준시점이 데이터의 기준시점 표지와 같다.
+    """저장 지수 계열에 기준 단절(index_breaks — 한 달 새 BREAK_JUMP 넘게 움직인 지역이 BREAK_REGIONS 곳 이상)이 있으면
+    update_basic 이 다음 회차에 전 기간을 다시 받게 돼 있다. 단절이 없으면 unit 의 기준시점이 데이터의 기준시점 표지와
+    같다.
 
-    변이: _basis_reason 에서 `br = basis_breaks(D); if br: return …` 를 지우면(저장 단절을 못 보면) 지금 data.js(단절 상태)
-          에서 두 계열 모두 빨개진다(확인). 배치가 재수집으로 복구한 뒤에는 basis_unit 을 거치지 않고 옛 unit 을 두면
-          unit 단정이 빨개진다(test_rebase_in_overlap_refetches_the_whole_series 의 합성 복구본으로 확인).
+    변이: _basis_reason 에서 `br = basis_breaks(D); if br: return …` 와 기준시점 표지 둘 분기를 함께 지우면(저장 단절을
+          못 보면) 지금 data.js(단절 상태)에서 두 계열 모두 빨개진다(확인). 배치가 재수집으로 복구한 뒤에는 basis_unit 을
+          거치지 않고 옛 unit 을 두면 unit 단정이 빨개진다(test_rebase_in_overlap_refetches_the_whole_series 의 합성
+          복구본으로 확인).
     픽스처: 저장소 data.js 의 STATS 실제 값. 날짜·지역을 박지 않는다 — 데이터가 앞으로 가도 같은 판정을 한다.
     """
     D = U.read_current_stats()[name]
@@ -50,26 +52,23 @@ def test_stored_index_break_is_scheduled_for_full_refetch(name):
             '%s unit(%s)이 데이터의 기준시점(%s)과 다르다' % (name, D.get('unit'), U.basis_months(D)[-1:])
 
 
-def test_thresholds_have_room_over_real_moves():
-    """문턱이 실제 움직임보다 넉넉한지 — 저장 계열의 단절 달을 뺀 모든 인접 월에서 JUMP_TOL 을 넘은 지역 비율이
-    BROAD_SHARE 에 한참 못 미친다(실제 월간 최대는 13%대 한 지역). 문턱을 낮추다 실제 급등락을 단절로 오인하면 배치가
-    매 회차 전 기간을 다시 받게 된다.
+def test_break_rule_counts_regions_and_bridges_gaps():
+    """index_breaks 는 BREAK_JUMP 를 넘은 지역이 BREAK_REGIONS 곳 이상인 달만 단절로 보고(한 지역 급변은 단절이 아니다),
+    한 달 비운 지역은 바로 앞 값과 견준다. 사이클 도구(rebuild_cycle_analysis.index_breaks)와 같은 규칙이다.
 
-    변이: JUMP_TOL 을 0.05 로 낮추면 빨개진다(확인 — 세종·제주의 실제 급등 달이 단절로 잡힌다).
-    픽스처: 저장소 data.js 의 두 지수 계열 실제 값.
+    변이: `if len(hits[k]) >= BREAK_REGIONS:` 를 `if hits[k]:` 로 바꾸면 한 지역 급변 달이 단절로 잡혀 빨개지고(확인),
+          빈칸에서 `prev[r] = None` 으로 지우게 하면(비운 달 뒤를 못 봄) 반토막 달이 한 지역만 남아 빨개진다(확인).
+    픽스처: 합성 계열 — 세 지역, 넷째 달에 한 지역만 BREAK_JUMP 를 넘는 급등(20년 실측 최대 13.4% 보다 큰 실제 급변 가정),
+            다섯째 달에 BREAK_REGIONS 곳이 반토막(기준 변경), 그중 한 지역은 바로 앞 달이 비어 있다.
     """
-    for name in U.BASIS_SERIES:
-        D = U.read_current_stats()[name]
-        br = set(U.basis_breaks(D))
-        regs = list(D['series'].values())
-        for i in range(1, len(D['dates'])):
-            if D['dates'][i] in br:
-                continue
-            both = [(a[i - 1], a[i]) for a in regs if a[i - 1] and a[i] is not None]
-            if not both:
-                continue
-            big = sum(1 for p, c in both if abs(c / p - 1) > U.JUMP_TOL)
-            assert big < U.BROAD_SHARE * len(both) / 2, (name, D['dates'][i], big, len(both))
+    up = 1 + U.BREAK_JUMP + 0.05
+    a = [100, 101, 102, 102 * up, 50]
+    b = [120, 121, 122, None, 61]
+    c = [90, 91, 92, 93, 94]
+    D = {'dates': ['2025.01', '2025.02', '2025.03', '2025.04', '2025.05'],
+         'series': {'가': a, '나': b, '다': c}}
+    assert U.BREAK_REGIONS == 2, '픽스처는 두 지역 반토막을 단절로 둔다 — 문턱이 바뀌면 픽스처를 맞출 것'
+    assert U.basis_breaks(D) == ['2025.05']
 
 
 # ── 2. 합성 원천 ───────────────────────────────────────────────────────────────

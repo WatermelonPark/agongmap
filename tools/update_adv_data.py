@@ -1263,19 +1263,22 @@ def merge_prov(D, rates, dec):
 # 대표 결정(2026-09-30): **전 기간을 새 기준으로 다시 받아 원천 그대로 둔다. 연결계수로 잇지 않는다.**
 # 다시 받지 못하면 그 계열은 갱신을 보류한다(옛 값 유지, 새 달 안 붙임) — 다음 회차가 또 시도한다.
 #
-# 문턱의 근거(저장소 data.js 이력 58판, 2026-07-30~09-28):
-#   - REVISION_TOL 5%: 겹치는 달의 배치 간 소급 정정은 최대 2.0%(전세지수)·0.6%(매매지수)였다. 실제 기준 변경
-#     회차(3a823bc)에서는 5%를 넘은 지역이 매매 21/27·전세 26/27 이었다.
-#   - JUMP_TOL 15%: 2006~2025 옛 기준 계열의 실제 월간 최대 변동은 13.4%(제주 전세 2014.05)·11.9%(세종 매매
-#     2020.08)였다. 15%를 넘은 지역이 있던 달은 단절 달뿐이다(매매 12/27, 전세 20/27).
-#   - BROAD_SHARE 1/3: '지역 전반'. 기준 변경은 지역마다 다른 배수(100 ÷ 새 기준 달 옛 값)라 기준 달 값이 100
-#     근처였던 지역은 거의 안 움직인다 — 모든 지역을 요구하면 놓친다. 한 지역의 실제 급변은 1/3 에 못 미친다.
+# 문턱의 근거(저장소 data.js 이력 58판, 2026-07-30~09-28 · 단절 전 계열 2006.01~2026.07):
+#   - BREAK_JUMP 15% · BREAK_REGIONS 2곳: 한 달 사이 15% 넘게 움직인 지역이 두 곳 이상이면 기준 단절로 본다.
+#     옛 기준 계열의 실제 월간 최대 변동은 한 지역 13.4%(제주 전세 2014.05)·11.9%(세종 매매 2020.08)였고, 같은 달에
+#     15% 넘게 움직인 지역이 둘인 달은 없다. 기준 단절 달에는 매매 12곳·전세 20곳이 한꺼번에 넘었다.
+#     **사이클 도구(rebuild_cycle_analysis.index_breaks — 묶음 C)와 같은 규칙·같은 값이다.** 같은 대상(저장 지수 계열의
+#     단절)을 재는 두 코드이므로 통합 때 한 정본으로 합친다(이름·반환 모양을 맞춰 두었다).
+#   - REVISION_TOL 5% · REBASE_SHARE 1/3: 겹치는 달의 배치 간 소급 정정은 최대 2.0%(전세지수)·0.6%(매매지수)였다.
+#     실제 기준 변경 회차(3a823bc)에서는 5%를 넘은 지역이 매매 21/27·전세 26/27 이었다. 기준 변경은 지역마다 다른
+#     배수(100 ÷ 새 기준 달 옛 값)라 기준 달 값이 100 근처였던 지역은 거의 안 바뀐다 — 모든 지역을 요구하면 놓친다.
 # 대상 계열은 BASIC_CONF 에서 항목이 '지수'인 것(손 목록을 두지 않는다).
 BASIS_SERIES = [n for n, c in BASIC_CONF.items() if c.get('itm') == '지수']
+BREAK_JUMP = 0.15
+BREAK_REGIONS = 2
 REVISION_TOL = 0.05
-JUMP_TOL = 0.15
-BROAD_SHARE = 1 / 3
-_BASIS_MIN_REGIONS = 3          # 이보다 적은 지역으로는 '전반'을 말하지 않는다
+REBASE_SHARE = 1 / 3
+_BASIS_MIN_REGIONS = 3          # 이보다 적은 지역으로는 기준시점 표지·겹침 어긋남을 말하지 않는다
 BASIS_CHUNK = 12                # 재수집 한 번에 받는 달 수 — flat 표 27지역 × 12달은 40,000셀에 한참 못 미친다
 
 
@@ -1291,30 +1294,43 @@ def basis_months(D):
     return out
 
 
-def basis_breaks(D):
-    """저장 계열 안의 기준 단절 — 인접 월 변동이 JUMP_TOL 을 넘은 지역이 BROAD_SHARE 이상인 달의 라벨 목록.
+def index_breaks(st, keys=None):
+    """지수 계열에서 기준 단절로 보이는 달. [(계열, 달, 넘은 지역 수, (가장 크게 움직인 지역, 전달 값, 그달 값))].
 
-    같은 계열에 기준시점 표지(모든 지역 100.0 인 달)가 둘 이상이면 옛 기준과 새 기준이 이어 붙은 것이므로,
-    인접 월 검사가 놓쳐도 뒤쪽 표지 달을 단절로 돌려준다. 게이트 시험(test_index_basis)과 update_basic 이
-    이 함수 하나를 쓴다."""
+    한 달 사이 BREAK_JUMP 넘게 움직인 지역이 BREAK_REGIONS 곳 이상인 달이다. 비어 있는 칸은 건너뛰고 그 지역의 바로
+    앞 값과 견준다(원천이 한 달 비운 지역도 이어서 본다). rebuild_cycle_analysis.index_breaks(묶음 C)와 같은 규칙·
+    같은 반환 모양이다 — 통합 때 한 정본으로 합친다. keys 를 안 주면 BASIS_SERIES."""
     out = []
-    regs = list(D['series'].values())
-    for i in range(1, len(D['dates'])):
-        both = [(a[i - 1], a[i]) for a in regs if i < len(a) and a[i - 1] and a[i] is not None]
-        if len(both) < _BASIS_MIN_REGIONS:
-            continue
-        big = sum(1 for p, c in both if abs(c / p - 1) > JUMP_TOL)
-        if big >= BROAD_SHARE * len(both):
-            out.append(D['dates'][i])
-    marks = basis_months(D)
-    if len(marks) >= 2 and not out:
-        out.append(marks[-1])
+    for key in (BASIS_SERIES if keys is None else keys):
+        blk = st.get(key) or {}
+        dates = blk.get('dates') or []
+        prev, hits = {}, {}
+        for k in range(len(dates)):
+            for r, s in (blk.get('series') or {}).items():
+                v = s[k] if k < len(s) else None
+                if v is None:
+                    continue
+                p = prev.get(r)
+                if p:
+                    jump = abs(v / p - 1.0)
+                    if jump > BREAK_JUMP:
+                        hits.setdefault(k, []).append((jump, r, p, v))
+                prev[r] = v
+        for k in sorted(hits):
+            if len(hits[k]) >= BREAK_REGIONS:
+                _, r, p, v = max(hits[k])
+                out.append((key, dates[k], len(hits[k]), (r, p, v)))
     return out
+
+
+def basis_breaks(D):
+    """한 계열(D = STATS[계열])의 기준 단절 달 라벨 목록 — index_breaks 의 한 계열판."""
+    return [d for _, d, _, _ in index_breaks({'_': D}, ('_',))]
 
 
 def rebase_in_overlap(D, fetched):
     """이번에 받은 달과 저장분이 겹치는 확정 달에서 신·구 비(지역별 중앙값)가 REVISION_TOL 넘게 어긋난 지역이
-    BROAD_SHARE 이상이면 True — 원천이 기준시점을 바꿨다고 본다(평소 소급 정정은 2% 안쪽)."""
+    REBASE_SHARE 이상이면 True — 원천이 기준시점을 바꿨다고 본다(평소 소급 정정은 2% 안쪽)."""
     idx = {}
     for i, d in enumerate(D['dates']):
         ym = _label_ym(d)
@@ -1336,7 +1352,7 @@ def rebase_in_overlap(D, fetched):
         rs = sorted(rs)
         if abs(rs[len(rs) // 2] - 1) > REVISION_TOL:
             off += 1
-    return off >= BROAD_SHARE * len(ratios)
+    return off >= REBASE_SHARE * len(ratios)
 
 
 def basis_unit(D, unit):
@@ -1353,11 +1369,16 @@ def basis_unit(D, unit):
 
 def _basis_reason(D, fetched):
     """update_basic 이 이 지수 계열을 전 기간 재수집해야 하는 이유. 없으면 None.
-    ① 저장 계열 안에 이미 단절이 있다(이미 이어 붙인 판을 다음 배치가 스스로 고친다) ② 겹치는 달의 신·구 비가
-    지역 전반에서 어긋난다(이번 회차에 원천이 기준을 바꿨다)."""
+    ① 저장 계열 안에 이미 단절이 있다(index_breaks — 이미 이어 붙인 판을 다음 배치가 스스로 고친다)
+    ② 저장 계열에 기준시점 표지(모든 지역 100.0 인 달)가 둘 이상이다(옛 기준과 새 기준이 한 계열에 섞였다 —
+       단절 달의 움직임이 문턱에 못 미쳐도 잡는다) ③ 겹치는 달의 신·구 비가 지역 전반에서 어긋난다(이번 회차에
+       원천이 기준을 바꿨다)."""
     br = basis_breaks(D)
     if br:
         return '저장 계열 기준 단절(%s)' % ', '.join(br)
+    marks = basis_months(D)
+    if len(marks) >= 2:
+        return '저장 계열에 기준시점 표지가 둘 이상(%s)' % ', '.join(marks)
     if fetched and rebase_in_overlap(D, fetched):
         return '겹치는 달 신·구 비가 지역 전반에서 %d%% 넘게 어긋남(기준시점 변경)' % round(REVISION_TOL * 100)
     return None
@@ -1370,7 +1391,9 @@ def refetch_basic_full(name, D, today=None):
       - 받은 확정 달이 끊김 없이 이어진다(중간 달이 빠지면 조회가 부분 실패한 것이다).
       - 마지막 확정 달이 저장분의 마지막 확정 달보다 앞서지 않는다.
       - 저장분 마지막 확정 달에 값이 있던 지역이 새 계열 마지막 확정 달에도 모두 있다.
-      - 새 계열 안에 기준 단절(basis_breaks)이 없다 — 원천 자체가 섞여 있으면 싣지 않는다.
+      - 새 계열 안에 기준 단절(basis_breaks)도, 기준시점 표지 둘도 없다 — 원천 자체가 섞여 있으면 싣지 않는다.
+        (원천에 실제로 두 지역 넘게 15% 넘는 급변이 생기면 여기서 보류가 이어진다 — 20년 동안 없던 일이라 사람이
+        .fetch_failed 의 '기준변경 보류'를 보고 판단한다.)
     원천에 옛 달이 아예 없으면(err 30) 새 계열이 늦게 시작한다 — 정의가 다른 옛 값을 잇는 것보다 정직하다.
     """
     today = today or datetime.date.today()
@@ -1416,8 +1439,10 @@ def refetch_basic_full(name, D, today=None):
     merge_basic(new, fetched)
     merge_prov(new, rates, BASIC_CONF[name]['dec'])
     br = basis_breaks(new)
-    if br:
-        raise RuntimeError('%s 재수집: 원천 계열 안에도 기준 단절이 있다(%s)' % (name, ', '.join(br)))
+    marks = basis_months(new)
+    if br or len(marks) >= 2:
+        raise RuntimeError('%s 재수집: 원천 계열 안에도 기준 단절이 있다(%s)'
+                           % (name, ', '.join(br) or '기준시점 표지 %s' % ', '.join(marks)))
     new['unit'] = basis_unit(new, D.get('unit'))
     return new
 
