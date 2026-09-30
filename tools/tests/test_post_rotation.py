@@ -72,7 +72,8 @@ def test_second_lap_starts_after_everyone_is_published(tmp_path, monkeypatch):
     _env(tmp_path, monkeypatch)
     everyone = _pub(*[r['z'] for r in ROWS])
     pick, seq, _, _ = P.pick_zone(ROWS, published=everyone)
-    assert (pick['z'], seq) == ('서울', 1)
+    # seq 는 누적 회차다(전수리뷰 #80) — 두 바퀴째 서울은 1이 아니라 len(ROWS)+1. 1로 되돌리면 캠페인·팔이 1바퀴와 같아진다
+    assert (pick['z'], seq) == ('서울', len(ROWS) + 1)
     everyone['서울'].add('https://blog.example/서울-2')
     assert P.pick_zone(ROWS, published=everyone)[0]['z'] == '대구'
 
