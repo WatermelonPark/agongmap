@@ -45,7 +45,7 @@ gtag('config','G-3FJNG6G1F3',{send_page_view:false});
     if(a&&a[0]==='event'&&a[1]==='page_view')return true;}return false;}
   function load(){
     if(on)return;on=true;
-    if(!sent()&&!window.__pvDefer)gtag('event','page_view',{page_location:at});   // 대결 부팅은 home-quiz.js 가 보낸다(__pvDefer)
+    if(!sent()&&!window.__pvDefer)gtag('event','page_view',{page_location:at});   // 대결 부팅은 분할 퀴즈 파일이 도착한 뒤 보낸다(__pvDefer)
     if(window['ga-disable-'+ID])return;   // 제외 기기는 194KB 를 받지도 않는다
     var s=document.createElement('script');s.async=true;
     s.src='https://www.googletagmanager.com/gtag/js?id='+ID;
