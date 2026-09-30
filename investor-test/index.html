@@ -125,9 +125,13 @@ th{text-align:center}
 .nav-btn svg{display:block}
 .nav-btn.on,.nav-btn:hover{color:#fff}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-3px}
+/* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 페이지는 공용 시트를 안 읽어 규칙을 동봉한다(2026-09-30 전수리뷰 #71) */
+.skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
+.skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
 </head>
 <body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <header><div class="wrap">
   <div class="chip">🦅 투자자 테스트</div>
@@ -137,6 +141,7 @@ th{text-align:center}
   <button class="cta sub share" onclick="shareKakao()"><svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡으로 공유하기</button>
   <div class="meta">회원가입 없음 · 무료 · 결과 카카오톡 공유</div>
 </div></header>
+<main id="main">
 
 <section><div class="wrap">
   <h2>이런 걸 물어본다</h2>
@@ -160,8 +165,8 @@ th{text-align:center}
   <table>
     <tr><th>점수</th><th>투자 감각</th></tr>
     <tr><td>9~10</td><td>🏆 LV5 — 지역별 공급 물량을 꿰고 있는 승부사</td></tr>
-    <tr><td>7~8</td><td>🔭 LV4 — 머릿속에선 이미 최소 다주택자</td></tr>
-    <tr><td>5~6</td><td>🌙 LV3 — 사놓고 밤에 잠 못 드는 단계</td></tr>
+    <tr><td>7~8</td><td>🔭 LV4 — 무주택이어도 머릿속에선 이미 최소 다주택자</td></tr>
+    <tr><td>5~6</td><td>🌙 LV3 — 집 사놓고 불안해서 밤에 잠 못 드는 단계</td></tr>
     <tr><td>3~4</td><td>🧭 LV2 — 호재·악재 거꾸로 읽는 초보</td></tr>
     <tr><td>0~2</td><td>🌱 LV1 — 통념에 갇힌 부동산 왕초보</td></tr>
   </table>
@@ -183,6 +188,7 @@ th{text-align:center}
   <a class="cta" href="/#test-investor">지금 바로 테스트 시작 →</a>
 </div></section>
 
+</main>
 
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
