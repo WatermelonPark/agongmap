@@ -30,6 +30,8 @@ import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로�
 import make_weekly_page as MW  # noqa: E402  (주간 변동률 반올림 정본 pv2 — 사이트 pv2 와 같다)
 import weekly_moves as WM  # noqa: E402  (방향 표지·시군구 순위 이동 정본 — 홈 마케팅 검수 B7)
 import close_published_issues as CP  # noqa: E402  (RSS·카테고리 이름의 정본)
+import make_indicator_pages as I  # noqa: E402  (전세가율 기준월 정본 jeonse_ref_index — /jeonse-ratio/·/cycle/ 와 같은 달)
+import rebuild_cycle_analysis as RC  # noqa: E402  (지수 기준 단절 판정의 정본 index_breaks — 4편·사이클 도구와 같은 규칙)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, 'drafts')
@@ -146,11 +148,34 @@ def rent_yield(adv, sts, region='전국'):
     """
     B = adv.get('bubble') or {}
     cv = (B.get('conv') or {}).get(region)
+    # ⚠️ 전세가율 달은 홈 버블밴드(renderBubbleSec 의 latest — 지역마다 최신 비결측)와 같게 둔다. 이 절의 정본 화면은
+    # 홈이다. 홈이 기준월 규칙(jeonse_ref_index)으로 바뀌면 여기도 _jeonse_at_ref 로 바꾼다(전수리뷰 #106, 홈 쪽 미결).
     s = (((sts or {}).get('전세가율') or {}).get('series') or {}).get(region) or []
     jr = next((v for v in reversed(s) if v is not None), None)
     if cv is None or jr is None:
         return None
     return jr / 100 * cv
+
+
+def _jeonse_at_ref(sts, region='전국'):
+    """전세가율 (기준월 값, 전월 값, 기준월) — 기준월은 사이트 정본 I.jeonse_ref_index(JEONSE_NEED 가 다 찬 마지막 달).
+
+    예전엔 지역마다 '마지막 비결측 값'을 읽었다. 새 달이 일부 지역만 채워진 회차에 /jeonse-ratio/·/cycle/ 은 직전
+    완비 달(2026.08)을 말하는데 블로그는 부분 달(2026.09) 값을 발행했다(전수리뷰 #106·#24 블로그 쪽). 없으면 None.
+    """
+    j = (sts or {}).get('전세가율') or {}
+    if not j.get('dates') or not j.get('series'):
+        return None
+    try:
+        i = I.jeonse_ref_index(j, I.JEONSE_NEED)
+    except RuntimeError:
+        return None
+    s = j['series'].get(region) or []
+    k = SZ.month_back(j['dates'], i, 1)
+    if i >= len(s) or s[i] is None:
+        return None
+    prv = s[k] if k is not None and k < len(s) else None
+    return s[i], prv, j['dates'][i]
 
 
 def kdate(p):
@@ -281,13 +306,17 @@ def pick_zone(rows, published=None):
     lap = min(len(seen.get(r['z'], ())) for r in pool)
     done = [r['z'] for r in pool if len(seen.get(r['z'], ())) > lap]
     pick = next(r for r in pool if r['z'] not in done)
+    # seq 는 **누적 회차**다(전수리뷰 #80). 바퀴마다 1부터 다시 세면 두 바퀴째 서울 편이 1바퀴 서울 편과 같은
+    # 캠페인(zone_deep_1)·같은 유도문·같은 제목 실험 팔을 받는다. 한 바퀴째 값은 예전(len(done)+1)과 같다 —
+    # 이미 나간 글의 캠페인·팔과 어긋나지 않는다. 바퀴 안 순번은 (seq-1) % total + 1 이다.
+    seq = lap * len(pool) + len(done) + 1
 
     def commit():
         if not os.path.isdir(OUT):
             os.makedirs(OUT)
         io.open(STATE, 'w', encoding='utf-8').write(json.dumps(
             {'posts': {k: sorted(v) for k, v in seen.items()}}, ensure_ascii=False))
-    return pick, len(done) + 1, len(pool), commit
+    return pick, seq, len(pool), commit
 
 
 # ---------------------------------------------------------- 로테이션·해석 자리
@@ -398,6 +427,16 @@ SGG_N, SEOUL_N = _tile_counts()
 # 재사용) 반대 방향으로 가져오면 순환 참조가 된다. 2026-09-12에 실제로 그렇게 돼서
 # `python tools/make_naver_post.py` 가 ImportError 로 죽었다 — 테스트는 모듈을
 # __main__ 으로 돌리지 않아 210개가 전부 통과하면서도 발행 도구가 못 돌았다.
+def cycle_d():
+    """`/cycle/` 의 정본 const D 전체(sync·link1_new·prose …). 이론 초안도 숫자를 여기서 읽는다(전수리뷰 #76·#77)."""
+    p = os.path.join(ROOT, 'cycle', 'index.html')
+    m = re.search(r'const D\s*=\s*(\{.*?\});',
+                  io.open(p, encoding='utf-8').read(), re.S)
+    if not m:
+        raise RuntimeError('/cycle/ 에서 D 블록을 찾지 못했다 — 곳 수를 못 맞춘다')
+    return json.loads(m.group(1))
+
+
 def _cycle_sync():
     """`/cycle/` 의 const D 에서 sync 목록을 읽는다. [{region, corr, sudo}, …]
 
@@ -405,13 +444,7 @@ def _cycle_sync():
     (평균 0.71→0.73, 서울 0.58→0.55). 사이트와 블로그가 다른 숫자를 말하면
     '계산법을 공개한다'는 근거가 그 자리에서 무너진다.
     """
-    p = os.path.join(ROOT, 'cycle', 'index.html')
-    m = re.search(r'const D\s*=\s*(\{.*?\});',
-                  io.open(p, encoding='utf-8').read(), re.S)
-    if not m:
-        raise RuntimeError('/cycle/ 에서 D 블록을 찾지 못했다 — 곳 수를 못 맞춘다')
-    rows = json.loads(m.group(1))['sync']
-    return sorted(rows, key=lambda r: -r['corr'])
+    return sorted(cycle_d()['sync'], key=lambda r: -r['corr'])
 
 
 CYCLE_SYNC = _cycle_sync()
@@ -428,7 +461,8 @@ MORE_ROTATION = [
     dict(h='이번 주 시세를 지도로 보려면',
          desc='시군구 %d곳과 서울 %d개 구의 매매·전세 변동률을 지도 한 장으로 '
               '볼 수 있습니다. 상승은 빨강, 하락은 파랑입니다.' % (SGG_N, SEOUL_N),
-         path='/weekly/', label='주간 시세 지도 보기'),
+         # 시군구 지도는 홈 시세 화면에 있다. /weekly/ 에는 시도 격자·시군구 표만 있다(전수리뷰 #83).
+         path='/#stats-market', label='시군구 지도 보기'),
     dict(h='우리 동네 공급은 어떤가',
          desc='시도별로 앞으로 3년간 들어올 물량과 필요한 양을 비교한 리포트가 있습니다. 지역을 골라 들어가 보세요.',
          path='/zone/', label='전국 시도별 공급'),
@@ -493,8 +527,9 @@ def _series_last(sts, key, region='전국'):
 def extra_section(adv, sts, rot):
     """④ 이번 주의 다른 지표 — 4주 로테이션. 데이터가 없으면 섹션째 생략한다."""
     if rot == 0:
-        cur, prv, when = _series_last(sts, '전세가율')
-        if cur is None:
+        # 기준월은 /jeonse-ratio/ 와 같은 정본 규칙(_jeonse_at_ref). 전월이 없으면 '전월 대비'를 못 쓰므로 생략한다.
+        cur, prv, when = _jeonse_at_ref(sts) or (None, None, None)
+        if cur is None or prv is None:
             return ''
         mv = '올랐습니다' if cur > prv else ('내렸습니다' if cur < prv else '보합입니다')
         return ('<h3>이번 주의 지표 — 전세가율</h3>'
@@ -518,44 +553,53 @@ def extra_section(adv, sts, rot):
         B = adv.get('bubble') or {}
         lo = rent_yield(adv, sts, '전국')
         loan = (B.get('loan') or {}).get('v')
+        loan_p = (B.get('loan') or {}).get('p')
         if lo is None or loan is None:
             return ''
         judge = ('월세로 사는 비용이 대출 이자보다 비싼 상태' if loan <= lo
                  else '대출 이자가 월세보다 비싼 상태')
         return ('<h3>이번 주의 지표 — 월세수익률 vs 대출금리</h3>'
                 '<p>전국 월세수익률(전세가율 × 전월세전환율)은 연 <b>%s%%</b>, '
-                '주택담보대출 금리는 <b>%s%%</b>입니다. 지금은 %s입니다. '
+                '주택담보대출 금리는 <b>%s%%</b>%s입니다. 지금은 %s입니다. '
                 '어차피 어딘가에는 살아야 하므로, 이 차이는 실거주 매수를 '
-                '검토할지 판단하는 출발점이 됩니다.</p>' % (fixed2(lo), fixed2(loan), judge))
+                '검토할지 판단하는 출발점이 됩니다.</p>'
+                # 금리는 월 단위로 늦게 나온다 — 몇 월 값인지 붙인다(전수리뷰 묶음 F 제안)
+                % (fixed2(lo), fixed2(loan), ('(%s 기준)' % esc(loan_p)) if loan_p else '', judge))
     # ⚠️ ADV.aged30은 쓰지 않는다 — 2026-08-06 시도 재편 전의 생활권 키('서울권',
     # '경기남부권' …)가 그대로 남아 있어서, 사이트엔 없는 지역명이 블로그로 나간다
     # (2026-08-11 실측으로 확인). STATS['노후주택30년']이 시도 키로 살아 있다.
     N = sts.get('노후주택30년') or {}
     ser = N.get('series') or {}
     dates = N.get('dates') or []
-    pairs = []
-    for k, v in ser.items():
-        if k in SZ.AGG:          # 전국·수도권·지방 집계는 순위에서 뺀다
-            continue
-        vals = [x for x in (v or []) if x is not None]
-        if vals:
-            pairs.append((k, vals[-1]))
-    if not pairs:
+    # 기준 해는 **모든 시도가 채워진 마지막 열**이고, 순위는 그 열 값끼리만 매긴다(전수리뷰 #114). 예전엔 지역마다
+    # 결측을 거른 마지막 값을 쓰고 이름표는 dates[-1] 을 달아, 새 해 열이 한 지역만 채워진 회차에 작년 값들을
+    # 올해 기준으로 묶었다(_series_last 가 막은 것과 같은 모양 — 병합은 새 열을 전 지역 None 으로 만든다).
+    sido = {k: v or [] for k, v in ser.items() if k not in SZ.AGG}    # 전국·수도권·지방 집계는 순위에서 뺀다
+    i = next((j for j in range(len(dates) - 1, -1, -1)
+              if sido and all(j < len(v) and v[j] is not None for v in sido.values())), None)
+    if i is None:
         return ''
+    pairs = [(k, v[i]) for k, v in sido.items()]
     tops = sorted(pairs, key=lambda x: -x[1])[:3]
     return ('<h3>이번 주의 지표 — 30년 넘은 아파트</h3>'
             '<p>준공 30년이 지난 아파트가 가장 많은 곳은 %s입니다(%s년 기준). '
             '노후 재고는 재건축·재개발 압력이자 앞으로 헐릴 집이기도 해서, '
             '많이 쌓인 지역일수록 실제 공급이 통계보다 빠듯해질 수 있습니다.</p>'
-            % (' · '.join('<b>%s %s호</b>' % (esc(k), num(v)) for k, v in tops),
-               (dates[-1] if dates else '')))
+            % (' · '.join('<b>%s %s호</b>' % (esc(k), num(v)) for k, v in tops), dates[i]))
 
 
 # ---------------------------------------------------------------- 초안 ①
-def draft_weekly(adv, sts):
+# 주간 글 '주요 지역 변동률' 표에 싣는 지역. 순서는 싣는 순간 SZ.DISPLAY_ORDER 를 따르고, 이름이 모델에 있는지는
+# test_weekly_table_names_are_model_names 가 본다(전수리뷰 #82).
+WEEKLY_TABLE = frozenset(('전국', '수도권', '서울', '경기', '인천', '부산', '대구', '대전', '전남광주', '울산'))
+
+
+def draft_weekly(adv, sts, shot=True):
+    """shot=False 면 사이트 화면을 뜨지 않는다 — 지난 회차(--week N)는 운영 사이트가 지금 주 화면만 보여 주므로
+    그 캡처를 붙이면 과거 글에 이번 주 지도·TOP 10 이 실린다(전수리뷰 #74)."""
     sgg = top10 = None
-    sggerr = '--no-shot 로 건너뜀'
-    if '--no-shot' not in sys.argv:
+    sggerr = '--no-shot 로 건너뜀' if shot else '지난 회차라 사이트 캡처(지금 주 화면)를 건너뜀'
+    if shot and '--no-shot' not in sys.argv:
         sgg, top10, sggerr = capture_weekly_map()
     if sgg:
         # 한 장짜리 지도는 맨 아래 범례("위 = 매매 · 아래 = 전세")까지 같이 잘려
@@ -587,10 +631,11 @@ def draft_weekly(adv, sts):
     # 시도만 추려 상승·하락 정렬(전국·수도권·지방 같은 집계 항목 제외).
     # 집계 이름은 SZ.AGG가 정본이다 — 여기에 사본을 두면 정본이 늘 때 이 글만
     # 옛 목록으로 남는다.
-    sido = [(k, v[0]) for k, v in val.items() if k not in SZ.AGG and v[0] is not None]
-    # 부호는 **표시값**(pv2r)으로 가른다 — 원값 0.001 을 '오른 곳 0.00%'로 쓰지 않게(/weekly/ 와 같은 규칙).
-    up = [t for t in sorted(sido, key=lambda x: -x[1])[:3] if MW.pv2r(t[1]) > 0]
-    dn = [t for t in sorted(sido, key=lambda x: x[1])[:3] if MW.pv2r(t[1]) < 0]
+    # 상위·하위 3은 /weekly/ 와 **같은 함수**(MW.top3, 같은 시도 목록 MW.SIDO·같은 순서)로 뽑는다(전수리뷰 #84).
+    # 예전 사본은 원천 순서로 늘어선 val 에서 정렬해, 반올림 전 값이 같은 두 곳의 순서(하락 쪽)가 /weekly/ 와 갈릴 수
+    # 있었다. 부호는 표시값(pv2r)으로 가른다 — 원값 0.001 을 '오른 곳 0.00%'로 쓰지 않게(/weekly/ 와 같은 규칙).
+    sido = [(k, val[k][0]) for k in MW.SIDO if k in val and val[k][0] is not None]
+    up, dn = MW.top3(sido)
 
     # 서울 구별
     gu = []
@@ -599,9 +644,7 @@ def draft_weekly(adv, sts):
         sr = S['rows'][-1]
         # ⚠️ `x[1] or -9`로 쓰면 안 된다 — 보합(0.00%)도 거짓값이라 하락한 구보다
         # 뒤로 밀린다. 결측(None)만 맨 뒤로 보내는 게 의도다.
-        gu = sorted(zip(S['regions'], sr['ma']),
-                    key=lambda x: -(x[1] if x[1] is not None else -9))[:3]
-        gu = [t for t in gu if t[1] is not None and MW.pv2r(t[1]) > 0]
+        gu = MW.top3([(g, v) for g, v in zip(S['regions'], sr['ma']) if v is not None])[0]   # /weekly/ 서울 구별과 같은 함수
 
     # 검색어를 맨 앞에 둔다. 2026-08-14 네이버 검색 실측에서 이 자리를 차지한
     # 블로그 글이 '한국부동산원 주간동향｜8월 1주 전국 아파트 시세 분석' 형태였고,
@@ -628,8 +671,10 @@ def draft_weekly(adv, sts):
         MW.TITLE_KW, MW.WR.week_label(p), pct(seoul[0]), pct(nat[0]))
 
     rowsHtml = ''
-    for k in ['전국', '수도권', '서울', '경기', '인천', '부산', '대구', '대전', '전남광주', '울산']:
+    for k in [z for z in SZ.DISPLAY_ORDER if z in WEEKLY_TABLE]:
         if k not in val:
+            # 조용히 건너뛰지 않는다 — 지역 이름이 바뀌면(2026-09-10 광주·전남 통합) 그 행만 표에서 사라졌다(전수리뷰 #82)
+            print('  ⚠ 주간 표 %s 행 생략 — 주간 계열에 그 이름이 없다(모델 지역 이름이 바뀌었는지 볼 것)' % k)
             continue
         m, j = val[k]
         if m is None:
@@ -781,7 +826,16 @@ SERIES_INTRO = (
 )
 
 
-def series_links(nm, seq):
+def _rot(seq, n, total=None):
+    """회차 seq 에 돌릴 문장 번호(0..n-1). total(한 바퀴 지역 수)을 주면 바퀴마다 한 칸씩 밀어, 두 바퀴째 같은 지역에
+    같은 문장이 다시 가지 않게 한다(전수리뷰 #80 — 문장 수 4가 바퀴 16의 약수라 ASK_CTA 가 지역에 고정됐다).
+    한 바퀴째(seq <= total)와 total 을 안 줄 때는 예전 (seq-1) % n 과 같다."""
+    if not total:
+        return (seq - 1) % n
+    return ((seq - 1) % total + (seq - 1) // total) % n
+
+
+def series_links(nm, seq, total=None):
     """발행된 글에서 직전 지역 편·최신 주간 시세를 찾아 링크 블록을 만든다.
 
     ⚠️ RSS를 못 읽어도 초안 생성은 계속된다. 블로그가 잠깐 안 열린다고 그 주
@@ -814,18 +868,19 @@ def series_links(nm, seq):
             return p
         return None
 
-    picks = [p for p in (latest('지역별 아파트 공급', skip_self=True),
-                         latest('주간 아파트 시세')) if p]
+    # 카테고리 이름은 정본(CP.KIND_TO_CATEGORY)에서 — 손으로 복제하면 이름이 바뀔 때 링크가 조용히 빠진다(전수리뷰 #79)
+    picks = [p for p in (latest(ZONE_CAT, skip_self=True),
+                         latest(CP.KIND_TO_CATEGORY['주간 시세'])) if p]
     if not picks:
         return ''
     items = ''.join('<br>👉 <a href="%s">%s</a>' % (p['url'], esc(p['title']))
                     for p in picks)
-    return '<p>%s%s</p>' % (SERIES_INTRO[(seq - 1) % len(SERIES_INTRO)], items)
+    return '<p>%s%s</p>' % (SERIES_INTRO[_rot(seq, len(SERIES_INTRO), total)], items)
 
 
-def cta(nm, seq):
-    """글 끝 유도문 한 줄. 문장은 회차마다 바뀌고, 목적지는 늘 그 지역 리포트다."""
-    txt = ZONE_CTA[(seq - 1) % len(ZONE_CTA)]
+def cta(nm, seq, total=None):
+    """글 끝 유도문 한 줄. 문장은 회차마다 바뀌고, 목적지는 늘 그 지역 리포트다. 캠페인은 누적 회차(seq)라 글마다 다르다."""
+    txt = ZONE_CTA[_rot(seq, len(ZONE_CTA), total)]
     return ('<p>%s<br>👉 <a href="%s">%s 공급 리포트</a></p>'
             % (txt % esc(nm) if '%s' in txt else txt,
                site_link('/zone/%s/' % quote(nm), 'zone_deep_%d' % seq), esc(nm)))
@@ -859,12 +914,19 @@ TAG_NAME = {'전남광주': '광주'}
 CITY_TAG = {'경남': '창원', '경북': '포항', '충남': '천안', '충북': '청주', '전북': '전주', '강원': '원주'}
 
 
-def title_arm(seq):
-    return 'B' if seq >= TITLE_ARM_FROM and (seq - TITLE_ARM_FROM) % 2 == 0 else 'A'
+def title_arm(seq, total=None):
+    """제목 실험 팔. 한 바퀴째는 seq 5부터 B·A·B…(1~4는 이미 A로 나감). total 을 주면 두 바퀴째부터는 **바퀴 안
+    순번의 팔을 바퀴마다 뒤집는다**(전수리뷰 #80). 그러지 않으면 지역마다 팔이 영원히 고정돼(서울·대구 A, 세종 B)
+    A/B 차이가 지역 차이와 완전히 섞인다. 두 바퀴를 합치면 모든 지역이 A·B를 한 번씩 받는다."""
+    k, lap = seq, 0
+    if total and seq > total:
+        k, lap = (seq - 1) % total + 1, (seq - 1) // total
+    arm = 'B' if k >= TITLE_ARM_FROM and (k - TITLE_ARM_FROM) % 2 == 0 else 'A'
+    return {'A': 'B', 'B': 'A'}[arm] if lap % 2 else arm
 
 
-def zone_title(nm, yr, yrs, ask, seq):
-    if title_arm(seq) == 'B':
+def zone_title(nm, yr, yrs, ask, seq, total=None):
+    if title_arm(seq, total) == 'B':
         # 연도는 두 안 모두 '2027년'으로 쓴다(2026-09-29 대표 키워드도구: 2027년부동산전망 110 대 2027부동산전망
         # 120/월로 수요는 같고, 블로그 문서는 '2027년 부동산 전망' 5,019 대 '2027 부동산 전망' 165,931 로 33분의 1).
         # 두 안의 연도 표기가 달랐던 탓에 실험이 앞머리 말과 '년'을 섞어 비교하고 있었다.
@@ -894,14 +956,24 @@ ASK_CTA = (
 )
 
 
-def ask_cta(nm, seq):
-    txt = ASK_CTA[(seq - 1) % len(ASK_CTA)]
+def ask_cta(nm, seq, total=None):
+    txt = ASK_CTA[_rot(seq, len(ASK_CTA), total)]
     return '<p>%s</p>' % (txt % esc(nm) if '%s' in txt else txt)
 
 
 def _thumb_curve(sts, nm, since='2016.01'):
-    """썸네일 배경에 깔 그 지역 매매가격지수. (점 목록, 고점 위치, 고점 대비 %)"""
+    """썸네일 배경에 깔 그 지역 매매가격지수. (점 목록, 고점 위치, 고점 대비 %) — 못 쓰면 None.
+
+    계열이 끊겨 있으면(기준시점 변경 — 판정은 RC.index_breaks 정본) None 이다(전수리뷰 #72). 단절은 계열 전체의 일이라
+    그 지역의 단절 폭이 작아도(대구 +4%) 옛 기준·새 기준이 섞인 것은 같다.
+    2026-09-28 데이터는 2026.01 부터 새 기준(2026.06=100)이 옛 기준(2017.11=100) 끝에 붙어, 역대 최고가인 서울에
+    '고점에서 -47%'와 절벽 곡선이 찍혔다. None 이면 문구는 기본값('<지역> 아파트')으로, 곡선은 빼고 그린다.
+    """
     st = (sts or {}).get('매매지수') or {}
+    br = RC.index_breaks(sts or {}, ('매매지수',))
+    if br:
+        print('  ⚠ 썸네일 곡선·고점 문구 생략 — 매매지수 기준 단절: %s' % RC.break_message(br))
+        return None
     ds = [x.split()[0] for x in st.get('dates', [])]    # '2026.07 p)' 같은 잠정 표시를 뗀다
     pts = [(d, v) for d, v in zip(ds, (st.get('series') or {}).get(nm, []))
            if v is not None and d >= since]
@@ -1089,7 +1161,7 @@ def draft_zone(adv, sts, r, seq, total):
     # 구분자는 쉼표다. 2026-08-15 실측에서 '전망' 성격의 글 상위권은 쉼표·물음표를
     # 쓰고 `|`는 안 쓴다 — `|`는 주간 시세 쪽 관행이다(한국부동산원 주간동향｜…).
     # 사이클 시리즈만 고치고 여기를 빠뜨렸던 걸 사용자가 잡았다.
-    title = zone_title(nm, yr, yrs, ask, seq)
+    title = zone_title(nm, yr, yrs, ask, seq, total)
 
     body = []
     # 첫 이미지가 네이버의 대표 이미지(피드 카드 썸네일)가 된다 — 그래서 맨 앞이다.
@@ -1232,11 +1304,11 @@ def draft_zone(adv, sts, r, seq, total):
     # 53문장 중 30문장이 대구와 뼈대가 같았고, 그 절반이 여기였다. 계산법 공개는
     # 아공맵의 신뢰 근거라 버리는 게 아니라 **사이트가 진다**. 블로그는 그 지역
     # 이야기만 하고, 산식이 궁금한 사람은 아래 유도문을 타고 리포트로 간다.
-    sl = series_links(nm, seq)
+    sl = series_links(nm, seq, total)
     if sl:
         body.append(sl)
-    body.append(cta(nm, seq))
-    body.append(ask_cta(nm, seq))
+    body.append(cta(nm, seq, total))
+    body.append(ask_cta(nm, seq, total))
     # ⚠️ 면책을 '권유하지 않습니다'로 쓰지 않는다. 본문이 방향을 분명히
     # 말하는데 말미에서 그걸 부인하면 글이 스스로를 무른다. 대신 **사실과
     # 견해를 가르고 책임 소재를 밝힌다** — 이 편이 더 정직하고 더 강하다.
@@ -1281,7 +1353,10 @@ def draft_zone(adv, sts, r, seq, total):
             note += '<br><b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % thumb
     return dict(title=title, body='\n'.join(body), tags=tags, img=shot,
                 kw='%s 아파트 공급물량' % nm, imgnote=note,
-                seq='%d / %d번째 지역 · 제목 실험 %s안' % (seq, total, title_arm(seq)),
+                seq='%d / %d번째 지역%s · 제목 실험 %s안' % (
+                    (seq - 1) % total + 1, total,
+                    (' · %d바퀴째(누적 %d편째)' % ((seq - 1) // total + 1, seq)) if seq > total else '',
+                    title_arm(seq, total)),
                 # 본문 자리 표시자 순서대로. 썸네일은 글 맨 위(대표 이미지)다.
                 imgs=[(thumb, '썸네일 · 글 맨 위, 대표 이미지'), (shot, '리포트 캡처'),
                       (shots.get('표'), '분기별 공급표'),
@@ -1961,6 +2036,25 @@ def _week_back(argv):
         raise SystemExit('--week 뒤에 숫자를 줄 것 (0=최신, 1=한 주 전)')
 
 
+def _cut_weekly(adv, back):
+    """--week N: 주간 계열을 N주 앞에서 자른 adv 사본. 시도 행(rows)만이 아니라 서울 구(seoul)·시군구(sgg) 행도
+    **같은 조사일까지** 자른다(전수리뷰 #74). 예전엔 rows 만 잘라, 9/14 회차 글의 '서울 안에서는 …'과 'TOP 10 가운데
+    순위가 가장 많이 뛴 곳'이 9/21 값을 실었다. 행 수가 아니라 날짜로 자르므로 계열 길이가 달라도 맞는다.
+
+    ⚠️ 월간 지표(이번 주의 지표 절)는 자르지 않는다 — 그 주 발표일 이전 달로 제한할지는 정하지 않았다.
+    """
+    if not back:
+        return adv
+    W = adv['weekly']
+    rows = W['rows'][:len(W['rows']) - back]
+    cut = rows[-1]['p']
+    W2 = dict(W, rows=rows)
+    for k in ('seoul', 'sgg'):
+        if (W.get(k) or {}).get('rows'):
+            W2[k] = dict(W[k], rows=[r for r in W[k]['rows'] if r['p'] <= cut])
+    return dict(adv, weekly=W2)
+
+
 def main():
     adv, sts = M.load()
     # 점수는 배치가 구워 ADV.sido에 실어 둔 것을 그대로 읽는다 — 사이트 화면과
@@ -1974,11 +2068,10 @@ def main():
     wrows = adv['weekly']['rows']
     if back >= len(wrows):
         raise SystemExit('주간 계열이 %d회차뿐이다 — --week %d 는 없다' % (len(wrows), back))
-    if back:
-        adv = dict(adv, weekly=dict(adv['weekly'], rows=wrows[:len(wrows) - back]))
+    adv = _cut_weekly(adv, back)
     p = adv['weekly']['rows'][-1]['p']
 
-    d1 = draft_weekly(adv, sts)
+    d1 = draft_weekly(adv, sts, shot=not back)
     if back:
         # 과거 회차 채우기 — 시세 글만 만든다.
         d2 = None
