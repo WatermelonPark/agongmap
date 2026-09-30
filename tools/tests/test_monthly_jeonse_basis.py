@@ -69,3 +69,30 @@ def test_monthly_jeonse_full_latest_month_is_still_the_basis():
     secs, _ = MP.build({}, {'전세가율': jr})
     sec = _section(''.join(secs), 'jeonse')
     assert '<b>%s</b> 기준' % MP.month_label(jr['dates'][-1]) in sec
+
+
+def test_monthly_jeonse_change_is_the_jeonse_ratio_change():
+    """/monthly/ 전세가율 '1년 전 대비'는 /jeonse-ratio/ 와 같은 정본(I.jeonse_delta — 표시값(소수 첫째 자리)끼리의 차)이다.
+
+    예전 /monthly/ 는 원값 차를 둘째 자리로 찍어 같은 달 전남광주가 /monthly/ +0.92 · /jeonse-ratio/ +0.9%p 로 갈렸고,
+    한 자리로 반올림하면 값 자체가 다른 달도 47개였다(2014.01 +1.50 대 +1.6 — 통합 검토).
+    변이(실제로 확인): 표의 `I.jeonse_delta(c, prev.get(r))` 를 옛 `c - prev[r]`·pv2 로 되돌리면 표 단정이, top3_lines 의
+    전세가율 분기를 원값 차로 되돌리면 요약 단정이 빨개진다.
+    픽스처: _jeonse 합성 계열(다른 지역은 1년에 +8.4)의 최신 달 서울 88.74 · 1년 전 77.26(원값 차 11.48 → 한 자리 11.5,
+            표시값 차 88.7−77.3 = 11.4, 요약 1위) — 전남광주처럼 둘째 자리까지 있는 가중평균 계열의 모양.
+    """
+    jr = _jeonse(skip=())
+    i = len(jr['dates']) - 1
+    j = MP.SZ.month_back(jr['dates'], i, 12)
+    jr['series']['서울'][i], jr['series']['서울'][j] = 88.74, 77.26
+    secs, _ = MP.build({}, {'전세가율': jr})
+    sec = _section(''.join(secs), 'jeonse')
+    rows = _rows(sec)
+    for r, cells in rows.items():
+        want = I.jeonse_delta(jr['series'][r][i], jr['series'][r][j])
+        assert cells[1] == want, '%s: /monthly/ %s · /jeonse-ratio/ 정본 %s' % (r, cells[1], want)
+    assert rows['서울'][1] == 11.4
+    html, _ = I.build_jeonse({'전세가율': jr})
+    assert re.search(r'>서울<.*?\+11\.4%p', html, re.S), '/jeonse-ratio/ 서울 행이 +11.4%p 가 아니다'
+    top = _top(sec)
+    assert ('서울', 11.4) in {(t[1], t[2]) for t in top}, top
