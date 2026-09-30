@@ -284,6 +284,9 @@ def track_keywords(posts=None):
        - '{지역} 적정 공급량' — 우리 고유어. 경쟁 글이 적어 먼저 잡힐 후보다(첫 검색 유입이 이 말).
        - '{검색 표기} 부동산 전망' — 수요가 있는 말(대구부동산전망 1,180/월). 제목 교대 실험 B안의 앞머리.
     지역은 make_naver_post._zone_of_title 로 가린다(제목 교대 실험의 두 형태를 다 받는다).
+
+    발행 목록(RSS)을 못 읽으면 None 이다 — '발행된 지역 편 없음'([])과 가른다(전수리뷰 #81). 가르지 않으면
+    --track 이 지역 키워드를 통째로 뺀 채 전국 질의만 재고 종료 코드 0 으로 끝났다.
     """
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     if posts is None:
@@ -292,7 +295,9 @@ def track_keywords(posts=None):
             posts = CP.fetch_posts()
         except Exception as e:
             print('발행 목록을 못 읽었다: %s' % e)
-            return []
+            return None
+        if posts is None:                 # fetch_posts 는 읽기 실패를 None 으로 알린다
+            return None
     if not posts:
         return []
     import close_published_issues as CP
@@ -301,7 +306,7 @@ def track_keywords(posts=None):
     names = [z for z in SZ.ORDER if z not in SZ.AGG]
     out = []
     for p in sorted(posts, key=lambda x: x['date']):
-        if p['cat'] != '지역별 아파트 공급':
+        if p['cat'] != P.ZONE_CAT:         # 카테고리 이름의 정본(CP.KIND_TO_CATEGORY) — 손 복제 금지(전수리뷰 #79)
             continue
         # 도시 입주물량 편은 제목에 '전망'이 없어 통째로 질의가 된다 — 쉼표 앞 앞머리('2027년 청주 아파트 입주물량')로 잰다.
         kws = [p['title'].split(',')[0].strip() if CP.is_city_post(p['title'])
@@ -374,12 +379,16 @@ def main(argv):
         # 링크를 줄인 게 순위에 해가 됐는지는 회차마다 같은 키워드를 재야 답이
         # 나온다. 자기 제목 검색(--index)은 색인만 알려주지 경쟁 키워드에서
         # 밀렸는지는 말해주지 않는다(2026-09-01 사용자 우려).
-        kws = [a for a in argv if not a.startswith('--')] or (track_keywords() + NATIONAL)
-        if not kws:
-            raise SystemExit('추적할 키워드가 없다 — 발행된 지역 편이 아직 없거나 '
-                             'RSS를 못 읽었다.')
-        print('타겟 키워드 %d개의 우리 자리를 잰다 (정확도순 블로그 상위 30)\n' % len(kws))
         failed = 0
+        kws = [a for a in argv if not a.startswith('--')]
+        if not kws:
+            tk = track_keywords()
+            if tk is None:
+                # 지역 편 키워드가 순위 추적의 본체다 — 빠진 회차는 실패로 남긴다(종료 코드 1)
+                failed += 1
+                print('⚠️ 발행 목록(RSS)을 못 읽어 지역 편 키워드를 빼고 전국 질의만 잰다.\n')
+            kws = (tk or []) + NATIONAL
+        print('타겟 키워드 %d개의 우리 자리를 잰다 (정확도순 블로그 상위 30)\n' % len(kws))
         for kw in kws:
             hit, err = rank_on(kw)
             if err:
@@ -438,7 +447,7 @@ def main(argv):
               '회차 간 **변화**를 읽을 것.')
         print('※ %s 에 기록했다.' % os.path.relpath(HIST, ROOT))
         if failed:
-            print('⚠️ %d개 키워드는 재시도까지 조회에 실패해 재지 못했다(기록 안 함).' % failed)
+            print('⚠️ %d건 실패 — 재시도까지 조회에 실패한 키워드(기록 안 함)이거나 발행 목록을 못 읽었다.' % failed)
         return 1 if failed else 0
 
     if '--index' in argv:
