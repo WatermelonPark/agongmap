@@ -644,33 +644,49 @@ function tbBuild(){
      본문으로 말한다. */
   var un={},pm={};
   S.zones.forEach(function(z){ un[z.z]=z.unsold; pm[z.z]=z.pm12; });
+  /* 분기·연 가격 합은 split_data 가 원값으로 한 번 더해 실은 ADV.monthly.agg 를 읽는다(tbAgg). pidx 는 regs → 그 배열의 칸. */
   return TB_BCACHE={regs:regs,refs:refs,est:est,rows:rows,H:S.H,L:S.L,
-          un:un,pm:pm,uprd:S.unsold_prd};
+          un:un,pm:pm,uprd:S.unsold_prd,
+          pagg:P.agg||null,pidx:regs.map(function(r){return pi[r];})};
 }
 /* 월 원장 → 기간 단위. n(합친 달 수)을 같이 돌려줘야 부분 기간의 적정물량이
    같은 비율로 줄어든다 — 안 그러면 2029년(2분기치)이 1년치 기준과 비교돼
    과대 부족으로 보인다. */
+/* 가격 변동(매매·전세·월세)의 기간 합은 **달이 다 찬 칸만** 낸다(전수 리뷰 #15, 대표 결정 ⑧). 값이 있는 달만 더하면
+   전남광주 25Q2(6월 결측)가 두 달 합으로, 연 보기의 마지막 해가 몇 달 합으로 '그 기간 변동률'처럼 칠해졌다. 덜 찬 칸은
+   null('자료 없음'·무색). 분기·연 합은 split_data 가 정본 sido_zones.price_periods 로 **원값**을 한 번 더해 실은
+   ADV.monthly.agg 를 읽는다(#110 — 소수 둘째 자리로 반올림한 월값을 여기서 더하면 시도 리포트와 칸의 5%에서 갈렸다).
+   agg 가 없는 옛 데이터면 같은 규칙(달 수가 모자라면 null)으로 여기서 더한다. */
+var TB_PF={m:'ma',j:'je',w:'wo'};
 function tbAgg(rows,per){
   var size=TB_SIZE[per]||3, out=[], cur=null, key=null;
+  var B=TB_BCACHE, A=(size>1&&B&&B.pagg)?B.pagg[per]:null;
   rows.forEach(function(r){
     var g=Math.floor(r.i/size);
     if(cur===null||g!==key){
       key=g;
-      cur={i:g*size,n:0,nf:0,s:r.s.map(function(){return 0;}),m:null,j:null,w:null};
+      cur={i:g*size,g:g,n:0,nf:0,s:r.s.map(function(){return 0;}),m:null,j:null,w:null,c:{}};
       out.push(cur);
     }
     cur.n++; if(r.fut) cur.nf++;
     r.s.forEach(function(v,k){ cur.s[k]+=v; });
     ['m','j','w'].forEach(function(f){
       if(!r[f]) return;
-      if(!cur[f]) cur[f]=r.s.map(function(){return null;});
-      r[f].forEach(function(v,k){ if(v!=null) cur[f][k]=(cur[f][k]||0)+v; });
+      if(!cur[f]){ cur[f]=r.s.map(function(){return null;}); cur.c[f]=r.s.map(function(){return 0;}); }
+      r[f].forEach(function(v,k){ if(v!=null){ cur[f][k]=(cur[f][k]||0)+v; cur.c[f][k]++; } });
     });
   });
   out.forEach(function(c){
     c.fut=(c.nf===c.n);                 // 전부 미래일 때만 미래 행
     c.mix=(c.nf>0&&c.nf<c.n);           // 실적과 추정이 한 칸에 섞였다
     c.part=(c.n<size);                  // 기간이 덜 찼다(표 시작·끝)
+    var lab=per==='q'?(Math.floor(c.g/4)+'Q'+(c.g%4+1)):String(c.g), got=A?(A[lab]||null):null;
+    ['m','j','w'].forEach(function(f){
+      if(!c[f]) return;
+      if(A){ var arr=got&&got[TB_PF[f]]; c[f]=B.pidx.map(function(p){ return (arr&&p!=null&&arr[p]!=null)?arr[p]:null; }); }
+      else c[f]=c[f].map(function(v,k){ return c.c[f][k]===size?v:null; });
+    });
+    delete c.c;
   });
   return out;
 }

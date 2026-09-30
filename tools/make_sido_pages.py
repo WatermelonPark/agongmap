@@ -42,21 +42,14 @@ GA = 'G-3FJNG6G1F3'
 # 두 화면이 같은 지역을 다른 구간으로 그리면 숫자를 맞춰보는 사람이 어긋난 걸 본다.
 TABLE_FROM = SZ.qidx(2017, 1)
 
-GRADE_TXT = {
-    # 라벨은 2026-08-15 PM 결정으로 한 칸 올렸다. 색은 등급 키에 묶여 있어 그대로
-    # 둔다(심각도 순서가 보존된다).
-    #
-    # ⚠️ 등급마다 붙어 있던 고정 설명문을 2026-09-13에 걷었다. g1의 '필요한 만큼
-    # 들어오고 있습니다'가 바로 아래 '누적 순부족 50,579세대'와 정면으로 부딪혀
-    # 경기 리포트가 반대로 읽혔다(PM 요청 ①). 한 등급 안에서도 순부족비가 0.01과
-    # 0.49만큼 다른데 문장이 하나라 생긴 일이다. 이제 설명은 지역마다 그 지역의
-    # 비율로 만든다 — verdict_line() 참조.
-    'g4': ('심각한 부족', '#a93226'),
-    'g3': ('매우 부족', '#c0392b'),
-    'g2': ('부족', '#b9770e'),
-    'g1': ('균형', '#5e6f74'),
-    'g0': ('공급 여유', '#1a5276'),
-}
+# 등급 색. 라벨은 여기 적지 않는다 — 정본 sido_zones.GRADE_LABS 에서 만든다(전수 리뷰 #17·#115). 예전엔 라벨을 손으로 옮긴
+# 사본이라, 사다리를 바꿀 때 GRADE_LABS·홈만 고치면 리포트 배지·제목·허브만 옛 이름으로 남고 아무것도 빨개지지 않았다.
+# 라벨은 2026-08-15 PM 결정으로 한 칸 올렸다. 색은 등급 키에 묶여 있어 그대로 둔다(심각도 순서가 보존된다).
+# ⚠️ 등급마다 붙어 있던 고정 설명문을 2026-09-13에 걷었다. g1의 '필요한 만큼 들어오고 있습니다'가 바로 아래
+# '누적 순부족 50,579세대'와 정면으로 부딪혀 경기 리포트가 반대로 읽혔다(PM 요청 ①). 이제 설명은 지역마다 그 지역의
+# 비율로 만든다 — verdict_line() 참조.
+GRADE_COLOR = {'g4': '#a93226', 'g3': '#c0392b', 'g2': '#b9770e', 'g1': '#5e6f74', 'g0': '#1a5276'}
+GRADE_TXT = {k: (SZ.GRADE_LABS[k], GRADE_COLOR[k]) for k in SZ.GRADE_KEYS}
 # 집계 3종은 '지역'이 아니라 묶음이라 설명이 달라야 한다
 # 시도 수는 모델에서 센다(CLAUDE.md "사람이 센 수를 박지 않는다"). 이 파일의 '16개 시도'
 # 문구는 전부 이 값을 쓴다 — '지방'만 세고 '전국'은 리터럴이던 것을 2026-09-23 점검에서 맞췄다.
@@ -86,8 +79,12 @@ AGG_NOTE = {
 # TB_REFNOTE는 이 사전을 손으로 옮긴 거울이고, 어긋나면 테스트가 깨진다
 # (test_refnote_copy_is_identical_on_home_and_zone). 홈은 정적 파일이라
 # 생성기가 주입할 수 없어, 등급 JS 미러와 같은 방식으로 잠근다.
+# 미분양 출처 기관(전수 리뷰 #21). 참고 행 안내(REFNOTE)와 '어떻게 계산했나'가 이 한 값을 쓴다 — 한 페이지가 같은 계열을
+# '국토교통부'와 '한국부동산원'으로 달리 말했다. 주택 미분양 현황은 국토교통부가 작성하는 통계다(한국부동산원 R-ONE 은
+# 배포 창구). 홈 TB_REFNOTE 거울(test_refnote_copy_is_identical_on_home_and_zone)과 홈 산출 방법도 이 기관명을 쓴다.
+UN_SOURCE = '국토교통부'
 REFNOTE = {
-    'un': '미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(국토교통부 월간 집계). '
+    'un': '미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(' + UN_SOURCE + ' 월간 집계). '
           '이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, '
           '참고로만 보여줍니다.',
     # 2026-09-13 대표 결정: 인허가는 허수가 많아 참고로만 본다는 점을 분명히 한다.
@@ -206,6 +203,15 @@ def _cut(x):
     return '%d%%' % round(x * 100)
 
 
+def _euro(word):
+    """받침에 맞는 조사 으로/로(ㄹ 받침은 '로'). 등급 이름을 정본에서 읽으므로 조사도 이름을 따라간다."""
+    last = word[-1] if word else ''
+    if not ('가' <= last <= '힣'):
+        return '로'
+    j = (ord(last) - 0xAC00) % 28
+    return '으로' if j and j != 8 else '로'
+
+
 def verdict_line(row, H):
     """리포트 머리의 판정 설명 — 그 지역의 비율과, 그 비율이 왜 그 등급인지.
 
@@ -213,12 +219,13 @@ def verdict_line(row, H):
     계산법 공개가 핵심 가치라 '균형'이라는 말 뒤에 기준을 같이 적는다.
     """
     c = SZ.GRADE_CUTS
+    L = SZ.GRADE_LABS          # 등급 이름은 정본에서 읽는다(전수 리뷰 #115 — 규칙 문장 속 세 번째 손 사본)
     rule = {
-        'g4': '%s 이상이라 심각한 부족으로 분류합니다' % _cut(c[0]),
-        'g3': '%s 이상이라 매우 부족으로 분류합니다' % _cut(c[1]),
-        'g2': '%s 이상이라 부족으로 분류합니다' % _cut(c[2]),
-        'g1': '%s에 못 미쳐 균형으로 분류합니다' % _cut(c[2]),
-        'g0': '모자라는 몫이 없어 공급 여유로 분류합니다',
+        'g4': '%s 이상이라 %s%s 분류합니다' % (_cut(c[0]), L['g4'], _euro(L['g4'])),
+        'g3': '%s 이상이라 %s%s 분류합니다' % (_cut(c[1]), L['g3'], _euro(L['g3'])),
+        'g2': '%s 이상이라 %s%s 분류합니다' % (_cut(c[2]), L['g2'], _euro(L['g2'])),
+        'g1': '%s에 못 미쳐 %s%s 분류합니다' % (_cut(c[2]), L['g1'], _euro(L['g1'])),
+        'g0': '모자라는 몫이 없어 %s%s 분류합니다' % (L['g0'], _euro(L['g0'])),
     }[row['grade']]
     # 지난 창 재고의 부호로 문장 갈래를 고른다 — '숫자로 보면'의 식(formula_text)과 같은 정수·같은 갈래(B2·TRUST-2).
     inow = rnd(row['inow']) if 'inow' in row else None
@@ -374,30 +381,17 @@ def load():
 
 
 def price_quarters(adv):
-    """{분기 인덱스: {지역: [매매, 전세, 월세]}} — 월별 변동률을 분기로 합친다.
+    """{분기 인덱스: {지역: [매매, 전세, 월세]}} — 월별 변동률을 분기로 합친다(정본 sido_zones.price_periods).
 
-    ⚠️ 자료가 하나도 없는 지역·분기는 **키를 만들지 않고**, 항목별로도 값이 없으면
-    None으로 남긴다. 예전엔 모든 지역에 [0,0,0]을 먼저 깔아 놔서 지수가 결측인 곳이
-    '+0.0%'(완전 보합)로 인쇄됐다 — 광주·전남은 2025-05~2026-06 14개월이 통째로
-    결측인데 최근 4분기가 전부 보합으로 보였다(2026-08-07 감사).
+    ⚠️ 석 달이 다 찬 항목만 합을 낸다 — 달이 모자라면 None('–'), 세 항목이 다 없으면 지역 키가 없다. 예전엔 값이 있는 달만
+    더해 전남광주 2025Q2(6월 결측)가 4·5월 두 달 합으로 찍히고 색이 칠해졌다(전수 리뷰 #15). 홈 표는 split_data 가 같은
+    함수로 실어 준 합을 읽는다(#110).
     """
-    mo = (adv.get('monthly') or {})
-    regs = mo.get('regions') or []
     out = {}
-    for r in mo.get('rows') or []:
-        y, m = int(r['p'][:4]), int(r['p'][5:7])
-        i = SZ.qidx(y, (m - 1) // 3 + 1)
-        cur = out.setdefault(i, {})
-        for k, reg in enumerate(regs):
-            for f, n in (('ma', 0), ('je', 1), ('wo', 2)):
-                v = (r.get(f) or [None] * len(regs))[k]
-                if v is None:
-                    continue
-                a = cur.get(reg)
-                if a is None:
-                    a = cur[reg] = [None, None, None]
-                a[n] = (a[n] or 0) + v
+    for key, regs in SZ.price_periods(adv.get('monthly') or {}, 'q').items():
+        out[SZ.qidx(int(key[:4]), int(key[5:]))] = regs
     return out
+
 
 def series(stats, z, calc):
     """지역 하나의 분기별 공급 — (분기 인덱스, 값, 미래 여부) 목록."""
@@ -813,7 +807,9 @@ def next_links(z, weekly, stats):
         ya = SZ.month_back(dates, li, 12)     # 라벨로 1년 전 칸을 찾는다(li-12 는 빠진 달이 있으면 13달 전 — 감사 #17)
         ago = ser[ya] if ya is not None and ya < len(ser) else None
         if cur is not None:
-            chg = '' if ago is None else ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
+            import make_indicator_pages as I   # 변화량은 /jeonse-ratio/ 표와 같은 함수(표시값의 차, 전수 리뷰 #16)
+            d = I.jeonse_delta(cur, ago)
+            chg = '' if d is None else ' · 1년 전 대비 %+.1f%%p' % d
             cards.append('<a href="/jeonse-ratio/"><b>전세가율</b><i>%.1f%%%s · %s 기준</i></a>'
                          % (cur, chg, esc(dates[li])))
     year = year_line(z, stats)
@@ -913,6 +909,11 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     L = SZ.qidx(int(calc['L'][:4]), int(calc['L'][5:]))
     fut = [r for r in rows if r[2]]
     yrs = calc['H'] / 4.0
+    # 연수 문자열은 모델 상수에서 만든다(전수 리뷰 #19 — '지난 4년'·'3년 뒤로 밀어'·'3년 너머'가 박혀 있어, 창·리드를
+    # 바꾸면 같은 카드 안에서 식은 새 연수, 제목은 옛 연수를 말했다).
+    win_y = '%g년' % (SZ.BACKLOG_WINDOW / 4.0)     # 지난 재고 창
+    lead_y = '%g년' % (SZ.LEAD_Q / 4.0)            # 착공 → 준공 리드(착공을 밀어 추정하는 길이)
+    ahead_y = '%g년' % (calc['H'] / 4.0)           # 판정 창 = split_text 의 '… 너머' 줄 이름
     # ⚠️ 카드 세 개는 **서로 검산이 되어야 한다**. 예전엔 '앞으로 3년 공급'만 분기별
     # 반올림의 합(fut_sum)이라 ADV.sido의 fut과 1~2세대 어긋났고, 같은 페이지의
     # '어떻게 계산했나' 산식으로 검산하면 20곳 중 12곳이 안 맞았다(2026-08-08 감사).
@@ -981,12 +982,12 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
         # (2026-08-07 감사).
         ('누적 순부족', ('%s세대 부족' % num(d_tot)) if d_tot >= 0
          else ('%s세대 여유' % num(-d_tot)), eq),
-        (('지난 4년 쌓인 부족', num(-d_inow) + '세대',
+        (('지난 %s 쌓인 부족' % win_y, num(-d_inow) + '세대',
           '준공이 적정물량보다 적어 쌓인 몫(멸실을 뺀 값)') if d_inow < 0 else
-         ('지난 4년 남은 재고', num(d_inow) + '세대',
+         ('지난 %s 남은 재고' % win_y, num(d_inow) + '세대',
           '준공이 적정물량보다 많아 남은 몫(멸실을 뺀 값)')),
         ('앞으로 %.0f년 공급' % yrs, num(fut_sum) + '세대',
-         '이미 착공한 물량을 3년 뒤로 밀어 추정'),
+         '이미 착공한 물량을 %s 뒤로 밀어 추정' % lead_y),
         (('앞으로 %.0f년 적정물량' % yrs) + (' <em class="zchip">추정</em>' if row.get('est') else ''),
          num(d_need) + '세대',
          ('분기 %s호 × %d분기' % (num(d_ref), calc['H']))
@@ -1065,15 +1066,18 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     h.append('</div></section>')
 
     # ── 산출 방법 ──
+    # 인허가가 착공보다 얼마나 많은지는 매 회차 데이터로 잰다(전수 리뷰 #112 — '15%쯤'이 박혀 있었다). 잴 수 없으면 구절을 뺀다.
+    pover = SZ.permit_over_start_pct(stats)
+    pover_txt = ('같은 해 착공보다 %d%%쯤 많고 ' % pover) if pover is not None else ''
     h.append('<section><div class="wrap"><h2>어떻게 계산했나</h2>'
              '<p>칸의 숫자는 그 분기에 <b>준공된</b> 아파트 세대수입니다(국토교통부 주택건설 준공실적). '
-             '아직 오지 않은 분기는 <b>착공 실적을 3년 뒤로 밀어</b> 추정했습니다 — '
-             '착공한 것의 %d%%가 3년 뒤 준공되는 게 %d년 이후 실측입니다. '
-             '판정에 인허가는 쓰지 않습니다. 삽을 안 뜬 계획이 섞여 같은 해 착공보다 15%%쯤 많고 '
-             '해마다 크게 흔들리기 때문입니다. 위의 \'3년 너머\' 줄은 최근 2년 인허가를 그 지역의 '
+             '아직 오지 않은 분기는 <b>착공 실적을 %(lead)s 뒤로 밀어</b> 추정했습니다 — '
+             '착공한 것의 %(convp)d%%가 %(lead)s 뒤 준공되는 게 %(conv_from)d년 이후 실측입니다. '
+             '판정에 인허가는 쓰지 않습니다. 삽을 안 뜬 계획이 섞여 %(pover)s'
+             '해마다 크게 흔들리기 때문입니다. 위의 \'%(ahead)s 너머\' 줄은 최근 2년 인허가를 그 지역의 '
              '착공 비율로 환산한 <b>참고</b> 값입니다. 서울·경기처럼 기준표에 없는 지역은 '
              '적정물량을 추정했고, 그 지역은 \'추정\'으로 표시합니다.</p>'
-             '<p>누적 순부족은 <b>%s</b>입니다(지난 %s 동안 필요량보다 더 지었으면 남은 재고를 뺍니다). '
+             '<p>누적 순부족은 <b>%(formula)s</b>입니다(지난 %(win)s 동안 필요량보다 더 지었으면 남은 재고를 뺍니다). '
              '재고에서는 멸실(철거)을 뺐지만 <b>앞으로 헐릴 집은 빼지 않았습니다</b> — '
              '재건축 시기를 미리 알 방법이 없어서입니다. 그만큼 부족이 덜 잡힙니다.</p>'
              # ⚠️ '0은 자료 없음이 아니다' 문단을 두지 않는다(2026-08-15 사용자).
@@ -1081,14 +1085,16 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
              # 실측하니 **–가 20페이지 전체에서 0번** 나온다 — 대비 대상이 화면에
              # 없는 채로 없는 오해를 만들어놓고 푸는 문장이었다. 0은 그냥 0으로
              # 읽힌다. '경계선 위는 준공, 아래는 착공'도 이 절 첫 문단이 이미 말한다.
-             '<p><b>미분양</b>은 지금 안 팔리고 남은 집입니다(한국부동산원). '
+             '<p><b>미분양</b>은 지금 안 팔리고 남은 집입니다(%(un_src)s). '
              '순위 계산에는 넣지 않습니다 — 결과값이라 공급에서 빼면 이중으로 세고 부호도 반대가 됩니다. '
              '판정을 읽는 맥락으로만 씁니다.</p>'
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
              '</div></section>'
-             # 전환율·기준 연도는 모델 상수에서 읽는다(2026-09-23 점검 — '96%·15년치'가 박혀 있었다).
-             % (round(calc['conv'] * 100), SZ.CONV_FROM, esc(SZ.formula_text(calc['H'])),
-                '%g년' % (SZ.BACKLOG_WINDOW / 4.0)))
+             # 전환율·기준 연도는 모델 상수에서 읽는다(2026-09-23 점검 — '96%·15년치'가 박혀 있었다). 기준 연도는 CONV 를 잰
+             # 첫 착공 연도(CONV_START_FROM)다 — 착공÷인허가를 재는 CONV_FROM(2012)이 아니다(전수 리뷰 #111).
+             % {'lead': lead_y, 'convp': round(calc['conv'] * 100), 'conv_from': SZ.CONV_START_FROM,
+                'pover': pover_txt, 'ahead': ahead_y, 'formula': esc(SZ.formula_text(calc['H'])),
+                'win': win_y, 'un_src': UN_SOURCE})
 
     h.append(next_links(z, weekly, stats))
     h.append(weekly_section(z, weekly, names))

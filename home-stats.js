@@ -574,9 +574,13 @@ function occCls(region,v){
   /* 기준선은 분기 적정물량 하나다. 2026-08-07까지 여기에 '적정밴드'가 하나 더
      있어서, 같은 제주를 홈·존 페이지는 '매우 부족'이라 하고 이 표는 '밴드 상단
      초과(과잉)'라고 칠했다(감사 확인 23칸). 밴드는 걷었다. */
-  const ref=ADV.occupancy.ref[region]; if(!ref) return '';
-  if(v>=ref) return 'hi';
-  if(v<=ref*0.6) return 'lo';
+  /* 문턱은 /moveins/ 와 같은 정본(sido_zones.OCC_LO_PCT·OCC_HI_PCT, 대표 결정 ③)을 split_data 가 ADV.occupancy.band 로
+     실어 준 값이다 — 여기 숫자를 적지 않는다(예전 60%·100% 는 /moveins/ 70%·130% 와 같은 칸을 다르게 칠했다, 전수 리뷰 #60).
+     판정은 /moveins/ 처럼 표시 정수 퍼센트로 한다: 부족 = 문턱(lo) 미만, 과잉 = 문턱(hi) 초과. */
+  const ref=ADV.occupancy.ref[region], band=ADV.occupancy.band; if(!ref||!band) return '';
+  const p=Math.round(v/ref*100);
+  if(p>band.hi) return 'hi';
+  if(p<band.lo) return 'lo';
   return '';
 }
 function occFut(p){
