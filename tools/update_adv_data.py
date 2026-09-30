@@ -2243,7 +2243,10 @@ def main():
         yr = datetime.date.today().year
         if DATAGO_KEY and {'holidays:%d' % y for y in (yr, yr + 1)} <= set(soft_failed[n0:]):
             failed.append('holidays')
-        if h and h != adv.get('holidays'):
+        # 공휴일 원천이 통째로 죽은 회차(위 주요 실패)에는 fetch_holidays 가 돌려준 '저장분 중 올해·내년'을 쓰지 않는다.
+        # 해가 바뀐 뒤 첫 장애 회차엔 그것이 저장 목록(작년·올해)과 달라 changed 가 되고, 원천 전면 장애인데 rc=3 이
+        # 나지 않아 '갱신됨'으로 커밋·재시도 없음이 됐다(통합 검토). 목록 정리는 원천이 살아 있는 회차에 한다.
+        if h and h != adv.get('holidays') and 'holidays' not in failed:
             # changed에 넣지 않으면 main()의 `if changed: write_adv(adv)`가 그 회차에
             # 호출되지 않을 때 새 공휴일 목록이 메모리에서 그대로 버려진다
             # (2026-08-04 감사). 값이 실제로 달라졌을 때만 신호를 올린다.
