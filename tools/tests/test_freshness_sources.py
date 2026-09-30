@@ -196,7 +196,7 @@ def _web(fault):
             return _Body('<p>2026.06 기준 · 분기 적정물량</p>')
         if '/jeonse-ratio/' in url:
             return _Body('<p>2026.06 기준</p>')
-        return _Body('"dateModified": "%s"' % C.INDICATOR_PUBLISHED)
+        return _Body('<div class="note">2025년 1분기까지 준공 실적</div>')
     return urlopen
 
 
