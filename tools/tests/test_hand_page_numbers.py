@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""소개(/about/)·FAQ(/faq/)에 글자로 박은 수치가 정본(모델 상수·데이터·사이클 분석)과 같은지 본다(전수리뷰 #112·#69).
+"""소개(/about/)·FAQ(/faq/)·홈 산출 방법에 글자로 박은 수치가 정본(모델 상수·데이터·사이클 분석)과 같은지 본다(전수리뷰 #112·#69).
 
 두 페이지는 사람이 쓴 파일이라 배치가 고치지 않는다. 2026-09-30 전수 리뷰 때 아래 수치는 값은 맞았지만 대조하는
 시험이 없어, 원천·분석·모델이 바뀌어도 아무것도 빨개지지 않았다(CLAUDE.md '사람이 센 수를 박지 않는다').
 
-  ① '인허가는 같은 해 착공보다 15%쯤 많다'(about·faq) — 정본은 sido_zones.permit_start_conv(전국 착공÷인허가,
+  ① '인허가는 같은 해 착공보다 15%쯤 많다'(about·faq·홈 index.html) — 정본은 sido_zones.permit_start_conv(전국 착공÷인허가,
      CONV_FROM 이후 완비 연도 합계). 지금 0.867 → 인허가가 약 15.3% 많다.
      게이트 안전: 합계 비율이라 한 해가 더 들어와도 크게 움직이지 않는다. 2012~2025 중 가장 치우친 해(2023년,
      착공÷인허가 0.54)와 같은 해가 한 번 더 들어와도 15.3% → 18.1%, 약 2.8%p 움직인다. 그래서 '쯤'의 허용 폭을 ±5%p 로 둔다 — 한 회차의
@@ -19,7 +19,7 @@
 '16개 시도'는 test_handwritten_sido_count 가 이미 본다.
 
 무엇을 깨뜨리면 빨개지나(모두 실제로 확인):
-  · about/index.html 의 '15%쯤'을 '25%쯤'으로 바꾸면 ①이 실패한다.
+  · about/index.html(또는 홈 index.html)의 '15%쯤'을 '25%쯤'으로 바꾸면 ①이 실패한다.
   · faq/index.html 본문의 '약 37개월'을 '약 36개월'로 바꾸면 ②가 실패한다(JSON-LD 쪽만 바꿔도 실패).
   · sido_zones.GRADE_CUTS 의 1.5 를 1.6 으로 바꾸면 ③이 실패한다.
   · faq '11단계'를 '10단계'로 바꾸면 ④가 실패한다.
@@ -47,8 +47,9 @@ def test_permit_excess_percent_follows_measured_conversion():
     conv = SZ.permit_start_conv(SZ._load_stats(), '전국')
     assert conv, '전국 착공÷인허가를 재지 못했다'
     measured = (1 / conv - 1) * 100
-    for rel in ('about/index.html', 'faq/index.html'):
-        got = [int(x) for x in re.findall(r'착공보다 (\d+)%쯤 많', _read(rel))]
+    for rel in ('about/index.html', 'faq/index.html', 'index.html'):
+        text = HS.home_source() if HS.is_home(rel) else _read(rel)
+        got = [int(x) for x in re.findall(r'착공보다 (\d+)%쯤 많', text)]
         assert got, "%s: '착공보다 N%%쯤 많' 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것" % rel
         for n in got:
             assert abs(n - measured) <= PERMIT_TOL, (
