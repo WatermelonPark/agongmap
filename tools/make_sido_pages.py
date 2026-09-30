@@ -1163,12 +1163,19 @@ def _home_lastmod(today):
 
     두 페이지는 data-core.js(ADV.weekly.sgg 최신 주차, ADV.sido)를 그려서 만든다.
     파일 해시를 도장으로 남겨, 내용이 같은 날은 옛 날짜를 유지한다.
+
+    해시 전에 공유 그림 주소의 판(`share/….png?v=…`)을 가린다. 주간 카드 생성기는 게이트 뒤에 돌며 restamp_share 로
+    data-core.js 의 그 판만 고쳐 쓰는데(같은 회차 안에서 카드와 주소를 맞춤), 이 도장은 그보다 먼저 찍혀 커밋되는
+    해시와 파일이 어긋났다. 그래서 새 주차 다음 날 내용이 그대로인데도 홈·/weekly/ lastmod 가 한 번 더 오르고 커밋·
+    IndexNow 가 생겼다(통합 검토). 판은 카드가 바뀔 때만 바뀌고, 그 회차엔 주간 데이터도 함께 바뀌어 해시가 어차피 달라진다.
     """
     import hashlib
     try:
-        h = hashlib.sha1(io.open(os.path.join(ROOT, 'data-core.js'), 'rb').read()).hexdigest()[:16]
+        raw = io.open(os.path.join(ROOT, 'data-core.js'), 'rb').read()
     except IOError:
         return today
+    raw = re.sub(rb'(share/[\w.-]+\.png)\?v=[0-9A-Za-z-]+', rb'\1?v=', raw)
+    h = hashlib.sha1(raw).hexdigest()[:16]
     prev = ''
     try:
         prev = io.open(HOME_STAMP, encoding='utf-8').read().strip()
