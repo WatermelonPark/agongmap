@@ -71,6 +71,11 @@ REGION.update({'전국': '전국', '수도권': '수도권', '지방': '지방'}
 # ── 산식 상수 ───────────────────────────────────────────────────────────────
 LEAD_Q = 12          # 착공 → 준공 12분기(3년). 실측 최적값.
 CONV = 0.958         # 착공 대비 준공 전환율. 전국 연간 12개월 완비 연도 평균.
+# CONV 를 잰 구간: 착공 CONV_START_FROM 년부터 CONV_YEARS 개 완비 연도(착공 y ↔ 준공 y+3, 연도별 비의 평균).
+# 착공 계열이 2011.01 부터라 2011~2022 착공 12쌍이다. 문장('착공한 것의 96%가 … 2011년 이후 실측')과 시험
+# (test_conv_text_follows_model 이 data-rest 로 다시 잰다)이 이 두 값을 읽는다(전수 리뷰 #111).
+CONV_START_FROM = 2011
+CONV_YEARS = 12
 BACKLOG_WINDOW = 16  # 과거 재고 창 4년 (2026-08-02 사용자 결정, 앵커·상한 없음)
 # ⚠️ 마지막 컷은 -0.5가 아니라 **0.0**이다(2026-08-02 변경). 향후 16분기 물가차감
 # 실질 상승률이 비율 0에서 손익분기라서였다(0 아래 실질 -0.3~-1.2% · 0~0.5 +0.13% ·
@@ -97,7 +102,22 @@ GRADE_LABS = {'g4': '심각한 부족', 'g3': '매우 부족', 'g2': '부족',
               'g1': '균형', 'g0': '공급 여유'}
 
 
-def ratio_text(ratio, H=LEAD_Q, full=False, inow=None, W=BACKLOG_WINDOW):
+def ratio_pct(ratio):
+    """순부족비 → 화면에 찍는 정수 퍼센트(부호 포함). 판정 문구(ratio_text)·카드(card_parts)가 **이 함수 하나**로 센다.
+
+    ⚠️ 반올림이 등급 컷을 넘지 않게 한다(전수 리뷰 #9). 등급은 비율로 자르는데(grade) 퍼센트는 반올림해서 찍으니, 컷 바로
+    아래([cut−0.005, cut))에서 '… 50%만큼 부족합니다. 50%에 못 미쳐 균형으로 분류합니다'처럼 한 문장이 스스로 부딪쳤다.
+    컷 아래 비율의 퍼센트는 컷 숫자에 닿기 전(컷 − 1)에서 멈춘다. 컷 위는 반올림이 컷 아래로 내려갈 수 없어 그대로 둔다.
+    """
+    pct = int(round(ratio * 100))
+    for c in GRADE_CUTS:
+        cp = int(round(c * 100))
+        if c > 0 and ratio < c and pct >= cp:
+            pct = cp - 1
+    return pct
+
+
+def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     """순부족비를 사람 말로 옮긴다. 판정 배지 옆에 붙는다(2026-09-13 PM 요청 ①).
 
     발단: 경기 리포트가 판정은 '균형'인데 바로 아래 '누적 순부족 50,579세대'라
@@ -117,10 +137,13 @@ def ratio_text(ratio, H=LEAD_Q, full=False, inow=None, W=BACKLOG_WINDOW):
     이 프로젝트는 2026-08-06에 그런 미러를 전부 걷어냈다. calc()가 결과 행에
     'rtxt'로 구워 싣고 화면은 읽기만 한다.
     """
+    # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
+    H = LEAD_Q if H is None else H
+    W = BACKLOG_WINDOW if W is None else W
     yrs = '%g년' % (H / 4.0)
     # 필요량을 넘는 부족도 배가 아니라 퍼센트로 쓴다. '1.0배'로 쓰면 울산(1.012)·
     # 경남(1.007)이 '딱 같다'로 읽히고, 판정 규칙 문장('50%에 못 미쳐')과도 단위가 갈린다.
-    pct = int(round(ratio * 100))
+    pct = ratio_pct(ratio)
     if not full:
         if pct >= 1:
             return '%s 필요량의 %d%% 부족' % (yrs, pct)
@@ -294,32 +317,31 @@ def permit_trail12(stats, region):
     시장에서는 '역대급 부족'이라 말하는 온도차가 정확히 이 창 차이였다(2026-08-11
     사용자 — 등급은 실측 앵커라 두고, 부족한 시야를 이 줄이 나른다).
 
-    ⚠️ 인허가 계열은 '호 (연내 누계)' — 1월마다 리셋된다. 최근 12개월 =
-    올해 최신 누계 + (작년 12월 누계 − 작년 같은 달 누계). 이 셋 중 하나라도
-    없으면 None을 돌려주고 배지를 접는다(반쪽 계산으로 오탐을 내지 않는다).
+    ⚠️ 인허가 계열은 '호 (연내 누계)' — 1월마다 리셋된다. 최근 12개월은 permit_monthly(누계를 월별로 푼 값, 연초 null =
+    진짜 0)의 최근 12개월 합이다. 예전엔 여기서 누계 셋(올해 최신·작년 12월·작년 같은 달)을 따로 읽으며 연초 null 을
+    결측으로 봐서, 전년 같은 달이 null 이면 값이 사라지고(대구·충북·세종 2025.01) 최신 달이 null 이면 그 지역만 전년
+    1~12월로 물러나 기간이 섞였다(대구 2024.01 → '2023.12', 전수 리뷰 #11). 같은 null 을 한 파일의 두 함수가 다르게
+    쟀던 것이다 — 이제 permit_monthly 하나만 잰다.
+    기준 달은 계열 전체에서 값이 있는 마지막 달(지역마다 따로 정하지 않는다). 그 달부터 12개월 중 하나라도
+    permit_monthly 에 없으면 None 을 돌려주고 줄을 접는다(반쪽 계산으로 오탐을 내지 않는다).
     """
     s = stats.get('인허가') or {}
-    ser = (s.get('series') or {}).get(region) or []
     dates = s.get('dates') or []
-    last = None
-    for i in range(len(ser) - 1, -1, -1):
-        if ser[i] is not None:
-            last = i
+    series = (s.get('series') or {}).values()
+    ref = None
+    for i in range(len(dates) - 1, -1, -1):
+        if any(i < len(v) and v[i] is not None for v in series):
+            ref = i
             break
-    if last is None:
+    if ref is None or region not in (s.get('series') or {}):
         return None, None
-    ym = dates[last]
-    y, m = ym.split('.')
-    py = str(int(y) - 1)
-    idx = {d: j for j, d in enumerate(dates)}
-    pieces = [ser[last]]
-    for key in (py + '.12', py + '.' + m):
-        j = idx.get(key)
-        v = ser[j] if (j is not None and j < len(ser)) else None
-        if v is None:
-            return None, None
-        pieces.append(v)
-    return pieces[0] + pieces[1] - pieces[2], ym
+    mon = permit_monthly(stats, region)
+    ym = dates[ref]
+    t = int(ym[:4]) * 12 + int(ym[5:7]) - 1
+    keys = ['%d.%02d' % ((t - k) // 12, (t - k) % 12 + 1) for k in range(12)]
+    if any(k not in mon for k in keys):
+        return None, None
+    return sum(mon[k] for k in keys), ym
 
 
 # 기간 정본(2026-09-15 점검후속 ③). 페이지마다 인허가→입주가 "3~4년"·"4~6년"·"3년"으로
@@ -377,7 +399,7 @@ def month_back(dates, i, k):
     return None
 
 
-def card_parts(dtot, ratio, H=LEAD_Q):
+def card_parts(dtot, ratio, H=None):
     """홈·허브 카드의 세 조각: ('686,396세대', '부족', '3년 필요량의 60%만큼').
 
     예전엔 '−686,396세대 · 3년 필요량의 60% 부족'이라 배지('부족') 옆에 음수 부호가
@@ -388,8 +410,10 @@ def card_parts(dtot, ratio, H=LEAD_Q):
     조각으로 나눈 것은 모바일 카드가 세대수만 한 줄에 싣기 때문이다(MOB-7 — '전국 [부족]' / '686,396세대').
     화면은 읽기만 한다. 순부족이 0이면 세대수·방향이 비고 비율 조각만 남는다.
     """
+    # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
+    H = LEAD_Q if H is None else H
     yrs = '%g년' % (H / 4.0)
-    pct = int(round(abs(ratio) * 100))
+    pct = abs(ratio_pct(ratio))     # 판정 문구와 같은 퍼센트(컷을 넘지 않는 반올림, 전수 리뷰 #9)
     share = ('%s 필요량과 거의 같음' % yrs) if pct < 1 else ('%s 필요량의 %d%%만큼' % (yrs, pct))
     if dtot > 0:
         return '%s세대' % format(dtot, ','), '부족', share
@@ -398,9 +422,11 @@ def card_parts(dtot, ratio, H=LEAD_Q):
     return '', '', share
 
 
-def card_text(dtot, ratio, H=LEAD_Q):
+def card_text(dtot, ratio, H=None):
     """홈·허브 카드의 한 줄: '686,396세대 부족 · 3년 필요량의 60%만큼'(card_parts 를 잇는다).
     여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다."""
+    # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
+    H = LEAD_Q if H is None else H
     num, dirw, share = card_parts(dtot, ratio, H)
     return ' · '.join(x for x in ((num + ' ' + dirw).strip(), share) if x)
 
@@ -410,13 +436,16 @@ def card_text(dtot, ratio, H=LEAD_Q):
 # 더해진 값인데 홈에는 그 말이 없어 홈 재료만으로는 검산이 안 됐다. 식의 이름은 여기 하나에서 만들고
 # 홈 산출 방법(손으로 쓴 index.html — 시험이 이 문구와 대조)·홈 카드 ⓘ(split_data 가 구운 ftxt)·시도 리포트의
 # '숫자로 보면' 식(make_sido_pages)·블로그 지역 편(make_naver_post)이 같이 쓴다.
-def formula_text(H=LEAD_Q, W=BACKLOG_WINDOW, need=None, fut=None, inow=None):
+def formula_text(H=None, W=None, need=None, fut=None, inow=None):
     """'3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'. 숫자를 주면 각 항 뒤에 붙인다.
 
     inow 는 지난 창의 재고(준공 − 멸실 − 적정의 합, 음수 = 모자람). 모자라면 '쌓인 부족'을 더하고, 남으면
     '남은 재고'를 뺀다 — 음수 재고를 빼는 이중 부호를 읽는 사람에게 넘기지 않는다(점검후속 ⑤). 숫자 없이
     부르면(일반식) 모자란 쪽으로 적는다 — 식의 뜻을 설명하는 자리라 흔한 경우를 쓴다.
     """
+    # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
+    H = LEAD_Q if H is None else H
+    W = BACKLOG_WINDOW if W is None else W
     ahead, past = '%g년' % (H / 4.0), '%g년' % (W / 4.0)
 
     def n(v):
@@ -472,7 +501,10 @@ def refresh_texts(sido):
 
 
 PERMIT_WIN = 24          # 3년 너머 신호의 창. 12월을 두 번 담아 한 해의 이례를 반으로 줄인다
-CONV_FROM = 2012         # 착공 전환율을 재는 첫 해(착공 계열이 2011년부터 온전하다)
+# ⚠️ CONV_FROM 은 **착공 ÷ 인허가**(permit_start_conv)를 재는 첫 해다(인허가 누계가 2012년부터 온전하다). 착공 → 3년 뒤
+# 준공 전환율 CONV(0.958)의 측정 구간이 아니다 — 그건 CONV_START_FROM·CONV_YEARS 다(전수 리뷰 #111). 한때 시도 리포트·홈이
+# '96%가 … 2012년 이후 실측'이라고 이 상수를 읽었는데, 2012년부터 재면 94%다.
+CONV_FROM = 2012
 
 
 def permit_monthly(stats, region):
@@ -535,6 +567,100 @@ def permit_start_conv(stats, region):
     return (ts / tp) if tp else None
 
 
+def conv_measured(stats, region='전국', start=None, years=None):
+    """착공 → LEAD_Q 분기 뒤 준공 전환율을 데이터로 다시 잰다 — CONV 가 그 구간(start 부터 years 쌍)의 값인지 대조용.
+
+    착공 y 년과 준공 y+LEAD_Q/4 년이 둘 다 12개월 찬 쌍을 start 부터 years 개 모아 연도별 비(준공 ÷ 착공)의 평균을 낸다.
+    쌍이 years 개가 안 되면 None. 창을 years 개로 묶어 두므로 데이터가 앞으로 가도(새 완비 연도) 값이 움직이지 않는다.
+    """
+    start = CONV_START_FROM if start is None else start
+    years = CONV_YEARS if years is None else years
+
+    def yearly(key):
+        out = {}
+        for y, (a, n) in ((qparts(i)[0], v) for i, v in _series(stats, key, region).items()):
+            a0, n0 = out.get(y, (0, 0))
+            out[y] = (a0 + a, n0 + n)
+        return {y: a for y, (a, n) in out.items() if n == 12}
+    st, dn = yearly('착공'), yearly('준공')
+    lag = LEAD_Q // 4
+    pairs = [dn[y + lag] / st[y] for y in sorted(st) if y >= start and y + lag in dn and st[y]][:years]
+    return (sum(pairs) / len(pairs)) if len(pairs) == years else None
+
+
+def permit_over_start_pct(stats, region='전국', step=5):
+    """'인허가는 같은 해 착공보다 N%쯤 많다'의 N — permit_start_conv(착공 ÷ 인허가)의 역수에서 step 단위로 반올림.
+
+    시도 리포트 '어떻게 계산했나'가 이 값을 굽고, 손 페이지(홈 산출 방법·소개·FAQ)의 같은 문장은 시험이 이 값과 대조한다
+    (전수 리뷰 #112 — '15%쯤'이 네 곳에 박혀 있었다). 잴 수 없으면 None(문장이 그 구절을 뺀다).
+    """
+    c = permit_start_conv(stats, region)
+    if not c:
+        return None
+    return step * half_up((1.0 / c - 1.0) * 100.0 / step)
+
+
+# ── 입주물량 적정 대비 문턱(2026-09-30 대표 결정 ③, 전수 리뷰 #60·#113) ─────────────────────────
+# 홈 통계 탭 입주물량 표(home-stats.js occCls)는 '적정 이상 = 파랑, 60% 이하 = 빨강', /moveins/ 는 '70% 미만 = 부족,
+# 130% 초과 = 과잉'으로 같은 대상(입주물량 ÷ 적정물량)을 다르게 칠했다. 하나로 통일한다 — /moveins/ 의 값.
+# 판정은 **표시하는 정수 퍼센트**(half_up)로 한다: 69.6% 를 '70%'로 찍으면서 '70% 미만' 색을 칠하지 않게.
+# 홈은 split_data 가 ADV.occupancy.band 로 실어 준 이 두 값을 읽는다(JS 에 숫자를 따로 적지 않는다).
+OCC_LO_PCT = 70      # 이 미만 = 부족(전세부터 조여드는 구간)
+OCC_HI_PCT = 130     # 이 초과 = 과잉(입주장이 전세를 누르는 구간)
+
+
+def occ_level(shown_pct):
+    """표시 정수 퍼센트 → -1(부족)·0·+1(과잉)."""
+    if shown_pct < OCC_LO_PCT:
+        return -1
+    if shown_pct > OCC_HI_PCT:
+        return 1
+    return 0
+
+
+# ── 가격 변동률의 기간 합(전수 리뷰 #15·#110) ─────────────────────────────────────────────────
+PRICE_FIELDS = ('ma', 'je', 'wo')
+PERIOD_MONTHS = {'q': 3, 'y': 12}
+
+
+def period_key(y, m, per):
+    """(연, 월) → 기간 이름. 'q' = '2025Q2', 'y' = '2025'."""
+    return ('%dQ%d' % (y, (m - 1) // 3 + 1)) if per == 'q' else str(y)
+
+
+def price_periods(monthly, per='q'):
+    """ADV.monthly(월별 매매·전세·월세 변동률) → {기간 이름: {지역: [매매, 전세, 월세]}} — 원값의 단순 합.
+
+    ⚠️ 기간의 달이 **다 찬 항목만** 합을 낸다(분기 3달, 연 12달). 예전 시도 리포트(price_quarters)와 홈(tbAgg)은 값이 있는
+    달만 더해, 전남광주 2025Q2 는 4·5월 두 달 합(-0.5%)이 분기 변동률처럼 찍히고 색이 칠해졌다(6월 결측). 연 보기의 2025년도
+    1~5월 합이었다(대표 결정 ⑧: 달이 덜 찬 해는 '–'). 모자라면 그 항목은 None, 세 항목이 모두 None 이면 지역 키를 두지 않는다.
+    ⚠️ 원값으로 한 번만 더한다. 홈은 소수 둘째 자리로 반올림한 월값을 더해 표시값이 리포트와 칸의 5%에서 갈렸다(#110).
+    split_data 가 이 결과를 홈에 실어 주고 시도 리포트도 같은 함수를 읽는다.
+    """
+    need = PERIOD_MONTHS[per]
+    regs = (monthly or {}).get('regions') or []
+    acc = {}
+    for r in (monthly or {}).get('rows') or []:
+        y, m = int(r['p'][:4]), int(r['p'][5:7])
+        cur = acc.setdefault(period_key(y, m, per), {})
+        for k, reg in enumerate(regs):
+            for n, f in enumerate(PRICE_FIELDS):
+                vals = r.get(f) or []
+                v = vals[k] if k < len(vals) else None
+                if v is None:
+                    continue
+                a = cur.setdefault(reg, [[0.0, 0], [0.0, 0], [0.0, 0]])
+                a[n][0] += v
+                a[n][1] += 1
+    out = {}
+    for key, regsum in acc.items():
+        for reg, a in regsum.items():
+            vals = [s if c == need else None for s, c in a]
+            if any(v is not None for v in vals):
+                out.setdefault(key, {})[reg] = vals
+    return out
+
+
 def permit_signal(stats, region, ref_q):
     """3년 너머 참고 신호. 판정 산식에는 넣지 않는다.
 
@@ -566,7 +692,7 @@ def permit_signal(stats, region, ref_q):
             'pconv': conv}
 
 
-def split_text(inow, fut, need, ref, sig, est, H=LEAD_Q, W=BACKLOG_WINDOW):
+def split_text(inow, fut, need, ref, sig, est, H=None, W=None):
     """리포트 머리의 세 줄(지난 4년·앞으로 3년·3년 너머)과 추정 안내. 숫자만 쓴다.
 
     대표 판정 한 줄이 서로 다른 세 방향을 뭉갠다(경기: 지난 4년 거의 균형, 앞으로
@@ -574,6 +700,9 @@ def split_text(inow, fut, need, ref, sig, est, H=LEAD_Q, W=BACKLOG_WINDOW):
     문턱이 새로 생기므로 숫자만 적는다(2026-09-13 대표 결정 A안).
     ⚠️ 여기서만 만든다. calc()가 결과 행에 'split'으로 구워 싣고 화면은 읽기만 한다.
     """
+    # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
+    H = LEAD_Q if H is None else H
+    W = BACKLOG_WINDOW if W is None else W
     past = '%g년' % (W / 4.0)
     ahead = '%g년' % (H / 4.0)
     now = int(round(100.0 * inow / (ref * W))) if ref else 0
@@ -657,7 +786,9 @@ def calc(stats):
         need = ref * H
         tot = need - fut - inow
         ratio = tot / need if need else 0.0
-        g = grade(ratio)
+        # 등급은 **저장되는 비율**(소수 넷째 자리)로 매긴다 — 반올림 전 값으로 매기면 0.49996 이 'g1'인데 저장값 0.5 는
+        # grade() 로 'g2'라, 저장된 ratio·grade 짝이 어긋난다(전수 리뷰 #9).
+        g = grade(round(ratio, 4))
         un, un_p = unsold_latest(stats, z)
         if un_p:
             un_prd = un_p

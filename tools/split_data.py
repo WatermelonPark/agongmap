@@ -63,6 +63,13 @@ CORE_STATS = ['준공', '착공']
 # 분할 파일 대기열이 trend 를 함께 기다린다). 홈 첫 화면(지도·표·주간)은 sido·holidays·weekly·monthly·준공·착공만 읽는다.
 CORE_ADV = ['sido', 'holidays']
 
+# 통계 탭 파일(data-trend.json)이 싣는 ADV 키 — 이것도 **허용목록**이다. 예전엔 ADV 전체를 실어, 2026-08-06 시도 재편으로
+# 폐기된 생활권 지표 aged30(홈·통계 탭 어디서도 읽지 않는다)이 통계 탭을 여는 모든 방문자에게 계속 실려 나갔다(전수 리뷰
+# 묶음 T 제보). 통계 탭(home-stats.js)이 읽는 키만 둔다 — 새 지표를 통계 탭에 올리면 여기에 적는다.
+TREND_ADV = ('sido', 'holidays', 'weekly', 'monthly', 'occupancy', 'permits', 'bubble')
+# 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다(ADV.blog, B5).
+CORE_ONLY_ADV = ('blog',)
+
 # ⚠️ 거부목록이 아니라 **허용목록**이다. 예전엔 뺄 키를 나열했더니 새로 생긴 키가
 # 아무도 안 막아준 채 홈 페이로드로 새어 나갔다 — permits.city(150KB)로 data-core가
 # 131KB -> 311KB가 됐고(2026-08-05), 생활권 시대 잔재 meas·fwd_far는 그 뒤로도
@@ -80,13 +87,11 @@ TABLE_STATS = ('준공', '착공')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from weekly_release import GRACE_WEEKLY  # noqa: E402
 
-try:
-    import sido_zones as _SZ
-    TABLE_REGIONS = set(_SZ.ORDER)
-except Exception:                     # 산식 모듈이 없어도 스플릿은 돌아야 한다
-    _SZ = None
-    TABLE_REGIONS = {'전국', '수도권', '지방', '서울', '경기', '인천', '부산', '대구', '전남광주',
-                     '대전', '세종', '울산', '강원', '충북', '충남', '전북', '경북', '경남', '제주'}
+# 판정 모델(sido_zones)은 반드시 있어야 하는 의존이다 — weekly_release 처럼 없으면 배치가 멈춘다(전수 리뷰 #14). 예전엔
+# 못 불러오면 지역 19곳을 손으로 옮긴 대체 목록으로 조용히 넘어가, 모델이 바뀐 뒤(2026-09-10 광주·전남 통합 같은)에는 홈
+# 준공·착공 지역을 옛 목록으로 거르고 화면 문구(refresh_texts)도 건너뛴 코어를 실을 수 있었다. 표준 라이브러리만 쓴다.
+import sido_zones as _SZ  # noqa: E402
+TABLE_REGIONS = set(_SZ.ORDER)
 # 이번 주 결론 한 줄(ADV.weekly.head, 홈 마케팅 검수 B1·IA-4). /weekly/ 제목과 같은 함수(make_weekly_page.conclusion)
 # 에서 만들어 싣고 홈은 읽기만 한다. 생성기를 못 불러오면 head 없이 쪼갠다 — 홈은 head 가 없으면 띠를 데이터 없는
 # 기본 문구로 두고 주간 h2 는 고정 질문으로 둔다(옛 캐시와 같은 동작). 게이트 시험이 head 가 실리는지 본다.
@@ -169,6 +174,30 @@ def _r2(a):
     return None if a is None else [None if v is None else round(v, 2) for v in a]
 
 
+def price_agg(mo):
+    """홈 공급·가격 표의 분기·연 가격 변동 합 — {'q': {'2025Q2': {'ma': [...], 'je': [...], 'wo': [...]}}, 'y': {...}}.
+
+    정본 sido_zones.price_periods(시도 리포트 분기 표와 같은 함수)가 **원값**으로 한 번 더한다(전수 리뷰 #110 — 홈이 소수
+    둘째 자리로 반올림한 월값을 더해 표시값이 리포트와 칸의 5%에서 갈렸다). 달이 덜 찬 기간은 None(#15, 대표 결정 ⑧).
+    배열 순서는 mo['regions']. 값은 **화면이 찍는 소수 첫째 자리**(half-up, 리포트 pct1 과 같은 반올림)로 싣는다 — 합을
+    다른 자리로 반올림해 실으면 x.x5 경계에서 홈 Math.round 와 리포트가 다시 갈린다. 홈 tbAgg 는 이 값을 그대로 읽는다.
+    """
+    regs = mo.get('regions') or []
+    out = {}
+    for per in ('q', 'y'):
+        got = _SZ.price_periods(mo, per)
+        out[per] = {k: {f: [None if (got[k].get(r) is None or got[k][r][n] is None)
+                            else _SZ.half_up(got[k][r][n] * 10) / 10.0 for r in regs]
+                        for n, f in enumerate(_SZ.PRICE_FIELDS)}
+                    for k in sorted(got) if k[:4] >= TABLE_FROM[:4]}
+    return out
+
+
+def occ_band():
+    """입주물량 표 문턱(퍼센트) — 홈 통계 탭 occCls 가 읽는다. 정본 sido_zones.OCC_LO_PCT·OCC_HI_PCT(대표 결정 ③)."""
+    return {'lo': _SZ.OCC_LO_PCT, 'hi': _SZ.OCC_HI_PCT}
+
+
 def main():
     src = io.open(SRC, encoding='utf-8').read()
     adv = json.loads(re.search(
@@ -193,7 +222,7 @@ def main():
     # 판정 화면 문구(카드 ctxt·cnum·cdir·cpct, ⓘ 식 ftxt)는 지금의 정본 함수로 다시 굽는다(홈에서 뺀 옛 필드는 걷어 낸다). data.js 의 ADV.sido 는
     # 다음 배치가 점수를 다시 쓸 때까지 옛 문구를 싣는다 — 문구 함수를 고친 날 홈이 옛말을 하지 않게(B2·C4).
     # 숫자(dtot·ratio·grade)는 건드리지 않는다. adv['sido'] 와 같은 객체라 trend 쪽에도 같이 실린다.
-    if _SZ is not None and (core_adv.get('sido') or {}).get('zones'):
+    if (core_adv.get('sido') or {}).get('zones'):
         _SZ.refresh_texts(core_adv['sido'])
 
     # 히어로 배경 지도는 마지막 한 주만 쓴다(renderHeroMap: rows[rows.length-1]).
@@ -238,6 +267,7 @@ def main():
                      # 그대로 비교하면 '-'(0x2D) < '.'(0x2E)라 2017년이 통째로 잘린다.
                      for r in mo['rows'] if r['p'].replace('-', '.') >= TABLE_FROM],
             'note': mo.get('note', ''),
+            'agg': price_agg(mo),      # 분기·연 합(원값으로 한 번, #110) — 홈 tbAgg 가 읽는다
         }
 
     core_stats = {k: stats[k] for k in CORE_STATS if k in stats}
@@ -271,7 +301,10 @@ def main():
     # 선언 형태가 조금만 바뀌어도 조용히 깨지므로 쓰지 않는다.
     # 통계 탭에서 먼저 보이는 건 그래프(주간·월간)다. 기본통계 11계열(rest)도
     # 탭 진입 시 이어서 받지만, 그래프가 rest 크기를 기다리지 않도록 둘로 쪼갠다.
-    trend_adv = strip_units(adv)
+    trend_adv = strip_units({k: v for k, v in adv.items() if k in TREND_ADV})
+    dropped = sorted(set(adv) - set(TREND_ADV))
+    if dropped:
+        print('  trend 에서 뺀 ADV 키(허용목록 밖): %s' % ', '.join(dropped))
     sgg_full = {}
     for k in ('weekly', 'monthly'):
         w = trend_adv.get(k)
@@ -297,7 +330,11 @@ def main():
                 w['moves'] = moves   # 같은 이유 — 주간 격자 표지(B7)
             if share:
                 w['share'] = share   # 같은 이유 — 주간 격자 공유 버튼(B8)
+        if k == 'monthly':
+            w['agg'] = price_agg(adv.get('monthly') or {})   # 통계 탭을 연 뒤(loadFullData 가 ADV.monthly 를 바꾼 뒤)에도 같은 합
         trend_adv[k] = w
+    if trend_adv.get('occupancy'):
+        trend_adv['occupancy'] = dict(trend_adv['occupancy'], band=occ_band())   # 통계 탭 입주물량 표 문턱(③)
     io.open(TREND, 'w', encoding='utf-8', newline=NL).write(
         dump({'ADV': trend_adv}))
     io.open(SGG, 'w', encoding='utf-8', newline=NL).write(dump({'ADV': sgg_full}))

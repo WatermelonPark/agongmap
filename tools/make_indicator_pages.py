@@ -7,12 +7,14 @@ zone 페이지와 같은 모델: 배치가 실데이터를 표·요약 문장으
 것만 — 기본통계 전 계열을 페이지로 찍으면 얇은 유사 페이지 무더기가 된다
 (2026-07-29 사용자 합의: 전세가율·입주물량 2종만).
 
-결정성: 본문 날짜는 전부 데이터 시점에서 유도한다(오늘 날짜 금지).
-데이터가 안 바뀐 실행은 바이트 동일 출력 → git diff 없음 → 커밋 없음.
-(옛 make_zone_pages가 keep_dates로 배운 것과 같은 교훈, 여기선 애초에 오늘을 안 쓴다)
+결정성: 본문 날짜는 전부 데이터 시점에서 유도한다. JSON-LD dateModified·sitemap lastmod 만 **내용이 바뀐 날**(KST
+오늘)이고, /zone/·/monthly/ 와 같은 make_sido_pages.keep_dates 가 날짜만 다른 재생성을 옛 파일 그대로 둔다 — 데이터가 안
+바뀐 실행은 바이트 동일 출력 → git diff 없음 → 커밋 없음(전수 리뷰 #18: 예전엔 데이터 기준월 1일을 dateModified 로 적어,
+그 판이 생길 수 없는 과거 날짜를 말하고 본문이 바뀐 회차에도 lastmod 가 안 움직였다).
 
 실행: python tools/make_indicator_pages.py   # 생성 + sitemap 갱신
 """
+import datetime
 import io
 import json
 import os
@@ -21,6 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ  # noqa: E402
+import kst as KST  # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 import site_nav as N  # noqa: E402  하단 탭바 정본(C2)
 import robots_meta as RM  # noqa: E402  검색 로봇 메타 정본(D2)
 
@@ -339,12 +342,24 @@ def jeonse_ref_index(j, need):
                        % ', '.join(need))
 
 
-def build_jeonse(sts):
+def jeonse_delta(cur, ago):
+    """전세가율 '1년 전 대비' 변화(%p) — **표시값(소수 첫째 자리)끼리의 차**. 없으면 None.
+
+    /jeonse-ratio/ 표·머리·가장 크게 오른 곳과 시도 리포트 카드(make_sido_pages.next_links)가 이 함수 하나를 쓴다(전수 리뷰
+    #16). 예전엔 원값 차를 반올림해, 같은 줄에 찍힌 두 값(78.7% · 77.2%)의 차가 1.5 인데 변화 칸은 +1.6%p 였다(전남광주처럼
+    둘째 자리까지 있는 가중평균 계열). 차가 -0.05~0 이면 한쪽은 '-0.0%p', 다른 쪽은 '+0.0%p' 로 부호도 갈렸다 — +0.0 으로 없앤다.
+    """
+    if cur is None or ago is None:
+        return None
+    return round(float('%.1f' % cur) - float('%.1f' % ago), 1) + 0.0
+
+
+def build_jeonse(sts, today=None):
     j = sts['전세가율']
     dates, ser = j['dates'], j['series']
     li = jeonse_ref_index(j, JEONSE_NEED)
     prd = dates[li]                       # '2026.05'
-    prd_iso = prd.replace('.', '-') + '-01'
+    today = today or KST.today_iso()    # dateModified 후보 — 내용이 옛 판과 같으면 main 의 keep_dates 가 옛 날짜를 둔다
 
     # 1년 전 칸은 인덱스 차(li-12)가 아니라 라벨로 찾는다 — 빠진 달이 있으면 13달 전과 견주게 된다(감사 #17).
     ya = SZ.month_back(dates, li, 12)
@@ -361,7 +376,7 @@ def build_jeonse(sts):
         cur, ago = at(name, li), at(name, ya)
         if cur is None:
             continue
-        d = None if ago is None else round(cur - ago, 1)
+        d = jeonse_delta(cur, ago)
         if name in SIDO17:
             vals.append((name, cur, d))
         rows.append((name, cur, ago, d))
@@ -384,7 +399,7 @@ def build_jeonse(sts):
     nat = at('전국', li)
     nat_ago = at('전국', ya)
     # 1년 전 값이 없으면 그 비교 문구만 뺀다. 예전엔 None 과 빼기를 해 생성기가 죽었고, 배치는 그날 커밋을 통째로 막았다.
-    nat_d = None if nat_ago is None else round(nat - nat_ago, 1)
+    nat_d = jeonse_delta(nat, nat_ago)
     hi = max(vals, key=lambda v: v[1])
     lo = min(vals, key=lambda v: v[1])
     moved = [v for v in vals if v[2] is not None]
@@ -445,10 +460,10 @@ def build_jeonse(sts):
 
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,
-                ld=ld_pack('전세가율 — 전국·시도별 현황과 의미', desc, url, '전세가율', prd_iso),
+                ld=ld_pack('전세가율 — 전국·시도별 현황과 의미', desc, url, '전세가율', today),
                 src='KOSIS 한국부동산원 매매가격 대비 전세가격비',
                 nsido=str(len(SIDO17)))   # 본문을 넣은 뒤에 치환되도록 마지막에 둔다
-    return html, not_before_pub(prd_iso)
+    return html, not_before_pub(today)
 
 
 # ---- 입주물량 (/moveins/) --------------------------------------------------
@@ -457,7 +472,26 @@ def build_jeonse(sts):
 MOVEINS_EST = '착공 기준 추정'
 
 
-def build_moveins(adv):
+def pct_shown(t, rf):
+    """충족률의 표시 정수(half-up, num() 과 같은 반올림). 표 칸(pct_cell)과 해설 문장이 이 값 하나를 쓴다(전수 리뷰 #23 —
+    문장은 파이썬 round() 라 x.5 에서 표와 1%p 갈렸다). 색(부족·과잉)도 이 표시값으로 SZ.occ_level 이 정한다."""
+    return int(num(t / rf * 100).replace(',', ''))
+
+
+def est_regions_text():
+    """적정물량을 추정한 지역 — '서울·경기·인천과 세종·제주'. SZ.EST 에서 SZ.DISPLAY_ORDER 순서로(전수 리뷰 #20 — 손 목록이었다).
+    수도권 추정과 나머지 추정을 '과/와'로 잇는다."""
+    est = [z for z in SZ.DISPLAY_ORDER if z in SZ.EST]
+    cap = [z for z in est if SZ.REGION[z] == '수도권']
+    rest = [z for z in est if SZ.REGION[z] != '수도권']
+    if cap and rest:
+        last = ord(cap[-1][-1])
+        wa = '과' if 0xAC00 <= last <= 0xD7A3 and (last - 0xAC00) % 28 else '와'
+        return '%s%s %s' % ('·'.join(cap), wa, '·'.join(rest))
+    return '·'.join(est)
+
+
+def build_moveins(adv, today=None):
     o = adv['occupancy']
     regs, rows = o['regions'], o['rows']
     # ⚠️ o['ref']는 '분기' 수요 기준선이다(통계탭 occCls가 분기값과 직접 비교,
@@ -466,18 +500,7 @@ def build_moveins(adv):
     ref = {k: (v * 4 if v else None) for k, v in o['ref'].items()}
     idx = {r: i for i, r in enumerate(regs)}
     last_act = [r['p'] for r in rows if not r.get('e')][-1]     # 마지막 실적 분기 '2026Q2'
-    # ⚠️ 분기를 버리지 말 것. prd=last_act[:4]로 연도만 남기면 '.' 분기가 영영
-    # 거짓이 되어 mod_iso가 그 해 1월 1일로 굳는다 — /moveins/의 dateModified가
-    # datePublished보다 과거가 되고(불가능한 조합) sitemap lastmod가 1년 내내
-    # 안 움직였다(2026-08-07 감사). 분기의 마지막 달 1일로 찍는다.
-    prd = last_act
-    m = re.match(r'^(\d{4})Q([1-4])$', prd)
-    if m:
-        mod_iso = '%s-%02d-01' % (m.group(1), int(m.group(2)) * 3)
-    elif '.' in prd:
-        mod_iso = prd.replace('.', '-') + '-01'
-    else:
-        mod_iso = prd[:4] + '-01-01'
+    today = today or KST.today_iso()    # dateModified 후보 — 옛 판과 내용이 같으면 main 의 keep_dates 가 옛 날짜를 둔다(#18)
     # 머리 연도(Y)는 **마지막 실적 분기의 해**다. 표는 Y−1(실적)·Y(실적+예정)·Y+1(예정) 세 해.
     # 예전엔 '2026'을 문자로 박아 2027년이 와도 2026년을 머리로 내걸었다(2026-09-23 전체 점검).
     # 달력 날짜가 아니라 데이터에서 읽는 이유: 1~5월에는 그해 1분기 실적이 아직 없어, 달력을
@@ -495,16 +518,14 @@ def build_moveins(adv):
     def pct_cell(t, rf):
         if t is None or not rf:
             return '<td class="mut">·</td>'
-        p = t / rf * 100
         # ⚠️ 이 값은 '적정 대비 얼마나 채웠나'(충족률)다. 39%에 ' 부족'을 붙이면
         # '39% 모자라다'로 읽히는데 실제로는 61% 모자란 것이다(2026-08-07 감사).
         # ⚠️ 색은 **표시값 기준**으로 판정한다. raw로 가르면 69.6%가 '70% 충족'으로
         # 찍히면서 '70% 미만' 색을 받아, 같은 페이지의 범례와 어긋난다
-        # (충남이 실제로 그랬다, 2026-08-08 감사).
-        shown = num(p)
-        p = float(shown.replace(',', ''))
-        cls = 'up' if p < 70 else 'dn' if p > 130 else 'mut'
-        return '<td class="%s">%s%% 충족</td>' % (cls, shown)
+        # (충남이 실제로 그랬다, 2026-08-08 감사). 문턱은 홈 통계 탭과 같은 정본 SZ.OCC_LO_PCT·OCC_HI_PCT(대표 결정 ③).
+        p = pct_shown(t, rf)
+        cls = {-1: 'up', 1: 'dn', 0: 'mut'}[SZ.occ_level(p)]
+        return '<td class="%s">%s%% 충족</td>' % (cls, format(p, ','))
 
     # ⚠️ regs에는 전국·수도권·지방 집계 3종이 섞여 있다. 그대로 정렬하면 '시도별'
     # 표에 전국·지방이 시도인 척 들어가 이중계상된다(2026-08-07 감사).
@@ -559,12 +580,12 @@ def build_moveins(adv):
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. %(lastact)s까지 준공 실적, 이후는 <b>착공 실적을 3년 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 3년 뒤 준공). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, 서울·경기·인천과 세종·제주는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
+  <div class="note">표두를 누르면 정렬. %(lastact)s까지 준공 실적, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
 </section>
 
 <section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>%(Y)s년 적정수요를 가장 덜 채운 곳은 <strong>%(lo1)s(%(lo1p)d%% 충족)</strong>, 가장 많이 채운 곳은 <strong>%(hi1)s(%(hi1p)d%% 충족)</strong>다. 공급이 적정선의 70%%를 밑돌면 전세부터 조여드는 구간, 130%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 충족률은 한 해의 입주만 보므로, 지난 4년 쌓인 부족과 앞으로 3년을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
+  <p>%(Y)s년 적정수요를 가장 덜 채운 곳은 <strong>%(lo1)s(%(lo1p)d%% 충족)</strong>, 가장 많이 채운 곳은 <strong>%(hi1)s(%(hi1p)d%% 충족)</strong>다. 공급이 적정선의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 충족률은 한 해의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
@@ -580,17 +601,21 @@ def build_moveins(adv):
 """ % dict(nat26=num(nat26), nat27=num(nat27), trs='\n'.join(trs),
            lastact=last_act.replace('Q', '년 ') + '분기',
            conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
-           lo1=lo1[0], lo1p=round(lo1[1]), hi1=hi1[0], hi1p=round(hi1[1]),
+           lo1=lo1[0], lo1p=pct_shown(ytot(lo1[0], Y) or 0, ref[lo1[0]]),
+           hi1=hi1[0], hi1p=pct_shown(ytot(hi1[0], Y) or 0, ref[hi1[0]]),
+           # 연수·추정 지역·문턱은 모델 상수에서(전수 리뷰 #20, 대표 결정 ③)
+           lead_y='%g년' % (SZ.LEAD_Q / 4.0), back_y='%g년' % (SZ.BACKLOG_WINDOW / 4.0), est_txt=est_regions_text(),
+           occ_lo=SZ.OCC_LO_PCT, occ_hi=SZ.OCC_HI_PCT,
            sudo26=num(sudo[Y] or 0), sudo27=num(sudo[Y1] or 0),
            sudodir=updown(sudo[Y], sudo[Y1]), Y0=years[0], Y=Y, Y1=Y1, est=MOVEINS_EST)
 
     html = fill(SHELL, title=title,
                 ogtitle='아파트 입주물량 — %s년 전국 %s세대(%s 포함)' % (Y, num(nat26), MOVEINS_EST),
                 desc=desc, url=url, body=body,
-                ld=ld_pack('아파트 입주물량 — 시도별 입주 예정과 의미', desc, url, '입주물량', mod_iso),
+                ld=ld_pack('아파트 입주물량 — 시도별 입주 예정과 의미', desc, url, '입주물량', today),
                 src='국토교통부 주택건설실적(준공·착공)',
                 nsido=str(len(SIDO17)))   # 본문을 넣은 뒤에 치환되도록 마지막에 둔다
-    return html, not_before_pub(mod_iso)
+    return html, not_before_pub(today)
 
 
 # ---- sitemap ---------------------------------------------------------------
@@ -648,10 +673,13 @@ def hand_lastmods(root=None):
             shallow = set(io.open(sp, encoding='utf-8').read().split())
     out = []
     for path, rel in HAND_PAGES:
-        got = _git(root, 'log', '-1', '--format=%H %cs', '--', rel)
+        # 날짜는 커밋 시각을 KST 로 바꿔 읽는다(전수 리뷰 #22). '%cs' 는 커미터 시간대 날짜라, +0000 으로 기록되는 클라우드
+        # 세션·병합 커밋은 KST 00~09시 수정이 전날로 찍혔다(812a17d: 09-27 18:09 UTC = 09-28 03:09 KST). 다른 생성기는 KST.
+        got = _git(root, 'log', '-1', '--format=%H %ct', '--', rel)
         if not got:
             continue
-        sha, day = got.split()
+        sha, ct = got.split()
+        day = KST.today_iso(datetime.datetime.fromtimestamp(int(ct), datetime.timezone.utc))
         if sha in shallow:
             continue
         out.append((path, day))
@@ -677,14 +705,19 @@ def bump_sitemap(entries, root=None):
 
 
 def main():
+    import make_sido_pages as SP   # 날짜 굽기·물려받기 규칙(keep_dates) — /zone/·/monthly/ 와 같은 함수(쓸 때 가져온다)
     adv, sts = load()
+    today = KST.today_iso()
     out = []
     for sub, (html, lm) in (
-            ('jeonse-ratio', build_jeonse(sts)),
-            ('moveins', build_moveins(adv))):
+            ('jeonse-ratio', build_jeonse(sts, today)),
+            ('moveins', build_moveins(adv, today))):
         d = os.path.join(ROOT, sub)
         os.makedirs(d, exist_ok=True)
-        io.open(os.path.join(d, 'index.html'), 'w', encoding='utf-8', newline='\n').write(html)
+        fp = os.path.join(d, 'index.html')
+        # 날짜만 다른 재생성은 옛 판(과 그 날짜)을 그대로 둔다. 내용이 바뀌면 dateModified·lastmod 가 오늘이 된다(#18).
+        html, lm, _ = SP.keep_dates(html, SP.read_old(fp), lm)
+        io.open(fp, 'w', encoding='utf-8', newline='\n').write(html)
         out.append(('/%s/' % sub, lm))
     update_sitemap(out)
     hand = hand_lastmods()

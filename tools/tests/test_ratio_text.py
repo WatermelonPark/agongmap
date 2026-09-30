@@ -89,7 +89,7 @@ def test_rule_sentence_numbers_come_from_the_cuts(monkeypatch):
         row = {'ratio': r, 'grade': SZ.grade(r)}
         line = P.verdict_line(row, SZ.LEAD_Q)
         assert SZ.ratio_text(r, SZ.LEAD_Q, full=True) in line
-        assert P.GRADE_TXT[row['grade']][0] in line, '판정 문장에 등급 이름이 없다'
+        assert SZ.GRADE_LABS[row['grade']] in line, '판정 문장에 정본 등급 이름이 없다'
     # 컷을 옮기면 문장이 따라 바뀌어야 한다 — 숫자가 박혀 있지 않다는 증거
     monkeypatch.setattr(SZ, 'GRADE_CUTS', (2.0, 1.2, 0.6, 0.0))
     assert '60%' in P.verdict_line({'ratio': 0.3, 'grade': 'g1'}, SZ.LEAD_Q)
@@ -187,3 +187,89 @@ def test_faq_quotes_the_report_sentence_it_explains():
     assert m, 'FAQ 에서 지역 리포트 문장 인용을 찾지 못했다'
     want = re.sub(r'\d+%', 'N%', SZ.ratio_text(0.6, full=True, inow=-1))
     assert m.group(1) == want, 'FAQ 인용 "%s" ≠ 리포트 문장 틀 "%s"' % (m.group(1), want)
+
+
+# ── 퍼센트가 등급 컷을 넘지 않는다(전수 리뷰 #9) ──────────────────────────────────────────────────────
+def _pct_in(t):
+    m = re.search(r'필요량의 (\d+)%', t)
+    return int(m.group(1)) if m else 0
+
+
+def test_percent_never_crosses_a_grade_cut():
+    """컷 바로 아래 비율(0.4996 등)의 문구가 컷 숫자('50%')를 말하면 판정 문장이 '… 50%만큼 부족합니다. 50%에 못 미쳐
+    균형으로 분류합니다'로 스스로 부딪친다. 문구 퍼센트로 컷을 다시 세면 등급과 같아야 하고, 카드 퍼센트와 판정 문구 퍼센트가 같다.
+
+    변이(실제로 확인): sido_zones.ratio_pct 의 컷 가드(pct = cp - 1)를 지우면 c-0.0049·c-0.00004 에서 빨개진다.
+          card_parts 를 옛 int(round(abs(ratio)*100)) 로 되돌리면 카드·문구 대조가 빨개진다.
+    픽스처: 각 양수 컷(1.5·1.0·0.5)의 경계 ±0.0049·−0.00004·정확히 컷 — 실데이터 경남 1.0066·울산 1.0124 가 1.0 컷 1%p 안이다.
+    """
+    cuts = [c for c in SZ.GRADE_CUTS if c > 0]
+    for c in cuts:
+        for r in (c - 0.0049, c - 0.00004, c, c + 0.0049):
+            g = SZ.grade(r)
+            t = SZ.ratio_text(r, SZ.LEAD_Q, full=True, inow=-1)
+            pct = _pct_in(t)
+            above = [x for x in cuts if pct >= round(x * 100)]
+            want = SZ.GRADE_KEYS[SZ.GRADE_CUTS.index(max(above))] if above else 'g1'
+            assert want == g, '%s: 문구 %d%% 는 %s 인데 등급은 %s — %s' % (r, pct, want, g, t)
+            assert '%d%%만큼' % pct in SZ.card_parts(1000, r)[2], (r, SZ.card_parts(1000, r))
+            line = P.verdict_line({'ratio': r, 'grade': g, 'inow': -1}, SZ.LEAD_Q)
+            if g == 'g1':
+                assert pct < round(SZ.GRADE_CUTS[2] * 100), line
+
+
+def _flat_stats(target_ratio, z='인천'):
+    """모든 지역이 준공 = 적정(재고 0)·착공 0 인 합성 STATS 에서 z 하나만 재고를 맞춰 비율을 target_ratio 로 만든다.
+    착공 0 → 미래 공급 0 → 비율 = 1 − 재고 ÷ 필요량. 재고 = 16분기 × (분기 준공 − 적정)."""
+    dates = ['%d.%02d' % (y, m) for y in range(2019, 2026) for m in range(1, 13)] + ['2026.%02d' % m for m in range(1, 7)]
+    ser_d, ser_s = {}, {}
+    for r in SZ.ORDER:
+        ref = SZ.REF_Q[r]
+        q = ref
+        if r == z:
+            need = ref * SZ.LEAD_Q
+            q = ref + need * (1 - target_ratio) / SZ.BACKLOG_WINDOW
+        ser_d[r] = [q / 3.0] * len(dates)
+        ser_s[r] = [0.0] * len(dates)
+    return {'준공': {'dates': dates, 'series': ser_d}, '착공': {'dates': dates, 'series': ser_s}}
+
+
+def test_stored_grade_is_the_grade_of_the_stored_ratio():
+    """calc 가 싣는 grade 는 싣는 ratio(소수 넷째 자리)의 등급이다 — 원값 0.49996 은 grade 'g1' 인데 저장값 0.5 는 'g2' 였다.
+
+    변이(실제로 확인): calc 의 g = grade(round(ratio, 4)) 를 옛 grade(ratio) 로 되돌리면 빨개진다.
+    픽스처: 인천 하나만 비율 0.49996 이 되는 합성 STATS(착공 0, 다른 지역은 준공 = 적정). 실데이터에는 지금 경계에 든 지역이 없다.
+    """
+    out = SZ.calc(_flat_stats(0.49996))
+    row = next(x for x in out['zones'] if x['z'] == '인천')
+    assert row['ratio'] == 0.5, '픽스처가 경계 비율을 못 만들었다: %s' % row['ratio']
+    for x in out['zones']:
+        assert SZ.grade(x['ratio']) == x['grade'], (x['z'], x['ratio'], x['grade'])
+
+
+def test_report_grade_labels_come_from_the_canon():
+    """시도 리포트의 등급 이름(배지·제목·허브·판정 규칙 문장)은 정본 sido_zones.GRADE_LABS 에서 나온다(전수 리뷰 #17·#115).
+
+    재현하는 실제 상태: GRADE_TXT 가 GRADE_LABS 의 손 사본이라, 사다리를 바꿀 때 GRADE_LABS·홈만 고치면 리포트만 옛 이름으로
+    남았다(검증자가 g3 을 '크게 부족'으로 바꿔 재현 — 게이트는 라벨 잠금 한 건만 빨갰다).
+    변이(실제로 확인): GRADE_TXT 의 라벨을 문자열로 되돌리면 소스 검사가, verdict_line 규칙 문장에 '매우 부족'을 다시 박으면
+          바꾼 사다리 단정이 빨개진다.
+    """
+    import ast
+    assert set(P.GRADE_TXT) == set(SZ.GRADE_KEYS)
+    assert {k: v[0] for k, v in P.GRADE_TXT.items()} == SZ.GRADE_LABS
+    tree = ast.parse(io.open(os.path.join(ROOT, 'tools', 'make_sido_pages.py'), encoding='utf-8').read())
+    labs = set(SZ.GRADE_LABS.values()) - {'부족'}      # '부족'은 문장 속 일반어('부족합니다')라 뺀다
+    docs = {id(n.body[0].value) for n in ast.walk(tree)
+            if isinstance(n, (ast.Module, ast.FunctionDef)) and n.body and isinstance(n.body[0], ast.Expr)}
+    lits = [n.value for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docs]
+    bad = [v for v in lits if any(l in v for l in labs)]
+    assert not bad, '생성기 문자열에 등급 이름이 박혀 있다: %s' % bad[:3]
+
+
+def test_rule_sentence_follows_a_changed_ladder(monkeypatch):
+    new = dict(SZ.GRADE_LABS, g3='크게 부족', g0='넉넉')
+    monkeypatch.setattr(SZ, 'GRADE_LABS', new)
+    assert '크게 부족으로 분류합니다' in P.verdict_line({'ratio': 1.2, 'grade': 'g3'}, SZ.LEAD_Q)
+    assert '넉넉으로 분류합니다' in P.verdict_line({'ratio': -0.2, 'grade': 'g0'}, SZ.LEAD_Q)
