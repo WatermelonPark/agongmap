@@ -10,8 +10,13 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v166';
-const LEADTIME={"lags": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], "all": [0.49, 0.526, 0.564, 0.603, 0.642, 0.679, 0.714, 0.747, 0.775, 0.797, 0.809, 0.817, 0.818, 0.813, 0.802, 0.782, 0.754, 0.718, 0.676, 0.629, 0.578, 0.515, 0.458, 0.399, 0.335, 0.264, 0.194, 0.122, 0.044, -0.03, -0.1], "old": [0.865, 0.886, 0.911, 0.933, 0.947, 0.955, 0.958, 0.959, 0.952, 0.944, 0.926, 0.905, 0.885, 0.868, 0.859, 0.839, 0.832, 0.819, 0.812, 0.808, 0.805, 0.766, 0.713, 0.661, 0.579, 0.481, 0.36, 0.213, 0.016, -0.142, -0.255], "new": [-0.261, -0.213, -0.156, -0.092, -0.01, 0.073, 0.154, 0.239, 0.325, 0.405, 0.467, 0.532, 0.596, 0.664, 0.72, 0.772, 0.8, 0.814, 0.811, 0.788, 0.753, 0.687, 0.669, 0.616, 0.575, 0.515, 0.485, 0.419, 0.338, 0.253, 0.17], "peak_old": [27, 0.96], "peak_new": [37, 0.81], "peak_all": [32, 0.82]};
+var HOME_STATS_BUILD='v167';
+/* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
+   과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
+   (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
+   봉우리가 정본(tools/data/cycle_analysis.json leadtime = sido_zones.START_DONE_MONTHS_*)과 같은지는
+   test_home_stats_runtime 이 본다 — 사이클을 재산정하면 이 곡선도 같은 데이터로 다시 굽는다. */
+const LEADTIME={"lags": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], "all": [0.511, 0.545, 0.582, 0.621, 0.661, 0.696, 0.731, 0.764, 0.792, 0.813, 0.827, 0.836, 0.839, 0.836, 0.825, 0.805, 0.777, 0.74, 0.697, 0.648, 0.595, 0.535, 0.471, 0.4, 0.321, 0.247, 0.175, 0.106, 0.034, -0.033, -0.1], "old": [0.821, 0.848, 0.874, 0.901, 0.924, 0.941, 0.956, 0.967, 0.971, 0.97, 0.96, 0.947, 0.928, 0.906, 0.883, 0.855, 0.824, 0.79, 0.752, 0.711, 0.666, 0.612, 0.55, 0.484, 0.41, 0.327, 0.243, 0.159, 0.071, -0.011, -0.09], "new": [-0.006, 0.016, 0.059, 0.112, 0.182, 0.25, 0.327, 0.406, 0.483, 0.551, 0.615, 0.677, 0.736, 0.786, 0.823, 0.854, 0.869, 0.876, 0.869, 0.846, 0.813, 0.77, 0.732, 0.65, 0.548, 0.46, 0.394, 0.341, 0.283, 0.227, 0.152]};
 /* 시군구·서울구 전체 시계열은 '구를 고른 사람'만 받는다(통계 탭 기본 전송량 유지).
    ⚠️ Object.assign(ADV, d.ADV)를 쓰면 ADV.weekly가 통째로 교체돼 시도 rows를 잃는다 —
    그래서 sgg/seoul만 골라 덮어쓴다. */
@@ -44,14 +49,19 @@ function onTrendSgg(k){
    주간·월간 그래프는 곧바로 그린다. 기본통계 세그먼트와 버블밴드는 기본통계 데이터(data-rest.json)를 기다린다 — 버블밴드
    입력(ADV.bubble·STATS 전세가율)은 B11 에 data-core 에서 빠져 trend·rest 로만 온다(예전엔 코어에 있어 기다리지 않았다).
    ⚠️ renderBubbleSec 가 읽는 건 그 둘뿐이다(옛 주석이 주택멸실도 읽는다고 적어 소비자 없는 계열이 코어에 남았던 일,
-   2026-08-07 감사). 못 받으면 statsInited 를 되돌려 다음 진입에서 다시 받는다. */
+   2026-08-07 감사). 못 받으면 statsInited 를 되돌려 다음 진입에서 다시 받는다.
+   ⚠️ 첫머리에서 그래프 데이터(loadFullData)를 **다시** 기다린다(전수리뷰 #42·#48). 이 파일은 받고 data-trend.json 만
+   실패하면 대기열은 실패로 끝나지만 여기 최상위 선언이 이미 대기 함수를 덮어써서, 다시 들어올 때 showView 가 이 함수를
+   곧바로 부른다. 예전엔 여기서 trend 를 부르지 않아 코어 4주치를 '전체'로 그렸고 투자지표에서 TypeError 가 났다.
+   이미 받았으면 loadData 가 캐시한 약속이 곧바로 풀린다. */
 function statsOpen(){
-  renderReleaseInfo();
-  renderWeekSec();
-  renderMonthSec();
-  ensureBasicStats()
-    .then(()=>{ renderBubbleSec(); initStats(); })
-    .catch(()=>{statsInited=false;});
+  return loadFullData().then(()=>{
+    renderReleaseInfo();
+    renderWeekSec();
+    renderMonthSec();
+    return ensureBasicStats()
+      .then(()=>{ renderBubbleSec(); initStats(); });
+  }).catch(()=>{statsInited=false;});
 }
 /* 기본통계(13계열)는 이 함수를 거쳐서만 그린다 */
 /* ============ 통계 대시보드 ============ */
@@ -65,10 +75,14 @@ function parseDate(s){
   return{y:0,m:0,label:s};
 }
 // 보조선 정의 (우리가 리포트에서 논의한 변곡점들)
+/* '정점'·'바닥'은 날짜를 박지 않는다 — find('max'|'min')와 구간(from~to)만 두고, 그리는 계열·지역의 원자료에서 그 구간
+   최댓값·최솟값 달을 찾아 선을 세우고 날짜를 라벨에 붙인다(auxPos). 예전엔 '2021 정점'을 2021.09 에 박아, 원자료 정점
+   (전국·서울 매매 2021.10, 전세 전국 2021.11·서울 2022.06)과 어긋났고 지역을 바꿔도 같은 자리에 섰다(전수리뷰 #59).
+   사건(정책·입주장) 표지는 날짜 그대로 둔다. */
 const AUXLINES={
-  '매매지수':[{y:2018,m:1,t:'2018 수도권 매매만 급등',c:'#e8b84b'},{y:2021,m:9,t:'2021 정점',c:'#e0564a'}],
-  '전세지수':[{y:2021,m:9,t:'2021 정점',c:'#e0564a'},{y:2023,m:1,t:'2023 입주장',c:'#3aa17e'}],
-  '금리':[{y:2021,m:6,t:'금리 바닥',c:'#3aa17e'},{y:2022,m:11,t:'금리 정점',c:'#e0564a'}],
+  '매매지수':[{y:2018,m:1,t:'2018 수도권 매매만 급등',c:'#e8b84b'},{find:'max',from:'2020.01',to:'2023.12',t:'정점',c:'#e0564a'}],
+  '전세지수':[{find:'max',from:'2020.01',to:'2023.12',t:'정점',c:'#e0564a'},{y:2023,m:1,t:'2023 입주장',c:'#3aa17e'}],
+  '금리':[{find:'min',from:'2020.01',to:'2021.12',t:'금리 바닥',c:'#3aa17e'},{find:'max',from:'2022.01',to:'2023.12',t:'금리 정점',c:'#e0564a'}],
   '착공':[{y:2022,m:1,t:'착공 급감',c:'#e0564a'}],
   // 준공연도 + 40년 = 재건축 연한 도래 시점. 축은 준공연도라 도래 연도를 라벨에
   // 병기한다(실측: 1988년 16.2만 → 2028년 / 1992년 38.1만 → 2032년 / 1995년 43.0만
@@ -167,6 +181,16 @@ function fillRegions(){
   if(!regs.includes(ST.reg)) ST.reg = ST.ds==='규모별'?regs[0]:(regs.includes('서울')?'서울':regs[0]);
   sel.innerHTML=regs.map(r=>`<option${r===ST.reg?' selected':''}>${r}</option>`).join('');
 }
+/* 보조선 위치(차트 칸 번호). find 가 있으면 labels·vals 의 from~to 구간에서 최댓값·최솟값 칸, 없으면 그 연월 칸. */
+function auxPos(l,labels,vals){
+  if(!l.find)return labels.findIndex(lb=>lb===l.y+'.'+String(l.m).padStart(2,'0')||lb===String(l.y));
+  let b=-1;
+  labels.forEach((lb,i)=>{
+    if(lb<l.from||lb>l.to||vals[i]==null)return;
+    if(b<0||(l.find==='max'?vals[i]>vals[b]:vals[i]<vals[b]))b=i;
+  });
+  return b;
+}
 function renderAux(){
   const box=document.getElementById('aux-seg');
   const lines=AUXLINES[ST.ds]||[];
@@ -176,8 +200,15 @@ function renderAux(){
     else{ST.aux.add(i);b.classList.add('on');} drawStat();
   }));
 }
+/* 기본통계 표·메타·출처는 차트 라이브러리와 무관하다 — 라이브러리를 못 받아도 표는 그리고, 그래프 자리에만 안내를
+   단다(전수리뷰 #53). 예전엔 drawStat 첫 줄에서 라이브러리를 기다려, 못 받으면 표·피벗·출처까지 안내 없이 비었다. */
+function chartFailNote(){
+  loadChart().catch(()=>{
+    const n=document.getElementById('src-note');
+    if(n&&!n.querySelector('.chart-fail'))n.insertAdjacentHTML('beforeend',' <b class="chart-fail">그래프를 불러오지 못했습니다. 연결을 확인하고 다시 눌러 주세요.</b>');
+  });
+}
 function drawStat(){
-  if(needChart(()=>drawStat()))return;
   if(ST.ds==='규모별'){
     if(!STATS['규모별']){ ensureSizeStats().then(drawStat).catch(()=>{}); return; }
     drawSizePivot();return;
@@ -204,6 +235,7 @@ function drawStat(){
   buildMatrix(D,idx,parsed);
   document.getElementById('src-note').innerHTML=
     `※ ${D.note?D.note+'. ':''}가공 없는 원자료다.`;
+  if(needChart(()=>drawStat())){ chartFailNote(); return; }   // 그래프만 라이브러리를 기다린다(#53)
   /* statChartObj만 믿고 destroy하면 참조가 어긋났을 때(비동기 재진입 등) 캔버스에
      고아 차트가 남아 이후 모든 생성이 실패한다 — 실소유 차트를 찾아 파괴한다. */
   const _own=Chart.getChart('statChart'); if(_own)_own.destroy();
@@ -224,7 +256,7 @@ function drawStat(){
       let drawn=[];
       (AUXLINES[ST.ds]||[]).forEach((l,i)=>{
         if(!ST.aux.has(String(i)))return;
-        const pos=labels.findIndex(lb=>lb===l.y+'.'+String(l.m).padStart(2,'0')||lb===String(l.y));
+        const pos=auxPos(l,labels,vals);
         if(pos<0)return;
         const x=xa.getPixelForValue(pos);
         ctx.save();ctx.strokeStyle=l.c;ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
@@ -237,7 +269,7 @@ function drawStat(){
         while(drawn.some(d=>d.row===row&&Math.abs(d.x-x)<70))row++;
         const ty=ya.top+11+row*14;
         ctx.textAlign=x>xa.right-50?'right':'left';
-        ctx.fillText(' '+l.t,x,ty);drawn.push({x:x,row:row});ctx.restore();
+        ctx.fillText(' '+l.t+(l.find?' '+labels[pos]:''),x,ty);drawn.push({x:x,row:row});ctx.restore();
       });
     }}]
   });
@@ -357,9 +389,10 @@ function buildTable(D,labels,vals,idx,parsed){
 }
 
 /* 착공→준공 리드타임 시차곡선 (시기별 비교) */
+function leadPeak(a){ let b=-1; a.forEach((v,i)=>{ if(v!=null&&(b<0||v>a[b]))b=i; }); return b<0?null:[LEADTIME.lags[b],a[b]]; }
 function drawLeadtime(){
   if(needChart(()=>drawLeadtime()))return;
-  const L=LEADTIME;
+  const L=LEADTIME, pOld=leadPeak(L.old), pNew=leadPeak(L.new);
   document.getElementById('stat-tbl').classList.remove('szpivot');
   document.getElementById('sec-basicmain').classList.add('single');
   document.getElementById('stat-matrix').innerHTML='';
@@ -369,7 +402,7 @@ function drawLeadtime(){
     data:{labels:L.lags,datasets:[
       {label:'2011~2017 (과거)',data:L.old,borderColor:'#3a7bd5',backgroundColor:'transparent',
         borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true},
-      {label:'2018~2025 (최근)',data:L.new,borderColor:'#e0564a',backgroundColor:'transparent',
+      {label:'2018~ (최근)',data:L.new,borderColor:'#e0564a',backgroundColor:'transparent',
         borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true}
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
@@ -380,8 +413,8 @@ function drawLeadtime(){
         y:{grid:{color:GRID},title:{display:true,text:'연결 강도 (r)'},min:0,max:1}}},
     plugins:[{id:'peaks',afterDraw(ch){
       const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
-      [[L.peak_old,'#3a7bd5'],[L.peak_new,'#e0564a']].forEach(([pk,c])=>{
-        const xi=L.lags.indexOf(pk[0]); if(xi<0)return;
+      [[pOld,'#3a7bd5'],[pNew,'#e0564a']].forEach(([pk,c])=>{
+        if(!pk)return; const xi=L.lags.indexOf(pk[0]); if(xi<0)return;
         const x=xa.getPixelForValue(xi),y=ya.getPixelForValue(pk[1]);
         ctx.save();ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();
         ctx.font='700 11px '+FONT;ctx.textAlign='center';
@@ -390,12 +423,12 @@ function drawLeadtime(){
     }}]
   });
   document.getElementById('prange').innerHTML=
-    `과거 최강 시차 <b>${L.peak_old[0]}개월</b> → 최근 <b>${L.peak_new[0]}개월</b>`;
+    `과거 최강 시차 <b>${pOld[0]}개월</b> → 최근 <b>${pNew[0]}개월</b>`;
   document.getElementById('meta-bar').innerHTML=
     `<span>단위 <b>상관계수 r</b></span><span>대상 <b>전국 착공·준공(12개월 이동평균)</b></span><span>출처 <b>국토교통부</b></span>`;
   // 테이블: 시차별 r 비교
   const thead=document.querySelector('#stat-tbl thead'),tbody=document.querySelector('#stat-tbl tbody');
-  thead.innerHTML=`<tr><th>시차(개월)</th><th>2011~2017</th><th>2018~2025</th></tr>`;
+  thead.innerHTML=`<tr><th>시차(개월)</th><th>2011~2017</th><th>2018~</th></tr>`;
   let h='';
   L.lags.forEach((lg,i)=>{
     if(lg<24||lg>44||lg%2)return;
@@ -403,7 +436,7 @@ function drawLeadtime(){
   });
   tbody.innerHTML=h;
   document.getElementById('src-note').innerHTML=
-    `※ 착공량과 준공량의 12개월 이동평균을 시차를 두고 비교한 것. 곡선의 봉우리가 평균 공사기간을 뜻한다. 과거 약 28개월(2년 남짓)에서 최근 약 37개월(3년 남짓)로 길어졌다 — 공사비·인력·안전기준 변화 등이 원인으로 추정된다.`;
+    `※ 착공량과 준공량의 12개월 이동평균을 시차를 두고 비교한 것. 곡선의 봉우리가 평균 공사기간을 뜻한다. 과거 약 ${pOld[0]}개월에서 최근 약 ${pNew[0]}개월로 길어졌다 — 공사비·인력·안전기준 변화 등이 원인으로 추정된다.`;
 }
 
 /* ── 규모별 동향 피벗 (지표×규모 멀티선택, 전월비% 표) ──
@@ -449,7 +482,7 @@ function drawSizePivot(){
   if(!document.getElementById('size-ctl').innerHTML)renderSizeCtl();
   document.getElementById('sec-basicmain').classList.add('single');
   document.getElementById('stat-matrix').innerHTML='';
-  {const _o=Chart.getChart('statChart'); if(_o)_o.destroy();} statChartObj=null;
+  {const _o=window.Chart&&Chart.getChart('statChart'); if(_o)_o.destroy();} statChartObj=null;   // 표만 그린다(#53)
   const reg=ST.reg||D.regions[0];
   let idx=D.dates.map((_,i)=>i);
   if(ST.years>0)idx=idx.filter(i=>i>=D.dates.length-ST.years*12);
@@ -515,11 +548,19 @@ function setStatsMode(m,push){
     document.getElementById('smode-'+k).setAttribute('aria-selected', k===m?'true':'false');
     document.getElementById('stats-'+k).style.display = k===m ? '' : 'none';
   });
-  if(m==='adv' && !advRendered){ renderAdvAll(); advRendered=true; }
+  /* 투자지표 입력(permits·occupancy)은 data-trend 로만 온다. 아직 없으면(다시 받는 중) 온 뒤에 그린다 — 없는 채로
+     그리면 renderAdvPermits 가 TypeError 로 이 함수를 중간에 끊어 화면과 주소가 갈렸다(전수리뷰 #42). */
+  if(m==='adv' && !advRendered){
+    if(advReady()){ renderAdvAll(); advRendered=true; }
+    else loadFullData().then(()=>{ if(!advRendered&&advReady()){ renderAdvAll(curAdvTab()); advRendered=true; } }).catch(()=>{});
+  }
   if(m==='basic'||m==='market'){ afterLayout(()=>window.dispatchEvent(new Event('resize'))); }
-  track('stats_mode',{mode:m});
-  if(push!==false)statsNav(statsHashOf(m));
+  /* 이벤트는 사람이 누른 전환만(push!==false) 센다 — 착지·뒤로 가기(applyHash)·내부 호출(renderAdvAll)까지 세면
+     탭 전환 지표가 부푼다(전수리뷰 #52). setAdvTab·setMarketTab 도 같다. */
+  if(push!==false){ track('stats_mode',{mode:m}); statsNav(statsHashOf(m)); }
 }
+function advReady(){ return !!(ADV.permits&&ADV.occupancy); }
+function curAdvTab(){ return ['occ','permit','bubble'].find(k=>{const b=document.getElementById('atab-'+k);return b&&b.classList.contains('on');})||'occ'; }
 function advFmt(v){ return v==null ? '·' : Number(v).toLocaleString('ko-KR'); }
 /* 입주물량 미래 분기는 소수 한 자리로 실려 온다(분기마다 반올림하면 소비자가
    그걸 다시 더해 홈과 갈리기 때문). 화면에는 정수로 찍는다. */
@@ -702,6 +743,15 @@ function rankTables(S,unit,k){
     tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1)+
     '</div>';
 }
+/* 지도 '옆으로 밀어 전체 보기' 안내 — 상자가 지도보다 좁을 때만. 숨은 상태(폭 0)에서는 판정하지 않고, 보일 때
+   (setMarketTab·gtSet(…,'m')) 다시 판정한다. 예전엔 그릴 때 한 번만 재서, 숨은 채 그려진 월간 지도는 375px 에서 넘치는데도
+   안내가 꺼진 채 굳었다(전수리뷰 #54). */
+function syncSwipe(k){
+  const T=TREND[k], m=T&&T.map&&document.getElementById(T.map); if(!m)return;
+  const box=m.querySelector('.map-scroll'), sw=m.querySelector('.map-swipe');
+  if(!box||!sw||!box.clientWidth)return;
+  sw.hidden=!(box.scrollWidth>box.clientWidth+1);
+}
 function drawNationMap(k){
   const T=TREND[k], D=trendData(k), S=D.sgg; if(!S||!S.rows.length)return;
   const row=S.rows[S.rows.length-1];
@@ -794,8 +844,7 @@ function drawNationMap(k){
     '<div class="map-scroll">'+sv.join('')+'</div>'+
     (hasWo?'<div class="map-suplegend">타일 값: 위 = 매매 · 가운데 = 전세 · 아래 = 월세<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>':'<div class="map-suplegend">타일 값: 위 = 매매 · 아래 = 전세<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>');
   /* 상자가 지도보다 좁을 때만 민다는 안내를 켠다(데스크톱에서는 안 넘친다). */
-  const mbox=document.getElementById(T.map).querySelector('.map-scroll'), swipe=document.getElementById(T.map).querySelector('.map-swipe');
-  if(mbox&&swipe)swipe.hidden=!(mbox.scrollWidth>mbox.clientWidth+1);
+  syncSwipe(k);
   /* TOP10 헤더 정렬 — innerHTML 이후에 붙인다(인라인 onclick은 따옴표 중첩이 깨진다) */
   document.getElementById(T.map).querySelectorAll('.rk-sort').forEach(th=>{
     const go=()=>setRankMet(th.dataset.k,th.dataset.met);
@@ -840,7 +889,17 @@ function sggOfSido(W,sido){
      죽은 선택지였다(2026-08-08 감사). 원천이 생기면 자동으로 다시 나타난다. */
   const has=c=>{const i=S.codes.indexOf(c);
     return i>=0&&(S.rows||[]).some(r=>['ma','je','wo'].some(f=>(r[f]||[])[i]!=null));};
-  return S.codes.filter(c=>SGG_QNAME[c]&&sidoOf(c)===sido&&has(c));
+  return S.codes.filter(c=>SGG_QNAME[c]&&sggZoneOf(W,c)===sido&&has(c));
+}
+/* 시군구 코드 → 이 목록(W.regions, 판정 단위)의 지역 이름. 원천 이름(sidoOf)이 목록에 없으면 그 이름을 품은 판정 단위로
+   접는다(홈 지도 zoneOf 와 같은 규칙 — 통합 이름을 박지 않는다). 광주·전남 시군구는 '전남광주'로 간다 — 예전엔 원천
+   이름끼리만 비교해 전남광주를 고르면 0곳, 광주 5구·전남 6시는 고를 길이 없었다(전수리뷰 #104). 파이썬 거울:
+   weekly_moves.sgg_zone(test_home_stats_runtime 이 node 로 대조). */
+function sggZoneOf(W,code){
+  const s=sidoOf(code); if(!s)return null;
+  const R=W.regions||[];
+  if(R.indexOf(s)>=0)return s;
+  return R.find(k=>k.indexOf(s)>=0)||s;
 }
 /* 시도 select가 바뀌면 하위 목록을 다시 채우고 '전체'로 되돌린다 */
 function onTrendReg(k){
@@ -963,12 +1022,15 @@ function areaGrad(color,topHex){
 function mkChart(id,cfg){ if(GCH[id])GCH[id].destroy(); return GCH[id]=new Chart(document.getElementById(id),cfg); }
 // 가로 스크롤 추이 차트의 y축을 왼쪽에 고정 복제 (스크롤해도 항상 보이게)
 const TRP={week:1,month:1};
+/* 월간 다음 발표 — 이번 달 발표일(15일을 영업일로 민 날)을 먼저 구하고, 그날 12시(공표)가 지났을 때만 다음 달로 넘긴다.
+   예전엔 달력상 15일로 '지났다'를 판정해, 15일이 주말·휴일로 밀린 달에는 16일~밀린 발표일 사이에 벌써 다음 달 날짜를
+   보였다(2026-08-15 토·광복절 → 8/18, 전수리뷰 #55). */
 function _next15(now){
   const k=_kst(now), d=new Date(k.day*_DAY);
   let y=d.getUTCFullYear(),m=d.getUTCMonth();
-  const past=d.getUTCDate()>15||(d.getUTCDate()===15&&k.hour>=12);
-  if(past){m++; if(m>11){m=0;y++;}}
-  return _bizDay(Date.UTC(y,m,15)/_DAY);
+  let r=_bizDay(Date.UTC(y,m,15)/_DAY);
+  if(k.day>r||(k.day===r&&k.hour>=12)){ m++; if(m>11){m=0;y++;} r=_bizDay(Date.UTC(y,m,15)/_DAY); }
+  return r;
 }
 function _fmtRel(n){
   const d=new Date(n*_DAY);
@@ -1107,6 +1169,7 @@ function gtSet(sec,v){
     const ch=box&&window.Chart&&Chart.getChart(box.querySelector('canvas'));
     if(ch)ch.resize();   // display:none에서 생성된 차트는 표시 시 직접 리사이즈해야 canvas가 그려짐
   }
+  if(v==='m'&&TREND[sec])syncSwipe(sec);
   track('stats_gt',{section:sec,view:v});
 }
 function setAdvTab(t,push){
@@ -1117,12 +1180,11 @@ function setAdvTab(t,push){
     document.getElementById('atab-'+k).classList.toggle('on',k===t);
     document.getElementById('atab-'+k).setAttribute('aria-selected',k===t?'true':'false');
   });
-  if(t==='permit')drawPermitChart();
-  if(t==='occ')drawOccChart();
-  track('adv_tab',{tab:t});
-  if(push!==false)statsNav('#stats-adv-'+t,!changed);
+  if(t==='permit'&&advReady())drawPermitChart();
+  if(t==='occ'&&advReady())drawOccChart();
+  if(push!==false){ track('adv_tab',{tab:t}); statsNav('#stats-adv-'+t,!changed); }
 }
-function renderAdvAll(){ renderAdvPermits(); renderAdvOcc(); setAdvTab('occ',false); }
+function renderAdvAll(tab){ renderAdvPermits(); renderAdvOcc(); setAdvTab(tab||'occ',false); }
 /* 시장동향 주간/월간 토글 — 숨김 상태에서 만들어진 차트는 표시 시 리사이즈 필요 */
 function setMarketTab(t,push){
   if(!['week','month'].includes(t))t='week';
@@ -1134,8 +1196,8 @@ function setMarketTab(t,push){
   });
   const ch=window.Chart&&Chart.getChart&&Chart.getChart(t+'Chart');
   if(ch)ch.resize();
-  track('market_tab',{tab:t});
-  if(push!==false)statsNav('#stats-market-'+t,!changed);
+  syncSwipe(t);
+  if(push!==false){ track('market_tab',{tab:t}); statsNav('#stats-market-'+t,!changed); }
 }
 
 /* ============ 시장 도구: 버블밴드 ============ */
@@ -1180,9 +1242,11 @@ function renderBubbleSec(){
        (2026-08-08 감사). 금리를 두 자리로 쓰므로 밴드도 두 자리로 맞춘다. */
     const lo=jr/100*cv,hi=lo*2;
     let cls='',txt='여유 '+(hi-loan).toFixed(1)+'%p';
-    if(loan>=hi){cls='hi';txt='상단 초과';nHi++;}
-    else if(loan<=lo){cls='lo';txt='매수 신호권';nLo++;}
-    else if(hi-loan<1)nNear++;
+    /* 요약 'N개 지역'은 시도만 센다 — 집계(전국·수도권·지방)는 시도의 합이라 같은 조건을 두 번 센다(전수리뷰 #56) */
+    const one=REG_AGG.indexOf(rg)<0?1:0;
+    if(loan>=hi){cls='hi';txt='상단 초과';nHi+=one;}
+    else if(loan<=lo){cls='lo';txt='매수 신호권';nLo+=one;}
+    else if(hi-loan<1)nNear+=one;
     let pos;
     if(loan>=hi)pos='대출금리가 위험선(월세수익률 2배)을 넘었습니다 — 이자가 임대수익의 2배를 넘는 과열 구간입니다.';
     else if(loan<=lo)pos='대출금리가 월세수익률보다 낮습니다 — 이자가 임대수익보다 싼 매수 신호권입니다.';
