@@ -162,7 +162,7 @@ SHAPES = {
 
 @pytest.mark.parametrize('shape', sorted(SHAPES))
 def test_three_ingest_paths_share_one_fold_rule(monkeypatch, shape):
-    """인허가 표(ADV.permits)·기본통계(STATS 인허가)·공급(분양·미분양) 세 경로가 같은 원천 모양을 같은 전남광주로 접는다.
+    """인허가 표(ADV.permits)·기본통계(STATS 인허가)·공급(분양·미분양) 세 경로가 같은 원천 모양을 같은 전남광주로 접는다(연간 경로는 test_annual_path_folds_like_the_other_paths).
 
     변이: _merge_gj 를 예전 규칙(한 조각만 와도 `vals[_GJ_NEW] = sum(parts)`, 원천 통합 행을 덮어씀)으로 되돌리면
           'one'·'merged+one'·'merged+both' 가, _fetch_basic_one 의 접기 두 줄을 지우면 'both'·'one'·'merged+one'·
@@ -212,6 +212,8 @@ def _supply_rows(D, months, last_shape=None):
 
 def _run_supply(monkeypatch, st, rows):
     tbl = U.SUPPLY_CONF['미분양']['tbl']
+    # 미분양 한 계열만 돈다 — 다른 표(분양)는 빈 응답이 실패로 기록되므로(전수리뷰 #8) 이 픽스처에서 뺀다.
+    monkeypatch.setattr(U, 'SUPPLY_CONF', {'미분양': U.SUPPLY_CONF['미분양']})
     monkeypatch.setattr(U, '_rone_recent_rows',
                         lambda t, need, cycle='WK', since=None: [dict(r) for r in rows] if t == tbl else [])
     monkeypatch.setattr(U, 'SUPPLY_STALLED', [])
@@ -371,3 +373,131 @@ def test_gu_missing_for_one_run_keeps_its_history(kind, window):
     n2 = U._merge_hist(copy.deepcopy(full), n1, keep, '시험 서울구', soft)
     assert n2['regions'] == regs and [r['ma'][0] for r in n2['rows']] == [old[r['p']] for r in n2['rows']]
     assert len(soft) == 1, '정상 회차에 실패가 기록됐다'
+
+
+# ── 전수리뷰 #1: 연간 계열도 옛 두 이름을 접는다 ─────────────────────────────────────────
+ANNUAL_SHAPES = {k: v for k, v in SHAPES.items() if k != 'none'}
+
+
+def _annual_rows(name, prd, vals):
+    """ANNUAL_CONF[name] 표의 응답 모양 한 해치. 노후주택30년(shortmap)은 원천 전체명('광주광역시'·'전라남도')으로 준다."""
+    cfg = U.ANNUAL_CONF[name]
+    full = {v: k for k, v in U.BUBBLE_SHORT.items()}
+    rows = []
+    for r, v in vals.items():
+        nm = full.get(r, r) if cfg.get('shortmap') else r
+        row = {'ITM_NM': cfg['itm'], 'C1_NM': nm, 'PRD_DE': prd, 'DT': str(v)}
+        row.update(cfg.get('only') or {})
+        rows.append(row)
+    return rows
+
+
+@pytest.mark.parametrize('name', [n for n, c in U.ANNUAL_CONF.items() if not c.get('region')])
+@pytest.mark.parametrize('shape', sorted(ANNUAL_SHAPES))
+def test_annual_path_folds_like_the_other_paths(monkeypatch, name, shape):
+    """연간 계열(보급률·멸실·노후)도 기본통계와 같은 규칙으로 광주·전남을 전남광주로 접는다. 비율 계열(보급률)은
+    W_GJ 가중평균, 물량은 합, 원천 통합 행 우선, 한 조각이면 만들지 않는다.
+
+    변이: _fetch_annual_one 끝의 `for vals in out.values(): _fold_gj(vals, weighted)` 두 줄을 지우면 'both'·'one'·
+          'merged+one'·'merged+both' 가 빨개진다(확인 — 옛 이름이 남아 merge_annual 이 버리고 전남광주가 빈다).
+    픽스처: 통합 전 연도(2025)를 원천이 광주·전남 두 이름으로 내는 실제 상태와 전환기 모양. 노후주택30년은 KOSIS
+            DT_1JU1521 이 쓰는 전체명(광주광역시·전라남도)으로 준다.
+    """
+    vals = ANNUAL_SHAPES[shape]
+    rows = _annual_rows(name, '2025', vals)
+    monkeypatch.setattr(U, 'kosis', lambda p: rows)
+    got = U._fetch_annual_one(name)['2025']
+    want = U._fold_gj(dict(vals), name in WEIGHTED)
+    assert got == want, (got, want)
+    assert not (set(SRC) & set(got))
+
+
+def test_annual_new_year_reaches_the_merged_region(monkeypatch):
+    """새 연도가 들어오면 전남광주도 값을 받고(두 조각의 합), 3년 창 안의 소급 정정도 전남광주에 실린다.
+
+    변이: 위와 같은 두 줄을 지우면 새 연도 전남광주가 None, 정정이 안 실려 빨개진다(확인 — 리뷰 재현값 [98, 1284, None]).
+    픽스처: 저장 STATS 아파트멸실의 마지막 두 해와 다음 해를 원천 모양으로 되돌린 응답. 전남광주는 광주·전남 두 행
+            (통합 전 연도 실제 모양), 마지막 해 광주 +7 소급 정정, 새 해는 각 지역 마지막 값 +10.
+    """
+    name = '아파트멸실'
+    st = _stats()
+    D = st[name]
+    y1, y2 = D['dates'][-2], D['dates'][-1]
+    y3 = str(int(y2) + 1)
+    rows = []
+    for y, i, add in ((y1, -2, 0), (y2, -1, 0), (y3, -1, 10)):
+        vals = {r: a[i] + add for r, a in D['series'].items() if a[i] is not None and r != DST}
+        g, j = _split(D['series'][DST][i])
+        vals[SRC[0]], vals[SRC[1]] = g + add + (7 if y == y2 else 0), j + add
+        rows += _annual_rows(name, y, vals)
+    gj2 = D['series'][DST][-1]
+    monkeypatch.setattr(U, 'kosis', lambda p: rows)
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    failed = []
+    only = {name: U.ANNUAL_CONF[name]}
+    monkeypatch.setattr(U, 'ANNUAL_CONF', only)
+    U.update_annual(st, failed)
+    D = st[name]
+    assert D['dates'][-1] == y3 and not failed
+    assert D['series'][DST][-2] == gj2 + 7, '소급 정정이 전남광주에 안 실렸다'
+    assert D['series'][DST][-1] == gj2 + 20, '새 연도 전남광주가 비었다'
+
+
+# ── 전수리뷰 #4: 응답에 서울구 열이 하나도 없으면 직전 블록을 지킨다 ───────────────────────
+@pytest.mark.parametrize('kind,window', [('weekly', U.RECENT_WEEKS), ('monthly', U.RECENT_MONTHS)])
+def test_gu_block_with_no_columns_keeps_the_saved_block(kind, window):
+    """최신 주(달)에 서울 구 행이 통째로 빠진 응답(regions=[])이 와도 저장 블록이 그대로이고 부분 실패로 남는다.
+    다음 정상 회차 뒤 모든 행의 길이가 열 수와 같다.
+
+    변이: _merge_hist 의 `if old_cols and not new_cols:` 블록을 지우면 regions=[] 블록이 저장되어 빨개진다(확인 — 실데이터를
+          읽는 게이트 시험 셋이 regions[0] IndexError 로 그날 커밋을 막던 상태).
+    픽스처: 저장 ADV 의 weekly/monthly.seoul 과, fetch_*_rone 이 최신 주 매매값에서 gus 를 다시 만들 때 서울 구 행이
+            하나도 없던 응답(regions [] · 각 행 값 배열 []). 둘째 회차는 정상 응답(저장분 끝 구간).
+    """
+    cur = copy.deepcopy(U.read_current_adv()[3][kind]['seoul'])
+    keep = U.CONF[kind]['sgg_hist']
+    empty = {'regions': [], 'rows': [{k: ([] if isinstance(v, list) else v) for k, v in r.items()}
+                                     for r in copy.deepcopy(cur['rows'][-window:])]}
+    soft = []
+    n1 = U._merge_hist(empty, copy.deepcopy(cur), keep, '시험 서울구', soft)
+    assert n1 == cur, '빈 열 응답이 저장 블록을 바꿨다'
+    assert soft == ['시험 서울구 열 빠짐(전부)']
+    full = {'regions': list(cur['regions']), 'rows': copy.deepcopy(cur['rows'][-window:])}
+    n2 = U._merge_hist(full, n1, keep, '시험 서울구', soft)
+    assert n2['regions'] == cur['regions']
+    assert all(len(v) == len(n2['regions']) for r in n2['rows'] for v in r.values() if isinstance(v, list))
+
+
+# ── 전수리뷰 #8: 공급 표의 빈 응답·오류 응답은 실패로 남는다 ─────────────────────────────
+@pytest.mark.parametrize('resp', [{'RESULT': {'CODE': 'INFO-200', 'MESSAGE': '해당하는 데이터가 없습니다.'}},
+                                  {'RESULT': {'CODE': 'ERROR-300', 'MESSAGE': '필수 값 누락'}}],
+                         ids=['info200-empty', 'error-code'])
+def test_supply_empty_or_error_response_is_recorded(monkeypatch, resp):
+    """R-ONE 공급 표(분양·미분양)가 표 블록 대신 RESULT 블록만 주면 그 계열이 failed 에 남는다(.fetch_failed → ℹ️ 줄).
+    INFO-200(자료 없음)은 전량 재조회 뒤에도 빈 것이고, 오류 코드는 _rone_recent_rows 가 예외로 올린다.
+
+    변이: update_supply 빈 응답 분기의 `failed.append(name)` 을 지우면 info200-empty 가 빨개진다(확인). error-code 는
+          _rone_recent_rows 가 예외로 올려 update_supply 의 except 경로가 기록한다(그 예외 자체는
+          test_rone_error_code_raises_but_info200_is_empty 가 본다).
+    픽스처: 표 ID 가 폐지·개편됐거나 인증 오류일 때 R-ONE 이 주는 실제 응답 모양(RESULT 블록만).
+    """
+    monkeypatch.setattr(U, 'http_json', lambda url, tries=3: resp)
+    monkeypatch.setattr(U, 'SUPPLY_STALLED', [])
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    failed = []
+    assert U.update_supply(_stats(), failed=failed) == []
+    assert set(failed) == set(U.SUPPLY_CONF)
+
+
+def test_rone_error_code_raises_but_info200_is_empty(monkeypatch):
+    """_rone_recent_rows 는 INFO-200 만 빈 결과로 보고, 다른 RESULT 코드는 예외로 올린다(원인을 그대로 드러낸다).
+
+    변이: `if code != 'INFO-200': raise …` 를 지우면 오류 코드가 [] 로 바뀌어 빨개진다(확인).
+    픽스처: R-ONE 의 '자료 없음'(INFO-200)과 오류(ERROR-290 인증키) 응답 모양.
+    """
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    monkeypatch.setattr(U, 'http_json', lambda url, tries=3: {'RESULT': {'CODE': 'INFO-200'}})
+    assert U._rone_recent_rows('T1', 10, cycle='MM', since='202601') == []
+    monkeypatch.setattr(U, 'http_json', lambda url, tries=3: {'RESULT': {'CODE': 'ERROR-290', 'MESSAGE': '인증키'}})
+    with pytest.raises(RuntimeError, match='ERROR-290'):
+        U._rone_recent_rows('T1', 10, cycle='MM', since='202601')
