@@ -15,8 +15,8 @@
 트래픽을 보내는 역할도 한다.
 
 사용:
-  python tools/make_theory_post.py          # 다음 미발행 편
-  python tools/make_theory_post.py 3        # 3편 지정
+  python tools/make_theory_post.py 3        # 3편 (편 번호는 꼭 준다 — 없으면 멈춘다)
+  python tools/make_theory_post.py 3 --force  # 경험 문단을 채운 기존 초안까지 덮어쓴다
 """
 import io
 import os
@@ -118,6 +118,53 @@ def check_sync_claims(rows=None):
         raise SystemExit('3편을 만들 수 없다 — 동조성 최저 지역이 %s이 아니라 %s다. "서울은 왜 '
                          '다른가" 절은 서울 고유의 설명이라 그대로 쓸 수 없다. 절을 다시 쓸 것.'
                          % (SYNC_LOW_REGION, low))
+
+
+# 2편 '가운데가 가장 높은 이유' 절. 고리① 세 구간 가운데 '보통'이 가장 높을 때만 참이다. 2026-09 /cycle/ 정본은
+# 적음 2.66 · 보통 1.74 · 많음 −0.36 이라 거짓이 됐다(전수리뷰 #76). 이 절은 그 전제가 설 때만 싣고, 서지 않으면
+# 빼고 경고한다. 절 안의 +1.9%·0%·+2%대는 사이트 어디에도 없는 손 숫자다 — 다시 쓸지는 마케팅이 정한다(대표 결정 ⑥).
+L1_MID_2 = """<h3>가운데가 가장 높은 이유</h3>
+
+<p>차트를 다시 보면 이상한 게 있습니다. 공급이 <b>'보통'</b>인 구간이 가장
+높습니다. 공급이 적을 때보다도요.</p>
+
+<p>오류가 아닙니다. 공급은 물량의 많고 적음이 아니라 <b>국면</b>을 타고
+작동하기 때문입니다.</p>
+
+<p>입주가 막 늘기 시작한 초입에는 전세가 분기당 <b>+1.9%</b>씩 계속 오릅니다.
+아직 누적 물량이 적어서입니다.</p>
+
+<p>물량이 계속 쌓여 누적 수준이 높아지면 그제야 상승이 <b>0%</b>로 멈춥니다.</p>
+
+<p>그리고 입주가 잦아들면 다시 <b>+2%</b>대로 돌아옵니다.</p>
+
+<p>'보통' 구간에는 이 상승 초입이 섞여 있어서 평균이 높게 나옵니다.</p>
+"""
+
+
+def link1_values(D=None):
+    """1·2편 고리① 숫자와 방향 문구 — /cycle/ 정본 D(prose·link1_new)에서 읽는다(전수리뷰 #76, 대표 결정 ⑥).
+
+    예전 본문은 '1.42%·0.63%, 절반 이하로 떨어집니다'를 박아 두어 사이트(2.7% vs −0.4%, 하락으로 돌아섰다)와
+    달랐다. 숫자는 사이트가 찍는 문자열(prose.l1_lo·l1_hi) 그대로, 방향 문구는 그 두 값에서 고른다.
+    공급이 적은 구간이 많은 구간보다 높지 않으면 1·2편의 전제가 무너지므로 멈춘다(3편 check_sync_claims 와 같은 원칙).
+    """
+    D = P.cycle_d() if D is None else D
+    pr, rise = D['prose'], D['link1_new']['jeonse_rise']
+    lo, hi = (float(pr[k].replace('\u2212', '-')) for k in ('l1_lo', 'l1_hi'))
+    if not rise[0] > rise[-1] or not lo > hi:
+        raise SystemExit('1·2편을 만들 수 없다 — 고리① 전제(공급이 적은 분기의 전세 상승률 > 많은 분기)가 /cycle/ '
+                         '정본과 어긋난다(%s). 문장을 먼저 고칠 것.' % ' · '.join('%g' % x for x in rise))
+    if hi < 0:
+        d = '하락으로 돌아섭니다.'
+    elif hi == 0:
+        d = '상승이 멈춥니다.'
+    elif hi <= lo / 2:
+        d = '절반 이하로 떨어집니다.'
+    else:
+        d = '상승 폭이 줄어듭니다.'
+    mid_ok = rise[1] > rise[0] and rise[1] > rise[-1]
+    return dict(l1_lo=pr['l1_lo'], l1_hi=pr['l1_hi'], l1_dir=d, l1_mid=L1_MID_2 if mid_ok else '')
 
 
 POSTS = [
@@ -241,8 +288,8 @@ POSTS = [
 
 <p>수도권의 분기별 입주 물량을 3등분해 비교한 것입니다.</p>
 
-<p>공급이 적었던 분기의 전세 상승률은 <b>1.42%%</b>, 많았던 분기는 <b>0.63%%</b>.
-절반 이하로 떨어집니다.</p>
+<p>공급이 적었던 분기의 전세 상승률은 <b>%(l1_lo)s%%</b>, 많았던 분기는 <b>%(l1_hi)s%%</b>.
+%(l1_dir)s</p>
 
 <p>말이 아니라 숫자로 남는 차이입니다.</p>
 
@@ -351,9 +398,9 @@ POSTS = [
 
 <p>[여기에 전세 상승률 차트]</p>
 
-<p>공급이 적었던 분기에는 전세가 분기당 <b>1.42%%</b> 올랐습니다.</p>
+<p>공급이 적었던 분기에는 전세가 분기당 <b>%(l1_lo)s%%</b> 올랐습니다.</p>
 
-<p>공급이 몰렸던 분기에는 <b>0.63%%</b>. <b>절반 이하로 꺾입니다.</b></p>
+<p>공급이 몰렸던 분기에는 <b>%(l1_hi)s%%</b>. <b>%(l1_dir)s</b></p>
 
 <p>같은 지역, 같은 기간인데 새 아파트가 얼마나 들어오느냐로 이만큼 갈립니다.</p>
 
@@ -370,24 +417,7 @@ POSTS = [
 <p>그래서 <b>행정구역이 아니라 생활권으로 묶어야</b> 보입니다. 수도권 전체로
 묶으면 관계가 또렷해집니다.</p>
 
-<h3>가운데가 가장 높은 이유</h3>
-
-<p>차트를 다시 보면 이상한 게 있습니다. 공급이 <b>'보통'</b>인 구간이 가장
-높습니다. 공급이 적을 때보다도요.</p>
-
-<p>오류가 아닙니다. 공급은 물량의 많고 적음이 아니라 <b>국면</b>을 타고
-작동하기 때문입니다.</p>
-
-<p>입주가 막 늘기 시작한 초입에는 전세가 분기당 <b>+1.9%%</b>씩 계속 오릅니다.
-아직 누적 물량이 적어서입니다.</p>
-
-<p>물량이 계속 쌓여 누적 수준이 높아지면 그제야 상승이 <b>0%%</b>로 멈춥니다.</p>
-
-<p>그리고 입주가 잦아들면 다시 <b>+2%%</b>대로 돌아옵니다.</p>
-
-<p>'보통' 구간에는 이 상승 초입이 섞여 있어서 평균이 높게 나옵니다.</p>
-
-<h3>그래서 무엇을 보면 되나</h3>
+%(l1_mid)s<h3>그래서 무엇을 보면 되나</h3>
 
 <p>세 가지입니다.</p>
 
@@ -645,7 +675,7 @@ POSTS = [
 
 <h3>지금 인허가로 본 몇 년 뒤</h3>
 
-<p>지방 인허가는 지금 바닥에 가깝습니다. 2026년 상반기 %(jb_h1)s호이고, 이보다 적었던 상반기는 %(jb_h1since)s년이 마지막입니다. 최근 1년치(%(jb_roll)s호)는 2022년의 %(jb_rollpct)s입니다. %(min2025)s는 2025년 한 해 인허가가 2007년 이후 가장 적었습니다.</p>
+<p>지방 인허가는 지금 바닥에 가깝습니다. 2026년 상반기 %(jb_h1)s호이고, 이보다 적었던 상반기는 %(jb_h1since)s년이 마지막입니다. 최근 1년치(%(jb_roll)s호)는 2022년의 %(jb_rollpct)s입니다. %(min2025)s 2025년 한 해 인허가가 2007년 이후 가장 적었습니다.</p>
 
 <p>[여기에 수도권·지방 인허가 차트]</p>
 
@@ -791,6 +821,10 @@ def render(post):
     # (2026-08-16 사용자). 맨 끝 링크 하나면 거기까지 읽은 사람만 넘어간다.
     # 링크를 갈라 두는 이유: 같은 곳으로 세 번 보내면 세 번째는 안 눌린다.
     _S = sync_stats()
+    # 3편 동조성 문장의 값은 /cycle/ 본문 칸(D.prose)을 그대로 읽는다(전수리뷰 #77). 블로그가 다시 계산하면
+    # 같은 문장('대구·부산은 0.8')이 사이트는 2위 값, 블로그는 1위 값으로 갈린다.
+    D = P.cycle_d()
+    pr = D['prose']
     # 4편 숫자는 데이터에서 센다. 단정이 깨지면 초안을 만들지 않는다(theory_link3 docstring).
     n4 = {}
     if post['n'] == 4:
@@ -798,6 +832,9 @@ def render(post):
         adv, sts = M.load()
         try:
             n4 = L3.link3_numbers(adv, sts)
+        except L3.Link3DataError as e:
+            # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
+            raise SystemExit('4편을 만들 수 없다 — %s. 원천 데이터를 먼저 복구할 것.' % e)
         except L3.Link3ClaimError as e:
             raise SystemExit('4편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
         n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
@@ -810,6 +847,10 @@ def render(post):
         except L4.Link4ClaimError as e:
             raise SystemExit('5편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
         n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
+    elif post['n'] in (1, 2):
+        n4 = link1_values(D)
+        if post['n'] == 2 and not n4['l1_mid']:
+            print("  ⚠ 2편 '가운데가 가장 높은 이유' 절을 뺐다 — /cycle/ 정본에서 '보통' 구간이 가장 높지 않다. 절을 다시 쓸지 정할 것.")
     body = post['body'].strip() % dict(n4, **{
         'link': link('아공맵 부동산 사이클 리포트 보기'),
         'cycle': link('고리별 검증 결과 보기'),
@@ -828,10 +869,11 @@ def render(post):
         # 15곳 → 14곳, 평균 0.71 → 0.73, 서울 0.58 → 0.55로 바뀌었다).
         'sync_table': sync_table(),
         'sync_n': _S['n'],
-        'sync_avg': ('%.2f' % _S['avg']),
-        'sync_top2': _S['top2'],
-        'sync_topv': ('%.1f' % _S['top']['corr']),
-        'sync_lowv': ('%.2f' % _S['low']['corr']),
+        'sync_avg': pr['sync_mean'],
+        'sync_top2': pr['sync_top2'],
+        'sync_topv': pr['sync_top_v'],
+        # 최저 지역 값 = 서울 값이다(3편 render 가 check_sync_claims 로 최저가 서울인지 먼저 본다)
+        'sync_lowv': pr['seoul_sync'],
 
     })
     S.append(P.field('본문', 'b1', body))
@@ -855,7 +897,12 @@ def render(post):
 
 
 def main(argv):
-    n = int(argv[0]) if argv and argv[0].isdigit() else 1
+    # 편 번호는 꼭 받는다. 예전엔 인자가 없으면 1편을 만들어 theory-01.html 을 덮었다 — docstring 은 '다음 미발행 편'이라고
+    # 안내하고 있었다(전수리뷰 #75).
+    nums = [a for a in argv if a.isdigit()]
+    if not nums:
+        raise SystemExit('편 번호를 줄 것 — python tools/make_theory_post.py <편번호> [--force]')
+    n = int(nums[0])
     post = next((p for p in POSTS if p['n'] == n), None)
     if not post:
         raise SystemExit('%d편은 아직 안 썼다. POSTS에 추가할 것.' % n)
@@ -863,7 +910,18 @@ def main(argv):
         os.makedirs(OUT)
     path = os.path.join(OUT, 'theory-%02d.html' % n)
     # render 가 생성 가드로 멈출 수 있다 — 파일을 열기 전에 끝내야 기존 초안이 0바이트가 안 된다.
-    P.write_draft(path, render(post))
+    html = render(post)
+    # 경험 문단을 사람이 채운 초안은 덮지 않는다(전수리뷰 #75). 새 초안에는 자리 표시자가 있는데 기존 파일에 없으면
+    # 사람이 채운 것이다. drafts/ 는 gitignore 라 되돌릴 데가 없다(주간 초안의 2026-08-14 사고와 같은 가드).
+    if os.path.exists(path) and '--force' not in argv:
+        old = io.open(path, encoding='utf-8').read()
+        if EXP_PLACEHOLDER[:20] in html and EXP_PLACEHOLDER[:20] not in old:
+            alt = path[:-5] + '.new.html'
+            P.write_draft(alt, html)
+            print('⚠ %s 는 경험 문단을 채운 흔적이 있어 그대로 뒀다. 새 초안은 %s 에 썼다. 덮어쓰려면 --force.'
+                  % (os.path.basename(path), os.path.relpath(alt, ROOT)))
+            return 0
+    P.write_draft(path, html)
     if P.desktop_shortcut(path, P.SHORTCUTS['theory']):
         print('  바탕화면 바로가기: %s' % P.SHORTCUTS['theory'])
     print('이론 초안 생성: %s' % os.path.relpath(path, ROOT))

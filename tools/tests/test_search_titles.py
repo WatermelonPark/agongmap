@@ -162,7 +162,7 @@ def test_site_and_blog_zone_titles_take_the_year_from_one_function(monkeypatch, 
     class Stop(Exception):
         pass
 
-    def grab(nm, yr, yrs, ask, seq):
+    def grab(nm, yr, yrs, ask, seq, total=None):   # total: 바퀴 크기(전수리뷰 #80 제목 실험 팔)
         seen['yr'] = yr
         raise Stop()
     monkeypatch.setattr(P, 'zone_title', grab)
