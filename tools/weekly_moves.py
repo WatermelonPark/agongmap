@@ -254,7 +254,10 @@ def cum_window(rows, weeks=CUM_WEEKS):
 
     행 번호 차(rows[-12:])로 잡지 않는다: 발표를 한 주 거른 회차가 있으면 12행이 13주가 된다(CLAUDE.md '전월·1년 전 칸은
     인덱스 차가 아니라 라벨로' 와 같은 이유). 거른 주의 변동은 다음 회차 값에 실려 있으므로(전 회차 대비) 창 안 행을 모두 이으면
-    그 기간의 지수 변화와 같다. 창의 기준 주(최신 − weeks 주) 또는 그보다 앞선 행이 없으면(이력이 창보다 짧다) None."""
+    그 기간의 지수 변화와 같다. 창의 기준 주(최신 − weeks 주) **그 행**이 없으면 None — 이력이 창보다 짧을 때뿐 아니라
+    기준 주가 원천이 거른 주일 때도 그렇다. 그 주가 없으면 창 첫 행이 '기준 주 한 주 전 → 다음 주' 두 주 치 변동을 싣고
+    들어와 누적이 weeks+1 주(91일)를 덮는데 'weeks 주'로 적히기 때문이다(실데이터 2025-01-27·2025-10-06 거른 주의 12주 뒤
+    회차, 전수리뷰 #12). 원천 값을 쪼개 채우지 않으므로 그 회차의 누적 칸은 비운다."""
     if not rows:
         return None
     last = _iso(rows[-1].get('p'))
@@ -263,7 +266,7 @@ def cum_window(rows, weeks=CUM_WEEKS):
     import datetime
     base = last - datetime.timedelta(days=7 * weeks)
     ds = [_iso(r.get('p')) for r in rows]
-    if not any(d is not None and d <= base for d in ds):
+    if base not in ds:
         return None
     return [k for k, d in enumerate(ds) if d is not None and base < d <= last]
 

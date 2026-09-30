@@ -177,6 +177,60 @@ def test_weekly_page_bakes_the_same_post_once_before_more_links(tmp_path, monkey
     assert BF.LEAD_NOW not in blk2 and 'href="%s"' % BF.BLOG_HOME in blk2
 
 
+def test_pick_labels_by_the_week_in_the_title_not_the_post_date():
+    """제목에 주차 라벨이 있으면 '이번 주/지난주'를 그 라벨로 정한다(전수리뷰 #27). 게시일로만 정하면 지난 회차 글이
+    이번 발표일 뒤에 올라왔을 때 '이번 주 해석 읽기: …(8월 셋째 주)'가 '8월 넷째 주' 페이지에 붙는다.
+
+    픽스처: 8/30 에 8월 3·4주 글이 함께 올라간 실제 사례. 조사일 2026-08-24(발표일은 weekly_release.status 에서) 회차에
+    발표일 뒤 게시된 세 글 — 제목 라벨이 이번 조사일·한 주 앞·두 주 앞(라벨은 WR.week_label 로 유도). 라벨 없는 제목은
+    예전처럼 게시일로 정한다.
+    변이(실제로 확인): pick 에서 제목 라벨 분기를 지워 게시일 규칙만 남기면 '지난주'·None 단정이 빨개진다. 조사일을
+          발표일 − PUB_OFFSET 대신 발표일 그대로 쓰면 9/7 조사(9/10 발표 — 서수가 갈리는 주) 단정이 빨개진다.
+    """
+    d = datetime.date.fromisoformat
+    # 두 번째 조사일(9/7)은 발표일(9/10)과 서수가 다른 주다 — 조사일을 발표일에서 거꾸로 세는 셈이 틀리면 드러난다.
+    for s in ('2026-08-24', '2026-09-07'):
+        pub = WR.status(s)['pub']
+        after = (d(pub) + datetime.timedelta(days=3)).isoformat()
+
+        def lab(k):
+            return WR.week_label((d(s) - datetime.timedelta(days=7 * k)).isoformat())
+
+        def post(k):
+            return {'date': after, 'url': BF.BLOG_HOME + '/%d' % k,
+                    'title': '[한국부동산원] 주간 아파트가격 동향(%s) | 서울이 올랐습니다' % lab(k)}
+        assert len({lab(0), lab(1), lab(2)}) == 3
+        assert BF.pick(post(0), pub)['lead'] == BF.LEAD_NOW, s
+        assert BF.pick(post(1), pub)['lead'] == BF.LEAD_PREV, '지난 회차 글을 게시일만 보고 이번 주 해석으로 붙였다(%s)' % s
+        assert BF.pick(post(2), pub) is None, '두 회차 전 글을 이번 주 페이지에 붙였다(%s)' % s
+    plain = {'date': after, 'url': BF.BLOG_HOME + '/9', 'title': '주간 시세 해설'}
+    assert BF.pick(plain, pub)['lead'] == BF.LEAD_NOW
+    assert BF.title_week('동향(8월  셋째 주)') == '8월 셋째 주'
+
+
+def test_weekly_page_keeps_the_blog_title_as_written(tmp_path, monkeypatch):
+    """/weekly/ 의 해설 글 칸은 RSS 제목을 그대로 인용한다 — 뼈대의 'N개 시도'를 모델 수로 맞추는 치환이 남의 글 제목까지
+    고치면 안 된다(전수리뷰 #26: '5개 시도만 올랐습니다' → '16개 시도만'). 뼈대 문구의 치환은 그대로 된다.
+
+    픽스처: 9/21 조사 주(_week), 저장 파일에 이번 주 라벨·발표일 뒤 게시의 주간 글, 제목 결론절에 시도 수(모델 수와 다른
+    수 — 모델에서 유도)가 든 실제 제목 모양.
+    변이(실제로 확인): render 에서 시도 수 치환을 put_blog 뒤로 되돌리면 빨개진다.
+    """
+    W, Q = _week()
+    n = len(MW.SIDO) - 11
+    title = '[한국부동산원] 주간 아파트가격 동향(%s) | %d개 시도만 올랐습니다' % (WR.week_label(W['rows'][-1]['p']), n)
+    f = tmp_path / 'blog.json'
+    f.write_text(json.dumps({'weekly': {'date': WR.status(W['rows'][-1]['p'])['pub'], 'title': title,
+                                        'url': BF.BLOG_HOME + '/7'}}, ensure_ascii=False), encoding='utf-8')
+    monkeypatch.setattr(BF, 'FILE', str(f))
+    out = MW.render(_skeleton(), W, Q)
+    blk = re.search(r'<!--WK:BLOG-->(.*?)<!--/WK:BLOG-->', out, re.S).group(1)
+    assert '%d개 시도만 올랐습니다' % n in blk, '해설 글 제목을 고쳐 인용했다: %s' % blk
+    assert '%d개 시도만' % len(MW.SIDO) not in blk
+    rest = out.replace(blk, '')
+    assert not [x for x in re.findall(r'(?<!\d)(\d+)개 시도', rest) if int(x) != len(MW.SIDO)], '뼈대 시도 수 치환이 빠졌다'
+
+
 # ── 홈 쪽(ADV.blog) ──────────────────────────────────────────────────────────────────────────────────
 def test_split_carries_the_picked_post_as_a_top_level_key(tmp_path, monkeypatch):
     """split_data 가 /weekly/ 와 같은 pick 결과를 data-core 최상위 ADV.blog 로 싣는다. 최상위 키라 통계 탭을 열어도

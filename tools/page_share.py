@@ -60,13 +60,16 @@ _ICON_S = ('<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><
            'd="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>')
 
 # 누르는 쪽의 스크립트. ES5 — 생성 페이지는 빌드 도구 없이 나간다. D 는 페이지마다 굽는 공유 내용.
+# say(): 버튼의 원래 모양(아이콘+라벨)은 **한 번만** 저장하고 앞선 되돌림 타이머를 지운다. 누를 때마다 저장하면 2초 안에
+# 두 번 누른 경우 안내 문구를 '원래 모양'으로 저장해 버튼이 새로고침 전까지 안내 문구로 굳었다(전수리뷰 #28).
 _JS = r"""(function(){var D=%(d)s,KEY=%(key)s,SDK=%(sdk)s,P=null,FAIL=false;
 function load(){if(window.Kakao)return Promise.resolve();if(P)return P;
 P=new Promise(function(ok,no){var s=document.createElement('script');s.src=SDK;s.async=true;s.onload=function(){ok();};
 s.onerror=function(){s.parentNode&&s.parentNode.removeChild(s);P=null;FAIL=true;no();};document.head.appendChild(s);});return P;}
 function ready(){if(!window.Kakao)return false;try{if(!Kakao.isInitialized())Kakao.init(KEY);return Kakao.isInitialized();}catch(e){return false;}}
 function ev(m){try{gtag('event','share',{content_type:D.ct,method:m});}catch(e){}}
-function say(b,m){if(!b)return;var o=b.innerHTML;b.textContent=m;setTimeout(function(){b.innerHTML=o;},2000);}
+function say(b,m){if(!b)return;if(b._o==null)b._o=b.innerHTML;clearTimeout(b._t);b.textContent=m;
+b._t=setTimeout(function(){b.innerHTML=b._o;b._o=null;},2000);}
 function copy(b){var t=D.title+'\n'+D.url;if(navigator.clipboard&&navigator.clipboard.writeText){
 navigator.clipboard.writeText(t).then(function(){say(b,'링크를 복사했어요');},function(){say(b,'주소창을 복사해 주세요');});}
 else say(b,'주소창을 복사해 주세요');}

@@ -50,7 +50,9 @@ URL = SITE + '/monthly/'
 # ── 공유 카드·공유 버튼(홈 마케팅 검수 B8·VIRAL-1, 2026-09-27) ────────────────────────────────────
 # 예전 og:image 는 범용 og-brand.png 라 링크를 붙여 넣으면 그 달의 숫자가 아니라 매달 같은 브랜드 카드가 떴다.
 # make_monthly_share 가 그 달 시도별 매매 변동률 카드를 SHARE_REL 에 굽고(배치 pytest 뒤 pillow 구역), 이 페이지의
-# og:image 는 그 파일에 기준월 판(?v=YYYY-MM)을 붙여 가리킨다 — 주간 카드(make_weekly_page.share_version)와 같은 방식.
+# og:image 는 그 파일에 기준월 판(?v=YYYY-MM)을 붙여 가리킨다 — 주간 카드(make_weekly_page.share_img)와 같은 방식.
+# 판은 데이터가 아니라 **구워진 카드의 PNG 메타**(agongmap-basis)에서 읽고, 카드 생성기가 성공하면 restamp_share 로
+# 같은 회차 안에서 페이지 주소를 새 판으로 고친다(전수리뷰 #85 — 카드가 실패한 달에 새 판 주소가 옛 그림을 가리켰다).
 # 카드 파일이 아직 없으면(병합 직후 첫 배치 전) og-brand 로 둔다: 없는 파일을 미리보기로 가리키지 않는다. 카드 생성은
 # 페이지 생성 뒤(pillow 가 pip 뒤에 깔린다)라 첫 배치에서 카드가 생기고, 다음 배치부터 페이지가 카드를 가리킨다.
 SHARE_REL = 'share/monthly-card.png'
@@ -77,12 +79,48 @@ def share_version(adv):
     return str(rows[-1]['p'])[:7].replace('.', '-') if rows else None
 
 
+def card_version(root=None):
+    """디스크에 **실제로 구워진** 월간 카드의 판(PNG 메타 agongmap-basis = 카드가 그린 기준월). 카드·메타가 없으면 None."""
+    return MW.png_text(os.path.join(root or ROOT, *SHARE_REL.split('/'))).get('agongmap-basis') or None
+
+
 def share_image(adv, root=None):
-    """(og:image 주소, 가로, 세로). 카드 파일이 있으면 카드?v=기준월, 없으면 브랜드 카드."""
-    v = share_version(adv)
-    if v and os.path.isfile(os.path.join(root or ROOT, *SHARE_REL.split('/'))):
+    """(og:image 주소, 가로, 세로). 카드가 있으면 카드?v=**카드가 그린 기준월**, 없으면(또는 메타가 없으면) 브랜드 카드.
+
+    예전엔 판을 데이터의 기준월(share_version)에서 셈하고 파일이 있기만 하면 붙였다. 카드 생성기는 배치에서 게이트
+    뒤에 돌고 실패해도 경고로만 넘어가므로(한 지역이 빠진 달엔 페이지는 굽히고 카드는 SystemExit), 그 회차엔 새 판
+    주소(?v=새 달)가 지난달 카드를 가리킨 채 커밋됐고, 카카오톡·네이버가 그때 긁은 옛 그림이 새 판 주소에 한 달 내내
+    붙었다(전수리뷰 #85). 이제 판은 카드 PNG 메타에서 읽는다 — 주소의 판과 그림의 판이 늘 같다. 카드가 새로 구워지면
+    make_monthly_share 가 restamp_share 로 같은 회차 안에 페이지 주소를 새 판으로 고친다.
+    """
+    v = card_version(root)
+    if v:
         return '%s/%s?v=%s' % (SITE, SHARE_REL, v), SHARE_SIZE[0], SHARE_SIZE[1]
     return BRAND_IMG
+
+
+_SHARE_IMG_RE = re.compile(re.escape('%s/%s' % (SITE, SHARE_REL)) + r'\?v=[0-9A-Za-z-]+')
+
+
+def restamp_share(root=None):
+    """카드를 구운 **뒤** /monthly/ 의 카드 주소 판(?v=)을 카드 메타의 판으로 고쳐 쓴다 → 고친 파일 목록.
+
+    페이지는 카드보다 먼저 구워진다(카드는 pillow 가 깔리는 게이트 뒤). 판 말고는 아무것도 바꾸지 않는다. 페이지가
+    아직 브랜드 카드를 가리키면(카드가 처음 생긴 회차) 고치지 않는다 — 다음 회차에 페이지가 카드를 가리킨다.
+    """
+    root = root or ROOT
+    v = card_version(root)
+    path = os.path.join(root, 'monthly', 'index.html')
+    if not v or not os.path.isfile(path):
+        return []
+    with io.open(path, encoding='utf-8', newline='') as f:
+        old = f.read()
+    new = _SHARE_IMG_RE.sub('%s/%s?v=%s' % (SITE, SHARE_REL, v), old)
+    if new == old:
+        return []
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(new)
+    return ['monthly/index.html']
 
 
 def share_payload(adv, sts, root=None):
@@ -196,6 +234,18 @@ def last_idx(d):
     """계열의 마지막 시점 인덱스와 라벨."""
     dates = d['dates']
     return len(dates) - 1, dates[-1]
+
+
+def jeonse_idx(jr):
+    """전세가율 기준월의 (열 번호, 라벨) — /jeonse-ratio/·/cycle/·시도 리포트와 같은 정본 규칙.
+
+    I.jeonse_ref_index(JEONSE_NEED 가 전부 채워진 마지막 달)를 그대로 쓴다. 예전엔 last_idx(dates[-1])라
+    원천이 일부 지역만 채운 최신 달을 '기준'으로 달고 빈 지역 행을 조용히 빼, 같은 날 /jeonse-ratio/ 와
+    다른 기준월·다른 전국 값을 말하고 피드에 새 판까지 만들었다(전수리뷰 #24·#106). 표와 요약(top3_lines)이
+    이 한 함수를 쓴다.
+    """
+    i = I.jeonse_ref_index(jr, I.JEONSE_NEED)
+    return i, jr['dates'][i]
 
 
 def series_at(d, i):
@@ -408,7 +458,7 @@ def build(adv, sts):
     # ── 5. 전세가율 ──────────────────────────────────────────────
     jr = sts.get('전세가율')
     if jr:
-        i, p = last_idx(jr)
+        i, p = jeonse_idx(jr)
         cur = series_at(jr, i)
         j = SZ.month_back(jr['dates'], i, 12)
         prev = series_at(jr, j) if j is not None else {}
@@ -499,7 +549,7 @@ def top3_lines(adv, sts):
             tops['unsold'] = (head, [(r, _signed(v) + '호') for r, v in _rank(vals)])
     jr = sts.get('전세가율')
     if jr:
-        i, _ = last_idx(jr)
+        i, _ = jeonse_idx(jr)
         j = SZ.month_back(jr['dates'], i, 12)
         head = '1년 새 전세가율 변화가 큰 곳'
         if j is None:
