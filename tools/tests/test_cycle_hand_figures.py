@@ -87,6 +87,41 @@ def test_rebuild_and_study_stop_on_a_broken_index():
     assert i > 0 and i < src.find("os.environ['ECOS_API_KEY']"), '물가를 받기 전에 지수 연속성을 보지 않는다'
 
 
+def _run_refresh(monkeypatch, tmp_path, S):
+    page = tmp_path / 'index.html'
+    page.write_text(io.open(RF.PAGE, encoding='utf-8').read(), encoding='utf-8')
+    monkeypatch.setattr(RF, 'PAGE', str(page))
+    monkeypatch.setattr(RF, 'load_stats', lambda: copy.deepcopy(S))
+    monkeypatch.setattr(RF.I, 'bump_sitemap', lambda *a, **k: None)
+    RF.main()
+    txt = page.read_text(encoding='utf-8')
+    return json.loads(re.search(r'const D=(\{.*?\});\n', txt, re.S).group(1))
+
+
+def test_refresh_keeps_the_overlay_charts_while_index_bases_differ(monkeypatch, tmp_path):
+    """매매·전세지수의 기준시점이 다르면(한 계열만 재수집에 성공 — 수집은 계열마다 따로 재수집·보류한다) 두 지수를 한 축에
+    겹치는 zones·rate_overlay 는 어제 판을 둔다. 기준이 같으면 예전처럼 새로 굽는다.
+
+    변이(실제로 확인): main 의 `if index_bases_agree(S):` 를 `if True:` 로 두면 첫 단정이, index_basis 가 늘 None 을
+    돌려주면(기준 비교가 헛돎) 첫 단정이 빨개진다.
+    픽스처: 저장소 STATS 에서 수도권 매매지수를 1.1배(차트가 달라지게) 한 사본 — 매매 unit 만 '지수(2026.06=100)'로 바꾼
+            경우(통합 검토가 재현한 '매매만 복구' 회차)와 두 unit 이 같은 경우.
+    """
+    S = RF.load_stats()
+    old = json.loads(re.search(r'const D=(\{.*?\});\n', io.open(RF.PAGE, encoding='utf-8').read(), re.S).group(1))
+    S['매매지수']['series']['수도권'] = [None if v is None else round(v * 1.1, 2)
+                                      for v in S['매매지수']['series']['수도권']]
+    split = copy.deepcopy(S)
+    split['매매지수']['unit'] = '지수(2026.06=100)'
+    assert not RF.index_bases_agree(split) and RF.index_bases_agree(S)
+    (tmp_path / 'split').mkdir()
+    D = _run_refresh(monkeypatch, tmp_path / 'split', split)
+    assert D['zones'] == old['zones'] and D['rate_overlay'] == old['rate_overlay'], '기준이 다른 두 지수를 한 축에 겹쳤다'
+    (tmp_path / 'same').mkdir()
+    D = _run_refresh(monkeypatch, tmp_path / 'same', S)
+    assert D['zones'] != old['zones'], '기준이 같은데 차트를 새로 굽지 않았다'
+
+
 def test_refresh_holds_the_index_from_the_break_on():
     """배치(refresh_cycle_data)는 단절 달부터 지수를 싣지 않는다(대표 결정 09-30 ①: 재수집 전까지 보류).
 
