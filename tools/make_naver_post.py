@@ -972,7 +972,8 @@ def _thumb_curve(sts, nm, since='2016.01'):
     st = (sts or {}).get('매매지수') or {}
     br = RC.index_breaks(sts or {}, ('매매지수',))
     if br:
-        print('  ⚠ 썸네일 곡선·고점 문구 생략 — 매매지수 기준 단절: %s' % RC.break_message(br))
+        print('  ⚠ 썸네일 곡선·고점 문구 생략 — 매매지수 기준 단절: %s. 다음 클라우드 배치가 전 기간을 다시 받은 뒤 '
+              'git pull 하고 다시 돌리면 곡선이 돌아온다.' % RC.break_message(br))
         return None
     ds = [x.split()[0] for x in st.get('dates', [])]    # '2026.07 p)' 같은 잠정 표시를 뗀다
     pts = [(d, v) for d, v in zip(ds, (st.get('series') or {}).get(nm, []))
