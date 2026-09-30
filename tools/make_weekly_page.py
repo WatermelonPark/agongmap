@@ -265,16 +265,22 @@ PNG_SIG = b'\x89PNG\r\n\x1a\n'
 
 
 def png_text(path):
-    """PNG 의 tEXt 청크 → {키: 값}. 파일이 없거나 PNG 가 아니면 {}.
-
-    PIL 없이 읽는다 — 이 생성기는 pip 앞, 설치 없이 돈다. 청크는 [길이4][타입4][데이터][CRC4] 배열이고 tEXt 데이터는
-    키와 값을 NUL 하나로 이은 것이다(감시 check_freshness.live_card_basis 와 같은 읽기).
-    """
+    """PNG 파일의 tEXt 청크 → {키: 값}. 파일이 없거나 PNG 가 아니면 {}."""
     try:
         with open(path, 'rb') as f:
             raw = f.read()
     except OSError:
         return {}
+    return png_text_bytes(raw)
+
+
+def png_text_bytes(raw):
+    """PNG 바이트의 tEXt 청크 → {키: 값}. PNG 가 아니면 {}.
+
+    PIL 없이 읽는다 — 이 생성기와 감시(check_freshness.live_card_basis)는 pip 앞, 설치 없이 돈다. 두 코드가 이 함수
+    하나로 카드 메타를 읽는다(전수 리뷰 통합 — 예전엔 같은 읽기를 두 벌 적었다). 청크는 [길이4][타입4][데이터][CRC4]
+    배열이고 tEXt 데이터는 키와 값을 NUL 하나로 이은 것이다.
+    """
     if raw[:8] != PNG_SIG:
         return {}
     out, i = {}, 8

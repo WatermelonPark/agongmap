@@ -40,6 +40,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import update_adv_data as U  # noqa: E402  (표 설정을 배치와 공유 — 단일 출처)
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
 import make_indicator_pages as I  # noqa: E402  (/moveins/ 시점 문구 공유)
+import make_weekly_page as MW  # noqa: E402  (주간 공유 카드 주소·PNG 메타 읽기 공유)
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
 import quiz_review as QR       # noqa: E402  (퀴즈 제도 문항 검토 기한)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
@@ -310,9 +311,6 @@ def live_adv_stats():
     return adv, stats
 
 
-PNG_SIG = bytes([137, 80, 78, 71, 13, 10, 26, 10])
-
-
 def live_card_basis():
     """라이브 공유 카드(share/weekly-map.png)에 심긴 조사기준일.
 
@@ -321,26 +319,12 @@ def live_card_basis():
     시세 지도'로 걸려 있었는데 아무 신호도 없었다(2026-08-06 발견). 원인은 클라우드
     배치에 pillow가 없어 생성 스텝이 매 회차 조용히 죽은 것.
 
-    PIL 없이 PNG tEXt 청크를 직접 읽는다 — 감시 잡에 이미지 라이브러리를 들이지
-    않으려는 것이다. 청크는 [길이4][타입4][데이터][CRC4]의 배열이고, tEXt 데이터는
-    키와 값을 NUL 하나로 이어 붙인 형태다.
+    PIL 없이 PNG tEXt 청크를 읽는다 — 감시 잡에 이미지 라이브러리를 들이지 않으려는 것이다.
+    카드 주소(SHARE_REL)와 읽기(png_text_bytes)는 /weekly/ 생성기의 것을 그대로 쓴다(두 벌이면 한쪽만 바뀐다).
     """
     raw = urllib.request.urlopen(
-        urllib.request.Request(SITE + '/share/weekly-map.png', headers=UA), timeout=SITE_TIMEOUT).read()
-    if raw[:8] != PNG_SIG:
-        return None
-    i = 8
-    while i + 8 <= len(raw):
-        n = int.from_bytes(raw[i:i + 4], 'big')
-        typ = raw[i + 4:i + 8]
-        if typ == b'IEND':
-            break
-        if typ == b'tEXt':
-            k, _, v = raw[i + 8:i + 8 + n].partition(bytes([0]))
-            if k == b'agongmap-basis':
-                return v.decode('ascii', 'replace')
-        i += 12 + n
-    return None
+        urllib.request.Request(SITE + '/' + MW.SHARE_REL, headers=UA), timeout=SITE_TIMEOUT).read()
+    return MW.png_text_bytes(raw).get('agongmap-basis') or None
 
 
 def _q_to_date(q):
