@@ -36,6 +36,7 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import close_published_issues as CP  # noqa: E402  (RSS 주소·카테고리 이름·파서의 정본)
+import weekly_release as WR  # noqa: E402  (주차 라벨 week_label·발표 간격 PUB_OFFSET 의 정본 — 표준 라이브러리만 쓴다)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILE = os.path.join(ROOT, 'tools', 'data', 'blog_latest.json')
@@ -96,12 +97,27 @@ def _d(iso):
     return datetime.date(*(int(x) for x in iso.split('-')))
 
 
+_WEEK_LABEL = re.compile(r'(\d{1,2})월\s*(%s)\s*주' % '|'.join(WR.ORDINALS))
+
+
+def title_week(title):
+    """글 제목 속 주차 라벨('9월 셋째 주') — 공백을 한 칸으로 맞춘 모양. 없으면 None."""
+    m = _WEEK_LABEL.search(title or '')
+    return ('%d월 %s 주' % (int(m.group(1)), m.group(2))) if m else None
+
+
 def pick(entry, pub):
     """보여 줄 글과 그 말. pub = 최신 주간 발표일('YYYY-MM-DD', weekly_release.status(p)['pub']).
 
     돌려주는 것 {'lead': '이번 주 해석 읽기', 'title', 'url', 'date', 'md': '9/25', 'src': '네이버 블로그, 9/25'}
     또는 None.
-    발표일 당일·뒤에 올라온 글은 '이번 주', 그 전 FRESH_DAYS 일 안의 글은 '지난주'. 더 오래됐거나 없으면 None(칸을 뺀다).
+    이번 주 발표일보다 FRESH_DAYS 일 넘게 앞선 글이나 없는 글은 None(칸을 뺀다). 그 밖에는:
+      - 제목에 주차 라벨('(9월 셋째 주)')이 있으면 **그 라벨로** 정한다 — 이번 조사일의 라벨(weekly_release.week_label)이면
+        '이번 주', 한 주 앞 조사일의 라벨이면 '지난주', 둘 다 아니면(더 옛 회차 글) None. 예전엔 게시일로만 정해, 지난 회차
+        글이 이번 발표일 뒤에 올라오면(8월 3·4주 글이 8/30 에 함께 올라간 실제 사례) '이번 주 해석 읽기: …(8월 셋째 주)'를
+        '8월 넷째 주' 페이지에 붙였다(전수리뷰 #27). 조사일은 발표일 − weekly_release.PUB_OFFSET 이다(status 가 그렇게 셈한다) —
+        그래서 부르는 쪽(split_data·make_weekly_page)은 발표일만 넘기면 된다.
+      - 라벨이 없는 제목은 게시일로 정한다: 발표일 당일·뒤면 '이번 주', 그 전이면 '지난주'.
     """
     if not entry or not pub:
         return None
@@ -111,8 +127,21 @@ def pick(entry, pub):
         return None
     if d < p - datetime.timedelta(days=FRESH_DAYS):
         return None
+    tw = title_week(entry.get('title'))
+    if tw:
+        survey = p - datetime.timedelta(days=WR.PUB_OFFSET)
+        now = WR.week_label(survey.isoformat())
+        prev = WR.week_label((survey - datetime.timedelta(days=WR.WEEK)).isoformat())
+        if tw == now:
+            lead = LEAD_NOW
+        elif tw == prev:
+            lead = LEAD_PREV
+        else:
+            return None
+    else:
+        lead = LEAD_NOW if d >= p else LEAD_PREV
     md = '%d/%d' % (d.month, d.day)
-    return {'lead': LEAD_NOW if d >= p else LEAD_PREV, 'title': entry['title'], 'url': entry['url'],
+    return {'lead': lead, 'title': entry['title'], 'url': entry['url'],
             'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md)}
 
 

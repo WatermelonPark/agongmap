@@ -93,6 +93,19 @@ def fmt(v):
     return ('%+.2f' % r) if r != 0 else '0.00'
 
 
+def summary_top3(regs, row):
+    """카드 아래 요약 줄의 (상승 상위 3, 하락 상위 3) — [(시도, 원값)].
+
+    /weekly/ 의 상위 3·결론(make_weekly_page.top3, 시도 목록 SIDO)을 그대로 부른다. 예전엔 여기서 따로
+    반올림한 표시값(pv2r)으로 정렬하고 동률은 원천 순서, 하락은 그 역순으로 뽑아, 두 지역이 같은 값으로
+    반올림되는 주에 원값으로 덜 움직인 곳이 카드에 오르고 더 움직인 곳이 빠졌다. 156주 가운데 43주에서
+    카드와 /weekly/ 의 3곳이 갈렸고(2026-09-14 카드 '울산 +0.06', /weekly/ '전북'), 집계 목록도 따로 적었다
+    (전수리뷰 #84). 일치는 test_weekly_share_top3 가 본다.
+    """
+    val = {r: row['ma'][i] for i, r in enumerate(regs) if i < len(row['ma'])}
+    return _MW.top3([(z, val[z]) for z in _MW.SIDO if val.get(z) is not None])
+
+
 def _week_back():
     """--week N — N주 전 회차로 그린다(기본 0 = 최신).
 
@@ -161,22 +174,14 @@ def main():
         d.text((px + TW // 2, py + 105), '전세 %s' % fmt(jv), font=noto(18),
                fill=(143, 35, 24) if rj > 0 else ((18, 60, 92) if rj < 0 else MUTED), anchor='mm')
 
-    # 요약 한 줄 (상승·하락 상위)
-    # ⚠️ 집계 3종(전국·수도권·지방)을 **전부** 뺀다. 예전엔 '수도권'만 빼서
-    # 전국(+0.08)이 충북(+0.07)을 밀어내고 시도 순위에 끼어들었다(실측).
-    # 집계는 시도와 같은 층위가 아니라 그 합이라, 섞으면 순위가 자기 자신과
-    # 경쟁한다 — 홈 격자가 집계를 따로 떼어낸 것과 같은 이유(2026-09-01 리뷰).
-    AGG = ('전국', '수도권', '지방')
-    ranked = sorted((r for r in regs if val.get(r) is not None and r not in AGG),
-                    key=lambda r: pv2r(val[r]), reverse=True)
-    up3 = [r for r in ranked if pv2r(val[r]) > 0][:3]
-    dn3 = [r for r in reversed(ranked) if pv2r(val[r]) < 0][:3]
+    # 요약 한 줄 (상승·하락 상위) — /weekly/ 의 상위 3과 같은 함수(summary_top3 → make_weekly_page.top3)
+    up3, dn3 = summary_top3(regs, row)
     sy = oy + 5 * TH + 4 * G + 34
     if up3:
-        d.text((IW // 2, sy), '상승: ' + ' · '.join('%s %s' % (r, fmt(val[r])) for r in up3),
+        d.text((IW // 2, sy), '상승: ' + ' · '.join('%s %s' % (r, fmt(v)) for r, v in up3),
                font=noto(24), fill=(143, 35, 24), anchor='mm')
     if dn3:
-        d.text((IW // 2, sy + 36), '하락: ' + ' · '.join('%s %s' % (r, fmt(val[r])) for r in dn3),
+        d.text((IW // 2, sy + 36), '하락: ' + ' · '.join('%s %s' % (r, fmt(v)) for r, v in dn3),
                font=noto(24), fill=(18, 60, 92), anchor='mm')
 
     # 푸터
@@ -199,6 +204,11 @@ def main():
     meta.add_text('agongmap-pub', pub)
     img.save(out, 'PNG', pnginfo=meta)
     print('wrote %s (%s)' % (os.path.relpath(out, ROOT), row['p']))
+    if not back:
+        # 페이지·홈 데이터는 카드보다 먼저 구워져 지난 판(?v=)을 가리킨다 — 카드가 구워진 지금 판을 맞춘다(전수리뷰 #85).
+        # 카드가 실패한 회차엔 여기까지 오지 않으므로 주소가 옛 판 그대로 남아 옛 그림과 같은 판을 말한다.
+        for rel in _MW.restamp_share(ROOT):
+            print('restamped %s (?v=%s)' % (rel, pub))
 
 
 if __name__ == '__main__':

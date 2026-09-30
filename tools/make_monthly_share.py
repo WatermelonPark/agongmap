@@ -106,6 +106,9 @@ def main():
     meta.add_text('agongmap-basis', ver)   # og:image 주소의 판(?v=)과 같아야 한다 — 시험이 그림 대신 메타로 본다
     img.save(out, 'PNG', pnginfo=meta, optimize=True)
     print('wrote %s (%s)' % (os.path.relpath(out, ROOT), ver))
+    # 페이지는 카드보다 먼저 구워져 지난 판(?v=)을 가리킨다 — 카드가 구워진 지금 판을 맞춘다(전수리뷰 #85).
+    for rel in MP.restamp_share(ROOT):
+        print('restamped %s (?v=%s)' % (rel, ver))
 
 
 if __name__ == '__main__':
