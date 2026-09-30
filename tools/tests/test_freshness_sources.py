@@ -421,3 +421,45 @@ def test_every_live_adv_key_is_classified():
     assert set(adv) <= set(C.ADV_WATCHED) | set(C.ADV_UNWATCHED), \
         sorted(set(adv) - set(C.ADV_WATCHED) - set(C.ADV_UNWATCHED))
     assert 'bubble' in C.ADV_WATCHED
+
+
+# ---------------------------------------------------------------------------
+# R-ONE 쪽 읽기 — 연결이 끊기면 다시 받고, 쪽 사이를 쉰다(배치와 같은 방식)
+# ---------------------------------------------------------------------------
+
+def test_rone_pages_retry_a_dropped_connection_and_pause(monkeypatch):
+    """R-ONE 이 요청을 응답 없이 끊어도(RemoteDisconnected) 감시는 그 쪽을 다시 받아 지역 계층을 판정한다. 쪽 사이를 쉰다.
+
+    재현하는 실제 상태: #35 로 창의 모든 쪽을 연달아 읽게 된 뒤 첫 감시(2026-10-01 00:52·00:55 KST)에서 두 러너 모두
+    주간·월간 지역 목록 조회가 'Remote end closed connection without response' 로 끊겨 감시가 빨갛게 끝났다(다른 원천
+    대조는 모두 초록). 배치는 같은 조회를 http_json(tries=3)과 쪽 사이 0.15초 쉼으로 받아 왔다.
+    픽스처: _pager 가 쪽마다 첫 요청을 RemoteDisconnected 로 끊고 둘째 요청에 답한다(한 주 236행 × 5주 = 2쪽).
+    변이(실제로 확인): _rone_get 의 다시 받기를 빼면(get_json 한 번) RemoteDisconnected 로 빨개지고, _rone_rows 의 쪽 사이
+    쉼을 빼면 쉼 단정이 빨개진다. 4xx 를 다시 받게 하면 404 단정(요청 한 번)이 빨개진다.
+    """
+    import http.client
+    rows = _week_rows(lambda w: BASE + GUS + FILL)
+    inner, seen, sleeps = _pager(rows, 'WRTTIME_DESC'), {}, []
+
+    def flaky(url):
+        seen[url] = seen.get(url, 0) + 1
+        if seen[url] == 1:
+            raise http.client.RemoteDisconnected('Remote end closed connection without response')
+        return inner(url)
+    monkeypatch.setattr(C, 'get_json', flaky)
+    monkeypatch.setattr(C.time, 'sleep', lambda s: sleeps.append(s))
+    monkeypatch.setattr(C, '_region_since', lambda cycle: '20260801')
+    names = C.rone_region_names('T', 'WK')
+    assert set(BASE) <= names, sorted(names)[:5]
+    assert all(n == 2 for n in seen.values()), seen
+    assert C.RONE_PAGE_PAUSE in sleeps, '쪽 사이를 쉬지 않는다'
+
+    calls = []
+
+    def missing(url):
+        calls.append(url)
+        raise urllib.error.HTTPError(url, 404, 'Not Found', {}, None)
+    monkeypatch.setattr(C, 'get_json', missing)
+    with pytest.raises(urllib.error.HTTPError):
+        C.rone_region_names('T', 'WK')
+    assert len(calls) == 1, '4xx 를 다시 받았다 — 결정론적 답이다'
