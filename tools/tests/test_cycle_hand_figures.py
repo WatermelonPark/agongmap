@@ -54,12 +54,16 @@ def _index_fixture(cut=None, regions=('서울', '경기', '부산', '대구')):
 def test_index_break_is_detected_and_a_real_jump_is_not():
     """기준 단절 판정(RC.index_breaks).
 
-    변이(실제로 확인): index_breaks 의 `jump > BREAK_JUMP` 를 `jump > 0.6` 으로 풀면(절반 떨어짐을 못 봄) 첫 단정이
+    판정 정본은 update_adv_data.index_breaks 이고 RC.index_breaks 는 그 이름이다(아래 단정 — 두 코드가 따로 재면 안 된다).
+    변이(실제로 확인): update_adv_data.index_breaks 의 `jump > BREAK_JUMP` 를 `jump > 0.6` 으로 풀면(절반 떨어짐을 못 봄) 첫 단정이
     빨강. BREAK_REGIONS 를 1 로 좁히면 셋째 단정(한 지역만 16% 뛴 달)이 빨강.
     픽스처: 네 지역이 2026.01 에 함께 새 기준으로 바뀐 합성 계열(2026-09-28 배치의 모양), 단절 없는 같은 계열,
     한 지역만 한 달 16% 뛴 계열(실측 최대 13.4% — 제주 전세 2014.05 — 보다 큰 단일 급등).
     """
     st = {'매매지수': _index_fixture('2026.01'), '전세지수': _index_fixture()}
+    import update_adv_data as U
+    assert RC.index_breaks is U.index_breaks and set(RC.INDEX_KEYS) == set(U.BASIS_SERIES), \
+        '사이클 도구가 기준 단절을 수집과 다른 코드로 잰다 — 정본은 update_adv_data.index_breaks'
     br = RC.index_breaks(st)
     assert [(k, d) for k, d, _, _ in br] == [('매매지수', '2026.01')], br
     assert RC.first_break(st, '매매지수') == '2026.01' and RC.first_break(st, '전세지수') is None
