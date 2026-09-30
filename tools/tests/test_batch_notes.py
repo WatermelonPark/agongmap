@@ -9,6 +9,9 @@
 ② 감시의 값 대조가 통과 결과(None)를 fails 에 넣어 개수 게이트의 분모를 부풀렸다.
 
 ⚠️ 픽스처에 지금의 지역 이름을 박지 않는다(2026-09-11 에 그런 시험이 배치를 막았다).
+⚠️ 이 파일의 시험은 저장소 실데이터(cycle/index.html 의 D.sync — 사이클 3편 주장 점검)에 기대지 않는다(전수리뷰 #32·#94).
+   lines() 는 인자 adv 만 보고, 3편 점검 줄은 main() 이 붙인다. 변이 기록: D.sync 에서 대구 corr 를 0.50 으로 낮춰 최저
+   지역을 바꿔도 이 파일은 초록이다(고치기 전에는 시험 3개가 빨갰다 — 재산정 하루가 게이트를 막는 모양).
 """
 import io
 import os
@@ -190,7 +193,41 @@ def test_main_appends_quiz_lines_from_the_real_home(tmp_path, monkeypatch, capsy
     p.write_text('/*ADV_DATA_START*/ const ADV=%s; /*ADV_DATA_END*/\nconst STATS={};\n'
                  % json.dumps(_adv(('가', 0.8)), ensure_ascii=False), encoding='utf-8')
     monkeypatch.setattr(kst, 'today', lambda now=None: __import__('datetime').date(2099, 1, 1))
+    monkeypatch.setattr(N, 'sync_claim_lines', lambda: [])   # 3편 점검(실데이터)은 아래 시험이 따로 본다
     assert N.main(['--data', str(p)]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out and all(ln.startswith(N.ML.MARK) and '검토 기한' in ln for ln in out), out
     assert not any('검사 불가' in ln for ln in out), out
+
+
+# ── ④ 사이클 3편 주장 점검 줄은 main() 이 붙이고, lines(adv) 는 실데이터를 읽지 않는다 ─────────────────
+def test_lines_does_not_read_the_repo_sync_data(monkeypatch):
+    """lines(adv) 는 인자 adv 만 본다 — 저장소 D.sync 를 읽는 sync_claim_lines 를 부르지 않는다(전수리뷰 #32·#94).
+
+    변이: lines() 안에 `out.extend(sync_claim_lines())` 를 되살리면 빨개진다(확인 — 폭탄 함수가 터진다).
+    픽스처: 인허가 신호가 모두 있는 합성 adv 와, 불리면 곧바로 실패하는 sync_claim_lines.
+    """
+    def boom():
+        raise AssertionError('lines() 가 실데이터 점검(sync_claim_lines)을 불렀다')
+    monkeypatch.setattr(N, 'sync_claim_lines', boom)
+    assert N.lines(_adv(('가', 0.8))) == []
+
+
+def test_main_appends_sync_claim_lines(tmp_path, monkeypatch, capsys):
+    """배치가 부르는 main() 은 3편 점검 줄을 기록에 싣는다 — lines() 밖으로 옮기다 알림을 잃지 않는다.
+
+    변이: main() 에서 `+ sync_claim_lines()` 를 지우면 빨개진다(확인).
+    픽스처: 인허가 신호가 모두 있는 최소 data.js + 어긋남 줄 하나를 돌려주는 sync_claim_lines(재산정으로 최저 지역이
+            바뀐 날의 모양), 오늘은 퀴즈 기한 전(2026-01-01).
+    """
+    import datetime
+    import json
+    import kst
+    p = tmp_path / 'data.js'
+    p.write_text('/*ADV_DATA_START*/ const ADV=%s; /*ADV_DATA_END*/\nconst STATS={};\n'
+                 % json.dumps(_adv(('가', 0.8)), ensure_ascii=False), encoding='utf-8')
+    line = '%s 사이클 3편 주장이 지금 데이터와 어긋남 — 가상' % N.ML.MARK
+    monkeypatch.setattr(N, 'sync_claim_lines', lambda: [line])
+    monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
+    assert N.main(['--data', str(p)]) == 0
+    assert capsys.readouterr().out.splitlines() == [line]
