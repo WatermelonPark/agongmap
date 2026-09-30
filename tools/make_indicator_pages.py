@@ -303,6 +303,11 @@ def ld_pack(headline, desc, url, crumb_name, modified):
     }], ensure_ascii=False, indent=2)
 
 
+# /moveins/ 표 아래 주석의 데이터 시점 문구. 감시(check_freshness)가 이 문구로 라이브 페이지의 시점을 데이터와
+# 대조한다 — dateModified 는 '내용이 바뀐 날'이라 시점을 말하지 않는다(전수 리뷰 #18). 두 코드가 이 상수 하나를 쓴다.
+MOVEINS_BASIS = '%s년 %s분기까지 준공 실적'
+
+
 # ---- 전세가율 (/jeonse-ratio/) --------------------------------------------
 # 전세가율 기준월에 값이 전부 있어야 하는 지역. /jeonse-ratio/ 는 전국 머리 숫자와 시도 표를 그린다.
 JEONSE_NEED = ('전국',) + tuple(SIDO17)
@@ -580,7 +585,7 @@ def build_moveins(adv, today=None):
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. %(lastact)s까지 준공 실적, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
+  <div class="note">표두를 누르면 정렬. %(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
 </section>
 
 <section class="wrap">
@@ -599,7 +604,7 @@ def build_moveins(adv, today=None):
   </div>
 </section>
 """ % dict(nat26=num(nat26), nat27=num(nat27), trs='\n'.join(trs),
-           lastact=last_act.replace('Q', '년 ') + '분기',
+           basis=MOVEINS_BASIS % (last_act[:4], last_act[5:]),
            conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
            lo1=lo1[0], lo1p=pct_shown(ytot(lo1[0], Y) or 0, ref[lo1[0]]),
            hi1=hi1[0], hi1p=pct_shown(ytot(hi1[0], Y) or 0, ref[hi1[0]]),

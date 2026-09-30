@@ -39,7 +39,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import update_adv_data as U  # noqa: E402  (표 설정을 배치와 공유 — 단일 출처)
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
-import make_indicator_pages as I  # noqa: E402  (공개일·클램프 규칙 공유)
+import make_indicator_pages as I  # noqa: E402  (/moveins/ 시점 문구 공유)
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
 import quiz_review as QR       # noqa: E402  (퀴즈 제도 문항 검토 기한)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
@@ -464,9 +464,9 @@ def check_sido_sum(stats):
     return out
 
 
-# 공개일은 생성기의 것을 그대로 쓴다 — 값 사본은 한쪽만 바뀌는 순간 클램프
-# 기대값이 갈라져 매일 오탐이거나 진짜 스테일이 가려진다.
-INDICATOR_PUBLISHED = I.PUBLISHED
+# /moveins/ 화면의 데이터 시점 문구는 생성기의 것을 그대로 쓴다 — 사본은 한쪽만 바뀌는 순간 매일 '표기 없음'이다.
+MOVEINS_BASIS = I.MOVEINS_BASIS
+MOVEINS_BASIS_RE = re.escape(MOVEINS_BASIS).replace('%s', r'(\d{4})', 1).replace('%s', '([1-4])', 1)
 
 
 def check_derived_pages(adv, stats):
@@ -540,10 +540,11 @@ def check_derived_pages(adv, stats):
         SKIPPED.append('파생 페이지(지역)')
         print('  지역 판정 못 함 — %s' % str(e)[:60])
 
-    # 지표 페이지 둘. 전세가율은 화면 문구, 입주물량은 JSON-LD의 dateModified를 쓴다
-    # (화면에 시점 문구가 없다). ⚠️ dateModified는 datePublished보다 과거가 되지
-    # 않도록 클램프된다 — 그 규칙을 모르고 비교하면 매일 오탐이 난다(실제로 처음에
-    # 그렇게 짰다가 2026-08-08 예행에서 잡았다).
+    # 지표 페이지 둘 다 **화면의 데이터 시점 문구**를 읽는다. 전세가율은 'YYYY.MM 기준', 입주물량은 표 아래 주석의
+    # 'YYYY년 N분기까지 준공 실적'. 입주물량은 예전에 JSON-LD dateModified 를 읽었는데(화면에 시점 문구가 없었다),
+    # 전수 리뷰 #18(2026-09-30)로 두 지표 페이지의 dateModified 가 '내용이 바뀐 날(keep_dates·KST)'이 되어 데이터
+    # 시점을 말하지 않는다 — 그대로 두면 본문이 처음 바뀌는 날부터 매일 오탐이다. 문구는 생성기 시험
+    # (test_indicator_page_fixes.test_moveins_keeps_the_data_basis_on_screen)이 지킨다.
     try:
         jr = (stats.get('전세가율') or {}).get('dates', [None])[-1]
         h = urllib.request.urlopen(urllib.request.Request(
@@ -572,20 +573,18 @@ def check_derived_pages(adv, stats):
         if act:
             m = re.match(r'^(\d{4})Q([1-4])$', act[-1])
             if m:
-                want = max('%s-%02d-01' % (m.group(1), int(m.group(2)) * 3),
-                           INDICATOR_PUBLISHED)
+                want = MOVEINS_BASIS % (m.group(1), m.group(2))
         h = urllib.request.urlopen(urllib.request.Request(
             SITE + '/moveins/', headers=UA), timeout=SITE_TIMEOUT).read().decode('utf-8', 'replace')
-        m = re.search(r'"dateModified":\s*"(\d{4}-\d{2}-\d{2})"', h)
+        m = re.search(MOVEINS_BASIS_RE, h)
         if not m:
-            out.append('/moveins/에 dateModified가 없다 — 페이지 구조가 바뀌었는지 확인')
-            print('  입주물량  dateModified 없음')
-        elif want and m.group(1) != want:
-            out.append('/moveins/ dateModified가 %s인데 데이터 기준으로는 %s'
-                       % (m.group(1), want))
-            print('  입주물량  %s (기대 %s) — 어긋남' % (m.group(1), want))
+            out.append('/moveins/에 시점 표기(…분기까지 준공 실적)가 없다 — 페이지 구조가 바뀌었는지 확인')
+            print('  입주물량  시점 표기 없음')
+        elif want and m.group(0) != want:
+            out.append('/moveins/가 %s인데 데이터는 %s' % (m.group(0), want))
+            print('  입주물량  %s (데이터 %s) — 어긋남' % (m.group(0), want))
         else:
-            print('  입주물량  %s 일치' % m.group(1))
+            print('  입주물량  %s 일치' % m.group(0))
     except Exception as e:
         if _hard_http(e):
             out.append('/moveins/ HTTP %d — 페이지가 배포에 없다' % e.code)

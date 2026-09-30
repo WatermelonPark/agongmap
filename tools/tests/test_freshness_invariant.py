@@ -7,6 +7,7 @@
 감시는 매일 OK였다 — '언제 것이냐'는 보면서 '무슨 값이냐'는 아무도 안 봤다.
 """
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -189,14 +190,17 @@ class _FakeWeb:
         return type('R', (), {'read': lambda _self: body.encode('utf-8')})()
 
 
-def _derived(monkeypatch, seoul, gyeonggi, jr='2026.06 기준', mv='2026-07-29',
+MVP = '<div class="note">표두를 누르면 정렬. %s, 이후는 <b>착공 실적을 3년 뒤로 밀어</b> 추정한 값입니다.</div>'
+
+
+def _derived(monkeypatch, seoul, gyeonggi, jr='2026.06 기준', mv=MVP % '2026년 2분기까지 준공 실적',
              nat=None):
     pages = {
         C.SITE + '/zone/' + _up.quote('전국') + '/': (nat if nat is not None else OKP),
         C.SITE + '/zone/' + _up.quote('서울') + '/': seoul,
         C.SITE + '/zone/' + _up.quote('경기') + '/': gyeonggi,
         C.SITE + '/jeonse-ratio/': jr,
-        C.SITE + '/moveins/': '"dateModified": "%s"' % mv,
+        C.SITE + '/moveins/': mv,
     }
     monkeypatch.setattr(C.urllib.request, 'urlopen', _FakeWeb(pages))
     # ⚠️ 기대 시점은 준공이 아니라 unsold_prd다 — 페이지가 찍는 문자열('기준 ·
@@ -227,12 +231,41 @@ def test_derived_pages_treat_missing_marker_as_failure(monkeypatch):
     assert len(f) == 1 and '표기 없음' in f[0], f
 
 
-def test_indicator_dateModified_respects_the_publish_clamp(monkeypatch):
-    """dateModified는 datePublished보다 과거가 되지 않게 클램프된다. 그 규칙을
-    모르고 비교하면 매일 오탐이 난다(2026-08-08 예행에서 실제로 그랬다)."""
-    assert _derived(monkeypatch, OKP, OKP, mv=C.INDICATOR_PUBLISHED) == []
-    f = _derived(monkeypatch, OKP, OKP, mv='2025-01-01')
-    assert any('moveins' in x for x in f), f
+def test_moveins_reads_the_on_screen_basis(monkeypatch):
+    """/moveins/ 시점은 화면 주석의 'YYYY년 N분기까지 준공 실적'을 데이터 마지막 실적 분기와 대조한다.
+
+    전수 리뷰 #18 로 두 지표 페이지의 dateModified 가 '내용이 바뀐 날(keep_dates·KST)'이 되어 데이터 시점을 말하지
+    않는다. 예전 감시는 dateModified 를 max(분기 끝 달 1일, datePublished) 와 견줬으므로, 새 분기가 들어온 날
+    본문이 바뀌면 dateModified 가 그날(예: 2026-10-02)이 되어 매일 오탐이 났다.
+    픽스처: 생성기 주석과 같은 모양의 한 줄(맞음·한 분기 옛값·표기 없음·옛 JSON-LD 만 있는 페이지).
+    변이(실제로 확인): check_derived_pages 를 옛 dateModified 대조로 되돌리면 첫 단정(맞음 → [])이 빨개지고,
+    `m.group(0) != want` 를 빼면 옛 분기 단정이, 표기 없음 분기를 통과로 바꾸면 마지막 두 단정이 빨개진다.
+    """
+    assert _derived(monkeypatch, OKP, OKP) == []
+    f = _derived(monkeypatch, OKP, OKP, mv=MVP % '2026년 1분기까지 준공 실적')
+    assert len(f) == 1 and 'moveins' in f[0] and '2026년 2분기' in f[0], f
+    f = _derived(monkeypatch, OKP, OKP, mv='<p>없음</p>')
+    assert len(f) == 1 and 'moveins' in f[0] and '없다' in f[0], f
+    f = _derived(monkeypatch, OKP, OKP, mv='"dateModified": "2026-10-02"')
+    assert len(f) == 1 and 'moveins' in f[0], f
+
+
+def test_moveins_basis_marker_is_what_the_generator_prints():
+    """감시가 찾는 문구(C.MOVEINS_BASIS·_RE)가 생성기(make_indicator_pages.build_moveins)가 실제로 찍는 문구다.
+
+    같은 문구를 두 코드가 따로 적었으니 한쪽만 바뀌면 감시가 '표기 없음'으로 매일 빨개지거나, 정규식이 넓어져
+    엉뚱한 분기를 읽는다. 픽스처: 저장소 ADV(마지막 실적 분기는 데이터에서 — 박지 않는다).
+    변이(실제로 확인): 생성기 주석을 상수 대신 손 문구('%(lastact)s 준공 실적')로 되돌리거나, 감시의 MOVEINS_BASIS 를
+    생성기 상수 대신 따로 적은 사본('%s년 %s분기 준공 실적')으로 바꾸면 빨개진다.
+    """
+    import make_indicator_pages as I
+    import make_sido_pages as P
+    adv, _ = P.load()
+    html, _ = I.build_moveins(adv, '2031-03-03')
+    last = [r['p'] for r in adv['occupancy']['rows'] if not r.get('e')][-1]
+    found = re.findall(C.MOVEINS_BASIS_RE, html)
+    assert found and set(found) == {(last[:4], last[5:])}, found
+    assert C.MOVEINS_BASIS % (last[:4], last[5:]) in html
 
 
 # ---------------------------------------------------------------------------
