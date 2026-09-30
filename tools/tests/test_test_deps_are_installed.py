@@ -145,7 +145,7 @@ def _local_mods():
 
 def _module_level(tree):
     """모듈을 불러올 때 바로 실행되는 문장(맨 위, 그리고 맨 위 if/try 안). 함수 안에서 필요할 때만
-    가져오는 import(make_beginner_cards 의 numpy 등)는 그 함수를 부를 때만 필요하므로 뺀다."""
+    가져오는 import(parse_ref_table 의 fitz 등)는 그 함수를 부를 때만 필요하므로 뺀다."""
     todo = list(tree.body)
     while todo:
         n = todo.pop()
@@ -189,7 +189,7 @@ def _local_imports(path, local):
 
 def _reach(starts, local):
     """{출발 파일: 허용} → {닿는 파일: 허용(여러 곳에서 닿으면 교집합)}. 사람이 가끔 돌리는 1회성 도구
-    (원화 배경 제거의 numpy, PDF 기준표 파싱의 fitz 등)는 어디서도 안 닿으므로 빠진다."""
+    (PDF 기준표 파싱의 fitz 등)는 어디서도 안 닿으므로 빠진다."""
     allowed = {}
     for s, al in starts.items():
         seen, todo = set(), [s]
