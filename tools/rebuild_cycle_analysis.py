@@ -131,41 +131,14 @@ def load_stats(path=None):
 # 재산정하면 −40%대 분기 변화가 상관을 지배해 정본 수치가 뒤집힌다(서울 동조성 0.55 → 0.82, 고리⑥ 유의
 # 11곳 → 3곳). 대표 결정(09-30 ①)은 '전 기간 재수집, 연결계수 금지, 재수집 전까지 그 계열 갱신 보류'다.
 # 그래서 지수를 읽는 사이클 도구는 계열이 이어져 있는지 먼저 보고, 끊겨 있으면 계산하지 않는다.
-INDEX_KEYS = ('매매지수', '전세지수')
-# 한 달 사이 이만큼 넘게 움직인 지역이 BREAK_REGIONS 곳 이상이면 기준 단절로 본다. 실측 근거(2006.01~2026.07,
-# 단절 전 계열): 한 지역의 한 달 변화 최대는 13.4%(제주 전세 2014.05)이고 같은 달에 12% 넘게 움직인 지역이
-# 둘인 달은 없다. 기준 단절 달에는 서울 −50%, 수도권 −38% 처럼 수십 곳이 한꺼번에 넘는다.
-BREAK_JUMP = 0.15
-BREAK_REGIONS = 2
-
-
-def index_breaks(st, keys=INDEX_KEYS):
-    """지수 계열에서 기준 단절로 보이는 달. [(계열, 달, 넘은 지역 수, (가장 크게 움직인 지역, 전달 값, 그달 값))].
-
-    비어 있는 칸은 건너뛰고 바로 앞의 값과 견준다(원천이 한 달 비운 지역도 이어서 본다).
-    """
-    out = []
-    for key in keys:
-        blk = st.get(key) or {}
-        dates = blk.get('dates') or []
-        prev = {}
-        hits = {}
-        for k, d in enumerate(dates):
-            for r, s in (blk.get('series') or {}).items():
-                v = s[k] if k < len(s) else None
-                if v is None:
-                    continue
-                p = prev.get(r)
-                if p:
-                    jump = abs(v / p - 1.0)
-                    if jump > BREAK_JUMP:
-                        hits.setdefault(k, []).append((jump, r, p, v))
-                prev[r] = v
-        for k in sorted(hits):
-            if len(hits[k]) >= BREAK_REGIONS:
-                _, r, p, v = max(hits[k])
-                out.append((key, dates[k], len(hits[k]), (r, p, v)))
-    return out
+# 판정의 정본은 수집(update_adv_data)이다 — 같은 대상(저장 지수 계열의 기준 단절)을 두 코드가 재지 않게, 수집이
+# 재수집을 예약하는 판정과 이 사이클·블로그 도구의 가드가 **한 함수·한 문턱**을 쓴다(전수 리뷰 통합, 2026-09-30).
+# 문턱 근거(한 지역 한 달 최대 13.4% · 단절 달 12~20곳)는 update_adv_data 의 BREAK_JUMP 주석.
+import update_adv_data as U  # noqa: E402  (표준 라이브러리만 — 배치의 생성기 단계에서 불러도 된다)
+INDEX_KEYS = tuple(U.BASIS_SERIES)
+BREAK_JUMP = U.BREAK_JUMP
+BREAK_REGIONS = U.BREAK_REGIONS
+index_breaks = U.index_breaks     # (st, keys=None) — keys 를 안 주면 BASIS_SERIES(= INDEX_KEYS)
 
 
 def first_break(st, key):
@@ -186,7 +159,7 @@ def require_continuous(st, who):
     if br:
         raise SystemExit(
             '%s: 지수 계열에 기준 단절이 있어 계산하지 않는다 — %s. 원천의 기준시점이 바뀐 계열을 옛 계열에 '
-            '이어 붙인 모양이다. 전 기간을 새 기준으로 다시 받은 뒤(update_adv_data.py --heal-basic) 돌린다.'
+            '이어 붙인 모양이다. 다음 클라우드 배치가 단절을 보고 전 기간을 새 기준으로 다시 받는다(update_adv_data._basis_reason) — 그 뒤에 돌린다.'
             % (who, break_message(br)))
 
 
