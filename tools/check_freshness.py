@@ -857,9 +857,6 @@ RATE_ECOS = ('721Y001', 'M', '2010000')          # CD(91일) — update_rate
 SIZE_KOSIS = ('408', {'objL1': '01'})             # 규모별 — update_size
 BUBBLE_KOSIS = ('408', 'DT_30404_N0010')          # 전월세전환율 — fetch_bubble
 BUBBLE_ECOS = ('121Y006', 'M', 'BECBLA0302')      # 주담대 신규취급 금리 — fetch_bubble
-# fetch_bubble 은 지역 값이 이만큼 채워진 가장 최신 달만 쓴다(`len(by_prd[p]) >= 10`). 감시도 같은 달과 견줘야
-# 일부 지역만 먼저 올라온 달을 뒤처짐으로 오판하지 않는다.
-BUBBLE_FULL_MIN = 10
 
 
 def kosis_latest(org, tbl, objn, prd, extra=None):
@@ -901,10 +898,11 @@ def ecos_latest(code=None):
 def bubble_conv_latest():
     """전월세전환율(KOSIS 408/DT_30404_N0010)의 **배치가 쓸 수 있는** 가장 최신 달(YYYYMM).
 
-    배치 fetch_bubble 과 같은 조회(아파트·시도, 최근 3개월)에 같은 규칙을 쓴다 — 지역 이름을
-    U.BUBBLE_SHORT 로 줄이고, U.BUBBLE_REGIONS 와 옛 이름(광주·전남 → 전남광주로 접힘)만 세어
-    BUBBLE_FULL_MIN 곳 이상 찬 달만 인정한다. 일치는 test_freshness_sources 가 두 함수를 같은
-    응답에 돌려 본다.
+    배치 fetch_bubble 과 같은 조회(아파트·시도, 최근 3개월)를 **배치의 함수 그대로** 읽는다 — 응답 해석은
+    U.bubble_conv_by_prd(시군구 동명 행은 짧은 코드, 광주·전남은 두 조각이 다 있거나 통합 행일 때만 전남광주),
+    완비 판정은 U.bubble_full_months(모델 지역 전부). 예전엔 옛 배치 규칙('10곳 이상', 한 조각만 와도 전남광주)을
+    여기 따로 적어, 원천이 최신 달을 일부 지역만 낸 회차에 배치는 그 달을 보류하는데 감시는 원천 최신으로 읽고
+    매일 뒤처짐 경보를 냈다(전수 리뷰 통합 검토).
     """
     org, tbl = BUBBLE_KOSIS
     p = {'method': 'getList', 'apiKey': os.environ.get('KOSIS_API_KEY', ''),
@@ -914,22 +912,7 @@ def bubble_conv_latest():
                  + urllib.parse.urlencode(p))
     if isinstance(d, dict) and d.get('err'):
         raise RuntimeError('KOSIS err %s' % d.get('err'))
-    by = {}
-    for r in d or []:
-        if (r.get('C1_NM') or '').strip() != '아파트' or not r.get('PRD_DE'):
-            continue
-        rg = (r.get('C2_NM') or '').strip()
-        rg = U.BUBBLE_SHORT.get(rg, rg)
-        if rg in U._GJ_OLD:
-            rg = U._GJ_NEW
-        if rg not in U.BUBBLE_REGIONS:
-            continue
-        try:
-            float(r['DT'])
-        except (TypeError, ValueError, KeyError):
-            continue
-        by.setdefault(r['PRD_DE'], set()).add(rg)
-    full = [t for t in sorted(by) if len(by[t]) >= BUBBLE_FULL_MIN]
+    full = U.bubble_full_months(U.bubble_conv_by_prd(d or []))
     if not full:
         raise RuntimeError('전월세전환율 완비 달 없음')
     return full[-1]

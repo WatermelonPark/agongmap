@@ -307,18 +307,25 @@ def test_size_query_matches_the_batch(monkeypatch):
         assert seen['batch'][k] == seen['wd'][k], k
 
 
-def _bubble_rows():
-    """전월세전환율 응답: 06월은 19곳, 07월은 광주·전남 옛 이름 두 행(→ 전남광주 한 곳)으로 19곳, 08월은
-    절반(9곳)만 먼저 올라온 달, 그리고 아파트가 아닌 행·시군구 행. 배치가 07월을 쓰는 모양이다."""
+def _bubble_rows(aug='half'):
+    """전월세전환율 응답: 06월은 19곳, 07월은 광주·전남 옛 이름 두 행(→ 전남광주 한 곳)으로 19곳, 08월은 먼저 일부만
+    올라온 달, 그리고 아파트가 아닌 행·시군구 행. 배치가 07월을 쓰는 모양이다. 08월 모양(aug):
+      'half'  — 절반(9곳)만(옛 두 문턱 모두 못 넘는 달)
+      'one'   — 한 곳(제주)만 빠진 18곳(옛 감시 문턱 '10곳 이상'은 넘고 배치 '모델 전부'는 못 넘는 달)
+      'gj'    — 전남광주 자리에 광주 조각만 온 19곳(옛 감시는 한 조각도 전남광주로 셌다)"""
     names = {v: k for k, v in U.BUBBLE_SHORT.items()}
     rows = []
 
     def add(prd, rg, c1='아파트', code=None):
         rows.append({'PRD_DE': prd, 'C1_NM': c1, 'C2_NM': names.get(rg, rg),
                      'C2': code or 'a%02d' % (len(rows) % 90), 'DT': '5.1'})
+    rest = [r for r in U.BUBBLE_REGIONS if r != U._GJ_NEW]
+    aug_regs = {'half': U.BUBBLE_REGIONS[:len(U.BUBBLE_REGIONS) // 2],
+                'one': [r for r in U.BUBBLE_REGIONS if r != U.BUBBLE_REGIONS[-1]],
+                'gj': rest + [U._GJ_OLD[0]]}[aug]
     for prd, regs in (('202606', U.BUBBLE_REGIONS),
-                      ('202607', [r for r in U.BUBBLE_REGIONS if r != U._GJ_NEW] + list(U._GJ_OLD)),
-                      ('202608', U.BUBBLE_REGIONS[:len(U.BUBBLE_REGIONS) // 2])):
+                      ('202607', rest + list(U._GJ_OLD)),
+                      ('202608', aug_regs)):
         for rg in regs:
             add(prd, rg)
         add(prd, '서울', c1='연립다세대')
@@ -331,16 +338,19 @@ def _loan_rows():
                                                      ('202607', '4.48'))]
 
 
-def test_bubble_watchdog_reads_the_same_month_as_the_batch(monkeypatch):
+@pytest.mark.parametrize('aug', ['half', 'one', 'gj'])
+def test_bubble_watchdog_reads_the_same_month_as_the_batch(monkeypatch, aug):
     """감시(bubble_conv_latest·ecos_latest(BUBBLE_ECOS))가 배치 fetch_bubble 과 같은 달을 '원천 최신'으로 본다.
-    기준이 갈리면 배치가 일부러 안 쓴 반쪽 달을 감시가 뒤처짐으로 읽거나, 반대로 진짜 뒤처짐을 놓친다.
+    기준이 갈리면 배치가 일부러 안 쓴 반쪽 달을 감시가 뒤처짐으로 읽거나, 반대로 진짜 뒤처짐을 놓친다. 두 코드는
+    응답 해석(U.bubble_conv_by_prd)과 완비 판정(U.bubble_full_months)을 한 함수로 쓴다.
 
-    변이(확인): C.BUBBLE_FULL_MIN 을 1 로 바꾸면 감시가 반쪽 08월을 골라 빨개진다. 조회 인자를 바꿔도
-    (C.BUBBLE_ECOS 의 항목을 'BECBLA0301' 로) 아래 인자 단정이 빨개진다.
-    픽스처: _bubble_rows(08월은 9곳만 먼저 올라온 달)와 주담대 금리 07월까지 — 2026-09 운영 데이터(prd·loan.p
+    변이(확인): 감시를 옛 규칙('10곳 이상', 한 조각도 전남광주)으로 되돌리면 'one'·'gj' 가, 배치 완비 판정을 옛
+    `len(by_prd[p]) >= 10` 으로 되돌리면 'one'·'gj' 가 빨개진다(통합 검토 전에는 08월이 9곳뿐인 'half' 하나라
+    두 변이 모두 초록이었다). 조회 인자를 바꿔도(C.BUBBLE_ECOS 의 항목을 'BECBLA0301' 로) 인자 단정이 빨개진다.
+    픽스처: _bubble_rows(08월은 일부만 먼저 올라온 달 세 모양)와 주담대 금리 07월까지 — 2026-09 운영 데이터(prd·loan.p
     2026.07)와 같은 모양.
     """
-    kosis_rows, loan_rows = _bubble_rows(), _loan_rows()
+    kosis_rows, loan_rows = _bubble_rows(aug), _loan_rows()
     seen = {}
     monkeypatch.setattr(U, 'KEY', 'k')
     monkeypatch.setattr(U, 'ECOS_KEY', 'k')

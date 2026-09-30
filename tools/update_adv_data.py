@@ -1463,12 +1463,13 @@ def _merge_gj_rate(by_prd):
     return by_prd
 
 
-def fetch_bubble():
-    """버블밴드: 전월세전환율(아파트·시도, KOSIS DT_30404_N0010) + 주담대 신규취급 가중평균금리
-    (ECOS 121Y006/BECBLA0302). {'prd','loan':{'v','p'},'regions','conv':{지역:%}} 반환."""
-    assert KEY and ECOS_KEY, 'KOSIS_API_KEY, ECOS_API_KEY 필요'
-    rows = kosis(dict(orgId='408', tblId='DT_30404_N0010', itmId='ALL',
-                      objL1='ALL', objL2='ALL', prdSe='M', newEstPrdCnt='3'))
+def bubble_conv_by_prd(rows):
+    """KOSIS 408/DT_30404_N0010 응답 행 → {PRD_DE: {지역: 전환율%}}(아파트·모델 지역, 광주·전남은 전남광주로 접음).
+
+    배치(fetch_bubble)와 감시(check_freshness.bubble_conv_latest)가 같은 응답을 이 함수 하나로 읽는다 — 감시가 예전
+    규칙(10곳 이상, 한 조각만 와도 전남광주)을 따로 적어, 배치가 보류한 달을 감시는 원천 최신으로 읽고 매일 뒤처짐
+    경보를 낼 수 있었다(전수 리뷰 통합 검토).
+    """
     by_prd = {}
     # ⚠️ 지역을 이름으로만 키잉하면 시도와 시군구가 같은 이름일 때 뒤 행이 앞을 덮는다.
     # 이 표에도 '광주'가 둘(a11 광주광역시 · a1525 경기 광주시), '제주'가 둘(a23 · a2301
@@ -1498,13 +1499,30 @@ def fetch_bubble():
             continue
         won[(prd, rg)] = code
         by_prd.setdefault(prd, {})[rg] = v
-    _merge_gj_rate(by_prd)
-    # 모델의 모든 지역이 찬 최신 달만 쓴다(전수리뷰 #6·#108). 예전 문턱은 손으로 센 '10곳 이상'이라, 원천이 최신 달을
-    # 일부만 낸 회차에 서울·경기 같은 지역이 빠진 달이 채택되고 payload 의 regions 필터가 그 지역을 조용히 지웠다.
-    # 최신 달이 덜 찼으면 직전 완비 달로 물러난다. 완비된 달이 하나도 없으면 예외 → main 이 'bubble' 실패로
-    # 남기고 직전 값을 지킨다(build_size 의 '모델 전체 요구'와 같은 정책).
+    return _merge_gj_rate(by_prd)
+
+
+def bubble_full_months(by_prd):
+    """bubble_conv_by_prd 결과에서 모델 지역(BUBBLE_REGIONS)이 **전부** 찬 달(PRD_DE) 목록, 오름차순.
+
+    모델의 모든 지역이 찬 최신 달만 쓴다(전수리뷰 #6·#108). 예전 문턱은 손으로 센 '10곳 이상'이라, 원천이 최신 달을
+    일부만 낸 회차에 서울·경기 같은 지역이 빠진 달이 채택되고 payload 의 regions 필터가 그 지역을 조용히 지웠다.
+    최신 달이 덜 찼으면 직전 완비 달로 물러난다. 완비된 달이 하나도 없으면 [] — fetch_bubble 이 예외로 'bubble' 실패를
+    남기고 직전 값을 지킨다(build_size 의 '모델 전체 요구'와 같은 정책). 감시도 이 함수로 원천의 최신 완비 달을 센다.
+    """
     need = set(BUBBLE_REGIONS)
-    full = [p for p in sorted(by_prd) if need <= set(by_prd[p])]
+    return [p for p in sorted(by_prd) if need <= set(by_prd[p])]
+
+
+def fetch_bubble():
+    """버블밴드: 전월세전환율(아파트·시도, KOSIS DT_30404_N0010) + 주담대 신규취급 가중평균금리
+    (ECOS 121Y006/BECBLA0302). {'prd','loan':{'v','p'},'regions','conv':{지역:%}} 반환."""
+    assert KEY and ECOS_KEY, 'KOSIS_API_KEY, ECOS_API_KEY 필요'
+    rows = kosis(dict(orgId='408', tblId='DT_30404_N0010', itmId='ALL',
+                      objL1='ALL', objL2='ALL', prdSe='M', newEstPrdCnt='3'))
+    by_prd = bubble_conv_by_prd(rows)
+    full = bubble_full_months(by_prd)
+    need = set(BUBBLE_REGIONS)
     if not full:
         last = max(by_prd) if by_prd else None
         raise RuntimeError('전월세전환율 GUARD: 모델 %d곳을 다 채운 달이 없다(최신 %s 빠짐 %s) — 직전 값 유지'
