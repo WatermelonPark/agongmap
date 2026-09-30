@@ -10,6 +10,8 @@
 통째로 비면 표 블록 대신 {'RESULT': {'CODE': 'INFO-200'}} 가 온다.
 """
 import copy
+import datetime
+import io
 import os
 import sys
 import urllib.error
@@ -379,6 +381,29 @@ def test_bubble_watchdog_reads_the_same_month_as_the_batch(monkeypatch, aug):
     for k in ('orgId', 'tblId', 'objL1', 'objL2', 'prdSe', 'newEstPrdCnt'):
         assert str(seen['bk'][k]) == seen['wk'][k], k
     assert _ecos_code(seen['be']) == _ecos_code(seen['we']) == C.BUBBLE_ECOS
+
+
+@pytest.mark.parametrize('label,ours,today,src,grace', [
+    ('전월세전환율', '2026.05', (2026, 9, 10), '202606', 'GRACE_BUBBLE_CONV'),   # 나이 132일
+    ('전월세전환율', '2026.06', (2026, 9, 28), '202607', 'GRACE_BUBBLE_CONV'),   # 나이 119일
+    ('주담대 금리', '2026.06', (2026, 8, 26), '202607', 'GRACE_BUBBLE_LOAN'),    # 나이 86일
+])
+def test_bubble_grace_covers_the_measured_release_lag(monkeypatch, label, ours, today, src, grace):
+    """버블밴드 두 계열은 원천에 새 달이 올라온 날(2026 실측) 우리 값이 이미 50일을 넘는다 — 그날 감시가 배치보다
+    먼저 돌면(감시 예약 18:07 KST) GRACE_MONTHLY 로는 곧바로 실패 메일이었다(통합 검토). 발표 당일은 유예 안이고,
+    배치가 한 달을 통째로 놓쳐 유예를 넘기면 실패다.
+
+    변이(실제로 확인): main 의 버블 두 줄을 GRACE_MONTHLY 로 되돌리거나 GRACE_BUBBLE_CONV 를 100 으로 줄이면 빨개진다.
+    픽스처: 2026 발표일의 실측 나이(전환율 09-10·09-28, 주담대 08-26)와 원천이 한 달 앞선 상태.
+    """
+    g = getattr(C, grace)
+    monkeypatch.setattr(C, 'TODAY', datetime.date(*today))
+    assert C.check(label, ours, lambda: src, g, _retry=False) is None
+    late = datetime.date(*today) + datetime.timedelta(days=g - C.age_days(ours) + 1)
+    monkeypatch.setattr(C, 'TODAY', late)
+    assert C.check(label, ours, lambda: src, g, _retry=False), '유예를 넘긴 뒤처짐을 놓쳤다'
+    body = io.open(C.__file__, encoding='utf-8').read()
+    assert "pre[('bubble', '%s')], %s)" % ('전환율' if grace.endswith('CONV') else '주담대', grace) in body
 
 
 def test_every_live_adv_key_is_classified():
