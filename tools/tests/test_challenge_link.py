@@ -71,6 +71,8 @@ OUT={seq, blocked};""")
     # 대결 링크 부팅은 B11(2026-09-27)부터 home-quiz.js 의 bootChallenge 가 맡는다 — boot 는 모양만 보고 그리로 넘긴다.
     boot, bc = _fn(src, 'boot'), _fn(src, 'bootChallenge')
     # 다른 화면 해시가 붙은 대결 주소는 해시가 이긴다(chalBootable, 전수리뷰 #44) — 동작은 test_home_entry 가 돌려 본다
-    assert re.search(r'if\(chalInURL\(location\.search\)&&chalBootable\(\)\)\{[^}]*bootChallenge\(\)', boot), 'boot 가 대결 링크를 bootChallenge 로 넘기지 않는다'
+    # 분기 안에 화살표 함수(PV_AFTER=()=>{…}, 통합 검토)가 있어 '}' 없이 이어진다고 보지 않는다 — else 앞에서 부르는지만 본다
+    m = re.search(r'if\(chalInURL\(location\.search\)&&chalBootable\(\)\)\{(.*?)\}else\{', boot, re.S)
+    assert m and 'bootChallenge()' in m.group(1), 'boot 가 대결 링크를 bootChallenge 로 넘기지 않는다'
     assert re.search(r"if\(challengeFirstSeen\(CHALLENGE\)\)track\('challenge_accepted'", bc), (
         'bootChallenge 가 challenge_accepted 를 가드 없이 보낸다')
