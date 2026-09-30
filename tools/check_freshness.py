@@ -151,6 +151,12 @@ SOURCE_WORKERS = 4
 from weekly_release import GRACE_WEEKLY  # noqa: E402
 GRACE_MONTHLY = 50     # 매월 15일경 전월분 발표
 GRACE_BASIC = 100      # 인허가·착공·준공이 약 2개월 지연(정상 최대 ~95일)
+# 버블밴드 두 계열은 발표가 더 늦다 — 새 달이 원천에 올라온 날 우리 값(전달)의 나이가 이미 GRACE_MONTHLY(50)를
+# 넘어, 감시가 발표 뒤·배치 반영 전에 한 번만 돌아도(감시 예약 18:07 KST 는 배치보다 앞선다) 그날 실패 메일이 났다
+# (전수 리뷰 통합 검토). 실측(2026): 전월세전환율 새 달이 올라온 날 우리 값 나이 132일(09-10, 2026.05)·119일
+# (09-28, 2026.06), 주담대 금리 86일(08-26, 2026.06). 정상 최대에 여유를 둔다 — 배치가 그 달을 놓친 것은 이만큼 늦게 잡힌다.
+GRACE_BUBBLE_CONV = 150
+GRACE_BUBBLE_LOAN = 100
 
 
 def get_json(url):
@@ -1178,9 +1184,9 @@ def main():
     # 나갈 수 있었다. 같은 성격의 CD 금리는 감시하면서 주담대 금리는 보지 않는 비대칭이기도 했다.
     print('[버블밴드 — 원천 KOSIS 전월세전환율 · ECOS 주담대 금리]')
     bub = adv.get('bubble') or {}
-    fails.append(check('전월세전환율', bub.get('prd'), pre[('bubble', '전환율')], GRACE_MONTHLY))
+    fails.append(check('전월세전환율', bub.get('prd'), pre[('bubble', '전환율')], GRACE_BUBBLE_CONV))
     fails.append(check('주담대 금리', (bub.get('loan') or {}).get('p'),
-                       pre[('bubble', '주담대')], GRACE_MONTHLY))
+                       pre[('bubble', '주담대')], GRACE_BUBBLE_LOAN))
 
     print('[연간 — 원천 KOSIS]')
     for name, cfg in sorted(U.ANNUAL_CONF.items()):
