@@ -5,8 +5,9 @@
 '지난주와 무엇이 달라졌나'를 보여 줄 재료가 없었다. 블로그 초안은 '지난주 순위에서 몇 계단'을 말하는데(홈 TOP 10
 캡처) 사이트의 다른 화면은 그 숫자를 몰랐다.
 
-원칙: 표지·순위 이동은 파이썬 정본(tools/weekly_moves.py) 하나가 계산한다. 홈 JS 는 split_data 가 구운 ADV.weekly.moves 를
-읽기만 하고, /weekly/ 타일·시군구 전체 표와 블로그 초안은 같은 함수를 부른다. 홈 통계 탭 TOP 10(home-app.js sggRanks)만
+원칙: 표지·순위 이동은 파이썬 정본(tools/weekly_moves.py) 하나가 계산한다. /weekly/ '방향이 바뀐 곳' 한 줄·시군구 전체 표와
+블로그 초안은 같은 함수를 부른다(홈 주간 구역·/weekly/ 머리의 시도 칸 표지는 시도 칸을 걷으며 빠졌다 — 2026-10-02 대표 요청,
+홈은 시군구 지도를 그린다). 홈 통계 탭 TOP 10(home-app.js sggRanks)만
 같은 순위를 JS 로 계산하므로(블로그가 캡처해 싣는 표) 그 일치를 실데이터로 node 대조한다.
 
 표지 규칙(정본 weekly_moves 머리말): 방향은 **표시값**(pv2r) 부호 — 0.00 은 보합. 연속 3주 이상이면 'N주 연속 상승/하락',
@@ -128,64 +129,36 @@ def test_tag_rule_on_every_branch():
 
 
 def _grid_js(W, seen=None):
-    """홈 주간 격자(renderWeeklyGrid)를 가짜 DOM·localStorage 에서 돌려 칸마다 (지역, 매매 표시, 표지, 도움말 주 수),
-    머리 줄(지난 방문 이후 — 옛 '방향이 바뀐 곳' 줄이 되살아나면 moves 로 잡힌다), 렌더 뒤 저장된 wk_seen 을 돌려준다."""
+    """홈 주간 구역(renderWeeklyGrid — 시군구 지도)을 가짜 DOM·localStorage 에서 돌려 머리 줄(지난 방문 이후)과 렌더 뒤 저장된
+    wk_seen 을 돌려준다."""
     h = HS.home_source()
-    names = ('pv2r', 'pv2', 'pvSign', '_syncHolidays', 'weeklyReleaseNow', 'pubDate', 'weeklyHead', 'applyWeeklyStatus',
-             'weeklyMoves', 'weeklyShare', 'wkSinceText', 'wkShouldRemember', 'wkSeen', 'wkRemember', 'renderWeeklyGrid',
-             'track', 'loadKakao')
+    names = ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg', 'onTrendLink', '_syncHolidays', 'weeklyReleaseNow', 'pubDate',
+             'weeklyHead', 'applyWeeklyStatus', 'weeklyShare', 'wkSinceText', 'wkShouldRemember', 'wkSeen', 'wkRemember',
+             'renderWeeklyGrid', 'track', 'loadKakao')
     key = re.search(r"^const WK_SEEN_KEY='[^']+';", h, re.M)
     assert key, 'home-app.js 에서 WK_SEEN_KEY 를 찾지 못했다'
-    return '\n'.join([_wk_block(h), key.group(0), 'let KAKAO_P=null,KAKAO_FAIL=false;function loadScript(){return Promise.resolve();}']
+    tile = re.search(r'^const NATION_TILE=.*$', h, re.M).group(0)
+    ref = re.search(r'^var WK_MAP_REF=.*$', h, re.M).group(0)
+    return '\n'.join([_wk_block(h), key.group(0), tile, ref,
+                      'let KAKAO_P=null,KAKAO_FAIL=false;function loadScript(){return Promise.resolve();}']
                      + [_js_func(h, n) for n in names] + [
         'globalThis.ADV={weekly:%s,holidays:[]};' % json.dumps(W, ensure_ascii=False),
         'const LS={};if(%s!==null)LS.wk_seen=%s;' % (json.dumps(seen), json.dumps(seen)),
         'globalThis.localStorage={getItem:k=>k in LS?LS[k]:null,setItem:(k,v)=>{LS[k]=String(v);}};',
-        'const box={style:{},innerHTML:"",querySelector:()=>null};',
+        'const box={style:{},dataset:{},innerHTML:"",addEventListener:()=>{},querySelector:()=>null};',
         'globalThis.document={getElementById:id=>id==="home-weekly-grid"?box:null};',
         'renderWeeklyGrid();',
-        # 칸 = 이름 → 매매 → (표지) 뿐이다. 전세 줄(2026-09-28 에 뺐다)이나 다른 줄이 끼면 이 정규식이 칸을 못 읽어 빨개진다.
-        'const cells=[...box.innerHTML.matchAll(/<div class="wc[^"]*"([^>]*)><b>([^<]+)<\\/b><span class="wc-ma">([^<]+)<\\/span>'
-        '(?:<i class="wc-tag">([^<]+)<\\/i>)?<\\/div>/g)]'
-        '.map(m=>[m[2],m[3],m[4]||null,((m[1].match(/title="최근 (\\d+)주/)||[])[1])||null]);',
-        'const moves=(box.innerHTML.match(/<p class="wg-moves">([^<]*)<\\/p>/)||[])[1]||null;',
         'const since=(box.innerHTML.match(/<p class="wg-since">([^<]*)<\\/p>/)||[])[1]||null;',
-        'process.stdout.write(JSON.stringify({cells,moves,since,seen:LS.wk_seen||null}));'])
+        'const tiles=(box.innerHTML.match(/<a href="#stats-market-week~/g)||[]).length;',
+        'process.stdout.write(JSON.stringify({since,tiles,seen:LS.wk_seen||null}));'])
 
 
-def test_home_grid_shows_the_python_tags_and_they_agree_with_the_displayed_sign():
-    """홈 주간 격자는 배치가 구운 표지를 그대로 칸에 싣고, 표지의 방향은 그 칸에 찍힌 매매 숫자(JS pv2)의 부호와 같다 —
-    JS·파이썬이 같은 결과를 낸다(0.00 칸에는 표지가 없다). 조사일이 다른 옛 표지(섞인 캐시)는 싣지 않는다.
-
-    칸은 지역 이름·매매 값·표지뿐이다 — 전세 값 줄과 격자 위 '지난주와 방향이 바뀐 곳' 줄은 뺐다(2026-09-28 대표 결정 — 작은
-    글씨 정리). 표지는 매매 숫자 바로 아래에 /weekly/ 타일과 같은 말('3주 연속 상승' — weekly_moves 문구 그대로)로 붙는다
-    (전세 줄과 가르려고 붙였던 '매매' 앞말은 전세 줄과 함께 뺐다). 칸 도움말의 주 수는 배치가 싣는 ADV.weekly.recent 를 따른다
-    (JS 에 4 를 적지 않는다).
-
-    변이(각각 실제로 확인): weekly_moves.direction 이 원값 부호를 쓰면 '0.00'(대전)에 '상승' 표지가 붙어, 홈 cell 에서
-    표지(`wc-tag`)를 빼면 표지 대조에서, 전세 줄(wc-je)을 되살리면 칸 읽기에서, 표지 앞에 '매매 '를 되살리면 표지 대조에서,
-    '방향이 바뀐 곳' 줄(wg-moves)을 되살리면 moves 단정에서, 도움말 창을 slice(-4) 로 적으면 주 수 단정에서, weeklyMoves 의
-    조사일 검사(`mv.p===row.p`)를 빼면 옛 표지 단정에서 빨개진다.
-    픽스처: 위 합성 네 주 + split_data 가 싣는 모양(ADV.weekly.moves·recent — 창은 일부러 3주로 줄였다). 홈 격자 칸은 19개.
-    """
+def _sgg_fixture():
+    """합성 시도 네 주 + 저장소 data.js 시군구 최신 한 주(홈 코어가 싣는 모양 — 지도는 sgg 를 읽는다)."""
+    Wr, _ = MW.load()
     W = _fixture()
-    WJ = dict(W, grace=9, moves=WM.moves(W), recent=3)
-    out = _node(_grid_js(WJ))
-    cells = {r: (txt, tag) for r, txt, tag, _ in out['cells']}
-    assert set(cells) == set(W['regions']), '격자 칸을 다 읽지 못했다(칸에 다른 줄이 끼었나?): %s' % sorted(cells)
-    assert {n for _, _, _, n in out['cells']} == {'3'}, '칸 도움말이 배치의 창(recent=3)을 따르지 않는다'
-    want = WJ['moves']['tags']
-    for r, (txt, tag) in cells.items():
-        assert tag == (want[r][1] if r in want else None), (r, tag, want.get(r))
-        shown = txt.replace('−', '-')
-        if tag:
-            assert shown[0] == ('+' if want[r][0] == 'up' else '-'), '표지 %s 인데 칸에는 %s' % (tag, txt)
-        if shown in ('0.00', '·'):
-            assert tag is None, (r, txt, tag)
-    assert out['moves'] is None and 'wg-moves' not in HS.home_source(), "격자 위 '방향이 바뀐 곳' 줄이 되살아났다"
-    stale = dict(WJ, moves=dict(WJ['moves'], p=PS[-2]))
-    out = _node(_grid_js(stale))
-    assert all(t is None for _, _, t, _ in out['cells']) and out['moves'] is None, '조사일이 다른 옛 표지를 실었다'
+    W['sgg'] = dict(Wr['sgg'], rows=Wr['sgg']['rows'][-1:])
+    return dict(W, grace=9)
 
 
 def test_seen_release_is_only_moved_forward():
@@ -194,11 +167,12 @@ def test_seen_release_is_only_moved_forward():
 
     변이(각각 실제로 확인): renderWeeklyGrid 가 조건 없이 wkRemember(rel.pub) 를 부르면 첫 단정, wkShouldRemember 가
     `seen<pub` 대신 `seen!==pub` 를 보면 첫 단정, 처음 온 기기(seen 없음)에 적지 않으면 셋째 단정이 빨개진다.
-    픽스처: 합성 네 주(최신 조사 2030-01-28 → 발표 01-31)를 그리는 홈 격자와 가짜 localStorage.
+    픽스처: 합성 네 주(최신 조사 2030-01-28 → 발표 01-31)를 그리는 홈 주간 구역(시군구 지도 — data.js 최신 시군구 한 주)과
+    가짜 localStorage.
     """
-    W = _fixture()
-    WJ = dict(W, grace=9, moves=WM.moves(W), recent=4)
+    WJ = _sgg_fixture()
     later = _node(_grid_js(WJ, seen='2030-02-07'))          # 더 새 발표를 이미 본 기기에 옛 판 화면
+    assert later['tiles'] > 200, '지도가 그려지지 않았다 — 머리 줄만 보고 초록이 되지 않게'
     assert later['seen'] == '2030-02-07' and later['since'] is None
     older = _node(_grid_js(WJ, seen='2030-01-24'))
     assert older['seen'] == '2030-01-31' and older['since'] == '지난 방문(1/24 발표) 이후 새 발표 1회'
@@ -246,29 +220,11 @@ def test_sgg_rank_moves_match_the_home_top10():
             assert len(ours) > 10 and ours == site, '%s %s: 파이썬 %s… / 홈 %s…' % (label, met, ours[:5], site[:5])
 
 
-def test_home_core_carries_only_the_moves_fields_the_home_reads():
-    """홈 코어(ADV.weekly.moves)에는 홈이 읽는 필드(조사일 p·칸 표지 tags)만 싣는다. '방향이 바뀐 곳' 한 줄(line)·전환 목록
-    (turned)·앞 회차(prev)는 홈 격자 머리 줄을 뺀 뒤(2026-09-28 대표 결정 — 작은 글씨 정리) 읽는 곳이 /weekly/ 와 블로그
-    초안뿐이고, 둘은 weekly_moves.moves 를 직접 부른다. 홈이 읽는 필드는 홈 스크립트의 `mv.필드` 에서 센다(손 목록과 대조).
+def test_weekly_page_moves_line_and_table_use_the_same_moves():
+    """/weekly/ '방향이 바뀐 곳' 한 줄·시군구 전체 표가 weekly_moves 의 결과를 그대로 싣는다(머리의 시도 타일 표지는 시도 타일을
+    걷으며 빠졌다 — 2026-10-02 대표 요청, 머리는 시군구 지도).
 
-    변이(각각 실제로 확인): split_data._home_moves 가 moves 전체를 그대로 싣으면 첫 단정이, 홈 격자에 mv.line 줄을 되살리면
-          셋째 단정이 빨개진다.
-    픽스처: 위 합성 네 주(전환·연속 표지가 모두 있는 주 — line·turned 가 비지 않는다).
-    """
-    import split_data as S
-    W = _fixture()
-    full, home = WM.moves(W), S._home_moves(W)
-    assert set(home) == set(S.HOME_MOVES) and all(home[k] == full[k] for k in S.HOME_MOVES), home
-    assert full['turned'] and full['line'] != WM.LINE_NONE, '픽스처에 전환이 없으면 뺀 필드를 가리지 못한다'
-    h = HS.home_source()
-    used = set(re.findall(r'\bmv\.(\w+)', _js_func(h, 'weeklyMoves') + _js_func(h, 'renderWeeklyGrid')))
-    assert used == set(S.HOME_MOVES), '홈이 읽는 방향 표지 필드(%s)와 코어에 싣는 필드(%s)가 다르다' % (used, S.HOME_MOVES)
-
-
-def test_weekly_page_tiles_and_table_use_the_same_moves():
-    """/weekly/ 타일 표지·'방향이 바뀐 곳' 한 줄·시군구 전체 표가 weekly_moves 의 결과를 그대로 싣는다.
-
-    변이(각각 실제로 확인): make_weekly_page.build 가 tile 에 표지를 넘기지 않으면 첫 단정, table_html 이 순위 대신 계열 순서
+    변이(각각 실제로 확인): build 가 mv['line'] 대신 다른 문구를 실으면 첫 단정, table_html 이 순위 대신 계열 순서
     (codes)로 줄을 세우면 표 단정, move_text 가 부호를 뒤집으면 이동 단정이 빨개진다.
     픽스처: 합성 네 주(시도) + 저장소 data.js 시군구 최신 두 주(표는 두 구현의 일치로만 본다).
     """
@@ -278,12 +234,9 @@ def test_weekly_page_tiles_and_table_use_the_same_moves():
     W['seoul'] = Wr['seoul']
     W['holidays'] = []
     head = MW.build(W, Q)[0]
-    tiles = re.findall(r'<div class="mm-tile"[^>]*><b[^>]*>([^<]+)</b><span[^>]*>[^<]*</span>'
-                       r'(?:<i class="mm-tag"[^>]*>([^<]+)</i>)?</div>', head)
     mv = WM.moves(W)
-    assert len(tiles) == len([z for z in SZ.DISPLAY_ORDER if W['rows'][-1]['ma'][W['regions'].index(z)] is not None])
-    for name, tag in tiles:
-        assert (tag or None) == (mv['tags'][name][1] if name in mv['tags'] else None), (name, tag)
+    assert 'mm-tile' not in head and 'mm-tag' not in head, '머리에 시도 타일이 되살아났다'
+    assert mv['line'] != WM.LINE_NONE, '픽스처에 전환이 없으면 한 줄을 가리지 못한다'
     assert '<p class="mm-moves">%s</p>' % mv['line'] in head
     table = MW.table_html(W, Q)
     rows = re.findall(r'<tr><th scope="row">([^<]+)</th><td[^>]*>([^<]+)</td><td[^>]*>[^<]*</td>'

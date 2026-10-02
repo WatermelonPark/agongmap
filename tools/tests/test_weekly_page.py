@@ -59,43 +59,40 @@ def test_no_live_render_script_overwrites_the_baked_answer():
     assert 'data-core.js' not in _page(), '라이브 렌더 스크립트가 남아 있다 — 구운 결론과 다른 값을 덮어쓸 수 있다'
 
 
-def _tile_labels(head):
-    return re.findall(r'<div class="mm-tile"[^>]*><b[^>]*>([^<]+)</b>', head)
+def test_head_map_links_every_tile_to_its_weekly_graph():
+    """머리는 시도 타일 대신 전국 시군구 지도다(2026-10-02 대표 요청). 지도의 모든 칸(NATION_TILE — 홈 소스에서 읽는다)이
+    홈 통계의 그 지역 주간 그래프 주소(/#stats-market-week~코드 — 홈 applyHash 가 받는 모양)로 가는 링크이고, 칸 설명의
+    매매 값이 data.js 시군구 최신 주 값(pv2)과 같다. 시도 타일(mm-tile)은 없다.
 
-
-def test_tiles_follow_the_zone_model():
-    """타일은 판정 단위 표시 순서(DISPLAY_ORDER)대로, 그 주 값이 있는 지역만 싣는다.
-
-    계약(make_weekly_page.build): 모델 지역이 주간 계열에 아예 없으면 SystemExit(타일이 조용히 빠지지 않게),
-    값이 반 넘게 비면 SystemExit, 그 밖에 한 지역 값이 빈 주는 그 타일만 빼고 굽는다. 예전 시험은 19칸 전부를
-    요구해, R-ONE 이 한 지역을 비운 주에 생성기는 성공하고 게이트만 빨개져 그날 데이터 커밋 전체(월간·공급
-    포함)가 막혔다(2026-09-26 데이터 감사 #14 — 저장된 주간 156행 중 11행이 전남광주 None 이었다).
-    변이: build() 의 타일을 `enumerate(regs)`(주간 계열 열 순서)로 돌리면 순서가 달라 빨개진다(실제로 바꿔
-          확인). 광주·전남 따로 타일이 되살아나도 빨개진다.
-    픽스처: 저장소 data.js 의 최신 주와 그걸로 구운 weekly/index.html.
+    변이(각각 실제로 확인): MAP_HREF 를 '/#stats-market' 으로 바꾸면 주소 단정이, week_map 이 전세(je) 줄을 읽으면 값 단정이,
+    build 가 옛 tile() 격자를 되살리면 마지막 단정이 빨개진다.
+    픽스처: 저장소 data.js 최신 주와 그걸로 구운 weekly/index.html(게이트는 생성기 뒤에 돈다).
     """
     W, _ = MW.load()
-    row = W['rows'][-1]
-    val = {r: row['ma'][i] for i, r in enumerate(W['regions']) if i < len(row['ma'])}
-    want = [z for z in SZ.DISPLAY_ORDER if val.get(z) is not None]
-    labels = _tile_labels(_block('HEAD'))
-    assert labels == want, '타일이 판정 단위 표시 순서(값 있는 지역)와 다르다: %s' % labels
-    assert '광주' not in labels and '전남' not in labels
+    head = _block('HEAD')
+    tiles = MW.nation_tile()['t']
+    links = re.findall(r'<a href="/#stats-market-week~([a-c][0-9]{1,8})" data-code="([^"]+)" aria-label="([^"]+)">', head)
+    assert [c for c, _, _ in links] == [t[0] for t in tiles] and all(c == d for c, d, _ in links), '지도 칸 링크가 배치와 다르다'
+    S = W['sgg']
+    v = {c: S['rows'][-1]['ma'][i] for i, c in enumerate(S['codes'])}
+    bad = [(c, lab) for c, _, lab in links if not lab.endswith('매매 %s%%' % MW.pv2(v.get(c)))]
+    assert not bad, '칸 설명의 매매 값이 data.js 와 다르다: %s' % bad[:5]
+    assert 'mm-tile' not in head and 'mm-grid' not in head, '머리에 시도 타일이 되살아났다'
 
 
-def test_a_region_without_a_value_drops_only_its_tile():
-    """한 지역 값이 빈 주는 그 타일만 빠지고 나머지는 표시 순서를 지킨다 — 생성기와 게이트가 같은 계약을 쓴다.
+def test_a_region_without_a_value_still_bakes_the_head():
+    """한 지역(시도) 값이 빈 주에도 머리(결론·시군구 지도)를 굽는다 — 생성기와 게이트가 같은 계약을 쓴다. 모델 지역 열이 통째로
+    없으면 조용히 빠지지 않고 멈춘다(SystemExit — 결론·리드의 시도 수가 조용히 줄지 않게).
 
-    변이: build() 가 None 을 거르지 않고(`tile(z, val[z] or 0, i) for ... in DISPLAY_ORDER`) 19칸을 다 그리면
-          빈 지역이 '0.00%' 보합 타일로 나가 빨개진다(실제로 바꿔 확인). 반대로 test_tiles_follow_the_zone_model 을
-          옛 '19칸 전부' 로 되돌리면 이 모양의 실데이터에서 빨개진다(감사 #14 재현).
-    픽스처: 전남광주 값이 빈 주(2026-04-27~07-06 실데이터에 11주 있었다). 모델 지역 열이 통째로 없으면
-            조용히 빠지지 않고 멈춰야 한다(SystemExit).
+    변이: build 의 `if val.get(z) is not None` 거름을 빼면 리드가 빈 지역까지 세어(또는 None 비교로 멈춰) 빨개진다(실제로
+          바꿔 확인). 모델 대조(miss)를 빼면 SystemExit 단정이 빨개진다.
+    픽스처: 전남광주 값이 빈 주(2026-04-27~07-06 실데이터에 11주 있었다).
     """
     import pytest
     W, Q = _week(dict(_base(0.05), 전남광주=None), _DOWN_SGG, _DOWN_GU)
     head = MW.build(W, Q)[0]
-    assert _tile_labels(head) == [z for z in SZ.DISPLAY_ORDER if z != '전남광주']
+    assert '<div class="mm-scroll"><svg' in head, '시군구 지도를 굽지 않았다'
+    assert '시도 %d곳 중' % (len(MW.SIDO) - 1) in head, '빈 지역을 빼고 센 시도 수가 리드에 없다'
     W2, Q2 = _week(_base(0.05), _DOWN_SGG, _DOWN_GU)
     i = W2['regions'].index('전남광주')
     W2['regions'] = W2['regions'][:i] + W2['regions'][i + 1:]

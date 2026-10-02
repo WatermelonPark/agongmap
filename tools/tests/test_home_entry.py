@@ -96,7 +96,7 @@ HARNESS = r'''
 const vm = require('vm');
 const CFG = %(cfg)s;
 let url = new URL(CFG.start);
-const rec = {replace: [], push: [], stats: [], market: [], adv: [], quiz: [], appended: [], listeners: {},
+const rec = {replace: [], push: [], stats: [], market: [], trend: [], adv: [], quiz: [], appended: [], listeners: {},
              idle: [], locReplace: null};
 const store = Object.assign({}, CFG.store || {});
 const ids = new Set(CFG.ids || []);
@@ -143,6 +143,7 @@ if (!CFG.noHome) {
     function setStatsMode(m,p){ __rec.stats.push([m,p]); }
     function setMarketTab(t,p){ __rec.market.push([t,p]); }
     function setAdvTab(t,p){ __rec.adv.push([t,p]); }
+    function openTrendRegion(k,c){ __rec.trend.push([k,c]); }
     function startQuiz(){ __rec.quiz.push([].slice.call(arguments)); }
     function backToPick(){}
     function afterLayout(fn){}
@@ -169,7 +170,7 @@ function pageViews() {
   return out;
 }
 process.stdout.write(JSON.stringify({afterHead, href: url.href, flag, store, queueAtHead, gtagAtHead, rec: {replace: rec.replace, push: rec.push,
-  stats: rec.stats, market: rec.market, adv: rec.adv, quiz: rec.quiz, appended: rec.appended, locReplace: rec.locReplace},
+  stats: rec.stats, market: rec.market, trend: rec.trend, adv: rec.adv, quiz: rec.quiz, appended: rec.appended, locReplace: rec.locReplace},
   appendedBeforeDCL, appendedBeforeIdle, pv: pageViews()}));
 '''
 
@@ -218,6 +219,33 @@ def test_blog_link_opens_the_stats_market_view():
     assert got['href'] == FIXED_URL
     assert got['rec']['stats'] == [['market', False]] and got['rec']['market'] == [['week', False]]
     assert _views(got) == ['view_stats']
+
+
+@pytest.mark.parametrize('frag,market,trend', [
+    ('stats-market-week~a7020202', 'week', 'a7020202'),   # 홈 지도·통계 지도·/weekly/ 머리 지도의 시군구 칸(서울 강남구)
+    ('stats-market-month~b304', 'month', 'b304'),         # 월간 TOP 10 지역명
+    ('stats-market-week~a0', 'week', 'a0'),               # 전국 칸
+    ('stats-market-week', 'week', None),                  # 코드 없는 주소 — 연 그래프를 지도로 되돌린다(뒤로 가기)
+    ('stats-market', 'week', None),
+])
+def test_region_hash_opens_that_region_graph(frag, market, trend):
+    """지도 칸·TOP 10 지역명의 주소 '#stats-market-<주기>~<코드>' 가 그 주기 탭을 열고 openTrendRegion(주기, 코드)를 부른다
+    (2026-10-02 대표 요청 — 새 화면이 아니라 시장동향 그래프). 코드 없는 시장동향 주소도 null 로 불러 그 함수가 연 그래프를
+    되돌리게 한다. 픽스처: 실제 머리·홈 스크립트, 주소만 바꾼다.
+    변이(실제로 확인): applyHash 정규식에서 '(?:~(…))?' 를 빼면 '~코드' 주소가 통계를 못 열어 빨개진다. 시장동향 분기에서
+    openTrendRegion 호출을 빼면 trend 가 비어 빨개진다."""
+    got = _run('https://www.agongmap.co.kr/#' + frag)
+    assert got['rec']['stats'] == [['market', False]]
+    assert got['rec']['market'] == [[market, False]]
+    assert got['rec']['trend'] == [[market, trend]]
+    assert _views(got) == ['view_stats']
+
+
+def test_region_hash_rejects_a_code_outside_the_tile_codes():
+    """코드 모양(a~c + 숫자 1~8자리 — NATION_TILE 의 모든 코드)이 아니면 통계 주소로 받지 않는다(임의 글자를 select 에 넣지 않게).
+    변이(실제로 확인): 정규식의 코드 모양을 '[^~]+' 로 넓히면 빨개진다."""
+    got = _run('https://www.agongmap.co.kr/#stats-market-week~x<1>')
+    assert got['rec']['stats'] == [] and got['rec']['trend'] == []
 
 
 def test_router_survives_a_hash_query_without_the_head():
