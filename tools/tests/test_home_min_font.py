@@ -22,8 +22,8 @@
   - 표 보기의 20열 표(#tb-main, 표를 굽는 함수 tbDraw·refBtn 에서만 나오는 클래스): 줄 높이 25px·붙박이 표두 둘째 줄 top 30px·
     참고 행 bottom 27px 가 11~12px 글자에 맞춰져 있다. 표 밖의 표 보기 조작부(범례·기간·대비·설명)는 13px 이상이다.
 
-변이(각각 실제로 넣어 빨간 것을 확인): .hs-kicker 를 12px 로, .wc-tag 를 10.5px 로 되돌리면 홈 전용 규칙 단정이,
-420px 이하 미디어에 `.wc b{font-size:11.5px}` 를 되살리면 같은 단정이(미디어 안도 본다), 덮기 규칙에서 '#view-home .sc-tier' 를
+변이(각각 실제로 넣어 빨간 것을 확인): .hs-kicker 를 12px 로, 주간 지도 아랫줄 .wg-foot 을 12px 로 내리면 홈 전용 규칙 단정이,
+520px 이하 미디어에 `.wg-foot{font-size:11.5px}` 를 넣으면 같은 단정이(미디어 안도 본다), 덮기 규칙에서 '#view-home .sc-tier' 를
 빼면 공용 규칙 단정이, 퀴즈 '결과 예시'(.qs-label)를 11.5px 로 되돌리면 홈 전용 규칙 단정이, 하단 탭바 .nav-btn 을 11.5px 로
 되돌리면 공용 규칙 단정이 빨개진다.
 픽스처: 저장소 app.css·index.html·home-app.js 그대로(데이터와 무관 — 날짜가 앞으로 가도 같은 답).
@@ -286,10 +286,10 @@ def _classify():
 def test_home_text_is_at_least_13px():
     checked, exempt, bad = _classify()
     assert not bad, '홈 화면 글자가 13px 아래다(2026-09-28 대표 결정 — 하한 13px):\n' + '\n'.join(bad)
-    # 분류기 자체 점검 — 마크업에서 온 것(.hs-kicker), 스크립트에서만 온 것(.wc-tag·.gr-note, 인자로 붙는 .wc), 공용 덮기(.sc-tier),
+    # 분류기 자체 점검 — 마크업에서 온 것(.hs-kicker), 스크립트에서만 온 것(.wg-foot·.gr-note), 공용 덮기(.sc-tier),
     # 표 안(.ri), SVG(.gr-rt·지도 라벨)가 각자 제 자리에 가야 이 시험이 무엇이든 본다(추출이 비면 조용히 초록이 된다).
     sels = {s for _, s, _ in checked}
-    for want in ('.hs-kicker', '.wc-tag', '.wc b', '.gr-note', '.sc-tier', '#view-home .sc-tier', '.nav-btn'):
+    for want in ('.hs-kicker', '.wg-foot', '.gr-note', '.sc-tier', '#view-home .sc-tier', '.nav-btn'):
         assert want in sels or any(want in s for s in sels), '%s 규칙을 홈 규칙으로 읽지 못했다 — 추출기를 볼 것' % want
     ex = {(w, s) for w, _, s, _ in exempt}
     assert ('표 보기 20열 표', '.ri') in ex and ('SVG 글자', '.gr-box .gr-rt') in ex and ('SVG 글자', '.map-box text.ml-s') in ex, ex

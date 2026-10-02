@@ -170,25 +170,157 @@ def h1_html(c):
             % (H1_WEEK, c['dir'], html.escape(c['who']), c['val'], c['verb']))
 
 
-# 타일 표지(B7)와 '방향이 바뀐 곳' 한 줄의 모양. 뼈대 <style> 은 손으로 관리하는 자리라 이 규칙은 HEAD 표식 안에
-# 싣는다(배치가 매주 다시 쓴다). 표지 글자는 타일 숫자와 같은 먹색 — 진한 빨강 바탕(알파 .78)에서도 대비를 지킨다.
-MOVES_CSS = ('.mm-tag{display:block;font-style:normal;font-size:10.5px;font-weight:600;line-height:1.3;margin-top:1px}'
-             '.mm-moves{font-size:13px;color:var(--ink2);margin:10px 0 0}')
+# '방향이 바뀐 곳' 한 줄(B7)과 머리 지도(MAP_CSS)의 모양. 뼈대 <style> 은 손으로 관리하는 자리라 이 규칙은 HEAD 표식 안에
+# 싣는다(배치가 매주 다시 쓴다).
+MOVES_CSS = '.mm-moves{font-size:13px;color:var(--ink2);margin:10px 0 0}'
 
 
-def tile(name, v, i, tg=None):
-    """홈 옛 라이브 미니맵과 같은 색 규칙 — 색도 표시값 기준. tg: weekly_moves 표지(['up'|'dn', 문구, N]) 또는 None."""
-    a = min(.78, .10 + abs(v) * 2.4)
-    rv = pv2r(v)
-    bg = ('rgba(224,86,74,%.2f)' % a if rv > 0 else
-          ('rgba(58,123,213,%.2f)' % a if rv < 0 else '#e9edeb'))
-    # 글자는 항상 먹색 — 흰 글자는 연한 바탕(알파 .1~.78) 위에서 대비 2.2, 색 글자도 4.1 이었다(2026-09-18 오딧).
-    # 방향은 바탕색이 이미 말한다. 보합 칸은 ink2(5.7).
-    tc = '#131e24' if rv else '#4c5f66'
-    tag = ('<i class="mm-tag" style="color:%s">%s</i>' % (tc, html.escape(tg[1]))) if tg else ''
-    return ('<div class="mm-tile" style="background:%s;animation-delay:%dms">'
-            '<b style="color:%s">%s</b><span style="color:%s">%s%%</span>%s</div>'
-            % (bg, i * 22, tc, html.escape(name), tc, pv2(v), tag))
+# ── 전국 시군구 지도(2026-10-02 대표 요청 — 머리의 시도 타일을 걷고 그 자리에 둔다). 홈 sggMapSvg(home-app.js)의 거울이다:
+# 같은 배치(NATION_TILE — 홈 소스에서 읽는다)·같은 색(mapColor, 만색 기준 WK_MAP_REF)·같은 글자(pv2)로 같은 마크업을 굽고,
+# 둘이 한 글자도 다르지 않은지는 test_sgg_map 이 node 로 대조한다. 칸(이름·값)을 누르면 홈 통계 시장동향의 그 지역
+# 주간 그래프(/#stats-market-week~코드 → applyHash → openTrendRegion). 이 페이지는 매매만 싣는다(홈 주간 구역과 같다).
+MAP_HREF = '/#stats-market-week~%s'
+MAP_CSS = ('.mm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
+           '.mm-scroll svg a{cursor:pointer}.mm-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}'
+           '.mm-scroll svg a:focus{outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}'
+           '.mm-swipe{display:none}@media(max-width:520px){.mm-swipe{display:inline}}')
+
+
+def _home_const(src, name):
+    m = re.search(r'^(?:const|var|let) %s=(.*?);\s*(?://.*)?$' % name, src, re.M)
+    if not m:
+        raise SystemExit('홈 소스에서 %s 를 찾지 못했다 — 시군구 지도 거울을 굽지 않는다' % name)
+    return m.group(1)
+
+
+def nation_tile(src=None):
+    """홈 NATION_TILE({cols,rows,t:[[코드,이름,x,y,머리칸]]}) — JS 객체 글자라 키에 따옴표를 달아 읽는다."""
+    raw = _home_const(src or HS.home_source(), 'NATION_TILE')
+    return json.loads(re.sub(r'([{,])(cols|rows|t):', r'\1"\2":', raw))
+
+
+def _js_num(x):
+    """JS 가 숫자를 글자로 만드는 모양 — 정수는 소수점 없이(30, -1.5, 30.5)."""
+    if float(x) == int(x):
+        return str(int(x))
+    return repr(float(x))
+
+
+def _to_fixed3(x):
+    """JS toFixed(3) — 두 배수 사이 한가운데면 큰 쪽(양수만 쓴다). 파이썬 '%.3f' 는 짝수 쪽이라 갈릴 수 있다."""
+    from decimal import Decimal, ROUND_HALF_UP
+    return str(Decimal(x).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP))
+
+
+def map_color(v, ref):
+    """홈 mapColor 의 거울 — 글자가 0.00 인 칸은 무색, 아니면 원값 크기로 빨강·파랑 알파."""
+    if v is None or pv2r(v) == 0:
+        return '#e8ecea'
+    a = min(abs(v) / (ref or 0.4), 1)
+    al = _to_fixed3(0.14 + 0.72 * a)
+    return ('rgba(224,86,74,%s)' if v > 0 else 'rgba(58,123,213,%s)') % al
+
+
+def sgg_map_svg(vals, names, ref, href=None, tile=None):
+    """홈 sggMapSvg(vals, {ref, names, href}) 와 같은 SVG. vals: 값 줄마다 {코드: 값}. href: 코드 → 주소(없으면 링크 없음)."""
+    N = tile or nation_tile()
+    n = len(vals)
+    TW, NH, G = 30, 15, 2
+    VH = 12 if n > 2 else 13
+    rowH = NH + n * (VH + 1)
+    W = N['cols'] * (TW + G) - G
+    H = N['rows'] * (rowH + G) - G
+    MAP_FS, MAP_MIN_PX = 9, 11
+    minW = math.ceil((W + 4) * MAP_MIN_PX / MAP_FS)
+    sv = ['<svg viewBox="-2 -2 %s %s" xmlns="http://www.w3.org/2000/svg" style="width:100%%;max-width:640px;min-width:%spx;'
+          'margin:0 auto;display:block"%s aria-label="전국 시군구 변동률 지도">'
+          % (W + 4, H + 4, minW, ' role="group"' if href else ' role="img"')]
+
+    def grp(c):
+        if c[0] == 'a':
+            if c == 'a0':
+                return 'a0'
+            if c.startswith('a7'):
+                return 'a7'
+            if c.startswith('a8'):
+                return 'a8'
+            return 'a9'
+        return c[:2]
+    SI_PARENT = ['a80203', 'a80103', 'a80202', 'a80102', 'a80602', 'a80301', 'a80302', 'a80305']
+
+    def cl(c):
+        if c in SI_PARENT:
+            return c
+        for p in SI_PARENT:
+            if c.startswith(p):
+                return p
+        return None
+
+    def tcol(v):
+        r = pv2r(v) or 0
+        return '#8f2318' if r > 0 else ('#123c5c' if r < 0 else '#5e6f74')
+    tb = int(math.floor(VH / 2 + 0.5)) + 3   # JS Math.round(반올림 위로) — 파이썬 round 는 짝수 쪽이다
+    for c, nm, x, y, h in N['t']:
+        px, py = x * (TW + G), y * (rowH + G)
+        fit = (' textLength="%s" lengthAdjust="spacingAndGlyphs"' % (TW - 3)) if len(nm) >= 4 else ''
+        g = ('<g transform="translate(%s,%s)">' % (px, py) +
+             '<rect width="%s" height="%s" rx="4" fill="%s" stroke="%s"/>'
+             % (TW, NH, '#1e2846' if h else ('#34456b' if c in SI_PARENT else '#eef1f8'), '#1e2846' if h else '#d6dced') +
+             '<text x="%s" y="%s" text-anchor="middle" font-size="%s"%s font-weight="600" fill="%s">%s</text>'
+             % (_js_num(TW / 2), NH - 4, MAP_FS, fit, '#fff' if (h or c in SI_PARENT) else '#1b2426', nm))
+        for j, m in enumerate(vals):
+            v = m.get(c)
+            ry = NH + 1 + j * (VH + 1)
+            g += ('<rect y="%s" width="%s" height="%s" rx="3" fill="%s" stroke="#d8dfdc"/>' % (ry, TW, VH, map_color(v, ref)) +
+                  '<text x="%s" y="%s" text-anchor="middle" font-size="%s" font-weight="600" fill="%s">%s</text>'
+                  % (_js_num(TW / 2), ry + tb, MAP_FS, tcol(v), pv2(v)))
+        lab = '%s %s' % (nm, ' · '.join('%s %s%%' % (names[j], pv2(m.get(c))) for j, m in enumerate(vals)))
+        g += ('' if href else '<title>%s</title>' % lab) + '</g>'
+        sv.append(('<a href="%s" data-code="%s" aria-label="%s">%s</a>' % (href(c), c, lab, g)) if href else g)
+    pos_g = {(x, y): grp(c) for c, _, x, y, _h in N['t']}
+    bl = []
+    for c, _, x, y, _h in N['t']:
+        g, px, py = grp(c), x * (TW + G), y * (rowH + G)
+        J = _js_num
+        if pos_g.get((x, y - 1)) != g:
+            bl.append('M%s %sH%s' % (J(px - 1.5), J(py - 1.5), J(px + TW + 1.5)))
+        if pos_g.get((x, y + 1)) != g:
+            bl.append('M%s %sH%s' % (J(px - 1.5), J(py + rowH + 1.5), J(px + TW + 1.5)))
+        if pos_g.get((x - 1, y)) != g:
+            bl.append('M%s %sV%s' % (J(px - 1.5), J(py - 1.5), J(py + rowH + 1.5)))
+        if pos_g.get((x + 1, y)) != g:
+            bl.append('M%s %sV%s' % (J(px + TW + 1.5), J(py - 1.5), J(py + rowH + 1.5)))
+    sv.append('<path d="%s" stroke="#5e6f74" stroke-width="1.4" fill="none" opacity=".9" pointer-events="none"/>' % ''.join(bl))
+    pos_c = {(x, y): cl(c) for c, _, x, y, _h in N['t']}
+    dl = []
+    for c, _, x, y, _h in N['t']:
+        k = cl(c)
+        if not k:
+            continue
+        px, py = x * (TW + G), y * (rowH + G)
+        J = _js_num
+        if pos_c.get((x, y - 1)) != k:
+            dl.append('M%s %sH%s' % (J(px + 0.5), J(py + 0.5), J(px + TW - 0.5)))
+        if pos_c.get((x, y + 1)) != k:
+            dl.append('M%s %sH%s' % (J(px + 0.5), J(py + rowH - 0.5), J(px + TW - 0.5)))
+        if pos_c.get((x - 1, y)) != k:
+            dl.append('M%s %sV%s' % (J(px + 0.5), J(py + 0.5), J(py + rowH - 0.5)))
+        if pos_c.get((x + 1, y)) != k:
+            dl.append('M%s %sV%s' % (J(px + TW - 0.5), J(py + 0.5), J(py + rowH - 0.5)))
+    sv.append('<path d="%s" stroke="#34456b" stroke-width="0.8" stroke-dasharray="0.6 1" stroke-linecap="round" fill="none" '
+              'opacity=".85" pointer-events="none"/>' % ''.join(dl))
+    sv.append('</svg>')
+    return ''.join(sv)
+
+
+def week_map(W, src=None):
+    """머리 지도: 시군구 최신 회차 매매 값 → (SVG, 조사일). 만색 기준은 홈 WK_MAP_REF 를 읽는다(한 상수)."""
+    src = src or HS.home_source()
+    S = W['sgg']
+    srow = S['rows'][-1]
+    v = {c: srow['ma'][i] for i, c in enumerate(S['codes']) if i < len(srow['ma'])}
+    ref = float(_home_const(src, 'WK_MAP_REF'))
+    return sgg_map_svg([v], ['매매'], ref, href=lambda c: MAP_HREF % c, tile=nation_tile(src)), srow['p']
 
 
 def counts(vals):
@@ -521,24 +653,26 @@ def build(W, Q):
     if other and pv2r(best[1]) != 0:
         lead.append('가장 많이 %s 곳은 %s %s%%다.'
                     % ('내린' if pv2r(best[1]) > 0 else '오른', other[0][0], pv2(other[0][1])))
-    # 방향 표지(B7): '지난주와 무엇이 달라졌나'. 규칙은 weekly_moves 하나 — 홈 격자·블로그와 같은 표지다.
+    # 방향 표지(B7): '지난주와 무엇이 달라졌나'. 규칙은 weekly_moves 하나 — 블로그와 같은 말이다. 시도 타일은 걷었고
+    # (2026-10-02 대표 요청 — 그 자리에 시군구 지도) '방향이 바뀐 곳' 한 줄만 남는다.
     mv = WM.moves(W) or {}
-    tg = mv.get('tags') or {}
-    tiles = ''.join(tile(z, val[z], i, tg.get(z)) for i, z in enumerate(SZ.DISPLAY_ORDER) if val.get(z) is not None)
+    svg, sp = week_map(W)
+    cap_when = '' if sp == p else ' · %s 조사 기준' % md(sp)
     head = '\n'.join([
         '  <p class="eyebrow"><span class="wk-label">%s</span> · %s · 한국부동산원 주간 통계</p>'
         % (WR.week_label(p, year=True), when),
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
         '  <p class="lead">%s</p>' % ' '.join(x for x in lead if x),
-        '  <a class="minimap" href="/#stats-market" aria-label="이번 주 시도별 매매가격 변동률, 눌러서 시군구 상세 지도 보기">',
-        '    <div class="mm-grid">%s</div>' % tiles,
+        '  <div class="minimap">',
+        '    <div class="mm-scroll">%s</div>' % svg,
         '    <div class="mm-cap"><span><i style="background:#e0564a"></i>상승</span>'
-        '<span><i style="background:#3a7bd5"></i>하락</span><span>매매가격 전주 대비</span>'
-        '<span class="go">시군구 상세 →</span></div>',
-        '  </a>',
-    ] + (['  <p class="mm-moves">%s</p>' % html.escape(mv['line']), '  <style>%s</style>' % MOVES_CSS]
-         if mv.get('line') else []))
+        '<span><i style="background:#3a7bd5"></i>하락</span><span>시군구 매매가격 전주 대비%s</span>'
+        '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'
+        '<a class="go" href="/#stats-market">TOP 10 →</a></div>' % cap_when,
+        '  </div>',
+    ] + (['  <p class="mm-moves">%s</p>' % html.escape(mv['line'])] if mv.get('line') else [])
+      + ['  <style>%s%s</style>' % (MOVES_CSS, MAP_CSS)])
 
     # ── 시군구 TOP 3 (홈 TOP 10 과 같은 대상: SGG_QNAME 에 이름이 있고 값이 있는 곳)
     S = W['sgg']

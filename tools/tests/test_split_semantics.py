@@ -57,27 +57,23 @@ def split(tmp_path_factory):
 
 
 def test_home_weekly_carries_the_newest_week(split):
-    """홈 주간 배너·히어로 지도는 '가장 최근 주'를 마지막 행으로 받고, 주간 격자는 최근 RECENT_WEEKS(4)주를 받는다
-    (홈 마케팅 검수 B7 — '지난주와 무엇이 달라졌나'). 방향 표지(moves)·공유 내용(share)은 그 최신 주 것이다.
+    """홈 주간 띠·주간 구역 머리(시도 rows)와 주간 지도·히어로 지도(시군구 sgg)는 '가장 최근 주' 한 행씩만 받는다. 공유 내용
+    (share)은 그 최신 주 것이다. 시도 방향 표지(moves)·최근 4주 창(recent)은 싣지 않는다 — 홈 주간 구역의 시도 칸을 걷고
+    시군구 지도로 바꿔(2026-10-02 대표 요청) 읽는 곳이 없다(읽는 곳 없는 계열을 코어에 남기지 않는다, 2026-08-07 감사).
 
-    변이: split_data의 `w['rows'][-RECENT_WEEKS:]` 를 `w['rows'][:RECENT_WEEKS]` 로 바꾸면 156주 전(2023년) 행이 실려
-          빨개진다(확인, 옛 `[-1:]` → `[:1]` 변이와 같은 자리). `[-1:]` 로 되돌려도 빨개진다(확인 — 4주가 아니다).
-          시군구 `sgg['rows'][-1:]` 를 `[:1]` 로 바꿔도 빨개진다(확인). `wk['recent']`(홈 격자 도움말 창)를 빼도 빨개진다(확인).
+    변이(각각 실제로 확인): split_data 의 `w['rows'][-1:]` 를 `[:1]` 로 바꾸면 156주 전(2023년) 행이 실려, 시군구
+          `sgg['rows'][-1:]` 를 `[:1]` 로 바꿔도, 코어에 moves 를 되살리면 빨개진다.
     픽스처: 실제 data.js — ADV.weekly.rows 가 오래된 주 → 최신 주 순으로 156행, sgg 도 같은 순서.
     """
     adv, _, out = split
     wk = out['core_adv']['weekly']
     src_rows = adv['weekly']['rows']
     newest = max(src_rows, key=lambda r: r['p'])
-    assert len(src_rows) > S.RECENT_WEEKS and src_rows[0]['p'] != newest['p'], '픽스처가 짧으면 변이를 못 가린다'
-    assert S.RECENT_WEEKS == 4, 'B7 은 최근 4주를 싣기로 했다 — weekly_moves.WINDOW 가 바뀌었는지 볼 것'
-    want = sorted(src_rows, key=lambda r: r['p'])[-S.RECENT_WEEKS:]
-    assert wk['rows'] == want and wk['rows'][-1] == newest
-    assert wk['moves']['p'] == newest['p'] and wk['share']['p'] == newest['p']
-    assert set(wk['moves']) == set(S.HOME_MOVES)   # 홈이 읽는 필드만(test_weekly_moves 가 홈 스크립트와 대조한다)
-    # 홈 격자 도움말의 창(ADV.weekly.recent)은 싣는 행 수와 같은 값이고 통계 탭용 trend 에도 실린다 — JS 는 4 를 적지 않는다
-    assert wk['recent'] == S.RECENT_WEEKS == len(wk['rows'])
-    assert out['trend']['ADV']['weekly']['recent'] == S.RECENT_WEEKS
+    assert len(src_rows) > 1 and src_rows[0]['p'] != newest['p'], '픽스처가 짧으면 변이를 못 가린다'
+    assert wk['rows'] == [newest]
+    assert wk['share']['p'] == newest['p']
+    for k in ('moves', 'recent'):
+        assert k not in wk and k not in out['trend']['ADV']['weekly'], '읽는 곳 없는 %s 를 싣는다' % k
     src_sgg = adv['weekly']['sgg']['rows']
     assert wk['sgg']['rows'] == [max(src_sgg, key=lambda r: r['p'])]
     assert wk['sgg']['codes'] == adv['weekly']['sgg']['codes']
