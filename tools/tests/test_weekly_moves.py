@@ -5,9 +5,9 @@
 '지난주와 무엇이 달라졌나'를 보여 줄 재료가 없었다. 블로그 초안은 '지난주 순위에서 몇 계단'을 말하는데(홈 TOP 10
 캡처) 사이트의 다른 화면은 그 숫자를 몰랐다.
 
-원칙: 표지·순위 이동은 파이썬 정본(tools/weekly_moves.py) 하나가 계산한다. /weekly/ '방향이 바뀐 곳' 한 줄·시군구 전체 표와
-블로그 초안은 같은 함수를 부른다(홈 주간 구역·/weekly/ 머리의 시도 칸 표지는 시도 칸을 걷으며 빠졌다 — 2026-10-02 대표 요청,
-홈은 시군구 지도를 그린다). 홈 통계 탭 TOP 10(home-app.js sggRanks)만
+원칙: 표지·순위 이동은 파이썬 정본(tools/weekly_moves.py) 하나가 계산한다. /weekly/ 시군구 전체 표와 블로그 초안은 같은 함수를
+부른다(홈 주간 구역·/weekly/ 머리의 시도 칸·표지·'방향이 바뀐 곳' 줄은 광역 단위를 걷으며 빠졌다 — 2026-10-02·10-03 대표 요청,
+머리는 시군구 지도를 그린다). 홈 통계 탭 TOP 10(home-app.js sggRanks)만
 같은 순위를 JS 로 계산하므로(블로그가 캡처해 싣는 표) 그 일치를 실데이터로 node 대조한다.
 
 표지 규칙(정본 weekly_moves 머리말): 방향은 **표시값**(pv2r) 부호 — 0.00 은 보합. 연속 3주 이상이면 'N주 연속 상승/하락',
@@ -220,11 +220,11 @@ def test_sgg_rank_moves_match_the_home_top10():
             assert len(ours) > 10 and ours == site, '%s %s: 파이썬 %s… / 홈 %s…' % (label, met, ours[:5], site[:5])
 
 
-def test_weekly_page_moves_line_and_table_use_the_same_moves():
-    """/weekly/ '방향이 바뀐 곳' 한 줄·시군구 전체 표가 weekly_moves 의 결과를 그대로 싣는다(머리의 시도 타일 표지는 시도 타일을
-    걷으며 빠졌다 — 2026-10-02 대표 요청, 머리는 시군구 지도).
+def test_weekly_page_head_has_no_sido_moves_and_table_uses_the_same_moves():
+    """/weekly/ 머리에는 광역(시도) 단위의 타일·표지·'방향이 바뀐 곳' 한 줄이 없고(2026-10-02·10-03 대표 요청 — 머리는 시군구
+    지도와 결론뿐), 시군구 전체 표는 weekly_moves 의 순위·이동을 그대로 싣는다.
 
-    변이(각각 실제로 확인): build 가 mv['line'] 대신 다른 문구를 실으면 첫 단정, table_html 이 순위 대신 계열 순서
+    변이(각각 실제로 확인): build 에 '방향이 바뀐 곳' 줄(mm-moves)을 되살리면 첫 단정, table_html 이 순위 대신 계열 순서
     (codes)로 줄을 세우면 표 단정, move_text 가 부호를 뒤집으면 이동 단정이 빨개진다.
     픽스처: 합성 네 주(시도) + 저장소 data.js 시군구 최신 두 주(표는 두 구현의 일치로만 본다).
     """
@@ -235,9 +235,9 @@ def test_weekly_page_moves_line_and_table_use_the_same_moves():
     W['holidays'] = []
     head = MW.build(W, Q)[0]
     mv = WM.moves(W)
-    assert 'mm-tile' not in head and 'mm-tag' not in head, '머리에 시도 타일이 되살아났다'
-    assert mv['line'] != WM.LINE_NONE, '픽스처에 전환이 없으면 한 줄을 가리지 못한다'
-    assert '<p class="mm-moves">%s</p>' % mv['line'] in head
+    assert mv['line'] != WM.LINE_NONE, '픽스처에 전환이 없으면 그 줄이 되살아나도 가리지 못한다'
+    for bad in ('mm-tile', 'mm-tag', 'mm-moves', mv['line']):
+        assert bad not in head, '머리에 광역(시도) 단위가 되살아났다: %s' % bad
     table = MW.table_html(W, Q)
     rows = re.findall(r'<tr><th scope="row">([^<]+)</th><td[^>]*>([^<]+)</td><td[^>]*>[^<]*</td>'
                       r'<td>(\d+)</td><td data-v="(-?\d*)">([^<]+)</td></tr>', table)
