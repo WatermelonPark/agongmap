@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v167';
+const HOME_BUILD='v168';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -89,7 +89,7 @@ function needKakao(redo){ if(window.Kakao||KAKAO_FAIL)return false; loadKakao().
 const PARTS={
   quiz:{src:'/home-quiz.js',api:['startQuiz','backToPick','bootChallenge']},
   stats:{src:'/home-stats.js',api:['statsOpen','setStatsMode','setMarketTab','setAdvTab','gtSet','trFlip',
-    'onTrendReg','onTrendSgg','renderPermitSec','renderOccSec']},
+    'onTrendReg','onTrendSgg','openTrendRegion','renderPermitSec','renderOccSec']},
 };
 function partURL(n){ return PARTS[n].src+'?v='+HOME_BUILD; }
 const PART_P={};
@@ -327,11 +327,13 @@ function applyHash(){
   const h=location.hash.replace('#','').split('?')[0];
   if(!h){showView('home',false);return;}
   if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
-  const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?$/);
+  /* '~코드'(시장동향만): 지도 칸·TOP 10 지역명에서 고른 지역의 그래프(openTrendRegion). 코드 없는 시장동향 주소는 그 함수가
+     연 그래프를 지도로 되돌린다(뒤로 가기). */
+  const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?(?:~([a-c][0-9]{1,8}))?$/);
   if(sm){
     showView('stats',false);setStatsMode(sm[1],false);
     // 하위탭 미지정 해시는 기본탭으로 — 뒤로가기가 항상 같은 화면을 재현하도록
-    if(sm[1]==='market')setMarketTab(sm[2]||'week',false);
+    if(sm[1]==='market'){const t=sm[2]==='month'?'month':'week';setMarketTab(t,false);openTrendRegion(t,sm[3]||null);}
     else if(sm[1]==='adv')setAdvTab(sm[2]||'occ',false);
     return;
   }
@@ -479,6 +481,91 @@ function mapColor(v,ref){
   if(v==null||v===0)return '#e8ecea';
   const a=Math.min(Math.abs(v)/(ref||0.4),1);
   return v>0?`rgba(224,86,74,${(0.14+0.72*a).toFixed(3)})`:`rgba(58,123,213,${(0.14+0.72*a).toFixed(3)})`;
+}
+/* 전국 시군구 타일 지도 SVG — 통계 시장동향 지도(drawNationMap)와 홈 주간 구역(renderWeeklyGrid)이 같이 그린다. /weekly/ 머리
+   지도는 파이썬 거울(tools/make_weekly_page.sgg_map_svg)이 같은 마크업을 굽는다 — 둘이 같은지는 test_sgg_map 이 node 로 대조한다.
+   vals: 값 줄마다 {코드: 값}(1~3줄, 위부터 o.names 순서 — 매매·전세·월세). o.ref: 만색 기준(mapColor). o.href(코드): 칸이 갈
+   주소 — 있으면 칸 전체(이름·값)가 링크다(그 지역 주간·월간 그래프, applyHash 의 '~코드'). 링크가 있으면 role="img" 를 달지
+   않는다(img 안의 링크는 보조기기에 보이지 않는다).
+   글자 하한 11px(2026-09-18 오딧 1번). viewBox 를 폭에 맞춰 줄이는 지도라 SVG 글자 크기가 곧 화면 크기가 아니다 — 375px
+   에서는 0.88배라 값 9 → 7.9px, 이름 7 → 6.1px 로 그려졌다(2026-09-23 실측). 12열 타일은 375px 에서 칸당 27px 라 11px
+   이름·값이 들어갈 수 없다. 값을 숨기면 TOP 10 밖 200여 곳의 숫자를 볼 길이 없고(title 은 터치에서 안 뜬다), 부호·소수를
+   줄이면 값이 달라진다. 그래서 지도가 MAP_FS 가 MAP_MIN_PX 로 그려질 최소 폭을 갖고, 좁은 화면에서는 표처럼
+   상자(.map-scroll) 안에서 옆으로 민다(test_stats_map_labels). */
+function sggMapSvg(vals,o){
+  const N=NATION_TILE, ref=o.ref, names=o.names, n=vals.length, TW=30, NH=15, G=2;
+  /* 3단(월간)은 값 칸을 1px 낮춰 세로가 길어지는 걸 억제한다. 9px 숫자에 12px 칸이면 충분하고, 1·2단은 13px 그대로 둔다. */
+  const VH=n>2?12:13;
+  const rowH=NH+n*(VH+1);   // 이름칸 + 값칸(각 VH, 사이 1px)
+  const W=N.cols*(TW+G)-G, H=N.rows*(rowH+G)-G;
+  const MAP_FS=9, MAP_MIN_PX=11, minW=Math.ceil((W+4)*MAP_MIN_PX/MAP_FS);
+  const sv=['<svg viewBox="-2 -2 '+(W+4)+' '+(H+4)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:640px;min-width:'+minW+'px;margin:0 auto;display:block"'+(o.href?' role="group"':' role="img"')+' aria-label="전국 시군구 변동률 지도">'];
+  const grpOf=c=>{
+    if(c[0]==='a'){
+      if(c==='a0')return 'a0';
+      if(c.indexOf('a7')===0)return 'a7';
+      if(c.indexOf('a8')===0)return 'a8';
+      return 'a9';
+    }
+    return c.slice(0,2);
+  };
+  const SI_PARENT=new Set(['a80203','a80103','a80202','a80102','a80602','a80301','a80302','a80305']);
+  const clOf=c=>{ if(SI_PARENT.has(c))return c; for(const p of SI_PARENT)if(c.indexOf(p)===0)return p; return null; };
+  const tcol=v=>{const r=pvSign(v);return r>0?'#8f2318':(r<0?'#123c5c':'#5e6f74');};
+  /* 값칸 y는 칸 높이에서 계산 — 베이스라인도 칸 중앙 기준이라 VH를 바꿔도 숫자가 위로 치우치지 않는다. */
+  const tb=Math.round(VH/2)+3;
+  N.t.forEach(([c,nm,x,y,h])=>{
+    const px=x*(TW+G), py=y*(rowH+G), href=o.href?o.href(c):null;
+    /* 칸 설명(이름·값). 링크 칸은 aria-label 로 — SVG <title> 을 쓰면 /weekly/ 처럼 구운 페이지에서 문서 <title> 을 찾는
+       도구·시험이 지도 칸까지 센다. 링크가 없으면 풍선 도움말(<title>). */
+    const lab=nm+' '+vals.map((m,j)=>names[j]+' '+pv2(m[c])+'%').join(' · ');
+    const g=`<g transform="translate(${px},${py})">`+
+      `<rect width="${TW}" height="${NH}" rx="4" fill="${h?'#1e2846':(SI_PARENT.has(c)?'#34456b':'#eef1f8')}" stroke="${h?'#1e2846':'#d6dced'}"/>`+
+      /* 이름도 값과 같은 MAP_FS. 네 글자(마산회원·마산합포)만 칸 폭에 맞춰 자간·글자 폭을 눌러 담는다 —
+         글자 크기를 7로 줄이면 높이까지 줄어 하한 아래로 내려간다. */
+      `<text x="${TW/2}" y="${NH-4}" text-anchor="middle" font-size="${MAP_FS}"${nm.length>=4?` textLength="${TW-3}" lengthAdjust="spacingAndGlyphs"`:''} font-weight="600" fill="${(h||SI_PARENT.has(c))?'#fff':'#1b2426'}">${nm}</text>`+
+      vals.map((m,j)=>{ const v=m[c], ry=NH+1+j*(VH+1);
+        return `<rect y="${ry}" width="${TW}" height="${VH}" rx="3" fill="${mapColor(v,ref)}" stroke="#d8dfdc"/>`+
+          `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="${MAP_FS}" font-weight="600" fill="${tcol(v)}">${pv2(v)}</text>`; }).join('')+
+      (href?'':`<title>${lab}</title>`)+'</g>';
+    sv.push(href?`<a href="${href}" data-code="${c}" aria-label="${lab}">${g}</a>`:g);
+  });
+  // 시도(광역) 경계선 — 같은 시도가 아닌 이웃과 접한 변만 그린다
+  const posGrp={};
+  N.t.forEach(([c,,x,y])=>{posGrp[x+','+y]=grpOf(c);});
+  const bl=[];
+  N.t.forEach(([c,,x,y])=>{
+    const g=grpOf(c), px=x*(TW+G), py=y*(rowH+G);
+    const nb=(dx,dy)=>posGrp[(x+dx)+','+(y+dy)];
+    if(nb(0,-1)!==g)bl.push('M'+(px-1.5)+' '+(py-1.5)+'H'+(px+TW+1.5));
+    if(nb(0,1)!==g)bl.push('M'+(px-1.5)+' '+(py+rowH+1.5)+'H'+(px+TW+1.5));
+    if(nb(-1,0)!==g)bl.push('M'+(px-1.5)+' '+(py-1.5)+'V'+(py+rowH+1.5));
+    if(nb(1,0)!==g)bl.push('M'+(px+TW+1.5)+' '+(py-1.5)+'V'+(py+rowH+1.5));
+  });
+  sv.push('<path d="'+bl.join('')+'" stroke="#5e6f74" stroke-width="1.4" fill="none" opacity=".9" pointer-events="none"/>');
+  // 구를 가진 시 = 점선 테두리로 묶기 (시+소속 구)
+  const posCl={}; N.t.forEach(([c,,x,y])=>{posCl[x+','+y]=clOf(c);});
+  const dl=[];
+  N.t.forEach(([c,,x,y])=>{
+    const cl=clOf(c); if(!cl)return;
+    const px=x*(TW+G), py=y*(rowH+G), nb=(dx,dy)=>posCl[(x+dx)+','+(y+dy)];
+    if(nb(0,-1)!==cl)dl.push('M'+(px+0.5)+' '+(py+0.5)+'H'+(px+TW-0.5));
+    if(nb(0,1)!==cl)dl.push('M'+(px+0.5)+' '+(py+rowH-0.5)+'H'+(px+TW-0.5));
+    if(nb(-1,0)!==cl)dl.push('M'+(px+0.5)+' '+(py+0.5)+'V'+(py+rowH-0.5));
+    if(nb(1,0)!==cl)dl.push('M'+(px+TW-0.5)+' '+(py+0.5)+'V'+(py+rowH-0.5));
+  });
+  sv.push('<path d="'+dl.join('')+'" stroke="#34456b" stroke-width="0.8" stroke-dasharray="0.6 1" stroke-linecap="round" fill="none" opacity=".85" pointer-events="none"/>');
+  sv.push('</svg>');
+  return sv.join('');
+}
+/* 지도·TOP 10 의 지역 링크를 누를 때(홈 주간 구역·통계 시장동향). 주소는 '#stats-market-week~코드'라 hashchange →
+   applyHash → openTrendRegion 이 그 지역 그래프를 연다. 이미 같은 주소면 hashchange 가 오지 않으므로 여기서 바로 연다
+   (그래프를 본 뒤 '지도' 버튼으로 돌아와 같은 곳을 다시 누를 때). from: 어디서 눌렀나(home_map·stats_map·rank). */
+function onTrendLink(e,from){
+  const a=e.target&&e.target.closest&&e.target.closest('a[data-code]'); if(!a)return;
+  const h=a.getAttribute('href')||'', m=h.match(/#stats-market-(week|month)~([a-c][0-9]{1,8})$/); if(!m)return;
+  track('trend_pick',{period:m[1],region:m[2],from:from});
+  if(location.hash==='#stats-market-'+m[1]+'~'+m[2]){e.preventDefault();openTrendRegion(m[1],m[2]);}
 }
 /* 발표 일정 안내: 부동산원 주간=매주 목요일, 월간=매월 15일(전월분). 낮 12시 공표.
    다음 발표일까지 계산해 보여준다 — 유저가 '언제 새로 나오나'를 알 수 있게. */
@@ -1427,68 +1514,17 @@ function pubDate(basis){
 function renderWeeklyGrid(){
   const box=document.getElementById('home-weekly-grid');
   if(!box)return;
-  let regs,row;
-  try{const W=ADV.weekly;regs=W&&W.regions;row=W&&W.rows&&W.rows[W.rows.length-1];}catch(e){}
-  if(!regs||!regs.length||!row||!row.ma){box.style.display='none';return;}
-  /* 색은 홈 지도와 같은 문법 — 상승 빨강·하락 파랑. 0.2%p를 상한으로 잡아
-     투명도를 준다(주간 변동은 대개 ±0.3%p 안이라 그 안에서 갈려야 보인다). */
-  /* ⚠️ 표시·색·정렬을 모두 **표시값**(pv2r: 소수 2자리 반올림) 기준으로 맞춘다.
-     원값으로 찍으면 −0.0012가 '−0.00'이 되고(실측: 부산), 원값 부호로 칠하면
-     같은 0.00이 빨강·파랑으로 갈린다 — 글자와 색이 다른 말을 한다.
-     pv2/pvSign은 감사 세션이 세운 정본이라 그대로 쓴다(2026-08-08 규칙). */
-  /* 값의 정본은 pv2/pvSign 그대로 두고, 글리프만 하이픈 → 마이너스(U+2212).
-     숫자 격자에서 '-'는 줄표처럼 붙어 자릿수를 흐린다(홈 지도 tbSigned와 같은 글리프). */
-  const mnus=(t)=>t.replace('-','−');
-  const tint=(ma)=>{
-    const v=pvSign(ma);
-    if(ma==null) return 'transparent';
-    if(v===0) return 'transparent';
-    const t=Math.min(1,Math.abs(v)/0.2), a=(0.06+t*0.30).toFixed(3);
-    return (v>0?'rgba(169,50,38,':'rgba(26,82,118,')+a+')';
-  };
-  /* 방향 표지(B7·RET-5 '지난주와 무엇이 달라졌나') — 판정은 배치(weekly_moves)가 전체 이력으로 해서 싣고 여기선 읽기만 한다. */
-  const mv=weeklyMoves(ADV.weekly), tags=(mv&&mv.tags)||{};
-  /* 코어가 싣는 최근 주(ADV.weekly.recent — split_data RECENT_WEEKS = weekly_moves.WINDOW)는 칸의 풍선 도움말로 보인다 —
-     표지가 말하는 흐름을 숫자로 확인하게. 주 수는 여기 적지 않고 배치가 싣는 값을 읽는다(통계 탭을 연 뒤 rows 가 156주로
-     바뀌어도 같은 창). 값이 없는 옛 캐시는 코어 rows 그대로. */
-  const recent=(ADV.weekly.rows||[]).slice(-(ADV.weekly.recent||(ADV.weekly.rows||[]).length));
-  const cell=(r,i,cls,t)=>{
-    const ma=row.ma[i];
-    const gp=t?';grid-column:'+t[0]+';grid-row:'+t[1]:'';
-    const tg=tags[r];
-    const tip=recent.length>1?' title="최근 '+recent.length+'주 매매: '+recent.map(x=>mnus(pv2((x.ma||[])[i]))).join(' → ')+'"':'';
-    /* 칸 = 지역 이름 · 매매 값 · 표지. 전세 값 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 칸에 매매 값만 남아 표지는
-       '매매' 앞말 없이 /weekly/ 타일과 같은 말(weekly_moves 의 문구 그대로)을 쓴다 — 앞말은 전세 줄과 가르려고 붙였던 것이다. */
-    return '<div class="'+cls+'"'+tip+' style="background:'+tint(ma)+gp+'">'
-      +'<b>'+r+'</b>'
-      +'<span class="wc-ma">'+mnus(pv2(ma))+'</span>'
-      +(tg?'<i class="wc-tag">'+tg[1]+'</i>':'')+'</div>';
-  };
-  /* 집계 3은 격자에서 떼어 위로 — 홈 지도의 집계 칩과 같은 구조다. */
-  const AGG=3;
-  const aggHtml=regs.slice(0,AGG).map((r,i)=>cell(r,i,'wc wc-agg')).join('');
-  /* 16시도는 **지리 배치**(2026-08-18 사용자: "실제 전국 지리와 비슷하게").
-     [열,행] 4x5 타일맵 — 서해가 왼쪽, 동해가 오른쪽, 남으로 내려간다.
-     경기.서울 좌상단 / 강원 우상단 / 부산.경남 우하단 / 제주 최하단.
-     주의: 변동률 정렬과는 양립하지 않는다. 같은 축(칸 위치)을 두고 다투므로
-     하나만 가질 수 있다 — 순위는 색.숫자가 이미 말하고, 지리 배치는 '어느
-     쪽이 오르나'라는 공간 패턴을 준다. '시도는 오른 순' 안내도 함께 걷었다. */
-  const TILE={'인천':[1,1],'서울':[2,1],'경기':[3,1],'강원':[4,1],
-              '충남':[1,2],'세종':[2,2],'충북':[3,2],'경북':[4,2],
-              '전북':[1,3],'대전':[2,3],'대구':[3,3],'울산':[4,3],
-              /* 전남광주는 한 칸이라 [2,4]가 빈다. 그 자리를 비워 두고 제주를 한 줄 아래
-                 [2,5]에 두었더니 격자 가운데 구멍이 뚫리고 제주만 떨어져 보였다
-                 (2026-09-15 사용자). 제주를 빈 [2,4]로 올려 4줄로 닫는다.
-                 공유 PNG(make_weekly_share.TILE)는 집계 3칸을 격자에 함께 넣는 가로형이라
-                 제주가 이미 다른 자리(첫 줄 끝)에 있다 — 두 매체의 칸 위치는 원래 같지 않다. */
-              '전남광주':[1,4],'제주':[2,4],'경남':[3,4],'부산':[4,4]};
-  /* 배치표에 없는 이름이 오면(지역 개편 등) 좌표 없이 흐름 배치로 떨어진다 —
-     칸이 사라지는 것보다 자리만 어긋나는 게 낫다. */
-  const cells=regs.map((r,i)=>({r,i})).slice(AGG)
-    .map(o=>cell(o.r,o.i,'wc',TILE[o.r])).join('');
-  /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). '지난주와 방향이 바뀐 곳'
-     줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리. 전환은 칸의 표지가 말한다). 링크 밖에 둔다 — 격자 링크의 이름(보이는
-     내용)을 길게 늘리지 않는다. */
+  let S,row;
+  try{S=ADV.weekly&&ADV.weekly.sgg;row=S&&S.rows&&S.rows[S.rows.length-1];}catch(e){}
+  if(!S||!S.codes||!row||!row.ma){box.style.display='none';return;}
+  /* 주간 구역 = 전국 시군구 지도(매매 전주 대비). 예전엔 시도 20칸 격자(집계 3 + 16시도, 방향 표지)였는데 2026-10-02 대표
+     요청으로 시도 칸을 모두 걷고 통계 탭과 같은 시군구 지도(sggMapSvg)를 그 자리에 둔다 — 시도 값은 지도의 진한 머리 칸
+     (서울·경기 …)이 말한다. 칸(이름·값)을 누르면 그 지역 주간 그래프(통계 시장동향, openTrendRegion). 전세 줄은 싣지 않는다
+     (2026-09-28 대표 결정 — 홈 주간 구역은 매매만). 색·값은 통계 지도와 같은 mapColor(…, WK_MAP_REF)·pv2 다.
+     요약·공유 주소인 /weekly/ 로 가는 길은 머리줄 오른쪽 링크다(home_cta 의 to 값 weekly_grid 는 GA 값이라 그대로 둔다). */
+  const v={}; S.codes.forEach((c,i)=>{v[c]=row.ma[i];});
+  const svg=sggMapSvg([v],{ref:WK_MAP_REF,names:['매매'],href:c=>'#stats-market-week~'+c});
+  /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). */
   const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel);
   if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
   const lines=since?'<p class="wg-since">'+since+'</p>':'';
@@ -1498,14 +1534,19 @@ function renderWeeklyGrid(){
     +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
     +'<button type="button" class="wg-sh" onclick="shareWeekly(\'link\')">'
     +'<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>링크 공유</button></div>':'';
-  /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
-  box.innerHTML=lines+'<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">'   // 이름은 보이는 내용 그대로 — aria-label(elledby)은 이름 불일치로 걸린다(Lighthouse)
-    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+(/^\d{4}-\d{2}-\d{2}$/.test(pubDate(row.p))?_md(pubDate(row.p)):pubDate(row.p))+'</b> 발표 · 매매 전주 대비(%)</span>'
+  const pd=pubDate(row.p);
+  box.innerHTML=lines
+    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+(/^\d{4}-\d{2}-\d{2}$/.test(pd)?_md(pd):pd)+'</b> 발표 · 매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
-    +'<div class="wg-agg">'+aggHtml+'</div>'
-    +'<div class="wg-cells">'+cells+'</div></a>'+share;
+    +'<div class="map-scroll wg-map">'+svg+'</div>'
+    +'<div class="wg-foot"><span>지역을 누르면 주간 그래프<span class="wg-swipe"> · 옆으로 밀어 전체 보기</span></span>'
+    /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
+    +'<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">이번 주 요약 보기 →</a></div>'
+    +share;
+  /* 지도 칸 → 그 지역 주간 그래프. 상자는 그대로 두고 안만 갈아 끼우므로 한 번만 붙인다. */
+  if(!box.dataset.trLink){ box.dataset.trLink='1'; box.addEventListener('click',e=>onTrendLink(e,'home_map')); }
   /* 카카오 SDK 는 누르려는 순간 받기 시작한다(퀴즈 결과 화면의 선로딩과 같은 뜻 — 첫 로딩에는 받지 않는다). */
   const kb=box.querySelector('.wg-sh-k');
   if(kb)['pointerenter','touchstart','focus'].forEach(t=>kb.addEventListener(t,()=>{loadKakao().catch(()=>{});},{once:true,passive:true}));
@@ -1535,13 +1576,8 @@ function weeklyHead(W){
   const hd=W&&W.head, row=W&&W.rows&&W.rows[W.rows.length-1];
   return (hd&&hd.text&&row&&hd.p===row.p)?hd:null;
 }
-/* 방향 표지(ADV.weekly.moves, B7·RET-5)와 공유 내용(ADV.weekly.share, B8). 둘 다 배치가 파이썬 정본(weekly_moves.moves·
-   make_weekly_page.share_payload)으로 구워 싣고 홈은 읽기만 한다 — 판정 규칙(표시값 pv2r 기준, 0.00 은 보합)을 여기서
-   다시 만들지 않는다. 최신 행과 조사일이 같을 때만 쓴다(옛 캐시·섞인 판이면 null — 표지·버튼 없이 그린다). */
-function weeklyMoves(W){
-  const mv=W&&W.moves, row=W&&W.rows&&W.rows[W.rows.length-1];
-  return (mv&&mv.tags&&row&&mv.p===row.p)?mv:null;
-}
+/* 공유 내용(ADV.weekly.share, B8). 배치가 파이썬 정본(make_weekly_page.share_payload)으로 구워 싣고 홈은 읽기만 한다.
+   최신 행과 조사일이 같을 때만 쓴다(옛 캐시·섞인 판이면 null — 버튼 없이 그린다). */
 function weeklyShare(W){
   const s=W&&W.share, row=W&&W.rows&&W.rows[W.rows.length-1];
   return (s&&s.url&&row&&s.p===row.p)?s:null;
@@ -1665,7 +1701,7 @@ function lsOk(){try{localStorage.setItem('agongmap-ls','1');localStorage.removeI
       올린다(HOME_BUILD 는 모든 배포에서 오르므로 쓰지 않는다). 동시 A/B 는 하지 않는다 — 배포 전후 비교의 구분값이다.
       이 줄은 부팅(showView 의 첫 page_view)보다 먼저 돈다 — 큐(dataLayer)에서 'set' 이 이벤트 앞에 있어야 속성이 붙는다.
       GA 로더는 늦게 붙어도(C8) 큐를 순서대로 보낸다. */
-const HOME_VARIANT='home3';
+const HOME_VARIANT='home4';   // home4: 주간 구역 시도 칸 → 시군구 지도(2026-10-02)
 try{if(typeof gtag==='function')gtag('set','user_properties',{home_variant:HOME_VARIANT});}catch(e){}
 /* ② 코호트 재방문 신호 — 기기에 '방문한 날 수(n)·첫 방문일(f)·마지막 방문일(l)'만 센다(KST 날짜 수, 개인 식별 정보 없음, 밖으로
       나가는 것은 GA 이벤트 매개변수뿐). 그날 첫 홈 부팅에 home_visit 을 한 번 보낸다: visit_n(방문한 날 수), gap_days(직전 방문과의

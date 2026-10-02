@@ -15,7 +15,7 @@
 3단) 두 모양의 값. 값은 실제 주간 폭(±0.01~±0.6%)과 같은 자릿수다.
 
 무엇을 깨뜨리면 빨개지나(실제로 확인):
-  - home-app.js 의 MAP_MIN_PX=11 을 9 로 → 최소 배율이 1.0 이 되어 ② 가 빨개진다.
+  - home-app.js(sggMapSvg) 의 MAP_MIN_PX=11 을 9 로 → 최소 배율이 1.0 이 되어 ② 가 빨개진다.
   - SVG style 에서 min-width 를 빼면 → 최소 폭을 못 찾아 빨개진다.
   - 이름 글자 크기를 옛 식(nm.length>=4?7:(nm.length===3?8:9))으로 되돌리면 ② 가 빨개진다.
   - 네 글자 이름의 textLength 를 빼면 ③ 이 빨개진다.
@@ -59,7 +59,8 @@ def _render(monthly):
     src = HS.home_source()
     tile = re.search(r'const NATION_TILE=\{.*?\};\n', src).group(0)
     # 밀기 안내 판정(syncSwipe)은 drawNationMap 이 부르는 도우미다(전수리뷰 #54) — 같이 싣는다(HOST 는 요소가 없어 판정을 건너뛴다)
-    fn = _func(src, 'syncSwipe') + '\n' + _func(src, 'drawNationMap')
+    # 그림은 홈과 같이 쓰는 sggMapSvg(home-app.js)다 — 지도 함수 셋을 같이 싣는다
+    fn = _func(src, 'syncSwipe') + '\n' + _func(src, 'sggMapSvg') + '\n' + _func(src, 'drawNationMap')
     # 주간 만색 기준(WK_MAP_REF)은 홈 지도 주간 모드(C3)·히어로 배경과 한 상수다 — 선언 줄을 그대로 가져온다.
     ref = re.search(r'^var WK_MAP_REF=.*$', src, re.M).group(0) + '\n'
     js = (tile + ref +
@@ -70,7 +71,7 @@ def _render(monthly):
           'var TREND={week:{map:"m",unit:"%%"}}; function trendData(){return {sgg:S,rows:[{p:row.p}]}}\n'
           'function pv2(v){return v==null?"·":(v>0?"+":"")+v.toFixed(2)} function pvSign(v){return v==null?0:v}\n'
           'function mapColor(){return "#eee"} function mapDateChip(){return ""} function rankTables(){return ""}\n'
-          'var HOST={innerHTML:"",querySelectorAll:function(){return []},querySelector:function(){return null}};\n'
+          'var HOST={innerHTML:"",dataset:{},addEventListener:function(){},querySelectorAll:function(){return []},querySelector:function(){return null}};\n'
           'var document={getElementById:function(){return HOST}};\n'
           '%s\n'
           'drawNationMap("week"); process.stdout.write(JSON.stringify(HOST.innerHTML));'

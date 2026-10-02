@@ -337,11 +337,12 @@ def test_map_action_line_is_body_text_not_a_footnote():
 
 
 def test_home_weekly_entrances_are_named_by_destination():
-    """A4·IA-3·MOB-3: 주간 구역 버튼은 통계 탭 시군구 지도로 가는 **링크**이고 이름이 목적지를 말한다.
-    격자·푸터는 /weekly/. 변이: 옛 `<button onclick="goStats('market')">이번 주 시세 지도 보기` 로 되돌리면 빨개진다."""
+    """A4·IA-3·MOB-3: 주간 구역 버튼은 통계 탭 시군구 TOP 10 으로 가는 **링크**이고 이름이 목적지를 말한다.
+    지도 아래 요약 링크·푸터는 /weekly/. 홈 주간 구역이 시군구 지도가 된 뒤(2026-10-02) 버튼 이름에서 '지도'를 뺐다 — 지도는
+    이미 눈앞에 있다. 변이: 옛 `<button onclick="goStats('market')">이번 주 시세 지도 보기` 로 되돌리면 빨개진다."""
     s = _src('index.html')
     home = s[s.index('<div id="view-home">'):s.index('<!-- ===== 통계보기 대시보드 ===== -->')]
-    assert re.search(r'<a class="home-cta" href="#stats-market"[^>]*>시군구 시세 지도·TOP 10 보기</a>', home)
+    assert re.search(r'<a class="home-cta" href="#stats-market"[^>]*>시군구 상승·하락 TOP 10 보기</a>', home)
     assert "goStats('market')" not in home and '이번 주 시세 지도 보기' not in home
     assert re.search(r'<a href="/weekly/"[^>]*>이번 주 시세 지도</a>', home), '푸터 주간 링크가 /weekly/ 가 아니다'
     assert 'class="wg-link" href="/weekly/"' in HS.home_source()
