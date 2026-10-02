@@ -134,39 +134,18 @@ def _weekly_head(w):
         return None
 
 
-# '지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5). 홈 코어에 최근 WINDOW 주를 싣고, 방향 표지(상승 전환·N주 연속)는
-# weekly_moves 가 **전체 이력**으로 판정해 ADV.weekly.moves 로 싣는다 — 홈 JS 는 규칙을 다시 만들지 않고 읽기만 한다.
-# 공유 내용(ADV.weekly.share, B8)은 /weekly/ 공유 버튼과 같은 함수(make_weekly_page.share_payload)에서 온다.
-# 둘 다 결론 한 줄(head)처럼 못 만들면 빼고 쪼갠다 — 홈은 없으면 표지·공유 버튼 없이 그린다.
-try:
-    import weekly_moves as _WM
-except Exception as _e:               # noqa: BLE001
-    _WM = None
-    print('⚠️ split_data: weekly_moves 를 못 불러와 ADV.weekly.moves 를 싣지 않는다 — %s' % _e, file=sys.stderr)
-RECENT_WEEKS = _WM.WINDOW if _WM is not None else 1
+# 공유 내용(ADV.weekly.share, B8)은 /weekly/ 공유 버튼과 같은 함수(make_weekly_page.share_payload)에서 온다. 결론 한 줄
+# (head)처럼 못 만들면 빼고 쪼갠다 — 홈은 없으면 공유 버튼 없이 그린다.
+# 시도 방향 표지(ADV.weekly.moves)와 최근 4주(recent)는 더 싣지 않는다 — 홈 주간 구역의 시도 칸을 걷고 시군구 지도로 바꿔
+# (2026-10-02 대표 요청) 읽는 곳이 없다. 표지는 /weekly/·블로그 초안이 weekly_moves 를 직접 불러 쓴다.
 
 
-# 홈이 읽는 방향 표지 필드(weeklyMoves — 조사일 p 와 칸 표지 tags). weekly_moves.moves 의 나머지('방향이 바뀐 곳' 한 줄 line·
-# 전환 목록 turned·앞 회차 prev)는 /weekly/ 와 블로그 초안이 같은 함수를 직접 불러 쓰고, 홈 격자 머리의 그 줄은 뺐다
-# (2026-09-28 대표 결정 — 작은 글씨 정리). 홈 코어에는 읽는 것만 싣는다.
-HOME_MOVES = ('p', 'tags')
-
-
-def _home_moves(w):
-    mv = _WM and _WM.moves(w)
-    return {k: mv[k] for k in HOME_MOVES} if mv else None
-
-
-def _weekly_extra(w):
-    """(moves, share) — 만들지 못한 것은 None."""
-    out = []
-    for name, fn in (('방향 표지', lambda: _home_moves(w)), ('공유 내용', lambda: _MW and _MW.share_payload(w))):
-        try:
-            out.append(fn() or None)
-        except Exception as e:        # noqa: BLE001
-            print('⚠️ split_data: 주간 %s 를 만들지 못했다 — %s' % (name, e), file=sys.stderr)
-            out.append(None)
-    return out
+def _weekly_share(w):
+    try:
+        return (_MW and _MW.share_payload(w)) or None
+    except Exception as e:            # noqa: BLE001
+        print('⚠️ split_data: 주간 공유 내용을 만들지 못했다 — %s' % e, file=sys.stderr)
+        return None
 
 
 def _r2(a):
@@ -236,14 +215,11 @@ def main():
     # 입력이라, 한쪽이 비어도 다른 쪽은 그려야 한다.
     wk = {'regions': w.get('regions', []), 'grace': GRACE_WEEKLY}
     head = _weekly_head(w)
-    moves, share = _weekly_extra(w)
+    share = _weekly_share(w)
     if w.get('rows'):
-        wk['rows'] = w['rows'][-RECENT_WEEKS:]   # 최근 4주(B7). 홈 격자·띠는 마지막 행을, 표지는 moves 를 읽는다
-        wk['recent'] = RECENT_WEEKS   # 홈 격자 풍선 도움말의 주 수 — JS 가 4 를 따로 적지 않게(통계 탭 뒤 rows 가 길어져도 같은 창)
+        wk['rows'] = w['rows'][-1:]   # 홈 띠·주간 구역 머리(발표 상태·결론)는 마지막 행만 읽는다
         if head:
             wk['head'] = head
-        if moves:
-            wk['moves'] = moves
         if share:
             wk['share'] = share
     if sgg.get('rows'):
@@ -325,9 +301,6 @@ def main():
             w['grace'] = GRACE_WEEKLY
             if head:
                 w['head'] = head   # 같은 이유 — 통계 탭을 연 뒤에도 홈 띠·주간 h2 가 결론을 잃지 않는다
-            w['recent'] = RECENT_WEEKS   # 같은 이유 — 격자 도움말의 주 수
-            if moves:
-                w['moves'] = moves   # 같은 이유 — 주간 격자 표지(B7)
             if share:
                 w['share'] = share   # 같은 이유 — 주간 격자 공유 버튼(B8)
         if k == 'monthly':

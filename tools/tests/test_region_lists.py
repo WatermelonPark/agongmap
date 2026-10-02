@@ -57,23 +57,17 @@ def test_matrix_keeps_the_silent_drop_guard():
 
 # ── 홈: 주간 시세 타일 ────────────────────────────────────────────────────
 
-def test_home_weekly_tile_has_every_sido():
-    """좌표가 없는 지역은 흐름 배치로 떨어져 지도 밖에 붙는다."""
-    s = _read('index.html')
-    m = re.search(r'const TILE=\{(.*?)\};', s, re.S)
-    assert m, 'TILE 배치표를 찾지 못했다'
-    got = set(re.findall(r"'([가-힣]+)':\[", m.group(1)))
-    assert got == SIDO, '주간 타일 지역이 모델과 다르다: %s' % sorted(got ^ SIDO)
-
-
-def test_home_tile_matches_the_share_png():
-    """같은 지도가 매체마다 달라 보이면 안 된다 — 공유 PNG 와 같은 집합이어야 한다."""
-    h = _read('index.html')
-    p = _read('tools', 'make_weekly_share.py')
-    home = set(re.findall(r"'([가-힣]+)':\[", re.search(r'const TILE=\{(.*?)\};', h, re.S).group(1)))
-    png = set(re.findall(r"\('([가-힣]+)',", re.search(r'TILE = \[(.*?)\]\s*\n', p, re.S).group(1)))
-    assert home == png - set(SZ.AGG), (
-        '홈 타일과 공유 PNG 의 지역이 다르다: %s' % sorted(home ^ (png - set(SZ.AGG))))
+def test_home_weekly_map_has_a_head_tile_for_every_sido():
+    """홈 주간 구역·/weekly/ 머리는 시도 칸 대신 전국 시군구 지도다(2026-10-02 대표 요청) — 시도 값은 지도의 진한 머리 칸
+    (두 글자 코드, 서울 a7·경기 a8 …)이 말하고, 누르면 그 시도 그래프가 열린다. 판정 단위마다 머리 칸이 하나 이상 있어야
+    한다(광주 b3·전남 c5 는 전남광주로 접힌다 — weekly_moves.sgg_zone, 홈 sggZoneOf 의 거울).
+    변이(실제로 확인): NATION_TILE 에서 ["c8","제주",0,19,1] 을 빼면 제주가 비어 빨개진다.
+    픽스처: 저장소 홈 소스의 NATION_TILE 과 sido_zones 모델."""
+    import weekly_moves as WM
+    import make_weekly_page as MW
+    heads = [t[0] for t in MW.nation_tile(HS.home_source())['t'] if t[4] and len(t[0]) == 2 and t[0] != 'a0']
+    got = set(WM.sgg_zone(c) for c in heads)
+    assert SIDO <= got, '지도에 머리 칸이 없는 시도: %s' % sorted(SIDO - got)
 
 
 # ── 생성기: 손 목록을 두더라도 어긋나면 죽어야 한다 ──────────────────────

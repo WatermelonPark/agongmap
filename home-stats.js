@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v167';
+var HOME_STATS_BUILD='v168';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -40,6 +40,7 @@ function ensureSggHist(){
 /* 시군구를 고르면 먼저 있는 만큼(12구간) 즉시 그리고, 전체가 도착하면 다시 그린다 */
 function onTrendSgg(k){
   const T=TREND[k], sub=document.getElementById(T.sel2);
+  trOpenDrop(k);
   TRSHOW[k]=12;
   const render=k==='week'?renderWeekSec:renderMonthSec;
   render();
@@ -54,14 +55,16 @@ function onTrendSgg(k){
    실패하면 대기열은 실패로 끝나지만 여기 최상위 선언이 이미 대기 함수를 덮어써서, 다시 들어올 때 showView 가 이 함수를
    곧바로 부른다. 예전엔 여기서 trend 를 부르지 않아 코어 4주치를 '전체'로 그렸고 투자지표에서 TypeError 가 났다.
    이미 받았으면 loadData 가 캐시한 약속이 곧바로 풀린다. */
+let TREND_P=null;   // 주간·월간 첫 그림이 끝나는 약속 — openTrendRegion 이 이 뒤에 고른 지역을 그린다(첫 그림이 덮지 않게)
 function statsOpen(){
-  return loadFullData().then(()=>{
+  TREND_P=loadFullData().then(()=>{
     renderReleaseInfo();
     renderWeekSec();
     renderMonthSec();
-    return ensureBasicStats()
-      .then(()=>{ renderBubbleSec(); initStats(); });
-  }).catch(()=>{statsInited=false;});
+  });
+  return TREND_P.then(()=>ensureBasicStats()
+      .then(()=>{ renderBubbleSec(); initStats(); }))
+    .catch(()=>{statsInited=false;TREND_P=null;});
 }
 /* 기본통계(13계열)는 이 함수를 거쳐서만 그린다 */
 /* ============ 통계 대시보드 ============ */
@@ -737,7 +740,7 @@ function rankTables(S,unit,k){
     items.forEach(([c,v],i)=>{
       const rank=base+i;
       const medal=rank<=3?'<span class="rk-medal">'+['🥇','🥈','🥉'][rank-1]+'</span>':'';
-      h.push('<tr><td>'+medal+rank+'</td><td>'+SGG_QNAME[c]+'</td>'+
+      h.push('<tr><td>'+medal+rank+'</td><td><a class="rk-go" href="#stats-market-'+k+'~'+c+'" data-code="'+c+'">'+SGG_QNAME[c]+'</a></td>'+
         cols.map(m=>vcell(c,m)).join('')+'<td>'+dcell(c)+'</td></tr>');
     });
     h.push('</tbody></table></div></div>');
@@ -771,92 +774,29 @@ function drawNationMap(k){
   const natP=(D.rows&&D.rows.length)?D.rows[D.rows.length-1].p:row.p;
   const gap=natP!==row.p;
   const SER=hasWo?'매매·전세·월세':'매매·전세';
-  const ref=k==='week'?WK_MAP_REF:1.0,   // 주간 만색 기준은 홈 지도 주간 모드(C3)·히어로 배경과 한 값
-        TW=30, NH=15, G=2;
-  /* 3단(월간)은 값 칸을 1px 낮춰 세로가 길어지는 걸 억제한다.
-     9px 숫자에 12px 칸이면 충분하고, 2단(주간)은 기존 13px 그대로 둔다. */
-  const VH=hasWo?12:13;
-  const rowH=NH+(hasWo?3:2)*(VH+1);   // 이름칸 + 값칸(각 VH, 사이 1px)
-  const N=NATION_TILE, W=N.cols*(TW+G)-G, H=N.rows*(rowH+G)-G;
-  /* 글자 하한 11px(2026-09-18 오딧 1번). viewBox 를 폭에 맞춰 줄이는 지도라 SVG 글자 크기가 곧 화면
-     크기가 아니다 — 375px 에서는 0.88배라 값 9 → 7.9px, 이름 7 → 6.1px 로 그려졌다(2026-09-23 실측).
-     12열 타일은 375px 에서 칸당 27px 라 11px 이름·값이 들어갈 수 없다. 값을 숨기면 TOP 10 밖 200여 곳의
-     숫자를 볼 길이 없고(title 은 터치에서 안 뜬다), 부호·소수를 줄이면 값이 달라진다. 그래서 지도가
-     MAP_FS 가 MAP_MIN_PX 로 그려질 최소 폭을 갖고, 좁은 화면에서는 표처럼 상자(.map-scroll) 안에서 옆으로 민다. */
-  const MAP_FS=9, MAP_MIN_PX=11, minW=Math.ceil((W+4)*MAP_MIN_PX/MAP_FS);
-  const sv=['<svg viewBox="-2 -2 '+(W+4)+' '+(H+4)+'" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:640px;min-width:'+minW+'px;margin:0 auto;display:block" role="img" aria-label="전국 시군구 변동률 지도">'];
-  const GRP_TINT={a7:'#e2e7e5',c1:'#e2e7e5',c3:'#e2e7e5',b2:'#e2e7e5',b1:'#e2e7e5',
-    a9:'#e1e6e3',b3:'#e1e6e3',c7:'#e1e6e3',c6:'#e1e6e3',c8:'#e1e6e3',b4:'#e1e6e3'};
-  const grpOf=c=>{
-    if(c[0]==='a'){
-      if(c==='a0')return 'a0';
-      if(c.indexOf('a7')===0)return 'a7';
-      if(c.indexOf('a8')===0)return 'a8';
-      return 'a9';
-    }
-    return c.slice(0,2);
-  };
-  const SI_PARENT=new Set(['a80203','a80103','a80202','a80102','a80602','a80301','a80302','a80305']);
-  const clOf=c=>{ if(SI_PARENT.has(c))return c; for(const p of SI_PARENT)if(c.indexOf(p)===0)return p; return null; };
-  const fmtV=v=>pv2(v);
-  const tcol=v=>{const r=pvSign(v);return r>0?'#8f2318':(r<0?'#123c5c':'#5e6f74');};
-  N.t.forEach(([c,nm,x,y,h])=>{
-    const ma=vma[c], je=vje[c], wo=vwo[c];
-    const px=x*(TW+G), py=y*(rowH+G);
-    /* 값칸 y는 칸 높이에서 계산 — 베이스라인도 칸 중앙 기준이라 VH를 바꿔도 숫자가
-       위로 치우치지 않는다(예전엔 상수라 칸을 줄이면 글자가 천장에 붙었다). */
-    const cells=[[ma,NH+1],[je,NH+VH+2]];
-    if(hasWo)cells.push([wo,NH+2*VH+3]);
-    const tb=Math.round(VH/2)+3;
-    sv.push(`<g transform="translate(${px},${py})">`+
-      `<rect width="${TW}" height="${NH}" rx="4" fill="${h?'#1e2846':(SI_PARENT.has(c)?'#34456b':'#eef1f8')}" stroke="${h?'#1e2846':'#d6dced'}"/>`+
-      /* 이름도 값과 같은 MAP_FS. 네 글자(마산회원·마산합포)만 칸 폭에 맞춰 자간·글자 폭을 눌러 담는다 —
-         예전처럼 글자 크기를 7로 줄이면 높이까지 줄어 하한 아래로 내려간다. */
-      `<text x="${TW/2}" y="${NH-4}" text-anchor="middle" font-size="${MAP_FS}"${nm.length>=4?` textLength="${TW-3}" lengthAdjust="spacingAndGlyphs"`:''} font-weight="600" fill="${(h||SI_PARENT.has(c))?'#fff':'#1b2426'}">${nm}</text>`+
-      cells.map(([v,ry])=>
-        `<rect y="${ry}" width="${TW}" height="${VH}" rx="3" fill="${mapColor(v,ref)}" stroke="#d8dfdc"/>`+
-        `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="${MAP_FS}" font-weight="600" fill="${tcol(v)}">${fmtV(v)}</text>`).join('')+
-      `<title>${nm} 매매 ${fmtV(ma)}% · 전세 ${fmtV(je)}%${hasWo?' · 월세 '+fmtV(wo)+'%':''}</title></g>`);
-  });
-  // 시도(광역) 경계선 — 같은 시도가 아닌 이웃과 접한 변만 그린다
-  const posGrp={};
-  N.t.forEach(([c,,x,y])=>{posGrp[x+','+y]=grpOf(c);});
-  const bl=[];
-  N.t.forEach(([c,,x,y])=>{
-    const g=grpOf(c), px=x*(TW+G), py=y*(rowH+G);
-    const nb=(dx,dy)=>posGrp[(x+dx)+','+(y+dy)];
-    if(nb(0,-1)!==g)bl.push('M'+(px-1.5)+' '+(py-1.5)+'H'+(px+TW+1.5));
-    if(nb(0,1)!==g)bl.push('M'+(px-1.5)+' '+(py+rowH+1.5)+'H'+(px+TW+1.5));
-    if(nb(-1,0)!==g)bl.push('M'+(px-1.5)+' '+(py-1.5)+'V'+(py+rowH+1.5));
-    if(nb(1,0)!==g)bl.push('M'+(px+TW+1.5)+' '+(py-1.5)+'V'+(py+rowH+1.5));
-  });
-  sv.push('<path d="'+bl.join('')+'" stroke="#5e6f74" stroke-width="1.4" fill="none" opacity=".9"/>');
-  // 구를 가진 시 = 점선 테두리로 묶기 (시+소속 구)
-  const posCl={}; N.t.forEach(([c,,x,y])=>{posCl[x+','+y]=clOf(c);});
-  const dl=[];
-  N.t.forEach(([c,,x,y])=>{
-    const cl=clOf(c); if(!cl)return;
-    const px=x*(TW+G), py=y*(rowH+G), nb=(dx,dy)=>posCl[(x+dx)+','+(y+dy)];
-    if(nb(0,-1)!==cl)dl.push('M'+(px+0.5)+' '+(py+0.5)+'H'+(px+TW-0.5));
-    if(nb(0,1)!==cl)dl.push('M'+(px+0.5)+' '+(py+rowH-0.5)+'H'+(px+TW-0.5));
-    if(nb(-1,0)!==cl)dl.push('M'+(px+0.5)+' '+(py+0.5)+'V'+(py+rowH-0.5));
-    if(nb(1,0)!==cl)dl.push('M'+(px+TW-0.5)+' '+(py+0.5)+'V'+(py+rowH-0.5));
-  });
-  sv.push('<path d="'+dl.join('')+'" stroke="#34456b" stroke-width="0.8" stroke-dasharray="0.6 1" stroke-linecap="round" fill="none" opacity=".85"/>');
-  sv.push('</svg>');
-  document.getElementById(T.map).innerHTML=
+  const ref=k==='week'?WK_MAP_REF:1.0;   // 주간 만색 기준은 홈 지도 주간 모드(C3)·히어로 배경과 한 값
+  /* 그림은 홈 주간 구역과 같은 sggMapSvg(home-app.js). 칸을 누르면 그 지역 그래프(openTrendRegion). */
+  const svg=sggMapSvg(hasWo?[vma,vje,vwo]:[vma,vje],{ref:ref,names:['매매','전세','월세'],href:c=>'#stats-market-'+k+'~'+c});
+  const box=document.getElementById(T.map);
+  box.innerHTML=
     mapDateChip(row.p,SER+' · '+T.unit,gap)+
     rankTables(S,T.unit,k)+
-    '<div class="map-scroll">'+sv.join('')+'</div>'+
-    (hasWo?'<div class="map-suplegend">타일 값: 위 = 매매 · 가운데 = 전세 · 아래 = 월세<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>':'<div class="map-suplegend">타일 값: 위 = 매매 · 아래 = 전세<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>');
+    '<div class="map-scroll">'+svg+'</div>'+
+    '<div class="map-suplegend">타일 값: '+(hasWo?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':'위 = 매매 · 아래 = 전세')+
+    ' · 지역을 누르면 그래프<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>';
   /* 상자가 지도보다 좁을 때만 민다는 안내를 켠다(데스크톱에서는 안 넘친다). */
   syncSwipe(k);
   /* TOP10 헤더 정렬 — innerHTML 이후에 붙인다(인라인 onclick은 따옴표 중첩이 깨진다) */
-  document.getElementById(T.map).querySelectorAll('.rk-sort').forEach(th=>{
+  box.querySelectorAll('.rk-sort').forEach(th=>{
     const go=()=>setRankMet(th.dataset.k,th.dataset.met);
     th.addEventListener('click',go);
     th.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
   });
+  /* 지도 칸·TOP 10 지역명 → 그 지역 그래프. 상자는 그대로 두고 안만 갈아 끼우므로 한 번만 붙인다. */
+  if(!box.dataset.trLink){
+    box.dataset.trLink='1';
+    box.addEventListener('click',e=>onTrendLink(e,e.target.closest&&e.target.closest('.map-rank')?'rank':'stats_map'));
+  }
 }
 /* --- 표 행열전환 --- */
 let TRANSP={};
@@ -910,6 +850,7 @@ function sggZoneOf(W,code){
 /* 시도 select가 바뀌면 하위 목록을 다시 채우고 '전체'로 되돌린다 */
 function onTrendReg(k){
   const T=TREND[k], W=trendData(k); if(!W)return;
+  trOpenDrop(k);
   TRSHOW[k]=12;                     // 지역이 바뀌면 표는 기본 개수로
   fillSggSel(k,'');
   (k==='week'?renderWeekSec:renderMonthSec)();
@@ -946,6 +887,42 @@ function trendPick(k){
     if(ci>=0)return {name:SGG_QNAME[sub.value]||sub.value,rows:W.sgg.rows,idx:ci,isSgg:true};
   }
   return {name:reg,rows:W.rows,idx:W.regions.indexOf(reg),isSgg:false};
+}
+/* 지도 칸·TOP 10 지역명에서 고른 지역의 그래프(홈 주간 구역·통계 지도·/weekly/ 머리 지도 → '#stats-market-week~코드',
+   applyHash). 새 화면을 만들지 않고 이 구역의 지역 선택·그래프 보기를 그대로 맞춘다 — 시도 칸(서울·경기 등 진한 칸)은 그
+   시도, 시군구 칸은 그 시군구, 전국 칸은 전국. 코드가 없으면(뒤로 가기로 '~코드' 없는 주소에 왔을 때) 이 함수가 연 그래프만
+   지도로 되돌린다. 사람이 지역을 바꾸거나 '지도'를 누르면 주소의 '~코드'를 걷는다(trOpenDrop — 주소와 화면이 다른 말을
+   하지 않게). */
+let TR_OPEN=null;   // {k, code} — 이 함수가 연 그래프
+function trendTarget(W,code){
+  const s=sidoOf(code);
+  if(!s)return {zone:'',sgg:''};   // 전국(a0)·모르는 코드 → 전체
+  const z=sggZoneOf(W,code), zone=(W.regions||[]).indexOf(z)>=0?z:'';
+  /* 시군구 목록(sggOfSido — 값이 있는 곳만)에 없는 칸(구를 가진 시의 머리 칸 천안·청주 등, 값 없는 신설 구)은 그 시도로 */
+  return {zone:zone,sgg:(code.length>2&&zone&&sggOfSido(W,zone).indexOf(code)>=0)?code:''};
+}
+function openTrendRegion(k,code){
+  if(!TREND[k])return;
+  return (TREND_P||loadFullData()).then(()=>{
+    const T=TREND[k], W=trendData(k); if(!W||!W.regions)return;
+    if(!code){ if(TR_OPEN&&TR_OPEN.k===k){ TR_OPEN=null; gtSet(k,'m',true); } return; }
+    const t=trendTarget(W,code);
+    fillTrendReg(k,W.regions);
+    document.getElementById(T.sel).value=t.zone;
+    fillSggSel(k,t.sgg);
+    TR_OPEN={k:k,code:code};
+    TRSHOW[k]=12;
+    const render=k==='week'?renderWeekSec:renderMonthSec;
+    render();
+    gtSet(k,'g',true);
+    if(t.sgg&&!SGG_HIST_READY)ensureSggHist().then(render).catch(()=>{});
+    afterLayout(()=>{ const el=document.getElementById('sec-'+k); if(el)el.scrollIntoView(); });
+  }).catch(()=>{});
+}
+function trOpenDrop(k){
+  if(!TR_OPEN||TR_OPEN.k!==k)return;
+  TR_OPEN=null;
+  if(location.hash.indexOf('~')>=0)statsNav('#stats-market-'+k,true);
 }
 /* 표 표시 개수 — 기본 12개, '더보기'로 12씩 늘린다. 시군구를 고른 상태면
    전체 시계열(data-sgg.json)이 필요하므로 먼저 받아온 뒤 늘린다. */
@@ -1164,7 +1141,7 @@ function drawOccChart(){
 function renderPermitSec(){ renderAdvPermits(); drawPermitChart(); }
 function renderOccSec(){ renderAdvOcc(); drawOccChart(); }
 /* --- 그래프/표 토글 & 투자지표 탭 --- */
-function gtSet(sec,v){
+function gtSet(sec,v,silent){
   const el=document.getElementById('sec-'+sec);
   el.classList.toggle('gm-g',v==='g');
   el.classList.toggle('gm-t',v==='t');
@@ -1176,6 +1153,8 @@ function gtSet(sec,v){
     if(ch)ch.resize();   // display:none에서 생성된 차트는 표시 시 직접 리사이즈해야 canvas가 그려짐
   }
   if(v==='m'&&TREND[sec])syncSwipe(sec);
+  if(silent)return;   // openTrendRegion 이 바꾼 것 — 사람이 누른 전환만 센다
+  if(v==='m')trOpenDrop(sec);
   track('stats_gt',{section:sec,view:v});
 }
 function setAdvTab(t,push){
