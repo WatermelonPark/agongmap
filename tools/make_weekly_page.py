@@ -170,9 +170,6 @@ def h1_html(c):
             % (H1_WEEK, c['dir'], html.escape(c['who']), c['val'], c['verb']))
 
 
-# '방향이 바뀐 곳' 한 줄(B7)과 머리 지도(MAP_CSS)의 모양. 뼈대 <style> 은 손으로 관리하는 자리라 이 규칙은 HEAD 표식 안에
-# 싣는다(배치가 매주 다시 쓴다).
-MOVES_CSS = '.mm-moves{font-size:13px;color:var(--ink2);margin:10px 0 0}'
 
 
 # ── 전국 시군구 지도(2026-10-02 대표 요청 — 머리의 시도 타일을 걷고 그 자리에 둔다). 홈 sggMapSvg(home-app.js)의 거울이다:
@@ -653,9 +650,9 @@ def build(W, Q):
     if other and pv2r(best[1]) != 0:
         lead.append('가장 많이 %s 곳은 %s %s%%다.'
                     % ('내린' if pv2r(best[1]) > 0 else '오른', other[0][0], pv2(other[0][1])))
-    # 방향 표지(B7): '지난주와 무엇이 달라졌나'. 규칙은 weekly_moves 하나 — 블로그와 같은 말이다. 시도 타일은 걷었고
-    # (2026-10-02 대표 요청 — 그 자리에 시군구 지도) '방향이 바뀐 곳' 한 줄만 남는다.
-    mv = WM.moves(W) or {}
+    # 머리에는 광역(시도) 단위를 싣지 않는다 — 시도 타일과 그 방향 표지·'방향이 바뀐 곳' 한 줄을 모두 걷고 시군구 지도만
+    # 둔다(2026-10-02·10-03 대표 요청). 결론 제목과 리드 문장은 그대로 둔다. 뼈대 <style> 은 손으로 관리하는 자리라 지도
+    # 규칙(MAP_CSS)은 HEAD 표식 안에 싣는다(배치가 매주 다시 쓴다).
     svg, sp = week_map(W)
     cap_when = '' if sp == p else ' · %s 조사 기준' % md(sp)
     head = '\n'.join([
@@ -671,8 +668,8 @@ def build(W, Q):
         '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'
         '<a class="go" href="/#stats-market">TOP 10 →</a></div>' % cap_when,
         '  </div>',
-    ] + (['  <p class="mm-moves">%s</p>' % html.escape(mv['line'])] if mv.get('line') else [])
-      + ['  <style>%s%s</style>' % (MOVES_CSS, MAP_CSS)])
+        '  <style>%s</style>' % MAP_CSS,
+    ])
 
     # ── 시군구 TOP 3 (홈 TOP 10 과 같은 대상: SGG_QNAME 에 이름이 있고 값이 있는 곳)
     S = W['sgg']
