@@ -738,11 +738,9 @@
      지도는 통계 탭과 같은 sggMapSvg 라 글자 하한(11px)을 지키는 최소 폭이 있고, 좁은 화면에서는 상자 안에서 옆으로 민다
      (.map-scroll). 칸을 누르면 그 지역 주간 그래프. 글자는 13px 이상(test_home_min_font — SVG 지도 라벨은 제외). */
   .wgrid{max-width:560px;margin:18px auto 0}
-  /* 머리줄 = 기준 시점 + 범례. 범례는 홈 지도와 같은 .tb-key 어휘를 빌린다.
-     시점은 muted 11.5px이라 묻혔다 — 날짜만 ink 600으로 올린다(2026-08-18). */
+  /* 머리줄 = 칠한 값(매매 전주 대비) + 범례. 범례는 홈 지도와 같은 .tb-key 어휘를 빌린다. */
   .wg-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
     flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:8px;letter-spacing:.01em}
-  .wg-when b{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
   .wg-key{margin:0}
   .wg-key .tk-ramp{width:44px;height:7px}
   .wg-key .tk i{width:9px;height:9px}
@@ -756,7 +754,7 @@
   /* 지도 칸 링크(홈·통계 공통) — 누를 곳임을 커서·초점 테두리로 보인다 */
   .map-scroll svg a{cursor:pointer}
   .map-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}
-  .map-scroll svg a:focus{outline:none}
+  .map-scroll svg a:focus:not(:focus-visible){outline:none}   /* :focus-visible 을 모르는 옛 브라우저에서는 기본 초점 테두리를 둔다 */
   .map-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}
   /* 격자 머리 한 줄(B7): 지난 방문 이후 새 발표(이 기기에만 저장 — 재방문에만) */
   .home-sec p.wg-since{font-size:13px;line-height:1.6;font-weight:600;color:var(--ink);margin:0 auto 10px}   /* .home-sec p(0,1,1)를 이긴다 */
@@ -977,8 +975,13 @@ table.adv thead th:first-child{text-align:center}
   .home-sum a{color:inherit;text-decoration:none}
   .home-sum b{color:var(--ink);font-weight:600}
   /* 주간 구역의 해석 글 한 줄(B5·RET-4). 링크는 새 창(블로그)이라 밑줄로 링크임을 드러낸다. */
-  .wk-blog{margin:16px auto 0;font-size:13.5px;line-height:1.5;color:var(--ink2)}
-  .wk-blog a{color:var(--ink);text-decoration:underline;text-underline-offset:2px}
+  /* 해설 글 카드(renderBlogLine) — 작은 머리줄 + 굵은 결론 한 줄, 카드 전체가 링크 */
+  .home-sec p.wk-blog{margin:16px auto 0;max-width:520px;line-height:1.45}   /* .home-sec p(0,1,1)를 이긴다 */
+  .wk-blog a.blog-card{display:block;text-align:left;background:#fff;border:1.5px solid var(--ink);border-radius:3px;
+    padding:12px 14px;color:var(--ink);text-decoration:none}
+  .wk-blog a.blog-card:hover .bc-head{text-decoration:underline;text-underline-offset:3px}
+  .wk-blog .bc-meta{display:block;font-size:13px;color:var(--ink2);margin-bottom:3px}
+  .wk-blog .bc-head{display:block;font-size:15px;font-weight:600;word-break:keep-all}
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:0 0 10px;max-width:none}
   /* 지도 모드 전환 '3년 공급 / 이번 주 시세'(홈 마케팅 검수 C3). 지도 보기에서만 보인다 — 그래프·표는 공급 전용이다.
      지도/그래프/표 줄(.tb-bar)의 빈 왼쪽에 두어 기본 모드의 첫 화면 높이가 늘지 않게 한다: 두 묶음이 한 줄에 들어야 하므로

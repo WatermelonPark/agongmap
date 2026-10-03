@@ -81,18 +81,22 @@ def test_head_map_links_every_tile_to_its_weekly_graph():
 
 
 def test_a_region_without_a_value_still_bakes_the_head():
-    """한 지역(시도) 값이 빈 주에도 머리(결론·시군구 지도)를 굽는다 — 생성기와 게이트가 같은 계약을 쓴다. 모델 지역 열이 통째로
-    없으면 조용히 빠지지 않고 멈춘다(SystemExit — 결론·리드의 시도 수가 조용히 줄지 않게).
+    """한 지역(시도) 값이 빈 주에도 머리(결론·시군구 지도)를 굽는다 — 생성기와 게이트가 같은 계약을 쓴다. 시도 값이 반 넘게 비면
+    반쯤 빈 결론을 굽지 않고, 모델 지역 열이 통째로 없으면 조용히 빠지지 않고 멈춘다(SystemExit). 머리에는 시도 집계 리드
+    문장이 없다(2026-10-03 대표 요청 — 광역 단위를 걷음).
 
-    변이: build 의 `if val.get(z) is not None` 거름을 빼면 리드가 빈 지역까지 세어(또는 None 비교로 멈춰) 빨개진다(실제로
-          바꿔 확인). 모델 대조(miss)를 빼면 SystemExit 단정이 빨개진다.
-    픽스처: 전남광주 값이 빈 주(2026-04-27~07-06 실데이터에 11주 있었다).
+    변이(각각 실제로 확인): build 의 `if val.get(z) is not None` 거름을 빼면 반쯤 빈 주에도 굽어 둘째 단정이, 모델 대조(miss)를
+          빼면 셋째 단정이, 리드 문장(class="lead")을 되살리면 첫 단정이 빨개진다.
+    픽스처: 전남광주 값이 빈 주(2026-04-27~07-06 실데이터에 11주 있었다), 시도 값이 반 넘게 빈 주, 전남광주 열이 없는 계열.
     """
     import pytest
     W, Q = _week(dict(_base(0.05), 전남광주=None), _DOWN_SGG, _DOWN_GU)
     head = MW.build(W, Q)[0]
-    assert '<div class="mm-scroll"><svg' in head, '시군구 지도를 굽지 않았다'
-    assert '시도 %d곳 중' % (len(MW.SIDO) - 1) in head, '빈 지역을 빼고 센 시도 수가 리드에 없다'
+    assert '<h1>' in head and '<div class="mm-scroll"><svg' in head and 'class="lead"' not in head, head[:300]
+    half = dict(_base(0.05), **{z: None for z in MW.SIDO[:len(MW.SIDO) // 2 + 1]})
+    W1, Q1 = _week(half, _DOWN_SGG, _DOWN_GU)
+    with pytest.raises(SystemExit):
+        MW.build(W1, Q1)
     W2, Q2 = _week(_base(0.05), _DOWN_SGG, _DOWN_GU)
     i = W2['regions'].index('전남광주')
     W2['regions'] = W2['regions'][:i] + W2['regions'][i + 1:]
@@ -245,20 +249,20 @@ def test_down_week_headline_names_the_biggest_fall():
     head, _, desc, og = MW.build(*_week(_DOWN_SIDO, _DOWN_SGG, _DOWN_GU))
     h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
     assert '대구 -0.31%' in h1 and '가장 크게 내렸습니다' in h1, h1
-    assert '가장 많이 오른 곳은 서울 +0.12%다.' in head, '반대 방향 1위가 빠졌다'
     assert '대구 -0.31%로 가장 크게 내렸다' in desc and '대구 -0.31%' in og
 
 
 def test_up_week_headline_names_the_biggest_rise():
     """같은 규칙이 상승 주에는 반대 방향으로 선다 — 두 방향을 모두 고정한다.
 
-    변이: 방향어를 뒤집어(`'올랐다' if pv2r(best[1]) < 0`) 쓰면 빨개진다(확인).
+    변이: 방향어를 뒤집어(`'올랐다' if pv2r(best[1]) < 0`) 쓰면 빨개진다(확인). 시도 집계 리드 문장('가장 많이 내린 곳은 …')을
+    되살려도 빨개진다.
     픽스처: 서울 +0.40·경기 +0.21, 대구 −0.10 — 수도권 상승이 주도한 주.
     """
     head, _, desc, _ = MW.build(*_week(_UP_SIDO, _DOWN_SGG, _DOWN_GU))
     h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
     assert '서울 +0.40%' in h1 and '가장 크게 올랐습니다' in h1, h1
-    assert '가장 많이 내린 곳은 대구 -0.10%다.' in head
+    assert '가장 많이' not in head, '시도 집계 리드 문장이 되살아났다(2026-10-03 대표 요청으로 뺐다)'
 
 
 def test_down_top3_lists_the_largest_falls_first():

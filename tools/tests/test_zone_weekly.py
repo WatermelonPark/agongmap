@@ -9,7 +9,7 @@
     본문 글자의 80~82% 가 다른 장에도 똑같이 있는 문장이었다 — 09-27 생성분). 매주 바뀌는 그 지역만의 본문이 없었다.
 
 원칙: 숫자는 한 곳에서 낸다. 설명 메타와 첫 문단은 make_sido_pages.summary_parts 한 목록, 시군구 순서·방향·연속은
-weekly_moves(sgg_ranks·direction·streak — /weekly/ 표·홈 격자 표지와 같은 함수), 12개월 기준월은 /jeonse-ratio/ 의
+weekly_moves(sgg_ranks·direction·streak — /weekly/ 표·블로그 초안과 같은 함수), 12개월 기준월은 /jeonse-ratio/ 의
 jeonse_ref_index 와 SZ.month_back. 이 시험은 생성기 출력을 **따로 계산한 값**과 대조한다(같은 함수를 import 해 자기 자신과
 비교하지 않는다 — 12주 누적·조사일 창·시도 접두는 여기서 다시 구현한다).
 

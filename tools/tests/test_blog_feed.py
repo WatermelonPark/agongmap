@@ -87,9 +87,24 @@ def test_pick_says_this_week_or_last_week_and_drops_older_posts():
     assert b['lead'] == BF.LEAD_PREV and b['md'] == '9/19' and b['src'] == '네이버 블로그, 9/19'
     assert BF.pick(dict(e, date='2026-09-16'), pub) is None
     assert BF.pick(None, pub) is None
-    assert BF.text(BF.pick(dict(e, date='2026-09-25'), pub)) == '이번 주 해석 읽기: t (네이버 블로그, 9/25)'
-    assert 'note' not in b   # 홈 이웃 안내 줄은 2026-09-28 에 뺐다 — /weekly/ 하단만 BF.NEIGHBOR 를 직접 쓴다
+    now = BF.pick(dict(e, date='2026-09-25'), pub)
+    assert (now['meta'], now['head']) == ('이번 주 해설 · 네이버 블로그 9/25', 't')
+    assert 'note' not in b   # 이웃 안내 줄은 홈(2026-09-28)·/weekly/(2026-10-03) 모두 뺐다
     assert BF.pick(dict(e, date='2026-13-40'), pub) is None, '모양만 맞는 날짜가 예외로 새면 생성기가 죽는다'
+
+
+@pytest.mark.parametrize('title,want', [
+    ('[한국부동산원] 주간 아파트가격 동향(9월 셋째 주) | 강남 3구는 내리고 경기 남부가 올랐습니다', '강남 3구는 내리고 경기 남부가 올랐습니다'),
+    ('주간 동향 | 앞 | 끝 결론', '끝 결론'),                 # '|' 가 여럿이면 마지막 뒤
+    ('[한국부동산원] 이번 주 시세 정리', '이번 주 시세 정리'),   # '|' 가 없으면 '[…]' 머리말만 걷는다
+    ('그냥 제목', '그냥 제목'),
+    ('제목 |', '제목 |'),                                       # 결론이 비면 원래 제목
+])
+def test_headline_keeps_only_the_conclusion(title, want):
+    """해설 카드의 굵은 줄은 제목의 결론만이다(2026-10-03 대표 요청 — 매주 같은 앞부분을 되풀이하지 않는다).
+    변이(실제로 확인): rsplit 대신 split('|', 1) 로 첫 '|' 뒤를 쓰면 둘째 줄이, 빈 결론에 원래 제목으로 돌아가지 않으면 마지막 줄이 빨개진다.
+    픽스처: 실제 발행 제목(9월 셋째 주)과 경계 모양."""
+    assert BF.headline(title) == want
 
 
 def test_feed_failure_never_stops_the_batch_and_keeps_the_last_value(tmp_path):
@@ -167,10 +182,10 @@ def test_weekly_page_bakes_the_same_post_once_before_more_links(tmp_path, monkey
     assert out.index('<!--WK:BLOG-->') < out.index('<h2>더 둘러보기</h2>')
     b = BF.pick(BF.read(), WR.status('2026-09-21')['pub'])
     assert b['lead'] == BF.LEAD_NOW
-    assert '>%s: 제목 &lt;b&gt;&amp;<span>%s</span></a>' % (b['lead'], b['src']) in blk, blk
+    assert '>제목 &lt;b&gt;&amp;<span>%s</span></a>' % b['meta'] in blk, blk
     assert 'href="%s"' % BF.BLOG_HOME in blk and '금요일' not in blk and '알림' not in blk
-    # 이웃 안내(RET-4 A안)는 홈과 같은 상수, 클릭은 gtag blog_link 이벤트(이 페이지엔 홈 track 이 없다)
-    assert '<p class="blog-note">%s</p>' % BF.NEIGHBOR in blk
+    # 이웃 안내 줄(RET-4 A안)은 뺐다(2026-10-03 대표 요청 — 군더더기). 클릭은 gtag blog_link 이벤트(이 페이지엔 홈 track 이 없다)
+    assert 'blog-note' not in blk and '이웃' not in blk, '해설 글 칸에 이웃 안내 줄이 되살아났다'
     assert "gtag('event','blog_link',{to:'weekly_post'})" in blk and "gtag('event','blog_link',{to:'weekly_home'})" in blk
     f.write_text(json.dumps({'weekly': None}), encoding='utf-8')
     blk2 = re.search(r'<!--WK:BLOG-->(.*?)<!--/WK:BLOG-->', MW.render(out, W, Q), re.S).group(1)
