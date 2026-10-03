@@ -5,8 +5,8 @@
 배치가 **여기서 한 번** 계산하고 화면·블로그는 결과를 읽기만 한다(CLAUDE.md 데이터 원칙: 사이트와 블로그가 다른
 숫자를 말하면 안 된다).
 
-  1. 방향 표지(시도·집계 19곳, 매매) — split_data 가 ADV.weekly.moves 로 싣고 홈 주간 격자가 읽는다.
-     /weekly/ 타일과 블로그 주간 초안(make_naver_post)도 같은 함수(moves)를 부른다.
+  1. 방향 표지(시도·집계 19곳, 매매) — 블로그 주간 초안(make_naver_post)이 moves 를 부른다. 홈 주간 구역·/weekly/ 머리의
+     시도 칸과 '방향이 바뀐 곳' 줄은 광역 단위를 걷으며 빠졌다(2026-10-02·10-03 대표 요청 — 시군구 지도로 바꿈).
   2. 시군구 순위 이동(매매) — /weekly/ 시군구 전체 표와 블로그 주간 초안이 rank_moves 를 부른다. 홈 통계 탭의
      상승·하락 TOP 10(home-app.js sggRanks·rankTables, 블로그가 캡처해 싣는 표)은 같은 규칙을 JS 로 계산한다 —
      둘이 같은 순위를 내는지는 test_weekly_moves 가 실데이터로 node 대조한다.
@@ -111,7 +111,7 @@ def tag(vals):
 def moves(W):
     """ADV.weekly(regions·rows) → 이번 주 표지. 행이 둘 미만이거나 날짜가 없으면 None.
 
-    돌려주는 것(split_data 가 ADV.weekly.moves 로 싣는 모양 그대로):
+    돌려주는 것:
       {'p': 최신 조사일, 'prev': 앞 회차 조사일,
        'tags': {지역: ['up'|'dn', 문구, 연속 주 수, 이력 끝 1|0]}   — 표지가 있는 지역만(집계 포함). 전환은 연속 1,
        'turned': [[시도, 'up'|'dn'], …]   — 전환 표지가 붙은 시도(집계 제외), 표시 순서(DISPLAY_ORDER),
@@ -134,7 +134,7 @@ def moves(W):
 
 
 def turned_line(turned):
-    """전환 시도 목록 → 한 줄. 홈 격자 머리·/weekly/ 타일 아래가 이 문장을 그대로 쓴다."""
+    """전환 시도 목록 → 한 줄('지난주와 방향이 바뀐 곳: …')."""
     if not turned:
         return LINE_NONE
     return '%s: %s' % (LINE_HEAD, ' · '.join('%s %s' % (z, TXT_TURN[k]) for z, k in turned))
@@ -192,7 +192,7 @@ def move_text(d):
 
 # ── 시군구 → 시도(판정 단위) · 누적 · 시도 리포트 주간 표(홈 마케팅 검수 D4, 2026-09-27) ─────────────────
 # 시도 리포트(make_sido_pages)가 그 시도의 시군구 주간 표를 굽는다. 순위·방향·연속은 위 함수(sgg_ranks·direction·
-# streak)를 그대로 쓴다 — /weekly/ 표·홈 격자 표지와 같은 숫자여야 한다(같은 값을 재는 코드는 같은 함수).
+# streak)를 그대로 쓴다 — /weekly/ 표·블로그 초안과 같은 숫자여야 한다(같은 값을 재는 코드는 같은 함수).
 
 # 시군구 코드(KOSIS 계열)의 시도 접두. home-app.js SIDO_PREFIX·sidoOf 의 파이썬 거울이다 — 홈 통계 탭의 '시도 → 시군구'
 # 선택(sggOfSido)과 시도 리포트 표가 같은 시군구를 같은 시도에 둔다. 일치는 test_zone_weekly 가 실데이터 전 코드로

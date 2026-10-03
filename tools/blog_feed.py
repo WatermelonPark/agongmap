@@ -55,11 +55,9 @@ def blog_home(rss):
 BLOG_HOME = blog_home(CP.RSS)   # 푸터·/weekly/ 의 '매주 해설 글' 링크도 이 값이다(None 이면 링크를 굽지 않는다)
 LABEL = '네이버 블로그'                                   # 대표 확인(09-27): 블로그 이름 없이 이 말만
 FRESH_DAYS = 7          # 이번 주 발표일보다 이만큼 앞선 글까지 보여 준다(= 지난주 글). 그보다 오래되면 칸을 뺀다
-LEAD_NOW, LEAD_PREV = '이번 주 해석 읽기', '지난주 해석 읽기'
+LEAD_NOW, LEAD_PREV = '이번 주 해설', '지난주 해설'
 HOME_TEXT = '매주 해설 글'   # 블로그 첫 화면 링크 이름(홈 푸터·/weekly/). '매주 금요일'처럼 요일을 약속하지 않는다
-# 해석 글 칸 옆 한 줄(RET-4 A안). 알림을 약속하지 않는다 — 네이버 이웃 기능이 하는 일을 적을 뿐이다. /weekly/(blog_html)만 쓴다 —
-# 홈 주간 구역의 같은 줄(ADV.blog.note)은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리).
-NEIGHBOR = '블로그 이웃이 되면 새 글이 이웃 새 글 목록에 올라옵니다.'
+# 해석 글 칸 옆 이웃 안내 줄(RET-4 A안)은 홈(2026-09-28)·/weekly/(2026-10-03) 모두에서 뺐다 — 대표 결정, 군더더기.
 WALL_SECONDS = 60   # RSS 읽기 벽시계 상한(소켓 타임아웃은 읽기마다 25초라 느린 응답이 이어지면 끝이 없다). 워크플로 timeout 90 이 바깥 상한
 
 
@@ -109,7 +107,8 @@ def title_week(title):
 def pick(entry, pub):
     """보여 줄 글과 그 말. pub = 최신 주간 발표일('YYYY-MM-DD', weekly_release.status(p)['pub']).
 
-    돌려주는 것 {'lead': '이번 주 해석 읽기', 'title', 'url', 'date', 'md': '9/25', 'src': '네이버 블로그, 9/25'}
+    돌려주는 것 {'lead': '이번 주 해설', 'title', 'url', 'date', 'md': '9/25', 'src': '네이버 블로그, 9/25',
+               'head': 결론(headline), 'meta': '이번 주 해설 · 네이버 블로그 9/25'}
     또는 None.
     이번 주 발표일보다 FRESH_DAYS 일 넘게 앞선 글이나 없는 글은 None(칸을 뺀다). 그 밖에는:
       - 제목에 주차 라벨('(9월 셋째 주)')이 있으면 **그 라벨로** 정한다 — 이번 조사일의 라벨(weekly_release.week_label)이면
@@ -142,12 +141,17 @@ def pick(entry, pub):
         lead = LEAD_NOW if d >= p else LEAD_PREV
     md = '%d/%d' % (d.month, d.day)
     return {'lead': lead, 'title': entry['title'], 'url': entry['url'],
-            'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md)}
+            'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md),
+            'head': headline(entry['title']), 'meta': '%s · %s %s' % (lead, LABEL, md)}
 
 
-def text(b):
-    """홈 주간 구역과 같은 한 줄 — '이번 주 해석 읽기: {제목} (네이버 블로그, 9/25)'. 홈 JS renderBlogLine 과 같은 모양."""
-    return '%s: %s (%s)' % (b['lead'], b['title'], b['src'])
+def headline(title):
+    """글 제목에서 결론만 — '[한국부동산원] 주간 아파트가격 동향(9월 셋째 주) | 강남 3구는 내리고 …' → '강남 3구는 내리고 …'.
+    주간 글 제목은 '| 뒤 결론절' 모양이다(CLAUDE.md 블로그 제목 규칙). '|' 가 없으면 앞의 '[…]' 머리말만 걷는다. 매주 같은 앞부분
+    (기관명·주차)을 되풀이하지 않으려는 것이다 — 홈 주간 구역·/weekly/ 해설 칸(카드)이 이 말을 굵게 싣는다(2026-10-03 대표 요청)."""
+    t = (title or '').strip()
+    h = t.rsplit('|', 1)[1].strip() if '|' in t else re.sub(r'^\[[^\]]*\]\s*', '', t)
+    return h or t
 
 
 def write(entry, path=None):
