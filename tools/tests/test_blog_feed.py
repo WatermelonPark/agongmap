@@ -107,6 +107,20 @@ def test_headline_keeps_only_the_conclusion(title, want):
     assert BF.headline(title) == want
 
 
+def test_card_meta_names_the_week_only_when_the_headline_is_numbers():
+    """결론이 숫자(초안 기본 제목 make_naver_post — '서울 +0.10% 전국 +0.07%')면 머리줄에 주차를 붙여, 바로 위 이번 주 지도와 다른
+    주의 값을 이번 주 값으로 읽지 않게 한다. 산문 결론(실제 발행 제목)에는 붙이지 않는다(2026-10-03 리뷰).
+    변이(실제로 확인): 숫자 조건을 빼고 늘 붙이면 산문 단정이, 주차를 붙이지 않으면 숫자 단정이 빨개진다.
+    픽스처: 9/24 발표 주의 지난주 글 두 모양(산문 결론·초안 기본 숫자 제목)."""
+    pub = '2026-09-24'
+    prose = BF.pick({'title': '[한국부동산원] 주간 아파트가격 동향(9월 둘째 주) | 강남 3구는 내리고 경기 남부가 올랐습니다',
+                     'url': BF.BLOG_HOME + '/1', 'date': '2026-09-19'}, pub)
+    nums = BF.pick({'title': '[한국부동산원] 주간 아파트가격 동향(9월 둘째 주) | 서울 +0.10% 전국 +0.07%',
+                    'url': BF.BLOG_HOME + '/2', 'date': '2026-09-19'}, pub)
+    assert prose['meta'] == '지난주 해설 · 네이버 블로그 9/19', prose
+    assert nums['meta'] == '지난주 해설(9월 둘째 주) · 네이버 블로그 9/19' and nums['head'] == '서울 +0.10% 전국 +0.07%', nums
+
+
 def test_feed_failure_never_stops_the_batch_and_keeps_the_last_value(tmp_path):
     """RSS 를 못 읽으면 0 으로 끝나고 파일을 그대로 둔다. 파일이 없으면 빈 값으로 만든다(배치의 git add 가 없는 경로에서
     죽지 않게). 읽으면 최신 글로 바꾼다.
@@ -194,7 +208,7 @@ def test_weekly_page_bakes_the_same_post_once_before_more_links(tmp_path, monkey
 
 def test_pick_labels_by_the_week_in_the_title_not_the_post_date():
     """제목에 주차 라벨이 있으면 '이번 주/지난주'를 그 라벨로 정한다(전수리뷰 #27). 게시일로만 정하면 지난 회차 글이
-    이번 발표일 뒤에 올라왔을 때 '이번 주 해석 읽기: …(8월 셋째 주)'가 '8월 넷째 주' 페이지에 붙는다.
+    이번 발표일 뒤에 올라왔을 때 '이번 주 해설: …(8월 셋째 주)'가 '8월 넷째 주' 페이지에 붙는다.
 
     픽스처: 8/30 에 8월 3·4주 글이 함께 올라간 실제 사례. 조사일 2026-08-24(발표일은 weekly_release.status 에서) 회차에
     발표일 뒤 게시된 세 글 — 제목 라벨이 이번 조사일·한 주 앞·두 주 앞(라벨은 WR.week_label 로 유도). 라벨 없는 제목은
