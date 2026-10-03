@@ -87,7 +87,7 @@ def _band_js():
     """띠·주간 h2 를 만드는 홈 함수들(순수 함수 + h2 적기)을 그대로 뽑는다."""
     h = _home()
     return '\n'.join([_wk_block()] + [_js_func(h, n) for n in
-                                      ('pubDate', 'weeklyHead', 'heroBandLine', 'applyWeeklyStatus')])
+                                      ('weeklyHead', 'heroBandLine', 'applyWeeklyStatus')])
 
 
 def _kst_ms(y, m, d, hh=12):

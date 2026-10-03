@@ -32,7 +32,7 @@ import sido_zones as SZ                                            # noqa: E402
 import make_weekly_page as MW    # noqa: E402  주간 표기(반올림·조사일·발표일)를 /weekly/와 같이
 import kst as KST                # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 import site_nav as N             # noqa: E402  하단 탭바 정본(홈 마케팅 검수 C2)
-import weekly_moves as WM        # noqa: E402  시군구 순위·방향·연속의 정본(/weekly/ 표·홈 격자 표지와 같은 함수, D4)
+import weekly_moves as WM        # noqa: E402  시군구 순위·방향·연속의 정본(/weekly/ 표·블로그 초안과 같은 함수, D4)
 import robots_meta as RM          # noqa: E402  검색 로봇 메타 정본(홈 마케팅 검수 D2)
 
 SITE = 'https://www.agongmap.co.kr'
@@ -639,7 +639,7 @@ def summary_html(parts):
 # ── 시군구 주간 표(D4) ────────────────────────────────────────────────────────────────────────
 # 19장이 표를 뺀 본문을 크게 공유하고 있어(요청서 D4 — 5-gram Jaccard 0.69~0.88) 매주 바뀌는 그 지역만의 본문을 늘린다.
 # 숫자는 weekly_moves 가 낸다: 순서 = sgg_ranks(홈 TOP 10·/weekly/ 표와 같은 규칙), 방향·연속 = direction·streak(발표 표기
-# 반올림 뒤 셈 — 홈 격자·/weekly/ 타일 표지와 같은 함수), 12주 누적 = cum_window·cum_change. 반올림 표기는 MW.pv2(사이트 pv2r).
+# 반올림 뒤 셈 — 블로그 초안 표지와 같은 함수), 12주 누적 = cum_window·cum_change. 반올림 표기는 MW.pv2(사이트 pv2r).
 # 집계 3장(전국·수도권·지방)은 많이 오른 곳·많이 내린 곳 AGG_TOP 곳씩만 싣는다(요청서 D4).
 AGG_TOP = 5
 WK_CSS = ('.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'

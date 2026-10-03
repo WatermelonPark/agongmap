@@ -76,6 +76,18 @@ def test_weekly_head_map_is_the_home_map():
     assert py.count('<a href="/#stats-market-week~') == len(MW.nation_tile()['t'])
 
 
+def test_tile_names_are_unique_for_screen_readers():
+    """칸 설명(aria-label)의 이름 부분이 모든 칸에서 다르다 — 짧은 이름('북'·'중'·'강서'·'광주')이 여러 시도에 겹쳐 보조기기에서
+    같은 소리로 읽히지 않게 구는 소속 시, 그 밖은 소속 시도를 앞에 붙인다(2026-10-03 리뷰 지적).
+    변이(실제로 확인): 앞말(pre)을 빈 문자열로 두면 '북'·'중' 등이 겹쳐 빨개진다. 픽스처: 실제 NATION_TILE 배치."""
+    codes = [t[0] for t in MW.nation_tile()['t']]
+    svg = MW.sgg_map_svg([{c: 0.01 for c in codes}], ['매매'], 0.4, href=lambda c: '#' + c)
+    names = [re.sub(r' 매매 .*', '', x) for x in re.findall(r'data-code="[^"]+" aria-label="([^"]+)"', svg)]
+    assert len(names) == len(codes)
+    dup = sorted({n for n in names if names.count(n) > 1})
+    assert not dup, '보조기기에서 겹쳐 읽히는 칸 이름: %s' % dup
+
+
 def test_three_row_map_and_rounding_edges_match():
     """3단(월간 모양)·링크 없는 지도(풍선 도움말 <title>)와 반올림 가장자리도 같다."""
     codes = [t[0] for t in MW.nation_tile()['t']]

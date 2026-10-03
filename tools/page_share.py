@@ -87,15 +87,15 @@ if(k)['pointerenter','touchstart','focus'].forEach(function(t){k.addEventListene
 
 
 def block(d, lead, src=None):
-    """공유 구역 HTML(스타일·스크립트 포함). d: ct·url·title·text·img·w·h·btn."""
+    """공유 구역 HTML(스타일·스크립트 포함). d: ct·url·title·text·img·w·h·btn. lead 가 비면 버튼 위 문구 줄을 싣지 않는다."""
     key, sdk = kakao_consts(src)
     sid = 'share-' + d['ct']
     js = _JS % {'d': json.dumps({k: d[k] for k in ('ct', 'url', 'title', 'text', 'img', 'w', 'h', 'btn')},
                                 ensure_ascii=False).replace('</', '<\\/'),
                 'key': json.dumps(key), 'sdk': json.dumps(sdk), 'id': sid}
     return ('<section class="pshare" id="%s" aria-label="공유"><div class="wrap">'
-            '<p class="pshare-lead">%s</p><div class="pshare-row">'
+            '%s<div class="pshare-row">'
             '<button type="button" class="pshare-btn pshare-k" onclick="agShare(\'kakao\',this)">%s카카오톡 공유</button>'
             '<button type="button" class="pshare-btn" onclick="agShare(\'link\',this)">%s링크 공유</button>'
             '</div></div></section>\n<style>%s</style>\n<script>%s</script>'
-            % (sid, html.escape(lead), _ICON_K, _ICON_S, CSS, js))
+            % (sid, ('<p class="pshare-lead">%s</p>' % html.escape(lead)) if lead else '', _ICON_K, _ICON_S, CSS, js))
