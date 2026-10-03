@@ -1519,7 +1519,7 @@ function renderWeeklyGrid(){
     +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
     +'<button type="button" class="wg-sh" onclick="shareWeekly(\'link\')">'
     +'<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>링크 공유</button></div>':'';
-  /* 머리 = 무엇을 칠했나 + 범례. 발표일은 바로 위 구역 머리줄(wk-kicker)이 말하므로 되풀이하지 않는다(2026-10-03 대표 요청). */
+  /* 머리 = 무엇을 칠했나 + 범례. 발표일은 첫 화면 띠가 말하므로 되풀이하지 않는다(2026-10-03 대표 요청). */
   box.innerHTML=lines
     +'<div class="wg-head"><span class="wg-when">매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
@@ -1540,7 +1540,7 @@ function renderWeeklyGrid(){
      약속하지 않는다. 판정은 통계 탭 rel-week 와 같은 weeklyRelease 하나다. */
   applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly));
 }
-/* 주간 구역 머리줄과 h2 에 발표 상태를 적는다. 따로 떼어 둔 것은 시험이 이 두 줄을 직접 돌려 보게 하려는 것이다
+/* 주간 구역 h2 에 발표 상태를 적는다(구역 머리줄은 2026-10-03 대표 요청으로 뺐다). 따로 떼어 둔 것은 시험이 직접 돌려 보게 하려는 것이다
    (test_weekly_release·test_home_first_screen).
    h2 = 이번 주 결론 한 줄(hd.text — /weekly/ 제목·첫 화면 띠와 같은 문장, IA-4). 예전엔 매주 같은 질문
    ('이번 주, 어디가 오르고 내렸을까?')이라 지난주 화면과 구별되지 않았다. 늦은 주에는 결론 앞에 발표일을 붙여
@@ -1548,8 +1548,6 @@ function renderWeeklyGrid(){
    1차 동작 그대로 — 늦은 주에만 질문 앞에 발표일. */
 function applyWeeklyStatus(r,hd){
   if(!r)return;
-  const kk=document.getElementById('wk-kicker');
-  if(kk)kk.textContent=wkWhenText(r);
   const h2=document.getElementById('wk-h2');
   if(!h2)return;
   if(hd)h2.textContent=(r.stale?wkPubLead(r)+' · ':'')+hd.text;

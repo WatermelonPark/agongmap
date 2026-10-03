@@ -169,8 +169,8 @@ def test_home_reads_grace_from_data_and_both_views_share_one_function():
     assert 'weeklyReleaseNow()' in rel and 'wkNextText(r)' in rel
     apply = _fn(src, 'applyWeeklyStatus')
     assert 'applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly))' in grid
-    assert 'wkWhenText(r)' in apply and "getElementById('wk-kicker')" in apply
-    assert 'id="wk-kicker"' in src and '매주 갱신 · 한국부동산원' not in src
+    # 주간 구역 머리줄(wk-kicker)은 뺐다(2026-10-03 대표 요청 — 군더더기). 정적 '매주 갱신'도 되살아나지 않는다.
+    assert "getElementById('wk-kicker')" not in apply and 'id="wk-kicker"' not in src and '매주 갱신 · 한국부동산원' not in src
 
 
 # ---- JS ↔ 파이썬 대조 ----
@@ -335,7 +335,8 @@ def _node(js):
 
 
 def test_home_kicker_and_h2_follow_the_release_state():
-    """홈 주간 구역: 머리줄은 늘 발표 상태 문장, h2 는 늦은 주에만 '이번 주' 대신 발표일로 바뀐다(TRUST-1②).
+    """홈 주간 구역: h2 는 늦은 주에만 '이번 주' 대신 발표일로 바뀐다(TRUST-1②). 구역 머리줄은 2026-10-03 에 뺐다 —
+    늦은 주를 알리는 곳은 이 h2 와 첫 화면 띠뿐이라, 머리줄 자리에 아무것도 적지 않는지도 본다.
 
     변이: applyWeeklyStatus 에서 h2 줄을 지우거나, 조건을 `r.stale` 없이 늘 바꾸게 하면 빨개진다(실제로 확인).
           renderWeeklyGrid 가 applyWeeklyStatus 를 부르지 않으면 마지막 단정이 빨개진다(확인).
@@ -353,9 +354,9 @@ def test_home_kicker_and_h2_follow_the_release_state():
           % (json.dumps(['2026-09-18T03:00:00Z', '2026-09-27T03:00:00Z']), json.dumps(h2_default), WR.GRACE_WEEKLY))
     (k_ok, h_ok), (k_late, h_late) = _node(js)
     st = WR.status('2026-09-14', datetime.date(2026, 9, 18))
-    assert k_ok == WR.when_text(st) and h_ok == h2_default, (k_ok, h_ok)
+    assert k_ok == '' and h_ok == h2_default, (k_ok, h_ok)
     st = WR.status('2026-09-14', datetime.date(2026, 9, 27))
-    assert st['stale'] and k_late == WR.when_text(st), k_late
+    assert st['stale'] and k_late == '', k_late
     assert h_late == '9/17 발표, 어디가 오르고 내렸을까?', h_late
     assert 'applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly))' in _fn(src, 'renderWeeklyGrid')
 

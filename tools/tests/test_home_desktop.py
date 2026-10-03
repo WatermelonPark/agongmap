@@ -105,7 +105,7 @@ def test_two_columns_hold_the_supply_map_and_this_weeks_grid_from_1024px_only():
     b = idx.index('</div><!-- /.home-duo -->')
     inner = idx[a:b]
     secs = re.findall(r'<section class="([^"]*)"(?: id="([^"]*)")?', inner)
-    assert [s[1] for s in secs] == ['sec-score', ''] and 'id="home-weekly-grid"' in inner and 'id="wk-kicker"' in inner, secs
+    assert [s[1] for s in secs] == ['sec-score', ''] and 'id="home-weekly-grid"' in inner and 'id="wk-h2"' in inner, secs
     assert inner.count('<section') == inner.count('</section>') == 2
 
 
@@ -121,13 +121,14 @@ def test_first_screen_boxes_are_reserved_in_the_right_column():
     픽스처: 저장소 app.css 의 1024px 블록과 index.html 의 두 단 마크업(지도 구역 #sec-score 다음 형제가 주간 구역).
     값(630px 등)은 브라우저 실측이라 여기서 박지 않는다 — 규칙이 있고, 오른쪽 단에만 걸리고, 그 선택자가 실제 마크업의
     주간 구역을 가리키는지만 본다.
-    변이(각각 실제로 확인): 격자 예약이나 머리줄 예약을 지우면, 셋 중 하나의 선택자를 '.home-duo #wk-h2'처럼 표 보기까지
+    변이(각각 실제로 확인): 격자 예약이나 h2 예약을 지우면, 머리줄 예약을 되살리면, 셋 중 하나의 선택자를 '.home-duo #wk-h2'처럼 표 보기까지
           덮는 옛 모양으로 되돌리면, 주간 구역을 지도 구역 앞으로 옮겨 '~' 형제 관계가 끊기면 빨개진다.
     """
     d = _desktop_css()
     assert re.search(r'min-height:\s*(\d+)px', _rule(d, RIGHT_COL + '#home-weekly-grid:empty')), '주간 격자 예약 높이가 없다'
     assert 'min-height' in _rule(d, RIGHT_COL + '#wk-h2')
-    assert 'min-height' in _rule(d, RIGHT_COL + '.hs-kicker'), '발표 머리줄(연휴 주 두 줄) 예약이 없다'
+    # 발표 머리줄(.hs-kicker)은 2026-10-03 대표 요청으로 뺐다 — 마크업에도 예약 규칙에도 없어야 한다(빈 자리 예약이 남으면 빈 줄이 된다)
+    assert not re.search(re.escape(RIGHT_COL + '.hs-kicker') + r'\s*\{', d), '없어진 발표 머리줄의 예약 규칙이 남았다'
     # 표 보기까지 덮는 예약이 남아 있지 않다(두 단 밖에서도 걸리는 min-height)
     for sel, body in re.findall(r'(?:^|[}\s])([^{}]*?(?:#home-weekly-grid|#wk-h2|\.hs-kicker)[^{}]*)\{([^}]*)\}', d):
         if 'min-height' in body:
@@ -137,7 +138,7 @@ def test_first_screen_boxes_are_reserved_in_the_right_column():
     inner = idx[idx.index('<div class="home-duo">'):idx.index('</div><!-- /.home-duo -->')]
     after = inner[inner.index('id="sec-score"'):]
     after = after[after.index('</section>'):]
-    for k in ('class="hs-kicker"', 'id="wk-h2"', 'id="home-weekly-grid"'):
+    for k in ('id="wk-h2"', 'id="home-weekly-grid"'):
         assert re.search(r'<section class="home-sec"[^>]*>.*' + re.escape(k), after, re.S), '%s 가 지도 구역 뒤 형제 구역에 없다' % k
 
 
