@@ -113,7 +113,7 @@ def pick(entry, pub):
     이번 주 발표일보다 FRESH_DAYS 일 넘게 앞선 글이나 없는 글은 None(칸을 뺀다). 그 밖에는:
       - 제목에 주차 라벨('(9월 셋째 주)')이 있으면 **그 라벨로** 정한다 — 이번 조사일의 라벨(weekly_release.week_label)이면
         '이번 주', 한 주 앞 조사일의 라벨이면 '지난주', 둘 다 아니면(더 옛 회차 글) None. 예전엔 게시일로만 정해, 지난 회차
-        글이 이번 발표일 뒤에 올라오면(8월 3·4주 글이 8/30 에 함께 올라간 실제 사례) '이번 주 해석 읽기: …(8월 셋째 주)'를
+        글이 이번 발표일 뒤에 올라오면(8월 3·4주 글이 8/30 에 함께 올라간 실제 사례) '이번 주 해설: …(8월 셋째 주)'를
         '8월 넷째 주' 페이지에 붙였다(전수리뷰 #27). 조사일은 발표일 − weekly_release.PUB_OFFSET 이다(status 가 그렇게 셈한다) —
         그래서 부르는 쪽(split_data·make_weekly_page)은 발표일만 넘기면 된다.
       - 라벨이 없는 제목은 게시일로 정한다: 발표일 당일·뒤면 '이번 주', 그 전이면 '지난주'.
@@ -142,7 +142,16 @@ def pick(entry, pub):
     md = '%d/%d' % (d.month, d.day)
     return {'lead': lead, 'title': entry['title'], 'url': entry['url'],
             'date': entry['date'], 'md': md, 'src': '%s, %s' % (LABEL, md),
-            'head': headline(entry['title']), 'meta': '%s · %s %s' % (lead, LABEL, md)}
+            'head': headline(entry['title']), 'meta': meta(lead, entry['title'], md)}
+
+
+def meta(lead, title, md):
+    """카드 머리줄 — '지난주 해설 · 네이버 블로그 9/27'. 결론(headline)이 숫자를 말하면(초안 기본 제목 '서울 +0.10% 전국 +0.07%' 같은)
+    주차 라벨을 붙인다('지난주 해설(9월 둘째 주) · …') — 바로 위 이번 주 지도와 다른 주의 숫자를 이번 주 값으로 읽지 않게
+    (2026-10-03 리뷰). 산문 결론이면 붙이지 않는다(군더더기를 늘리지 않는다)."""
+    tw = title_week(title)
+    week = ('(%s)' % tw) if (tw and re.search(r'\d%', headline(title))) else ''
+    return '%s%s · %s %s' % (lead, week, LABEL, md)
 
 
 def headline(title):
