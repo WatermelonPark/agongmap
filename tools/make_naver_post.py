@@ -386,7 +386,7 @@ def _sgg_names():
 
 
 def weekly_moves_sentences(W):
-    """'지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5) — 홈 주간 격자·/weekly/ 타일과 **같은 함수**(weekly_moves)의 결과를
+    """'지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5) — /weekly/ 표와 **같은 함수**(weekly_moves)의 결과를
     문장으로 옮긴다. 재료만 깔고 해석은 사람이 쓴다. (방향 문단, 순위 이동 문장) — 없으면 빈 문자열.
 
     순위 이동은 이 초안에 붙이는 상승 TOP 10 이미지(홈 통계 탭 표 캡처, home-app.js sggRanks)와 같은 규칙이다 —
@@ -710,7 +710,7 @@ def draft_weekly(adv, sts, shot=True):
     if gu:
         body.append('<p>서울 안에서는 %s 순으로 올랐습니다.</p>' %
                     ' · '.join('<b>%s %s</b>' % (k, pct(v)) for k, v in gu))
-    # 지난주와 무엇이 달라졌나(B7) — 사이트 격자·/weekly/ 타일과 같은 표지(weekly_moves)
+    # 지난주와 무엇이 달라졌나(B7) — 표지의 정본(weekly_moves)
     moves_p, rank_p = weekly_moves_sentences(W)
     if moves_p:
         body.append(moves_p)

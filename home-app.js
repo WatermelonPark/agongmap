@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v168';
+const HOME_BUILD='v169';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -512,13 +512,18 @@ function sggMapSvg(vals,o){
   const SI_PARENT=new Set(['a80203','a80103','a80202','a80102','a80602','a80301','a80302','a80305']);
   const clOf=c=>{ if(SI_PARENT.has(c))return c; for(const p of SI_PARENT)if(c.indexOf(p)===0)return p; return null; };
   const tcol=v=>{const r=pvSign(v);return r>0?'#8f2318':(r<0?'#123c5c':'#5e6f74');};
+  /* 칸 설명의 앞말 — 짧은 이름('북'·'중'·'강서')이 여러 시도에 겹쳐 보조기기에서 같은 소리로 읽히지 않게, 구는 소속 시
+     (수원 장안), 그 밖의 칸은 소속 시도(서울 강남·부산 북)를 붙인다. 시도 머리 칸(두 글자 코드)은 붙이지 않는다. */
+  const HN={}; N.t.forEach(([c,nm,,,h])=>{ if(h&&c.length===2)HN[c]=nm; });
+  N.t.forEach(([c,nm])=>{ if(SI_PARENT.has(c))HN[c]=nm; });
+  const pre=c=>{ if(c.length<=2)return ''; const cl=clOf(c), p=(cl&&cl!==c)?HN[cl]:HN[grpOf(c)]; return p?p+' ':''; };
   /* 값칸 y는 칸 높이에서 계산 — 베이스라인도 칸 중앙 기준이라 VH를 바꿔도 숫자가 위로 치우치지 않는다. */
   const tb=Math.round(VH/2)+3;
   N.t.forEach(([c,nm,x,y,h])=>{
     const px=x*(TW+G), py=y*(rowH+G), href=o.href?o.href(c):null;
     /* 칸 설명(이름·값). 링크 칸은 aria-label 로 — SVG <title> 을 쓰면 /weekly/ 처럼 구운 페이지에서 문서 <title> 을 찾는
        도구·시험이 지도 칸까지 센다. 링크가 없으면 풍선 도움말(<title>). */
-    const lab=nm+' '+vals.map((m,j)=>names[j]+' '+pv2(m[c])+'%').join(' · ');
+    const lab=pre(c)+nm+' '+vals.map((m,j)=>names[j]+' '+pv2(m[c])+'%').join(' · ');
     const g=`<g transform="translate(${px},${py})">`+
       `<rect width="${TW}" height="${NH}" rx="4" fill="${h?'#1e2846':(SI_PARENT.has(c)?'#34456b':'#eef1f8')}" stroke="${h?'#1e2846':'#d6dced'}"/>`+
       /* 이름도 값과 같은 MAP_FS. 네 글자(마산회원·마산합포)만 칸 폭에 맞춰 자간·글자 폭을 눌러 담는다 —
@@ -1491,26 +1496,6 @@ function renderHeroMap(){
    ⚠️ DOMContentLoaded까지 미루는 이유: applyHash()가 #stats로 들어오면 그 자리에서
    차트를 만드는데, Chart.js가 defer라 파싱 시점엔 아직 없다. defer 스크립트는
    DOMContentLoaded 직전에 실행이 보장되므로 이 훅이 정확한 경계다. */
-/* 주간 시세 카드 격자 — 공유 PNG를 대신해 홈에서 직접 그린다.
-   값은 ADV.weekly.rows(시도(집계 포함) 최신 1주, split_data가 코어에 싣는다).
-   ⚠️ 히어로 지도가 읽는 sgg.rows와는 다른 배열이다 — 이쪽은 regions와
-   같은 순서로 ma/je가 들어 있고, PNG 생성기(make_weekly_share.py)도 이걸 쓴다. */
-/* ⚠️ 여기 있던 fmtPct는 지웠다(2026-08-18). **원값의 부호 + 반올림한 절대값**을
-   이어 붙이는 방식이라 −0.0012가 '−0.00'으로, +0.0012가 '+0.00'으로 나왔다
-   (부산 실측). 값은 0인데 부호가 붙으면 글자와 색이 서로 다른 말을 한다.
-   정본은 pv2/pvSign — **반올림을 먼저** 하고 그 결과로 부호를 정한다.
-   새 서식이 필요해도 이 패턴을 다시 만들지 말고 pv2를 쓸 것. */
-/* 조사기준일(월) -> 부동산원 공표일(목). 공유 카드(make_weekly_share._pubdate)와
-   같은 규칙이다 — 2026-08-06 사용자 결정으로 '발표일'로 적기로 했는데, 격자만
-   조사기준일을 찍고 있어 같은 데이터가 두 화면에서 다른 날짜로 보였다
-   (2026-09-01 리뷰). 공휴일이 끼면 하루씩 밀리는 주가 있으나 그건 원천 일정이라
-   우리가 알 수 없다 — 통상 +3일로 적는다(2026 추석 9/24(목) 휴일에도 +3일에 올라왔다).
-   날짜 셈은 발표 일정 구간(weeklyRelease)의 _dn/_iso 를 같이 쓴다 — 기기 시간대와 무관하다. */
-function pubDate(basis){
-  if(!basis)return '';
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(basis))return basis;
-  return _iso(_dn(basis)+3);
-}
 function renderWeeklyGrid(){
   const box=document.getElementById('home-weekly-grid');
   if(!box)return;
@@ -1534,9 +1519,9 @@ function renderWeeklyGrid(){
     +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
     +'<button type="button" class="wg-sh" onclick="shareWeekly(\'link\')">'
     +'<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>링크 공유</button></div>':'';
-  const pd=pubDate(row.p);
+  /* 머리 = 무엇을 칠했나 + 범례. 발표일은 첫 화면 띠가 말하므로 되풀이하지 않는다(2026-10-03 대표 요청). */
   box.innerHTML=lines
-    +'<div class="wg-head"><span class="wg-when" id="wg-when"><b>'+(/^\d{4}-\d{2}-\d{2}$/.test(pd)?_md(pd):pd)+'</b> 발표 · 매매 전주 대비(%)</span>'
+    +'<div class="wg-head"><span class="wg-when">매매 전주 대비(%)</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
@@ -1555,7 +1540,7 @@ function renderWeeklyGrid(){
      약속하지 않는다. 판정은 통계 탭 rel-week 와 같은 weeklyRelease 하나다. */
   applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly));
 }
-/* 주간 구역 머리줄과 h2 에 발표 상태를 적는다. 따로 떼어 둔 것은 시험이 이 두 줄을 직접 돌려 보게 하려는 것이다
+/* 주간 구역 h2 에 발표 상태를 적는다(구역 머리줄은 2026-10-03 대표 요청으로 뺐다). 따로 떼어 둔 것은 시험이 직접 돌려 보게 하려는 것이다
    (test_weekly_release·test_home_first_screen).
    h2 = 이번 주 결론 한 줄(hd.text — /weekly/ 제목·첫 화면 띠와 같은 문장, IA-4). 예전엔 매주 같은 질문
    ('이번 주, 어디가 오르고 내렸을까?')이라 지난주 화면과 구별되지 않았다. 늦은 주에는 결론 앞에 발표일을 붙여
@@ -1563,8 +1548,6 @@ function renderWeeklyGrid(){
    1차 동작 그대로 — 늦은 주에만 질문 앞에 발표일. */
 function applyWeeklyStatus(r,hd){
   if(!r)return;
-  const kk=document.getElementById('wk-kicker');
-  if(kk)kk.textContent=wkWhenText(r);
   const h2=document.getElementById('wk-h2');
   if(!h2)return;
   if(hd)h2.textContent=(r.stale?wkPubLead(r)+' · ':'')+hd.text;
@@ -1647,18 +1630,22 @@ function renderHeroBand(){
    여기서 날짜를 다시 셈하지 않는다. 글이 없거나(RSS 를 못 읽었거나 오래됨) 옛 캐시면 칸은 숨은 채로 남는다.
    제목은 RSS 에서 온 글자라 textContent 로만 넣고, 주소는 네이버 블로그 주소만 받는다. 둘째 줄 이웃 안내는 뺐다
    (2026-09-28 대표 결정 — 작은 글씨 정리. /weekly/ 하단에는 남아 있다). */
+/* 카드 = 작은 머리줄(meta '지난주 해설 · 네이버 블로그 9/27') + 굵은 결론(head — 제목의 '|' 뒤, blog_feed.headline). 매주 같은
+   제목 앞부분('[한국부동산원] 주간 아파트가격 동향(…)')과 밑줄 긴 세 줄을 걷었다(2026-10-03 대표 요청). 카드 전체가 링크다. */
 function blogLine(B){
-  if(!B||!B.url||!B.title||!B.lead||!B.src||!/^https:\/\/blog\.naver\.com\//.test(B.url))return null;
-  return {href:B.url,text:B.lead+': '+B.title,src:' ('+B.src+')'};
+  if(!B||!B.url||!B.head||!B.meta||!/^https:\/\/blog\.naver\.com\//.test(B.url))return null;
+  return {href:B.url,meta:B.meta,head:B.head};
 }
 function renderBlogLine(){
   const el=document.getElementById('wk-blog');
   let L;try{L=blogLine(ADV.blog);}catch(e){return;}
   if(!el||!L)return;
-  const a=document.createElement('a');
-  a.href=L.href;a.target='_blank';a.rel='noopener';a.textContent=L.text;
+  const a=document.createElement('a'), m=document.createElement('span'), h=document.createElement('span');
+  a.href=L.href;a.target='_blank';a.rel='noopener';a.className='blog-card';
+  m.className='bc-meta';m.textContent=L.meta;h.className='bc-head';h.textContent=L.head+' →';
+  a.appendChild(m);a.appendChild(h);
   a.addEventListener('click',()=>track('home_cta',{to:'blog_weekly'}));
-  el.textContent='';el.appendChild(a);el.appendChild(document.createTextNode(L.src));
+  el.textContent='';el.appendChild(a);
   el.hidden=false;
 }
 /* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.

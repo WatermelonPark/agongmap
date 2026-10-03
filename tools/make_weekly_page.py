@@ -179,7 +179,7 @@ def h1_html(c):
 MAP_HREF = '/#stats-market-week~%s'
 MAP_CSS = ('.mm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
            '.mm-scroll svg a{cursor:pointer}.mm-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}'
-           '.mm-scroll svg a:focus{outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}'
+           '.mm-scroll svg a:focus:not(:focus-visible){outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}'
            '.mm-swipe{display:none}@media(max-width:520px){.mm-swipe{display:inline}}')
 
 
@@ -256,6 +256,16 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None):
     def tcol(v):
         r = pv2r(v) or 0
         return '#8f2318' if r > 0 else ('#123c5c' if r < 0 else '#5e6f74')
+    # 칸 설명의 앞말(홈 pre 의 거울) — 구는 소속 시(수원 장안), 그 밖은 소속 시도(서울 강남), 시도 머리 칸은 없음
+    hn = {c: nm for c, nm, _x, _y, h in N['t'] if h and len(c) == 2}
+    hn.update({c: nm for c, nm, _x, _y, _h in N['t'] if c in SI_PARENT})
+
+    def pre(c):
+        if len(c) <= 2:
+            return ''
+        k = cl(c)
+        p = hn.get(k) if (k and k != c) else hn.get(grp(c))
+        return p + ' ' if p else ''
     tb = int(math.floor(VH / 2 + 0.5)) + 3   # JS Math.round(반올림 위로) — 파이썬 round 는 짝수 쪽이다
     for c, nm, x, y, h in N['t']:
         px, py = x * (TW + G), y * (rowH + G)
@@ -271,7 +281,7 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None):
             g += ('<rect y="%s" width="%s" height="%s" rx="3" fill="%s" stroke="#d8dfdc"/>' % (ry, TW, VH, map_color(v, ref)) +
                   '<text x="%s" y="%s" text-anchor="middle" font-size="%s" font-weight="600" fill="%s">%s</text>'
                   % (_js_num(TW / 2), ry + tb, MAP_FS, tcol(v), pv2(v)))
-        lab = '%s %s' % (nm, ' · '.join('%s %s%%' % (names[j], pv2(m.get(c))) for j, m in enumerate(vals)))
+        lab = '%s%s %s' % (pre(c), nm, ' · '.join('%s %s%%' % (names[j], pv2(m.get(c))) for j, m in enumerate(vals)))
         g += ('' if href else '<title>%s</title>' % lab) + '</g>'
         sv.append(('<a href="%s" data-code="%s" aria-label="%s">%s</a>' % (href(c), c, lab, g)) if href else g)
     pos_g = {(x, y): grp(c) for c, _, x, y, _h in N['t']}
@@ -505,12 +515,9 @@ def share_payload(W, root=None):
             'btn': '이번 주 시세 보기'}
 
 
-SHARE_LEAD = '이번 주 시세 지도를 단톡방에 보내 보세요'
-
-
 def share_html(W, root=None):
     d = share_payload(W, root)
-    return PS.block(d, SHARE_LEAD) if d else ''
+    return PS.block(d, '') if d else ''   # 버튼 위 권유 문구('단톡방에 보내 보세요')는 뺐다(2026-10-03 대표 요청 — 군더더기)
 
 
 # ── 시군구 전체 표(C10②·SEO-2③, 2026-09-27) ───────────────────────────────────────────────────
@@ -562,8 +569,8 @@ def table_html(W, Q):
         trs.append('<tr><th scope="row">%s</th>%s%s<td>%d</td><td data-v="%s">%s</td></tr>'
                    % (html.escape(Q[c]), _pct_cell(v), _pct_cell(jv), r, '' if d is None else d, WM.move_text(d)))
     basis = '%s 조사 · %s 발표' % (md(srow['p']), md(pub(srow['p'])))
-    how = ('순위는 매매 변동률 순(1 = 가장 많이 오른 곳)이고, 전주 대비는 %s 순위와의 차입니다(▲ 순위 상승). '
-           '홈 상승·하락 TOP 10 과 같은 순위입니다.' % (('지난주(%s 조사)' % md(prev_p)) if prev_p else '지난주'))
+    how = ('순위는 매매 변동률 순(1 = 가장 많이 오른 곳)이고, 전주 대비는 %s 순위와의 차입니다(▲ 순위 상승).'
+           % (('지난주(%s 조사)' % md(prev_p)) if prev_p else '지난주'))
     return '\n'.join([
         '<section class="sggt"><div class="wrap">',
         '  <h2>시군구 전체 표</h2>',
@@ -624,7 +631,7 @@ def build(W, Q):
     regs = W['regions']
     miss = [z for z in SZ.DISPLAY_ORDER if z not in regs]
     if miss:
-        raise SystemExit('주간 계열에 없는 지역: %s — 타일에서 그 지역이 조용히 빠진다' % ', '.join(miss))
+        raise SystemExit('주간 계열에 없는 지역: %s — 결론에서 그 지역이 조용히 빠진다' % ', '.join(miss))
     row = W['rows'][-1]
     p = row['p']
     if not re.match(r'^\d{4}-\d{2}-\d{2}$', p or ''):
@@ -641,17 +648,9 @@ def build(W, Q):
     # ── 결론 한 줄: 규칙은 conclusion() 하나 — 홈 띠·홈 주간 구역 h2 와 같은 문장이다(B1·IA-4)
     c = conclusion(W)
     best = c['best']
-    up_s, dn_s = top3(sido)
     h1 = h1_html(c)
-    lead = ['전국 <b>%s%%</b>.' % pv2(nation) if nation is not None else '',
-            '%s.' % count_text('시도 %d곳' % len(sido), [v for _, v in sido])]
-    # 제목이 이미 말한 쪽은 되풀이하지 않고, 반대 방향 1위만 덧붙인다.
-    other = dn_s if pv2r(best[1]) > 0 else up_s
-    if other and pv2r(best[1]) != 0:
-        lead.append('가장 많이 %s 곳은 %s %s%%다.'
-                    % ('내린' if pv2r(best[1]) > 0 else '오른', other[0][0], pv2(other[0][1])))
-    # 머리에는 광역(시도) 단위를 싣지 않는다 — 시도 타일과 그 방향 표지·'방향이 바뀐 곳' 한 줄을 모두 걷고 시군구 지도만
-    # 둔다(2026-10-02·10-03 대표 요청). 결론 제목과 리드 문장은 그대로 둔다. 뼈대 <style> 은 손으로 관리하는 자리라 지도
+    # 머리에는 광역(시도) 단위를 싣지 않는다 — 시도 타일·방향 표지·'방향이 바뀐 곳' 줄·시도 집계 리드 문장('시도 16곳 중 …')을
+    # 모두 걷고 결론 제목과 시군구 지도만 둔다(2026-10-02·10-03 대표 요청). 뼈대 <style> 은 손으로 관리하는 자리라 지도
     # 규칙(MAP_CSS)은 HEAD 표식 안에 싣는다(배치가 매주 다시 쓴다).
     svg, sp = week_map(W)
     cap_when = '' if sp == p else ' · %s 조사 기준' % md(sp)
@@ -660,7 +659,6 @@ def build(W, Q):
         % (WR.week_label(p, year=True), when),
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
-        '  <p class="lead">%s</p>' % ' '.join(x for x in lead if x),
         '  <div class="minimap">',
         '    <div class="mm-scroll">%s</div>' % svg,
         '    <div class="mm-cap"><span><i style="background:#e0564a"></i>상승</span>'
@@ -706,7 +704,6 @@ def build(W, Q):
             rank_list('▲ 상승', 'up', gu_up, '이번 주 오른 구가 없다'),
             rank_list('▼ 하락', 'dn', gu_dn, '이번 주 내린 구가 없다')),
         '  <a class="cta" href="/#stats-market">전체 TOP 10 · 시군구 지도 보기</a>',
-        '  <div class="meta">주간·월간 · 매매·전세 · 무료 · 회원가입 없음</div>',
         '</div></section>',
     ])
 
@@ -834,17 +831,16 @@ def _track(to):
 def blog_html(b):
     rows = []
     if b:
-        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s: %s<span>%s</span></a>'
-                    % (html.escape(b['url']), _track('weekly_post'), html.escape(b['lead']),
-                       html.escape(b['title']), html.escape(b['src'])))
+        # 홈 해설 카드와 같은 두 말 — 결론(head)을 이름으로, '지난주 해설 · 네이버 블로그 9/27'(meta)을 곁말로(2026-10-03)
+        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s</span></a>'
+                    % (html.escape(b['url']), _track('weekly_post'), html.escape(b['head']), html.escape(b['meta'])))
     if BF.BLOG_HOME:
         rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s</span></a>'
                     % (BF.BLOG_HOME, _track('weekly_home'), BF.HOME_TEXT, BF.LABEL))
     if not rows:
         return ''
     return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>해설 글</h2>', '  <div class="links">']
-                     + rows + ['  </div>', '  <p class="blog-note">%s</p>' % html.escape(BF.NEIGHBOR),
-                               '</div></section>'])
+                     + rows + ['  </div>', '</div></section>'])
 
 
 def put_blog(s, W):

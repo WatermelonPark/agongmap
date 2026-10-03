@@ -132,7 +132,7 @@ def _grid_js(W, seen=None):
     """홈 주간 구역(renderWeeklyGrid — 시군구 지도)을 가짜 DOM·localStorage 에서 돌려 머리 줄(지난 방문 이후)과 렌더 뒤 저장된
     wk_seen 을 돌려준다."""
     h = HS.home_source()
-    names = ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg', 'onTrendLink', '_syncHolidays', 'weeklyReleaseNow', 'pubDate',
+    names = ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg', 'onTrendLink', '_syncHolidays', 'weeklyReleaseNow',
              'weeklyHead', 'applyWeeklyStatus', 'weeklyShare', 'wkSinceText', 'wkShouldRemember', 'wkSeen', 'wkRemember',
              'renderWeeklyGrid', 'track', 'loadKakao')
     key = re.search(r"^const WK_SEEN_KEY='[^']+';", h, re.M)

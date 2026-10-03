@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v168';
+var HOME_STATS_BUILD='v169';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -893,7 +893,7 @@ function trendPick(k){
    시도, 시군구 칸은 그 시군구, 전국 칸은 전국. 코드가 없으면(뒤로 가기로 '~코드' 없는 주소에 왔을 때) 이 함수가 연 그래프만
    지도로 되돌린다. 사람이 지역을 바꾸거나 '지도'를 누르면 주소의 '~코드'를 걷는다(trOpenDrop — 주소와 화면이 다른 말을
    하지 않게). */
-let TR_OPEN=null;   // {k, code} — 이 함수가 연 그래프
+const TR_OPEN={week:null,month:null};   // 주기별로 이 함수가 연 그래프의 코드(주간·월간을 따로 연다)
 function trendTarget(W,code){
   const s=sidoOf(code);
   if(!s)return {zone:'',sgg:''};   // 전국(a0)·모르는 코드 → 전체
@@ -905,12 +905,14 @@ function openTrendRegion(k,code){
   if(!TREND[k])return;
   return (TREND_P||loadFullData()).then(()=>{
     const T=TREND[k], W=trendData(k); if(!W||!W.regions)return;
-    if(!code){ if(TR_OPEN&&TR_OPEN.k===k){ TR_OPEN=null; gtSet(k,'m',true); } return; }
+    /* 되돌릴 때는 보기만이 아니라 지역 선택도 '전체'로 — 남겨 두면 다음에 '그래프'·'표'를 누를 때 예전 지역이 나온다 */
+    if(!code){ if(TR_OPEN[k]){ TR_OPEN[k]=null; document.getElementById(T.sel).value=''; fillSggSel(k,''); TRSHOW[k]=12;
+      (k==='week'?renderWeekSec:renderMonthSec)(); gtSet(k,'m',true); } return; }
     const t=trendTarget(W,code);
     fillTrendReg(k,W.regions);
     document.getElementById(T.sel).value=t.zone;
     fillSggSel(k,t.sgg);
-    TR_OPEN={k:k,code:code};
+    TR_OPEN[k]=code;
     TRSHOW[k]=12;
     const render=k==='week'?renderWeekSec:renderMonthSec;
     render();
@@ -920,8 +922,8 @@ function openTrendRegion(k,code){
   }).catch(()=>{});
 }
 function trOpenDrop(k){
-  if(!TR_OPEN||TR_OPEN.k!==k)return;
-  TR_OPEN=null;
+  if(!TR_OPEN[k])return;
+  TR_OPEN[k]=null;
   if(location.hash.indexOf('~')>=0)statsNav('#stats-market-'+k,true);
 }
 /* 표 표시 개수 — 기본 12개, '더보기'로 12씩 늘린다. 시군구를 고른 상태면
