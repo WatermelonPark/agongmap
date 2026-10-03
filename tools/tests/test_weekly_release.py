@@ -334,7 +334,7 @@ def _node(js):
     return json.loads(proc.stdout.decode('utf-8'))
 
 
-def test_home_kicker_and_h2_follow_the_release_state():
+def test_home_h2_follows_the_release_state_and_no_kicker_is_written():
     """홈 주간 구역: h2 는 늦은 주에만 '이번 주' 대신 발표일로 바뀐다(TRUST-1②). 구역 머리줄은 2026-10-03 에 뺐다 —
     늦은 주를 알리는 곳은 이 h2 와 첫 화면 띠뿐이라, 머리줄 자리에 아무것도 적지 않는지도 본다.
 

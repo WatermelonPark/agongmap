@@ -141,7 +141,7 @@ def test_weekly_head_is_one_sentence_on_weekly_page_band_and_home_h2():
         WJ = dict(W, grace=WR.GRACE_WEEKLY, head=hp)
         js = (_band_js() + '\n_HOLIDAYS=new Set(%s);const W=%s;\n'
               'const r=weeklyRelease(W.rows[0].p,new Date(%d),W.grace);\n'
-              'const el={"wk-kicker":{textContent:""},"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
+              'const el={"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
               'globalThis.document={getElementById:id=>el[id]||null};\n'
               'applyWeeklyStatus(r,weeklyHead(W));\n'
               'process.stdout.write(JSON.stringify([heroBandLine(W,r),el["wk-h2"].textContent]));'
@@ -186,13 +186,14 @@ def test_split_bakes_the_head_into_both_payloads_and_the_weekly_page_says_it(spl
     assert _plain(h1) == '%s 아파트, %s' % (MW.H1_WEEK, want['text']), h1
 
 
-# ── B1: 띠 한 줄은 발표 상태를 따른다(늦은 주 머리말) — 다음 발표는 주간 구역 머리줄만 말한다 ──────────────
+# ── B1: 띠 한 줄은 발표 상태를 따른다(늦은 주 머리말) — 다음 발표는 띠가 말하지 않는다 ──────────────
 
 def test_hero_band_line_follows_the_release_state():
     """띠 = [발표일 머리말(wkPubLead), 결론 →] 한 줄이다. 늦은 주에는 머리말이 '9/17 발표 기준'(요청서 지연 문구), 옛 캐시(결론·
     유예 없음)와 섞인 판(head.p ≠ 최신 조사일)은 null — 정적 문구가 남는다.
     배경 지도 캡션·다음 발표 둘째 줄은 없다(2026-09-28 대표 결정 — 작은 글씨 정리): 띠는 다음 발표·반영 대기·연휴 안내를
-    말하지 않고, 그 말은 주간 구역 머리줄(wkWhenText — 파이썬 정본 weekly_release.next_text 와 같은 문장)에 남는다.
+    말하지 않는다. 그 말(wkWhenText — 파이썬 정본 weekly_release.next_text 와 같은 문장)은 지도 주간 모드 발표 줄·통계 탭에 남는다
+    (홈 주간 구역 머리줄은 2026-10-03 대표 요청으로 뺐다).
 
     변이(각각 실제로 확인): heroBandLine 의 `W.grace==null` 검사를 빼면 옛 캐시 사례가, weeklyHead 의 조사일 비교를 빼면 섞인 판
     사례가, heroBandLine 이 wkPubLead 대신 _md(r.pub)+' 발표' 를 쓰면 늦은 주 사례가, 띠에 wkNextText(r) 조각을 되살리면(옛
@@ -235,7 +236,7 @@ def test_hero_band_line_follows_the_release_state():
     assert band[stale] == ['9/17 발표 기준', T]
     assert band[no_sgg] == ['9/10 발표', T]
     assert band[no_head] is None and band[no_grace] is None and band[mixed] is None
-    # 다음 발표·반영 대기·연휴 안내는 띠에 없고 주간 구역 머리줄(wkWhenText)에만 있다 — 파이썬 정본과 같은 문장
+    # 다음 발표·반영 대기·연휴 안내는 띠에 없다. 그 문장(wkWhenText)은 파이썬 정본과 같다
     for i, (b, when) in enumerate(got):
         assert not b or not any(x in ' '.join(b) for x in ('다음 발표', WR.HOLD, WR.WAIT, '배경 지도')), b
         W, ms = cases[i]
@@ -265,7 +266,7 @@ def test_late_week_lead_is_one_phrase_on_band_h2_and_weekly_page():
     for mon, day in ((10, 2), (9, 18)):
         js = (_band_js() + '\n_HOLIDAYS=new Set(%s);const W=%s;\n'
               'const r=weeklyRelease(W.rows[0].p,new Date(%d),W.grace);\n'
-              'const el={"wk-kicker":{textContent:""},"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
+              'const el={"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
               'globalThis.document={getElementById:id=>el[id]||null};\n'
               'applyWeeklyStatus(r,weeklyHead(W));\n'
               'process.stdout.write(JSON.stringify([r.stale,heroBandLine(W,r),el["wk-h2"].textContent]));'
