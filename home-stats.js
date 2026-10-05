@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v169';
+var HOME_STATS_BUILD='v170';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -774,7 +774,7 @@ function drawNationMap(k){
   const natP=(D.rows&&D.rows.length)?D.rows[D.rows.length-1].p:row.p;
   const gap=natP!==row.p;
   const SER=hasWo?'매매·전세·월세':'매매·전세';
-  const ref=k==='week'?WK_MAP_REF:1.0;   // 주간 만색 기준은 홈 지도 주간 모드(C3)·히어로 배경과 한 값
+  const ref=k==='week'?WK_MAP_REF:MO_MAP_REF;   // 만색 기준은 홈 지도 시세 모드(주간·월간)·히어로 배경과 한 값
   /* 그림은 홈 주간 구역과 같은 sggMapSvg(home-app.js). 칸을 누르면 그 지역 그래프(openTrendRegion). */
   const svg=sggMapSvg(hasWo?[vma,vje,vwo]:[vma,vje],{ref:ref,names:['매매','전세','월세'],href:c=>'#stats-market-'+k+'~'+c});
   const box=document.getElementById(T.map);
@@ -901,7 +901,7 @@ function trendTarget(W,code){
   /* 시군구 목록(sggOfSido — 값이 있는 곳만)에 없는 칸(구를 가진 시의 머리 칸 천안·청주 등, 값 없는 신설 구)은 그 시도로 */
   return {zone:zone,sgg:(code.length>2&&zone&&sggOfSido(W,zone).indexOf(code)>=0)?code:''};
 }
-function openTrendRegion(k,code){
+function openTrendRegion(k,code,view){
   if(!TREND[k])return;
   return (TREND_P||loadFullData()).then(()=>{
     const T=TREND[k], W=trendData(k); if(!W||!W.regions)return;
@@ -916,7 +916,7 @@ function openTrendRegion(k,code){
     TRSHOW[k]=12;
     const render=k==='week'?renderWeekSec:renderMonthSec;
     render();
-    gtSet(k,'g',true);
+    gtSet(k,view==='t'?'t':'g',true);   // 홈 지도 시세 모드의 '표' 단추는 표로 연다('~코드-t')
     if(t.sgg&&!SGG_HIST_READY)ensureSggHist().then(render).catch(()=>{});
     afterLayout(()=>{ const el=document.getElementById('sec-'+k); if(el)el.scrollIntoView(); });
   }).catch(()=>{});
