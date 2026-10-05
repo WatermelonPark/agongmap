@@ -464,7 +464,7 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     assert '<span class="agg-l1"><b>수도권</b><span class="sc-tier g2">부족</span></span>' in a.group(1)
     assert re.search(r'<i class="agg-n">349,029세대<span class="agg-dir"> 부족</span><span class="agg-go"[^>]*> →</span></i>',
                      a.group(1)), a.group(1)
-    assert '<i class="agg-p">%s</i>' % z['cpct'] in a.group(1) and z['cpct'] == '3년 필요량의 58%', a.group(1)
+    assert '<i class="agg-p">%s</i>' % z['cpct'] in a.group(1) and z['cpct'] == '부족률 +58%', a.group(1)
     assert toggles == [['true', False], ['false', True]], toggles
     assert '<button' not in old and '349,029세대 부족' in old
     how = _js_func(h, 'renderAggCards')   # 카드·ⓘ 식은 2026-10-04 에 지도 상자 밖(#agg-wrap)으로 나갔다

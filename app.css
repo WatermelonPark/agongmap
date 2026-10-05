@@ -1291,6 +1291,16 @@ table.adv thead th:first-child{text-align:center}
   .zlinks a:hover{background:var(--paper2)}
   .zlinks a b{font-weight:600}
   .zlinks a i .zk{white-space:nowrap}   /* '(3년 필요량의 139%)' 괄호 덩어리는 한 줄로(make_sido_pages.card_html, 2026-10-05) */
+  /* 부족률 막대(make_sido_pages.gauge_html, 2026-10-05) — 칸 폭 전체의 한 줄. 바탕(등급 구간 색)은 생성기가 등급 컷·등급 색으로 굽는다. */
+  .zlinks a .zg{position:relative;flex:0 0 100%;height:6px;margin:4px 0 2px}
+  .zlinks a .zg-m{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink)}
+  .zg-note{font-size:13px;line-height:1.55;color:var(--ink2);margin:6px 0 0;max-width:640px}
+  .zg-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:12px;color:var(--ink2)}
+  .zg-l{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+  .zg-l i{display:inline-block;width:12px;height:8px}
+  /* 막대가 있는 칸은 글을 칸 폭 전체로 왼쪽에 — 짧은 글만 오른쪽에 붙어 칸마다 자리가 달랐다. 괄호 덩어리는 다음 줄로. */
+  .zlinks a:has(.zg) i{flex:0 0 100%;margin-left:0}
+  .zlinks a:has(.zg) i .zk{display:block}
   .zlinks a i{font-style:normal;font-size:11px;color:var(--muted);
     margin-left:auto;font-variant-numeric:tabular-nums}
 
