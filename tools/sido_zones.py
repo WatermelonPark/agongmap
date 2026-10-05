@@ -680,6 +680,40 @@ def occ_level(shown_pct):
     return 0
 
 
+# ── 해마다 입주 신호등(2026-10-05 대표 요청 — '부족·균형 태그보다 동그라미 신호등 3개로 3년을 한눈에') ──────────────────────
+# 동그라미 하나가 한 해(yearly_supply 의 1·2·3년 차)이고 색은 위 입주물량 문턱(occ_level)으로 가른다(대표 결정 — 70%·130% 안).
+# 판정 등급 컷(부족률 50%)을 빌리지 않는다: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라 해마다의 입주와 다른 양이다.
+# 지역 허브·시도 리포트(make_sido_pages)와 홈 판정 카드(split_data 가 year_lights·lights_aria·light_legend 를 실어 줌)가
+# 이 한 곳을 읽는다 — 홈 스크립트에 문턱·이름을 다시 적지 않는다.
+LIGHT = {-1: ('lo', '부족'), 0: ('ok', '적정'), 1: ('hi', '여유')}
+
+
+def light_of(pct):
+    """표시 정수 퍼센트 → (색 키, 이름)."""
+    return LIGHT[occ_level(pct)]
+
+
+def light_rng():
+    """색 키 → 문턱 구간 글('70% 미만'·'70~130%'·'130% 초과')."""
+    return {'lo': '%d%% 미만' % OCC_LO_PCT, 'ok': '%d~%d%%' % (OCC_LO_PCT, OCC_HI_PCT), 'hi': '%d%% 초과' % OCC_HI_PCT}
+
+
+def light_legend():
+    """범례 항목 [(색 키, 구간, 이름)] — 낮은 쪽부터."""
+    rng = light_rng()
+    return [(k, rng[k], lab) for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1])]
+
+
+def lights_aria(yrs):
+    return '해마다 입주 신호등: ' + ', '.join('%d년 차 %s, 적정물량의 %d%%' % (y['n'], light_of(y['pct'])[1], y['pct'])
+                                         for y in yrs)
+
+
+def year_lights(stats, z, L, H=None):
+    """홈 카드용 압축형 [{'n': 1, 'p': 61, 'k': 'lo'}, …] — yearly_supply 와 같은 값."""
+    return [{'n': y['n'], 'p': y['pct'], 'k': light_of(y['pct'])[0]} for y in yearly_supply(stats, z, L, H)]
+
+
 # ── 가격 변동률의 기간 합(전수 리뷰 #15·#110) ─────────────────────────────────────────────────
 PRICE_FIELDS = ('ma', 'je', 'wo')
 PERIOD_MONTHS = {'q': 3, 'y': 12}

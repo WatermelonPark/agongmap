@@ -1213,16 +1213,14 @@ def outlook_aria(yrs):
 # 색은 그해 입주 추정 ÷ 적정물량을 **입주물량 문턱 정본**(sido_zones.occ_level — OCC_LO_PCT·OCC_HI_PCT, 홈 입주물량 표·/moveins/
 # 와 같은 70%·130%)으로 가른다. 판정 등급 컷(부족률 50%)을 빌리지 않는 까닭: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라
 # 해마다의 입주와 다른 양이다(대표 결정 — 2026-10-05, 70%·130% 안). 동그라미 안 숫자(1·2·3)는 색을 못 가르는 사람도 해를 읽게 한다.
-LIGHT = {-1: ('lo', '부족'), 0: ('ok', '적정'), 1: ('hi', '여유')}
+LIGHT = SZ.LIGHT           # 정본은 sido_zones(홈 판정 카드와 같은 값) — 여기서는 이름만 빌린다
+light_of = SZ.light_of
+lights_aria = SZ.lights_aria
 
 
-def light_of(pct):
-    return LIGHT[SZ.occ_level(pct)]
-
-
-def lights_aria(yrs):
-    return '해마다 입주 신호등: ' + ', '.join('%d년 차 %s, 적정물량의 %d%%' % (y['n'], light_of(y['pct'])[1], y['pct'])
-                                         for y in yrs)
+def light_ranges():
+    """'70% 미만 부족 · 70~130% 적정 · 130% 초과 여유' — 범례·막대 설명이 같은 글을 쓴다."""
+    return ' · '.join('%s %s' % (r, lab) for _, r, lab in SZ.light_legend())
 
 
 def lights_html(yrs, big=False):
@@ -1237,23 +1235,11 @@ def lights_html(yrs, big=False):
     return '<span class="zl%s" role="img" aria-label="%s">%s</span>' % (' zl-lg' if big else '', esc(lights_aria(yrs)), ''.join(dots))
 
 
-def light_ranges():
-    """'70% 미만 부족 · 70~130% 적정 · 130% 초과 여유' — 범례·막대 설명이 같은 글을 쓴다."""
-    rng = _light_rng()
-    return ' · '.join('%s %s' % (rng[k], lab) for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1]))
-
-
-def _light_rng():
-    return {'lo': '%d%% 미만' % SZ.OCC_LO_PCT, 'ok': '%d~%d%%' % (SZ.OCC_LO_PCT, SZ.OCC_HI_PCT),
-            'hi': '%d%% 초과' % SZ.OCC_HI_PCT}
-
-
 def lights_legend_html(n):
-    """신호등 범례 한 줄 — 문턱은 OCC_LO_PCT·OCC_HI_PCT, 이름은 LIGHT 에서 만든다(손 숫자 금지)."""
+    """신호등 범례 한 줄 — 문턱·이름은 sido_zones.light_legend(OCC_LO_PCT·OCC_HI_PCT·LIGHT)에서 만든다(손 숫자 금지)."""
     yrs = '·'.join(str(i) for i in range(1, n + 1))
-    rng = _light_rng()
-    spans = ''.join('<span class="zg-l"><span class="zl-d %s" aria-hidden="true"></span>%s %s</span>' % (k, rng[k], lab)
-                    for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1]))
+    spans = ''.join('<span class="zg-l"><span class="zl-d %s" aria-hidden="true"></span>%s %s</span>' % (k, r, lab)
+                    for k, r, lab in SZ.light_legend())
     return ('<p class="zl-legend"><span class="zl-cap">신호등 %s = 앞으로 %s년 차 입주가 적정물량의</span>%s</p>'
             % (yrs, yrs, spans))
 
