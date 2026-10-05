@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v169';
+const HOME_BUILD='v170';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -329,11 +329,11 @@ function applyHash(){
   if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
   /* '~코드'(시장동향만): 지도 칸·TOP 10 지역명에서 고른 지역의 그래프(openTrendRegion). 코드 없는 시장동향 주소는 그 함수가
      연 그래프를 지도로 되돌린다(뒤로 가기). */
-  const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?(?:~([a-c][0-9]{1,8}))?$/);
+  const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?(?:~([a-c][0-9]{1,8})(-t)?)?$/);
   if(sm){
     showView('stats',false);setStatsMode(sm[1],false);
     // 하위탭 미지정 해시는 기본탭으로 — 뒤로가기가 항상 같은 화면을 재현하도록
-    if(sm[1]==='market'){const t=sm[2]==='month'?'month':'week';setMarketTab(t,false);openTrendRegion(t,sm[3]||null);}
+    if(sm[1]==='market'){const t=sm[2]==='month'?'month':'week';setMarketTab(t,false);openTrendRegion(t,sm[3]||null,sm[4]?'t':'g');}
     else if(sm[1]==='adv')setAdvTab(sm[2]||'occ',false);
     return;
   }
@@ -1036,6 +1036,13 @@ var TB_REFNOTE={
    등급 키는 파이썬이 계산해 데이터에 굽고 여기선 이름만 붙인다. */
 var TB_GRADE={g4:'심각한 부족',g3:'매우 부족',g2:'부족',g1:'균형',g0:'공급 여유'};
 function tbView(v){
+  /* 시세 모드(주간·월간)의 그래프·표는 새로 그리지 않고 시세 탭의 그 화면을 연다(전국, 2026-10-04 대표 요청) */
+  if(v!=='map'&&MAP_MODE!=='supply'){
+    var k=MAP_MODE==='monthly'?'month':'week';
+    track('trend_pick',{period:k,region:'a0',from:'score_'+v});
+    location.hash='#stats-market-'+k+'~a0'+(v==='table'?'-t':'');
+    return;
+  }
   if(TB_VIEW===v) return;
   TB_VIEW=v;
   var sec=document.getElementById('sec-score');
@@ -1130,7 +1137,9 @@ function opaqueOnPaper(c){
   var a=+m[4], P=PAPER_RGB;
   return 'rgb('+[0,1,2].map(function(k){ return Math.round(P[k]+(+m[k+1]-P[k])*a); }).join(',')+')';
 }
-function wkFill(v){ return v==null?'var(--paper2)':opaqueOnPaper(mapColor(v,WK_MAP_REF)); }
+function wkFill(v,ref){ return v==null?'var(--paper2)':opaqueOnPaper(mapColor(v,ref||WK_MAP_REF)); }
+/* 월간 변동 지도 색의 만색 기준(±1.0%p) — 통계 탭 시군구 월간 지도(drawNationMap)와 한 값이다. */
+var MO_MAP_REF=1.0;
 /* '+0.13%' · '−0.03%' · '0.00%' — 값은 pv2(반올림 먼저, 부호는 표시값), 글리프만 하이픈 → 마이너스(주간 격자와 같다). */
 function wkPct(v){ return v==null?'자료 없음':pv2(v).replace('-','−')+'%'; }
 /* 주간 모드 재료 — 최신 주 시도 변동률과 발표 상태. r 은 weeklyRelease(…)(= weeklyReleaseNow()). 데이터가 없으면 null
@@ -1140,7 +1149,25 @@ function wkMapModel(W,r){
   if(!r||!row||!row.ma||!W.regions||!W.regions.length) return null;
   var v={};
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
-  return {v:v,when:wkWhenText(r),lead:wkPubLead(r),stale:!!r.stale};
+  return {v:v,when:wkWhenText(r),lead:wkPubLead(r),stale:!!r.stale,
+    k:'week',ref:WK_MAP_REF,unit:'전주 대비',adj:'주간',href:'/weekly/',to:'weekly_map_card'};
+}
+/* 월간 모드 재료(2026-10-04 대표 요청 — 홈에서 월간도 쉽게). 최신 달 시도 매매 변동률(ADV.monthly, 코어에 실린다).
+   색 만색 기준은 통계 탭 시군구 월간 지도와 같은 MO_MAP_REF. 데이터가 없으면 null(월간 버튼을 잠근다). */
+function moMapModel(W){
+  var row=W&&W.rows&&W.rows[W.rows.length-1];
+  if(!row||!row.ma||!W.regions||!W.regions.length||!/^\d{4}-\d{2}$/.test(row.p||'')) return null;
+  var v={};
+  W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
+  var y=+row.p.slice(0,4), m=+row.p.slice(5,7), lead=m+'월 기준';
+  return {v:v,when:y+'년 '+m+'월 기준 · 한국부동산원 월간',lead:lead,stale:false,
+    k:'month',ref:MO_MAP_REF,unit:'전월 대비',adj:'월간',href:'/monthly/',to:'monthly_map_card'};
+}
+/* 지금 모드의 시세 재료 — 공급 모드면 null. */
+function priceModel(mode){
+  if(mode==='weekly') return wkMapModel(ADV.weekly,weeklyReleaseNow());
+  if(mode==='monthly') return moMapModel(ADV.monthly);
+  return null;
 }
 /* 범례 한 덩어리 — M 이 없으면 공급, 있으면 주간. 끝말·가운데 칸을 모드마다 바꾸고, 주간은 뜻 한 줄(제목과 단위)을 단다.
    공급 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 … · 2026년 2분기 기준')은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리.
@@ -1150,32 +1177,33 @@ function mapKeyHtml(M){
   if(!M) return '<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
     +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d"></i><i class="mk-b">균형</i><i class="mk-u"></i></span>'
     +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span></div>';
-  var lo=wkFill(-WK_MAP_REF), lo0=wkFill(-0.01), hi0=wkFill(0.01), hi=wkFill(WK_MAP_REF);
+  var R=M.ref, lo=wkFill(-R,R), lo0=wkFill(-0.01,R), hi0=wkFill(0.01,R), hi=wkFill(R,R);
   return '<div class="tb-key map-key mk-wk"><span class="mk-r"><span class="tk"><i style="background:'+lo+'"></i>하락</span>'
     +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d" style="background:linear-gradient(90deg,'+lo+','+lo0+')"></i>'
-    +'<i class="mk-b" style="background:'+wkFill(0)+'">보합</i>'
+    +'<i class="mk-b" style="background:'+wkFill(0,R)+'">보합</i>'
     +'<i class="mk-u" style="background:linear-gradient(90deg,'+hi0+','+hi+')"></i></span>'
     +'<span class="tk"><i style="background:'+hi+'"></i>상승</span></span>'
-    +'<span class="tk-n">아파트 매매가격 전주 대비 변동률(%) · '+M.lead+'</span></div>';
+    +'<span class="tk-n">아파트 매매가격 '+M.unit+' 변동률(%) · '+M.lead+'</span></div>';
 }
 /* 지도 이름(aria-label) — 색의 뜻을 모드마다 말한다. */
 function mapAria(M){
-  return M?'시도별 아파트 매매가격 주간 변동 지도 — 붉을수록 상승, 푸를수록 하락, 회색은 보합 · '+M.lead
+  return M?'시도별 아파트 매매가격 '+M.adj+' 변동 지도 — 붉을수록 상승, 푸를수록 하락, 회색은 보합 · '+M.lead
     :'시도별 아파트 공급 부족 지도 — 붉을수록 부족, 푸를수록 여유, 회색은 균형';
 }
-/* 주간 카드 한 칸 — 판정 카드(aggCard)와 같은 틀: '전국 [상승]' / '+0.09% →' (넓은 화면은 셋째 줄 '매매 전주 대비'). */
-function wkAggCard(n,v){
+/* 시세 카드 한 칸 — 판정 카드(aggCard)와 같은 틀: '전국 [상승]' / '+0.09% →' (넓은 화면은 셋째 줄 '매매 전주 대비').
+   주간은 /weekly/, 월간은 /monthly/(이달의 통계)로 간다. */
+function wkAggCard(n,v,M){
   var s=pvSign(v), k=v==null?'':(s>0?'wk-u':s<0?'wk-d':'wk-0'), w=v==null?'자료 없음':(s>0?'상승':s<0?'하락':'보합');
-  return '<div class="agg-c"><a class="agg-a" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_map_card\'})">'
+  return '<div class="agg-c"><a class="agg-a" href="'+M.href+'" onclick="track(\'home_cta\',{to:\''+M.to+'\'})">'
     +'<span class="agg-l1"><b>'+n+'</b><span class="sc-tier '+k+'">'+w+'</span></span>'
     +'<span class="agg-l2"><i class="agg-n">'+wkPct(v)+'<span class="agg-go" aria-hidden="true"> →</span></i>'
-    +'<i class="agg-p">매매 전주 대비</i></span></a></div>';
+    +'<i class="agg-p">매매 '+M.unit+'</i></span></a></div>';
 }
 /* 모드 전환 — 버튼 상태(aria-pressed)를 맞추고 지도를 다시 그린다. 값 이름은 snake_case(supply·weekly), 측정은 map_mode. */
 function mapMode(m){
-  if(m!=='weekly') m='supply';
+  if(m!=='weekly'&&m!=='monthly') m='supply';
   if(MAP_MODE===m) return;
-  if(m==='weekly'&&!wkMapModel(ADV.weekly,weeklyReleaseNow())) return;
+  if(m!=='supply'&&!priceModel(m)) return;
   MAP_MODE=m;
   var seg=document.getElementById('map-mode');
   if(seg) [].forEach.call(seg.querySelectorAll('button'),function(b){
@@ -1185,8 +1213,45 @@ function mapMode(m){
   });
   var el=document.getElementById('map-wrap');
   if(el) el.dataset.done='';
+  /* 시세 모드의 그래프·표는 시세 탭이 맡는다(tbView) — 공급 그래프·표를 보던 중이면 지도로 돌린다 */
+  if(m!=='supply'&&TB_VIEW!=='map') tbView('map');
+  renderAggCards();
   renderSidoMap();
   track('map_mode',{mode:m});
+}
+/* 판정·시세 카드 셋(전국·수도권·지방)과 ⓘ 식·발표 줄 — 모드 버튼 아래, 지도/그래프/표 버튼 위(2026-10-04 대표 요청). 보기
+   (지도·그래프·표)와 무관하게 늘 보인다. 공급 모드는 판정 카드, 시세 모드는 같은 자리에 변동률 카드(→ /weekly/·/monthly/)
+   — 공급 카드를 남기면 '부족' 배지 아래 가격 색 지도가 붙어 두 뜻이 섞여 읽힌다. */
+function renderAggCards(){
+  var el=document.getElementById('agg-wrap');
+  if(!el||typeof ADV==='undefined'||!ADV.sido||!ADV.sido.zones) return;
+  var Z={}; ADV.sido.zones.forEach(function(z){ Z[z.z]=z; });
+  ['weekly','monthly'].forEach(function(m){
+    var b=document.querySelector('#map-mode [data-m="'+m+'"]');
+    if(b&&!priceModel(m)){ b.disabled=true; b.title=(m==='weekly'?'주간':'월간')+' 시세 데이터를 불러오지 못했습니다'; }
+  });
+  var M=priceModel(MAP_MODE);
+  var h='<div class="map-agg">', how='';
+  ['전국','수도권','지방'].forEach(function(n,i){
+    if(M){ h+=wkAggCard(n,M.v[n],M); return; }
+    var z=Z[n]; if(!z) return;
+    /* 카드 문구는 sido_zones 가 구워 싣는다(card_parts·zone_texts) — 여기서 다시 만들지 않는다
+       (이중 구현 금지). 부호 대신 '부족·여유'를 말로 써 배지와 이중 부정이 되지 않는다(2026-09-15). */
+    h+=aggCard(n,z,i);
+    if(z.ftxt) how+='<p class="agg-how" id="agg-how-'+i+'" hidden><b>'+n+'</b> '+(z.ctxt||'')
+      +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
+  });
+  h+='</div>'+how;
+  /* 시세 모드: 카드 아래 발표 줄 — 주간은 발표 상태 문장(wkWhenText: '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)', 늦은 주
+     '최근 반영: …'), 월간은 기준 달. */
+  if(M) h+='<p class="wk-when">'+M.when+'</p>';
+  el.innerHTML=h;
+}
+/* 시도 이름 → 시군구 지도의 시도 머리 칸 코드(NATION_TILE, 서울 a7·광주 b3 …). 시세 모드 지도에서 지역을 누르면 그 시도
+   시세 그래프(openTrendRegion — 광주·전남은 판정 단위 전남광주로 접힌다). */
+function sidoCode(n){
+  for(var i=0;i<NATION_TILE.t.length;i++){ var t=NATION_TILE.t[i]; if(t[4]&&t[0].length===2&&t[1]===n) return t[0]; }
+  return null;
 }
 function renderSidoMap(){
   var el=document.getElementById('map-wrap');
@@ -1207,30 +1272,14 @@ function renderSidoMap(){
     return;
   }
   var Z={}; ADV.sido.zones.forEach(function(z){ Z[z.z]=z; });
-  /* 주간 모드 재료(C3). 주간 데이터가 없으면 주간 버튼을 잠그고 공급으로 그린다. */
-  var M0=wkMapModel(ADV.weekly,weeklyReleaseNow()), M=(MAP_MODE==='weekly')?M0:null;
-  var wb=document.querySelector('#map-mode [data-m="weekly"]');
-  if(wb&&!M0){ wb.disabled=true; wb.title='주간 시세 데이터를 불러오지 못했습니다'; }
-  var h='<div class="map-agg">', how='';
-  ['전국','수도권','지방'].forEach(function(n,i){
-    /* 주간 모드는 같은 자리에 주간 카드(전국·수도권·지방 변동률 → /weekly/) — 판정 카드·ⓘ 식은 공급의 글이다. */
-    if(M){ h+=wkAggCard(n,M.v[n]); return; }
-    var z=Z[n]; if(!z) return;
-    /* 카드 문구는 sido_zones 가 구워 싣는다(card_parts·zone_texts) — 여기서 다시 만들지 않는다
-       (이중 구현 금지). 부호 대신 '부족·여유'를 말로 써 배지와 이중 부정이 되지 않는다(2026-09-15). */
-    h+=aggCard(n,z,i);
-    if(z.ftxt) how+='<p class="agg-how" id="agg-how-'+i+'" hidden><b>'+n+'</b> '+(z.ctxt||'')
-      +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
-  });
-  h+='</div>'+how;
-  /* 주간 모드: 카드 아래 발표 줄 — 발표 상태 문장(wkWhenText): '9/21 조사 · 9/24 발표 · 다음 발표
-     10/1(목)', 늦은 주 '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기', 연휴 주 '… · 연휴로 발표 일정이 바뀔 수 있습니다'.
-     공급 모드 카드 아래 분포 한 줄('시도 16곳: 부족 이상 10 · …')은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). */
-  if(M) h+='<p class="wk-when">'+M.when+'</p>';
+  /* 시세 모드(주간·월간) 재료. 데이터가 없으면 그 버튼은 renderAggCards 가 잠그고 공급으로 그린다. */
+  var M=priceModel(MAP_MODE);
+  var h='';
   /* 행동 안내는 범례 속 11.5px 회색 각주였다('지역을 누르면 상세 리포트') — 첫 화면의 유일한 행동 안내인데
      읽히지 않았다(홈 마케팅 검수 A6·HERO-5①). 본문색 13.5px 한 줄로 키워 지도 바로 위에 둔다. 범례
      오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
-  h+='<p class="map-act">지도에서 지역을 누르면 공급 리포트가 열립니다</p>';
+  h+=M?'<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p>'
+    :'<p class="map-act">지도에서 지역을 누르면 공급 리포트가 열립니다</p>';
   /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
      글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 표적으로 넓힌다(아래 TAP_ 설명). */
   var SMALL={'서울':1,'인천':1,'대전':1,'광주':1,'대구':1,'부산':1,'울산':1,'세종':1};
@@ -1289,12 +1338,15 @@ function renderSidoMap(){
   SIDO_GEO.p.forEach(function(a){
     var key=zoneOf(a.n);
     var z=Z[key]||{};
-    /* 주간 모드(M)는 색·이름표만 바뀐다 — 링크(시도 공급 리포트)·탭 표적·라벨은 모드와 무관하다(C3). */
-    var lab=M?key+' — 이번 주 매매 '+wkPct(M.v[key])+' · '+M.lead+' · 누르면 공급 리포트'
+    /* 시세 모드(M)는 색·이름표·링크가 바뀐다 — 지역을 누르면 그 시도의 주간·월간 그래프(시세 탭, 2026-10-04 대표 요청).
+       공급 모드는 시도 공급 리포트. 탭 표적·라벨은 모드와 무관하다. */
+    var code=M?sidoCode(a.n):null;
+    var lab=M?key+' — '+M.lead+' 매매 '+wkPct(M.v[key])+' · 누르면 '+M.adj+' 그래프'
       :key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
     var small=SMALL[a.n]||key!==a.n;
-    h+='<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">'
-      +'<path d="'+a.d+'" fill="'+(M?wkFill(M.v[key]):supplyFill(z))+'"></path>'
+    h+=(code?'<a href="#stats-market-'+M.k+'~'+code+'" data-code="'+code+'" aria-label="'+lab+'">'
+      :'<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">')
+      +'<path d="'+a.d+'" fill="'+(M?wkFill(M.v[key],M.ref):supplyFill(z))+'"></path>'
       +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
       +'<title>'+lab+'</title></a>';
@@ -1302,6 +1354,8 @@ function renderSidoMap(){
   h+='</svg></div>';
   el.innerHTML=h;
   el.dataset.done='1';
+  /* 시세 모드의 지역 → 그 시도 그래프(같은 주소를 다시 누를 때 포함). 상자는 그대로 두고 안만 갈아 끼우므로 한 번만 붙인다. */
+  if(!el.dataset.trLink){ el.dataset.trLink='1'; el.addEventListener('click',function(e){ onTrendLink(e,'score_map'); }); }
 }
 /* 그래프 = 시간축. 분기 공급 막대 + 적정 기준선. 지도가 잃는 시간축을 이 모드가
    담당한다. 데이터는 표와 같은 tbBuild/tbAgg — 세 모드가 한 원장을 쓴다. */
@@ -1688,7 +1742,7 @@ function lsOk(){try{localStorage.setItem('agongmap-ls','1');localStorage.removeI
       올린다(HOME_BUILD 는 모든 배포에서 오르므로 쓰지 않는다). 동시 A/B 는 하지 않는다 — 배포 전후 비교의 구분값이다.
       이 줄은 부팅(showView 의 첫 page_view)보다 먼저 돈다 — 큐(dataLayer)에서 'set' 이 이벤트 앞에 있어야 속성이 붙는다.
       GA 로더는 늦게 붙어도(C8) 큐를 순서대로 보낸다. */
-const HOME_VARIANT='home4';   // home4: 주간 구역 시도 칸 → 시군구 지도(2026-10-02)
+const HOME_VARIANT='home5';   // home5: 지도 모드 셋·월간 시세 추가(2026-10-04)
 try{if(typeof gtag==='function')gtag('set','user_properties',{home_variant:HOME_VARIANT});}catch(e){}
 /* ② 코호트 재방문 신호 — 기기에 '방문한 날 수(n)·첫 방문일(f)·마지막 방문일(l)'만 센다(KST 날짜 수, 개인 식별 정보 없음, 밖으로
       나가는 것은 GA 이벤트 매개변수뿐). 그날 첫 홈 부팅에 home_visit 을 한 번 보낸다: visit_n(방문한 날 수), gap_days(직전 방문과의
@@ -1902,6 +1956,7 @@ function boot(){
      숨은 표를 먼저 구우면 그 비용(월 모드 실측 200ms+)이 기본 화면 페인트를 막고,
      숨은 상태의 tbAnchor 재시도 타이머 6발이 전부 헛돈다(2026-08-10 리뷰).
      tbView('table')이 처음 열 때 굽는다 — 지도 폴백(tbView('table'))도 같은 경로. */
+renderAggCards();   // 판정 카드 셋 — 모드 버튼 아래·지도/그래프/표 버튼 위(보기와 무관하게 늘 보인다)
 renderSidoMap();    // 기본 모드 — 보이는 것부터
   /* 대결 링크(?c=&s=, 퀴즈 랜딩이 넘겨준다)는 퀴즈 화면을 먼저 띄우고 해석·시작은 home-quiz.js 의 bootChallenge 가
      한다(B11 — 점수 상한 QUIZ_LEN 이 그 파일에 있다). 모양만 보는 chalInURL 은 랜딩의 넘김 조건과 같다. */

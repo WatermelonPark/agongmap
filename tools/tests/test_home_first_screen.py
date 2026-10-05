@@ -474,7 +474,7 @@ def test_supply_map_colors_balance_as_neutral():
     assert rgb[0][0] > rgb[0][2] and rgb[2][0] > rgb[2][2], '부족 쪽이 붉지 않다: %s' % got[5:]
     assert rgb[1][2] > rgb[1][0], '여유 쪽이 푸르지 않다: %s' % got[5:]
     # 공급 모드(M 없음)의 도형 채움은 supplyFill 이다 — 주간 모드(C3)의 wkFill 과 갈래로 나뉜다(test_home_map_mode 가 돌려 본다).
-    assert "fill=\"'+(M?wkFill(M.v[key]):supplyFill(z))+'\"" in _js_func(h, 'renderSidoMap'), '지도 도형이 균형 중립색 규칙을 쓰지 않는다'
+    assert "fill=\"'+(M?wkFill(M.v[key],M.ref):supplyFill(z))+'\"" in _js_func(h, 'renderSidoMap'), '지도 도형이 균형 중립색 규칙을 쓰지 않는다'
 
     css = _css()
     root = _rule(css, ':root')
@@ -514,14 +514,15 @@ def test_distribution_and_legend_lines_are_gone_with_their_data():
     sido = {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'H': SZ.LEAD_Q, 'zones': zones,
             'dist': '시도 16곳: 부족 이상 10', 'dist_g0': ['인천'], 'ktxt': '지난 4년 덜 지은 몫까지'}   # 옛 data.js 모양
     fns = '\n'.join(_js_func(h, n) for n in ('tintA', 'mapFill', 'supplyFill', 'aggCard', 'mapKeyHtml', 'mapAria', 'tbNum', 'tbSigned',
-                                              'renderSidoMap'))
+                                              'renderAggCards', 'renderSidoMap'))
     consts = '\n'.join(re.search(r'^var %s=.*$' % n, h, re.M).group(0)
                         for n in ('TB_MIN', 'TB_BAL', 'TB_UP', 'TB_GRADE', 'MAP_MODE'))
     js = (geo + '\n' + consts + '\n' + fns + '\nvar ADV={sido:%s,weekly:null};'
-          'function wkMapModel(){return null;} function weeklyReleaseNow(){return null;}\n'
-          'var EL={dataset:{},innerHTML:""};var document={getElementById:function(id){return id==="map-wrap"?EL:null},'
+          'function priceModel(){return null;} function weeklyReleaseNow(){return null;}\n'
+          'var EL={dataset:{},innerHTML:"",addEventListener:function(){}}, AG={innerHTML:""};'
+          'var document={getElementById:function(id){return id==="map-wrap"?EL:(id==="agg-wrap"?AG:null)},'
           'querySelector:function(){return null}};\n'
-          'renderSidoMap();process.stdout.write(JSON.stringify([EL.innerHTML,mapKeyHtml(null)]));'
+          'renderAggCards();renderSidoMap();process.stdout.write(JSON.stringify([AG.innerHTML+EL.innerHTML,mapKeyHtml(null)]));'
           % json.dumps(sido, ensure_ascii=False))
     html, key = _node(js)
     top = _plain(html.split('<svg')[0])
@@ -566,5 +567,5 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     assert '<i class="agg-p">3년 필요량의 58%만큼</i>' in a.group(1)
     assert toggles == [['true', False], ['false', True]], toggles
     assert '<button' not in old and '349,029세대 부족' in old
-    how = _js_func(h, 'renderSidoMap')
+    how = _js_func(h, 'renderAggCards')   # 카드·ⓘ 식은 2026-10-04 에 지도 상자 밖(#agg-wrap)으로 나갔다
     assert "'<p class=\"agg-how\" id=\"agg-how-'+i+'\" hidden>" in how and 'z.ftxt' in how
