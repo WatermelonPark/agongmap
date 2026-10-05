@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v175';
+var HOME_STATS_BUILD='v176';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -568,7 +568,7 @@ function setStatsMode(m,push){
      탭 전환 지표가 부푼다(전수리뷰 #52). setAdvTab·setMarketTab 도 같다. */
   if(push!==false){ track('stats_mode',{mode:m}); statsNav(statsHashOf(m)); }
 }
-function advReady(){ return !!(ADV.permits&&ADV.occupancy); }
+function advReady(){ return typeof ADV!=='undefined'&&!!(ADV.permits&&ADV.occupancy); }   // 코어 데이터(data-core.js)를 못 받아 ADV 가 없을 때도 던지지 않게(A5)
 function curAdvTab(){ return ['occ','permit','bubble'].find(k=>{const b=document.getElementById('atab-'+k);return b&&b.classList.contains('on');})||'occ'; }
 function advFmt(v){ return v==null ? '·' : Number(v).toLocaleString('ko-KR'); }
 /* 입주물량 미래 분기는 소수 한 자리로 실려 온다(분기마다 반올림하면 소비자가
@@ -893,7 +893,7 @@ function trendPick(k){
    시도, 시군구 칸은 그 시군구, 전국 칸은 전국. 코드가 없으면(뒤로 가기로 '~코드' 없는 주소에 왔을 때) 이 함수가 연 그래프만
    지도로 되돌린다. 사람이 지역을 바꾸거나 '지도'를 누르면 주소의 '~코드'를 걷는다(trOpenDrop — 주소와 화면이 다른 말을
    하지 않게). */
-const TR_OPEN={week:null,month:null};   // 주기별로 이 함수가 연 그래프의 코드(주간·월간을 따로 연다)
+/* TR_OPEN(주기별로 이 함수가 연 그래프의 코드)은 home-app.js 에 있다 — 통계 해시(statsHashOf)가 '~코드'를 싣는다(전수리뷰 A3). */
 function trendTarget(W,code){
   const s=sidoOf(code);
   if(!s)return {zone:'',sgg:''};   // 전국(a0)·모르는 코드 → 전체
@@ -1185,7 +1185,7 @@ function setMarketTab(t,push){
   const ch=window.Chart&&Chart.getChart&&Chart.getChart(t+'Chart');
   if(ch)ch.resize();
   syncSwipe(t);
-  if(push!==false){ track('market_tab',{tab:t}); statsNav('#stats-market-'+t,!changed); }
+  if(push!==false){ track('market_tab',{tab:t}); statsNav(statsHashOf('market'),!changed); }   // 연 지역('~코드')까지(A3)
 }
 
 /* ============ 시장 도구: 버블밴드 ============ */

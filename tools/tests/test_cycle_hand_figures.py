@@ -258,6 +258,58 @@ def test_demolition_figures_come_from_the_chart_data():
     assert 'reach40>=SUPER_FROM' in s
 
 
+def _demol_stats(apt, allh, done, region='서울'):
+    """연간 아파트멸실·주택멸실({해: 호})과 해별 준공 합({해: 호} — 열두 달에 고르게 나눔)으로 만든 STATS 조각."""
+    ys = sorted(apt)
+    mdates = ['%d.%02d' % (y, m) for y in sorted(done) for m in range(1, 13)]
+    mvals = [done[int(d[:4])] / 12.0 for d in mdates]
+    return {'아파트멸실': {'dates': [str(y) for y in ys], 'series': {region: [apt[y] for y in ys]}},
+            '주택멸실': {'dates': [str(y) for y in ys], 'series': {region: [allh[y] for y in ys]}},
+            '준공': {'dates': mdates, 'series': {region: mvals}}}
+
+
+# 2026-10 data.js 의 서울 값(아파트멸실·주택멸실 연간, 준공 해별 합) — 옛 손 문장 '35만 호 중 26.6만 호(76%)'의 재료
+_SEOUL_APT = {2014: 3837, 2015: 1791, 2016: 10573, 2017: 14738, 2018: 7306, 2019: 12481, 2020: 9329, 2021: 7488,
+              2022: 1210, 2023: 4544, 2024: 2300}
+_SEOUL_ALL = {2014: 21955, 2015: 25271, 2016: 42579, 2017: 47534, 2018: 33459, 2019: 32370, 2020: 30012,
+              2021: 33489, 2022: 17168, 2023: 16337, 2024: 13322}
+_SEOUL_DONE = {2014: 43996, 2015: 22694, 2016: 35388, 2017: 29201, 2018: 38853, 2019: 45860, 2020: 54355,
+               2021: 43729, 2022: 31836, 2023: 38028, 2024: 32988, 2025: 49973}
+
+
+def test_seoul_demolition_compares_apartments_with_apartments():
+    """참고 ④ '왜 이것이 사슬과 겹치면 위험한가'의 서울 멸실 비율은 아파트 멸실 ÷ 아파트 준공이고, 주택 전체 멸실은 따로
+    이름을 단 보조 값이다(전수리뷰 D3, 대표 결정 2026-10-05). 옛 손 문장은 아파트 준공 35만 호를 주택 전체 멸실 26.6만 호와
+    견줘 '76% 상쇄'라 했고, 아파트로는 어느 해도 멸실이 준공을 넘지 않는데 '2015~17년 재고 순감소'라 했다.
+    본문 칸은 이 함수의 값(D.prose)이고, 손으로 적은 옛 수·순감소 주장은 남지 않는다.
+
+    변이(각각 실제로 확인): demol_prose 의 비율 분자를 주택멸실(h)로 바꾸면 dm_apt_pct 가 76 이 되어, 창 검사에서 준공
+          열두 달 조건(months.get(y) == 12)을 빼면 열한 달 픽스처의 dm_span 이, 본문 순증 칸을 손 숫자와 옛 '재고가
+          순감소' 문장으로 되돌리면 칸·손 문장 단정이 빨개진다.
+    픽스처: 2026-10 data.js 의 서울 실제 값(위 상수 — 아파트 멸실 계열은 2024 에서 끝나고 준공은 2025 까지 다 찼다), 그리고
+          창의 한 해(2019) 준공이 열한 달뿐인 모양(새 해 멸실이 준공보다 먼저 온 회차) — 창을 한 해 당긴다.
+    """
+    got = RF.demol_prose(_demol_stats(_SEOUL_APT, _SEOUL_ALL, _SEOUL_DONE))
+    assert got == {'dm_span': '2016~2024', 'dm_done': '35', 'dm_apt': '7.0', 'dm_apt_pct': '20',
+                   'dm_net_pct': '80', 'dm_all': '26.6'}, got
+    st = _demol_stats(_SEOUL_APT, _SEOUL_ALL, _SEOUL_DONE)
+    j = st['준공']['dates'].index('2024.12')
+    st['준공']['series']['서울'][j] = None
+    assert RF.demol_prose(st)['dm_span'] == '2015~2023'
+    # 페이지: 칸이 모두 본문에 있고 D.prose 와 같다(게이트는 생성기 뒤에 돈다), 옛 손 수·순감소 주장은 없다
+    D, s = _page()
+    ref4 = _para(s, 'id="ref4"')
+    for k in RF.DM_KEYS:
+        assert '<span data-d="%s">' % k in ref4, '참고 ④에 %s 칸이 없다' % k
+    bare = re.sub(r'<span data-d="[a-z0-9_]+">[^<]*</span>', '', ref4)
+    for old in ('26.6만 호(76%)', '35만 호 중', '순감소'):
+        assert old not in bare, '멸실 절에 옛 손 문장이 남았다: %s' % old
+    assert '주택 전체' in bare and '단독·다세대' in bare, '주택 전체 멸실을 보조 지표로 밝히는 말이 없다'
+    # 사이클 재산정(rebuild_cycle_analysis.splice)은 매일 배치가 data.js 에서 채우는 칸(jr_·dm_)을 지우지 않는다 — 지우면
+    # 재산정 직후 본문 칸 채우기가 '값이 D.prose 에 없다'로 멈춘다. (변이: DAILY_PROSE_PREFIX 에서 'dm_' 를 빼면 빨개진다.)
+    assert all(k.startswith(RC.DAILY_PROSE_PREFIX) and k.startswith(RC.BATCH_PROSE_PREFIX) for k in RF.DM_KEYS + RF.JR_KEYS)
+
+
 # ---------------------------------------------------------------- 캡션 색 (#63)
 
 # 캡션이 부르는 색 이름 → 그 이름으로 부를 수 있는 hex. 같은 이름이 서로 먼 색을 가리키지 않게 좁게 둔다.

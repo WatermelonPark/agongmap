@@ -120,3 +120,26 @@ def test_jeonse_table_compares_with_twelve_months_ago():
     ch = {r: round(ser[r][-1] - ser[r][-13], 1) for r in I.SIDO17}
     top = max(I.SIDO17, key=lambda r: ch[r])
     assert '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>' % (top, ch[top]) in html
+
+
+def test_jeonse_page_names_no_riser_when_nothing_rose():
+    """모든 시도의 1년 변화가 0 이하인 해에는 '1년 새 가장 크게 오른 곳'을 말하지 않는다(전수리뷰 B2 — 예전엔 '-0.3%p'
+    짜리 지역을 '가장 크게 오른 곳'이라 적었다). 하나라도 오르면 그곳을 적는다.
+
+    변이(실제로 확인): build_jeonse 의 `or up_most[2] <= 0` 을 지우면 첫 단정이 빨개진다.
+    픽스처: _jeonse_sts 를 1년 전보다 모든 지역이 0.3~2.0%p 내린 계열로 바꾼 것(전세가율이 전국적으로 내린 해), 그리고
+          그 가운데 한 시도(경북)만 오르게 한 것.
+    """
+    sts = _jeonse_sts()
+    ser = sts['전세가율']['series']
+    for i, r in enumerate(sorted(ser)):
+        d = 0.3 + 0.1 * i
+        n = len(ser[r])
+        ser[r] = [round(ser[r][-1] + d * (n - 1 - k) / 12.0, 3) for k in range(n)]
+    assert all(round(ser[r][-1] - ser[r][-13], 1) < 0 for r in I.SIDO17), '픽스처가 모두 내린 해가 아니다'
+    html, _ = I.build_jeonse(sts)
+    assert '가장 크게 오른 곳' not in html
+    n = len(ser['경북'])
+    ser['경북'] = [round(ser['경북'][-1] - 0.5 * (n - 1 - k) / 12.0, 3) for k in range(n)]
+    html, _ = I.build_jeonse(sts)
+    assert '1년 새 가장 크게 오른 곳은 <strong>경북(+0.5%p)</strong>' in html

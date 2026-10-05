@@ -48,3 +48,24 @@ def test_card_top3_is_the_weekly_page_top3():
     val = dict(zip(regs, row['ma']))
     want = MW.top3([(z, val[z]) for z in MW.SIDO if val.get(z) is not None])
     assert WS.summary_top3(regs, row) == want
+
+
+def test_monthly_card_picks_by_raw_values_like_the_weekly_card():
+    """월간 공유 카드(make_monthly_share)의 '가장 많이 오른·내린 곳'도 같은 정본(MW.top3)으로 뽑는다(전수리뷰 B4).
+
+    변이(실제로 확인): pick_top 을 옛 식(표시값 pv2r 정렬·동률은 ORDER, 하락은 그 역순)으로 되돌리면 상승에 울산(원값 0.0572)이,
+          하락에 제주(원값 -0.0572)가 올라 빨개진다.
+    픽스처: 위 주간 픽스처(VALS)와 같은 모양의 한 달 — 울산·전북, 대구·제주가 각각 ±0.06 으로 반올림되는 동률.
+    """
+    import make_monthly_share as MS
+    regs, row = _week()
+    val = dict(zip(regs, row['ma']))
+    up, dn = MS.pick_top(val)
+    assert [r for r, _ in up] == ['경기'] and [r for r, _ in dn] == ['부산'], (up, dn)
+    del val['경기'], val['부산']
+    up, dn = MS.pick_top(val)
+    assert [r for r, _ in up] == ['서울'], up
+    del val['서울']
+    up, dn = MS.pick_top(val)
+    assert [r for r, _ in up] == ['전북'], '반올림 동률에서 원값으로 덜 오른 곳을 실었다: %s' % up
+    assert [r for r, _ in dn] == ['대구'], '반올림 동률에서 원값으로 덜 내린 곳을 실었다: %s' % dn

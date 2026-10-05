@@ -217,6 +217,53 @@ def jratio_prose(lvl, prd):
             'jr_prd': str(prd)}
 
 
+# 참고 ④(멸실) 절 '왜 이것이 사슬과 겹치면 위험한가'의 서울 멸실 칸(전수리뷰 D3, 대표 결정 2026-10-05). 손으로 적은
+# '2016~24년 준공 35만 호 중 멸실이 26.6만 호(76%)를 상쇄 … 2015~17년은 재고가 순감소'는 아파트 준공(STATS.준공)과
+# **주택 전체** 멸실(STATS.주택멸실 — 단독·다세대 포함)을 견준 값이었다. 아파트끼리(STATS.아파트멸실 ÷ STATS.준공) 견주면
+# 20% 안팎이고, 아파트는 어느 해도 멸실이 준공을 넘지 않았다. 그래서 비율은 아파트끼리로 쓰고, 주택 전체 멸실은 따로
+# 이름을 달아 보조 지표로 적는다. 블로그 이론편(theory_link3._se_demol — 아파트 멸실 ÷ 아파트 인허가)도 같은 아파트
+# 멸실 계열을 분자로 쓴다. 창은 멸실 계열의 마지막 해에서 DEMOL_YEARS 해(옛 문장의 2016~24 와 같은 길이)이고,
+# 그 창에 준공이 열두 달 다 찬 해만 있어야 한다 — 모자라면 한 해씩 앞으로 당긴다(새 해 멸실이 준공보다 먼저 와도
+# 배치를 멈추지 않는다).
+DEMOL_YEARS = 9
+DEMOL_REGION = '서울'
+DM_KEYS = ('dm_span', 'dm_done', 'dm_apt', 'dm_apt_pct', 'dm_net_pct', 'dm_all')
+
+
+def _man1(v):
+    """호 → 만 호 소수 첫째 자리 글자(half-up). 69,969 → '7.0'."""
+    return '%.1f' % (SZ.half_up(v / 1000.0) / 10.0)
+
+
+def demol_prose(S, region=DEMOL_REGION, years=DEMOL_YEARS):
+    """서울 아파트 준공 대비 아파트 멸실(비율)과 주택 전체 멸실(보조) 칸. 셀 수 없으면 RuntimeError."""
+    am, hm, jg = S.get('아파트멸실'), S.get('주택멸실'), S.get('준공')
+    if not (am and hm and jg):
+        raise RuntimeError('멸실 칸의 재료(아파트멸실·주택멸실·준공)가 없다')
+
+    def yearly(D):
+        return {int(d[:4]): v for d, v in zip(D['dates'], D['series'].get(region) or []) if v is not None}
+    apt, allh = yearly(am), yearly(hm)
+    done, months = {}, {}
+    for d, v in zip(jg['dates'], jg['series'].get(region) or []):
+        p = ym(d)
+        if p and v is not None:
+            done[p[0]] = done.get(p[0], 0) + v
+            months[p[0]] = months.get(p[0], 0) + 1
+    if not apt or not allh:
+        raise RuntimeError('%s 멸실 계열이 비었다' % region)
+    y1 = min(max(apt), max(allh))
+    while y1 - years + 1 >= min(apt):
+        ys = range(y1 - years + 1, y1 + 1)
+        if all(y in apt and y in allh and months.get(y) == 12 for y in ys):
+            a, h, c = (sum(D[y] for y in ys) for D in (apt, allh, done))
+            pct = SZ.half_up(100.0 * a / c)
+            return {'dm_span': '%d~%d' % (ys[0], ys[-1]), 'dm_done': str(RC._man(c)), 'dm_apt': _man1(a),
+                    'dm_apt_pct': str(pct), 'dm_net_pct': str(100 - pct), 'dm_all': _man1(h)}
+        y1 -= 1
+    raise RuntimeError('%s 멸실·준공이 %d년 내내 함께 찬 창이 없다' % (region, years))
+
+
 def fill_spans(page, values):
     """본문의 <span data-d="키">를 values로 채운다. 칸이 하나도 없으면 멈춘다."""
     for k, v in values.items():
@@ -275,6 +322,7 @@ def main():
     # 같은 페이지 차트 데이터에서 바로 나오는 칸(종합 절 상·하위 지역, 멸실 절 수·연도, 자료 기간 — 전수 리뷰
     # #62·#66·#69). 손으로 적어 두면 차트와 문장이 갈렸다.
     jr.update(RC.page_prose(cur))
+    jr.update(demol_prose(S))   # 참고 ④ 서울 멸실 칸 — data.js 의 아파트 준공·멸실에서(전수리뷰 D3)
     prose.update(jr)
     page = splice(page, 'prose', prose)
     page = fill_spans(page, jr)

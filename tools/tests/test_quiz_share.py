@@ -39,6 +39,7 @@ function scrollBehavior(){return 'auto';}
 function loadKakao(){return Promise.resolve();}
 function setTimeout(){}
 %(blv)s
+%(chal)s
 %(quiz)s
 ;(function(){ %(body)s })();
 process.stdout.write(JSON.stringify(OUT));
@@ -52,6 +53,17 @@ def _blv(src):
     return src[a:b]
 
 
+def _chal(src):
+    """home-app.js 의 대결 쿼리 함수(chalInURL·chalSearch) — startQuiz 가 친구와 다른 시험지를 뽑으면 주소에서 대결
+    쿼리를 걷는다(전수리뷰 A4)."""
+    out = []
+    for name in ('chalInURL', 'chalSearch'):
+        a = src.find('function %s(' % name)
+        assert a >= 0, 'home-app.js 에서 %s 를 찾지 못했다' % name
+        out.append(src[a:src.index('\n}', a) + 2] if name == 'chalSearch' else src[a:src.index('\n', a)])
+    return '\n'.join(out)
+
+
 def _run(body, quiz_len=None):
     if not shutil.which('node'):
         pytest.skip('node 없음')
@@ -60,7 +72,8 @@ def _run(body, quiz_len=None):
     if quiz_len is not None:
         assert 'const QUIZ_LEN=10;' in quiz
         quiz = quiz.replace('const QUIZ_LEN=10;', 'const QUIZ_LEN=%d;' % quiz_len)
-    js = HARNESS % {'blv': _blv(files['home-app.js']), 'quiz': 'var OUT;\n' + quiz, 'body': body}
+    js = HARNESS % {'blv': _blv(files['home-app.js']), 'chal': _chal(files['home-app.js']), 'quiz': 'var OUT;\n' + quiz,
+                    'body': body}
     fd, path = tempfile.mkstemp(suffix='.js')
     with os.fdopen(fd, 'w', encoding='utf-8') as f:
         f.write(js)
