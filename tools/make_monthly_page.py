@@ -398,7 +398,7 @@ def build(adv, sts):
         raw = p
         lab = month_label(raw)
         basis_list.append(raw)
-        out.append(sec('permits', 2, '인허가', lab, esc(pm.get('source') or '국토교통부'),
+        out.append(sec('permits', 2, '인허가', lab, pm.get('source') or '국토교통부',   # sec 이 한 번 이스케이프한다(B6)
                        table(['지역', '이 달', '최근 12개월 합'], cells,
                              '허가받은 단계의 물량(호). ' + SZ.PERMIT_NATURE + '습니다. '
                              '월별 편차가 커서 12개월 합을 함께 봅니다.')))
@@ -455,7 +455,9 @@ def build(adv, sts):
         raw = p
         lab = month_label(raw)
         basis_list.append(raw)
-        out.append(sec('unsold', 4, '미분양', lab, esc(un.get('source') or '국토교통부'),
+        # 출처 기관은 시도 리포트와 같은 정본(make_sido_pages.UN_SOURCE, 전수 리뷰 #21)이다 — 수집 계열의 source 칸('한국부동산원
+        # R-ONE …')은 배포 창구라 쓰지 않는다(전수리뷰 B5: 같은 계열을 /zone/ 은 국토교통부, /monthly/ 는 한국부동산원이라 했다).
+        out.append(sec('unsold', 4, '미분양', lab, '%s 미분양주택현황' % SP.UN_SOURCE,
                        table(['지역', '미분양(호)', '전월 대비'], cells,
                              '다 짓고도 팔리지 않아 남은 집. 이미 지어진 재고라 '
                              '공급 순위 계산에는 넣지 않고 참고로만 봅니다.')))
@@ -481,7 +483,7 @@ def build(adv, sts):
         raw = p
         lab = month_label(raw)
         basis_list.append(raw)
-        out.append(sec('jeonse', 5, '전세가율', lab, esc(jr.get('source') or '한국부동산원'),
+        out.append(sec('jeonse', 5, '전세가율', lab, jr.get('source') or '한국부동산원',
                        table(['지역', '전세가율(%)', '1년 전 대비(%p)'], cells,
                              '매매가 대비 전세가 비율. <a href="/jeonse-ratio/">전세가율 자세히 보기</a>')))
 

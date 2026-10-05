@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v175';
+const HOME_BUILD='v176';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -94,6 +94,9 @@ const PARTS={
 function partURL(n){ return PARTS[n].src+'?v='+HOME_BUILD; }
 const PART_P={};
 let PART_WAIT=0;   // 받고 있는 분할 파일 수 — loadData 가 그 사이 '불러오는 중'을 걷지 않게
+/* 통계 화면 파일(home-stats.js)을 못 받았는가. 그 안내('통계 화면을 불러오지 못했습니다')를 나란히 받던 그래프 데이터의
+   성공이 걷으면 통계 화면이 안내 없이 빈 채로 남았다(전수리뷰 A1). 다시 누르면(partBusy 'wait') 푼다. */
+let PART_FAIL=false;
 function loadPart(n){
   if(!PART_P[n]){
     PART_WAIT++;
@@ -122,9 +125,9 @@ function partReady(n){ return n==='stats'?Promise.all([loadPart(n),loadFullData(
 function partBusy(n,fn,state){
   if(n==='stats'){
     const box=document.getElementById('stats-loading'); if(!box)return;
-    if(state==='wait'){box.textContent='통계 화면을 불러오는 중…';box.style.display='';}
+    if(state==='wait'){PART_FAIL=false;box.textContent='통계 화면을 불러오는 중…';box.style.display='';}
     else if(state==='done'){box.style.display='none';}
-    else{box.textContent='통계 화면을 불러오지 못했습니다. 연결을 확인하고 다시 눌러 주세요.';box.style.display='';}
+    else{PART_FAIL=true;box.textContent='통계 화면을 불러오지 못했습니다. 연결을 확인하고 다시 눌러 주세요.';box.style.display='';}
     return;
   }
   if(fn!=='startQuiz'&&fn!=='bootChallenge')return;
@@ -191,17 +194,25 @@ function loadData(url){
      둘로 쪼갠 이유는 진입 화면(주간·월간 그래프)이 rest 194KB를 기다리지
      않게 하기 위해서다 — 세그먼트 UI(initStats)만 rest 도착을 기다린다. */
   if(_loaded[url])return _loaded[url];
-  const box=document.getElementById('stats-loading');
+  /* 화면 위 안내 칸(#stats-loading)은 통계 화면을 막는 그래프 데이터(data-trend.json)만 쓴다(전수리뷰 A2). 뒤에서 받는
+     기본통계(data-rest)·규모별(data-size)까지 이 칸을 켜고 끄면 그래프가 다 그려진 뒤 칸이 늦게 열고 닫혀 화면이
+     밀렸고, data-rest 만 못 받으면 멀쩡한 그래프 위에 '불러오지 못했습니다'가 계속 남았다. 그 둘의 실패는 기본통계
+     구역의 출처 줄(#src-note)에 단다. */
+  const gate=url==='/data-trend.json';
+  const box=gate?document.getElementById('stats-loading'):null;
   if(box){box.textContent='통계 데이터를 불러오는 중…';box.style.display='';}
   _loaded[url]=fetch(url).then(r=>{
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.json();
   }).then(d=>{
     Object.assign(ADV,d.ADV); Object.assign(STATS,d.STATS);
-    if(box&&!PART_WAIT)box.style.display='none';   // 통계 화면 파일(home-stats.js)이 아직 오는 중이면 안내를 남긴다
+    // 통계 화면 파일(home-stats.js)이 아직 오는 중이거나 못 받았으면 그 안내를 남긴다
+    if(box&&!PART_WAIT&&!PART_FAIL)box.style.display='none';
   }).catch(e=>{
     delete _loaded[url];   // 다음 진입에서 다시 시도할 수 있게
-    if(box){box.textContent='통계 데이터를 불러오지 못했습니다. 새로고침해 주세요.';box.style.display='';}
+    const msg='통계 데이터를 불러오지 못했습니다. 새로고침해 주세요.';
+    if(box){box.textContent=msg;box.style.display='';}
+    else if(!gate){const n=document.getElementById('src-note'); if(n)n.textContent=msg;}
     throw e;
   });
   return _loaded[url];
@@ -342,7 +353,7 @@ function applyHash(){
   /* 맨 #stats(모든 페이지 탭바의 '시세' 링크·PWA 바로가기)는 #stats-market 과 같게 모드·하위 탭까지 맞추고 주소도 정규
      해시로 바꿔 둔다 — 예전엔 화면만 열어, 투자지표로 옮긴 뒤 뒤로 가면 주소만 #stats 로 돌아오고 화면은 그대로였다
      (전수리뷰 #45). */
-  if(h==='stats'){showView('stats',false);setStatsMode('market',false);setMarketTab('week',false);
+  if(h==='stats'){showView('stats',false);setStatsMode('market',false);setMarketTab('week',false);openTrendRegion('week',null);
     history.replaceState(null,'','#stats-market-week');return;}
   if(h==='home'||h==='test'){showView(h,false);return;}
   // 리포트는 /cycle/로 이전했다. 옛 해시로 들어온 링크·북마크를 넘긴다.
@@ -468,8 +479,13 @@ function statsNav(hh,replace){
 /* 모드의 정규 해시 — market/adv는 지금 켜져 있는 하위탭까지 포함한다.
    모드 진입 해시가 하위탭을 생략하면 뒤로가기 복원이 기본탭으로 튀어,
    화면에 남아 있던 하위탭과 어긋난다. */
+/* 시장동향은 지도 칸·TOP 10 지역명으로 연 그래프(TR_OPEN)의 '~코드'(표로 보고 있으면 '-t')까지 싣는다 — 빼면 같은 탭·하단
+   '시세'를 다시 누르거나 주간 → 월간 → 주간으로 오갈 때 주소가 '#stats-market-week' 로 바뀌는데 화면은 그 지역(서울 등)을
+   그대로 보여, 새로고침·주소 복사가 다른 화면을 연다(전수리뷰 A3). */
+const TR_OPEN={week:null,month:null};   // 주기별로 openTrendRegion(home-stats.js)이 연 그래프의 코드(주간·월간을 따로 연다)
 function statsHashOf(m){
-  if(m==='market')return '#stats-market-'+(document.getElementById('mtab-month').classList.contains('on')?'month':'week');
+  if(m==='market'){const t=document.getElementById('mtab-month').classList.contains('on')?'month':'week', c=TR_OPEN[t];
+    return '#stats-market-'+t+(c?'~'+c+(document.getElementById('sec-'+t).classList.contains('gm-t')?'-t':''):'');}
   if(m==='adv'){const t=['occ','permit','bubble'].find(k=>document.getElementById('atab-'+k).classList.contains('on'))||'occ';return '#stats-adv-'+t;}
   return '#stats-'+m;
 }

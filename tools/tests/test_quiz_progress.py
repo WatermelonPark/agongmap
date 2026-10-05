@@ -57,13 +57,17 @@ function el(id){ return els[id] || (els[id] = {id, style:{display:id==='quiz-pla
   scrollIntoView(){} }); }
 const document = { getElementById: el, querySelectorAll(){ return [0,1].map(()=>({style:{}, innerHTML:'',
   classList:{add(){}}})); } };
-const history = { pushState(){} };
-const location = { hash:'' };
+const REPL = [];
+const location = { hash:'', pathname:'/', search:%(search)s };
+const history = { pushState(){}, replaceState(_s,_t,u){ REPL.push(u); const i=u.indexOf('#'), pre=i<0?u:u.slice(0,i), j=pre.indexOf('?');
+  location.search = j<0?'':pre.slice(j); } };
 const window = { scrollTo(){} };
 function scrollBehavior(){ return 'auto'; }
 function renderChalBar(){}
 function versusHTML(){ return ''; }
-function chalActive(){ return false; }   // 대결 판정(전수리뷰 #57) — showResult 뒤에 선언돼 잘라 온 구간 밖이다
+function chalActive(){ return CHAL_ACTIVE; }   // 대결 판정(전수리뷰 #57) — showResult 뒤에 선언돼 잘라 온 구간 밖이다
+let CHAL_ACTIVE = false;
+%(chal)s
 function loadKakao(){ return Promise.resolve(); }
 let CHALLENGE = null;
 %(src)s
@@ -72,11 +76,22 @@ process.stdout.write(JSON.stringify(OUT));
 """
 
 
-def _run(body, store=None, throw=False):
+def _chal_src():
+    """홈 본문(home-app.js)의 대결 쿼리 함수 chalInURL·chalSearch — startQuiz 가 부른다(전수리뷰 A4)."""
+    s = dict(HS.home_files())['home-app.js']
+    out = []
+    for name in ('chalInURL', 'chalSearch'):
+        a = s.index('function %s(' % name)
+        b = s.index('\n}', a) + 2 if name == 'chalSearch' else s.index('\n', a)
+        out.append(s[a:b])
+    return '\n'.join(out)
+
+
+def _run(body, store=None, throw=False, search=''):
     if not shutil.which('node'):
         pytest.skip('node 없음')
-    js = HARNESS % {'store': json.dumps(store or {}), 'throw': 'true' if throw else 'false',
-                    'src': 'var OUT;\n' + _quiz_src(), 'body': body}
+    js = HARNESS % {'store': json.dumps(store or {}), 'throw': 'true' if throw else 'false', 'search': json.dumps(search),
+                    'chal': _chal_src(), 'src': 'var OUT;\n' + _quiz_src(), 'body': body}
     # ⚠️ 명령줄로 넘기지 않는다. showResult 까지 담으면 Windows 명령줄 한도(약 32KB)를 넘어
     #    WinError 206 으로 시험 전체가 실행조차 안 된다(2026-09-17 백로그 12 작업 중 실제로 그랬다).
     fd, path = tempfile.mkstemp(suffix='.js')
@@ -180,6 +195,29 @@ OUT = {ev:EV, afterResult, idx:qIdx, answered:qAnswered};
     starts = [p['start_type'] for e, p in o['ev'] if e == 'quiz_start']
     assert starts == ['new', 'retry'], starts
     assert o['idx'] == 0 and o['answered'] is False, '다시 풀기가 처음 문항에서 시작하지 않는다'
+
+
+def test_retry_of_a_challenge_drops_the_challenge_query():
+    """대결 링크로 풀고 결과 화면에서 '다시 풀기'(친구와 다른 새 시험지)를 누르면 주소의 대결 쿼리(c·s·q)를 걷는다 —
+    남기면 새로고침 때 부팅(chalBootable)이 대결을 다시 띄워 새 시험지의 진행을 잃는다(전수리뷰 A4). 친구와 같은 시험지
+    (대결 부팅·'다시 도전하기')에서는 쿼리를 둔다. 경로·다른 쿼리(utm)·해시는 그대로다.
+
+    변이(실제로 확인): startQuiz 의 `if(!chalActive()&&chalInURL(location.search))history.replaceState(…)` 줄을 지우면
+    retry 의 search 가 대결 쿼리를 그대로 가져 빨개진다. `!chalActive()&&` 를 빼면 대결 부팅에서 쿼리를 걷어 빨개진다.
+    픽스처: 대결 링크 착지 주소('/?c=7&s=investor&q=1z&utm_source=quiz_challenge', 해시 '#test-investor')에서 대결 시험지를
+    끝까지 푼 뒤 '다시 풀기'(startQuiz()) — chalActive 는 대결 시험지 동안만 참(실제 판정은 시드 비교, test_challenge_link).
+    """
+    o = _run("""
+location.hash = '#test-investor';
+CHALLENGE = {score:7, set:'investor', seed:71}; CHAL_ACTIVE = true; startQuiz('investor', 71);
+const boot = location.search;
+for (let i=0;i<QUIZ.length;i++){ answerQ(0); nextQ(); }
+CHAL_ACTIVE = false; startQuiz();
+OUT = {boot, retry: location.search, repl: REPL};
+""", search='?c=7&s=investor&q=1z&utm_source=quiz_challenge')
+    assert o['boot'] == '?c=7&s=investor&q=1z&utm_source=quiz_challenge', '대결 시험지를 푸는 중에 대결 쿼리를 걷었다: %s' % o
+    assert o['retry'] == '?utm_source=quiz_challenge', '다시 풀기 뒤에도 대결 쿼리가 남았다: %s' % o
+    assert o['repl'] == ['/?utm_source=quiz_challenge#test-investor'], o['repl']
 
 
 def test_blocked_storage_does_not_break_the_quiz():

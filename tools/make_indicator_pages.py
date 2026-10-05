@@ -411,7 +411,9 @@ def build_jeonse(sts, today=None):
     up_most = max(moved, key=lambda v: v[2]) if moved else None
     natd_desc = '' if nat_d is None else '로 1년 전보다 %+.1f%%p' % nat_d
     natd_sub = '' if nat_d is None else ' · 1년 전 대비 %+.1f%%p' % nat_d
-    upm_p = ('' if up_most is None else
+    # 오른 곳이 없으면(가장 큰 변화가 0 이하 — 모든 시도가 그대로이거나 내린 해) '가장 크게 오른 곳'을 말하지 않는다(전수리뷰 B2).
+    # 변화는 표시값(소수 첫째 자리)끼리의 차라 표의 '+0.0%p' 와 같은 기준이다.
+    upm_p = ('' if up_most is None or up_most[2] <= 0 else
              '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (up_most[0], up_most[2]))
 
     title = '전세가율이란 — 전국·시도별 아파트 전세가율 현황 %s | 아공맵' % prd

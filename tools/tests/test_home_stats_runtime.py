@@ -84,7 +84,7 @@ def _stats_js(body, pre=''):
     files = dict(HS.home_files())
     app = files['home-app.js']
     return (DOM + _wk_block(app) + '\n'
-            'var ADV={}, STATS={}, statsInited=true, statsMode="market", curView="stats";\n'
+            'var ADV={}, STATS={}, statsInited=true, statsMode="market", curView="stats", TR_OPEN={week:null,month:null};\n'
             'const __NAV=[]; function statsNav(h,r){__NAV.push([h,!!r]);}\n'
             'function statsHashOf(m){return "#stats-"+m;}\n'
             'function afterLayout(){}\n'
@@ -438,3 +438,29 @@ def test_supply_table_buttons_survive_a_missing_data_core():
           'let OUT={};try{OUT.b=tbBuild();}catch(e){OUT.err=String(e);}\n'
           'process.stdout.write(JSON.stringify(OUT));')
     assert _node(js) == {'b': None}
+
+
+# ── 전수리뷰 A3: 지역을 연 시장동향 주소 ─────────────────────────────────────────
+def test_market_hash_keeps_the_opened_region():
+    """지도 칸·TOP 10 으로 서울(a7) 그래프를 연 시장동향(#stats-market-week~a7)에서 같은 '주간' 탭을 다시 누르거나 하단
+    '시세'를 다시 누르거나(showView 의 같은 화면 정규화 → statsHashOf), 주간 → 월간 → 주간으로 오가도 주소가 '~a7' 을
+    잃지 않는다 — 화면은 서울 그래프인데 주소만 '#stats-market-week' 가 되면 새로고침·주소 복사가 다른 화면을 연다.
+    표로 보고 있으면 '-t' 까지 싣는다(applyHash 가 같은 보기로 연다).
+
+    변이(실제로 확인): statsHashOf 의 `(c?'~'+c+…:'')` 를 지우면 첫 단정이, setMarketTab 의 statsNav 인자를 옛
+          '#stats-market-'+t 로 되돌리면 둘째 단정(월간 → 주간)이 빨개진다.
+    픽스처: 실제 statsHashOf(home-app.js)와 setMarketTab(home-stats.js). 주간 탭이 켜져 있고 openTrendRegion 이 서울(a7)을
+          연 상태(TR_OPEN.week='a7'), 월간은 연 지역 없음.
+    """
+    app = dict(HS.home_files())['home-app.js']
+    got = _node(_stats_js(r"""
+statsHashOf=(function(){ %s; return statsHashOf; })();
+document.getElementById('mtab-week').classList.add('on'); TR_OPEN.week='a7';
+OUT.same=statsHashOf('market');
+setMarketTab('week'); setMarketTab('month'); setMarketTab('week');
+OUT.nav=__NAV.slice();
+document.getElementById('sec-week').classList.add('gm-t'); OUT.table=statsHashOf('market');
+""" % _fn(app, 'statsHashOf')))
+    assert got['same'] == '#stats-market-week~a7', got
+    assert got['nav'] == [['#stats-market-week~a7', True], ['#stats-market-month', False], ['#stats-market-week~a7', False]], got
+    assert got['table'] == '#stats-market-week~a7-t', got

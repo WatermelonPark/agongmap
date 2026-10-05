@@ -764,8 +764,11 @@ def build(st):
 # ---------- 같은 페이지 데이터에서 채우는 본문 칸 ----------
 # 재산정이 아니라 페이지의 D(차트 데이터)에서 바로 나오는 칸이다. 매일 배치(refresh_cycle_data)가 채우고,
 # 재산정(--write)도 cycle_strength 를 바꾼 뒤 같은 함수로 다시 채운다. 보관 분석(cycle_analysis.json)의
-# prose 와 견주지 않는다 — 아래 접두사의 칸은 배치 몫이다. jr_ 는 전세가율 풀이(refresh_cycle_data.jratio_prose).
-BATCH_PROSE_PREFIX = ('jr_', 'str_', 'sup_', 'span_')
+# prose 와 견주지 않는다 — 아래 접두사의 칸은 배치 몫이다. jr_ 는 전세가율 풀이(refresh_cycle_data.jratio_prose),
+# dm_ 는 참고 ④ 서울 멸실 칸(refresh_cycle_data.demol_prose, 전수리뷰 D3).
+BATCH_PROSE_PREFIX = ('jr_', 'str_', 'sup_', 'span_', 'dm_')
+# 그 가운데 페이지 D 가 아니라 data.js 에서 나와 매일 배치만 채우는 칸 — 재산정(splice)이 지우지 않고 그대로 둔다.
+DAILY_PROSE_PREFIX = ('jr_', 'dm_')
 # 멸실 절이 '40년 연한 도달'을 세기 시작하는 해. 절 제목('2028년, 멸실의 시간이 온다')과 차트 색(cSuper)이
 # 같은 해를 쓴다 — 시험(test_cycle_hand_figures)이 페이지 스크립트의 문턱과 대조한다.
 SUPER_FROM = 2028
@@ -904,12 +907,12 @@ def splice(page, D):
     if not m:
         raise RuntimeError('cycle 페이지에서 const D를 찾지 못했다')
     cur = json.loads(m.group(2))
-    keep_jr = {k: v for k, v in (cur.get('prose') or {}).items() if k.startswith('jr_')}
+    keep_jr = {k: v for k, v in (cur.get('prose') or {}).items() if k.startswith(DAILY_PROSE_PREFIX)}
     for k in KEYS:
         if k not in D:
             raise RuntimeError('재계산 결과에 %s가 없다' % k)
         cur[k] = D[k]
-    # 전세가율 풀이 칸(jr_)은 매일 배치(refresh_cycle_data)가 채운다 — 재산정이 지우지 않는다.
+    # 전세가율 풀이 칸(jr_)·서울 멸실 칸(dm_)은 매일 배치(refresh_cycle_data)가 채운다 — 재산정이 지우지 않는다.
     # 페이지 D 에서 바로 나오는 칸(str_·sup_·span_)은 바뀐 cycle_strength 로 여기서 다시 채운다.
     cur['prose'] = dict(keep_jr, **cur['prose'])
     cur['prose'].update(page_prose(cur))
