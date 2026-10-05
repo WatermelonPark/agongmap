@@ -142,12 +142,12 @@ def _render(src, p, now_ms, mode):
            'weekly': _week(p), 'monthly': _month(), 'holidays': H2026}
     js = ('var ADV=%s, SIDO_GEO=%s;\n%s\n'
           'function weeklyReleaseNow(){ _HOLIDAYS=new Set(ADV.holidays); return weeklyRelease(ADV.weekly.rows[0].p,new Date(%d),ADV.weekly.grace); }\n'
-          'var EL={dataset:{},innerHTML:"",addEventListener:function(){}}, AG={innerHTML:""}, WB={disabled:false};\n'
-          'var document={getElementById:function(id){return id==="map-wrap"?EL:(id==="agg-wrap"?AG:null)},'
+          'var EL={dataset:{},innerHTML:"",addEventListener:function(){}}, AG={innerHTML:""}, WB={disabled:false}, TW={textContent:"?"};\n'
+          'var document={getElementById:function(id){return id==="map-wrap"?EL:(id==="agg-wrap"?AG:(id==="tb-when"?TW:null))},'
           'querySelector:function(s){return s.indexOf("weekly")>=0?WB:null}};\n'
           'MAP_MODE=%s; renderAggCards(); renderSidoMap();\n'
           'process.stdout.write(JSON.stringify({h:AG.innerHTML+EL.innerHTML,M:wkMapModel(ADV.weekly,weeklyReleaseNow()),'
-          'MM:moMapModel(ADV.monthly),r:weeklyReleaseNow(),wb:WB.disabled}));'
+          'MM:moMapModel(ADV.monthly),r:weeklyReleaseNow(),wb:WB.disabled,tw:TW.textContent}));'
           % (json.dumps(ADV, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _base_js(src), now_ms,
              json.dumps(mode)))
     return _node(js)
@@ -169,14 +169,16 @@ def _pct(v):
 def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, today):
     """주간 모드의 발표 줄·범례·카드·지도 이름은 데이터와 공용 함수에서 온다(모드마다 범례 제목·단위가 바뀐다).
 
-    - 지도 위 발표 줄 = 주간 구역 머리줄과 같은 문장(파이썬 WR.when_text 와 글자까지 같다), 범례 뜻 한 줄 끝 = WR.pub_lead
+    - 기준 줄(지도/그래프/표 단추 왼쪽 #tb-when) = '9/7 기준 · 한국부동산원'(조사일 — 월간 '2026년 8월 기준 · 한국부동산원'과 한
+      양식, 2026-10-05 대표 요청. 늦은 주·연휴 주도 같은 양식), 범례 뜻 한 줄 끝 = WR.pub_lead
       (늦은 주 '9/10 발표 기준'), 범례 끝말은 하락·보합·상승, 단위 '(%)'. 공급 범례의 말(공급 여유·균형·부족)은 없다.
     - 카드 셋(전국·수도권·지방)의 값은 pv2 표시값(MW.pv2 와 같다) + '%', 배지는 표시값의 부호로 상승·보합·하락.
     - 공급 모드는 범례 끝말(공급 여유·균형·공급 부족)과 판정 카드(→ /zone/)뿐이다 — 발표 줄 없음, 범례 뜻 한 줄('… · 2026년
       2분기 기준')과 카드 아래 분포 한 줄은 없다(2026-09-28 대표 결정 — 작은 글씨 정리. 옛 data.js 의 ktxt·dist 가 있어도 안 그린다).
-    변이(각각 실제로 넣어 빨간 것을 확인): wkMapModel 의 when 을 발표일만(_md(r.pub)) 으로 바꾸면 발표 줄 단정, mapKeyHtml 주간
+    변이(각각 실제로 넣어 빨간 것을 확인): wkMapModel 의 when 을 발표일(_md(r.pub))로 바꾸면 기준 줄 단정, renderAggCards 가
+          공급 모드에서 #tb-when 을 비우지 않으면 공급 단정, mapKeyHtml 주간
           갈래의 '(%)' 를 빼면 단위 단정, 주간 범례가 공급 끝말('공급 여유')을 쓰면 끝말 단정, wkPct 가 pv2 대신 toFixed(2)
-          (−0.085 → '−0.08', −0.0012 → '−0.00')를 쓰면 카드·지역 이름표 값 단정, renderSidoMap 주간 갈래가 발표 줄을 안 그리면 발표 줄 단정,
+          (−0.085 → '−0.08', −0.0012 → '−0.00')를 쓰면 카드·지역 이름표 값 단정,
           공급 범례에 뜻 한 줄(ADV.sido.ktxt · Ltxt 기준)을 되살리면 공급 단정.
     픽스처: 2026 추석 공휴일 표, 세 상태(평상·연휴·늦은 주), 반올림 경계 값(−0.0012·−0.085·0.005)과 자료 없음(제주).
     """
@@ -185,9 +187,10 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
     ms = _kst_ms(*today)
     wk = _render(src, p, ms, 'weekly')
     M, h = wk['M'], wk['h']
-    assert M['when'] == WR.when_text(st) and M['lead'] == WR.pub_lead(st), (M, st)
+    basis = '%s 기준 · 한국부동산원' % WR.md(st['survey'])   # 조사일 기준(2026-10-05 대표 요청 — 주간·월간 양식 통일)
+    assert M['when'] == basis and M['lead'] == WR.pub_lead(st), (M, st)
     assert M['stale'] == st['stale'] and (name == 'stale') == st['stale'] and (name == 'hedge') == st['hedge']
-    assert '<p class="wk-when">%s</p>' % WR.when_text(st) in h, '지도 위 발표 줄이 없다'
+    assert wk['tw'] == basis and 'wk-when' not in h, '단추 왼쪽 기준 줄(#tb-when)이 아니다'
     key = re.search(r'<div class="tb-key map-key mk-wk">(.*?)</div>', h).group(1)
     words = re.findall(r'</i>([^<]+)</span>', key)
     assert words == ['하락', '상승'] and '>보합</i>' in key, key
@@ -213,7 +216,9 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
             assert re.search(r'aria-label="%s — %s 매매 %s · 누르면 주간 그래프"'
                              % (re.escape(n), re.escape(WR.pub_lead(st)), re.escape(_pct(v))), h), (n, v)
 
-    sup = _render(src, p, ms, 'supply')['h']
+    sup_r = _render(src, p, ms, 'supply')
+    sup = sup_r['h']
+    assert sup_r['tw'] == '', '공급 모드에 시세 기준 줄이 남았다'
     assert '<i class="mk-b">균형</i>' in sup and '공급 여유' in sup and '공급 부족' in sup
     assert '뜻 한 줄' not in sup and '2026년 2분기 기준' not in sup and 'tk-n' not in sup
     assert 'wk-when' not in sup and '/weekly/' not in sup
@@ -319,10 +324,13 @@ def test_mode_toggle_markup_state_and_measurement():
         ('monthly', False, 'false', 'monthly', '월간 시세')], btns   # 이름은 2026-10-05 대표 요청('공급 현황·주간 시세·월간 시세')
     assert m.start() < src.index('<div id="agg-wrap">') < src.index('<div class="tb-bar">') < src.index('id="tb-view"'), \
         '모드 단추 → 카드 → 지도/그래프/표 순서가 아니다'
+    bar = src[src.index('<div class="tb-bar">'):src.index('id="tb-view"')]
+    assert bar.rstrip().endswith('<p class="tb-when" id="tb-when"></p>\n      <div class="tb-seg tb-view"'), \
+        '시세 기준 줄(#tb-when)이 지도/그래프/표 단추 바로 왼쪽에 없다(2026-10-05 대표 요청)'
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
     assert not re.search(r':not\(\.vm-map\) \.map-mode\{display:none\}', css), '모드 단추가 그래프·표 보기에서 숨는다'
 
-    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk'))
+    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk', '_md'))
     got = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"map"'})
     assert got['st'] == [['weekly', 'false,true+on,false', 1, 1, '', True],
                          ['weekly', 'false,true+on,false', 1, 1, '', True],
@@ -379,8 +387,8 @@ def test_monthly_mode_cards_legend_links_and_colors():
     src = _src()
     out = _render(src, '2026-09-07', _kst_ms(2026, 9, 11), 'monthly')
     h, MM = out['h'], out['MM']
-    assert MM['when'] == '2026년 8월 기준 · 한국부동산원 월간' and MM['lead'] == '8월 기준', MM
-    assert '<p class="wk-when">2026년 8월 기준 · 한국부동산원 월간</p>' in h
+    assert MM['when'] == '2026년 8월 기준 · 한국부동산원' and MM['lead'] == '8월 기준', MM
+    assert out['tw'] == MM['when'] and 'wk-when' not in h
     note = re.search(r'<span class="tk-n">([^<]*)</span>', h).group(1)
     assert note == '아파트 매매가격 전월 대비 변동률(%) · 8월 기준', note
     cards = re.findall(r'<a class="agg-a" href="([^"]*)"[^>]*>.*?<i class="agg-n">([^<]*)<.*?<i class="agg-p">([^<]*)</i>', h)

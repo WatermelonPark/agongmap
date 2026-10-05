@@ -969,9 +969,11 @@ table.adv thead th:first-child{text-align:center}
   .sc-tier.wk-u{background:#fdecea;color:#a93226}
   .sc-tier.wk-d{background:#e9f0f7;color:#1a5276}
   .sc-tier.wk-0{background:#edf0ee;color:#5e6f74}
-  /* 주간 모드의 발표 줄(카드 아래) — 날짜가 이 모드의 기준이라 본문색으로 올린다. */
-  .home-sec .wk-when{max-width:none;margin:0 0 10px;font-size:13px;line-height:1.45;color:var(--ink);font-weight:500;
-    font-variant-numeric:tabular-nums}
+  /* 시세 모드의 기준 줄('9/28 기준 · 한국부동산원') — 지도/그래프/표 단추 왼쪽(2026-10-05 대표 요청). 날짜가 이 모드의 기준이라
+     본문색. 남는 폭을 다 쓰고(flex:1, min-width:0) 좁으면 줄 안에서 접혀 단추를 아래로 밀지 않는다. 공급 모드는 비어 숨는다. */
+  .home-sec .tb-when{flex:1 1 0;min-width:0;max-width:none;margin:0;font-size:13px;line-height:1.4;color:var(--ink);text-align:left;
+    font-weight:500;font-variant-numeric:tabular-nums;word-break:keep-all}
+  .home-sec .tb-when:empty{display:none}
   .gr-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
   .gr-lab{font-size:13px;color:var(--muted)}
   .gr-bar select{font:inherit;font-size:13px;padding:7px 10px;border:1px solid var(--line);
