@@ -11,7 +11,7 @@
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
 // home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
 // — 하나라도 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v169'; // 홈 주간 구역 군더더기 문구 정리·해설 글 카드·지도 칸 보조기기 이름·통계 지도 되돌리기 상태(2026-10-03)
+const VERSION = 'v170'; // 홈 지도 모드 셋(3년 공급·이번 주·이번 달 시세)·카드 아래 지도/그래프/표 단추(2026-10-04)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가

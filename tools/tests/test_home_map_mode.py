@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-"""홈 공급 지도의 두 모드 '3년 공급 / 이번 주 시세'(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27).
+"""홈 공급 지도의 모드 '3년 공급 / 이번 주 시세 / 이번 달 시세'(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27 → 2026-10-04 월간 추가).
 
 재현하는 실제 상태: 09-26 까지 홈 지도는 분기 공급 판정 하나만 칠했고, 매주 바뀌는 값은 두 화면 아래 주간 격자에만
 있었다(IA-1). 한 지도에 주간 시세를 함께 싣되, 같은 빨강·파랑이 모드마다 다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이
 되므로 범례의 끝말·가운데 칸·뜻 한 줄(제목과 단위)과 지도 이름을 모드마다 바꾸고, 주간 모드는 발표일을 지도 위에 박는다.
 원칙: 발표일·지연·연휴 문장은 weekly_release(파이썬 정본)와 같은 답을 내는 홈 weeklyRelease/wkWhenText/wkPubLead 를
 그대로 쓰고, 주간 값의 표시는 pv2(반올림 정본), 색은 통계 탭 시군구 주간 지도와 같은 mapColor·WK_MAP_REF 를 쓴다.
-지역을 누르면 두 모드 모두 시도 공급 리포트가 열리고 탭 표적(A8 다각형)·라벨은 모드와 무관하다.
+지역을 누르면 공급 모드는 시도 공급 리포트, 시세 모드는 그 시도의 주간·월간 그래프(시세 탭 '#stats-market-<주기>~코드',
+2026-10-04 대표 요청)가 열리고, 탭 표적(A8 다각형)·라벨은 모드와 무관하다. 카드 셋은 2026-10-04 에 지도 상자 밖(#agg-wrap —
+모드 단추 아래, 지도/그래프/표 단추 위)으로 나갔다.
 
 방법: 홈 스크립트(tools/home_src 로 읽는다)의 함수들을 node 로 실제로 돌린다 — 지도는 renderSidoMap 전체를 저장소의 실제
 sido-geo.js 좌표로 그려 나온 HTML 을 읽는다. 날짜는 고정 합성 주(2026 공휴일 표, 추석 9/24~26)로만 단정하고 기대값은
@@ -117,26 +119,35 @@ def _base_js(src):
     """주간 모드에 쓰는 홈 함수 전부(색·서식·발표 문장·범례·카드) — 실제 소스 그대로."""
     return '\n'.join([
         _wk_block(src), _var(src, 'TB_MIN'), _var(src, 'TB_UP'), _var(src, 'TB_BAL'), _var(src, 'TB_GRADE'),
-        _var(src, 'WK_MAP_REF'), _var(src, 'MAP_MODE'),
+        _var(src, 'WK_MAP_REF'), _var(src, 'MO_MAP_REF'), _var(src, 'MAP_MODE'),
+        re.search(r'^const NATION_TILE=.*$', src, re.M).group(0),
         _fns(src, ('pv2r', 'pv2', 'pvSign', 'mapColor', 'tintA', 'mapFill', 'supplyFill', 'opaqueOnPaper', 'wkFill',
-                   'wkPct', 'wkMapModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggCard', 'tbSigned',
-                   'renderSidoMap')),
+                   'wkPct', 'wkMapModel', 'moMapModel', 'priceModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggCard',
+                   'tbSigned', 'sidoCode', 'renderAggCards', 'renderSidoMap')),
     ])
 
 
+MONTH = '2026-08'
+
+
+def _month():
+    regs = list(SZ.DISPLAY_ORDER)
+    return {'regions': regs, 'rows': [{'p': MONTH, 'ma': [VALS.get(z, 0.01) for z in regs], 'je': [0.01] * len(regs)}]}
+
+
 def _render(src, p, now_ms, mode):
-    """renderSidoMap 을 실제 좌표·합성 데이터로 한 번 그려 map-wrap 의 HTML 과 모델을 돌려준다."""
+    """renderAggCards·renderSidoMap 을 실제 좌표·합성 데이터로 한 번 그려 카드 상자 + 지도 상자의 HTML 과 모델을 돌려준다."""
     # ktxt·dist 는 옛 data.js 모양(2026-09-28 에 홈에서 뺀 공급 범례 뜻 한 줄·분포 한 줄의 재료) — 그리지 않는지 본다
     ADV = {'sido': {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'ktxt': '뜻 한 줄', 'zones': _zones(), 'dist': '분포'},
-           'weekly': _week(p), 'holidays': H2026}
+           'weekly': _week(p), 'monthly': _month(), 'holidays': H2026}
     js = ('var ADV=%s, SIDO_GEO=%s;\n%s\n'
           'function weeklyReleaseNow(){ _HOLIDAYS=new Set(ADV.holidays); return weeklyRelease(ADV.weekly.rows[0].p,new Date(%d),ADV.weekly.grace); }\n'
-          'var EL={dataset:{},innerHTML:""}, WB={disabled:false};\n'
-          'var document={getElementById:function(id){return id==="map-wrap"?EL:null},'
+          'var EL={dataset:{},innerHTML:"",addEventListener:function(){}}, AG={innerHTML:""}, WB={disabled:false};\n'
+          'var document={getElementById:function(id){return id==="map-wrap"?EL:(id==="agg-wrap"?AG:null)},'
           'querySelector:function(s){return s.indexOf("weekly")>=0?WB:null}};\n'
-          'MAP_MODE=%s; renderSidoMap();\n'
-          'process.stdout.write(JSON.stringify({h:EL.innerHTML,M:wkMapModel(ADV.weekly,weeklyReleaseNow()),'
-          'r:weeklyReleaseNow(),wb:WB.disabled}));'
+          'MAP_MODE=%s; renderAggCards(); renderSidoMap();\n'
+          'process.stdout.write(JSON.stringify({h:AG.innerHTML+EL.innerHTML,M:wkMapModel(ADV.weekly,weeklyReleaseNow()),'
+          'MM:moMapModel(ADV.monthly),r:weeklyReleaseNow(),wb:WB.disabled}));'
           % (json.dumps(ADV, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _base_js(src), now_ms,
              json.dumps(mode)))
     return _node(js)
@@ -145,7 +156,7 @@ def _render(src, p, now_ms, mode):
 def _shapes(h):
     """지도 도형마다 (href, 채움, 표적 다각형 또는 None, 라벨 또는 None)."""
     svg = h[h.index('<svg'):]
-    return re.findall(r'<a href="([^"]*)" aria-label="[^"]*"><path d="[^"]*" fill="([^"]*)"></path>'
+    return re.findall(r'<a href="([^"]*)"(?: data-code="[^"]*")? aria-label="[^"]*"><path d="[^"]*" fill="([^"]*)"></path>'
                       r'(?:<polygon class="tap" points="([^"]*)"[^>]*></polygon>)?'
                       r'(?:<text[^>]*>([^<]*)</text>)?', svg)
 
@@ -199,7 +210,8 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
     # 지역 값 서식(카드 밖 — 지도 이름표)도 pv2 정본과 같다
     for n, v in VALS.items():
         if n in regs and n not in SZ.AGG:
-            assert re.search(r'aria-label="%s — 이번 주 매매 %s · ' % (re.escape(n), re.escape(_pct(v))), h), (n, v)
+            assert re.search(r'aria-label="%s — %s 매매 %s · 누르면 주간 그래프"'
+                             % (re.escape(n), re.escape(WR.pub_lead(st)), re.escape(_pct(v))), h), (n, v)
 
     sup = _render(src, p, ms, 'supply')['h']
     assert '<i class="mk-b">균형</i>' in sup and '공급 여유' in sup and '공급 부족' in sup
@@ -209,13 +221,15 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
     assert re.findall(r'<a class="agg-a" href="/zone/', sup) and 'agg-dist' not in sup and '분포' not in sup
 
 
-def test_mode_switch_keeps_links_targets_and_labels_and_recolors_only():
-    """모드를 바꿔도 지역을 누르면 여는 곳(/zone/<시도>/)·탭 표적 다각형(A8)·라벨은 도형마다 같고, 채움만 바뀐다.
+def test_mode_switch_keeps_targets_and_labels_and_recolors_and_relinks():
+    """모드를 바꿔도 탭 표적 다각형(A8)·라벨은 도형마다 같고, 채움과 여는 곳이 바뀐다 — 공급 모드는 시도 공급 리포트
+    (/zone/<시도>/), 주간 모드는 그 시도의 주간 그래프('#stats-market-week~<시도 머리 칸 코드>' — NATION_TILE, 광주 b3·전남 c5 는
+    통계 탭에서 전남광주로 접힌다, 2026-10-04 대표 요청).
 
     공급 모드의 채움은 supplyFill(균형 g1 → --bal 중립색, C4②), 주간 모드의 채움은 wkFill = mapColor(v, WK_MAP_REF)를
     지면색 위에 합성한 불투명색이다 — 균형 판정 지역(경기)도 주간 모드에서는 그 주 값의 색이고 --bal 이 아니다. 표시값이
     0.00(인천 −0.0012)이면 보합 회색, 자료 없음(제주)은 --paper2.
-    변이(각각 실제로 확인): 주간 갈래에서 링크를 '/weekly/' 로 바꾸면 링크 단정, 표적을 주간 모드에서만 빼면 표적 단정,
+    변이(각각 실제로 확인): 주간 갈래의 링크를 공급 리포트로 되돌리면 링크 단정, 표적을 주간 모드에서만 빼면 표적 단정,
           채움을 supplyFill 로 두면(모드가 색을 안 바꿈) 채움 단정, wkFill 이 합성 없이 mapColor 의 rgba 를 그대로 쓰면
           불투명 단정, wkFill 이 WK_MAP_REF 대신 다른 기준(1.0)을 쓰면 채움 단정이 빨개진다.
     픽스처: 저장소 sido-geo.js 좌표 전부, 판정 단위 전부(경기 g1·인천 g0·나머지 g2), 반올림 경계 값이 든 합성 주.
@@ -227,14 +241,16 @@ def test_mode_switch_keeps_links_targets_and_labels_and_recolors_only():
     a, b = _shapes(sup), _shapes(wk)
     geo = _geo()['p']
     assert len(a) == len(b) == len(geo), (len(a), len(b), len(geo))
-    assert [x[0] for x in a] == [x[0] for x in b] and all(x[0].startswith('/zone/') for x in b)
+    heads = {t[1]: t[0] for t in MW.nation_tile(src)['t'] if t[4] and len(t[0]) == 2}
+    assert all(x[0].startswith('/zone/') for x in a)
+    assert [x[0] for x in b] == ['#stats-market-week~%s' % heads[g['n']] for g in geo], '주간 모드 지역 링크가 그 시도 그래프가 아니다'
     assert [x[2] for x in a] == [x[2] for x in b] and sum(1 for x in b if x[2]) >= 8, '탭 표적이 모드에 따라 달라졌다'
     assert [x[3] for x in a] == [x[3] for x in b]
     # 채움 — 기대값을 JS 함수(mapColor·opaqueOnPaper)가 아니라 여기서 따로 합성해 대조한다
     paper = [int(x) for x in re.search(r'PAPER_RGB=\[(\d+),(\d+),(\d+)\]', src).groups()]
     ref = float(re.search(r'^var WK_MAP_REF=([\d.]+);', src, re.M).group(1))
     zone_of = {}
-    for g, (href, _, _, _) in zip(geo, b):
+    for g, (href, _, _, _) in zip(geo, a):
         zone_of[g['n']] = unquote(href.split('/')[2])
     for (href, fill_s, _, _), (_, fill_w, _, _), g in zip(a, b, geo):
         z = zone_of[g['n']]
@@ -260,56 +276,121 @@ def test_mode_switch_keeps_links_targets_and_labels_and_recolors_only():
 
 MODE_HARNESS = r'''
 %(fns)s
-var MAP_MODE='supply', sent=[], drawn=0, HAS=%(has)s;
+var MAP_MODE='supply', TB_VIEW=%(view)s, sent=[], drawn=0, cards=0, views=[], HAS=%(has)s;
 function track(e,p){ sent.push([e,p]); }
-function renderSidoMap(){ drawn++; }
+function renderSidoMap(){ drawn++; } function renderAggCards(){ cards++; }
+function tbView(v){ views.push(v); TB_VIEW=v; }
+var WK_MAP_REF=0.4, MO_MAP_REF=1.0;
 function weeklyReleaseNow(){ return HAS?{survey:"2026-09-07",pub:"2026-09-10",next:"2026-09-17",hedge:false,stale:false}:null; }
 function wkWhenText(){ return "w"; } function wkPubLead(){ return "l"; }
-var ADV={weekly:HAS?{regions:["전국"],rows:[{p:"2026-09-07",ma:[0.1]}]}:{}};
+var ADV={weekly:HAS?{regions:["전국"],rows:[{p:"2026-09-07",ma:[0.1]}]}:{},monthly:HAS?{regions:["전국"],rows:[{p:"2026-08",ma:[0.3]}]}:{}};
 function mk(m,on){ var a={"aria-pressed":on?"true":"false"}; return {dataset:{m:m},cls:on?["on"]:[],
   classList:{toggle:function(c,v){ this.o.cls=v?["on"]:[]; }},getAttribute:function(k){return a[k]},setAttribute:function(k,v){a[k]=v}}; }
-var B=[mk("supply",true),mk("weekly",false)]; B.forEach(function(b){ b.classList.o=b; });
+var B=[mk("supply",true),mk("weekly",false),mk("monthly",false)]; B.forEach(function(b){ b.classList.o=b; });
 var EL={dataset:{done:"1"}};
 var document={getElementById:function(id){ return id==="map-wrap"?EL:(id==="map-mode"?{querySelectorAll:function(){return B}}:null); }};
 var st=[];
-function snap(){ st.push([MAP_MODE,B.map(function(b){return b.getAttribute("aria-pressed")}),B.map(function(b){return b.cls.join()}),drawn,EL.dataset.done]); }
-mapMode("weekly"); snap(); mapMode("weekly"); snap(); mapMode("nonsense"); snap(); mapMode("supply"); snap();
-process.stdout.write(JSON.stringify({st:st,sent:sent}));
+function snap(){ st.push([MAP_MODE,B.map(function(b){return b.getAttribute("aria-pressed")}).join(),drawn,cards,EL.dataset.done]); }
+mapMode("weekly"); snap(); mapMode("weekly"); snap(); mapMode("monthly"); snap(); mapMode("nonsense"); snap(); mapMode("supply"); snap();
+process.stdout.write(JSON.stringify({st:st,sent:sent,views:views}));
 '''
 
 
 def test_mode_toggle_markup_state_and_measurement():
-    """전환 버튼: 홈 마크업은 group + aria-pressed 두 버튼(기본 '3년 공급' 눌림), 지도 보기에서만 보인다. mapMode 는
-    누른 버튼의 aria-pressed·on 을 맞추고 지도를 다시 그리며(done 초기화), 모드가 바뀔 때만 map_mode 를 한 번 잰다(값은
-    snake_case supply·weekly — 모르는 값은 supply). 주간 데이터가 없으면 전환하지 않고 재지도 않는다.
+    """모드 단추 셋(2026-10-04 대표 요청 — '이번 달 시세' 추가): 홈 마크업은 group + aria-pressed 세 단추(기본 '3년 공급' 눌림)이고
+    판정 카드 상자(#agg-wrap) 위, 지도/그래프/표 줄(.tb-bar) 밖에 있다 — 지도/그래프/표 단추는 카드 아래다. 보기와 무관하게 늘
+    보인다. mapMode 는 누른 단추의 aria-pressed·on 을 맞추고 카드·지도를 다시 그리며(done 초기화), 모드가 바뀔 때만 map_mode 를
+    한 번 잰다(값은 snake_case supply·weekly·monthly — 모르는 값은 supply). 시세 데이터가 없으면 전환하지 않고 재지도 않는다.
+    공급 그래프·표를 보던 중에 시세 모드를 누르면 지도로 돌린다(시세 그래프·표는 시세 탭이 맡는다).
     변이(각각 실제로 확인): mapMode 에서 aria-pressed 갱신을 빼면 상태 단정, 같은 모드 재클릭에도 track 을 부르면 측정 횟수
-          단정, 데이터 없음 가드를 빼면 마지막 단정, 기본 버튼의 aria-pressed 를 false 로 두면 마크업 단정, CSS 의 '지도 보기에서만'
-          규칙을 지우면 규칙 단정이 빨개진다.
-    픽스처: 저장소 index.html·app.css·home-app.js 의 mapMode 와 합성 DOM(버튼 둘·지도 상자).
+          단정, 데이터 없음 가드를 빼면 마지막 단정, renderAggCards 호출을 빼면 카드 단정, 모드 단추를 .tb-bar 안으로 되돌리면
+          자리 단정, 그래프 보기에서 시세 모드를 누를 때 tbView('map') 을 빼면 보기 단정이 빨개진다.
+    픽스처: 저장소 index.html·home-app.js 의 mapMode·wkMapModel·moMapModel·priceModel 과 합성 DOM(단추 셋·지도 상자).
     """
     src = _src()
     m = re.search(r'<div class="tb-seg map-mode" id="map-mode" role="group" aria-label="[^"]+">(.*?)</div>', src, re.S)
     assert m, '지도 모드 전환 묶음(#map-mode)이 홈 마크업에 없다'
     btns = re.findall(r'<button type="button" data-m="([a-z_]+)"( class="on")? aria-pressed="(true|false)" '
                       r'onclick="mapMode\(\'([a-z_]+)\'\)">(.*?)</button>', m.group(1))
-    assert [(b[0], bool(b[1]), b[2], b[3]) for b in btns] == [('supply', True, 'true', 'supply'),
-                                                             ('weekly', False, 'false', 'weekly')], btns
-    assert re.sub(r'<[^>]+>', '', btns[0][4]) == '3년 공급' and re.sub(r'<[^>]+>', '', btns[1][4]) == '이번 주 시세'
-    assert m.start() < src.index('id="tb-view"') and m.start() > src.index('<div class="tb-bar">'), \
-        '전환 버튼이 지도/그래프/표 줄 안에 있지 않다 — 줄을 새로 만들면 기본 모드의 첫 화면이 밀린다'
+    assert [(b[0], bool(b[1]), b[2], b[3], b[4]) for b in btns] == [
+        ('supply', True, 'true', 'supply', '3년 공급'), ('weekly', False, 'false', 'weekly', '이번 주 시세'),
+        ('monthly', False, 'false', 'monthly', '이번 달 시세')], btns
+    assert m.start() < src.index('<div id="agg-wrap">') < src.index('<div class="tb-bar">') < src.index('id="tb-view"'), \
+        '모드 단추 → 카드 → 지도/그래프/표 순서가 아니다'
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
-    assert re.search(r'#sec-score:not\(\.vm-map\) \.map-mode\{display:none\}', css), '전환 버튼이 그래프·표에서도 보인다'
+    assert not re.search(r':not\(\.vm-map\) \.map-mode\{display:none\}', css), '모드 단추가 그래프·표 보기에서 숨는다'
 
-    fns = _js_func(src, 'mapMode') + '\n' + _js_func(src, 'wkMapModel')
-    got = _node(MODE_HARNESS % {'fns': fns, 'has': 'true'})
-    assert got['st'] == [['weekly', ['false', 'true'], ['', 'on'], 1, ''],
-                         ['weekly', ['false', 'true'], ['', 'on'], 1, ''],
-                         ['supply', ['true', 'false'], ['on', ''], 2, ''],
-                         ['supply', ['true', 'false'], ['on', ''], 2, '']], got['st']
-    assert got['sent'] == [['map_mode', {'mode': 'weekly'}], ['map_mode', {'mode': 'supply'}]], got['sent']
+    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel'))
+    got = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"map"'})
+    assert got['st'] == [['weekly', 'false,true,false', 1, 1, ''],
+                         ['weekly', 'false,true,false', 1, 1, ''],
+                         ['monthly', 'false,false,true', 2, 2, ''],
+                         ['supply', 'true,false,false', 3, 3, ''],
+                         ['supply', 'true,false,false', 3, 3, '']], got['st']
+    assert got['sent'] == [['map_mode', {'mode': 'weekly'}], ['map_mode', {'mode': 'monthly'}],
+                           ['map_mode', {'mode': 'supply'}]], got['sent']
     assert all(re.match(r'^[a-z][a-z0-9_]*$', x) for e, p in got['sent'] for x in (e, p['mode']))
-    none = _node(MODE_HARNESS % {'fns': fns, 'has': 'false'})
+    assert got['views'] == []
+    g2 = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"graph"'})
+    assert g2['views'] == ['map'], '공급 그래프를 보던 중 시세 모드를 눌렀는데 지도로 돌리지 않았다'
+    none = _node(MODE_HARNESS % {'fns': fns, 'has': 'false', 'view': '"map"'})
     assert none['st'][0][:1] == ['supply'] and none['sent'] == [], none
+
+
+TBVIEW_HARNESS = r'''
+%(fns)s
+var MAP_MODE=%(mode)s, TB_VIEW='map', sent=[];
+function track(e,p){ sent.push([e,p]); }
+var location={hash:''};
+var document={getElementById:function(){ return null; }};
+tbView(%(v)s);
+process.stdout.write(JSON.stringify({hash:location.hash,view:TB_VIEW,sent:sent}));
+'''
+
+
+@pytest.mark.parametrize('mode,v,want', [
+    ('weekly', 'graph', '#stats-market-week~a0'), ('weekly', 'table', '#stats-market-week~a0-t'),
+    ('monthly', 'graph', '#stats-market-month~a0'), ('monthly', 'table', '#stats-market-month~a0-t')])
+def test_price_mode_graph_and_table_open_the_stats_tab(mode, v, want):
+    """시세 모드(주간·월간)의 '그래프'·'표' 단추는 홈에 새로 그리지 않고 시세 탭의 그 화면(전국)을 연다(2026-10-04 대표 요청).
+    주소 '#stats-market-<주기>~a0'(그래프)·'~a0-t'(표)는 applyHash → openTrendRegion 이 받는다(test_home_entry). 홈 보기(TB_VIEW)는
+    지도 그대로라 뒤로 오면 시세 지도가 남아 있다.
+    변이(각각 실제로 확인): 표 단추에 '-t' 를 빼면 표 단정, 월간을 주간 주소로 보내면 주기 단정, 시세 모드 갈래를 빼면(공급
+          그래프로 바뀜) 주소 단정이 빨개진다. 픽스처: 저장소 tbView 와 합성 DOM.
+    """
+    src = _src()
+    got = _node(TBVIEW_HARNESS % {'fns': _js_func(src, 'tbView'), 'mode': json.dumps(mode), 'v': json.dumps(v)})
+    assert got['hash'] == want and got['view'] == 'map', got
+    assert got['sent'] == [['trend_pick', {'period': want.split('-')[2].split('~')[0], 'region': 'a0', 'from': 'score_' + v}]], got
+
+
+def test_monthly_mode_cards_legend_links_and_colors():
+    """월간 모드(2026-10-04 대표 요청 — 홈에서 월간도 쉽게): 카드 셋은 최신 달 전국·수도권·지방 매매 변동률(→ /monthly/, '매매
+    전월 대비'), 카드 아래 기준 달 줄, 범례 뜻 한 줄 '아파트 매매가격 전월 대비 변동률(%) · 8월 기준', 지역은 그 시도 월간 그래프
+    ('#stats-market-month~코드'), 색은 통계 탭 시군구 월간 지도와 같은 MO_MAP_REF 만색 기준이다.
+    변이(각각 실제로 확인): moMapModel 이 WK_MAP_REF 를 쓰면 색 단정, 카드 링크를 /weekly/ 로 두면 카드 단정, 월간 지도 링크를
+          주간 주소로 두면 링크 단정이 빨개진다.
+    픽스처: 반올림 경계 값이 든 합성 달 2026-08(주간과 같은 VALS), 저장소 sido-geo.js 좌표.
+    """
+    src = _src()
+    out = _render(src, '2026-09-07', _kst_ms(2026, 9, 11), 'monthly')
+    h, MM = out['h'], out['MM']
+    assert MM['when'] == '2026년 8월 기준 · 한국부동산원 월간' and MM['lead'] == '8월 기준', MM
+    assert '<p class="wk-when">2026년 8월 기준 · 한국부동산원 월간</p>' in h
+    note = re.search(r'<span class="tk-n">([^<]*)</span>', h).group(1)
+    assert note == '아파트 매매가격 전월 대비 변동률(%) · 8월 기준', note
+    cards = re.findall(r'<a class="agg-a" href="([^"]*)"[^>]*>.*?<i class="agg-n">([^<]*)<.*?<i class="agg-p">([^<]*)</i>', h)
+    assert cards == [('/monthly/', _pct(VALS[n]), '매매 전월 대비') for n in SZ.AGG], cards
+    heads = {t[1]: t[0] for t in MW.nation_tile(src)['t'] if t[4] and len(t[0]) == 2}
+    links = [x[0] for x in _shapes(h)]
+    assert links == ['#stats-market-month~%s' % heads[g['n']] for g in _geo()['p']], links[:3]
+    ref = float(re.search(r'^var MO_MAP_REF=([\d.]+);', src, re.M).group(1))
+    seoul = [x[1] for x, g in zip(_shapes(h), _geo()['p']) if g['n'] == '서울'][0]
+    paper = [int(x) for x in re.search(r'PAPER_RGB=\[(\d+),(\d+),(\d+)\]', src).groups()]
+    al = float('%.3f' % (0.14 + 0.72 * min(abs(VALS['서울']) / ref, 1)))
+    want = [int(round(P + (C - P) * al + 1e-9)) for P, C in zip(paper, (224, 86, 74))]
+    got = [int(x) for x in re.findall(r'\d+', seoul)]
+    assert all(abs(x - y) <= 1 for x, y in zip(got, want)), (seoul, want)
 
 
 def test_weekly_color_scale_is_one_constant():
@@ -322,6 +403,10 @@ def test_weekly_color_scale_is_one_constant():
     assert len(re.findall(r'^var WK_MAP_REF=', src, re.M)) == 1
     assert "k==='week'?WK_MAP_REF:" in _js_func(src, 'drawNationMap')
     assert 'mapColor(v[a[0]],WK_MAP_REF)' in _js_func(src, 'renderHeroMap')
-    assert 'mapColor(v,WK_MAP_REF)' in _js_func(src, 'wkFill')
+    assert 'mapColor(v,ref||WK_MAP_REF)' in _js_func(src, 'wkFill')
+    # 월간도 한 상수(MO_MAP_REF) — 홈 지도 월간 모드와 통계 탭 시군구 월간 지도가 같이 쓴다(2026-10-04)
+    assert len(re.findall(r'^var MO_MAP_REF=', src, re.M)) == 1
+    assert "k==='week'?WK_MAP_REF:MO_MAP_REF" in _js_func(src, 'drawNationMap')
+    assert 'ref:MO_MAP_REF' in _js_func(src, 'moMapModel')
     for fn in ('drawNationMap', 'renderHeroMap', 'wkFill', 'mapKeyHtml'):
         assert not re.search(r'mapColor\([^)]*,\s*0\.\d', _js_func(src, fn)), '%s 가 기준을 숫자로 적었다' % fn
