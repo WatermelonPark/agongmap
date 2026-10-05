@@ -285,7 +285,7 @@ jobs:
           # (2026-07-30 실사고). 그래서 '가장 최신 주간/월간을 가진 산출물'을 고른다.
           # 산출물별 최신 weekly(YYYY-MM-DD)를 뽑아 가장 신선한 것을 고른다.
           # 파이썬 heredoc은 YAML 블록 들여쓰기를 깨므로 순수 셸로 짠다.
-          SRC=""; BEST=""; BESTMO=""; BESTSL=""; BESTHOK=""; BESTBOK=""
+          SRC=""; BEST=""; BESTMO=""; BESTSL=""; BESTHOK=""; BESTBOK=""; BESTNF=""
           for d in _art/data-*; do
             [ -f "$d/data-core.js" ] || continue
             wk=$(grep -oE '"p":"[0-9]{4}-[0-9]{2}-[0-9]{2}"' "$d/data-core.js" \
@@ -311,17 +311,22 @@ jobs:
             # 시야·sidoL)는 둘이 같아, 번호가 앞선 보류 러너가 이기면 한 러너가 복구했는데도 그날 커밋이 보류 산출물이 되어
             # 복구가 하루씩 밀렸다(통합 검토). 보류는 .fetch_failed 의 '<계열>:기준변경 보류'로 안다.
             bok=1; [ -f "$d/.fetch_failed" ] && grep -q '기준변경 보류' "$d/.fetch_failed" && bok=0
-            echo "후보 $d: weekly=${wk:--} monthly=${mo:--} sidoL=${sl:--} H=${sh:--}/${sld:--} 기준복구=${bok}"
+            # 다른 키가 다 같으면 원천 일부 실패(.fetch_failed 의 쉼표 구분 항목)가 적은 러너를 고른다(2026-10 리뷰 C1).
+            # 예전엔 실패 수를 견주지 않아, 1번이 기본통계 계열 몇 개를 못 받아 직전 값을 유지했어도 다 받은 2번을 두고
+            # 번호 순서로 1번이 이겼다. 파일이 없으면 0(실패 없음). awk 는 일치가 없어도 0으로 끝나 bash -e 에서 안전하다.
+            nf=0; [ -f "$d/.fetch_failed" ] && nf=$(awk -F, '{for(i=1;i<=NF;i++) if($i ~ /[^[:space:]]/) n++} END{print n+0}' "$d/.fetch_failed")
+            echo "후보 $d: weekly=${wk:--} monthly=${mo:--} sidoL=${sl:--} H=${sh:--}/${sld:--} 기준복구=${bok} 원천실패=${nf}"
             newer=0
             if [ -n "$wk" ]; then
               if [ -z "$BEST" ] || [ "$wk" \> "$BEST" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ -n "$mo" ] && [ "$mo" \> "$BESTMO" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" \> "$BESTHOK" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" \> "$BESTBOK" ]; then newer=1
-              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" = "$BESTBOK" ] && [ -n "$sl" ] && [ "$sl" \> "$BESTSL" ]; then newer=1
+              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" = "$BESTBOK" ] && [ "$nf" -lt "$BESTNF" ]; then newer=1
+              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" = "$BESTBOK" ] && [ "$nf" = "$BESTNF" ] && [ -n "$sl" ] && [ "$sl" \> "$BESTSL" ]; then newer=1
               fi
             fi
-            if [ "$newer" = "1" ]; then BEST="$wk"; BESTMO="$mo"; BESTSL="$sl"; BESTHOK="$hok"; BESTBOK="$bok"; SRC="$d"; fi
+            if [ "$newer" = "1" ]; then BEST="$wk"; BESTMO="$mo"; BESTSL="$sl"; BESTHOK="$hok"; BESTBOK="$bok"; BESTNF="$nf"; SRC="$d"; fi
           done
           # weekly를 하나도 못 읽었으면(구조 변경 등) 예전처럼 아무거나
           [ -z "$SRC" ] && SRC=$(ls -d _art/data-* 2>/dev/null | head -1 || true)
@@ -755,7 +760,11 @@ jobs:
   # concurrency 그룹을 가진 별도 워크플로로 내보내고 여기서는 즉시 넘긴다.
   retry:
     needs: commit
-    if: needs.commit.outputs.need_retry == 'true'
+    # ⚠️ 상태 함수(!cancelled())가 꼭 있어야 한다(2026-10 리뷰 C1b). 상태 함수가 없는 if 는 암묵 success() 가 붙는데,
+    # 그건 **모든 앞선 잡**(commit 뿐 아니라 그 앞의 fetch 매트릭스까지)이 성공했을 때만 참이다. 재시도가 필요한 날은
+    # 바로 fetch 러너가 실패한 날(0/3)이라 — commit 은 always() 로 돌아 need_retry=true 를 세우는데 — retry 잡은
+    # 늘 건너뛰어졌다. 재시도 층이 정작 필요한 날마다 꺼져 있던 것이다. 취소된 런에서는 돌지 않는다.
+    if: ${{ !cancelled() && needs.commit.outputs.need_retry == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       actions: write        # update-cloud-retry.yml 을 workflow_dispatch 로 부른다

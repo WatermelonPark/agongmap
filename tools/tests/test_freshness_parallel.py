@@ -186,8 +186,18 @@ class _Sources:
         return {{'지방': '지방권'}.get(z, z) for z in U.WEEKLY_REGIONS}
 
 
-def _run(monkeypatch, capsys, workers, card=None, **src_kw):
+def _run(monkeypatch, capsys, workers, card=None, today=None, **src_kw):
+    """main() 을 통째로 한 번 돈다. today(datetime.date)를 주면 감시의 오늘(C.TODAY)을 그날로 고정하고 나이 상한
+    (C.MAX_AGE_*)을 켠다. 주지 않으면 상한을 끈다 — 상한은 날짜에 기대는 판정이라, 켜 둔 채 실제 오늘로 돌리면 원천이
+    정당하게 늦는 계열 하나(예: 미분양 완비 보류)가 날이 가며 상한을 넘는 날 이 하니스를 쓰는 시험 전부가 배치 게이트에서
+    빨개진다. 상한은 오늘을 고정한 시험(test_freshness_ceiling)이 따로 본다."""
     src = _Sources(**src_kw)
+    if today is None:
+        for n in dir(C):
+            if n.startswith('MAX_AGE_'):
+                monkeypatch.setattr(C, n, None)
+    else:
+        monkeypatch.setattr(C, 'TODAY', today)
     unexpected = []
     for k in ('KOSIS_API_KEY', 'RONE_API_KEY', 'ECOS_API_KEY'):
         monkeypatch.setenv(k, 'test')
@@ -331,3 +341,20 @@ def test_missing_share_card_is_a_deterministic_failure(monkeypatch, capsys):
     assert r['rc'] == C.EXIT_DETERMINISTIC, r['out'][-800:]
     assert '공유카드 HTTP 404' in r['out']
     assert '공유카드' not in r['skipped']
+
+
+def test_majority_outage_fails_through_main(monkeypatch, capsys):
+    """개수 게이트('SKIPPED×2 > len(fails)')를 main() 경로로 돈다 — 핵심 계열(주간)은 살아 있고 나머지 원천 대부분이
+    재시도까지 죽은 날(2026-08-12 KOSIS·R-ONE 광역 타임아웃 14/18 의 모양)은 OK 가 아니라 재확인(rc=1)이어야 한다.
+    test_freshness_invariant 의 산수 시험은 산식을 복제해 볼 뿐이라 main() 의 게이트가 꺼져도 초록이었다(리뷰 E1).
+
+    변이(실제로 확인): check_freshness._gate 의 `if len(SKIPPED) * 2 > len(fails):` 를 `if False:` 로 바꾸면
+    'VERDICT=ok' 가 찍히고 rc 0 이 되어 빨개진다.
+    픽스처: 하니스의 정상 날 원천에서 기본통계·공급·월간·CD 금리·전월세전환율·주담대 금리 원천이 매번 타임아웃(dead).
+    주간·연간·지역 계층은 살아 있다 — 핵심 계열 게이트(CRITICAL_SERIES)가 먼저 잡지 않게 주간을 살려 둔다.
+    """
+    names = list(U.BASIC_CONF) + list(U.SUPPLY_CONF) + ['월간', '금리', '전환율', '주담대']
+    r = _run(monkeypatch, capsys, 4, fault={n: 'dead' for n in names})
+    assert 'VERDICT=ok' not in r['out'] and r['rc'] == C.EXIT_RETRYABLE, r['out'][-600:]
+    assert '주간' not in r['skipped'], '핵심 계열 게이트가 아니라 개수 게이트를 보려는 시험이다'
+    assert '계열을 원천과 대조하지 못했습니다' in r['out'], r['out'][-600:]

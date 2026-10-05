@@ -416,13 +416,19 @@ def main(argv):
             # 우리 자리만 기록하면 추이를 보는 데 충분하다.
             # 최신순 자리도 잰다(2026-09-29). 발행 직후 며칠의 노출은 최신순이 좌우한다 — 세종 편이 '세종시
             # 부동산 전망' 정확도순 100 밖인데 최신순 1위였고, 대표가 실제 검색에서 본 것도 그 자리였다.
-            hd, _ = rank_on(kw, display=100, sort='date')
-            if hd:
-                print('      ↳ 최신순 %d번째' % hd['n'])
-            hist_append(dict(mode='rank', key=kw,
-                             n=(hit['n'] if hit else None),
-                             link=(hit['link'] if hit else None),
-                             n_date=(hd['n'] if hd else None)))
+            rec = dict(mode='rank', key=kw, n=(hit['n'] if hit else None),
+                       link=(hit['link'] if hit else None))
+            hd, derr = rank_on(kw, display=100, sort='date')
+            if derr:
+                # 최신순 조회 실패도 '100 밖'(n_date=None)이 아니다 — n_date 를 빼고 기록해 그 칸의 추이를 오염시키지
+                # 않고, 실패로 센다(2026-10 리뷰 C5). 정확도순 자리는 받았으니 그것은 남긴다.
+                failed += 1
+                print('      ↳ 최신순 조회 실패: %s' % derr)
+            else:
+                if hd:
+                    print('      ↳ 최신순 %d번째' % hd['n'])
+                rec['n_date'] = hd['n'] if hd else None
+            hist_append(rec)
         if not [a for a in argv if not a.startswith('--')]:
             # 인자로 키워드를 주지 않은 기본 추적에서만 전국 질의를 웹문서로도 잰다.
             print('\n전국 질의 %d개 — 사이트(웹문서 상위 30)\n' % len(NATIONAL))

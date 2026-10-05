@@ -13,6 +13,7 @@ import copy
 import datetime
 import io
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -403,7 +404,8 @@ def test_bubble_grace_covers_the_measured_release_lag(monkeypatch, label, ours, 
     monkeypatch.setattr(C, 'TODAY', late)
     assert C.check(label, ours, lambda: src, g, _retry=False), '유예를 넘긴 뒤처짐을 놓쳤다'
     body = io.open(C.__file__, encoding='utf-8').read()
-    assert "pre[('bubble', '%s')], %s)" % ('전환율' if grace.endswith('CONV') else '주담대', grace) in body
+    # 유예 뒤에는 나이 상한(max_age=…)이 붙는다 — 유예 인자 자리만 본다.
+    assert re.search(r"pre\[\('bubble', '%s'\)\], %s[,)]" % ('전환율' if grace.endswith('CONV') else '주담대', grace), body)
 
 
 def test_every_live_adv_key_is_classified():

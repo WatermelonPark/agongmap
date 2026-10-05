@@ -11,8 +11,9 @@
 ⚠️ 보수적으로 판단한다. 틀려서 안 쓴 글을 썼다고 닫으면 그 회차가 조용히
 사라진다. 그래서:
   · 제목이 아니라 **카테고리**로 맞춘다(제목은 매주 바뀌고 손으로 고치기도 한다)
-  · 이슈의 예정일 **이후에** 올라온 글만 인정한다
-  · 글 하나는 이슈 하나만 닫는다(주간 이슈가 둘 밀려 있는데 글은 하나면 하나만)
+  · 이슈의 예정일 무렵(예정일 EARLY_DAYS일 전 ~ 다음 회차 예정일 전, match 참고)에 올라온 글만 인정한다
+  · 글 하나는 이슈 하나만 닫는다(주간 이슈가 둘 밀려 있는데 글은 하나면 하나만) — 회차를 건너도 마찬가지다.
+    이미 닫힌 알림 이슈의 기록(본문)에 적힌 글 주소는 다시 쓰지 않는다
   · RSS를 못 읽거나 gh가 없으면 아무것도 안 닫고 끝낸다
 
 사용:
@@ -127,6 +128,34 @@ def done_title(kind, due):
     return '✅ 발행 확인됨: %s (%s) · 하실 일 없음' % (kind, due.isoformat())
 
 
+def closed_post_urls(posts):
+    """이미 닫힌 알림 이슈의 발행 기록(note_record 가 본문 끝에 덧붙인 글 주소)에 적힌 posts 의 주소 집합.
+
+    match 의 '글 하나에 이슈 하나'는 한 번 실행 안에서만 지켜졌다. 그래서 한 글이 오늘 밀린 회차의 이슈를 닫고,
+    내일 실행에서 다시 이번 회차 이슈를 닫을 수 있었다(2026-10 리뷰 C3). 닫힌 이슈의 기록으로 실행을 건너 막는다.
+    gh 를 못 부르면 None — 그때는 아무것도 닫지 않는다(모듈 머리말의 보수 원칙).
+    """
+    try:
+        r = subprocess.run(
+            ['gh', 'issue', 'list', '--repo', REPO, '--state', 'closed',
+             '--limit', '50', '--json', 'number,title,body'],
+            capture_output=True, text=True, timeout=60, encoding='utf-8')
+    except Exception as e:
+        print('gh 실행 실패(닫힌 이슈): %s' % e)
+        return None
+    if r.returncode != 0:
+        print('gh 오류(닫힌 이슈): %s' % (r.stderr or '').strip()[:200])
+        return None
+    bodies = [it.get('body') or '' for it in json.loads(r.stdout or '[]')]
+    out = set()
+    for p in posts:
+        u = p.get('url') or ''
+        # 주소 뒤에 글자가 더 붙은 다른 글(…/123 과 …/1234)을 같은 글로 치지 않는다.
+        if u and any(re.search(re.escape(u) + r'(?![\w/])', b) for b in bodies):
+            out.add(u)
+    return out
+
+
 def open_issues():
     try:
         r = subprocess.run(
@@ -158,25 +187,40 @@ def open_issues():
 # 굳었다(2026-09-23 점검). 가장 짧은 발행 주기가 7일이라 2일 여유는 지난 회차 글을 끌어오지 않는다.
 EARLY_DAYS = 2
 
+# 종류별 발행 주기(일) — 이슈가 글을 받는 창의 길이다. 주간 시세는 매주 금, 지역·사이클은 화요일 격주 교대라 각각
+# 14일이다(write-reminder.yml). 모르는 종류는 가장 짧은 주기(7일)로 본다.
+CADENCE_DAYS = {'주간 시세': 7, '지역 공급': 14, '사이클 이론': 14}
 
-def match(posts, issues):
-    """[(이슈, 글)] — 같은 카테고리이고 발행일이 예정일 EARLY_DAYS일 전 이후인 가장 이른 글 하나.
-    글 하나에 이슈 하나.
+
+def window(iss):
+    """이슈가 글을 받는 창 [예정일 − EARLY_DAYS, 예정일 + 발행 주기) — 끝은 열려 있다."""
+    due = iss['due']
+    return (due - datetime.timedelta(days=EARLY_DAYS),
+            due + datetime.timedelta(days=CADENCE_DAYS.get(iss['kind'], 7)))
+
+
+def match(posts, issues, used=()):
+    """[(이슈, 글)] — 같은 카테고리이고 발행일이 그 이슈의 창(window) 안인 가장 이른 글 하나. 글 하나에 이슈 하나.
+    used 는 이미 다른 이슈를 닫은 글 주소(closed_post_urls)로, 여기 든 글은 쓰지 않는다.
 
     예정일 조건을 빼면 지난주 주간 글이 이번 주 이슈를 닫고, 카테고리 조건을 빼면 주간 글이 지역 이슈를
     닫는다 — 둘 다 시험으로 고정한다(리뷰 09-18 23번).
+    ⚠️ 창에 끝이 있고, 글이 두 창에 걸치면 **늦은** 이슈가 가진다(2026-10 리뷰 C3). 예전엔 열린 이슈를 오래된 것부터
+    돌며 '예정일 − 2일 이후의 가장 이른 글'을 줬다. 그래서 거른 회차(9/18)의 이슈가 다음 회차 글(9/25)을 가져가 닫혔고,
+    '글 하나에 이슈 하나'가 실행 한 번 안에서만 지켜져 다음 날 실행에서 같은 글이 9/25 이슈까지 닫았다.
     """
-    used, out = set(), []
-    for iss in issues:
-        start = iss['due'] - datetime.timedelta(days=EARLY_DAYS)
+    used, out = set(used or ()), []
+    for iss in sorted(issues, key=lambda x: x['due'], reverse=True):
+        start, end = window(iss)
         cand = [p for p in posts
-                if p['cat'] == iss['cat'] and p['date'] >= start and p['url'] not in used
+                if p['cat'] == iss['cat'] and start <= p['date'] < end and p['url'] not in used
                 and not (iss['kind'] == '지역 공급' and is_city_post(p.get('title')))]
         if not cand:
             continue
         cand.sort(key=lambda p: p['date'])
         used.add(cand[0]['url'])
         out.append((iss, cand[0]))
+    out.sort(key=lambda x: x[0]['due'])
     return out
 
 
@@ -212,8 +256,11 @@ def main(argv):
         print('열린 알림 이슈가 없다.')
         return 0
 
+    used = closed_post_urls(posts)
+    if used is None:
+        return 0
     closed = 0
-    pairs = dict((iss['n'], p) for iss, p in match(posts, issues))
+    pairs = dict((iss['n'], p) for iss, p in match(posts, issues, used))
     for iss in issues:
         p = pairs.get(iss['n'])
         if p is None:

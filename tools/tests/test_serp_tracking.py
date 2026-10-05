@@ -64,3 +64,27 @@ def test_track_records_date_rank_too(monkeypatch, tmp_path):
     import json
     rec = [json.loads(l) for l in open(NS.HIST, encoding='utf-8')][0]
     assert 'date' in calls and rec['n'] is None and rec['n_date'] == 1
+
+
+def test_failed_date_rank_is_counted_not_recorded_as_absent(monkeypatch, tmp_path):
+    """최신순 조회가 실패하면 실패로 세고(종료 코드 1) n_date 를 기록에서 뺀다 — '100 밖'(None)으로 적으면 최신순 추이가
+    오염된다(2026-10 리뷰 C5: 예전엔 오류를 버리고 n_date=None 으로 적었다). 정확도순 자리는 받았으니 남긴다.
+
+    변이(실제로 확인): main 의 `hd, derr = rank_on(...)` 뒤 실패 분기를 지우고 예전처럼 `rec['n_date'] = …` 만 두면
+    rc 와 'n_date' 단정이 빨개진다.
+    픽스처: 네이버 블로그 검색 API 를 흉내 낸 _get — 정확도순은 우리 글을 3번째로 내고, 최신순(sort=date)은 매번
+    예외(재시도까지 실패한 상태). 이력 파일은 tmp.
+    """
+    def fake_get(kind, q, display=10, sort='sim'):
+        if sort == 'date':
+            raise OSError('timed out')
+        items = [{'link': 'https://blog.example/x', 'title': 'a'}] * 2 + [
+            {'link': 'https://blog.naver.com/startupbd/1', 'title': 't'}]
+        return {'items': items, 'total': 3}
+    monkeypatch.setattr(NS, '_get', fake_get)
+    monkeypatch.setattr(NS, 'HIST', str(tmp_path / 'h.jsonl'))
+    rc = NS.main(['--track', '세종시 부동산 전망'])
+    import json
+    rec = [json.loads(l) for l in open(NS.HIST, encoding='utf-8')][0]
+    assert rc == 1, '최신순 조회 실패를 세지 않았다'
+    assert rec['n'] == 3 and 'n_date' not in rec, rec
