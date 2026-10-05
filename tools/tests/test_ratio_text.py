@@ -71,12 +71,22 @@ def test_horizon_follows_H_instead_of_saying_three_years():
     assert '3년' not in SZ.ratio_text(0.2, SZ.LEAD_Q - 1)
 
 
-def test_stored_rows_carry_the_text_for_their_own_ratio():
-    adv = _adv()
-    H = adv['sido']['H']
-    for z in adv['sido']['zones']:
-        assert z.get('rtxt') == SZ.ratio_text(z['ratio'], H), \
-            '%s: 저장된 문구가 저장된 비율과 다르다 — --seed-sido를 다시 돌릴 것' % z['z']
+def test_screens_read_the_text_for_their_own_ratio():
+    """화면(split_data → 홈 data-core, make_sido_pages → 허브·리포트)이 읽는 비율 문구 rtxt 는 그 행의 비율로 지금의 정본 함수가
+    만든 문장이다. 저장된 data.js 의 rtxt 는 calc 가 점수를 다시 쓸 때만 바뀌어, 문구 함수를 고친 PR(2026-10-05 '부족분은 …의
+    N%' 표기 변경) 뒤 다음 계산까지 옛 말일 수 있다 — 그래서 저장값이 아니라 refresh_texts 로 다시 구운 값을 본다.
+
+    변이(실제로 확인): refresh_texts 에서 rtxt 를 다시 굽는 줄을 빼면 빨개진다.
+    픽스처: 저장소 data.js 의 판정 행 전부, rtxt 를 일부러 옛 문구('3년 필요량의 60% 부족')로 덮은 사본 — 데이터가 앞으로 가도
+            저장값과 무관하게 같은 것을 본다.
+    """
+    sido = _adv()['sido']
+    H = sido['H']
+    for z in sido['zones']:
+        z['rtxt'] = '3년 필요량의 60% 부족'
+    SZ.refresh_texts(sido)
+    for z in sido['zones']:
+        assert z['rtxt'] == SZ.ratio_text(z['ratio'], H), '%s: 화면 문구가 비율과 다르다 — %s' % (z['z'], z['rtxt'])
 
 
 def _mid(lo, hi):
@@ -138,8 +148,8 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
             assert '더 들어옵니다' not in t and '앞으로' not in t and '누적 순부족' not in t, t
             assert t.startswith(past), '판정 설명이 지난 창 재고를 말하지 않는다: %s' % t
             if abs(pct) >= 1:
-                assert '%d%%만큼' % abs(pct) in t, t
-            assert ('부족합니다' in t) == (pct >= 1) and ('남습니다' in t) == (pct <= -1), t
+                assert '필요량의 %d%%입니다' % abs(pct) in t and '만큼' not in t, t
+            assert ('부족분은' in t) == (pct >= 1) and ('여유분은' in t) == (pct <= -1), t
             if inow is not None and abs(pct) >= 1:   # 거의 0 이면 방향이 없어 갈래도 없다
                 tail = SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 1, 1, inow)
                 assert ('덜 지은 몫' in t) == ('쌓인 부족' in tail) and ('남은 재고' in t) == ('남은 재고' in tail), \
@@ -148,14 +158,14 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
 
 def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypatch):
     """여유 지역(입주 추정 < 필요량, 남은 재고 > 0)의 시도 리포트 판정 문장과 블로그 지역 편 판정 문단은 '지난 4년 남은 재고까지
-    더하면 3년 필요량의 19%만큼 남습니다'이고, 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
+    더하면 여유분은 3년 필요량의 19%입니다'이고(2026-10-05 대표 요청 — 주어를 밝힌다), 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
 
     변이(각각 실제로 확인): verdict_line 이 inow 를 넘기지 않으면(갈래 없는 '재고까지 셈하면') 리포트 단정이, draft_zone 이
           inow 를 넘기지 않으면 블로그 단정이, ratio_text 를 옛 여유 문장으로 되돌리면 둘 다 빨개진다.
     픽스처: 인천 실측 모양의 합성 행(INCHEON). 블로그는 저장소 판정 행을 복사해 숫자만 이 모양으로 덮는다(데이터가 앞으로
             가도 같은 숫자).
     """
-    want = '지난 4년 남은 재고까지 더하면 3년 필요량의 19%만큼 남습니다'
+    want = '지난 4년 남은 재고까지 더하면 여유분은 3년 필요량의 19%입니다'
     line = P.verdict_line(INCHEON, SZ.LEAD_Q)
     assert line.startswith(want + '. '), line
     assert '더 들어옵니다' not in line
@@ -212,7 +222,7 @@ def test_percent_never_crosses_a_grade_cut():
             above = [x for x in cuts if pct >= round(x * 100)]
             want = SZ.GRADE_KEYS[SZ.GRADE_CUTS.index(max(above))] if above else 'g1'
             assert want == g, '%s: 문구 %d%% 는 %s 인데 등급은 %s — %s' % (r, pct, want, g, t)
-            assert '%d%%만큼' % pct in SZ.card_parts(1000, r)[2], (r, SZ.card_parts(1000, r))
+            assert SZ.card_parts(1000, r)[2] == '3년 필요량의 %d%%' % pct, (r, SZ.card_parts(1000, r))
             line = P.verdict_line({'ratio': r, 'grade': g, 'inow': -1}, SZ.LEAD_Q)
             if g == 'g1':
                 assert pct < round(SZ.GRADE_CUTS[2] * 100), line
