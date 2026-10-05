@@ -48,6 +48,6 @@
 ## 데이터 출처
 
 - [KOSIS](https://kosis.kr): 국가통계포털 — 인허가·착공·준공 실적과 가격지수·전세가율 원자료
-- [한국부동산원](https://www.reb.or.kr/r-one/): 주간·월간 아파트 가격 동향과 미분양
-- [국토교통부](https://www.molit.go.kr): 주택건설실적통계(인허가·착공·준공)
+- [한국부동산원](https://www.reb.or.kr/r-one/): 주간·월간 아파트 가격 동향
+- [국토교통부](https://www.molit.go.kr): 주택건설실적통계(인허가·착공·준공) · 미분양주택현황
 - [한국은행](https://www.bok.or.kr): 금리
