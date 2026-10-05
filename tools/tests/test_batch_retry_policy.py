@@ -93,15 +93,39 @@ def test_exhausted_retries_turn_the_run_red():
 
 
 def test_pending_retry_must_not_turn_red():
-    """반대로 '재시도 대기' 분기는 초록이어야 한다 — retry 잡의 if가 커스텀 조건이라
-    커밋 잡이 실패하면 GitHub이 그 잡을 건너뛴다. red로 만들면 재시도를 걸어놓고
-    재시도를 못 돌게 하는 꼴이 된다."""
+    """반대로 '재시도 대기' 분기는 초록이어야 한다 — 아직 결론이 나지 않은 회차라 실패 메일을 보낼 일이 아니다
+    (재시도까지 소진해야 red, 위 시험). retry 잡은 이제 !cancelled() 로 커밋 잡의 성패와 무관하게 돌지만
+    (아래 시험), 대기 분기가 red 이면 재시도가 살려 낼 회차마다 실패 메일이 먼저 나간다."""
     y = io.open(WF, encoding='utf-8').read()
     blk = y[y.index('need_retry=true'):y.index('시도 3/3 소진')]
-    assert 'exit 0' in blk, '재시도 대기 분기가 red가 되면 retry 잡이 건너뛰어진다'
-    # retry 잡 조건이 always()/!cancelled() 없이 needs.commit에 걸려 있다는 전제.
-    assert re.search(r"if:\s*needs\.commit\.outputs\.need_retry\s*==\s*'true'", y), \
-        'retry 잡 조건이 바뀌었다 — 위 전제를 다시 확인할 것'
+    assert 'exit 0' in blk, '재시도 대기 분기가 red 다 — 재시도가 살려 낼 회차마다 실패 메일이 나간다'
+
+
+def _job_if(y, job):
+    """워크플로의 잡 하나에서 잡 단위 `if:` 줄(들여쓰기 4칸)을 돌려준다."""
+    seg = y[y.index('\n  %s:\n' % job) + 1:]
+    nxt = re.search(r'\n  [A-Za-z_-]+:\n', seg)
+    seg = seg[:nxt.start()] if nxt else seg
+    m = re.search(r'^    if:\s*(.+)$', seg, re.M)
+    return m.group(1).strip() if m else None
+
+
+def test_retry_job_runs_after_failed_fetch_legs():
+    """retry 잡 조건에 상태 함수 !cancelled() 가 있어야 한다(2026-10 리뷰 C1b). 상태 함수가 없는 잡 if 에는 암묵
+    success() 가 붙고, 그건 앞선 잡 **전부**(commit 앞의 fetch 매트릭스까지)가 성공했을 때만 참이다. 재시도가 필요한
+    날은 바로 fetch 러너가 실패한 날(0/3)이라 — commit 은 always() 로 돌아 need_retry=true 를 세워도 — retry 잡이
+    늘 건너뛰어졌다. always() 가 아니라 !cancelled() 인 것은 사람이 런을 취소했을 때 재시도를 걸지 않으려는 것이다.
+
+    변이(실제로 확인): retry 잡의 if 에서 `!cancelled() && ` 를 지우면(예전 조건) 빨개진다. `always() && ` 로 바꿔도
+    빨개진다. need_retry 비교를 지워도 빨개진다.
+    픽스처: update-cloud.yml 원문 — 잡 단위 if 줄을 잡 경계로 잘라 읽는다. commit 잡도 같은 이유로 always() 인지 본다.
+    """
+    y = io.open(WF, encoding='utf-8').read()
+    cond = _job_if(y, 'retry')
+    assert cond, 'retry 잡에 if 가 없다'
+    assert re.fullmatch(r"\$\{\{\s*!cancelled\(\)\s*&&\s*needs\.commit\.outputs\.need_retry\s*==\s*'true'\s*\}\}",
+                        cond), 'retry 잡 조건에 !cancelled() 가 없다 — fetch 러너가 실패한 날(재시도가 필요한 날) 건너뛴다: ' + cond
+    assert _job_if(y, 'commit') == 'always()', 'commit 잡이 fetch 실패 날에 돌지 않는다 — need_retry 를 세울 잡이 없다'
 
 
 def test_reason_is_uploaded_even_when_the_runner_fails():

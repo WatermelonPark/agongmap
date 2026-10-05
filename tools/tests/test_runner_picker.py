@@ -97,14 +97,41 @@ def test_picker_prefers_the_runner_that_recovered_the_index_basis(tmp_path):
 
     변이(실제로 확인): 고르기에서 `[ "$bok" \\> "$BESTBOK" ]` 줄을 지우면 첫 단정이 1번을 골라 빨개진다. 기준복구 비교를
     시야 비교 앞으로 옮기면 넷째 단정이 빨개진다.
-    픽스처: 저장소 data-core.js 사본(키가 모두 같음)과 러너별 .fetch_failed(배치가 쓰는 모양 그대로 공백 구분 토큰).
+    픽스처: 저장소 data-core.js 사본(키가 모두 같음)과 러너별 .fetch_failed(배치가 쓰는 모양 그대로 쉼표 구분 항목 —
+    update_adv_data.main 의 `','.join(failed + soft_failed)`).
     """
     _, y, q, lead = _saved()
     cur = _q(y, q, 0)
     same = _core(cur, cur, lead)
-    held = '매매지수:기준변경 보류 전세지수:기준변경 보류'
+    held = '매매지수:기준변경 보류,전세지수:기준변경 보류'
     assert _pick(tmp_path / 'a', [same, same], [held, None]) == '2', '보류한 1번을 골랐다 — 복구가 하루 밀린다'
     assert _pick(tmp_path / 'b', [same, same], [None, held]) == '1'
-    assert _pick(tmp_path / 'c', [same, same], ['holidays:2027', None]) == '1', '다른 실패는 기준 보류가 아니다'
+    # 실패 수가 같게 두고 본다 — 실패 수가 다르면 아래 실패 수 비교가 가른다(test_picker_prefers_the_runner_with_fewer_fetch_failures).
+    assert _pick(tmp_path / 'c', [same, same], ['holidays:2027', '준공']) == '1', '다른 실패는 기준 보류가 아니다'
     assert _pick(tmp_path / 'd', [same, _core(_q(y, q, 1), cur, lead - 1)], [held, None]) == '1', (
         '보류를 피하려다 시야가 어긋난(ABORT) 러너를 골랐다')
+
+
+@pytest.mark.skipif(not shutil.which('bash'), reason='bash 없음(워크플로 러너에는 있다)')
+def test_picker_prefers_the_runner_with_fewer_fetch_failures(tmp_path):
+    """다른 채택 키(주간·월간·시야·기준복구)가 같으면 .fetch_failed 항목이 적은 러너를 고른다(2026-10 리뷰 C1).
+    예전 고르기는 실패 수를 견주지 않아, 1번이 기본통계 계열 몇 개를 못 받아 직전 값을 유지했어도 다 받은 2번을 두고
+    번호 순서로 1번을 골랐다. 실패 수는 실적 분기(sidoL)보다 먼저 보고, 기준복구(bok)보다는 뒤에 본다.
+
+    변이(실제로 확인): 고르기에서 `[ "$nf" -lt "$BESTNF" ]` 줄을 지우면 첫 단정이 1번을 골라 빨개진다. 실패 수를 세는
+    awk 를 `nf=0` 으로 바꿔도 같다. 다음 줄의 `[ "$nf" = "$BESTNF" ] &&` 를 지우면 넷째 단정(실패 많은 쪽이 sidoL 로
+    역전)이 빨개진다.
+    픽스처: 저장소 data-core.js 사본(키가 모두 같음)과 러너별 .fetch_failed — 배치가 쓰는 쉼표 구분 모양(빈 파일 = 성공
+    러너, 'holidays:2027' 같은 soft 실패, 기본통계 계열 실패).
+    """
+    _, y, q, lead = _saved()
+    cur, nxt = _q(y, q, 0), _q(y, q, 1)
+    same = _core(cur, cur, lead)
+    two = '착공,준공'
+    assert _pick(tmp_path / 'a', [same, same], [two, None]) == '2', '실패가 있는 1번을 골랐다 — 다 받은 2번이 있다'
+    assert _pick(tmp_path / 'b', [same, same, same], [two, 'holidays:2027', '']) == '3', '빈 파일(실패 0)이 이겨야 한다'
+    assert _pick(tmp_path / 'c', [same, same], ['holidays:2027', two]) == '1', '항목 수를 견준다(1개 < 2개)'
+    assert _pick(tmp_path / 'd', [same, _core(nxt, nxt, lead)], [None, two]) == '1', (
+        '실패가 많은 러너가 실적 분기로 역전했다 — 실패 수가 sidoL 보다 먼저다')
+    held = '매매지수:기준변경 보류'
+    assert _pick(tmp_path / 'e', [same, same], [held, two]) == '2', '기준복구가 실패 수보다 먼저다'

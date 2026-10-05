@@ -48,7 +48,9 @@ import kst as KST      # noqa: E402  (오늘(KST) — 퀴즈 검토 기한은 �
 
 SITE = 'https://www.agongmap.co.kr'
 UA = {'User-Agent': 'agongmap-watchdog'}
-TODAY = datetime.date.today()
+# 오늘은 한국 날짜다(tools/kst.py). 감시는 18:07~23:15 KST(09~14 UTC)에 돌아 UTC 날짜와 같지만, 수동 실행이
+# 00~09 KST 에 들면 UTC 는 전날이다 — 나이 상한(MAX_AGE_*)이 하루 늦게 걸리지 않게 KST 로 잰다.
+TODAY = KST.today()
 # 감시를 실패시키지 않는 알림(퀴즈 제도 문항 검토 기한). fails 와 따로 둔다 — _emit_warnings 참고.
 WARN = []
 # 잡 요약 파일(GITHUB_STEP_SUMMARY). 스크립트로 돌 때만 채운다(맨 아래 __main__) — 시험이 main() 을 불러도
@@ -149,6 +151,7 @@ SOURCE_WORKERS = 4
 #    판정한다(split_data 가 ADV.weekly.grace 로 싣는다). 여기서 따로 숫자를 적으면 감시와 화면이 갈린다 —
 #    test_weekly_release 가 둘의 일치를 본다.
 from weekly_release import GRACE_WEEKLY  # noqa: E402
+import weekly_release as WR  # noqa: E402  (주간 나이 상한의 연휴 주 판정 — weekly_max_age)
 GRACE_MONTHLY = 50     # 매월 15일경 전월분 발표
 GRACE_BASIC = 100      # 인허가·착공·준공이 약 2개월 지연(정상 최대 ~95일)
 # 버블밴드 두 계열은 발표가 더 늦다 — 새 달이 원천에 올라온 날 우리 값(전달)의 나이가 이미 GRACE_MONTHLY(50)를
@@ -157,6 +160,36 @@ GRACE_BASIC = 100      # 인허가·착공·준공이 약 2개월 지연(정상 
 # (09-28, 2026.06), 주담대 금리 86일(08-26, 2026.06). 정상 최대에 여유를 둔다 — 배치가 그 달을 놓친 것은 이만큼 늦게 잡힌다.
 GRACE_BUBBLE_CONV = 150
 GRACE_BUBBLE_LOAN = 100
+
+# 계열별 나이 **상한**(일) — 원천 대조(check)와 따로, 우리 최신 시점이 **끝난 날**부터 오늘(KST)까지가 이보다 길면
+# 원천과 같은 시점이어도 실패시킨다(2026-10 리뷰 C2, 대표 결정). 대조만으로는 원천 표 자체가 멈추면(갱신 중단·표 폐지
+# 뒤 옛 표가 그대로 응답) '원천과 같은 시점'이라 영원히 초록이다. 나이를 시점 **시작일**로 재는 grace(age_days)와
+# 달리 끝날(주간=조사기준일, 월=그 달 말일, 연=12월 31일, period_end)로 잰다 — 발표 주기와 바로 견줄 수 있다.
+# 근거는 2026-07-30~10-05 배치 커밋 61회의 data.js 를 커밋 날짜에서 잰 최대 나이(정상 운영의 실측)와 발표 주기다.
+# 상한은 '정상 최대 + 한 회차 이상'으로 잡았다 — 발표가 한 번 늦는 것은 넘기고, 두 회차째 멈추면 잡는다.
+#   주간 16 : 월요일 조사·목요일 발표. 정상 최대 9일(GRACE_WEEKLY, 실측 최대 9일 — 09-30 추석 주). 원천이 연휴 주에
+#             조사를 한 주 거르면(data.js 실측: 2025-01-20→02-03, 2025-09-29→10-13) 다음 발표 전날 수요일이 14+2=16일이다.
+#             그래서 16 이고, 다음 발표 주에 공휴일이 끼면(weekly_release.status 의 hedge) 한 주(7일)를 더 봐준다 —
+#             건너뛴 주에 발표마저 하루 밀리면 목요일 밤 17일이 되기 때문이다.
+#   월간 75 : R-ONE 월간 시세는 이듬달 15일 무렵 발표 — 정상 최대 약 45일(실측 44일). 한 달 남짓 여유.
+#   금리 75 : 한국은행 CD 금리(월)는 이듬달 초 공표 — 실측 최대 34일. 월간과 같은 상한.
+#   기본통계·공급 130 : 인허가·착공·준공·매매/전세지수·규모별·분양·미분양은 이듬달 말 발표 — 정상 최대 약 65일.
+#             실측 최대 97일(미분양 2026.06 — 원천의 광주·전남 행이 덜 차 완비 달을 보류 중, 10-05 기준)·89일(전세지수·
+#             규모별 2026.06, 09-27). 130 은 그 위로 한 달 남짓이고 두 달째 멈추면 잡힌다.
+#   전월세전환율 160 : KOSIS 전월세전환율은 석 달 가까이 늦게 나온다 — 새 달이 올라온 날 우리 값 나이(끝날 기준)
+#             102일(09-10, 2026.05)·90일(09-28, 2026.06), 실측 최대 97일. 정상 위로 두 달.
+#   주담대 금리 100 : ECOS 예금은행 주담대 금리는 이듬달 말 공표 — 새 달이 올라온 날 우리 값 나이 56일(08-26, 2026.06),
+#             실측 최대 59일. 한 달 남짓 여유.
+#   연간 1100 : 보급률·멸실·아파트건설·노후주택은 한 해 치를 이듬해 중반~이태 초에 낸다 — 정상 최대 약 2년(실측 643일,
+#             2024 계열의 10-05 나이). 짧게 잡으면 매년 정상 지연에 오경보가 나므로 약 3년(한 회차를 통째로 놓친 뒤)으로 둔다.
+# 시험(main 하니스)은 날짜가 앞으로 가도 초록이어야 해서, 상한은 TODAY 를 고정한 시험에서만 켠다(test_freshness_ceiling).
+MAX_AGE_WEEKLY = 16
+MAX_AGE_MONTHLY = 75
+MAX_AGE_RATE = 75
+MAX_AGE_BASIC = 130
+MAX_AGE_BUBBLE_CONV = 160
+MAX_AGE_BUBBLE_LOAN = 100
+MAX_AGE_ANNUAL = 1100
 
 
 def get_json(url):
@@ -972,8 +1005,47 @@ def age_days(period):
     return (TODAY - d).days
 
 
-def check(label, ours, getter, grace, _retry=True):
-    """원천이 더 최신이고 grace를 넘겨 뒤처졌으면 실패 사유를 반환."""
+def period_end(period):
+    """'20260727'/'202606'/'2026' → 그 시점이 끝나는 날(주간=그 조사기준일, 월=말일, 연=12월 31일). 못 읽으면 None."""
+    n = digits(period)
+    try:
+        if len(n) >= 8:
+            return datetime.date(int(n[:4]), int(n[4:6]), int(n[6:8]))
+        if len(n) == 6:
+            y, m = int(n[:4]), int(n[4:6])
+            datetime.date(y, m, 1)              # 달이 1~12 인지 확인(아니면 ValueError)
+            nxt = datetime.date(y + (m == 12), m % 12 + 1, 1)
+            return nxt - datetime.timedelta(days=1)
+        if len(n) == 4:
+            return datetime.date(int(n), 12, 31)
+    except ValueError:
+        return None
+    return None
+
+
+def too_old(label, ours, max_age):
+    """우리 최신 시점이 끝난 지 max_age 일을 넘었으면 실패 사유(MAX_AGE_* 주석). 원천과 같은 시점이어도 실패다 —
+    원천 표가 멈춘 것을 잡는 장치라서다. max_age 가 None 이면 보지 않는다."""
+    if max_age is None or not ours:
+        return None
+    end = period_end(ours)
+    if end is None:
+        return '%s: 최신 시점 해석 불가(%s) — 나이 상한을 잴 수 없다' % (label, ours)
+    age = (TODAY - end).days
+    if age <= max_age:
+        return None
+    print('  %-12s %-12s 끝난 지 %d일  실패 (상한 %d일)' % (label, ours, age, max_age))
+    return ('%s: 최신 시점 %s 이(가) 끝난 지 %d일 — 상한 %d일 초과(원천 표가 멈췄거나 배치가 새 시점을 못 받는다)'
+            % (label, ours, age, max_age))
+
+
+def check(label, ours, getter, grace, _retry=True, max_age=None):
+    """원천이 더 최신이고 grace를 넘겨 뒤처졌으면 실패 사유를 반환.
+
+    max_age(일)를 주면 원천과 같은 시점이어도 우리 최신 시점이 끝난 지 그보다 오래면 실패다(too_old, MAX_AGE_*).
+    상한은 계열당 한 번만 판정한다 — 1차 조회가 실패해 재시도 큐로 넘긴 계열은 재시도 쪽(이 함수를 _retry=False 로
+    다시 부른다)에서 본다. 그래야 계열당 fails 항목이 하나로 남아 개수 게이트의 분모가 부풀지 않는다.
+    """
     if not ours:
         return '%s: 라이브 값이 비어 있음' % label
     try:
@@ -985,14 +1057,15 @@ def check(label, ours, getter, grace, _retry=True):
             # 모아 한 텀 쉬고 retry_failed()가 다시 본다. 그래도 실패하면 그때
             # SKIPPED에 들어가 아래 게이트가 잡는다.
             # 미리 받아 둔 결과(_Fetched)가 아니라 원래 getter를 넣는다 — 재시도는 새로 불러야 한다.
-            RETRYQ.append((label, ours, getattr(getter, 'fresh', getter), grace))
+            RETRYQ.append((label, ours, getattr(getter, 'fresh', getter), grace, max_age))
             print('  %-12s %-12s 원천 조회 실패 (%s) — 막판에 재시도'
                   % (label, ours, str(e)[:40]))
             return None
         # 재시도까지 실패 — 한둘은 넘기고, 대량 건너뜀만 아래에서 잡는다.
         SKIPPED.append(label)
         print('  %-12s %-12s 원천 조회 건너뜀 (%s)' % (label, ours, str(e)[:40]))
-        return None
+        # 원천을 못 봐도 우리 값의 나이는 잴 수 있다 — 상한을 넘었으면 그것만으로 실패다.
+        return too_old(label, ours, max_age)
     o, s = digits(ours), digits(src)
     age = age_days(ours)
     behind = len(o) == len(s) and s > o
@@ -1004,7 +1077,7 @@ def check(label, ours, getter, grace, _retry=True):
             return '%s(라이브 %s < 원천 %s, 경과 %s일)' % (label, ours, src, age)
         mark += ' (발표 직후 가능 — grace %d일 내)' % grace
     print('  %-12s %-12s %s일%s' % (label, ours, age, mark))
-    return None
+    return too_old(label, ours, max_age)
 
 
 def retry_failed(fails, wait=None):
@@ -1025,13 +1098,13 @@ def retry_failed(fails, wait=None):
     FETCH_TIMEOUT = 20
     # 재시도도 1차와 같이 병렬로 받아 두고 판정은 순서대로 한다(백로그 25).
     items = list(RETRYQ)
-    got = prefetch([g for _, _, g, _ in items])
-    for (label, ours, _, grace), getter in zip(items, got):
+    got = prefetch([g for _, _, g, _, _ in items])
+    for (label, ours, _, grace, max_age), getter in zip(items, got):
         # ⚠️ 뒤처짐(진짜 사유)만 fails에 넣는다. None까지 넣으면 계열당 항목이
         # 두 개가 되어 'SKIPPED×2 > len(fails)' 게이트의 분모가 부풀고, 지속
         # 광역 장애(14/18)가 28>32 거짓으로 **OK를 찍는다** — 감시가 켜진 채
         # 아무것도 안 보는 상태다(2026-08-13 리뷰에서 재현·확정한 회귀).
-        r = check(label, ours, getter, grace, _retry=False)
+        r = check(label, ours, getter, grace, _retry=False, max_age=max_age)
         if r:
             fails.append(r)
     del RETRYQ[:]
@@ -1078,6 +1151,18 @@ def _supply_since(last):
     if m <= 0:
         y, m = y - 1, 12
     return '%04d%02d' % (y, m)
+
+
+def weekly_max_age(p, holidays=()):
+    """주간의 나이 상한 — MAX_AGE_WEEKLY 에, 다음 발표 주에 공휴일이 끼면(weekly_release.status 의 hedge) 한 주를 더한다.
+    원천이 연휴 주에 조사를 거르면 다음 발표가 한 주 늦게 오기 때문이다(MAX_AGE_* 주석). 상한이 꺼져 있으면 None."""
+    if MAX_AGE_WEEKLY is None or not p:
+        return MAX_AGE_WEEKLY
+    try:
+        hedge = WR.status(p, holidays=holidays or ())['hedge']
+    except (ValueError, TypeError):
+        hedge = False      # p 를 못 읽으면 too_old 가 '해석 불가'로 실패시킨다
+    return MAX_AGE_WEEKLY + (WR.WEEK if hedge else 0)
 
 
 def source_jobs(stats):
@@ -1129,7 +1214,7 @@ def main():
     fails = []
     print('[시세 — 원천 R-ONE]')
     wk = ((adv.get('weekly') or {}).get('rows') or [{}])[-1].get('p')
-    fails.append(check('주간', wk, pre['주간'], GRACE_WEEKLY))
+    fails.append(check('주간', wk, pre['주간'], GRACE_WEEKLY, max_age=weekly_max_age(wk, adv.get('holidays'))))
     # 공유 카드는 라이브 데이터와 같은 주차여야 한다. 원천이 아니라 **라이브 주간**과
     # 대조하는 게 핵심 — 배치가 데이터를 못 받은 날은 위 '주간' 검사가 이미 잡고,
     # 여기서 보려는 건 '데이터는 새 주차인데 카드만 안 만들어진' 상태다.
@@ -1153,13 +1238,13 @@ def main():
             print('  공유카드: 조회 실패(%s) — 이번 회차 판정 못 함' % str(e)[:50])
 
     mo = ((adv.get('monthly') or {}).get('rows') or [{}])[-1].get('p')
-    fails.append(check('월간', mo, pre['월간'], GRACE_MONTHLY))
+    fails.append(check('월간', mo, pre['월간'], GRACE_MONTHLY, max_age=MAX_AGE_MONTHLY))
 
     print('[기본통계 — 원천 KOSIS]')
     for name, cfg in sorted(U.BASIC_CONF.items()):
         D = stats.get(name) or {}
         last = (D.get('dates') or [None])[-1]
-        fails.append(check(name, last, pre[('basic', name)], GRACE_BASIC))
+        fails.append(check(name, last, pre[('basic', name)], GRACE_BASIC, max_age=MAX_AGE_BASIC))
     # 지연 로드로 뺀 계열은 split_data.LAZY_STATS가 정본이다. 목록을 여기 손으로
     # 옮겨 적으면 거기 계열이 하나 늘 때 감시만 조용히 뒤처진다 — '규모별'이
     # data-size.json으로 빠졌을 때 실제로 그렇게 감시가 꺼져 있었다(2026-08-04).
@@ -1172,7 +1257,7 @@ def main():
                              % (name, fname))
     if '규모별' in stats:
         last = (stats['규모별'].get('dates') or [None])[-1]
-        fails.append(check('규모별', last, pre['규모별'], GRACE_BASIC))
+        fails.append(check('규모별', last, pre['규모별'], GRACE_BASIC, max_age=MAX_AGE_BASIC))
 
     # 분양·미분양은 BASIC_CONF가 아니라 SUPPLY_CONF에 있어 예전엔 감시에서 통째로
     # 빠져 있었다(2026-07-31 발견). 새 지표를 추가할 때 감시에도 들어왔는지
@@ -1188,7 +1273,7 @@ def main():
         # 그걸 모르면 의도된 건너뜀이 뒤처짐으로 읽혀 매일 빨개진다 — 2026.07
         # 미분양이 실제로 그랬다(원천에 광주·전남 행이 없고 통합 노드도 아직 없음).
         # 원천이 그 달을 채우면 그때부터 비교 대상이 되므로 경보가 늦지 않는다.
-        fails.append(check(name, last, pre[('supply', name)], GRACE_MONTHLY))
+        fails.append(check(name, last, pre[('supply', name)], GRACE_MONTHLY, max_age=MAX_AGE_BASIC))
         # 시점이 같아도 값이 멈춰 있을 수 있다.
         # ⚠️ 두 가지를 지킨다(리뷰 2026-09-16 9번).
         #   ① 통과(None)는 fails 에 넣지 않는다. len(fails) 는 '검사한 계열 수'이고 개수
@@ -1204,22 +1289,24 @@ def main():
 
     print('[금리 — 원천 한국은행 ECOS]')
     D = stats.get('금리') or {}
-    fails.append(check('금리', (D.get('dates') or [None])[-1], pre['금리'], GRACE_MONTHLY))
+    fails.append(check('금리', (D.get('dates') or [None])[-1], pre['금리'], GRACE_MONTHLY,
+                       max_age=MAX_AGE_RATE))
 
     # 버블밴드(ADV.bubble)는 STATS 가 아니라 ADV 에 있어 감시 밖이었다(전수리뷰 #109). fetch_bubble 이
     # 매일 실패해도 배치는 ℹ️ 줄만 남기므로, 홈 버블밴드와 블로그의 주담대 금리 문장이 옛 값으로 무기한
     # 나갈 수 있었다. 같은 성격의 CD 금리는 감시하면서 주담대 금리는 보지 않는 비대칭이기도 했다.
     print('[버블밴드 — 원천 KOSIS 전월세전환율 · ECOS 주담대 금리]')
     bub = adv.get('bubble') or {}
-    fails.append(check('전월세전환율', bub.get('prd'), pre[('bubble', '전환율')], GRACE_BUBBLE_CONV))
+    fails.append(check('전월세전환율', bub.get('prd'), pre[('bubble', '전환율')], GRACE_BUBBLE_CONV,
+                       max_age=MAX_AGE_BUBBLE_CONV))
     fails.append(check('주담대 금리', (bub.get('loan') or {}).get('p'),
-                       pre[('bubble', '주담대')], GRACE_BUBBLE_LOAN))
+                       pre[('bubble', '주담대')], GRACE_BUBBLE_LOAN, max_age=MAX_AGE_BUBBLE_LOAN))
 
     print('[연간 — 원천 KOSIS]')
     for name, cfg in sorted(U.ANNUAL_CONF.items()):
         D = stats.get(name) or {}
         last = (D.get('dates') or [None])[-1]
-        fails.append(check(name, last, pre[('annual', name)], None))
+        fails.append(check(name, last, pre[('annual', name)], None, max_age=MAX_AGE_ANNUAL))
 
     # 간판 지표(순부족)의 공급·재고 입력. 2026-08-06까지는 건축HUB 단지 수집이
     # 여기 있었는데, 미래 공급을 인허가 기반 준공예정으로 세던 게 착공 기준 대비
