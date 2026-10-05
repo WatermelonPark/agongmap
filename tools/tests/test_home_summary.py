@@ -117,10 +117,10 @@ def test_baked_text_says_the_synthetic_numbers():
     og = re.search(r'<meta property="og:description" content="([^"]*)"', out).group(1)
     tw = re.search(r'<meta name="twitter:description" content="([^"]*)"', out).group(1)
     assert og == tw
-    # 문장(2026-10-05 대표 요청): 정본 카드 문구 ctxt('412,345세대 부족(3년 필요량의 88%)') — 괄호 안이 무엇의 몇 %인지다.
+    # 문장(2026-10-05 대표 요청): 정본 카드 문구 ctxt('412,345세대 부족(부족률 +88%)') — 괄호 안이 무엇의 몇 %인지다.
     # '전국 값 · 결론'은 '…로 가장 크게 내렸습니다'로 잇는다. '만큼.' 으로 끝나지 않는다.
     assert '2027년 1분기 기준 전국 아파트 공급은 %s입니다.' % nat['ctxt'] in desc, desc
-    assert nat['ctxt'] == '%s 부족(3년 필요량의 88%%)' % nat['cnum'], nat['ctxt']
+    assert nat['ctxt'] == '%s 부족(부족률 +88%%)' % nat['cnum'], nat['ctxt']
     assert '1/7 발표 주간 아파트 매매가격은 전국 +0.13% · 부산 -0.33%로 가장 크게 내렸습니다.' in desc, desc
     assert nat['ctxt'] in og and '+0.13%' in og
     assert '만큼.' not in desc and '만큼.' not in og
@@ -132,7 +132,7 @@ def test_baked_text_says_the_synthetic_numbers():
     # 판정 창이 2년인 모델이면 '2년' — '3년' 을 손으로 적지 않는다
     two = MH.render(_index(), _adv(H=8))
     d2 = re.search(r'<meta name="description" content="([^"]*)"', two).group(1)
-    assert '2년 필요량' in d2 and '2년 공급을 판정' in d2 and '3년' not in d2, d2
+    assert '2년 공급을 판정' in d2 and '3년' not in d2, d2   # 카드 문구(부족률)는 연수를 말하지 않는다(2026-10-05)
     # 전국 값이 빈 주: 전국 조각만 빠진다(요약·설명 둘 다)
     nn = MH.render(_index(), _adv(nation=False))
     assert '전국 +' not in nn[nn.index(START):nn.index(END)] and '부산 -0.33%' in nn[nn.index(START):nn.index(END)]

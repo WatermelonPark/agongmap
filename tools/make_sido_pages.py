@@ -941,6 +941,8 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     # 빨간 경고 박스는 2026-09-13 대표 결정으로 이 블록의 참고 줄에 흡수했다 —
     # 인허가는 허수가 많아 경보로 보여주면 '참고로만'과 부딪친다. split_block() 참조.
     h.append(split_block(row.get('split')))
+    Lq = SZ.qidx(int(calc['L'][:4]), int(calc['L'][-1]))
+    h.append(outlook_block(SZ.yearly_supply(stats, z, Lq, calc['H']), row.get('pbr'), calc['H']))
     if row.get('uwarn'):
         h.append('<p class="zwarn">⚠ %s</p>' % unsold_warn(row))
     # est(적정물량 추정 지역)는 이제 표기한다 — 2026-09-13 대표 결정으로 2026-08-08의
@@ -1117,8 +1119,8 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
 
 
 def card_html(o):
-    """허브 시도 칸의 문구 — 글자는 정본 ctxt('311,689세대 부족(3년 필요량의 139%)') 그대로이고, 괄호 덩어리만 줄 안에서
-    끊기지 않게 묶는다(2026-10-05 대표 요청 — 좁은 두 칸 격자에서 '3년 / 필요량의 139%만큼'처럼 말이 끊겼다)."""
+    """허브 시도 칸의 문구 — 글자는 정본 ctxt('311,689세대 부족(부족률 +139%)') 그대로이고, 괄호 덩어리만 줄 안에서
+    끊기지 않게 묶는다(2026-10-05 대표 요청 — 좁은 두 칸 격자에서 말이 중간에 끊겼다)."""
     t = o['ctxt']
     i = t.find('(')
     if i <= 0 or not t.endswith(')'):
@@ -1126,36 +1128,143 @@ def card_html(o):
     return '%s<span class="zk">%s</span>' % (esc(t[:i]), esc(t[i:]))
 
 
-def build_hub(calc):
+# ── 부족률 막대(2026-10-05 대표 요청) ─────────────────────────────────────────────────────────
+# '퍼센트가 클수록 나쁜지', '부족 17%와 여유 19%가 어떻게 다른지'가 숫자만으로는 안 보였다. 칸마다 한 축(왼쪽 남음 ↔ 오른쪽
+# 모자람) 위에 그 지역의 부족률을 점으로 찍는다. 구간 경계는 등급 컷(sido_zones.GRADE_CUTS)에서, 색은 등급 색(GRADE_COLOR)에서
+# 만든다 — 손으로 적지 않는다. 축 양끝(남음 100% · 모자람 200%)을 넘는 값은 끝에 붙인다.
+GAUGE_LO, GAUGE_HI = -1.0, 2.0
+
+
+def _gx(r):
+    return 100.0 * (min(max(r, GAUGE_LO), GAUGE_HI) - GAUGE_LO) / (GAUGE_HI - GAUGE_LO)
+
+
+def gauge_bg():
+    """막대 바탕 — 등급 구간을 등급 색(옅게)으로 칠한 linear-gradient. 구간 순서는 낮은 비율(g0)부터."""
+    cuts = sorted(SZ.GRADE_CUTS)                      # 0.0, 0.5, 1.0, 1.5
+    keys = list(reversed(SZ.GRADE_KEYS))              # g0, g1, g2, g3, g4
+    edges = [GAUGE_LO] + cuts + [GAUGE_HI]
+    stops = []
+    for k, a, b in zip(keys, edges, edges[1:]):
+        c = GRADE_COLOR[k] + '8c'                     # 55% 불투명 — 옅으면 구간이 갈려 보이지 않았다(375px 실측)
+        stops.append('%s %.2f%% %.2f%%' % (c, _gx(a), _gx(b)))
+    return 'linear-gradient(90deg,%s)' % ','.join(stops)
+
+
+def gauge_html(o):
+    """칸 하나의 부족률 막대(장식 — 같은 값을 글자로 이미 말하므로 aria-hidden)."""
+    return ('<span class="zg" aria-hidden="true" style="background:%s"><span class="zg-m" style="left:%.1f%%"></span></span>'
+            % (gauge_bg(), _gx(o['ratio'])))
+
+
+def gauge_legend_html():
+    """막대 범례 한 줄 — 구간마다 색 칸 + '0% 아래 공급 여유 · 0~50% 균형 …'. 경계·이름은 등급 컷·등급 이름에서 만든다."""
+    cuts = sorted(SZ.GRADE_CUTS)
+    keys = list(reversed(SZ.GRADE_KEYS))
+    pcts = ['%d%%' % round(c * 100) for c in cuts]
+    spans = []
+    for i, k in enumerate(keys):
+        if i == 0:
+            rng = '%s 아래' % pcts[0]
+        elif i == len(keys) - 1:
+            rng = '%s 이상' % pcts[-1]
+        else:
+            rng = '%s~%s' % (pcts[i - 1], pcts[i])
+        spans.append('<span class="zg-l"><i style="background:%s8c"></i>%s %s</span>'
+                     % (GRADE_COLOR[k], esc(rng), esc(SZ.GRADE_LABS[k])))
+    return '<p class="zg-legend">%s</p>' % ''.join(spans)
+
+
+# ── 해마다의 입주 전망(2026-10-05 대표 요청 — '지금보다 1년·2년·3년 뒤가 중요하다') ────────────────────────────────
+# 값은 sido_zones.yearly_supply(판정과 같은 식을 네 분기씩 나눈 것). 막대 높이는 적정의 OUT_MAX 배까지, 100% 선을 긋고
+# 적정에 못 미치면 붉게·넘으면 푸르게 칠한다(경계는 100% 하나 — 판정 등급 컷과 다른 값이라 등급 색을 빌리지 않는다).
+OUT_MAX = 1.5
+
+
+def _ob(pct):
+    return min(max(pct, 0) / (OUT_MAX * 100.0), 1.0) * 100
+
+
+def outlook_cells(yrs, ref_pct=None, ref_lab=None):
+    """칸 묶음(허브·리포트 공용). ref_pct 를 주면 '3년 너머(인허가 환산, 참고)' 칸을 옅게 하나 더한다."""
+    line = 100.0 / OUT_MAX
+    cells = []
+    items = [(y['pct'], '%d년 차' % y['n'], '') for y in yrs]
+    if ref_pct is not None:
+        items.append((ref_pct, ref_lab, ' zo-ref'))
+    for pct, lab, cls in items:
+        cells.append('<span class="zo-i%s"><span class="zo-c"><span class="zo-b %s" style="height:%.1f%%"></span>'
+                     '<span class="zo-l" style="bottom:%.1f%%"></span></span><span class="zo-p">%d%%</span><small>%s</small></span>'
+                     % (cls, 'zo-lo' if pct < 100 else 'zo-hi', _ob(pct), line, pct, esc(lab)))
+    return ''.join(cells)
+
+
+def outlook_aria(yrs):
+    return '적정 대비 입주 ' + ', '.join('%d년 차 %d%%' % (y['n'], y['pct']) for y in yrs)
+
+
+def outlook_hub_html(yrs):
+    if not yrs:
+        return ''
+    return '<span class="zo" role="img" aria-label="%s">%s</span>' % (esc(outlook_aria(yrs)), outlook_cells(yrs))
+
+
+def outlook_block(yrs, pbr=None, H=None):
+    """시도 리포트의 해마다 입주 전망 블록 — 해마다 기간을 밝히고, 3년 너머 인허가 환산(pbr, 참고)을 옅은 칸으로 붙인다."""
+    if not yrs:
+        return ''
+    spans = ' · '.join('%d년 차 %s~%s' % (y['n'], SZ.quarter_text(y['from']), SZ.quarter_text(y['to'])) for y in yrs)
+    ref_pct = None if pbr is None else SZ.pbr_pct(pbr)   # 리포트 '… 너머' 줄과 같은 정수
+    beyond = '%g년 너머' % ((SZ.LEAD_Q if H is None else H) / 4.0)   # split_text 의 '… 너머' 줄과 같은 연수
+    return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(적정물량 대비)</h3>'
+            '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'
+            '<p class="zo-note">100%% 선이 적정물량입니다. 붉은 막대는 적정에 못 미치는 해입니다. %s. '
+            '%s는 최근 인허가를 착공으로 환산한 참고값이라 판정에는 넣지 않습니다.</p></div>'
+            % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond), esc(spans), esc(beyond)))
+
+
+GAUGE_NOTE = ('부족률 = 앞으로 %s 필요량 대비 모자란 양(지난 %s 덜 지은 몫 포함). 막대의 점이 오른쪽일수록 부족이 심하고, '
+              '0%% 아래(−)는 남는 물량입니다. 아래 작은 막대는 앞으로 해마다 들어올 입주가 적정물량의 몇 %%인지입니다'
+              '(선이 100%%, 붉으면 모자란 해).')
+
+
+def build_hub(calc, stats=None):
     agg = [z for z in calc['zones'] if z['agg']]
     # 시도 목록은 고정 순서로 보여준다(2026-09-13 대표 결정) — calc() 가 이미
     # sido_zones.DISPLAY_ORDER 순서로 zones 를 낸다. 여기서 다시 정렬하지 않는다.
     # 예전의 정렬 토글은 뺐다: 목록은 순위가 아니고, 순위는 zone_order() 가 말한다.
     sido = [z for z in calc['zones'] if not z['agg']]
-    desc = ('전국 %d개 시도의 아파트 공급을 적정물량과 견줘 정리했습니다. '
-            '실적은 국토교통부 준공, 앞으로 %d분기는 착공 실적 기준. 기준 %s.'
-            % (len(sido), calc['H'], calc['L']))
+    Lq = SZ.qidx(int(calc['L'][:4]), int(calc['L'][-1]))
+    outl = {z['z']: (SZ.yearly_supply(stats, z['z'], Lq, calc['H']) if stats else []) for z in calc['zones']}
+    # 머리 설명(= 설명 메타). 옛 '…정리했습니다. 실적은 국토교통부 준공, 앞으로 12분기는 착공 실적 기준. 기준 2026Q2.'는
+    # 끊긴 명사구·분기 수·원시 분기 키가 섞여 지저분했다(2026-10-05 대표 요청) — 연수·기준 분기는 판정 값에서 만든다.
+    yrs = '%g년' % (calc['H'] / 4.0)
+    desc = ('%d개 시도의 앞으로 %s 아파트 공급이 적정물량에 견줘 얼마나 모자라거나 남는지 보여 줍니다. '
+            '지난 공급은 국토교통부 준공 실적, 앞으로 %s은 착공 실적으로 셉니다. %s 기준입니다.'
+            % (len(sido), yrs, yrs, calc.get('Ltxt') or calc['L']))
     h = [head('시도별 공급', desc, '시도별 아파트 공급 분석',
               url=SITE + '/zone/', crumb=False)]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <b>시도 공급 분석</b></nav>'
              '<h1>시도별 아파트 공급</h1>'
              '<p class="zlead">%s</p></div></header><main id="main">' % esc(desc))
-    h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2><div class="zlinks">')
+    h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2>'
+             '<p class="zg-note">%s</p>%s<div class="zlinks">'
+             % (esc(GAUGE_NOTE % ('%g년' % (calc['H'] / 4.0), '%g년' % (SZ.BACKLOG_WINDOW / 4.0))), gauge_legend_html()))
     for o in agg:
-        h.append('<a href="/zone/%s/"><b>%s</b><span class="sc-tier %s">%s</span><i>%s</i></a>'
+        h.append('<a href="/zone/%s/"><b>%s</b><span class="sc-tier %s">%s</span><i>%s</i>%s</a>'
                  % (urllib.parse.quote(o['z']), esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
-                    esc(o['rtxt'])))
+                    esc(o['rtxt']), gauge_html(o) + outlook_hub_html(outl[o['z']])))
     h.append('</div><h2 class="z17">%d개 시도</h2>' % len(sido) +
              ''
              '<div class="zlinks" id="sido-list">')
     for o in sido:
         h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>'
-                 '<span class="sc-tier %s">%s</span><i>%s</i></a>'
+                 '<span class="sc-tier %s">%s</span><i>%s</i>%s</a>'
                  % (urllib.parse.quote(o['z']), SZ.GRADE_KEYS.index(o['grade']),
                     disp_tot(o, calc['H']),
                     esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
-                    card_html(o)))
+                    card_html(o), gauge_html(o) + outlook_hub_html(outl[o['z']])))
     h.append('</div></div></section>')
     # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
     # 화면인데 허브에서 가는 길이 없었다.
@@ -1307,7 +1416,7 @@ def main():
         lastmods[z] = lm
         io.open(fp, 'w', encoding='utf-8', newline='\n').write(html)
     hub_fp = os.path.join(OUT, 'index.html')
-    hub, hub_lm, hub_ch = keep_dates(build_hub(calc), read_old(hub_fp), today)
+    hub, hub_lm, hub_ch = keep_dates(build_hub(calc, stats), read_old(hub_fp), today)
     io.open(hub_fp, 'w', encoding='utf-8', newline='\n').write(hub)
     # 20장이 공유하는 표 동작 스크립트. 페이지와 같은 실행에서 함께 써야
     # '마크업은 새 판, 스크립트는 옛 판'이 생기지 않는다.
