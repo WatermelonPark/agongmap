@@ -1131,7 +1131,7 @@ function aggLights(z){
 function aggLightKey(z){
   var g=ADV.sido&&ADV.sido.ylg; if(!g||!g.length||!z||!z.yl) return '';
   var ns=z.yl.map(function(y){ return y.n; }).join('·');   // 해 수는 실린 값에서 센다(손으로 '1·2·3'을 적지 않는다)
-  return '<p class="agg-lk"><span class="agg-lk-c">신호등 '+ns+' = 앞으로 '+ns+'년 차 입주(적정물량 대비)</span>'
+  return '<p class="agg-lk"><span class="agg-lk-c">신호등 '+ns+' = 앞으로 '+ns+'년 차 각 해 입주가 1년 적정물량의</span>'
     +g.map(function(x){ return '<span class="agg-lk-i"><span class="zl-d '+x[0]+'" aria-hidden="true"></span>'+x[1]+' '+x[2]+'</span>'; }).join('')+'</p>';
 }
 function aggCard(n,z,i){

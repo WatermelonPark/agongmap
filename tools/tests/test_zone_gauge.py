@@ -3,7 +3,7 @@
 숫자만으로는 안 보였다). 막대는 한 축(왼쪽 남음 ↔ 오른쪽 모자람)이고 구간 경계·이름은 등급 컷·등급 이름(sido_zones)에서 만든다.
 
 변이(각각 실제로 확인): gauge_bg 의 구간 경계를 손 숫자(예: 40%)로 바꾸면 경계 단정이, _gx 의 끝 붙이기(min/max)를 빼면 막대 밖
-단정이, gauge_legend_html 이 GRADE_LABS 대신 손 이름을 쓰면 범례 단정이, build_hub 가 막대를 빼면 허브 단정이 빨개진다.
+단정이, gauge_legend_html 이 GRADE_LABS 대신 손 이름을 쓰거나 cut_mult 대신 퍼센트를 쓰면 범례 단정이, build_hub 가 막대를 빼면 허브 단정이 빨개진다.
 픽스처: 실제 칸의 비율 모양(서울 1.389·경기 0.17·인천 −0.19·충남 −0.74·제주 1.79)과 축 밖 값(−1.5·2.6), 저장소 판정(허브).
 """
 import os
@@ -33,11 +33,12 @@ def test_band_edges_and_legend_come_from_the_grade_cuts():
     legend = M.gauge_legend_html()
     for k in SZ.GRADE_KEYS:
         assert SZ.GRADE_LABS[k] in legend and M.GRADE_COLOR[k] in legend, k
-    for c in SZ.GRADE_CUTS:
-        assert '%d%%' % round(c * 100) in legend, c
+    for c in SZ.GRADE_CUTS[:3]:
+        assert SZ.cut_mult(c) in legend, c          # 단위는 판정 문구와 같은 '1년 적정물량의 N배'(2026-10-05 안 A′)
+    assert '%' not in legend
 
 
-def test_hub_cards_carry_the_gauge_and_the_signed_rate():
+def test_hub_cards_carry_the_gauge_and_the_multiple():
     adv, _ = M.load()
     SZ.refresh_texts(adv['sido'])
     h = M.build_hub(adv['sido'])
@@ -47,4 +48,6 @@ def test_hub_cards_carry_the_gauge_and_the_signed_rate():
     assert len(with_gauge) == len(zones), (len(with_gauge), len(zones))
     assert '<p class="zg-note">' in h and '<p class="zg-legend">' in h
     for z in zones:
-        assert '부족률 %s' % SZ.ratio_signed(z['ratio']) in h, z['z']
+        t = SZ.ratio_text(z['ratio'], adv['sido']['H']) if z['agg'] else SZ.card_text(z['dtot'], z['ratio'], adv['sido']['H'])
+        frag = t.split('(')[-1].rstrip(')') if '(' in t else t
+        assert frag in h, (z['z'], frag)
