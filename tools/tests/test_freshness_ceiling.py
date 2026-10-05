@@ -140,24 +140,36 @@ def test_frozen_weekly_fails_through_main(monkeypatch, capsys):
 
 def test_current_data_passes_every_ceiling(monkeypatch, capsys):
     """저장소의 지금 데이터는 상한에 걸리지 않는다 — 오늘을 '최신 주간을 정상으로 들고 있을 수 있는 마지막 날'
-    (조사기준일 + GRACE_WEEKLY)로 고정하고 main() 을 돌려 초록이어야 한다. 원천이 정당하게 늦는 계열(완비 보류 중인
-    미분양 등)이 상한에 닿기 전에 여기서 먼저 빨개진다 — 감시가 실패 메일을 보내기 시작하기 전의 예고다.
+    (조사기준일 + GRACE_WEEKLY)로 고정하고 main() 을 돌려 초록이어야 한다.
 
-    ⚠️ 배치 커밋 잡(GITHUB_JOB=commit)에서는 경고만 남기고 넘어간다. 원천 사정으로 한 계열이 늦는 것은 그날 받은 다른
-    데이터의 커밋을 막을 일이 아니다(감시가 알린다). 개발 세션·ci-tests 의 매일 예약 실행에서는 빨개진다.
-    변이(확인): MAX_AGE_BASIC 을 30 으로 줄이면(정상 지연보다 짧은 상한) 빨개진다 — 상한이 지금 데이터의 정상 지연을
-    덮지 못하면 여기서 드러난다.
+    ⚠️ 원천이 정당하게 늦는 계열(완비 보류 중인 미분양 등)이 상한에 닿는 것은 **데이터가 앞으로 가서 생기는 일**이라
+    시험을 빨갛게 하지 않고 경고만 남긴다(CLAUDE.md '날짜가 지나서 생기는 일은 게이트가 아니라 감시 경고로' — 빨갛게 하면
+    배치 커밋·PR CI·매일 예약이 그날 같이 막힌다). 그 경보는 감시(check_freshness)가 실패 메일로 낸다.
+    대신 상한이 계열의 정상 발표 주기를 덮는지는 아래 test_ceilings_cover_the_publication_cadence 가 데이터와 무관하게 본다.
+    변이(확인): too_old 의 판정(age <= max_age)을 age >= max_age 로 뒤집으면 지금 데이터 실행이 빨개진다.
     픽스처: 저장소의 실제 data.js·data-rest.json·data-size.json(하니스), 오늘 = 최신 주간 조사기준일 + GRACE_WEEKLY.
     """
     adv, rows = _series()
     today = C.period_end(adv['weekly']['rows'][-1]['p']) + C.GRACE_WEEKLY * DAY
     over = [(n, p, (today - C.period_end(p)).days, cap) for n, p, cap in rows
             if (today - C.period_end(p)).days > cap]
-    if over and _in_batch_gate():
+    if over:
         import warnings
-        warnings.warn('나이 상한에 닿은 계열 %s — 감시가 알린다(배치 커밋은 막지 않는다)' % over)
+        warnings.warn('나이 상한에 닿은 계열 %s — 감시가 알린다(시험은 막지 않는다)' % over)
         return
-    assert not over, '지금 데이터가 나이 상한을 넘는다(이름, 시점, 나이, 상한): %s' % over
     r = _run(monkeypatch, capsys, 4, today=today)
     assert r['rc'] == 0 and 'VERDICT=ok' in r['out'], r['out'][-800:]
     assert '끝난 지' not in r['out']
+
+
+def test_ceilings_cover_the_publication_cadence():
+    """상한은 계열의 정상 발표 지연을 덮어야 한다 — 짧으면 원천이 정상인 달에도 감시가 헛경보를 낸다.
+    하한(일)은 발표 주기에서 잡는다: 주간은 다음 발표 + 연휴로 한 주 거른 경우(14), 월간·금리는 다음 달 중순 발표의
+    두 달 치(60), 기본통계·공급은 다음 달 말 발표 + 한 달(95), 전환율·주담대는 실측 정상 지연(90·56) 이상, 연간은 2년(730).
+    변이(확인): MAX_AGE_BASIC 을 30 으로, MAX_AGE_WEEKLY 를 9 로 줄이면 빨개진다.
+    픽스처: 없음(상수만 — 데이터가 앞으로 가도 같은 판정).
+    """
+    floors = {'MAX_AGE_WEEKLY': 14, 'MAX_AGE_MONTHLY': 60, 'MAX_AGE_RATE': 60, 'MAX_AGE_BASIC': 95,
+              'MAX_AGE_BUBBLE_CONV': 90, 'MAX_AGE_BUBBLE_LOAN': 56, 'MAX_AGE_ANNUAL': 730}
+    low = {k: (getattr(C, k), v) for k, v in floors.items() if getattr(C, k) < v}
+    assert not low, '상한이 정상 발표 지연보다 짧다(상한, 하한): %s' % low
