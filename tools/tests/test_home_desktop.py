@@ -175,11 +175,12 @@ def test_top_nav_is_the_one_canonical_tabbar_moved_up_on_home_only():
 
 
 def test_map_reserve_follows_the_map_geometry():
-    """지도 예약 높이(#map-wrap:not([data-done]) — 3차 B3 로 :empty 대신 '아직 안 그림'에 건다): 528px 이하는 '고정분 + K·vw' 식이고 K 는 지도 도형의 세로/가로 비(SIDO_GEO h/w ×100,
-    소수 첫째)다 — 지도 폭이 화면 폭 − 48px 로 늘어 높이가 폭에 비례하기 때문이다(1px 간격 실측으로 320~1440px 어긋남 0px).
-    529px 이상은 고정값이고, 데스크톱 2단(1024px 이상)도 같은 값을 쓴다(왼쪽 단의 지도·카드 높이가 같다 — 실측 786px).
-    변이(각각 실제로 확인): 134.5vw 를 130vw 로 바꾸면 비율 단정, 1024px 블록에서 예약을 다른 값으로 덮으면 마지막 단정이
-          빨개진다. 픽스처: 저장소 sido-geo.js 좌표(지도를 다시 만들면 K 가 따라가야 한다).
+    """지도 예약 높이(#map-wrap:not([data-done]) — 3차 B3 로 :empty 대신 '아직 안 그림'에 건다): 528px 이하와 데스크톱 2단의 좁은
+    구간(1024~1047px — 오른쪽 단 480px 때문에 왼쪽 단이 지도 상한 480px 보다 좁다)은 'K·vw − 고정분' 식이고 K 는 지도 도형의
+    세로/가로 비(SIDO_GEO h/w ×100, 소수 첫째)다 — 지도 폭이 화면 폭을 따라 늘어 높이가 폭에 비례하기 때문이다. 나머지는 고정값.
+    판정 카드는 2026-10-04 에 #map-wrap 밖(#agg-wrap)으로 나가 그 예약도 따로 있다(1px 간격 실측 320~1440px 어긋남 0.5px 이하).
+    변이(각각 실제로 확인): 134.5vw 를 130vw 로 바꾸면 비율 단정, 카드 예약(#agg-wrap:empty)을 지우면 둘째 단정이, 데스크톱 블록에
+          상한(max-width) 없이 예약을 덮으면 마지막 단정이 빨개진다. 픽스처: 저장소 sido-geo.js 좌표(지도를 다시 만들면 K 가 따라가야 한다).
     """
     geo = io.open(os.path.join(ROOT, 'sido-geo.js'), encoding='utf-8').read()
     g = json.loads(re.search(r'SIDO_GEO\s*=\s*(\{.*\})\s*;?\s*$', geo, re.S).group(1))
@@ -189,12 +190,13 @@ def test_map_reserve_follows_the_map_geometry():
     for c, b in _media_blocks(css):
         for v in re.findall(r'#map-wrap:not\(\[data-done\]\)\{min-height:([^}]*)\}', b):
             calcs.append((c, v))
-    fixed = re.findall(r'#map-wrap:not\(\[data-done\]\)\{min-height:(\d+)px\}', _outside_media(css))
+    fixed = re.findall(r'#map-wrap:not\(\[data-done\]\)\{min-height:([\d.]+)px\}', _outside_media(css))
     assert fixed, '기본(가장 넓은 폭) 예약 높이가 없다'
+    assert re.search(r'#agg-wrap:empty\{min-height:[\d.]+px', _outside_media(css)), '판정 카드 자리(#agg-wrap) 예약이 없다'
     vw = [(c, v) for c, v in calcs if 'vw' in v]
     assert vw, '폭을 따라가는 예약 식이 없다'
     for c, v in vw:
-        m = re.fullmatch(r'calc\((\d+)px \+ ([\d.]+)vw\)', v)
-        assert m and float(m.group(2)) == k, '%s 의 예약 식 %s — 지도 비 %.1fvw 와 다르다' % (c, v, k)
-        assert int(re.search(r'max-width:\s*(\d+)px', c).group(1)) <= 528, c
-    assert not any('min-width' in c for c, _ in calcs), '데스크톱 블록이 지도 예약을 따로 덮는다 — 2단 실측과 다르다'
+        m = re.fullmatch(r'calc\(([\d.]+)vw - ([\d.]+)px\)', v)
+        assert m and float(m.group(1)) == k, '%s 의 예약 식 %s — 지도 비 %.1fvw 와 다르다' % (c, v, k)
+        assert int(re.search(r'max-width:\s*(\d+)px', c).group(1)) <= 1047, c
+    assert all('max-width' in c for c, _ in calcs if 'min-width' in c), '데스크톱 블록이 상한 없이 지도 예약을 덮는다 — 2단 실측과 다르다'

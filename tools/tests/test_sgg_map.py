@@ -120,7 +120,7 @@ def test_tile_codes_fit_the_region_hash():
     """지도의 모든 칸 코드가 홈 applyHash 의 '~코드' 모양([a-c] + 숫자 1~8자리)에 든다 — 안 들면 그 칸을 눌러도 통계가 안 열린다.
     변이: applyHash 정규식의 코드 자리를 {1,6} 으로 좁히면 8자리 서울 구 코드에서 빨개진다."""
     h = HS.home_source()
-    pat = re.search(r"\(\?:~\((\[a-c\]\[0-9\]\{\d+,\d+\})\)\)\?\$/\);", h)
+    pat = re.search(r"\(\?:~\((\[a-c\]\[0-9\]\{\d+,\d+\})\)(?:\(-t\)\?)?\)\?\$/\);", h)
     assert pat, 'applyHash 의 ~코드 자리를 찾지 못했다'
     rx = re.compile('^' + pat.group(1) + '$')
     bad = [t[0] for t in MW.nation_tile()['t'] if not rx.match(t[0])]
