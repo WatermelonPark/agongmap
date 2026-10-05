@@ -47,13 +47,15 @@ def test_shortfall_beyond_need_stays_in_percent():
 
 
 def test_surplus_reads_as_surplus():
+    """여유는 부족률 한 축의 음수 쪽이다(2026-10-05 대표 요청 — '부족 17%'와 '여유 19%'가 한 축에서 갈리지 않았다).
+    변이(확인): ratio_signed 가 음수에 '+'를 붙이면 빨개진다."""
     t = SZ.ratio_text(-0.19)
-    assert '19%' in t and '여유' in t and '부족' not in t
+    assert t == '부족률 \u221219%' and '+' not in t, t
 
 
 def test_near_zero_does_not_invent_a_direction():
     t = SZ.ratio_text(0.004)
-    assert '거의 같' in t and '부족' not in t and '여유' not in t
+    assert t == '부족률 0%' and '+' not in t and '\u2212' not in t, t
 
 
 def test_sign_word_matches_sign_everywhere():
@@ -61,14 +63,16 @@ def test_sign_word_matches_sign_everywhere():
         r = i / 100.0
         t = SZ.ratio_text(r)
         pct = int(round(r * 100))
-        assert ('부족' in t) == (pct >= 1), '%s → %s' % (r, t)
-        assert ('여유' in t) == (pct <= -1), '%s → %s' % (r, t)
+        assert ('+' in t) == (pct >= 1), '%s → %s' % (r, t)
+        assert ('\u2212' in t) == (pct <= -1), '%s → %s' % (r, t)
 
 
 def test_horizon_follows_H_instead_of_saying_three_years():
-    """착공표가 한 달 늦으면 H가 11이 된다. 그때 '3년'이라고 쓰면 거짓이다."""
-    assert '3년' in SZ.ratio_text(0.2, SZ.LEAD_Q)
-    assert '3년' not in SZ.ratio_text(0.2, SZ.LEAD_Q - 1)
+    """착공표가 한 달 늦으면 H가 11이 된다. 그때 '3년'이라고 쓰면 거짓이다. 짧은 문구('부족률 +20%')는 연수를 말하지
+    않고(허브는 막대 설명 줄이 H 에서 연수를 만든다), 판정 문장은 H 를 따른다."""
+    assert '년' not in SZ.ratio_text(0.2, SZ.LEAD_Q) and '년' not in SZ.ratio_text(0.2, SZ.LEAD_Q - 1)
+    assert '3년' in SZ.ratio_text(0.2, SZ.LEAD_Q, full=True, inow=-1)
+    assert '3년' not in SZ.ratio_text(0.2, SZ.LEAD_Q - 1, full=True, inow=-1)
 
 
 def test_screens_read_the_text_for_their_own_ratio():
@@ -148,8 +152,8 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
             assert '더 들어옵니다' not in t and '앞으로' not in t and '누적 순부족' not in t, t
             assert t.startswith(past), '판정 설명이 지난 창 재고를 말하지 않는다: %s' % t
             if abs(pct) >= 1:
-                assert '필요량의 %d%%입니다' % abs(pct) in t and '만큼' not in t, t
-            assert ('부족분은' in t) == (pct >= 1) and ('여유분은' in t) == (pct <= -1), t
+                assert '부족률은 %s입니다' % SZ.ratio_signed(r) in t and '만큼' not in t, t
+            assert ('남는 물량' in t) == (pct <= -1), t
             if inow is not None and abs(pct) >= 1:   # 거의 0 이면 방향이 없어 갈래도 없다
                 tail = SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 1, 1, inow)
                 assert ('덜 지은 몫' in t) == ('쌓인 부족' in tail) and ('남은 재고' in t) == ('남은 재고' in tail), \
@@ -165,7 +169,7 @@ def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypat
     픽스처: 인천 실측 모양의 합성 행(INCHEON). 블로그는 저장소 판정 행을 복사해 숫자만 이 모양으로 덮는다(데이터가 앞으로
             가도 같은 숫자).
     """
-    want = '지난 4년 남은 재고까지 더하면 여유분은 3년 필요량의 19%입니다'
+    want = '지난 4년 남은 재고까지 더하면 3년 필요량 대비 부족률은 \u221219%입니다(남는 물량)'
     line = P.verdict_line(INCHEON, SZ.LEAD_Q)
     assert line.startswith(want + '. '), line
     assert '더 들어옵니다' not in line
@@ -201,8 +205,8 @@ def test_faq_quotes_the_report_sentence_it_explains():
 
 # ── 퍼센트가 등급 컷을 넘지 않는다(전수 리뷰 #9) ──────────────────────────────────────────────────────
 def _pct_in(t):
-    m = re.search(r'필요량의 (\d+)%', t)
-    return int(m.group(1)) if m else 0
+    m = re.search(r'부족률은? ([+\u2212]?)(\d+)%', t)   # 2026-10-05 부족률 표기(한 축, 부호)
+    return (-1 if m.group(1) == '\u2212' else 1) * int(m.group(2)) if m else 0
 
 
 def test_percent_never_crosses_a_grade_cut():
@@ -222,7 +226,7 @@ def test_percent_never_crosses_a_grade_cut():
             above = [x for x in cuts if pct >= round(x * 100)]
             want = SZ.GRADE_KEYS[SZ.GRADE_CUTS.index(max(above))] if above else 'g1'
             assert want == g, '%s: 문구 %d%% 는 %s 인데 등급은 %s — %s' % (r, pct, want, g, t)
-            assert SZ.card_parts(1000, r)[2] == '3년 필요량의 %d%%' % pct, (r, SZ.card_parts(1000, r))
+            assert SZ.card_parts(1000, r)[2] == '부족률 +%d%%' % pct, (r, SZ.card_parts(1000, r))
             line = P.verdict_line({'ratio': r, 'grade': g, 'inow': -1}, SZ.LEAD_Q)
             if g == 'g1':
                 assert pct < round(SZ.GRADE_CUTS[2] * 100), line

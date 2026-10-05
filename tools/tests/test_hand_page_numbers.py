@@ -74,12 +74,13 @@ def test_faq_lead_months_follow_cycle_analysis():
 
 def test_faq_grade_thresholds_follow_model_cuts():
     s = _read('faq/index.html')
-    m = re.search(r'필요량의 (\d+)%에 못 미치면 (\S+), (\d+)% 이상이면 (\S+), (\d+)% 이상이면 (.+?), (\d+)% 이상이면 (.+?)이다',
-                  s)
+    # 2026-10-05 부족률 표기(한 축: − 여유 · 0~50% 균형 · …)로 FAQ 문장이 바뀌었다
+    m = re.search(r'(\d+)%보다 작으면\(−\) (\S+ \S+), \d+~(\d+)%는 (\S+), (\d+)% 이상이면 (\S+), (\d+)% 이상이면 (.+?), '
+                  r'(\d+)% 이상이면 (.+?)이다', s)
     assert m, 'FAQ 등급 문턱 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것'
-    c4, c3, c2 = (round(x * 100) for x in SZ.GRADE_CUTS[:3])
+    c4, c3, c2, c1 = (round(x * 100) for x in SZ.GRADE_CUTS[:4])
     L = SZ.GRADE_LABS
-    want = (c2, L['g1'], c2, L['g2'], c3, L['g3'], c4, L['g4'])
+    want = (c1, L['g0'], c2, L['g1'], c2, L['g2'], c3, L['g3'], c4, L['g4'])
     got = tuple(int(x) if x.isdigit() else x for x in m.groups())
     assert got == want, 'FAQ 는 %s, 모델은 %s' % (got, want)
 

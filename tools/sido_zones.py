@@ -131,6 +131,21 @@ def ratio_pct(ratio):
     return pct
 
 
+def ratio_signed(ratio):
+    """부족률 — 부족분 ÷ 앞으로 H분기 필요량을 **부호 붙은 한 축**으로: '+139%'(모자람) · '−19%'(남음) · '0%'(2026-10-05 대표 요청).
+
+    '부족분은 3년 필요량의 139%'·'여유분은 …의 19%'는 퍼센트가 클수록 나쁜지, 부족 17%와 여유 19%가 어떻게 다른지가 한눈에
+    안 보였다. 한 축(+ = 모자람, − = 남음)에 올려 크기와 방향을 같이 읽게 한다. 퍼센트는 ratio_pct(등급 컷을 넘지 않는 반올림),
+    음수 기호는 화면 관례대로 U+2212.
+    """
+    pct = ratio_pct(ratio)
+    if pct >= 1:
+        return '+%d%%' % pct
+    if pct <= -1:
+        return '\u2212%d%%' % -pct
+    return '0%'
+
+
 def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     """순부족비를 사람 말로 옮긴다. 판정 배지 옆에 붙는다(2026-09-13 PM 요청 ①).
 
@@ -162,22 +177,18 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     # (서울 139%) — '적정 대비 N% 공급'으로 바꿔 쓸 수 없다. 그래서 '부족분은 …의 N%'로 무엇의 몇 %인지를 적는다.
     pct = ratio_pct(ratio)
     if not full:
-        if pct >= 1:
-            return '부족분은 %s 필요량의 %d%%' % (yrs, pct)
-        if pct <= -1:
-            return '여유분은 %s 필요량의 %d%%' % (yrs, -pct)
-        return '%s 필요량과 거의 같음' % yrs
+        return '부족률 %s' % ratio_signed(ratio)   # 허브 목록·홈 요약 대체 문구 — 한 축(부호)으로(2026-10-05)
     past = '지난 %g년' % (W / 4.0)
     if pct >= 1:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫까지 더하면' % past if inow < 0 else
                 '%s 남은 재고를 빼고도' % past)
-        return '%s 부족분은 %s 필요량의 %d%%입니다' % (lead, yrs, pct)
+        return '%s %s 필요량 대비 부족률은 %s입니다' % (lead, yrs, ratio_signed(ratio))
     if pct <= -1:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫을 채우고도' % past if inow < 0 else
                 '%s 남은 재고까지 더하면' % past)
-        return '%s 여유분은 %s 필요량의 %d%%입니다' % (lead, yrs, -pct)
+        return '%s %s 필요량 대비 부족률은 %s입니다(남는 물량)' % (lead, yrs, ratio_signed(ratio))
     return '%s 재고까지 셈하면 %s 필요량과 거의 같습니다' % (past, yrs)
 
 
@@ -434,7 +445,7 @@ def card_parts(dtot, ratio, H=None):
     H = LEAD_Q if H is None else H
     yrs = '%g년' % (H / 4.0)
     pct = abs(ratio_pct(ratio))     # 판정 문구와 같은 퍼센트(컷을 넘지 않는 반올림, 전수 리뷰 #9)
-    share = ('%s 필요량의 1%% 미만' % yrs) if pct < 1 else ('%s 필요량의 %d%%' % (yrs, pct))
+    share = '부족률 %s' % ratio_signed(ratio)   # 한 축(+ 모자람 · − 남음, 2026-10-05) — yrs 는 판정 문장·식이 말한다
     if dtot > 0:
         return '%s세대' % format(dtot, ','), '부족', share
     if dtot < 0:
@@ -448,7 +459,7 @@ def card_text(dtot, ratio, H=None):
     # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
     H = LEAD_Q if H is None else H
     num, dirw, share = card_parts(dtot, ratio, H)
-    return '%s %s(%s)' % (num, dirw, share) if num else '%g년 필요량과 거의 같음' % (H / 4.0)
+    return '%s %s(%s)' % (num, dirw, share) if num else share
 
 
 # ── 부족 세대수의 식(홈 마케팅 검수 B2·C4, TRUST-2, 2026-09-27) ───────────────────────
@@ -503,6 +514,27 @@ def zone_texts(row, H):
 # 공급 범례 뜻 한 줄(ktxt). 읽는 곳이 홈뿐이라 함수째 지웠다. data.js 의 ADV.sido 는 다음 배치가 점수를 다시 쓸 때까지 옛
 # 필드를 싣고 있으므로 다시 구울 때 걷어 낸다 — 홈 코어(data-core)에 죽은 글자가 실리지 않게.
 RETIRED_TEXTS = ('dist', 'dist_g0', 'ktxt')
+
+
+def yearly_supply(stats, z, L, H=None):
+    """앞으로 H분기를 네 분기씩 묶은 해마다의 '착공 기반 입주 추정 ÷ 적정물량'(%) — 2026-10-05 대표 요청('지금보다 1년·2년·3년
+    뒤가 중요하다'). 판정(calc 의 fut·ratio)과 **같은 식**(착공 i−LEAD_Q 분기 × CONV)을 해마다 나눈 것이라 세 해의 입주 추정
+    합이 calc 의 fut 와 같다(test_zone_outlook). 판정은 바꾸지 않는다 — 3년 합계로 균형인 경기도 1년 차가 73%로 모자라다는 것을
+    보여 주려는 보조 표시다. H 가 4의 배수가 아니면 마지막 묶음은 남은 분기만으로 센다(적정도 그 분기 수만큼).
+    반환: [{'n': 1, 'from': '2026Q3', 'to': '2027Q2', 'pct': 73}, ...]. 착공 자료가 없으면 빈 목록."""
+    H = LEAD_Q if H is None else H
+    st = quarterly(stats, '착공', z)
+    ref = REF_Q.get(z)
+    if not st or not ref:
+        return []
+    qs = list(range(L + 1, L + H + 1))
+    out = []
+    for k in range(0, len(qs), 4):
+        g = qs[k:k + 4]
+        f = sum(st.get(i - LEAD_Q, 0) * CONV for i in g)
+        out.append({'n': k // 4 + 1, 'from': qkey(g[0]), 'to': qkey(g[-1]),
+                    'pct': int(round(100.0 * f / (ref * len(g))))})
+    return out
 
 
 def refresh_texts(sido):
