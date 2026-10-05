@@ -1294,6 +1294,26 @@ table.adv thead th:first-child{text-align:center}
   /* 부족률 막대(make_sido_pages.gauge_html, 2026-10-05) — 칸 폭 전체의 한 줄. 바탕(등급 구간 색)은 생성기가 등급 컷·등급 색으로 굽는다. */
   .zlinks a .zg{position:relative;flex:0 0 100%;height:6px;margin:4px 0 2px}
   .zlinks a .zg-m{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink)}
+  /* 해마다 입주 전망(make_sido_pages.outlook_cells, 2026-10-05) — 세 칸(+ 리포트는 '3년 너머' 참고 칸). 막대 높이는 적정의 1.5배까지,
+     가로선이 100%(적정). 적정에 못 미치면 붉게(zo-lo), 넘으면 푸르게(zo-hi). */
+  .zo{display:flex;gap:10px;flex:0 0 100%;margin-top:6px}
+  .zo-i{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;font-size:11px;color:var(--ink2);line-height:1.3}
+  .zo-i .zo-p{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+  .zo-i small{font-size:10.5px;color:var(--muted)}
+  .zo-c{position:relative;width:100%;max-width:34px;height:26px;background:var(--paper2);margin-bottom:3px}
+  .zo-b{position:absolute;left:0;right:0;bottom:0}
+  .zo-b.zo-lo{background:#c0392b99}
+  .zo-b.zo-hi{background:#1a527699}
+  .zo-l{position:absolute;left:-3px;right:-3px;height:0;border-top:1.5px solid var(--ink)}
+  .zo-ref .zo-b{opacity:.45}
+  .zo-ref .zo-p,.zo-ref small{color:var(--muted);font-weight:500}
+  .zout{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
+  .zout h3{font-size:15px;margin:0 0 8px}
+  .zo-lg{max-width:360px}
+  .zo-lg .zo-i{font-size:13px}
+  .zo-lg .zo-i small{font-size:12px}
+  .zo-lg .zo-c{max-width:52px;height:64px}
+  .zo-note{font-size:12.5px;color:var(--muted);line-height:1.6;margin:8px 0 0}
   .zg-note{font-size:13px;line-height:1.55;color:var(--ink2);margin:6px 0 0;max-width:640px}
   .zg-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:12px;color:var(--ink2)}
   .zg-l{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}

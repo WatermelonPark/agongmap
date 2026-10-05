@@ -516,6 +516,27 @@ def zone_texts(row, H):
 RETIRED_TEXTS = ('dist', 'dist_g0', 'ktxt')
 
 
+def yearly_supply(stats, z, L, H=None):
+    """앞으로 H분기를 네 분기씩 묶은 해마다의 '착공 기반 입주 추정 ÷ 적정물량'(%) — 2026-10-05 대표 요청('지금보다 1년·2년·3년
+    뒤가 중요하다'). 판정(calc 의 fut·ratio)과 **같은 식**(착공 i−LEAD_Q 분기 × CONV)을 해마다 나눈 것이라 세 해의 입주 추정
+    합이 calc 의 fut 와 같다(test_zone_outlook). 판정은 바꾸지 않는다 — 3년 합계로 균형인 경기도 1년 차가 73%로 모자라다는 것을
+    보여 주려는 보조 표시다. H 가 4의 배수가 아니면 마지막 묶음은 남은 분기만으로 센다(적정도 그 분기 수만큼).
+    반환: [{'n': 1, 'from': '2026Q3', 'to': '2027Q2', 'pct': 73}, ...]. 착공 자료가 없으면 빈 목록."""
+    H = LEAD_Q if H is None else H
+    st = quarterly(stats, '착공', z)
+    ref = REF_Q.get(z)
+    if not st or not ref:
+        return []
+    qs = list(range(L + 1, L + H + 1))
+    out = []
+    for k in range(0, len(qs), 4):
+        g = qs[k:k + 4]
+        f = sum(st.get(i - LEAD_Q, 0) * CONV for i in g)
+        out.append({'n': k // 4 + 1, 'from': qkey(g[0]), 'to': qkey(g[-1]),
+                    'pct': int(round(100.0 * f / (ref * len(g))))})
+    return out
+
+
 def refresh_texts(sido):
     """저장된 판정(ADV.sido)의 화면 문구를 **지금의 함수**로 다시 굽는다(제자리). 숫자는 건드리지 않는다.
 
