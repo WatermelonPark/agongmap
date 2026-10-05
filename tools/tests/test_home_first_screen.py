@@ -11,13 +11,14 @@
 카드·식 문구는 sido_zones(→ refresh_texts), 발표 일정 문장은 weekly_release/weeklyRelease. 홈 JS 는 읽기만 한다.
 2026-09-28 대표 결정(작은 글씨 정리)으로 띠 둘째 줄(배경 지도 캡션·다음 발표)·카드 아래 분포 한 줄·공급 범례 뜻 한 줄을 뺐다 —
 그 셋은 '없다'를 단정한다.
+2026-10-05 대표 요청으로 첫 화면 '이번 주' 띠와 '내 지역' 줄을 통째로 뺐다(첫 화면 위쪽을 너무 차지한다) — 히어로는 라벨·제목·
+부제뿐이고(test_hero_is_the_title_block_only), 연휴 주 안내 문구도 발표 줄에서 뺐다.
 각 시험의 독스트링에 ① 무엇을 깨뜨리면 빨개지는지(실제로 변이를 넣어 확인) ② 픽스처가 재현하는 상태를 적었다.
 날짜는 고정 합성 주(2026 공휴일 표)로만 단정하고, 실데이터는 함수 결과와의 일치로만 본다(데이터가 앞으로 가도 초록).
 """
 import datetime
 import io
 import json
-import math
 import os
 import re
 import shutil
@@ -38,7 +39,6 @@ import split_data as S  # noqa: E402
 import weekly_release as WR  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
-FONTS = os.path.join(ROOT, 'tools', 'fonts')
 
 # 2026 법정공휴일(대체공휴일 포함) — test_weekly_release 와 같은 표. 추석 09-24(목)~26.
 H2026 = ['2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-03-01', '2026-03-02', '2026-05-05',
@@ -84,10 +84,9 @@ def _node(js):
 
 
 def _band_js():
-    """띠·주간 h2 를 만드는 홈 함수들(순수 함수 + h2 적기)을 그대로 뽑는다."""
+    """주간 h2 를 만드는 홈 함수들(순수 함수 + h2 적기)을 그대로 뽑는다(첫 화면 띠는 2026-10-05 대표 요청으로 뺐다)."""
     h = _home()
-    return '\n'.join([_wk_block()] + [_js_func(h, n) for n in
-                                      ('weeklyHead', 'heroBandLine', 'applyWeeklyStatus')])
+    return '\n'.join([_wk_block()] + [_js_func(h, n) for n in ('weeklyHead', 'applyWeeklyStatus')])
 
 
 def _kst_ms(y, m, d, hh=12):
@@ -122,12 +121,11 @@ _WEEKS = {
 }
 
 
-def test_weekly_head_is_one_sentence_on_weekly_page_band_and_home_h2():
-    """/weekly/ 제목 = '이번 주 아파트, ' + 결론, 홈 띠 = [발표일, 결론 →], 홈 주간 h2 = 결론(B1·IA-4).
+def test_weekly_head_is_one_sentence_on_weekly_page_and_home_h2():
+    """/weekly/ 제목 = '이번 주 아파트, ' + 결론, 홈 주간 h2 = 결론(B1·IA-4). 첫 화면 띠는 2026-10-05 대표 요청으로 뺐다.
 
     변이(각각 실제로 확인): make_weekly_page.h1_html 이 동사를 따로 적으면('가장 크게 올랐다') 첫 단정, head_payload 가
-    text 를 빼면 둘째, 홈 heroBandLine 이 결론을 다시 만들면(hd.text 대신 자기 문장) 셋째, applyWeeklyStatus 가 hd 를
-    무시하면(옛 고정 질문) 넷째 단정이 빨개진다.
+    text 를 빼면 둘째, applyWeeklyStatus 가 hd 를 무시하면(옛 고정 질문) 셋째 단정이 빨개진다.
     픽스처: 방향을 정한 합성 세 주(상승 주도·하락 주도·보합) — 조사일 2026-09-07(발표 9/10, 연휴 아님), 오늘 9/11 KST.
     """
     for key, (val, want) in _WEEKS.items():
@@ -144,11 +142,9 @@ def test_weekly_head_is_one_sentence_on_weekly_page_band_and_home_h2():
               'const el={"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
               'globalThis.document={getElementById:id=>el[id]||null};\n'
               'applyWeeklyStatus(r,weeklyHead(W));\n'
-              'process.stdout.write(JSON.stringify([heroBandLine(W,r),el["wk-h2"].textContent]));'
+              'process.stdout.write(JSON.stringify(el["wk-h2"].textContent));'
               % (json.dumps(H2026), json.dumps(WJ, ensure_ascii=False), _kst_ms(2026, 9, 11)))
-        band, h2 = _node(js)
-        assert band == ['9/10 발표', want + ' →'], (key, band)
-        assert h2 == want, (key, h2)
+        assert _node(js) == want, key
 
 
 @pytest.fixture(scope='module')
@@ -186,77 +182,42 @@ def test_split_bakes_the_head_into_both_payloads_and_the_weekly_page_says_it(spl
     assert _plain(h1) == '%s 아파트, %s' % (MW.H1_WEEK, want['text']), h1
 
 
-# ── B1: 띠 한 줄은 발표 상태를 따른다(늦은 주 머리말) — 다음 발표는 띠가 말하지 않는다 ──────────────
+# ── 발표 줄(wkWhenText)은 발표 상태를 따르고 연휴 안내 문구는 없다 ─────────────────────────────────────────
 
-def test_hero_band_line_follows_the_release_state():
-    """띠 = [발표일 머리말(wkPubLead), 결론 →] 한 줄이다. 늦은 주에는 머리말이 '9/17 발표 기준'(요청서 지연 문구), 옛 캐시(결론·
-    유예 없음)와 섞인 판(head.p ≠ 최신 조사일)은 null — 정적 문구가 남는다.
-    배경 지도 캡션·다음 발표 둘째 줄은 없다(2026-09-28 대표 결정 — 작은 글씨 정리): 띠는 다음 발표·반영 대기·연휴 안내를
-    말하지 않는다. 그 말(wkWhenText — 파이썬 정본 weekly_release.next_text 와 같은 문장)은 지도 주간 모드 발표 줄·통계 탭에 남는다
-    (홈 주간 구역 머리줄은 2026-10-03 대표 요청으로 뺐다).
+def test_when_line_follows_the_release_state_without_a_holiday_notice():
+    """발표 줄(wkWhenText — 지도 주간 모드 카드 아래 줄. 파이썬 정본 weekly_release.when_text 와 같은 문장)은 평상 주에
+    '9/7 조사 · 9/10 발표 · 다음 발표 9/17(목)', 늦은 주에 '최근 반영: … · 반영 대기', 연휴 주에는 다음 발표를 적지 않고
+    '9/14 조사 · 9/17 발표'로 끝난다 — '연휴로 발표 일정이 바뀔 수 있습니다'는 2026-10-05 대표 요청으로 뺐다(꼬리 ' · '도 없다).
 
-    변이(각각 실제로 확인): heroBandLine 의 `W.grace==null` 검사를 빼면 옛 캐시 사례가, weeklyHead 의 조사일 비교를 빼면 섞인 판
-    사례가, heroBandLine 이 wkPubLead 대신 _md(r.pub)+' 발표' 를 쓰면 늦은 주 사례가, 띠에 wkNextText(r) 조각을 되살리면(옛
-    둘째 줄) '다음 발표 없음' 단정이, index.html 에 hw-2 줄을 되살리면 마크업 단정이 빨개진다.
+    변이(각각 실제로 확인): wkNextText 의 연휴 갈래를 옛 안내 문구로 되돌리면 연휴 단정이, wkWhenText 가 빈 조각을 거르지
+    않고 ' · '로 이어 붙이면(꼬리 ' · ') 연휴 단정이, 파이썬 when_text 만 옛 문장으로 두면 JS·파이썬 대조가 빨개진다.
     픽스처: 2026 공휴일 표. 평상(9/7 조사, 오늘 9/11), 추석 연휴 주(9/14 조사, 9/18 — 다음 발표 9/24 가 휴일),
-            배치 정지(9/14 조사, 10/2 — 연휴 주라 한 주 늦춘 기준일 10/1 이 지남, 대표 결정 ④), 시군구만 한 주 늦음
-            (시도 9/21·시군구 9/14, 9/25).
+            배치 정지(9/14 조사, 10/2 — 연휴 주라 한 주 늦춘 기준일 10/1 이 지남, 대표 결정 ④).
     """
-    base = {'p': None, 'text': '경기 +0.23%, 가장 크게 올랐습니다', 'dir': 'up'}
-    cases = []
-
-    def case(p, when, sgg_p=None, head=True, grace=WR.GRACE_WEEKLY, head_p=None, sgg=True):
-        W, _ = _week({}, p, sgg_p)
-        W.pop('holidays')
-        if head:
-            W['head'] = dict(base, p=head_p or p)
-        if grace is not None:
-            W['grace'] = grace
-        if not sgg:
-            W.pop('sgg')
-        cases.append((W, _kst_ms(*when)))
-        return len(cases) - 1
-
-    normal = case('2026-09-07', (2026, 9, 11))
-    hedge = case('2026-09-14', (2026, 9, 18))
-    stale = case('2026-09-14', (2026, 10, 2))
-    lag = case('2026-09-21', (2026, 9, 25), sgg_p='2026-09-14')
-    no_head = case('2026-09-07', (2026, 9, 11), head=False)
-    no_grace = case('2026-09-07', (2026, 9, 11), grace=None)
-    mixed = case('2026-09-07', (2026, 9, 11), head_p='2026-08-31')
-    no_sgg = case('2026-09-07', (2026, 9, 11), sgg=False)
-    js = (_band_js() + '\n_HOLIDAYS=new Set(%s);const C=%s;\n'
-          'process.stdout.write(JSON.stringify(C.map(([W,ms])=>{const r=weeklyRelease(W.rows[0].p,new Date(ms),W.grace);'
-          'return [heroBandLine(W,r),wkWhenText(r)];})));'
-          % (json.dumps(H2026), json.dumps(cases, ensure_ascii=False)))
+    cases = [('2026-09-07', (2026, 9, 11)), ('2026-09-14', (2026, 9, 18)), ('2026-09-14', (2026, 10, 2))]
+    js = (_wk_block() + '\n_HOLIDAYS=new Set(%s);const C=%s;\n'
+          'process.stdout.write(JSON.stringify(C.map(([p,ms])=>{const r=weeklyRelease(p,new Date(ms),%d);'
+          'return [r.hedge,wkWhenText(r)];})));'
+          % (json.dumps(H2026), json.dumps([(p, _kst_ms(*d)) for p, d in cases]), WR.GRACE_WEEKLY))
     got = _node(js)
-    band = [b for b, _ in got]
-    T = base['text'] + ' →'
-    assert band[normal] == ['9/10 발표', T] and band[hedge] == ['9/17 발표', T] and band[lag] == ['9/24 발표', T]
-    assert band[stale] == ['9/17 발표 기준', T]
-    assert band[no_sgg] == ['9/10 발표', T]
-    assert band[no_head] is None and band[no_grace] is None and band[mixed] is None
-    # 다음 발표·반영 대기·연휴 안내는 띠에 없다. 그 문장(wkWhenText)은 파이썬 정본과 같다
-    for i, (b, when) in enumerate(got):
-        assert not b or not any(x in ' '.join(b) for x in ('다음 발표', WR.HOLD, WR.WAIT, '배경 지도')), b
-        W, ms = cases[i]
-        d = datetime.datetime.fromtimestamp(ms / 1000, kst.KST).date()
-        assert when.endswith(WR.next_text(WR.status(W['rows'][0]['p'], d, H2026))), (i, when)
-    assert got[hedge][1].endswith(WR.HOLD) and got[stale][1].endswith(WR.WAIT) and got[normal][1].endswith('다음 발표 9/17(목)')
-    assert 'id="hw-2"' not in _src('index.html') and 'hw-2' not in _home(), '띠 둘째 줄(배경 지도 캡션·다음 발표)이 되살아났다'
+    for (p, d), (_, when) in zip(cases, got):
+        assert when == WR.when_text(WR.status(p, datetime.date(*d), H2026)), (p, when)
+    (h0, normal), (h1, hedge), (_, stale) = got
+    assert not h0 and h1
+    assert normal == '9/7 조사 · 9/10 발표 · 다음 발표 9/17(목)', normal
+    assert hedge == '9/14 조사 · 9/17 발표', hedge
+    assert stale == '최근 반영: 9/17 발표 · ' + WR.WAIT, stale
+    assert not any('연휴' in w for _, w in got), got
 
 
-def test_late_week_lead_is_one_phrase_on_band_h2_and_weekly_page():
-    """늦은 주의 발표일 머리말('9/17 발표 기준')은 첫 화면 띠 첫 줄·홈 주간 구역 h2·/weekly/ 제목이 같은 말이다
-    (요청서 '권하는 첫 화면 구성' 3번 지연 문구·MOB-1 '띠의 발표일 옆에', 2026-09-27 검토 지적). 한 말은 WR.pub_lead /
-    홈 wkPubLead 이고 둘의 일치는 test_weekly_release 가 본다. 평상 주에는 띠만 '9/10 발표'를 달고 h2 는 결론만 쓴다.
+def test_late_week_lead_is_one_phrase_on_h2_and_weekly_page():
+    """늦은 주의 발표일 머리말('9/17 발표 기준')은 홈 주간 구역 h2·/weekly/ 제목이 같은 말이다(MOB-1, 2026-09-27 검토 지적).
+    한 말은 WR.pub_lead / 홈 wkPubLead 이고 둘의 일치는 test_weekly_release 가 본다. 평상 주에는 h2 가 결론만 쓴다.
 
-    변이(각각 실제로 확인): heroBandLine 이 wkPubLead(r) 대신 _md(r.pub)+' 발표' 를 쓰면(검토 당시 코드) 띠 단정이,
-          applyWeeklyStatus 가 머리말을 자기 문장(' 발표 · ')으로 적으면 h2 단정이, make_weekly_page.when_line 이 '발표 기준'
-          대신 자기 말을 쓰면 /weekly/ 단정이 빨개진다.
+    변이(각각 실제로 확인): applyWeeklyStatus 가 머리말을 자기 문장(' 발표 · ')으로 적으면 h2 단정이, make_weekly_page.when_line
+          이 '발표 기준' 대신 자기 말을 쓰면 /weekly/ 단정이 빨개진다.
     픽스처: 09-24~26 배치 정지를 옮긴 합성 주 — 9/14 조사(9/17 발표)가 최신인 채 오늘 10/2 KST(연휴 주라 한 주 늦춘
-            기준일 10/1 이 지남, 대표 결정 ④),
-            그리고 같은 데이터의 평상 날(9/18). 공휴일 표는 2026.
+            기준일 10/1 이 지남, 대표 결정 ④), 그리고 같은 데이터의 평상 날(9/18). 공휴일 표는 2026.
     """
     text = '경기 +0.23%, 가장 크게 올랐습니다'
     W, Q = _week({}, '2026-09-14')
@@ -269,17 +230,16 @@ def test_late_week_lead_is_one_phrase_on_band_h2_and_weekly_page():
               'const el={"wk-h2":{textContent:"이번 주, 어디가 오르고 내렸을까?"}};\n'
               'globalThis.document={getElementById:id=>el[id]||null};\n'
               'applyWeeklyStatus(r,weeklyHead(W));\n'
-              'process.stdout.write(JSON.stringify([r.stale,heroBandLine(W,r),el["wk-h2"].textContent]));'
+              'process.stdout.write(JSON.stringify([r.stale,el["wk-h2"].textContent]));'
               % (json.dumps(H2026), json.dumps(W, ensure_ascii=False), _kst_ms(2026, mon, day)))
         out.append(_node(js))
-    (late, band, h2), (ok, band_ok, h2_ok) = out
+    (late, h2), (ok, h2_ok) = out
     st = WR.status('2026-09-14', datetime.date(2026, 10, 2), H2026)
     assert late and st['stale'] and not ok
     lead = WR.pub_lead(st)
     assert lead == '9/17 발표 기준'
-    assert band == [lead, text + ' →'], band
     assert h2 == lead + ' · ' + text, h2
-    assert band_ok[0] == '9/17 발표' and h2_ok == text, (band_ok, h2_ok)
+    assert h2_ok == text, h2_ok
     _, script = MW.when_line(dict(W, holidays=H2026), '2026-09-14')
     assert 'replace(%s,%s)' % (json.dumps(MW.H1_WEEK, ensure_ascii=False), json.dumps(lead, ensure_ascii=False)) in script
 
@@ -290,25 +250,23 @@ def _hero():
     return m.group(1)
 
 
-def test_hero_band_is_one_link_to_weekly_under_the_title_and_boot_fills_it():
-    """띠는 h1·부제 바로 아래 한 줄 전체 /weekly/ 링크이고 home_cta to='weekly_hero' 로 잰다(B1). 정적 문구는 날짜·'이번 주'를
-    약속하지 않는다(스크립트가 못 돌거나 옛 캐시일 때 보이는 문구 — TRUST-1). 부팅이 renderHeroBand 를 부른다.
-    띠 안은 두 조각(hw-a · hw-b) 한 줄뿐이다 — 배경 지도 캡션·다음 발표 둘째 줄(hw-2)은 뺐다(2026-09-28 대표 결정).
+def test_hero_is_the_title_block_only():
+    """첫 화면 히어로는 라벨·제목·부제뿐이다 — '내 지역' 줄(C5)과 '이번 주' 띠(B1)는 첫 화면 위쪽을 너무 차지해 2026-10-05
+    대표 요청으로 뺐다. 띠가 말하던 발표일은 홈 주간 구역 머리말(평상 주 wkPubLead)이 잇는다. 고정해 둔 기기의 옛 저장값은
+    부팅이 지운다(dropOldMyZone).
 
-    변이: 정적 문구를 '이번 주 시세 · 9/24 발표'로 바꾸면, boot 에서 renderHeroBand() 를 지우면, 띠를 h1 위로 옮기면,
-          hw-2 줄을 되살리면 빨개진다(확인).
+    변이(각각 실제로 확인): 히어로에 /weekly/ 띠 링크나 myz 줄을 되살리면 첫 단정이, boot 에서 renderHeroBand()·renderMyZone()
+          을 다시 부르면 둘째 단정이, 주간 구역 머리말에서 wkPubLead 를 빼면 셋째, boot 에서 dropOldMyZone() 을 지우면 넷째
+          단정이 빨개진다.
     """
     hero = _hero()
-    m = re.search(r'<a class="hero-wk" id="hero-wk" href="/weekly/" '
-                  r"""onclick="track\('home_cta',\{to:'weekly_hero'\}\)">(.*?)</a>""", hero, re.S)
-    assert m, '히어로에 /weekly/ 띠 링크가 없다'
-    assert hero.index('<h1 class="hero-msg">') < hero.index('<p class="hero-sub">') < m.start()
-    static = _plain(m.group(1))
-    assert not re.search(r'\d|이번 주|매주 갱신', static), static
-    inner = re.fullmatch(r'<span class="hw-1" id="hw-1">(.*?)</span></span>', m.group(1), re.S)
-    assert inner and re.fullmatch(r'<span class="hw-a">[^<]+</span><span class="hw-s"> · </span>'
-                                  r'<span class="hw-b">[^<]+', inner.group(1)), m.group(1)
-    assert 'renderHeroBand();' in _js_func(_home(), 'boot')
+    assert '<a ' not in hero and 'myz' not in hero and 'hero-wk' not in hero, hero
+    boot = _js_func(_home(), 'boot')
+    assert not re.search(r'renderHeroBand|renderMyZone|initMyZonePick', boot), boot
+    assert re.search(r"wg-when\">매매 전주 대비\(%\)'\+\(rel&&!rel\.stale\?' · '\+wkPubLead\(rel\)", _js_func(_home(), 'renderWeeklyGrid'))
+    assert 'dropOldMyZone();' in boot
+    css = _src('app.css')
+    assert not re.search(r'\.(hero-wk|hw-\d|myz)', css), '뺀 히어로 줄의 CSS 규칙이 남아 있다'
 
 
 def _css():
@@ -319,64 +277,6 @@ def _rule(css, sel):
     m = re.search(r'(?:^|[}\s])' + re.escape(sel) + r'\{([^}]*)\}', css)
     assert m, 'app.css 에서 %s 규칙을 찾지 못했다' % sel
     return m.group(1)
-
-
-def _band_width(font, text):
-    """띠 글자 폭 — 띠는 font-variant-numeric:tabular-nums 라 숫자가 모두 같은 폭(tnum)이다. 레이아웃 엔진(raqm)이 없는
-    Pillow 에서는 숫자마다 가장 넓은 숫자 폭으로 바꿔 잰다(tnum 폭 8.5 < 가장 넓은 숫자 8.58 — 더 길게 재는 쪽이다)."""
-    try:
-        return font.getlength(text, features=['tnum'])
-    except (KeyError, ValueError, OSError):
-        wide = max(font.getlength(d) for d in '0123456789')
-        return font.getlength(text) + sum(wide - font.getlength(c) for c in text if c.isdigit())
-
-
-def test_home_hero_band_fits():
-    """띠의 줄 수는 폭으로 고정된다 — 조각(발표일 머리말 · 결론)이 정해진 폭(399px 이하)에서만 줄을 바꾸므로, 가장 긴 문구도
-    조각 하나가 한 줄 안에 들어가야 정적 문구 → 데이터 문구로 바뀔 때 높이가 같다(CLS 0). 운영 글꼴(Pretendard 서브셋)로 잰다.
-    글자는 홈 하한 13px 이상(test_home_min_font)이고 숫자는 tabular-nums(모두 같은 폭)다.
-
-    Chromium 실측(2026-09-28, playwright, 운영 글꼴 AgongHome 13px, tabular-nums): 가장 긴 한 줄은 상승 문구
-    '12/28 발표 기준 · 전남광주 +0.12%, 가장 크게 올랐습니다 →' 324.8px — '올랐습니다'·'+' 가 하락 문구보다 넓고, tabular 숫자가
-    비례 숫자보다 넓다. 띠 안쪽이 이 폭에 닿는 곳은 395px 라 조각마다 줄을 바꾸는 폭을 389 → 399px 로 올렸다(첫 판의 389px 는
-    Pillow 가 비례 숫자·하락 문구로만 재 390~394px 에서 부팅 뒤 한 줄이 두 줄로 접혔다 — 검토 지적, 띠 +18.2px).
-    변이(각각 확인): 조각마다 줄을 바꾸는 폭을 399→389px 로 되돌리면 390px 에서 빨개진다(326.3 > 318). 그 389px 판을 첫 판의
-    시험처럼 비례 숫자(tnum 없음)·하락 문구만으로 재면 초록이다(확인 — 첫 판이 결함을 놓친 까닭). 둘 중 하나만 빼도 389px 판은
-    빨갛다(tnum 없이 상승 318.6 > 318, 하락만 tnum 323.6 > 318 — 확인). 글자를 clamp(…,3.6vw,…) 로 키우면 400px 에서, 조각마다
-    줄을 바꾸는 규칙을 지우면 320px 에서 빨개진다. 띠에 둘째 줄 규칙(.hw-2)을 되살리면 마지막 단정.
-    픽스처: 결론 문장을 함수로 만든다 — 시도마다 상승·하락(MW.conclusion, 두 자리 소수 — 숫자는 tabular 라 값과 무관하게 폭이
-            같다), 두 자리 달·날짜와 늦은 주 머리말('12/28 발표 기준'), 가장 넓은 것을 고른다.
-    """
-    ImageFont = pytest.importorskip('PIL.ImageFont')
-    css = _css()
-    pad = int(re.search(r'padding:0 (\d+)px', _rule(css, '.wrap')).group(1))
-    band = _rule(css, '.hero-wk')
-    maxw = int(re.search(r'max-width:(\d+)px', band).group(1))
-    bpad = int(re.search(r'padding:\d+px (\d+)px', band).group(1))
-    bord = int(re.search(r'border:(\d+)px', band).group(1))
-    hw1 = _rule(css, '.hero-wk .hw-1')
-    assert 'font-variant-numeric:tabular-nums' in hw1, '띠 숫자가 tabular 가 아니다 — 이 시험의 폭 셈을 다시 볼 것'
-    lo, mid, hi = (float(x) for x in re.search(r'font-size:clamp\(([\d.]+)px,([\d.]+)vw,([\d.]+)px\)', hw1).groups())
-    split1 = int(re.search(r'@media\(max-width:(\d+)px\)\{\.hero-wk \.hw-1 \.hw-s\{display:none\}', css).group(1))
-    bold = os.path.join(FONTS, 'Pretendard-Bold.subset.ttf')
-    concls = set()
-    for z in MW.SIDO:
-        for v in (1.23, -1.23):
-            W, _ = _week({z: v}, '2026-12-21')
-            concls.add(MW.conclusion(W)['text'] + ' →')
-    assert any('올랐' in c for c in concls) and any('내렸' in c for c in concls), concls
-    date = '12/28 발표 기준'   # 늦은 주 머리말(wkPubLead)이 평상 주보다 길다
-    bad = []
-    for vw in (320, 340, 359, 360, 375, 389, 390, 394, 399, 400, 414, 430, 460, 479, 480, 560, 768, 1280):
-        inner = min(vw - 2 * pad, maxw) - 2 * bpad - 2 * bord - 2   # 2px: 글꼴 래스터 차이 여유
-        s1 = min(max(lo, mid * vw / 100), hi)
-        g1 = ImageFont.truetype(bold, math.ceil(s1 * 2) / 2)
-        lines = [date] + sorted(concls) if vw <= split1 else [date + ' · ' + c for c in sorted(concls)]
-        t = max(lines, key=lambda x: _band_width(g1, x))
-        if _band_width(g1, t) > inner:
-            bad.append('%dpx %.1f > %d: %s' % (vw, _band_width(g1, t), inner, t))
-    assert not bad, '띠 조각이 한 줄을 넘는다 — 데이터 문구가 들어오면 높이가 달라져 아래가 밀린다:\n' + '\n'.join(bad)
-    assert '.hw-2' not in css, '띠 둘째 줄 규칙이 남아 있다(2026-09-28 에 뺀 줄)'
 
 
 # ── B2·C4①: 식 한 줄은 홈 산출 방법·홈 카드 ⓘ·시도 리포트·블로그에서 같은 말 ──────────────────────────
