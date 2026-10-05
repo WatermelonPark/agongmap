@@ -371,9 +371,9 @@
   .shero h2{font-size:30px;font-weight:700;margin:0 0 12px}
   .shero p{font-size:14.5px;line-height:1.7;color:var(--ink2);margin:0;max-width:620px}
   .shero b{color:var(--ink)}
-  .shero .shero-link{font-size:14px}
-  .shero .shero-link a{display:inline-block;padding:10px 0;color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1.5px solid var(--ink);margin-right:8px}
-  .shero .shero-link span{color:var(--muted);font-size:13px;display:inline-block}   /* nowrap 이면 375px 에서 6px 가로 넘침(2026-09-23 실측) — 덩어리로 줄을 바꾸되 안에서도 꺾인다 */
+  .shero .shero-link{font-size:14px;max-width:520px}
+  /* 버튼 모양은 홈 '이달의 통계' 버튼(.tb-sub a)과 한 규칙이다(2026-10-05 대표 요청 — 글자 링크 → 버튼). 설명은 버튼 아래 한 덩어리. */
+  .shero .shero-link span{color:var(--muted);font-size:13px;display:block;margin-top:6px}
   .dash{padding:0 0 18px}
   .dash .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 18px}
   .ctrl{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
@@ -690,7 +690,18 @@
   .home-cta:active{transform:scale(.98)}
   .home-cta.alt{background:#fff;color:var(--ink);border:1.5px solid var(--ink);box-shadow:none;
     font-size:16px;padding:14px 24px}
-  .home-foot{text-align:center;font-size:13px;color:var(--muted);margin-top:26px;line-height:1.7;padding:0 18px 20px}
+  .home-foot{text-align:left;font-size:13px;color:var(--muted);margin:26px auto 0;line-height:1.7;padding:0 18px 20px;max-width:520px;box-sizing:border-box}
+  /* 홈 푸터 정돈(2026-10-05 대표 요청) — 가운데 정렬이라 '읽을거리'·'소개 · 개인정보 · 만든이' 줄이 가운데에서 어색하게 꺾였다.
+     왼쪽 정렬로 바꾸고, 묶음 머리말(매주·매달·분기·읽을거리)은 왼쪽 열에 고정해 링크가 꺾여도 오른쪽 열 안에서 줄을 맞춘다.
+     링크 사이 가운뎃점(.ft-dot)은 줄 끝에 매달리므로 숨기고 간격(column-gap)으로 가른다 — 마크업에는 남아 CSS 없이 읽을 때도 링크가 갈린다. */
+  :is(.home-foot,.minifooter) .ft-nav{max-width:none;margin-left:0;margin-right:0}
+  :is(.home-foot,.minifooter) .ft-dot{display:none}
+  :is(.home-foot,.minifooter) .ft-grp .fg,:is(.home-foot,.minifooter) .ft-meta{display:flex;flex-wrap:wrap;column-gap:16px}
+  :is(.home-foot,.minifooter) .ft-grp .fg{padding-left:5em}
+  :is(.home-foot,.minifooter) .ft-grp .fg b{flex:0 0 5em;margin:0 -16px 0 -5em}   /* 머리말 칸은 padding 안에 — 뒤 간격(16px)을 상쇄해 첫 줄과 꺾인 줄의 링크 시작점을 맞춘다 */
+  :is(.home-foot,.minifooter) .ft-meta a{margin-left:-2px}
+  :is(.home-foot,.minifooter) .legal-disc{text-align:left;padding:10px 0 0;max-width:none}
+  .minifooter{text-align:left;max-width:520px;margin-left:auto;margin-right:auto;box-sizing:border-box}   /* 통계·퀴즈 화면 푸터도 같은 정돈 */
   .home-sec{padding:38px 0;text-align:center}
   .home-sec.hs-alt{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .hs-kicker{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:10px}
@@ -731,6 +742,15 @@
   .cyc-mini{max-width:340px;margin:16px auto 0}
   .cyc-mini svg{width:100%;height:auto;display:block}
   .hs-cta{display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:20px}
+  /* 홈 큰 버튼 한 규칙(2026-10-05 대표 요청 — 높이가 65.5·58·53·46px 다섯 가지였다). 구역 끝 동작·테스트·공유·시도별·이달의 통계
+     모두 높이 52px·글자 15px·굵기 600, 폭은 본문 폭(최대 400px, 공유는 그 안에서 반반). 주 = 먹색 채움, 보조 = 흰 바탕·먹색
+     테두리 1.5px(border-box 라 테두리가 있어도 높이가 같다). 전환 버튼(모드·지도/그래프/표, .tb-seg)은 따로 40px·13px 다.
+     시세 탭 머리 '이달의 통계' 버튼도 같은 크기. 시험: test_home_buttons. */
+  #view-home .home-cta,#view-home .tb-more a,#view-home .tb-sub a,#view-home .wg-sh,.shero .shero-link a{
+    display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-height:52px;padding:0 16px;
+    font-size:15px;font-weight:600;line-height:1.3;border-radius:var(--r-touch);text-align:center}
+  #view-home .home-cta,#view-home .tb-more a,#view-home .tb-sub a{width:100%;max-width:400px;margin-left:auto;margin-right:auto}
+  #view-home .home-sec p.tb-more,#view-home .home-sec p.tb-sub,.shero .shero-link{max-width:400px}
   .bb-legend{font-size:12px;color:var(--muted);margin:10px 2px}
   .bb-row{display:flex;align-items:center;gap:10px;margin:2px 0;padding:6px 0;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.06)}
   .bb-det{display:none;font-size:12.5px;color:var(--ink2);line-height:1.75;background:#f7f9f8;border:1px solid var(--line);border-radius:0;padding:10px 12px;margin:2px 0 10px}
@@ -1162,15 +1182,20 @@ table.adv thead th:first-child{text-align:center}
     border-radius:var(--r-touch);transition:.15s}
   .tb-more a:hover{background:#000}
   .tb-more a:active{transform:scale(.98)}
-  /* 지도 아래 줄들(홈 마케팅 검수 3차 묶음 S, 2026-09-27). 순서: 출처·구간(B9) → 시도별로 자세히 보기 → 이달의 통계(B6) →
-     내 지역 고르기(C5). 운영 주체 줄(B9·TRUST-6)은 뺐다(2026-09-28 대표 결정 — 제보 메일은 푸터 mailto). 구간 줄은 두 조각이
+  /* 지도 아래 줄들(홈 마케팅 검수 3차 묶음 S, 2026-09-27). 순서: 출처·구간(B9) → 시도별로 자세히 보기 → 이달의 통계(B6)(버튼 두 개).
+     내 지역 고르기(C5)는 2026-10-05 에 뺐다. 운영 주체 줄(B9·TRUST-6)은 뺐다(2026-09-28 대표 결정 — 제보 메일은 푸터 mailto). 구간 줄은 두 조각이
      줄마다 따로라 부팅 뒤 글자가 바뀌어도 줄 수가 같다. 글자는 13px 이상(test_home_min_font). */
   .home-sec p.map-src{margin:12px auto 0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted)}
   .map-src span{display:block}
   .map-src #map-span{color:var(--ink2);font-weight:600}
   #sec-score.mm-price .map-src{display:none}   /* 공급 출처 줄 — 시세 모드(주간·월간)에서는 그 지도의 출처가 아니다(mapMode) */
-  .home-sec p.tb-sub{margin:4px auto 0;font-size:14px;line-height:1.5}
-  .tb-sub a{display:inline-block;padding:9px 6px;color:var(--ink);font-weight:600;text-underline-offset:3px}
+  /* 이달의 통계 입구 — 글자 링크였는데 2026-10-05 대표 요청으로 버튼(흰 바탕·먹색 테두리). 바로 위 '시도별로 자세히 보기'(먹색
+     채움)가 주 버튼이고 이쪽은 보조 버튼이다. 높이는 테두리 두께만큼 패딩을 줄여 위 버튼과 같다. 시세 탭 머리(.shero-link)와 같은 모양. */
+  .home-sec p.tb-sub{margin:8px auto 0}
+  .tb-sub a,.shero .shero-link a{display:block;text-align:center;background:#fff;color:var(--ink);border:1.5px solid var(--ink);
+    text-decoration:none;font-size:14.5px;font-weight:600;padding:12.5px 16px;border-radius:var(--r-touch);transition:.15s}
+  .tb-sub a:hover,.shero .shero-link a:hover{background:var(--paper2)}
+  .tb-sub a:active,.shero .shero-link a:active{transform:scale(.98)}
   /* 설치 안내(C10①) — 하단 탭바(62px) 바로 위에 뜨는 한 번짜리 알림. 본문 흐름에 끼우면 읽던 자리가 밀린다(CLS). */
   .inst{position:fixed;left:12px;right:12px;bottom:72px;z-index:101;max-width:440px;margin:0 auto;
     display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 14px;text-align:left;
