@@ -22,7 +22,7 @@ class _Run:
 
     def __call__(self, args, **kw):
         self.calls.append((args, kw))
-        return type('R', (), {'returncode': 0, 'stdout': b'C:/Desktop/x.lnk'})()
+        return type('R', (), {'returncode': 0, 'stdout': b'Desktop/x.lnk'})()
 
 
 def test_passes_absolute_target_and_fixed_name(monkeypatch):
