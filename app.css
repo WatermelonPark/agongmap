@@ -1289,6 +1289,7 @@ table.adv thead th:first-child{text-align:center}
     box-shadow:0 0 0 1px var(--line)}
   .zlinks a:hover{background:var(--paper2)}
   .zlinks a b{font-weight:600}
+  .zlinks a i .zk{white-space:nowrap}   /* '(3년 필요량의 139%)' 괄호 덩어리는 한 줄로(make_sido_pages.card_html, 2026-10-05) */
   .zlinks a i{font-style:normal;font-size:11px;color:var(--muted);
     margin-left:auto;font-variant-numeric:tabular-nums}
 

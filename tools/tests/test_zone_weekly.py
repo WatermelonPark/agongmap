@@ -94,11 +94,13 @@ def test_description_and_paragraph_share_one_fragment_list():
     픽스처: 합성 행(부족 1,234세대·균형 둘 다) — 실데이터와 무관한 갈래까지 본다.
     """
     calc = {'H': 12, 'L': '2030Q1', 'Ltxt': '2030년 1분기'}
-    for row, lab in (({'ctxt': '1,234세대 부족 · 3년 필요량의 40%만큼', 'fut': 5000.4, 'ref': 700, 'dtot': 1234}, '부족'),
+    for row, lab in (({'ctxt': '1,234세대 부족(3년 필요량의 40%)', 'fut': 5000.4, 'ref': 700, 'dtot': 1234}, '부족'),
                      ({'fut': 10.6, 'ref': 3, 'dtot': -50, 'inow': 1}, '공급 여유')):
         parts = M.summary_parts('가나', row, calc, lab)
         assert _text(M.summary_html(parts)) == M.summary_text(parts)
         assert '%s세대' % M.num(row['fut']) in M.summary_text(parts)
+        # 판정 이름을 먼저 말한다 — 괄호로 끝나는 ctxt 뒤에 '(부족)'을 붙이면 괄호가 겹친다(2026-10-05, 변이로 확인)
+        assert M.summary_text(parts).startswith('가나 아파트 공급 판정은 %s입니다. ' % lab) and ')(' not in M.summary_text(parts)
 
 
 # ── D4: 시군구 → 시도 ────────────────────────────────────────────────────────────────────────
