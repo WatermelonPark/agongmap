@@ -44,6 +44,17 @@ def _ink(v):
     return UP_INK if r > 0 else (DN_INK if r < 0 else MUTED)
 
 
+def pick_top(val):
+    """{지역: 그 달 매매 변동률} → ([가장 많이 오른 곳], [가장 많이 내린 곳]) — 각 한 곳(없으면 빈 목록).
+
+    주간 카드(make_weekly_share.summary_top3, 전수리뷰 #84)와 같이 /weekly/ 정본 top3(MW.top3 — **원값** 정렬, 시도 목록
+    MW.SIDO)를 쓴다(전수리뷰 B4). 예전엔 반올림한 표시값으로 정렬하고 동률은 원천 순서(ORDER)로 갈라, 두 시도가 같은 값으로
+    반올림되는 달에 원값으로 덜 움직인 곳을 '가장 많이 오른 곳'으로 적었다.
+    """
+    up, dn = MW.top3([(z, val[z]) for z in MW.SIDO if val.get(z) is not None])
+    return up[:1], dn[:1]
+
+
 def draw(adv):
     """그 달 카드 그림과 기준월. 월간 시세가 없으면 SystemExit."""
     mo = adv.get('monthly') or {}
@@ -70,10 +81,7 @@ def draw(adv):
     nat = val.get('전국')
     d.text((x0, 200), '전국', font=noto(26, 'Medium'), fill=MUTED, anchor='ls')
     d.text((x0, 272), '%s%%' % _fmt(nat), font=noto(64), fill=_ink(nat), anchor='ls')
-    sido = [(z, val[z]) for z in SZ.ORDER if z not in SZ.AGG and val.get(z) is not None]
-    ranked = sorted(sido, key=lambda x: (-MW.pv2r(x[1]), SZ.ORDER.index(x[0])))
-    up = [x for x in ranked if MW.pv2r(x[1]) > 0][:1]
-    dn = [x for x in reversed(ranked) if MW.pv2r(x[1]) < 0][:1]
+    up, dn = pick_top(val)
     y = 350
     for lab, items, col in (('가장 많이 오른 곳', up, UP_INK), ('가장 많이 내린 곳', dn, DN_INK)):
         if not items:

@@ -105,7 +105,7 @@ def test_warning_follows_the_new_signal_not_the_raw_12_months():
     _, adv = _data()
     for z in adv['sido']['zones']:
         if z.get('pbr') is not None:
-            assert z['pwarn'] == (z['pbr'] < SZ.PWARN_CUT), z['z']
+            assert z['pwarn'] == SZ.pbr_thin(z['pbr']), z['z']   # 화면 퍼센트로 견준다(B3)
 
 
 def test_estimate_flag_is_derived_from_the_model():

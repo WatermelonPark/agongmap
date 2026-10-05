@@ -325,8 +325,8 @@ def test_cum_window_is_empty_when_the_base_week_was_skipped():
 
     거른 주의 변동은 다음 회차 값에 실린다. 기준 주가 없으면 창 첫 행('기준 주 +1주')이 '기준 주 −1주 → +1주' 두 주 치를 싣고
     들어와 누적이 13주(91일)를 덮는데 시도 리포트는 '12주'로 적는다. 창 안에서 거른 주(11행 = 12주)는 그대로 누적한다.
-    무엇을 깨뜨리면 빨개지나(실제로 확인): cum_window 의 `if base not in ds: return None` 을 예전 식
-    `if not any(d is not None and d <= base for d in ds): return None` 으로 되돌리면 첫 단정이 빨강(12행 91일 창).
+    무엇을 깨뜨리면 빨개지나(실제로 확인): cum_window 의 기준 주 조건 `if base not in ds:`(다음 줄 `return None`)를 예전 식
+    `if not any(d is not None and d <= base for d in ds):` 로 되돌리면 첫 단정이 빨강(12행 91일 창).
     픽스처: 실데이터 2025-01-27·2025-10-06 거른 주의 12주 뒤 회차 모양을 먼 미래(2031년) 날짜로 재현 — 16주 가운데 최신 − 84일
     주 하나를 뺀다. 날짜는 CUM_WEEKS 에서 유도한다.
     """

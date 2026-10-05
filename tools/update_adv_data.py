@@ -1174,8 +1174,15 @@ def _label_ym(label):
     return (int(m.group(1)), int(m.group(2))) if m else None
 
 
-def _sort_by_date(D):
+def _label_year(label):
+    """연도 축 라벨('2025') → 2025. 못 읽으면 None(_sort_by_date 가 순서를 건드리지 않는다)."""
+    m = re.match(r'^(\d{4})$', str(label).strip())
+    return int(m.group(1)) if m else None
+
+
+def _sort_by_date(D, key=_label_ym):
     """D['dates']를 시간순으로 맞추고 series의 값 배열을 **같은 순서로 함께** 옮긴다.
+    key 는 라벨 → 정렬 키(월 축은 _label_ym, 연도 축은 _label_year — merge_annual).
 
     ⚠️ 왜 필요한가: 병합은 저장분에 없는 달을 끝에 덧붙인다. 앞 회차가 불완비로 버린 달
     (미분양 2026.07 — _drop_incomplete)이 다음 달보다 늦게 들어오면 dates가
@@ -1184,7 +1191,7 @@ def _sort_by_date(D):
     그 상태면 최신이 07로 보이고 전월 대비가 08→07 역방향으로 계산된다(2026-09-23 전체 점검).
     라벨을 못 읽는 칸이 있으면 순서를 모르므로 건드리지 않는다.
     """
-    keys = [_label_ym(d) for d in D['dates']]
+    keys = [key(d) for d in D['dates']]
     if any(k is None for k in keys) or keys == sorted(keys):
         return
     order = sorted(range(len(keys)), key=lambda i: keys[i])
@@ -1641,7 +1648,10 @@ def _fetch_annual_one(name, years=None):
 
 
 def merge_annual(D, fetched, dec):
-    """연도 문자열('2025') 축의 병합. 새 연도는 뒤에 붙이고, 기존 연도는 값만 고친다."""
+    """연도 문자열('2025') 축의 병합. 새 연도는 뒤에 붙이고, 기존 연도는 값만 고친다.
+    끝나면 연도를 시간순으로 맞추고 모든 계열의 값을 같은 순서로 옮긴다(_sort_by_date, 2026-10 리뷰 C4). 원천이 저장분
+    보다 **앞선** 연도(소급 공개·조회 창 확대)를 내면 뒤에 붙어 [2010, 2011, 2024, 2008, 2009] 가 되고, 소비처는 '마지막
+    칸 = 최신'으로 읽어(감시의 dates[-1], 3년 창) 2009 를 최신으로 본다."""
     changed = 0
     for y in sorted(fetched):
         vals = {r: v for r, v in fetched[y].items() if r in D['series']}
@@ -1659,6 +1669,7 @@ def merge_annual(D, fetched, dec):
             if D['series'][r][i] != nv:
                 D['series'][r][i] = nv
                 changed += 1
+    _sort_by_date(D, key=_label_year)
     return changed
 
 

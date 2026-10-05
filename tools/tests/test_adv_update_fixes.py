@@ -216,6 +216,28 @@ def test_late_month_is_sorted_into_place_with_all_series():
     assert SZ.unsold_latest(stats, SIDO[0]) == (8.0, '2026.08'), '최신이 마지막 칸이 아니다'
 
 
+def test_annual_years_are_sorted_with_values_aligned():
+    """연도 축(merge_annual)도 원천이 저장분보다 앞선 연도를 내면 시간순으로 끼워 넣고, 모든 계열의 값이 같은 칸을
+    따라간다(2026-10 리뷰 C4). 예전엔 새 연도를 끝에 붙이기만 해 [2010, 2011, 2024, 2008, 2009] 가 되었고, '마지막 칸 =
+    최신'으로 읽는 소비처(감시의 dates[-1], 멸실 3년 창)가 2009 를 최신으로 봤다.
+
+    변이(실제로 확인): merge_annual 끝의 `_sort_by_date(D, key=_label_year)` 를 지우면 dates 가 끝에 붙은 채 남아
+    빨개진다. key 를 빼면(_label_ym 은 '2008' 을 못 읽어 None) 정렬을 건너뛰어 빨개진다.
+    픽스처: 저장분 [2010, 2011, 2024](지역마다 값이 다름), 원천이 소급 공개한 2008·2009 와 기존 연도 2025 — 받은 값은
+    연도 숫자에 지역 순번을 더해 칸이 어긋나면 드러나게 했다. 한 지역은 새 연도 값이 없어(None) 그 칸이 비어야 한다.
+    """
+    regs = SIDO[:3]
+    D = {'dates': ['2010', '2011', '2024'],
+         'series': {r: [2010 + k, 2011 + k, 2024 + k] for k, r in enumerate(regs)}}
+    fetched = {y: {r: int(y) + k for k, r in enumerate(regs[:2])} for y in ('2008', '2009', '2025')}
+    n = U.merge_annual(D, fetched, 0)
+    assert n == 6
+    assert D['dates'] == ['2008', '2009', '2010', '2011', '2024', '2025']
+    for k, r in enumerate(regs[:2]):
+        assert D['series'][r] == [int(y) + k for y in D['dates']], r
+    assert D['series'][regs[2]] == [None, None, 2012, 2013, 2026, None], '값을 받지 않은 지역의 칸이 어긋났다'
+
+
 # ── 4. update_basic: 실패가 기록에 닿는다 ───────────────────────────────────
 def _boom(*a, **k):
     raise RuntimeError('KOSIS err 99: 픽스처')

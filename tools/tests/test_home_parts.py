@@ -238,7 +238,7 @@ def _loader_src():
     s = core.index('const PARTS={')
     e = core.index('\n}));', s) + len('\n}));')
     pieces.append(core[s:e])
-    for fn in ('loadFullData', 'loadData', 'applyHash'):
+    for fn in ('loadFullData', 'loadData', 'ensureBasicStats', 'ensureSizeStats', 'applyHash'):
         m = re.search(r'^function %s\(' % fn, core, re.M)
         assert m, 'home-app.js 에서 %s 를 못 찾았다' % fn
         i, depth = core.index('{', m.end()), 0
@@ -284,6 +284,77 @@ def test_calls_before_the_part_arrives_wait_and_replay_in_order():
     assert o['retryAppended'], '못 받은 뒤 다시 눌러도 퀴즈 파일을 다시 받지 않는다'
     assert o['quizCallsAfterLeave'] == [], '기다리는 사이 떠난 화면의 누름을 도착 뒤에 부른다(화면과 주소가 갈린다)'
     assert o['quizCalls'] == [['startQuiz', 'investor']], o['quizCalls']
+
+
+LOADER_BOX = r"""
+const vm = require('vm');
+const CFG = %(cfg)s;
+const scripts = [], pend = {};
+const els = {};
+function el(id){ return els[id] || (els[id] = {id, style: {display: 'none'}, textContent: '', innerHTML: ''}); }
+const ctx = {console, Promise, Object, Array, JSON, setTimeout, __cfg: CFG};
+ctx.window = ctx;
+ctx.document = {createElement(t){ return {tag: t, remove(){}}; }, head: {appendChild(s){ scripts.push(s); }}, getElementById: el};
+ctx.fetch = (u) => new Promise((res) => { pend[u] = {ok: () => res({ok: true, json: () => ({ADV: {}, STATS: {}})}),
+  fail: () => res({ok: false, status: 503})}; });
+ctx.ADV = {}; ctx.STATS = {};
+vm.createContext(ctx);
+vm.runInContext(CFG.core + `
+var statsInited=false, curView='stats', HOME_BUILD=__cfg.build;
+function toast(){}
+`, ctx);
+process.on('unhandledRejection', () => {});
+const tick = async (n) => { for (let i = 0; i < (n || 3); i++) await new Promise((r) => setImmediate(r)); };
+const box = () => ({shown: el('stats-loading').style.display !== 'none', text: el('stats-loading').textContent});
+(async () => {
+  const out = {};
+  // ① 통계 화면 파일(home-stats.js)은 못 받고, 나란히 받던 그래프 데이터는 그 뒤에 온다
+  ctx.statsOpen(); await tick();
+  scripts[0].onerror(); await tick();
+  pend['/data-trend.json'].ok(); await tick();
+  out.partFail = box();
+  // 다시 누르면 파일을 다시 받고, 오면 안내를 걷는다
+  ctx.statsOpen(); await tick();
+  vm.runInContext('function statsOpen(){}', ctx); scripts[1].onload(); await tick();
+  out.retry = box();
+  // ② 뒤에서 받는 기본통계(data-rest)·규모별(data-size)은 화면 위 안내 칸을 건드리지 않는다
+  vm.runInContext('ensureBasicStats()', ctx); await tick();
+  out.restWaiting = box();
+  pend['/data-rest.json'].fail(); await tick();
+  out.restFail = {box: box(), note: el('src-note').textContent};
+  vm.runInContext('ensureSizeStats()', ctx); await tick();
+  pend['/data-size.json'].ok(); await tick();
+  out.sizeOk = box();
+  process.stdout.write(JSON.stringify(out));
+})().catch((e) => { console.error(e); process.exit(1); });
+"""
+
+
+def test_stats_loading_box_belongs_to_the_gating_loads():
+    """화면 위 통계 안내 칸(#stats-loading)은 통계 화면 파일(home-stats.js)과 그래프 데이터(data-trend.json)만 쓴다.
+
+    ① 통계 화면 파일을 못 받아 '통계 화면을 불러오지 못했습니다'를 띄운 뒤 나란히 받던 data-trend 가 성공해도 안내를 걷지
+       않는다(전수리뷰 A1 — 예전엔 걷어 통계 화면이 안내 없이 비었다). 다시 눌러 파일이 오면 걷는다.
+    ② 뒤에서 받는 data-rest(기본통계)·data-size(규모별)는 칸을 열고 닫지 않는다(A2 — 그래프가 다 그려진 뒤 칸이 늦게
+       열려 화면이 밀렸고, data-rest 만 실패하면 멀쩡한 그래프 위에 실패 안내가 계속 남았다). 그 실패는 기본통계 출처 줄
+       (#src-note)에 단다.
+    변이(각각 실제로 확인): loadData 성공 줄의 `&&!PART_FAIL` 을 지우면 ①의 partFail 이, `const box=gate?…:null` 을 옛
+          `const box=document.getElementById('stats-loading')` 로 되돌리면 ②의 restWaiting 이 빨개진다.
+    픽스처: 저장소 로더 코드(test_calls_before_the_part_arrives… 와 같은 조각)를 node 로 돌린다 — 느린 망에서 통계 탭을
+          열었는데 home-stats.js 요청만 끊긴 경우, 그 뒤 data-rest 가 503 으로 실패한 경우.
+    """
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    build = re.search(r"const HOME_BUILD='(v\d+)'", _core()).group(1)
+    cfg = {'core': _loader_src(), 'build': build}
+    p = subprocess.run(['node', '-e', LOADER_BOX % {'cfg': json.dumps(cfg, ensure_ascii=False)}], capture_output=True, timeout=60)
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
+    o = json.loads(p.stdout.decode('utf-8'))
+    assert o['partFail']['shown'] and '통계 화면을 불러오지 못했습니다' in o['partFail']['text'], o
+    assert not o['retry']['shown'], o
+    assert not o['restWaiting']['shown'], '뒤에서 받는 data-rest 가 화면 위 안내 칸을 열었다: %s' % o
+    assert not o['restFail']['box']['shown'] and '불러오지 못했습니다' in o['restFail']['note'], o
+    assert not o['sizeOk']['shown'], o
 
 
 SW = r"""

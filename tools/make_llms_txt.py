@@ -41,6 +41,7 @@ import sido_zones as SZ  # noqa: E402  (식·창 길이·등급 이름·시도 �
 import weekly_release as WR  # noqa: E402  (발표 요일)
 import make_feed as F  # noqa: E402  (도메인·사이트 이름·피드 설명)
 import make_monthly_page as MP  # noqa: E402  (/monthly/ 설명)
+import make_sido_pages as SP  # noqa: E402  (미분양 출처 기관 정본 UN_SOURCE)
 import ping_indexnow as P  # noqa: E402  (sitemap 읽기 — IndexNow 와 같은 눈)
 
 OUT = os.path.join(ROOT, 'llms.txt')
@@ -49,12 +50,16 @@ PATH = '/llms.txt'
 ZONE_RE = re.compile(r'^/zone/([^/]+)/$')
 
 # 데이터 출처(기관 이름, 주소, 무엇을 가져오나). 이름·순서는 /about/ 의 출처 줄과 같다(test_llms_txt 가 대조).
-SOURCES = (
+# 미분양은 출처 기관 정본(make_sido_pages.UN_SOURCE, 전수 리뷰 #21) 줄에 붙인다 — 예전엔 한국부동산원 줄에 손으로 적어
+# 시도 리포트·/monthly/(국토교통부)와 갈렸다(전수리뷰 B5).
+_SOURCES = (
     ('KOSIS', 'https://kosis.kr', '국가통계포털 — 인허가·착공·준공 실적과 가격지수·전세가율 원자료'),
-    ('한국부동산원', 'https://www.reb.or.kr/r-one/', '주간·월간 아파트 가격 동향과 미분양'),
+    ('한국부동산원', 'https://www.reb.or.kr/r-one/', '주간·월간 아파트 가격 동향'),
     ('국토교통부', 'https://www.molit.go.kr', '주택건설실적통계(인허가·착공·준공)'),
     ('한국은행', 'https://www.bok.or.kr', '금리'),
 )
+assert SP.UN_SOURCE in [n for n, _, _ in _SOURCES], '미분양 출처 기관(UN_SOURCE)이 출처 목록에 없다'
+SOURCES = tuple((n, u, d + (' · 미분양주택현황' if n == SP.UN_SOURCE else '')) for n, u, d in _SOURCES)
 
 
 def site(root=ROOT):

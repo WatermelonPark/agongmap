@@ -43,6 +43,23 @@ def _won(n):
     return format(int(round(n)), ',')
 
 
+def min_window(rows, start, n=4, col=0):
+    """입주 계열(adv['occupancy']['rows'] — 과거는 준공 실적, 이후는 추정)에서 분기 start 부터 끝까지, 연속한 n 분기 합이
+    가장 작은 구간 → (첫 분기, 끝 분기, 합). 합이 같으면 앞 구간.
+
+    ⚠️ 추정 분기(EST)만 훑지 않는다. 바로 앞 문단의 '올해 입주'(OY)는 실적 두 분기 + 추정 두 분기를 더한 같은 계열인데,
+    추정 분기만 훑으면 올해(215,877호·57%)보다 큰 2028년 1~4분기(231,328호·61%)가 '가장 적은 구간'으로 나와 두 문장이
+    서로 어긋났다(2026-10-05 리뷰 D5, 2026.08 데이터). 그래서 OY 와 같은 계열을 올해 1분기부터 훑는다 — 사이트 정본
+    (홈 공급표·/moveins/)도 실적과 추정을 한 계열로 잇는다.
+    """
+    rs = [r for r in rows if r['p'] >= start]
+    if len(rs) < n:
+        raise ValueError('%s 부터 %d분기가 안 된다' % (start, n))
+    w = [(sum(r['v'][col] for r in rs[i:i + n]), i) for i in range(len(rs) - n + 1)]
+    v, i = min(w)
+    return rs[i]['p'], rs[i + n - 1]['p'], v
+
+
 def link4_numbers(adv, sts):
     """5편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link4ClaimError."""
     ST, DN = sts['착공'], sts['준공']
@@ -124,9 +141,8 @@ def link4_numbers(adv, sts):
         return sum(st[k] for k in ks) * SD['conv']
 
     def MIN4():
-        w = [(sum(r['v'][0] for r in EST[i:i + 4]), EST[i]['p'], EST[i + 3]['p']) for i in range(len(EST) - 3)]
-        v, a, b = min(w)
-        return a, b, v
+        # 올해 1분기부터 끝까지(실적 + 추정) — '올해 입주'(OY)와 같은 계열. min_window docstring.
+        return min_window(O['rows'], '%dQ1' % CUR_Y)
 
     # ---------- 공사 기간(고리 ④) ----------
 
@@ -378,7 +394,8 @@ def link4_numbers(adv, sts):
         return '%.0f%%' % (q * 100)
 
     def _fq_min4():
-        # 연속한 네 추정 분기 가운데 가장 적은 구간의 이름. 세 해 모두 7할 미만 단정(2028년)도 여기서 고정
+        # 올해 1분기부터(실적 + 추정, OY 와 같은 계열 — min_window) 연속한 네 분기 가운데 가장 적은 구간의 이름.
+        # 세 해 모두 7할 미만 단정(2028년)도 여기서 고정
         assert OY('전국', 2028) / (O['ref']['전국'] * 4) < 0.7
         a, b, _ = MIN4()
         return '%s년 %s분기~%s년 %s분기' % (a[:4], a[-1], b[:4], b[-1]) if a[:4] != b[:4] else '%s년 %s~%s분기' % (a[:4], a[-1], b[-1])

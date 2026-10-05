@@ -80,9 +80,9 @@ def test_home_weekly_carries_the_newest_week(split):
 
 
 def test_home_monthly_fields_map_to_their_own_series(split):
-    """홈 통합표의 매매·전세·월세 칸(ma·je·wo)은 원천의 같은 이름 계열을 소수 2자리로 싣는다.
+    """홈 통합표의 매매·전세·월세 칸(ma·je·wo)은 원천의 같은 이름 계열을 소수 4자리(원천 자리수 그대로)로 싣는다.
 
-    변이: core monthly 행을 만드는 곳에서 `'je': _r2(r.get('je'))` 를 `_r2(r.get('ma'))` 로 바꾸면
+    변이: core monthly 행을 만드는 곳에서 `'je': _r4(r.get('je'))` 를 `_r4(r.get('ma'))` 로 바꾸면
           전세 칸이 매매 값이 되어 빨개진다(확인).
     픽스처: 실제 data.js ADV.monthly — 매매·전세·월세 변동률이 지역마다 서로 다르다(아래 전제 단정으로 확인).
     """
@@ -93,10 +93,47 @@ def test_home_monthly_fields_map_to_their_own_series(split):
     want_ps = [r['p'] for r in adv['monthly']['rows'] if r['p'].replace('-', '.') >= S.TABLE_FROM]
     assert [r['p'] for r in mo['rows']] == want_ps, '표 구간(TABLE_FROM~)의 달이 빠지거나 더 실렸다'
     last = src[want_ps[-1]]
-    assert S._r2(last['ma']) != S._r2(last['je']), '픽스처의 매매·전세가 같으면 뒤바뀜을 못 가린다'
+    assert S._r4(last['ma']) != S._r4(last['je']), '픽스처의 매매·전세가 같으면 뒤바뀜을 못 가린다'
     for r in mo['rows']:
         for f in ('ma', 'je', 'wo'):
-            assert r[f] == S._r2(src[r['p']].get(f)), '%s %s가 원천 %s와 다르다' % (r['p'], f, f)
+            assert r[f] == S._r4(src[r['p']].get(f)), '%s %s가 원천 %s와 다르다' % (r['p'], f, f)
+
+
+def test_home_monthly_values_display_like_the_monthly_page(split):
+    """홈 코어의 월간 변동률(ADV.monthly.rows)을 홈 pv2(home-app.js, half-up)로 찍은 글자가 /monthly/ 의 pv2(원값을 half-up,
+    make_monthly_page.pv2)와 모든 칸에서 같다(전수리뷰 B1). 예전엔 split_data 가 소수 2자리(round — 이진수 위의 half-even)로
+    먼저 잘라 실어, 홈이 두 번 반올림했다(2026-01 전국 0.345 → 홈 +0.34 · /monthly/ +0.35).
+
+    변이(실제로 확인): split_data._r4 의 round(v, 4) 를 옛 round(v, 2) 로 되돌리면 어긋난 칸이 생겨 빨개진다.
+    픽스처: 실제 data.js ADV.monthly 사본을 split 한 코어 — 원천은 소수 넷째 자리라 둘째 자리 경계(x.xx5)에 걸린 칸이
+          있다. 기대값은 같은 사본의 원값에서 유도하므로 데이터가 앞으로 가도 초록이다. 홈 pv2 는 node 로 실제 함수를 돈다.
+    """
+    import shutil as _sh
+    import subprocess as _sp
+    if not _sh.which('node'):
+        pytest.skip('node 없음')
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+    import home_src as HS
+    import make_monthly_page as MP
+    adv, _, out = split
+    src = {r['p']: r for r in adv['monthly']['rows']}
+    cells = []
+    for r in out['core_adv']['monthly']['rows']:
+        for f in ('ma', 'je', 'wo'):
+            for i, v in enumerate(r.get(f) or []):
+                raw = (src[r['p']].get(f) or [None] * (i + 1))[i]
+                if v is not None and raw is not None:
+                    cells.append(['%s %s %d' % (r['p'], f, i), v, MP.pv2(raw)])
+    assert len(cells) > 1000, '대조한 칸이 너무 적다(%d)' % len(cells)
+    app = dict(HS.home_files())['home-app.js']
+    fns = re.search(r'function pv2r\(v\)\{.*?\n *return \(r>0\?\'\+\':\'\'\)\+r\.toFixed\(2\); \}', app, re.S)
+    assert fns, 'home-app.js 에서 pv2r·pv2 를 못 찾았다'
+    js = fns.group(0) + '\nconst C=%s;process.stdout.write(JSON.stringify(C.filter(c=>pv2(c[1])!==c[2]).map(c=>[c[0],pv2(c[1]),c[2]])));' % (
+        json.dumps(cells, ensure_ascii=False))
+    p = _sp.run(['node', '-'], input=js.encode('utf-8'), capture_output=True, timeout=60)   # 칸이 많아 명령줄 한도를 넘는다
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
+    bad = json.loads(p.stdout.decode('utf-8'))
+    assert not bad, '홈과 /monthly/ 의 월간 표시값이 갈린다(%d칸, 앞 5칸: 칸·홈·/monthly/): %s' % (len(bad), bad[:5])
 
 
 def test_rest_carries_every_basic_series_except_lazy_ones(split):
