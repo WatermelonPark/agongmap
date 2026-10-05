@@ -6,7 +6,7 @@
 같아야 한다(CLAUDE.md '같은 대상을 재는 코드는 같은 상수·같은 식').
 
 변이(각각 실제로 확인): yearly_supply 가 LEAD_Q 대신 LEAD_Q−1 로 착공을 당겨 오면 합 대조가, CONV 를 빼면 합 대조가, 마지막
-묶음의 적정을 4분기로 고정하면(H=11 사례) 부분 묶음 단정이, build_hub 가 전망 칸을 빼면 허브 단정이, build_page 가 블록을
+묶음의 적정을 4분기로 고정하면(H=11 사례) 부분 묶음 단정이, build_hub 가 신호등 칸을 빼면 허브 단정이, build_page 가 블록을
 빼면 리포트 단정이 빨개진다.
 픽스처: 저장소 data.js 의 실제 판정·착공(값은 함수로 유도 — 데이터가 앞으로 가도 같은 판정), H=11 합성 시야.
 """
@@ -50,10 +50,11 @@ def test_hub_and_report_show_the_years():
     adv, stats, s, Lq = _ctx()
     h = M.build_hub(s, stats)
     cards = re.findall(r'<a href="/zone/[^"]+/"[^>]*>(.*?)</a>', h, re.S)
-    with_out = [c for c in cards if 'class="zo"' in c]
+    # 허브 칸은 2026-10-05 대표 결정으로 막대 대신 신호등(make_sido_pages.lights_html)을 싣는다 — test_zone_lights
+    with_out = [c for c in cards if 'class="zl"' in c]
     assert len(with_out) == len(s['zones']), (len(with_out), len(s['zones']))
     gy = SZ.yearly_supply(stats, '경기', Lq, s['H'])
-    assert ('적정 대비 입주 ' + ', '.join('%d년 차 %d%%' % (y['n'], y['pct']) for y in gy)) in h
+    assert M.lights_aria(gy) in h
     calc = s
     pq = {}
     others = s['zones']
