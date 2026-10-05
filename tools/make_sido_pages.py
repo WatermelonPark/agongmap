@@ -619,8 +619,10 @@ def summary_parts(z, row, calc, lab):
     ⚠️ 주간 갱신처럼 쓰지 않는다. 배치는 매일 돌지만 판정은 분기 실적으로 정해져 분기마다 바뀐다(2026-09-15 점검후속 ④).
     """
     d_tot = disp_tot(row, calc['H'])
-    return [('%s의 아파트 공급은 ' % z, 0), (row.get('ctxt') or signed(d_tot), 1),
-            ('(%s). 앞으로 %.0f년 착공 기준 공급 ' % (lab, calc['H'] / 4.0), 0), ('%s세대' % num(rnd(row['fut'])), 1),
+    # 판정(등급 이름)을 먼저 말하고 세대수 문구를 잇는다 — ctxt 가 괄호로 끝나서('…부족(3년 필요량의 139%)') 예전처럼 그 뒤에
+    # '(매우 부족)'을 붙이면 괄호가 겹쳤다(2026-10-05).
+    return [('%s 아파트 공급 판정은 %s입니다. ' % (z, lab), 0), (row.get('ctxt') or signed(d_tot), 1),
+            ('. 앞으로 %.0f년 착공 기준 공급 ' % (calc['H'] / 4.0), 0), ('%s세대' % num(rnd(row['fut'])), 1),
             (', 분기 적정물량 ', 0), ('%s호' % num(rnd(row['ref'])), 1),
             ('. %s 기준, 국토교통부 준공·착공 실적으로 분기마다 갱신.' % (calc.get('Ltxt') or calc['L']), 0)]
 
@@ -1114,6 +1116,16 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     return ''.join(h)
 
 
+def card_html(o):
+    """허브 시도 칸의 문구 — 글자는 정본 ctxt('311,689세대 부족(3년 필요량의 139%)') 그대로이고, 괄호 덩어리만 줄 안에서
+    끊기지 않게 묶는다(2026-10-05 대표 요청 — 좁은 두 칸 격자에서 '3년 / 필요량의 139%만큼'처럼 말이 끊겼다)."""
+    t = o['ctxt']
+    i = t.find('(')
+    if i <= 0 or not t.endswith(')'):
+        return esc(t)
+    return '%s<span class="zk">%s</span>' % (esc(t[:i]), esc(t[i:]))
+
+
 def build_hub(calc):
     agg = [z for z in calc['zones'] if z['agg']]
     # 시도 목록은 고정 순서로 보여준다(2026-09-13 대표 결정) — calc() 가 이미
@@ -1143,7 +1155,7 @@ def build_hub(calc):
                  % (urllib.parse.quote(o['z']), SZ.GRADE_KEYS.index(o['grade']),
                     disp_tot(o, calc['H']),
                     esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
-                    esc(o['ctxt'])))
+                    card_html(o)))
     h.append('</div></div></section>')
     # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
     # 화면인데 허브에서 가는 길이 없었다.

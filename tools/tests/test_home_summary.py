@@ -102,7 +102,8 @@ def test_baked_text_says_the_synthetic_numbers():
     """숫자는 data-core 필드 그대로(ctxt·Ltxt·ADV.weekly.head), 주간 값은 사이트 반올림(pv2), 발표일은 weekly_release.
 
     변이: facts() 에서 pv2 대신 '%.1f' 로 적거나, 발표일 대신 조사일(p)을 쓰거나, meta_texts 의 '%s 공급' 연수를 '3년'으로
-          박거나, rtxt 대신 ctxt(…만큼)를 쓰거나, facts 가 전국 None 을 '전국 None%' 로 적으면 빨개진다(다섯 다 확인). 원값
+          박거나, ctxt 대신 옛 '비율 문구(세대수)' 모양으로 쓰거나, facts 가 전국 None 을 '전국 None%' 로 적으면 빨개진다
+          (2026-10-05 표기 변경 뒤 다시 확인). 원값
           0.126 은 사이트 pv2 로 +0.13 이다(반올림 규칙이 다르면 끝자리가 갈린다).
     """
     a = _adv()
@@ -116,10 +117,12 @@ def test_baked_text_says_the_synthetic_numbers():
     og = re.search(r'<meta property="og:description" content="([^"]*)"', out).group(1)
     tw = re.search(r'<meta name="twitter:description" content="([^"]*)"', out).group(1)
     assert og == tw
-    # 문장(검토 09-27): 정본 비율 문구(rtxt)와 세대수, '전국 값 · 결론'을 '…로 가장 크게 내렸습니다'로 잇는다. '만큼.' 으로 끝나지 않는다.
-    assert '2027년 1분기 기준 전국 아파트 공급은 %s(%s)입니다.' % (nat['rtxt'], nat['cnum']) in desc, desc
+    # 문장(2026-10-05 대표 요청): 정본 카드 문구 ctxt('412,345세대 부족(3년 필요량의 88%)') — 괄호 안이 무엇의 몇 %인지다.
+    # '전국 값 · 결론'은 '…로 가장 크게 내렸습니다'로 잇는다. '만큼.' 으로 끝나지 않는다.
+    assert '2027년 1분기 기준 전국 아파트 공급은 %s입니다.' % nat['ctxt'] in desc, desc
+    assert nat['ctxt'] == '%s 부족(3년 필요량의 88%%)' % nat['cnum'], nat['ctxt']
     assert '1/7 발표 주간 아파트 매매가격은 전국 +0.13% · 부산 -0.33%로 가장 크게 내렸습니다.' in desc, desc
-    assert nat['rtxt'] in og and nat['cnum'] in og and '+0.13%' in og
+    assert nat['ctxt'] in og and '+0.13%' in og
     assert '만큼.' not in desc and '만큼.' not in og
     n = len([z for z in SZ.ORDER if z not in SZ.AGG])
     assert ('%d개 시도의 3년 공급' % n) in desc and '3년 공급 판정' in og
@@ -173,7 +176,7 @@ def test_committed_home_says_what_data_core_says():
     # 이제 게이트가 split 을 먼저 돌리므로(전수리뷰 #31) 그대로 읽는다 — split 이 cnum 을 빼면 여기서 KeyError 로 빨갛다.
     # 주간 전국 값이 None 인 주(실데이터 11주 전례)에는 전국 조각이 빠져야 한다(검토 09-27 #8).
     num = nat['cnum']
-    assert num in desc and (nat.get('rtxt') or '') in desc
+    assert num in desc and nat['ctxt'] in desc
     assert (MW.pv2(nv) in desc) if nv is not None else '매매가격은 전국' not in desc
 
 

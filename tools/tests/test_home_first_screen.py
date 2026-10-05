@@ -438,7 +438,7 @@ def test_distribution_and_legend_lines_are_gone_with_their_data():
 # ── B2·C4①·MOB-7: 카드는 두 줄 링크, ⓘ 는 링크 밖 버튼 ─────────────────────────────────────────────
 
 def test_cards_are_two_line_links_and_the_how_button_toggles():
-    """카드 = '전국 [부족]' / '686,396세대 →' 두 줄 링크(넓은 화면만 '부족'·'3년 필요량의 60%만큼'이 보인다), ⓘ 는 링크 밖의
+    """카드 = '전국 [부족]' / '686,396세대 →' 두 줄 링크(넓은 화면만 '부족'·'3년 필요량의 60%'가 보인다), ⓘ 는 링크 밖의
     button(aria-expanded·aria-controls) — 누르면 식 한 줄이 펼쳐지고 다시 누르면 접힌다(기본은 접힘). 옛 캐시는 ⓘ 없음.
 
     변이(각각 확인): ⓘ 를 </a> 앞(링크 안)으로 옮기면 첫 단정, aggHow 가 hidden 을 안 바꾸면 토글 단정, 카드 둘째 줄이 ctxt
@@ -464,7 +464,7 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     assert '<span class="agg-l1"><b>수도권</b><span class="sc-tier g2">부족</span></span>' in a.group(1)
     assert re.search(r'<i class="agg-n">349,029세대<span class="agg-dir"> 부족</span><span class="agg-go"[^>]*> →</span></i>',
                      a.group(1)), a.group(1)
-    assert '<i class="agg-p">3년 필요량의 58%만큼</i>' in a.group(1)
+    assert '<i class="agg-p">%s</i>' % z['cpct'] in a.group(1) and z['cpct'] == '3년 필요량의 58%', a.group(1)
     assert toggles == [['true', False], ['false', True]], toggles
     assert '<button' not in old and '349,029세대 부족' in old
     how = _js_func(h, 'renderAggCards')   # 카드·ⓘ 식은 2026-10-04 에 지도 상자 밖(#agg-wrap)으로 나갔다
