@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v172">
+<html lang="ko" data-build="v173">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -274,6 +274,8 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <button type="button" data-p="y" aria-pressed="false" onclick="tbPer('y')">연</button>
       </div>
       <label class="tb-chk"><input type="checkbox" id="tb-rel" onchange="tbDraw()"> 적정물량 대비로 보기</label>
+      <!-- 시세 모드 기준 줄(2026-10-05 대표 요청 — 카드 아래에서 단추 왼쪽으로, 주간·월간 양식 통일). 공급 모드는 비어 숨는다. -->
+      <p class="tb-when" id="tb-when"></p>
       <div class="tb-seg tb-view" id="tb-view" role="group" aria-label="보기 방식">
         <button type="button" data-v="map" class="on" aria-pressed="true" onclick="tbView('map')">지도</button>
         <button type="button" data-v="graph" aria-pressed="false" onclick="tbView('graph')">그래프</button>

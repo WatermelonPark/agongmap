@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v172';
+const HOME_BUILD='v173';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -616,7 +616,9 @@ function weeklyRelease(p,now,grace){
 }
 function _md(iso){const a=String(iso).split('-');return (+a[1])+'/'+(+a[2]);}
 /* 연휴 주(hedge)는 날짜를 단정하지 않되 안내 문구도 적지 않는다(빈 문자열 — 2026-10-05 대표 요청으로 '연휴로 발표 일정이
-   바뀔 수 있습니다'를 뺐다). 그래서 이어 붙이는 쪽은 빈 조각을 거른다(wkWhenText·통계 탭 rel-week). */
+   바뀔 수 있습니다'를 뺐다). 그래서 이어 붙이는 쪽은 빈 조각을 거른다(wkWhenText·통계 탭 rel-week).
+   wkWhenText 는 /weekly/ 머리줄(파이썬 weekly_release.when_text)의 JS 거울이다 — 홈 화면은 2026-10-05 부터 '9/28 기준 ·
+   한국부동산원'(wkMapModel)을 쓰지만, 두 문장 규칙이 갈리지 않는지 시험(test_weekly_release·test_home_first_screen)이 이 함수로 본다. */
 function wkNextText(r){
   if(r.stale)return '이번 주 발표분 반영 대기';
   if(r.hedge)return '';
@@ -1117,8 +1119,9 @@ function aggCard(n,z,i){
 /* ── 지도 모드: 공급 현황 / 주간 시세 / 월간 시세(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27 → 2026-10-04 월간·10-05 이름) ──────────────────────────────────────
    한 지도에 세 주기(분기 공급·주간·월간 시세)를 싣는다. 기본은 공급(분기 판정) — 첫 화면의 주인은 공급 지도다(IA-1). 같은 빨강·파랑이 모드마다
    다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이 되므로 모드마다 범례의 끝말·가운데 칸, 뜻 한 줄(제목과 단위), 지도 이름
-   (aria-label)을 바꾸고(mapKeyHtml), 주간 모드는 발표일을 지도 바로 위 줄(wkWhenText)과 범례(wkPubLead)에 박는다.
-   발표일·지연 문구는 통계 탭 발표 줄과 같은 weeklyRelease/wkWhenText/wkPubLead 다 — 여기서 날짜를 다시
+   (aria-label)을 바꾸고(mapKeyHtml), 시세 모드는 기준 줄('9/28 기준 · 한국부동산원' — 지도/그래프/표 단추 왼쪽 #tb-when,
+   2026-10-05 대표 요청으로 주간·월간 양식 통일)과 범례(wkPubLead)에 날짜를 박는다. 날짜는 통계 탭 발표 줄과 같은
+   weeklyRelease/wkPubLead 다 — 여기서 날짜를 다시
    세지 않는다. 주간 값은 ADV.weekly 최신 행의 시도 매매 변동률, 글자는 pv2(표시 반올림 정본), 색은 통계 탭 시군구 주간
    지도·히어로 배경과 같은 mapColor(v, WK_MAP_REF)를 지면색 위에 불투명하게 합성한다(도형이 겹쳐 그려져 반투명이면 경기
    위 서울·인천만 진해진다 — mapFill 과 같은 까닭). 0.00 은 mapColor 가 보합 회색으로 칠한다 — 공급 모드의 '균형' 중립색
@@ -1152,7 +1155,7 @@ function wkMapModel(W,r){
   if(!r||!row||!row.ma||!W.regions||!W.regions.length) return null;
   var v={};
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
-  return {v:v,when:wkWhenText(r),lead:wkPubLead(r),stale:!!r.stale,
+  return {v:v,when:_md(r.survey)+' 기준 · 한국부동산원',lead:wkPubLead(r),stale:!!r.stale,
     k:'week',ref:WK_MAP_REF,unit:'전주 대비',adj:'주간',href:'/weekly/',to:'weekly_map_card'};
 }
 /* 월간 모드 재료(2026-10-04 대표 요청 — 홈에서 월간도 쉽게). 최신 달 시도 매매 변동률(ADV.monthly, 코어에 실린다).
@@ -1163,7 +1166,7 @@ function moMapModel(W){
   var v={};
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
   var y=+row.p.slice(0,4), m=+row.p.slice(5,7), lead=m+'월 기준';
-  return {v:v,when:y+'년 '+m+'월 기준 · 한국부동산원 월간',lead:lead,stale:false,
+  return {v:v,when:y+'년 '+m+'월 기준 · 한국부동산원',lead:lead,stale:false,
     k:'month',ref:MO_MAP_REF,unit:'전월 대비',adj:'월간',href:'/monthly/',to:'monthly_map_card'};
 }
 /* 지금 모드의 시세 재료 — 공급 모드면 null. data-core 가 안 왔으면(ADV 없음) 시세 모드도 없다(2026-10-05 리뷰). */
@@ -1252,9 +1255,10 @@ function renderAggCards(){
       +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
   });
   h+='</div>'+how;
-  /* 시세 모드: 카드 아래 발표 줄 — 주간은 발표 상태 문장(wkWhenText: '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)', 늦은 주
-     '최근 반영: …'), 월간은 기준 달. */
-  if(M) h+='<p class="wk-when">'+M.when+'</p>';
+  /* 시세 모드: 기준 줄 — 지도/그래프/표 단추 왼쪽(#tb-when, 2026-10-05 대표 요청). 양식은 주간·월간 하나로
+     '9/28 기준 · 한국부동산원'(조사일)·'2026년 8월 기준 · 한국부동산원'(M.when). 공급 모드는 비운다(:empty 로 숨는다). */
+  var tw=document.getElementById('tb-when');
+  if(tw) tw.textContent=M?M.when:'';
   el.innerHTML=h;
 }
 /* 시도 이름 → 시군구 지도의 시도 머리 칸 코드(NATION_TILE, 서울 a7·광주 b3 …). 시세 모드 지도에서 지역을 누르면 그 시도
