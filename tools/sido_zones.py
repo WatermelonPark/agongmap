@@ -116,34 +116,37 @@ GRADE_LABS = {'g4': '심각한 부족', 'g3': '매우 부족', 'g2': '부족',
               'g1': '균형', 'g0': '공급 여유'}
 
 
-def ratio_pct(ratio):
-    """순부족비 → 화면에 찍는 정수 퍼센트(부호 포함). 판정 문구(ratio_text)·카드(card_parts)가 **이 함수 하나**로 센다.
+def need_mult(ratio, H=None):
+    """순부족비 → '1년 적정물량의 몇 배'(소수 한 자리, 크기만). 모자란(남는) 집 ÷ 그 지역 1년 적정물량 = |비율| × 연수(H/4).
 
-    ⚠️ 반올림이 등급 컷을 넘지 않게 한다(전수 리뷰 #9). 등급은 비율로 자르는데(grade) 퍼센트는 반올림해서 찍으니, 컷 바로
-    아래([cut−0.005, cut))에서 '… 50%만큼 부족합니다. 50%에 못 미쳐 균형으로 분류합니다'처럼 한 문장이 스스로 부딪쳤다.
-    컷 아래 비율의 퍼센트는 컷 숫자에 닿기 전(컷 − 1)에서 멈춘다. 컷 위는 반올림이 컷 아래로 내려갈 수 없어 그대로 둔다.
+    2026-10-05 대표 결정(안 A′): 부족률 퍼센트는 100% 를 넘고(서울 +139%) 음수가 되며(인천 −19%), 같은 칸의 해마다 입주 신호등
+    ('적정의 73%' — 클수록 좋음)과 뜻이 반대라 읽기 어려웠다. 기준을 '1년 적정물량' 하나로 맞춰 쌓인 부족은 몇 배, 그해 입주는
+    몇 %로 단위를 가른다. '몇 년 치'로 쓰지 않은 까닭: '앞으로 3년'·'1년 차' 옆에서 '4.2년 치'가 기간으로 읽혔다.
+    ⚠️ 반올림이 등급 컷(컷 × 연수 = 1.5·3·4.5배)을 넘지 않게 한다(전수 리뷰 #9 — 옛 ratio_pct 의 가드를 옮겼다). 컷 바로 아래 비율이
+    '1.5배'로 찍히면 '1.5배에 못 미쳐 균형'과 부딪친다. 컷 아래 비율은 컷 − 0.1배에서 멈춘다.
     """
-    pct = int(round(ratio * 100))
+    H = LEAD_Q if H is None else H
+    Y = H / 4.0
+    m = half_up(abs(ratio) * Y * 10) / 10.0
     for c in GRADE_CUTS:
-        cp = int(round(c * 100))
-        if c > 0 and ratio < c and pct >= cp:
-            pct = cp - 1
-    return pct
+        cm = half_up(c * Y * 10) / 10.0
+        if c > 0 and 0 < ratio < c and m >= cm:
+            m = round(cm - 0.1, 1)
+    return m
 
 
-def ratio_signed(ratio):
-    """부족률 — 부족분 ÷ 앞으로 H분기 필요량을 **부호 붙은 한 축**으로: '+139%'(모자람) · '−19%'(남음) · '0%'(2026-10-05 대표 요청).
+MULT_MIN = 0.1     # 이보다 작으면 방향을 말하지 않는다('거의 같음') — 소수 한 자리로 0.0배가 찍히는 자리
 
-    '부족분은 3년 필요량의 139%'·'여유분은 …의 19%'는 퍼센트가 클수록 나쁜지, 부족 17%와 여유 19%가 어떻게 다른지가 한눈에
-    안 보였다. 한 축(+ = 모자람, − = 남음)에 올려 크기와 방향을 같이 읽게 한다. 퍼센트는 ratio_pct(등급 컷을 넘지 않는 반올림),
-    음수 기호는 화면 관례대로 U+2212.
-    """
-    pct = ratio_pct(ratio)
-    if pct >= 1:
-        return '+%d%%' % pct
-    if pct <= -1:
-        return '\u2212%d%%' % -pct
-    return '0%'
+
+def mult_str(m):
+    """배수 숫자 → 화면 글('4.2배'). 소수 한 자리를 늘 적는다(3.0배 — 컷 '3배'와 같은 값임을 범례가 말한다)."""
+    return '%.1f배' % m
+
+
+def cut_mult(c, H=None):
+    """등급 컷(비율) → 배수 글('1.5배'·'3배'·'4.5배'). 판정 규칙 문장·막대 범례·FAQ 가 이 함수 하나로 컷을 말한다."""
+    H = LEAD_Q if H is None else H
+    return '%g배' % (half_up(c * H / 4.0 * 10) / 10.0)
 
 
 def ratio_text(ratio, H=None, full=False, inow=None, W=None):
@@ -170,26 +173,28 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     H = LEAD_Q if H is None else H
     W = BACKLOG_WINDOW if W is None else W
     yrs = '%g년' % (H / 4.0)
-    # 필요량을 넘는 부족도 배가 아니라 퍼센트로 쓴다. '1.0배'로 쓰면 울산(1.012)·
-    # 경남(1.007)이 '딱 같다'로 읽히고, 판정 규칙 문장('50%에 못 미쳐')과도 단위가 갈린다.
-    # 주어를 밝힌다(2026-10-05 대표 요청): '3년 필요량의 58% 부족'은 '필요량의 42%가 공급된다'인지 '58%가 공급된다'인지
-    # 갈렸다. 이 퍼센트는 공급률이 아니라 부족분(지난 창 덜 지은 몫까지 더한 순부족) ÷ 3년 필요량이라 100%를 넘기도 한다
-    # (서울 139%) — '적정 대비 N% 공급'으로 바꿔 쓸 수 없다. 그래서 '부족분은 …의 N%'로 무엇의 몇 %인지를 적는다.
-    pct = ratio_pct(ratio)
+    # 2026-10-05 대표 결정(안 A′): 쌓인 부족·여유를 '1년 적정물량의 N배'로 적는다(need_mult). 부족률 퍼센트는 100% 를 넘고 음수가
+    # 되며 해마다 입주 신호등의 퍼센트와 뜻이 반대라 읽기 어려웠다. 주어(모자란 집·남는 집)와 기준(1년 적정물량)을 함께 밝힌다.
+    m = need_mult(ratio, H)
+    sign = 0 if m < MULT_MIN else (1 if ratio > 0 else -1)
     if not full:
-        return '부족률 %s' % ratio_signed(ratio)   # 허브 목록·홈 요약 대체 문구 — 한 축(부호)으로(2026-10-05)
+        if sign > 0:
+            return '1년 적정물량의 %s 부족' % mult_str(m)     # 허브 목록·홈 요약 대체 문구 — 연수는 말하지 않는다
+        if sign < 0:
+            return '1년 적정물량의 %s 여유' % mult_str(m)
+        return '필요량과 거의 같음'
     past = '지난 %g년' % (W / 4.0)
-    if pct >= 1:
+    if sign > 0:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫까지 더하면' % past if inow < 0 else
                 '%s 남은 재고를 빼고도' % past)
-        return '%s %s 필요량 대비 부족률은 %s입니다' % (lead, yrs, ratio_signed(ratio))
-    if pct <= -1:
+        return '%s 앞으로 %s 모자란 집은 1년 적정물량의 %s입니다' % (lead, yrs, mult_str(m))
+    if sign < 0:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫을 채우고도' % past if inow < 0 else
                 '%s 남은 재고까지 더하면' % past)
-        return '%s %s 필요량 대비 부족률은 %s입니다(남는 물량)' % (lead, yrs, ratio_signed(ratio))
-    return '%s 재고까지 셈하면 %s 필요량과 거의 같습니다' % (past, yrs)
+        return '%s 앞으로 %s 남는 집이 1년 적정물량의 %s입니다' % (lead, yrs, mult_str(m))
+    return '%s 재고까지 셈하면 앞으로 %s 필요량과 거의 같습니다' % (past, yrs)
 
 
 def qidx(y, q):
@@ -444,8 +449,9 @@ def card_parts(dtot, ratio, H=None):
     # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
     H = LEAD_Q if H is None else H
     yrs = '%g년' % (H / 4.0)
-    pct = abs(ratio_pct(ratio))     # 판정 문구와 같은 퍼센트(컷을 넘지 않는 반올림, 전수 리뷰 #9)
-    share = '부족률 %s' % ratio_signed(ratio)   # 한 축(+ 모자람 · − 남음, 2026-10-05) — yrs 는 판정 문장·식이 말한다
+    m = need_mult(ratio, H)         # 판정 문구와 같은 배수(컷을 넘지 않는 반올림)
+    # 2026-10-05 안 A′: 괄호 안은 앞 세대수가 1년 적정물량의 몇 배인지다('686,396세대 부족(1년 적정물량의 1.8배)')
+    share = '1년 적정물량의 %s' % mult_str(m) if m >= MULT_MIN else ratio_text(ratio, H)
     if dtot > 0:
         return '%s세대' % format(dtot, ','), '부족', share
     if dtot < 0:
@@ -682,7 +688,7 @@ def occ_level(shown_pct):
 
 # ── 해마다 입주 신호등(2026-10-05 대표 요청 — '부족·균형 태그보다 동그라미 신호등 3개로 3년을 한눈에') ──────────────────────
 # 동그라미 하나가 한 해(yearly_supply 의 1·2·3년 차)이고 색은 위 입주물량 문턱(occ_level)으로 가른다(대표 결정 — 70%·130% 안).
-# 판정 등급 컷(부족률 50%)을 빌리지 않는다: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라 해마다의 입주와 다른 양이다.
+# 판정 등급 컷(1년 적정물량의 1.5배)을 빌리지 않는다: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라 해마다의 입주와 다른 양이다.
 # 지역 허브·시도 리포트(make_sido_pages)와 홈 판정 카드(split_data 가 year_lights·lights_aria·light_legend 를 실어 줌)가
 # 이 한 곳을 읽는다 — 홈 스크립트에 문턱·이름을 다시 적지 않는다.
 LIGHT = {-1: ('lo', '부족'), 0: ('ok', '적정'), 1: ('hi', '여유')}
@@ -705,7 +711,7 @@ def light_legend():
 
 
 def lights_aria(yrs):
-    return '해마다 입주 신호등: ' + ', '.join('%d년 차 %s, 적정물량의 %d%%' % (y['n'], light_of(y['pct'])[1], y['pct'])
+    return '해마다 입주 신호등: ' + ', '.join('%d년 차 %s, 1년 적정물량의 %d%%' % (y['n'], light_of(y['pct'])[1], y['pct'])
                                          for y in yrs)
 
 

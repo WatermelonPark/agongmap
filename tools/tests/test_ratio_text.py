@@ -33,46 +33,42 @@ def _adv():
         r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
 
 
-def test_percent_is_the_ratio_itself():
-    for r in (0.02, 0.165, 0.49, 0.6, 0.97, 1.01, 1.79):
-        t = SZ.ratio_text(r)
-        assert ('%d%%' % int(round(r * 100))) in t, '%s → %s: 비율과 다른 숫자' % (r, t)
-        assert '부족' in t
+# 2026-10-05 대표 결정(안 A′): 쌓인 부족·여유는 '1년 적정물량의 N배'(need_mult = |비율| × 연수)로 적는다. 옛 부족률 퍼센트는
+# 100% 를 넘고(서울 +139%) 음수가 되며(인천 −19%) 해마다 입주 신호등의 퍼센트(클수록 좋음)와 뜻이 반대였다.
+def _mult(r, H=None):
+    return '%.1f배' % (round(abs(r) * ((SZ.LEAD_Q if H is None else H) / 4.0) + 1e-9, 1))
 
 
-def test_shortfall_beyond_need_stays_in_percent():
-    """'1.0배'는 '딱 같다'로 읽힌다(울산 1.012). 규칙 문장과 단위도 맞춘다."""
-    assert '139%' in SZ.ratio_text(1.389) and '배' not in SZ.ratio_text(1.389)
-    assert '101%' in SZ.ratio_text(1.012)
+def test_multiple_is_the_ratio_times_the_years():
+    """배수 = |비율| × 연수(H/4) — 모자란 집 ÷ 1년 적정물량. 서울 1.389 → 4.2배, 경기 0.17 → 0.5배, 제주 1.79 → 5.4배.
+    변이(실제로 확인): need_mult 가 연수를 곱하지 않으면(|비율|만) 빨개진다."""
+    for r, want in ((1.389, '4.2배'), (0.17, '0.5배'), (0.6, '1.8배'), (1.79, '5.4배'), (-0.19, '0.6배'), (-0.74, '2.2배')):
+        assert want in SZ.ratio_text(r), (r, SZ.ratio_text(r))
+        assert '%' not in SZ.ratio_text(r) and '%' not in SZ.ratio_text(r, full=True, inow=-1), r
 
 
-def test_surplus_reads_as_surplus():
-    """여유는 부족률 한 축의 음수 쪽이다(2026-10-05 대표 요청 — '부족 17%'와 '여유 19%'가 한 축에서 갈리지 않았다).
-    변이(확인): ratio_signed 가 음수에 '+'를 붙이면 빨개진다."""
-    t = SZ.ratio_text(-0.19)
-    assert t == '부족률 \u221219%' and '+' not in t, t
-
-
-def test_near_zero_does_not_invent_a_direction():
-    t = SZ.ratio_text(0.004)
-    assert t == '부족률 0%' and '+' not in t and '\u2212' not in t, t
-
-
-def test_sign_word_matches_sign_everywhere():
+def test_direction_is_a_word_not_a_sign():
+    """방향은 말(부족·여유 / 모자란 집·남는 집)로 쓰고 부호는 쓰지 않는다. 0.1배 아래는 방향을 지어내지 않는다.
+    변이(실제로 확인): ratio_text 의 여유 갈래를 '부족'으로 쓰면 빨개진다."""
+    assert SZ.ratio_text(-0.19) == '1년 적정물량의 0.6배 여유'
+    assert SZ.ratio_text(1.389) == '1년 적정물량의 4.2배 부족'
+    assert SZ.ratio_text(0.004) == '필요량과 거의 같음'
     for i in range(-150, 250):
         r = i / 100.0
         t = SZ.ratio_text(r)
-        pct = int(round(r * 100))
-        assert ('+' in t) == (pct >= 1), '%s → %s' % (r, t)
-        assert ('\u2212' in t) == (pct <= -1), '%s → %s' % (r, t)
+        m = SZ.need_mult(r)
+        assert '+' not in t and '\u2212' not in t, t
+        assert t.endswith('부족') == (r > 0 and m >= SZ.MULT_MIN), (r, t)
+        assert t.endswith('여유') == (r < 0 and m >= SZ.MULT_MIN), (r, t)
 
 
 def test_horizon_follows_H_instead_of_saying_three_years():
-    """착공표가 한 달 늦으면 H가 11이 된다. 그때 '3년'이라고 쓰면 거짓이다. 짧은 문구('부족률 +20%')는 연수를 말하지
-    않고(허브는 막대 설명 줄이 H 에서 연수를 만든다), 판정 문장은 H 를 따른다."""
-    assert '년' not in SZ.ratio_text(0.2, SZ.LEAD_Q) and '년' not in SZ.ratio_text(0.2, SZ.LEAD_Q - 1)
+    """착공표가 한 달 늦으면 H가 11이 된다. 그때 '3년'이라고 쓰면 거짓이다. 짧은 문구는 연수를 말하지 않고(허브는 막대 설명 줄이
+    H 에서 연수를 만든다), 판정 문장은 H 를 따르며 배수도 H 의 연수로 곱한다(0.6 × 2.75 = 1.65 → 1.7배)."""
+    assert '3년' not in SZ.ratio_text(0.2, SZ.LEAD_Q) and '3년' not in SZ.ratio_text(0.2, SZ.LEAD_Q - 1)
     assert '3년' in SZ.ratio_text(0.2, SZ.LEAD_Q, full=True, inow=-1)
     assert '3년' not in SZ.ratio_text(0.2, SZ.LEAD_Q - 1, full=True, inow=-1)
+    assert '1.7배' in SZ.ratio_text(0.6, SZ.LEAD_Q - 1)
 
 
 def test_screens_read_the_text_for_their_own_ratio():
@@ -106,7 +102,7 @@ def test_rule_sentence_numbers_come_from_the_cuts(monkeypatch):
         assert SZ.GRADE_LABS[row['grade']] in line, '판정 문장에 정본 등급 이름이 없다'
     # 컷을 옮기면 문장이 따라 바뀌어야 한다 — 숫자가 박혀 있지 않다는 증거
     monkeypatch.setattr(SZ, 'GRADE_CUTS', (2.0, 1.2, 0.6, 0.0))
-    assert '60%' in P.verdict_line({'ratio': 0.3, 'grade': 'g1'}, SZ.LEAD_Q)
+    assert '1.8배에 못 미쳐' in P.verdict_line({'ratio': 0.3, 'grade': 'g1'}, SZ.LEAD_Q)
 
 
 def test_balance_line_no_longer_says_enough_is_coming():
@@ -114,7 +110,7 @@ def test_balance_line_no_longer_says_enough_is_coming():
     r = 0.165
     line = P.verdict_line({'ratio': r, 'grade': SZ.grade(r)}, SZ.LEAD_Q)
     assert '필요한 만큼' not in line
-    assert '%d%%' % int(round(r * 100)) in line and '균형' in line
+    assert SZ.mult_str(SZ.need_mult(r)) in line and '균형' in line
 
 
 def test_home_reads_the_baked_text_instead_of_rebuilding_it():
@@ -146,15 +142,15 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
     """
     past = '지난 %g년' % (SZ.BACKLOG_WINDOW / 4.0)
     for r in (0.6, 0.009, -0.19, 0.004):
-        pct = int(round(r * 100))
+        m = SZ.need_mult(r)
         for inow in (-260523, 16258, None):
             t = SZ.ratio_text(r, SZ.LEAD_Q, full=True, inow=inow)
-            assert '더 들어옵니다' not in t and '앞으로' not in t and '누적 순부족' not in t, t
+            assert '더 들어옵니다' not in t and '누적 순부족' not in t, t
             assert t.startswith(past), '판정 설명이 지난 창 재고를 말하지 않는다: %s' % t
-            if abs(pct) >= 1:
-                assert '부족률은 %s입니다' % SZ.ratio_signed(r) in t and '만큼' not in t, t
-            assert ('남는 물량' in t) == (pct <= -1), t
-            if inow is not None and abs(pct) >= 1:   # 거의 0 이면 방향이 없어 갈래도 없다
+            if m >= SZ.MULT_MIN:
+                assert '1년 적정물량의 %s입니다' % SZ.mult_str(m) in t and '만큼' not in t, t
+            assert ('남는 집' in t) == (r < 0 and m >= SZ.MULT_MIN), t
+            if inow is not None and m >= SZ.MULT_MIN:   # 거의 0 이면 방향이 없어 갈래도 없다
                 tail = SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 1, 1, inow)
                 assert ('덜 지은 몫' in t) == ('쌓인 부족' in tail) and ('남은 재고' in t) == ('남은 재고' in tail), \
                     (t, tail)
@@ -162,14 +158,14 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
 
 def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypatch):
     """여유 지역(입주 추정 < 필요량, 남은 재고 > 0)의 시도 리포트 판정 문장과 블로그 지역 편 판정 문단은 '지난 4년 남은 재고까지
-    더하면 여유분은 3년 필요량의 19%입니다'이고(2026-10-05 대표 요청 — 주어를 밝힌다), 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
+    더하면 앞으로 3년 남는 집이 1년 적정물량의 0.6배입니다'이고(2026-10-05 안 A′ — 주어와 기준을 밝힌다), 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
 
     변이(각각 실제로 확인): verdict_line 이 inow 를 넘기지 않으면(갈래 없는 '재고까지 셈하면') 리포트 단정이, draft_zone 이
           inow 를 넘기지 않으면 블로그 단정이, ratio_text 를 옛 여유 문장으로 되돌리면 둘 다 빨개진다.
     픽스처: 인천 실측 모양의 합성 행(INCHEON). 블로그는 저장소 판정 행을 복사해 숫자만 이 모양으로 덮는다(데이터가 앞으로
             가도 같은 숫자).
     """
-    want = '지난 4년 남은 재고까지 더하면 3년 필요량 대비 부족률은 \u221219%입니다(남는 물량)'
+    want = '지난 4년 남은 재고까지 더하면 앞으로 3년 남는 집이 1년 적정물량의 0.6배입니다'
     line = P.verdict_line(INCHEON, SZ.LEAD_Q)
     assert line.startswith(want + '. '), line
     assert '더 들어옵니다' not in line
@@ -199,37 +195,34 @@ def test_faq_quotes_the_report_sentence_it_explains():
     faq = io.open(os.path.join(ROOT, 'faq', 'index.html'), encoding='utf-8').read()
     m = re.search(r'지역 페이지</a> 머리의 "([^"]+)" 문장', faq)
     assert m, 'FAQ 에서 지역 리포트 문장 인용을 찾지 못했다'
-    want = re.sub(r'\d+%', 'N%', SZ.ratio_text(0.6, full=True, inow=-1))
+    want = re.sub(r'\d+\.\d배', 'N배', SZ.ratio_text(0.6, full=True, inow=-1))
     assert m.group(1) == want, 'FAQ 인용 "%s" ≠ 리포트 문장 틀 "%s"' % (m.group(1), want)
 
 
-# ── 퍼센트가 등급 컷을 넘지 않는다(전수 리뷰 #9) ──────────────────────────────────────────────────────
-def _pct_in(t):
-    m = re.search(r'부족률은? ([+\u2212]?)(\d+)%', t)   # 2026-10-05 부족률 표기(한 축, 부호)
-    return (-1 if m.group(1) == '\u2212' else 1) * int(m.group(2)) if m else 0
+# ── 배수가 등급 컷을 넘지 않는다(전수 리뷰 #9 — 2026-10-05 안 A′로 퍼센트에서 배수로) ─────────────────────────────────────
+def _mult_in(t):
+    m = re.search(r'1년 적정물량의 (\d+\.\d)배', t)
+    return float(m.group(1)) if m else 0.0
 
 
-def test_percent_never_crosses_a_grade_cut():
-    """컷 바로 아래 비율(0.4996 등)의 문구가 컷 숫자('50%')를 말하면 판정 문장이 '… 50%만큼 부족합니다. 50%에 못 미쳐
-    균형으로 분류합니다'로 스스로 부딪친다. 문구 퍼센트로 컷을 다시 세면 등급과 같아야 하고, 카드 퍼센트와 판정 문구 퍼센트가 같다.
+def test_multiple_never_crosses_a_grade_cut():
+    """컷 바로 아래 비율(0.4996 등)의 문구가 컷 배수('1.5배')를 말하면 판정 문장이 '… 1.5배입니다. 1.5배에 못 미쳐 균형으로
+    분류합니다'로 스스로 부딪친다. 문구 배수로 컷을 다시 세면 등급과 같아야 하고, 카드 배수와 판정 문구 배수가 같다.
 
-    변이(실제로 확인): sido_zones.ratio_pct 의 컷 가드(pct = cp - 1)를 지우면 c-0.0049·c-0.00004 에서 빨개진다.
-          card_parts 를 옛 int(round(abs(ratio)*100)) 로 되돌리면 카드·문구 대조가 빨개진다.
-    픽스처: 각 양수 컷(1.5·1.0·0.5)의 경계 ±0.0049·−0.00004·정확히 컷 — 실데이터 경남 1.0066·울산 1.0124 가 1.0 컷 1%p 안이다.
+    변이(실제로 확인): need_mult 의 컷 가드(m = cm − 0.1)를 지우면 c−0.0049·c−0.00004 에서 빨개진다. card_parts 가 need_mult
+          대신 round(|비율|×3, 1) 을 쓰면 카드·문구 대조가 빨개진다.
+    픽스처: 각 양수 컷(1.5·1.0·0.5)의 경계 ±0.0049·−0.00004·정확히 컷 — 실데이터 경남 1.0066·울산 1.0124 가 1.0 컷 바로 위다.
     """
     cuts = [c for c in SZ.GRADE_CUTS if c > 0]
     for c in cuts:
         for r in (c - 0.0049, c - 0.00004, c, c + 0.0049):
             g = SZ.grade(r)
             t = SZ.ratio_text(r, SZ.LEAD_Q, full=True, inow=-1)
-            pct = _pct_in(t)
-            above = [x for x in cuts if pct >= round(x * 100)]
+            m = _mult_in(t)
+            above = [x for x in cuts if m >= float(SZ.cut_mult(x)[:-1])]
             want = SZ.GRADE_KEYS[SZ.GRADE_CUTS.index(max(above))] if above else 'g1'
-            assert want == g, '%s: 문구 %d%% 는 %s 인데 등급은 %s — %s' % (r, pct, want, g, t)
-            assert SZ.card_parts(1000, r)[2] == '부족률 +%d%%' % pct, (r, SZ.card_parts(1000, r))
-            line = P.verdict_line({'ratio': r, 'grade': g, 'inow': -1}, SZ.LEAD_Q)
-            if g == 'g1':
-                assert pct < round(SZ.GRADE_CUTS[2] * 100), line
+            assert want == g, '%s: 문구 %.1f배 는 %s 인데 등급은 %s — %s' % (r, m, want, g, t)
+            assert SZ.card_parts(1000, r)[2] == '1년 적정물량의 %.1f배' % m, (r, SZ.card_parts(1000, r))
 
 
 def _flat_stats(target_ratio, z='인천'):
