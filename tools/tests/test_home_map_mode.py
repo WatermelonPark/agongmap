@@ -123,7 +123,7 @@ def _base_js(src):
         re.search(r'^const NATION_TILE=.*$', src, re.M).group(0),
         _fns(src, ('pv2r', 'pv2', 'pvSign', 'mapColor', 'tintA', 'mapFill', 'supplyFill', 'opaqueOnPaper', 'wkFill',
                    'wkPct', 'wkMapModel', 'moMapModel', 'priceModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggCard',
-                   'tbSigned', 'sidoCode', 'renderAggCards', 'renderSidoMap')),
+                   'tbSigned', 'sidoCode', 'priceOk', 'renderAggCards', 'renderSidoMap')),
     ])
 
 
@@ -279,8 +279,8 @@ MODE_HARNESS = r'''
 var MAP_MODE='supply', TB_VIEW=%(view)s, sent=[], drawn=0, cards=0, views=[], HAS=%(has)s;
 function track(e,p){ sent.push([e,p]); }
 function renderSidoMap(){ drawn++; } function renderAggCards(){ cards++; }
-function tbView(v){ views.push(v); TB_VIEW=v; }
-var WK_MAP_REF=0.4, MO_MAP_REF=1.0;
+function tbView(v,quiet){ views.push([v,!!quiet]); TB_VIEW=v; }
+var WK_MAP_REF=0.4, MO_MAP_REF=1.0, SIDO_GEO={};
 function weeklyReleaseNow(){ return HAS?{survey:"2026-09-07",pub:"2026-09-10",next:"2026-09-17",hedge:false,stale:false}:null; }
 function wkWhenText(){ return "w"; } function wkPubLead(){ return "l"; }
 var ADV={weekly:HAS?{regions:["전국"],rows:[{p:"2026-09-07",ma:[0.1]}]}:{},monthly:HAS?{regions:["전국"],rows:[{p:"2026-08",ma:[0.3]}]}:{}};
@@ -288,9 +288,10 @@ function mk(m,on){ var a={"aria-pressed":on?"true":"false"}; return {dataset:{m:
   classList:{toggle:function(c,v){ this.o.cls=v?["on"]:[]; }},getAttribute:function(k){return a[k]},setAttribute:function(k,v){a[k]=v}}; }
 var B=[mk("supply",true),mk("weekly",false),mk("monthly",false)]; B.forEach(function(b){ b.classList.o=b; });
 var EL={dataset:{done:"1"}};
-var document={getElementById:function(id){ return id==="map-wrap"?EL:(id==="map-mode"?{querySelectorAll:function(){return B}}:null); }};
+var SEC={price:false,classList:{toggle:function(c,v){ if(c==="mm-price") SEC.price=v; }}};
+var document={getElementById:function(id){ return id==="map-wrap"?EL:(id==="sec-score"?SEC:(id==="map-mode"?{querySelectorAll:function(){return B}}:null)); }};
 var st=[];
-function snap(){ st.push([MAP_MODE,B.map(function(b){return b.getAttribute("aria-pressed")}).join(),drawn,cards,EL.dataset.done]); }
+function snap(){ st.push([MAP_MODE,B.map(function(b){return b.getAttribute("aria-pressed")+(b.cls.length?"+on":"")}).join(),drawn,cards,EL.dataset.done,SEC.price]); }
 mapMode("weekly"); snap(); mapMode("weekly"); snap(); mapMode("monthly"); snap(); mapMode("nonsense"); snap(); mapMode("supply"); snap();
 process.stdout.write(JSON.stringify({st:st,sent:sent,views:views}));
 '''
@@ -302,7 +303,8 @@ def test_mode_toggle_markup_state_and_measurement():
     보인다. mapMode 는 누른 단추의 aria-pressed·on 을 맞추고 카드·지도를 다시 그리며(done 초기화), 모드가 바뀔 때만 map_mode 를
     한 번 잰다(값은 snake_case supply·weekly·monthly — 모르는 값은 supply). 시세 데이터가 없으면 전환하지 않고 재지도 않는다.
     공급 그래프·표를 보던 중에 시세 모드를 누르면 지도로 돌린다(시세 그래프·표는 시세 탭이 맡는다).
-    변이(각각 실제로 확인): mapMode 에서 aria-pressed 갱신을 빼면 상태 단정, 같은 모드 재클릭에도 track 을 부르면 측정 횟수
+    변이(각각 실제로 확인): mapMode 에서 aria-pressed 갱신이나 on 클래스 갱신을 빼면 상태 단정, tbView('map',true) 의 quiet 를
+          빼면 보기 단정(supply_view 가 덤으로 나간다 — 2026-10-05 리뷰), mm-price 토글을 빼면 상태 단정, 같은 모드 재클릭에도 track 을 부르면 측정 횟수
           단정, 데이터 없음 가드를 빼면 마지막 단정, renderAggCards 호출을 빼면 카드 단정, 모드 단추를 .tb-bar 안으로 되돌리면
           자리 단정, 그래프 보기에서 시세 모드를 누를 때 tbView('map') 을 빼면 보기 단정이 빨개진다.
     픽스처: 저장소 index.html·home-app.js 의 mapMode·wkMapModel·moMapModel·priceModel 과 합성 DOM(단추 셋·지도 상자).
@@ -320,19 +322,21 @@ def test_mode_toggle_markup_state_and_measurement():
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
     assert not re.search(r':not\(\.vm-map\) \.map-mode\{display:none\}', css), '모드 단추가 그래프·표 보기에서 숨는다'
 
-    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel'))
+    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk'))
     got = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"map"'})
-    assert got['st'] == [['weekly', 'false,true,false', 1, 1, ''],
-                         ['weekly', 'false,true,false', 1, 1, ''],
-                         ['monthly', 'false,false,true', 2, 2, ''],
-                         ['supply', 'true,false,false', 3, 3, ''],
-                         ['supply', 'true,false,false', 3, 3, '']], got['st']
+    assert got['st'] == [['weekly', 'false,true+on,false', 1, 1, '', True],
+                         ['weekly', 'false,true+on,false', 1, 1, '', True],
+                         ['monthly', 'false,false,true+on', 2, 2, '', True],
+                         ['supply', 'true+on,false,false', 3, 3, '', False],
+                         ['supply', 'true+on,false,false', 3, 3, '', False]], got['st']
+    # 공급 출처 줄은 시세 모드에서 숨는다(#sec-score.mm-price — 시세 지도의 출처가 아니다, 2026-10-05 리뷰)
+    assert '#sec-score.mm-price .map-src{display:none}' in css
     assert got['sent'] == [['map_mode', {'mode': 'weekly'}], ['map_mode', {'mode': 'monthly'}],
                            ['map_mode', {'mode': 'supply'}]], got['sent']
     assert all(re.match(r'^[a-z][a-z0-9_]*$', x) for e, p in got['sent'] for x in (e, p['mode']))
     assert got['views'] == []
     g2 = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"graph"'})
-    assert g2['views'] == ['map'], '공급 그래프를 보던 중 시세 모드를 눌렀는데 지도로 돌리지 않았다'
+    assert g2['views'] == [['map', True]], '공급 그래프를 보던 중 시세 모드를 눌렀는데 지도로 조용히(quiet) 돌리지 않았다'
     none = _node(MODE_HARNESS % {'fns': fns, 'has': 'false', 'view': '"map"'})
     assert none['st'][0][:1] == ['supply'] and none['sent'] == [], none
 
@@ -410,3 +414,68 @@ def test_weekly_color_scale_is_one_constant():
     assert 'ref:MO_MAP_REF' in _js_func(src, 'moMapModel')
     for fn in ('drawNationMap', 'renderHeroMap', 'wkFill', 'mapKeyHtml'):
         assert not re.search(r'mapColor\([^)]*,\s*0\.\d', _js_func(src, fn)), '%s 가 기준을 숫자로 적었다' % fn
+
+
+LOCK_HARNESS = r'''
+%(base)s
+function weeklyReleaseNow(){ _HOLIDAYS=new Set(ADV.holidays); return weeklyRelease(ADV.weekly.rows[0].p,new Date(%(ms)d),ADV.weekly.grace); }
+var BT={weekly:{disabled:false},monthly:{disabled:false},map:{disabled:false}}, AG={innerHTML:""}, sent=[], picked=[], views=[], TB_VIEW="map";
+var EL={dataset:{},innerHTML:"",ls:[],addEventListener:function(t,f){ this.ls.push([t,f]); }};
+function track(e,p){ sent.push([e,p]); }
+function tbView(v){ views.push(v); }
+function onTrendLink(e,from){ picked.push(from); }
+var document={getElementById:function(id){return id==="map-wrap"?EL:(id==="agg-wrap"?AG:null)},
+  querySelector:function(s){ var m=/data-[mv]="([a-z]+)"/.exec(s); return m?BT[m[1]]:null; }};
+renderAggCards(); renderSidoMap();
+EL.ls.forEach(function(x){ if(x[0]==="click") x[1]({}); });
+process.stdout.write(JSON.stringify({w:BT.weekly.disabled,m:BT.monthly.disabled,map:BT.map.disabled,views:views,picked:picked}));
+'''
+
+
+@pytest.mark.parametrize('case', ['all', 'no_month', 'no_week', 'no_geo'])
+def test_price_buttons_lock_when_their_data_or_the_map_is_missing(case):
+    """시세 단추는 그 재료가 없으면 잠긴다(월간 행이 없으면 월간만, 주간 행이 없으면 주간만). 지도 좌표(sido-geo.js)가 안 오면
+    시세 모드는 지도 전용이라 둘 다 잠근다 — 잠그지 않으면 지도 폴백(표)과 시세 갈래(시세 탭으로 보내기)가 서로 불러 누르는
+    순간 시세 탭으로 튄다(2026-10-05 리뷰). 지도가 그려지면 지도 누름 처리(onTrendLink, from 'score_map')가 한 번 붙는다.
+    변이(각각 실제로 확인): renderAggCards 의 잠금을 빼면 no_month·no_week 가, priceOk 의 SIDO_GEO 검사를 빼면 no_geo 가,
+          renderSidoMap 의 click 처리 붙이기를 빼면 all 의 picked 단정이 빨개진다.
+    픽스처: 합성 주(2026-09-07)·달(2026-08), 저장소 sido-geo.js 좌표 — 재료를 하나씩 비운 네 상태.
+    """
+    src = _src()
+    ADV = {'sido': {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'zones': _zones()},
+           'weekly': _week('2026-09-07'), 'monthly': _month(), 'holidays': H2026}
+    if case == 'no_month':
+        ADV['monthly'] = {'regions': [], 'rows': []}
+    if case == 'no_week':
+        ADV['weekly'] = dict(ADV['weekly'], regions=[])
+    geo = '' if case == 'no_geo' else 'var SIDO_GEO=%s;' % json.dumps(_geo(), ensure_ascii=False)
+    base = 'var ADV=%s; %s\n%s' % (json.dumps(ADV, ensure_ascii=False), geo, _base_js(src))
+    got = _node(LOCK_HARNESS % {'base': base, 'ms': _kst_ms(2026, 9, 11)})
+    want = {'all': (False, False), 'no_month': (False, True), 'no_week': (True, False), 'no_geo': (True, True)}[case]
+    assert (got['w'], got['m']) == want, got
+    if case == 'no_geo':
+        assert got['map'] and got['views'] == ['table'], got   # 공급 모드의 표 폴백은 그대로
+    else:
+        assert got['picked'] == ['score_map'], got
+
+
+OPEN_HARNESS = r'''
+%(fn)s
+var TREND={week:{sel:"s"}}, TREND_P=Promise.resolve(), TR_OPEN={week:null}, TRSHOW={}, SGG_HIST_READY=true, calls=[];
+function trendData(){ return {regions:["전국"]}; } function trendTarget(W,c){ return {zone:"전국",sgg:""}; }
+function fillTrendReg(){} function fillSggSel(){} function renderWeekSec(){} function afterLayout(){}
+function gtSet(k,v,silent){ calls.push([k,v,silent]); }
+var document={getElementById:function(){ return {value:""}; }};
+openTrendRegion("week","a0","t").then(function(){ return openTrendRegion("week","a0"); })
+  .then(function(){ process.stdout.write(JSON.stringify(calls)); });
+'''
+
+
+def test_open_trend_region_opens_the_table_for_the_t_route():
+    """'#stats-market-<주기>~코드-t'(홈 시세 모드의 '표' 단추)는 그 지역을 표로, '-t' 없는 주소(지도 칸·'그래프' 단추)는 그래프로
+    연다 — openTrendRegion 의 셋째 인자. 열 때 바꾼 보기는 사람이 누른 전환이 아니라 재지 않는다(silent).
+    변이(실제로 확인): gtSet(k,view==='t'?'t':'g',true) 를 늘 'g' 로 두면 첫 단정이 빨개진다(2026-10-05 리뷰 — 그전엔 시험이 없었다).
+    픽스처: 저장소 openTrendRegion 과 합성 통계 탭(데이터 받기는 끝난 상태).
+    """
+    got = _node(OPEN_HARNESS % {'fn': _js_func(_src(), 'openTrendRegion')})
+    assert got == [['week', 't', True], ['week', 'g', True]], got
