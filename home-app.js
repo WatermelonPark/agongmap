@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v178';
+const HOME_BUILD='v179';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1120,11 +1120,25 @@ function aggHow(b){
    글자는 전부 sido_zones 가 구운 필드(cnum·cdir·cpct·ctxt·ftxt)를 읽는다 — 이중 구현 금지. 옛 캐시(필드 없음)는
    ctxt 앞 조각이나 세대수만 보이고 ⓘ 는 빠진다. ⓘ 는 링크 밖의 형제 버튼이다(링크 안에 버튼을 넣으면 안 된다) —
    칸 오른쪽 위에 겹쳐 두고, 첫 줄은 그 자리만큼 비워 둔다. */
+/* 해마다 입주 신호등(2026-10-05 대표 요청 — 지역 허브 칸과 같은 모양). 판정 배지 자리를 동그라미 셋(1·2·3년 차)이 맡는다.
+   값·색 키·읽어 줄 글은 split_data 가 sido_zones(year_lights·lights_aria)로 구워 싣는다(z.yl·z.ya) — 문턱(70·130%)을 여기 적지
+   않는다. 옛 캐시(yl 없음)는 예전 배지를 그린다. */
+function aggLights(z){
+  return '<span class="zl" role="img" aria-label="'+(z.ya||'')+'">'
+    +z.yl.map(function(y){ return '<span class="zl-d '+y.k+'">'+y.n+'</span>'; }).join('')+'</span>';
+}
+/* 신호등 범례 한 줄 — 구간·이름은 ADV.sido.ylg(sido_zones.light_legend). 카드 셋 바로 아래. */
+function aggLightKey(z){
+  var g=ADV.sido&&ADV.sido.ylg; if(!g||!g.length||!z||!z.yl) return '';
+  var ns=z.yl.map(function(y){ return y.n; }).join('·');   // 해 수는 실린 값에서 센다(손으로 '1·2·3'을 적지 않는다)
+  return '<p class="agg-lk"><span class="agg-lk-c">신호등 '+ns+' = 앞으로 '+ns+'년 차 각 해 입주가 1년 적정물량의</span>'
+    +g.map(function(x){ return '<span class="agg-lk-i"><span class="zl-d '+x[0]+'" aria-hidden="true"></span>'+x[1]+' '+x[2]+'</span>'; }).join('')+'</p>';
+}
 function aggCard(n,z,i){
   var num=z.cnum||(z.ctxt?String(z.ctxt).split(' · ')[0]:(tbSigned(z.tot)+'세대'));
   return '<div class="agg-c">'
     +'<a class="agg-a" href="/zone/'+encodeURIComponent(n)+'/">'
-    +'<span class="agg-l1"><b>'+n+'</b><span class="sc-tier '+z.grade+'">'+TB_GRADE[z.grade]+'</span></span>'
+    +'<span class="agg-l1"><b>'+n+'</b>'+(z.yl?aggLights(z):'<span class="sc-tier '+z.grade+'">'+TB_GRADE[z.grade]+'</span>')+'</span>'
     +'<span class="agg-l2"><i class="agg-n'+(z.cnum?'':' agg-old')+'">'+num+(z.cdir?'<span class="agg-dir"> '+z.cdir+'</span>':'')
     +'<span class="agg-go" aria-hidden="true"> →</span></i>'
     +(z.cpct?'<i class="agg-p">'+z.cpct+'</i>':'')+'</span></a>'
@@ -1270,7 +1284,7 @@ function renderAggCards(){
     if(z.ftxt) how+='<p class="agg-how" id="agg-how-'+i+'" hidden><b>'+n+'</b> '+(z.ctxt||'')
       +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
   });
-  h+='</div>'+how;
+  h+='</div>'+(M?'':aggLightKey(Z['전국']))+how;
   /* 시세 모드: 기준 줄 — 지도/그래프/표 단추 왼쪽(#tb-when, 2026-10-05 대표 요청). 양식은 주간·월간 하나로
      '9/28 기준 · 한국부동산원'(조사일)·'2026년 8월 기준 · 한국부동산원'(M.when). 공급 모드는 비운다(:empty 로 숨는다). */
   var tw=document.getElementById('tb-when');

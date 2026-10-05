@@ -12,8 +12,8 @@
   ② '착공부터 준공까지 2018년 전에는 약 28개월, 그 뒤로는 약 37개월'(faq 본문·JSON-LD) — 정본은 /cycle/ 의
      D.prose lead_old·lead_new(rebuild_cycle_analysis 가 사람 손으로 돌 때만 바뀐다 — 배치는 이 칸을 고치지 않으므로
      게이트를 막지 않는다. 재산정한 사람의 PR 에서 빨개진다).
-  ③ FAQ 등급 문턱 '50%에 못 미치면 균형, 50%·100%·150% 이상이면 부족·매우 부족·심각한 부족' — 정본은
-     sido_zones.GRADE_CUTS·GRADE_LABS.
+  ③ FAQ 등급 문턱 '1.5배 미만은 균형, 1.5배·3배·4.5배 이상이면 부족·매우 부족·심각한 부족'(1년 적정물량의 N배, 2026-10-05) —
+     정본은 sido_zones.GRADE_CUTS(× 연수 = cut_mult)·GRADE_LABS.
   ④ FAQ '부린이 테스트 10문항 … 무주택 달걀부터 부동산 봉황까지 11단계' — 정본은 home-quiz.js QUIZ_LEN 과
      home-app.js BLV(개수·처음·마지막 이름).
 '16개 시도'는 test_handwritten_sido_count 가 이미 본다.
@@ -73,16 +73,17 @@ def test_faq_lead_months_follow_cycle_analysis():
 
 
 def test_faq_grade_thresholds_follow_model_cuts():
+    """FAQ 등급 문턱 문장의 배수·이름이 모델(GRADE_CUTS × 연수 = cut_mult, GRADE_LABS)과 같다.
+    2026-10-05 안 A′로 단위가 '1년 적정물량의 N배'(1.5·3·4.5배)로 바뀌었다. 변이(실제로 확인): GRADE_CUTS 의 1.5 를 1.6 으로
+    바꾸면 빨개진다(4.5배 → 4.8배)."""
     s = _read('faq/index.html')
-    # 2026-10-05 부족률 표기(한 축: − 여유 · 0~50% 균형 · …)로 FAQ 문장이 바뀌었다
-    m = re.search(r'(\d+)%보다 작으면\(−\) (\S+ \S+), \d+~(\d+)%는 (\S+), (\d+)% 이상이면 (\S+), (\d+)% 이상이면 (.+?), '
-                  r'(\d+)% 이상이면 (.+?)이다', s)
+    m = re.search(r'모자람 없이 남으면 (\S+ \S+), ([\d.]+배) 미만은 (\S+), ([\d.]+배) 이상이면 (\S+), ([\d.]+배) 이상이면 (.+?), '
+                  r'([\d.]+배) 이상이면 (.+?)이다', s)
     assert m, 'FAQ 등급 문턱 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것'
-    c4, c3, c2, c1 = (round(x * 100) for x in SZ.GRADE_CUTS[:4])
+    c4, c3, c2 = (SZ.cut_mult(x) for x in SZ.GRADE_CUTS[:3])
     L = SZ.GRADE_LABS
-    want = (c1, L['g0'], c2, L['g1'], c2, L['g2'], c3, L['g3'], c4, L['g4'])
-    got = tuple(int(x) if x.isdigit() else x for x in m.groups())
-    assert got == want, 'FAQ 는 %s, 모델은 %s' % (got, want)
+    want = (L['g0'], c2, L['g1'], c2, L['g2'], c3, L['g3'], c4, L['g4'])
+    assert m.groups() == want, 'FAQ 는 %s, 모델은 %s' % (m.groups(), want)
 
 
 def test_faq_burini_quiz_counts_follow_quiz_code():

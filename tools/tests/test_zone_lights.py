@@ -61,3 +61,27 @@ def test_report_head_lights_and_bars_share_colors():
     assert bars[:len(keys)] == keys, (bars, keys)
     others = re.search(r'<h2>다른 지역</h2><div class="zlinks">(.*?)</div>', page, re.S).group(1)
     assert 'sc-tier' not in others and others.count('class="zl"') == len(s['zones']) - 1
+
+
+def test_home_payload_carries_the_same_lights():
+    """홈 판정 카드(home-app.js aggLights)는 split_data 가 data-core.js 에 구워 실은 yl·ya·ylg 만 읽는다 — 허브·리포트와
+    같은 sido_zones 함수 값이어야 하고, 홈 스크립트에 문턱(70·130)을 다시 적지 않는다.
+
+    변이(각각 실제로 확인): split_data.main 에서 bake_lights 호출을 빼면 yl 단정이, aggLightKey 가 ylg 대신 '70% 미만'을
+    손으로 적으면 문턱 단정이 빨개진다. 픽스처: 배치·CI 가 시험 앞에 split_data 로 굽는 저장소 data-core.js.
+    """
+    import io
+    import json
+    import home_src as HS
+    stats, s, Lq = _ctx()
+    src = io.open(os.path.join(os.path.dirname(M.__file__), '..', 'data-core.js'), encoding='utf-8').read()
+    core = json.loads(re.search(r'const ADV=(\{.*?\});\n', src, re.S).group(1))['sido']
+    assert core['ylg'] == [list(x) for x in SZ.light_legend()]
+    for z in core['zones']:
+        want = SZ.year_lights(stats, z['z'], Lq, s['H'])
+        assert z.get('yl') == want, (z['z'], z.get('yl'), want)
+        assert z.get('ya') == SZ.lights_aria([{'n': y['n'], 'pct': y['p']} for y in want])
+    js = dict(HS.home_files())['home-app.js']
+    for fn in ('aggLights', 'aggLightKey'):
+        body = re.search(r'^function %s\(.*?^}' % fn, js, re.S | re.M).group(0)
+        assert not re.search(r'\b(%d|%d)\b' % (SZ.OCC_LO_PCT, SZ.OCC_HI_PCT), body), '홈 스크립트가 문턱을 손으로 적었다: ' + fn
