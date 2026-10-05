@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""홈 공급 지도의 모드 '3년 공급 / 이번 주 시세 / 이번 달 시세'(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27 → 2026-10-04 월간 추가).
+"""홈 공급 지도의 모드 '공급 현황 / 주간 시세 / 월간 시세'(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27 → 2026-10-04 월간 추가).
 
 재현하는 실제 상태: 09-26 까지 홈 지도는 분기 공급 판정 하나만 칠했고, 매주 바뀌는 값은 두 화면 아래 주간 격자에만
 있었다(IA-1). 한 지도에 주간 시세를 함께 싣되, 같은 빨강·파랑이 모드마다 다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이
@@ -297,7 +297,7 @@ process.stdout.write(JSON.stringify({st:st,sent:sent,views:views}));
 
 
 def test_mode_toggle_markup_state_and_measurement():
-    """모드 단추 셋(2026-10-04 대표 요청 — '이번 달 시세' 추가): 홈 마크업은 group + aria-pressed 세 단추(기본 '3년 공급' 눌림)이고
+    """모드 단추 셋(2026-10-04 대표 요청 — 월간 추가, 10-05 이름 바꿈): 홈 마크업은 group + aria-pressed 세 단추(기본 '공급 현황' 눌림)이고
     판정 카드 상자(#agg-wrap) 위, 지도/그래프/표 줄(.tb-bar) 밖에 있다 — 지도/그래프/표 단추는 카드 아래다. 보기와 무관하게 늘
     보인다. mapMode 는 누른 단추의 aria-pressed·on 을 맞추고 카드·지도를 다시 그리며(done 초기화), 모드가 바뀔 때만 map_mode 를
     한 번 잰다(값은 snake_case supply·weekly·monthly — 모르는 값은 supply). 시세 데이터가 없으면 전환하지 않고 재지도 않는다.
@@ -313,8 +313,8 @@ def test_mode_toggle_markup_state_and_measurement():
     btns = re.findall(r'<button type="button" data-m="([a-z_]+)"( class="on")? aria-pressed="(true|false)" '
                       r'onclick="mapMode\(\'([a-z_]+)\'\)">(.*?)</button>', m.group(1))
     assert [(b[0], bool(b[1]), b[2], b[3], b[4]) for b in btns] == [
-        ('supply', True, 'true', 'supply', '3년 공급'), ('weekly', False, 'false', 'weekly', '이번 주 시세'),
-        ('monthly', False, 'false', 'monthly', '이번 달 시세')], btns
+        ('supply', True, 'true', 'supply', '공급 현황'), ('weekly', False, 'false', 'weekly', '주간 시세'),
+        ('monthly', False, 'false', 'monthly', '월간 시세')], btns   # 이름은 2026-10-05 대표 요청('공급 현황·주간 시세·월간 시세')
     assert m.start() < src.index('<div id="agg-wrap">') < src.index('<div class="tb-bar">') < src.index('id="tb-view"'), \
         '모드 단추 → 카드 → 지도/그래프/표 순서가 아니다'
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()

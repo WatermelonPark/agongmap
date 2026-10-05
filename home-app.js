@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v170';
+const HOME_BUILD='v171';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1111,7 +1111,7 @@ function aggCard(n,z,i){
       +'ⓘ<span class="sr-only"> '+n+' 어떻게 계산했나</span></button>':'')
     +'</div>';
 }
-/* ── 지도 모드: 3년 공급 / 이번 주 시세(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27) ──────────────────────────────────────
+/* ── 지도 모드: 공급 현황 / 주간 시세 / 월간 시세(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27 → 2026-10-04 월간·10-05 이름) ──────────────────────────────────────
    한 지도에 두 주기를 싣는다. 기본은 공급(분기 판정) — 첫 화면의 주인은 공급 지도다(IA-1). 같은 빨강·파랑이 모드마다
    다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이 되므로 모드마다 범례의 끝말·가운데 칸, 뜻 한 줄(제목과 단위), 지도 이름
    (aria-label)을 바꾸고(mapKeyHtml), 주간 모드는 발표일을 지도 바로 위 줄(wkWhenText)과 범례(wkPubLead)에 박는다.
