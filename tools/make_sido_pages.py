@@ -1076,7 +1076,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
              '아직 오지 않은 분기는 <b>착공 실적을 %(lead)s 뒤로 밀어</b> 추정했습니다 — '
              '착공한 것의 %(convp)d%%가 %(lead)s 뒤 준공되는 게 %(conv_from)d년 이후 실측입니다. '
              '판정에 인허가는 쓰지 않습니다. 삽을 안 뜬 계획이 섞여 %(pover)s'
-             '해마다 크게 흔들리기 때문입니다. 위의 \'%(ahead)s 너머\' 줄은 최근 2년 인허가를 그 지역의 '
+             '해마다 크게 흔들리기 때문입니다. 위의 \'%(ahead)s 너머\' 줄은 최근 %(pwin)s 인허가를 그 지역의 '
              '착공 비율로 환산한 <b>참고</b> 값입니다. 서울·경기처럼 기준표에 없는 지역은 '
              '적정물량을 추정했고, 그 지역은 \'추정\'으로 표시합니다.</p>'
              '<p>누적 순부족은 <b>%(formula)s</b>입니다(지난 %(win)s 동안 필요량보다 더 지었으면 남은 재고를 뺍니다). '
@@ -1096,7 +1096,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
              # 첫 착공 연도(CONV_START_FROM)다 — 착공÷인허가를 재는 CONV_FROM(2012)이 아니다(전수 리뷰 #111).
              % {'lead': lead_y, 'convp': round(calc['conv'] * 100), 'conv_from': SZ.CONV_START_FROM,
                 'pover': pover_txt, 'ahead': ahead_y, 'formula': esc(SZ.formula_text(calc['H'])),
-                'win': win_y, 'un_src': UN_SOURCE})
+                'win': win_y, 'un_src': UN_SOURCE, 'pwin': SZ.win_years(SZ.PERMIT_WIN)})
 
     h.append(next_links(z, weekly, stats))
     h.append(weekly_section(z, weekly, names))

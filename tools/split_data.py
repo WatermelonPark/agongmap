@@ -148,9 +148,14 @@ def _weekly_share(w):
         return None
 
 
-def _r2(a):
-    """변동률 소수 2자리 — 원자료는 자리수가 들쭉날쭉해 그대로 실으면 30% 커진다."""
-    return None if a is None else [None if v is None else round(v, 2) for v in a]
+def _r4(a):
+    """변동률 소수 4자리 — 원천(R-ONE 지수 전월비 환산)이 소수 넷째 자리까지라 값은 그대로이고 부동소수 꼬리만 자른다.
+
+    예전엔 소수 2자리(round(v, 2) — 이진수 위의 half-even)로 실었는데, 홈이 그 값을 다시 pv2r(half-up)로 찍어 /monthly/
+    (원값을 half-up)와 표시값이 갈렸다(전수리뷰 B1 — 2026-01 전국 0.345 → 홈 +0.34, /monthly/ +0.35). 화면 자리로
+    반올림하는 일은 화면(pv2r)이 한 번만 한다.
+    """
+    return None if a is None else [None if v is None else round(v, 4) for v in a]
 
 
 def price_agg(mo):
@@ -238,7 +243,7 @@ def main():
         core_adv['monthly'] = {
             'regions': mo.get('regions', []),
             'rows': [{'p': r['p'],
-                      'ma': _r2(r.get('ma')), 'je': _r2(r.get('je')), 'wo': _r2(r.get('wo'))}
+                      'ma': _r4(r.get('ma')), 'je': _r4(r.get('je')), 'wo': _r4(r.get('wo'))}
                      # ⚠️ monthly는 '2017-01', STATS는 '2017.01'로 구분자가 다르다.
                      # 그대로 비교하면 '-'(0x2D) < '.'(0x2E)라 2017년이 통째로 잘린다.
                      for r in mo['rows'] if r['p'].replace('-', '.') >= TABLE_FROM],

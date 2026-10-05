@@ -15,6 +15,11 @@ git 이 없으면 숨은 폴더·drafts·logs·cache 를 뺀 저장소 전체를
   - gen_sgg_rone_map 의 오류 문구에 '~/.' 로 시작하는 '..._keys.bat' 파일명을 다시 적으면 → 빨강
   - run_weekly_update.bat 의 `call "%AGONGMAP_KEYS%"` 를 `%USERPROFILE%\\<키 파일>` 로 되돌리면 → 빨강
   - docs 요청서에 Windows 사용자 폴더(`C:` + `\\Users\\이름\\`) 나 macOS 홈(`/Users/이름/`)을 적으면 → 빨강
+  - (2026-10-05 리뷰 E5) WSL 경로(`/mnt/` + `c/Users/…`), PowerShell `$env:` + `USERPROFILE\\…`, 사용자 폴더 밖 드라이브 경로
+    (`D:` + `\\원고\\…`)를 적으면 → 빨강. 세 패턴을 각각 FORBIDDEN 에서 지우면 test_patterns_catch_… 의 해당 옛 모양이 빨개지고,
+    드라이브 패턴의 운영체제 폴더 예외(Windows·Program Files)를 지우면 글꼴 폴백 경로(make_beginner_cards·make_og_cards)가
+    걸려 저장소 전수 시험과 허용 목록이 빨개진다(실제로 확인). 같은 이유로 test_draft_shortcut 의 가짜 바로가기 경로에서
+    드라이브 문자를 뺐다.
 픽스처: 저장소의 실제 추적 파일 전부(기준 커밋 0649df8 에서는 위 세 파일 6곳이 걸렸다). 패턴 단위 시험은 되살아나기 쉬운
 실제 모양(옛 코드·옛 bat 줄)을 문자열로 재현해 걸리는지, 허용 경로가 걸리지 않는지 본다.
 """
@@ -31,6 +36,13 @@ FORBIDDEN = [
     ('macOS 홈 폴더', r'(?<![\w.:/])/Users/[^/\s"\']+/'),
     ('리눅스 개인 홈 폴더', r'(?<![\w.:/])/home/(?!runner/|user/)[a-z_][\w.-]*/'),
     ('Windows 사용자 환경 변수 경로', r'%(USERPROFILE|HOMEPATH|APPDATA|LOCALAPPDATA|ONEDRIVE)%[\\/]'),
+    # 2026-10-05 리뷰 E5 — 아래 셋은 위 패턴들이 못 보던 모양이다.
+    ('WSL 로 연 Windows 드라이브', r'(?<![\w.:/])/mnt/[a-z]/[^/\s"\']+'),
+    ('PowerShell 사용자 환경 변수 경로',
+     r'\$\{?env:(USERPROFILE|HOMEPATH|APPDATA|LOCALAPPDATA|ONEDRIVE)\}?(?:[\\/]|\s+[\'"])'),
+    # 드라이브 문자는 대문자만(소문자는 JS 객체 키 뒤 정규식 리터럴 `a:/…/` 과 헷갈린다). 운영체제 폴더(글꼴 등)는 허용.
+    ('Windows 드라이브 경로', r'(?<![\w%$])(?-i:[A-Z]):[\\/]+(?!(?:Windows|Program Files(?: \(x86\))?|ProgramData)[\\/])'
+                           r'[^\\/\s"\'`<>|*?:]+[\\/]'),
     ('코드에서 홈 폴더 파일 직접 열기', r'expanduser\(\s*[\'"]~[\\/]'),
     ('홈 폴더의 키·비밀 파일', r'~[\\/]\.?[\w.-]*(key|secret|token|cred)'),
     ('키 파일 이름', r'[\w.-]*_keys?\.(bat|cmd|ps1|env|txt|sh|json)\b'),
@@ -95,6 +107,13 @@ def test_patterns_catch_the_old_shapes_and_spare_public_paths():
         'C:' + '\\Users\\someone\\Documents\\manuscripts',
         '/Us' + 'ers/someone/Desktop/lectures',
         '/ho' + 'me/someone/keys',
+        # 2026-10-05 리뷰 E5: WSL 경로, PowerShell 환경 변수, 사용자 폴더 밖 드라이브(원고 폴더)
+        '/mn' + 't/c/Users/someone/Documents',
+        'cd /mn' + 't/d/manuscripts',
+        '. "$e' + 'nv:USERPROFILE\\.' + 'example' + '.ps1"',
+        'Join-Path $e' + 'nv:USERPROFILE ".secrets"',
+        'D:' + '\\원고\\강의\\3편.docx',
+        'E:' + '/archive/lectures/',
     ]
     for s in old:
         assert _hits(s), '옛 모양을 못 잡는다: %r' % s
@@ -105,6 +124,11 @@ def test_patterns_catch_the_old_shapes_and_spare_public_paths():
         'VENV="${XDG_CACHE_HOME:-$HOME/.cache}/agongmap-ci312"',
         'https://m.stock.naver.com/marketindex/home/major/exchange/bond',
         '사용자 로컬 `~/.claude/CLAUDE.md`에 있다',
+        "FONT_FALLBACK = ['C:/Windows/Fonts/NotoSansKR-VF.ttf']",
+        '"$f=Join-Path $d ($env:AGM_LNK_NAME+\'.lnk\');"',
+        "  PowerShell:  $env:NAVER_CLIENT_ID=\"...\"",
+        "var re={a:/^x/.test(s)}",
+        'r"\\b[A-Z]:[\\\\/]+Users"',
     ]
     for s in ok:
         assert not _hits(s), '허용 경로를 잘못 잡는다: %r → %r' % (s, _hits(s))

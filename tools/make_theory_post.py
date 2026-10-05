@@ -16,7 +16,8 @@
 
 사용:
   python tools/make_theory_post.py 3        # 3편 (편 번호는 꼭 준다 — 없으면 멈춘다)
-  python tools/make_theory_post.py 3 --force  # 경험 문단을 채운 기존 초안까지 덮어쓴다
+  python tools/make_theory_post.py 3 --force  # 손본 기존 초안까지 덮어쓴다
+손본 초안(생성기가 남긴 지문과 어긋나는 것)은 덮지 않고 .new.html(그것도 손댔으면 .new2.html …)에 쓴다.
 """
 import io
 import os
@@ -756,7 +757,7 @@ POSTS = [
 
 <p>착공 실적을 %(shift_y)s년 뒤로 옮기면 앞으로의 입주를 분기별로 추정할 수 있습니다. 그렇게 추정하면 올해 입주는 %(y26)s호 안팎으로 연간 적정물량(%(ref_y)s호)의 %(y26p)s이고, 2027년은 %(y27)s호로 %(y27p)s입니다.</p>
 
-<p>분기로 나눠 보면 앞으로 %(fq_n)s개 분기 가운데 %(fq_below)s개 분기가 적정물량에 못 미칩니다. 연속한 네 분기로 묶어 가장 적은 구간은 %(fq_min4)s로, %(fq_min4v)s호가 들어와 적정의 %(fq_min4p)s입니다.</p>
+<p>분기로 나눠 보면 앞으로 %(fq_n)s개 분기 가운데 %(fq_below)s개 분기가 적정물량에 못 미칩니다. 올해 1분기부터 연속한 네 분기씩 묶어 보면 가장 적은 구간은 %(fq_min4)s로, %(fq_min4v)s호가 들어와 적정의 %(fq_min4p)s입니다.</p>
 
 <p>이 숫자는 착공이 다시 늘어도 그대로입니다. 올해 1~%(ytd_m)s월 착공은 %(st_ytd)s호로 한 해 전 같은 기간보다 %(st_ytd_up)s 많습니다. 이 물량은 %(lead_new_y)s 뒤인 %(arr_y)s년부터 입주합니다. 그런데 늘어난 착공분이 입주하는 %(arr_y)s년 상반기에도 입주 추정은 적정의 %(h29p)s입니다. 착공이 이 정도로 늘어서는 공백이 메워지지 않습니다.</p>
 
@@ -913,17 +914,22 @@ def main(argv):
     path = os.path.join(OUT, 'theory-%02d.html' % n)
     # render 가 생성 가드로 멈출 수 있다 — 파일을 열기 전에 끝내야 기존 초안이 0바이트가 안 된다.
     html = render(post)
-    # 경험 문단을 사람이 채운 초안은 덮지 않는다(전수리뷰 #75). 새 초안에는 자리 표시자가 있는데 기존 파일에 없으면
-    # 사람이 채운 것이다. drafts/ 는 gitignore 라 되돌릴 데가 없다(주간 초안의 2026-08-14 사고와 같은 가드).
+    # 사람이 손본 초안은 덮지 않는다(전수리뷰 #75). drafts/ 는 gitignore 라 되돌릴 데가 없다(주간 초안의 2026-08-14
+    # 사고와 같은 가드). 예전엔 '새 초안에 경험 자리 표시자가 있는데 기존 파일에 없으면'만 봤다 — 1~4편은 경험 문단이
+    # POSTS 에 이미 채워져 새 초안에 자리 표시자가 없으니, 본문을 고친 초안도 --force 없이 덮였다(2026-10-05 리뷰 D2).
+    # 지금은 P.draft_edited(strict): 지문이 어긋나면, 지문 없는 옛 초안이면 새 초안과 다르기만 해도 손본 것으로 본다.
     if os.path.exists(path) and '--force' not in argv:
         old = io.open(path, encoding='utf-8').read()
-        if EXP_PLACEHOLDER[:20] in html and EXP_PLACEHOLDER[:20] not in old:
-            alt = path[:-5] + '.new.html'
-            P.write_draft(alt, html)
-            print('⚠ %s 는 경험 문단을 채운 흔적이 있어 그대로 뒀다. 새 초안은 %s 에 썼다. 덮어쓰려면 --force.'
+        if P.draft_edited(old, html, (EXP_PLACEHOLDER,), strict=True):
+            alt = P.side_path(path, html, (EXP_PLACEHOLDER,), strict=True)
+            if alt is None:
+                raise SystemExit('⚠ %s 와 비켜 쓸 자리 %d개가 모두 손본 초안이다 — 아무것도 덮지 않았다. '
+                                 '필요 없는 것을 지우거나 --force 로 덮을 것.' % (os.path.basename(path), P.SIDE_MAX))
+            P.write_draft(alt, P.stamp_draft(html))
+            print('⚠ %s 는 손본 흔적이 있어 그대로 뒀다. 새 초안은 %s 에 썼다. 덮어쓰려면 --force.'
                   % (os.path.basename(path), os.path.relpath(alt, ROOT)))
             return 0
-    P.write_draft(path, html)
+    P.write_draft(path, P.stamp_draft(html))
     if P.desktop_shortcut(path, P.SHORTCUTS['theory']):
         print('  바탕화면 바로가기: %s' % P.SHORTCUTS['theory'])
     print('이론 초안 생성: %s' % os.path.relpath(path, ROOT))

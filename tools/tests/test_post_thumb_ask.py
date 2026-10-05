@@ -7,7 +7,7 @@
 하면 클릭은 벌어도 신뢰를 잃는다.
 
 변이 확인(실제로 깨뜨려 봄):
-  - thumb_message의 `curve[2] <= -3` 조건을 지움 → test_message_at_peak_does_not_claim_a_fall 빨강
+  - thumb_pct 가 0% 도 '-0.0%' 로 돌려주게(고점 판정 None 을 지움) 바꿈 → test_message_at_peak_does_not_claim_a_fall 빨강
   - ask_cta 인덱스를 0으로 고정 → test_ask_rotates_by_seq 빨강
 픽스처: 지수 계열은 sts['매매지수']의 모양(dates에 잠정 표시 'p)'가 붙는 것 포함)을,
 r은 ADV.sido.zones 한 줄에서 썸네일이 읽는 키(z)만 있으면 된다.

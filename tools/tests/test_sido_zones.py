@@ -607,6 +607,36 @@ def test_창_너머_얇음과_경고는_같은_문턱을_쓴다():
         assert thin == row['pwarn'] == (k < 0.95), (z, k, thin, row['pwarn'])
 
 
+def test_pwarn_compares_the_printed_percent():
+    """'못 미칩니다' 강조(split_text 의 thin)와 홈·허브 경고(pwarn)는 화면에 찍는 퍼센트 정수로 문턱(95%)과 견준다(전수리뷰
+    B3). 원값으로 견주면 0.9496 은 '필요량의 95%' 인데 '못 미칩니다'가 붙고 0.9504 는 같은 '95%' 인데 안 붙었다.
+
+    변이(실제로 확인): pbr_thin 을 옛 `pbr < PWARN_CUT` 로 되돌리면 0.9496 에서 thin·pwarn 이 켜져 빨개진다.
+    픽스처: 문턱 경계 양옆의 신호 0.9496·0.9504(둘 다 '95%'), 그리고 한 칸 아래 0.944('94%') — _edge_row 로 calc 를 돈다.
+    """
+    for k, pct, want in ((0.9496, 95, False), (0.9504, 95, False), (0.944, 94, True)):
+        row = _edge_row('인천', k=k)
+        lab, l3, dec, thin = row['split']['ref']
+        assert '필요량의 %d%%' % pct in l3, (k, l3)
+        assert thin is want and row['pwarn'] is want, (k, l3, thin, row['pwarn'])
+
+
+def test_permit_window_words_follow_the_window_constants(monkeypatch):
+    """리포트 셋째 줄의 '최근 2년'·'최근 1년'은 창 상수(PERMIT_WIN 24·PDEC_WIN 12)에서 나온다(전수리뷰 B7 — 손으로 적혀
+    있어 창을 바꿔도 문장이 따라오지 않았다).
+
+    변이(실제로 확인): split_text 의 win_years(PERMIT_WIN) 을 옛 '2년' 리터럴로 되돌리면 36개월 창에서 빨개진다.
+    픽스처: 지금 창(24·12)과 바꾼 창(36·6)에서 같은 신호로 split_text 를 부른다.
+    """
+    sig = {'pbr': 1.2, 'pdec': 0.25}
+    ref = M.split_text(0, 10, 10, 1, sig, False)['ref']
+    assert ref[1].startswith('최근 2년 인허가') and ref[2].startswith('최근 1년 인허가'), ref
+    monkeypatch.setattr(M, 'PERMIT_WIN', 36)
+    monkeypatch.setattr(M, 'PDEC_WIN', 6)
+    ref = M.split_text(0, 10, 10, 1, sig, False)['ref']
+    assert ref[1].startswith('최근 3년 인허가') and ref[2].startswith('최근 0.5년 인허가'), ref
+
+
 def test_모순_표시는_g2_부족에도_붙고_균형_여유에는_안_붙는다():
     """uwarn 은 판정이 '부족' 쪽(g2 이상)인데 미분양이 분기 적정물량 이상일 때만 켠다.
     기존 시험은 g4 픽스처 하나라 g2 를 빼도(`in ('g4', 'g3')`) 초록이었다.

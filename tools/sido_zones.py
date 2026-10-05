@@ -93,6 +93,20 @@ GRADE_KEYS = ('g4', 'g3', 'g2', 'g1', 'g0')
 # 경고는 읽는 사람이 그냥 무시한다. 리터럴로 흩어 두면 "정리" 커밋에 조용히
 # 1.0으로 되돌아가므로 상수로 잠근다(test_pwarn_threshold_avoids_knife_edge).
 PWARN_CUT = 0.95
+
+
+def pbr_pct(pbr):
+    """3년 너머 참고 신호(pbr)를 화면 퍼센트 정수로 — 리포트 셋째 줄 '필요량의 N%'가 찍는 값."""
+    return int(round(100 * pbr))
+
+
+def pbr_thin(pbr):
+    """신호가 문턱(PWARN_CUT) 아래인가 — **화면에 찍는 퍼센트 정수**로 견준다(전수리뷰 B3). 원값으로 견주면 0.9496 은
+    '95%' 인데 '못 미칩니다'가 붙고 0.9504 는 '95%' 인데 안 붙어, 같은 숫자에 다른 말이 달렸다. 리포트 강조(split_text 의
+    thin)와 홈·허브 경고(calc 의 pwarn)가 이 함수 하나를 쓴다."""
+    return pbr_pct(pbr) < int(round(PWARN_CUT * 100))
+
+
 # 라벨 사다리를 한 칸 올렸다(2026-08-15 PM 결정, docs/2026-08-15-등급컷-결정.md).
 # ⚠️ GRADE_CUTS는 건드리지 않았다 — 컷은 가격 실측(밴드별 이후 16분기 실질
 # 상승률)에 묶여 있고, 0.55 같은 값을 정당화할 근거가 "집계 3곳을 올리고 싶어서"
@@ -509,6 +523,14 @@ def refresh_texts(sido):
 
 
 PERMIT_WIN = 24          # 3년 너머 신호의 창. 12월을 두 번 담아 한 해의 이례를 반으로 줄인다
+PDEC_WIN = 12            # 12월 몫(pdec)을 재는 창 — 최근 이만큼의 달 가운데 12월 한 달의 비중
+
+
+def win_years(months):
+    """달 수 → 화면 말('24' → '2년'). 창 상수를 바꾸면 문장도 따라온다(전수리뷰 B7 — '최근 2년'이 손으로 적혀 있었다)."""
+    return '%g년' % (months / 12.0)
+
+
 # ⚠️ CONV_FROM 은 **착공 ÷ 인허가**(permit_start_conv)를 재는 첫 해다(인허가 누계가 2012년부터 온전하다). 착공 → 3년 뒤
 # 준공 전환율 CONV(0.958)의 측정 구간이 아니다 — 그건 CONV_START_FROM·CONV_YEARS 다(전수 리뷰 #111). 한때 시도 리포트·홈이
 # '96%가 … 2012년 이후 실측'이라고 이 상수를 읽었는데, 2012년부터 재면 94%다.
@@ -692,7 +714,7 @@ def permit_signal(stats, region, ref_q):
     if any(k not in mon for k in want):
         return None
     yearly = sum(mon[k] for k in want) * 12.0 / PERMIT_WIN
-    last12 = want[:12]
+    last12 = want[:PDEC_WIN]
     p12 = sum(mon[k] for k in last12)
     dec = sum(mon[k] for k in last12 if k.endswith('.12'))
     return {'pbr': yearly * conv / (ref_q * 4.0),
@@ -724,10 +746,10 @@ def split_text(inow, fut, need, ref, sig, est, H=None, W=None):
     l3 = dec = None
     thin = False
     if sig:
-        l3 = '최근 2년 인허가를 착공으로 환산하면 필요량의 %d%%입니다' % int(round(100 * sig['pbr']))
+        l3 = '최근 %s 인허가를 착공으로 환산하면 필요량의 %d%%입니다' % (win_years(PERMIT_WIN), pbr_pct(sig['pbr']))
         if sig.get('pdec') is not None:
-            dec = '최근 1년 인허가 중 12월 한 달이 %d%%입니다' % int(round(100 * sig['pdec']))
-        thin = sig['pbr'] < PWARN_CUT
+            dec = '최근 %s 인허가 중 12월 한 달이 %d%%입니다' % (win_years(PDEC_WIN), int(round(100 * sig['pdec'])))
+        thin = pbr_thin(sig['pbr'])
     return {
         'rows': [('지난 %s' % past, l1), ('앞으로 %s' % ahead, l2)],
         'ref': ('%s 너머' % ahead, l3, dec, thin) if l3 else None,
@@ -846,7 +868,7 @@ def calc(stats):
             'pbr': (None if sig is None else round(sig['pbr'], 3)),
             'pdec': (None if (sig is None or sig['pdec'] is None) else round(sig['pdec'], 3)),
             'pconv': (None if sig is None else round(sig['pconv'], 3)),
-            'pwarn': bool(sig is not None and sig['pbr'] < PWARN_CUT),
+            'pwarn': bool(sig is not None and pbr_thin(sig['pbr'])),   # 리포트 강조(thin)와 같은 함수(B3)
             'split': split,
         })
     # ── 집계 항등식 자가검사 ────────────────────────────────────────────────

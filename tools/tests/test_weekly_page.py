@@ -117,18 +117,28 @@ def test_survey_and_release_dates_are_both_baked():
 
 
 def test_headline_names_the_biggest_mover_with_its_value():
+    """제목·검색 설명문의 결론이 데이터의 가장 크게 움직인 시도와 그 값이다. 시도 모두 보합인 주에는 둘 다 '보합'을 말한다.
+
+    예전엔 설명문 단정이 분기 밖에 있어, 시도 모두 보합인 주에 생성기가 쓰는 '시도 모두 보합이다.' 대신 '서울 0.00%'를
+    기대해 게이트가 그날 데이터 커밋을 막을 수 있었다(2026-10-05 리뷰 E2 — data.js 최신 주 시도 ma 를 모두 ±0.002 로 바꾸고
+    생성기를 돌려 재현, 고친 뒤 초록 확인).
+    변이(실제로 확인): 보합 분기의 설명문 단정을 옛 모양('%s %s%%' % best)으로 되돌리면 위 보합 재현에서 빨갛고, 생성기
+    설명문이 보합 주에도 'X 0.00%'를 쓰게 바꾸면 보합 분기가 빨갛다(make_weekly_page 의 '시도 모두 보합이다.' 를 다른 말로 바꿈).
+    픽스처: 저장소 data.js 최신 주와 그걸로 구운 weekly/index.html(게이트는 생성기 뒤에 돈다).
+    """
     W, _ = MW.load()
     row = W['rows'][-1]
     val = {r: row['ma'][i] for i, r in enumerate(W['regions'])}
     sido = [(z, val[z]) for z in SZ.DISPLAY_ORDER if z not in SZ.AGG and val.get(z) is not None]
     best = max(sido, key=lambda x: abs(_r2(x[1])))
     h1 = re.search(r'<h1>(.*?)</h1>', _block('HEAD'), re.S).group(1)
+    desc = re.search(r'<meta name="description" content="([^"]*)"', _page()).group(1)
     if _r2(best[1]) == 0:
         assert '보합' in h1
+        assert '시도 모두 보합' in desc, '보합 주의 검색 설명문에 결론이 없다: %s' % desc
     else:
         assert '%s %s%%' % (best[0], _fmt(best[1])) in h1, '제목 결론이 데이터와 다르다: %s' % h1
-    desc = re.search(r'<meta name="description" content="([^"]*)"', _page()).group(1)
-    assert '%s %s%%' % (best[0], _fmt(best[1])) in desc, '검색 설명문에 결론이 없다'
+        assert '%s %s%%' % (best[0], _fmt(best[1])) in desc, '검색 설명문에 결론이 없다'
 
 
 def test_sgg_top_matches_home_ranking_rule():

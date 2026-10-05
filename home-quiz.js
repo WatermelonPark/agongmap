@@ -8,7 +8,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_QUIZ_BUILD='v175';
+var HOME_QUIZ_BUILD='v176';
 const QUIZSETS={
   beginner:{
     title:'부린이 테스트', emoji:'🐣',
@@ -408,6 +408,9 @@ function startQuiz(setKey,seed,fromHash){
   const resume=!!(sv&&sv.set===curSet&&Array.isArray(sv.ch)&&sv.ch.length>0&&Number.isInteger(sv.idx)&&
     sv.idx>=0&&sv.idx<QUIZ_LEN&&(seed==null||(seed>>>0)===sv.seed));
   QUIZ=drawQuiz(curSet,resume?sv.seed:seed);
+  /* 친구와 다른 시험지(결과 화면의 '다시 풀기' 등)를 뽑았으면 주소에서 대결 쿼리(c·s·q)를 걷는다(전수리뷰 A4). 남겨 두면
+     새로고침 때 부팅(chalBootable)이 대결을 다시 띄워 이 시험지의 진행을 잃는다. 경로·다른 쿼리·해시는 둔다. */
+  if(!chalActive()&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
   qIdx=0;qScore=0;qResults=[];qChoices=[];
   /* start_type: new(처음)·retry(이 탭에서 이미 끝낸 세트를 다시)·resume(이어 풀기).
      예전엔 새로고침·다시 풀기도 전부 시작으로 잡혀 이탈률이 부풀어 보였다. */

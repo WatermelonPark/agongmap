@@ -167,3 +167,33 @@ def test_basis_sort_key_orders_months_numerically():
     assert M.sort_key('2026.9') == '2026-09'
     assert M.sort_key('2026Q3') == '2026-09', '분기는 그 분기 마지막 달로'
     assert M.sort_key('2026Q4') > M.sort_key('2026.09')
+
+
+def test_unsold_source_is_the_canonical_agency_and_sources_escape_once():
+    """미분양 섹션의 원천 기관은 시도 리포트와 같은 정본(make_sido_pages.UN_SOURCE, 전수 리뷰 #21)이고, llms.txt 의 출처
+    목록도 미분양을 그 기관 줄에 싣는다(전수리뷰 B5 — /zone/ 은 국토교통부, /monthly/·llms.txt 는 한국부동산원이라 했다).
+    원천 글자는 sec() 가 한 번만 이스케이프한다(B6 — 호출부도 esc() 를 불러 '&' 가 '&amp;amp;' 로 찍혔다).
+
+    변이(각각 실제로 확인): 미분양 섹션의 원천을 옛 `esc(un.get('source') or '국토교통부')` 로 되돌리면 첫 단정이, 인허가
+          호출부에 esc() 를 되살리면 둘째 단정이, llms SOURCES 의 한국부동산원 줄에 옛 '…동향과 미분양' 을 되살리면 셋째
+          단정이 빨개진다.
+    픽스처: 저장소 data.js(수집 계열 STATS.미분양.source 가 배포 창구 '한국부동산원 R-ONE …'인 실제 상태)에 인허가 원천만
+          '&' 가 든 글자로 바꾼 것.
+    """
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import make_monthly_page as MP
+    import make_sido_pages as SP
+    import make_llms_txt as L
+    adv, sts = MP.load()
+    sts['미분양'] = dict(sts['미분양'], source='한국부동산원 R-ONE 미분양주택현황')
+    sts['인허가'] = dict(sts['인허가'], source='국토교통부 & KOSIS')
+    h = ''.join(MP.build(adv, sts)[0])
+
+    def basis(sid):
+        seg = h.split('id="%s"' % sid, 1)[1].split('</section>', 1)[0]
+        return re.search(r'<p class="basis"><b>[^<]+</b> 기준 · ([^<]+)</p>', seg).group(1)
+    assert basis('unsold').startswith(SP.UN_SOURCE) and '한국부동산원' not in basis('unsold'), basis('unsold')
+    assert basis('permits') == '국토교통부 &amp; KOSIS', basis('permits')
+    with_un = [n for n, _, d in L.SOURCES if '미분양' in d]
+    assert with_un == [SP.UN_SOURCE], with_un

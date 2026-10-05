@@ -75,14 +75,39 @@ import subprocess  # noqa: E402
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 _BEFORE = None
 
+# git status 에 오르지 않는(.gitignore) 배치 상태 파일. 배치 게이트는 이 파일들이 있는 작업 트리에서 돌고, 커밋 잡이
+# 게이트 **뒤**에 읽는다(.fetch_failed → ℹ️ 줄, .stats_changed → 변경 내역, .supply_stalled → 알림). 시험이 저장소 루트의
+# 것을 고쳐 쓰면 그 회차 보고가 바뀌는데, -uall 은 무시 파일을 보여 주지 않아 아래 감시에 걸리지 않았다(2026-10 리뷰 E3).
+# --ignored 로 통째로 보면 __pycache__·캐시가 잡음이 되므로 이름으로 둔다 — 새 상태 파일을 .gitignore 에 올리면 여기에도
+# 올린다. 디렉터리(.batch.lock/)는 들어 있는 이름 목록을 본다.
+# 무엇을 깨뜨리면 빨개지나: 이 목록을 비우면 test_repo_write_guard 가 빨개진다(실제로 확인).
+_STATE_FILES = ('.fetch_failed', '.stats_changed', '.supply_stalled', '.indexnow_key', '.batch.lock',
+                'tools/data/.reseed_tries.json', 'tools/data/.reseed.lock', 'tools/serp-history.jsonl')
+
+
+def _state_snap():
+    snap = {}
+    for p in _STATE_FILES:
+        fp = os.path.join(_ROOT, p)
+        try:
+            if os.path.isdir(fp):
+                snap[p] = 'dir:' + '/'.join(sorted(os.listdir(fp)))
+            elif os.path.isfile(fp):
+                snap[p] = hashlib.sha1(open(fp, 'rb').read()).hexdigest()
+            else:
+                snap[p] = 'absent'
+        except OSError:
+            snap[p] = 'unreadable'
+    return snap
+
 
 def _dirty():
+    snap = _state_snap()     # git 을 못 불러도 상태 파일은 본다
     try:
         out = subprocess.run(['git', 'status', '--porcelain', '-uall', '-z'], cwd=_ROOT,
                              capture_output=True, timeout=60).stdout.decode('utf-8', 'replace')
     except Exception:
-        return None
-    snap = {}
+        return snap
     for ent in out.split('\0'):
         if len(ent) < 4:
             continue
