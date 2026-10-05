@@ -929,20 +929,23 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     desc = summary_text(parts)
     title = page_title(z, calc, lab, SZ.latest_survey({'weekly': weekly}))
 
+    Lq = SZ.qidx(int(calc['L'][:4]), int(calc['L'][-1]))
+    yrs_z = SZ.yearly_supply(stats, z, Lq, calc['H'])   # 머리 신호등·전망 막대가 같은 값
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
              '<h1>%s 아파트 공급</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
-             '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>'
+             '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>%s'
              % (esc(z), esc(z), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
-                esc(calc.get('Ltxt') or calc['L'])))
+                esc(calc.get('Ltxt') or calc['L']),
+                ('<div class="zlights"><span class="zl-cap">앞으로 해마다 들어올 입주</span>%s</div>' % lights_html(yrs_z, big=True))
+                if yrs_z else ''))
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의
     # 빨간 경고 박스는 2026-09-13 대표 결정으로 이 블록의 참고 줄에 흡수했다 —
     # 인허가는 허수가 많아 경보로 보여주면 '참고로만'과 부딪친다. split_block() 참조.
     h.append(split_block(row.get('split')))
-    Lq = SZ.qidx(int(calc['L'][:4]), int(calc['L'][-1]))
-    h.append(outlook_block(SZ.yearly_supply(stats, z, Lq, calc['H']), row.get('pbr'), calc['H']))
+    h.append(outlook_block(yrs_z, row.get('pbr'), calc['H']))
     if row.get('uwarn'):
         h.append('<p class="zwarn">⚠ %s</p>' % unsold_warn(row))
     # est(적정물량 추정 지역)는 이제 표기한다 — 2026-09-13 대표 결정으로 2026-08-08의
@@ -1108,8 +1111,10 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     for o in others:
         if o['z'] == z:
             continue
-        h.append('<a href="/zone/%s/"><b>%s</b><span class="sc-tier %s">%s</span><i>%s</i></a>'
-                 % (urllib.parse.quote(o['z']), esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
+        # 허브와 같은 칸 — 판정 태그 대신 해마다 입주 신호등(2026-10-05 대표 결정)
+        h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i></a>'
+                 % (urllib.parse.quote(o['z']), esc(o['z']),
+                    lights_html(SZ.yearly_supply(stats, o['z'], Lq, calc['H']) if stats else []),
                     esc(o['rtxt'])))
     h.append('</div><p class="zsub" style="margin-top:14px">'
              '<a class="zback" href="/">← 전국 공급 표로 돌아가기</a></p></div></section>')
@@ -1177,7 +1182,7 @@ def gauge_legend_html():
 
 # ── 해마다의 입주 전망(2026-10-05 대표 요청 — '지금보다 1년·2년·3년 뒤가 중요하다') ────────────────────────────────
 # 값은 sido_zones.yearly_supply(판정과 같은 식을 네 분기씩 나눈 것). 막대 높이는 적정의 OUT_MAX 배까지, 100% 선을 긋고
-# 적정에 못 미치면 붉게·넘으면 푸르게 칠한다(경계는 100% 하나 — 판정 등급 컷과 다른 값이라 등급 색을 빌리지 않는다).
+# 막대 색은 해마다 입주 신호등(light_of — 입주물량 문턱 70·130%)과 같다. 판정 등급 컷과 다른 값이라 등급 색을 빌리지 않는다.
 OUT_MAX = 1.5
 
 
@@ -1195,7 +1200,7 @@ def outlook_cells(yrs, ref_pct=None, ref_lab=None):
     for pct, lab, cls in items:
         cells.append('<span class="zo-i%s"><span class="zo-c"><span class="zo-b %s" style="height:%.1f%%"></span>'
                      '<span class="zo-l" style="bottom:%.1f%%"></span></span><span class="zo-p">%d%%</span><small>%s</small></span>'
-                     % (cls, 'zo-lo' if pct < 100 else 'zo-hi', _ob(pct), line, pct, esc(lab)))
+                     % (cls, light_of(pct)[0], _ob(pct), line, pct, esc(lab)))
     return ''.join(cells)
 
 
@@ -1203,10 +1208,54 @@ def outlook_aria(yrs):
     return '적정 대비 입주 ' + ', '.join('%d년 차 %d%%' % (y['n'], y['pct']) for y in yrs)
 
 
-def outlook_hub_html(yrs):
+# ── 해마다 입주 신호등(2026-10-05 대표 요청 — '부족·균형 태그보다 신호등 3개로 3년을 한눈에') ─────────────────────────
+# 지역 목록 칸(허브·리포트 '다른 지역')의 판정 태그를 대신하고, 시도 리포트 머리에도 둔다. 동그라미 하나가 한 해(1·2·3년 차)이고
+# 색은 그해 입주 추정 ÷ 적정물량을 **입주물량 문턱 정본**(sido_zones.occ_level — OCC_LO_PCT·OCC_HI_PCT, 홈 입주물량 표·/moveins/
+# 와 같은 70%·130%)으로 가른다. 판정 등급 컷(부족률 50%)을 빌리지 않는 까닭: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라
+# 해마다의 입주와 다른 양이다(대표 결정 — 2026-10-05, 70%·130% 안). 동그라미 안 숫자(1·2·3)는 색을 못 가르는 사람도 해를 읽게 한다.
+LIGHT = {-1: ('lo', '부족'), 0: ('ok', '적정'), 1: ('hi', '여유')}
+
+
+def light_of(pct):
+    return LIGHT[SZ.occ_level(pct)]
+
+
+def lights_aria(yrs):
+    return '해마다 입주 신호등: ' + ', '.join('%d년 차 %s, 적정물량의 %d%%' % (y['n'], light_of(y['pct'])[1], y['pct'])
+                                         for y in yrs)
+
+
+def lights_html(yrs, big=False):
+    """동그라미 세 개(장식이 아니다 — role=img 와 aria-label 로 해마다 상태·퍼센트를 말한다). big 은 리포트 머리용(아래에 상태 글자)."""
     if not yrs:
         return ''
-    return '<span class="zo" role="img" aria-label="%s">%s</span>' % (esc(outlook_aria(yrs)), outlook_cells(yrs))
+    dots = []
+    for y in yrs:
+        k, lab = light_of(y['pct'])
+        d = '<span class="zl-d %s">%d</span>' % (k, y['n'])
+        dots.append('<span class="zl-i">%s<small>%d년 차 %s</small></span>' % (d, y['n'], lab) if big else d)
+    return '<span class="zl%s" role="img" aria-label="%s">%s</span>' % (' zl-lg' if big else '', esc(lights_aria(yrs)), ''.join(dots))
+
+
+def light_ranges():
+    """'70% 미만 부족 · 70~130% 적정 · 130% 초과 여유' — 범례·막대 설명이 같은 글을 쓴다."""
+    rng = _light_rng()
+    return ' · '.join('%s %s' % (rng[k], lab) for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1]))
+
+
+def _light_rng():
+    return {'lo': '%d%% 미만' % SZ.OCC_LO_PCT, 'ok': '%d~%d%%' % (SZ.OCC_LO_PCT, SZ.OCC_HI_PCT),
+            'hi': '%d%% 초과' % SZ.OCC_HI_PCT}
+
+
+def lights_legend_html(n):
+    """신호등 범례 한 줄 — 문턱은 OCC_LO_PCT·OCC_HI_PCT, 이름은 LIGHT 에서 만든다(손 숫자 금지)."""
+    yrs = '·'.join(str(i) for i in range(1, n + 1))
+    rng = _light_rng()
+    spans = ''.join('<span class="zg-l"><span class="zl-d %s" aria-hidden="true"></span>%s %s</span>' % (k, rng[k], lab)
+                    for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1]))
+    return ('<p class="zl-legend"><span class="zl-cap">신호등 %s = 앞으로 %s년 차 입주가 적정물량의</span>%s</p>'
+            % (yrs, yrs, spans))
 
 
 def outlook_block(yrs, pbr=None, H=None):
@@ -1218,14 +1267,13 @@ def outlook_block(yrs, pbr=None, H=None):
     beyond = '%g년 너머' % ((SZ.LEAD_Q if H is None else H) / 4.0)   # split_text 의 '… 너머' 줄과 같은 연수
     return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(적정물량 대비)</h3>'
             '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'
-            '<p class="zo-note">100%% 선이 적정물량입니다. 붉은 막대는 적정에 못 미치는 해입니다. %s. '
+            '<p class="zo-note">가로선이 적정물량(100%%)이고, 막대 색은 위 신호등과 같습니다(%s). %s. '
             '%s는 최근 인허가를 착공으로 환산한 참고값이라 판정에는 넣지 않습니다.</p></div>'
-            % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond), esc(spans), esc(beyond)))
+            % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond), esc(light_ranges()), esc(spans), esc(beyond)))
 
 
 GAUGE_NOTE = ('부족률 = 앞으로 %s 필요량 대비 모자란 양(지난 %s 덜 지은 몫 포함). 막대의 점이 오른쪽일수록 부족이 심하고, '
-              '0%% 아래(−)는 남는 물량입니다. 아래 작은 막대는 앞으로 해마다 들어올 입주가 적정물량의 몇 %%인지입니다'
-              '(선이 100%%, 붉으면 모자란 해).')
+              '0%% 아래(−)는 남는 물량입니다.')
 
 
 def build_hub(calc, stats=None):
@@ -1248,23 +1296,26 @@ def build_hub(calc, stats=None):
              '<nav class="crumb"><a href="/">아공맵</a> › <b>시도 공급 분석</b></nav>'
              '<h1>시도별 아파트 공급</h1>'
              '<p class="zlead">%s</p></div></header><main id="main">' % esc(desc))
+    # 칸은 떼어 놓은 타일(app.css .zlinks)이고 '누르면 리포트' 안내는 여기 한 줄뿐이다 — 칸마다 화살표·글을 달지 않는다(2026-10-05 대표 결정).
+    ny = max([len(v) for v in outl.values()] or [0])
     h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2>'
-             '<p class="zg-note">%s</p>%s<div class="zlinks">'
-             % (esc(GAUGE_NOTE % ('%g년' % (calc['H'] / 4.0), '%g년' % (SZ.BACKLOG_WINDOW / 4.0))), gauge_legend_html()))
+             '<p class="zg-note">%s</p>%s%s<p class="z-hint">지역을 누르면 그 지역 리포트가 열립니다.</p><div class="zlinks">'
+             % (esc(GAUGE_NOTE % ('%g년' % (calc['H'] / 4.0), '%g년' % (SZ.BACKLOG_WINDOW / 4.0))), gauge_legend_html(),
+                lights_legend_html(ny) if ny else ''))
+    # 판정 태그(.sc-tier)는 칸에서 뺐다 — 그 자리를 해마다 입주 신호등이 맡는다(2026-10-05 대표 결정). 판정은 지도 색·리포트 본문에 남는다.
     for o in agg:
-        h.append('<a href="/zone/%s/"><b>%s</b><span class="sc-tier %s">%s</span><i>%s</i>%s</a>'
-                 % (urllib.parse.quote(o['z']), esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
-                    esc(o['rtxt']), gauge_html(o) + outlook_hub_html(outl[o['z']])))
+        h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
+                 % (urllib.parse.quote(o['z']), esc(o['z']), lights_html(outl[o['z']]),
+                    esc(o['rtxt']), gauge_html(o)))
     h.append('</div><h2 class="z17">%d개 시도</h2>' % len(sido) +
              ''
              '<div class="zlinks" id="sido-list">')
     for o in sido:
-        h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>'
-                 '<span class="sc-tier %s">%s</span><i>%s</i>%s</a>'
+        h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>%s<i>%s</i>%s</a>'
                  % (urllib.parse.quote(o['z']), SZ.GRADE_KEYS.index(o['grade']),
                     disp_tot(o, calc['H']),
-                    esc(o['z']), o['grade'], GRADE_TXT[o['grade']][0],
-                    card_html(o), gauge_html(o) + outlook_hub_html(outl[o['z']])))
+                    esc(o['z']), lights_html(outl[o['z']]),
+                    card_html(o), gauge_html(o)))
     h.append('</div></div></section>')
     # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
     # 화면인데 허브에서 가는 길이 없었다.

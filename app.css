@@ -1283,27 +1283,48 @@ table.adv thead th:first-child{text-align:center}
   /* .zgrid와 같은 이유로 셀이 선을 그린다(2026-08-16). 컨테이너 배경을 선 색으로
      깔면 항목이 열 수로 안 떨어질 때 마지막 줄 빈 칸에 그 색이 드러난다 —
      여긴 5열에 19개(집계 3 + 시도 16, 자기 지역 제외)라 늘 한 칸이 빈다. */
-  .zlinks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1px;
+  /* 2026-10-05 대표 결정: 붙은 격자는 표로 읽혀 칸이 눌리는지 몰랐다 → 8px 떼어 놓은 타일(터치 radius). 칸마다 화살표·글은
+     달지 않고 '누르면 리포트' 안내는 목록 위 한 줄(.z-hint)뿐이다. 누르는 순간 바탕이 바뀌어 반응을 보인다. */
+  .zlinks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;
     margin-top:12px}
   .zlinks a{background:var(--paper);padding:10px 12px;text-decoration:none;color:var(--ink);
     display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:13.5px;
-    box-shadow:0 0 0 1px var(--line)}
+    box-shadow:0 0 0 1px var(--line);border-radius:var(--r-touch);transition:background .12s}
   .zlinks a:hover{background:var(--paper2)}
+  .zlinks a:active{background:var(--line)}
+  .z-hint{font-size:13px;color:var(--ink2);margin:10px 0 0}
+  /* 해마다 입주 신호등(make_sido_pages.lights_html, 2026-10-05) — 동그라미 하나가 한 해, 안 숫자가 몇 년 차. 문턱은 입주물량 정본(70·130%). */
+  .zl{display:inline-flex;gap:4px;margin-left:auto;flex:none}
+  .zl-d{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
+    font-size:11px;font-weight:600;line-height:1;color:#fff;font-style:normal;font-variant-numeric:tabular-nums}
+  .zl-d.lo{background:#d0382b}
+  .zl-d.ok{background:#f2b705;color:var(--ink)}
+  .zl-d.hi{background:#2e9b57}
+  .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:12px;color:var(--ink2)}
+  .zl-legend .zl-cap{flex:0 0 100%}
+  .zl-legend .zl-d{width:12px;height:12px}
+  .zlights{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;margin-top:10px}
+  .zlights .zl-cap{font-size:13px;color:var(--ink2)}
+  .zl-lg{gap:14px;margin-left:0}
+  .zl-lg .zl-i{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .zl-lg .zl-d{width:30px;height:30px;font-size:14px}
+  .zl-lg small{font-size:12px;color:var(--ink2);white-space:nowrap}
   .zlinks a b{font-weight:600}
   .zlinks a i .zk{white-space:nowrap}   /* '(3년 필요량의 139%)' 괄호 덩어리는 한 줄로(make_sido_pages.card_html, 2026-10-05) */
   /* 부족률 막대(make_sido_pages.gauge_html, 2026-10-05) — 칸 폭 전체의 한 줄. 바탕(등급 구간 색)은 생성기가 등급 컷·등급 색으로 굽는다. */
   .zlinks a .zg{position:relative;flex:0 0 100%;height:6px;margin:4px 0 2px}
   .zlinks a .zg-m{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink)}
   /* 해마다 입주 전망(make_sido_pages.outlook_cells, 2026-10-05) — 세 칸(+ 리포트는 '3년 너머' 참고 칸). 막대 높이는 적정의 1.5배까지,
-     가로선이 100%(적정). 적정에 못 미치면 붉게(zo-lo), 넘으면 푸르게(zo-hi). */
+     가로선이 100%(적정). 색은 신호등(.zl-d)과 같은 세 단계(lo·ok·hi, 70·130%). */
   .zo{display:flex;gap:10px;flex:0 0 100%;margin-top:6px}
   .zo-i{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;font-size:11px;color:var(--ink2);line-height:1.3}
   .zo-i .zo-p{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
   .zo-i small{font-size:10.5px;color:var(--muted)}
   .zo-c{position:relative;width:100%;max-width:34px;height:26px;background:var(--paper2);margin-bottom:3px}
   .zo-b{position:absolute;left:0;right:0;bottom:0}
-  .zo-b.zo-lo{background:#c0392b99}
-  .zo-b.zo-hi{background:#1a527699}
+  .zo-b.lo{background:#d0382bb3}
+  .zo-b.ok{background:#f2b705b3}
+  .zo-b.hi{background:#2e9b57b3}
   .zo-l{position:absolute;left:-3px;right:-3px;height:0;border-top:1.5px solid var(--ink)}
   .zo-ref .zo-b{opacity:.45}
   .zo-ref .zo-p,.zo-ref small{color:var(--muted);font-weight:500}
@@ -1319,7 +1340,7 @@ table.adv thead th:first-child{text-align:center}
   .zg-l{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .zg-l i{display:inline-block;width:12px;height:8px}
   /* 막대가 있는 칸은 글을 칸 폭 전체로 왼쪽에 — 짧은 글만 오른쪽에 붙어 칸마다 자리가 달랐다. 괄호 덩어리는 다음 줄로. */
-  .zlinks a:has(.zg) i{flex:0 0 100%;margin-left:0}
+  .zlinks a:is(:has(.zg),:has(.zl)) i{flex:0 0 100%;margin-left:0}
   .zlinks a:has(.zg) i .zk{display:block}
   .zlinks a i{font-style:normal;font-size:11px;color:var(--muted);
     margin-left:auto;font-variant-numeric:tabular-nums}
