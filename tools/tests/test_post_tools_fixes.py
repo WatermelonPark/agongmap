@@ -2,11 +2,13 @@
 """발행 도구·발행 확인 이슈의 리뷰 2026-09-18 결함(백로그 19·23)을 고정한다.
 
 깨뜨리면 빨개지는 것(각각 확인):
-  - thumb_message 의 '최근 3점' 조건을 빼면 → test_old_peak_is_not_called_all_time_high
+  - thumb_message 를 옛 규칙('하락 3% 미만이면 역대 최고가')으로 되돌리면 → test_old_peak_is_not_called_all_time_high,
+    test_recent_peak_is_all_time_high(-0.5% 는 고점이 아니다 — 2026-10-05 리뷰 D4)
   - _zone_of_title 을 '가장 앞' 대신 첫 매치로 되돌리거나 접미사 허용을 빼면 → title 시험 둘
   - ZONE_CAT 을 다시 손 문자열로 두면 → test_zone_category_comes_from_the_closer
   - _published_zone_posts 의 빈 목록 처리를 빼면 → test_empty_feed_is_unreadable_not_empty
-  - _keep_existing_thumb 를 늘 False 로 → test_custom_thumbnail_is_kept_on_rerun
+  - _keep_existing_thumb 를 늘 False 로, 또는 '--force' 로도 다시 만들게 되돌리면 → test_custom_thumbnail_is_kept_on_rerun
+    (초안 덮기 --force 와 썸네일 --force-thumb 는 따로다 — 2026-10-05 리뷰 D1)
   - close_published_issues.match 의 예정일 조건·카테고리 조건을 빼면 → match 시험 둘
   - note_record 가 view 실패에도 --body 를 넘기면 → test_body_is_not_overwritten_when_view_fails
   - 닫기 실패 뒤 제목 복원을 빼면 → test_title_is_restored_when_close_fails
@@ -36,7 +38,8 @@ def test_old_peak_is_not_called_all_time_high():
 def test_recent_peak_is_all_time_high():
     vals = list(range(100, 130))
     assert '역대 최고가' in P.thumb_message('전북', (vals, len(vals) - 1, 0.0))[0]
-    assert '역대 최고가' in P.thumb_message('전북', (vals, len(vals) - 2, -0.5))[0]
+    assert '역대 최고가' in P.thumb_message('전북', (vals, len(vals) - 2, -0.04))[0], '표시 자릿수로 0 이면 고점이다'
+    assert P.thumb_message('전북', (vals, len(vals) - 2, -0.5))[0] == '전북, 고점에서 -0.5%'
 
 
 # ── 제목에서 지역 읽기 ───────────────────────────────────────────────────
@@ -73,7 +76,8 @@ def test_custom_thumbnail_is_kept_on_rerun(tmp_path):
     open(path, 'wb').write(b'x')
     assert P._keep_existing_thumb(path, None, argv=['x'])
     assert not P._keep_existing_thumb(path, ['a', '*b*'], argv=['x']), '문구를 주면 새로 만든다'
-    assert not P._keep_existing_thumb(path, None, argv=['x', '--force'])
+    assert P._keep_existing_thumb(path, None, argv=['x', '--force']), '초안 --force 가 맞춤 썸네일을 덮는다'
+    assert not P._keep_existing_thumb(path, None, argv=['x', '--force-thumb'])
     assert not P._keep_existing_thumb(str(tmp_path / 'none.png'), None, argv=['x'])
 
 

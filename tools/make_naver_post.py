@@ -12,6 +12,18 @@
   python tools/make_naver_post.py      # drafts/naver-<주차>.html 생성
   브라우저로 열고 → [복사] 버튼 → 스마트에디터에 붙여넣기 → 이미지 끌어놓기 → 발행
 
+깃발:
+  --week N          N주 전 회차의 시세 글만 만든다(지역 편 없음, 0=최신)
+  --thumb-msg "첫 줄|*둘째 줄*"
+                    지역 편 썸네일 문구를 정해 drafts/thumb-<지역>.png 를 새로 만든다(*…* 줄은 강조색)
+  --force           손본 초안(naver-<주차>.html)도 덮는다. 썸네일은 건드리지 않는다
+  --force-thumb     문구 없이도 썸네일을 기본 문구로 다시 만든다(--thumb-msg 로 만든 맞춤 썸네일이 덮인다).
+                    2026-10-05 전까지는 --force 하나가 초안·썸네일을 같이 덮었다 — 지금은 둘을 따로 준다
+  --open            만든 초안을 브라우저로 연다
+  --no-shortcut     바탕화면 바로가기를 만들지 않는다(윈도우에서만 만든다)
+  -h, --help        이 설명을 찍는다
+손본 초안은 덮지 않고 .new.html(그것도 손댔으면 .new2.html …)에 새 초안을 쓴다 — 판별은 draft_edited.
+
 drafts/ 는 .gitignore 대상이다(사이트에 공개될 초안이 아니라 로컬 작업물).
 
 ⚠️ 이 생성기는 **사이트와 같은 말을 해야 한다.** 블로그가 사이트에 없는 산식을
@@ -20,7 +32,7 @@ drafts/ 는 .gitignore 대상이다(사이트에 공개될 초안이 아니라 �
 2026-08-06 시도 재편(생활권 44곳 → 시도 20곳, 인허가 4년 → 착공 3년)으로 한 번
 전면 재작성했다. 다음에 모델이 바뀌면 '설명 구조'가 그대로인지부터 확인할 것.
 """
-import io, os, re, sys, json, base64, datetime, subprocess
+import io, os, re, sys, json, base64, datetime, hashlib, subprocess
 from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -51,6 +63,56 @@ def write_draft(path, html):
     with io.open(tmp, 'w', encoding='utf-8', newline='\n') as f:
         f.write(html)
     os.replace(tmp, path)
+
+
+# ---------------------------------------------------------- 손본 초안 지키기
+# drafts/ 는 gitignore 라 덮어쓰면 되돌릴 데가 없다(2026-08-14 주간 초안, 2026-09-18 이론 3편). 그래서 생성기가 쓴
+# 초안 끝에 본문의 지문(sha256)을 남긴다. 다음에 돌릴 때 지문이 맞으면 생성기가 쓴 그대로이니 덮고, 어긋나면 사람이
+# 고친 것이니 덮지 않는다. 지문이 없는 옛 초안은 자리 표시자로 판별한다(draft_edited).
+DRAFT_STAMP = '<!--agongmap-draft sha256=%s-->'
+_STAMP_RX = re.compile(r'\n?<!--agongmap-draft sha256=([0-9a-f]{64})-->\s*\Z')
+
+
+def stamp_draft(html):
+    """render 결과 끝에 지문을 붙인다. write_draft 에 넘기기 직전에 부른다."""
+    return html + '\n' + DRAFT_STAMP % hashlib.sha256(html.encode('utf-8')).hexdigest() + '\n'
+
+
+def draft_edited(old, fresh, placeholders=(), strict=False):
+    """기존 초안 old 를 사람이 손댔나. fresh 는 지금 새로 만든 초안(지문을 붙이기 전 render 결과).
+
+    - old 가 fresh 와 같으면 손대지 않았다.
+    - 지문이 있으면 지문으로만 판별한다: 맞으면 생성기가 쓴 그대로, 어긋나면 손댔다(자리 표시자를 남긴 채 제목이나
+      다른 문단만 고친 것도 잡는다).
+    - 지문이 없으면(지문 이전에 만든 초안) fresh 에 있는 자리 표시자가 **하나라도** old 에 없으면 손댔다. 예전엔 주간 해석
+      자리(INTERP)만 봐서, 지역 편 전망(OUTLOOK)만 채운 초안이 덮였다(2026-10-05 리뷰 D1). strict 면 본문이 fresh 와
+      다르기만 해도(공백 차이는 빼고) 손댄 것으로 본다 — 이론 1~4편처럼 자리 표시자가 없는 초안(리뷰 D2).
+    """
+    m = _STAMP_RX.search(old)
+    if m:
+        body = old[:m.start()]
+        return hashlib.sha256(body.encode('utf-8')).hexdigest() != m.group(1)
+    norm = lambda t: re.sub(r'\s+', '', t)
+    if norm(old) == norm(fresh):
+        return False
+    if any(ph[:20] in fresh and ph[:20] not in old for ph in placeholders):
+        return True
+    return bool(strict)
+
+
+SIDE_MAX = 9
+
+
+def side_path(path, fresh, placeholders=(), strict=False):
+    """손본 초안 옆에 새 초안을 쓸 자리: .new.html, 그것도 손댔으면 .new2.html … 손대지 않았거나 없는 첫 자리.
+    SIDE_MAX 자리가 모두 손본 초안이면 None — 호출하는 쪽이 멈춘다(어느 것도 덮지 않는다)."""
+    for i in range(1, SIDE_MAX + 1):
+        alt = path[:-5] + ('.new.html' if i == 1 else '.new%d.html' % i)
+        if not os.path.exists(alt):
+            return alt
+        if not draft_edited(io.open(alt, encoding='utf-8').read(), fresh, placeholders, strict):
+            return alt
+    return None
 
 
 # 바탕화면 바로가기(2026-09-27 대표 요청: "발행할 문서 html은 앞으로 바탕화면에 바로가기 아이콘").
@@ -456,6 +518,10 @@ INTERP_PLACEHOLDER = (
     '왜 그런지, 무엇을 시사하는지 쓸 것. 예: 특정 지역만 튀는 이유, 매매-전세 '
     '방향이 갈리는 곳, 몇 주째 이어지는 흐름.]')
 
+# 사람이 채우는 자리 전부. 손본 초안 판별(draft_edited)이 이 가운데 새 초안에 있는 것을 하나라도 잃은 기존 초안을
+# '손댔다'로 본다 — 자리를 새로 만들면 여기에 넣는다.
+DRAFT_PLACEHOLDERS = (INTERP_PLACEHOLDER, OUTLOOK_PLACEHOLDER)
+
 # ⑤ 더 보기 — 4주에 걸쳐 사이트의 다른 코너를 하나씩 소개한다.
 MORE_ROTATION = [
     dict(h='이번 주 시세를 지도로 보려면',
@@ -842,8 +908,11 @@ def series_links(nm, seq, total=None):
     글을 못 쓰게 되면 본말전도다 — 링크만 빠지고 나머지는 그대로 나간다.
 
     ⚠️ 지금 쓰는 지역이 이미 발행돼 있으면(초안을 발행 뒤에 다시 만들 때)
-    자기 자신을 걸게 된다. 제목에 지역명이 있으면 건너뛴다.
+    자기 자신을 걸게 된다. 제목이 이 지역 편이면(_zone_of_title — 발행 순회와 같은 판별) 건너뛴다. 예전엔
+    `nm in 제목`이라 검색 표기로 쓴 제목('광주·전남 아파트')은 전남광주 편인데도 못 걸렀고, 다른 지역 편 제목에
+    이 지역 이름이 곁들여 나오면('부산 …, 서울 아파트와 반대로') 그 글을 잘못 건너뛰었다.
     """
+    zone_names = [z for z in SZ.ORDER if z not in SZ.AGG]
     try:
         import close_published_issues as CP
         posts = CP.fetch_posts()
@@ -861,7 +930,7 @@ def series_links(nm, seq, total=None):
         for p in sorted(posts, key=lambda x: x['date'], reverse=True):
             if p['cat'] != cat or not p['url']:
                 continue
-            if skip_self and nm in p['title']:
+            if skip_self and _zone_of_title(p['title'], zone_names) == nm:
                 continue
             if CP.is_city_post(p['title']):      # 같은 카테고리의 도시 입주물량 편은 '같은 기준'의 글이 아니다
                 continue
@@ -968,6 +1037,10 @@ def _thumb_curve(sts, nm, since='2016.01'):
     그 지역의 단절 폭이 작아도(대구 +4%) 옛 기준·새 기준이 섞인 것은 같다.
     2026-09-28 데이터는 2026.01 부터 새 기준(2026.06=100)이 옛 기준(2017.11=100) 끝에 붙어, 역대 최고가인 서울에
     '고점에서 -47%'와 절벽 곡선이 찍혔다. None 이면 문구는 기본값('<지역> 아파트')으로, 곡선은 빼고 그린다.
+
+    ⚠️ 곡선은 `since`(2016.01)부터 그리지만 **고점은 계열 전체에서** 찾는다. 예전엔 그린 구간 안에서만 찾아 경북
+    (실제 고점 2015.08)에 '고점에서 -12%'가 찍혔다 — 계열 전체 고점 대비로는 -15%다(2026-10-05 리뷰 D4). 고점이 그린
+    구간 앞에 있으면 고점 위치는 None 이다.
     """
     st = (sts or {}).get('매매지수') or {}
     br = RC.index_breaks(sts or {}, ('매매지수',))
@@ -976,12 +1049,13 @@ def _thumb_curve(sts, nm, since='2016.01'):
               'git pull 하고 다시 돌리면 곡선이 돌아온다.' % RC.break_message(br))
         return None
     ds = [x.split()[0] for x in st.get('dates', [])]    # '2026.07 p)' 같은 잠정 표시를 뗀다
-    pts = [(d, v) for d, v in zip(ds, (st.get('series') or {}).get(nm, []))
-           if v is not None and d >= since]
+    full = [(d, v) for d, v in zip(ds, (st.get('series') or {}).get(nm, [])) if v is not None]
+    pts = [(d, v) for d, v in full if d >= since]
     if len(pts) < 24:
         return None
-    ip = max(range(len(pts)), key=lambda i: pts[i][1])
-    return pts, ip, (pts[-1][1] / pts[ip][1] - 1) * 100
+    peak = max(full, key=lambda x: x[1])
+    ip = next((i for i, x in enumerate(pts) if x == peak), None)
+    return pts, ip, (full[-1][1] / peak[1] - 1) * 100
 
 
 # 기본 문구의 둘째 줄(질문). 시안 여섯 장 중 다섯이 "바닥은 지났을까"였다(2026-09-17
@@ -992,6 +1066,16 @@ THUMB_ASK_FALL = ('바닥은 지났을까', '지금 사도 될까', '다시 오�
 THUMB_ASK_PEAK = ('여기서 더 오를까', '지금 사면 늦은 걸까', '언제까지 오를까')
 
 
+def thumb_pct(chg):
+    """고점 대비 변화(%)의 썸네일 표시. 1% 이상은 정수('-15%'), 그 아래는 소수 한 자리('-0.4%').
+    표시가 0 이면(고점과 같다) None — 그때만 '역대 최고가'라고 쓴다(thumb_message)."""
+    a = abs(chg)
+    txt = ('%.0f' % a) if a >= 0.95 else ('%.1f' % a)
+    if float(txt) == 0:
+        return None
+    return '-%s%%' % txt
+
+
 def thumb_message(nm, curve):
     """가운데 큰 글자의 기본값. `*...*`로 감싼 줄은 강조색으로 찍힌다.
 
@@ -1000,14 +1084,16 @@ def thumb_message(nm, curve):
     """
     order = list(SZ.DISPLAY_ORDER)
     k = order.index(nm) if nm in order else 0
-    # '역대 최고가'는 고점이 **지금(최근 3점 안)** 일 때만 사실이다. 예전엔 하락 폭이 3% 미만이면 고점이
-    # 2년 전이어도 그렇게 찍었다(리뷰 09-18 19번). 고점이 오래됐으면 폭이 작아도 '고점에서 −N%' 로 적는다.
+    # '역대 최고가'는 지금 값이 계열 전체 고점과 **같을 때만**(표시 자릿수로 0) 사실이다. 예전엔 고점이 최근 3점 안이고
+    # 하락이 3% 미만이면 그렇게 찍어, 고점 두 달 뒤 -2.9% 인 곳도 '지금이 역대 최고가'였다(2026-10-05 리뷰 D4; 그 앞의
+    # 리뷰 09-18 19번은 2년 전 고점을 그렇게 부른 것). 하락 폭은 실제 값을 적는다 — 예전 `min(값, -1)` 은 -0.4% 를 '-1%'로
+    # 부풀렸다.
     if curve:
-        recent = curve[1] >= len(curve[0]) - 3
-        if recent and curve[2] > -3:
+        pct = thumb_pct(curve[2])
+        if pct is None:
             return ['%s, 지금이 역대 최고가' % nm,
                     '*%s*' % THUMB_ASK_PEAK[k % len(THUMB_ASK_PEAK)]]
-        return ['%s, 고점에서 %.0f%%' % (nm, min(curve[2], -1)),
+        return ['%s, 고점에서 %s' % (nm, pct),
                 '*%s*' % THUMB_ASK_FALL[k % len(THUMB_ASK_FALL)]]
     return ['%s 아파트' % nm, '*앞으로 3년 공급은*']
 
@@ -1112,7 +1198,7 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
     os.makedirs(OUT, exist_ok=True)
     path = os.path.join(OUT, 'thumb-%s.png' % nm)
     if _keep_existing_thumb(path, msg):
-        print('  ⚠ %s 는 이미 있어 그대로 뒀다(--thumb-msg 로 만든 것일 수 있다). 다시 만들려면 --force.'
+        print('  ⚠ %s 는 이미 있어 그대로 뒀다(--thumb-msg 로 만든 것일 수 있다). 다시 만들려면 --force-thumb.'
               % os.path.basename(path))
         return os.path.relpath(path, ROOT)
     img.resize((Wd, Ht), Image.LANCZOS).save(path)
@@ -1123,10 +1209,13 @@ def _keep_existing_thumb(path, msg, argv=None):
     """문구 없이 다시 돌릴 때 기존 썸네일을 보존한다.
 
     발행 전까지 같은 지역이 계속 뽑히므로 금요일 주간 글 때문에 돌릴 때마다 --thumb-msg 로 만든
-    맞춤 썸네일이 기본 문구로 덮였다(리뷰 09-18 19번). 문구를 줬거나 --force 면 새로 만든다.
+    맞춤 썸네일이 기본 문구로 덮였다(리뷰 09-18 19번). 문구를 줬거나 --force-thumb 면 새로 만든다.
+
+    ⚠️ --force(초안 덮기)는 썸네일을 건드리지 않는다. 예전엔 한 깃발이 둘을 같이 했다 — 초안을 덮으려고 --force 를
+    주면 --thumb-msg 로 만든 맞춤 썸네일까지 기본 문구로 덮였다(2026-10-05 리뷰 D1).
     """
     argv = sys.argv if argv is None else argv
-    return msg is None and '--force' not in argv and os.path.exists(path)
+    return msg is None and '--force-thumb' not in argv and os.path.exists(path)
 
 
 def _thumb_msg_arg(argv):
@@ -2057,6 +2146,9 @@ def _cut_weekly(adv, back):
 
 
 def main():
+    if '-h' in sys.argv or '--help' in sys.argv:
+        print(__doc__)
+        return 0
     adv, sts = M.load()
     # 점수는 배치가 구워 ADV.sido에 실어 둔 것을 그대로 읽는다 — 사이트 화면과
     # 같은 값을 써야 하므로 여기서 다시 계산하지 않는다.
@@ -2090,21 +2182,26 @@ def main():
 
     # 손댄 초안은 덮지 않는다. drafts/는 gitignore라 덮어쓰면 되돌릴 데가 없다
     # (2026-08-14에 실제로 날렸다 — 트랜스크립트에서 겨우 건졌다).
-    # 판별은 해석 자리 표시자의 유무로 한다. 그게 사라졌다면 사람이 채운 것이다.
+    # 판별은 draft_edited — 지문이 어긋나거나, 지문 없는 옛 초안에서 자리 표시자(주간 해석·지역 전망) 가운데 하나라도
+    # 사라졌으면 사람이 손댄 것이다. 비켜 쓸 .new.html 도 손댔으면 그다음 자리(.new2.html …)에 쓴다(리뷰 D1).
     if os.path.exists(path) and '--force' not in sys.argv:
         old = io.open(path, encoding='utf-8').read()
-        if INTERP_PLACEHOLDER[:20] not in old:
-            alt = path[:-5] + '.new.html'
-            write_draft(alt, html)
+        if draft_edited(old, html, DRAFT_PLACEHOLDERS):
+            alt = side_path(path, html, DRAFT_PLACEHOLDERS)
+            if alt is None:
+                raise SystemExit('⚠ %s 와 비켜 쓸 자리 %d개(.new.html~.new%d.html)가 모두 손본 초안이다 — 아무것도 덮지 '
+                                 '않았다. 필요 없는 것을 지우거나 --force 로 덮을 것.'
+                                 % (os.path.basename(path), SIDE_MAX, SIDE_MAX))
+            write_draft(alt, stamp_draft(html))
             desktop_shortcut(path, SHORTCUTS['naver'])   # 발행할 것은 손본 쪽이다
             print('⚠ %s 는 이미 손댄 흔적이 있어 그대로 뒀다.' % os.path.basename(path))
             print('  새 초안은 %s 에 썼다. 비교 후 필요한 것만 옮길 것.'
                   % os.path.relpath(alt, ROOT))
-            print('  덮어쓰려면 --force.')
+            print('  덮어쓰려면 --force(썸네일은 따로 --force-thumb).')
             # 순회는 소비하지 않는다 — 이 지역 글은 아직 안 나갔다.
             return 0
 
-    write_draft(path, html)
+    write_draft(path, stamp_draft(html))
     if desktop_shortcut(path, SHORTCUTS['naver']):
         print('  바탕화면 바로가기: %s' % SHORTCUTS['naver'])
     commit_rotation()          # 발행이 확인된 지역 편만 캐시에 적는다(지금 고른 지역은 안 적는다)
