@@ -1166,6 +1166,7 @@ table.adv thead th:first-child{text-align:center}
   .home-sec p.map-src{margin:12px auto 0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted)}
   .map-src span{display:block}
   .map-src #map-span{color:var(--ink2);font-weight:600}
+  #sec-score.mm-price .map-src{display:none}   /* 공급 출처 줄 — 시세 모드(주간·월간)에서는 그 지도의 출처가 아니다(mapMode) */
   .home-sec p.tb-sub{margin:4px auto 0;font-size:14px;line-height:1.5}
   .tb-sub a{display:inline-block;padding:9px 6px;color:var(--ink);font-weight:600;text-underline-offset:3px}
   /* 설치 안내(C10①) — 하단 탭바(62px) 바로 위에 뜨는 한 번짜리 알림. 본문 흐름에 끼우면 읽던 자리가 밀린다(CLS). */

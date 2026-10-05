@@ -1037,7 +1037,7 @@ var TB_REFNOTE={
 /* 라벨 사다리 한 칸 올림(2026-08-15 PM 결정). 컷(GRADE_CUTS)은 그대로 —
    등급 키는 파이썬이 계산해 데이터에 굽고 여기선 이름만 붙인다. */
 var TB_GRADE={g4:'심각한 부족',g3:'매우 부족',g2:'부족',g1:'균형',g0:'공급 여유'};
-function tbView(v){
+function tbView(v,quiet){
   /* 시세 모드(주간·월간)의 그래프·표는 새로 그리지 않고 시세 탭의 그 화면을 연다(전국, 2026-10-04 대표 요청) */
   if(v!=='map'&&MAP_MODE!=='supply'){
     var k=MAP_MODE==='monthly'?'month':'week';
@@ -1062,7 +1062,8 @@ function tbView(v){
   }
   if(v==='graph') renderSidoGraph();
   if(v==='map') renderSidoMap();
-  track('supply_view',{view:v});
+  /* quiet: 모드 단추가 지도로 돌릴 때(mapMode) — 사람이 보기를 바꾼 게 아니라 map_mode 하나만 잰다(2026-10-05 리뷰) */
+  if(!quiet) track('supply_view',{view:v});
 }
 function tbSigned(v){ return (v>0?'\u2212':v<0?'+':'')+tbNum(Math.abs(v)); }
 /* 지도 채움색 — 표의 미래 칸과 같은 규칙(적정 대비, 100%p 만색, TB_MIN 바닥)을
@@ -1114,7 +1115,7 @@ function aggCard(n,z,i){
     +'</div>';
 }
 /* ── 지도 모드: 공급 현황 / 주간 시세 / 월간 시세(홈 마케팅 검수 C3·IA-1 안 B, 2026-09-27 → 2026-10-04 월간·10-05 이름) ──────────────────────────────────────
-   한 지도에 두 주기를 싣는다. 기본은 공급(분기 판정) — 첫 화면의 주인은 공급 지도다(IA-1). 같은 빨강·파랑이 모드마다
+   한 지도에 세 주기(분기 공급·주간·월간 시세)를 싣는다. 기본은 공급(분기 판정) — 첫 화면의 주인은 공급 지도다(IA-1). 같은 빨강·파랑이 모드마다
    다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이 되므로 모드마다 범례의 끝말·가운데 칸, 뜻 한 줄(제목과 단위), 지도 이름
    (aria-label)을 바꾸고(mapKeyHtml), 주간 모드는 발표일을 지도 바로 위 줄(wkWhenText)과 범례(wkPubLead)에 박는다.
    발표일·지연 문구는 통계 탭 발표 줄과 같은 weeklyRelease/wkWhenText/wkPubLead 다 — 여기서 날짜를 다시
@@ -1122,8 +1123,8 @@ function aggCard(n,z,i){
    지도·히어로 배경과 같은 mapColor(v, WK_MAP_REF)를 지면색 위에 불투명하게 합성한다(도형이 겹쳐 그려져 반투명이면 경기
    위 서울·인천만 진해진다 — mapFill 과 같은 까닭). 0.00 은 mapColor 가 보합 회색으로 칠한다 — 공급 모드의 '균형' 중립색
    (--bal, C4②)은 주간 모드에 쓰지 않는다(균형은 판정 등급이지 가격이 아니다).
-   지역을 누르면 두 모드 모두 시도 공급 리포트(/zone/<시도>/)가 열린다 — 탭 표적(A8 다각형)·링크·라벨은 모드와 무관하게
-   같다. 시군구 시세는 주간 카드(→ /weekly/)와 아래 주간 구역이 맡는다.
+   지역을 누르면 공급 모드는 시도 공급 리포트(/zone/<시도>/), 시세 모드는 그 시도 시세 그래프(#stats-market-<주기>~코드,
+   2026-10-04)가 열린다 — 탭 표적(A8 다각형)·라벨 자리는 모드와 무관하게 같다. 시군구 시세는 아래 주간 구역이 맡는다.
    판정 카드 셋·ⓘ 식은 공급 판정의 글이라 주간 모드에서는 같은 자리를 주간 카드 셋(전국·수도권·지방 변동률)과
    발표 줄로 바꾼다 — 공급 카드를 남기면 '부족' 배지 아래 가격 색 지도가 붙어 두 뜻이 섞여 읽힌다. 카드는 같은 틀(.agg-c)
    이다. 주간 모드에만 있는 두 줄(카드 아래 발표 줄, 범례 뜻 한 줄)만큼 전환하면 지도가 내려간다 — 2026-09-28 공급 모드의 분포
@@ -1165,13 +1166,14 @@ function moMapModel(W){
   return {v:v,when:y+'년 '+m+'월 기준 · 한국부동산원 월간',lead:lead,stale:false,
     k:'month',ref:MO_MAP_REF,unit:'전월 대비',adj:'월간',href:'/monthly/',to:'monthly_map_card'};
 }
-/* 지금 모드의 시세 재료 — 공급 모드면 null. */
+/* 지금 모드의 시세 재료 — 공급 모드면 null. data-core 가 안 왔으면(ADV 없음) 시세 모드도 없다(2026-10-05 리뷰). */
 function priceModel(mode){
+  if(typeof ADV==='undefined') return null;
   if(mode==='weekly') return wkMapModel(ADV.weekly,weeklyReleaseNow());
   if(mode==='monthly') return moMapModel(ADV.monthly);
   return null;
 }
-/* 범례 한 덩어리 — M 이 없으면 공급, 있으면 주간. 끝말·가운데 칸을 모드마다 바꾸고, 주간은 뜻 한 줄(제목과 단위)을 단다.
+/* 범례 한 덩어리 — M 이 없으면 공급, 있으면 그 시세(주간·월간). 끝말·가운데 칸을 모드마다 바꾸고, 주간은 뜻 한 줄(제목과 단위)을 단다.
    공급 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 … · 2026년 2분기 기준')은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리.
    식은 카드 ⓘ·산출 방법에, 3년 구간은 지도 아래 '앞으로 3년(…~…)' 줄에 있다).
    주간 램프의 양끝·가운데 색은 지도 채움과 같은 wkFill 에서 뽑는다(범례와 지도가 다른 색을 말하지 않게). */
@@ -1201,11 +1203,14 @@ function wkAggCard(n,v,M){
     +'<span class="agg-l2"><i class="agg-n">'+wkPct(v)+'<span class="agg-go" aria-hidden="true"> →</span></i>'
     +'<i class="agg-p">매매 '+M.unit+'</i></span></a></div>';
 }
-/* 모드 전환 — 버튼 상태(aria-pressed)를 맞추고 지도를 다시 그린다. 값 이름은 snake_case(supply·weekly), 측정은 map_mode. */
+/* 시세 모드를 켤 수 있나 — 시세 재료가 있고 지도 좌표(sido-geo.js)가 왔을 때만. 시세 모드는 지도 전용이라(그래프·표는 시세 탭)
+   좌표가 없으면 지도 폴백(표)과 시세 갈래가 서로 부르며 시세 탭으로 튄다(2026-10-05 리뷰) — 그때는 단추를 잠근다. */
+function priceOk(m){ return typeof SIDO_GEO!=='undefined'&&!!priceModel(m); }
+/* 모드 전환 — 버튼 상태(aria-pressed)를 맞추고 지도를 다시 그린다. 값 이름은 snake_case(supply·weekly·monthly), 측정은 map_mode. */
 function mapMode(m){
   if(m!=='weekly'&&m!=='monthly') m='supply';
   if(MAP_MODE===m) return;
-  if(m!=='supply'&&!priceModel(m)) return;
+  if(m!=='supply'&&!priceOk(m)) return;
   MAP_MODE=m;
   var seg=document.getElementById('map-mode');
   if(seg) [].forEach.call(seg.querySelectorAll('button'),function(b){
@@ -1215,8 +1220,11 @@ function mapMode(m){
   });
   var el=document.getElementById('map-wrap');
   if(el) el.dataset.done='';
+  /* 지도 아래 공급 출처 줄('앞으로 3년 공급 · 국토교통부 …')은 시세 지도의 출처가 아니다 — 시세 모드에서는 숨긴다(app.css .mm-price, 2026-10-05 리뷰) */
+  var sec=document.getElementById('sec-score');
+  if(sec) sec.classList.toggle('mm-price',m!=='supply');
   /* 시세 모드의 그래프·표는 시세 탭이 맡는다(tbView) — 공급 그래프·표를 보던 중이면 지도로 돌린다 */
-  if(m!=='supply'&&TB_VIEW!=='map') tbView('map');
+  if(m!=='supply'&&TB_VIEW!=='map') tbView('map',true);
   renderAggCards();
   renderSidoMap();
   track('map_mode',{mode:m});
@@ -1230,7 +1238,7 @@ function renderAggCards(){
   var Z={}; ADV.sido.zones.forEach(function(z){ Z[z.z]=z; });
   ['weekly','monthly'].forEach(function(m){
     var b=document.querySelector('#map-mode [data-m="'+m+'"]');
-    if(b&&!priceModel(m)){ b.disabled=true; b.title=(m==='weekly'?'주간':'월간')+' 시세 데이터를 불러오지 못했습니다'; }
+    if(b&&!priceOk(m)){ b.disabled=true; b.title=(m==='weekly'?'주간':'월간')+' 시세 데이터를 불러오지 못했습니다'; }
   });
   var M=priceModel(MAP_MODE);
   var h='<div class="map-agg">', how='';
@@ -1268,7 +1276,7 @@ function renderSidoMap(){
     /* 지도는 기본 모드다 — sido-geo.js가 안 오면(404·차단) 조용히 빠지면
        홈 첫 화면이 빈 상자가 된다(2026-08-08 감사 세션 지적). 표로 폴백하고
        지도 버튼은 잠근다. 그래프·표는 이 파일 없이도 온전하다. */
-    if(TB_VIEW==='map') tbView('table');
+    if(TB_VIEW==='map'&&MAP_MODE==='supply') tbView('table');   // 시세 모드는 priceOk 가 막아 여기 오지 않는다
     var mb=document.querySelector('#tb-view [data-v="map"]');
     if(mb){ mb.disabled=true; mb.title='지도 데이터를 불러오지 못했습니다'; }
     return;
