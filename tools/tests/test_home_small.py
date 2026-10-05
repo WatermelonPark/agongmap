@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""홈 작은 장치 — 내 지역(C5)·이달의 통계 입구(B6)·출처·구간(B9 — 운영 주체 줄은 2026-09-28 에 뺐다, 제보 메일은 푸터)·측정(B10)·설치 안내(C10①). 2026-09-27 홈 마케팅 검수 3차.
+"""홈 작은 장치 — 내 지역(C5 — 2026-10-05 에 뺐다, 옛 저장값 지우기만 남는다)·이달의 통계 입구(B6)·출처·구간(B9 — 운영 주체 줄은 2026-09-28 에 뺐다, 제보 메일은 푸터)·측정(B10)·설치 안내(C10①). 2026-09-27 홈 마케팅 검수 3차.
 
 재현하는 실제 상태
   - 재방문 장치(내 지역 저장 08-06)가 걷힌 뒤 대체가 없었다. 방문자는 매번 시도 격자에서 자기 지역을 찾았다(RET-6).
@@ -69,7 +69,7 @@ function run(o) {
       rect: {top: 0, bottom: 0}, appendChild(c) { this.opts.push(c.value); },
       getBoundingClientRect() { return this.rect; }, addEventListener() {}};
   }
-  ['myz', 'myz-n', 'myz-a', 'myz-v', 'myz-pick', 'myz-sel', 'myz-msg', 'map-span', 'home-weekly-grid', 'wk-h2'].forEach(el);
+  ['map-span', 'home-weekly-grid', 'wk-h2'].forEach(el);
   const bad = () => { throw new Error('SecurityError: storage is disabled'); };
   const store = o.storage === 'throw' ? {getItem: bad, setItem: bad, removeItem: bad}
     : {getItem: (k) => Object.prototype.hasOwnProperty.call(data, k) ? data[k] : null,
@@ -125,121 +125,34 @@ def _run(*cases):
     return json.loads(p.stdout.decode('utf-8'))
 
 
-def _sido():
-    """합성 판정 — 모양은 ADV.sido(sido_zones.calc → refresh_texts)와 같다. 문구는 정본 함수(zone_texts)로 굽는다."""
-    def z(name, grade, tot, ratio, agg=False):
-        row = {'z': name, 'agg': agg, 'grade': grade, 'tot': tot, 'dtot': tot, 'ratio': ratio, 'ref': 10000, 'fut': 60000}
-        row['inow'] = row['ref'] * SZ.LEAD_Q - row['fut'] - tot    # 필요량 − 입주 추정 − 지난 재고 = 순부족(검산되게)
-        row.update(SZ.zone_texts(row, SZ.LEAD_Q))
-        return row
-    zones = [z('전국', 'g2', 686396, 0.6, True), z('수도권', 'g2', 349029, 0.58, True), z('지방', 'g2', 337367, 0.62, True),
-             z('서울', 'g3', 311689, 1.389), z('인천', 'g0', -12000, -0.2), z('전남광주', 'g4', 98765, 2.1)]
-    return {'L': '2026Q2', 'H': SZ.LEAD_Q, 'zones': zones}
+# ── C5 내 지역(2026-10-05 대표 요청으로 뺐다) ─────────────────────────────────────────────────────────────
 
+def test_old_my_zone_value_is_dropped_and_the_feature_is_gone():
+    """'내 지역'(C5)은 첫 화면 위쪽을 너무 차지해 2026-10-05 대표 요청으로 뺐다. 고정해 둔 기기에 남은 옛 저장값
+    ('agongmap-myzone')은 부팅이 지우고(dropOldMyZone — 쓰지 않는 값을 브라우저에 남기지 않는다), 다른 저장값(방문 기록)은
+    건드리지 않는다. 사생활 모드처럼 저장소가 던져도 부팅이 멈추지 않는다. 홈에는 고르기·고정 해제·myzone 이벤트가 없다.
 
-def _weekly():
-    regs = list(SZ.DISPLAY_ORDER)
-    ma = [0.01] * len(regs)
-    ma[regs.index('서울')] = 0.1342
-    ma[regs.index('전남광주')] = -0.0012     # 반올림하면 0.00 — 부호가 붙으면 안 된다(격자와 같은 pv2)
-    return {'regions': regs, 'rows': [{'p': '2026-09-14', 'ma': [0.0] * len(regs)}, {'p': '2026-09-21', 'ma': ma}]}
-
-
-def _data_js():
-    return 'var ADV={sido:%s,weekly:%s};' % (json.dumps(_sido(), ensure_ascii=False), json.dumps(_weekly(), ensure_ascii=False))
-
-
-# ── C5 내 지역 ────────────────────────────────────────────────────────────────────────────────
-
-def test_my_zone_line_shows_this_week_and_the_verdict_from_the_baked_strings():
-    """고정한 시도의 이번 주 매매 변동(최신 행, pv2 반올림)과 판정(등급 이름 + 카드와 같은 cnum·cdir)이 띠 앞 줄에 선다.
-    줄은 그 시도 리포트로 가고, 고르기 목록은 판정 단위(집계 3종 제외)다.
-
-    변이(각각 실제로 확인): myZoneOf 가 최신 행 대신 rows[0] 을 읽으면 매매 단정이, cnum 대신 ctxt 통째를 쓰면 세대수 단정이,
-          myZoneLine 이 pv2 대신 toFixed(2) 를 쓰면 전남광주 '−0.00' 단정이, initMyZonePick 이 agg 를 거르지 않으면 목록 단정이
-          빨개진다.
-    픽스처: 09-26 라이브 서울 행 모양(311,689세대 부족·139%·g3)과 반올림하면 0 인 하락(−0.0012, 08-18 부산 실측 유형).
+    변이(각각 실제로 확인): dropOldMyZone 을 빈 함수로 두면 첫 단정이, lsGet·lsSet 대신 localStorage 를 맨손으로 부르면 던지는
+          저장소 사례가(node 예외), 키를 'agong_myzone' 으로 바꾸면 첫 단정이, index.html 에 고르기 줄(myz-pick)을 되살리면
+          마지막 단정이 빨개진다.
+    픽스처: 고정해 둔 기기(서울 + 방문 기록), 고정한 적 없는 기기, 저장소가 던지는 기기.
     """
-    js = _data_js() + '''
-      renderMyZone(); OUT.seoul = [__els.myz.hidden, __els['myz-n'].textContent, __els['myz-a'].href, __els['myz-v'].innerHTML];
-      initMyZonePick(); OUT.pick = [__els['myz-pick'].hidden, __els['myz-sel'].opts, __els['myz-sel'].value];
-      localStorage.setItem(MYZ_KEY, '전남광주'); renderMyZone(); OUT.jn = __els['myz-v'].innerHTML;
-    '''
-    got = _run({'store': {'agongmap-myzone': '서울'}, 'js': js})[0]['out']
-    hidden, name, href, line = got['seoul']
-    seoul = next(z for z in _sido()['zones'] if z['z'] == '서울')
-    assert (hidden, name, href) == (False, '서울', '/zone/%EC%84%9C%EC%9A%B8/')
-    assert line == '매매 +0.13%% · <span class="sc-tier g3">%s</span> %s<span class="myz-dir"> %s</span> →' % (
-        SZ.GRADE_LABS['g3'], seoul['cnum'], seoul['cdir']), line
-    assert got['pick'] == [False, ['서울', '인천', '전남광주'], '서울'], got['pick']
-    assert got['jn'].startswith('매매 0.00% · <span class="sc-tier g4">'), got['jn']
+    js = 'dropOldMyZone(); OUT.ok = 1;'
+    pinned, fresh, thrown = _run({'store': {'agongmap-myzone': '서울', 'agongmap-visit': '{"n":3}'}, 'js': js},
+                                 {'store': {}, 'js': js}, {'storage': 'throw', 'js': js})
+    assert pinned['store'] == {'agongmap-visit': '{"n":3}'}, pinned['store']
+    assert fresh['store'] == {} and thrown['out'] == {'ok': 1}
+    h = _home()
+    assert not re.search(r'myz-pick|myZoneSet|renderMyZone|track\(\'myzone\'', h), '내 지역 고르기·고정이 남아 있다'
 
 
-def test_my_zone_ignores_unknown_names_and_survives_a_throwing_storage():
-    """없는 시도 이름(판정 단위 개편으로 사라진 '광주'), 집계 이름('전국'), 빈 값은 무시한다 — 줄을 닫는다. 판정 데이터가 실린
-    부팅이면 없는 이름의 저장값을 지운다(남겨 두면 인라인 스크립트가 방문마다 자리를 열었다 닫아 CLS — Chromium 375px 0.07 실측).
-    데이터가 안 온 부팅(옛 캐시·조각 실패)에서는 지우지 않는다.
-    저장소가 던지는 기기(사생활 모드)는 조용히 빠진다: 줄은 닫히고, 고르기 줄은 열리지 않고, 고정 시도는 예외 없이 아무 일도
-    안 하며 이벤트도 가지 않는다.
+def test_grade_names_have_one_source():
+    """홈의 등급 이름(TB_GRADE)은 sido_zones.GRADE_LABS 와 같다(공급 카드·지도 라벨이 쓴다).
 
-    변이(각각 실제로 확인): lsGet 의 try/catch 를 벗기면 던지는 저장소 사례가(node 예외), myZoneOf 의 `&&!x.agg` 를 빼면 '전국'
-          사례가, initMyZonePick 의 lsOk() 검사를 빼면 고르기 줄 단정이, myZoneSet 이 lsSet 실패를 무시하고 track 하면 이벤트 단정이
-          빨개진다. renderMyZone 의 저장값 지우기를 빼면 지우기 단정이, 데이터 확인(S.zones.length) 없이 지우면 데이터 없는 부팅
-          단정이 빨개진다.
-    픽스처: 09-10 광주·전남 통합 전에 저장했을 법한 '광주', 집계 '전국', data-core 가 안 온 부팅, 사생활 모드(모든 접근이 SecurityError).
-    """
-    base = _data_js() + 'renderMyZone(); OUT.hidden = __els.myz.hidden;'
-    cases = [{'store': {'agongmap-myzone': n}, 'js': base} for n in ('광주', '전국', '')]
-    cases.append({'store': {'agongmap-myzone': '광주'}, 'js': 'var ADV={}; renderMyZone(); OUT.hidden = __els.myz.hidden;'})
-    cases.append({'storage': 'throw', 'js': _data_js() + '''
-      __els.myz.hidden = false;            // 인라인 스크립트가 열었다고 치고(실제로는 거기서도 던져 닫혀 있다)
-      renderMyZone(); initMyZonePick(); myZoneSet('서울'); myZoneSet('');
-      OUT.hidden = __els.myz.hidden; OUT.pick = __els['myz-pick'].hidden;'''})
-    got = _run(*cases)
-    for g, n, kept in zip(got[:4], ('광주', '전국', '', '광주'), (False, False, True, True)):
-        assert g['out']['hidden'] is True, n
-        assert ('agongmap-myzone' in g['store']) is kept, (n, g['store'])
-    t = got[4]
-    assert t['out'] == {'hidden': True, 'pick': True} and t['track'] == [], t
-
-
-def test_pin_and_unpin_restore_the_myzone_event():
-    """고정·해제는 myzone{action} 이벤트로 잰다(08-14 에 죽은 이벤트로 해제했던 이름을 기능과 함께 복원 — RET-6 권고). 고른 시도
-    이름은 싣지 않는다(개인정보처리방침: 선택 지역은 브라우저에만 저장, 서버로 전송·수집하지 않음). 없는 이름으로 고정하려 하면
-    아무 일도 없다. 해제는 저장값을 지운다.
-
-    변이(각각 실제로 확인): myZoneSet 의 unpin track 을 지우면, `if(name&&!o)return` 을 지우면(없는 이름이 저장된다),
-          해제 때 removeItem 대신 빈 문자열을 저장하면(lsSet(MYZ_KEY,'')) 빨개진다.
-    픽스처: 아무것도 고정하지 않은 기기에서 서울 고정 → 없는 이름 '광주' 고정 시도 → 해제.
-    """
-    js = _data_js() + '''
-      myZoneSet('서울'); OUT.a = [__data[MYZ_KEY], __els.myz.hidden, __els['myz-msg'].textContent];
-      myZoneSet('광주'); OUT.b = __data[MYZ_KEY];
-      myZoneSet(''); OUT.c = [Object.prototype.hasOwnProperty.call(__data, MYZ_KEY), __els.myz.hidden];'''
-    g = _run({'js': js})[0]
-    assert g['out']['a'] == ['서울', False, '첫 화면 맨 위에 고정했습니다']
-    assert g['out']['b'] == '서울'
-    assert g['out']['c'] == [False, True]
-    assert [t for t in g['track'] if t[0] == 'myzone'] == [['myzone', {'action': 'pin'}], ['myzone', {'action': 'unpin'}]]
-
-
-def test_grade_names_and_storage_key_have_one_source():
-    """홈의 등급 이름(TB_GRADE)은 sido_zones.GRADE_LABS 와 같고, 첫 페인트 전에 자리를 여는 index.html 인라인 스크립트는
-    home-app.js 의 MYZ_KEY 와 같은 키를 읽는다. 그 인라인 스크립트는 '내 지역' 줄 바로 뒤, '이번 주' 띠 앞에 있다(C5 '띠 앞').
-
-    변이(각각 실제로 확인): 인라인 스크립트의 키를 'agong_myzone' 으로 바꾸면, TB_GRADE 의 g2 를 '다소 부족'으로 바꾸면,
-          '내 지역' 줄을 띠 뒤로 옮기면 빨개진다.
+    변이(실제로 확인): TB_GRADE 의 g2 를 '다소 부족'으로 바꾸면 빨개진다.
     """
     assert json.loads(_tb_grade().replace("'", '"').replace('g4:', '"g4":').replace('g3:', '"g3":')
                       .replace('g2:', '"g2":').replace('g1:', '"g1":').replace('g0:', '"g0":')) == SZ.GRADE_LABS
-    key = re.search(r"^const MYZ_KEY='([^']+)';", _home(), re.M)
-    assert key, 'MYZ_KEY 가 없다'
-    hero = re.search(r'<header class="home-hero">(.*?)</header>', _home(), re.S).group(1)
-    m = re.search(r'<div class="myz" id="myz" hidden>.*?</div>\s*<script>(.*?)</script>', hero, re.S)
-    assert m, "히어로에 '내 지역' 줄과 바로 뒤의 인라인 스크립트가 없다"
-    assert "localStorage.getItem('%s')" % key.group(1) in m.group(1), m.group(1)
-    assert hero.index('<p class="hero-sub">') < m.start() < hero.index('<a class="hero-wk"')
-    assert "onclick=\"myZoneSet('')\"" in hero and 'track(\'home_cta\',{to:\'my_zone\'})' in hero
 
 
 # ── B9 출처·구간·운영 주체 ─────────────────────────────────────────────────────────────────────────
@@ -296,7 +209,7 @@ def test_source_line_sits_under_the_map_and_the_report_mail_is_in_the_footer():
     more, sub = sec.index('<p class="tb-more">'), sec.index('<p class="tb-sub"><a href="/monthly/"')
     assert more < sub < how and sec[more:sub].count('<p') == 1
     boot = _js_func(h, 'boot')
-    for f in ('renderMyZone();', 'renderSupplySpan();', 'initMyZonePick();', 'VISIT=countVisit();', 'watchSections();'):
+    for f in ('renderSupplySpan();', 'dropOldMyZone();', 'VISIT=countVisit();', 'watchSections();'):
         assert f in boot, f
 
 
@@ -510,5 +423,5 @@ def test_new_event_names_are_snake_case_and_listed():
     """
     blk = _block('home-small')
     names = sorted(set(re.findall(r"track\('([^']+)'", blk)))
-    assert names == ['home_visit', 'myzone', 'pwa_installed', 'pwa_prompt', 'section_view'], names
+    assert names == ['home_visit', 'pwa_installed', 'pwa_prompt', 'section_view'], names
     assert all(re.match(r'^[a-z][a-z0-9_]*$', n) for n in names)

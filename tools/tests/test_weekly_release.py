@@ -52,17 +52,19 @@ def _d(iso):
 # ---- 파이썬 정본: 추석 주·평상 주 ----
 
 def test_chuseok_week_hedges_instead_of_guessing_a_date():
-    """다음 발표 목요일이 휴일(9/24)이면 날짜를 단정하지 않고, 지연 판정은 한 주 늦춘 날(10/1)까지 참는다.
+    """다음 발표 목요일이 휴일(9/24)이면 날짜를 단정하지 않고(안내 문구도 없이 '… 발표'로 끝난다 — 2026-10-05 대표 요청으로
+    '연휴로 발표 일정이 바뀔 수 있습니다'를 뺐다), 지연 판정은 한 주 늦춘 날(10/1)까지 참는다.
 
     연휴 주는 원천이 조사를 거르기도 해서 기준일을 한 주(WEEK) 늦춘다(전수리뷰 #10, 대표 결정 ④ — 아래
     test_skipped_survey_week_does_not_raise_a_false_wait 가 실제 거른 주를 본다).
     변이: status 에서 hedge 의 한 주 늦춤을 빼면(due 9/28) 9/29 에 '반영 대기'가 떠 빨개진다(확인).
-          hedge 창을 목요일 하루(range(1))로 좁혀도 설 연휴(2/16~18 월~수) 주에서 빨개진다(확인).
+          hedge 창을 목요일 하루(range(1))로 좁혀도 설 연휴(2/16~18 월~수) 주에서 빨개진다(확인). next_text 의 연휴 갈래를 옛
+          안내 문구로 되돌리거나 when_text 가 빈 조각까지 ' · '로 이으면 when_text 단정이 빨개진다(확인).
     픽스처: 9/14 조사분(9/17 발표) — 09-24~26 배치가 멈췄던 바로 그 주.
     """
     st = WR.status('2026-09-14', _d('2026-09-29'), H2026)
     assert st['next'] == '2026-09-24' and st['hedge'] and st['due'] == '2026-10-01' and not st['stale']
-    assert WR.when_text(st) == '9/14 조사 · 9/17 발표 · 연휴로 발표 일정이 바뀔 수 있습니다'
+    assert WR.next_text(st) == '' and WR.when_text(st) == '9/14 조사 · 9/17 발표'
     late = WR.status('2026-09-14', _d('2026-10-02'), H2026)
     assert late['stale'] and WR.when_text(late) == '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기'
     # 설 연휴가 월~수에 걸린 주 — 목요일은 평일이어도 그 주 일정은 단정하지 않는다
@@ -288,12 +290,12 @@ def test_weekly_page_bakes_the_shared_when_line():
 
     변이: build() 가 옛 datestr('9/21 조사 · 9/24 발표')만 굽거나, 스크립트의 비교 날짜를 due 가 아닌 next 로 쓰거나,
           스크립트를 h1 앞(eyebrow 바로 뒤)에 두면 추석 주 픽스처에서 빨개진다(확인).
-    픽스처: 합성 주(9/14 조사, 2026 공휴일) — 다음 발표 9/24 가 추석이라 날짜 대신 안내 문구, 비교 날짜는 한 주
+    픽스처: 합성 주(9/14 조사, 2026 공휴일) — 다음 발표 9/24 가 추석이라 다음 발표를 적지 않는다, 비교 날짜는 한 주
             늦춘 10/1(대표 결정 ④).
     """
     W, Q = _week('2026-09-14', H2026)
     head = MW.build(W, Q)[0]
-    assert '<span id="wk-when">9/14 조사 · 9/17 발표 · 연휴로 발표 일정이 바뀔 수 있습니다</span>' in head
+    assert '<span id="wk-when">9/14 조사 · 9/17 발표</span>' in head
     assert '>"2026-10-01"){' in head and '"최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기"' in head
     # 제목의 '이번 주'도 발표일로 — 스크립트가 h1 보다 뒤에 있어야 h1 을 찾는다(TRUST-1③)
     assert '.replace("이번 주","9/17 발표 기준")' in head and head.index('<h1>') < head.index('<script>')

@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v171';
+const HOME_BUILD='v172';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -615,17 +615,19 @@ function weeklyRelease(p,now,grace){
           due:due==null?null:_iso(due),stale:due!=null&&_kst(now).day>due};
 }
 function _md(iso){const a=String(iso).split('-');return (+a[1])+'/'+(+a[2]);}
+/* 연휴 주(hedge)는 날짜를 단정하지 않되 안내 문구도 적지 않는다(빈 문자열 — 2026-10-05 대표 요청으로 '연휴로 발표 일정이
+   바뀔 수 있습니다'를 뺐다). 그래서 이어 붙이는 쪽은 빈 조각을 거른다(wkWhenText·통계 탭 rel-week). */
 function wkNextText(r){
   if(r.stale)return '이번 주 발표분 반영 대기';
-  if(r.hedge)return '연휴로 발표 일정이 바뀔 수 있습니다';
+  if(r.hedge)return '';
   return '다음 발표 '+_md(r.next)+'('+'일월화수목금토'[_wd(_dn(r.next))]+')';
 }
-/* 결론 앞 발표일 머리말 — 평상 '9/24 발표', 늦은 주 '9/17 발표 기준'(파이썬 WR.pub_lead). 첫 화면 띠와 늦은 주의
-   주간 구역 h2 가 같이 쓴다 — 지연 주에 두 곳의 머리말이 갈리지 않게(B1·MOB-1). */
+/* 결론 앞 발표일 머리말 — 평상 '9/24 발표', 늦은 주 '9/17 발표 기준'(파이썬 WR.pub_lead). 주간 구역 머리말(평상)·늦은 주의
+   h2·지도 시세 모드 범례가 같이 쓴다(B1·MOB-1). */
 function wkPubLead(r){return _md(r.pub)+' 발표'+(r.stale?' 기준':'');}
 function wkWhenText(r){
   if(r.stale)return '최근 반영: '+_md(r.pub)+' 발표 · '+wkNextText(r);
-  return _md(r.survey)+' 조사 · '+_md(r.pub)+' 발표 · '+wkNextText(r);
+  return [_md(r.survey)+' 조사',_md(r.pub)+' 발표',wkNextText(r)].filter(Boolean).join(' · ');
 }
 // </wk-release>
 function _syncHolidays(){
@@ -1115,7 +1117,7 @@ function aggCard(n,z,i){
    한 지도에 두 주기를 싣는다. 기본은 공급(분기 판정) — 첫 화면의 주인은 공급 지도다(IA-1). 같은 빨강·파랑이 모드마다
    다른 뜻(공급 부족·여유 ↔ 매매 상승·하락)이 되므로 모드마다 범례의 끝말·가운데 칸, 뜻 한 줄(제목과 단위), 지도 이름
    (aria-label)을 바꾸고(mapKeyHtml), 주간 모드는 발표일을 지도 바로 위 줄(wkWhenText)과 범례(wkPubLead)에 박는다.
-   발표일·지연·연휴 문구는 첫 화면 띠·통계 탭 발표 줄과 같은 weeklyRelease/wkWhenText/wkPubLead 다 — 여기서 날짜를 다시
+   발표일·지연 문구는 통계 탭 발표 줄과 같은 weeklyRelease/wkWhenText/wkPubLead 다 — 여기서 날짜를 다시
    세지 않는다. 주간 값은 ADV.weekly 최신 행의 시도 매매 변동률, 글자는 pv2(표시 반올림 정본), 색은 통계 탭 시군구 주간
    지도·히어로 배경과 같은 mapColor(v, WK_MAP_REF)를 지면색 위에 불투명하게 합성한다(도형이 겹쳐 그려져 반투명이면 경기
    위 서울·인천만 진해진다 — mapFill 과 같은 까닭). 0.00 은 mapColor 가 보합 회색으로 칠한다 — 공급 모드의 '균형' 중립색
@@ -1573,9 +1575,10 @@ function renderWeeklyGrid(){
     +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
     +'<button type="button" class="wg-sh" onclick="shareWeekly(\'link\')">'
     +'<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>링크 공유</button></div>':'';
-  /* 머리 = 무엇을 칠했나 + 범례. 발표일은 첫 화면 띠가 말하므로 되풀이하지 않는다(2026-10-03 대표 요청). */
+  /* 머리 = 무엇을 칠했나(· 발표일) + 범례. 발표일을 말하던 첫 화면 띠를 2026-10-05 대표 요청으로 빼서 여기 머리말에 붙인다(wkPubLead).
+     늦은 주에는 h2 가 이미 '9/17 발표 기준 · …'로 시작하므로 되풀이하지 않는다. */
   box.innerHTML=lines
-    +'<div class="wg-head"><span class="wg-when">매매 전주 대비(%)</span>'
+    +'<div class="wg-head"><span class="wg-when">매매 전주 대비(%)'+(rel&&!rel.stale?' · '+wkPubLead(rel):'')+'</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
@@ -1596,7 +1599,7 @@ function renderWeeklyGrid(){
 }
 /* 주간 구역 h2 에 발표 상태를 적는다(구역 머리줄은 2026-10-03 대표 요청으로 뺐다). 따로 떼어 둔 것은 시험이 직접 돌려 보게 하려는 것이다
    (test_weekly_release·test_home_first_screen).
-   h2 = 이번 주 결론 한 줄(hd.text — /weekly/ 제목·첫 화면 띠와 같은 문장, IA-4). 예전엔 매주 같은 질문
+   h2 = 이번 주 결론 한 줄(hd.text — /weekly/ 제목과 같은 문장, IA-4). 예전엔 매주 같은 질문
    ('이번 주, 어디가 오르고 내렸을까?')이라 지난주 화면과 구별되지 않았다. 늦은 주에는 결론 앞에 발표일을 붙여
    '이번 주' 값처럼 보이지 않게 한다(TRUST-1②, 1차의 '반영 대기' 처리와 같은 조건 r.stale). 결론이 없는 옛 캐시는
    1차 동작 그대로 — 늦은 주에만 질문 앞에 발표일. */
@@ -1654,31 +1657,6 @@ function shareWeekly(m){
   if(navigator.share){
     navigator.share({title:d.title,text:d.text,url:d.url}).catch(e=>{if(e&&e.name!=='AbortError')copyText(txt);});
   }else{copyText(txt);}
-}
-/* 첫 화면 '이번 주' 띠 한 줄(B1·HERO-2·IA-5·TRUST-7). DOM 을 만지지 않는 순수 함수 — 시험이 node 로 돌린다.
-   [앞, 뒤] 두 조각이고 화면에는 ' · '로 이어진다(좁은 화면은 CSS 가 조각마다 줄을 바꿔 줄 수를 고정한다 —
-   글자 길이에 따라 줄 수가 달라지면 미리 잡은 높이가 어긋나 아래 카드·지도가 밀린다).
-   [발표일 머리말(wkPubLead — 늦은 주에는 '9/17 발표 기준', h2 와 같은 말), 결론 →]. 배경 지도 캡션·다음 발표 둘째 줄은
-   뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 다음 발표·반영 대기는 지도 주간 모드 발표 줄·통계 탭(wkWhenText)이 말한다 —
-   홈 주간 구역 머리줄은 2026-10-03 대표 요청으로 뺐다.
-   결론이 없거나 유예(grace)가 없는 옛 캐시는 지연을 판정할 수 없어 null — 띠는 날짜를 약속하지 않는 정적 문구로 남는다. */
-function heroBandLine(W,r){
-  const hd=weeklyHead(W);
-  if(!r||!hd||W.grace==null)return null;
-  return [wkPubLead(r),hd.text+' →'];
-}
-function _bandLine(el,parts){
-  el.textContent='';
-  parts.forEach((t,i)=>{
-    if(i){const s=document.createElement('span');s.className='hw-s';s.textContent=' · ';el.appendChild(s);}
-    const s=document.createElement('span');s.className=i?'hw-b':'hw-a';s.textContent=t;el.appendChild(s);
-  });
-}
-function renderHeroBand(){
-  let W;try{W=ADV.weekly;}catch(e){return;}
-  const L=heroBandLine(W,weeklyReleaseNow());
-  const a=document.getElementById('hw-1');
-  if(L&&a)_bandLine(a,L);
 }
 /* 주간 구역의 해설 글 카드(홈 마케팅 검수 B5·RET-4, 2026-09-27 → 2026-10-03 카드로). 말(meta·head)은 배치가 blog_feed.pick 으로
    골라 data-core 의 ADV.blog 로 구운 것이다 — /weekly/ 하단과 같은 글·같은 말. 여기서 날짜를 다시 셈하지 않는다. 글이 없거나
@@ -1742,7 +1720,7 @@ function lsOk(){try{localStorage.setItem('agongmap-ls','1');localStorage.removeI
       올린다(HOME_BUILD 는 모든 배포에서 오르므로 쓰지 않는다). 동시 A/B 는 하지 않는다 — 배포 전후 비교의 구분값이다.
       이 줄은 부팅(showView 의 첫 page_view)보다 먼저 돈다 — 큐(dataLayer)에서 'set' 이 이벤트 앞에 있어야 속성이 붙는다.
       GA 로더는 늦게 붙어도(C8) 큐를 순서대로 보낸다. */
-const HOME_VARIANT='home5';   // home5: 지도 모드 셋·월간 시세 추가(2026-10-04)
+const HOME_VARIANT='home6';   // home6: 첫 화면 '내 지역'·'이번 주' 띠 삭제(2026-10-05)
 try{if(typeof gtag==='function')gtag('set','user_properties',{home_variant:HOME_VARIANT});}catch(e){}
 /* ② 코호트 재방문 신호 — 기기에 '방문한 날 수(n)·첫 방문일(f)·마지막 방문일(l)'만 센다(KST 날짜 수, 개인 식별 정보 없음, 밖으로
       나가는 것은 GA 이벤트 매개변수뿐). 그날 첫 홈 부팅에 home_visit 을 한 번 보낸다: visit_n(방문한 날 수), gap_days(직전 방문과의
@@ -1863,64 +1841,10 @@ window.addEventListener('appinstalled',()=>{
   track('pwa_installed',{platform:installPlatform(navigator.userAgent||'',navigator.maxTouchPoints||0)||'other'});
 });
 
-/* ── 내 지역(C5·RET-6) ─────────────────────────────────────────────────────────────────────────────
-   기기에 시도 이름 하나(MYZ_KEY — index.html 히어로의 인라인 스크립트와 같은 키)만 둔다. 판정 단위(ADV.sido.zones, 집계 3종 제외)에
-   없는 이름(지역 개편으로 없어진 이름 등)은 무시한다 — 보여 주지 않고, 판정 데이터가 실린 부팅이면 저장값도 지운다(renderMyZone). 값은 이번 주 시도 매매 변동
-   (ADV.weekly 최신 행, 격자와 같은 pv2 반올림)과 공급 판정(등급 이름 TB_GRADE = sido_zones.GRADE_LABS, 세대수는 카드와 같은
-   cnum·cdir — 새로 짓지 않는다). 측정: 고정·해제 = myzone{action: pin·unpin}(08-14 에 죽은 이벤트로 해제했던 이름을 복원),
-   줄 누름 = home_cta{to:'my_zone'}. 고른 시도 이름은 보내지 않는다 — 개인정보처리방침이 '선택 지역은 브라우저에만 저장되며
-   서버로 전송·수집되지 않는다'고 적고 있다. */
-const MYZ_KEY='agongmap-myzone';
-function myZoneOf(name,S,W){
-  if(!name||!S||!S.zones)return null;
-  const z=S.zones.find(x=>x.z===name&&!x.agg);
-  if(!z)return null;
-  const i=W&&W.regions?W.regions.indexOf(name):-1, row=W&&W.rows&&W.rows[W.rows.length-1];
-  return {n:z.z,grade:z.grade,lab:TB_GRADE[z.grade]||'',
-    num:z.cnum||(z.ctxt?String(z.ctxt).split(' · ')[0]:(tbSigned(z.tot)+'세대')),dir:z.cnum?(z.cdir||''):'',
-    ma:(i>=0&&row&&row.ma&&row.ma[i]!=null)?row.ma[i]:null};
-}
-/* 둘째 줄: '매매 +0.13% · [매우 부족] 311,689세대( 부족) →' — 매매 값이 없으면 판정만. 방향 말(cdir)은 넓은 화면에서만 보인다(카드와 같다). */
-function myZoneLine(o){
-  return (o.ma!=null?'매매 '+pv2(o.ma).replace('-','−')+'% · ':'')
-    +'<span class="sc-tier '+o.grade+'">'+o.lab+'</span> '+o.num
-    +(o.dir?'<span class="myz-dir"> '+o.dir+'</span>':'')+' →';
-}
-function _myZoneData(){let S=null,W=null;try{S=ADV.sido;W=ADV.weekly;}catch(e){}return [S,W];}
-function renderMyZone(){
-  const box=document.getElementById('myz');
-  if(!box)return;
-  const [S,W]=_myZoneData(), name=lsGet(MYZ_KEY), o=myZoneOf(name,S,W);
-  if(!o){
-    box.hidden=true;
-    /* 판정 단위가 실려 있는데 그 이름이 없으면(개편으로 사라진 이름) 저장값을 지운다 — 남겨 두면 인라인 스크립트가 방문마다
-       자리를 열었다가 여기서 닫아 띠·카드·지도가 한 줄씩 들썩인다(Chromium 실측 CLS 0.07). 데이터가 안 왔으면(옛 캐시 등) 그대로 둔다. */
-    if(name&&S&&S.zones&&S.zones.length)lsSet(MYZ_KEY,null);
-    return;
-  }
-  document.getElementById('myz-n').textContent=o.n;
-  document.getElementById('myz-a').href='/zone/'+encodeURIComponent(o.n)+'/';
-  document.getElementById('myz-v').innerHTML=myZoneLine(o);
-  box.hidden=false;
-}
-function initMyZonePick(){
-  const p=document.getElementById('myz-pick'), sel=document.getElementById('myz-sel'), S=_myZoneData()[0];
-  if(!p||!sel||!S||!S.zones||!lsOk())return;   // 저장 못 하는 기기에는 고르기 줄을 열지 않는다
-  S.zones.forEach(z=>{if(z.agg)return;const o=document.createElement('option');o.value=o.textContent=z.z;sel.appendChild(o);});
-  const cur=myZoneOf(lsGet(MYZ_KEY),S,null);
-  sel.value=cur?cur.n:'';
-  p.hidden=false;
-}
-function myZoneSet(name){
-  const [S,W]=_myZoneData(), prev=myZoneOf(lsGet(MYZ_KEY),S,W), o=name?myZoneOf(name,S,W):null;
-  if(name&&!o)return;
-  if(!lsSet(MYZ_KEY,o?o.n:null))return;
-  if(o)track('myzone',{action:'pin'});
-  else if(prev)track('myzone',{action:'unpin'});
-  renderMyZone();
-  const sel=document.getElementById('myz-sel'); if(sel)sel.value=o?o.n:'';
-  const m=document.getElementById('myz-msg'); if(m)m.textContent=o?'첫 화면 맨 위에 고정했습니다':'고정을 풀었습니다';
-}
+/* 내 지역(C5·RET-6)·첫 화면 '이번 주' 띠(B1)는 2026-10-05 대표 요청으로 뺐다(첫 화면 위쪽을 너무 차지한다). 고정해 둔 기기의
+   옛 저장값은 부팅이 지운다(dropOldMyZone) — 더는 쓰지 않는 값을 브라우저에 남기지 않는다. */
+const OLD_MYZ_KEY='agongmap-myzone';
+function dropOldMyZone(){if(lsGet(OLD_MYZ_KEY)!=null)lsSet(OLD_MYZ_KEY,null);}
 
 /* ── 출처·구간 한 줄(B9·TRUST-5) ─────────────────────────────────────────────────────────────────────
    '3년'의 구간 = 판정 기준 분기 L 다음 분기부터 H 분기(sido_zones.calc 의 미래 창 range(L+1, L+H+1)). 손으로 적지 않는다. */
@@ -1936,7 +1860,8 @@ function supplySpan(S){
   return (a&&b)?'앞으로 '+(S.H/4)+'년('+a+'~'+b+')':null;
 }
 function renderSupplySpan(){
-  const el=document.getElementById('map-span'), t=supplySpan(_myZoneData()[0]);
+  let S=null;try{S=ADV.sido;}catch(e){}
+  const el=document.getElementById('map-span'), t=supplySpan(S);
   if(el&&t)el.textContent=t;
 }
 // </home-small>
@@ -1947,11 +1872,9 @@ function boot(){
   renderWeeklyGrid();
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
-  renderHeroBand();   // 그 아래 '이번 주' 띠(발표일 · 결론)
   renderBlogLine();   // 주간 구역 아래 이번 주 해석 글 한 줄(B5)
-  renderMyZone();     // 띠 앞 '내 지역' 한 줄(C5) — 자리는 index.html 인라인 스크립트가 첫 페인트 전에 열어 둔다
   renderSupplySpan(); // 지도 아래 '앞으로 3년(…~…)' 구간(B9)
-  initMyZonePick();
+  dropOldMyZone();    // 뺀 '내 지역'의 옛 저장값 정리
   /* ⚠️ 표(분기 1,000칸 HTML 조립)는 여기서 굽지 않는다. 기본 모드가 지도인데
      숨은 표를 먼저 구우면 그 비용(월 모드 실측 200ms+)이 기본 화면 페인트를 막고,
      숨은 상태의 tbAnchor 재시도 타이머 6발이 전부 헛돈다(2026-08-10 리뷰).
