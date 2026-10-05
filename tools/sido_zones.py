@@ -143,24 +143,27 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     yrs = '%g년' % (H / 4.0)
     # 필요량을 넘는 부족도 배가 아니라 퍼센트로 쓴다. '1.0배'로 쓰면 울산(1.012)·
     # 경남(1.007)이 '딱 같다'로 읽히고, 판정 규칙 문장('50%에 못 미쳐')과도 단위가 갈린다.
+    # 주어를 밝힌다(2026-10-05 대표 요청): '3년 필요량의 58% 부족'은 '필요량의 42%가 공급된다'인지 '58%가 공급된다'인지
+    # 갈렸다. 이 퍼센트는 공급률이 아니라 부족분(지난 창 덜 지은 몫까지 더한 순부족) ÷ 3년 필요량이라 100%를 넘기도 한다
+    # (서울 139%) — '적정 대비 N% 공급'으로 바꿔 쓸 수 없다. 그래서 '부족분은 …의 N%'로 무엇의 몇 %인지를 적는다.
     pct = ratio_pct(ratio)
     if not full:
         if pct >= 1:
-            return '%s 필요량의 %d%% 부족' % (yrs, pct)
+            return '부족분은 %s 필요량의 %d%%' % (yrs, pct)
         if pct <= -1:
-            return '%s 필요량보다 %d%% 여유' % (yrs, -pct)
+            return '여유분은 %s 필요량의 %d%%' % (yrs, -pct)
         return '%s 필요량과 거의 같음' % yrs
     past = '지난 %g년' % (W / 4.0)
     if pct >= 1:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫까지 더하면' % past if inow < 0 else
                 '%s 남은 재고를 빼고도' % past)
-        return '%s %s 필요량의 %d%%만큼 부족합니다' % (lead, yrs, pct)
+        return '%s 부족분은 %s 필요량의 %d%%입니다' % (lead, yrs, pct)
     if pct <= -1:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫을 채우고도' % past if inow < 0 else
                 '%s 남은 재고까지 더하면' % past)
-        return '%s %s 필요량의 %d%%만큼 남습니다' % (lead, yrs, -pct)
+        return '%s 여유분은 %s 필요량의 %d%%입니다' % (lead, yrs, -pct)
     return '%s 재고까지 셈하면 %s 필요량과 거의 같습니다' % (past, yrs)
 
 
@@ -400,13 +403,16 @@ def month_back(dates, i, k):
 
 
 def card_parts(dtot, ratio, H=None):
-    """홈·허브 카드의 세 조각: ('686,396세대', '부족', '3년 필요량의 60%만큼').
+    """홈·허브 카드의 세 조각: ('686,396세대', '부족', '3년 필요량의 60%').
+
+    2026-10-05 대표 요청: '…60%만큼'은 말이 중간에 끊겨 보였고 무엇의 60%인지가 흐렸다. 이 60%는 앞의 세대수(부족분)가
+    3년 필요량의 몇 %인지다 — 이어 붙일 때 세대수 뒤 괄호로 묶어(card_text) '686,396세대 부족(3년 필요량의 60%)'로 쓴다.
 
     예전엔 '−686,396세대 · 3년 필요량의 60% 부족'이라 배지('부족') 옆에 음수 부호가
     또 붙어 이중 부정으로 읽혔다(2026-09-15 점검후속 ⑤). 부호 대신 부족·여유를 말로 쓰고
     비율은 크기만 적는다 — 그 결정의 목적(부호 이중 부정 제거)은 그대로다.
-    비율 뒤에 '만큼'을 붙인다(홈 마케팅 검수 B2·HERO-4, 2026-09-27). '3년 필요량의 60%'만 두면
-    '필요량의 60%만 지어진다'로도 읽혔다 — 이 60%는 앞의 세대수(누적 순부족)가 필요량의 몇 %인지다.
+    2026-09-27(홈 마케팅 검수 B2·HERO-4)에는 '필요량의 60%만 지어진다'로 읽히지 않게 비율 뒤에 '만큼'을 붙였는데,
+    10-05 에 그 자리를 세대수 뒤 괄호로 바꿨다(위). 비율 조각만 떼어 쓰는 자리(홈 카드 셋째 줄)는 바로 위 세대수 줄에 붙는다.
     조각으로 나눈 것은 모바일 카드가 세대수만 한 줄에 싣기 때문이다(MOB-7 — '전국 [부족]' / '686,396세대').
     화면은 읽기만 한다. 순부족이 0이면 세대수·방향이 비고 비율 조각만 남는다.
     """
@@ -414,7 +420,7 @@ def card_parts(dtot, ratio, H=None):
     H = LEAD_Q if H is None else H
     yrs = '%g년' % (H / 4.0)
     pct = abs(ratio_pct(ratio))     # 판정 문구와 같은 퍼센트(컷을 넘지 않는 반올림, 전수 리뷰 #9)
-    share = ('%s 필요량과 거의 같음' % yrs) if pct < 1 else ('%s 필요량의 %d%%만큼' % (yrs, pct))
+    share = ('%s 필요량의 1%% 미만' % yrs) if pct < 1 else ('%s 필요량의 %d%%' % (yrs, pct))
     if dtot > 0:
         return '%s세대' % format(dtot, ','), '부족', share
     if dtot < 0:
@@ -423,12 +429,12 @@ def card_parts(dtot, ratio, H=None):
 
 
 def card_text(dtot, ratio, H=None):
-    """홈·허브 카드의 한 줄: '686,396세대 부족 · 3년 필요량의 60%만큼'(card_parts 를 잇는다).
-    여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다."""
+    """홈·허브 카드의 한 줄: '686,396세대 부족(3년 필요량의 60%)'(card_parts 를 잇는다 — 괄호 안이 앞 세대수가 필요량의
+    몇 %인지다, 2026-10-05 대표 요청). 순부족이 0이면 비율 조각만. 여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다."""
     # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
     H = LEAD_Q if H is None else H
     num, dirw, share = card_parts(dtot, ratio, H)
-    return ' · '.join(x for x in ((num + ' ' + dirw).strip(), share) if x)
+    return '%s %s(%s)' % (num, dirw, share) if num else '%g년 필요량과 거의 같음' % (H / 4.0)
 
 
 # ── 부족 세대수의 식(홈 마케팅 검수 B2·C4, TRUST-2, 2026-09-27) ───────────────────────
@@ -465,10 +471,10 @@ def display_ints(row, H):
 
 def zone_texts(row, H):
     """한 판정 단위의 화면 문구 — 결과 행에 구워 싣는 필드들. 화면(JS)은 읽기만 한다.
-      ctxt  '686,396세대 부족 · 3년 필요량의 60%만큼'   (허브·지도 이름표·데스크톱 카드)
+      ctxt  '686,396세대 부족(3년 필요량의 60%)'        (허브·지도 이름표·데스크톱 카드)
       cnum  '686,396세대'                            (카드 둘째 줄 — 모바일은 이것만)
       cdir  '부족' | '여유' | ''                      (넓은 화면 카드에서 세대수 뒤에)
-      cpct  '3년 필요량의 60%만큼'
+      cpct  '3년 필요량의 60%'
       ftxt  '3년 필요량 1,140,000 − 착공 기반 입주 추정 714,127 + 지난 4년 쌓인 부족 260,523 = 686,396세대 부족'
             (홈 카드 ⓘ '어떻게 계산했나' 한 줄, C4①)
     """
@@ -495,6 +501,8 @@ def refresh_texts(sido):
     H = sido['H']
     for z in sido.get('zones') or []:
         z.update(zone_texts(z, H))
+        if z.get('ratio') is not None:   # 비율 문구(rtxt)도 calc 가 굽지만 문구를 고친 PR 뒤엔 옛 말이 남는다(2026-10-05 표기 변경)
+            z['rtxt'] = ratio_text(z['ratio'], H)
     for k in RETIRED_TEXTS:
         sido.pop(k, None)
     return sido

@@ -107,7 +107,7 @@ def _zones():
     for z in SZ.ORDER:
         g = 'g1' if z == '경기' else ('g0' if z == '인천' else 'g2')
         out.append({'z': z, 'grade': g, 'ratio': {'g1': 0.17, 'g0': -0.2}.get(g, 0.6), 'tot': 1000,
-                    'ctxt': '1,000세대 부족 · 3년 필요량의 60%만큼'})
+                    'ctxt': '1,000세대 부족(3년 필요량의 60%)'})
     return out
 
 
