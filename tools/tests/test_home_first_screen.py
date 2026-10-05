@@ -413,7 +413,7 @@ def test_distribution_and_legend_lines_are_gone_with_their_data():
         z.update(SZ.zone_texts(dict(z, ref=1000, fut=1000, inow=-1, dtot=z['tot']), SZ.LEAD_Q))
     sido = {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'H': SZ.LEAD_Q, 'zones': zones,
             'dist': '시도 16곳: 부족 이상 10', 'dist_g0': ['인천'], 'ktxt': '지난 4년 덜 지은 몫까지'}   # 옛 data.js 모양
-    fns = '\n'.join(_js_func(h, n) for n in ('tintA', 'mapFill', 'supplyFill', 'aggCard', 'mapKeyHtml', 'mapAria', 'tbNum', 'tbSigned',
+    fns = '\n'.join(_js_func(h, n) for n in ('tintA', 'mapFill', 'supplyFill', 'aggLights', 'aggLightKey', 'aggCard', 'mapKeyHtml', 'mapAria', 'tbNum', 'tbSigned',
                                               'renderAggCards', 'renderSidoMap'))
     consts = '\n'.join(re.search(r'^var %s=.*$' % n, h, re.M).group(0)
                         for n in ('TB_MIN', 'TB_BAL', 'TB_UP', 'TB_GRADE', 'MAP_MODE'))
@@ -442,12 +442,16 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     button(aria-expanded·aria-controls) — 누르면 식 한 줄이 펼쳐지고 다시 누르면 접힌다(기본은 접힘). 옛 캐시는 ⓘ 없음.
 
     변이(각각 확인): ⓘ 를 </a> 앞(링크 안)으로 옮기면 첫 단정, aggHow 가 hidden 을 안 바꾸면 토글 단정, 카드 둘째 줄이 ctxt
-          통째를 쓰면(모바일 두 줄 고정이 깨짐) 세대수 단정이 빨개진다.
+          통째를 쓰면(모바일 두 줄 고정이 깨짐) 세대수 단정이, aggCard 가 yl 이 있어도 배지를 그리면 신호등 단정이 빨개진다.
     픽스처: 09-26 라이브 수도권 카드(349,029세대 부족·58%, g2)와 같은 필드 모양, 옛 캐시 모양(ctxt 만).
     """
     h = _home()
     z = dict(z='수도권', grade='g2', tot=349029, **SZ.zone_texts(
         {'ref': 50000, 'fut': 408895, 'inow': -157924, 'dtot': 349029, 'ratio': 0.5817}, SZ.LEAD_Q))
+    # 해마다 입주 신호등(2026-10-05 — 판정 배지 자리). 10-05 라이브 수도권 62·69·73% 모양, 값·키는 정본 함수로
+    yrs = [{'n': i + 1, 'pct': p} for i, p in enumerate((62, 69, 73))]
+    z['yl'] = [{'n': y['n'], 'p': y['pct'], 'k': SZ.light_of(y['pct'])[0]} for y in yrs]
+    z['ya'] = SZ.lights_aria(yrs)
     js = ('var TB_GRADE=%s;function tbSigned(v){return String(v)}\n%s\n%s\n'
           'const z=%s, old={grade:"g2",tot:1,ctxt:"349,029세대 부족 · 3년 필요량의 58%%"};\n'
           'const p={hidden:true}, b={a:{"aria-expanded":"false","aria-controls":"agg-how-1"},'
@@ -455,16 +459,19 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
           'globalThis.document={getElementById:id=>id==="agg-how-1"?p:null};\n'
           'const st=[];aggHow(b);st.push([b.a["aria-expanded"],p.hidden]);aggHow(b);st.push([b.a["aria-expanded"],p.hidden]);\n'
           'process.stdout.write(JSON.stringify([aggCard("수도권",z,1),aggCard("수도권",old,1),st]));'
-          % (json.dumps(SZ.GRADE_LABS, ensure_ascii=False), _js_func(h, 'aggCard'), _js_func(h, 'aggHow'),
+          % (json.dumps(SZ.GRADE_LABS, ensure_ascii=False), _js_func(h, 'aggLights') + _js_func(h, 'aggCard'), _js_func(h, 'aggHow'),
              json.dumps(z, ensure_ascii=False)))
     card, old, toggles = _node(js)
     a = re.search(r'<a class="agg-a" href="/zone/[^"]+/">(.*?)</a>(.*)</div>$', card, re.S)
     assert a and '<button' not in a.group(1) and a.group(2).startswith('<button type="button" class="agg-i"'), card
     assert 'aria-expanded="false" aria-controls="agg-how-1"' in a.group(2)
-    assert '<span class="agg-l1"><b>수도권</b><span class="sc-tier g2">부족</span></span>' in a.group(1)
+    assert ('<span class="agg-l1"><b>수도권</b><span class="zl" role="img" aria-label="%s"><span class="zl-d lo">1</span>'
+            '<span class="zl-d lo">2</span><span class="zl-d ok">3</span></span></span>' % z['ya']) in a.group(1), a.group(1)
+    assert 'sc-tier' not in a.group(1), '신호등이 있는 카드에 판정 배지가 남았다'
+    assert '<span class="sc-tier g2">부족</span>' in old, '옛 캐시(yl 없음)는 예전 배지를 그린다'
     assert re.search(r'<i class="agg-n">349,029세대<span class="agg-dir"> 부족</span><span class="agg-go"[^>]*> →</span></i>',
                      a.group(1)), a.group(1)
-    assert '<i class="agg-p">%s</i>' % z['cpct'] in a.group(1) and z['cpct'] == '부족률 +58%', a.group(1)
+    assert '<i class="agg-p">%s</i>' % z['cpct'] in a.group(1) and z['cpct'] == '1년 적정물량의 1.7배', a.group(1)
     assert toggles == [['true', False], ['false', True]], toggles
     assert '<button' not in old and '349,029세대 부족' in old
     how = _js_func(h, 'renderAggCards')   # 카드·ⓘ 식은 2026-10-04 에 지도 상자 밖(#agg-wrap)으로 나갔다

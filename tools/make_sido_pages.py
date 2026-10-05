@@ -198,9 +198,9 @@ MODEL_LIMIT_NOTE = {
 }
 
 
-def _cut(x):
-    """컷 값을 문장에 넣을 모양으로. 비율 문구(ratio_text)와 같은 퍼센트 단위로 쓴다."""
-    return '%d%%' % round(x * 100)
+def _cut(x, H=None):
+    """컷 값을 문장에 넣을 모양으로. 비율 문구(ratio_text)와 같은 단위('1년 적정물량의 N배', 2026-10-05 안 A′)로 쓴다."""
+    return SZ.cut_mult(x, H)
 
 
 def _euro(word):
@@ -221,10 +221,10 @@ def verdict_line(row, H):
     c = SZ.GRADE_CUTS
     L = SZ.GRADE_LABS          # 등급 이름은 정본에서 읽는다(전수 리뷰 #115 — 규칙 문장 속 세 번째 손 사본)
     rule = {
-        'g4': '%s 이상이라 %s%s 분류합니다' % (_cut(c[0]), L['g4'], _euro(L['g4'])),
-        'g3': '%s 이상이라 %s%s 분류합니다' % (_cut(c[1]), L['g3'], _euro(L['g3'])),
-        'g2': '%s 이상이라 %s%s 분류합니다' % (_cut(c[2]), L['g2'], _euro(L['g2'])),
-        'g1': '%s에 못 미쳐 %s%s 분류합니다' % (_cut(c[2]), L['g1'], _euro(L['g1'])),
+        'g4': '%s 이상이라 %s%s 분류합니다' % (_cut(c[0], H), L['g4'], _euro(L['g4'])),
+        'g3': '%s 이상이라 %s%s 분류합니다' % (_cut(c[1], H), L['g3'], _euro(L['g3'])),
+        'g2': '%s 이상이라 %s%s 분류합니다' % (_cut(c[2], H), L['g2'], _euro(L['g2'])),
+        'g1': '%s에 못 미쳐 %s%s 분류합니다' % (_cut(c[2], H), L['g1'], _euro(L['g1'])),
         'g0': '모자라는 몫이 없어 %s%s 분류합니다' % (L['g0'], _euro(L['g0'])),
     }[row['grade']]
     # 지난 창 재고의 부호로 문장 갈래를 고른다 — '숫자로 보면'의 식(formula_text)과 같은 정수·같은 갈래(B2·TRUST-2).
@@ -1124,7 +1124,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
 
 
 def card_html(o):
-    """허브 시도 칸의 문구 — 글자는 정본 ctxt('311,689세대 부족(부족률 +139%)') 그대로이고, 괄호 덩어리만 줄 안에서
+    """허브 시도 칸의 문구 — 글자는 정본 ctxt('311,689세대 부족(1년 적정물량의 4.2배)') 그대로이고, 괄호 덩어리만 줄 안에서
     끊기지 않게 묶는다(2026-10-05 대표 요청 — 좁은 두 칸 격자에서 말이 중간에 끊겼다)."""
     t = o['ctxt']
     i = t.find('(')
@@ -1133,9 +1133,9 @@ def card_html(o):
     return '%s<span class="zk">%s</span>' % (esc(t[:i]), esc(t[i:]))
 
 
-# ── 부족률 막대(2026-10-05 대표 요청) ─────────────────────────────────────────────────────────
+# ── 부족 정도 막대(2026-10-05 대표 요청 — 단위는 같은 날 안 A′로 '1년 적정물량의 N배') ─────────────────────────────────────────────────────────
 # '퍼센트가 클수록 나쁜지', '부족 17%와 여유 19%가 어떻게 다른지'가 숫자만으로는 안 보였다. 칸마다 한 축(왼쪽 남음 ↔ 오른쪽
-# 모자람) 위에 그 지역의 부족률을 점으로 찍는다. 구간 경계는 등급 컷(sido_zones.GRADE_CUTS)에서, 색은 등급 색(GRADE_COLOR)에서
+# 모자람) 위에 그 지역의 순부족비를 점으로 찍는다. 구간 경계는 등급 컷(sido_zones.GRADE_CUTS)에서, 색은 등급 색(GRADE_COLOR)에서
 # 만든다 — 손으로 적지 않는다. 축 양끝(남음 100% · 모자람 200%)을 넘는 값은 끝에 붙인다.
 GAUGE_LO, GAUGE_HI = -1.0, 2.0
 
@@ -1157,25 +1157,28 @@ def gauge_bg():
 
 
 def gauge_html(o):
-    """칸 하나의 부족률 막대(장식 — 같은 값을 글자로 이미 말하므로 aria-hidden)."""
+    """칸 하나의 부족 정도 막대(장식 — 같은 값을 글자로 이미 말하므로 aria-hidden)."""
     return ('<span class="zg" aria-hidden="true" style="background:%s"><span class="zg-m" style="left:%.1f%%"></span></span>'
             % (gauge_bg(), _gx(o['ratio'])))
 
 
-def gauge_legend_html():
-    """막대 범례 한 줄 — 구간마다 색 칸 + '0% 아래 공급 여유 · 0~50% 균형 …'. 경계·이름은 등급 컷·등급 이름에서 만든다."""
+def gauge_legend_html(H=None):
+    """막대 범례 한 줄 — 구간마다 색 칸 + '공급 여유 · 1.5배 미만 균형 · 1.5~3배 부족 …'. 경계·이름은 등급 컷(cut_mult)·등급 이름에서
+    만든다. 단위는 판정 문구와 같은 '1년 적정물량의 N배'(2026-10-05 안 A′)."""
     cuts = sorted(SZ.GRADE_CUTS)
     keys = list(reversed(SZ.GRADE_KEYS))
-    pcts = ['%d%%' % round(c * 100) for c in cuts]
+    ms = [SZ.cut_mult(c, H) for c in cuts]
     spans = []
     for i, k in enumerate(keys):
         if i == 0:
-            rng = '%s 아래' % pcts[0]
+            rng = ''                                   # 0 아래 = 남는 집 — 이름(공급 여유)이 곧 구간이다
+        elif i == 1:
+            rng = '%s 미만 ' % ms[1]
         elif i == len(keys) - 1:
-            rng = '%s 이상' % pcts[-1]
+            rng = '%s 이상 ' % ms[-1]
         else:
-            rng = '%s~%s' % (pcts[i - 1], pcts[i])
-        spans.append('<span class="zg-l"><i style="background:%s8c"></i>%s %s</span>'
+            rng = '%s~%s ' % (ms[i - 1], ms[i])
+        spans.append('<span class="zg-l"><i style="background:%s8c"></i>%s%s</span>'
                      % (GRADE_COLOR[k], esc(rng), esc(SZ.GRADE_LABS[k])))
     return '<p class="zg-legend">%s</p>' % ''.join(spans)
 
@@ -1211,18 +1214,16 @@ def outlook_aria(yrs):
 # ── 해마다 입주 신호등(2026-10-05 대표 요청 — '부족·균형 태그보다 신호등 3개로 3년을 한눈에') ─────────────────────────
 # 지역 목록 칸(허브·리포트 '다른 지역')의 판정 태그를 대신하고, 시도 리포트 머리에도 둔다. 동그라미 하나가 한 해(1·2·3년 차)이고
 # 색은 그해 입주 추정 ÷ 적정물량을 **입주물량 문턱 정본**(sido_zones.occ_level — OCC_LO_PCT·OCC_HI_PCT, 홈 입주물량 표·/moveins/
-# 와 같은 70%·130%)으로 가른다. 판정 등급 컷(부족률 50%)을 빌리지 않는 까닭: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라
+# 와 같은 70%·130%)으로 가른다. 판정 등급 컷(1.5배)을 빌리지 않는 까닭: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라
 # 해마다의 입주와 다른 양이다(대표 결정 — 2026-10-05, 70%·130% 안). 동그라미 안 숫자(1·2·3)는 색을 못 가르는 사람도 해를 읽게 한다.
-LIGHT = {-1: ('lo', '부족'), 0: ('ok', '적정'), 1: ('hi', '여유')}
+LIGHT = SZ.LIGHT           # 정본은 sido_zones(홈 판정 카드와 같은 값) — 여기서는 이름만 빌린다
+light_of = SZ.light_of
+lights_aria = SZ.lights_aria
 
 
-def light_of(pct):
-    return LIGHT[SZ.occ_level(pct)]
-
-
-def lights_aria(yrs):
-    return '해마다 입주 신호등: ' + ', '.join('%d년 차 %s, 적정물량의 %d%%' % (y['n'], light_of(y['pct'])[1], y['pct'])
-                                         for y in yrs)
+def light_ranges():
+    """'70% 미만 부족 · 70~130% 적정 · 130% 초과 여유' — 범례·막대 설명이 같은 글을 쓴다."""
+    return ' · '.join('%s %s' % (r, lab) for _, r, lab in SZ.light_legend())
 
 
 def lights_html(yrs, big=False):
@@ -1237,24 +1238,12 @@ def lights_html(yrs, big=False):
     return '<span class="zl%s" role="img" aria-label="%s">%s</span>' % (' zl-lg' if big else '', esc(lights_aria(yrs)), ''.join(dots))
 
 
-def light_ranges():
-    """'70% 미만 부족 · 70~130% 적정 · 130% 초과 여유' — 범례·막대 설명이 같은 글을 쓴다."""
-    rng = _light_rng()
-    return ' · '.join('%s %s' % (rng[k], lab) for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1]))
-
-
-def _light_rng():
-    return {'lo': '%d%% 미만' % SZ.OCC_LO_PCT, 'ok': '%d~%d%%' % (SZ.OCC_LO_PCT, SZ.OCC_HI_PCT),
-            'hi': '%d%% 초과' % SZ.OCC_HI_PCT}
-
-
 def lights_legend_html(n):
-    """신호등 범례 한 줄 — 문턱은 OCC_LO_PCT·OCC_HI_PCT, 이름은 LIGHT 에서 만든다(손 숫자 금지)."""
+    """신호등 범례 한 줄 — 문턱·이름은 sido_zones.light_legend(OCC_LO_PCT·OCC_HI_PCT·LIGHT)에서 만든다(손 숫자 금지)."""
     yrs = '·'.join(str(i) for i in range(1, n + 1))
-    rng = _light_rng()
-    spans = ''.join('<span class="zg-l"><span class="zl-d %s" aria-hidden="true"></span>%s %s</span>' % (k, rng[k], lab)
-                    for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1]))
-    return ('<p class="zl-legend"><span class="zl-cap">신호등 %s = 앞으로 %s년 차 입주가 적정물량의</span>%s</p>'
+    spans = ''.join('<span class="zg-l"><span class="zl-d %s" aria-hidden="true"></span>%s %s</span>' % (k, r, lab)
+                    for k, r, lab in SZ.light_legend())
+    return ('<p class="zl-legend"><span class="zl-cap">신호등 %s = 앞으로 %s년 차 각 해 입주가 1년 적정물량의</span>%s</p>'
             % (yrs, yrs, spans))
 
 
@@ -1265,15 +1254,15 @@ def outlook_block(yrs, pbr=None, H=None):
     spans = ' · '.join('%d년 차 %s~%s' % (y['n'], SZ.quarter_text(y['from']), SZ.quarter_text(y['to'])) for y in yrs)
     ref_pct = None if pbr is None else SZ.pbr_pct(pbr)   # 리포트 '… 너머' 줄과 같은 정수
     beyond = '%g년 너머' % ((SZ.LEAD_Q if H is None else H) / 4.0)   # split_text 의 '… 너머' 줄과 같은 연수
-    return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(적정물량 대비)</h3>'
+    return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(1년 적정물량 대비)</h3>'
             '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'
             '<p class="zo-note">가로선이 적정물량(100%%)이고, 막대 색은 위 신호등과 같습니다(%s). %s. '
             '%s는 최근 인허가를 착공으로 환산한 참고값이라 판정에는 넣지 않습니다.</p></div>'
             % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond), esc(light_ranges()), esc(spans), esc(beyond)))
 
 
-GAUGE_NOTE = ('부족률 = 앞으로 %s 필요량 대비 모자란 양(지난 %s 덜 지은 몫 포함). 막대의 점이 오른쪽일수록 부족이 심하고, '
-              '0%% 아래(−)는 남는 물량입니다.')
+GAUGE_NOTE = ('막대는 지난 %s 덜 지은 몫까지 더해 앞으로 %s 모자란 집이 그 지역 1년 적정물량의 몇 배인지를 보여 줍니다. '
+              '점이 오른쪽일수록 부족이 심하고, 왼쪽 파란 구간은 남는 물량입니다.')
 
 
 def build_hub(calc, stats=None):
@@ -1300,7 +1289,7 @@ def build_hub(calc, stats=None):
     ny = max([len(v) for v in outl.values()] or [0])
     h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2>'
              '<p class="zg-note">%s</p>%s%s<p class="z-hint">지역을 누르면 그 지역 리포트가 열립니다.</p><div class="zlinks">'
-             % (esc(GAUGE_NOTE % ('%g년' % (calc['H'] / 4.0), '%g년' % (SZ.BACKLOG_WINDOW / 4.0))), gauge_legend_html(),
+             % (esc(GAUGE_NOTE % ('%g년' % (SZ.BACKLOG_WINDOW / 4.0), '%g년' % (calc['H'] / 4.0))), gauge_legend_html(calc['H']),
                 lights_legend_html(ny) if ny else ''))
     # 판정 태그(.sc-tier)는 칸에서 뺐다 — 그 자리를 해마다 입주 신호등이 맡는다(2026-10-05 대표 결정). 판정은 지도 색·리포트 본문에 남는다.
     for o in agg:

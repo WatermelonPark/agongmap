@@ -182,6 +182,22 @@ def occ_band():
     return {'lo': _SZ.OCC_LO_PCT, 'hi': _SZ.OCC_HI_PCT}
 
 
+def bake_lights(sido, stats):
+    """홈 판정 카드의 해마다 입주 신호등(2026-10-05 대표 요청)을 싣는다 — 칸마다 yl(1·2·3년 차 [{n, p, k}])·ya(읽어 줄 글),
+    판정 묶음에 ylg(범례 [[색 키, 구간, 이름]]). 값·문턱·이름은 모두 sido_zones(year_lights·lights_aria·light_legend) — 홈이
+    문턱(70·130%)을 다시 적지 않는다. 판정(ADV.sido)과 STATS 시점이 같아야 하는 건 make_sido_pages 가 지킨다."""
+    L = sido.get('L') or ''
+    if not re.match(r'^\d{4}Q[1-4]$', L):
+        return
+    Lq = _SZ.qidx(int(L[:4]), int(L[-1]))
+    for z in sido['zones']:
+        yl = _SZ.year_lights(stats, z['z'], Lq, sido['H'])
+        if yl:
+            z['yl'] = yl
+            z['ya'] = _SZ.lights_aria([{'n': y['n'], 'pct': y['p']} for y in yl])
+    sido['ylg'] = [list(x) for x in _SZ.light_legend()]
+
+
 def main():
     src = io.open(SRC, encoding='utf-8').read()
     adv = json.loads(re.search(
@@ -208,6 +224,7 @@ def main():
     # 숫자(dtot·ratio·grade)는 건드리지 않는다. adv['sido'] 와 같은 객체라 trend 쪽에도 같이 실린다.
     if (core_adv.get('sido') or {}).get('zones'):
         _SZ.refresh_texts(core_adv['sido'])
+        bake_lights(core_adv['sido'], stats)
 
     # 히어로 배경 지도는 마지막 한 주만 쓴다(renderHeroMap: rows[rows.length-1]).
     # 전체 sgg는 59.7KB인데 그중 필요한 건 4.8KB뿐이다.

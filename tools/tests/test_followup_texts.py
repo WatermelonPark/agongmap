@@ -78,13 +78,13 @@ def test_home_supply_captions_say_quarterly():
 # ---- ⑤ 카드 부호와 용어 (+ 홈 마케팅 검수 B2 퍼센트 해석, 2026-09-27) ----
 
 def test_card_text_never_pairs_a_minus_sign_with_shortfall():
-    """부호 이중 부정 제거(09-15 ⑤)는 세대수 조각에서 그대로다('686,396세대 부족' — 세대수에 부호를 붙이지 않는다). 비율은 괄호
-    안 한 축의 부족률로 쓴다: '686,396세대 부족(부족률 +60%)'·'13,237세대 여유(부족률 −19%)'(2026-10-05 대표 요청 — '…필요량의
-    60%만큼'·'부족 17%/여유 19%'는 클수록 나쁜지, 방향이 어떻게 다른지가 한눈에 안 보였다).
+    """부호 이중 부정 제거(09-15 ⑤)는 세대수 조각에서 그대로다('686,396세대 부족' — 세대수에 부호를 붙이지 않는다). 괄호 안은
+    앞 세대수가 그 지역 1년 적정물량의 몇 배인지다: '686,396세대 부족(1년 적정물량의 1.8배)'·'13,237세대 여유(1년 적정물량의
+    0.6배)'(2026-10-05 안 A′ — 옛 부족률 퍼센트는 100% 를 넘고 음수가 되며 신호등 퍼센트와 뜻이 반대였다).
 
-    변이(각각 실제로 확인): card_text 를 옛 '%s %s · %s' 로 되돌리면, card_parts 가 부족률 대신 옛 '3년 필요량의 N%'를 쓰면,
-          ratio_signed 가 음수에 '+'를 붙이면 빨개진다. 세대수 조각에 음수 부호를 붙이면 첫 단정이 빨개진다.
-    픽스처: 실제 카드 넷 — 전국(686,396 부족·60%), 인천(13,237 여유·19%), 세종(907 부족·13%), 충북(281 부족·1% 미만).
+    변이(각각 실제로 확인): card_text 를 옛 '%s %s · %s' 로 되돌리면, card_parts 가 배수 대신 옛 '부족률 +N%'를 쓰면 빨개진다.
+          세대수 조각에 음수 부호를 붙이면 첫 단정이 빨개진다.
+    픽스처: 실제 카드 넷 — 전국(686,396 부족·0.60), 인천(13,237 여유·−0.19), 세종(907 부족·0.126), 충북(281 부족·0.004).
     """
     for dtot, ratio in ((686396, 0.60), (-13237, -0.19), (907, 0.126), (281, 0.004)):
         t = SZ.card_text(dtot, ratio)
@@ -93,11 +93,12 @@ def test_card_text_never_pairs_a_minus_sign_with_shortfall():
         assert ('부족' in head) == (dtot > 0) and ('여유' in head) == (dtot < 0), t
         num, dirw, share = SZ.card_parts(dtot, ratio)
         assert t == '%s %s(%s)' % (num, dirw, share), t
-        assert share == '부족률 %s' % SZ.ratio_signed(ratio), share
-        assert '만큼' not in t
-    assert SZ.card_text(686396, 0.60) == '686,396세대 부족(부족률 +60%)'
-    assert SZ.card_text(-13237, -0.19) == '13,237세대 여유(부족률 \u221219%)'
-    assert SZ.card_text(0, 0.004) == '부족률 0%'
+        m = SZ.need_mult(ratio)
+        assert share == ('1년 적정물량의 %s' % SZ.mult_str(m) if m >= SZ.MULT_MIN else SZ.ratio_text(ratio)), share
+        assert '만큼' not in t and '%' not in t
+    assert SZ.card_text(686396, 0.60) == '686,396세대 부족(1년 적정물량의 1.8배)'
+    assert SZ.card_text(-13237, -0.19) == '13,237세대 여유(1년 적정물량의 0.6배)'
+    assert SZ.card_text(0, 0.004) == '필요량과 거의 같음'
 
 
 def test_home_and_hub_read_the_baked_card_text():

@@ -122,7 +122,7 @@ def _base_js(src):
         _var(src, 'WK_MAP_REF'), _var(src, 'MO_MAP_REF'), _var(src, 'MAP_MODE'),
         re.search(r'^const NATION_TILE=.*$', src, re.M).group(0),
         _fns(src, ('pv2r', 'pv2', 'pvSign', 'mapColor', 'tintA', 'mapFill', 'supplyFill', 'opaqueOnPaper', 'wkFill',
-                   'wkPct', 'wkMapModel', 'moMapModel', 'priceModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggCard',
+                   'wkPct', 'wkMapModel', 'moMapModel', 'priceModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggLights', 'aggLightKey', 'aggCard',
                    'tbSigned', 'sidoCode', 'priceOk', 'renderAggCards', 'renderSidoMap')),
     ])
 
