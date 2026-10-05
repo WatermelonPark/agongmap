@@ -992,7 +992,7 @@ table.adv thead th:first-child{text-align:center}
   .wk-blog .bc-meta{display:block;font-size:13px;color:var(--ink2);margin-bottom:3px}
   .wk-blog .bc-head{display:block;font-size:15px;font-weight:600;word-break:keep-all}
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:0 0 10px;max-width:none}
-  /* 지도 모드 '3년 공급 · 이번 주 시세 · 이번 달 시세'(홈 마케팅 검수 C3 → 2026-10-04 대표 요청으로 월간 추가). 판정 카드 위
+  /* 지도 모드 '공급 현황 · 주간 시세 · 월간 시세'(홈 마케팅 검수 C3 → 2026-10-04 월간 추가 → 2026-10-05 이름 바꿈). 판정 카드 위
      한 줄을 셋이 같은 폭으로 나눈다 — 지도/그래프/표 단추는 카드 아래 줄(.tb-bar)이다. 보기와 무관하게 늘 보인다. */
   #sec-score .map-mode{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;margin:16px 0 8px}
   #sec-score .map-mode button{padding:6px 4px;white-space:nowrap}
