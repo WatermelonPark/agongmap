@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v183';
+const HOME_BUILD='v184';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1785,7 +1785,7 @@ function lsOk(){try{localStorage.setItem('agongmap-ls','1');localStorage.removeI
       올린다(HOME_BUILD 는 모든 배포에서 오르므로 쓰지 않는다). 동시 A/B 는 하지 않는다 — 배포 전후 비교의 구분값이다.
       이 줄은 부팅(showView 의 첫 page_view)보다 먼저 돈다 — 큐(dataLayer)에서 'set' 이 이벤트 앞에 있어야 속성이 붙는다.
       GA 로더는 늦게 붙어도(C8) 큐를 순서대로 보낸다. */
-const HOME_VARIANT='home6';   // home6: 첫 화면 '내 지역'·'이번 주' 띠 삭제(2026-10-05)
+const HOME_VARIANT='home7';   // home7: 데스크톱 전체 개편 — 전 페이지 상단 내비·이름표(desk.css, 2026-10-06). home6: 첫 화면 '내 지역'·'이번 주' 띠 삭제(2026-10-05)
 try{if(typeof gtag==='function')gtag('set','user_properties',{home_variant:HOME_VARIANT});}catch(e){}
 /* ② 코호트 재방문 신호 — 기기에 '방문한 날 수(n)·첫 방문일(f)·마지막 방문일(l)'만 센다(KST 날짜 수, 개인 식별 정보 없음, 밖으로
       나가는 것은 GA 이벤트 매개변수뿐). 그날 첫 홈 부팅에 home_visit 을 한 번 보낸다: visit_n(방문한 날 수), gap_days(직전 방문과의
