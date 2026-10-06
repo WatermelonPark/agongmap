@@ -48,6 +48,8 @@ def test_hub_cards_show_lights_instead_of_grade_tags():
         got = re.findall(r'<span class="zl-d (\w+)">(\d)</span>', c)
         assert got == [(M.light_of(y['pct'])[0], str(y['n'])) for y in ys], (z['z'], got)
     assert '<p class="zl-legend">' in h and 'class="z-hint"' in h
+    # 2026-10-06 대표 요청: 칸이 먼저, 읽는 법(범례·막대 설명)은 목록 아래
+    assert h.index('id="sido-list"') < h.index('class="zread"') and h.index('<p class="zl-legend">') > h.index('id="sido-list"')
 
 
 def test_report_bars_share_the_light_colors_and_say_the_state():
