@@ -101,7 +101,7 @@ def test_basic_folds_old_names_so_a_source_correction_keeps_the_sum(monkeypatch,
     before = D['series'][DST][_idx(D, last_old)]
     assert before is not None, '픽스처: 통합 전 달의 저장값이 비어 있다'
     rows = _mltm_rows(D, months, bump=(last_old, 50))
-    monkeypatch.setattr(U, 'kosis', lambda p: [r for r in rows if r['PRD_DE'] == p['startPrdDe']])
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: [r for r in rows if r['PRD_DE'] == p['startPrdDe']])
     monkeypatch.setattr(U.time, 'sleep', lambda s: None)
     fetched, _ = U._fetch_basic_one(name, months=len(months), upto=SWITCH)
     assert all(not (set(SRC) & set(v)) for v in fetched.values()), '옛 이름이 남았다'
@@ -139,7 +139,7 @@ def test_basic_index_series_fold_by_weighted_mean(monkeypatch):
             pieces.append((DST, 555.55))
         for m, (nm, v) in enumerate(pieces):
             rows.append({'ITM_NM': '지수', 'C1_NM': nm, 'C1': 'g%02d' % m, 'PRD_DE': prd, 'DT': str(v)})
-    monkeypatch.setattr(U, 'kosis', lambda p: rows)
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
     fetched, _ = U._fetch_basic_one(name, months=3, upto=months[-1])
     a, b, c = months
     assert fetched[a][DST] == round(W_GJ * 100.0 + (1 - W_GJ) * 120.0, 2)
@@ -175,7 +175,7 @@ def test_three_ingest_paths_share_one_fold_rule(monkeypatch, shape):
     supply = U._merge_gj({(2026, 6): dict(vals)})[(2026, 6)]
     rows = [{'C1_NM': r, 'C1': 'c%d' % k, 'C2_NM': '아파트', 'PRD_DE': '202606', 'DT': str(v)}
             for k, (r, v) in enumerate(vals.items())]
-    monkeypatch.setattr(U, 'kosis', lambda p: rows)
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
     monkeypatch.setattr(U.time, 'sleep', lambda s: None)
     basic = U._fetch_basic_one('인허가', months=1, upto=(2026, 6))[0].get((2026, 6), {})
     got = {k: (d.get(DST), tuple(sorted(set(SRC) & set(d)))) for k, d in
@@ -218,7 +218,7 @@ def _run_supply(monkeypatch, st, rows):
     tbl = U.SUPPLY_CONF['미분양']['tbl']
     # 미분양 한 계열만 돈다 — 다른 표(분양)는 빈 응답이 실패로 기록되므로(전수리뷰 #8) 이 픽스처에서 뺀다.
     monkeypatch.setattr(U, 'SUPPLY_CONF', {'미분양': U.SUPPLY_CONF['미분양']})
-    monkeypatch.setattr(U, 'kosis', lambda p: [dict(r) for r in rows] if p.get('tblId') == tbl else [])
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: [dict(r) for r in rows] if p.get('tblId') == tbl else [])
     monkeypatch.setattr(U, 'SUPPLY_STALLED', [])
     monkeypatch.setattr(U.time, 'sleep', lambda s: None)
     failed = []
@@ -405,7 +405,7 @@ def test_annual_path_folds_like_the_other_paths(monkeypatch, name, shape):
     """
     vals = ANNUAL_SHAPES[shape]
     rows = _annual_rows(name, '2025', vals)
-    monkeypatch.setattr(U, 'kosis', lambda p: rows)
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
     got = U._fetch_annual_one(name)['2025']
     want = U._fold_gj(dict(vals), name in WEIGHTED)
     assert got == want, (got, want)
@@ -431,7 +431,7 @@ def test_annual_new_year_reaches_the_merged_region(monkeypatch):
         vals[SRC[0]], vals[SRC[1]] = g + add + (7 if y == y2 else 0), j + add
         rows += _annual_rows(name, y, vals)
     gj2 = D['series'][DST][-1]
-    monkeypatch.setattr(U, 'kosis', lambda p: rows)
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
     monkeypatch.setattr(U.time, 'sleep', lambda s: None)
     failed = []
     only = {name: U.ANNUAL_CONF[name]}
