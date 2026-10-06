@@ -713,7 +713,7 @@ def light_legend():
     return [(k, rng[k], lab) for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1])]
 
 
-LIGHT_CAP = '앞으로 %s년 차 각 해에 들어올 입주(1년 적정물량 대비)'   # 범례 머리(허브·홈) — %s 는 '1·2·3'
+LIGHT_CAP = '%s년 차 입주(1년 적정물량 대비)'   # 범례 머리(허브·홈) — %s 는 '1·2·3'
 
 
 def lights_aria(yrs):
