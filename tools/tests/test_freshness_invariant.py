@@ -542,6 +542,8 @@ def test_lookup_failure_is_not_read_as_healthy(monkeypatch):
     def dead(tbl, cycle):
         raise OSError('timed out')
     monkeypatch.setattr(C, 'rone_region_names', dead)
+    monkeypatch.setattr(C, 'REGION_RETRY_WAITS', (0, 0))      # 재시도는 돌되 쉬지 않는다
+    monkeypatch.delenv(C.REGION_STATE_ENV, raising=False)     # 상태 폴더가 없으면 예전 그대로 곧바로 '못 봤다'
     assert C.check_region_rows() == []
     assert len(C.FETCH_FAIL) == 2, C.FETCH_FAIL
     # 판정까지 본다(전수리뷰 #37). 예전엔 다른 실패가 없는 날 _gate 가 'VERDICT=ok' 를 찍고 돌아왔다 —
@@ -617,3 +619,55 @@ def test_region_count_gate_passes_on_live_data():
     n = len(adv['sido']['zones'])
     assert n == len(SZ.REF_Q), \
         '데이터 지역 %d곳 vs 모델 %d곳 — 한쪽만 바뀌면 감시가 매일 빨개진다' % (n, len(SZ.REF_Q))
+
+
+def test_region_list_drop_is_retried_then_warned_then_failed_on_the_second_day(monkeypatch, tmp_path):
+    """지역 목록 조회가 끊기면(2026-10-03·04 감시 실패 — R-ONE 이 응답 없이 끊음, 대조는 전부 일치) 간격을 두고 다시 부르고,
+    끝까지 끊기면 첫날은 경고, 이틀 연속이면 '못 봤다'(FETCH_FAIL → 재확인 → 실패)로 올린다(2026-10-06 대표 결정).
+
+    재현한 실제 상태: 병렬로 받아 둔 지역 목록이 RemoteDisconnected 로 실패한 회차. 상태 폴더는 감시 워크플로가
+    actions/cache 로 실행 사이에 이어 주는 WATCH_STATE_DIR.
+    변이(각각 실제로 확인): _region_names_retry 가 다시 부르지 않고 곧바로 던지면 첫 단정(되살아남)이 빨강.
+    region_fail_tolerated 가 어제 실패를 보지 않으면(escalate 를 늘 False) 둘째 날 단정이 빨강. 같은 날 결정을 따르지
+    않고 다시 계산하면(같은 날 두 번째 호출이 '어제'를 못 찾아 경고) 재확인 잡 단정이 빨강.
+    """
+    names = {'전국', '수도권', '지방', '서울', '서울>강남구'} | {'%s' % z for z in C.U.WEEKLY_REGIONS}
+    calls = []
+
+    def flaky_direct(tbl, cycle):
+        calls.append(tbl)
+        if len(calls) == 1:
+            raise OSError('Remote end closed connection')
+        return names
+
+    def dead_pre(tbl, cycle):
+        raise OSError('Remote end closed connection without response')
+    # ① 다시 부르면 살아난다 — 실패도 경고도 없다
+    C.FETCH_FAIL[:] = []
+    del C.WARN[:]
+    C.check_region_rows(fetch=dead_pre, today='2026-10-03', state_dir=str(tmp_path),
+                        retry=lambda f, t, c: C._region_names_retry(f, t, c, waits=(0, 0), direct=flaky_direct))
+    assert not C.FETCH_FAIL and not C.WARN, (C.FETCH_FAIL, C.WARN)
+
+    def all_dead(f, t, c):
+        return C._region_names_retry(f, t, c, waits=(0,), direct=dead_pre)
+    # ② 끝까지 끊긴 첫날 — 경고만
+    C.check_region_rows(fetch=dead_pre, today='2026-10-03', state_dir=str(tmp_path), retry=all_dead)
+    assert not C.FETCH_FAIL and len(C.WARN) == 1 and '내일도' in C.WARN[0], (C.FETCH_FAIL, C.WARN)
+    # 같은 날 재확인 잡 — 같은 결정(경고)
+    del C.WARN[:]
+    C.check_region_rows(fetch=dead_pre, today='2026-10-03', state_dir=str(tmp_path), retry=all_dead)
+    assert not C.FETCH_FAIL and len(C.WARN) == 1
+    # ③ 다음 날도 끊김 — 실패로 올린다(재확인 잡도 같은 결정)
+    del C.WARN[:]
+    for _ in range(2):
+        C.FETCH_FAIL[:] = []
+        C.check_region_rows(fetch=dead_pre, today='2026-10-04', state_dir=str(tmp_path), retry=all_dead)
+        assert len(C.FETCH_FAIL) == len(C.REGION_TABLES) and not C.WARN, (C.FETCH_FAIL, C.WARN)
+    # ④ 셋째 날 받으면 기록을 지운다 — 그다음 끊김은 다시 첫날(경고)
+    C.FETCH_FAIL[:] = []
+    C.check_region_rows(fetch=lambda t, c: names, today='2026-10-05', state_dir=str(tmp_path))
+    assert not (tmp_path / C.REGION_STATE_FILE).exists()
+    C.check_region_rows(fetch=dead_pre, today='2026-10-06', state_dir=str(tmp_path), retry=all_dead)
+    assert not C.FETCH_FAIL and len(C.WARN) == 1
+    del C.WARN[:]

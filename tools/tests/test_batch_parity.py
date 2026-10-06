@@ -21,7 +21,8 @@ YML = os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml')
 BAT = os.path.join(ROOT, 'tools', 'run_weekly_update.bat')
 
 # 클라우드에만 있는 보고용 도구 — 산출물을 만들지 않는다. 늘어나면 여기에 이유와 함께 적는다.
-REPORT_ONLY = {'month_lag', 'batch_notes', 'format_batch_report'}
+# probe_unsold_alt 는 미분양 대체 원천 조사(2026-10-06, 기록만) — 키 있는 fetch 러너 1번에서만 돌고 data.js 를 건드리지 않는다.
+REPORT_ONLY = {'month_lag', 'batch_notes', 'format_batch_report', 'probe_unsold_alt'}
 
 
 def _cloud_steps():

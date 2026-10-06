@@ -68,6 +68,7 @@ def _gate_sequence(path, job):
 FETCH_NOT_IN_CI = {
     'update_adv_data': '원천 API 키가 필요하다(CI 에는 없다) — 커밋된 data.js 가 그 산출물이다',
     'blog_feed': '네트워크 원천(RSS) 곁가지 — 실패하면 지난 값을 쓰고, 결과 파일은 커밋돼 있다',
+    'probe_unsold_alt': '미분양 대체 원천 조사(기록만, 2026-10-06) — KOSIS 키가 필요하고 산출물이 없다',
 }
 
 
