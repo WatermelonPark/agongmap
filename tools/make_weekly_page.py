@@ -265,7 +265,9 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None):
         p = hn.get(k) if (k and k != c) else hn.get(grp(c))
         return p + ' ' if p else ''
     tb = int(math.floor(VH / 2 + 0.5)) + 3   # JS Math.round(반올림 위로) — 파이썬 round 는 짝수 쪽이다
-    for c, nm, x, y, h in N['t']:
+    # 값이 한 줄도 없는 칸은 세우지 않는다(시도 머리 칸은 늘) — 홈 sggMapSvg 의 T 와 같은 규칙(2026-10-07, 인천 신설 4구 월간 빈 칸)
+    T = [t for t in N['t'] if t[4] or any(m.get(t[0]) is not None for m in vals)]
+    for c, nm, x, y, h in T:
         px, py = x * (TW + G), y * (rowH + G)
         fit = (' textLength="%s" lengthAdjust="spacingAndGlyphs"' % (TW - 3)) if len(nm) >= 4 else ''
         g = ('<g transform="translate(%s,%s)">' % (px, py) +
@@ -282,9 +284,9 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None):
         lab = '%s%s %s' % (pre(c), nm, ' · '.join('%s %s%%' % (names[j], pv2(m.get(c))) for j, m in enumerate(vals)))
         g += ('' if href else '<title>%s</title>' % lab) + '</g>'
         sv.append(('<a href="%s" data-code="%s" aria-label="%s">%s</a>' % (href(c), c, lab, g)) if href else g)
-    pos_g = {(x, y): grp(c) for c, _, x, y, _h in N['t']}
+    pos_g = {(x, y): grp(c) for c, _, x, y, _h in T}
     bl = []
-    for c, _, x, y, _h in N['t']:
+    for c, _, x, y, _h in T:
         g, px, py = grp(c), x * (TW + G), y * (rowH + G)
         J = _js_num
         if pos_g.get((x, y - 1)) != g:
@@ -296,9 +298,9 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None):
         if pos_g.get((x + 1, y)) != g:
             bl.append('M%s %sV%s' % (J(px + TW + 1.5), J(py - 1.5), J(py + rowH + 1.5)))
     sv.append('<path d="%s" stroke="#5e6f74" stroke-width="1.4" fill="none" opacity=".9" pointer-events="none"/>' % ''.join(bl))
-    pos_c = {(x, y): cl(c) for c, _, x, y, _h in N['t']}
+    pos_c = {(x, y): cl(c) for c, _, x, y, _h in T}
     dl = []
-    for c, _, x, y, _h in N['t']:
+    for c, _, x, y, _h in T:
         k = cl(c)
         if not k:
             continue
