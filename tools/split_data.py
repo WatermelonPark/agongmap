@@ -196,6 +196,7 @@ def bake_lights(sido, stats):
             z['yl'] = yl
             z['ya'] = _SZ.lights_aria([{'n': y['n'], 'pct': y['p']} for y in yl])
     sido['ylg'] = [list(x) for x in _SZ.light_legend()]
+    sido['ylc'] = _SZ.LIGHT_CAP          # 범례 머리('앞으로 %s년 차 …') — 홈이 같은 문장을 다시 적지 않게
 
 
 def main():

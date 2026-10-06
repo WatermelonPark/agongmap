@@ -344,3 +344,45 @@ def test_cum_window_is_empty_when_the_base_week_was_skipped():
     win = WM.cum_window(rows)
     assert win is not None and len(win) == WM.CUM_WEEKS
     assert rows[win[0] - 1]['p'] == (datetime.date.fromisoformat(nxt) - datetime.timedelta(days=7 * WM.CUM_WEEKS)).isoformat()
+
+
+def test_home_top10_rank_moves_follow_each_tables_own_order():
+    """홈 통계 탭 TOP 10 의 '전주/전월 대비' 칸은 그 표의 순위로 센다 — 상승 표는 많이 오른 순, 하락 표는 많이 내린 순.
+    재현한 실제 상태(2026-10-06 리뷰, 9/28 주간): 하락 표도 상승 순위로 세서 천안 동남구(하락 4위 → 8위)가 '▲4위', 서울 송파구
+    (하락 5위 → 3위)가 '▼2위'로 거꾸로 나왔다. 하락 표에 메달이 붙는 것도 같이 본다(많이 내린 곳에 금메달).
+
+    변이(각각 실제로 확인): dcell 이 dn 을 무시하고 상승 순위로 세면, 하락 표에 메달을 다시 달면 빨개진다.
+    픽스처: 저장소 data.js 의 시군구 최신 두 주(기대값은 파이썬이 같은 두 주에서 오름·내림 순위로 다시 센다 — 데이터가 앞으로 가도 같다).
+    """
+    W, Q = MW.load()
+    S = copy.deepcopy(W['sgg'])
+    S['rows'] = S['rows'][-2:]
+    h = HS.home_source()
+    fns = '\n'.join(_js_func(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'sggRanks', 'rankTables'))
+    js = '\n'.join(['const SGG_QNAME=%s;' % json.dumps(Q, ensure_ascii=False), "const RANKMET={week:'ma'};", fns,
+                    'const S=%s;' % json.dumps(S, ensure_ascii=False),
+                    'process.stdout.write(JSON.stringify(rankTables(S,"전주 대비","week")));'])
+    out = _node(js)
+    boxes = re.findall(r'<div class="rank-box">(.*?)</table>', out, re.S)
+    assert len(boxes) == 2, out[:300]
+
+    def ranks(row):
+        arr = sorted(((c, v) for c, v in zip(S['codes'], row['ma']) if c in Q and v is not None), key=lambda x: -x[1])
+        return {c: i + 1 for i, (c, _) in enumerate(arr)}, len(arr)
+    now, n_now = ranks(S['rows'][1])
+    was, n_was = ranks(S['rows'][0])
+    for bi, dn in ((0, False), (1, True)):
+        rows = re.findall(r'<tr><td>(<span class="rk-medal">[^<]*</span>)?(\d+)</td><td><a class="rk-go" href="[^"]*~([^"]+)"'
+                          r'.*?<td>(?:<span class="rk-(up|dn|same|new)">([^<]*)</span>)</td></tr>', boxes[bi], re.S)
+        assert len(rows) == 10, boxes[bi][:300]
+        for medal, rank, c, cls, txt in rows:
+            assert bool(medal) == (not dn and int(rank) <= 3), (bi, rank, medal)
+            if c not in was:
+                assert cls == 'new'
+                continue
+            w = n_was - was[c] + 1 if dn else was[c]
+            nw = n_now - now[c] + 1 if dn else now[c]
+            assert nw == int(rank), (c, nw, rank)
+            d = w - nw
+            want = ('up', '▲%d위' % d) if d > 0 else (('dn', '▼%d위' % -d) if d < 0 else ('same', '–'))
+            assert (cls, txt) == want, (Q[c], dn, w, nw, cls, txt)

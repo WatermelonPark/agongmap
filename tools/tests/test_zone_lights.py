@@ -8,7 +8,7 @@
 
 변이(각각 실제로 확인): light_of 가 occ_level 대신 `pct < 100` 으로 가르면 문턱 단정이, lights_legend_html 이 70 을 손으로
 적고 OCC_LO_PCT 를 60 으로 바꾸면 범례 단정이, build_hub 가 칸에 sc-tier 를 되살리면 태그 단정이, outlook_cells 가 옛
-'zo-lo/zo-hi'(100% 경계)로 돌아가면 막대 색 단정이, build_page 가 머리 신호등을 빼면 리포트 단정이 빨개진다.
+'zo-lo/zo-hi'(100% 경계)로 돌아가면 막대 색 단정이 빨개진다.
 픽스처: 경계 값(69·70·130·131)과 저장소 data.js 의 실제 판정·착공(색은 함수로 유도 — 데이터가 앞으로 가도 같은 판정).
 """
 import os
@@ -32,7 +32,8 @@ def test_colors_follow_the_move_in_thresholds():
     assert [M.light_of(p)[0] for p in (lo - 1, lo, hi, hi + 1)] == ['lo', 'ok', 'ok', 'hi']
     leg = M.lights_legend_html(3)
     assert '%d%% 미만' % lo in leg and '%d~%d%%' % (lo, hi) in leg and '%d%% 초과' % hi in leg, leg
-    assert '신호등 1·2·3' in leg
+    assert '동그라미 1·2·3: ' + SZ.LIGHT_CAP % '1·2·3' in leg
+    assert [lab for _, lab in (SZ.LIGHT[-1], SZ.LIGHT[0], SZ.LIGHT[1])] == ['적음', '보통', '많음'], '판정 낱말과 겹치지 않는 이름'
 
 
 def test_hub_cards_show_lights_instead_of_grade_tags():
@@ -49,16 +50,24 @@ def test_hub_cards_show_lights_instead_of_grade_tags():
     assert '<p class="zl-legend">' in h and 'class="z-hint"' in h
 
 
-def test_report_head_lights_and_bars_share_colors():
+def test_report_bars_share_the_light_colors_and_say_the_state():
+    """시도 리포트는 머리에 큰 신호등을 두지 않고(2026-10-06 — 바로 아래 막대와 같은 값을 두 번 보였다) 해마다 막대 한 그림에
+    동그라미와 같은 색 키·이름(적음·보통·많음)을 단다. '… 너머' 참고 칸은 회색(na)이다 — 바로 위 줄의 '필요량에 못 미칩니다'
+    (PWARN_CUT 95%)와 신호등 문턱(70%)이 달라 82% 가 노랑으로 칠해졌다. 다른 지역 칸은 허브와 같은 동그라미다.
+
+    변이(각각 실제로 확인): build_page 가 머리 신호등(zlights)을 되살리면, outlook_cells 가 참고 칸을 light_of 로 칠하면, 막대 아래
+    상태 글자를 빼면 빨개진다. 픽스처: 저장소 data.js 의 경기 판정·착공(3년 너머 126% 인 실제 모양).
+    """
     stats, s, Lq = _ctx()
     page = M.build_page('경기', s, stats, {}, s['zones'])
     ys = SZ.yearly_supply(stats, '경기', Lq, s['H'])
-    head = re.search(r'<div class="zlights">(.*?)</div>', page, re.S)
-    assert head, '리포트 머리에 신호등이 없다'
+    assert 'class="zlights"' not in page, '리포트 머리에 큰 신호등이 되살아났다'
     keys = [M.light_of(y['pct'])[0] for y in ys]
-    assert re.findall(r'<span class="zl-d (\w+)">', head.group(1)) == keys
-    bars = re.findall(r'<span class="zo-b (\w+)"', re.search(r'<div class="zout">(.*?)</div></div>', page, re.S).group(1))
-    assert bars[:len(keys)] == keys, (bars, keys)
+    blk = re.search(r'<div class="zout">(.*?)</div></div>', page, re.S).group(1)
+    bars = re.findall(r'<span class="zo-b (\w+)"', blk)
+    assert bars == keys + ['na'], (bars, keys)
+    labs = re.findall(r'<small>([^<]+)</small>', blk)
+    assert labs[:len(ys)] == ['%d년 차 · %s' % (y['n'], M.light_of(y['pct'])[1]) for y in ys], labs
     others = re.search(r'<h2>다른 지역</h2><div class="zlinks">(.*?)</div>', page, re.S).group(1)
     assert 'sc-tier' not in others and others.count('class="zl"') == len(s['zones']) - 1
 

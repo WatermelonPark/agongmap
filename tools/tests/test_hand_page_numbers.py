@@ -97,3 +97,25 @@ def test_faq_burini_quiz_counts_follow_quiz_code():
     m = re.search(r'(\S+ \S+)부터 (\S+ \S+)까지 (\d+)단계', s)
     assert m, 'FAQ 부린이 단계 문장을 못 찾았다'
     assert (m.group(1), m.group(2), int(m.group(3))) == (blv[0], blv[-1], len(blv)), (m.groups(), blv[0], blv[-1], len(blv))
+
+
+def test_faq_structured_data_asks_what_the_page_asks():
+    """FAQ 검색용 구조화 데이터(FAQPage JSON-LD)의 질문이 화면의 질문과 같은 순서·같은 글이다. 재현한 실제 상태(2026-10-06 리뷰):
+    화면 11문항 중 8문항만 실려 '판정이 균형인데…'(그날 기준이 바뀐 문항)·'인허가는 왜 참고로만…'·'데이터는 얼마나 자주…'가 빠졌고,
+    'LTV와 DSR의 차이는?'은 JSON-LD 에서만 '…무엇인가요?'였다. 손으로 고치는 두 벌이라 한쪽만 고치면 갈린다.
+    변이(실제로 확인): JSON-LD 에서 한 문항을 지우면, 화면 질문 하나의 글을 바꾸면 빨개진다."""
+    s = _read('faq/index.html')
+    ld = json.loads(re.search(r'<script type="application/ld\+json">\s*(\{.*?"FAQPage".*?\})\s*</script>', s, re.S).group(1))
+    vis = re.findall(r'<details[^>]*>\s*<summary>([^<]+)</summary>', s)
+    assert len(vis) >= 10, '화면 질문을 거의 못 읽었다 — 이 시험이 헛돈다'
+    assert [q['name'] for q in ld['mainEntity']] == vis
+
+
+def test_faq_light_thresholds_follow_the_move_in_band():
+    """FAQ 의 신호등 문턱('70% 미만이면 적음, 70~130%는 보통, 130%를 넘으면 많음')이 정본 OCC_LO_PCT·OCC_HI_PCT·LIGHT 와 같다.
+    변이(실제로 확인): sido_zones.OCC_HI_PCT 를 140 으로 바꾸면 빨개진다."""
+    m = re.search(r'1년 적정물량의 (\d+)% 미만이면 (\S+), (\d+)~(\d+)%는 (\S+), (\d+)%를 넘으면 (\S+)이다', _read('faq/index.html'))
+    assert m, 'FAQ 신호등 문턱 문장을 못 찾았다'
+    lo, hi = SZ.OCC_LO_PCT, SZ.OCC_HI_PCT
+    want = (str(lo), SZ.LIGHT[-1][1], str(lo), str(hi), SZ.LIGHT[0][1], str(hi), SZ.LIGHT[1][1])
+    assert m.groups() == want, (m.groups(), want)
