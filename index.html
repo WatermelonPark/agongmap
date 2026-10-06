@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v182">
+<html lang="ko" data-build="v183">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -321,7 +321,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
          '만든이 agongmap@gmail.com' mailto 링크로, 출처 기관은 산출 방법을 펼치면 항목마다 있다. -->
 
     <details class="sc-how"><summary><span class="t">산출 방법</span></summary><div class="body"><ul class="how-ls">
-<li class="how-formula"><b>지도·카드의 부족 세대</b> — <b>3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족</b>(멸실 반영). 앞으로 들어올 물량만 보지 않고 지난 4년 덜 지은 몫까지 더합니다. 지난 4년에 필요량보다 더 지은 곳은 남은 재고를 뺍니다. 지역마다 숫자를 넣은 식은 <a href="/zone/전국/#calc">시도 리포트 '숫자로 보면'</a>에 있습니다.</li>
+<li class="how-formula"><b>지도·카드의 부족 세대</b> — <b>3년 적정물량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족</b>(멸실 반영). 앞으로 들어올 물량만 보지 않고 지난 4년 덜 지은 몫까지 더합니다. 지난 4년에 적정물량보다 더 지은 곳은 남은 재고를 뺍니다. 지역마다 숫자를 넣은 식은 <a href="/zone/전국/#calc">시도 리포트 '숫자로 보면'</a>에 있습니다.</li>
 <li><b>칸의 숫자</b> — 그 기간에 준공된 아파트 세대수(국토교통부 주택건설 준공실적).</li>
 <li><b>경계선 아래 = 미래</b> — 착공 실적을 3년 뒤로 밀어 추정합니다. 착공한 것의 96%가 3년 뒤 준공되는 게 2011년 이후 실측입니다. 인허가는 삽을 안 뜬 계획이 섞여 같은 해 착공보다 15%쯤 많고 해마다 크게 흔들려서 쓰지 않습니다.</li>
 <li><b>배경색</b> — 과거 칸은 실제 가격 변동(왼쪽부터 매매·전세·월세, 한국부동산원 「전국주택가격동향조사」 월간 지수의 전월비), 미래 칸은 적정물량 대비 모자란 정도. 붉을수록 오르거나 모자라고, 푸를수록 내리거나 남습니다.</li>
@@ -571,7 +571,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="adv-tblwrap matrix" id="adv-occ-matrix"></div>
         <div class="adv-tblwrap compact" id="adv-occ-compact"></div>
       </div>
-      <div class="adv-legend"><span><i style="background:#eaf3fb"></i>적정물량의 130% 초과</span><span><i style="background:#fdecea"></i>적정물량의 70% 미만</span><span><i style="background:#f6f8f7"></i>착공 기준 추정(실적 미확정)</span></div>
+      <div class="adv-legend"><span><i style="background:#e0564a"></i>적음(70% 미만)</span><span><i style="background:#9aa8a1"></i>보통</span><span><i style="background:#3a7bd5"></i>많음(130% 초과)</span><span><i style="background:#e0564a73"></i>옅은 색 = 착공 기준 추정</span></div>
       <div class="src-note"><span id="occ-when"></span>자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.958) · 분기 합산 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
     </section>
 

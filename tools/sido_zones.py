@@ -96,7 +96,7 @@ PWARN_CUT = 0.95
 
 
 def pbr_pct(pbr):
-    """3년 너머 참고 신호(pbr)를 화면 퍼센트 정수로 — 리포트 셋째 줄 '필요량의 N%'가 찍는 값."""
+    """3년 너머 참고 신호(pbr)를 화면 퍼센트 정수로 — 리포트 셋째 줄 '적정물량의 N%'가 찍는 값."""
     return half_up(100 * pbr)      # 입주 ÷ 적정 퍼센트는 half_up 하나로(/moveins/ pct_shown·occ_level 과 같은 반올림, 2026-10-06 리뷰)
 
 
@@ -110,7 +110,7 @@ def pbr_thin(pbr):
 # 라벨 사다리를 한 칸 올렸다(2026-08-15 PM 결정, docs/2026-08-15-등급컷-결정.md).
 # ⚠️ GRADE_CUTS는 건드리지 않았다 — 컷은 가격 실측(밴드별 이후 16분기 실질
 # 상승률)에 묶여 있고, 0.55 같은 값을 정당화할 근거가 "집계 3곳을 올리고 싶어서"
-# 뿐이면 그건 근거가 아니다. 결함은 컷이 아니라 이름이었다: 0.60은 3년 필요량의
+# 뿐이면 그건 근거가 아니다. 결함은 컷이 아니라 이름이었다: 0.60은 3년 적정물량의
 # 60%가 순부족인데 그 구간을 '다소 부족(심하진 않습니다)'이라 부르고 있었다.
 GRADE_LABS = {'g4': '심각한 부족', 'g3': '매우 부족', 'g2': '부족',
               'g1': '균형', 'g0': '공급 여유'}
@@ -140,7 +140,7 @@ MULT_MIN = 0.1     # 이보다 작으면 방향을 말하지 않는다('거의 �
 
 def mult_str(m):
     """배수 숫자 → 화면 글('4.2배'). 소수 한 자리를 늘 적는다(3.0배 — 컷 '3배'와 같은 값임을 범례가 말한다).
-    0.1배에 못 미치면 '0.1배 미만'(2026-10-06 리뷰 — 충북 281세대가 '부족(필요량과 거의 같음)'으로 한 줄에 두 말을 했다)."""
+    0.1배에 못 미치면 '0.1배 미만'(2026-10-06 리뷰 — 충북 281세대가 '부족(적정물량과 거의 같음)'으로 한 줄에 두 말을 했다)."""
     return '%.1f배' % m if m >= MULT_MIN else '%.1f배 미만' % MULT_MIN
 
 
@@ -154,13 +154,13 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     """순부족비를 사람 말로 옮긴다. 판정 배지 옆에 붙는다(2026-09-13 PM 요청 ①).
 
     발단: 경기 리포트가 판정은 '균형'인데 바로 아래 '누적 순부족 50,579세대'라
-    반대로 읽혔다. 등급은 '앞으로 H분기 필요량 대비 누적 순부족의 비율'로 자르는데
+    반대로 읽혔다. 등급은 '앞으로 H분기 적정물량 대비 누적 순부족의 비율'로 자르는데
     화면에는 그 비율이 없고 절대 세대수만 있었다. 비율을 같이 보여주면 왜 균형인지가
     한 줄로 설명된다.
 
     full=True(시도 리포트 판정 문장·블로그 지역 편)는 판정의 정의대로 **지난 W분기 재고까지 셈한** 문장이다
-    (홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 예전 여유 문장 '앞으로 3년 필요량보다 19% 더 들어옵니다'는
-    앞으로 3년만의 주장이었는데, 인천은 착공 기반 입주 추정(66,579)이 필요량(69,600)보다 적고 여유는 지난 4년
+    (홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 예전 여유 문장 '앞으로 3년 적정물량보다 19% 더 들어옵니다'는
+    앞으로 3년만의 주장이었는데, 인천은 착공 기반 입주 추정(66,579)이 적정물량(69,600)보다 적고 여유는 지난 4년
     남은 재고(16,258)에서 온다 — 바로 옆의 식(formula_text)과 숫자로 부딪쳤다. 부족 문장의 '누적 순부족'도
     09-13 고객 점검이 없앤 말이다. inow(지난 창 재고, 음수 = 모자람)를 주면 formula_text 와 같은 갈래
     ('덜 지은 몫'/'남은 재고')로 쓰고, 없으면 방향 없는 '재고까지 셈하면'으로 쓴다.
@@ -183,7 +183,7 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
             return '1년 적정물량의 %s 부족' % mult_str(m)     # 허브 목록·홈 요약 대체 문구 — 연수는 말하지 않는다
         if sign < 0:
             return '1년 적정물량의 %s 여유' % mult_str(m)
-        return '필요량과 거의 같음'
+        return '적정물량과 거의 같음'
     past = '지난 %g년' % (W / 4.0)
     if sign > 0:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
@@ -195,7 +195,7 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
                 '%s 덜 지은 몫을 채우고도' % past if inow < 0 else
                 '%s 남은 재고까지 더하면' % past)
         return '%s 앞으로 %s 남는 집이 1년 적정물량의 %s입니다' % (lead, yrs, mult_str(m))
-    return '%s 재고까지 셈하면 앞으로 %s 필요량과 거의 같습니다' % (past, yrs)
+    return '%s 재고까지 셈하면 앞으로 %s 적정물량과 거의 같습니다' % (past, yrs)
 
 
 def qidx(y, q):
@@ -453,6 +453,14 @@ def basis_month(text, tail=' 기준'):
     return '%s.%02d' % (m.group(1), int(m.group(2) or m.group(3)))
 
 
+def unit_text(u):
+    """원천 단위 글자 → 화면 단위. 공급 단위는 화면에서 '세대' 하나다(2026-10-06 대표 결정, 백로그 36-2).
+    원천 표(국토교통부·KOSIS)는 '호'로 발표하고 data.js 의 unit 도 원천 그대로 둔다 — 아파트는 1호가 1세대라 숫자는 같다.
+    홈 거울은 home-stats.js 의 unitT(test_date_format 이 함께 대조한다)."""
+    import re
+    return re.sub(r'^호(?=\s|$)', '세대', '' if u is None else str(u))
+
+
 def quarter_short(key):
     """'2026Q2' → '26Q2'. 표 머리용."""
     import re
@@ -494,12 +502,12 @@ def card_parts(dtot, ratio, H=None):
     """홈·허브 카드의 세 조각: ('686,396세대', '부족', '1년 적정물량의 1.8배')(2026-10-05 안 A′ — 아래 퍼센트 이력은 옛 표기다).
 
     2026-10-05 대표 요청: '…60%만큼'은 말이 중간에 끊겨 보였고 무엇의 60%인지가 흐렸다. 이 60%는 앞의 세대수(부족분)가
-    3년 필요량의 몇 %인지다 — 이어 붙일 때 세대수 뒤 괄호로 묶어(card_text) '686,396세대 부족(3년 필요량의 60%)'로 쓴다.
+    3년 적정물량의 몇 %인지다 — 이어 붙일 때 세대수 뒤 괄호로 묶어(card_text) '686,396세대 부족(3년 적정물량의 60%)'로 쓴다.
 
-    예전엔 '−686,396세대 · 3년 필요량의 60% 부족'이라 배지('부족') 옆에 음수 부호가
+    예전엔 '−686,396세대 · 3년 적정물량의 60% 부족'이라 배지('부족') 옆에 음수 부호가
     또 붙어 이중 부정으로 읽혔다(2026-09-15 점검후속 ⑤). 부호 대신 부족·여유를 말로 쓰고
     비율은 크기만 적는다 — 그 결정의 목적(부호 이중 부정 제거)은 그대로다.
-    2026-09-27(홈 마케팅 검수 B2·HERO-4)에는 '필요량의 60%만 지어진다'로 읽히지 않게 비율 뒤에 '만큼'을 붙였는데,
+    2026-09-27(홈 마케팅 검수 B2·HERO-4)에는 '적정물량의 60%만 지어진다'로 읽히지 않게 비율 뒤에 '만큼'을 붙였는데,
     10-05 에 그 자리를 세대수 뒤 괄호로 바꿨다(위). 비율 조각만 떼어 쓰는 자리(홈 카드 셋째 줄)는 바로 위 세대수 줄에 붙는다.
     조각으로 나눈 것은 모바일 카드가 세대수만 한 줄에 싣기 때문이다(MOB-7 — '전국 [부족]' / '686,396세대').
     화면은 읽기만 한다. 순부족이 0이면 세대수·방향이 비고 비율 조각만 남는다.
@@ -527,12 +535,12 @@ def card_text(dtot, ratio, H=None):
 
 
 # ── 부족 세대수의 식(홈 마케팅 검수 B2·C4, TRUST-2, 2026-09-27) ───────────────────────
-# 카드의 686,396 은 '앞으로 3년 필요량 − 착공 기반 입주 추정'(425,873)이 아니다. 지난 4년 덜 지은 몫(260,523)이
+# 카드의 686,396 은 '앞으로 3년 적정물량 − 착공 기반 입주 추정'(425,873)이 아니다. 지난 4년 덜 지은 몫(260,523)이
 # 더해진 값인데 홈에는 그 말이 없어 홈 재료만으로는 검산이 안 됐다. 식의 이름은 여기 하나에서 만들고
 # 홈 산출 방법(손으로 쓴 index.html — 시험이 이 문구와 대조)·홈 카드 ⓘ(split_data 가 구운 ftxt)·시도 리포트의
 # '숫자로 보면' 식(make_sido_pages)·블로그 지역 편(make_naver_post)이 같이 쓴다.
 def formula_text(H=None, W=None, need=None, fut=None, inow=None):
-    """'3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'. 숫자를 주면 각 항 뒤에 붙인다.
+    """'3년 적정물량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'. 숫자를 주면 각 항 뒤에 붙인다.
 
     inow 는 지난 창의 재고(준공 − 멸실 − 적정의 합, 음수 = 모자람). 모자라면 '쌓인 부족'을 더하고, 남으면
     '남은 재고'를 뺀다 — 음수 재고를 빼는 이중 부호를 읽는 사람에게 넘기지 않는다(점검후속 ⑤). 숫자 없이
@@ -547,11 +555,11 @@ def formula_text(H=None, W=None, need=None, fut=None, inow=None):
         return '' if v is None else ' ' + format(abs(v), ',')
     tail = (('+ 지난 %s 쌓인 부족' % past) if (inow is None or inow < 0)
             else ('− 지난 %s 남은 재고' % past))
-    return '%s 필요량%s − 착공 기반 입주 추정%s %s%s' % (ahead, n(need), n(fut), tail, n(inow))
+    return '%s 적정물량%s − 착공 기반 입주 추정%s %s%s' % (ahead, n(need), n(fut), tail, n(inow))
 
 
 def display_ints(row, H):
-    """화면이 찍는 정수 넷(필요량·입주 추정·지난 재고·순부족) — 서로 검산된다.
+    """화면이 찍는 정수 넷(적정물량·입주 추정·지난 재고·순부족) — 서로 검산된다.
     make_sido_pages 의 카드(rnd = half_up)와 같은 정수다. dtot 가 없으면(옛 행) 같은 식으로 센다."""
     need, fut, inow = half_up(row['ref']) * H, half_up(row['fut']), half_up(row['inow'])
     tot = row['dtot'] if 'dtot' in row else need - fut - inow
@@ -564,7 +572,7 @@ def zone_texts(row, H):
       cnum  '686,396세대'                            (카드 둘째 줄 — 모바일은 이것만)
       cdir  '부족' | '여유' | ''                      (넓은 화면 카드에서 세대수 뒤에)
       cpct  '1년 적정물량의 1.8배'
-      ftxt  '3년 필요량 1,140,000 − 착공 기반 입주 추정 714,127 + 지난 4년 쌓인 부족 260,523 = 686,396세대 부족'
+      ftxt  '3년 적정물량 1,140,000 − 착공 기반 입주 추정 714,127 + 지난 4년 쌓인 부족 260,523 = 686,396세대 부족'
             (홈 카드 ⓘ '어떻게 계산했나' 한 줄, C4①)
     """
     need, fut, inow, tot = display_ints(row, H)
@@ -601,6 +609,24 @@ def yearly_supply(stats, z, L, H=None):
     return out
 
 
+# 낱말을 바꾼 결정(옛 → 새). 저장된 data.js 의 split(리포트 세 줄)은 calc 가 숫자와 함께 구운 문장이라 다음 배치가 점수를 다시
+# 쓸 때까지 옛 낱말을 싣는다 — refresh_texts 가 읽을 때 바꿔 끼운다(숫자는 그대로). '필요량' → '적정물량'은 2026-10-06 대표 결정
+# (백로그 36-2). 배치가 한 번 돌면 저장값도 새 낱말이 되어 이 표는 할 일이 없어진다.
+TERM_RENAMES = (('필요량', '적정물량'),)
+
+
+def _renamed(v):
+    if isinstance(v, str):
+        for old, new in TERM_RENAMES:
+            v = v.replace(old, new)
+        return v
+    if isinstance(v, (list, tuple)):
+        return type(v)(_renamed(x) for x in v)
+    if isinstance(v, dict):
+        return {k: _renamed(x) for k, x in v.items()}
+    return v
+
+
 def refresh_texts(sido):
     """저장된 판정(ADV.sido)의 화면 문구를 **지금의 함수**로 다시 굽는다(제자리). 숫자는 건드리지 않는다.
 
@@ -613,6 +639,8 @@ def refresh_texts(sido):
         z.update(zone_texts(z, H))
         if z.get('ratio') is not None:   # 비율 문구(rtxt)도 calc 가 굽지만 문구를 고친 PR 뒤엔 옛 말이 남는다(2026-10-05 표기 변경)
             z['rtxt'] = ratio_text(z['ratio'], H)
+        if z.get('split') is not None:   # 리포트 세 줄의 낱말(TERM_RENAMES)
+            z['split'] = _renamed(z['split'])
     for k in RETIRED_TEXTS:
         sido.pop(k, None)
     return sido
@@ -831,7 +859,7 @@ def price_periods(monthly, per='q'):
 def permit_signal(stats, region, ref_q):
     """3년 너머 참고 신호. 판정 산식에는 넣지 않는다.
 
-    값 = 최근 PERMIT_WIN개월 인허가의 연평균 × 착공 전환율 ÷ 연 필요량.
+    값 = 최근 PERMIT_WIN개월 인허가의 연평균 × 착공 전환율 ÷ 연 적정물량.
     12월 몫 = 최근 12개월 인허가 중 12월 한 달의 비중. 이례 여부를 가르는 문턱은
     두지 않고 숫자만 보여준다(2026-09-13 대표 결정).
     돌려주는 값: {'pbr', 'pdec', 'pconv'} — 계산할 수 없으면 None.
@@ -863,7 +891,7 @@ def split_text(inow, fut, need, ref, sig, est, H=None, W=None):
     """리포트 머리의 세 줄(지난 4년·앞으로 3년·3년 너머)과 추정 안내. 숫자만 쓴다.
 
     대표 판정 한 줄이 서로 다른 세 방향을 뭉갠다(경기: 지난 4년 거의 균형, 앞으로
-    3년 12% 부족, 3년 너머 필요량 이상). 단계 말(충분·부족)을 붙이면 근거 없는
+    3년 12% 부족, 3년 너머 적정물량 이상). 단계 말(충분·부족)을 붙이면 근거 없는
     문턱이 새로 생기므로 숫자만 적는다(2026-09-13 대표 결정 A안).
     ⚠️ 여기서만 만든다. calc()가 결과 행에 'split'으로 구워 싣고 화면은 읽기만 한다.
     """
@@ -874,16 +902,16 @@ def split_text(inow, fut, need, ref, sig, est, H=None, W=None):
     ahead = '%g년' % (H / 4.0)
     now = int(round(100.0 * inow / (ref * W))) if ref else 0
     if now <= -1:
-        l1 = '필요량보다 %d%% 덜 지었습니다' % -now
+        l1 = '적정물량보다 %d%% 덜 지었습니다' % -now
     elif now >= 1:
-        l1 = '필요량보다 %d%% 더 지었습니다' % now
+        l1 = '적정물량보다 %d%% 더 지었습니다' % now
     else:
-        l1 = '필요량만큼 지었습니다'
-    l2 = '필요량의 %d%%가 들어옵니다' % int(round(100.0 * fut / need)) if need else None
+        l1 = '적정물량만큼 지었습니다'
+    l2 = '적정물량의 %d%%가 들어옵니다' % int(round(100.0 * fut / need)) if need else None
     l3 = dec = None
     thin = False
     if sig:
-        l3 = '최근 %s 인허가를 착공으로 환산하면 필요량의 %d%%입니다' % (win_years(PERMIT_WIN), pbr_pct(sig['pbr']))
+        l3 = '최근 %s 인허가를 착공으로 환산하면 적정물량의 %d%%입니다' % (win_years(PERMIT_WIN), pbr_pct(sig['pbr']))
         if sig.get('pdec') is not None:
             dec = '최근 %s 인허가 중 12월 한 달이 %d%%입니다' % (win_years(PDEC_WIN), int(round(100 * sig['pdec'])))
         thin = pbr_thin(sig['pbr'])

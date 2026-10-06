@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v182';
+const HOME_BUILD='v183';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -127,7 +127,11 @@ function partBusy(n,fn,state){
     const box=document.getElementById('stats-loading'); if(!box)return;
     if(state==='wait'){PART_FAIL=false;box.textContent='통계 화면을 불러오는 중…';box.style.display='';}
     else if(state==='done'){box.style.display='none';}
-    else{PART_FAIL=true;box.textContent='통계 화면을 불러오지 못했습니다. 연결을 확인하고 다시 눌러 주세요.';box.style.display='';}
+    /* '다시 눌러 주세요'라고만 하면 누를 것이 없었다(백로그 36-6) — 같은 자리에 다시 시도 단추를 둔다(statsOpen 은 PARTS 입구라
+       누르면 분할 파일을 다시 받는다. 실패한 주소는 loadPart 가 _loaded 에서 지워 둔다). */
+    else{PART_FAIL=true;box.textContent='통계 화면을 불러오지 못했습니다. 연결을 확인해 주세요. ';
+      if(box.insertAdjacentHTML)box.insertAdjacentHTML('beforeend','<button type="button" class="retry-btn" onclick="statsOpen()">다시 시도</button>');
+      box.style.display='';}
     return;
   }
   if(fn!=='startQuiz'&&fn!=='bootChallenge')return;
@@ -1377,7 +1381,7 @@ function renderSidoMap(){
      붙는다(mapKeyHtml, C3). */
   h+='<div class="map-box">'+mapKeyHtml(M)
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
-    +'" role="img" aria-label="'+mapAria(M)+'">';
+    +'" role="group" aria-label="'+mapAria(M)+'">';   /* 안에 링크가 있어 img 가 아니다 — img 는 자식을 읽지 않는다(백로그 36-8) */
   /* 광주·전남은 2026-09-10 판정 단위가 하나로 합쳐졌다(국토부가 공급 통계를
      '전남광주'로만 발표). 지도의 두 도형은 지리 정보라 그대로 두고, 색·링크·라벨은
      통합 지역을 가리킨다 — 한 판정을 두 땅이 나눠 갖는 모양이다.
@@ -1404,8 +1408,11 @@ function renderSidoMap(){
     var lab=M?key+' — '+M.lead+' 매매 '+wkPct(M.v[key])+' · 누르면 '+M.adj+' 그래프'
       :key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
     var small=SMALL[a.n]||key!==a.n;
-    h+=(code?'<a href="#stats-market-'+M.k+'~'+code+'" data-code="'+code+'" aria-label="'+lab+'">'
-      :'<a href="/zone/'+encodeURIComponent(key)+'/" aria-label="'+lab+'">')
+    /* 한 판정 단위의 두 번째 도형(전남광주의 작은 쪽)은 같은 곳으로 가는 링크라 초점이 두 번 섰다(백로그 36-8) — 마우스·터치로는
+       눌리게 두고 키보드 순서·읽기에서만 뺀다. */
+    var dup=labelAt[key]!==a?' tabindex="-1" aria-hidden="true"':'';
+    h+=(code?'<a href="#stats-market-'+M.k+'~'+code+'" data-code="'+code+'"'+dup+' aria-label="'+lab+'">'
+      :'<a href="/zone/'+encodeURIComponent(key)+'/"'+dup+' aria-label="'+lab+'">')
       +'<path d="'+a.d+'" fill="'+(M?wkFill(M.v[key],M.ref):supplyFill(z))+'"></path>'
       +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')

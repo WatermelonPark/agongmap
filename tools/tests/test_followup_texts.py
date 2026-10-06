@@ -83,7 +83,7 @@ def test_card_text_never_pairs_a_minus_sign_with_shortfall():
     0.6배)'(2026-10-05 안 A′ — 옛 부족률 퍼센트는 100% 를 넘고 음수가 되며 신호등 퍼센트와 뜻이 반대였다).
 
     변이(각각 실제로 확인): card_text 를 옛 '%s %s · %s' 로 되돌리면, card_parts 가 배수 대신 옛 '부족률 +N%'를 쓰면, 작은 비율에
-          '필요량과 거의 같음'을 붙이면(충북 '281세대 부족(필요량과 거의 같음)') 빨개진다.
+          '적정물량과 거의 같음'을 붙이면(충북 '281세대 부족(적정물량과 거의 같음)') 빨개진다.
           세대수 조각에 음수 부호를 붙이면 첫 단정이 빨개진다.
     픽스처: 실제 카드 넷 — 전국(686,396 부족·0.60), 인천(13,237 여유·−0.19), 세종(907 부족·0.126), 충북(281 부족·0.004).
     """
@@ -111,7 +111,7 @@ def test_home_and_hub_read_the_baked_card_text():
     for f in ('ADV.sido.dist', 'ADV.sido.ktxt'):   # 2026-09-28 에 뺀 분포 한 줄·범례 뜻 한 줄
         assert f not in home, '홈이 뺀 문구 %s 를 아직 읽는다' % f
     assert "tbSigned(z.tot)+'세대'+(z.rtxt" not in home, '홈 카드가 옛 부호 문구를 만든다'
-    assert not re.search(r"'만큼'|필요량의'\s*\+", HS.home_source()), '홈이 카드 비율 문구를 따로 만든다 — 이중 구현'
+    assert not re.search(r"'만큼'|적정물량의'\s*\+", HS.home_source()), '홈이 카드 비율 문구를 따로 만든다 — 이중 구현'
     hub = _src('tools/make_sido_pages.py')
     assert "card_html(o)" in hub and "t = o['ctxt']" in hub   # 허브 시도 칸은 정본 ctxt 를 괄호만 묶어 그대로 싣는다(2026-10-05)
     assert '모자란 재고' not in hub and "'지난 4년 재고'" not in hub
@@ -122,14 +122,14 @@ def test_unsold_multiple_reads_as_percent_below_one():
 
 
 def test_home_supply_legend_has_no_meaning_line():
-    """공급 지도 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 3년 필요량을 채우는지 · 2026년 2분기 기준')은 뺐다(2026-09-28
+    """공급 지도 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 3년 적정물량을 채우는지 · 2026년 2분기 기준')은 뺐다(2026-09-28
     대표 결정 — 작은 글씨 정리). 식은 카드 ⓘ(ftxt)·산출 방법 첫 항목에, 3년 구간은 지도 아래 '앞으로 3년(…~…)' 줄에 남는다.
     옛 문구('앞으로 3년 필요한 만큼 지어지는지', '적정물량 대비 누적 순부족 · 기준')도 되살아나지 않는다.
     변이: mapKeyHtml 공급 갈래에 tk-n 뜻 한 줄을 되살리면(ADV.sido.ktxt 대체값 포함) 빨개진다(확인).
     """
     home = _src('index.html')
     HS.require(home, 'const MATRIX_REGIONS', what='홈 스크립트')
-    for bad in ('ADV.sido.ktxt', '몫까지 더해 3년 필요량을 채우는지', '앞으로 3년 필요한 만큼 지어지는지', '적정물량 대비 누적 순부족 · 기준'):
+    for bad in ('ADV.sido.ktxt', '몫까지 더해 3년 적정물량을 채우는지', '앞으로 3년 필요한 만큼 지어지는지', '적정물량 대비 누적 순부족 · 기준'):
         assert bad not in home, bad
     assert not hasattr(SZ, 'legend_text')
 

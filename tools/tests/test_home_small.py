@@ -235,7 +235,7 @@ def test_footer_mail_links_take_the_footer_color():
         if rel.startswith(('tools/', 'docs/')) or HS.is_home(rel):
             continue
         s = io.open(path, encoding='utf-8').read()
-        foot = re.search(r'<footer>(.*?)</footer>', s, re.S)
+        foot = re.search(r'<footer[^>]*>(.*?)</footer>', s, re.S)   # 손 페이지 공용 푸터는 class="sfoot"(백로그 36-4)
         if not foot or 'agongmap@gmail.com' not in foot.group(1):
             continue
         pages.append(rel)

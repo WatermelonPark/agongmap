@@ -120,7 +120,9 @@ def test_estimate_flag_is_derived_from_the_model():
 def test_stored_split_matches_the_function():
     st, adv = _data()
     fresh = {z['z']: z['split'] for z in SZ.calc(st)['zones']}
-    stored = {z['z']: z['split'] for z in adv['sido']['zones']}
+    # 화면이 읽는 값(refresh_texts 를 거친 값)으로 견준다 — 낱말을 바꾼 결정(TERM_RENAMES)은 다음 배치 전까지 저장값에 옛 낱말로
+    # 남고, 화면(split_data·make_sido_pages)은 refresh_texts 로 바꿔 읽는다. 숫자가 다르면 여전히 빨강이다.
+    stored = {z['z']: z['split'] for z in SZ.refresh_texts(adv['sido'])['zones']}
     norm = lambda d: json.loads(json.dumps(d, ensure_ascii=False))
     assert norm(fresh) == norm(stored), '저장된 세 줄이 산식과 다르다 — --seed-sido를 다시 돌릴 것'
 
@@ -138,7 +140,7 @@ def test_reference_line_looks_like_a_reference_not_an_alarm():
     assert '참고로만 봅니다' in html and '판정에는 넣지 않습니다' in html
     assert '12월 한 달' in html
     assert 'zwarn' not in html and '⚠' not in html, '인허가를 경보처럼 보여준다'
-    assert '<strong>' in html, '필요량에 못 미칠 때 참고 줄 안에서 강조하지 않는다'
+    assert '<strong>' in html, '적정물량에 못 미칠 때 참고 줄 안에서 강조하지 않는다'
     assert '<strong>' not in P.split_block(_sp(thin=False))
 
 

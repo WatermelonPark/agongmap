@@ -94,7 +94,7 @@ def test_description_and_paragraph_share_one_fragment_list():
     픽스처: 합성 행(부족 1,234세대·균형 둘 다) — 실데이터와 무관한 갈래까지 본다.
     """
     calc = {'H': 12, 'L': '2030Q1', 'Ltxt': '2030년 1분기'}
-    for row, lab in (({'ctxt': '1,234세대 부족(3년 필요량의 40%)', 'fut': 5000.4, 'ref': 700, 'dtot': 1234}, '부족'),
+    for row, lab in (({'ctxt': '1,234세대 부족(3년 적정물량의 40%)', 'fut': 5000.4, 'ref': 700, 'dtot': 1234}, '부족'),
                      ({'fut': 10.6, 'ref': 3, 'dtot': -50, 'inow': 1}, '공급 여유')):
         parts = M.summary_parts('가나', row, calc, lab)
         assert _text(M.summary_html(parts)) == M.summary_text(parts)
@@ -384,8 +384,8 @@ def test_year_line_uses_the_card_months_and_labels_not_row_offsets():
     line = _text(M.year_line('서울', stats))
     v = lambda d, lab: d['series']['서울'][d['dates'].index(lab)]
     # 달은 읽는 꼴('2030년 6월', 날짜 두 단계 — 백로그 36-1)
-    assert '미분양 %s호(2030년 6월) → %s호(2031년 6월)' % (M.num(v(un, '2030.06')), M.num(v(un, '2031.06'))) in line, line
-    assert '가장 많던 달 5,000호(2030년 12월)' in line, line
+    assert '미분양 %s세대(2030년 6월) → %s세대(2031년 6월)' % (M.num(v(un, '2030.06')), M.num(v(un, '2031.06'))) in line, line
+    assert '가장 많던 달 5,000세대(2030년 12월)' in line, line
     assert '전세가율 %.1f%%(2030년 5월) → %.1f%%(2031년 5월)' % (v(jr, '2030.05'), v(jr, '2031.05')) in line, line
     assert I.jeonse_ref_index(jr, I.JEONSE_NEED) == jd.index('2031.05')
     card = M.next_links('서울', None, stats)
@@ -427,7 +427,7 @@ def test_every_report_has_the_year_line_from_saved_data():
         assert ('미분양' in m.group(1)) == u_ok(z) and ('전세가율' in m.group(1)) == j_ok(z), (z, _text(m.group(1)))
         card = re.search(r'(\d{4}년 \d{1,2}월) 기준 · 분기 적정물량', s)   # 읽는 꼴(날짜 두 단계, 백로그 36-1)
         if card and '미분양' in m.group(1):
-            assert '호(%s)' % card.group(1) in m.group(1), (z, card.group(1), _text(m.group(1)))
+            assert '세대(%s)' % card.group(1) in m.group(1), (z, card.group(1), _text(m.group(1)))
 
 
 # ── D4: 표를 뺀 본문의 공통 문장 비율 상한 ─────────────────────────────────────────────────────
