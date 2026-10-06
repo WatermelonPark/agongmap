@@ -37,6 +37,7 @@ except Exception:
     pass
 
 import make_indicator_pages as I           # noqa: E402  SHELL·fill·ld_pack 공유
+import site_nav as N                       # noqa: E402  데스크톱 왼쪽 목차(dtoc·DTOC_JS)
 import sido_zones as SZ                    # noqa: E402  지역 정의 정본
 import make_weekly_page as MW              # noqa: E402  변동률 반올림 정본(pv2r)
 import page_share as PS                    # noqa: E402  공유 버튼(홈 마케팅 검수 B8)
@@ -61,6 +62,11 @@ SHARE_SOURCE = 'monthly_share'           # 공유 링크 utm_source
 BRAND_IMG = (SITE + '/og-brand.png', 1200, 630)
 SHARE_LEAD = '이번 달 통계를 필요한 사람에게 보내 보세요'
 
+
+
+# 다섯 절(앵커, 라벨) — 좁은 화면의 절 이동 칩과 1024px 이상의 왼쪽 목차가 같이 쓴다.
+TOC_ITEMS = (('price', '1 매매·전세·월세'), ('permits', '2 인허가'), ('moveins', '3 입주물량'),
+             ('unsold', '4 미분양'), ('jeonse', '5 전세가율'))
 
 def load():
     """data.js → (ADV, STATS)."""
@@ -646,10 +652,9 @@ def main():
     # /feed.xml 월간 항목은 새 기준월이 처음 구워진 날 이 dateModified 를 발행일로 가져간다.
     today = KST.today_iso()
 
+    # 절 이동 칩(좁은 화면)과 왼쪽 목차(1024px 이상, desk.css doc)는 같은 목록에서 나온다.
     toc = ('<div class="wrap"><nav class="toc" aria-label="지표 목록">'
-           '<a href="#price">1 매매·전세·월세</a><a href="#permits">2 인허가</a>'
-           '<a href="#moveins">3 입주물량</a><a href="#unsold">4 미분양</a>'
-           '<a href="#jeonse">5 전세가율</a></nav></div>')
+           + ''.join('<a href="#%s">%s</a>' % it for it in TOC_ITEMS) + '</nav></div>')
 
     # 공유 버튼(B8) — 다섯 지표를 다 본 자리(표 뒤)에 둔다. 시도 리포트 공유 구역과 같은 자리다.
     share = share_payload(adv, sts)
@@ -657,7 +662,8 @@ def main():
 
     title = '이달의 공급 통계 — 시도별 매매·전세·인허가·입주물량·미분양 | 아공맵'
     desc = DESC
-    body = ('<header><div class="wrap"><div class="chip">이달의 공급 통계</div>'
+    body = (N.dtoc(TOC_ITEMS)
+            + '<header><div class="wrap"><div class="chip">이달의 공급 통계</div>'
             '<h1>이번 달 통계, 한 화면에서</h1>'
             '<p class="lead">매달 흩어져 발표되는 공개 통계를 보는 순서 그대로 모았습니다. '
             '지표마다 <b>기준월과 발표 원천</b>을 함께 적었습니다.</p></div></header>'
@@ -669,7 +675,7 @@ def main():
             '</p></div></section>')
 
     html = I.fill(
-        I.SHELL,
+        I.SHELL, desk='doc',
         title=esc(title), ogtitle=esc('이달의 공급 통계 — 한 화면 정리'),
         desc=esc(desc), url=URL,
         ld=ld_pack_here('이달의 공급 통계', desc, URL, today),
@@ -681,7 +687,7 @@ def main():
     # 진입 측정 — 기존 view/to 패턴과 같은 이름을 쓴다.
     html = html.replace('</body>',
                         "<script>try{gtag('event','view',{screen_name:'monthly'});}"
-                        "catch(e){}</script>\n</body>", 1)
+                        "catch(e){}</script>\n" + N.DTOC_JS + "\n</body>", 1)
 
     os.makedirs(OUT, exist_ok=True)
     p = os.path.join(OUT, 'index.html')

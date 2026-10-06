@@ -237,8 +237,9 @@ footer a{color:var(--ink)}
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
+__DESKLINK__
 </head>
-<body>
+__DESKBODY__
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 __BODY__
 <footer><div class="wrap">
@@ -272,8 +273,10 @@ def type_tokens(css=None):
     return ';'.join(out)
 
 
-def fill(shell, **kw):
+def fill(shell, desk='wide', **kw):
     out = shell.replace('__TOKENS__', type_tokens()).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
+    # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)
+    out = out.replace('__DESKLINK__', N.desk_link()).replace('__DESKBODY__', N.desk_body(desk))
     for k, v in kw.items():
         out = out.replace('__' + k.upper() + '__', v)
     # 랜드마크: 머리글 뒤부터 바닥글 앞까지가 본문이다(2026-09-18 접근성 점검 — 어느 페이지에도 <main> 이 없었다).

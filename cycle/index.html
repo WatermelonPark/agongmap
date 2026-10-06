@@ -76,8 +76,9 @@ h2.t .t-sub{display:block;font-size:clamp(16px,2.2vw,19px);font-weight:600;color
 /* 네비를 <a>로 쓰므로 밑줄을 지운다(홈은 <button>이라 필요 없었다). */
 .bottomnav .nav-btn{text-decoration:none}
 </style>
+<link rel="stylesheet" href="/desk.css?v=58ee63ad" media="(min-width:1024px)">
 </head>
-<body>
+<body data-desk="doc">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <header class="hero"><div class="wrap">
@@ -87,6 +88,8 @@ h2.t .t-sub{display:block;font-size:clamp(16px,2.2vw,19px);font-weight:600;color
   <div class="meta"><span><span data-d="span_y">2006~2026</span> 분기·연</span><span class="dot"></span>
     <span>분석 <span data-d="n_panel">14</span>개 시도</span><span class="dot"></span><span>KOSIS·한국은행</span></div>
 </div></header>
+<!-- 왼쪽 목차(1024px 이상, desk.css doc) — 절 제목을 줄인 라벨. 절을 더하거나 id 를 바꾸면 여기도 고친다(test_site_nav 가 앵커를 본다) -->
+<nav class="dtoc" hidden aria-label="목차"><b>사이클 리포트</b><ol><li><a href="#tldr">30초 요약</a></li><li><a href="#link1">① 집이 모자라면 전세부터</a></li><li><a href="#link2">② 전세가 매매를 밀어올린다</a></li><li><a href="#link3">③ 오른 집값이 공급을 부른다</a></li><li><a href="#link45">④⑤ 공급은 수 년 뒤에</a></li><li><a href="#link6">⑥ 입주가 몰리면 전세부터 꺾인다</a></li><li><a href="#score">사이클이 도는 곳, 끊기는 곳</a></li><li><a href="#ref1">금리</a></li><li><a href="#ref2">수도권은 투자, 지방은 실거주</a></li><li><a href="#ref3">지방은 빠르게, 수도권은 길게</a></li><li><a href="#ref4">2028년, 멸실의 시간</a></li><li><a href="#summary">한눈에 보는 요약</a></li></ol></nav>
 <main id="main">
 
 <!-- 30초 요약 (첫 방문자용 진입로) -->
@@ -690,5 +693,6 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});
 }
 </script>
+<script>(function(){var t=document.querySelector('.dtoc');if(!t)return;var a=[].slice.call(t.querySelectorAll('a[href^="#"]')),m={};a.forEach(function(x){var s=document.getElementById(x.getAttribute('href').slice(1));if(s)m[s.id]=x});t.addEventListener('click',function(e){var x=e.target.closest&&e.target.closest('a');if(!x)return;var d=document.getElementById(x.getAttribute('href').slice(1));if(d&&d.tagName==='DETAILS')d.open=true});if(!('IntersectionObserver' in window))return;var o=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;a.forEach(function(x){x.removeAttribute('aria-current')});var x=m[e.target.id];if(x)x.setAttribute('aria-current','true')})},{rootMargin:'-15% 0px -75% 0px'});Object.keys(m).forEach(function(k){o.observe(document.getElementById(k))})})();</script>
 </body>
 </html>
