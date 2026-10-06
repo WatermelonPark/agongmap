@@ -377,6 +377,9 @@ SHARE_SOURCE = 'weekly_share'   # 공유 링크의 utm_source(유입 장치) —
 # 탭 이름을 바꿔도(C2 '통계' → '시세') 이 페이지를 손으로 고칠 일이 없다.
 NAV_TAB = 'stats'
 NAV_ON = N.HREF[NAV_TAB]
+# 데스크톱 머리 위 빈칸(백로그 36-9, 2026-10-06 대표 결정) — 머리 위 여백 52px 이 넓은 화면에서는 첫 줄 앞 빈 띠로 보였다.
+# 720px 이상에서만 24px 로 줄인다(모바일은 그대로). 뼈대는 배치 산출물이라 생성기가 없으면 넣는다(put_nav).
+HEAD_DESKTOP_CSS = '@media(min-width:720px){header{padding-top:24px}}'
 NAV_ON_CSS = '.nav-btn.on{color:#fff}'   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다
 _NAV_A = re.compile(r'<a class="nav-btn(?: on)?"(?: aria-current="page")? href="([^"]*)"')
 _NAV_BLOCK = re.compile(r'<nav class="bottomnav">.*?</nav>', re.S)
@@ -619,6 +622,8 @@ def put_nav(s):
         s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
     if N.NAV_FOCUS_CSS not in s:     # 탭바 키보드 초점(백로그 36-8) — 뼈대는 배치 산출물이라 여기서 넣는다
         s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_FOCUS_CSS, 1)
+    if HEAD_DESKTOP_CSS not in s:    # 데스크톱 머리 위 빈칸(백로그 36-9)
+        s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + HEAD_DESKTOP_CSS, 1)
     # 탭 라벨 글자 크기도 정본(site_nav.LABEL_PX — 홈 화면 글자 하한 13px, 2026-09-28)으로 맞춘다. 뼈대 <style> 은 배치 산출물이라
     # PR 로 고치지 않고 여기서 고쳐 쓴다(옛 뼈대 11.5px).
     rules = _NAV_BTN_CSS.findall(s)
