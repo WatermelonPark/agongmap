@@ -85,7 +85,7 @@ def summarize(tbl, nm, rows):
 # 원천을 바꾸기 전에 그 표의 모양(분류·항목)과, 지금 계열(R-ONE, data.js STATS['미분양'])과 같은 달의 시도 값이 같은지 본다.
 CANDIDATE = 'DT_MLTM_2080'
 COMPARE_MONTHS = 6
-TOTAL_NAMES = ('계', '합계', '소계', '전체', '총계')
+TOTAL_NAMES = ('총합', '계', '합계', '전체', '총계')   # 10-07 배치 실측: DT_MLTM_2080 은 C2·C3 합계를 '총합'으로 쓴다('소계'는 부문 안 소계라 뺀다)
 _FULL = {'서울특별시': '서울', '부산광역시': '부산', '대구광역시': '대구', '인천광역시': '인천', '광주광역시': '광주',
          '대전광역시': '대전', '울산광역시': '울산', '세종특별자치시': '세종', '경기도': '경기', '강원도': '강원',
          '강원특별자치도': '강원', '충청북도': '충북', '충청남도': '충남', '전라북도': '전북', '전북특별자치도': '전북',
@@ -178,7 +178,10 @@ def candidate(key, get=_get, stats=None):
         print('::notice title=미분양 대조::%s 를 받지 못했다' % CANDIDATE)
         return
     print('::notice title=미분양 표 모양::%s — %s' % (CANDIDATE, shape(rows)))
-    for ln in compare(sido_totals(rows), _stats() if stats is None else stats):
+    tot = sido_totals(rows)
+    if not tot:                # 합계 이름을 못 알아봐 대조가 조용히 비는 일(10-07 첫 대조)을 줄로 남긴다
+        print('::notice title=미분양 대조::%s 합계 행(%s)을 못 찾았다' % (CANDIDATE, '·'.join(TOTAL_NAMES)))
+    for ln in compare(tot, _stats() if stats is None else stats):
         print('::notice title=미분양 대조::%s %s' % (CANDIDATE, ln))
 
 
