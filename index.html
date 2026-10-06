@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v183">
+<html lang="ko" data-build="v184">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -193,9 +193,10 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   #splash .mark-txt{opacity:1;transform:none;animation:none}
 }
 </style>
+<link rel="stylesheet" href="/desk.css?v=58ee63ad" media="(min-width:1024px)">
 </head>
 <!-- home-app: 1024px 이상에서 하단 탭바를 상단 내비로 올리는 규칙(app.css, 홈 마케팅 검수 C7)의 범위 표지 — 홈에만 건다. -->
-<body class="home-app">
+<body class="home-app" data-desk="home">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <div id="splash" aria-hidden="true">

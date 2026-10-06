@@ -151,7 +151,7 @@ def test_top_nav_is_the_one_canonical_tabbar_moved_up_on_home_only():
           건너뛰기 링크의 z-index 올림을 지우면 빨개진다.
     """
     idx = _index()
-    assert re.search(r'<body class="[^"]*\bhome-app\b[^"]*">', idx), '홈 <body> 에 home-app 표지가 없다'
+    assert re.search(r'<body class="[^"]*\bhome-app\b[^"]*"[^>]*>', idx), '홈 <body> 에 home-app 표지가 없다'
     navs = re.findall(r'<nav class="bottomnav">(.*?)</nav>', idx, re.S)
     assert len(navs) == 1 and '<nav class="topnav"' not in idx, '홈 탭바는 하나여야 한다(상단용 복제 금지)'
     labels = re.findall(r'<span>([^<]*)</span>', navs[0])

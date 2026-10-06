@@ -420,7 +420,7 @@ def _today():
     return KST.today_iso()
 
 
-def head(z, desc, title, url=None, crumb=None):
+def head(z, desc, title, url=None, crumb=None, desk='report'):
     """⚠️ url을 안 넘기면 z를 지역명으로 보고 /zone/{z}/ 를 만든다. 허브처럼
     z 자리에 제목을 넘기는 곳은 반드시 url을 주어야 한다 — 안 그러면 canonical·
     og:url·JSON-LD가 존재하지 않는 /zone/시도별%20공급/ 을 가리킨다(2026-08-07 감사)."""
@@ -486,10 +486,13 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">%(ld)s</script>
 <link rel="stylesheet" href="/app.css">
+%(desk_link)s
 </head>
-<body>
+%(desk_body)s
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 ''' % {'ga': GA, 'zjs': zone_js_src(), 'robots': RM.TAG,
+       # 데스크톱 틀(desk.css): 리포트는 왼쪽 판정 요약·오른쪽 표, 허브는 글 단 그대로(site_nav.DESK_KINDS)
+       'desk_link': N.desk_link(), 'desk_body': N.desk_body(desk),
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,
        # 지역 카드(make_zone_cards.py 산출물). 없으면 브랜드 카드로 떨어진다 —
        # 카드를 아직 안 구웠거나 지역이 새로 생긴 회차에도 미리보기가 깨지지 않게.
@@ -1278,7 +1281,7 @@ def build_hub(calc, stats=None):
             '지난 공급은 국토교통부 준공 실적, 앞으로 %s은 착공 실적으로 셉니다. %s 기준입니다.'
             % (len(sido), yrs, yrs, calc.get('Ltxt') or calc['L']))
     h = [head('시도별 공급', desc, '시도별 아파트 공급 분석',
-              url=SITE + '/zone/', crumb=False)]
+              url=SITE + '/zone/', crumb=False, desk='read')]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <b>시도 공급 분석</b></nav>'
              '<h1>시도별 아파트 공급</h1>'
