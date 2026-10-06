@@ -196,7 +196,8 @@ def test_source_line_sits_under_the_map_and_the_report_mail_is_in_the_footer():
     h = _home()
     sec = re.search(r'<section class="home-sec vm-map" id="sec-score".*?</section>', h, re.S).group(0)
     how = sec.index('<details class="sc-how">')
-    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span><span>([^<]*)</span></p>', sec)
+    # 셋째 칸(#lt-key)은 신호등 범례 한 줄 — 부팅 때 채운다(2026-10-06, 카드 아래에서 옮겼다)
+    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span><span>([^<]*)</span><span id="lt-key"></span></p>', sec)
     assert src and src.start() < how, '지도 아래 출처·구간 줄이 없다'
     assert not re.search(r'\d{4}|분기~', src.group(1)) and '국토교통부' in src.group(2), src.groups()
     assert 'map-who' not in h and '개인이 운영합니다' not in sec, '지도 아래 운영 주체 줄이 되살아났다'

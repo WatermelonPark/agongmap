@@ -19,10 +19,20 @@ def _left(r):
     return float(re.search(r'left:([\d.]+)%', M.gauge_html({'ratio': r})).group(1))
 
 
-def test_marker_moves_right_as_the_shortfall_grows_and_stays_inside():
+def test_marker_moves_left_as_the_shortfall_grows_and_stays_inside():
+    """왼쪽이 부족, 오른쪽이 여유다(2026-10-06 대표 결정 — '부족할수록 오른쪽'은 같은 칸 신호등(적음 → 많음)과 방향이 반대라
+    헷갈렸다). 막대·범례·홈 지도 범례가 같은 방향이다.
+    변이(각각 실제로 확인): _gx 를 옛 방향(부족 = 오른쪽)으로 되돌리면 위치 단정이, gauge_legend_html 이 옛 순서(공급 여유부터)로
+    돌아가면 범례 순서 단정이, 홈 mapKeyHtml 공급 범례를 '공급 여유 … 공급 부족'으로 되돌리면 홈 단정이 빨개진다."""
     xs = [_left(r) for r in (-1.5, -0.74, -0.19, 0.0, 0.17, 1.389, 1.79, 2.6)]
-    assert xs == sorted(xs) and xs[0] == 0.0 and xs[-1] == 100.0, xs
-    assert _left(-0.19) < _left(0.0) < _left(0.17), '여유(−)와 부족(+)이 0 을 사이에 두고 갈리지 않는다'
+    assert xs == sorted(xs, reverse=True) and xs[0] == 100.0 and xs[-1] == 0.0, xs
+    assert _left(-0.19) > _left(0.0) > _left(0.17), '여유(−)와 부족(+)이 0 을 사이에 두고 갈리지 않는다'
+    legend = re.sub(r'<[^>]+>', ' ', M.gauge_legend_html())
+    names = [SZ.GRADE_LABS[k] for k in SZ.GRADE_KEYS]           # g4(심각한 부족) … g0(공급 여유)
+    assert legend.index(names[0]) < legend.index(names[-1]), legend
+    import home_src as HS
+    key = re.search(r"if\(!M\) return (.*?);", dict(HS.home_files())['home-app.js'], re.S).group(1)
+    assert key.index('공급 부족') < key.index('공급 여유'), '홈 지도 공급 범례가 막대와 반대 방향이다'
 
 
 def test_band_edges_and_legend_come_from_the_grade_cuts():
