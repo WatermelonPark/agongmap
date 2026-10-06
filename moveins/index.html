@@ -24,14 +24,14 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
 <title>아파트 입주물량 — 2026·2027 전국 시도별 착공 기준 추정 | 아공맵</title>
-<meta name="description" content="아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 착공 기준 추정으로, 2026년 전국 215,877세대, 2027년 258,302세대 예정. 수도권은 109,889→143,419세대. 적정수요와 비교한 시도별 부족·과잉과 전세·매매에 미치는 영향을 정리했다.">
+<meta name="description" content="아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 착공 기준 추정으로, 2026년 전국 215,877세대, 2027년 258,302세대 예정. 수도권은 109,889→143,419세대. 적정물량과 견준 시도별 적음·많음과 전세·매매에 미치는 영향을 정리했다.">
 <link rel="canonical" href="https://www.agongmap.co.kr/moveins/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
 <meta name="theme-color" content="#16203a">
 <meta property="og:type" content="article">
 <meta property="og:title" content="아파트 입주물량 — 2026년 전국 215,877세대(착공 기준 추정 포함)">
-<meta property="og:description" content="아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 착공 기준 추정으로, 2026년 전국 215,877세대, 2027년 258,302세대 예정. 수도권은 109,889→143,419세대. 적정수요와 비교한 시도별 부족·과잉과 전세·매매에 미치는 영향을 정리했다.">
+<meta property="og:description" content="아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 착공 기준 추정으로, 2026년 전국 215,877세대, 2027년 258,302세대 예정. 수도권은 109,889→143,419세대. 적정물량과 견준 시도별 적음·많음과 전세·매매에 미치는 영향을 정리했다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/moveins/">
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -40,9 +40,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "아파트 입주물량 — 시도별 입주 예정과 의미",
-    "description": "아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 착공 기준 추정으로, 2026년 전국 215,877세대, 2027년 258,302세대 예정. 수도권은 109,889→143,419세대. 적정수요와 비교한 시도별 부족·과잉과 전세·매매에 미치는 영향을 정리했다.",
+    "description": "아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 착공 기준 추정으로, 2026년 전국 215,877세대, 2027년 258,302세대 예정. 수도권은 109,889→143,419세대. 적정물량과 견준 시도별 적음·많음과 전세·매매에 미치는 영향을 정리했다.",
     "datePublished": "2026-07-29",
-    "dateModified": "2026-07-29",
+    "dateModified": "2026-10-06",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -90,11 +90,18 @@ h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
-.tbl-wrap{overflow-x:auto;margin:6px 0 2px}
+/* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
+.note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.tbl-wrap{overflow-x:auto;margin:6px 0 2px;background:
+  linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,
+  linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,
+  radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,
+  radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시(백로그 36-5) — 가로로 밀 것이 남은 쪽 가장자리에 그림자 */
 table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
 /* ⚠️ thead에 한정한다. 행 머리(지역명)를 th로 바꾸면서 이 규칙이 tbody까지 먹어
    모든 줄이 표두처럼 렌더됐다(2026-08-08 감사). */
-thead th{font-size:12.5px;font-weight:600;color:var(--muted);text-align:right;padding:7px 8px;border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
+thead th{font-size:13px;font-weight:600;color:var(--muted);text-align:right;padding:7px 8px;border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
 tbody th{font-weight:400;color:var(--ink);font-size:14px;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
 td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
@@ -106,13 +113,13 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
 footer a{color:var(--ink)}
-.disc{margin-top:10px;font-size:11.5px;line-height:1.6;color:var(--muted)}
+.disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
+.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
-.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-3px}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -137,41 +144,41 @@ footer a{color:var(--ink)}
 <section class="wrap">
   <h2>시도별 연간 입주물량 (세대)</h2>
   <div class="tbl-wrap"><table id="utable" aria-label="시도별 연간 입주물량">
-    <thead><tr><th>지역</th><th data-num>2025</th><th data-num>2026</th><th data-num>2027</th><th data-num>적정수요/년</th><th data-num>2026 충족률</th></tr></thead>
+    <thead><tr><th>지역</th><th data-num>2026 적정물량 대비</th><th data-num>2025</th><th data-num>2026</th><th data-num>2027</th><th data-num>적정물량/년</th></tr></thead>
     <tbody>
-<tr class="agg"><td>수도권</td><td>152,433</td><td>109,889</td><td>143,419</td><td>200,000</td><td class="up">55% 충족</td></tr>
-<tr><td>서울</td><td>49,973</td><td>29,113</td><td>20,905</td><td>74,800</td><td class="up">39% 충족</td></tr>
-<tr><td>경기</td><td>84,973</td><td>64,107</td><td>95,267</td><td>102,000</td><td class="up">63% 충족</td></tr>
-<tr><td>인천</td><td>17,487</td><td>16,670</td><td>27,247</td><td>23,200</td><td class="mut">72% 충족</td></tr>
-<tr><td>전남광주</td><td>17,124</td><td>19,970</td><td>10,970</td><td>22,800</td><td class="mut">88% 충족</td></tr>
-<tr><td>부산</td><td>21,364</td><td>15,875</td><td>15,796</td><td>24,000</td><td class="up">66% 충족</td></tr>
-<tr><td>경남</td><td>20,007</td><td>11,170</td><td>8,339</td><td>24,000</td><td class="up">47% 충족</td></tr>
-<tr><td>충남</td><td>15,860</td><td>9,751</td><td>18,037</td><td>14,000</td><td class="mut">70% 충족</td></tr>
-<tr><td>경북</td><td>11,626</td><td>8,910</td><td>4,261</td><td>20,000</td><td class="up">45% 충족</td></tr>
-<tr><td>대구</td><td>18,137</td><td>7,784</td><td>5,211</td><td>20,000</td><td class="up">39% 충족</td></tr>
-<tr><td>대전</td><td>11,999</td><td>7,273</td><td>17,867</td><td>8,800</td><td class="mut">83% 충족</td></tr>
-<tr><td>전북</td><td>9,444</td><td>7,090</td><td>5,628</td><td>10,000</td><td class="mut">71% 충족</td></tr>
-<tr><td>충북</td><td>16,698</td><td>6,725</td><td>11,302</td><td>10,800</td><td class="up">62% 충족</td></tr>
-<tr><td>강원</td><td>10,887</td><td>5,838</td><td>7,639</td><td>10,400</td><td class="up">56% 충족</td></tr>
-<tr><td>울산</td><td>4,935</td><td>5,039</td><td>3,684</td><td>8,000</td><td class="up">63% 충족</td></tr>
-<tr><td>제주</td><td>1,185</td><td>562</td><td>2,774</td><td>4,800</td><td class="up">12% 충족</td></tr>
-<tr><td>세종</td><td>389</td><td>0</td><td>3,373</td><td>2,400</td><td class="up">0% 충족</td></tr>
+<tr class="agg"><td>수도권</td><td class="up">55% 적음</td><td>152,433</td><td>109,889</td><td>143,419</td><td>200,000</td></tr>
+<tr><td>서울</td><td class="up">39% 적음</td><td>49,973</td><td>29,113</td><td>20,905</td><td>74,800</td></tr>
+<tr><td>경기</td><td class="up">63% 적음</td><td>84,973</td><td>64,107</td><td>95,267</td><td>102,000</td></tr>
+<tr><td>인천</td><td class="mut">72% 보통</td><td>17,487</td><td>16,670</td><td>27,247</td><td>23,200</td></tr>
+<tr><td>전남광주</td><td class="mut">88% 보통</td><td>17,124</td><td>19,970</td><td>10,970</td><td>22,800</td></tr>
+<tr><td>부산</td><td class="up">66% 적음</td><td>21,364</td><td>15,875</td><td>15,796</td><td>24,000</td></tr>
+<tr><td>경남</td><td class="up">47% 적음</td><td>20,007</td><td>11,170</td><td>8,339</td><td>24,000</td></tr>
+<tr><td>충남</td><td class="mut">70% 보통</td><td>15,860</td><td>9,751</td><td>18,037</td><td>14,000</td></tr>
+<tr><td>경북</td><td class="up">45% 적음</td><td>11,626</td><td>8,910</td><td>4,261</td><td>20,000</td></tr>
+<tr><td>대구</td><td class="up">39% 적음</td><td>18,137</td><td>7,784</td><td>5,211</td><td>20,000</td></tr>
+<tr><td>대전</td><td class="mut">83% 보통</td><td>11,999</td><td>7,273</td><td>17,867</td><td>8,800</td></tr>
+<tr><td>전북</td><td class="mut">71% 보통</td><td>9,444</td><td>7,090</td><td>5,628</td><td>10,000</td></tr>
+<tr><td>충북</td><td class="up">62% 적음</td><td>16,698</td><td>6,725</td><td>11,302</td><td>10,800</td></tr>
+<tr><td>강원</td><td class="up">56% 적음</td><td>10,887</td><td>5,838</td><td>7,639</td><td>10,400</td></tr>
+<tr><td>울산</td><td class="up">63% 적음</td><td>4,935</td><td>5,039</td><td>3,684</td><td>8,000</td></tr>
+<tr><td>제주</td><td class="up">12% 적음</td><td>1,185</td><td>562</td><td>2,774</td><td>4,800</td></tr>
+<tr><td>세종</td><td class="up">0% 적음</td><td>389</td><td>0</td><td>3,373</td><td>2,400</td></tr>
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. 2026년 2분기까지 준공 실적, 이후는 <b>착공 실적을 3년 뒤로 밀어</b> 추정한 값입니다(전환율 0.958 — 착공한 물량의 약 96%가 3년 뒤 준공). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, 서울·경기·인천과 세종·제주는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
+  <div class="note">표두를 누르면 정렬. 2026년 2분기까지 준공 실적, 이후는 <b>착공 실적을 3년 뒤로 밀어</b> 추정한 값입니다(전환율 0.958 — 착공한 물량의 약 96%가 3년 뒤 준공). 연도는 달력 연도(1~12월)입니다. 지역 리포트의 해마다 신호등은 판정 기준 분기 다음 4분기씩 세어 같은 해라도 값이 다를 수 있습니다. 적정물량은 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 값을 연환산(×4)한 고정 상수이며, 서울·경기·인천과 세종·제주는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
 </section>
 
 <section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>2026년 적정수요를 가장 덜 채운 곳은 <strong>세종(0% 충족)</strong>, 가장 많이 채운 곳은 <strong>전남광주(88% 충족)</strong>다. 공급이 적정선의 70%를 밑돌면 전세부터 조여드는 구간, 130%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 충족률은 한 해의 입주만 보므로, 지난 4년 쌓인 부족과 앞으로 3년을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
+  <p>2026년 입주가 적정물량에 가장 못 미치는 곳은 <strong>세종(적정물량의 0%)</strong>, 가장 많은 곳은 <strong>전남광주(적정물량의 88%)</strong>다. 공급이 적정선의 70%를 밑돌면 전세부터 조여드는 구간, 130%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 4년 쌓인 부족과 앞으로 3년을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 2026년 109,889세대에서 2027년 143,419세대로 늘어난다. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
 <section class="wrap">
   <h2>더 보기</h2>
   <div class="links">
-    <a href="/#stats-adv-occ">입주물량 차트<span>분기별 추이를 적정수요와 견줘 지역별로</span></a>
-    <a href="/zone/">시도별 공급 분석<span>16개 시도의 부족·과잉을 등급으로</span></a>
+    <a href="/#stats-adv-occ">입주물량 차트<span>분기별 추이를 적정물량과 견줘 지역별로</span></a>
+    <a href="/zone/">시도별 공급 분석<span>16개 시도의 부족·여유를 등급으로</span></a>
     <a href="/jeonse-ratio/">전세가율<span>입주물량이 움직이는 결과 — 시도별 현황</span></a>
     <a href="/cycle/">아파트 사이클 리포트<span>입주 → 전세 → 매매로 이어지는 고리, 데이터 검증</span></a>
   </div>
