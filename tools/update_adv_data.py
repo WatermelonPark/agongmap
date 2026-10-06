@@ -123,8 +123,13 @@ BASIC_MONTHS_DEEP = {'전세가율': 15}   # 계열별 조회 깊이 override
 SUPPLY_CONF = {
     '분양':   {'tbl': 'T244633134461863', 'unit': '세대 (월별)',
                'source': '한국부동산원 R-ONE 신규 분양세대수'},
-    '미분양': {'tbl': 'T237973129847263', 'unit': '호 (월별)',
-               'source': '한국부동산원 R-ONE 미분양주택현황'},
+    # 미분양은 KOSIS 국토교통부 표(2026-10-07 대표 승인으로 R-ONE T237973129847263 에서 옮김). R-ONE 은 2026.07 에
+    # 광주·전남·전남광주 행을 모두 빠뜨려 화면이 2026.06 에 묶였고, 같은 통계를 KOSIS 는 2026.08 까지 통합 행 '전남광주'로
+    # 줬다. 옮기기 전 배치 대조(조사 도구 probe_unsold_alt, 10-07 — 대조 뒤 걷어 냄)에서 2026.03~06 네 달 17곳이 R-ONE 값과 모두 같았다.
+    # 표 모양: C1 지역 · C2 부문(총합·공공·민간) · C3 규모(총합·소계·면적) · 항목 '호' — 총합×총합 행만 쓴다.
+    '미분양': {'via': 'kosis', 'org': '116', 'tbl': 'DT_MLTM_2080', 'objn': 3, 'itm': '호',
+               'only': {'C2_NM': '총합', 'C3_NM': '총합'}, 'unit': '호 (월별)',
+               'source': '국토교통부 미분양주택현황(KOSIS)'},
 }
 SUPPLY_MONTHS = 8          # 최근 8개월(소급 정정 커버) — BASIC_MONTHS와 같은 기조
 SUPPLY_SIDO = [r for r in WEEKLY_REGIONS if r not in ('전국', '수도권', '지방')]
@@ -287,6 +292,56 @@ def _fetch_supply_one(cfg, regions, months=None):
     return {k: out[k] for k in (keys if months == 0 else keys[-months:])}
 
 
+def _fetch_supply_kosis(cfg, regions, months=None):
+    """KOSIS 월간표에서 최근 months개월치 {(y,m):{region:val}} — R-ONE 경로(_fetch_supply_one)와 같은 모양.
+       cfg['only'] 의 분류(부문·규모 '총합')와 항목 이름이 맞는 행만 쓴다. months=0 이면 전량(해마다 끊어 받는다 —
+       한 달 약 420칸이라 40,000칸 상한에 걸린다)."""
+    months = SUPPLY_MONTHS if months is None else months
+    base = {'orgId': cfg['org'], 'tblId': cfg['tbl'], 'itmId': 'ALL', 'prdSe': 'M'}
+    for i in range(1, cfg['objn'] + 1):
+        base['objL%d' % i] = 'ALL'
+    if months == 0:
+        import datetime
+        rows = []
+        for y in range(2000, datetime.date.today().year + 1):
+            try:
+                rows += kosis(dict(base, startPrdDe='%d01' % y, endPrdDe='%d12' % y))
+            except RuntimeError as e:
+                if 'err 30' not in str(e):      # 그 해 자료 없음
+                    raise
+            time.sleep(0.15)
+    else:
+        # 여유 +4개월은 소급 정정과 발표 지연을 덮는다(R-ONE 경로와 같다) — 뒤에서 months 로 자른다.
+        rows = kosis(dict(base, newEstPrdCnt=str(months + 4)))
+    out = {}
+    for r in rows if isinstance(rows, list) else []:
+        if (r.get('ITM_NM') or '').strip() != cfg['itm']:
+            continue
+        if any((r.get(k) or '').strip() != v for k, v in cfg['only'].items()):
+            continue
+        t = (r.get('PRD_DE') or '').strip()
+        if len(t) != 6 or not t.isdigit():
+            continue
+        reg = (r.get('C1_NM') or '').strip()
+        reg = BASIC_REGMAP.get(reg, BUBBLE_SHORT.get(reg, reg))
+        if reg not in regions:
+            continue
+        try:
+            v = float(str(r['DT']).replace(',', ''))
+        except (TypeError, ValueError, KeyError):
+            continue
+        out.setdefault((int(t[:4]), int(t[4:6])), {})[reg] = v
+    keys = sorted(out)
+    return {k: out[k] for k in (keys if months == 0 else keys[-months:])}
+
+
+def fetch_supply(cfg, regions, months=None):
+    """공급 계열 원천 조회의 입구 — cfg['via'] 로 KOSIS·R-ONE 을 가른다. 배치와 감시(check_freshness)가 같이 부른다."""
+    if cfg.get('via') == 'kosis':
+        return _fetch_supply_kosis(cfg, regions, months)
+    return _fetch_supply_one(cfg, regions, months)
+
+
 def update_supply(stats, months=None, failed=None):
     changed = []
     del SUPPLY_STALLED[:]      # 회차마다 새로 센다
@@ -309,7 +364,7 @@ def update_supply(stats, months=None, failed=None):
             # 넣어야 _merge_gj가 합칠 대상을 받는다. 이걸 빠뜨리면 두 지역이
             # 조회에서 버려져 전남광주가 비고, 롤업이 만든 '전국'이 그만큼
             # 줄어든다(2026-09-10 실측: 전국이 3,894호 모자랐다).
-            fetched = _fetch_supply_one(cfg, regions | set(_GJ_OLD), months)
+            fetched = fetch_supply(cfg, regions | set(_GJ_OLD), months)
             if not fetched:
                 # 기간 필터가 비면 _rone_recent_rows 가 이미 전량 재조회로 되돌린 뒤다 — 26년치 표에서 '빈 응답'은
                 # 정상일 수 없다. 실패로 올려 .fetch_failed(배치 알림 ℹ️ 줄)에 닿게 한다(전수리뷰 #8 — 예전엔 print 뿐).
@@ -332,6 +387,7 @@ def update_supply(stats, months=None, failed=None):
                 print('supply %s: 완비된 달이 없어 건너뜀' % name)
                 continue
             _supply_rollup(fetched, regions)
+            D['source'] = cfg['source']     # 원천을 옮기면(미분양 R-ONE → KOSIS, 2026-10-07) 계열의 출처 칸도 따라간다
             n = merge_basic(D, fetched)
             if n:
                 changed.append('%s(%d)' % (name, n))
@@ -2015,7 +2071,7 @@ def main():
         print('bubble seeded: prd %s, loan %s, %d regions' % (
             adv['bubble']['prd'], adv['bubble']['loan'], len(adv['bubble']['regions'])))
         return
-    if arg == '--seed-supply':   # 분양·미분양 장기 시계열 최초 시딩(1회성, R-ONE 전량)
+    if arg == '--seed-supply':   # 분양·미분양 장기 시계열 최초 시딩(1회성, 원천 전량 — 분양 R-ONE·미분양 KOSIS)
         st = read_current_stats()
         ch = update_supply(st, months=0)
         if ch:
