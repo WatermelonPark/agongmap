@@ -12,6 +12,9 @@
   · city_posts 가 주소 검사(ours)를 빼면 → 남의 주소가 실려 ① 빨강.
   · make_indicator_pages.city_html 이 글이 없을 때도 머리를 구우면 → ② 빨강.
   · blog_feed.main 이 도시 목록을 쓰지 않으면(write(new, path)) → 배치 시험 빨강.
+  · main 이 merge_city 대신 city_posts(posts)만 쓰면(RSS 창 밖 글을 버림), merge_city 가 창 안의 지워진 글을 남기면 → 이어 두기 시험 빨강.
+  · city_head 가 첫 쉼표에서 자르면('1,234세대' 제목) → 머리 시험 빨강.
+  · city_html 날짜를 SZ.day_text(연도 없음)로 되돌리면 → 칸 시험 빨강.
 """
 import datetime
 import json
@@ -55,7 +58,7 @@ def test_only_city_posts_newest_first():
 def test_section_is_baked_only_when_there_are_posts():
     html = I.city_html(BF.city_posts(_posts()))
     assert html.count('<a href=') == 2 and I.CITY_H2 in html and "to:'city_post'" in html
-    assert '네이버 블로그 10/7' in html and '2027년 청주 아파트 입주물량<span>' in html
+    assert '네이버 블로그 26.10.7' in html and '2027년 청주 아파트 입주물량<span>' in html
     assert I.city_html([]) == ''                                                      # ② 빈 약속 금지
 
 
@@ -70,3 +73,22 @@ def test_batch_writes_the_city_list_and_pages_read_it_back(tmp_path):
     doc['city'].append({'date': '2026-10-09', 'title': '2027년 대전 아파트 입주물량, x', 'url': 'https://example.com/y'})
     open(path, 'w', encoding='utf-8').write(json.dumps(doc, ensure_ascii=False))
     assert len(BF.read_city(path)) == 2
+
+
+def test_head_keeps_thousands_separators():
+    assert BF.city_head('1,234세대 몰리는 2027년 청주 아파트 입주물량, 정리') == '1,234세대 몰리는 2027년 청주 아파트 입주물량'
+    assert BF.city_head('2027년 청주 아파트 입주물량,20개 단지') == '2027년 청주 아파트 입주물량,20개 단지'
+
+
+def test_older_city_posts_survive_the_rss_window_and_deleted_ones_do_not(tmp_path):
+    """재현하는 실제 상태: 네이버 RSS 는 최근 글 몇십 개만 준다. 주간·지역·이론 글이 쌓이면 지난 도시 편이 RSS 창 밖으로 밀린다.
+    픽스처: 저장 목록에 창보다 오래된 도시 편(9/1)과 창 안인데 RSS 에 없는(지워진) 도시 편(10/2), RSS 에는 10/1~10/8 글."""
+    path = str(tmp_path / 'blog.json')
+    assert BF.main(path=path, fetch=_posts) == 0
+    doc = json.loads(open(path, encoding='utf-8').read())
+    doc['city'] += [{'date': '2026-09-01', 'title': '2027년 청주 아파트 입주물량, 지난 글', 'url': HOME + '/1900'},
+                    {'date': '2026-10-02', 'title': '2027년 아산 아파트 입주물량, 지운 글', 'url': HOME + '/1997'}]
+    open(path, 'w', encoding='utf-8').write(json.dumps(doc, ensure_ascii=False))
+    assert BF.main(path=path, fetch=_posts) == 0
+    got = [p['url'] for p in BF.read_city(path)]
+    assert got == [HOME + '/2001', HOME + '/1998', HOME + '/1900'], got

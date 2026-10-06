@@ -853,7 +853,9 @@ def kosis_supply_latest(cfg, since=None, want_total=False):
         t, total = _COMPLETE_CACHE[key]
         return (t, total) if want_total else t
     want = set(U.SUPPLY_SIDO)
-    got = U._merge_gj(U.fetch_supply(cfg, want | set(U._GJ_OLD), 4))
+    # 조회는 감시의 get_json(FETCH_TIMEOUT, 한 번)으로 한다 — 배치의 http_json(60초·3번·쉼)을 쓰면 원천이 막힌 날 이 한 계열이
+    # 최악 3분 넘게 붙잡아 위 예산 산수가 깨진다(2026-10-07 리뷰). 재시도는 감시의 재시도 층(RETRYQ)이 맡는다.
+    got = U._merge_gj(U.fetch_supply(cfg, want | set(U._GJ_OLD), 4, get=lambda url: get_json(url)))
     if not got:
         raise RuntimeError('시점 없음')
     full = [ym for ym, v in got.items() if not (want - set(v))]
