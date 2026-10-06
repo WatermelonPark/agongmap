@@ -39,6 +39,9 @@ TABS = (
 # test_site_nav 가 저장소의 모든 탭바 규칙과 대조한다. 320px 네 칸(80px)에 '사이클' 13px(약 40px)이 들고, 탭바 높이(62px)는
 # 고정이라 본문 아래 여백(padding-bottom 66px)은 그대로다.
 LABEL_PX = 13
+# 탭바 키보드 초점(백로그 36-8, 2026-10-06) — 손 페이지 탭바엔 초점 표시가 없어 Tab 으로 어디 있는지 보이지 않았다. 먹색 바탕 위라
+# 흰 테두리를 안쪽으로 그린다. app.css 와 각 페이지 <style> 이 이 글자를 그대로 싣고 test_site_nav 가 모든 탭바 페이지를 본다.
+NAV_FOCUS_CSS = '.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}'
 IDS = tuple(t[0] for t in TABS)
 LABELS = tuple(t[2] for t in TABS)
 HREF = {t[0]: t[1] for t in TABS}
@@ -54,3 +57,20 @@ def bottomnav(on=None):
         cls = ' on" aria-current="page' if tid == on else ''
         rows.append('  <a class="nav-btn%s" href="%s">%s<span>%s</span></a>' % (cls, href, _SVG % icon, label))
     return '<nav class="bottomnav">\n' + '\n'.join(rows) + '\n</nav>'
+
+
+# ── 손 페이지 푸터(백로그 36-4, 2026-10-06) ─────────────────────────────────────────────────────────────
+# 소개·FAQ·개인정보·퀴즈 랜딩 3종·404 의 푸터가 제각각이었다 — 어떤 곳은 면책이 없고(개인정보·퀴즈), 어떤 곳은 소개·개인정보
+# 링크가 없었다(FAQ·퀴즈). 이 한 덩어리를 그대로 붙이고 test_site_nav 가 각 페이지의 <footer> 를 이 값과 대조한다.
+# 글자 크기는 13px 이상(시세 탭·퀴즈·푸터 하한 — test_view_min_font, 손 페이지 쪽은 test_site_nav 가 본다).
+# 연락처 agongmap@gmail.com 은 서비스 대표 주소(공개 연락처, 2026-09-18 대표 결정)다.
+HAND_FOOTER_PAGES = ('about/index.html', 'faq/index.html', 'privacy/index.html', 'burini-test/index.html',
+                     'investor-test/index.html', 'redev-test/index.html', '404.html')
+HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
+               '  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>\n'
+               '  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · '
+               '<a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>\n'
+               '  자료: KOSIS·한국부동산원·국토교통부·한국은행 · 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. '
+               '투자 판단과 책임은 이용자에게 있습니다.\n'
+               '</div></footer>')
+FOOTER_PX = 13

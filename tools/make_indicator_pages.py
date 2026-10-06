@@ -203,11 +203,18 @@ h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
-.tbl-wrap{overflow-x:auto;margin:6px 0 2px}
+/* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
+.note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.tbl-wrap{overflow-x:auto;margin:6px 0 2px;background:
+  linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,
+  linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,
+  radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,
+  radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시(백로그 36-5) — 가로로 밀 것이 남은 쪽 가장자리에 그림자 */
 table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
 /* ⚠️ thead에 한정한다. 행 머리(지역명)를 th로 바꾸면서 이 규칙이 tbody까지 먹어
    모든 줄이 표두처럼 렌더됐다(2026-08-08 감사). */
-thead th{font-size:12.5px;font-weight:600;color:var(--muted);text-align:right;padding:7px 8px;border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
+thead th{font-size:13px;font-weight:600;color:var(--muted);text-align:right;padding:7px 8px;border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
 tbody th{font-weight:400;color:var(--ink);font-size:14px;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
 td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
@@ -219,13 +226,13 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
 footer a{color:var(--ink)}
-.disc{margin-top:10px;font-size:11.5px;line-height:1.6;color:var(--muted)}
+.disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:""" + ("%gpx" % N.LABEL_PX) + """;font-weight:600;text-decoration:none}
+.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
-.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-3px}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -501,8 +508,8 @@ def est_regions_text():
 def build_moveins(adv, today=None):
     o = adv['occupancy']
     regs, rows = o['regions'], o['rows']
-    # ⚠️ o['ref']는 '분기' 수요 기준선이다(통계탭 occCls가 분기값과 직접 비교,
-    # UI 문구도 '분기 수요 기준선'). 연간 표에서는 반드시 ×4로 환산할 것 —
+    # ⚠️ o['ref']는 '분기' 적정물량이다(통계탭 occCls가 분기값과 직접 비교,
+    # UI 문구도 '분기 적정물량'). 연간 표에서는 반드시 ×4로 환산할 것 —
     # 안 하면 수도권이 '과잉 224%'로 나와 사이트 전체 서사와 정반대가 된다.
     ref = {k: (v * 4 if v else None) for k, v in o['ref'].items()}
     idx = {r: i for i, r in enumerate(regs)}
@@ -525,14 +532,16 @@ def build_moveins(adv, today=None):
     def pct_cell(t, rf):
         if t is None or not rf:
             return '<td class="mut">·</td>'
-        # ⚠️ 이 값은 '적정 대비 얼마나 채웠나'(충족률)다. 39%에 ' 부족'을 붙이면
-        # '39% 모자라다'로 읽히는데 실제로는 61% 모자란 것이다(2026-08-07 감사).
+        # ⚠️ 이 값은 '적정물량 대비 몇 %'다. 39%에 ' 부족'을 붙이면
+        # '39% 모자라다'로 읽히는데 실제로는 61% 모자란 것이다(2026-08-07 감사). 그래서 뒤에는 판정 낱말이 아니라
+        # 신호등 낱말(적음·보통·많음, SZ.LIGHT — 같은 문턱이다)을 붙인다(2026-10-06 대표 결정, 백로그 36-2).
         # ⚠️ 색은 **표시값 기준**으로 판정한다. raw로 가르면 69.6%가 '70% 충족'으로
         # 찍히면서 '70% 미만' 색을 받아, 같은 페이지의 범례와 어긋난다
         # (충남이 실제로 그랬다, 2026-08-08 감사). 문턱은 홈 통계 탭과 같은 정본 SZ.OCC_LO_PCT·OCC_HI_PCT(대표 결정 ③).
         p = pct_shown(t, rf)
-        cls = {-1: 'up', 1: 'dn', 0: 'mut'}[SZ.occ_level(p)]
-        return '<td class="%s">%s%% 충족</td>' % (cls, format(p, ','))
+        lv = SZ.occ_level(p)
+        cls = {-1: 'up', 1: 'dn', 0: 'mut'}[lv]
+        return '<td class="%s">%s%% %s</td>' % (cls, format(p, ','), SZ.LIGHT[lv][1])
 
     # ⚠️ regs에는 전국·수도권·지방 집계 3종이 섞여 있다. 그대로 정렬하면 '시도별'
     # 표에 전국·지방이 시도인 척 들어가 이중계상된다(2026-08-07 감사).
@@ -544,10 +553,11 @@ def build_moveins(adv, today=None):
     for name in order:
         t = {y: ytot(name, y) for y in years}
         rf = ref.get(name)
-        trs.append('<tr%s><td>%s</td>%s<td>%s</td>%s</tr>' % (
-            ' class="agg"' if name == '수도권' else '', name,
+        # 판정 열(적정물량 대비)을 지역 바로 뒤에 둔다 — 375px 에서 맨 끝이던 이 열이 화면 밖이었다(백로그 36-5).
+        trs.append('<tr%s><td>%s</td>%s%s<td>%s</td></tr>' % (
+            ' class="agg"' if name == '수도권' else '', name, pct_cell(t[Y], rf),
             ''.join('<td>%s</td>' % ('·' if t[y] is None else num(t[y])) for y in years),
-            '·' if not rf else num(rf), pct_cell(t[Y], rf)))
+            '·' if not rf else num(rf)))
 
     nat26 = sum(ytot(r, Y) or 0 for r in SIDO17)       # 이름은 이력상 26·27 — 값은 Y·Y+1 이다
     nat27 = sum(ytot(r, Y1) or 0 for r in SIDO17)
@@ -561,7 +571,7 @@ def build_moveins(adv, today=None):
     # 않는다 — 사이트는 검색어를 유지하는 대신 이 표시로 그 차이를 메운다. 표시 문구는 MOVEINS_EST 하나다.
     title = '아파트 입주물량 — %s·%s 전국 시도별 %s | 아공맵' % (Y, Y1, MOVEINS_EST)
     desc = ('아파트 입주물량은 준공(사용승인) 뒤 실제로 입주가 시작되는 물량. 준공 실적 이후 분기는 %s으로, '
-            '%s년 전국 %s세대, %s년 %s세대 예정. 수도권은 %s→%s세대. 적정수요와 비교한 시도별 부족·과잉과 '
+            '%s년 전국 %s세대, %s년 %s세대 예정. 수도권은 %s→%s세대. 적정물량과 견준 시도별 적음·많음과 '
             '전세·매매에 미치는 영향을 정리했다.') % (
         MOVEINS_EST, Y, num(nat26), Y1, num(nat27), num(sudo[Y] or 0), num(sudo[Y1] or 0))
     url = SITE + '/moveins/'
@@ -582,25 +592,25 @@ def build_moveins(adv, today=None):
 <section class="wrap">
   <h2>시도별 연간 입주물량 (세대)</h2>
   <div class="tbl-wrap"><table id="utable" aria-label="시도별 연간 입주물량">
-    <thead><tr><th>지역</th><th data-num>%(Y0)s</th><th data-num>%(Y)s</th><th data-num>%(Y1)s</th><th data-num>적정수요/년</th><th data-num>%(Y)s 충족률</th></tr></thead>
+    <thead><tr><th>지역</th><th data-num>%(Y)s 적정물량 대비</th><th data-num>%(Y0)s</th><th data-num>%(Y)s</th><th data-num>%(Y1)s</th><th data-num>적정물량/년</th></tr></thead>
     <tbody>
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. %(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 적정수요는 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 기준선을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
+  <div class="note">표두를 누르면 정렬. %(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 연도는 달력 연도(1~12월)입니다. 지역 리포트의 해마다 신호등은 판정 기준 분기 다음 4분기씩 세어 같은 해라도 값이 다를 수 있습니다. 적정물량은 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 값을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
 </section>
 
 <section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>%(Y)s년 적정수요를 가장 덜 채운 곳은 <strong>%(lo1)s(%(lo1p)d%% 충족)</strong>, 가장 많이 채운 곳은 <strong>%(hi1)s(%(hi1p)d%% 충족)</strong>다. 공급이 적정선의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 충족률은 한 해의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
+  <p>%(Y)s년 입주가 적정물량에 가장 못 미치는 곳은 <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정선의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
 <section class="wrap">
   <h2>더 보기</h2>
   <div class="links">
-    <a href="/#stats-adv-occ">입주물량 차트<span>분기별 추이를 적정수요와 견줘 지역별로</span></a>
-    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도의 부족·과잉을 등급으로</span></a>
+    <a href="/#stats-adv-occ">입주물량 차트<span>분기별 추이를 적정물량과 견줘 지역별로</span></a>
+    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도의 부족·여유를 등급으로</span></a>
     <a href="/jeonse-ratio/">전세가율<span>입주물량이 움직이는 결과 — 시도별 현황</span></a>
     <a href="/cycle/">아파트 사이클 리포트<span>입주 → 전세 → 매매로 이어지는 고리, 데이터 검증</span></a>
   </div>

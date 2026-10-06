@@ -156,7 +156,7 @@ def unsold_warn(row):
     네이버 초안 생성기도 이걸 읽어 간다. 사본을 두면 사이트는 경고하는데
     블로그는 "가격을 밀어올리는 힘"이라고 쓰는 사고가 난다(2026-08-14).
     """
-    return ('부족으로 나오지만 <b>미분양이 %s호</b> 쌓여 있습니다'
+    return ('부족으로 나오지만 <b>미분양이 %s세대</b> 쌓여 있습니다'
             '(분기 적정물량의 %s). 지을 데가 없어서가 아니라 '
             '안 팔려서 안 짓는 것일 수 있습니다.'
             % (num(row['unsold']), umx(row['um'])))
@@ -237,7 +237,7 @@ def split_block(sp):
 
     문구는 sido_zones.split_text()가 만들어 결과 행에 구워 싣는다. 여기서는 형태만
     입힌다. 세 번째 줄(인허가)은 앞 두 줄(실적·착공 기반)과 **같은 무게로 두지 않는다**
-    — 참고 칩·옅은 글씨·허수 안내를 한 덩어리로 붙인다. 필요량에 못 미쳐도 경보 색을
+    — 참고 칩·옅은 글씨·허수 안내를 한 덩어리로 붙인다. 적정물량에 못 미쳐도 경보 색을
     쓰지 않고 참고 신호 안에서만 강조한다. 인허가를 경보처럼 보여주면 '참고로만'이라는
     결정과 부딪친다(8/11에 넣었던 빨간 창 너머 경고 박스를 여기로 흡수했다).
     """
@@ -251,7 +251,7 @@ def split_block(sp):
         lab, txt, dec, thin = sp['ref']
         body = esc(txt)
         if thin:
-            body += ' <strong>필요량에 못 미칩니다.</strong>'
+            body += ' <strong>적정물량에 못 미칩니다.</strong>'
         if dec:
             body += '<small>%s</small>' % esc(dec)
         out.append('<p class="zs-row zs-ref%s"><b><em class="zchip">참고</em>%s</b><span>%s</span></p>'
@@ -623,7 +623,7 @@ def summary_parts(z, row, calc, lab):
     # '(매우 부족)'을 붙이면 괄호가 겹쳤다(2026-10-05).
     return [('%s 아파트 공급 판정은 %s입니다. ' % (z, lab), 0), (row.get('ctxt') or signed(d_tot), 1),
             ('. 앞으로 %.0f년 착공 기준 공급 ' % (calc['H'] / 4.0), 0), ('%s세대' % num(rnd(row['fut'])), 1),
-            (', 분기 적정물량 ', 0), ('%s호' % num(rnd(row['ref'])), 1),
+            (', 분기 적정물량 ', 0), ('%s세대' % num(rnd(row['ref'])), 1),
             ('. %s 기준, 국토교통부 준공·착공 실적으로 분기마다 갱신.' % (calc.get('Ltxt') or calc['L']), 0)]
 
 
@@ -867,11 +867,11 @@ def year_line(z, stats):
         j = SZ.month_back(udates, i, YEAR_MONTHS)
         a = useries[j] if j is not None and j < len(useries) else None
         if a is not None:
-            txt = '미분양 %s호(%s) → %s호(%s)' % (num(a), esc(SZ.month_text(udates[j])), num(uv), esc(SZ.month_text(up)))
+            txt = '미분양 %s세대(%s) → %s세대(%s)' % (num(a), esc(SZ.month_text(udates[j])), num(uv), esc(SZ.month_text(up)))
             span = [(useries[k], udates[k]) for k in _span(udates, i) if k < len(useries) and useries[k] is not None]
             mx = max(span, key=lambda x: x[0])
             if rnd(mx[0]) > max(rnd(a), rnd(uv)):
-                txt += ', 가장 많던 달 %s호(%s)' % (num(mx[0]), esc(SZ.month_text(mx[1])))
+                txt += ', 가장 많던 달 %s세대(%s)' % (num(mx[0]), esc(SZ.month_text(mx[1])))
             parts.append(txt)
     jr = (stats or {}).get('전세가율') or {}
     jseries, jdates = (jr.get('series') or {}).get(z) or [], jr.get('dates') or []
@@ -889,7 +889,7 @@ def year_line(z, stats):
 
 
 def page_title(z, calc, lab, p=''):
-    """시도 리포트 제목 — '2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족'(홈 마케팅 검수 B4·SEO-7, 2026-09-27).
+    """시도 리포트 제목 — '2026년 서울 아파트 공급물량 전망, 3년 적정물량 대비 매우 부족'(홈 마케팅 검수 B4·SEO-7, 2026-09-27).
 
     예전 '서울 아파트 공급 분석 — 매우 부족'은 팀이 확인한 검색 형태(연도 + 지역 + 아파트 공급물량 + 전망, 08-14 네이버
     실측 — 블로그 지역 편 제목도 이 형태다)를 따르지 않았다. '전망'은 공급 물량의 전망이라 가격 예측이 아니다.
@@ -900,7 +900,7 @@ def page_title(z, calc, lab, p=''):
     '균형'·'공급 여유' 등급에서도 문장이 된다.
     """
     yr = SZ.outlook_year(p)
-    return '%s%s 아파트 공급물량 전망, %s 필요량 대비 %s' % ((yr + '년 ') if yr else '', z, '%g년' % (calc['H'] / 4.0), lab)
+    return '%s%s 아파트 공급물량 전망, %s 적정물량 대비 %s' % ((yr + '년 ') if yr else '', z, '%g년' % (calc['H'] / 4.0), lab)
 
 
 def build_page(z, calc, stats, pq, others, weekly=None, names=None):
@@ -981,7 +981,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     # 부호를 쓰지 않고 말로 푼다(2026-09-15 점검후속 ⑤: 음수 재고와 '더하기 부족' 등식이
     # 부호를 두 번 뒤집어 읽혔다). 등식은 여전히 카드의 세 정수로 검산된다.
     # 식의 이름은 sido_zones.formula_text 정본 — 홈 산출 방법·홈 카드 ⓘ·블로그 지역 편이 같은 말을 쓴다
-    # (홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 예전 '적정 − 공급'은 홈의 '3년 필요량'과 이름이 달랐다.
+    # (홈 마케팅 검수 B2·C4·TRUST-2, 2026-09-27). 예전 '적정 − 공급'은 홈의 '3년 적정물량'과 이름이 달랐다.
     eq = '= ' + SZ.formula_text(calc['H'], SZ.BACKLOG_WINDOW, d_need, d_fut, d_inow)
     for k, v, note in (
         # ⚠️ 부호를 뒤집지 않는다. tot는 '양수=부족'인데 signed()로 −를 붙이면
@@ -998,13 +998,13 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
          '이미 착공한 물량을 %s 뒤로 밀어 추정' % lead_y),
         (('앞으로 %.0f년 적정물량' % yrs) + (' <em class="zchip">추정</em>' if row.get('est') else ''),
          num(d_need) + '세대',
-         ('분기 %s호 × %d분기' % (num(d_ref), calc['H']))
+         ('분기 %s세대 × %d분기' % (num(d_ref), calc['H']))
          + ('<br>이 지역은 기준표에 없어 적정물량을 추정했습니다.' if row.get('est') else '')),
-        ('미분양', (num(row['unsold']) + '호') if row.get('unsold') is not None else '–',
+        ('미분양', (num(row['unsold']) + '세대') if row.get('unsold') is not None else '–',
          # ⚠️ '기준 · 분기 적정물량' 접두는 check_freshness의 파생 페이지 감시가
          # 정규식으로 잡는 문자열이다 — 문구를 바꿀 땐 그 패턴을 보존할 것. 달은 읽는 꼴('2026년 6월', 백로그 36-1)이고
          # 감시는 SZ.basis_month 로 옛 꼴('2026.06')과 함께 읽는다.
-         ('%s 기준 · 분기 적정물량(%s호)의 %s'
+         ('%s 기준 · 분기 적정물량(%s세대)의 %s'
           % (SZ.month_text(calc.get('unsold_prd') or ''), num(d_ref), umx(row['um'])))
          if row.get('um') is not None else '자료 없음'),
     ):
@@ -1087,7 +1087,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
              '해마다 크게 흔들리기 때문입니다. 위의 \'%(ahead)s 너머\' 줄은 최근 %(pwin)s 인허가를 그 지역의 '
              '착공 비율로 환산한 <b>참고</b> 값입니다. 서울·경기처럼 기준표에 없는 지역은 '
              '적정물량을 추정했고, 그 지역은 \'추정\'으로 표시합니다.</p>'
-             '<p>누적 순부족은 <b>%(formula)s</b>입니다(지난 %(win)s 동안 필요량보다 더 지었으면 남은 재고를 뺍니다). '
+             '<p>누적 순부족은 <b>%(formula)s</b>입니다(지난 %(win)s 동안 적정물량보다 더 지었으면 남은 재고를 뺍니다). '
              '재고에서는 멸실(철거)을 뺐지만 <b>앞으로 헐릴 집은 빼지 않았습니다</b> — '
              '재건축 시기를 미리 알 방법이 없어서입니다. 그만큼 부족이 덜 잡힙니다.</p>'
              # ⚠️ '0은 자료 없음이 아니다' 문단을 두지 않는다(2026-08-15 사용자).
@@ -1201,7 +1201,7 @@ def outlook_cells(yrs, ref_pct=None, ref_lab=None):
     line = 100.0 / OUT_MAX
     cells = []
     # 해마다 칸은 동그라미와 같은 색·이름(light_of)을 막대 아래 글자로도 단다(색만으로 가르지 않는다). '… 너머' 참고 칸은 회색이다 —
-    # 판정에 넣지 않는 참고값이고, 바로 위 줄의 강조('필요량에 못 미칩니다', 문턱 PWARN_CUT 95%)와 신호등 문턱(70·130%)이 달라
+    # 판정에 넣지 않는 참고값이고, 바로 위 줄의 강조('적정물량에 못 미칩니다', 문턱 PWARN_CUT 95%)와 신호등 문턱(70·130%)이 달라
     # 82% 가 '못 미칩니다' 아래에서 노랑으로 칠해졌다(2026-10-06 리뷰).
     items = [(y['pct'], '%d년 차 · %s' % (y['n'], light_of(y['pct'])[1]), '', light_of(y['pct'])[0]) for y in yrs]
     if ref_pct is not None:

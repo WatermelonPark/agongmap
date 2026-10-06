@@ -120,7 +120,7 @@ def link4_numbers(adv, sts):
         assert r[0] == '앞으로 3년', z
         return int(re.search(r'(\d+)%', r[1]).group(1))
 
-    def FR(z):                        # 앞으로 3년 들어올 물량 / 필요량 원값(정렬·문턱용, 반올림 전)
+    def FR(z):                        # 앞으로 3년 들어올 물량 / 적정물량 원값(정렬·문턱용, 반올림 전)
         return Z(z)['fut'] / Z(z)['need']
 
     SIDO = [z['z'] for z in SD['zones'] if not z.get('agg')]
@@ -372,7 +372,7 @@ def link4_numbers(adv, sts):
         return str(t // 12)
 
     def _fut_low_n():
-        # 앞으로 3년 필요량의 3분의 1에도 못 미치는 시도 수
+        # 앞으로 3년 적정물량의 3분의 1에도 못 미치는 시도 수
         return str(sum(1 for z in SIDO if FR(z) < 1 / 3))
 
     def _dn25_old():
@@ -439,7 +439,7 @@ def link4_numbers(adv, sts):
         return ', '.join('%s %d%%' % (z, FUT(z)) for z in lo)
 
     def _fut_high():
-        # 필요량을 넘는 물량이 들어오는 시도. 목록이 바뀌면 멈춘다
+        # 적정물량을 넘는 물량이 들어오는 시도. 목록이 바뀌면 멈춘다
         hi = sorted([z for z in SIDO if FR(z) > 1], key=lambda z: -FR(z))
         assert set(hi) == {'대전', '충남'}, hi
         return ', '.join('%s %d%%' % (z, FUT(z)) for z in hi)
@@ -449,12 +449,12 @@ def link4_numbers(adv, sts):
         return '·'.join(sorted([z for z in SIDO if FR(z) > 1], key=lambda z: -FR(z)))
 
     def _gg_fut():
-        # 경기 앞으로 3년 / 필요량. '서울과 달리 필요량 가까이' = 80% 이상
+        # 경기 앞으로 3년 / 적정물량. '서울과 달리 적정물량 가까이' = 80% 이상
         assert FUT('경기') >= 80
         return '%d%%' % FUT('경기')
 
     def _ic_fut():
-        # 인천 앞으로 3년 / 필요량
+        # 인천 앞으로 3년 / 적정물량
         assert FUT('인천') >= 80
         return '%d%%' % FUT('인천')
 

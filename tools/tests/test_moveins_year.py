@@ -29,7 +29,7 @@ def _shift(adv, years):
 
 
 def _heads(html):
-    return re.findall(r'<th data-num>([^<]+)</th>', html)
+    return re.findall(r'<th data-num>(\d{4})</th>', html)   # 해 머리만(판정 열 '2026 적정물량 대비'는 지역 뒤로 옮겼다 — 백로그 36-5)
 
 
 def test_headline_is_the_year_of_the_latest_actual_quarter():
@@ -58,9 +58,9 @@ def test_headline_moves_with_the_latest_actual_quarter():
     html, _ = I.build_moveins(_shift(adv, 1))
     ny = y + 1
     assert _heads(html)[:3] == [str(ny - 1), str(ny), str(ny + 1)], _heads(html)
-    assert '%d 충족률' % ny in html
+    assert '%d 적정물량 대비' % ny in html
     assert '<title>아파트 입주물량 — %d·%d 전국' % (ny, ny + 1) in html
     assert 'content="아파트 입주물량 — %d년 전국' % ny in html
     assert '%d년 전국 입주물량' % ny in html
-    assert '%d년 적정수요를 가장 덜 채운 곳' % ny in html
+    assert '%d년 입주가 적정물량에 가장 못 미치는 곳' % ny in html
     assert '%d년 전국' % y not in html, '한 해 지난 데이터인데 옛 머리 연도(%d년 전국)가 남았다' % y

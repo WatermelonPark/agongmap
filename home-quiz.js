@@ -8,7 +8,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_QUIZ_BUILD='v182';
+var HOME_QUIZ_BUILD='v183';
 const QUIZSETS={
   beginner:{
     title:'부린이 테스트', emoji:'🐣',
@@ -569,7 +569,7 @@ function showResult(){
         <div class="rc-dots rc-dots-btn">${dots}</div>
         <div class="rc-hint">점을 누르면 그 문항 해설이 열립니다</div>
         <div><span class="rc-lv">${gr.lv}</span></div>
-        <div class="rc-grade">${gr.g}</div>
+        <h2 class="rc-grade">${gr.g}</h2>
         <div class="rc-desc">${gr.d}</div>
         <div class="rc-foot">agongmap.co.kr · 아공맵</div>
       </div>

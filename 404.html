@@ -17,8 +17,6 @@
     font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     display:flex;align-items:center;justify-content:center;padding:24px;word-break:keep-all;-webkit-font-smoothing:antialiased}
   .wrap{max-width:440px;text-align:center;position:relative}
-  .wrap::before{content:"";position:absolute;left:50%;top:-40px;width:280px;height:280px;
-    transform:translateX(-50%);border:1.5px solid var(--line);border-radius:0;opacity:.4;z-index:0}
   .inner{position:relative;z-index:1}
   .code{font-size:72px;font-weight:600;letter-spacing:-.03em;color:var(--ink);line-height:1;margin-bottom:8px}
   .cycle{font-size:14px;font-weight:600;color:var(--ink2);margin-bottom:20px}
@@ -26,10 +24,13 @@
   p{font-size:15px;color:var(--ink2);line-height:1.6;margin-bottom:28px}
   /* 그림자 없는 먹색 채움 — 주 CTA 어휘(홈 .home-cta·.tb-more)와 통일.
      장식 그림자는 원부 정리 때 걷은 것의 잔재였다(2026-08-14 검수). */
-  a.home{display:inline-block;background:var(--ink);color:#fff;text-decoration:none;
-    font-size:16px;font-weight:600;padding:14px 32px;border-radius:3px}
+  a.home{display:inline-flex;align-items:center;min-height:48px;background:var(--ink);color:#fff;text-decoration:none;
+    font-size:16px;font-weight:600;padding:12px 32px;border-radius:3px}
   a.home:active{transform:scale(.98)}
-  .foot{margin-top:24px;font-size:12.5px;color:var(--muted)}
+  /* 공용 푸터(site_nav.HAND_FOOTER) — 가운데 정렬 한 단 아래에 둔다 */
+  body{flex-direction:column}
+  footer.sfoot{margin-top:36px;max-width:440px;text-align:center;font-size:13px;line-height:1.7;color:var(--muted)}
+  footer.sfoot a{color:var(--muted)}
 
 /* 하단 네비 — 이 페이지는 공용 스타일시트를 안 쓰므로 필요한 규칙만 동봉
    (2026-08-14 검수: 페이지마다 네비 유무가 달라 막다른 페이지가 생겼다).
@@ -43,6 +44,7 @@ body{padding-bottom:66px}
   justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;
   text-decoration:none}
 .nav-btn svg{display:block}
+.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
 </style>
 </head>
 <body>
@@ -52,8 +54,12 @@ body{padding-bottom:66px}
   <h1>찾으시는 페이지가 없네요</h1>
   <p>주소가 바뀌었거나 사라진 페이지예요.<br>공급 사이클 리포트는 아래에서 다시 시작할 수 있습니다.</p>
   <a class="home" href="/">홈으로 가기 →</a>
-  <div class="foot">agongmap.co.kr</div>
 </div></div>
+<footer class="sfoot"><div class="wrap">
+  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
+  자료: KOSIS·한국부동산원·국토교통부·한국은행 · 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
+</div></footer>
 <nav class="bottomnav">
   <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
   <a class="nav-btn" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>

@@ -220,3 +220,24 @@ def test_home_tab_click_is_measured_by_identifier_not_label():
     sent = json.loads(p.stdout.decode('utf-8'))
     assert [e for e, _ in sent] == ['nav_tab'] * len(N.IDS), sent
     assert [x.get('tab') for _, x in sent] == list(N.IDS), '탭 클릭 값이 식별자가 아니다: %s' % sent
+
+
+def test_hand_pages_share_one_footer():
+    """손 페이지 푸터는 site_nav.HAND_FOOTER 한 덩어리다(백로그 36-4, 2026-10-06).
+
+    재현한 실제 상태: 개인정보·퀴즈 랜딩 푸터에는 투자 면책이 없었고, FAQ·퀴즈 랜딩에는 소개·개인정보 링크가 없었으며,
+    404 는 도메인 한 줄뿐이었다. 글자는 12~12.5px(개인정보 .85rem)였다.
+    변이(각각 실제로 확인): 한 페이지의 푸터 문구를 한 글자 바꾸면, 그 페이지 footer 규칙을 12.5px 로 되돌리면 빨강.
+    픽스처: 저장소의 손 페이지 그대로.
+    """
+    bad = []
+    for rel in N.HAND_FOOTER_PAGES:
+        s = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        if s.count(N.HAND_FOOTER) != 1 or s.count('<footer') != 1:
+            bad.append('%s: 공용 푸터가 아니다' % rel)
+        css = ' '.join(re.findall(r'<style>(.*?)</style>', s, re.S))
+        for m in re.finditer(r'(?:^|[}\s])footer(?:\.sfoot)?\{([^}]*)\}', css):
+            px = re.search(r'font-size:\s*([\d.]+)px', m.group(1))
+            if not px or float(px.group(1)) < N.FOOTER_PX:
+                bad.append('%s: footer 글자 %s' % (rel, px and px.group(1)))
+    assert not bad, bad

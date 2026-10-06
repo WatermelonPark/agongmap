@@ -26,8 +26,10 @@ import sido_zones as SZ  # noqa: E402
 MONTHS = ['2026.08', '2026.08 p)', '2026-08', '2006.01', '2025.12', '2026.10', '연', '']
 DAYS = ['2026-09-28', '2026-10-01', '2006-01-02', '2025-12-31']
 QUARTERS = ['2026Q2', '2006Q4', '2026H1', '']
+UNITS = ['호 (월별)', '호 (연내 누계)', '호', '세대 (월별)', '%', '지수(2026.06=100)', '호수', '']
 PAIRS = (('_ymT', SZ.month_text, MONTHS), ('_ymS', SZ.month_short, MONTHS),
-         ('_md', SZ.day_text, DAYS), ('_dS', SZ.day_short, DAYS), ('_qT', SZ.quarter_text, QUARTERS))
+         ('_md', SZ.day_text, DAYS), ('_dS', SZ.day_short, DAYS), ('_qT', SZ.quarter_text, QUARTERS),
+         ('unitT', SZ.unit_text, UNITS))
 
 
 def test_python_canon_examples():
@@ -36,6 +38,7 @@ def test_python_canon_examples():
     assert SZ.day_text('2026-10-01') == '10/1'
     assert SZ.day_short('2026-09-28') == '26.9.28'
     assert SZ.quarter_short('2026Q2') == '26Q2'
+    assert SZ.unit_text('호 (연내 누계)') == '세대 (연내 누계)' and SZ.unit_text('호수') == '호수'   # 공급 단위 '세대'(백로그 36-2)
     assert SZ.basis_month('전세가율 · 2026년 8월 기준') == SZ.basis_month('2026.08 기준') == '2026.08'
 
 
@@ -44,7 +47,7 @@ def test_home_mirror_matches_the_python_canon():
         pytest.skip('node 없음')
     src = HS.home_source()
     fns = []
-    for name in ('_md', '_ymP', '_ymT', '_ymS', '_dS', '_qT'):
+    for name in ('_md', '_ymP', '_ymT', '_ymS', '_dS', '_qT', 'unitT'):
         m = re.search(r'^function %s\(.*$' % name, src, re.M)
         assert m, '홈 스크립트에서 %s 를 찾지 못했다' % name
         fns.append(m.group(0))
