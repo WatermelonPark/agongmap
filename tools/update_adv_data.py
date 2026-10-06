@@ -292,7 +292,7 @@ def _fetch_supply_one(cfg, regions, months=None):
     return {k: out[k] for k in (keys if months == 0 else keys[-months:])}
 
 
-def _fetch_supply_kosis(cfg, regions, months=None):
+def _fetch_supply_kosis(cfg, regions, months=None, get=None):
     """KOSIS 월간표에서 최근 months개월치 {(y,m):{region:val}} — R-ONE 경로(_fetch_supply_one)와 같은 모양.
        cfg['only'] 의 분류(부문·규모 '총합')와 항목 이름이 맞는 행만 쓴다. months=0 이면 전량(해마다 끊어 받는다 —
        한 달 약 420칸이라 40,000칸 상한에 걸린다)."""
@@ -305,14 +305,14 @@ def _fetch_supply_kosis(cfg, regions, months=None):
         rows = []
         for y in range(2000, datetime.date.today().year + 1):
             try:
-                rows += kosis(dict(base, startPrdDe='%d01' % y, endPrdDe='%d12' % y))
+                rows += kosis(dict(base, startPrdDe='%d01' % y, endPrdDe='%d12' % y), get=get)
             except RuntimeError as e:
                 if 'err 30' not in str(e):      # 그 해 자료 없음
                     raise
             time.sleep(0.15)
     else:
         # 여유 +4개월은 소급 정정과 발표 지연을 덮는다(R-ONE 경로와 같다) — 뒤에서 months 로 자른다.
-        rows = kosis(dict(base, newEstPrdCnt=str(months + 4)))
+        rows = kosis(dict(base, newEstPrdCnt=str(months + 4)), get=get)
     out = {}
     for r in rows if isinstance(rows, list) else []:
         if (r.get('ITM_NM') or '').strip() != cfg['itm']:
@@ -335,10 +335,11 @@ def _fetch_supply_kosis(cfg, regions, months=None):
     return {k: out[k] for k in (keys if months == 0 else keys[-months:])}
 
 
-def fetch_supply(cfg, regions, months=None):
-    """공급 계열 원천 조회의 입구 — cfg['via'] 로 KOSIS·R-ONE 을 가른다. 배치와 감시(check_freshness)가 같이 부른다."""
+def fetch_supply(cfg, regions, months=None, get=None):
+    """공급 계열 원천 조회의 입구 — cfg['via'] 로 KOSIS·R-ONE 을 가른다. 배치와 감시(check_freshness)가 같이 부른다.
+    get 은 KOSIS 조회 함수(감시가 짧은 타임아웃 조회를 넘긴다 — kosis 참고)."""
     if cfg.get('via') == 'kosis':
-        return _fetch_supply_kosis(cfg, regions, months)
+        return _fetch_supply_kosis(cfg, regions, months, get=get)
     return _fetch_supply_one(cfg, regions, months)
 
 
@@ -458,10 +459,12 @@ def http_json(url, tries=3):
     raise last
 
 
-def kosis(params):
+def kosis(params, get=None):
+    """KOSIS getList 한 번. get 은 주소 → JSON 함수(기본 http_json — 60초·3번). 감시는 자기 짧은 조회(check_freshness.get_json)를
+    넘긴다 — 감시 잡의 예산(FETCH_TIMEOUT)은 그 함수에 맞춰 셈해 두었다(2026-10-07 리뷰)."""
     q = dict(method='getList', apiKey=KEY, format='json', jsonVD='Y', **params)
     url = API + '?' + urllib.parse.urlencode(q)
-    data = http_json(url)
+    data = (get or http_json)(url)
     if isinstance(data, dict) and data.get('err'):
         raise RuntimeError('KOSIS err %s: %s' % (data.get('err'), data.get('errMsg')))
     return data
