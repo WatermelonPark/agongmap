@@ -77,7 +77,6 @@ PARTIAL = {
     'WEEKLY_TABLE': '주간 글 주요 지역 표 — 일부만 싣는 것이 의도. 이름이 모델에 있는지는 '
                     'test_blog_tools_review.test_weekly_table_names_are_model_names',
     'CITY_TAG': '도 지역의 대표 도시 태그(광역시·특별자치시는 이름 자체가 도시)',
-    '_FULL': '미분양 대체 원천 조사(probe_unsold_alt, 기록만) — 원천의 시도 전체 이름 → 짧은 이름 사상. 옛 이름(광주·전남)과 개편 전 이름(강원도·전라북도)까지 담아 모델 목록과 같을 수 없다',
     'SMALL': '시도 지도에서 칸이 작은 광역시·세종(행정 시도 지형 기준이라 광주가 따로)',
     'NATION_TILE': '전국 시군구 지도 칸 — 원천(행정 시도·시군구) 지리 배치, 판정 단위로 접는 것은 sgg_zone',
     'SIDO_PREFIX': '원천 시군구 코드 머리 → 행정 시도 17곳(광주·전남 따로). 판정 단위로 접는 것은 sgg_zone·MERGED_INTO',

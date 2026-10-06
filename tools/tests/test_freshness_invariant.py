@@ -435,9 +435,9 @@ def test_seeding_never_narrows_the_window(monkeypatch):
         return [{'WRTTIME_IDTFR_ID': '202606', 'CLS_FULLNM': '전국', 'DTA_VAL': '1'}]
 
     monkeypatch.setattr(U, '_rone_recent_rows', fake)
-    U._fetch_supply_one(U.SUPPLY_CONF['미분양'], {'전국'}, 0)
+    U._fetch_supply_one(U.SUPPLY_CONF['분양'], {'전국'}, 0)      # R-ONE 경로(미분양은 10-07 KOSIS 로 옮겼다)
     assert seen['since'] is None, '시딩에 기간 필터가 걸렸다'
-    U._fetch_supply_one(U.SUPPLY_CONF['미분양'], {'전국'}, 8)
+    U._fetch_supply_one(U.SUPPLY_CONF['분양'], {'전국'}, 8)
     assert seen['since'], '증분인데 필터가 없다 — 깊은 페이지로 되돌아갔다'
 
 
@@ -449,7 +449,8 @@ def test_watchdog_supply_check_lower_bounds_by_our_own_date(monkeypatch):
     하한을 시험 안에서 스스로 계산해 가짜에 넣었으므로, _supply_since 를 오늘 기준으로 바꿔도 초록이었다.
     변이(확인): _supply_since 본문을 `t = datetime.date.today(); return '%04d%02d' % (t.year, t.month)` 로 바꾸면
     빨개진다.
-    픽스처: 미분양이 2026.06 에 멈춰 있고(백로그 4의 실제 보류 상태) 원천은 2026.07 을 낸 날.
+    픽스처: 미분양이 2026.06 에 멈춰 있고(백로그 4의 실제 보류 상태) 원천은 2026.07 을 낸 날. 미분양은 2026-10-07 KOSIS 로
+            옮겨 R-ONE 하한을 쓰지 않으므로 같은 모양을 R-ONE 에 남은 분양 계열로 본다.
     """
     assert C._supply_since('2026.06') == '202605'
     assert C._supply_since('2026.01') == '202512'      # 연 넘김
@@ -462,12 +463,12 @@ def test_watchdog_supply_check_lower_bounds_by_our_own_date(monkeypatch):
         return '202607'
 
     monkeypatch.setattr(C, 'rone_latest_complete', fake_complete)
-    stats = {'미분양': {'dates': ['2026.05', '2026.06'], 'series': {}}}
+    stats = {'분양': {'dates': ['2026.05', '2026.06'], 'series': {}}}
     jobs = C.source_jobs(stats)
-    tbl = U.SUPPLY_CONF['미분양']['tbl']
-    r = C.check('미분양', '2026.06', jobs[('supply', '미분양')], C.GRACE_MONTHLY)
+    tbl = U.SUPPLY_CONF['분양']['tbl']
+    r = C.check('분양', '2026.06', jobs[('supply', '분양')], C.GRACE_MONTHLY)
     assert got[tbl] == '202605', got
-    assert r and '미분양' in r, '원천이 더 최신인데 뒤처짐을 못 잡았다'
+    assert r and '분양' in r, '원천이 더 최신인데 뒤처짐을 못 잡았다'
 
 
 def test_aggregate_regions_are_monitored_too(monkeypatch):

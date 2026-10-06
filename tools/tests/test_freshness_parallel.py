@@ -170,6 +170,10 @@ class _Sources:
         C._COMPLETE_CACHE[(tbl, since)] = (t, tot)
         return (t, tot) if want_total else t
 
+    def kosis_supply_latest(self, cfg, since=None, want_total=False):
+        """KOSIS 로 옮긴 공급 계열(미분양, 2026-10-07)의 짝 — R-ONE 짝과 같은 캐시·같은 계열 이름으로 센다."""
+        return self.rone_latest_complete(cfg['tbl'], since, want_total)
+
     def ecos_latest(self, code=None):
         if code == C.BUBBLE_ECOS:
             self._hit('주담대')
@@ -202,7 +206,7 @@ def _run(monkeypatch, capsys, workers, card=None, today=None, **src_kw):
     for k in ('KOSIS_API_KEY', 'RONE_API_KEY', 'ECOS_API_KEY'):
         monkeypatch.setenv(k, 'test')
     monkeypatch.setattr(C.urllib.request, 'urlopen', _site(unexpected))
-    for fn in ('rone_latest', 'kosis_latest', 'rone_latest_complete', 'ecos_latest',
+    for fn in ('rone_latest', 'kosis_latest', 'rone_latest_complete', 'kosis_supply_latest', 'ecos_latest',
                'bubble_conv_latest', 'rone_region_names'):
         monkeypatch.setattr(C, fn, getattr(src, fn))
     wk = src.adv['weekly']['rows'][-1]['p']
