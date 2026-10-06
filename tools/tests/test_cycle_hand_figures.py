@@ -418,7 +418,7 @@ def test_no_hand_counted_faq_size_or_data_span():
     for m in re.finditer(r'(\d+)\s*문답', s):
         assert int(m.group(1)) == n_faq, '/cycle/ 이 FAQ 를 %s문답이라 부르지만 실제 %d개다' % (m.group(1), n_faq)
     hero = s[s.find('<header class="hero">'):s.find('</header>')]
-    assert re.search(r'<span data-d="span_y">\d{4}–\d{4}</span> 분기·연', hero), '자료 기간이 칸이 아니다'
+    assert re.search(r'<span data-d="span_y">\d{4}[~–]\d{4}</span> 분기·연', hero), '자료 기간이 칸이 아니다'
     D, _ = _page()
     assert D['prose'].get('span_y') == RC.span_prose(D['zones'])['span_y']
 

@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import make_indicator_pages as I  # noqa: E402
 import make_monthly_page as MP  # noqa: E402
+import sido_zones as SZ  # noqa: E402  (날짜 두 단계의 짧은 꼴)
 import make_naver_post as NP  # noqa: E402
 import make_sido_pages as SP  # noqa: E402
 import sido_zones as SZ  # noqa: E402
@@ -154,7 +155,7 @@ def test_jeonse_page_compares_with_the_same_month_a_year_ago():
 def test_jeonse_page_survives_a_missing_year_ago_month():
     """1년 전 달이 없으면 비교 문구만 빠진다. 예전엔 None 빼기로 생성기가 죽어 그날 배치 커밋이 막혔다."""
     html, _ = I.build_jeonse({'전세가율': _jeonse(skip=('2025.08',))})
-    assert '2026.08 기준' in html
+    assert '2026년 8월 기준' in html
     assert '1년 전 대비' not in html and '1년 새 가장 크게 오른 곳' not in html
 
 
@@ -193,17 +194,31 @@ def _home_table(ds, dates, vals):
     js = ('const T={thead:{innerHTML:""},tbody:{innerHTML:""}};'
           'const document={querySelector:q=>q.endsWith("thead")?T.thead:T.tbody};'
           'const DS_LABEL=new Proxy({},{get:()=>"값"});function fmtN(v,d){return d==null?String(v):v.toFixed(d)}'
-          '%s\nconst ST={ds:%s};\n%s\n%s\n'
+          '%s\n%s\nconst ST={ds:%s};\n%s\n%s\n'
           'const D={dates:%s};const parsed=D.dates.map(parseDate);const idx=parsed.map((p,i)=>i);'
           'buildTable(D,idx.map(i=>parsed[i].label),%s,idx,parsed);'
           'const out={},re=/<tr><td>([^<]*)<\\/td><td>[^<]*<\\/td><td>(.*?)<\\/td><\\/tr>/g;let m;'
           'while((m=re.exec(T.tbody.innerHTML)))out[m[1]]=m[2].replace(/<[^>]+>/g,"").split(" ")[0];'
           'process.stdout.write(JSON.stringify(out));'
-          % (cum.group(0), json.dumps(ds, ensure_ascii=False), _fn(s, 'function parseDate('),
+          % (cum.group(0), _date_fns(s), json.dumps(ds, ensure_ascii=False), _fn(s, 'function parseDate('),
              _fn(s, 'function buildTable('), json.dumps(dates), json.dumps(vals)))
     p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
+    out = json.loads(p.stdout.decode('utf-8'))
+    # 표 칸은 좁은 자리라 '26.8'(날짜 두 단계, 백로그 36-1) — 칸 라벨을 데이터 라벨로 되돌려 아래 단언이 데이터 꼴로 읽게 한다.
+    back = {SZ.month_short(d): d for d in dates}
+    assert set(out) <= set(back), '표 칸 라벨이 짧은 꼴(26.8)이 아니다: %s' % sorted(set(out) - set(back))
+    return {back[k]: v for k, v in out.items()}
+
+
+def _date_fns(src):
+    """홈의 날짜 표기 함수(한 줄 함수 _ymP·_ymS·_ymCell)를 그대로 떼어 온다."""
+    got = []
+    for name in ('_ymP', '_ymS', '_ymCell'):
+        m = re.search(r'^function %s\(.*$' % name, src, re.M)
+        assert m, '홈 스크립트에서 %s 를 찾지 못했다' % name
+        got.append(m.group(0))
+    return '\n'.join(got)
 
 
 def test_home_table_compares_calendar_neighbours():

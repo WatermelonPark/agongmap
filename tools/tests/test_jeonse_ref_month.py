@@ -44,6 +44,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import make_indicator_pages as I  # noqa: E402
 import refresh_cycle_data as RF  # noqa: E402
+import sido_zones as SZ  # noqa: E402  (날짜 두 단계의 읽는 꼴)
 
 # 두 페이지가 기준월에 값이 있어야 하는 지역의 합집합(순서 보존). 모델 상수에서 세고 손으로 적지 않는다.
 NEED_BOTH = tuple(dict.fromkeys(tuple(I.JEONSE_NEED) + tuple(RF.SIDO)))
@@ -112,9 +113,9 @@ def test_jeonse_page_holds_a_partially_filled_month(case):
     _, sts = I.load()
     part, complete, _, held = _fixture(sts['전세가율'], case)
     html, _ = I.build_jeonse(dict(sts, 전세가율=part))
-    assert '%s 기준' % complete in html, '직전 완비 달(%s)로 굽지 않았다' % complete
+    assert '%s 기준' % SZ.month_text(complete) in html, '직전 완비 달(%s)로 굽지 않았다' % complete
     for m in held:
-        assert '%s 기준' % m not in html, '반쯤 찬 달(%s)을 기준월로 찍었다' % m
+        assert '%s 기준' % SZ.month_text(m) not in html, '반쯤 찬 달(%s)을 기준월로 찍었다' % m
 
 
 @pytest.mark.parametrize('case', CASES)
@@ -124,7 +125,7 @@ def test_cycle_chart_holds_a_partially_filled_month(case):
     lvl, sudo, jib, prd = RF.build_jratio(dict(S, 전세가율=part))
     assert prd == want, (prd, want)
     assert {x['region'] for x in lvl} == set(RF.SIDO), '보류한 달 대신 읽은 달에서 시도가 빠졌다'
-    assert RF.jratio_prose(lvl, prd)['jr_prd'] == want
+    assert RF.jratio_prose(lvl, prd)['jr_prd'] == SZ.month_text(want)
 
 
 def test_no_complete_month_stops_with_a_clear_error():

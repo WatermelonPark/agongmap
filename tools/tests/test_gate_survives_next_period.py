@@ -235,7 +235,7 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
     # 생성기가 사본을 구웠는지(저장소가 아니라) — 새 분기·새 주차가 페이지에 실렸다.
     def page(*p):
         return io.open(os.path.join(str(repo), *p), encoding='utf-8').read()
-    assert '%s(실적)' % SZ.qkey(new_L) in page('monthly', 'index.html'), '/monthly/ 가 새 분기로 구워지지 않았다'
+    assert '%s 실적' % SZ.quarter_short(SZ.qkey(new_L)) in page('monthly', 'index.html'), '/monthly/ 가 새 분기로 구워지지 않았다'   # 좁은 표 머리 '26Q3 실적'(날짜 두 단계)
     y, m, d = (int(x) for x in new_w.split('-'))
     assert '%d/%d 조사' % (m, d) in page('weekly', 'index.html'), '/weekly/ 가 새 주차로 구워지지 않았다'
     stale = [z['z'] for z in adv2['sido']['zones']

@@ -572,11 +572,11 @@ def check_derived_pages(adv, stats):
                     FETCH_FAIL.append('파생 페이지(지역:%s)' % n)
                     print('  지역 %s 조회 실패 (%s) — 재확인 대상' % (n, str(h)[:40]))
                 continue
-            m = re.search(r'(\d{4}\.\d{2}) 기준 · 분기 적정물량', h)
-            if not m:
+            got_m = SZ.basis_month(h, ' 기준 · 분기 적정물량')   # '2026년 6월'·옛 '2026.06' 둘 다(백로그 36-1)
+            if not got_m:
                 bad.append('%s(시점 표기 없음)' % n)
-            elif m.group(1) != exp:
-                bad.append('%s(%s)' % (n, m.group(1)))
+            elif got_m != exp:
+                bad.append('%s(%s)' % (n, got_m))
         if bad:
             print('  지역 %d/%d 일치 — 어긋남: %s' % (len(names) - len(bad), len(names),
                                                  ', '.join(bad[:5])))
@@ -590,7 +590,7 @@ def check_derived_pages(adv, stats):
         SKIPPED.append('파생 페이지(지역)')
         print('  지역 판정 못 함 — %s' % str(e)[:60])
 
-    # 지표 페이지 둘 다 **화면의 데이터 시점 문구**를 읽는다. 전세가율은 'YYYY.MM 기준', 입주물량은 표 아래 주석의
+    # 지표 페이지 둘 다 **화면의 데이터 시점 문구**를 읽는다. 전세가율은 'YYYY년 M월 기준'(옛 꼴 'YYYY.MM 기준'도 읽는다), 입주물량은 표 아래 주석의
     # 'YYYY년 N분기까지 준공 실적'. 입주물량은 예전에 JSON-LD dateModified 를 읽었는데(화면에 시점 문구가 없었다),
     # 전수 리뷰 #18(2026-09-30)로 두 지표 페이지의 dateModified 가 '내용이 바뀐 날(keep_dates·KST)'이 되어 데이터
     # 시점을 말하지 않는다 — 그대로 두면 본문이 처음 바뀌는 날부터 매일 오탐이다. 문구는 생성기 시험
@@ -599,15 +599,15 @@ def check_derived_pages(adv, stats):
         jr = (stats.get('전세가율') or {}).get('dates', [None])[-1]
         h = urllib.request.urlopen(urllib.request.Request(
             SITE + '/jeonse-ratio/', headers=UA), timeout=SITE_TIMEOUT).read().decode('utf-8', 'replace')
-        m = re.search(r'(\d{4}\.\d{2}) 기준', h)
-        if not m:
+        got_j = SZ.basis_month(h)       # '2026년 8월 기준'·옛 '2026.08 기준' 둘 다(백로그 36-1)
+        if not got_j:
             out.append('/jeonse-ratio/에 시점 표기가 없다 — 페이지 구조가 바뀌었는지 확인')
             print('  전세가율  시점 표기 없음')
-        elif jr and m.group(1) != jr:
-            out.append('/jeonse-ratio/가 %s인데 데이터는 %s' % (m.group(1), jr))
-            print('  전세가율  %s (데이터 %s) — 어긋남' % (m.group(1), jr))
+        elif jr and got_j != jr:
+            out.append('/jeonse-ratio/가 %s인데 데이터는 %s' % (got_j, jr))
+            print('  전세가율  %s (데이터 %s) — 어긋남' % (got_j, jr))
         else:
-            print('  전세가율  %s 일치' % m.group(1))
+            print('  전세가율  %s 일치' % got_j)
     except Exception as e:
         if _hard_http(e):
             out.append('/jeonse-ratio/ HTTP %d — 페이지가 배포에 없다' % e.code)
