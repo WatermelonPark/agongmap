@@ -841,6 +841,36 @@ def rone_latest_complete(tbl, since=None, want_total=False):
     return (t, total_val) if want_total else t
 
 
+def kosis_supply_latest(cfg, since=None, want_total=False):
+    """KOSIS 로 옮긴 공급 계열(미분양 — 2026-10-07)의 **우리 시도가 모두 들어찬** 가장 최신 시점(rone_latest_complete 의 짝).
+
+    배치와 **같은 조회 함수**(U.fetch_supply)와 같은 접기(U._merge_gj)를 쓴다 — 기준이 갈리면 배치는 일부러 안 받고 감시는
+    뒤처짐이라 하는 엇갈림이 생긴다(2026-09-11). since 는 캐시 키로만 쓴다(KOSIS 는 최근 몇 달을 바로 준다) — 값 대조
+    (supply_value_fail)가 R-ONE 계열과 같은 키 모양으로 캐시를 읽는다. 완비된 달이 없으면 최신 달을 돌려준다.
+    """
+    key = (cfg['tbl'], since)
+    if key in _COMPLETE_CACHE:
+        t, total = _COMPLETE_CACHE[key]
+        return (t, total) if want_total else t
+    want = set(U.SUPPLY_SIDO)
+    got = U._merge_gj(U.fetch_supply(cfg, want | set(U._GJ_OLD), 4))
+    if not got:
+        raise RuntimeError('시점 없음')
+    full = [ym for ym, v in got.items() if not (want - set(v))]
+    ym = max(full) if full else max(got)
+    t = '%d%02d' % ym
+    total_val = sum(x for r, x in got[ym].items() if r in want)
+    _COMPLETE_CACHE[key] = (t, total_val)
+    return (t, total_val) if want_total else t
+
+
+def supply_latest_complete(cfg, since=None, want_total=False):
+    """공급 계열 원천의 완비 최신 시점 — cfg['via'] 로 KOSIS·R-ONE 을 가른다(배치 U.fetch_supply 와 같은 갈래)."""
+    if cfg.get('via') == 'kosis':
+        return kosis_supply_latest(cfg, since, want_total)
+    return rone_latest_complete(cfg['tbl'], since, want_total)
+
+
 def check_supply_value(label, D, tbl, since):
     """시점이 같아도 값이 같은가. 갱신이 멈춘 것을 시점만으로는 못 잡는다.
 
@@ -851,8 +881,9 @@ def check_supply_value(label, D, tbl, since):
 
     시점이 다르면 여기서는 아무 말도 하지 않는다. 그건 위의 나이 검사 몫이다.
     """
+    cfg = next((c for c in U.SUPPLY_CONF.values() if c['tbl'] == tbl), {'tbl': tbl})
     try:
-        src_t, src_total = rone_latest_complete(tbl, since, want_total=True)
+        src_t, src_total = supply_latest_complete(cfg, since, want_total=True)
     except Exception:
         return None          # 조회 실패는 위의 check()가 이미 분류했다
     dates = D.get('dates') or []
@@ -1250,7 +1281,7 @@ def source_jobs(stats):
     for name, cfg in sorted(U.SUPPLY_CONF.items()):
         last = ((stats.get(name) or {}).get('dates') or [None])[-1]
         jobs[('supply', name)] = (lambda c=cfg, sc=_supply_since(last):
-                                  rone_latest_complete(c['tbl'], sc))
+                                  supply_latest_complete(c, sc))
     jobs['금리'] = lambda: ecos_latest()
     jobs[('bubble', '전환율')] = lambda: bubble_conv_latest()
     jobs[('bubble', '주담대')] = lambda: ecos_latest(BUBBLE_ECOS)
@@ -1329,7 +1360,7 @@ def main():
     # 분양·미분양은 BASIC_CONF가 아니라 SUPPLY_CONF에 있어 예전엔 감시에서 통째로
     # 빠져 있었다(2026-07-31 발견). 새 지표를 추가할 때 감시에도 들어왔는지
     # 확인하는 자리가 여기다 — 라이브 STATS 계열 수와 아래 점검 수가 맞아야 한다.
-    print('[공급 파이프라인 — 원천 R-ONE]')
+    print('[공급 파이프라인 — 원천 R-ONE(분양)·KOSIS(미분양)]')
     for name, cfg in sorted(U.SUPPLY_CONF.items()):
         D = stats.get(name) or {}
         last = (D.get('dates') or [None])[-1]
