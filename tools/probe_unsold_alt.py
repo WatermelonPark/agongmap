@@ -81,6 +81,107 @@ def summarize(tbl, nm, rows):
             % (tbl, nm, latest, periods, len(names), '·'.join(gj) if gj else '없음'))
 
 
+# ── 대조(2026-10-07): 10-06 첫 조사에서 DT_MLTM_2080(규모별 미분양현황)이 2026.08 까지·'전남광주' 통합 행을 줬다.
+# 원천을 바꾸기 전에 그 표의 모양(분류·항목)과, 지금 계열(R-ONE, data.js STATS['미분양'])과 같은 달의 시도 값이 같은지 본다.
+CANDIDATE = 'DT_MLTM_2080'
+COMPARE_MONTHS = 6
+TOTAL_NAMES = ('계', '합계', '소계', '전체', '총계')
+_FULL = {'서울특별시': '서울', '부산광역시': '부산', '대구광역시': '대구', '인천광역시': '인천', '광주광역시': '광주',
+         '대전광역시': '대전', '울산광역시': '울산', '세종특별자치시': '세종', '경기도': '경기', '강원도': '강원',
+         '강원특별자치도': '강원', '충청북도': '충북', '충청남도': '충남', '전라북도': '전북', '전북특별자치도': '전북',
+         '전라남도': '전남', '경상북도': '경북', '경상남도': '경남', '제주특별자치도': '제주', '제주도': '제주'}
+
+
+def _short(n):
+    n = (n or '').strip()
+    return _FULL.get(n, n)
+
+
+def shape(rows):
+    """표 모양 한 줄 — 분류 단계별 이름 수와 앞 몇 개, 항목 이름."""
+    parts = []
+    for k in ('C1_NM', 'C2_NM', 'C3_NM', 'ITM_NM', 'UNIT_NM'):
+        names = []
+        for r in rows:
+            v = str(r.get(k) or '')
+            if v and v not in names:
+                names.append(v)
+        if names:
+            parts.append('%s %d개(%s)' % (k, len(names), '·'.join(names[:8])))
+    return ' / '.join(parts)
+
+
+def sido_totals(rows):
+    """{YYYYMM: {지역: 값}} — 지역(C1)을 빼고 나머지 분류가 모두 합계 이름이거나 없는 행만 쓴다. 항목이 여럿이면 첫 항목."""
+    first_itm = next((str(r.get('ITM_NM') or '') for r in rows), '')
+    out = {}
+    for r in rows:
+        if str(r.get('ITM_NM') or '') != first_itm:
+            continue
+        rest = [str(r.get(k) or '') for k in ('C2_NM', 'C3_NM') if r.get(k)]
+        if any(x not in TOTAL_NAMES for x in rest):
+            continue
+        try:
+            v = float(str(r.get('DT')).replace(',', ''))
+        except (TypeError, ValueError):
+            continue
+        out.setdefault(str(r.get('PRD_DE')), {})[_short(r.get('C1_NM'))] = v
+    return out
+
+
+def compare(tot, stats):
+    """R-ONE 계열과 같은 달의 지역 값 대조 — 줄 목록."""
+    d = (stats or {}).get('미분양') or {}
+    dates, series = d.get('dates') or [], d.get('series') or {}
+    lines = []
+    for ym in sorted(tot):
+        lab = '%s.%s' % (ym[:4], ym[4:6])
+        if lab not in dates:
+            lines.append('%s: R-ONE 계열에 없는 달 — 지역 %d곳(%s)' % (lab, len(tot[ym]), '·'.join(sorted(tot[ym])[:20])))
+            continue
+        i = dates.index(lab)
+        same, diff = 0, []
+        for reg, v in sorted(tot[ym].items()):
+            ser = series.get(reg)
+            if not ser or i >= len(ser) or ser[i] is None:
+                continue
+            if abs(ser[i] - v) < 0.5:
+                same += 1
+            else:
+                diff.append('%s %g↔%g' % (reg, ser[i], v))
+        lines.append('%s: 같음 %d곳, 다름 %d곳%s' % (lab, same, len(diff), (' (' + ', '.join(diff[:8]) + ')') if diff else ''))
+    return lines
+
+
+def _stats():
+    try:
+        import month_lag as ML
+        return ML.load()[1]
+    except Exception as e:
+        print('probe_unsold_alt: data.js 를 읽지 못했다 — %s' % e)
+        return {}
+
+
+def candidate(key, get=_get, stats=None):
+    base = {'apiKey': key, 'orgId': ORG, 'tblId': CANDIDATE, 'itmId': 'ALL', 'prdSe': 'M', 'newEstPrdCnt': COMPARE_MONTHS}
+    rows = None
+    for extra in ({'objL1': 'ALL'}, {'objL1': 'ALL', 'objL2': 'ALL'}, {'objL1': 'ALL', 'objL2': 'ALL', 'objL3': 'ALL'}):
+        try:
+            got = get(DATA_API, dict(base, **extra))
+            if isinstance(got, list) and got:
+                rows = got
+                print('probe_unsold_alt: %s 요청 모양 %s' % (CANDIDATE, ','.join(sorted(extra))))
+                break
+        except Exception as e:
+            print('probe_unsold_alt: %s %s — %s' % (CANDIDATE, ','.join(sorted(extra)), str(e)[:120]))
+    if not rows:
+        print('::notice title=미분양 대조::%s 를 받지 못했다' % CANDIDATE)
+        return
+    print('::notice title=미분양 표 모양::%s — %s' % (CANDIDATE, shape(rows)))
+    for ln in compare(sido_totals(rows), _stats() if stats is None else stats):
+        print('::notice title=미분양 대조::%s %s' % (CANDIDATE, ln))
+
+
 def main(get=_get, key=None):
     key = os.environ.get('KOSIS_API_KEY', '') if key is None else key
     if not key:
@@ -90,10 +191,9 @@ def main(get=_get, key=None):
         tables = search(key, get)
     except Exception as e:
         print('probe_unsold_alt: 검색 실패 — %s: %s' % (type(e).__name__, str(e)[:160]))
-        return 0
+        tables = []
     if not tables:
         print('probe_unsold_alt: 국토교통부 표 가운데 이름에 "%s" 가 든 표를 찾지 못했다' % KEYWORD)
-        return 0
     for tbl, nm in tables[:MAX_TABLES]:
         try:
             line = summarize(tbl, nm, table_rows(key, tbl, get))
@@ -103,8 +203,11 @@ def main(get=_get, key=None):
         print('::notice title=미분양 대체 원천 조사::' + line)
     if len(tables) > MAX_TABLES:
         print('probe_unsold_alt: 표 %d개 중 앞 %d개만 봤다' % (len(tables), MAX_TABLES))
+    try:                     # 검색이 실패해도 후보 표 대조는 따로 돈다(표 ID 를 안다)
+        candidate(key, get)
+    except Exception as e:
+        print('probe_unsold_alt: 대조 실패 — %s: %s' % (type(e).__name__, str(e)[:160]))
     return 0
-
 
 if __name__ == '__main__':
     try:
