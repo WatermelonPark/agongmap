@@ -59,7 +59,7 @@ permissions:
 
 jobs:
   fetch:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60     # 클라우드→한국 지연으로 배치가 ~40분. 여유 있게 60.
     permissions:
       contents: read        # 산출물은 아티팩트로만 넘긴다. 푸시는 commit 잡만 한다
@@ -159,6 +159,17 @@ jobs:
             echo "clean 러너 — 산출물 업로드"
           fi
 
+      # 미분양 대체 원천 조사(2026-10-06 대표 결정 — 기록만). R-ONE 미분양 표가 2026.07 에 광주·전남 행이 없어 화면이
+      # 2026.06 에 묶였다. KOSIS 국토교통부 미분양 표가 어디까지·어떤 지역 이름으로 내는지 실행 요약(::notice::)에 남긴다.
+      # 데이터는 건드리지 않고 늘 0 으로 끝나며, 러너 1 에서만 돈다(세 번 같은 줄이 찍히지 않게). 결정이 나면 걷는다.
+      - name: 미분양 대체 원천 조사 (기록만)
+        if: steps.pre.outputs.ok == 'true' && matrix.n == 1
+        continue-on-error: true
+        timeout-minutes: 4
+        env:
+          KOSIS_API_KEY: ${{ secrets.KOSIS_API_KEY || secrets.KOSIS }}
+        run: timeout 180 python tools/probe_unsold_alt.py || true
+
       # 사유는 **항상** 올린다. clean 산출물과 달리 실패한 러너의 것이 정보다.
       - name: 실패 사유 업로드 (전 러너)
         if: always()
@@ -192,7 +203,7 @@ jobs:
   commit:
     needs: fetch
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write       # 데이터 커밋·푸시
       issues: write         # 매 회차 결과 보고를 전용 이슈에 코멘트로 남긴다(아래 '결과 보고')
@@ -765,7 +776,7 @@ jobs:
     # 바로 fetch 러너가 실패한 날(0/3)이라 — commit 은 always() 로 돌아 need_retry=true 를 세우는데 — retry 잡은
     # 늘 건너뛰어졌다. 재시도 층이 정작 필요한 날마다 꺼져 있던 것이다. 취소된 런에서는 돌지 않는다.
     if: ${{ !cancelled() && needs.commit.outputs.need_retry == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       actions: write        # update-cloud-retry.yml 을 workflow_dispatch 로 부른다
     timeout-minutes: 10

@@ -31,7 +31,7 @@ permissions:
 
 jobs:
   wait_and_dispatch:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 35분 sleep + 여유. update-cloud의 45분과 달리 여기선 실제로 자기만 한다.
     timeout-minutes: 45
     steps:

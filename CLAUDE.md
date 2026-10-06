@@ -83,8 +83,11 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
   depth 200, split_data·생성기 먼저)으로 pytest 를 돌리고, 설치 없이 도는 진입점을 따로 돌려 본다. 둘이 같은지는
   `test_ci_workflow_mirrors_gate`가 본다. 봇 데이터 커밋은 푸시로 이 워크플로를 부르지 못해 예약 실행을 둔다 —
   배치 게이트가 경고로만 넘기는 '다음 분기 전진 시험'(`test_gate_survives_next_period`)이 여기서 실패로 돈다.
+- **러너 판**: 모든 워크플로는 `ubuntu-24.04` 고정이다(ci-tests 의 `inputs.runner` 기본값이 정본, `test_runner_pin`). `runner-trial.yml`이
+  같은 시험을 다음 판(26.04)에서 주 1회·수동으로 돌린다. 몇 주 초록이면 고정 판을 함께 올린다(2026-10-06 대표 결정).
 - **감시**: `watchdog.yml`이 매일 `check_freshness.py`로 라이브 데이터를 원천과 대조한다. 워크플로 자체가
-  실패하면 GitHub이 실패 알림 메일을 보낸다. 배치 안의 알림 코드는 배치가 안 뜨면 실행되지 않으므로 감시자를 밖에 둔 것이다.
+  실패하면 GitHub이 실패 알림 메일을 보낸다. R-ONE 지역 목록 조회가 끊기면 재시도하고, 그래도 끊기면 첫날은 경고, 이틀 연속이면 실패다
+  (`region_fail_tolerated`, 상태는 actions/cache 의 `.watch_state`). 배치 안의 알림 코드는 배치가 안 뜨면 실행되지 않으므로 감시자를 밖에 둔 것이다.
 - **발행 알림**: `write-reminder.yml`이 화(지역·사이클 격주)·금(주간 시세) 아침에 블로그 발행 이슈를 연다.
   `publish-check.yml`이 발행을 확인하고 이슈를 닫는다.
 - 클라우드 세션에는 API 키가 없다. 데이터 갱신(`update_adv_data.py`)을 돌리지 말고 pytest로 검증한다.
