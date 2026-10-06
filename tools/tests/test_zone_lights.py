@@ -54,7 +54,7 @@ def test_hub_cards_show_lights_instead_of_grade_tags():
 
 def test_report_bars_share_the_light_colors_and_say_the_state():
     """시도 리포트는 머리에 큰 신호등을 두지 않고(2026-10-06 — 바로 아래 막대와 같은 값을 두 번 보였다) 해마다 막대 한 그림에
-    동그라미와 같은 색 키·이름(적음·보통·많음)을 단다. '… 너머' 참고 칸은 회색(na)이다 — 바로 위 줄의 '필요량에 못 미칩니다'
+    동그라미와 같은 색 키·이름(적음·보통·많음)을 단다. '… 너머' 참고 칸은 회색(na)이다 — 바로 위 줄의 '적정물량에 못 미칩니다'
     (PWARN_CUT 95%)와 신호등 문턱(70%)이 달라 82% 가 노랑으로 칠해졌다. 다른 지역 칸은 허브와 같은 동그라미다.
 
     변이(각각 실제로 확인): build_page 가 머리 신호등(zlights)을 되살리면, outlook_cells 가 참고 칸을 light_of 로 칠하면, 막대 아래

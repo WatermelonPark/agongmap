@@ -75,8 +75,8 @@ def test_moveins_uses_the_canon(monkeypatch):
     monkeypatch.setattr(SZ, 'OCC_LO_PCT', 10 ** 6)     # 모든 칸이 부족이 되는 문턱 — pct_cell 이 정본을 읽으면 표가 다 빨개진다
     monkeypatch.setattr(SZ, 'OCC_HI_PCT', 10 ** 7)
     html, _ = I.build_moveins(adv)
-    cells = re.findall(r'<td class="(\w+)">[\d,]+% 충족</td>', html)
-    assert cells and set(cells) == {'up'}, cells
+    cells = re.findall(r'<td class="(\w+)">[\d,]+% (적음|보통|많음)</td>', html)
+    assert cells and set(cells) == {('up', '적음')}, cells   # 색과 낱말이 같은 정본에서 온다(백로그 36-2)
 
 
 def _split_to(tmp_path):

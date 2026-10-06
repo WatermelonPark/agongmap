@@ -311,7 +311,7 @@ def link3_numbers(adv, sts):
         return '%.0f%%' % (q*100)
 
     def _se_demol_n():
-        # 위 비율을 '허가 100호 가운데 N호'로 쓴 값
+        # 위 비율을 '허가 100세대 가운데 N세대'로 쓴 값
         am=sts['아파트멸실']; y1=int(am['dates'][-1][:4]); ys=range(y1-9,y1+1)
         q=sum(am['series']['서울'][am['dates'].index(str(y))] or 0 for y in ys)/sum(A('서울',y) for y in ys)
         return str(round(q*100))
@@ -353,27 +353,27 @@ def link3_numbers(adv, sts):
         return '·'.join(d) + NP.eunneun(d[-1])
 
     def _sd_fut():
-        # 사이트 판정 정본(adv['sido'] zones split): 수도권 앞으로 3년 들어올 물량 / 필요량
+        # 사이트 판정 정본(adv['sido'] zones split): 수도권 앞으로 3년 들어올 물량 / 적정물량
         assert Z('수도권')['split']['rows'][1][0]=='앞으로 3년'
         return '%d%%' % SP('수도권',1)
 
     def _jb_fut():
-        # 사이트 판정 정본: 지방 앞으로 3년 / 필요량
+        # 사이트 판정 정본: 지방 앞으로 3년 / 적정물량
         assert Z('지방')['split']['rows'][1][0]=='앞으로 3년'
         return '%d%%' % SP('지방',1)
 
     def _jb_pbr():
-        # 사이트 판정 정본: 지방 최근 2년 인허가를 착공으로 환산한 값 / 필요량(3년 너머 참고치)
+        # 사이트 판정 정본: 지방 최근 2년 인허가를 착공으로 환산한 값 / 적정물량(3년 너머 참고치)
         return '%.0f%%' % (Z('지방')['pbr']*100)
 
     def _sd_past():
-        # 사이트 판정 정본: 수도권 지난 4년 필요량보다 덜 지은 비율
+        # 사이트 판정 정본: 수도권 지난 4년 적정물량보다 덜 지은 비율
         r=Z('수도권')['split']['rows'][0]
         assert r[0]=='지난 4년' and '덜' in r[1]
         return '%d%%' % SP('수도권',0)
 
     def _sd_pbr():
-        # 사이트 판정 정본: 수도권 최근 2년 인허가를 착공으로 환산한 값 / 필요량(3년 너머 참고치)
+        # 사이트 판정 정본: 수도권 최근 2년 인허가를 착공으로 환산한 값 / 적정물량(3년 너머 참고치)
         return '%.0f%%' % (Z('수도권')['pbr']*100)
 
     def _st_old():

@@ -115,7 +115,7 @@ th{text-align:center}
   .links a{display:block;background:#fff;border:1px solid var(--line);border-radius:0;
     padding:14px 18px;text-decoration:none;color:var(--ink);font-size:14.5px;font-weight:600}
   .links a span{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px}
-  footer{padding:30px 0 60px;text-align:center;font-size:12.5px;color:var(--muted)}
+  footer{padding:30px 0 60px;text-align:center;font-size:13px;color:var(--muted);line-height:1.7}
   footer a{color:var(--muted)}
 
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);
@@ -123,8 +123,8 @@ th{text-align:center}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;
  justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn svg{display:block}
+.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
 .nav-btn.on,.nav-btn:hover{color:#fff}
-.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-3px}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 페이지는 공용 시트를 안 읽어 규칙을 동봉한다(2026-09-30 전수리뷰 #71) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -188,9 +188,10 @@ th{text-align:center}
 
 </main>
 
-<footer><div class="wrap">
+<footer class="sfoot"><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 만든이: <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a>
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
+  자료: KOSIS·한국부동산원·국토교통부·한국은행 · 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
 </div></footer>
 
 <script defer src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"></script>
@@ -222,7 +223,7 @@ if('serviceWorker' in navigator){
 </script>
 
 <nav class="bottomnav">
-  <a class="nav-btn on" aria-current="page" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
+  <a class="nav-btn on" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
   <a class="nav-btn" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>
   <a class="nav-btn" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>시세</span></a>
   <a class="nav-btn" href="/cycle/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>사이클</span></a>

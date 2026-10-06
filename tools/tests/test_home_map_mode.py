@@ -107,7 +107,7 @@ def _zones():
     for z in SZ.ORDER:
         g = 'g1' if z == '경기' else ('g0' if z == '인천' else 'g2')
         out.append({'z': z, 'grade': g, 'ratio': {'g1': 0.17, 'g0': -0.2}.get(g, 0.6), 'tot': 1000,
-                    'ctxt': '1,000세대 부족(3년 필요량의 60%)'})
+                    'ctxt': '1,000세대 부족(3년 적정물량의 60%)'})
     return out
 
 
@@ -156,7 +156,8 @@ def _render(src, p, now_ms, mode):
 def _shapes(h):
     """지도 도형마다 (href, 채움, 표적 다각형 또는 None, 라벨 또는 None)."""
     svg = h[h.index('<svg'):]
-    return re.findall(r'<a href="([^"]*)"(?: data-code="[^"]*")? aria-label="[^"]*"><path d="[^"]*" fill="([^"]*)"></path>'
+    return re.findall(r'<a href="([^"]*)"(?: data-code="[^"]*")?(?: tabindex="-1" aria-hidden="true")? aria-label="[^"]*">'
+                      r'<path d="[^"]*" fill="([^"]*)"></path>'
                       r'(?:<polygon class="tap" points="([^"]*)"[^>]*></polygon>)?'
                       r'(?:<text[^>]*>([^<]*)</text>)?', svg)
 
@@ -246,6 +247,11 @@ def test_mode_switch_keeps_targets_and_labels_and_recolors_and_relinks():
     a, b = _shapes(sup), _shapes(wk)
     geo = _geo()['p']
     assert len(a) == len(b) == len(geo), (len(a), len(b), len(geo))
+    # 한 판정 단위의 둘째 도형(라벨 없는 도형 — 전남광주의 광주 쪽)은 키보드 순서·읽기에서 뺀다(백로그 36-8 — 같은 곳으로 가는 초점이
+    # 두 번 섰다). 변이: home-app.js 의 dup 을 늘 '' 로 두면 빨강(확인).
+    for h, shapes in ((sup, a), (wk, b)):
+        assert h.count('tabindex="-1" aria-hidden="true"') == sum(1 for x in shapes if not x[3]) >= 1
+    assert 'role="group"' in sup and 'role="img" aria-label="시도별' not in sup
     heads = {t[1]: t[0] for t in MW.nation_tile(src)['t'] if t[4] and len(t[0]) == 2}
     assert all(x[0].startswith('/zone/') for x in a)
     assert [x[0] for x in b] == ['#stats-market-week~%s' % heads[g['n']] for g in geo], '주간 모드 지역 링크가 그 시도 그래프가 아니다'

@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v182';
+var HOME_STATS_BUILD='v183';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -71,6 +71,9 @@ function statsOpen(){
 // 날짜 정규화: "2006.01","2006.01 p)","2007/01","2012.1","2024" -> {y,m}
 /* 기본통계 표시 — 내부 label('2026.08'·'2026')은 보조선 찾기(auxPos)·연월 비교가 쓰므로 그대로 두고, 화면에 찍을 때만 두 단계
    표기로 바꾼다(2026-10-06 대표 결정): 좁은 곳(표 칸·눈금) '26.8', 글로 읽는 곳(기간 줄) '2026년 8월'. 연 자료는 '2026'·'2026년'. */
+/* 공급 단위는 화면에서 '세대' 하나다(2026-10-06 대표 결정, 백로그 36-2). 원천 표(국토교통부·KOSIS)는 '호'로 발표하고 data.js 의 unit 도
+   원천 그대로 둔다 — 아파트는 1호가 1세대라 숫자는 같고, 화면에 찍을 때만 낱말을 바꾼다. 파이썬 정본은 sido_zones.unit_text. */
+function unitT(u){return String(u==null?'':u).replace(/^호(?=\s|$)/,'세대');}
 function _ymCell(l){return /^\d{4}$/.test(l)?l:_ymS(l);}
 function _ymLong(l){return /^\d{4}$/.test(l)?l+'년':_ymT(l);}
 function parseDate(s){
@@ -212,7 +215,8 @@ function renderAux(){
 function chartFailNote(){
   loadChart().catch(()=>{
     const n=document.getElementById('src-note');
-    if(n&&!n.querySelector('.chart-fail'))n.insertAdjacentHTML('beforeend',' <b class="chart-fail">그래프를 불러오지 못했습니다. 연결을 확인하고 다시 눌러 주세요.</b>');
+    // 다시 시도 단추(백로그 36-6) — 안내를 걷고 같은 그래프를 다시 그린다(loadChart 는 실패한 주소를 다시 받는다)
+    if(n&&!n.querySelector('.chart-fail'))n.insertAdjacentHTML('beforeend',' <b class="chart-fail">그래프를 불러오지 못했습니다. 연결을 확인해 주세요. <button type="button" class="retry-btn" onclick="this.closest(\'.chart-fail\').remove();drawStat()">다시 시도</button></b>');
   });
 }
 function drawStat(){
@@ -237,7 +241,7 @@ function drawStat(){
      소유권이 꼬여 'Canvas is already in use'가 터지면 buildMatrix까지 못 가서
      행열 전환이 조용히 죽었다(인허가·착공·분양·준공·미분양에서 실측). */
   document.getElementById('meta-bar').innerHTML=
-    `<span>단위 <b>${D.unit}</b></span><span>지역 <b>${ST.reg}</b></span><span>출처 <b>${D.source}</b></span>`;
+    `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${ST.reg}</b></span><span>출처 <b>${D.source}</b></span>`;
   buildTable(D,labels,vals,idx,parsed);
   buildMatrix(D,idx,parsed);
   document.getElementById('src-note').innerHTML=
@@ -255,10 +259,10 @@ function drawStat(){
       tension:.25,fill:true,spanGaps:true}]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{title:c=>_ymCell(c[0].label),label:c=>`${DS_LABEL[ST.ds]}: ${fmtN(c.raw)} ${D.unit.split(' ')[0]}`}}},
+        tooltip:{callbacks:{title:c=>_ymCell(c[0].label),label:c=>`${DS_LABEL[ST.ds]}: ${fmtN(c.raw)} ${unitT(D.unit).split(' ')[0]}`}}},
       scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,maxRotation:0,autoSkip:true,
           callback:function(v){return _ymCell(this.getLabelForValue(v));}}},
-        y:{grid:{color:GRID},title:{display:true,text:D.unit}}}},
+        y:{grid:{color:GRID},title:{display:true,text:unitT(D.unit)}}}},
     plugins:[{id:'vlines',afterDraw(ch){
       const ctx=ch.ctx,ya=ch.scales.y,xa=ch.scales.x;
       let drawn=[];
@@ -543,7 +547,7 @@ function drawSizePivot(){
   document.getElementById('prange').innerHTML=idx.length?
     `<b>${_ymT(D.dates[idx[0]])}</b> ~ <b>${_ymT(D.dates[idx[idx.length-1]])}</b> · ${idx.length}개월`:'';
   document.getElementById('meta-bar').innerHTML=
-    `<span>단위 <b>${D.unit}</b></span><span>지역 <b>${reg}</b></span><span>출처 <b>${D.source}</b></span>`;
+    `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${reg}</b></span><span>출처 <b>${D.source}</b></span>`;
   document.getElementById('src-note').innerHTML=
     `※ ${D.note}. 총계 대신 규모별로 보면 초소형(오피스텔성) 물량의 왜곡 없이 시장을 읽을 수 있다.`;
 }
@@ -684,7 +688,7 @@ function renderAdvOcc(){
   const b=null;   // 적정밴드 폐지(2026-08-07) — 기준선은 적정물량 하나
   document.getElementById('adv-occ-compact').innerHTML=cp.join('')+
     (b?`<div class="src-note" style="padding:8px 12px">적정밴드 ${advFmt(b[0])}~${advFmt(b[1])} · 아래면 공급부족, 위면 공급과잉</div>`:
-       (ref?`<div class="src-note" style="padding:8px 12px">분기 수요 기준선 ${advFmt(ref)}</div>`:''));
+       (ref?`<div class="src-note" style="padding:8px 12px">분기 적정물량 ${advFmt(ref)}세대</div>`:''));
 }
 function wkCell(v){
   if(v==null) return '<td>·</td>';
@@ -749,7 +753,10 @@ function rankTables(S,unit,k){
   }
   const cols=hasWo?['ma','je','wo']:['ma','je'];
   function tbl(title,items,base,dn){
-    const th=cols.map(m=>'<th class="rk-sort'+(m===met?' on':'')+'" role="button" tabindex="0" data-k="'+k+'" data-met="'+m+'" title="'+MLAB[m]+' 기준으로 정렬">'+MLAB[m]+'</th>').join('');
+    /* 정렬 머리는 열 머리(th)로 두고 안에 단추를 넣는다 — th 에 role="button" 을 달면 열 머리가 아니게 되어 정렬 상태(aria-sort)를
+       알릴 수 없었다(백로그 36-8). 상승 표는 큰 값부터(descending), 하락 표는 작은 값부터(ascending)다. */
+    const th=cols.map(m=>'<th class="rk-sort'+(m===met?' on':'')+'"'+(m===met?' aria-sort="'+(dn?'ascending':'descending')+'"':'')
+      +' data-k="'+k+'" data-met="'+m+'"><button type="button" title="'+MLAB[m]+' 기준으로 정렬">'+MLAB[m]+'</button></th>').join('');
     const h=['<div class="rank-box"><div class="rank-h">'+title+'</div><div class="rank-wrap"><table class="rank-tbl'+(hasWo?' wide':'')+'">',
       '<thead><tr><th>순위</th><th>지역</th>'+th+'<th>'+unit+'</th></tr></thead><tbody>'];
     items.forEach(([c,v],i)=>{
@@ -761,7 +768,7 @@ function rankTables(S,unit,k){
     h.push('</tbody></table></div></div>');
     return h.join('');
   }
-  const basis='<span style="font-weight:600;color:var(--muted);font-size:11px">'+MLAB[met]+' 기준</span>';
+  const basis='<span style="font-weight:600;color:var(--muted);font-size:13px">'+MLAB[met]+' 기준</span>';
   return '<div class="map-rank">'+
     tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.slice(0,10),1)+
     tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1,true)+
@@ -804,8 +811,7 @@ function drawNationMap(k){
   /* TOP10 헤더 정렬 — innerHTML 이후에 붙인다(인라인 onclick은 따옴표 중첩이 깨진다) */
   box.querySelectorAll('.rk-sort').forEach(th=>{
     const go=()=>setRankMet(th.dataset.k,th.dataset.met);
-    th.addEventListener('click',go);
-    th.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+    th.addEventListener('click',go);   // 안의 <button> 이 키보드(Enter·Space)를 클릭으로 바꿔 준다
   });
   /* 지도 칸·TOP 10 지역명 → 그 지역 그래프. 상자는 그대로 두고 안만 갈아 끼우므로 한 번만 붙인다. */
   if(!box.dataset.trLink){
@@ -1110,9 +1116,9 @@ function drawPermitChart(){
     data:{labels:P.rows.map(r=>r.p.replace('H1',' 상').replace('H2',' 하')),
       datasets:[{label:'아파트 인허가',data:vals,backgroundColor:cols}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${advFmt(c.raw)} 호`}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${advFmt(c.raw)} 세대`}}},
       scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}},
-        y:{grid:{color:GRID},title:{display:true,text:'호 (반기)'}}}},
+        y:{grid:{color:GRID},title:{display:true,text:'세대 (반기)'}}}},
     plugins:[{id:'permitRef',afterDraw(ch){
       if(!ref)return;
       const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
@@ -1132,27 +1138,31 @@ function drawOccChart(){
   const O=ADV.occupancy, regs=O.regions;
   const reg=advSel('adv-occ-reg',regs), ri=regs.indexOf(reg), ref=O.ref[reg];
   const vals=O.rows.map(r=>r.v[ri]);
+  /* 추정 분기도 실적과 같은 판정 색으로 칠하고 옅게만 구분한다(백로그 36-10) — 예전엔 추정을 노랑 하나로 칠해 표에서 빨간
+     '적음' 분기가 그래프에서는 보이지 않았다. 색은 범례(index.html #sec-occ .adv-legend)와 같다. */
+  const OCC_COL={lo:'#e0564a',hi:'#3a7bd5','':'#9aa8a1'};
   const cols=O.rows.map((r,i)=>{
-    if(occEst(r))return '#e8ce7a';
-    const c=occCls(reg,vals[i]);
-    return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');
+    const c=OCC_COL[occCls(reg,vals[i])]||OCC_COL[''];
+    return occEst(r)?c+'73':c;   // 추정 = 같은 색 45%
   });
   mkChart('occChart',{type:'bar',
     data:{labels:O.rows.map(r=>r.p.slice(2)),datasets:[{label:'입주물량',data:vals,backgroundColor:cols}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${occFmt(c.raw)} 호`}}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${occFmt(c.raw)} 세대`}}},
       scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}},
-        y:{grid:{color:GRID},title:{display:true,text:'호 (분기)'}}}},
+        y:{grid:{color:GRID},title:{display:true,text:'세대 (분기)'}}}},
     plugins:[{id:'occRef',afterDraw(ch){
       const b=null;   // 적정밴드 폐지(2026-08-07) — 기준선은 적정물량 하나
       const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
-      const lines=b?[[b[0],'#3a7bd5','적정 하단'],[b[1],'#e0564a','적정 상단']]:(ref?[[ref,'#9a7000','수요 기준선']]:[]);
-      lines.forEach(([v,c,t])=>{
+      /* 적정물량 선 + 적음·많음 문턱선(70·130% — split_data 가 싣는 ADV.occupancy.band, 표·/moveins/ 와 같은 정본) */
+      const band=O.band;
+      const lines=ref?[[ref,'#5e6f74','적정물량',1.5]].concat(band?[[ref*band.lo/100,'#e0564a',band.lo+'%',1],[ref*band.hi/100,'#3a7bd5',band.hi+'%',1]]:[]):[];
+      lines.forEach(([v,c,t,w])=>{
         if(v<ya.min||v>ya.max)return;
         const y=ya.getPixelForValue(v);
-        ctx.save();ctx.strokeStyle=c;ctx.setLineDash([5,4]);ctx.lineWidth=1.5;
+        ctx.save();ctx.strokeStyle=c;ctx.setLineDash(w>1?[5,4]:[2,3]);ctx.lineWidth=w;
         ctx.beginPath();ctx.moveTo(xa.left,y);ctx.lineTo(xa.right,y);ctx.stroke();
-        ctx.setLineDash([]);ctx.fillStyle=c;ctx.font='700 10px '+FONT;ctx.textAlign='right';
+        ctx.setLineDash([]);ctx.fillStyle=c;ctx.font='700 11px '+FONT;ctx.textAlign='right';
         ctx.fillText(t,xa.right-4,y-4);ctx.restore();
       });
     }}]});
@@ -1236,7 +1246,7 @@ function renderBubbleSec(){
     ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=latest(rg);
       return (cv==null||jr==null)?0:jr/100*cv*2;}))*1.04));
   const px=v=>Math.min(98,Math.max(0,v/MAX*100));
-  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:11px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+_ymT(B.loan.p)+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
+  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:13px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+_ymT(B.loan.p)+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
   let nHi=0,nLo=0,nNear=0;
   (B.regions||Object.keys(B.conv)).forEach(rg=>{
     const cv=B.conv[rg],jr=latest(rg);

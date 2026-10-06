@@ -152,7 +152,7 @@
   .hcol ul{margin:0;padding-left:18px}
   .hcol li{font-size:14px;line-height:1.65;color:var(--ink2);margin-bottom:9px}
   .hcol li b{color:var(--ink)}
-  .disc{font-size:12px;color:var(--muted);line-height:1.6;margin-top:20px;
+  .disc{font-size:13px;color:var(--muted);line-height:1.6;margin-top:20px;
     padding-top:16px;border-top:1px solid var(--line)}
   @media(max-width:640px){.hbox{grid-template-columns:1fr}}
 
@@ -181,7 +181,8 @@
   .nav-btn{flex:1;max-width:220px;border:0;background:none;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:3px;color:#97a0b8;
     font-size:13px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
-    font-family:inherit}   /* 홈의 '홈'·'시세' 탭은 <button> 이라 상속하지 않으면 시스템 글꼴로 그려진다(B11 검토) */
+    font-family:inherit}
+  .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */   /* 홈의 '홈'·'시세' 탭은 <button> 이라 상속하지 않으면 시스템 글꼴로 그려진다(B11 검토) */
   .nav-btn.on{color:#fff}
     .nav-btn svg{display:block}
 
@@ -203,7 +204,7 @@
   .qpick-card .pc-top{display:flex;align-items:center;gap:11px;margin-bottom:7px}
   .qpick-card .pc-emoji{font-size:26px;line-height:1}
   .qpick-card .pc-title{font-size:clamp(15.5px,4.6vw,18.5px);font-weight:600;color:var(--ink);letter-spacing:-.01em;white-space:nowrap}   /* '재건축·재개발 테스트'가 375px 에서 두 줄이었다 */
-  .qpick-card .pc-badge{margin-left:auto;flex:none;font-size:11px;font-weight:600;letter-spacing:.03em;
+  .qpick-card .pc-badge{margin-left:auto;flex:none;font-size:13px;font-weight:600;letter-spacing:.03em;
     padding:4px 10px;border-radius:0}
   .qpick-card .pc-badge.lv1{background:#e8f3ee;color:#1a6b54}
   .qpick-card .pc-badge.lv2{background:#f4f6f5;color:#8f5c0a}   /* 3.39 → 5.2 */
@@ -212,7 +213,7 @@
   .qpick-card .pc-go{position:absolute;right:20px;bottom:18px;font-size:20px;color:var(--muted)}
   .qback{display:inline-flex;align-items:center;gap:5px;background:none;border:0;
     color:var(--muted);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;
-    padding:6px 8px 6px 0;min-height:40px;margin-bottom:4px}
+    padding:6px 8px 6px 0;min-height:44px;margin-bottom:4px}
   /* 진행바 */
   .qprogress{height:6px;background:var(--paper2);border-radius:0;margin:30px 0 8px;overflow:hidden}
   .qbar{height:100%;background:var(--ink);border-radius:0;transition:width .35s ease;width:0}
@@ -269,29 +270,30 @@
   .rcard .rc-dots{display:flex;gap:7px;justify-content:center;margin:10px 0 16px}
   .rcard .rc-dots i{width:12px;height:12px;border-radius:50%;background:#39415f}
   .rcard .rc-dots i.ok{background:#3aa17e}
-  .rcard .rc-dots i.no{background:#e0564a}
+  .rcard .rc-dots i.no{background:transparent;box-shadow:inset 0 0 0 2.5px #e0564a}   /* 오답 = 속 빈 고리 — 색만으로 가르지 않는다(36-8) */
   /* 결과 점을 누르면 해설(점검 후속 ⑧) — 손가락 대상은 24px, 보이는 점은 그대로 12px */
   .rcard .rc-dots.rc-dots-btn{gap:2px;margin:8px 0 4px}
   .rcard .rc-dot{width:24px;height:24px;border:0;padding:0;background:transparent;cursor:pointer;position:relative;border-radius:50%}
   .rcard .rc-dot::after{content:'';position:absolute;inset:6px;border-radius:50%;background:#39415f}
   .rcard .rc-dot.ok::after{background:#3aa17e}
-  .rcard .rc-dot.no::after{background:#e0564a}
+  .rcard .rc-dot.no::after{background:transparent;box-shadow:inset 0 0 0 2.5px #e0564a}
   .rcard .rc-dot[aria-expanded="true"]::after{box-shadow:0 0 0 2px #fff}
+  .rcard .rc-dot.no[aria-expanded="true"]::after{box-shadow:inset 0 0 0 2.5px #e0564a,0 0 0 2px #fff}
   .rcard .rc-dot:focus-visible{outline:2px solid #fff;outline-offset:1px}
-  .rcard .rc-hint{font-size:11.5px;color:rgba(232,235,242,.6);margin-bottom:12px}
+  .rcard .rc-hint{font-size:13px;color:rgba(232,235,242,.6);margin-bottom:12px}
   .rc-exp{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);padding:14px 16px;margin:12px 0;text-align:left}
   .rc-exp .rx-head{font-size:13px;font-weight:600;margin-bottom:6px}
   .rc-exp .rx-head.o{color:#1a6b54} .rc-exp .rx-head.x{color:#c0392b}
   .rc-exp .rx-q{font-size:14.5px;color:var(--ink);line-height:1.6;margin-bottom:6px}
   .rc-exp .rx-mine,.rc-exp .rx-ans{font-size:13px;color:var(--ink2)}
   .rc-exp p{font-size:13.5px;line-height:1.7;color:var(--ink2);margin:8px 0 0}
-  .qexp .qasof{font-size:12px;color:var(--muted);margin-top:6px}
+  .qexp .qasof{font-size:13px;color:var(--muted);margin-top:6px}
   .rcard .rc-lv{display:inline-block;background:rgba(255,255,255,.14);color:#e8ebf2;font-weight:600;
     font-size:15px;padding:3px 15px;border-radius:0;margin-bottom:10px}
   .rcard .rc-grade{font-size:20px;font-weight:600;line-height:1.35;margin-bottom:10px}
   .rcard .rc-desc{font-size:13.5px;line-height:1.65;color:#c2c7d6}
   .rcard .rc-foot{margin-top:18px;padding-top:13px;border-top:1px solid #39415f;
-    font-size:12px;font-weight:500;color:#8a92ab;letter-spacing:.04em}
+    font-size:13px;font-weight:500;color:#8a92ab;letter-spacing:.04em}
   /* 친구 대결 */
   .chalbar{background:#f5f7f6;border:1px solid #f0d9b5;color:#8a5a00;
     border-radius:0;padding:11px 14px;font-size:13.5px;line-height:1.5;margin-bottom:14px}
@@ -301,10 +303,10 @@
   .versus.win{border-color:var(--stock);background:#eafaf3}
   .versus.lose{border-color:var(--maemae);background:#fdecea}
   .versus.draw{border-color:var(--muted);background:#f5f7f6}
-  .versus .vs-head{font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:12px}
+  .versus .vs-head{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:12px}
   .versus .vs-row{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:12px}
   .versus .vs-side{flex:1;text-align:center}
-  .versus .vs-lab{font-size:12.5px;font-weight:500;color:var(--muted);margin-bottom:2px}
+  .versus .vs-lab{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:2px}
   .versus .vs-score{font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
   .versus.win .vs-side:first-child .vs-score{color:var(--stock)}
   .versus.lose .vs-side:first-child .vs-score{color:var(--maemae)}
@@ -318,7 +320,7 @@
   /* 결과 → 다음 단계 유도 */
   .nextstep{max-width:420px;margin:18px auto 0;
     border-radius:0;padding:22px 20px;text-align:left;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  .nextstep .ns-kicker{font-size:11.5px;font-weight:500;color:var(--muted);margin-bottom:8px}
+  .nextstep .ns-kicker{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:8px}
   .nextstep .ns-title{font-size:17px;font-weight:600;color:var(--ink);line-height:1.35;margin-bottom:8px}
   .nextstep .ns-desc{font-size:13.5px;color:var(--ink2);line-height:1.6;margin-bottom:16px}
   .nextstep .ns-desc b{color:var(--ink)}
@@ -337,15 +339,16 @@
     cursor:pointer;font-family:inherit}
   .qshare-btn.primary{background:#FEE500;color:#191919;display:flex;align-items:center;justify-content:center;gap:8px}
   .qretry{margin-top:18px;background:none;border:0;color:var(--muted);font-size:14px;
-    font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit}
+    font-weight:600;cursor:pointer;text-decoration:underline;font-family:inherit;
+    display:inline-flex;align-items:center;min-height:44px;padding:0 16px}   /* 누름 면 16px → 44px(백로그 36-9) */
   .qtoast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
     background:var(--ink);color:#fff;padding:12px 22px;border-radius:var(--r-touch);font-size:14px;
     font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
   .qtoast.show{opacity:1}
-.legal-disc{font-size:11.5px;color:var(--muted);line-height:1.7;margin:14px auto 0;padding:10px 18px 0;
+.legal-disc{font-size:13px;color:var(--muted);line-height:1.7;margin:14px auto 0;padding:10px 18px 0;
   border-top:1px solid var(--line);text-align:center;max-width:520px}
 .legal-disc b{color:var(--ink);font-weight:600}
-.minifooter{text-align:center;font-size:12px;color:var(--muted);
+.minifooter{text-align:center;font-size:13px;color:var(--muted);
     padding:18px 16px 14px;border-top:1px solid var(--line);margin-top:16px}
 /* 푸터 = 원부의 판권·각주란. 3단 위계(발행처>색인>메타)+각주. 링크는 밑줄 없이
    가운뎃점 구분 — 낱개는 nowrap이라 구분점에서만 줄바꿈(고아 방지). */
@@ -360,8 +363,8 @@
 .ft-grp .fg b{color:var(--ink);font-weight:600;margin-right:3px}
 /* 홈에서 뺀 '통계 원자료' 카드의 신뢰 신호만 남긴 줄(2026-08-17). 링크가 아니라
    출처 표기라 ft-meta보다 한 톤 죽인다 — 클릭을 유도하는 자리가 아니다. */
-.ft-src{font-size:11.5px;color:var(--muted);margin-bottom:6px;letter-spacing:.01em}
-.ft-meta{font-size:12px;color:var(--muted)}
+.ft-src{font-size:13px;color:var(--muted);margin-bottom:6px;letter-spacing:.01em}
+.ft-meta{font-size:13px;color:var(--muted)}
 .ft-meta a{color:inherit;text-decoration:none;white-space:nowrap;display:inline-block;padding:5px 2px;margin:-5px 0}
 .ft-meta a:hover{text-decoration:underline}
 
@@ -383,23 +386,23 @@
   .ctrl-row label{font-size:13px;font-weight:500;color:var(--ink2);width:40px;flex:none}
   .seg{display:flex;gap:6px;flex-wrap:wrap;flex:1}
   .seg button{border:1px solid var(--line);background:#fff;border-radius:var(--r-touch);
-    padding:6px 13px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
+    padding:6px 13px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
   .seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   .seg button{min-height:40px}   /* 세그먼트가 약 26~27px였다(점검 후속 ⑦) */
   #reg-sel{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r-touch);
     font-size:14px;font-weight:600;color:var(--ink);background:#fff;font-family:inherit}
-  .meta-bar{display:flex;flex-wrap:wrap;gap:8px 18px;margin:16px 2px 4px;font-size:12.5px;color:var(--muted)}
+  .meta-bar{display:flex;flex-wrap:wrap;gap:8px 18px;margin:16px 2px 4px;font-size:13px;color:var(--muted)}
   .meta-bar b{color:var(--ink2)}
   .period{display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap}
   /* padding 6px → 9px: 높이가 26px라 터치 타깃 권장(44px)은커녕 최소선(32px)에도
      못 미쳤다(2026-08-01 검수). 글자 크기는 그대로 두고 세로 여백만 늘린다. */
   .period button{flex:1;min-width:54px;border:1px solid var(--line);background:#fff;line-height:1.3;
-    border-radius:var(--r-touch);padding:9px 0;min-height:40px;font-size:12.5px;font-weight:600;color:var(--ink2);cursor:pointer}
+    border-radius:var(--r-touch);padding:9px 0;min-height:40px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer}
   .period button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   /* 규모별 동향 피벗 — 지표/규모 멀티토글 + 정렬·행렬전환. 균등 그리드라
      줄바꿈이 안 생기고, 모바일은 규모를 3열×2줄로 의도적으로 나눈다. */
   .szrow{display:grid;gap:5px;margin:6px 0 0}
-  .szrow button{min-width:0;padding:6px 2px;font-size:12px;white-space:nowrap}
+  .szrow button{min-width:0;padding:6px 2px;font-size:13px;white-space:nowrap}
   .szmet{grid-template-columns:repeat(4,minmax(0,1fr))}
   .szsiz{grid-template-columns:repeat(6,minmax(0,1fr))}
   /* 정렬·행렬전환은 선택 토글이 아니라 유틸 — trbtn 크기로 우측에 붙이고,
@@ -415,17 +418,17 @@
   #stat-tbl.szpivot th:first-child{position:sticky;left:0;z-index:3;border-right:1px solid var(--line)}
   #stat-tbl.szpivot tr.szgrp-r td{border-top:2px solid var(--line)}
   #stat-tbl.szpivot td{font-variant-numeric:tabular-nums}
-  .szu{font-size:11.5px;color:var(--muted);font-weight:400}
+  .szu{font-size:13px;color:var(--muted);font-weight:400}
   .aux{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 4px;min-height:4px}
   .aux button{border:1px dashed var(--line);background:#fff;border-radius:var(--r-touch);
-    padding:5px 11px;min-height:40px;font-size:11.5px;font-weight:600;color:var(--muted);cursor:pointer}
+    padding:5px 11px;min-height:40px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
   .aux button.on{background:#f7f8f8;border-color:var(--muted);border-style:solid;color:#7a5800}
   /* 차트도 상자가 아니라 괘선으로 연다(6단계 카드 해체와 동일 규칙).
    좌우 테두리는 어차피 가로 스크롤로 시야를 벗어나 아무 일도 하지 않았다. */
   .chartwrap{position:relative;height:320px;margin:10px 0 4px;background:#fff;
     border:0;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line);
     border-radius:0;padding:14px 10px 6px}
-  .prange{text-align:center;font-size:12.5px;color:var(--muted);font-weight:600;margin:2px 0 18px}
+  .prange{text-align:center;font-size:13px;color:var(--muted);font-weight:600;margin:2px 0 18px}
   .prange b{color:var(--ink2)}
   .tbl-wrap{overflow-x:auto;border-radius:0;background:#fff;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
   #stat-tbl{width:100%;border-collapse:collapse;font-size:13px}
@@ -436,7 +439,7 @@
   #stat-tbl td:first-child{text-align:left;font-weight:600;color:var(--ink2)}
   #stat-tbl tr:nth-child(even) td{background:#f9fafa}
   .chg-up{color:#d2342a}.chg-dn{color:var(--gwaing)}
-  .src-note{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6}
+  .src-note{font-size:13px;color:var(--muted);margin-top:12px;line-height:1.6}
   @media(max-width:560px){
     .ctrl-row{flex-wrap:wrap}
     .shero h2{font-size:25px}
@@ -497,7 +500,7 @@
   .adv-sec{margin-top:22px}
   .adv-sec:first-child{margin-top:8px}
   /* 발표 일정 안내 — 제목 옆 각주. 언제 갱신되는지 유저에게. */
-  .rel{font-size:11.5px;font-weight:500;color:var(--muted);white-space:nowrap}
+  .rel{font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap}
   /* 주간 발표 안내는 연휴 주에 '연휴로 발표 일정이 바뀔 수 있습니다'까지 붙어 320px 에서 13px 가로로 넘쳤다
      (2026-09-27 실측) — 이 줄만 꺾이게 둔다. */
   #rel-week{white-space:normal}
@@ -505,12 +508,12 @@
   .adv-h h3{font-size:18px;font-weight:600;letter-spacing:-.01em}
   /* 배지가 아니라 각주다. 테두리·배경을 주면 누를 수 있는 것처럼 보여
      화면이 버튼 밭이 된다. 사실은 남기고 알약 껍데기만 벗긴다. */
-  .adv-badge{font-size:11.5px;font-weight:500;color:var(--muted);
+  .adv-badge{font-size:13px;font-weight:500;color:var(--muted);
     background:none;border:0;padding:0}
   .adv-badge+.adv-badge::before{content:"·";margin:0 5px;color:var(--line)}
-  .adv-note{font-size:12.5px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+  .adv-note{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6}
   .adv-tblwrap{overflow-x:auto;border-radius:0;background:#fff;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
-  table.adv{border-collapse:collapse;font-size:12.5px;white-space:nowrap;width:100%}
+  table.adv{border-collapse:collapse;font-size:13px;white-space:nowrap;width:100%}
   table.adv th,table.adv td{padding:6px 9px;border-bottom:1px solid var(--paper2);text-align:center;
     font-variant-numeric:tabular-nums}
   table.adv thead th{background:var(--paper2);color:var(--ink2);font-weight:600;position:sticky;top:0}
@@ -524,7 +527,7 @@
   table.adv tr.fut td:first-child,table.adv tr.fut th:first-child{color:var(--muted)}
   table.adv td.up{color:#c0392b}
   table.adv td.dn{color:#1a5276}
-  .adv-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+  .adv-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
   .adv-legend i{display:inline-block;width:12px;height:12px;border-radius:0;margin-right:4px;vertical-align:-1px}
   /* 시도 + 시군구 2단. 시군구가 없는 지역(전국·수도권 등)은 두 번째가 hidden이라
      첫 select가 자동으로 전폭을 쓴다(gap도 사라짐). */
@@ -553,10 +556,10 @@
     padding:12px 14px;text-decoration:none;transition:.15s}
   .adv-links a:hover{border-color:var(--ink);}
   .adv-links b{display:block;font-size:14px;color:var(--ink);margin-bottom:2px}
-  .adv-links span{font-size:12px;color:var(--muted);line-height:1.5}
+  .adv-links span{font-size:13px;color:var(--muted);line-height:1.5}
   /* ===== 그래프/표 토글 · 심화 탭 ===== */
   .gt{display:inline-flex;margin-left:auto;border:1.5px solid var(--line);border-radius:var(--r-touch);overflow:hidden;background:#fff}
-  .gt button{font-family:inherit;font-size:12px;font-weight:600;padding:6px 14px;min-height:40px;border:0;background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
+  .gt button{font-family:inherit;font-size:13px;font-weight:600;padding:6px 14px;min-height:40px;border:0;background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
   /* min-height 40px: 09-15 에 세그먼트를 40px 로 올릴 때 이 토글(26px)·심화 탭(34px)·기간(36px)·주석 칩(28px)은 빠졌다(2026-09-18 오딧 2번). 선택자별로 따로 적지 말고 여기 한 줄로. */
   .gt button.on{background:var(--ink);color:#fff}
   .gsec.gm-g .gt-t{display:none}
@@ -578,13 +581,21 @@
   @media(max-width:720px){.map-rank{grid-template-columns:minmax(0,1fr)}}
   .rank-h{font-size:14.5px;font-weight:600;margin:0 0 8px}
   .rank-wrap{background:#fff;border-radius:0;overflow-x:auto;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
-  .rank-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  /* 넘침 표시(백로그 36-5) — 가로로 밀 것이 남은 쪽 가장자리에 그림자. 흰 덮개(local)가 끝에 닿으면 그림자(scroll)를 가린다. */
+  .rank-wrap,.adv-tblwrap{background:
+    linear-gradient(to right,#fff 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,
+    linear-gradient(to left,#fff 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll;
+    background-color:#fff}
+  .rank-tbl{width:100%;border-collapse:collapse;font-size:13px}
   .rank-tbl th,.rank-tbl td{padding:4px 8px;border-bottom:1px solid var(--paper2);
     text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .rank-tbl thead th{background:var(--paper2);font-weight:600;color:var(--ink2);font-size:12px}
+  .rank-tbl thead th{background:var(--paper2);font-weight:600;color:var(--ink2);font-size:13px}
   .rank-tbl td:nth-child(2){text-align:left;font-weight:600}
   /* 지역명 = 그 지역 그래프로 가는 링크(openTrendRegion) */
-  .rank-tbl a.rk-go{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+  .rank-tbl a.rk-go{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;
+    display:block;margin:-4px 0;padding:4px 0}   /* 누름 면을 칸 높이 전체로(글자 줄 15px → 칸 높이, 백로그 36-8) */
   .rank-tbl a.rk-go:hover{text-decoration-color:currentColor}
   .rank-tbl td:first-child{color:var(--muted);font-weight:600}
   /* 정렬 가능한 헤더 — 현재 기준 열은 잉크로 눌러 강조하고 본문 열도 짙게 */
@@ -594,31 +605,38 @@
     border-top:4px solid var(--line)}
   .rank-tbl thead th.rk-sort.on{background:var(--ink);color:#fff}
   .rank-tbl thead th.rk-sort.on::after{border-top-color:#fff}
-  .rank-tbl thead th.rk-sort:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+  .rank-tbl thead th.rk-sort button{all:unset;cursor:pointer;padding:6px 0;min-height:24px}
+  .rank-tbl thead th.rk-sort button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
   .rank-tbl td.sortcol{background:#f7f9f8}
   /* 월세까지 6열이면 모바일 최소폭이 화면을 넘는다 — 그 표에만 여백·글자를 줄인다 */
   @media(max-width:720px){
-    .rank-tbl.wide{font-size:11.5px}
+    .rank-tbl.wide{font-size:13px}
     .rank-tbl.wide th,.rank-tbl.wide td{padding:4px 3px}
-    .rank-tbl.wide thead th{font-size:11.5px}
-    .rank-tbl.wide .rk-medal{margin-right:1px;font-size:11px}
+    .rank-tbl.wide thead th{font-size:13px}
+    .rank-tbl.wide .rk-medal{margin-right:1px;font-size:13px}
+  }
+  /* 320px 에서 13px 하한(백로그 36-3)을 지키면 TOP 10 표가 상자보다 40px 넓어 '전주 대비' 열이 잘렸다(36-5) — 좁은 화면에서는
+     여백을 줄이고 지역 이름을 두 줄로 접는다(낱말 단위). */
+  @media(max-width:360px){
+    .rank-tbl th,.rank-tbl td,.rank-tbl.wide th,.rank-tbl.wide td{padding:4px 3px}
+    .rank-tbl td:nth-child(2),.rank-tbl thead th{white-space:normal;word-break:keep-all;line-height:1.3}
   }
   .rank-tbl td.up{color:#c0392b;font-weight:600}
   .rank-tbl td.dn{color:#1a5276;font-weight:600}
-  .rk-up{color:#c0392b;font-weight:600;font-size:12px}
-  .rk-dn{color:#1a5276;font-weight:600;font-size:12px}
+  .rk-up{color:#c0392b;font-weight:600;font-size:13px}
+  .rk-dn{color:#1a5276;font-weight:600;font-size:13px}
   .rk-same{color:var(--muted)}
   .rk-medal{margin-right:3px;font-size:13px;vertical-align:-1px}
-  .rk-new{color:var(--muted);font-weight:600;font-size:11px}
-  .map-suplegend{text-align:center;font-size:12px;font-weight:500;color:var(--muted);margin-top:10px}
+  .rk-new{color:var(--muted);font-weight:600;font-size:13px}
+  .map-suplegend{text-align:center;font-size:13px;font-weight:500;color:var(--muted);margin-top:10px}
   
   .tilemap svg text{font-family:inherit}
   .gt-head{display:flex;justify-content:flex-end;margin:0 0 10px}
   .chartwrap.sm{height:300px;position:relative}
   /* 단위는 축 눈금마다 반복하지 않고 여기서 한 번만 말한다.
      눈금이 '+0.15%'에서 '0.15'로 짧아지는 만큼 축이 좁아지고 플롯이 넓어진다. */
-  .chart-unit{text-align:right;font-size:11px;font-weight:500;color:var(--muted);margin:0 0 2px}
-  .chart-legend{display:flex;gap:18px;justify-content:center;font-size:12.5px;font-weight:500;color:var(--ink2);margin:0 0 8px}
+  .chart-unit{text-align:right;font-size:13px;font-weight:500;color:var(--muted);margin:0 0 2px}
+  .chart-legend{display:flex;gap:18px;justify-content:center;font-size:13px;font-weight:500;color:var(--ink2);margin:0 0 8px}
   .chart-legend span{display:inline-flex;align-items:center;gap:6px}
   .chart-legend span::before{content:'';width:13px;height:13px;border-radius:0}
   .chart-legend .cl-ma::before{background:#e0564a}
@@ -632,13 +650,19 @@
   .adv-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   #stats-adv .adv-sec,#stats-more .adv-sec{margin-top:8px}
   #stats-market .adv-sec:first-child{margin-top:8px}
+  /* 리포트용 'section+section{padding-top:30px}'(아래 지역 리포트 규칙)가 시세 탭 구역에도 먹어 월간·인허가·입주 머리 위가 30px
+     더 비었다(백로그 36-9) — 시세 탭 구역끼리는 위 margin-top 하나로 띄운다. */
+  .adv-sec+.adv-sec{padding-top:0}
+  /* 불러오기 실패 안내의 다시 시도 단추(백로그 36-6) */
+  .retry-btn{display:inline-flex;align-items:center;min-height:44px;margin:6px 0 0 6px;padding:0 16px;border:1px solid var(--ink);
+    border-radius:var(--r-touch);background:#fff;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
   /* 표 아래 '더보기' — 표와 한 몸으로 보이게 폭 전체를 쓰고 위 테두리만 잇는다 */
   .tr-more{display:block;width:100%;font-family:inherit;font-size:13px;font-weight:600;
     padding:10px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink2);cursor:pointer}
   .tr-more:hover{background:var(--paper2);color:var(--ink)}
   .tr-more:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
   .tr-row{display:flex;justify-content:flex-end;margin:0 0 8px}
-  .trbtn{font-family:inherit;font-size:12px;font-weight:600;padding:6px 12px;border-radius:var(--r-touch);
+  .trbtn{font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;border-radius:var(--r-touch);
     border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;line-height:1.3}
   .trbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
   #sec-basicmain.single .tr-row{display:none}
@@ -751,14 +775,14 @@
     font-size:15px;font-weight:600;line-height:1.3;border-radius:var(--r-touch);text-align:center}
   #view-home .home-cta,#view-home .tb-more a,#view-home .tb-sub a{width:100%;max-width:400px;margin-left:auto;margin-right:auto}
   #view-home .home-sec p.tb-more,#view-home .home-sec p.tb-sub,.shero .shero-link{max-width:400px}
-  .bb-legend{font-size:12px;color:var(--muted);margin:10px 2px}
+  .bb-legend{font-size:13px;color:var(--muted);margin:10px 2px}
   .bb-row{display:flex;align-items:center;gap:10px;margin:2px 0;padding:6px 0;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.06)}
-  .bb-det{display:none;font-size:12.5px;color:var(--ink2);line-height:1.75;background:#f7f9f8;border:1px solid var(--line);border-radius:0;padding:10px 12px;margin:2px 0 10px}
-  .bb-lab{flex:none;width:48px;text-align:right;font-size:12.5px;font-weight:500;color:var(--ink2)}
+  .bb-det{display:none;font-size:13px;color:var(--ink2);line-height:1.75;background:#f7f9f8;border:1px solid var(--line);border-radius:0;padding:10px 12px;margin:2px 0 10px}
+  .bb-lab{flex:none;width:48px;text-align:right;font-size:13px;font-weight:500;color:var(--ink2)}
   .bb-track{flex:1;height:16px;background:#f1f3f5;border-radius:0;position:relative}
   .bb-band{position:absolute;top:2px;bottom:2px;background:linear-gradient(90deg,#eaf3fb,#fdecea);border-left:3px solid #1a5276;border-right:3px solid #a93226;border-radius:0}
   .bb-loan{position:absolute;top:-3px;bottom:-3px;width:3px;background:#1c2733;border-radius:0}
-  .bb-chip{flex:none;width:88px;text-align:center;font-size:11px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted)}
+  .bb-chip{flex:none;width:88px;text-align:center;font-size:13px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted)}
   .bb-chip.hi{background:#fdecea;color:#a93226}
   .bb-chip.lo{background:#eaf3fb;color:#1a5276}
   .sc-how{margin:24px 0 0;text-align:left;
@@ -1243,6 +1267,8 @@ table.adv thead th:first-child{text-align:center}
   .zhead+section,section+section{padding-top:30px}
   section h2{font-size:19px;font-weight:700;margin-bottom:4px}
   .zsub{font-size:12.5px;color:var(--muted);line-height:1.7;margin:2px 0 12px}
+  /* 리포트 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
+  .zsub a:not([class]),.znote a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
   .zback{display:inline-flex;align-items:center;min-height:40px;padding:0 6px 0 2px;font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none}   /* 132x15 링크였다(2026-09-18 오딧 12번) */
 
   /* 격자선을 컨테이너 배경(--line)으로 깔고 gap:1px로 뚫어 보이게 하던 방식이었는데,

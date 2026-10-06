@@ -401,7 +401,7 @@ def build(adv, sts):
         basis_list.append(raw)
         out.append(sec('permits', 2, '인허가', lab, pm.get('source') or '국토교통부',   # sec 이 한 번 이스케이프한다(B6)
                        table(['지역', '이 달', '최근 12개월 합'], cells,
-                             '허가받은 단계의 물량(호). ' + SZ.PERMIT_NATURE + '습니다. '
+                             '허가받은 단계의 물량(세대). ' + SZ.PERMIT_NATURE + '습니다. '
                              '월별 편차가 커서 12개월 합을 함께 봅니다.')))
 
     # ── 3. 입주물량 ──────────────────────────────────────────────
@@ -460,7 +460,7 @@ def build(adv, sts):
         # 출처 기관은 시도 리포트와 같은 정본(make_sido_pages.UN_SOURCE, 전수 리뷰 #21)이다 — 수집 계열의 source 칸('한국부동산원
         # R-ONE …')은 배포 창구라 쓰지 않는다(전수리뷰 B5: 같은 계열을 /zone/ 은 국토교통부, /monthly/ 는 한국부동산원이라 했다).
         out.append(sec('unsold', 4, '미분양', lab, '%s 미분양주택현황' % SP.UN_SOURCE,
-                       table(['지역', '미분양(호)', '전월 대비'], cells,
+                       table(['지역', '미분양(세대)', '전월 대비'], cells,
                              '다 짓고도 팔리지 않아 남은 집. 이미 지어진 재고라 '
                              '공급 순위 계산에는 넣지 않고 참고로만 봅니다.')))
 
@@ -529,7 +529,7 @@ def top3_lines(adv, sts):
     if pm:
         i, _ = last_idx(pm)
         vals = {r: v for r, v in cum_month(pm, i).items() if v is not None and v > 0}
-        tops['permits'] = ('이 달 인허가가 많은 곳', [(r, num(v) + '호') for r, v in _rank(vals)])
+        tops['permits'] = ('이 달 인허가가 많은 곳', [(r, num(v) + '세대') for r, v in _rank(vals)])
     occ = adv.get('occupancy') or {}
     orows, oregs = occ.get('rows') or [], occ.get('regions') or []
     act = [r for r in orows if not r.get('e')]
@@ -558,7 +558,7 @@ def top3_lines(adv, sts):
             cur, prev = series_at(un, i), series_at(un, j)
             vals = {r: cur[r] - prev[r] for r in ORDER
                     if cur.get(r) is not None and prev.get(r) is not None}
-            tops['unsold'] = (head, [(r, _signed(v) + '호') for r, v in _rank(vals)])
+            tops['unsold'] = (head, [(r, _signed(v) + '세대') for r, v in _rank(vals)])
     jr = sts.get('전세가율')
     if jr:
         i, _ = jeonse_idx(jr)
@@ -600,6 +600,8 @@ def _with_top(section_html, tops):
 
 
 EXTRA_CSS = """
+/* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
+.note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .secno{display:inline-block;font-size:11.5px;font-weight:600;color:var(--muted);
  border:1px solid var(--line);border-radius:0;padding:1px 7px;margin-bottom:6px}
 .basis{font-size:13px;color:var(--muted);margin-bottom:8px}

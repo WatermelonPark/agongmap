@@ -80,7 +80,9 @@ def test_occupancy_legend_uses_the_canonical_thresholds():
             ADV.occupancy.band 로 실어 준 값으로 칠한다 — test_occ_band 가 본다).
     """
     lo, hi = SZ.OCC_LO_PCT, SZ.OCC_HI_PCT
-    legs = [x for x in re.findall(r'<div class="adv-legend">(.*?)</div>', _html(), re.S) if '적정물량' in x]
+    # 범례 낱말은 신호등과 같은 적음·보통·많음이다(백로그 36-2·10, 2026-10-06 — 막대 색과 같은 색, 왼쪽 적음 → 오른쪽 많음).
+    legs = [x for x in re.findall(r'<div class="adv-legend">(.*?)</div>', _html(), re.S) if '적음(' in x]
     assert len(legs) == 1, '입주물량 범례를 찾지 못했다'
-    assert re.findall(r'적정물량의 (\d+)% 초과', legs[0]) == [str(hi)], legs[0]
-    assert re.findall(r'적정물량의 (\d+)% 미만', legs[0]) == [str(lo)], legs[0]
+    assert re.findall(r'많음\((\d+)% 초과\)', legs[0]) == [str(hi)], legs[0]
+    assert re.findall(r'적음\((\d+)% 미만\)', legs[0]) == [str(lo)], legs[0]
+    assert legs[0].index('적음') < legs[0].index('보통') < legs[0].index('많음'), '범례는 적음 → 많음 순서(가로 축 오른쪽 = 많음)'

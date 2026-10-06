@@ -423,7 +423,7 @@ def test_unsold_ratio_reads_the_same_everywhere():
     assert zs, '미분양 배수가 있는 지역이 없다 — 대조할 페이지가 없다'
     for z in zs:
         h = io.open(os.path.join(root, 'zone', z['z'], 'index.html'), encoding='utf-8').read()
-        card = set(re.findall(r'분기 적정물량(?:\([\d,]+호\))?의 ' + V, h))
+        card = set(re.findall(r"분기 적정물량(?:\([\d,]+세대\))?의 " + V, h))   # 단위 세대(백로그 36-2)
         table = set(re.findall(r'data-ref="un">.*?</td><td>[\d,]+</td><td>' + V, h))
         assert card and table, '%s: 카드(%s)·표(%s)에서 미분양 배수 표기를 못 찾았다' % (z['z'], card, table)
         assert card == table == {M.umx(z['um'])}, '%s: 같은 배수가 여러 표기로 보인다 카드 %s · 표 %s · 정본 %s' % (
@@ -510,7 +510,7 @@ def test_label_ladder_stays_one_notch_up_without_moving_the_cuts():
     0.55로 내리는 안이 있었으나, 그걸 정당화할 근거가 "집계 3곳을 올리고 싶어서"
     뿐이었다. 컷은 가격 실측(밴드별 이후 16분기 실질 상승률: 0.5~1.0 +2.58% vs
     1.0+ +10.22%)에 묶여 있고 그 4배 차이는 실제 정보다. 결함은 컷이 아니라
-    이름이었다 — 0.60은 3년 필요량의 60%가 순부족인데 '심하진 않습니다'라고
+    이름이었다 — 0.60은 3년 적정물량의 60%가 순부족인데 '심하진 않습니다'라고
     불렀다.
 
     둘은 한 몸으로 움직이기 쉽다("정리" 커밋이 라벨을 되돌리거나, 다음 사람이
@@ -594,7 +594,7 @@ def test_미래_시야는_착공_끝에서_유도한다():
 
 def test_창_너머_얇음과_경고는_같은_문턱을_쓴다():
     """리포트 세 번째 줄의 강조(split_text 의 thin)와 홈·허브의 pwarn 은 같은 것(24개월 인허가
-    환산이 필요량에 못 미침)을 잰다. 다른 문턱을 쓰면 한 화면에서 강조는 없는데 경고는 켜진다.
+    환산이 적정물량에 못 미침)을 잰다. 다른 문턱을 쓰면 한 화면에서 강조는 없는데 경고는 켜진다.
     CLAUDE.md '같은 대상을 재는 코드는 같은 상수를 쓰고 일치를 시험으로 고정한다'.
 
     변이: split_text 의 `thin = sig['pbr'] < PWARN_CUT` 를 `< 1.0` 으로 바꾸면 0.968 에서
@@ -609,7 +609,7 @@ def test_창_너머_얇음과_경고는_같은_문턱을_쓴다():
 
 def test_pwarn_compares_the_printed_percent():
     """'못 미칩니다' 강조(split_text 의 thin)와 홈·허브 경고(pwarn)는 화면에 찍는 퍼센트 정수로 문턱(95%)과 견준다(전수리뷰
-    B3). 원값으로 견주면 0.9496 은 '필요량의 95%' 인데 '못 미칩니다'가 붙고 0.9504 는 같은 '95%' 인데 안 붙었다.
+    B3). 원값으로 견주면 0.9496 은 '적정물량의 95%' 인데 '못 미칩니다'가 붙고 0.9504 는 같은 '95%' 인데 안 붙었다.
 
     변이(실제로 확인): pbr_thin 을 옛 `pbr < PWARN_CUT` 로 되돌리면 0.9496 에서 thin·pwarn 이 켜져 빨개진다.
     픽스처: 문턱 경계 양옆의 신호 0.9496·0.9504(둘 다 '95%'), 그리고 한 칸 아래 0.944('94%') — _edge_row 로 calc 를 돈다.
@@ -617,7 +617,7 @@ def test_pwarn_compares_the_printed_percent():
     for k, pct, want in ((0.9496, 95, False), (0.9504, 95, False), (0.944, 94, True)):
         row = _edge_row('인천', k=k)
         lab, l3, dec, thin = row['split']['ref']
-        assert '필요량의 %d%%' % pct in l3, (k, l3)
+        assert '적정물량의 %d%%' % pct in l3, (k, l3)
         assert thin is want and row['pwarn'] is want, (k, l3, thin, row['pwarn'])
 
 
@@ -679,7 +679,7 @@ def test_인허가_1년은_연간_적정물량과_견준다():
     """표 아래 '인허가 1년' 행의 배수(pmr)는 최근 12개월 인허가 ÷ **연간** 적정(분기 × 4)이다.
 
     변이: pmr 분모를 `ref * 3` 으로 바꾸면 1.014 가 1.352 로 나와 빨개진다(확인).
-    픽스처: 수도권 2026-09 실측 pmr 1.014 — 12개월 인허가가 연 필요량과 거의 같은 상태.
+    픽스처: 수도권 2026-09 실측 pmr 1.014 — 12개월 인허가가 연 적정물량과 거의 같은 상태.
     """
     z = '수도권'
     row = _edge_row(z, k=0.968, pmul=1.014)
