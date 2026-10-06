@@ -187,7 +187,8 @@ def test_three_ingest_paths_share_one_fold_rule(monkeypatch, shape):
 
 # ── #7 공급: 한 조각만 온 달은 보류(과소 집계 금지), 감시와 같은 판정 ─────────────────────
 def _supply_rows(D, months, last_shape=None):
-    """R-ONE 미분양표(T237973129847263) 응답 모양 — 시도 '<지역>>계' 행. 저장 전남광주는 광주·전남 두 행으로 되돌린다.
+    """KOSIS 미분양표(DT_MLTM_2080, 2026-10-07 R-ONE 에서 옮김) 응답 모양 — 시도 행마다 부문·규모 '총합'×'총합' 행 하나와
+    배치가 걸러야 하는 부문·규모 행(민간부문·소계)을 함께 준다. 저장 전남광주는 광주·전남 두 행으로 되돌린다.
     months 의 마지막 달이 저장분에 없으면(새 달) 직전 달 값에 +10 을 한 값으로 만든다. last_shape 는 새 달의
     광주·전남 모양(SHAPES 의 키)이다."""
     rows = []
@@ -206,7 +207,10 @@ def _supply_rows(D, months, last_shape=None):
             g, j = _split(gj)
             vals.update({SRC[0]: g, SRC[1]: j})
         for r, v in vals.items():
-            rows.append({'WRTTIME_IDTFR_ID': '%d%02d' % ym, 'CLS_FULLNM': '%s>계' % r, 'DTA_VAL': str(v)})
+            base = {'PRD_DE': '%d%02d' % ym, 'C1_NM': r, 'ITM_NM': '호'}
+            rows.append(dict(base, C2_NM='총합', C3_NM='총합', DT=str(v)))
+            rows.append(dict(base, C2_NM='민간부문', C3_NM='총합', DT=str(v - 1)))     # 걸러야 하는 행
+            rows.append(dict(base, C2_NM='총합', C3_NM='소계', DT='7'))
     return rows
 
 
@@ -214,8 +218,7 @@ def _run_supply(monkeypatch, st, rows):
     tbl = U.SUPPLY_CONF['미분양']['tbl']
     # 미분양 한 계열만 돈다 — 다른 표(분양)는 빈 응답이 실패로 기록되므로(전수리뷰 #8) 이 픽스처에서 뺀다.
     monkeypatch.setattr(U, 'SUPPLY_CONF', {'미분양': U.SUPPLY_CONF['미분양']})
-    monkeypatch.setattr(U, '_rone_recent_rows',
-                        lambda t, need, cycle='WK', since=None: [dict(r) for r in rows] if t == tbl else [])
+    monkeypatch.setattr(U, 'kosis', lambda p: [dict(r) for r in rows] if p.get('tblId') == tbl else [])
     monkeypatch.setattr(U, 'SUPPLY_STALLED', [])
     monkeypatch.setattr(U.time, 'sleep', lambda s: None)
     failed = []
@@ -245,7 +248,7 @@ def test_supply_month_with_one_piece_is_held_not_undercounted(monkeypatch):
 
 @pytest.mark.parametrize('shape', sorted(SHAPES))
 def test_supply_batch_and_watchdog_agree_on_the_latest_complete_month(monkeypatch, shape):
-    """배치가 받아 붙이는 마지막 달과 그 달 시도 합이, 감시(check_freshness.rone_latest_complete)가 원천의
+    """배치가 받아 붙이는 마지막 달과 그 달 시도 합이, 감시(check_freshness.supply_latest_complete — 미분양은 KOSIS 짝)가 원천의
     '완비된 최신 달'로 보는 것과 같다. 기준이 갈리면 한쪽 방어선이 다른 쪽 고장을 덮는다 — 배치가 한 조각 달을
     싣고 감시는 그 달을 미완비로 봐 '우리가 더 새것'으로 넘어가 값 대조를 건너뛰던 것이 감사 #7 이다.
 
@@ -266,11 +269,8 @@ def test_supply_batch_and_watchdog_agree_on_the_latest_complete_month(monkeypatc
     b_last = U._label_ym(D['dates'][-1])
     b_total = sum(D['series'][r][-1] or 0 for r in U.SUPPLY_SIDO)
 
-    def get_json(url):
-        return {'SttsApiTblData': [{'head': [{'list_total_count': len(rows)}]}, {'row': rows}]}
-    monkeypatch.setattr(C, 'get_json', get_json)
     monkeypatch.setattr(C, '_COMPLETE_CACHE', {})
-    w_last, w_total = C.rone_latest_complete(U.SUPPLY_CONF['미분양']['tbl'], want_total=True)
+    w_last, w_total = C.supply_latest_complete(U.SUPPLY_CONF['미분양'], want_total=True)
     assert '%d%02d' % b_last == w_last, (b_last, w_last)
     assert abs(b_total - w_total) < 1e-6, (b_total, w_total)
 

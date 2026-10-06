@@ -106,10 +106,9 @@ def test_no_generator_still_carries_the_old_split_names():
        TAG_NAME = {'전남광주': '광주'} 를 넣어 게이트가 막힌 상태.
        시군구 접두 표(weekly_moves.SGG_PREFIX)는 홈 sidoOf 의 거울이라 원천 시도 이름을 그대로 들고, 판정 단위로는
        sgg_zone 이 merge_regions.SRC·DST 로 접는다(홈 마케팅 검수 D4 — 일치는 test_zone_weekly 가 본다).
-       미분양 대체 원천 조사(probe_unsold_alt, 2026-10-06)는 원천 표가 옛 이름(광주·전남)으로 주는지를 찾는 도구라 옛 이름을 든다.
     """
     ok = ('gen_sido_geo.py', 'gen_sgg_rone_map.py', 'update_adv_data.py',
-          'make_sido_pages.py', 'merge_regions.py', 'weekly_moves.py', 'probe_unsold_alt.py')
+          'make_sido_pages.py', 'merge_regions.py', 'weekly_moves.py')
     bad = []
     tools = os.path.join(ROOT, 'tools')
     for fn in os.listdir(tools):
