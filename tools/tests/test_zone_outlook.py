@@ -43,7 +43,14 @@ def test_partial_last_year_uses_only_its_quarters():
     assert len(ys) == 3 and ys[-1]['from'] == SZ.qkey(Lq + 9) and ys[-1]['to'] == SZ.qkey(Lq + 11), ys
     st = SZ.quarterly(stats, '착공', '서울')
     f = sum(st.get(i - SZ.LEAD_Q, 0) * SZ.CONV for i in range(Lq + 9, Lq + 12))
-    assert ys[-1]['pct'] == int(round(100.0 * f / (SZ.REF_Q['서울'] * 3))), ys[-1]
+    assert ys[-1]['pct'] == SZ.half_up(100.0 * f / (SZ.REF_Q['서울'] * 3)), ys[-1]
+
+
+def test_move_in_percents_round_half_up_like_moveins():
+    """해마다 입주 %·'… 너머' %는 /moveins/(pct_shown)·occ_level 계약과 같은 half_up 으로 찍는다 — 파이썬 round 는 짝수 쪽으로
+    반올림해 정확히 .5 인 값(12.5 → 12)이 /moveins/ 와 1%p 갈리고, 130.5 면 색이 보통·많음 사이에서 뒤집힌다(2026-10-06 리뷰).
+    변이(실제로 확인): pbr_pct 를 int(round(...)) 로 되돌리면 빨개진다. 픽스처: 이진수로 정확한 0.125(= 12.5%)."""
+    assert SZ.pbr_pct(0.125) == 13 and SZ.half_up(12.5) == 13
 
 
 def test_hub_and_report_show_the_years():

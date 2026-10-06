@@ -75,7 +75,7 @@ def facts(adv):
     if nat and nat.get('ctxt') and nat.get('grade') in SZ.GRADE_LABS:
         # 세대수만: cnum(2차 배포 뒤 split 이 싣는다), 옛 data-core 면 ctxt 첫 조각의 숫자 부분
         num = nat.get('cnum') or (nat['ctxt'].split(' · ')[0].rsplit(' ', 1)[0] if '세대' in nat['ctxt'] else '')
-        # 비율 문장: rtxt(허브 목록과 같은 정본 문구 '부족분은 3년 필요량의 60%'). 세대수가 없을 때만 쓴다. 없으면 같은 정본 함수로.
+        # 비율 문장: rtxt(허브 목록과 같은 정본 문구 '1년 적정물량의 1.8배 부족'). 세대수가 없을 때만 쓴다. 없으면 같은 정본 함수로.
         rtxt = nat.get('rtxt') or (SZ.ratio_text(nat['ratio'], H) if nat.get('ratio') is not None else '')
         out['nat'] = {'lab': SZ.GRADE_LABS[nat['grade']], 'ctxt': nat['ctxt'], 'num': num, 'rtxt': rtxt,
                       'basis': sido.get('Ltxt') or sido.get('L') or ''}
@@ -131,7 +131,7 @@ def meta_texts(f):
     """(description, og·twitter description). 숫자가 하나도 없으면 None — 메타를 그대로 둔다.
 
     문장은 정본 카드 문구(ctxt — 세대수가 없으면 비율 문구 rtxt)를 쓴다(2026-10-05):
-      '2026년 2분기 기준 전국 아파트 공급은 686,396세대 부족(3년 필요량의 60%)입니다. 9/24 발표 주간 아파트 매매가격은
+      '2026년 2분기 기준 전국 아파트 공급은 686,396세대 부족(1년 적정물량의 1.8배)입니다. 9/24 발표 주간 아파트 매매가격은
        전국 +0.09% · 경기 +0.23%로 가장 크게 올랐습니다. 국토교통부 착공·준공 실적으로 16개 시도의 3년 공급을 …'
     """
     wk = _wk_sentence(f['wk']) if f['wk'] else None
@@ -141,7 +141,7 @@ def meta_texts(f):
     d, o = [], []
     if n:
         basis = ('%s 기준 ' % n['basis']) if n['basis'] else ''
-        # 2026-10-05: 세대수와 비율을 정본 카드 문구(ctxt '686,396세대 부족(3년 필요량의 60%)')로 쓴다 — 괄호 안이 무엇의
+        # 2026-10-05: 세대수와 비율을 정본 카드 문구(ctxt '686,396세대 부족(1년 적정물량의 1.8배)')로 쓴다 — 괄호 안이 무엇의
         # 몇 %인지 말한다. 옛 '3년 필요량의 60% 부족(686,396세대)'은 공급률(40% 공급?)로도 읽혔다(대표 요청).
         body = n['ctxt'] if n['num'] else n['rtxt']
         sent = '%s전국 아파트 공급은 %s입니다.' % (basis, body)
