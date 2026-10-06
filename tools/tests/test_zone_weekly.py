@@ -383,12 +383,13 @@ def test_year_line_uses_the_card_months_and_labels_not_row_offsets():
     stats = {'미분양': un, '전세가율': jr}
     line = _text(M.year_line('서울', stats))
     v = lambda d, lab: d['series']['서울'][d['dates'].index(lab)]
-    assert '미분양 %s호(2030.06) → %s호(2031.06)' % (M.num(v(un, '2030.06')), M.num(v(un, '2031.06'))) in line, line
-    assert '가장 많던 달 5,000호(2030.12)' in line, line
-    assert '전세가율 %.1f%%(2030.05) → %.1f%%(2031.05)' % (v(jr, '2030.05'), v(jr, '2031.05')) in line, line
+    # 달은 읽는 꼴('2030년 6월', 날짜 두 단계 — 백로그 36-1)
+    assert '미분양 %s호(2030년 6월) → %s호(2031년 6월)' % (M.num(v(un, '2030.06')), M.num(v(un, '2031.06'))) in line, line
+    assert '가장 많던 달 5,000호(2030년 12월)' in line, line
+    assert '전세가율 %.1f%%(2030년 5월) → %.1f%%(2031년 5월)' % (v(jr, '2030.05'), v(jr, '2031.05')) in line, line
     assert I.jeonse_ref_index(jr, I.JEONSE_NEED) == jd.index('2031.05')
     card = M.next_links('서울', None, stats)
-    assert '2031.05 기준' in card and '2031.06' not in re.search(r'<b>전세가율</b><i>(.*?)</i>', card).group(1), card
+    assert '2031년 5월 기준' in card and '2031년 6월' not in re.search(r'<b>전세가율</b><i>(.*?)</i>', card).group(1), card
     # 양 끝 값이 없으면 그 항목만 빠지고, 둘 다 없으면 줄이 없다
     assert M.year_line('서울', {'미분양': un}).count('전세가율') == 0
     assert M.year_line('서울', {}) == '' and M.year_line('없는곳', stats) == ''
@@ -424,7 +425,7 @@ def test_every_report_has_the_year_line_from_saved_data():
             continue
         assert m, '%s: 12개월 줄이 없다' % z
         assert ('미분양' in m.group(1)) == u_ok(z) and ('전세가율' in m.group(1)) == j_ok(z), (z, _text(m.group(1)))
-        card = re.search(r'([\d.]+) 기준 · 분기 적정물량', s)
+        card = re.search(r'(\d{4}년 \d{1,2}월) 기준 · 분기 적정물량', s)   # 읽는 꼴(날짜 두 단계, 백로그 36-1)
         if card and '미분양' in m.group(1):
             assert '호(%s)' % card.group(1) in m.group(1), (z, card.group(1), _text(m.group(1)))
 

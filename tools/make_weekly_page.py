@@ -80,9 +80,7 @@ def sign(v):
     return 'up' if r and r > 0 else ('dn' if r and r < 0 else '')
 
 
-def md(p):
-    y, m, d = (int(x) for x in p.split('-'))
-    return '%d/%d' % (m, d)
+md = SZ.day_text   # '2026-09-28' → '9/28' — 읽는 자리의 날짜(날짜 두 단계, 정본은 sido_zones)
 
 
 def pub(p):

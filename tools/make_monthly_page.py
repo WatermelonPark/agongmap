@@ -198,9 +198,10 @@ def num(v):
 
 
 def month_label(p):
-    """'2026.06' → '2026년 6월'."""
-    m = re.match(r'^(\d{4})[.\-](\d{1,2})', str(p))
-    return '%s년 %d월' % (m.group(1), int(m.group(2))) if m else str(p)
+    """'2026.06' → '2026년 6월', '2026Q2' → '2026년 2분기'. 읽는 자리의 꼴(날짜 두 단계 — sido_zones.month_text·quarter_text)."""
+    if re.match(r'^\d{4}Q[1-4]$', str(p)):
+        return SZ.quarter_text(str(p))
+    return SZ.month_text(p)
 
 
 def sort_key(p):
@@ -425,10 +426,11 @@ def build(adv, sts):
             b = (nxt.get('v') or [])[i] if nxt and i < len(nxt.get('v') or []) else None
             cells[r] = '<td>%s</td><td>%s</td>' % (num(a), num(b))
         raw = last.get('p', '')
-        lab = raw
+        lab = month_label(raw)      # 기준 줄은 '2026년 2분기', 좁은 표 머리는 '26Q2'(날짜 두 단계)
         basis_list.append(raw)
         out.append(sec('moveins', 3, '입주물량', lab, '국토교통부 준공 실적',
-                       table(['지역', '%s(실적)' % lab, '%s(예정)' % (nxt.get('p', '') if nxt else '-')],
+                       table(['지역', '%s 실적' % SZ.quarter_short(raw),
+                              '%s 예정' % (SZ.quarter_short(nxt.get('p', '')) if nxt else '-')],
                              cells,
                              '실제로 집이 들어온 물량(세대). 분기 단위라 다른 지표와 '
                              '기준 시점이 다릅니다 — 표에 분기를 그대로 적었습니다. '
@@ -539,7 +541,7 @@ def top3_lines(adv, sts):
         # 1세대 갈려('대구 -3,042세대' 위에 표는 3,281 → 240) 게이트가 그 분기 내내 막힌다(감사 #18).
         vals = {r: SZ.half_up(nv[i]) - SZ.half_up(lv[i]) for i, r in enumerate(oregs)
                 if i < len(lv) and i < len(nv) and lv[i] is not None and nv[i] is not None}
-        tops['moveins'] = ('%s 실적 대비 %s 예정, 증감이 큰 곳' % (last.get('p', ''), nxt.get('p', '')),
+        tops['moveins'] = ('%s 실적 대비 %s 예정, 증감이 큰 곳' % (month_label(last.get('p', '')), month_label(nxt.get('p', ''))),
                            [(r, _signed(v) + '세대') for r, v in _rank(vals)])
     # 미분양·전세가율은 비교 달을 표와 같은 SZ.month_back 으로 찾는다. 그 달 칸이 없으면(보류한 달이
     # 끝내 안 채워진 채 다음 달이 들어온 회차 — 감사 #17) 표의 증감 칸이 전부 '·'가 되므로, 요약도
