@@ -47,7 +47,7 @@ def test_claim_break_stops_the_draft(monkeypatch):
 
 
 def test_no_hand_written_counts_in_body():
-    text = re.sub(r'%\(\w+\)s', '', POST['body']).replace('허가 100호 가운데', '')   # 비율을 풀어 쓴 분모
+    text = re.sub(r'%\(\w+\)s', '', POST['body']).replace('허가 100세대 가운데', '')   # 비율을 풀어 쓴 분모(단위 세대 — 백로그 36-2)
     # 연도(4자리)·편 번호·'1년' 같은 가정은 문장이다. 세대·호·퍼센트·배수는 전부 계산값이어야 한다.
     hand = re.findall(r'\d[\d,]*\s*(?:호|세대|%%|배)', text)
     assert not hand, hand

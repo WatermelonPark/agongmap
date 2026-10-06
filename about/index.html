@@ -88,7 +88,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   a{color:var(--ink);font-weight:600}
   .cta{display:block;width:100%;max-width:400px;margin:30px auto 10px;text-align:center;text-decoration:none;
     background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
-  footer{padding:24px 0 60px;text-align:center;font-size:12.5px;color:var(--muted)}
+  footer{padding:24px 0 60px;text-align:center;font-size:13px;color:var(--muted);line-height:1.7}
   footer a{color:var(--muted)}
 
 /* 하단 네비 — 이 페이지는 공용 스타일시트를 안 쓰므로 필요한 규칙만 동봉
@@ -103,6 +103,7 @@ body{padding-bottom:66px}
   justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;
   text-decoration:none}
 .nav-btn svg{display:block}
+.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -163,9 +164,10 @@ body{padding-bottom:66px}
 </div></section>
 
 </main>
-<footer><div class="wrap">
-  <a href="/">agongmap.co.kr</a> · 자료: KOSIS·한국부동산원·국토교통부·한국은행<br>
-  <a href="/privacy/">개인정보처리방침</a> · 본 자료는 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다.
+<footer class="sfoot"><div class="wrap">
+  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
+  자료: KOSIS·한국부동산원·국토교통부·한국은행 · 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
 </div></footer>
 
 <script>

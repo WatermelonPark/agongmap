@@ -103,7 +103,7 @@ def test_weekly_title_head_line_and_dates_carry_the_week():
 
 @pytest.mark.parametrize('grade', sorted(M.GRADE_TXT))
 def test_zone_title_is_the_search_shape_for_every_grade(grade):
-    """'2026년 서울 아파트 공급물량 전망, 3년 필요량 대비 매우 부족' — 연도는 전망하는 해, '3년'은 판정 창, 등급 말은 배지.
+    """'2026년 서울 아파트 공급물량 전망, 3년 적정물량 대비 매우 부족' — 연도는 전망하는 해, '3년'은 판정 창, 등급 말은 배지.
 
     연도는 주간 최신 조사일에서 sido_zones.outlook_year 로(10월부터 다음 해 — 2026-09-27 대표 결정, 블로그 지역 편과 한 함수).
     조사일이 없으면 연도를 뺀다(블로그와 같다).
@@ -112,9 +112,9 @@ def test_zone_title_is_the_search_shape_for_every_grade(grade):
     """
     lab = M.GRADE_TXT[grade][0]
     t = M.page_title('서울', {'L': '2026Q2', 'H': 12}, lab, '2026-10-05')
-    assert t == '2027년 서울 아파트 공급물량 전망, 3년 필요량 대비 %s' % lab
-    assert M.page_title('전국', {'L': '2026Q4', 'H': 8}, lab, '2027-09-28').startswith('2027년 전국 아파트 공급물량 전망, 2년 필요량 대비 ')
-    assert M.page_title('서울', {'L': '2026Q2', 'H': 12}, lab, '') == '서울 아파트 공급물량 전망, 3년 필요량 대비 %s' % lab
+    assert t == '2027년 서울 아파트 공급물량 전망, 3년 적정물량 대비 %s' % lab
+    assert M.page_title('전국', {'L': '2026Q4', 'H': 8}, lab, '2027-09-28').startswith('2027년 전국 아파트 공급물량 전망, 2년 적정물량 대비 ')
+    assert M.page_title('서울', {'L': '2026Q2', 'H': 12}, lab, '') == '서울 아파트 공급물량 전망, 3년 적정물량 대비 %s' % lab
 
 
 def test_baked_zone_pages_share_one_title_across_title_og_and_headline():

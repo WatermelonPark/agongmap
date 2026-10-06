@@ -114,5 +114,5 @@ def test_generator_reads_saved_values_not_literals():
 
 def test_faq_has_the_common_disclaimer():
     s = io.open(os.path.join(ROOT, 'faq', 'index.html'), encoding='utf-8').read()
-    foot = re.search(r'<footer>.*?</footer>', s, re.S)
+    foot = re.search(r'<footer[^>]*>.*?</footer>', s, re.S)   # 공용 푸터는 class="sfoot"(백로그 36-4)
     assert foot and '투자자문이 아닙니다' in foot.group(0), 'FAQ 푸터에 투자 면책이 없다'

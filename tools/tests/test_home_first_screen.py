@@ -5,7 +5,7 @@
   - 첫 화면의 글자는 전부 분기 단위(히어로·카드 셋·'2026년 2분기 기준')라 한 분기 내내 같은 화면이었다. 매주 바뀌는
     이번 주 시군구 지도는 이름 없는 배경 무늬였고, 주간 구역 h2 는 매주 같은 질문이었다(HERO-2·RET-1·IA-4·IA-5·MOB-1).
   - 카드 셋이 모두 '부족'이고 지도는 균형 지역(충북 1%·세종 13%·경기 17%)까지 연한 빨강이라 16곳 중 13곳이 붉었다.
-    '3년 필요량의 60%'는 '60%만 지어진다'로도 읽혔고, 686,396 = 1,140,000 − 714,127 + 260,523(지난 4년 쌓인 부족)을
+    '3년 적정물량의 60%'는 '60%만 지어진다'로도 읽혔고, 686,396 = 1,140,000 − 714,127 + 260,523(지난 4년 쌓인 부족)을
     홈 재료로는 검산할 수 없었다(HERO-4·TRUST-2·TRUST-3). 375px 에서 수도권만 배지가 둘째 줄로 내려갔다(MOB-7).
 원칙: 문장은 한 곳에서 만든다. 결론 한 줄은 make_weekly_page.conclusion(→ split_data 가 ADV.weekly.head 로 굽는다),
 카드·식 문구는 sido_zones(→ refresh_texts), 발표 일정 문장은 weekly_release/weeklyRelease. 홈 JS 는 읽기만 한다.
@@ -295,7 +295,7 @@ def _check_formula(eq, need, fut, inow, tot, who):
 @pytest.mark.parametrize('inow', [-329, -5, 0, 7, 1434])
 def test_formula_check_reads_single_digit_terms(inow):
     """식 검산이 지난 재고가 한 자리(0 포함)여도 게이트를 막지 않고 검산한다(전수리뷰 #95).
-    픽스처: 세종 실데이터 모양(필요량 7,200·입주 추정 6,622)에 지난 재고만 실제 값(−329·1,434)과 0 근처 경계(−5·0·7)로 바꾼 행.
+    픽스처: 세종 실데이터 모양(적정물량 7,200·입주 추정 6,622)에 지난 재고만 실제 값(−329·1,434)과 0 근처 경계(−5·0·7)로 바꾼 행.
     변이(실제로 확인): _check_formula 의 추출식을 옛 [\\d,]{2,} 로 되돌리면 −5·0·7 칸이 빨개지고, sido_zones.formula_text 의
     갈래 조건을 뒤집어(inow > 0 이면 '쌓인 부족') 부호와 말이 어긋나게 하면 0 을 뺀 칸이 모두 빨개진다."""
     need, fut = 7200, 6622
@@ -304,17 +304,17 @@ def test_formula_check_reads_single_digit_terms(inow):
 
 
 def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
-    """'3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'(sido_zones.formula_text) 하나를 홈 산출 방법 첫 항목(손으로
+    """'3년 적정물량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'(sido_zones.formula_text) 하나를 홈 산출 방법 첫 항목(손으로
     쓴 index.html)·홈 카드 ⓘ(구운 ftxt)·시도 리포트 '숫자로 보면'(생성기)·블로그 지역 편(초안 생성기)이 같이 쓴다.
     식의 숫자는 카드·리포트와 같은 정수이고 서로 검산된다(TRUST-2).
 
     변이(각각 확인): make_sido_pages 의 eq 를 옛 '= 적정 … − 공급 …'으로 되돌리면 리포트 단정이, draft_zone 이 식을 자기
-          말('필요량 − 공급')로 적으면 블로그 단정이, index.html 첫 항목의 식을 바꾸면 홈 단정이, formula_text 가 모자란
+          말('적정물량 − 공급')로 적으면 블로그 단정이, index.html 첫 항목의 식을 바꾸면 홈 단정이, formula_text 가 모자란
           재고를 빼는 쪽(−)으로 적으면 검산 단정이 빨개진다. 산출 방법 첫 항목의 '4년'을 '3년'으로 적으면 햇수 단정.
     픽스처: 저장소 실데이터 판정 20곳(숫자는 함수에서 유도) + 생성기가 구운 /zone/전국/(CI·배치는 생성기를 먼저 돌린다).
     """
     gen = SZ.formula_text()
-    assert gen == '3년 필요량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'
+    assert gen == '3년 적정물량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'
     li = re.search(r'<li class="how-formula">(.*?)</li>', _src('index.html'), re.S)
     assert li, '홈 산출 방법 첫 항목(식)이 없다'
     assert '<b>%s</b>' % gen in li.group(1) and 'href="/zone/전국/#calc"' in li.group(1)
@@ -395,7 +395,7 @@ def test_supply_map_colors_balance_as_neutral():
 
 def test_distribution_and_legend_lines_are_gone_with_their_data():
     """카드 아래 분포 한 줄('시도 16곳: 부족 이상 10 · 균형 3 · 여유 3(인천·대전·충남)')과 공급 범례 아래 뜻 한 줄('지난 4년 덜 지은
-    몫까지 더해 3년 필요량을 채우는지 · 2026년 2분기 기준')을 뺐다. 읽는 곳이 홈뿐이던 재료(sido_zones.dist_text·dist_names·
+    몫까지 더해 3년 적정물량을 채우는지 · 2026년 2분기 기준')을 뺐다. 읽는 곳이 홈뿐이던 재료(sido_zones.dist_text·dist_names·
     legend_text → ADV.sido.dist·dist_g0·ktxt)도 함께 지웠다 — 공급 판정 지도는 카드 셋·'지도에서 지역을 누르면' 안내·범례(여유·
     균형·부족)·지도만 그린다. 주간 모드의 발표 줄(wk-when)과 뜻 한 줄은 남는다(대표가 고르지 않음 — test_home_map_mode).
     기준 분기는 지도 아래 '앞으로 3년(2026년 3분기~2029년 2분기)' 구간 줄(supplySpan — test_home_small)이 말한다.
@@ -438,7 +438,7 @@ def test_distribution_and_legend_lines_are_gone_with_their_data():
 # ── B2·C4①·MOB-7: 카드는 두 줄 링크, ⓘ 는 링크 밖 버튼 ─────────────────────────────────────────────
 
 def test_cards_are_two_line_links_and_the_how_button_toggles():
-    """카드 = '전국 [부족]' / '686,396세대 →' 두 줄 링크(넓은 화면만 '부족'·'3년 필요량의 60%'가 보인다), ⓘ 는 링크 밖의
+    """카드 = '전국 [부족]' / '686,396세대 →' 두 줄 링크(넓은 화면만 '부족'·'3년 적정물량의 60%'가 보인다), ⓘ 는 링크 밖의
     button(aria-expanded·aria-controls) — 누르면 식 한 줄이 펼쳐지고 다시 누르면 접힌다(기본은 접힘). 옛 캐시는 ⓘ 없음.
 
     변이(각각 확인): ⓘ 를 </a> 앞(링크 안)으로 옮기면 첫 단정, aggHow 가 hidden 을 안 바꾸면 토글 단정, 카드 둘째 줄이 ctxt
@@ -453,7 +453,7 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     z['yl'] = [{'n': y['n'], 'p': y['pct'], 'k': SZ.light_of(y['pct'])[0]} for y in yrs]
     z['ya'] = SZ.lights_aria(yrs)
     js = ('var TB_GRADE=%s;function tbSigned(v){return String(v)}\n%s\n%s\n'
-          'const z=%s, old={grade:"g2",tot:1,ctxt:"349,029세대 부족 · 3년 필요량의 58%%"};\n'
+          'const z=%s, old={grade:"g2",tot:1,ctxt:"349,029세대 부족 · 3년 적정물량의 58%%"};\n'
           'const p={hidden:true}, b={a:{"aria-expanded":"false","aria-controls":"agg-how-1"},'
           'getAttribute(k){return this.a[k]},setAttribute(k,v){this.a[k]=v}};\n'
           'globalThis.document={getElementById:id=>id==="agg-how-1"?p:null};\n'

@@ -380,6 +380,7 @@ NAV_ON = N.HREF[NAV_TAB]
 NAV_ON_CSS = '.nav-btn.on{color:#fff}'   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다
 _NAV_A = re.compile(r'<a class="nav-btn(?: on)?"(?: aria-current="page")? href="([^"]*)"')
 _NAV_BLOCK = re.compile(r'<nav class="bottomnav">.*?</nav>', re.S)
+_FOOTER_CSS = re.compile(r'((?:^|[}\s])footer\{[^}]*?font-size:)[\d.]+px')
 _NAV_BTN_CSS = re.compile(r'((?:^|[}\s])\.nav-btn\{[^}]*?font-size:)[\d.]+px')
 # 뼈대 CSS 주석의 옛 문장들 → 지금 문장. 앞의 것은 A5 이전, 뒤의 것은 A5(2026-09-27 1차 배포) 문장이다.
 _NAV_NOTES_OLD = ('활성 탭 없음 — 주간 지도는 네 탭 어디에도 속하지 않는다(퀴즈 뷰와 같은 처리).',
@@ -533,7 +534,9 @@ TABLE_CSS = ('.sggt summary{cursor:pointer;font-size:15px;font-weight:600;color:
              '.sggt tbody th{font-weight:400;color:var(--ink);padding:7px 5px;border-bottom:1px solid var(--line)}'
              '.sggt td{padding:7px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;color:var(--ink2)}'
              '.sggt td.up{color:var(--up2)}.sggt td.dn{color:var(--dn2)}'
-             '.sggt .note{font-size:12.5px;color:var(--muted);margin:10px 0 0}')
+             '.sggt .note{font-size:12.5px;color:var(--muted);margin:10px 0 0}'
+             # 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄)
+             '.note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}')
 
 
 # 시군구 전체 표의 앵커. 시도 리포트 주간 표(make_sido_pages, D4)의 '전국 시군구 전체 표 →' 가 이 주소로 온다. 표가 접힌
@@ -614,12 +617,16 @@ def put_nav(s):
         if s.count(anchor) != 1:
             raise SystemExit('weekly/index.html 에서 하단 탭 스타일 자리를 찾지 못했다')
         s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
+    if N.NAV_FOCUS_CSS not in s:     # 탭바 키보드 초점(백로그 36-8) — 뼈대는 배치 산출물이라 여기서 넣는다
+        s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_FOCUS_CSS, 1)
     # 탭 라벨 글자 크기도 정본(site_nav.LABEL_PX — 홈 화면 글자 하한 13px, 2026-09-28)으로 맞춘다. 뼈대 <style> 은 배치 산출물이라
     # PR 로 고치지 않고 여기서 고쳐 쓴다(옛 뼈대 11.5px).
     rules = _NAV_BTN_CSS.findall(s)
     if len(rules) != 1:
         raise SystemExit('weekly/index.html 에서 하단 탭 글자 규칙(.nav-btn{…font-size…})을 찾지 못했다(%d개)' % len(rules))
     s = _NAV_BTN_CSS.sub(lambda m: m.group(1) + '%gpx' % N.LABEL_PX, s)
+    # 푸터 글자도 13px 하한(백로그 36-3 — 옛 뼈대 12.5px). 뼈대는 배치 산출물이라 여기서 고쳐 쓴다.
+    s = _FOOTER_CSS.sub(lambda m: m.group(1) + '%gpx' % N.FOOTER_PX, s)
     for old in _NAV_NOTES_OLD:
         s = s.replace(old, _NAV_NOTE)
     return s
