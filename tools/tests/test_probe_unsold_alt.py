@@ -13,7 +13,7 @@ ORG_ID, PRD_DE·C1_NM)을 흉내 낸 가짜 응답이다 — 네트워크·키 �
   · search 가 다른 기관(ORG_ID 408) 표를 거르지 않으면 표 수 단정이 빨강.
   · sido_totals 가 규모 합계('계') 행만 고르지 않으면(규모별 행이 시도 값을 덮어씀), _short 가 '서울특별시'를 '서울'로
     줄이지 않으면 → 대조 시험 빨강.
-대조 픽스처(2026-10-06 배치 실측 모양): DT_MLTM_2080 은 C1=지역(전체 이름, 통합 행 '전남광주')·C2=규모(계·60㎡이하…),
+대조 픽스처(2026-10-07 배치 실측 모양): DT_MLTM_2080 은 C1=지역(통합 행 '전남광주')·C2=부문(총합·공공·민간)·C3=규모(총합·소계·면적),
 R-ONE 계열은 2026.06 까지. 2026.05·06 은 같은 값, 2026.07·08 은 R-ONE 에 없는 달.
 """
 import os
@@ -95,8 +95,9 @@ def test_widens_classification_levels_until_rows_come():
 
 def test_candidate_shape_and_comparison_with_the_current_series(capsys):
     def rows(ym, reg, total, parts):
-        out = [{'PRD_DE': ym, 'C1_NM': reg, 'C2_NM': '계', 'ITM_NM': '미분양', 'DT': str(total)}]
-        out += [{'PRD_DE': ym, 'C1_NM': reg, 'C2_NM': nm, 'ITM_NM': '미분양', 'DT': str(v)} for nm, v in parts]
+        out = [{'PRD_DE': ym, 'C1_NM': reg, 'C2_NM': '총합', 'C3_NM': '총합', 'ITM_NM': '호', 'DT': str(total)}]
+        out += [{'PRD_DE': ym, 'C1_NM': reg, 'C2_NM': '민간부문', 'C3_NM': nm, 'ITM_NM': '호', 'DT': str(v)} for nm, v in parts]
+        out += [{'PRD_DE': ym, 'C1_NM': reg, 'C2_NM': '총합', 'C3_NM': '소계', 'ITM_NM': '호', 'DT': '1'}]
         return out
     data = []
     for ym, seoul, gj in (('202605', 985, 3000), ('202606', 1013, 3100), ('202607', 1100, 3200), ('202608', 1200, 3300)):
@@ -110,7 +111,7 @@ def test_candidate_shape_and_comparison_with_the_current_series(capsys):
     assert lines[0] == '2026.05: 같음 2곳, 다름 0곳', lines
     assert lines[1].startswith('2026.06: 같음 1곳, 다름 1곳 (전남광주 3999↔3100)'), lines
     assert lines[2].startswith('2026.07: R-ONE 계열에 없는 달 — 지역 2곳'), lines
-    assert 'C2_NM 3개(계·60㎡이하·60~85㎡)' in P.shape(data)
+    assert 'C2_NM 2개(총합·민간부문)' in P.shape(data) and 'C3_NM 4개(총합·60㎡이하·60~85㎡·소계)' in P.shape(data)
 
     def get(url, params, timeout=25):
         if url == P.SEARCH_API:
