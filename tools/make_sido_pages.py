@@ -1143,18 +1143,25 @@ GAUGE_LO, GAUGE_HI = -1.0, 2.0
 
 
 def _gx(r):
-    return 100.0 * (min(max(r, GAUGE_LO), GAUGE_HI) - GAUGE_LO) / (GAUGE_HI - GAUGE_LO)
+    """비율 → 막대 위 가로 위치(%). 왼쪽이 부족, 오른쪽이 여유다(2026-10-06 대표 결정 — '부족할수록 오른쪽'은 같은 칸 신호등
+    (적음 → 많음, 왼쪽 → 오른쪽)과 방향이 반대라 헷갈렸다. '오른쪽일수록 공급이 많다'로 홈 지도 범례와 함께 뒤집었다)."""
+    return 100.0 * (GAUGE_HI - min(max(r, GAUGE_LO), GAUGE_HI)) / (GAUGE_HI - GAUGE_LO)
+
+
+def _bands():
+    """(등급 키, 비율 아래 끝, 위 끝) — 막대 왼쪽(심한 부족)부터."""
+    cuts = sorted(SZ.GRADE_CUTS)                      # 0.0, 0.5, 1.0, 1.5
+    edges = [GAUGE_LO] + cuts + [GAUGE_HI]
+    keys = list(reversed(SZ.GRADE_KEYS))              # g0 … g4 (비율 오름차순)
+    return list(reversed(list(zip(keys, edges, edges[1:]))))
 
 
 def gauge_bg():
-    """막대 바탕 — 등급 구간을 등급 색(옅게)으로 칠한 linear-gradient. 구간 순서는 낮은 비율(g0)부터."""
-    cuts = sorted(SZ.GRADE_CUTS)                      # 0.0, 0.5, 1.0, 1.5
-    keys = list(reversed(SZ.GRADE_KEYS))              # g0, g1, g2, g3, g4
-    edges = [GAUGE_LO] + cuts + [GAUGE_HI]
+    """막대 바탕 — 등급 구간을 등급 색(옅게)으로 칠한 linear-gradient. 왼쪽이 심한 부족(g4), 오른쪽이 공급 여유(g0)."""
     stops = []
-    for k, a, b in zip(keys, edges, edges[1:]):
+    for k, a, b in _bands():
         c = GRADE_COLOR[k] + '8c'                     # 55% 불투명 — 옅으면 구간이 갈려 보이지 않았다(375px 실측)
-        stops.append('%s %.2f%% %.2f%%' % (c, _gx(a), _gx(b)))
+        stops.append('%s %.2f%% %.2f%%' % (c, _gx(b), _gx(a)))
     return 'linear-gradient(90deg,%s)' % ','.join(stops)
 
 
@@ -1165,23 +1172,16 @@ def gauge_html(o):
 
 
 def gauge_legend_html(H=None):
-    """막대 범례 한 줄 — 구간마다 색 칸 + '공급 여유 · 1.5배 미만 균형 · 1.5~3배 부족 …'. 경계·이름은 등급 컷(cut_mult)·등급 이름에서
-    만든다. 단위는 판정 문구와 같은 '1년 적정물량의 N배'(2026-10-05 안 A′)."""
+    """막대 범례 한 줄 — 막대와 같은 순서(왼쪽 심한 부족 → 오른쪽 여유): '4.5배 이상 심각한 부족 · … · 1.5배 미만 균형 · 공급 여유'.
+    경계·이름은 등급 컷(cut_mult)·등급 이름에서 만든다. 단위는 판정 문구와 같은 '1년 적정물량의 N배'(2026-10-05 안 A′)."""
     cuts = sorted(SZ.GRADE_CUTS)
+    ms = [SZ.cut_mult(c, H) for c in cuts]           # 0배, 1.5배, 3배, 4.5배
+    rng = {SZ.GRADE_KEYS[0]: '%s 이상 ' % ms[-1], SZ.GRADE_KEYS[-1]: '', SZ.GRADE_KEYS[-2]: '%s 미만 ' % ms[1]}
     keys = list(reversed(SZ.GRADE_KEYS))
-    ms = [SZ.cut_mult(c, H) for c in cuts]
-    spans = []
-    for i, k in enumerate(keys):
-        if i == 0:
-            rng = ''                                   # 0 아래 = 남는 집 — 이름(공급 여유)이 곧 구간이다
-        elif i == 1:
-            rng = '%s 미만 ' % ms[1]
-        elif i == len(keys) - 1:
-            rng = '%s 이상 ' % ms[-1]
-        else:
-            rng = '%s~%s ' % (ms[i - 1], ms[i])
-        spans.append('<span class="zg-l"><i style="background:%s8c"></i>%s%s</span>'
-                     % (GRADE_COLOR[k], esc(rng), esc(SZ.GRADE_LABS[k])))
+    for i in range(2, len(keys) - 1):
+        rng[keys[i]] = '%s~%s ' % (ms[i - 1], ms[i])
+    spans = ['<span class="zg-l"><i style="background:%s8c"></i>%s%s</span>'
+             % (GRADE_COLOR[k], esc(rng[k]), esc(SZ.GRADE_LABS[k])) for k, _, _ in _bands()]
     return '<p class="zg-legend">%s</p>' % ''.join(spans)
 
 
@@ -1226,11 +1226,6 @@ light_of = SZ.light_of
 lights_aria = SZ.lights_aria
 
 
-def light_ranges():
-    """'70% 미만 부족 · 70~130% 적정 · 130% 초과 여유' — 범례·막대 설명이 같은 글을 쓴다."""
-    return ' · '.join('%s %s' % (r, lab) for _, r, lab in SZ.light_legend())
-
-
 def lights_html(yrs):
     """동그라미 세 개(장식이 아니다 — role=img 와 aria-label 로 해마다 상태·퍼센트를 말한다). 지역 칸(허브·리포트 '다른 지역')용."""
     if not yrs:
@@ -1244,26 +1239,27 @@ def lights_legend_html(n):
     yrs = '·'.join(str(i) for i in range(1, n + 1))
     spans = ''.join('<span class="zg-l"><span class="zl-d %s" aria-hidden="true"></span>%s %s</span>' % (k, r, lab)
                     for k, r, lab in SZ.light_legend())
-    return ('<p class="zl-legend"><span class="zl-cap">동그라미 %s: %s</span>%s</p>'
-            % (yrs, esc(SZ.LIGHT_CAP % yrs), spans))
+    return ('<p class="zl-legend"><span class="zl-cap">동그라미: %s</span>%s</p>'
+            % (esc(SZ.LIGHT_CAP % yrs), spans))
 
 
 def outlook_block(yrs, pbr=None, H=None):
     """시도 리포트의 해마다 입주 전망 블록 — 해마다 기간을 밝히고, 3년 너머 인허가 환산(pbr, 참고)을 옅은 칸으로 붙인다."""
     if not yrs:
         return ''
-    spans = ' · '.join('%d년 차 %s~%s' % (y['n'], SZ.quarter_text(y['from']), SZ.quarter_text(y['to'])) for y in yrs)
+    # 설명은 막대 아래 한 줄(2026-10-06 대표 지적 — 문턱·기간·참고값 설명이 다섯 줄이라 장황했다). 문턱은 막대 아래 상태 글자
+    # (적음·보통·많음)가 이미 말하고, 3년 너머가 참고값이라는 말은 바로 위 split 블록의 '참고' 줄이 한다.
+    y1 = yrs[0]
     ref_pct = None if pbr is None else SZ.pbr_pct(pbr)   # 리포트 '… 너머' 줄과 같은 정수
     beyond = '%g년 너머' % ((SZ.LEAD_Q if H is None else H) / 4.0)   # split_text 의 '… 너머' 줄과 같은 연수
     return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(1년 적정물량 대비)</h3>'
             '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'
-            '<p class="zo-note">가로선이 1년 적정물량(100%%)이고, 막대 색은 지역 칸의 동그라미와 같습니다(%s). 회색은 참고값입니다. %s. '
-            '%s는 최근 인허가를 착공으로 환산한 참고값이라 판정에는 넣지 않습니다.</p></div>'
-            % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond), esc(light_ranges()), esc(spans), esc(beyond)))
+            '<p class="zo-note">가로선 = 1년 적정물량 · 1년 차 = %s~%s · 회색 = 참고값</p></div>'
+            % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond),
+               esc(SZ.quarter_text(y1['from'])), esc(SZ.quarter_text(y1['to']))))
 
 
-GAUGE_NOTE = ('막대: 지난 %s 덜 지은 몫까지 더해 앞으로 %s 모자란 집이 1년 적정물량의 몇 배인지입니다. '
-              '점이 오른쪽일수록 부족하고, 파란 구간은 남습니다.')
+GAUGE_NOTE = '막대: 쌓인 부족이 1년 적정물량의 몇 배인지 — 왼쪽일수록 부족, 오른쪽 파란 구간은 남음.'
 
 
 def build_hub(calc, stats=None):
@@ -1308,7 +1304,7 @@ def build_hub(calc, stats=None):
     h.append('</div></div></section>')
     h.append('<section class="zread"><div class="wrap"><h2>읽는 법</h2>%s<p class="zg-note">%s</p>%s</div></section>'
              % (lights_legend_html(ny) if ny else '',
-                esc(GAUGE_NOTE % ('%g년' % (SZ.BACKLOG_WINDOW / 4.0), '%g년' % (calc['H'] / 4.0))), gauge_legend_html(calc['H'])))
+                esc(GAUGE_NOTE), gauge_legend_html(calc['H'])))
     # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
     # 화면인데 허브에서 가는 길이 없었다.
     h.append('<section><div class="wrap"><h2>매달 발표되는 통계</h2><div class="zlinks">'

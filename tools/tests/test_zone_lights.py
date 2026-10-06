@@ -32,7 +32,7 @@ def test_colors_follow_the_move_in_thresholds():
     assert [M.light_of(p)[0] for p in (lo - 1, lo, hi, hi + 1)] == ['lo', 'ok', 'ok', 'hi']
     leg = M.lights_legend_html(3)
     assert '%d%% 미만' % lo in leg and '%d~%d%%' % (lo, hi) in leg and '%d%% 초과' % hi in leg, leg
-    assert '동그라미 1·2·3: ' + SZ.LIGHT_CAP % '1·2·3' in leg
+    assert '동그라미: ' + SZ.LIGHT_CAP % '1·2·3' in leg
     assert [lab for _, lab in (SZ.LIGHT[-1], SZ.LIGHT[0], SZ.LIGHT[1])] == ['적음', '보통', '많음'], '판정 낱말과 겹치지 않는 이름'
 
 

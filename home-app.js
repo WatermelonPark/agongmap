@@ -1129,12 +1129,13 @@ function aggLights(z){
   return '<span class="zl" role="img" aria-label="'+(z.ya||'')+'">'
     +z.yl.map(function(y){ return '<span class="zl-d '+y.k+'">'+y.n+'</span>'; }).join('')+'</span>';
 }
-/* 신호등 범례 한 줄 — 구간·이름은 ADV.sido.ylg(sido_zones.light_legend). 카드 셋 바로 아래. */
+/* 신호등 범례 — 짧은 한 줄을 지도 아래 출처 줄(#lt-key)에 둔다(2026-10-06 대표 지적 — 카드 바로 아래 두 줄 범례는 장황하고
+   콘텐츠 위를 가렸다. 문턱 70·130%는 지역 탭 '읽는 법'·FAQ 가 말한다). 이름은 ADV.sido.ylg(sido_zones.light_legend). */
 function aggLightKey(z){
   var g=ADV.sido&&ADV.sido.ylg; if(!g||!g.length||!z||!z.yl) return '';
   var ns=z.yl.map(function(y){ return y.n; }).join('·');   // 해 수는 실린 값에서 센다(손으로 '1·2·3'을 적지 않는다)
-  return '<p class="agg-lk"><span class="agg-lk-c">동그라미 '+ns+': '+(ADV.sido.ylc||'').replace('%s',ns)+'</span>'
-    +g.map(function(x){ return '<span class="agg-lk-i"><span class="zl-d '+x[0]+'" aria-hidden="true"></span>'+x[1]+' '+x[2]+'</span>'; }).join('')+'</p>';
+  return '<span class="agg-lk-c">'+ns+'년 차 입주</span>'
+    +g.map(function(x){ return '<span class="agg-lk-i"><span class="zl-d '+x[0]+'" aria-hidden="true"></span>'+x[2]+'</span>'; }).join('');
 }
 function aggCard(n,z,i){
   var num=z.cnum||(z.ctxt?String(z.ctxt).split(' · ')[0]:(tbSigned(z.tot)+'세대'));
@@ -1214,9 +1215,11 @@ function priceModel(mode){
    식은 카드 ⓘ·산출 방법에, 3년 구간은 지도 아래 '앞으로 3년(…~…)' 줄에 있다).
    주간 램프의 양끝·가운데 색은 지도 채움과 같은 wkFill 에서 뽑는다(범례와 지도가 다른 색을 말하지 않게). */
 function mapKeyHtml(M){
-  if(!M) return '<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-d"></i>공급 여유</span>'
-    +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d"></i><i class="mk-b">균형</i><i class="mk-u"></i></span>'
-    +'<span class="tk"><i class="tk-u"></i>공급 부족</span></span></div>';
+  /* 공급 범례는 왼쪽 부족 → 오른쪽 여유(2026-10-06 대표 결정 — 지역 칸 막대·신호등과 같은 방향, '오른쪽일수록 공급이 많다').
+     시세 범례(왼쪽 하락 → 오른쪽 상승)와도 '오른쪽 = 많음'으로 맞는다. */
+  if(!M) return '<div class="tb-key map-key"><span class="mk-r"><span class="tk"><i class="tk-u"></i>공급 부족</span>'
+    +'<span class="mk-ramp" aria-hidden="true"><i class="mk-ur"></i><i class="mk-b">균형</i><i class="mk-dr"></i></span>'
+    +'<span class="tk"><i class="tk-d"></i>공급 여유</span></span></div>';
   var R=M.ref, lo=wkFill(-R,R), lo0=wkFill(-0.01,R), hi0=wkFill(0.01,R), hi=wkFill(R,R);
   return '<div class="tb-key map-key mk-wk"><span class="mk-r"><span class="tk"><i style="background:'+lo+'"></i>하락</span>'
     +'<span class="mk-ramp" aria-hidden="true"><i class="mk-d" style="background:linear-gradient(90deg,'+lo+','+lo0+')"></i>'
@@ -1287,7 +1290,8 @@ function renderAggCards(){
     if(z.ftxt) how+='<p class="agg-how" id="agg-how-'+i+'" hidden><b>'+n+'</b> '+(z.ctxt||'')
       +'<br><span>어떻게 계산했나 · '+z.ftxt+'</span></p>';
   });
-  h+='</div>'+(M?'':aggLightKey(Z['전국']))+how;
+  h+='</div>'+how;
+  var lk=document.getElementById('lt-key'); if(lk) lk.innerHTML=M?'':aggLightKey(Z['전국']);
   /* 시세 모드: 기준 줄 — 지도/그래프/표 단추 왼쪽(#tb-when, 2026-10-05 대표 요청). 양식은 주간·월간 하나로
      '9/28 기준 · 한국부동산원'(조사일)·'2026년 8월 기준 · 한국부동산원'(M.when). 공급 모드는 비운다(:empty 로 숨는다). */
   var tw=document.getElementById('tb-when');
