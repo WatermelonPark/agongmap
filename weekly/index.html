@@ -122,7 +122,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   .links a{display:block;background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
     padding:13px 16px;text-decoration:none;color:var(--ink);font-size:14px;font-weight:600}
   .links a span{display:block;font-size:12.5px;font-weight:400;color:var(--muted);margin-top:2px}
-  footer{padding:28px 0 60px;text-align:center;font-size:12.5px;color:var(--muted)}
+  footer{padding:28px 0 60px;text-align:center;font-size:13px;color:var(--muted)}
   footer a{color:var(--muted)}
 
 /* 하단 네비 — 이 페이지는 공용 스타일시트를 안 쓰므로 필요한 규칙만 동봉
@@ -139,6 +139,7 @@ body{padding-bottom:66px}
   text-decoration:none}
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
+.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -391,7 +392,7 @@ if(k)['pointerenter','touchstart','focus'].forEach(function(t){k.addEventListene
   </details>
   <p class="note"><a href="/zone/">시도별 공급 판정 보기 →</a></p>
 </div></section>
-<style>.sggt summary{cursor:pointer;font-size:15px;font-weight:600;color:var(--ink);padding:12px 0;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}.sggt .tbl{overflow-x:auto}.sggt table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}.sggt thead th{font-size:12px;font-weight:600;color:var(--muted);text-align:right;padding:8px 5px;border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}.sggt thead th:first-child,.sggt tbody th{text-align:left}.sggt tbody th{font-weight:400;color:var(--ink);padding:7px 5px;border-bottom:1px solid var(--line)}.sggt td{padding:7px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;color:var(--ink2)}.sggt td.up{color:var(--up2)}.sggt td.dn{color:var(--dn2)}.sggt .note{font-size:12.5px;color:var(--muted);margin:10px 0 0}</style>
+<style>.sggt summary{cursor:pointer;font-size:15px;font-weight:600;color:var(--ink);padding:12px 0;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}.sggt .tbl{overflow-x:auto}.sggt table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}.sggt thead th{font-size:12px;font-weight:600;color:var(--muted);text-align:right;padding:8px 5px;border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}.sggt thead th:first-child,.sggt tbody th{text-align:left}.sggt tbody th{font-weight:400;color:var(--ink);padding:7px 5px;border-bottom:1px solid var(--line)}.sggt td{padding:7px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;color:var(--ink2)}.sggt td.up{color:var(--up2)}.sggt td.dn{color:var(--dn2)}.sggt .note{font-size:12.5px;color:var(--muted);margin:10px 0 0}.note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}</style>
 <script>
 (function(){
   var t=document.getElementById('utable'); if(!t) return;
