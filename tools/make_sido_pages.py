@@ -1262,8 +1262,8 @@ def outlook_block(yrs, pbr=None, H=None):
             % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond), esc(light_ranges()), esc(spans), esc(beyond)))
 
 
-GAUGE_NOTE = ('막대는 지난 %s 덜 지은 몫까지 더해 앞으로 %s 모자란 집이 그 지역 1년 적정물량의 몇 배인지를 보여 줍니다. '
-              '점이 오른쪽일수록 부족이 심하고, 왼쪽 파란 구간은 남는 물량입니다.')
+GAUGE_NOTE = ('막대: 지난 %s 덜 지은 몫까지 더해 앞으로 %s 모자란 집이 1년 적정물량의 몇 배인지입니다. '
+              '점이 오른쪽일수록 부족하고, 파란 구간은 남습니다.')
 
 
 def build_hub(calc, stats=None):
@@ -1285,13 +1285,12 @@ def build_hub(calc, stats=None):
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <b>시도 공급 분석</b></nav>'
              '<h1>시도별 아파트 공급</h1>'
-             '<p class="zlead">%s</p></div></header><main id="main">' % esc(desc))
-    # 칸은 떼어 놓은 타일(app.css .zlinks)이고 '누르면 리포트' 안내는 여기 한 줄뿐이다 — 칸마다 화살표·글을 달지 않는다(2026-10-05 대표 결정).
+             '<p class="zlead zlead-s">앞으로 %s 공급 · %s 기준<br><span class="z-hint">지역을 누르면 그 지역 리포트가 열립니다.</span></p>'
+             '</div></header><main id="main">' % (esc(yrs), esc(calc.get('Ltxt') or calc['L'])))
+    # 2026-10-06 대표 요청('텍스트 보다가 볼장 다보고 이탈하겠다'): 머리는 한 줄(긴 설명은 설명 메타에만), 칸을 바로 보이고
+    # 막대·동그라미 읽는 법은 목록 아래(.zread)로 내렸다. '누르면 리포트' 안내는 머리 한 줄 — 칸마다 화살표·글을 달지 않는다(10-05 결정).
     ny = max([len(v) for v in outl.values()] or [0])
-    h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2>'
-             '<p class="zg-note">%s</p>%s%s<p class="z-hint">지역을 누르면 그 지역 리포트가 열립니다.</p><div class="zlinks">'
-             % (esc(GAUGE_NOTE % ('%g년' % (SZ.BACKLOG_WINDOW / 4.0), '%g년' % (calc['H'] / 4.0))), gauge_legend_html(calc['H']),
-                lights_legend_html(ny) if ny else ''))
+    h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2><div class="zlinks">')
     # 판정 태그(.sc-tier)는 칸에서 뺐다 — 그 자리를 해마다 입주 신호등이 맡는다(2026-10-05 대표 결정). 판정은 지도 색·리포트 본문에 남는다.
     for o in agg:
         h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
@@ -1307,6 +1306,9 @@ def build_hub(calc, stats=None):
                     esc(o['z']), lights_html(outl[o['z']]),
                     card_html(o), gauge_html(o)))
     h.append('</div></div></section>')
+    h.append('<section class="zread"><div class="wrap"><h2>읽는 법</h2>%s<p class="zg-note">%s</p>%s</div></section>'
+             % (lights_legend_html(ny) if ny else '',
+                esc(GAUGE_NOTE % ('%g년' % (SZ.BACKLOG_WINDOW / 4.0), '%g년' % (calc['H'] / 4.0))), gauge_legend_html(calc['H'])))
     # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
     # 화면인데 허브에서 가는 길이 없었다.
     h.append('<section><div class="wrap"><h2>매달 발표되는 통계</h2><div class="zlinks">'
