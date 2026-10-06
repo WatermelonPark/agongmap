@@ -665,7 +665,65 @@ REGION_TABLES = (('주간 시세', U.RONE_TBL['maega'], 'WK'),
                  ('월간 시세', U.RONE_MONTHLY_TBL['maega'], 'MM'))
 
 
-def check_region_rows(fetch=None):
+# 지역 목록 조회가 끊겼을 때(2026-10-03·04 감시 실패 — R-ONE 이 여러 쪽 조회를 응답 없이 끊었다. 대조는 전부 일치)
+# 직렬로 다시 부르기 전 쉬는 초. 새 러너(새 IP)는 KOSIS 차단을 피하려는 장치라 R-ONE 끊김에는 소용이 없어, 같은 러너에서
+# 간격을 두고 다시 부른다.
+REGION_RETRY_WAITS = (10, 30)
+# 감시 워크플로가 실행 사이에 이어 주는 상태 폴더(actions/cache). 있으면 지역 목록 조회 실패를 **첫날은 경고**로 두고
+# **이틀 연속이면 실패**로 올린다(2026-10-06 대표 결정). 없으면(로컬·시험 기본) 예전처럼 곧바로 '못 봤다'(FETCH_FAIL)다.
+REGION_STATE_ENV = 'WATCH_STATE_DIR'
+REGION_STATE_FILE = 'region_fetch_fail.json'
+
+
+def region_fail_tolerated(today, state_dir):
+    """오늘의 지역 목록 조회 실패를 경고로 둘 수 있나(True) — 아니면 실패로 올린다(False).
+
+    상태 파일은 마지막 실패 날과 그날의 결정이다. 어제도 실패했으면 올린다. 오늘 이미 결정했으면(1차 뒤 재확인 잡)
+    같은 결정을 따른다 — 재확인이 경고를 실패로, 실패를 경고로 뒤집지 않게. 그 밖(처음·이틀 넘게 비었다)은 경고다.
+    ⚠️ '조용히 통과' 분기가 아니다: 경고는 실행 화면 주석·잡 요약에 남고, 다음 날도 끊기면 실패 메일이 간다.
+    """
+    import datetime
+    path = os.path.join(state_dir, REGION_STATE_FILE)
+    try:
+        with open(path, encoding='utf-8') as f:
+            prev = json.load(f)
+    except Exception:
+        prev = None
+    if prev and prev.get('date') == today:
+        return not prev.get('escalated')
+    d = datetime.date.fromisoformat(today)
+    yesterday = (d - datetime.timedelta(days=1)).isoformat()
+    escalate = bool(prev and prev.get('date') == yesterday)
+    os.makedirs(state_dir, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump({'date': today, 'escalated': escalate}, f)
+    return not escalate
+
+
+def region_fail_clear(state_dir):
+    """지역 목록을 끝까지 받았으면 연속 실패 기록을 지운다."""
+    try:
+        os.remove(os.path.join(state_dir, REGION_STATE_FILE))
+    except OSError:
+        pass
+
+
+def _region_names_retry(fetch, tbl, cycle, waits=None, direct=None, sleep=None):
+    """미리 받아 둔 결과가 실패면 간격을 두고 직접 다시 부른다(REGION_RETRY_WAITS). 끝까지 실패면 마지막 예외를 던진다."""
+    try:
+        return fetch(tbl, cycle)
+    except Exception as e:
+        last = e
+    for w in (REGION_RETRY_WAITS if waits is None else waits):
+        (sleep or time.sleep)(w)
+        try:
+            return (direct or rone_region_names)(tbl, cycle)
+        except Exception as e:
+            last = e
+    raise last
+
+
+def check_region_rows(fetch=None, today=None, state_dir=None, retry=None):
     """원천 계층에서 **우리 지역을 실제로 집을 수 있는가**를 본다.
 
     왜 이걸 보는가(2026-08-26 리뷰):
@@ -684,14 +742,14 @@ def check_region_rows(fetch=None):
     덮어 **한 구가 조용히 유실된다.** rsplit이 실제로 쓰이는 유일한 자리다.
     """
     fetch = fetch or rone_region_names     # main()은 병렬로 받아 둔 것을 넘긴다
-    fails = []
+    state_dir = os.environ.get(REGION_STATE_ENV) if state_dir is None else state_dir
+    retry = retry or _region_names_retry
+    fails, lost = [], []
     for label, tbl, cycle in REGION_TABLES:
         try:
-            names = fetch(tbl, cycle)
+            names = retry(fetch, tbl, cycle)
         except Exception as e:
-            # 조회 실패는 '이상 없음'이 아니라 '못 봤다'다. FETCH_FAIL로 보내
-            # 새 IP 재확인 쪽으로 분류되게 한다(SKIPPED는 게이트 분자라 안 쓴다).
-            FETCH_FAIL.append('지역 계층(%s)' % label)
+            lost.append(label)
             print('  %-10s 지역 목록 조회 실패 (%s)' % (label, str(e)[:40]))
             continue
 
@@ -716,6 +774,15 @@ def check_region_rows(fetch=None):
               % (label, len(names), len(U.WEEKLY_REGIONS),
                  '전부 집힘' if not missing else '결측 있음',
                  len(gu), '' if not (missing or dup) else '  실패 (%s)' % state))
+    if lost:
+        # 조회 실패는 '이상 없음'이 아니라 '못 봤다'다. 상태 폴더가 없으면 FETCH_FAIL(새 IP 재확인 → 실패)로,
+        # 있으면 첫날은 경고, 이틀 연속이면 FETCH_FAIL 로 올린다(region_fail_tolerated). SKIPPED 는 게이트 분자라 안 쓴다.
+        if state_dir and region_fail_tolerated(today or KST.today_iso(), state_dir):
+            WARN.append('지역 계층(%s) 목록 조회가 끊겨 오늘은 보지 못했다 — 내일도 끊기면 실패로 올린다' % ', '.join(lost))
+        else:
+            FETCH_FAIL.extend('지역 계층(%s)' % label for label in lost)
+    elif state_dir:
+        region_fail_clear(state_dir)
     return fails
 
 
