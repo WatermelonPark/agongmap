@@ -100,15 +100,20 @@ def test_generators_light_the_stats_tab_on_any_page():
     """생성기 자체가 탭을 켠다 — 손으로 켠 페이지가 우연히 초록이 되지 않게, 탭이 꺼진 뼈대에서 굽는다.
 
     무엇을 깨뜨리면 빨개지나(각각 실제로 확인): make_weekly_page.render 에서 put_nav 를 빼면, NAV_TAB 을 'zone' 으로
-    바꾸면, 뼈대에 .nav-btn.on 규칙이 없을 때 넣는 분기를 지우면, SHELL 의 시세 탭에서 on 을 빼면 빨개진다.
+    바꾸면, 뼈대에 .nav-btn.on 규칙이 없을 때 넣는 분기를 지우면, SHELL 의 시세 탭에서 on 을 빼면, 데스크톱 머리 여백 규칙(36-9)을
+    넣는 분기를 지우면 빨개진다.
     픽스처: 켜진 탭·규칙이 없던 2026-09-26 /weekly/ 뼈대 모양과 저장소 data.js 의 주간 계열.
     """
     page = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8', newline='').read()
     off = re.sub(r'<a class="nav-btn on" aria-current="page"', '<a class="nav-btn"', page)
     off = re.sub(r'\r?\n' + re.escape(MW.NAV_ON_CSS), '', off)
+    off = re.sub(r'\r?\n' + re.escape(MW.HEAD_DESKTOP_CSS), '', off)
     assert not [f for f, _ in _nav(off) if f] and MW.NAV_ON_CSS not in off, '픽스처가 꺼진 뼈대가 아니다'
     W, Q = MW.load()
     got = MW.render(off, W, Q)
     assert [h for f, h in _nav(got) if f] == ['/#stats'] and MW.NAV_ON_CSS in got, '/weekly/ 생성기가 시세 탭을 켜지 않는다'
     assert MW.render(got, W, Q) == got, '생성기가 멱등이 아니다 — 배치마다 페이지가 바뀐다'
+    # 데스크톱 머리 위 빈칸(백로그 36-9): 넓은 화면 규칙을 넣고, 같은 특이도의 기본 규칙(header{padding:52px…})보다 뒤에 둬야 먹는다.
+    # 변이(실제로 확인): put_nav 의 HEAD_DESKTOP_CSS 분기를 지우면 빨강.
+    assert MW.HEAD_DESKTOP_CSS in got and got.index(MW.HEAD_DESKTOP_CSS) > got.index('header{padding:'), '데스크톱 머리 여백 규칙이 없거나 기본 규칙 앞이다'
     assert [h for f, h in _nav(I.SHELL) if f] == ['/#stats'], '지표 생성기 뼈대가 시세 탭을 켜지 않는다'
