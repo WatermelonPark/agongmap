@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v184';
+const HOME_BUILD='v185';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -539,7 +539,11 @@ function sggMapSvg(vals,o){
   const pre=c=>{ if(c.length<=2)return ''; const cl=clOf(c), p=(cl&&cl!==c)?HN[cl]:HN[grpOf(c)]; return p?p+' ':''; };
   /* 값칸 y는 칸 높이에서 계산 — 베이스라인도 칸 중앙 기준이라 VH를 바꿔도 숫자가 위로 치우치지 않는다. */
   const tb=Math.round(VH/2)+3;
-  N.t.forEach(([c,nm,x,y,h])=>{
+  /* 값이 한 줄도 없는 칸은 세우지 않는다(시도 머리 칸은 늘 세운다) — 추세 그래프 지역 목록(sggOfSido)과 같은 규칙. 인천 신설
+     4구(제물포·영종·검단·서해, 2026-07 개편)는 주간표에는 있고 월간표에는 아직 없어 월간 지도에 '·' 빈 칸 넷이 섰다(2026-10-07
+     대표 지적). 원천이 그 칸을 내기 시작하면 저절로 다시 선다. 경계선·점선 묶음도 세운 칸만으로 긋는다. */
+  const T=N.t.filter(([c,,,,h])=>h||vals.some(m=>m[c]!=null));
+  T.forEach(([c,nm,x,y,h])=>{
     const px=x*(TW+G), py=y*(rowH+G), href=o.href?o.href(c):null;
     /* 칸 설명(이름·값). 링크 칸은 aria-label 로 — SVG <title> 을 쓰면 /weekly/ 처럼 구운 페이지에서 문서 <title> 을 찾는
        도구·시험이 지도 칸까지 센다. 링크가 없으면 풍선 도움말(<title>). */
@@ -557,9 +561,9 @@ function sggMapSvg(vals,o){
   });
   // 시도(광역) 경계선 — 같은 시도가 아닌 이웃과 접한 변만 그린다
   const posGrp={};
-  N.t.forEach(([c,,x,y])=>{posGrp[x+','+y]=grpOf(c);});
+  T.forEach(([c,,x,y])=>{posGrp[x+','+y]=grpOf(c);});
   const bl=[];
-  N.t.forEach(([c,,x,y])=>{
+  T.forEach(([c,,x,y])=>{
     const g=grpOf(c), px=x*(TW+G), py=y*(rowH+G);
     const nb=(dx,dy)=>posGrp[(x+dx)+','+(y+dy)];
     if(nb(0,-1)!==g)bl.push('M'+(px-1.5)+' '+(py-1.5)+'H'+(px+TW+1.5));
@@ -569,9 +573,9 @@ function sggMapSvg(vals,o){
   });
   sv.push('<path d="'+bl.join('')+'" stroke="#5e6f74" stroke-width="1.4" fill="none" opacity=".9" pointer-events="none"/>');
   // 구를 가진 시 = 점선 테두리로 묶기 (시+소속 구)
-  const posCl={}; N.t.forEach(([c,,x,y])=>{posCl[x+','+y]=clOf(c);});
+  const posCl={}; T.forEach(([c,,x,y])=>{posCl[x+','+y]=clOf(c);});
   const dl=[];
-  N.t.forEach(([c,,x,y])=>{
+  T.forEach(([c,,x,y])=>{
     const cl=clOf(c); if(!cl)return;
     const px=x*(TW+G), py=y*(rowH+G), nb=(dx,dy)=>posCl[(x+dx)+','+(y+dy)];
     if(nb(0,-1)!==cl)dl.push('M'+(px+0.5)+' '+(py+0.5)+'H'+(px+TW-0.5));

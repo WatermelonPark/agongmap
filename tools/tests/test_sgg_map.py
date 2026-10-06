@@ -73,7 +73,29 @@ def test_weekly_head_map_is_the_home_map():
     js = _js_map([v], ['매매'], ref, '/#stats-market-week~')
     same = py == js   # 긴 한 줄 문자열이라 pytest 의 == 차이 풀이(difflib)가 몇 분 걸린다 — 첫 차이만 적는다
     assert same, _first_diff(py, js)
-    assert py.count('<a href="/#stats-market-week~') == len(MW.nation_tile()['t'])
+    drawn = [t for t in MW.nation_tile()['t'] if t[4] or v.get(t[0]) is not None]   # 값 없는 칸은 세우지 않는다(아래 시험)
+    assert py.count('<a href="/#stats-market-week~') == len(drawn)
+
+
+def test_tiles_without_any_value_are_not_drawn():
+    """값이 한 줄도 없는 칸은 세우지 않는다(시도 머리 칸은 값이 없어도 선다) — 두 구현이 같다(2026-10-07 대표 지적).
+    재현: 인천 신설 4구(제물포 a901·영종 a902·검단 a908·서해 a909)는 주간표에는 있고 월간표에는 아직 없어 월간 지도에 '·' 빈 칸
+    넷이 섰다. 픽스처는 합성 3단 — 그 네 칸만 세 줄 다 비우고, 인천 머리 칸(a9)도 비우고, 한 칸(미추홀 a903)은 한 줄만 값이 있다.
+    변이(각각 실제로 확인): 홈 sggMapSvg 의 걸러내기(T)를 N.t 로 되돌리면 빈 칸이 다시 서 빨개진다. 파이썬 거울만 되돌리면 두 구현
+    차이로 빨개진다. 머리 칸 예외(h||)를 빼면 인천 머리가 빠져 빨개진다."""
+    codes = [t[0] for t in MW.nation_tile()['t']]
+    gone = ('a901', 'a902', 'a908', 'a909')
+    ma = {c: (None if c in gone or c == 'a9' else 0.01) for c in codes}
+    je = {c: (None if c in gone or c in ('a9', 'a903') else 0.02) for c in codes}
+    wo = {c: None for c in codes}
+    names = ['매매', '전세', '월세']
+    py = MW.sgg_map_svg([ma, je, wo], names, 0.4, href=lambda c: '#' + c)
+    js = _js_map([ma, je, wo], names, 0.4, '#')
+    same = py == js
+    assert same, _first_diff(py, js)
+    drawn = re.findall(r'data-code="([^"]+)"', py)
+    assert not set(gone) & set(drawn), '값 없는 칸이 섰다'
+    assert 'a9' in drawn and 'a903' in drawn and len(drawn) == len(codes) - len(gone)
 
 
 def test_tile_names_are_unique_for_screen_readers():
