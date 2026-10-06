@@ -837,11 +837,11 @@ def super_prose(sp):
 
 
 def span_prose(zones):
-    """머리 설명의 자료 기간(전수 리뷰 #69). '2006–2026'을 손으로 적어 두면 새해 자료가 들어와도 그대로였다."""
+    """머리 설명의 자료 기간(전수 리뷰 #69). '2006~2026'을 손으로 적어 두면 새해 자료가 들어와도 그대로였다."""
     ts = [t for z in zones.values() for t in z['t']]
     if not ts:
         raise RuntimeError('zones 가 비었다')
-    return {'span_y': '%d–%d' % (int(math.floor(min(ts))), int(math.floor(max(ts))))}
+    return {'span_y': '%d~%d' % (int(math.floor(min(ts))), int(math.floor(max(ts))))}   # 범위는 '~'(날짜 두 단계, 백로그 36-1)
 
 
 def page_prose(D):

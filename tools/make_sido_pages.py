@@ -813,7 +813,7 @@ def next_links(z, weekly, stats):
             d = I.jeonse_delta(cur, ago)
             chg = '' if d is None else ' · 1년 전 대비 %+.1f%%p' % d
             cards.append('<a href="/jeonse-ratio/"><b>전세가율</b><i>%.1f%%%s · %s 기준</i></a>'
-                         % (cur, chg, esc(dates[li])))
+                         % (cur, chg, esc(SZ.month_text(dates[li]))))
     year = year_line(z, stats)
     if not cards and not year:
         return ''
@@ -867,11 +867,11 @@ def year_line(z, stats):
         j = SZ.month_back(udates, i, YEAR_MONTHS)
         a = useries[j] if j is not None and j < len(useries) else None
         if a is not None:
-            txt = '미분양 %s호(%s) → %s호(%s)' % (num(a), esc(udates[j]), num(uv), esc(up))
+            txt = '미분양 %s호(%s) → %s호(%s)' % (num(a), esc(SZ.month_text(udates[j])), num(uv), esc(SZ.month_text(up)))
             span = [(useries[k], udates[k]) for k in _span(udates, i) if k < len(useries) and useries[k] is not None]
             mx = max(span, key=lambda x: x[0])
             if rnd(mx[0]) > max(rnd(a), rnd(uv)):
-                txt += ', 가장 많던 달 %s호(%s)' % (num(mx[0]), esc(mx[1]))
+                txt += ', 가장 많던 달 %s호(%s)' % (num(mx[0]), esc(SZ.month_text(mx[1])))
             parts.append(txt)
     jr = (stats or {}).get('전세가율') or {}
     jseries, jdates = (jr.get('series') or {}).get(z) or [], jr.get('dates') or []
@@ -882,7 +882,7 @@ def year_line(z, stats):
         if a is not None:
             vals = [jseries[k] for k in _span(jdates, li) if k < len(jseries) and jseries[k] is not None]
             parts.append('전세가율 %.1f%%(%s) → %.1f%%(%s), 그 사이 %.1f~%.1f%%'
-                         % (a, esc(jdates[ya]), jseries[li], esc(jdates[li]), min(vals), max(vals)))
+                         % (a, esc(SZ.month_text(jdates[ya])), jseries[li], esc(SZ.month_text(jdates[li])), min(vals), max(vals)))
     if not parts:
         return ''
     return '<p class="zyear"><b>최근 %d개월</b> %s</p>' % (YEAR_MONTHS, ' · '.join(parts))
@@ -1002,9 +1002,10 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
          + ('<br>이 지역은 기준표에 없어 적정물량을 추정했습니다.' if row.get('est') else '')),
         ('미분양', (num(row['unsold']) + '호') if row.get('unsold') is not None else '–',
          # ⚠️ '기준 · 분기 적정물량' 접두는 check_freshness의 파생 페이지 감시가
-         # 정규식으로 잡는 문자열이다 — 문구를 바꿀 땐 그 패턴을 보존할 것.
+         # 정규식으로 잡는 문자열이다 — 문구를 바꿀 땐 그 패턴을 보존할 것. 달은 읽는 꼴('2026년 6월', 백로그 36-1)이고
+         # 감시는 SZ.basis_month 로 옛 꼴('2026.06')과 함께 읽는다.
          ('%s 기준 · 분기 적정물량(%s호)의 %s'
-          % (calc.get('unsold_prd') or '', num(d_ref), umx(row['um'])))
+          % (SZ.month_text(calc.get('unsold_prd') or ''), num(d_ref), umx(row['um'])))
          if row.get('um') is not None else '자료 없음'),
     ):
         # 값(<span>)을 칸 제목 <b> 안에 둔다(D3) — 검색 스니펫이 '누적 순부족'만 뽑지 않고 '누적 순부족 311,689세대 부족'을
@@ -1054,7 +1055,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
                     '<td colspan="3" class="zfut">%s 기준 · 지금 안 팔리고 남은 재고</td></tr>'
                     % (refbtn('미분양'), num(row['unsold']),
                        umx(row['um']) if row.get('um') is not None else '–',
-                       calc.get('unsold_prd') or ''))
+                       SZ.month_text(calc.get('unsold_prd') or '')))
     if row.get('pm12') is not None:
         foot.append('<tr class="zref" data-ref="pm"><td>%s</td><td>%s</td><td>%s</td>'
                     '<td colspan="3" class="zfut">착공 전 단계의 선행 물량</td></tr>'

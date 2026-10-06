@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v181';
+const HOME_BUILD='v182';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -631,6 +631,15 @@ function weeklyRelease(p,now,grace){
           due:due==null?null:_iso(due),stale:due!=null&&_kst(now).day>due};
 }
 function _md(iso){const a=String(iso).split('-');return (+a[1])+'/'+(+a[2]);}
+/* 날짜 표기 두 단계(2026-10-06 대표 결정 — 같은 달이 2026.08·2026-08·26-08·26.08·26.8·2026년 8월 여섯 가지로 나왔다).
+   글로 읽는 곳(기준 줄·배너·문장)은 '9/28'(_md)·'2026년 8월'(_ymT)·'2026년 2분기'(_qT), 좁은 곳(표 칸·눈금·말풍선)은 '26.9.28'(_dS)·
+   '26.8'(_ymS)·'26Q2'. 파이썬 정본은 sido_zones.day_text·day_short·month_text·month_short·quarter_text(test_date_format 이 node 로 대조한다).
+   받는 값은 '2026-08'·'2026.08'·'2026.08 p)'·'2026-09-28' 어느 것이든 된다. */
+function _ymP(s){const m=String(s).match(/(\d{4})[.\-\/]\s*(\d{1,2})/);return m?[+m[1],+m[2]]:null;}
+function _ymT(s){const p=_ymP(s);return p?p[0]+'년 '+p[1]+'월':String(s);}
+function _ymS(s){const p=_ymP(s);return p?String(p[0]).slice(2)+'.'+p[1]:String(s);}
+function _qT(k){const m=String(k).match(/^(\d{4})Q([1-4])$/);return m?m[1]+'년 '+m[2]+'분기':String(k);}
+function _dS(iso){const a=String(iso).split('-');return a.length<3?String(iso):a[0].slice(2)+'.'+(+a[1])+'.'+(+a[2]);}
 /* 연휴 주(hedge)는 날짜를 단정하지 않되 안내 문구도 적지 않는다(빈 문자열 — 2026-10-05 대표 요청으로 '연휴로 발표 일정이
    바뀔 수 있습니다'를 뺐다). 그래서 이어 붙이는 쪽은 빈 조각을 거른다(wkWhenText·통계 탭 rel-week).
    wkWhenText 는 /weekly/ 머리줄(파이썬 weekly_release.when_text)의 JS 거울이다 — 홈 화면은 2026-10-05 부터 '9/28 기준 ·
@@ -936,7 +945,7 @@ function tbDraw(){
      색·표식도 두르지 않는다(2026-08-08 사용자) — 참고 행이 색을 입으면
      점수 행처럼 읽히고, ⚠ 같은 기호는 뜻을 알 길이 없다. 설명은 '산출 방법'
      접힘이 맡는다. */
-  h+='</tbody><tfoot><tr class="tb-un" data-ref="un"><th scope="row" title="'+(B.uprd||'')
+  h+='</tbody><tfoot><tr class="tb-un" data-ref="un"><th scope="row" title="'+(B.uprd?_ymT(B.uprd):'')
     +' 기준 · 순위에 넣지 않은 참고 수치">'+refBtn('미분양')+'</th>';
   for(var u=0;u<B.regs.length;u++){
     var uv=B.un[B.regs[u]];
@@ -968,14 +977,14 @@ function tbDraw(){
       else{
         /* 미분양의 기준 시점(B.uprd)은 <th>의 title=에만 있었다 — 그건 데스크톱
            호버 전용이라 모바일에서는 뜻을 알 길이 없다. 지역 페이지는 같은 값을
-           '2026.06 기준'이라고 눈에 보이는 칸으로 찍는데, 홈만 빠져 있어서
+           '2026년 6월 기준'이라고 눈에 보이는 칸으로 찍는데, 홈만 빠져 있어서
            모바일 방문자는 월간 재고를 이번 분기 값으로 읽었다(2026-08-15 리뷰).
            정본 문구(REFNOTE)는 홈·지역이 글자까지 같아야 하므로 상수는 건드리지
            않고, 여는 시점에 시점만 덧붙인다. */
         /* B는 표를 그리는 함수의 지역 변수라 여기선 못 본다 — tbBuild()는
            TB_BCACHE로 메모이즈돼 있어 다시 불러도 같은 객체다. */
         var note=TB_REFNOTE[k]||'', BB=tbBuild();
-        if(k==='un'&&BB&&BB.uprd) note=BB.uprd+' 기준. '+note;
+        if(k==='un'&&BB&&BB.uprd) note=_ymT(BB.uprd)+' 기준. '+note;
         p.dataset.k=k; p.textContent=note; p.hidden=false;
         /* 탭한 행이 화면 맨 밑이면 설명이 폴드 아래 열린다(모바일) —
            nearest라 이미 보이면 안 움직인다. */

@@ -214,7 +214,7 @@ def jratio_prose(lvl, prd):
     return {'jr_seoul': '%d' % SZ.half_up(by['서울']),
             'jr_jnl': '%d' % SZ.half_up(by['전남광주']),
             'jr_mid': mid,
-            'jr_prd': str(prd)}
+            'jr_prd': SZ.month_text(prd)}   # 캡션은 읽는 자리 — '2026년 8월'(날짜 두 단계, 백로그 36-1)
 
 
 # 참고 ④(멸실) 절 '왜 이것이 사슬과 겹치면 위험한가'의 서울 멸실 칸(전수리뷰 D3, 대표 결정 2026-10-05). 손으로 적은

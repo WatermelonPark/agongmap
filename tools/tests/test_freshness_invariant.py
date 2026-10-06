@@ -231,6 +231,26 @@ def test_derived_pages_treat_missing_marker_as_failure(monkeypatch):
     assert len(f) == 1 and '표기 없음' in f[0], f
 
 
+NEWP = '<p>2026년 6월 기준 · 분기 적정물량</p>'
+NEWOLDP = '<p>2026년 5월 기준 · 분기 적정물량</p>'
+
+
+def test_derived_pages_read_the_readable_month(monkeypatch):
+    r"""화면 시점은 읽는 꼴('2026년 6월 기준', 날짜 두 단계 — 백로그 36-1)이다. 감시는 그 꼴과 옛 꼴('2026.06 기준')을 둘 다 읽는다
+    — 배포 사이에 옛 페이지가 섞여 있어도 오탐하지 않고, 새 꼴의 옛 달은 잡는다.
+
+    변이(실제로 확인): check_freshness 의 두 정규식을 옛 `(\d{4}\.\d{2}) 기준…` 로 되돌리면 새 꼴 페이지가 '시점 표기 없음'으로
+    빨강. SZ.basis_month 가 달을 0 채움 없이('2026.6') 돌려주면 unsold_prd('2026.06')와 갈려 빨강.
+    픽스처: 생성기가 굽는 지역 카드 주석·/jeonse-ratio/ 머리 한 줄의 새 꼴, 옛 꼴과 섞인 배포 상태.
+    """
+    assert _derived(monkeypatch, NEWP, NEWP, nat=NEWP, jr='전세가율 · 2026년 6월 기준') == []
+    assert _derived(monkeypatch, NEWP, OKP, jr='2026.06 기준') == [], '옛 꼴과 섞인 배포를 오탐했다'
+    f = _derived(monkeypatch, NEWP, NEWOLDP, jr='전세가율 · 2026년 6월 기준')
+    assert len(f) == 1 and '경기(2026.05)' in f[0], f
+    f = _derived(monkeypatch, NEWP, NEWP, jr='전세가율 · 2026년 5월 기준')
+    assert len(f) == 1 and '/jeonse-ratio/가 2026.05' in f[0], f
+
+
 def test_moveins_reads_the_on_screen_basis(monkeypatch):
     """/moveins/ 시점은 화면 주석의 'YYYY년 N분기까지 준공 실적'을 데이터 마지막 실적 분기와 대조한다.
 

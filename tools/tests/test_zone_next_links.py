@@ -101,7 +101,7 @@ def test_jeonse_line_matches_saved_data():
         want = '%.1f%%' % cur
         if ago is not None:
             want += ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
-        want += ' · %s 기준' % j['dates'][li]
+        want += ' · %s 기준' % SZ.month_text(j['dates'][li])   # 읽는 꼴(날짜 두 단계, 백로그 36-1)
         assert m and m.group(1) == want, '%s: %r ≠ %r' % (z, m and m.group(1), want)
 
 
