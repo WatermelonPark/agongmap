@@ -634,7 +634,27 @@ def put_nav(s):
     s = _FOOTER_CSS.sub(lambda m: m.group(1) + '%gpx' % N.FOOTER_PX, s)
     for old in _NAV_NOTES_OLD:
         s = s.replace(old, _NAV_NOTE)
-    return s
+    return put_desk(s)
+
+
+_DESK_LINK = re.compile(r'<link rel="stylesheet" href="/desk\.css[^"]*"[^>]*>')
+_BODY_TAG = re.compile(r'<body\b[^>]*>')
+
+
+def put_desk(s):
+    """데스크톱 틀(desk.css, 2026-10-06): 정본 링크(site_nav.desk_link — 주소에 내용 해시)를 싣고 <body data-desk="weekly">
+    로 왼쪽 결론+지도·오른쪽 순위·표 배치를 고른다. 뼈대는 배치 산출물이라 여기서 갈아 끼운다(옛 해시 링크는 바꾼다)."""
+    nl = '\r\n' if '\r\n' in s else '\n'
+    link = N.desk_link()
+    if _DESK_LINK.search(s):
+        s = _DESK_LINK.sub(lambda m: link, s, count=1)
+    else:
+        if s.count('</head>') != 1:
+            raise SystemExit('weekly/index.html 에서 </head> 를 찾지 못했다')
+        s = s.replace('</head>', link + nl + '</head>', 1)
+    if len(_BODY_TAG.findall(s)) != 1:
+        raise SystemExit('weekly/index.html 에서 <body> 를 찾지 못했다')
+    return _BODY_TAG.sub(lambda m: N.desk_body('weekly'), s, count=1)
 
 
 def build(W, Q):

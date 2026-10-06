@@ -1,0 +1,74 @@
+/* 아공맵 데스크톱 틀(1024px 이상) — 2026-10-06 대표 결정 '데스크톱 전체 개편, 권장안'.
+   모든 페이지가 <link rel="stylesheet" href="/desk.css?v=…" media="(min-width:1024px)"> 로 싣는다(정본 tools/site_nav.desk_link —
+   v 는 이 파일 내용의 해시라 고치면 test_site_nav 가 손 페이지 링크를 고치라고 알린다). media 조건이 안 맞는 1023px 이하는
+   브라우저가 이 파일을 화면 그리기에 쓰지 않으므로 모바일·태블릿은 예전과 같다.
+   규칙은 모두 body[data-desk] 아래에 건다 — 표지가 없는 페이지(퀴즈 점수 공유 페이지 등)는 그대로다. 표지 값:
+     read   글 단 그대로, 탭바만 위로(소개·개인정보·404·퀴즈 랜딩·지역 허브)
+     wide   표가 주인인 한 단을 넓힌다(/moveins/·/jeonse-ratio/)
+     doc    왼쪽에 목차를 고정하고 오른쪽에 본문(/cycle/·/monthly/·FAQ) — 목차는 각 페이지의 .dtoc
+     report 시도 리포트 — 왼쪽에 판정 요약(.zsum)을 따라오게, 오른쪽에 표
+     weekly /weekly/ — 왼쪽에 머리(결론+시군구 지도), 오른쪽에 순위·표·링크
+     home   홈(app.css 의 body.home-app 2단 규칙이 따로 있다 — 여기서는 탭바 이름표만 더한다)
+   치수: 위 내비 52px(홈 app.css 와 같다), 데스크톱 단 1260px(홈 .home-duo 와 같다). */
+
+/* ── 공통: 하단 탭바 → 상단 내비 ─────────────────────────────── */
+body[data-desk]{padding-bottom:0;padding-top:52px}
+html:has(body[data-desk]){scroll-padding-top:68px}
+body[data-desk] .bottomnav{top:0;bottom:auto;height:52px;box-shadow:0 4px 18px rgba(19,30,36,.18)}
+body[data-desk] .nav-btn{flex:0 1 150px;flex-direction:row;gap:8px;font-size:14px}
+body[data-desk] .nav-btn svg{width:18px;height:18px}
+body[data-desk] .skip{z-index:101}
+/* 서비스 이름표 — 탭바 마크업(정본 site_nav.bottomnav)은 그대로 두고 넓은 화면에서만 그린다. 탭은 가운데 그대로다. */
+body[data-desk] .bottomnav::before{content:'아공맵';position:absolute;top:0;bottom:0;left:max(24px,calc(50% - 630px));
+  display:flex;align-items:center;color:#fff;font-size:17px;font-weight:800;letter-spacing:-.02em}
+/* 사이클 읽기 막대·'30초 요약' 단추는 위 내비 밑으로 */
+body[data-desk] .cy-progress{top:52px}
+body[data-desk] .cy-toc{bottom:24px}
+
+/* ── wide: 표가 주인인 한 단 ─────────────────────────────────── */
+/* 단은 1040px 로 넓히되 글 문단은 읽기 좋은 폭(760px)에서 끊는다 — 표와 글의 왼쪽 끝이 같다. 머리는 위 내비 밑에 붙지 않게 띄운다. */
+body[data-desk=wide] .wrap{max-width:1040px}
+body[data-desk=wide] .wrap>p{max-width:760px}
+body[data-desk=wide]>header{padding-top:28px}
+
+/* ── doc: 왼쪽 목차 + 오른쪽 본문 ─────────────────────────────── */
+/* 전체 1180px 를 가운데 두고 왼쪽 240px 가 목차, 40px 띄워 본문. 띠 배경(섹션 바탕)은 화면 폭 그대로 두고 글 단만 옮긴다. */
+body[data-desk=doc]{--dk-l:max(24px,calc((100vw - 1180px)/2))}
+body[data-desk=doc] .wrap{margin-left:calc(var(--dk-l) + 280px);margin-right:auto;padding-left:0;padding-right:24px;
+  max-width:860px}
+body[data-desk=doc] .bottomnav .wrap{margin:0}
+body[data-desk=doc] .dtoc{display:block;position:fixed;top:52px;left:var(--dk-l);width:240px;max-height:calc(100vh - 52px);
+  overflow:auto;padding:28px 16px 28px 0;border-right:1px solid var(--line,#d9dee3);z-index:20}
+body[data-desk=doc] .dtoc b{display:block;font-size:13px;font-weight:700;color:var(--muted,#5b6670);letter-spacing:.02em;margin:0 0 10px}
+body[data-desk=doc] .dtoc ol{list-style:none;margin:0;padding:0}
+body[data-desk=doc] .dtoc a{display:block;padding:7px 10px;margin:0 0 2px;font-size:14px;line-height:1.45;color:var(--ink2,#3a4650);
+  text-decoration:none;border-left:3px solid transparent}
+body[data-desk=doc] .dtoc a:hover{background:rgba(19,30,36,.05);color:var(--ink,#131e24)}
+body[data-desk=doc] .dtoc a[aria-current]{border-left-color:var(--ink,#131e24);color:var(--ink,#131e24);font-weight:700;
+  background:rgba(19,30,36,.04)}
+body[data-desk=doc] .dtoc a:focus-visible{outline:2px solid var(--ink,#131e24);outline-offset:-2px}
+/* /monthly/ 의 절 이동 칩은 왼쪽 목차가 대신한다 */
+body[data-desk=doc] .toc{display:none}
+
+/* ── report: 시도 리포트 2단 ──────────────────────────────────── */
+/* 왼쪽 = 머리(지역 이름·판정·지난 4년/앞으로 3년·해마다 입주 막대 — 리포트의 답), 오른쪽 = 본문(숫자·분기 표·시군구 표).
+   머리는 화면 높이가 넉넉할 때만 따라온다(머리보다 화면이 낮으면 아래가 잘리므로). */
+body[data-desk=report]{display:grid;grid-template-columns:420px minmax(0,1fr);column-gap:56px;align-items:start;
+  max-width:1260px;margin:0 auto;padding-left:24px;padding-right:24px;box-sizing:border-box}
+body[data-desk=report]>header{grid-column:1;grid-row:1/span 2;border-bottom:0}
+body[data-desk=report]>main{grid-column:2;grid-row:1;min-width:0;padding-top:22px}
+body[data-desk=report]>footer{grid-column:1/-1}
+body[data-desk=report]>header>.wrap,body[data-desk=report]>main .wrap,body[data-desk=report]>footer>.wrap{max-width:none;padding-left:0;padding-right:0}
+@media(min-height:900px){body[data-desk=report]>header{position:sticky;top:52px}}
+
+/* ── weekly: 왼쪽 결론+지도, 오른쪽 순위·표 ────────────────────── */
+/* 왼쪽 단은 시군구 지도의 최소 폭(472px — 지도 글자가 11px 아래로 내려가지 않는 폭, 홈 sggMapSvg)보다 넓게 두고, 오른쪽이
+   좁아진다(1024px 에서 약 430px, 1280px 부터 520px). */
+body[data-desk=weekly]{display:grid;grid-template-columns:minmax(500px,1fr) minmax(360px,520px);column-gap:48px;align-items:start;
+  max-width:1260px;margin:0 auto;padding-left:24px;padding-right:24px;box-sizing:border-box}
+body[data-desk=weekly]>header{grid-column:1;grid-row:1/span 2}
+body[data-desk=weekly]>main{grid-column:2;grid-row:1;min-width:0}
+body[data-desk=weekly]>footer{grid-column:1/-1}
+body[data-desk=weekly]>header>.wrap,body[data-desk=weekly]>main .wrap,body[data-desk=weekly]>footer>.wrap{max-width:none;padding-left:0;padding-right:0}
+body[data-desk=weekly]>main{padding-top:22px}
+@media(min-height:900px){body[data-desk=weekly]>header{position:sticky;top:52px}}

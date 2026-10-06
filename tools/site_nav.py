@@ -74,3 +74,52 @@ HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
                '투자 판단과 책임은 이용자에게 있습니다.\n'
                '</div></footer>')
 FOOTER_PX = 13
+
+
+# ── 데스크톱 틀(2026-10-06 대표 결정 '데스크톱 전체 개편') ─────────────────────────────────────────────────────
+# 1024px 이상에서 하단 탭바를 위로 옮기고 화면마다 넓은 배치를 쓰는 규칙은 루트 desk.css 하나에 있다. 모든 탭바 페이지가
+# desk_link() 를 <head> 에 싣고 <body data-desk="종류"> 로 배치를 고른다(종류는 desk.css 머리 주석). media 조건이라 1023px 이하
+# 화면은 이 파일을 그리기에 쓰지 않는다 — 모바일은 예전과 같다. 주소의 v 는 desk.css 내용의 해시다: 서비스워커가 정적 파일을
+# 캐시에서 먼저 주므로(sw.js) 파일을 고치면 주소가 바뀌어야 새 규칙이 닿는다. 손 페이지는 이 글자를 손으로 싣고
+# test_site_nav 가 저장소의 모든 탭바 페이지를 대조한다(해시가 바뀌면 거기서 빨개져 고칠 곳을 알려 준다).
+import hashlib as _hashlib
+import os as _os
+
+DESK_CSS = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'desk.css')
+DESK_KINDS = ('read', 'wide', 'doc', 'report', 'weekly', 'home')
+
+
+def desk_version():
+    with open(DESK_CSS, 'rb') as f:
+        return _hashlib.sha1(f.read().replace(b'\r\n', b'\n')).hexdigest()[:8]
+
+
+def desk_link():
+    return '<link rel="stylesheet" href="/desk.css?v=%s" media="(min-width:1024px)">' % desk_version()
+
+
+def desk_body(kind, cls=None):
+    """<body …> 여는 태그. kind 는 DESK_KINDS 가운데 하나."""
+    if kind not in DESK_KINDS:
+        raise ValueError('없는 데스크톱 배치: %r' % (kind,))
+    return '<body%s data-desk="%s">' % (' class="%s"' % cls if cls else '', kind)
+
+
+def dtoc(items, title='이 페이지'):
+    """왼쪽 목차(doc 배치). items = [(앵커 id, 라벨)]. hidden 이라 desk.css 가 없는 좁은 화면에서는 보이지 않는다."""
+    lis = ''.join('<li><a href="#%s">%s</a></li>' % (i, t) for i, t in items)
+    return '<nav class="dtoc" hidden aria-label="목차"><b>%s</b><ol>%s</ol></nav>' % (title, lis)
+
+
+# 목차에서 지금 읽는 절을 표시하고(aria-current), 접힌 <details> 로 가는 목차 링크는 펼친다(FAQ). 목차가 없거나 오래된
+# 브라우저면 아무것도 하지 않는다 — 링크는 그대로 앵커로 동작한다.
+DTOC_JS = ("<script>(function(){var t=document.querySelector('.dtoc');if(!t)return;"
+           "var a=[].slice.call(t.querySelectorAll('a[href^=\"#\"]')),m={};"
+           "a.forEach(function(x){var s=document.getElementById(x.getAttribute('href').slice(1));if(s)m[s.id]=x});"
+           "t.addEventListener('click',function(e){var x=e.target.closest&&e.target.closest('a');if(!x)return;"
+           "var d=document.getElementById(x.getAttribute('href').slice(1));if(d&&d.tagName==='DETAILS')d.open=true});"
+           "if(!('IntersectionObserver' in window))return;"
+           "var o=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;"
+           "a.forEach(function(x){x.removeAttribute('aria-current')});var x=m[e.target.id];"
+           "if(x)x.setAttribute('aria-current','true')})},{rootMargin:'-15% 0px -75% 0px'});"
+           "Object.keys(m).forEach(function(k){o.observe(document.getElementById(k))})})();</script>")
