@@ -403,6 +403,63 @@ def quarter_text(key):
     return ('%s년 %s분기' % (m.group(1), m.group(2))) if m else (key or '')
 
 
+# 날짜 표기 두 단계(2026-10-06 대표 결정, 백로그 36-1). 읽는 자리(기준 줄·문장·배너)는
+# '2026년 8월'·'9/28'·'2026년 2분기', 좁은 자리(표 칸·축 눈금·툴팁)는 '26.8'·'26.9.28'·'26Q2'.
+# 기계가 읽는 값(JSON-LD 날짜·RSS·utm)은 바꾸지 않는다. 홈의 거울은 home-app.js 의
+# _ymT·_ymS·_dS·_md 이고 test_date_format 이 node 로 대조한다.
+_YM_RE = r'^(\d{4})[.\-/]\s*(\d{1,2})'
+
+
+def _ym(s):
+    import re
+    m = re.match(_YM_RE, str(s or '').strip())
+    return (int(m.group(1)), int(m.group(2))) if m else None
+
+
+def month_text(s):
+    """'2026.08'·'2026-08'·'2026.08 p)' → '2026년 8월'. 달이 아니면 그대로."""
+    p = _ym(s)
+    return '%d년 %d월' % p if p else str(s or '')
+
+
+def month_short(s):
+    """'2026.08' → '26.8'. 표 칸·축 눈금용."""
+    p = _ym(s)
+    return '%02d.%d' % (p[0] % 100, p[1]) if p else str(s or '')
+
+
+def day_text(iso):
+    """'2026-09-28' → '9/28'. 읽는 자리의 날짜(같은 해 안에서 쓰는 주간 조사일·발표일)."""
+    a = str(iso or '').split('-')
+    return '%d/%d' % (int(a[1]), int(a[2])) if len(a) == 3 else str(iso or '')
+
+
+def day_short(iso):
+    """'2026-09-28' → '26.9.28'. 표 칸·툴팁용."""
+    a = str(iso or '').split('-')
+    return '%s.%d.%d' % (a[0][2:], int(a[1]), int(a[2])) if len(a) == 3 else str(iso or '')
+
+
+def basis_month(text, tail=' 기준'):
+    """화면 시점 문구에서 달을 읽어 데이터 꼴('2026.06')로 돌린다. 감시(check_freshness)가 쓴다.
+
+    읽는 꼴('2026년 6월 기준')과 옛 꼴('2026.06 기준')을 둘 다 받는다 — 배포 사이에 옛 페이지가 남아 있어도
+    오탐하지 않게. 못 찾으면 None.
+    """
+    import re
+    m = re.search(r'(\d{4})(?:\.(\d{2})|년 (\d{1,2})월)' + re.escape(tail), text or '')
+    if not m:
+        return None
+    return '%s.%02d' % (m.group(1), int(m.group(2) or m.group(3)))
+
+
+def quarter_short(key):
+    """'2026Q2' → '26Q2'. 표 머리용."""
+    import re
+    m = re.match(r'(\d{4})(Q[1-4])$', key or '')
+    return m.group(1)[2:] + m.group(2) if m else (key or '')
+
+
 def half_up(v):
     """JS Math.round와 같은 half-up. 화면 정수는 이걸로 만든다(make_sido_pages.rnd와 같다)."""
     import math

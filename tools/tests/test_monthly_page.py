@@ -136,7 +136,7 @@ def test_moveins_columns_name_the_actual_quarters(html):
     """
     seg = html.split('id="moveins"', 1)[1].split('</section>', 1)[0]
     heads = re.findall(r'<th scope="col">([^<]*)</th>', seg)
-    quarters = [h for h in heads if re.search(r'\d{4}Q[1-4]', h)]
+    quarters = [h for h in heads if re.search(r'^\d{2}Q[1-4] ', h)]   # 좁은 표 머리 '26Q2 실적'(날짜 두 단계)
     assert len(quarters) >= 2, '분기명이 열 이름에 없다: %s' % heads
     assert not [h for h in heads if '이번 분기' in h or '다음 분기' in h],         '상대 표현이 남아 있다: %s' % heads
 

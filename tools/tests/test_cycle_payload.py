@@ -92,7 +92,9 @@ def test_jeonse_ratio_spans_follow_the_chart_on_the_same_page():
     # 기준월은 D 안에 다른 출처가 없다. 배치가 넣은 값을 그대로 넘겨 나머지 칸을 대조한다.
     # ⚠️ 여기서 data.js 의 최신 달과 맞추지 말 것 — 실데이터 값을 배포 게이트에 단정하지
     #    않는다는 규칙이다. (게이트는 2026-09-16 c23c7dd4 부터 생성기 뒤·커밋 앞에서 돈다.)
-    want = RF.jratio_prose(D['jratio_level'], prose.get('jr_prd'))
+    # 캡션 칸은 읽는 꼴('2026년 8월')이라 데이터 꼴로 되돌려 넘긴다(SZ.basis_month — 옛 꼴도 읽는다).
+    import sido_zones as SZ
+    want = RF.jratio_prose(D['jratio_level'], SZ.basis_month(prose.get('jr_prd'), ''))
     got = {k: prose.get(k) for k in RF.JR_KEYS}
     assert got == want, '전세가율 풀이 칸이 차트와 다르다 — refresh_cycle_data를 다시 돌릴 것: %s vs %s' % (got, want)
 
@@ -127,13 +129,13 @@ def test_jratio_caption_month_comes_with_the_values():
     import pytest
     import refresh_cycle_data as RF
     lvl = [{'region': r, 'val': 60.0} for r in ('서울', '전남광주', '대구', '대전')]
-    assert RF.jratio_prose(lvl, '2026.07')['jr_prd'] == '2026.07'
+    assert RF.jratio_prose(lvl, '2026.07')['jr_prd'] == '2026년 7월'   # 캡션은 읽는 꼴(날짜 두 단계, 백로그 36-1)
     for bad in (None, '', '2026-07-01', '2026Q2'):
         with pytest.raises(RuntimeError):
             RF.jratio_prose(lvl, bad)
     _, _, s = _page()
-    assert re.search(r'<span data-d="jr_prd">\d{4}\.\d{2}</span> 기준', s), '캡션 기준월이 칸이 아니다'
-    assert not re.search(r'<b>\d{4}\.\d{2} 기준</b>', s), '캡션에 손으로 적은 기준월이 남았다'
+    assert re.search(r'<span data-d="jr_prd">\d{4}(\.\d{2}|년 \d{1,2}월)</span> 기준', s), '캡션 기준월이 칸이 아니다'
+    assert not re.search(r'<b>\d{4}(\.\d{2}|년 \d{1,2}월) 기준</b>', s), '캡션에 손으로 적은 기준월이 남았다'
 
 
 def test_page_script_fills_from_the_payload():
@@ -160,7 +162,7 @@ def test_caption_month_is_the_month_the_values_were_read_from():
                      'series': {r: [70.0, 71.0 + i] for i, r in enumerate(('전국',) + tuple(RF.SIDO))}}}
     lvl, _, _, prd = RF.build_jratio(S)
     assert prd == '2026.07'
-    assert RF.jratio_prose(lvl, prd)['jr_prd'] == '2026.07'
+    assert RF.jratio_prose(lvl, prd)['jr_prd'] == '2026년 7월'
     src = io.open(os.path.join(os.path.dirname(__file__), '..', 'refresh_cycle_data.py'), encoding='utf-8').read()
     body = src[src.find('def main('):]
     assert re.search(r'lvl,[^\n]*prd = build_jratio\(S\)', body) and 'jratio_prose(lvl, prd)' in body, (

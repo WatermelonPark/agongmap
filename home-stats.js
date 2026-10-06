@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v181';
+var HOME_STATS_BUILD='v182';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -69,6 +69,10 @@ function statsOpen(){
 /* 기본통계(13계열)는 이 함수를 거쳐서만 그린다 */
 /* ============ 통계 대시보드 ============ */
 // 날짜 정규화: "2006.01","2006.01 p)","2007/01","2012.1","2024" -> {y,m}
+/* 기본통계 표시 — 내부 label('2026.08'·'2026')은 보조선 찾기(auxPos)·연월 비교가 쓰므로 그대로 두고, 화면에 찍을 때만 두 단계
+   표기로 바꾼다(2026-10-06 대표 결정): 좁은 곳(표 칸·눈금) '26.8', 글로 읽는 곳(기간 줄) '2026년 8월'. 연 자료는 '2026'·'2026년'. */
+function _ymCell(l){return /^\d{4}$/.test(l)?l:_ymS(l);}
+function _ymLong(l){return /^\d{4}$/.test(l)?l+'년':_ymT(l);}
 function parseDate(s){
   s=String(s).replace(/\s*p\)?\s*/g,'').trim();
   let m=s.match(/(\d{4})[.\/]\s*(\d{1,2})/);
@@ -251,8 +255,9 @@ function drawStat(){
       tension:.25,fill:true,spanGaps:true}]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:c=>`${DS_LABEL[ST.ds]}: ${fmtN(c.raw)} ${D.unit.split(' ')[0]}`}}},
-      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,maxRotation:0,autoSkip:true}},
+        tooltip:{callbacks:{title:c=>_ymCell(c[0].label),label:c=>`${DS_LABEL[ST.ds]}: ${fmtN(c.raw)} ${D.unit.split(' ')[0]}`}}},
+      scales:{x:{grid:{display:false},ticks:{maxTicksLimit:8,maxRotation:0,autoSkip:true,
+          callback:function(v){return _ymCell(this.getLabelForValue(v));}}},
         y:{grid:{color:GRID},title:{display:true,text:D.unit}}}},
     plugins:[{id:'vlines',afterDraw(ch){
       const ctx=ch.ctx,ya=ch.scales.y,xa=ch.scales.x;
@@ -278,7 +283,7 @@ function drawStat(){
   });
   // 기간 표시
   document.getElementById('prange').innerHTML=labels.length?
-    `<b>${labels[0]}</b> ~ <b>${labels[labels.length-1]}</b> · ${labels.length}개 시점`:'데이터 없음';
+    `<b>${_ymLong(labels[0])}</b> ~ <b>${_ymLong(labels[labels.length-1])}</b> · ${labels.length}개 시점`:'데이터 없음';
 }
 function fmtN(v,dec){return (v==null||isNaN(v))?'-':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:dec==null?2:dec});}
 /* PC 표 모드: 전 지역(광역시도) 매트릭스 — 투자지표 인허가 표와 같은 형식 */
@@ -315,7 +320,7 @@ function buildMatrix(D,idx,parsed){
   const isMonthly=!D.annual&&parsed[idx[0]].m>0;
   let h;
   if(TRANSP.basicmain){
-    h=['<table class="adv"><thead><tr><th>지역</th>'+idx.map(i=>`<th>${parsed[i].label}</th>`).join('')+'</tr></thead><tbody>'];
+    h=['<table class="adv"><thead><tr><th>지역</th>'+idx.map(i=>`<th>${_ymCell(parsed[i].label)}</th>`).join('')+'</tr></thead><tbody>'];
     regs.forEach(r=>{
       const f=dsFirst(D.series[r]);
       h.push(`<tr><td>${r}</td>`+idx.map(i=>{
@@ -327,7 +332,7 @@ function buildMatrix(D,idx,parsed){
     h=['<table class="adv"><thead><tr><th>'+(isMonthly?'연월':'연도')+'</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
     for(let k=idx.length-1;k>=0;k--){
       const i=idx[k];
-      h.push(`<tr><td>${parsed[i].label}</td>`+regs.map(r=>{
+      h.push(`<tr><td>${_ymCell(parsed[i].label)}</td>`+regs.map(r=>{
         const v=dsV(D.series[r][i],i,dsFirst(D.series[r]));
         return `<td>${v==null?'·':fmtN(v)}</td>`;
       }).join('')+'</tr>');
@@ -386,7 +391,7 @@ function buildTable(D,labels,vals,idx,parsed){
       const pct=prev!==0?fmtN(d/prev*100,1)+'%':'–';
       chg=`<span class="${cls}">${d>0?'+':''}${fmtN(d)} (${prev!==0&&d/prev>0?'+':''}${pct})</span>`;
     }
-    html+=`<tr><td>${labels[k]}</td><td>${fmtN(v)}</td><td>${chg}</td></tr>`;
+    html+=`<tr><td>${_ymCell(labels[k])}</td><td>${fmtN(v)}</td><td>${chg}</td></tr>`;
   }
   tbody.innerHTML=html;
 }
@@ -522,7 +527,7 @@ function drawSizePivot(){
   let h='';
   if(SZ.tr){
     thead.innerHTML='<tr><th style="text-align:center">지표 · 규모</th>'+
-      ord.map(i=>`<th>${D.dates[i].replace(/^20/,'')}</th>`).join('')+'</tr>';
+      ord.map(i=>`<th>${_ymS(D.dates[i])}</th>`).join('')+'</tr>';
     cols.forEach((c,ci)=>{
       h+=`<tr${c.first&&ci>0?' class="szgrp-r"':''}><td>${c.m} ${c.lab}${c.pct?'':' <span class="szu">%</span>'}</td>`+
         ord.map(i=>cell(c,val(c)(i),false)).join('')+'</tr>';
@@ -531,12 +536,12 @@ function drawSizePivot(){
     thead.innerHTML='<tr><th>연월</th>'+cols.map(c=>
       `<th${c.first?' class="szgrp"':''}>${c.m}<span class="szsub">${c.lab}${c.pct?'':' %'}</span></th>`).join('')+'</tr>';
     ord.forEach(i=>{
-      h+=`<tr><td>${D.dates[i]}</td>`+cols.map(c=>cell(c,val(c)(i),c.first)).join('')+'</tr>';
+      h+=`<tr><td>${_ymS(D.dates[i])}</td>`+cols.map(c=>cell(c,val(c)(i),c.first)).join('')+'</tr>';
     });
   }
   tbody.innerHTML=h;
   document.getElementById('prange').innerHTML=idx.length?
-    `<b>${D.dates[idx[0]]}</b> ~ <b>${D.dates[idx[idx.length-1]]}</b> · ${idx.length}개월`:'';
+    `<b>${_ymT(D.dates[idx[0]])}</b> ~ <b>${_ymT(D.dates[idx[idx.length-1]])}</b> · ${idx.length}개월`:'';
   document.getElementById('meta-bar').innerHTML=
     `<span>단위 <b>${D.unit}</b></span><span>지역 <b>${reg}</b></span><span>출처 <b>${D.source}</b></span>`;
   document.getElementById('src-note').innerHTML=
@@ -608,6 +613,9 @@ function renderAdvPermits(){
   }
   mx.push('</tbody></table>');
   document.getElementById('adv-permit-matrix').innerHTML=mx.join('');
+  /* 기준 줄 '시점 기준 · 출처'(날짜 두 단계, 백로그 36-1) — 인허가·입주물량 구역만 시점이 없었다. 출처는 바로 뒤 '자료:' 글이다. */
+  const pw=document.getElementById('permit-when'), pl=P.rows.length?P.rows[P.rows.length-1].p:'';
+  if(pw)pw.textContent=pl?pl.replace(/^(\d{4})H([12])$/,(_,y,h)=>y+'년 '+(h==='1'?'상':'하')+'반기')+' 기준 · ':'';
   const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
   const cp=['<table class="adv"><thead><tr><th>반기</th><th>'+reg+'</th></tr></thead><tbody>'];
   for(let i=P.rows.length-1;i>=Math.max(0,P.rows.length-12);i--){
@@ -641,11 +649,13 @@ function occFut(p){
 function occEst(row){ return row.e===1 || (row.e===undefined && occFut(row.p)); }
 function renderAdvOcc(){
   const O=ADV.occupancy, regs=O.regions;
+  const ow=document.getElementById('occ-when'), oa=O.rows.filter(r=>!occEst(r)).pop();   // 마지막 실적 분기(추정 앞)
+  if(ow)ow.textContent=oa?_qT(oa.p)+' 실적 기준 · ':'';
   let mx;
   if(TRANSP.occ){
     /* 추정 분기임을 색으로만 알리면 색각이상·스크린리더 사용자가 실적으로 읽는다.
        현재 분기가 이미 추정 구간이라 특히 그렇다(2026-08-08 감사). 글로도 붙인다. */
-    mx=['<table class="adv"><caption class="sr-only">지역별 분기 입주물량. 별표(*)가 붙은 분기는 착공 실적으로 추정한 값입니다.</caption><thead><tr><th scope="col">지역</th>'+O.rows.map(r=>`<th scope="col"${occEst(r)?' style="color:#9a7000" title="착공 기준 추정"':''}>${r.p}${occEst(r)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`).join('')+'</tr></thead><tbody>'];
+    mx=['<table class="adv"><caption class="sr-only">지역별 분기 입주물량. 별표(*)가 붙은 분기는 착공 실적으로 추정한 값입니다.</caption><thead><tr><th scope="col">지역</th>'+O.rows.map(r=>`<th scope="col"${occEst(r)?' style="color:#9a7000" title="착공 기준 추정"':''}>${r.p.slice(2)}${occEst(r)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`).join('')+'</tr></thead><tbody>'];
     regs.forEach((r,j)=>{
       mx.push(`<tr><td>${r}</td>`+O.rows.map(row=>{
         const cls=[occCls(r,row.v[j]),occEst(row)?'fut':''].filter(Boolean).join(' ');
@@ -656,7 +666,7 @@ function renderAdvOcc(){
     mx=['<table class="adv"><thead><tr><th>분기</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
     for(let i=O.rows.length-1;i>=0;i--){
       const row=O.rows[i];
-      mx.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row"${occEst(row)?' title="착공 기준 추정"':''}>${row.p}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`+
+      mx.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row"${occEst(row)?' title="착공 기준 추정"':''}>${row.p.slice(2)}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`+
         row.v.map((v,j)=>`<td class="${occCls(regs[j],v)}">${occFmt(v)}</td>`).join('')+'</tr>');
     }
   }
@@ -668,7 +678,7 @@ function renderAdvOcc(){
   const cp=['<table class="adv"><thead><tr><th>분기</th><th>'+reg+'</th></tr></thead><tbody>'];
   for(let i=end-1;i>=start;i--){
     const row=rows[i], v=row.v[ri];
-    cp.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row">${row.p}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th><td class="${occCls(reg,v)}">${occFmt(v)}</td></tr>`);
+    cp.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row">${row.p.slice(2)}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th><td class="${occCls(reg,v)}">${occFmt(v)}</td></tr>`);
   }
   cp.push('</tbody></table>');
   const b=null;   // 적정밴드 폐지(2026-08-07) — 기준선은 적정물량 하나
@@ -684,15 +694,17 @@ function wkCell(v){
 }
 /* --- 주간·월간 동향 (기본통계) — 표 + 막대 차트 공용 --- */
 const TREND={
-  week:{sel:'adv-week-reg',sel2:'adv-week-sgg',matrix:'adv-week-matrix',compact:'adv-week-compact',chart:'weekChart',col:'주간',lab:p=>p.slice(2),tick:l=>l.slice(3),periods:[['3개월',13],['1년',52],['3년',156],['전체',0]],map:'week-map',maplab:'week-maplab',unit:'전주 대비'},
-  month:{sel:'adv-month-reg',sel2:'adv-month-sgg',matrix:'adv-month-matrix',compact:'adv-month-compact',chart:'monthChart',col:'월간',lab:p=>p,tick:l=>l.slice(2),periods:[['3개월',3],['1년',12],['3년',36],['전체',0]],map:'month-map',maplab:'month-maplab',unit:'전월 대비'}
+  week:{sel:'adv-week-reg',sel2:'adv-week-sgg',matrix:'adv-week-matrix',compact:'adv-week-compact',chart:'weekChart',col:'주간',lab:_dS,tick:l=>l.replace(/^\d+\.(\d+)\.(\d+)$/,'$1/$2'),periods:[['3개월',13],['1년',52],['3년',156],['전체',0]],map:'week-map',maplab:'week-maplab',unit:'전주 대비'},
+  month:{sel:'adv-month-reg',sel2:'adv-month-sgg',matrix:'adv-month-matrix',compact:'adv-month-compact',chart:'monthChart',col:'월간',lab:_ymS,tick:l=>l,periods:[['3개월',3],['1년',12],['3년',36],['전체',0]],map:'month-map',maplab:'month-maplab',unit:'전월 대비'}
 };
 /* --- 시도 타일 지도 (빨강=상승 · 파랑=하락, 진할수록 변동 큼) --- */
 const SGG_QNAME={"a80703": "양주", "a80702": "동두천", "a80701": "포천", "a80603": "파주", "a80704": "의정부", "a80402": "구리", "a80401": "남양주", "a7010301": "서울 은평구", "a7010206": "서울 강북구", "a7010207": "서울 도봉구", "a7010208": "서울 노원구", "a7010302": "서울 서대문구", "a7010101": "서울 종로구", "a7010205": "서울 성북구", "a7010203": "서울 동대문구", "a7010204": "서울 중랑구", "a7010303": "서울 마포구", "a7010102": "서울 중구", "a7010103": "서울 용산구", "a7010201": "서울 성동구", "a7010202": "서울 광진구", "a7020102": "서울 강서구", "a7020101": "서울 양천구", "a7020105": "서울 영등포구", "a7020106": "서울 동작구", "a7020202": "서울 강남구", "a7020203": "서울 송파구", "a7020204": "서울 강동구", "a7020103": "서울 구로구", "a7020104": "서울 금천구", "a7020107": "서울 관악구", "a7020201": "서울 서초구", "a80403": "하남", "a80404": "광주", "a80601": "김포", "a908": "인천 검단구", "a909": "인천 서해구", "a907": "인천 계양구", "a902": "인천 영종구", "a906": "인천 부평구", "a901": "인천 제물포구", "a903": "인천 미추홀구", "a905": "인천 남동구", "a904": "인천 연수구", "a80303": "시흥", "a80304": "광명", "a80101": "과천", "a80105": "의왕", "a80104": "군포", "a80501": "이천", "a80502": "여주", "a80306": "오산", "a80201": "안성", "a80307": "평택", "c106": "속초", "c101": "춘천", "c103": "강릉", "c102": "원주", "c104": "동해", "c105": "태백", "c107": "삼척", "c313": "당진", "c306": "아산", "c206": "음성", "c203": "충주", "c204": "제천", "c307": "서산", "c312": "예산", "c302": "천안 동남구", "c303": "천안 서북구", "c20103": "청주 흥덕구", "c20104": "청주 청원구", "c311": "홍성", "c304": "공주", "b6": "세종", "c20101": "청주 상당구", "c20102": "청주 서원구", "c305": "보령", "c309": "계룡", "b404": "대전 유성구", "b405": "대전 대덕구", "c308": "논산", "b403": "대전 서구", "b402": "대전 중구", "b401": "대전 동구", "c404": "군산", "c405": "익산", "c402": "전주 완산구", "c403": "전주 덕진구", "c408": "김제", "c406": "정읍", "c407": "남원", "c606": "영주", "c609": "문경", "c605": "안동", "c60302": "포항 북구", "c608": "상주", "c602": "구미", "c611": "칠곡", "c60301": "포항 남구", "c604": "김천", "c610": "경산", "c607": "영천", "c601": "경주", "b304": "광주 북구", "b305": "광주 광산구", "b302": "광주 서구", "b301": "광주 동구", "b303": "광주 남구", "b205": "대구 북구", "b202": "대구 동구", "b203": "대구 서구", "b201": "대구 중구", "b206": "대구 수성구", "b208": "대구 달성군", "b207": "대구 달서구", "b204": "대구 남구", "b504": "울산 북구", "b501": "울산 중구", "b503": "울산 동구", "b505": "울산 울주군", "b502": "울산 남구", "c504": "나주", "c503": "순천", "c505": "광양", "c506": "무안", "c501": "목포", "c502": "여수", "c707": "밀양", "c709": "양산", "c70101": "창원 의창구", "c70102": "창원 성산구", "c706": "김해", "c70104": "창원 마산회원구", "c70103": "창원 마산합포구", "c702": "창원 진해구", "c703": "진주", "c705": "사천", "c704": "통영", "c708": "거제", "b10301": "부산 북구", "b10202": "부산 금정구", "b10204": "부산 기장군", "b10302": "부산 강서구", "b10303": "부산 사상구", "b10203": "부산 동래구", "b10201": "부산 해운대구", "b10304": "부산 사하구", "b10105": "부산 부산진구", "b10107": "부산 연제구", "b10108": "부산 수영구", "b10102": "부산 서구", "b10101": "부산 중구", "b10106": "부산 남구", "b10103": "부산 동구", "b10104": "부산 영도구", "c801": "제주", "c802": "서귀포", "a802031": "수원 장안구", "a802032": "수원 권선구", "a802033": "수원 팔달구", "a802034": "수원 영통구", "a801031": "성남 수정구", "a801032": "성남 중원구", "a801033": "성남 분당구", "a802021": "용인 처인구", "a802022": "용인 기흥구", "a802023": "용인 수지구", "a801021": "안양 만안구", "a801022": "안양 동안구", "a806021": "고양 덕양구", "a806022": "고양 일산동구", "a806023": "고양 일산서구", "a803011": "부천 원미구", "a803012": "부천 소사구", "a803013": "부천 오정구", "a803021": "안산 상록구", "a803022": "안산 단원구", "a803051": "화성 동탄구", "a803052": "화성 만세구", "a803053": "화성 병점구", "a803054": "화성 효행구"};
 /* 기준일 배너 — 지도 위 유일한 메타 표기(옛 map-lab 텍스트 줄은 중복이라 제거,
    사용자 선택으로 배너 쪽을 살림). sggOnly=시군구 지도만 이 주차일 때. */
 function mapDateChip(p,unit,sggOnly){
-  return '<div class="map-datechip"><span>📅 '+(sggOnly?'시군구 ':'')+'기준일 '+p+' · '+unit+'</span></div>';
+  /* 기준 줄 양식은 홈 지도 시세 모드(#tb-when)와 하나 — '9/28 기준 · 한국부동산원'·'2026년 8월 기준 · 한국부동산원'(2026-10-06). */
+  const when=/^\d{4}-\d{2}-\d{2}$/.test(p)?_md(p):_ymT(p);
+  return '<div class="map-datechip"><span>'+(sggOnly?'시군구 ':'')+when+' 기준 · 한국부동산원 · '+unit+'</span></div>';
 }
 function sggRanks(S,row,met){
   const arr=[];
@@ -1022,7 +1034,7 @@ function _next15(now){
 }
 function _fmtRel(n){
   const d=new Date(n*_DAY);
-  return (d.getUTCMonth()+1)+'월 '+d.getUTCDate()+'일('+'일월화수목금토'[d.getUTCDay()]+')';
+  return (d.getUTCMonth()+1)+'/'+d.getUTCDate()+'('+'일월화수목금토'[d.getUTCDay()]+')';   // 주간 '다음 발표 10/8(목)'과 같은 양식
 }
 function renderReleaseInfo(){
   _syncHolidays();
@@ -1126,7 +1138,7 @@ function drawOccChart(){
     return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');
   });
   mkChart('occChart',{type:'bar',
-    data:{labels:O.rows.map(r=>r.p),datasets:[{label:'입주물량',data:vals,backgroundColor:cols}]},
+    data:{labels:O.rows.map(r=>r.p.slice(2)),datasets:[{label:'입주물량',data:vals,backgroundColor:cols}]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${occFmt(c.raw)} 호`}}},
       scales:{x:{grid:{display:false},ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:10}},
@@ -1215,7 +1227,7 @@ function renderBubbleSec(){
   const B=ADV.bubble,J=STATS['전세가율'];
   if(!B||!B.conv||!J){sec.style.display='none';return;}
   const loan=B.loan.v;
-  const prdEl=document.getElementById('bubble-prd');if(prdEl)prdEl.textContent='기준 '+B.prd;
+  const prdEl=document.getElementById('bubble-prd');if(prdEl)prdEl.textContent=_ymT(B.prd)+' 기준';
   const latest=r=>{const s=J.series[r];if(!s)return null;for(let i=s.length-1;i>=0;i--)if(s[i]!=null)return s[i];return null;};
   /* 축 상한을 9%로 못박아 두면 위험선(월세수익률×2)이 그 위인 지역들이 전부
      같은 자리(98%)에 찍혀 서로 구분이 안 된다 — 실측 7곳이 겹쳤다(2026-08-08 감사).
@@ -1224,7 +1236,7 @@ function renderBubbleSec(){
     ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=latest(rg);
       return (cv==null||jr==null)?0:jr/100*cv*2;}))*1.04));
   const px=v=>Math.min(98,Math.max(0,v/MAX*100));
-  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:11px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+B.loan.p+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
+  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:11px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+_ymT(B.loan.p)+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
   let nHi=0,nLo=0,nNear=0;
   (B.regions||Object.keys(B.conv)).forEach(rg=>{
     const cv=B.conv[rg],jr=latest(rg);

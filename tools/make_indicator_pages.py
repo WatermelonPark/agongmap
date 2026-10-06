@@ -363,7 +363,7 @@ def build_jeonse(sts, today=None):
     j = sts['전세가율']
     dates, ser = j['dates'], j['series']
     li = jeonse_ref_index(j, JEONSE_NEED)
-    prd = dates[li]                       # '2026.05'
+    prd = SZ.month_text(dates[li])        # '2026년 5월' — 읽는 자리라 날짜 두 단계의 긴 꼴(백로그 36-1)
     today = today or KST.today_iso()    # dateModified 후보 — 내용이 옛 판과 같으면 main 의 keep_dates 가 옛 날짜를 둔다
 
     # 1년 전 칸은 인덱스 차(li-12)가 아니라 라벨로 찾는다 — 빠진 달이 있으면 13달 전과 견주게 된다(감사 #17).
