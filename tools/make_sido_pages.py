@@ -619,7 +619,7 @@ def summary_parts(z, row, calc, lab):
     ⚠️ 주간 갱신처럼 쓰지 않는다. 배치는 매일 돌지만 판정은 분기 실적으로 정해져 분기마다 바뀐다(2026-09-15 점검후속 ④).
     """
     d_tot = disp_tot(row, calc['H'])
-    # 판정(등급 이름)을 먼저 말하고 세대수 문구를 잇는다 — ctxt 가 괄호로 끝나서('…부족(3년 필요량의 139%)') 예전처럼 그 뒤에
+    # 판정(등급 이름)을 먼저 말하고 세대수 문구를 잇는다 — ctxt 가 괄호로 끝나서('…부족(1년 적정물량의 4.2배)') 예전처럼 그 뒤에
     # '(매우 부족)'을 붙이면 괄호가 겹쳤다(2026-10-05).
     return [('%s 아파트 공급 판정은 %s입니다. ' % (z, lab), 0), (row.get('ctxt') or signed(d_tot), 1),
             ('. 앞으로 %.0f년 착공 기준 공급 ' % (calc['H'] / 4.0), 0), ('%s세대' % num(rnd(row['fut'])), 1),
@@ -930,17 +930,17 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     title = page_title(z, calc, lab, SZ.latest_survey({'weekly': weekly}))
 
     Lq = SZ.qidx(int(calc['L'][:4]), int(calc['L'][-1]))
-    yrs_z = SZ.yearly_supply(stats, z, Lq, calc['H'])   # 머리 신호등·전망 막대가 같은 값
+    yrs_z = SZ.yearly_supply(stats, z, Lq, calc['H'])   # 해마다 막대(머리 아래)
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
              '<h1>%s 아파트 공급</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
-             '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>%s'
+             '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>'
              % (esc(z), esc(z), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
-                esc(calc.get('Ltxt') or calc['L']),
-                ('<div class="zlights"><span class="zl-cap">앞으로 해마다 들어올 입주</span>%s</div>' % lights_html(yrs_z, big=True))
-                if yrs_z else ''))
+                esc(calc.get('Ltxt') or calc['L'])))
+    # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
+    # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의
     # 빨간 경고 박스는 2026-09-13 대표 결정으로 이 블록의 참고 줄에 흡수했다 —
     # 인허가는 허수가 많아 경보로 보여주면 '참고로만'과 부딪친다. split_block() 참조.
@@ -987,8 +987,9 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
         # ⚠️ 부호를 뒤집지 않는다. tot는 '양수=부족'인데 signed()로 −를 붙이면
         # 부제의 등식(적정 − 공급 ∓ 재고)으로 검산했을 때 부호가 반대가 된다
         # (2026-08-07 감사).
-        ('누적 순부족', ('%s세대 부족' % num(d_tot)) if d_tot >= 0
-         else ('%s세대 여유' % num(-d_tot)), eq),
+        # 여유 지역은 제목도 '누적 여유'다 — '누적 순부족 13,237세대 여유'는 제목과 값이 반대 말을 했다(2026-10-06 리뷰).
+        (('누적 순부족', '%s세대 부족' % num(d_tot)) if d_tot >= 0
+         else ('누적 여유', '%s세대 여유' % num(-d_tot))) + (eq,),
         (('지난 %s 쌓인 부족' % win_y, num(-d_inow) + '세대',
           '준공이 적정물량보다 적어 쌓인 몫(멸실을 뺀 값)') if d_inow < 0 else
          ('지난 %s 남은 재고' % win_y, num(d_inow) + '세대',
@@ -1076,7 +1077,8 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
     # 인허가가 착공보다 얼마나 많은지는 매 회차 데이터로 잰다(전수 리뷰 #112 — '15%쯤'이 박혀 있었다). 잴 수 없으면 구절을 뺀다.
     pover = SZ.permit_over_start_pct(stats)
     pover_txt = ('같은 해 착공보다 %d%%쯤 많고 ' % pover) if pover is not None else ''
-    h.append('<section><div class="wrap"><h2>어떻게 계산했나</h2>'
+    # 접어 둔다(2026-10-06 리뷰·대표 결정) — 펼친 채로는 375px 에서 865px 라 시세·시군구 표·다른 지역을 아래로 밀었다.
+    h.append('<section><div class="wrap"><details class="zhow"><summary><h2>어떻게 계산했나</h2></summary>'
              '<p>칸의 숫자는 그 분기에 <b>준공된</b> 아파트 세대수입니다(국토교통부 주택건설 준공실적). '
              '아직 오지 않은 분기는 <b>착공 실적을 %(lead)s 뒤로 밀어</b> 추정했습니다 — '
              '착공한 것의 %(convp)d%%가 %(lead)s 뒤 준공되는 게 %(conv_from)d년 이후 실측입니다. '
@@ -1096,7 +1098,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
              '순위 계산에는 넣지 않습니다 — 결과값이라 공급에서 빼면 이중으로 세고 부호도 반대가 됩니다. '
              '판정을 읽는 맥락으로만 씁니다.</p>'
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
-             '</div></section>'
+             '</details></div></section>'
              # 전환율·기준 연도는 모델 상수에서 읽는다(2026-09-23 점검 — '96%·15년치'가 박혀 있었다). 기준 연도는 CONV 를 잰
              # 첫 착공 연도(CONV_START_FROM)다 — 착공÷인허가를 재는 CONV_FROM(2012)이 아니다(전수 리뷰 #111).
              % {'lead': lead_y, 'convp': round(calc['conv'] * 100), 'conv_from': SZ.CONV_START_FROM,
@@ -1136,7 +1138,7 @@ def card_html(o):
 # ── 부족 정도 막대(2026-10-05 대표 요청 — 단위는 같은 날 안 A′로 '1년 적정물량의 N배') ─────────────────────────────────────────────────────────
 # '퍼센트가 클수록 나쁜지', '부족 17%와 여유 19%가 어떻게 다른지'가 숫자만으로는 안 보였다. 칸마다 한 축(왼쪽 남음 ↔ 오른쪽
 # 모자람) 위에 그 지역의 순부족비를 점으로 찍는다. 구간 경계는 등급 컷(sido_zones.GRADE_CUTS)에서, 색은 등급 색(GRADE_COLOR)에서
-# 만든다 — 손으로 적지 않는다. 축 양끝(남음 100% · 모자람 200%)을 넘는 값은 끝에 붙인다.
+# 만든다 — 손으로 적지 않는다. 축 양끝(비율 −1 · 2 = 남음 3배 · 모자람 6배)을 넘는 값은 끝에 붙인다.
 GAUGE_LO, GAUGE_HI = -1.0, 2.0
 
 
@@ -1197,13 +1199,16 @@ def outlook_cells(yrs, ref_pct=None, ref_lab=None):
     """칸 묶음(허브·리포트 공용). ref_pct 를 주면 '3년 너머(인허가 환산, 참고)' 칸을 옅게 하나 더한다."""
     line = 100.0 / OUT_MAX
     cells = []
-    items = [(y['pct'], '%d년 차' % y['n'], '') for y in yrs]
+    # 해마다 칸은 동그라미와 같은 색·이름(light_of)을 막대 아래 글자로도 단다(색만으로 가르지 않는다). '… 너머' 참고 칸은 회색이다 —
+    # 판정에 넣지 않는 참고값이고, 바로 위 줄의 강조('필요량에 못 미칩니다', 문턱 PWARN_CUT 95%)와 신호등 문턱(70·130%)이 달라
+    # 82% 가 '못 미칩니다' 아래에서 노랑으로 칠해졌다(2026-10-06 리뷰).
+    items = [(y['pct'], '%d년 차 · %s' % (y['n'], light_of(y['pct'])[1]), '', light_of(y['pct'])[0]) for y in yrs]
     if ref_pct is not None:
-        items.append((ref_pct, ref_lab, ' zo-ref'))
-    for pct, lab, cls in items:
+        items.append((ref_pct, ref_lab, ' zo-ref', 'na'))
+    for pct, lab, cls, key in items:
         cells.append('<span class="zo-i%s"><span class="zo-c"><span class="zo-b %s" style="height:%.1f%%"></span>'
                      '<span class="zo-l" style="bottom:%.1f%%"></span></span><span class="zo-p">%d%%</span><small>%s</small></span>'
-                     % (cls, light_of(pct)[0], _ob(pct), line, pct, esc(lab)))
+                     % (cls, key, _ob(pct), line, pct, esc(lab)))
     return ''.join(cells)
 
 
@@ -1226,16 +1231,12 @@ def light_ranges():
     return ' · '.join('%s %s' % (r, lab) for _, r, lab in SZ.light_legend())
 
 
-def lights_html(yrs, big=False):
-    """동그라미 세 개(장식이 아니다 — role=img 와 aria-label 로 해마다 상태·퍼센트를 말한다). big 은 리포트 머리용(아래에 상태 글자)."""
+def lights_html(yrs):
+    """동그라미 세 개(장식이 아니다 — role=img 와 aria-label 로 해마다 상태·퍼센트를 말한다). 지역 칸(허브·리포트 '다른 지역')용."""
     if not yrs:
         return ''
-    dots = []
-    for y in yrs:
-        k, lab = light_of(y['pct'])
-        d = '<span class="zl-d %s">%d</span>' % (k, y['n'])
-        dots.append('<span class="zl-i">%s<small>%d년 차 %s</small></span>' % (d, y['n'], lab) if big else d)
-    return '<span class="zl%s" role="img" aria-label="%s">%s</span>' % (' zl-lg' if big else '', esc(lights_aria(yrs)), ''.join(dots))
+    dots = ''.join('<span class="zl-d %s">%d</span>' % (light_of(y['pct'])[0], y['n']) for y in yrs)
+    return '<span class="zl" role="img" aria-label="%s">%s</span>' % (esc(lights_aria(yrs)), dots)
 
 
 def lights_legend_html(n):
@@ -1243,8 +1244,8 @@ def lights_legend_html(n):
     yrs = '·'.join(str(i) for i in range(1, n + 1))
     spans = ''.join('<span class="zg-l"><span class="zl-d %s" aria-hidden="true"></span>%s %s</span>' % (k, r, lab)
                     for k, r, lab in SZ.light_legend())
-    return ('<p class="zl-legend"><span class="zl-cap">신호등 %s = 앞으로 %s년 차 각 해 입주가 1년 적정물량의</span>%s</p>'
-            % (yrs, yrs, spans))
+    return ('<p class="zl-legend"><span class="zl-cap">동그라미 %s: %s</span>%s</p>'
+            % (yrs, esc(SZ.LIGHT_CAP % yrs), spans))
 
 
 def outlook_block(yrs, pbr=None, H=None):
@@ -1256,7 +1257,7 @@ def outlook_block(yrs, pbr=None, H=None):
     beyond = '%g년 너머' % ((SZ.LEAD_Q if H is None else H) / 4.0)   # split_text 의 '… 너머' 줄과 같은 연수
     return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(1년 적정물량 대비)</h3>'
             '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'
-            '<p class="zo-note">가로선이 적정물량(100%%)이고, 막대 색은 위 신호등과 같습니다(%s). %s. '
+            '<p class="zo-note">가로선이 1년 적정물량(100%%)이고, 막대 색은 지역 칸의 동그라미와 같습니다(%s). 회색은 참고값입니다. %s. '
             '%s는 최근 인허가를 착공으로 환산한 참고값이라 판정에는 넣지 않습니다.</p></div>'
             % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond), esc(light_ranges()), esc(spans), esc(beyond)))
 

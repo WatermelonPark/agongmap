@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v179';
+var HOME_STATS_BUILD='v180';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -716,12 +716,15 @@ function rankTables(S,unit,k){
   let met=RANKMET[k]||'ma';
   if(met==='wo'&&!hasWo)met='ma';        // 주간엔 월세가 없다
   const MLAB={ma:'매매',je:'전세',wo:'월세'};
-  const cr=sggRanks(S,cur,met), pr=prev?sggRanks(S,prev,met).rk:null;
+  const cr=sggRanks(S,cur,met), pv=prev?sggRanks(S,prev,met):null, pr=pv?pv.rk:null;
   const val={};
   ['ma','je','wo'].forEach(m=>{ val[m]={}; S.codes.forEach((c,i)=>{ val[m][c]=(cur[m]||[])[i]; }); });
-  function dcell(c){
+  /* 순위 변화는 그 표의 순위로 센다 — 하락 표는 '많이 내린 순'(오름차순) 순위다. 예전엔 두 표 모두 상승 순위로 세서 하락 표의
+     화살표가 거꾸로 나왔다(천안 동남구: 하락 4위 → 8위인데 '▲4위', 2026-10-06 리뷰). */
+  function dcell(c,dn){
     if(!pr||!(c in pr))return '<span class="rk-new">NEW</span>';
-    const d=pr[c]-cr.rk[c];
+    const was=dn?pv.order.length-pr[c]+1:pr[c], now=dn?cr.order.length-cr.rk[c]+1:cr.rk[c];
+    const d=was-now;
     if(d>0)return '<span class="rk-up">▲'+d+'위</span>';
     if(d<0)return '<span class="rk-dn">▼'+(-d)+'위</span>';
     return '<span class="rk-same">–</span>';
@@ -733,15 +736,15 @@ function rankTables(S,unit,k){
     return '<td class="'+cls.trim()+'">'+(v==null?'·':pv2(v)+'%')+'</td>';
   }
   const cols=hasWo?['ma','je','wo']:['ma','je'];
-  function tbl(title,items,base){
+  function tbl(title,items,base,dn){
     const th=cols.map(m=>'<th class="rk-sort'+(m===met?' on':'')+'" role="button" tabindex="0" data-k="'+k+'" data-met="'+m+'" title="'+MLAB[m]+' 기준으로 정렬">'+MLAB[m]+'</th>').join('');
     const h=['<div class="rank-box"><div class="rank-h">'+title+'</div><div class="rank-wrap"><table class="rank-tbl'+(hasWo?' wide':'')+'">',
       '<thead><tr><th>순위</th><th>지역</th>'+th+'<th>'+unit+'</th></tr></thead><tbody>'];
     items.forEach(([c,v],i)=>{
       const rank=base+i;
-      const medal=rank<=3?'<span class="rk-medal">'+['🥇','🥈','🥉'][rank-1]+'</span>':'';
+      const medal=(!dn&&rank<=3)?'<span class="rk-medal">'+['🥇','🥈','🥉'][rank-1]+'</span>':'';   // 많이 내린 곳에는 메달을 달지 않는다
       h.push('<tr><td>'+medal+rank+'</td><td><a class="rk-go" href="#stats-market-'+k+'~'+c+'" data-code="'+c+'">'+SGG_QNAME[c]+'</a></td>'+
-        cols.map(m=>vcell(c,m)).join('')+'<td>'+dcell(c)+'</td></tr>');
+        cols.map(m=>vcell(c,m)).join('')+'<td>'+dcell(c,dn)+'</td></tr>');
     });
     h.push('</tbody></table></div></div>');
     return h.join('');
@@ -749,7 +752,7 @@ function rankTables(S,unit,k){
   const basis='<span style="font-weight:600;color:var(--muted);font-size:11px">'+MLAB[met]+' 기준</span>';
   return '<div class="map-rank">'+
     tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.slice(0,10),1)+
-    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1)+
+    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1,true)+
     '</div>';
 }
 /* 지도 '옆으로 밀어 전체 보기' 안내 — 상자가 지도보다 좁을 때만. 숨은 상태(폭 0)에서는 판정하지 않고, 보일 때
@@ -1101,7 +1104,8 @@ function drawPermitChart(){
     plugins:[{id:'permitRef',afterDraw(ch){
       if(!ref)return;
       const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
-      [[ref[0]/2,'#3a7bd5','과거 저점 ½'],[ref[1]/2,'#e0564a','과거 고점 ½']].forEach(([v,c,t])=>{
+      // 선 색은 막대·범례와 같다 — 저점 쪽 빨강, 고점 쪽 파랑(예전엔 거꾸로였다, 2026-10-06 리뷰)
+      [[ref[0]/2,'#e0564a','과거 저점 ½'],[ref[1]/2,'#3a7bd5','과거 고점 ½']].forEach(([v,c,t])=>{
         if(v<ya.min||v>ya.max)return;
         const y=ya.getPixelForValue(v);
         ctx.save();ctx.strokeStyle=c;ctx.setLineDash([5,4]);ctx.lineWidth=1.5;

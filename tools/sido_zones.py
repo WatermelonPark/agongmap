@@ -97,7 +97,7 @@ PWARN_CUT = 0.95
 
 def pbr_pct(pbr):
     """3년 너머 참고 신호(pbr)를 화면 퍼센트 정수로 — 리포트 셋째 줄 '필요량의 N%'가 찍는 값."""
-    return int(round(100 * pbr))
+    return half_up(100 * pbr)      # 입주 ÷ 적정 퍼센트는 half_up 하나로(/moveins/ pct_shown·occ_level 과 같은 반올림, 2026-10-06 리뷰)
 
 
 def pbr_thin(pbr):
@@ -139,8 +139,9 @@ MULT_MIN = 0.1     # 이보다 작으면 방향을 말하지 않는다('거의 �
 
 
 def mult_str(m):
-    """배수 숫자 → 화면 글('4.2배'). 소수 한 자리를 늘 적는다(3.0배 — 컷 '3배'와 같은 값임을 범례가 말한다)."""
-    return '%.1f배' % m
+    """배수 숫자 → 화면 글('4.2배'). 소수 한 자리를 늘 적는다(3.0배 — 컷 '3배'와 같은 값임을 범례가 말한다).
+    0.1배에 못 미치면 '0.1배 미만'(2026-10-06 리뷰 — 충북 281세대가 '부족(필요량과 거의 같음)'으로 한 줄에 두 말을 했다)."""
+    return '%.1f배' % m if m >= MULT_MIN else '%.1f배 미만' % MULT_MIN
 
 
 def cut_mult(c, H=None):
@@ -176,7 +177,7 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     # 2026-10-05 대표 결정(안 A′): 쌓인 부족·여유를 '1년 적정물량의 N배'로 적는다(need_mult). 부족률 퍼센트는 100% 를 넘고 음수가
     # 되며 해마다 입주 신호등의 퍼센트와 뜻이 반대라 읽기 어려웠다. 주어(모자란 집·남는 집)와 기준(1년 적정물량)을 함께 밝힌다.
     m = need_mult(ratio, H)
-    sign = 0 if m < MULT_MIN else (1 if ratio > 0 else -1)
+    sign = 1 if ratio > 0 else (-1 if ratio < 0 else 0)   # 방향은 비율 부호 그대로(작으면 '0.1배 미만' — mult_str)
     if not full:
         if sign > 0:
             return '1년 적정물량의 %s 부족' % mult_str(m)     # 허브 목록·홈 요약 대체 문구 — 연수는 말하지 않는다
@@ -433,7 +434,7 @@ def month_back(dates, i, k):
 
 
 def card_parts(dtot, ratio, H=None):
-    """홈·허브 카드의 세 조각: ('686,396세대', '부족', '3년 필요량의 60%').
+    """홈·허브 카드의 세 조각: ('686,396세대', '부족', '1년 적정물량의 1.8배')(2026-10-05 안 A′ — 아래 퍼센트 이력은 옛 표기다).
 
     2026-10-05 대표 요청: '…60%만큼'은 말이 중간에 끊겨 보였고 무엇의 60%인지가 흐렸다. 이 60%는 앞의 세대수(부족분)가
     3년 필요량의 몇 %인지다 — 이어 붙일 때 세대수 뒤 괄호로 묶어(card_text) '686,396세대 부족(3년 필요량의 60%)'로 쓴다.
@@ -451,7 +452,7 @@ def card_parts(dtot, ratio, H=None):
     yrs = '%g년' % (H / 4.0)
     m = need_mult(ratio, H)         # 판정 문구와 같은 배수(컷을 넘지 않는 반올림)
     # 2026-10-05 안 A′: 괄호 안은 앞 세대수가 1년 적정물량의 몇 배인지다('686,396세대 부족(1년 적정물량의 1.8배)')
-    share = '1년 적정물량의 %s' % mult_str(m) if m >= MULT_MIN else ratio_text(ratio, H)
+    share = '1년 적정물량의 %s' % mult_str(m) if ratio else ratio_text(ratio, H)
     if dtot > 0:
         return '%s세대' % format(dtot, ','), '부족', share
     if dtot < 0:
@@ -460,8 +461,8 @@ def card_parts(dtot, ratio, H=None):
 
 
 def card_text(dtot, ratio, H=None):
-    """홈·허브 카드의 한 줄: '686,396세대 부족(3년 필요량의 60%)'(card_parts 를 잇는다 — 괄호 안이 앞 세대수가 필요량의
-    몇 %인지다, 2026-10-05 대표 요청). 순부족이 0이면 비율 조각만. 여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다."""
+    """홈·허브 카드의 한 줄: '686,396세대 부족(1년 적정물량의 1.8배)'(card_parts 를 잇는다 — 괄호 안이 앞 세대수가 1년 적정물량의
+    몇 배인지다, 2026-10-05 안 A′). 순부족이 0이면 비율 조각만. 여기서만 만들어 결과 행 'ctxt'로 굽고 화면은 읽기만 한다."""
     # 기본값은 부를 때 모델 상수에서 읽는다(정의 때 굳히면 창·리드 상수를 바꾼 모듈에서 옛 연수가 남는다, 전수 리뷰 #19).
     H = LEAD_Q if H is None else H
     num, dirw, share = card_parts(dtot, ratio, H)
@@ -502,10 +503,10 @@ def display_ints(row, H):
 
 def zone_texts(row, H):
     """한 판정 단위의 화면 문구 — 결과 행에 구워 싣는 필드들. 화면(JS)은 읽기만 한다.
-      ctxt  '686,396세대 부족(3년 필요량의 60%)'        (허브·지도 이름표·데스크톱 카드)
+      ctxt  '686,396세대 부족(1년 적정물량의 1.8배)'        (허브·지도 이름표·데스크톱 카드)
       cnum  '686,396세대'                            (카드 둘째 줄 — 모바일은 이것만)
       cdir  '부족' | '여유' | ''                      (넓은 화면 카드에서 세대수 뒤에)
-      cpct  '3년 필요량의 60%'
+      cpct  '1년 적정물량의 1.8배'
       ftxt  '3년 필요량 1,140,000 − 착공 기반 입주 추정 714,127 + 지난 4년 쌓인 부족 260,523 = 686,396세대 부족'
             (홈 카드 ⓘ '어떻게 계산했나' 한 줄, C4①)
     """
@@ -539,7 +540,7 @@ def yearly_supply(stats, z, L, H=None):
         g = qs[k:k + 4]
         f = sum(st.get(i - LEAD_Q, 0) * CONV for i in g)
         out.append({'n': k // 4 + 1, 'from': qkey(g[0]), 'to': qkey(g[-1]),
-                    'pct': int(round(100.0 * f / (ref * len(g))))})
+                    'pct': half_up(100.0 * f / (ref * len(g)))})   # 반올림은 occ_level 계약과 같은 half_up
     return out
 
 
@@ -691,7 +692,9 @@ def occ_level(shown_pct):
 # 판정 등급 컷(1년 적정물량의 1.5배)을 빌리지 않는다: 판정은 지난 4년 덜 지은 몫까지 더한 3년 합계라 해마다의 입주와 다른 양이다.
 # 지역 허브·시도 리포트(make_sido_pages)와 홈 판정 카드(split_data 가 year_lights·lights_aria·light_legend 를 실어 줌)가
 # 이 한 곳을 읽는다 — 홈 스크립트에 문턱·이름을 다시 적지 않는다.
-LIGHT = {-1: ('lo', '부족'), 0: ('ok', '적정'), 1: ('hi', '여유')}
+# 이름은 판정 낱말(부족·균형·여유)과 겹치지 않게 '적음·보통·많음'이다(2026-10-06 대표 결정 — 리뷰에서 경기 한 칸이 글로는 '부족',
+# 신호등은 '적정', 막대는 '균형'으로 세 낱말이 겹쳐 읽혔다). 신호등은 판정이 아니라 그해 들어올 입주의 많고 적음이다.
+LIGHT = {-1: ('lo', '적음'), 0: ('ok', '보통'), 1: ('hi', '많음')}
 
 
 def light_of(pct):
@@ -710,9 +713,14 @@ def light_legend():
     return [(k, rng[k], lab) for k, lab in (LIGHT[-1], LIGHT[0], LIGHT[1])]
 
 
+LIGHT_CAP = '앞으로 %s년 차 각 해에 들어올 입주(1년 적정물량 대비)'   # 범례 머리(허브·홈) — %s 는 '1·2·3'
+
+
 def lights_aria(yrs):
-    return '해마다 입주 신호등: ' + ', '.join('%d년 차 %s, 1년 적정물량의 %d%%' % (y['n'], light_of(y['pct'])[1], y['pct'])
-                                         for y in yrs)
+    """읽어 줄 글 — 숫자를 앞에 두고 짧게('해마다 입주(1년 적정물량 대비): 1년 차 37% 적음, …'). 2026-10-06 리뷰: 옛 글은
+    '1년 적정물량의'를 세 번 되풀이해 링크 이름이 130자가 넘었다."""
+    return '해마다 입주(1년 적정물량 대비): ' + ', '.join('%d년 차 %d%% %s' % (y['n'], y['pct'], light_of(y['pct'])[1])
+                                                    for y in yrs)
 
 
 def year_lights(stats, z, L, H=None):
@@ -925,8 +933,8 @@ def calc(stats):
             'z': z, 'region': REGION[z], 'agg': z in AGG, 'est': z in EST,
             'ref': ref, 'inow': round(inow), 'fut': round(fut), 'need': need,
             'tot': round(tot), 'ratio': round(ratio, 4), 'grade': g,
-            # 저장되는 ratio(소수 넷째 자리)로 만든다. 반올림 전 값으로 만들면 퍼센트 경계에서
-            # 화면의 문구와 저장된 숫자가 1%p 어긋날 수 있다.
+            # 저장되는 ratio(소수 넷째 자리)로 만든다. 반올림 전 값으로 만들면 배수 경계(0.1배)에서
+            # 화면의 문구와 저장된 숫자가 한 칸 어긋날 수 있다.
             'rtxt': ratio_text(round(ratio, 4), H),
             # 화면에 찍는 순부족 정수(카드의 적정·공급·재고 정수로 검산되는 값). 카드 문구는 refresh_texts 가 붙인다.
             # 저장되는 fut·inow(round 결과)와 같은 정수로 만든다 — 반올림 전 값으로 하면

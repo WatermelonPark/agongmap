@@ -832,7 +832,7 @@ table.adv thead th:first-child{text-align:center}
   /* 판정 카드 3칸(홈 마케팅 검수 B2·MOB-7·C4①, 2026-09-27). 두 줄 고정형: '전국 [부족]' / '686,396세대 →'.
      예전엔 한 칸 안에서 flex-wrap 으로 줄이 바뀌어 375px 에서 수도권만 배지가 둘째 줄로 내려가 세 칸이 어긋났고
      칸 높이가 141px 였다. 이제 첫 줄은 줄바꿈 금지, 아주 좁은 폭(359px 이하)에서는 세 칸 모두 배지를 둘째 줄로 내려
-     정렬을 맞춘다. 넓은 화면(561px 이상)은 세대수 뒤 '부족'과 셋째 줄 '3년 필요량의 60%만큼'까지 보인다 — 모바일은
+     정렬을 맞춘다. 넓은 화면(561px 이상)은 세대수 뒤 '부족'과 셋째 줄 '1년 적정물량의 1.8배'까지 보인다 — 모바일은
      칸이 좁아 둘을 화면에서 감추되 스크린리더에는 남긴다(.sr-only 와 같은 방식). ⓘ(칸 오른쪽 위, 링크 밖의 형제
      버튼)는 식 한 줄을 편다(C4①) — 첫 줄은 그 자리만큼 오른쪽을 비운다. */
   .map-agg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;padding:1px;margin:0 0 8px}
@@ -847,7 +847,8 @@ table.adv thead th:first-child{text-align:center}
   .agg-l1 b{font-weight:600}
   .agg-l1 .sc-tier{width:auto;flex:none;padding:2px 5px;line-height:1.3}
   /* 해마다 입주 신호등(home-app.js aggLights, 2026-10-05) — 허브 칸과 같은 .zl·.zl-d 를 홈 글자 하한(13px)으로 키운다. */
-  #view-home .agg-l1 .zl{margin-left:0;gap:3px}
+  #view-home .agg-lt{display:flex}
+  #view-home .agg-lt .zl{margin-left:0;gap:3px}
   #view-home .zl-d{width:21px;height:21px;font-size:13px}
   #view-home .agg-lk{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;margin:0 0 8px;font-size:13px;color:var(--ink2);line-height:1.4;text-align:left}
   #view-home .agg-lk-c{flex:0 0 100%}
@@ -925,8 +926,13 @@ table.adv thead th:first-child{text-align:center}
      (카드가 그려질 때 아래 단추·요약이 밀리지 않게). 지도 = 예전 예약 − (카드 + 8px).
      데스크톱 2단 1024~1047px 은 오른쪽 단(480px, #40) 때문에 왼쪽 단이 지도 상한 480px 보다 좁아(1024px 에서 456px) 지도가 폭을
      따라 줄어든다 — 그 구간만 폭을 따르는 식으로 잡는다(1024px 실측 643px, 예전 고정 762 예약은 32px 남았다). */
-  #agg-wrap:empty{min-height:79px;margin-bottom:8px}
-  @media(min-width:375px) and (max-width:560px){#agg-wrap:empty{min-height:60.4px}}
+  /* 카드 셋 + 신호등 범례 한 줄의 예약(2026-10-06 재측정 — 배지 줄·신호등 줄·세대수 줄, 범례는 폭에 따라 2~4줄). 예전 79·60.4px
+     예약은 신호등을 넣은 뒤 그대로라 첫 화면에서 지도가 67~85px 밀렸다(CLS 0.04~0.05, 리뷰). 값은 Chromium 실측. */
+  #agg-wrap:empty{min-height:149.4px;margin-bottom:8px}
+  @media(min-width:425px) and (max-width:560px){#agg-wrap:empty{min-height:130.8px}}
+  @media(min-width:375px) and (max-width:424px){#agg-wrap:empty{min-height:149px}}
+  @media(min-width:359px) and (max-width:374px){#agg-wrap:empty{min-height:167.5px}}
+  @media(max-width:358px){#agg-wrap:empty{min-height:187.7px}}
   #map-wrap:not([data-done]){min-height:675.3px}
   @media(max-width:560px){#map-wrap:not([data-done]){min-height:706px}}
   @media(max-width:528px){#map-wrap:not([data-done]){min-height:calc(134.5vw - 4.2px)}}
@@ -1200,8 +1206,10 @@ table.adv thead th:first-child{text-align:center}
   /* 이달의 통계 입구 — 글자 링크였는데 2026-10-05 대표 요청으로 버튼(흰 바탕·먹색 테두리). 바로 위 '시도별로 자세히 보기'(먹색
      채움)가 주 버튼이고 이쪽은 보조 버튼이다. 높이는 테두리 두께만큼 패딩을 줄여 위 버튼과 같다. 시세 탭 머리(.shero-link)와 같은 모양. */
   .home-sec p.tb-sub{margin:8px auto 0}
-  .tb-sub a,.shero .shero-link a{display:block;text-align:center;background:#fff;color:var(--ink);border:1.5px solid var(--ink);
-    text-decoration:none;font-size:14.5px;font-weight:600;padding:12.5px 16px;border-radius:var(--r-touch);transition:.15s}
+  /* 크기(높이 52px·15px·가운데 정렬)는 큰 버튼 한 규칙이 정한다 — 여기서 크기를 다시 적으면 같은 특이도라 뒤에 오는 이 규칙이
+     이겨 시세 탭 머리 버튼만 14.5px·block 이 됐다(2026-10-06 리뷰). 모양(흰 바탕·테두리)만 둔다. */
+  .tb-sub a,.shero .shero-link a{background:#fff;color:var(--ink);border:1.5px solid var(--ink);
+    text-decoration:none;transition:.15s}
   .tb-sub a:hover,.shero .shero-link a:hover{background:var(--paper2)}
   .tb-sub a:active,.shero .shero-link a:active{transform:scale(.98)}
   /* 설치 안내(C10①) — 하단 탭바(62px) 바로 위에 뜨는 한 번짜리 알림. 본문 흐름에 끼우면 읽던 자리가 밀린다(CLS). */
@@ -1304,21 +1312,23 @@ table.adv thead th:first-child{text-align:center}
   .zl{display:inline-flex;gap:4px;margin-left:auto;flex:none}
   .zl-d{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
     font-size:11px;font-weight:600;line-height:1;color:#fff;font-style:normal;font-variant-numeric:tabular-nums}
-  .zl-d.lo{background:#d0382b}
-  .zl-d.ok{background:#f2b705;color:var(--ink)}
-  .zl-d.hi{background:#2e9b57}
+  /* 색만으로 가르지 않는다(2026-10-06 리뷰 — 적록색약에서 빨강·초록이 같은 올리브로 보였다): 적음은 속 빈 원(빨간 테두리),
+     보통은 채운 노랑(어두운 테두리 — 밝은 바탕과 3:1), 많음은 채운 진초록(흰 숫자 4.5:1 이상). */
+  .zl-d.lo{background:#fff;color:#b8322a;box-shadow:inset 0 0 0 2px #c0392b}
+  .zl-d.ok{background:#f2b705;color:var(--ink);box-shadow:inset 0 0 0 1px #9a7300}
+  .zl-d.hi{background:#1e7a43}
   .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:12px;color:var(--ink2)}
   .zl-legend .zl-cap{flex:0 0 100%}
   .zl-legend .zl-d{width:12px;height:12px}
-  .zlights{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;margin-top:10px}
-  .zlights .zl-cap{font-size:13px;color:var(--ink2)}
-  .zl-lg{gap:14px;margin-left:0}
-  .zl-lg .zl-i{display:flex;flex-direction:column;align-items:center;gap:4px}
-  .zl-lg .zl-d{width:30px;height:30px;font-size:14px}
-  .zl-lg small{font-size:12px;color:var(--ink2);white-space:nowrap}
+  /* 시도 리포트 '어떻게 계산했나'는 접어 둔다(make_sido_pages, 2026-10-06) — 제목 줄 전체가 누름 면(44px). */
+  .zhow summary{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;list-style:none}
+  .zhow summary::-webkit-details-marker{display:none}
+  .zhow summary h2{margin:0}
+  .zhow summary::after{content:'펼치기 ▾';font-size:13px;color:var(--ink2)}
+  .zhow[open] summary::after{content:'접기 ▴'}
   .zlinks a b{font-weight:600}
-  .zlinks a i .zk{white-space:nowrap}   /* '(3년 필요량의 139%)' 괄호 덩어리는 한 줄로(make_sido_pages.card_html, 2026-10-05) */
-  /* 부족률 막대(make_sido_pages.gauge_html, 2026-10-05) — 칸 폭 전체의 한 줄. 바탕(등급 구간 색)은 생성기가 등급 컷·등급 색으로 굽는다. */
+  .zlinks a i .zk{white-space:nowrap}   /* '(1년 적정물량의 4.2배)' 괄호 덩어리는 한 줄로(make_sido_pages.card_html, 2026-10-05) */
+  /* 부족 정도 막대(make_sido_pages.gauge_html, 2026-10-05) — 칸 폭 전체의 한 줄. 바탕(등급 구간 색)은 생성기가 등급 컷·등급 색으로 굽는다. */
   .zlinks a .zg{position:relative;flex:0 0 100%;height:6px;margin:4px 0 2px}
   .zlinks a .zg-m{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink)}
   /* 해마다 입주 전망(make_sido_pages.outlook_cells, 2026-10-05) — 세 칸(+ 리포트는 '3년 너머' 참고 칸). 막대 높이는 적정의 1.5배까지,
@@ -1331,7 +1341,8 @@ table.adv thead th:first-child{text-align:center}
   .zo-b{position:absolute;left:0;right:0;bottom:0}
   .zo-b.lo{background:#d0382bb3}
   .zo-b.ok{background:#f2b705b3}
-  .zo-b.hi{background:#2e9b57b3}
+  .zo-b.hi{background:#1e7a43b3}
+  .zo-b.na{background:#9aa5a3b3}   /* '… 너머' 참고 칸 — 판정 밖 참고값이라 색을 매기지 않는다 */
   .zo-l{position:absolute;left:-3px;right:-3px;height:0;border-top:1.5px solid var(--ink)}
   .zo-ref .zo-b{opacity:.45}
   .zo-ref .zo-p,.zo-ref small{color:var(--muted);font-weight:500}

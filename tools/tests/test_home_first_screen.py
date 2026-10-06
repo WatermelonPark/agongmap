@@ -442,7 +442,7 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     button(aria-expanded·aria-controls) — 누르면 식 한 줄이 펼쳐지고 다시 누르면 접힌다(기본은 접힘). 옛 캐시는 ⓘ 없음.
 
     변이(각각 확인): ⓘ 를 </a> 앞(링크 안)으로 옮기면 첫 단정, aggHow 가 hidden 을 안 바꾸면 토글 단정, 카드 둘째 줄이 ctxt
-          통째를 쓰면(모바일 두 줄 고정이 깨짐) 세대수 단정이, aggCard 가 yl 이 있어도 배지를 그리면 신호등 단정이 빨개진다.
+          통째를 쓰면(모바일 두 줄 고정이 깨짐) 세대수 단정이, aggCard 가 신호등 줄에 배지를 빼면(560px 이하에서 '부족·여유'가 사라진다) 신호등 단정이 빨개진다.
     픽스처: 09-26 라이브 수도권 카드(349,029세대 부족·58%, g2)와 같은 필드 모양, 옛 캐시 모양(ctxt 만).
     """
     h = _home()
@@ -465,10 +465,12 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     a = re.search(r'<a class="agg-a" href="/zone/[^"]+/">(.*?)</a>(.*)</div>$', card, re.S)
     assert a and '<button' not in a.group(1) and a.group(2).startswith('<button type="button" class="agg-i"'), card
     assert 'aria-expanded="false" aria-controls="agg-how-1"' in a.group(2)
-    assert ('<span class="agg-l1"><b>수도권</b><span class="zl" role="img" aria-label="%s"><span class="zl-d lo">1</span>'
+    # 첫 줄은 이름 + 판정 배지(2026-10-06 리뷰 — 560px 이하는 세대수 뒤 방향 말을 감추므로 배지가 '부족·여유'를 말한다),
+    # 둘째 줄이 신호등(.agg-lt). 옛 캐시(yl 없음)는 신호등 줄이 없다.
+    assert ('<span class="agg-l1"><b>수도권</b><span class="sc-tier g2">부족</span></span><span class="agg-lt">'
+            '<span class="zl" role="img" aria-label="%s"><span class="zl-d lo">1</span>'
             '<span class="zl-d lo">2</span><span class="zl-d ok">3</span></span></span>' % z['ya']) in a.group(1), a.group(1)
-    assert 'sc-tier' not in a.group(1), '신호등이 있는 카드에 판정 배지가 남았다'
-    assert '<span class="sc-tier g2">부족</span>' in old, '옛 캐시(yl 없음)는 예전 배지를 그린다'
+    assert '<span class="sc-tier g2">부족</span>' in old and 'agg-lt' not in old, '옛 캐시(yl 없음)는 배지만 그린다'
     assert re.search(r'<i class="agg-n">349,029세대<span class="agg-dir"> 부족</span><span class="agg-go"[^>]*> →</span></i>',
                      a.group(1)), a.group(1)
     assert '<i class="agg-p">%s</i>' % z['cpct'] in a.group(1) and z['cpct'] == '1년 적정물량의 1.7배', a.group(1)
