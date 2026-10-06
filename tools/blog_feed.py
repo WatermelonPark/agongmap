@@ -96,6 +96,19 @@ def city_posts(posts):
     return out
 
 
+def merge_city(posts, saved):
+    """이번 RSS 의 도시 편(city_posts)에 저장해 둔 목록 중 **RSS 창보다 오래된** 글을 이어 붙여 새 글부터 CITY_MAX 개.
+    RSS 는 최근 글 몇십 개만 주므로 RSS 만 보면 다른 글이 쌓이는 동안 도시 편이 칸에서 밀려 사라진다(2026-10-07 리뷰).
+    창 안(가장 오래된 RSS 글 날짜 이후)인데 RSS 에 없는 저장 글은 지워진 글이라 버린다 — 제목·주소는 RSS 쪽이 이긴다."""
+    fresh = city_posts(posts)
+    dates = [p['date'].isoformat() if hasattr(p['date'], 'isoformat') else str(p['date'])
+             for p in posts or () if p.get('date')]
+    floor = min(dates) if dates else ''
+    seen = {p['url'] for p in fresh}
+    old = [x for x in saved or () if x['url'] not in seen and x['date'] < floor]
+    return sorted(fresh + old, key=lambda x: x['date'], reverse=True)[:CITY_MAX]
+
+
 def read_city(path=None):
     """저장해 둔 도시 입주물량 편 목록(모양이 맞는 것만). 없으면 []."""
     try:
@@ -110,7 +123,7 @@ def city_head(title):
     """도시 편 제목의 앞머리(쉼표 앞) — '2027년 청주 아파트 입주물량, 20개 단지 …' → '2027년 청주 아파트 입주물량'. 지역·사이클 글
     제목은 '앞에 검색어, 쉼표 뒤 결론' 모양이다(CLAUDE.md 블로그 제목 규칙)."""
     t = (title or '').strip()
-    return t.split(',', 1)[0].strip() or t
+    return re.split(r',\s', t, 1)[0].strip() or t      # 쉼표+빈칸에서만 — '1,234세대'의 천 단위 쉼표에서 끊지 않는다
 
 
 def read(path=None):
@@ -247,8 +260,9 @@ def main(path=None, fetch=None):
         if not os.path.exists(path):
             write(None, path)        # 배치 커밋 대상 목록(git add)이 없는 파일에 걸려 죽지 않게
         return 0
-    # 도시 편 목록은 RSS 를 읽은 회차에만 새로 쓴다 — 도시 편이 아직 없으면 빈 목록(/moveins/ 칸을 굽지 않는다)
-    city = city_posts(posts)
+    # 도시 편 목록은 RSS 를 읽은 회차에만 새로 쓴다 — RSS 창 밖으로 밀린 지난 도시 편은 저장 목록에서 이어 둔다(merge_city).
+    # 도시 편이 하나도 없으면 빈 목록(/moveins/ 칸을 굽지 않는다)
+    city = merge_city(posts, read_city(path))
     changed = write(new, path, city)
     print('블로그 주간 글 %s: %s (%s) · 도시 입주물량 편 %d개'
           % ('갱신' if changed else '그대로', new['title'][:40], new['date'], len(city)))

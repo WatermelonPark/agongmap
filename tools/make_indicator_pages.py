@@ -517,7 +517,7 @@ CITY_SUB = '단지 이름·입주 월·세대수, 엑셀 목록 첨부 · ' + BF
 def city_html(posts=None):
     """/moveins/ 의 '도시별 입주 예정 단지' 칸(백로그 37, 2026-10-07). 블로그 도시 입주물량 편(blog_feed.read_city — 판정은
     close_published_issues.is_city_post 하나)을 새 글부터 싣는다. 글이 없거나 못 읽었으면 칸 전체를 굽지 않는다(빈 약속 금지).
-    클릭은 /weekly/ 해설 칸과 같은 이벤트(blog_link, to=city_post)로 잰다."""
+    클릭은 /weekly/ 해설 칸과 같은 이벤트(blog_link, to=city_post)로 잰다. 날짜는 해를 넘는 목록이라 연도 있는 좁은 꼴('26.10.7')."""
     posts = BF.read_city() if posts is None else posts
     if not posts:
         return ''
@@ -525,7 +525,7 @@ def city_html(posts=None):
     rows = []
     for p in posts:
         rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s %s</span></a>'
-                    % (_html.escape(p['url']), track, _html.escape(BF.city_head(p['title'])), BF.LABEL, SZ.day_text(p['date'])))
+                    % (_html.escape(p['url']), track, _html.escape(BF.city_head(p['title'])), BF.LABEL, SZ.day_short(p['date'])))
     return ('<section class="wrap">\n  <h2>%s</h2>\n  <div class="links">\n%s\n  </div>\n'
             '  <div class="note">%s</div>\n</section>\n\n' % (CITY_H2, '\n'.join(rows), CITY_SUB))
 

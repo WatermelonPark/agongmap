@@ -12,6 +12,7 @@
   · 시딩(months=0)에서 '자료 없음(err 30)'을 넘기지 않으면 → 시딩 시험 빨강.
   · 감시 source_jobs 가 미분양을 R-ONE(rone_latest_complete)으로 보내면 → 감시 갈래 시험 빨강.
   · update_supply 가 fetch_supply 대신 _fetch_supply_one 을 부르면 → 배치 갈래 시험 빨강.
+  · 감시 kosis_supply_latest 가 get= 을 넘기지 않으면(배치 http_json 60초·3번) → 감시 타임아웃 시험 빨강.
 """
 import os
 import sys
@@ -46,7 +47,7 @@ def test_unsold_comes_from_the_total_rows_and_keeps_the_last_months(monkeypatch)
     for k, ym in enumerate(('202603', '202604', '202605', '202606', '202607', '202608')):
         rows += _rows(ym, {'서울': 1000 + k, '전남광주': 3000 + k, '전국': 60000 + k, '수도권': 18000 + k})
     seen = []
-    monkeypatch.setattr(U, 'kosis', lambda p: seen.append(dict(p)) or rows)
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: seen.append(dict(p)) or rows)
     got = U.fetch_supply(CFG, {'서울', '전남광주', '전국', '수도권'}, 2)
     assert sorted(got) == [(2026, 7), (2026, 8)], sorted(got)
     assert got[(2026, 8)] == {'서울': 1005.0, '전남광주': 3005.0, '전국': 60005.0, '수도권': 18005.0}
@@ -57,7 +58,7 @@ def test_unsold_comes_from_the_total_rows_and_keeps_the_last_months(monkeypatch)
 def test_seeding_walks_every_year_and_skips_years_without_data(monkeypatch):
     years = []
 
-    def fake(p):
+    def fake(p, get=None):
         y = int(p['startPrdDe'][:4])
         years.append(y)
         if y < 2010:
@@ -86,3 +87,14 @@ def test_watchdog_routes_unsold_to_kosis(monkeypatch):
     monkeypatch.setattr(C, 'kosis_supply_latest', lambda cfg, since=None, want_total=False: got.append(cfg['tbl']) or '202608')
     jobs = C.source_jobs({'미분양': {'dates': ['2026.06'], 'series': {}}})
     assert jobs[('supply', '미분양')]() == '202608' and got == ['DT_MLTM_2080']
+
+
+def test_watchdog_kosis_fetch_uses_the_watchdog_timeout(monkeypatch):
+    """감시는 원천 조회를 FETCH_TIMEOUT(25초, 재시도 20초) 한 번으로 셈해 잡 예산(30분)을 맞췄다. 배치 조회(http_json 60초·3번·쉼)를
+    타면 원천이 막힌 날 이 계열 하나가 3분 넘게 붙잡는다(2026-10-07 리뷰). 픽스처: 배치 조회는 부르면 실패, 감시 조회는 2026.08 표."""
+    seen = []
+    monkeypatch.setattr(U, 'http_json', lambda *a, **k: pytest.fail('감시가 배치의 http_json 으로 조회했다'))
+    rows = _rows('202608', {r: 10 for r in set(U.SUPPLY_SIDO) | set(U._GJ_OLD)})
+    monkeypatch.setattr(C, 'get_json', lambda url: seen.append(url) or rows)
+    C._COMPLETE_CACHE.clear()
+    assert C.kosis_supply_latest(CFG) == '202608' and len(seen) == 1 and 'DT_MLTM_2080' in seen[0]
