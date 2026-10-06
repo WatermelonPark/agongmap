@@ -48,18 +48,21 @@ def test_multiple_is_the_ratio_times_the_years():
 
 
 def test_direction_is_a_word_not_a_sign():
-    """방향은 말(부족·여유 / 모자란 집·남는 집)로 쓰고 부호는 쓰지 않는다. 0.1배 아래는 방향을 지어내지 않는다.
-    변이(실제로 확인): ratio_text 의 여유 갈래를 '부족'으로 쓰면 빨개진다."""
+    """방향은 말(부족·여유 / 모자란 집·남는 집)로 쓰고 부호는 쓰지 않는다. 0.1배에 못 미치는 비율도 방향은 말하고 크기만
+    '0.1배 미만'으로 적는다(2026-10-06 리뷰 — 충북 0.0087 이 '281세대 부족(필요량과 거의 같음)'으로 한 줄에 두 말을 했다).
+    '거의 같음'은 비율이 정확히 0일 때뿐이다.
+    변이(실제로 확인): ratio_text 의 여유 갈래를 '부족'으로 쓰면, mult_str 이 0.1배 미만을 '0.0배'로 쓰면 빨개진다."""
     assert SZ.ratio_text(-0.19) == '1년 적정물량의 0.6배 여유'
     assert SZ.ratio_text(1.389) == '1년 적정물량의 4.2배 부족'
-    assert SZ.ratio_text(0.004) == '필요량과 거의 같음'
+    assert SZ.ratio_text(0.004) == '1년 적정물량의 0.1배 미만 부족'
+    assert SZ.ratio_text(0) == '필요량과 거의 같음'
     for i in range(-150, 250):
         r = i / 100.0
         t = SZ.ratio_text(r)
         m = SZ.need_mult(r)
         assert '+' not in t and '\u2212' not in t, t
-        assert t.endswith('부족') == (r > 0 and m >= SZ.MULT_MIN), (r, t)
-        assert t.endswith('여유') == (r < 0 and m >= SZ.MULT_MIN), (r, t)
+        assert t.endswith('부족') == (r > 0) and t.endswith('여유') == (r < 0), (r, t)
+        assert ('0.0배' not in t) and (('0.1배 미만' in t) == (r != 0 and m < SZ.MULT_MIN)), (r, t)
 
 
 def test_horizon_follows_H_instead_of_saying_three_years():
@@ -147,10 +150,9 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
             t = SZ.ratio_text(r, SZ.LEAD_Q, full=True, inow=inow)
             assert '더 들어옵니다' not in t and '누적 순부족' not in t, t
             assert t.startswith(past), '판정 설명이 지난 창 재고를 말하지 않는다: %s' % t
-            if m >= SZ.MULT_MIN:
-                assert '1년 적정물량의 %s입니다' % SZ.mult_str(m) in t and '만큼' not in t, t
-            assert ('남는 집' in t) == (r < 0 and m >= SZ.MULT_MIN), t
-            if inow is not None and m >= SZ.MULT_MIN:   # 거의 0 이면 방향이 없어 갈래도 없다
+            assert '1년 적정물량의 %s입니다' % SZ.mult_str(m) in t and '만큼' not in t, t
+            assert ('남는 집' in t) == (r < 0), t
+            if inow is not None:
                 tail = SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 1, 1, inow)
                 assert ('덜 지은 몫' in t) == ('쌓인 부족' in tail) and ('남은 재고' in t) == ('남은 재고' in tail), \
                     (t, tail)
