@@ -15,6 +15,7 @@ zone 페이지와 같은 모델: 배치가 실데이터를 표·요약 문장으
 실행: python tools/make_indicator_pages.py   # 생성 + sitemap 갱신
 """
 import datetime
+import html as _html
 import io
 import json
 import os
@@ -25,6 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ  # noqa: E402
 import kst as KST  # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 import site_nav as N  # noqa: E402  하단 탭바 정본(C2)
+import blog_feed as BF  # noqa: E402  블로그 도시 입주물량 편 목록(백로그 37) — RSS 는 배치 fetch 잡이 읽어 둔다
 import robots_meta as RM  # noqa: E402  검색 로봇 메타 정본(D2)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -508,6 +510,26 @@ def est_regions_text():
     return '·'.join(est)
 
 
+CITY_H2 = '도시별 입주 예정 단지'
+CITY_SUB = '단지 이름·입주 월·세대수, 엑셀 목록 첨부 · ' + BF.LABEL
+
+
+def city_html(posts=None):
+    """/moveins/ 의 '도시별 입주 예정 단지' 칸(백로그 37, 2026-10-07). 블로그 도시 입주물량 편(blog_feed.read_city — 판정은
+    close_published_issues.is_city_post 하나)을 새 글부터 싣는다. 글이 없거나 못 읽었으면 칸 전체를 굽지 않는다(빈 약속 금지).
+    클릭은 /weekly/ 해설 칸과 같은 이벤트(blog_link, to=city_post)로 잰다."""
+    posts = BF.read_city() if posts is None else posts
+    if not posts:
+        return ''
+    track = ' onclick="try{gtag(\'event\',\'blog_link\',{to:\'city_post\'})}catch(e){}"'
+    rows = []
+    for p in posts:
+        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s %s</span></a>'
+                    % (_html.escape(p['url']), track, _html.escape(BF.city_head(p['title'])), BF.LABEL, SZ.day_text(p['date'])))
+    return ('<section class="wrap">\n  <h2>%s</h2>\n  <div class="links">\n%s\n  </div>\n'
+            '  <div class="note">%s</div>\n</section>\n\n' % (CITY_H2, '\n'.join(rows), CITY_SUB))
+
+
 def build_moveins(adv, today=None):
     o = adv['occupancy']
     regs, rows = o['regions'], o['rows']
@@ -603,7 +625,7 @@ def build_moveins(adv, today=None):
   <div class="note">표두를 누르면 정렬. %(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 연도는 달력 연도(1~12월)입니다. 지역 리포트의 해마다 신호등은 판정 기준 분기 다음 4분기씩 세어 같은 해라도 값이 다를 수 있습니다. 적정물량은 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 값을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
 </section>
 
-<section class="wrap">
+%(city)s<section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
   <p>%(Y)s년 입주가 적정물량에 가장 못 미치는 곳은 <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정선의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
@@ -627,7 +649,8 @@ def build_moveins(adv, today=None):
            lead_y='%g년' % (SZ.LEAD_Q / 4.0), back_y='%g년' % (SZ.BACKLOG_WINDOW / 4.0), est_txt=est_regions_text(),
            occ_lo=SZ.OCC_LO_PCT, occ_hi=SZ.OCC_HI_PCT,
            sudo26=num(sudo[Y] or 0), sudo27=num(sudo[Y1] or 0),
-           sudodir=updown(sudo[Y], sudo[Y1]), Y0=years[0], Y=Y, Y1=Y1, est=MOVEINS_EST)
+           sudodir=updown(sudo[Y], sudo[Y1]), Y0=years[0], Y=Y, Y1=Y1, est=MOVEINS_EST,
+           city=city_html())
 
     html = fill(SHELL, title=title,
                 ogtitle='아파트 입주물량 — %s년 전국 %s세대(%s 포함)' % (Y, num(nat26), MOVEINS_EST),

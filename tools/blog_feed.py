@@ -42,6 +42,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILE = os.path.join(ROOT, 'tools', 'data', 'blog_latest.json')
 
 CATEGORY = CP.KIND_TO_CATEGORY['주간 시세']
+# 도시별 입주물량 편(백로그 37, 2026-10-07): 지역 편과 같은 카테고리에 싣고 제목 표지(CP.is_city_post)로만 가른다 — 같은 대상을
+# 재는 코드는 같은 함수를 쓴다(발행 확인·순번과 같은 판정). /moveins/ 의 '도시별 입주 예정 단지' 칸이 최신 CITY_MAX 개를 싣는다.
+CITY_CATEGORY = CP.KIND_TO_CATEGORY['지역 공급']
+CITY_MAX = 6
 
 
 def blog_home(rss):
@@ -76,6 +80,37 @@ def latest_weekly(posts):
     d = p['date']
     return {'date': d.isoformat() if hasattr(d, 'isoformat') else str(d),
             'title': ' '.join(p['title'].split()), 'url': p['url'].strip()}
+
+
+def city_posts(posts):
+    """[{date, cat, title, url}] → 도시 입주물량 편 [{'date', 'title', 'url'}] 새 글부터 CITY_MAX 개. 지역 편·주간 글·남의 주소는 뺀다."""
+    cat = CP.norm(CITY_CATEGORY)
+    cand = [p for p in posts or () if CP.norm(p.get('cat')) == cat and CP.is_city_post(p.get('title'))
+            and ours(p.get('url')) and (p.get('title') or '').strip() and p.get('date')]
+    cand.sort(key=lambda x: x['date'], reverse=True)
+    out = []
+    for p in cand[:CITY_MAX]:
+        d = p['date']
+        out.append({'date': d.isoformat() if hasattr(d, 'isoformat') else str(d),
+                    'title': ' '.join(p['title'].split()), 'url': p['url'].strip()})
+    return out
+
+
+def read_city(path=None):
+    """저장해 둔 도시 입주물량 편 목록(모양이 맞는 것만). 없으면 []."""
+    try:
+        c = json.loads(io.open(path or FILE, encoding='utf-8').read()).get('city')
+    except Exception:
+        return []
+    return [x for x in c or () if isinstance(x, dict) and ours(x.get('url')) and CP.is_city_post(x.get('title'))
+            and re.match(r'^\d{4}-\d{2}-\d{2}$', str(x.get('date') or ''))][:CITY_MAX]
+
+
+def city_head(title):
+    """도시 편 제목의 앞머리(쉼표 앞) — '2027년 청주 아파트 입주물량, 20개 단지 …' → '2027년 청주 아파트 입주물량'. 지역·사이클 글
+    제목은 '앞에 검색어, 쉼표 뒤 결론' 모양이다(CLAUDE.md 블로그 제목 규칙)."""
+    t = (title or '').strip()
+    return t.split(',', 1)[0].strip() or t
 
 
 def read(path=None):
@@ -163,9 +198,12 @@ def headline(title):
     return h or t
 
 
-def write(entry, path=None):
+def write(entry, path=None, city=None):
     path = path or FILE
-    body = json.dumps({'weekly': entry}, ensure_ascii=False, indent=1) + '\n'
+    doc = {'weekly': entry}
+    if city is not None:
+        doc['city'] = city
+    body = json.dumps(doc, ensure_ascii=False, indent=1) + '\n'
     try:
         old = io.open(path, encoding='utf-8').read()
     except Exception:
@@ -209,8 +247,11 @@ def main(path=None, fetch=None):
         if not os.path.exists(path):
             write(None, path)        # 배치 커밋 대상 목록(git add)이 없는 파일에 걸려 죽지 않게
         return 0
-    changed = write(new, path)
-    print('블로그 주간 글 %s: %s (%s)' % ('갱신' if changed else '그대로', new['title'][:40], new['date']))
+    # 도시 편 목록은 RSS 를 읽은 회차에만 새로 쓴다 — 도시 편이 아직 없으면 빈 목록(/moveins/ 칸을 굽지 않는다)
+    city = city_posts(posts)
+    changed = write(new, path, city)
+    print('블로그 주간 글 %s: %s (%s) · 도시 입주물량 편 %d개'
+          % ('갱신' if changed else '그대로', new['title'][:40], new['date'], len(city)))
     return 0
 
 
