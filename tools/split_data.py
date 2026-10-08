@@ -232,8 +232,20 @@ def old_fresh(path):
     return f if isinstance(f, dict) else None
 
 
-def fresh_marks(periods, old, today):
-    """{'days': {모드: 일수}, 'force': 일수, 모드: {'p': 시점, 'd': 처음 실린 날 또는 ''}} — 시점이 없는 모드는 뺀다."""
+def fresh_pub(periods):
+    """처음 실린 날을 모를 때(첫 회차·새 모드) 대신 쓸 발표일 — 주간만. 주간 발표일은 조사일에서 계산된다(weekly_release.status,
+    /weekly/ 머리줄·홈 띠와 같은 규칙)라 손으로 날짜를 박지 않아도 된다. 월간·공급은 발표일이 데이터에 없어 비워 둔다(2026-10-08 대표 결정
+    — 기능을 배포한 날 들어온 주간분이 N 없이 지나가지 않게)."""
+    p = periods.get('weekly')
+    if not p:
+        return {}
+    import weekly_release as _WR
+    return {'weekly': _WR.status(p)['pub']}
+
+
+def fresh_marks(periods, old, today, pub=None):
+    """{'days': {모드: 일수}, 'force': 일수, 모드: {'p': 시점, 'd': 처음 실린 날 또는 ''}} — 시점이 없는 모드는 뺀다.
+    pub: {모드: 발표일} — 처음 실린 날을 모르는 모드에 대신 쓴다(fresh_pub)."""
     out = {'days': dict(FRESH_DAYS), 'force': FRESH_FORCE}
     for m in FRESH_MODES:
         p = periods.get(m)
@@ -248,6 +260,8 @@ def fresh_marks(periods, old, today):
             d = today                               # 앞으로 간 시점만 새것이다(같은 모드 안에서는 글자 비교가 시간 순)
         else:
             d = ''                                  # 뒤로 간 시점(기준변경 보류·원천 철회)은 새것이 아니다 — 돌아오면 또 세지 않는다
+        if not d and (pub or {}).get(m):
+            d = pub[m]                              # 모르는 날은 발표일로(주간) — 옛 시점이면 발표일도 옛날이라 배지 기간 밖이다
         out[m] = {'p': p, 'd': d}
     return out
 
@@ -322,7 +336,8 @@ def main():
             'agg': price_agg(mo),      # 분기·연 합(원값으로 한 번, #110) — 홈 tbAgg 가 읽는다
         }
 
-    core_adv['fresh'] = fresh_marks(fresh_periods(core_adv), old_fresh(OUT), _kst.today_iso())
+    periods = fresh_periods(core_adv)
+    core_adv['fresh'] = fresh_marks(periods, old_fresh(OUT), _kst.today_iso(), fresh_pub(periods))
 
     core_stats = {k: stats[k] for k in CORE_STATS if k in stats}
     missing = [k for k in CORE_STATS if k not in stats]
