@@ -33,3 +33,12 @@ def test_shot_boxes_exist_in_site_code():
 def test_shot_page_carries_the_script():
     page = P._weekly_shot_page()
     assert page and P._SHOT_JS in page and page.count('</body>') == 1
+
+
+def test_zone_head_is_shot_below_the_two_column_width():
+    """리포트 머리 캡처 폭은 사이트가 두 단으로 바뀌는 폭(app.css 의 가장 작은 min-width 두 단 문턱)보다 좁아야 한다.
+    변이: ZONE_HEAD_W 를 1100 으로 되돌리면 빨개진다(10-08 광주·전남 초안에 리포트 전체가 한 장으로 들어간 원인)."""
+    import re
+    css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    widths = [int(w) for w in re.findall(r'@media\s*\(min-width:\s*(\d+)px\)', css) if int(w) >= 1000]
+    assert widths and P.ZONE_HEAD_W < min(widths), (P.ZONE_HEAD_W, widths)
