@@ -1768,82 +1768,119 @@ def _shoot_section(exe, z, key, out):
             pass
 
 
-# /#stats-market 의 시군구 타일 지도 — 매주 글에 넣을 두 장.
+# /#stats-market 의 주간 상승·하락 TOP 10 과 시군구 타일 지도 — 매주 글에 넣는 두 장.
 #
-# 왜 두 장인가: 시군구 전부가 한 장에 들어가면 네이버 모바일(폭 ~700px)에서
-# 타일 글씨가 안 읽힌다. 수도권·강원 / 충청 이남으로 갈라야 각 타일이 읽힌다
-# (2026-08-30 사용자 요청).
-#
-# 왜 아래에서 재는가: 위쪽엔 TOP10 표가 있고 그 높이가 회차마다 미세하게
-# 달라진다. 반면 타일 배치는 시군구 목록이 바뀌지 않는 한 고정이라, **지도
-# 아래 끝에서 잰 오프셋**이 안정적이다. 실측(2026-08-24 회차, 배율 2):
-#   지도 높이 3130 · 수도권/충청 경계는 아래 끝에서 1765 위
-MAP_H, MAP_SPLIT, MAP_X0, MAP_X1 = 3130, 1765, 250, 1830
-# TOP10 표는 지도 바로 위에 있다 — 지도 top에서 위로 잰다(실측 778 높이).
-TOP10_UP, TOP10_H, TOP10_X0, TOP10_X1 = 782, 778, 240, 1960
+# 예전에는 운영 사이트를 통째로 한 장 찍고 **픽셀 오프셋**(지도 높이 3130, TOP10 은 지도 위 782)으로 잘랐다.
+# 2026-10-05~06 홈 개편(지도 모드 셋·날짜 칩·좁은 폭에서 TOP10 두 표가 세로로 쌓임)으로 높이가 바뀌자, 10-08 초안의
+# 'TOP10' 칸에는 경기 타일 지도 조각이, '지도' 칸에는 위가 잘리고 푸터가 붙은 그림이 들어갔다(대표 지적 10-09).
+# 그래서 이제 **요소로** 찍는다: 저장소를 로컬 서버로 띄워 캡처용 홈 사본을 열고, 그 사본에 넣은 스크립트가 찍을 상자
+# (`#week-map .map-rank` / `.map-scroll`) 하나만 보이게 한 뒤, 배경과 다른 영역만 잘라 낸다(지역 편 _shoot_section 과
+# 같은 생각). 화면 배치가 또 바뀌어도 상자 이름만 같으면 따라간다. 상자를 못 찾으면 그림 없이 사유를 돌려준다.
+WEEKLY_SHOTS = {'top10': '.map-rank', 'map': '.map-scroll'}
+# 캡처용 사본에 넣는 스크립트. 상자가 그려질 때까지 기다렸다가 나머지를 모두 감춘다(visibility — 자리는 그대로라
+# 상자 모양이 사이트와 같다). 끝내 못 찾으면 제목에 표지를 남겨 빈 그림이 성공으로 넘어가지 않게 한다.
+_SHOT_JS = """<script>(function(){
+var sel=(location.search.match(/[?&]sel=([^&]+)/)||[])[1];sel=sel&&decodeURIComponent(sel);
+function go(n){var wm=document.getElementById('week-map'),el=wm&&wm.querySelector(sel);
+ if(!el||!el.offsetHeight){if(n<200)return setTimeout(function(){go(n+1)},100);document.title='NO-SHOT';return;}
+ el.classList.add('__shot');var st=document.createElement('style');
+ st.textContent='body *{visibility:hidden!important;animation:none!important;transition:none!important}'
+  +'.__shot,.__shot *{visibility:visible!important}';
+ document.head.appendChild(st);window.scrollTo(0,0);document.title='SHOT-OK';}
+window.addEventListener('load',function(){go(0)});})();</script>"""
+
+
+def _weekly_shot_page():
+    """index.html 사본 + 캡처 스크립트. drafts/(gitignore) 에 두고 저장소 루트를 서버로 띄워 연다 — 사이트가
+    '/app.css'·'/data-core.js' 같은 루트 기준 주소를 쓰므로 file:// 로는 안 열린다."""
+    t = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    if '</body>' not in t:
+        return None
+    return t.replace('</body>', _SHOT_JS + '</body>', 1)
 
 
 def capture_weekly_map():
-    """전국 시군구 지도 한 장 + 상승/하락 TOP10 한 장을 떠서 경로를 돌려준다.
+    """주간 상승·하락 TOP 10 한 장과 전국 시군구 지도 한 장을 떠서 (지도, TOP10, 사유)를 돌려준다.
 
-    돌려주는 값: (지도, TOP10, 사유)
-    실패하면 앞 둘이 None — 이미지 때문에 초안 생성이 막히면 안 된다.
-
-    지도는 원래 수도권/지방 두 장으로 잘라 줬다(모바일 가독성, 3ea4781). 2026-09-07
-    사용자가 "둘로 잘리니 보기 안 좋다"고 해서 한 장으로 돌렸다. 반 장 두 개는
-    파일로만 남긴다 — 되돌릴 일이 생기면 그걸 쓴다.
-
-    TOP10을 넣는 이유: 순위와 **전주 대비 순위 변동**(▲18위)까지 나와서
-    표만으로 이야기가 된다(2026-08-30 사용자: 그것도 넣으면 더 재밌겠다).
+    실패하면 앞 둘이 None — 이미지 때문에 초안 생성이 막히면 안 된다. 지난 회차의 잘린 그림이 성공처럼 남지 않게
+    시작할 때 지운다.
+    TOP10 을 넣는 이유: 순위와 **전주 대비 순위 변동**(▲18위)까지 나와서 표만으로 이야기가 된다(2026-08-30 사용자).
+    지도는 한 장으로 넣는다(2026-09-07 사용자: 둘로 잘리니 보기 안 좋다).
     """
     exe = find_chrome()
     if not exe:
-        return None, None,'Chrome/Edge를 찾지 못했습니다'
-    tmp = os.path.join(OUT, '_sggmap.png')
-    for f in (tmp,):
+        return None, None, 'Chrome/Edge를 찾지 못했습니다'
+    outs = {'map': os.path.join(OUT, 'weekly-sgg.png'), 'top10': os.path.join(OUT, 'weekly-top10.png')}
+    for f in outs.values():
         try:
             if os.path.exists(f):
                 os.remove(f)
         except OSError:
             pass
+    page = _weekly_shot_page()
+    if not page:
+        return None, None, 'index.html 에서 </body> 를 찾지 못했습니다'
+    os.makedirs(OUT, exist_ok=True)
+    tmp_html = os.path.join(OUT, '_capture-home.html')
+    io.open(tmp_html, 'w', encoding='utf-8').write(page)
+    import functools
+    import http.server
+    import socketserver
+    import threading
+    import urllib.parse
+
+    class _Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+    srv = socketserver.TCPServer(('127.0.0.1', 0), functools.partial(_Quiet, directory=ROOT))
+    port = srv.server_address[1]
+    th = threading.Thread(target=srv.serve_forever, daemon=True)
+    th.start()
+    errs = {}
     try:
-        proc = subprocess.run(
-            [exe, '--headless=new', '--disable-gpu', '--hide-scrollbars',
-             '--force-device-scale-factor=%d' % SHOT_SCALE,
-             '--virtual-time-budget=8000',      # SPA가 뷰를 바꿀 시간을 준다
-             '--window-size=1100,3200', '--screenshot=%s' % tmp,
-             SITE + '/#stats-market'],
-            timeout=120, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        from PIL import Image, ImageChops
+        for key, sel in WEEKLY_SHOTS.items():
+            out = outs[key]
+            url = 'http://127.0.0.1:%d/drafts/_capture-home.html?sel=%s#stats-market' % (port, urllib.parse.quote(sel))
+            raw = out + '.raw.png'
+            try:
+                subprocess.run(
+                    [exe, '--headless=new', '--disable-gpu', '--hide-scrollbars',
+                     '--force-device-scale-factor=%d' % SHOT_SCALE, '--virtual-time-budget=15000',
+                     # 캡처가 방문으로 잡히지 않게 GA 주소를 막는다(사본의 스크립트는 그대로 둔다).
+                     '--host-resolver-rules=MAP www.googletagmanager.com ~NOTFOUND, MAP *.google-analytics.com ~NOTFOUND',
+                     '--window-size=%d,%d' % (SHOT_W, SHOT_H), '--screenshot=%s' % raw, url],
+                    timeout=150, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if not os.path.exists(raw):
+                    errs[key] = '캡처 파일이 생기지 않았습니다'
+                    continue
+                im = Image.open(raw).convert('RGB')
+                bg = Image.new('RGB', im.size, im.getpixel((2, 2)))
+                box = ImageChops.difference(im, bg).point(lambda v: 255 if v > 12 else 0).getbbox()
+                # 거의 화면 전체가 남았다면 감추기가 안 된 것이다(상자를 못 찾음) — 그 그림은 쓰지 않는다.
+                if not box or (box[3] - box[1]) > im.size[1] * 0.97:
+                    errs[key] = "사이트에서 '%s' 상자를 찾지 못했습니다(화면 구조가 바뀌었을 수 있음)" % sel
+                    continue
+                pad = 12 * SHOT_SCALE
+                im.crop((max(0, box[0] - pad), max(0, box[1] - pad),
+                         min(im.size[0], box[2] + pad), min(im.size[1], box[3] + pad))).save(out)
+            finally:
+                try:
+                    os.remove(raw)
+                except OSError:
+                    pass
     except Exception as e:
-        return None, None,'캡처 실행 실패: %s' % e
-    if proc.returncode != 0 or not os.path.exists(tmp):
-        return None, None,'캡처 실패(크롬 종료코드 %s)' % proc.returncode
-    try:
-        from PIL import Image
-        im = Image.open(tmp).convert('RGB')
-        bs = [b for b in _blocks(im, gap=70, keep=120) if b[2] > 2000]
-        if not bs:
-            return None, None,'지도 덩어리를 못 찾았습니다(화면 구조가 바뀌었을 수 있음)'
-        bottom = bs[0][1]
-        top, split = bottom - MAP_H, bottom - MAP_SPLIT
-        if top < 200 or split - top < 800 or bottom - split < 800:
-            return None, None,'지도 위치가 예상과 다릅니다(top=%d split=%d bottom=%d)' % (
-                top, split, bottom)
-        # 본문에 쓰는 건 한 장(weekly-sgg.png). 반으로 자른 두 장도 같이 남긴다 —
-        # 모바일에서 글자가 작다 싶으면 그걸로 되돌릴 수 있게(2026-09-07).
-        a = os.path.join(OUT, 'weekly-sgg.png')
-        im.crop((MAP_X0, top, MAP_X1, bottom + 10)).save(a)
-        im.crop((MAP_X0, top, MAP_X1, split)).save(os.path.join(OUT, 'weekly-sgg-1.png'))
-        im.crop((MAP_X0, split - 10, MAP_X1, bottom + 10)).save(os.path.join(OUT, 'weekly-sgg-2.png'))
-        c = None
-        if top - TOP10_UP > 100:
-            c = os.path.join(OUT, 'weekly-top10.png')
-            im.crop((TOP10_X0, top - TOP10_UP, TOP10_X1, top - 4)).save(c)
-            c = os.path.relpath(c, ROOT)
-        os.remove(tmp)
-        return os.path.relpath(a, ROOT), c, None
-    except Exception as e:
-        return None, None,'자르기 실패: %s' % e
+        return None, None, '캡처 실패: %s: %s' % (type(e).__name__, e)
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        try:
+            os.remove(tmp_html)
+        except OSError:
+            pass
+    m = os.path.relpath(outs['map'], ROOT) if os.path.exists(outs['map']) else None
+    t = os.path.relpath(outs['top10'], ROOT) if os.path.exists(outs['top10']) else None
+    return m, t, ('; '.join('%s: %s' % kv for kv in errs.items()) or None)
 
 
 def _blocks(im, gap=70, keep=60):
