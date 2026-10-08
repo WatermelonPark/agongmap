@@ -207,6 +207,8 @@ def bake_lights(sido, stats):
 # 표시 기간은 들어오는 주기에 맞춘다(2026-10-08 대표 결정): 주간은 목요일 발표 → 일요일까지(주말 방문 포함), 월간은 한 주,
 # 분기 공급은 두 주. 누르면 그 기기에서 바로 지우므로 길게 두어도 자주 오는 방문자에게 짐이 되지 않는다.
 FRESH_DAYS = {'supply': 14, 'weekly': 4, 'monthly': 7}
+# 처음 실린 날과 다음 날(2일)은 누른 기기에도 다시 단다 — 그 뒤부터 누르면 지운다(같은 날 대표 결정).
+FRESH_FORCE = 2
 FRESH_MODES = tuple(FRESH_DAYS)
 
 
@@ -231,8 +233,8 @@ def old_fresh(path):
 
 
 def fresh_marks(periods, old, today):
-    """{'days': {모드: 일수}, 모드: {'p': 시점, 'd': 처음 실린 날 또는 ''}} — 시점이 없는 모드는 뺀다."""
-    out = {'days': dict(FRESH_DAYS)}
+    """{'days': {모드: 일수}, 'force': 일수, 모드: {'p': 시점, 'd': 처음 실린 날 또는 ''}} — 시점이 없는 모드는 뺀다."""
+    out = {'days': dict(FRESH_DAYS), 'force': FRESH_FORCE}
     for m in FRESH_MODES:
         p = periods.get(m)
         if not p:
