@@ -1287,7 +1287,8 @@ function mapMode(m){
   track('map_mode',{mode:m});
 }
 /* 모드 단추의 '새 데이터' N 배지(2026-10-08 대표 요청, B안). 데이터가 이 사이트에 처음 실린 날(KST)부터 ADV.fresh.days[모드] 일
-   동안(그날 포함 — 주간 4·월간 7·공급 14, 정본 split_data.FRESH_DAYS) 단다 — 시점과 날은 배치가 split_data.fresh_marks 로 싣는다. 방문자가 그 단추를 누르면 그 시점을 이 기기에만 기억해
+   동안(그날 포함 — 주간 4·월간 7·공급 14, 정본 split_data.FRESH_DAYS) 단다. 처음 ADV.fresh.force 일(그날과 다음 날)은 눌렀든 안
+   눌렀든 단다 — 시점과 날은 배치가 split_data.fresh_marks 로 싣는다. 방문자가 그 단추를 누르면 그 시점을 이 기기에만 기억해
    (개인정보처리방침 '브라우저에만 저장') 다시 달지 않는다. 다음 시점이 들어오면 또 단다.
    F: ADV.fresh, today: KST 일수(_kst().day), seen: {모드: 누른 시점} → 배지를 달 모드 목록. */
 const MODE_SEEN_KEY='mode_seen';
@@ -1297,7 +1298,7 @@ function freshModes(F,today,seen){
     var f=F[m], n=F.days[m];
     if(!f||!f.p||!(n>0)||!/^\d{4}-\d{2}-\d{2}$/.test(f.d||'')) return false;
     var age=today-_dn(f.d);
-    return age>=0&&age<n&&!(seen&&seen[m]===f.p);
+    return age>=0&&age<n&&(age<(F.force||0)||!(seen&&seen[m]===f.p));
   });
 }
 function modeSeen(){

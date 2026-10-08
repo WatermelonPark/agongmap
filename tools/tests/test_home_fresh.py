@@ -2,7 +2,7 @@
 """홈 모드 단추(공급 현황·주간 시세·월간 시세)의 '새 데이터' N 배지(2026-10-08 대표 요청, B안).
 
 규칙: 모드마다 최신 시점이 이 사이트에 처음 실린 날(KST)부터 ADV.fresh.days[모드] 일 동안(그날 포함 — 주간 4·월간 7·공급 14,
-같은 날 대표 결정) 배지를 단다. 방문자가 그 단추를
+같은 날 대표 결정) 배지를 단다. 처음 FRESH_FORCE 일(그날과 다음 날)은 눌렀어도 단다. 방문자가 그 단추를
 누르면(켜져 있는 '공급 현황'을 다시 눌러도) 그 시점을 기기에 기억해 지운다. 다음 시점이 들어오면 또 단다. 처음 실린 날은 배치가
 split_data.fresh_marks 로 직전 data-core.js 의 ADV.fresh 에서 이어 받는다 — 기능을 처음 배포한 회차는 날을 비워 셋이 한꺼번에
 '새것'이 되지 않는다.
@@ -16,6 +16,7 @@ markFresh·mapMode 를 합성 DOM 에서 돌린다.
   · fresh_marks 에서 시점이 같을 때 오늘로 다시 찍으면(날을 이어 받지 않음) → 이어 받기 시험 빨강.
   · freshModes 의 `age<n` 을 `<=` 로 바꾸면, 모드별 일수 대신 한 값을 쓰면 → 기간 단정 빨강.
   · freshModes 가 기억한 시점(seen)을 보지 않으면 → 누른 뒤 단정 빨강.
+  · freshModes 가 force 를 무시하면(첫 이틀에도 누른 기록으로 지움), force 를 3일로 늘리면 → 무조건 구간 단정 빨강.
   · mapMode 에서 seeFresh 를 `MAP_MODE===m` 검사 뒤로 옮기면 → 켜진 공급 단추를 눌러도 남아 빨강.
   · split_data.main 이 old_fresh(OUT) 대신 None 을 넘기면 → main 이어 받기 시험 빨강.
 """
@@ -41,7 +42,7 @@ NOW = {'supply': '2026Q2', 'weekly': '2026-10-05', 'monthly': '2026-08'}
 
 def test_first_run_marks_nothing_new():
     got = S.fresh_marks(NOW, None, TODAY)
-    assert got == {'days': S.FRESH_DAYS, 'supply': {'p': '2026Q2', 'd': ''}, 'weekly': {'p': '2026-10-05', 'd': ''},
+    assert got == {'days': S.FRESH_DAYS, 'force': S.FRESH_FORCE, 'supply': {'p': '2026Q2', 'd': ''}, 'weekly': {'p': '2026-10-05', 'd': ''},
                    'monthly': {'p': '2026-08', 'd': ''}}, got
 
 
@@ -98,6 +99,8 @@ var out={};
 out.by={};
 ["2026-10-08","2026-10-09","2026-10-11","2026-10-12","2026-10-14","2026-10-15"].forEach(function(d){ out.by[d]=freshModes(F,_dn(d),{}); });
 out.seen=freshModes(F,_dn("2026-10-08"),{weekly:"2026-10-05",supply:"2025Q4"});
+out.seenBy={};
+["2026-10-09","2026-10-10","2026-10-11"].forEach(function(d){ out.seenBy[d]=freshModes(F,_dn(d),{weekly:"2026-10-05",supply:"2025Q4"}); });
 out.empty=freshModes({days:{weekly:4},weekly:{p:"2026-10-05",d:""}},_dn("2026-10-08"),{});
 out.future=freshModes({days:{weekly:4},weekly:{p:"2026-10-05",d:"2026-10-09"}},_dn("2026-10-08"),{});
 out.none=freshModes(null,_dn("2026-10-08"),{});
@@ -108,7 +111,7 @@ function btn(m,dis){ var kids=[]; return {m:m,disabled:dis,kids:kids,
 var B={supply:btn("supply",false),weekly:btn("weekly",false),monthly:btn("monthly",true)};
 var document={querySelector:function(q){ var m=/data-m="(\w+)"\](\s*\.nb)?/.exec(q); var b=B[m[1]]; return m[2]?b.querySelector():b; },
   getElementById:function(){ return null; }};
-var ADV={fresh:{days:F.days,supply:{p:"2026Q2",d:"2026-10-07"},weekly:{p:"2026-10-05",d:"2026-10-08"},monthly:{p:"2026-09",d:"2026-10-08"}}};
+var ADV={fresh:{days:F.days,force:F.force,supply:{p:"2026Q2",d:"2026-10-05"},weekly:{p:"2026-10-05",d:"2026-10-08"},monthly:{p:"2026-09",d:"2026-10-08"}}};
 var MAP_MODE='supply', TB_VIEW='map';
 function priceOk(){ return true; } function renderAggCards(){} function renderSidoMap(){} function track(){} function tbView(){}
 var _kst=function(){ return {day:_dn("2026-10-08"),hour:12}; };
@@ -120,6 +123,10 @@ out.afterSupply=Object.keys(B).filter(function(k){ return B[k].kids.length; });
 out.ls=JSON.parse(LS[MODE_SEEN_KEY]||'{}');
 markFresh();                     // 다시 그려도(다음 방문) 공급은 달지 않는다
 out.again=Object.keys(B).filter(function(k){ return B[k].kids.length; });
+mapMode('weekly');               // 첫날인 주간을 누른다 — 화면에서는 지우지만
+out.afterWeekly=Object.keys(B).filter(function(k){ return B[k].kids.length; });
+markFresh();                     // 다시 그리면(새로고침) 첫날이라 또 단다
+out.forced=Object.keys(B).filter(function(k){ return B[k].kids.length; });
 process.stdout.write(JSON.stringify(out));
 '''
 
@@ -128,19 +135,24 @@ def test_badge_window_seen_and_tap():
     src = HS.home_source()
     fns = '\n'.join(_fn(src, n) for n in ('_dn', 'freshModes', 'modeSeen', 'markFresh', 'seeFresh', 'mapMode'))
     assert S.FRESH_DAYS == {'supply': 14, 'weekly': 4, 'monthly': 7}   # 2026-10-08 대표 결정(주간 목→일, 월간 한 주, 분기 두 주)
-    fresh = {'days': S.FRESH_DAYS, 'supply': {'p': '2026Q2', 'd': '2026-09-25'}, 'weekly': {'p': '2026-10-05', 'd': '2026-10-08'},
+    fresh = {'days': S.FRESH_DAYS, 'force': S.FRESH_FORCE, 'supply': {'p': '2026Q2', 'd': '2026-09-25'}, 'weekly': {'p': '2026-10-05', 'd': '2026-10-08'},
              'monthly': {'p': '2026-09', 'd': '2026-10-08'}}
     got = _node('var _DAY=864e5;\n' + HARNESS % {'fns': fns, 'fresh': json.dumps(fresh)})
     # 공급 9/25(14일째가 10/8), 주간·월간 10/8 — 그날 포함 공급 14·주간 4(목→일)·월간 7일
     assert got['by'] == {'2026-10-08': ['supply', 'weekly', 'monthly'], '2026-10-09': ['weekly', 'monthly'],
                          '2026-10-11': ['weekly', 'monthly'], '2026-10-12': ['monthly'], '2026-10-14': ['monthly'],
                          '2026-10-15': []}, got['by']
-    assert got['seen'] == ['supply', 'monthly'], got['seen']      # 누른 시점은 안 단다, 옛 시점을 누른 기록은 무시
+    assert got['seen'] == ['supply', 'weekly', 'monthly'], got['seen']   # 10/8 은 주간·월간 첫날 — 눌렀어도 단다
+    # 주간을 누른 기기: 첫날·다음 날은 단다, 3일째(10/10)부터는 안 단다. 옛 시점을 누른 기록은 무시
+    assert got['seenBy'] == {'2026-10-09': ['weekly', 'monthly'], '2026-10-10': ['monthly'], '2026-10-11': ['monthly']}, \
+        got['seenBy']
+    assert S.FRESH_FORCE == 2
     assert got['empty'] == [] and got['future'] == [] and got['none'] == []
     assert got['badges'] == ['supply', 'weekly'], got['badges']  # 잠긴 단추(월간)엔 달지 않는다
     assert 'aria-hidden="true">N<' in got['html'] and 'sr-only' in got['html']
     assert got['afterSupply'] == ['weekly'] and got['ls'] == {'supply': '2026Q2'}, (got['afterSupply'], got['ls'])
-    assert got['again'] == ['weekly'], got['again']
+    assert got['again'] == ['weekly'], got['again']                # 공급은 4일째(10/5) — 누르면 다시 안 단다
+    assert got['afterWeekly'] == [] and got['forced'] == ['weekly'], (got['afterWeekly'], got['forced'])
 
 
 def test_badges_are_drawn_at_boot_after_the_buttons_are_locked():
