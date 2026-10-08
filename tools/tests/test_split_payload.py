@@ -54,7 +54,7 @@ def test_build_only_keys_are_not_shipped_to_browser(out):
     빨개지고(data-trend.json 250KB → 699KB), CORE_ADV 에 'permits' 를 되돌려 넣으면 core 단정이 빨개진다."""
     core_adv, _ = _core(out)
     assert 'permits' not in core_adv, 'permits 는 통계 탭 전용이다(B11) — 홈 첫 화면 페이로드에 실렸다'
-    assert set(core_adv) <= set(S.CORE_ADV) | {'weekly', 'blog', 'monthly'}, sorted(core_adv)
+    assert set(core_adv) <= set(S.CORE_ADV) | {'weekly', 'monthly'} | set(S.CORE_ONLY_ADV), sorted(core_adv)
     src_p = out['src_adv'].get('permits') or {}
     assert set(src_p) - set(S.KEEP_PERMITS), '픽스처가 평평하다 — 원천 permits 에 빌드 전용 키가 없어 허용목록을 못 잰다'
     p = (out['trend'].get('ADV') or {}).get('permits')

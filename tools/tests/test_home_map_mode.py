@@ -289,6 +289,7 @@ MODE_HARNESS = r'''
 %(fns)s
 var MAP_MODE='supply', TB_VIEW=%(view)s, sent=[], drawn=0, cards=0, views=[], HAS=%(has)s;
 function track(e,p){ sent.push([e,p]); }
+function seeFresh(m){}   // N 배지(test_home_fresh 가 따로 본다)
 function renderSidoMap(){ drawn++; } function renderAggCards(){ cards++; }
 function tbView(v,quiet){ views.push([v,!!quiet]); TB_VIEW=v; }
 var WK_MAP_REF=0.4, MO_MAP_REF=1.0, SIDO_GEO={};
