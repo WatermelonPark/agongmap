@@ -950,9 +950,12 @@ def series_links(nm, seq, total=None):
 def cta(nm, seq, total=None):
     """글 끝 유도문 한 줄. 문장은 회차마다 바뀌고, 목적지는 늘 그 지역 리포트다. 캠페인은 누적 회차(seq)라 글마다 다르다."""
     txt = ZONE_CTA[_rot(seq, len(ZONE_CTA), total)]
+    # 보이는 이름은 검색 표기(SEARCH_NAME, 예: '광주·전남'), 주소만 판정 단위 이름이다(2026-10-08 — 광주·전남 편
+    # 초안의 소제목·링크에 내부 이름 '전남광주'가 그대로 나갔다).
+    shown = esc(SEARCH_NAME.get(nm, nm))
     return ('<p>%s<br>👉 <a href="%s">%s 공급 리포트</a></p>'
-            % (txt % esc(nm) if '%s' in txt else txt,
-               site_link('/zone/%s/' % quote(nm), 'zone_deep_%d' % seq), esc(nm)))
+            % (txt % shown if '%s' in txt else txt,
+               site_link('/zone/%s/' % quote(nm), 'zone_deep_%d' % seq), shown))
 
 
 # 지역 편 제목 앞머리 교대 실험(2026-09-27 대표 승인, 조회수 조사 SRCH-1).
@@ -1027,7 +1030,7 @@ ASK_CTA = (
 
 def ask_cta(nm, seq, total=None):
     txt = ASK_CTA[_rot(seq, len(ASK_CTA), total)]
-    return '<p>%s</p>' % (txt % esc(nm) if '%s' in txt else txt)
+    return '<p>%s</p>' % (txt % esc(SEARCH_NAME.get(nm, nm)) if '%s' in txt else txt)
 
 
 def _thumb_curve(sts, nm, since='2016.01'):
@@ -1300,7 +1303,8 @@ def draft_zone(adv, sts, r, seq, total):
     # 아니라 아공맵 설명서로 읽힌다는 지적(2026-08-30 사용자).
     #
     # 새 순서: 결론 → 그 지역의 지금 → 전망 → 다른 지역 → 산식(압축) → 면책.
-    body.append('<h3>%s%s 지금 어떤 상태인가</h3>' % (esc(nm), eunneun(nm)))
+    shown = SEARCH_NAME.get(nm, nm)
+    body.append('<h3>%s%s 지금 어떤 상태인가</h3>' % (esc(shown), eunneun(shown)))
     # 그 지역 시세부터. ②만 읽고 가는 사람도 있어서 ①에 있다고 생략하면 안 된다.
     W = adv.get('weekly') or {}
     try:

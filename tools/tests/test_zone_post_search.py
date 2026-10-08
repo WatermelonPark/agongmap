@@ -120,6 +120,12 @@ def test_gwangju_jeonnam_uses_search_forms(monkeypatch, survey):
     assert '광주부동산전망' in d['tags']
     names = [z for z in SZ.ORDER if z not in SZ.AGG]
     assert P._zone_of_title(d['title'], names) == '전남광주'
+    # 보이는 글자에 내부 이름이 남지 않는다 — 소제목·글 끝 링크 이름(2026-10-08 실제 초안에서 '전남광주는 지금 어떤
+    # 상태인가'·'전남광주 공급 리포트'가 나갔다). 주소(href)의 /zone/전남광주/ 는 판정 단위 이름이라 그대로다.
+    # 변이: draft_zone 소제목이나 cta() 의 보이는 이름을 nm 으로 되돌리면 빨개진다.
+    shown = re.sub(r'href="[^"]*"', '', d['body'])
+    assert '전남광주' not in shown, re.findall(r'.{20}전남광주.{20}', shown)
+    assert '광주·전남은 지금 어떤 상태인가' in d['body']
 
 
 def test_province_tags_use_the_city_people_search(monkeypatch):
