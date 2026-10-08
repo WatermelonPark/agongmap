@@ -2145,11 +2145,12 @@ def render(p, d1, d2):
                      '강남 3구가 모두 내렸고 22개 구는 올랐습니다</code>. 앞부분은 이 장르의 '
                      '관례라 그대로 두고, 숫자는 검색결과에서 잘리니 결론으로 바꿉니다.</p>')
         S.append(field('본문', 'b%d' % i, d['body']))
-        S.append(tagfield(d['tags']))
         # imgnote는 완결된 안내문이다. 예전엔 문장 안에 끼워 넣는 구조였는데,
         # 이미지가 여러 장이 되면서 문장이 깨졌다(2026-08-16).
         S.append('<p class="note">📎 %s</p>' % d['imgnote'])
         S.append(img_gallery(d.get('imgs') or []))
+        # 태그는 맨 아래 — 본문·이미지를 다 넣은 뒤 발행 직전에 넣는 순서라서(2026-10-09 대표).
+        S.append(tagfield(d['tags']))
         S.append('</section>')
 
     S.append('<p class="hint">같은 내용을 사이트·인스타와 똑같이 올리면 네이버가 '
