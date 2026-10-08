@@ -465,7 +465,7 @@ def test_home_first_screen_reads_only_core_data():
     core = _strip_js(_core())
     adv = set(re.findall(r'\bADV\.([A-Za-z_]\w*)', core))
     stats = set(re.findall(r"\bSTATS\[\s*'([^']+)'\s*\]", core))
-    allowed = set(SD.CORE_ADV) | {'weekly', 'monthly', 'blog'}
+    allowed = set(SD.CORE_ADV) | {'weekly', 'monthly'} | set(SD.CORE_ONLY_ADV)
     assert adv, 'home-app.js 에서 ADV 읽기를 하나도 못 찾았다 — 이 시험이 헛돈다'
     assert adv <= allowed, '홈 첫 화면 코드가 코어에 없는 ADV 키를 읽는다: %s' % sorted(adv - allowed)
     assert stats and stats <= set(SD.CORE_STATS), '홈 첫 화면 코드가 코어에 없는 STATS 계열을 읽는다: %s' % sorted(stats - set(SD.CORE_STATS))

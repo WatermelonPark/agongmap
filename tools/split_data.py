@@ -67,8 +67,8 @@ CORE_ADV = ['sido', 'holidays']
 # 폐기된 생활권 지표 aged30(홈·통계 탭 어디서도 읽지 않는다)이 통계 탭을 여는 모든 방문자에게 계속 실려 나갔다(전수 리뷰
 # 묶음 T 제보). 통계 탭(home-stats.js)이 읽는 키만 둔다 — 새 지표를 통계 탭에 올리면 여기에 적는다.
 TREND_ADV = ('sido', 'holidays', 'weekly', 'monthly', 'occupancy', 'permits', 'bubble')
-# 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다(ADV.blog, B5).
-CORE_ONLY_ADV = ('blog',)
+# 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다(ADV.blog, B5 · ADV.fresh).
+CORE_ONLY_ADV = ('blog', 'fresh')   # fresh: 모드 단추 N 배지(2026-10-08)
 
 # ⚠️ 거부목록이 아니라 **허용목록**이다. 예전엔 뺄 키를 나열했더니 새로 생긴 키가
 # 아무도 안 막아준 채 홈 페이로드로 새어 나갔다 — permits.city(150KB)로 data-core가
@@ -90,6 +90,7 @@ from weekly_release import GRACE_WEEKLY  # noqa: E402
 # 판정 모델(sido_zones)은 반드시 있어야 하는 의존이다 — weekly_release 처럼 없으면 배치가 멈춘다(전수 리뷰 #14). 예전엔
 # 못 불러오면 지역 19곳을 손으로 옮긴 대체 목록으로 조용히 넘어가, 모델이 바뀐 뒤(2026-09-10 광주·전남 통합 같은)에는 홈
 # 준공·착공 지역을 옛 목록으로 거르고 화면 문구(refresh_texts)도 건너뛴 코어를 실을 수 있었다. 표준 라이브러리만 쓴다.
+import kst as _kst  # noqa: E402
 import sido_zones as _SZ  # noqa: E402
 TABLE_REGIONS = set(_SZ.ORDER)
 # 이번 주 결론 한 줄(ADV.weekly.head, 홈 마케팅 검수 B1·IA-4). /weekly/ 제목과 같은 함수(make_weekly_page.conclusion)
@@ -198,6 +199,55 @@ def bake_lights(sido, stats):
     sido['ylg'] = [list(x) for x in _SZ.light_legend()]
 
 
+# 홈 모드 단추의 '새 데이터' N 배지(2026-10-08 대표 요청, B안). 모드마다 최신 시점(공급 = 판정 분기 ADV.sido.L, 주간 = 마지막
+# 조사일, 월간 = 마지막 달)과 그 시점이 **이 사이트에 처음 실린 날**(KST)을 ADV.fresh 로 싣는다. 홈은 그날부터 모드별 FRESH_DAYS 일
+# 동안(그날 포함) 배지를 달고, 방문자가 그 단추를 누르면 그 기기에서는 지운다(home-app.js freshModes·seeFresh).
+# '처음 실린 날'은 따로 파일을 두지 않고 직전 data-core.js 의 ADV.fresh 에서 이어 받는다 — 시점이 같으면 옛 날을 두고, 바뀌면
+# 오늘. 직전 값이 없는 첫 회차(기능을 처음 배포한 날)는 날을 비워 배지를 달지 않는다(셋이 한꺼번에 '새것'이 되지 않게).
+# 표시 기간은 들어오는 주기에 맞춘다(2026-10-08 대표 결정): 주간은 목요일 발표 → 일요일까지(주말 방문 포함), 월간은 한 주,
+# 분기 공급은 두 주. 누르면 그 기기에서 바로 지우므로 길게 두어도 자주 오는 방문자에게 짐이 되지 않는다.
+FRESH_DAYS = {'supply': 14, 'weekly': 4, 'monthly': 7}
+FRESH_MODES = tuple(FRESH_DAYS)
+
+
+def fresh_periods(core_adv):
+    """모드별 최신 시점 — 홈 지도 세 모드가 그리는 값의 시점과 같다."""
+    w = (core_adv.get('weekly') or {}).get('rows') or []
+    m = (core_adv.get('monthly') or {}).get('rows') or []
+    return {'supply': (core_adv.get('sido') or {}).get('L'),
+            'weekly': w[-1]['p'] if w else None,
+            'monthly': m[-1]['p'] if m else None}
+
+
+def old_fresh(path):
+    """직전 data-core.js 의 ADV.fresh(없거나 못 읽으면 None)."""
+    try:
+        t = io.open(path, encoding='utf-8').read()
+        a = json.loads(re.search(r'const ADV=(\{.*?\});\nconst STATS=', t, re.S).group(1))
+    except Exception:
+        return None
+    f = a.get('fresh')
+    return f if isinstance(f, dict) else None
+
+
+def fresh_marks(periods, old, today):
+    """{'days': {모드: 일수}, 모드: {'p': 시점, 'd': 처음 실린 날 또는 ''}} — 시점이 없는 모드는 뺀다."""
+    out = {'days': dict(FRESH_DAYS)}
+    for m in FRESH_MODES:
+        p = periods.get(m)
+        if not p:
+            continue
+        prev = (old or {}).get(m) if isinstance((old or {}).get(m), dict) else None
+        if prev is None:
+            d = ''                                  # 첫 회차·새 모드 — 언제 실렸는지 모르니 새것이라 하지 않는다
+        elif prev.get('p') == p:
+            d = prev.get('d') or ''
+        else:
+            d = today
+        out[m] = {'p': p, 'd': d}
+    return out
+
+
 def main():
     src = io.open(SRC, encoding='utf-8').read()
     adv = json.loads(re.search(
@@ -267,6 +317,8 @@ def main():
             'note': mo.get('note', ''),
             'agg': price_agg(mo),      # 분기·연 합(원값으로 한 번, #110) — 홈 tbAgg 가 읽는다
         }
+
+    core_adv['fresh'] = fresh_marks(fresh_periods(core_adv), old_fresh(OUT), _kst.today_iso())
 
     core_stats = {k: stats[k] for k in CORE_STATS if k in stats}
     missing = [k for k in CORE_STATS if k not in stats]

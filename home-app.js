@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v185';
+const HOME_BUILD='v186';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1265,8 +1265,9 @@ function priceOk(m){ return typeof SIDO_GEO!=='undefined'&&!!priceModel(m); }
 /* 모드 전환 — 버튼 상태(aria-pressed)를 맞추고 지도를 다시 그린다. 값 이름은 snake_case(supply·weekly·monthly), 측정은 map_mode. */
 function mapMode(m){
   if(m!=='weekly'&&m!=='monthly') m='supply';
-  if(MAP_MODE===m) return;
   if(m!=='supply'&&!priceOk(m)) return;
+  seeFresh(m);   // N 배지는 켜져 있는 단추를 다시 눌러도 지운다(공급 현황은 처음부터 켜져 있다)
+  if(MAP_MODE===m) return;
   MAP_MODE=m;
   var seg=document.getElementById('map-mode');
   if(seg) [].forEach.call(seg.querySelectorAll('button'),function(b){
@@ -1284,6 +1285,39 @@ function mapMode(m){
   renderAggCards();
   renderSidoMap();
   track('map_mode',{mode:m});
+}
+/* 모드 단추의 '새 데이터' N 배지(2026-10-08 대표 요청, B안). 데이터가 이 사이트에 처음 실린 날(KST)부터 ADV.fresh.days[모드] 일
+   동안(그날 포함 — 주간 4·월간 7·공급 14, 정본 split_data.FRESH_DAYS) 단다 — 시점과 날은 배치가 split_data.fresh_marks 로 싣는다. 방문자가 그 단추를 누르면 그 시점을 이 기기에만 기억해
+   (개인정보처리방침 '브라우저에만 저장') 다시 달지 않는다. 다음 시점이 들어오면 또 단다.
+   F: ADV.fresh, today: KST 일수(_kst().day), seen: {모드: 누른 시점} → 배지를 달 모드 목록. */
+const MODE_SEEN_KEY='mode_seen';
+function freshModes(F,today,seen){
+  if(!F||!F.days) return [];
+  return ['supply','weekly','monthly'].filter(function(m){
+    var f=F[m], n=F.days[m];
+    if(!f||!f.p||!(n>0)||!/^\d{4}-\d{2}-\d{2}$/.test(f.d||'')) return false;
+    var age=today-_dn(f.d);
+    return age>=0&&age<n&&!(seen&&seen[m]===f.p);
+  });
+}
+function modeSeen(){
+  try{var o=JSON.parse(lsGet(MODE_SEEN_KEY)||'{}');return o&&typeof o==='object'?o:{};}catch(e){return {};}
+}
+function markFresh(){
+  var F=typeof ADV!=='undefined'?ADV.fresh:null;
+  freshModes(F,_kst(new Date()).day,modeSeen()).forEach(function(m){
+    var b=document.querySelector('#map-mode [data-m="'+m+'"]');
+    if(b&&!b.disabled&&!b.querySelector('.nb'))
+      b.insertAdjacentHTML('beforeend','<span class="nb"><span aria-hidden="true">N</span><span class="sr-only"> 새 데이터</span></span>');
+  });
+}
+function seeFresh(m){
+  var b=document.querySelector('#map-mode [data-m="'+m+'"] .nb');
+  if(!b) return;
+  b.remove();
+  var f=typeof ADV!=='undefined'&&ADV.fresh&&ADV.fresh[m];
+  if(!f||!f.p) return;
+  var s=modeSeen(); s[m]=f.p; lsSet(MODE_SEEN_KEY,JSON.stringify(s));
 }
 /* 판정·시세 카드 셋(전국·수도권·지방)과 ⓘ 식·발표 줄 — 모드 버튼 아래, 지도/그래프/표 버튼 위(2026-10-04 대표 요청). 보기
    (지도·그래프·표)와 무관하게 늘 보인다. 공급 모드는 판정 카드, 시세 모드는 같은 자리에 변동률 카드(→ /weekly/·/monthly/)
@@ -1949,6 +1983,7 @@ function boot(){
      숨은 상태의 tbAnchor 재시도 타이머 6발이 전부 헛돈다(2026-08-10 리뷰).
      tbView('table')이 처음 열 때 굽는다 — 지도 폴백(tbView('table'))도 같은 경로. */
 renderAggCards();   // 판정 카드 셋 — 모드 버튼 아래·지도/그래프/표 버튼 위(보기와 무관하게 늘 보인다)
+markFresh();        // 모드 단추 N 배지 — renderAggCards 가 못 쓰는 시세 단추를 잠근 뒤에(잠긴 단추엔 달지 않는다)
 renderSidoMap();    // 기본 모드 — 보이는 것부터
   /* 대결 링크(?c=&s=, 퀴즈 랜딩이 넘겨준다)는 퀴즈 화면을 먼저 띄우고 해석·시작은 home-quiz.js 의 bootChallenge 가
      한다(B11 — 점수 상한 QUIZ_LEN 이 그 파일에 있다). 모양만 보는 chalInURL 은 랜딩의 넘김 조건과 같다. */
