@@ -1806,7 +1806,7 @@ window.addEventListener('load',function(){go(0)});})();</script>"""
 def _weekly_shot_page():
     """index.html 사본 + 캡처 스크립트. drafts/(gitignore) 에 두고 저장소 루트를 서버로 띄워 연다 — 사이트가
     '/app.css'·'/data-core.js' 같은 루트 기준 주소를 쓰므로 file:// 로는 안 열린다."""
-    t = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
+    t = dict(HS.home_files())[HS.HOME]   # 홈은 입구(home_src)로만 읽는다 — test_home_src 가 직접 열기를 막는다
     if '</body>' not in t:
         return None
     return t.replace('</body>', _SHOT_JS + '</body>', 1)
