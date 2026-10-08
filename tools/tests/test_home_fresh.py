@@ -19,6 +19,8 @@ markFresh·mapMode 를 합성 DOM 에서 돌린다.
   · freshModes 가 force 를 무시하면(첫 이틀에도 누른 기록으로 지움), force 를 3일로 늘리면 → 무조건 구간 단정 빨강.
   · mapMode 에서 seeFresh 를 `MAP_MODE===m` 검사 뒤로 옮기면 → 켜진 공급 단추를 눌러도 남아 빨강.
   · split_data.main 이 old_fresh(OUT) 대신 None 을 넘기면 → main 이어 받기 시험 빨강.
+  · old_fresh 가 못 읽는 파일을 None 으로 넘기면(옛 판) → 멈춤 시험 빨강. fresh_marks 가 뒤로 간 시점에도 오늘을 찍으면 → 철회 시험 빨강.
+  · markFresh 가 priceOk 대신 disabled 를 보면 → 잠긴 모드 단정 빨강(픽스처는 단추를 잠그지 않고 priceOk 만 거짓).
 """
 import io
 import json
@@ -51,24 +53,34 @@ def test_only_the_mode_whose_period_moved_gets_today():
     assert got['weekly'] == {'p': '2026-10-05', 'd': TODAY}
     assert got['supply'] == OLD['supply'] and got['monthly'] == OLD['monthly']
     assert S.fresh_marks(dict(NOW, monthly=None), OLD, TODAY).get('monthly') is None   # 시점이 없는 모드는 싣지 않는다
+    # 뒤로 간 시점(월간 2026-08 → 2026-07, 기준변경 보류·원천 철회)은 새것이 아니고, 돌아와도(2026-07 → 2026-08) 또 세지 않는다
+    back = S.fresh_marks(dict(NOW, monthly='2026-07'), OLD, TODAY)
+    assert back['monthly'] == {'p': '2026-07', 'd': ''}, back
+    assert S.fresh_marks(NOW, back, TODAY)['monthly'] == {'p': '2026-08', 'd': TODAY}   # 옛 시점 기록이 비었으니 돌아온 달은 새것
 
 
-def test_main_carries_the_first_day_from_the_previous_core(tmp_path, monkeypatch):
-    """배치는 매일 split_data 를 돈다. 시점이 그대로인 날 다시 돌아도 처음 실린 날이 오늘로 밀리면 배지가 영영 3일 안에 머문다."""
+def test_main_reads_the_previous_core_and_old_fresh_stops_on_a_broken_file(tmp_path, monkeypatch):
+    """배치는 매일 split_data 를 돈다. main 이 직전 OUT 의 fresh 를 넘겨야 시점이 그대로인 날 처음 실린 날이 오늘로 밀리지 않는다.
+    old_fresh: 파일 없음 → None(첫 회차), 있는데 모양이 다름 → SystemExit(조용히 첫 회차 취급하면 배지가 영영 안 뜬다)."""
     out = str(tmp_path / 'data-core.js')
     monkeypatch.setattr(S, 'OUT', out)
     for name in ('TREND', 'SGG', 'REST', 'SIZE'):
         monkeypatch.setattr(S, name, str(tmp_path / (name.lower() + '.json')))
+    # 직전 값은 실데이터의 시점에 옛 날을 붙여 만든다 — 시점을 글자로 박으면 데이터가 다음 분기로 가는 날 빨개진다(게이트 규칙)
     S.main()
-    first = S.old_fresh(out)
-    assert first and all(first[m]['d'] == '' for m in S.FRESH_MODES if m in first), first
-    seeded = dict(first, weekly={'p': first['weekly']['p'], 'd': '2026-10-01'})
-    t = io.open(out, encoding='utf-8').read()
-    t = t.replace('"fresh":' + json.dumps(first, ensure_ascii=False, separators=(',', ':')),
-                  '"fresh":' + json.dumps(seeded, ensure_ascii=False, separators=(',', ':')))
-    io.open(out, 'w', encoding='utf-8').write(t)
+    cur = S.old_fresh(out)
+    prev = {m: {'p': cur[m]['p'], 'd': '2026-10-01'} for m in S.FRESH_MODES if m in cur}
+    asked = []
+    monkeypatch.setattr(S, 'old_fresh', lambda path: asked.append(path) or prev)
     S.main()
-    assert S.old_fresh(out)['weekly'] == {'p': first['weekly']['p'], 'd': '2026-10-01'}
+    assert asked == [out], asked
+    monkeypatch.undo()
+    got = S.old_fresh(out)
+    assert all(got[m] == prev[m] for m in prev), got   # 시점이 그대로니 옛 날을 이어 받아 실렸다
+    assert S.old_fresh(str(tmp_path / 'none.js')) is None
+    io.open(out, 'w', encoding='utf-8').write('/* x */\nconst ADV={"sido":{}}\nconst STATS={};\n')
+    with pytest.raises(SystemExit):
+        S.old_fresh(out)
 
 
 def _fn(src, name):
@@ -108,12 +120,13 @@ out.none=freshModes(null,_dn("2026-10-08"),{});
 function btn(m,dis){ var kids=[]; return {m:m,disabled:dis,kids:kids,
   querySelector:function(){ return kids[0]||null; },
   insertAdjacentHTML:function(p,h){ var me=this; kids.push({h:h,remove:function(){ me.kids.splice(0,1); }}); }}; }
-var B={supply:btn("supply",false),weekly:btn("weekly",false),monthly:btn("monthly",true)};
+var B={supply:btn("supply",false),weekly:btn("weekly",false),monthly:btn("monthly",false)};
 var document={querySelector:function(q){ var m=/data-m="(\w+)"\](\s*\.nb)?/.exec(q); var b=B[m[1]]; return m[2]?b.querySelector():b; },
   getElementById:function(){ return null; }};
 var ADV={fresh:{days:F.days,force:F.force,supply:{p:"2026Q2",d:"2026-10-05"},weekly:{p:"2026-10-05",d:"2026-10-08"},monthly:{p:"2026-09",d:"2026-10-08"}}};
 var MAP_MODE='supply', TB_VIEW='map';
-function priceOk(){ return true; } function renderAggCards(){} function renderSidoMap(){} function track(){} function tbView(){}
+function priceOk(m){ return m!=='monthly'; }   // 월간은 열 수 없는 모드(재료 없음) — 단추는 잠기지 않았다
+function renderAggCards(){} function renderSidoMap(){} function track(){} function tbView(){}
 var _kst=function(){ return {day:_dn("2026-10-08"),hour:12}; };
 markFresh();
 out.badges=Object.keys(B).filter(function(k){ return B[k].kids.length; });
@@ -148,17 +161,17 @@ def test_badge_window_seen_and_tap():
         got['seenBy']
     assert S.FRESH_FORCE == 2
     assert got['empty'] == [] and got['future'] == [] and got['none'] == []
-    assert got['badges'] == ['supply', 'weekly'], got['badges']  # 잠긴 단추(월간)엔 달지 않는다
+    assert got['badges'] == ['supply', 'weekly'], got['badges']  # 열 수 없는 모드(월간, priceOk 거짓)엔 달지 않는다
     assert 'aria-hidden="true">N<' in got['html'] and 'sr-only' in got['html']
     assert got['afterSupply'] == ['weekly'] and got['ls'] == {'supply': '2026Q2'}, (got['afterSupply'], got['ls'])
     assert got['again'] == ['weekly'], got['again']                # 공급은 4일째(10/5) — 누르면 다시 안 단다
     assert got['afterWeekly'] == [] and got['forced'] == ['weekly'], (got['afterWeekly'], got['forced'])
 
 
-def test_badges_are_drawn_at_boot_after_the_buttons_are_locked():
+def test_badges_are_drawn_at_boot_and_the_style_is_plan_b():
     src = HS.home_source()
-    i, j = src.index('\nrenderAggCards();'), src.index('\nmarkFresh();')
-    assert i < j, 'markFresh 가 renderAggCards(못 쓰는 시세 단추 잠금) 앞에 돈다'
+    assert '\nmarkFresh();' in src, '부팅에서 markFresh 를 부르지 않는다'
+    assert "Object.keys(F.days)" in _fn(src, 'freshModes'), '모드 목록을 손으로 적었다 — 데이터(F.days)가 정본'
     css = io.open(os.path.join(HS.ROOT, 'app.css'), encoding='utf-8').read()
     rule = re.search(r'#sec-score \.map-mode \.nb\{([^}]*)\}', css).group(1)
     assert 'font-size:13px' in rule and 'top:-' in rule and 'left:-' in rule, rule   # B안: 테두리 위 좌상단

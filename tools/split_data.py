@@ -222,13 +222,13 @@ def fresh_periods(core_adv):
 
 
 def old_fresh(path):
-    """직전 data-core.js 의 ADV.fresh(없거나 못 읽으면 None)."""
-    try:
-        t = io.open(path, encoding='utf-8').read()
-        a = json.loads(re.search(r'const ADV=(\{.*?\});\nconst STATS=', t, re.S).group(1))
-    except Exception:
+    """직전 data-core.js 의 ADV.fresh. 파일이 없으면(첫 회차) None, 있는데 못 읽으면 **멈춘다** — 조용히 None 으로 넘기면
+    배지가 매 회차 첫 회차처럼 비워져 영영 안 뜨는데 아무것도 빨개지지 않는다(2026-10-08 리뷰). 읽기는 홈 요약과 같은
+    함수(make_home_summary.load_core — 모양이 바뀌면 SystemExit)."""
+    if not os.path.exists(path):
         return None
-    f = a.get('fresh')
+    from make_home_summary import load_core   # 순환 없음(make_home_summary 는 split_data 를 들이지 않는다) — 지연 import 는 가져오기 비용
+    f = load_core(path).get('fresh')
     return f if isinstance(f, dict) else None
 
 
@@ -244,8 +244,10 @@ def fresh_marks(periods, old, today):
             d = ''                                  # 첫 회차·새 모드 — 언제 실렸는지 모르니 새것이라 하지 않는다
         elif prev.get('p') == p:
             d = prev.get('d') or ''
+        elif p > str(prev.get('p') or ''):
+            d = today                               # 앞으로 간 시점만 새것이다(같은 모드 안에서는 글자 비교가 시간 순)
         else:
-            d = today
+            d = ''                                  # 뒤로 간 시점(기준변경 보류·원천 철회)은 새것이 아니다 — 돌아오면 또 세지 않는다
         out[m] = {'p': p, 'd': d}
     return out
 
