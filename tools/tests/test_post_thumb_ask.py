@@ -77,3 +77,12 @@ def test_ask_rotates_by_seq():
 def test_ask_never_says_free_consulting():
     # 면책과 부딪히고 광고 문구로 읽힌다 — 사용자와 합의한 선.
     assert not any('무료' in t or '상담' in t for t in P.ASK_CTA)
+
+
+
+def test_thumb_chip_names_the_region_and_year():
+    """썸네일 칩에 지역(검색 표기)과 '2027년'이 들어간다. 큰 글자 문구에 지역이 빠져도 피드 카드에서 어느 글인지 보이게
+    (10-08 광주·전남 초안: 칩 '2027 아파트 공급 전망'만 있었다). 변이: thumb_chip 이 지역을 빼거나 '년'을 빼면 빨개진다."""
+    assert P.thumb_chip('전남광주', '2027') == '2027년 광주·전남 아파트 공급 전망'
+    assert P.thumb_chip('대구', '2027') == '2027년 대구 아파트 공급 전망'
+    assert P.thumb_chip('세종', '') == '세종시 아파트 공급 전망'
