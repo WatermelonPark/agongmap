@@ -880,7 +880,6 @@ def render(post):
 
     })
     S.append(P.field('본문', 'b1', body))
-    S.append(P.tagfield(post.get('tags', []) + TAGS))
     for f, spot in post['imgs']:
         S.append('<p class="note">📎 <code>drafts\\%s</code> → 본문의 '
                  '[여기에 %s] 자리</p>' % (f, spot))
@@ -889,6 +888,8 @@ def render(post):
              '이미지만 있으면 검색이 읽을 게 없습니다.</p>')
     # 이미지를 초안 안에 싣는다(주간·지역 초안과 같은 함수, 2026-09-27).
     S.append(P.img_gallery(post['imgs']))
+    # 태그는 맨 아래 — 발행 직전에 넣는다(2026-10-09 대표, 주간·지역 초안과 같은 순서).
+    S.append(P.tagfield(post.get('tags', []) + TAGS))
     S.append('</section>')
     S.append('<p class="hint">⚠️ 사이트 /cycle/ 페이지와 같은 문장을 쓰면 유사문서로 '
              '묶입니다. 고쳐 쓰실 때도 사이트 문장을 그대로 가져오지 마세요.</p>')
