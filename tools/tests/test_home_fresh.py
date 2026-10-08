@@ -19,6 +19,7 @@ markFresh·mapMode 를 합성 DOM 에서 돌린다.
   · freshModes 가 force 를 무시하면(첫 이틀에도 누른 기록으로 지움), force 를 3일로 늘리면 → 무조건 구간 단정 빨강.
   · mapMode 에서 seeFresh 를 `MAP_MODE===m` 검사 뒤로 옮기면 → 켜진 공급 단추를 눌러도 남아 빨강.
   · split_data.main 이 old_fresh(OUT) 대신 None 을 넘기면 → main 이어 받기 시험 빨강.
+  · fresh_marks 가 pub 대체를 빼면, main 이 fresh_pub 을 넘기지 않으면 → 발표일 대체 시험 빨강.
   · old_fresh 가 못 읽는 파일을 None 으로 넘기면(옛 판) → 멈춤 시험 빨강. fresh_marks 가 뒤로 간 시점에도 오늘을 찍으면 → 철회 시험 빨강.
   · markFresh 가 priceOk 대신 disabled 를 보면 → 잠긴 모드 단정 빨강(픽스처는 단추를 잠그지 않고 priceOk 만 거짓).
 """
@@ -42,10 +43,24 @@ OLD = {'days': dict(S.FRESH_DAYS), 'supply': {'p': '2026Q2', 'd': '2026-08-29'},
 NOW = {'supply': '2026Q2', 'weekly': '2026-10-05', 'monthly': '2026-08'}
 
 
-def test_first_run_marks_nothing_new():
+def test_first_run_marks_nothing_new_without_a_publication_date():
     got = S.fresh_marks(NOW, None, TODAY)
     assert got == {'days': S.FRESH_DAYS, 'force': S.FRESH_FORCE, 'supply': {'p': '2026Q2', 'd': ''}, 'weekly': {'p': '2026-10-05', 'd': ''},
                    'monthly': {'p': '2026-08', 'd': ''}}, got
+
+
+def test_unknown_first_day_falls_back_to_the_weekly_publication_date():
+    """첫 회차(직전 값 없음)와 '모르는 채 이어 받은' 회차(d 가 빈 직전 값) 모두 주간은 발표일(조사일 + 3일, 목요일)로 채운다.
+    월간·공급은 발표일을 모르니 그대로 비운다. 재현: 2026-10-08 기능 배포 뒤 첫 배치가 그날 들어온 10/5 조사분을 비워 N 이 안 떴다."""
+    pub = S.fresh_pub(NOW)
+    assert pub == {'weekly': '2026-10-08'}, pub
+    first = S.fresh_marks(NOW, None, TODAY, pub)
+    assert first['weekly'] == {'p': '2026-10-05', 'd': '2026-10-08'} and first['supply']['d'] == '' and first['monthly']['d'] == ''
+    carried = {'days': dict(S.FRESH_DAYS), 'weekly': {'p': '2026-10-05', 'd': ''}}
+    assert S.fresh_marks(NOW, carried, TODAY, pub)['weekly']['d'] == '2026-10-08'
+    kept = {'days': dict(S.FRESH_DAYS), 'weekly': {'p': '2026-10-05', 'd': '2026-10-09'}}
+    assert S.fresh_marks(NOW, kept, TODAY, pub)['weekly']['d'] == '2026-10-09'     # 아는 날은 발표일로 덮지 않는다
+    assert S.fresh_pub({'weekly': None}) == {}
 
 
 def test_only_the_mode_whose_period_moved_gets_today():
@@ -69,6 +84,7 @@ def test_main_reads_the_previous_core_and_old_fresh_stops_on_a_broken_file(tmp_p
     # 직전 값은 실데이터의 시점에 옛 날을 붙여 만든다 — 시점을 글자로 박으면 데이터가 다음 분기로 가는 날 빨개진다(게이트 규칙)
     S.main()
     cur = S.old_fresh(out)
+    assert cur['weekly']['d'] == S.fresh_pub(S.fresh_periods({'weekly': {'rows': [{'p': cur['weekly']['p']}]}}))['weekly']   # 첫 회차도 주간은 발표일
     prev = {m: {'p': cur[m]['p'], 'd': '2026-10-01'} for m in S.FRESH_MODES if m in cur}
     asked = []
     monkeypatch.setattr(S, 'old_fresh', lambda path: asked.append(path) or prev)
