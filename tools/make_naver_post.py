@@ -1128,6 +1128,13 @@ THUMB_GROUP = {
 THUMB_FONT = 104
 
 
+def thumb_chip(nm, yr):
+    """썸네일 위쪽 작은 글자. **지역 이름**을 꼭 넣는다 — 큰 글자(결론 문구)는 회차마다 바뀌고 지역 이름이 빠질 수 있어서,
+    칩마저 '2027 아파트 공급 전망'이면 피드 카드만 보고는 어느 지역 글인지 알 수 없었다(10-08 광주·전남 초안, 대표 지적
+    10-09). 연도는 제목과 같이 '2027년'으로 쓴다(09-29 대표 결정). 지역은 검색 표기(SEARCH_NAME)로."""
+    return '%s%s 아파트 공급 전망' % ((yr + '년 ') if yr else '', SEARCH_NAME.get(nm, nm))
+
+
 def thumb_zone(r, yr, yrs, sts=None, msg=None):
     """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (1200x900).
 
@@ -1168,7 +1175,7 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
         d.polygon(xy + [(x1 * K, Ht * K), (x0 * K, Ht * K)], fill=FILL)
         d.line(xy, fill=DIM, width=6 * K, joint='curve')
 
-    chip = '%s아파트 공급 전망' % ((yr + ' ') if yr else '')
+    chip = thumb_chip(nm, yr)
     d.text((Wd / 2 * K, 96 * K), chip, font=F(38), fill=SOFT, anchor='mm')
 
     lines = [x for x in (msg or thumb_message(nm, curve)) if x.strip()][:3]
