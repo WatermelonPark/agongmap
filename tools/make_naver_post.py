@@ -598,7 +598,7 @@ def extra_section(adv, sts, rot):
         if cur is None or prv is None:
             return ''
         mv = '올랐습니다' if cur > prv else ('내렸습니다' if cur < prv else '보합입니다')
-        return ('<h3>이번 주의 지표 — 전세가율</h3>'
+        return ('<h3>이번 주의 지표: 전세가율</h3>'
                 '<p>전국 전세가율은 <b>%.1f%%</b>입니다(%s 기준, 전월 %.1f%%에서 %s). '
                 '매매가 대비 전세가의 비율로, 높아질수록 사는 값과 빌리는 값의 차이가 '
                 '좁아져 매매 전환 압력이 커집니다.</p>' % (cur, when, prv, mv))
@@ -609,7 +609,7 @@ def extra_section(adv, sts, rot):
         diff = cur - prv
         mv = ('%s세대 늘었습니다' % num(diff)) if diff > 0 else (
              ('%s세대 줄었습니다' % num(-diff)) if diff < 0 else '변동이 없습니다')
-        return ('<h3>이번 주의 지표 — 미분양</h3>'
+        return ('<h3>이번 주의 지표: 미분양</h3>'
                 '<p>전국 미분양은 <b>%s세대</b>입니다(%s 기준, 전월 대비 %s). '
                 '미분양은 공급이 수요를 넘어선 흔적이라, 쌓이면 그 지역 분양가와 '
                 '입주장 전세가에 먼저 반영됩니다.</p>' % (num(cur), when, mv))
@@ -624,7 +624,7 @@ def extra_section(adv, sts, rot):
             return ''
         judge = ('월세로 사는 비용이 대출 이자보다 비싼 상태' if loan <= lo
                  else '대출 이자가 월세보다 비싼 상태')
-        return ('<h3>이번 주의 지표 — 월세수익률 vs 대출금리</h3>'
+        return ('<h3>이번 주의 지표: 월세수익률 vs 대출금리</h3>'
                 '<p>전국 월세수익률(전세가율 × 전월세전환율)은 연 <b>%s%%</b>, '
                 '주택담보대출 금리는 <b>%s%%</b>%s입니다. 지금은 %s입니다. '
                 '어차피 어딘가에는 살아야 하므로, 이 차이는 실거주 매수를 '
@@ -647,7 +647,7 @@ def extra_section(adv, sts, rot):
         return ''
     pairs = [(k, v[i]) for k, v in sido.items()]
     tops = sorted(pairs, key=lambda x: -x[1])[:3]
-    return ('<h3>이번 주의 지표 — 30년 넘은 아파트</h3>'
+    return ('<h3>이번 주의 지표: 30년 넘은 아파트</h3>'
             '<p>준공 30년이 지난 아파트가 가장 많은 곳은 %s입니다(%s년 기준). '
             '노후 재고는 재건축·재개발 압력이자 앞으로 헐릴 집이기도 해서, '
             '많이 쌓인 지역일수록 실제 공급이 통계보다 빠듯해질 수 있습니다.</p>'

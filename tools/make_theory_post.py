@@ -857,7 +857,7 @@ def render(post):
     body = post['body'].strip() % dict(n4, **{
         'link': link('아공맵 부동산 사이클 리포트 보기'),
         'cycle': link('고리별 검증 결과 보기'),
-        'zone': link('우리 동네 공급은 어떤가 — 시도별 리포트',
+        'zone': link('시도별 리포트에서 우리 동네 공급 보기',
                      path='/zone/', camp='zone_from_cycle'),
         # exp는 그 자체가 <p>…</p> 여러 개다. 본문 템플릿에서 <p>%(exp)s</p>로
         # 감싸면 <p> 안에 <p>가 들어가 빈 문단이 생긴다(2026-09-10 클립보드
