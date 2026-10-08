@@ -1294,7 +1294,7 @@ function mapMode(m){
 const MODE_SEEN_KEY='mode_seen';
 function freshModes(F,today,seen){
   if(!F||!F.days) return [];
-  return ['supply','weekly','monthly'].filter(function(m){
+  return Object.keys(F.days).filter(function(m){   // 모드 목록은 데이터(split_data.FRESH_DAYS)가 정본 — 여기 따로 적지 않는다
     var f=F[m], n=F.days[m];
     if(!f||!f.p||!(n>0)||!/^\d{4}-\d{2}-\d{2}$/.test(f.d||'')) return false;
     var age=today-_dn(f.d);
@@ -1308,7 +1308,8 @@ function markFresh(){
   var F=typeof ADV!=='undefined'?ADV.fresh:null;
   freshModes(F,_kst(new Date()).day,modeSeen()).forEach(function(m){
     var b=document.querySelector('#map-mode [data-m="'+m+'"]');
-    if(b&&!b.disabled&&!b.querySelector('.nb'))
+    /* 열 수 없는 모드(시세 재료·좌표 없음 — mapMode 가 priceOk 에서 돌아간다)에는 달지 않는다. 지울 길이 없는 배지가 되기 때문이다 */
+    if(b&&(m==='supply'||priceOk(m))&&!b.querySelector('.nb'))
       b.insertAdjacentHTML('beforeend','<span class="nb"><span aria-hidden="true">N</span><span class="sr-only"> 새 데이터</span></span>');
   });
 }
