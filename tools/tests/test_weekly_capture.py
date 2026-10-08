@@ -15,14 +15,15 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402
 import make_naver_post as P  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_shot_boxes_exist_in_site_code():
-    home = io.open(os.path.join(ROOT, 'index.html'), encoding='utf-8').read()
-    stats = io.open(os.path.join(ROOT, 'home-stats.js'), encoding='utf-8').read()
+    files = dict(HS.home_files())             # 홈은 입구(home_src)로만 읽는다(test_home_src)
+    home, stats = files[HS.HOME], files['home-stats.js']
     assert 'id="week-map"' in home
     for key, sel in P.WEEKLY_SHOTS.items():
         cls = sel.lstrip('.')
