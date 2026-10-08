@@ -1635,6 +1635,12 @@ def find_chrome():
     return None
 
 
+# 리포트 머리 캡처 폭. 리포트는 1024px 부터 두 단(왼쪽 머리·오른쪽 본문)으로 바뀌어(2026-10 홈·리포트 개편), 1100 폭으로
+# 찍으면 덩어리 자르기가 머리 끝을 못 찾고 페이지 전체가 한 장으로 들어갔다(10-08 광주·전남 초안, 대표 지적 10-09).
+# 한 단으로 나오는 폭에서 찍는다 — 판정·결론 한 줄·'앞으로 해마다 들어올 입주' 막대까지가 첫 긴 덩어리다.
+ZONE_HEAD_W = 1000
+
+
 def capture_zone(z):
     """지역 리포트 화면을 떠서 초안에 넣을 이미지를 만든다.
 
@@ -1665,7 +1671,7 @@ def capture_zone(z):
         proc = subprocess.run(
             [exe, '--headless=new', '--disable-gpu', '--hide-scrollbars',
              '--force-device-scale-factor=%d' % SHOT_SCALE,
-             '--window-size=%d,%d' % (SHOT_W, SHOT_H),
+             '--window-size=%d,%d' % (ZONE_HEAD_W, SHOT_H),
              '--screenshot=%s' % out, url],
             timeout=90, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
