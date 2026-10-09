@@ -119,7 +119,7 @@ def _blog(w):
     if _BF is None or not rows:
         return None
     try:
-        return _BF.pick(_BF.read(), _WR.status(rows[-1]['p'])['pub'])
+        return _BF.pick(_BF.read(), fresh_pub({'weekly': rows[-1]['p']})['weekly'])   # 발표일 셈은 fresh_pub 한 곳
     except Exception as e:            # noqa: BLE001
         print('⚠️ split_data: 블로그 칸을 만들지 못했다 — %s' % e, file=sys.stderr)
         return None
@@ -203,7 +203,8 @@ def bake_lights(sido, stats):
 # 조사일, 월간 = 마지막 달)과 그 시점이 **이 사이트에 처음 실린 날**(KST)을 ADV.fresh 로 싣는다. 홈은 그날부터 모드별 FRESH_DAYS 일
 # 동안(그날 포함) 배지를 달고, 방문자가 그 단추를 누르면 그 기기에서는 지운다(home-app.js freshModes·seeFresh).
 # '처음 실린 날'은 따로 파일을 두지 않고 직전 data-core.js 의 ADV.fresh 에서 이어 받는다 — 시점이 같으면 옛 날을 두고, 바뀌면
-# 오늘. 직전 값이 없는 첫 회차(기능을 처음 배포한 날)는 날을 비워 배지를 달지 않는다(셋이 한꺼번에 '새것'이 되지 않게).
+# 오늘. 직전 값이 없는 첫 회차(기능을 처음 배포한 날)는 공급·월간의 날을 비워 배지를 달지 않고(셋이 한꺼번에 '새것'이 되지 않게),
+# 주간만 데이터에서 계산되는 발표일로 채운다(fresh_pub, 10-08 대표 결정).
 # 표시 기간은 들어오는 주기에 맞춘다(2026-10-08 대표 결정): 주간은 목요일 발표 → 일요일까지(주말 방문 포함), 월간은 한 주,
 # 분기 공급은 두 주. 누르면 그 기기에서 바로 지우므로 길게 두어도 자주 오는 방문자에게 짐이 되지 않는다.
 FRESH_DAYS = {'supply': 14, 'weekly': 4, 'monthly': 7}
@@ -240,7 +241,11 @@ def fresh_pub(periods):
     if not p:
         return {}
     import weekly_release as _WR
-    return {'weekly': _WR.status(p)['pub']}
+    try:
+        return {'weekly': _WR.status(p)['pub']}
+    except (ValueError, TypeError, KeyError) as e:    # 조사일 모양이 이상하면 배지만 비운다 — 배치(데이터 커밋)는 멈추지 않는다(_blog 와 같다)
+        print('  fresh_pub: 주간 발표일을 못 셈(%r) — 주간 배지 날짜를 비운다: %s' % (p, e))
+        return {}
 
 
 def fresh_marks(periods, old, today, pub=None):
@@ -252,16 +257,17 @@ def fresh_marks(periods, old, today, pub=None):
         if not p:
             continue
         prev = (old or {}).get(m) if isinstance((old or {}).get(m), dict) else None
+        known = (pub or {}).get(m) or ''          # 처음 실린 날을 모를 때의 대체(주간 발표일, fresh_pub) — 없으면 비운다
+        if known and today and known > today:
+            known = today                           # 연휴 주 조기 발표로 셈한 발표일이 아직 오지 않았으면 오늘(배지는 미래 날을 세지 않는다)
         if prev is None:
-            d = ''                                  # 첫 회차·새 모드 — 언제 실렸는지 모르니 새것이라 하지 않는다
+            d = known                               # 첫 회차·새 모드 — 공급·월간은 모르니 새것이라 하지 않고, 주간은 발표일
         elif prev.get('p') == p:
-            d = prev.get('d') or ''
+            d = prev.get('d') or known              # 이어 받은 날이 빈 채(첫 회차에 비운 것)면 주간은 발표일로 채운다
         elif p > str(prev.get('p') or ''):
             d = today                               # 앞으로 간 시점만 새것이다(같은 모드 안에서는 글자 비교가 시간 순)
         else:
-            d = ''                                  # 뒤로 간 시점(기준변경 보류·원천 철회)은 새것이 아니다 — 돌아오면 또 세지 않는다
-        if not d and (pub or {}).get(m):
-            d = pub[m]                              # 모르는 날은 발표일로(주간) — 옛 시점이면 발표일도 옛날이라 배지 기간 밖이다
+            d = ''                                  # 뒤로 간 시점(기준변경 보류·원천 철회)은 새것이 아니다 — 발표일로도 채우지 않는다
         out[m] = {'p': p, 'd': d}
     return out
 
