@@ -20,9 +20,12 @@ markFresh·mapMode 를 합성 DOM 에서 돌린다.
   · mapMode 에서 seeFresh 를 `MAP_MODE===m` 검사 뒤로 옮기면 → 켜진 공급 단추를 눌러도 남아 빨강.
   · split_data.main 이 old_fresh(OUT) 대신 None 을 넘기면 → main 이어 받기 시험 빨강.
   · fresh_marks 가 pub 대체를 빼면, main 이 fresh_pub 을 넘기지 않으면 → 발표일 대체 시험 빨강.
+  · fresh_marks 가 뒤로 간 주간 시점까지 발표일로 채우면(10-09 리뷰 1) → 주간 철회 시험 빨강.
+  · fresh_pub 이 이상한 조사일에서 예외를 그대로 던지면 → 같은 시험 빨강(배치가 멈춘다).
   · old_fresh 가 못 읽는 파일을 None 으로 넘기면(옛 판) → 멈춤 시험 빨강. fresh_marks 가 뒤로 간 시점에도 오늘을 찍으면 → 철회 시험 빨강.
   · markFresh 가 priceOk 대신 disabled 를 보면 → 잠긴 모드 단정 빨강(픽스처는 단추를 잠그지 않고 priceOk 만 거짓).
 """
+import datetime
 import io
 import json
 import os
@@ -63,6 +66,15 @@ def test_unknown_first_day_falls_back_to_the_weekly_publication_date():
     assert S.fresh_pub({'weekly': None}) == {}
 
 
+def test_weekly_retraction_is_not_new_even_with_a_publication_date():
+    """뒤로 간 주간 시점(원천 철회·기준변경 보류 — 10-12 → 10-05)은 발표일이 있어도 새것이 아니다. 픽스처: 직전 10-12 조사분.
+    이상한 조사일(원천 모양 변경)은 배지만 비우고 배치를 멈추지 않는다."""
+    old = {'days': dict(S.FRESH_DAYS), 'weekly': {'p': '2026-10-12', 'd': '2026-10-15'}}
+    pub = S.fresh_pub(NOW)
+    assert S.fresh_marks(NOW, old, TODAY, pub)['weekly'] == {'p': '2026-10-05', 'd': ''}
+    assert S.fresh_pub({'weekly': '2026-10'}) == {}
+
+
 def test_only_the_mode_whose_period_moved_gets_today():
     got = S.fresh_marks(NOW, OLD, TODAY)
     assert got['weekly'] == {'p': '2026-10-05', 'd': TODAY}
@@ -84,7 +96,8 @@ def test_main_reads_the_previous_core_and_old_fresh_stops_on_a_broken_file(tmp_p
     # 직전 값은 실데이터의 시점에 옛 날을 붙여 만든다 — 시점을 글자로 박으면 데이터가 다음 분기로 가는 날 빨개진다(게이트 규칙)
     S.main()
     cur = S.old_fresh(out)
-    assert cur['weekly']['d'] == S.fresh_pub(S.fresh_periods({'weekly': {'rows': [{'p': cur['weekly']['p']}]}}))['weekly']   # 첫 회차도 주간은 발표일
+    want = (datetime.date.fromisoformat(cur['weekly']['p']) + datetime.timedelta(days=3)).isoformat()   # 조사일(월) + 3일 = 목요일 발표
+    assert cur['weekly']['d'] == want, (cur['weekly'], want)   # 첫 회차도 주간은 발표일(기대값은 구현과 따로 셈)
     prev = {m: {'p': cur[m]['p'], 'd': '2026-10-01'} for m in S.FRESH_MODES if m in cur}
     asked = []
     monkeypatch.setattr(S, 'old_fresh', lambda path: asked.append(path) or prev)
