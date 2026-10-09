@@ -56,6 +56,11 @@ def home_source(root=None, external=None):
     ⚠️ 빈 문자열·일부만 담긴 문자열을 돌려주지 않는다. 파일이 없거나, 크기가 하한보다 작거나, 표식 식별자가
        하나라도 없으면 HomeSourceError 를 던진다. FILE_MARKERS 에 적힌 파일은 파일마다 따로 본다.
     """
+    return '\n'.join(body for _, body in _read_checked(root, external))
+
+
+def _read_checked(root=None, external=None):
+    """[(경로, 텍스트)] — 파일마다 한 번만 읽고 home_source 의 모든 검사(파일별·합친 크기·표식)를 거친다. home_source·home_files 공용."""
     root = root or ROOT
     files = (HOME,) + tuple(EXTERNAL if external is None else external)
     parts = []
@@ -65,8 +70,8 @@ def home_source(root=None, external=None):
             raise HomeSourceError('홈 소스 파일이 없다: %s' % rel)
         body = io.open(path, encoding='utf-8').read()
         _check_file(rel, body)
-        parts.append(body)
-    text = '\n'.join(parts)
+        parts.append((rel, body))
+    text = '\n'.join(b for _, b in parts)
     size = len(text.encode('utf-8'))
     if size < MIN_BYTES:
         raise HomeSourceError('홈 소스가 %d바이트뿐이다(하한 %d) — 스크립트를 옮겼다면 tools/home_src.py 의 '
@@ -75,7 +80,7 @@ def home_source(root=None, external=None):
     if missing:
         raise HomeSourceError('홈 스크립트에서 %s 를 찾지 못했다 — 스크립트를 옮겼다면 tools/home_src.py 의 '
                               'EXTERNAL 에 그 파일을 적을 것' % ', '.join(missing))
-    return text
+    return parts
 
 
 def _check_file(rel, body):
@@ -97,9 +102,7 @@ def home_files(root=None):
     마크업만·본문 스크립트만 따로 봐야 하는 도구(make_home_font 의 글자 모으기)가 쓴다. 검사를 통과하지 못하면
     home_source 처럼 HomeSourceError 를 던진다.
     """
-    root = root or ROOT
-    home_source(root)
-    return [(rel, io.open(os.path.join(root, rel), encoding='utf-8').read()) for rel in (HOME,) + tuple(EXTERNAL)]
+    return _read_checked(root)   # 한 번 읽고 같은 검사(예전엔 home_source 로 한 번, 파일별로 또 한 번 — 10-09 리뷰)
 
 
 def is_home(*parts):
