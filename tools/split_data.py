@@ -119,7 +119,7 @@ def _blog(w):
     if _BF is None or not rows:
         return None
     try:
-        return _BF.pick(_BF.read(), _WR.status(rows[-1]['p'])['pub'])
+        return _BF.pick(_BF.read(), fresh_pub({'weekly': rows[-1]['p']})['weekly'])   # 발표일 셈은 fresh_pub 한 곳
     except Exception as e:            # noqa: BLE001
         print('⚠️ split_data: 블로그 칸을 만들지 못했다 — %s' % e, file=sys.stderr)
         return None
@@ -258,6 +258,8 @@ def fresh_marks(periods, old, today, pub=None):
             continue
         prev = (old or {}).get(m) if isinstance((old or {}).get(m), dict) else None
         known = (pub or {}).get(m) or ''          # 처음 실린 날을 모를 때의 대체(주간 발표일, fresh_pub) — 없으면 비운다
+        if known and today and known > today:
+            known = today                           # 연휴 주 조기 발표로 셈한 발표일이 아직 오지 않았으면 오늘(배지는 미래 날을 세지 않는다)
         if prev is None:
             d = known                               # 첫 회차·새 모드 — 공급·월간은 모르니 새것이라 하지 않고, 주간은 발표일
         elif prev.get('p') == p:
