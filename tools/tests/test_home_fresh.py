@@ -22,6 +22,7 @@ markFresh·mapMode 를 합성 DOM 에서 돌린다.
   · fresh_marks 가 pub 대체를 빼면, main 이 fresh_pub 을 넘기지 않으면 → 발표일 대체 시험 빨강.
   · fresh_marks 가 뒤로 간 주간 시점까지 발표일로 채우면(10-09 리뷰 1) → 주간 철회 시험 빨강.
   · fresh_pub 이 이상한 조사일에서 예외를 그대로 던지면 → 같은 시험 빨강(배치가 멈춘다).
+  · fresh_marks 가 오늘보다 늦은 발표일을 그대로 쓰면(연휴 주 조기 발표) → 미래 날 시험 빨강.
   · old_fresh 가 못 읽는 파일을 None 으로 넘기면(옛 판) → 멈춤 시험 빨강. fresh_marks 가 뒤로 간 시점에도 오늘을 찍으면 → 철회 시험 빨강.
   · markFresh 가 priceOk 대신 disabled 를 보면 → 잠긴 모드 단정 빨강(픽스처는 단추를 잠그지 않고 priceOk 만 거짓).
 """
@@ -75,6 +76,13 @@ def test_weekly_retraction_is_not_new_even_with_a_publication_date():
     assert S.fresh_pub({'weekly': '2026-10'}) == {}
 
 
+def test_publication_date_in_the_future_is_clamped_to_today():
+    """연휴 주에 R-ONE 이 수요일에 발표하면(2026 추석 주처럼 목요일이 휴일) 셈한 발표일(목)이 아직 오지 않았다 — 홈은 미래 날을
+    세지 않아(age<0) 실제로 들어온 날 배지가 안 뜬다. 픽스처: 첫 회차, 조사일 10-05, 오늘 10-07(수)."""
+    got = S.fresh_marks(NOW, None, '2026-10-07', S.fresh_pub(NOW))
+    assert got['weekly'] == {'p': '2026-10-05', 'd': '2026-10-07'}, got['weekly']
+
+
 def test_only_the_mode_whose_period_moved_gets_today():
     got = S.fresh_marks(NOW, OLD, TODAY)
     assert got['weekly'] == {'p': '2026-10-05', 'd': TODAY}
@@ -96,7 +104,8 @@ def test_main_reads_the_previous_core_and_old_fresh_stops_on_a_broken_file(tmp_p
     # 직전 값은 실데이터의 시점에 옛 날을 붙여 만든다 — 시점을 글자로 박으면 데이터가 다음 분기로 가는 날 빨개진다(게이트 규칙)
     S.main()
     cur = S.old_fresh(out)
-    want = (datetime.date.fromisoformat(cur['weekly']['p']) + datetime.timedelta(days=3)).isoformat()   # 조사일(월) + 3일 = 목요일 발표
+    want = min((datetime.date.fromisoformat(cur['weekly']['p']) + datetime.timedelta(days=3)).isoformat(),   # 조사일(월) + 3일 = 목요일 발표
+               S._kst.today_iso())                                                                           # 아직 안 온 날이면 오늘(다음 분기 전진 시험)
     assert cur['weekly']['d'] == want, (cur['weekly'], want)   # 첫 회차도 주간은 발표일(기대값은 구현과 따로 셈)
     prev = {m: {'p': cur[m]['p'], 'd': '2026-10-01'} for m in S.FRESH_MODES if m in cur}
     asked = []
