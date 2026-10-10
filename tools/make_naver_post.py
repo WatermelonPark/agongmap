@@ -667,17 +667,21 @@ def draft_weekly(adv, sts, shot=True):
     sggerr = '--no-shot 로 건너뜀' if shot else '지난 회차라 사이트 캡처(지금 주 화면)를 건너뜀'
     if shot and '--no-shot' not in sys.argv:
         sgg, top10, sggerr = capture_weekly_map()
+    # 손으로 뜰 주소는 캡처와 같은 주소다(WEEKLY_SHOT_HASH) — 시세 탭 시장동향은 순위·지도를 나눠 보여, 맨 '#stats-market'
+    # (지도 보기)에서는 TOP10 이 보이지 않는다(10-10 코드 리뷰).
+    by_hand = lambda k: '%s/#%s' % (SITE, WEEKLY_SHOT_HASH[k])
     if sgg:
         # 한 장짜리 지도는 맨 아래 범례("위 = 매매 · 아래 = 전세")까지 같이 잘려
         # 들어온다. 반 장일 때 필요했던 캡션 안내는 그래서 뺐다.
         sggnote = ('지도·표를 자동으로 떴습니다.<br>'
                    '<b>%s</b> → [전국 시군구 지도]<br>' % sgg
-                   + ('<b>%s</b> → [상승·하락 TOP10]<br>' % top10 if top10 else '')
+                   + ('<b>%s</b> → [상승·하락 TOP10]<br>' % top10 if top10 else
+                      'TOP10 캡처 실패 — %s. %s 를 직접 캡처해 넣으세요.<br>' % (sggerr, by_hand('top10')))
                    + '네이버는 외부 이미지 주소를 그대로 쓰지 않으므로 파일을 '
                    '직접 올려야 합니다.')
     else:
-        sggnote = ('시군구 지도 없음 — %s. 본문의 자리 표시자를 지우거나 '
-                   '%s/#stats-market 을 직접 캡처해 넣으세요.' % (sggerr, SITE))
+        sggnote = ('시군구 지도 없음 — %s. 본문의 자리 표시자를 지우거나 지도는 %s%s 를 직접 캡처해 넣으세요.'
+                   % (sggerr, by_hand('map'), '' if top10 else ', TOP10 은 %s' % by_hand('top10')))
 
     W = adv['weekly']
     p = W['rows'][-1]['p']

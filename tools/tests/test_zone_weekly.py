@@ -160,8 +160,9 @@ def _cum12(rows, i, met):
 
 
 def _zone_of(code):
+    from merge_regions import SRC, DST   # 통합 정본 — 광주·전남을 손으로 적지 않는다(10-10 코드 리뷰)
     s = WM.sgg_sido(code)      # 홈 sidoOf 와 같은지는 위 시험이 본다
-    return '전남광주' if s in ('광주', '전남') else s
+    return DST if s in SRC else s
 
 
 def _expected(W, Q, z):

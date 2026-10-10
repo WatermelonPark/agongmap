@@ -11,7 +11,11 @@ TOP 10 캡처)는 '#stats-market-<주기>-rank' 로 순위 보기를 바로 연�
   · index.html 에서 기본 눌림(on)을 '순위' 단추로 옮기면, 순위 단추를 빼면 → 단추 시험 빨강.
   · app.css 에서 '.gsec.gm-m .map-rank' 를 지우면(지도 보기에 TOP 10 이 다시 나옴) → 상자 나눔 시험 빨강.
   · gtSet 에서 gm-r 토글을 지우면, 순위로 바꿀 때 trOpenDrop 을 부르지 않으면 → gtSet 시험 빨강.
-  · applyHash 정규식에서 '(-rank)?' 를 빼면, 순위 갈래에서 gtSet(t,'r') 을 빼면 → 입구 시험 빨강.
+  · applyHash 정규식에서 '(-rank)?' 를 빼면, 순위 갈래에서 openTrendRegion 에 'r' 을 넘기지 않으면, 그 갈래에서 gtSet 을 따로
+    부르면(10-10 코드 리뷰 — 통계 파일을 못 받은 날 빈 화면, 받는 사이 누른 보기를 덮음) → 입구 시험 빨강.
+  · openTrendRegion 닫기 갈래에서 view 'r' 을 무시하면, 받는 사이 사람이 고른 보기(GT_SEQ)를 보지 않으면, gtSet 이 사람이 누른
+    전환을 세지 않으면, 라우터가 요청한 때의 GT_SEQ 를 넘기지 않으면(통계 파일은 왔는데 데이터가 늦을 때 openTrendRegion 이 늦게
+    재면 그사이 누른 '그래프'를 덮는다 — 10-10 브라우저 재현) → 뒤로 가기·순위 입구·라우터 시험, gtSet 시험 빨강.
   · openTrendRegion 이 닫을 때 TR_BACK 대신 'm' 을 쓰면, 열 때 순위(gm-r)를 기억하지 않으면, 그래프가 열린 채 다른 지역으로
     갈 때 TR_BACK 을 덮으면 → 뒤로 가기 시험 빨강(순위에서 연 그래프를 닫으면 지도로 떨어지던 결함).
   · 홈 CTA·/weekly/ CTA·/weekly/ 머리 지도 아래 'TOP 10 →'·캡처 주소를 '#stats-market' 으로 되돌리면 → 입구 링크 시험 빨강.
@@ -49,6 +53,13 @@ def _fn(src, name):
     raise AssertionError(name)
 
 
+def _gt_seq_decl(f):
+    """home-app.js 의 GT_SEQ 선언(사람이 누른 보기 전환 수 — 순위 입구가 요청한 때 읽는다)."""
+    m = re.search(r'^const GT_SEQ=\{[^}]*\};', f['home-app.js'], re.M)
+    assert m, 'home-app.js 에 GT_SEQ 선언이 없다'
+    return m.group(0)
+
+
 def _node(js):
     if not shutil.which('node'):
         pytest.skip('node 없음')
@@ -81,6 +92,7 @@ def test_rank_and_map_split_the_same_box():
 
 
 GT = r'''
+%(decl)s
 %(fn)s
 var drops=[], sent=[], swipe=[], TREND={week:{}};
 function trOpenDrop(k){ drops.push(k); } function track(e,p){ sent.push([e,p]); } function syncSwipe(k){ swipe.push(k); }
@@ -91,20 +103,24 @@ var document={getElementById:function(id){ return id==='sec-week'?SEC:null; }};
 var out=[];
 ['r','m','r','g'].forEach(function(v){ gtSet('week',v);
   out.push([v,SEC.classList.list(),B.filter(function(b){return b.get('aria-pressed')==='true'}).map(function(b){return b.dataset.v})]); });
-process.stdout.write(JSON.stringify({out:out,drops:drops,sent:sent,swipe:swipe}));
+gtSet('week','m',true);                               // openTrendRegion 이 바꾼 것(조용히) — 사람이 누른 수에 들지 않는다
+process.stdout.write(JSON.stringify({out:out,drops:drops,sent:sent,swipe:swipe,seq:GT_SEQ.week}));
 '''
 
 
 def test_gtset_switches_to_rank_and_drops_an_open_region():
-    got = _node(GT % {'fn': _fn(_files()['home-stats.js'], 'gtSet')})
+    f = _files()
+    got = _node(GT % {'decl': _gt_seq_decl(f), 'fn': _fn(f['home-stats.js'], 'gtSet')})
     assert got['out'] == [['r', ['gm-r'], ['r']], ['m', ['gm-m'], ['m']], ['r', ['gm-r'], ['r']], ['g', ['gm-g'], ['g']]], got['out']
     assert got['drops'] == ['week', 'week', 'week'], got['drops']      # 순위·지도로 바꿀 때 연 지역 그래프를 닫는다
-    assert got['swipe'] == ['week'], got['swipe']                      # 밀기 안내는 지도 보기만
+    assert got['swipe'] == ['week', 'week'], got['swipe']              # 밀기 안내는 지도 보기만(사람이 누른 것·조용한 것 하나씩)
     assert [p['view'] for e, p in got['sent'] if e == 'stats_gt'] == ['r', 'm', 'r', 'g']
+    assert got['seq'] == 4, got['seq']                                 # 사람이 누른 넷만 센다(순위 입구가 덮지 않게)
 
 
 BACK = r'''
 %(decl)s
+%(seq)s
 %(fn)s
 var TR_OPEN={week:null}, TRSHOW={week:12}, TREND={week:{sel:'wsel'}}, TREND_P=Promise.resolve(), SGG_HIST_READY=true, gts=[];
 function trendData(){ return {regions:['서울']}; } function trendTarget(W,c){ return {zone:'',sgg:''}; }
@@ -117,7 +133,11 @@ var res={};
 (async function(){
   for(const [name,start,steps] of %(cases)s){
     TR_OPEN.week=null; cls=start; gts=[];
-    for(const c of steps) await openTrendRegion('week',c,null);
+    for(const [c,v,race] of steps){
+      const p=openTrendRegion('week',c,v,GT_SEQ.week);   // applyHash 처럼 요청한 때의 수를 넘긴다
+      if(race)GT_SEQ.week++;                    // 데이터를 받는 사이 사람이 다른 보기를 눌렀다(gtSet 이 세는 수)
+      await p;
+    }
     res[name]=gts;
   }
   process.stdout.write(JSON.stringify(res));
@@ -127,17 +147,27 @@ var res={};
 
 def test_back_from_a_region_opened_on_the_rank_view_returns_to_rank():
     """순위 표에서 지역을 눌러 그래프를 열고(주소 '~코드') 뒤로 가면(코드 없는 주소 → openTrendRegion(k,null)) 순위로 돌아간다.
-    지도에서 열었으면 지도로. 그래프가 열린 채 다른 지역으로 갔다가 닫아도 처음 연 곳으로."""
-    src = _files()['home-stats.js']
+    지도에서 열었으면 지도로. 그래프가 열린 채 다른 지역으로 갔다가 닫아도 처음 연 곳으로.
+    순위 입구(view 'r')는 데이터가 온 뒤 순위로 바꾸고(연 그래프가 있으면 먼저 닫는다), 받는 사이 사람이 다른 보기를 골랐으면
+    덮지 않는다."""
+    f = _files()
+    src = f['home-stats.js']
     decl = re.search(r'^const TR_BACK=.*$', src, re.M)
     assert decl, 'home-stats.js 에 TR_BACK 선언이 없다'
-    cases = [['rank', 'gm-r', ['a7', None]], ['map', 'gm-m', ['a7', None]],
-             ['rank2', 'gm-r', ['a7', 'b11', None]], ['idle', 'gm-r', [None]]]
-    got = _node(BACK % {'decl': decl.group(0), 'fn': _fn(src, 'openTrendRegion'), 'cases': json.dumps(cases)})
+    n = None
+    cases = [['rank', 'gm-r', [['a7', n], [n, n]]], ['map', 'gm-m', [['a7', n], [n, n]]],
+             ['rank2', 'gm-r', [['a7', n], ['b11', n], [n, n]]], ['idle', 'gm-r', [[n, n]]],
+             ['entry', 'gm-m', [[n, 'r']]], ['entry_open', 'gm-m', [['a7', n], [n, 'r']]],
+             ['entry_race', 'gm-g', [[n, 'r', True]]]]
+    got = _node(BACK % {'decl': decl.group(0), 'seq': _gt_seq_decl(f), 'fn': _fn(src, 'openTrendRegion'),
+                        'cases': json.dumps(cases)})
     assert got['rank'] == ['g', 'r'], got
     assert got['map'] == ['g', 'm'], got
     assert got['rank2'] == ['g', 'g', 'r'], got
     assert got['idle'] == [], got                       # 연 그래프가 없으면 보기를 건드리지 않는다
+    assert got['entry'] == ['r'], got                   # 순위 입구
+    assert got['entry_open'] == ['g', 'm', 'r'], got    # 연 지역 그래프를 닫고 순위로
+    assert got['entry_race'] == [], got                 # 받는 사이 사람이 고른 보기는 덮지 않는다
 
 
 ROUTER = r'''
@@ -145,7 +175,8 @@ ROUTER = r'''
 var calls=[], R2C=new Set();
 function showView(v){ calls.push(['view',v]); } function setStatsMode(m){ calls.push(['mode',m]); }
 function setMarketTab(t){ calls.push(['tab',t]); } function setAdvTab(t){ calls.push(['adv',t]); }
-function openTrendRegion(t,c,v){ calls.push(['open',t,c,v||null]); return Promise.resolve(); }
+function openTrendRegion(t,c,v,s){ calls.push(['open',t,c,v||null].concat(s===undefined?[]:[s])); return Promise.resolve(); }
+var GT_SEQ={week:3,month:5};
 function gtSet(t,v,s){ calls.push(['gt',t,v,!!s]); }
 function afterLayout(f){ f(); } function startQuiz(){} function backToPick(){}
 var history={replaceState:function(a,b,u){ calls.push(['replace',u]); }};
@@ -163,9 +194,10 @@ def test_rank_entry_hash_opens_the_rank_view_and_keeps_the_old_shapes():
     hs = ['#stats-market-week-rank', '#stats-market-month-rank', '#stats-market-week~a7-t', '#stats-market', '#stats-adv-occ']
     got = _node(ROUTER % {'fn': _fn(_files()['home-app.js'], 'applyHash'), 'hashes': json.dumps(hs)})
     assert got['#stats-market-week-rank'] == [['view', 'stats'], ['mode', 'market'], ['tab', 'week'],
-                                              ['open', 'week', None, None], ['replace', '#stats-market-week'],
-                                              ['gt', 'week', 'r', True]], got['#stats-market-week-rank']
-    assert ['gt', 'month', 'r', True] in got['#stats-market-month-rank']
+                                              ['open', 'week', None, 'r', 3], ['replace', '#stats-market-week']], \
+        got['#stats-market-week-rank']      # 순위는 openTrendRegion 이 데이터가 온 뒤에(요청한 때의 GT_SEQ 와 함께) — gtSet 을 따로 부르지 않는다
+    assert ['open', 'month', None, 'r', 5] in got['#stats-market-month-rank']
+    assert not [c for h in got for c in got[h] if c[0] == 'gt'], got
     assert got['#stats-market-week~a7-t'][-1] == ['open', 'week', 'a7', 't']          # 옛 모양(지역·표)은 그대로
     assert not [c for c in got['#stats-market'] if c[0] == 'gt']                    # 맨 시장동향은 기본(지도)
     assert ['adv', 'occ'] in got['#stats-adv-occ']
