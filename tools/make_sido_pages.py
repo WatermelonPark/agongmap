@@ -127,6 +127,18 @@ def zone_js():
         'var own=b.parentNode.parentNode.getAttribute("data-ref");\n'
         'b.setAttribute("aria-expanded",'
         '(!p.hidden&&own===p.dataset.k)?"true":"false");});});});\n'
+        '/* 시세 지도 주간·월간(zone_map, 2026-10-10) — 단추(data-zm)와 같은 값의 묶음(.zm)만 보인다. 지도가 상자보다 넓을 때만\n'
+        '   \'옆으로 밀어 전체 보기\'를 켠다(홈 syncSwipe 와 같은 생각 — 숨은 묶음은 넓이가 0 이라 보일 때 다시 잰다). */\n'
+        'function zmSwipe(){document.querySelectorAll(".zwk .mm-scroll").forEach(function(s){'
+        'var c=s.nextElementSibling,h=c&&c.querySelector(".zm-swipe");'
+        'if(h)h.hidden=!(s.scrollWidth>s.clientWidth+1);});}\n'
+        'document.querySelectorAll(".zm-seg button[data-zm]").forEach(function(b){'
+        'b.addEventListener("click",function(){var k=b.getAttribute("data-zm");\n'
+        'document.querySelectorAll(".zm-seg button[data-zm]").forEach(function(x){var on=x===b;'
+        'x.classList.toggle("on",on);x.setAttribute("aria-pressed",on?"true":"false");});\n'
+        'document.querySelectorAll(".zm[data-zm]").forEach(function(m){m.hidden=m.getAttribute("data-zm")!==k;});\n'
+        'zmSwipe();});});\n'
+        'zmSwipe();window.addEventListener("resize",zmSwipe);\n'
         '})();\n')
 
 
@@ -664,7 +676,10 @@ WK_CSS = ('.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}
           '.zwk .ztb thead tr+tr th:first-child{text-align:right}'
           '.zwk .ztb .up{color:#a93226}.zwk .ztb .dn{color:var(--gwaing)}'
           '.zwk h3{font-size:14px;font-weight:600;margin:14px 0 6px}'
-          '.zyear{font-size:13px;line-height:1.7;color:var(--ink2);margin-top:12px}.zyear b{color:var(--ink);margin-right:4px}')
+          '.zyear{font-size:13px;line-height:1.7;color:var(--ink2);margin-top:12px}.zyear b{color:var(--ink);margin-right:4px}'
+          # 시세 지도(zone_map): 주간·월간 단추는 홈 .gt(app.css), 지도 상자는 /weekly/ 머리 지도와 같은 .mm-scroll(MW.MAP_CSS)
+          '.zm-seg{margin:2px 0 12px}.zm-cap{font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 12px}'
+          + MW.MAP_CSS)
 
 
 def _wk_cell(v):
@@ -733,13 +748,80 @@ def short_name(z, name):
     return name[len(pre):] if name.startswith(pre) and len(name) > len(pre) else name
 
 
-def weekly_section(z, weekly, names):
+# ── 시세 지도(2026-10-10 대표 요청) — 홈 시세 탭·/weekly/ 의 전국 시군구 타일 지도를 그 지역 칸만 잘라 시세 구역 머리에 둔다.
+# 주간·월간 두 장을 단추(zone.js)로 바꾼다(기본 주간). 칸을 누르면 홈 시세 탭의 그 지역 그래프(주간 MW.MAP_HREF·월간 아래 주소).
+ZM = {'week': ('주간', MW.MAP_HREF), 'month': ('월간', '/#stats-market-month~%s')}
+ZM_SEG = ('<div class="gt zm-seg" role="group" aria-label="지도 주기">'
+          '<button type="button" class="on" aria-pressed="true" data-zm="week">주간</button>'
+          '<button type="button" aria-pressed="false" data-zm="month">월간</button></div>')
+
+
+def zone_map_ctx():
+    """잘라 낼 전국 배치(홈 NATION_TILE)와 만색 기준(홈 WK_MAP_REF·MO_MAP_REF) — 19장에 한 번 읽어 함께 쓴다.
+    못 읽으면 None — 지도만 빼고 굽는다(생성기를 죽이지 않는다)."""
+    try:
+        return {'tile': MW.nation_tile(), 'ref': MW.map_refs()}
+    except (SystemExit, Exception) as e:   # _home_const 는 못 찾으면 SystemExit
+        print('  ⚠️ 홈 지도 상수를 못 읽어 시도 리포트의 시세 지도를 뺀다: %s' % e)
+        return None
+
+
+def zone_tile(nation, z):
+    """전국 배치에서 z 의 칸을 둘러싼 상자만 잘라 왼쪽 위로 붙인 배치(홈 NATION_TILE 모양) + 'dim'(상자 안 이웃 지역 칸 코드).
+    드는 칸: 전국은 전부, 수도권·지방은 그 권역 시도의 칸(SZ.REGION), 시도는 그 시도 칸(WM.sgg_zone — 홈 sggZoneOf 의 거울이라
+    전남광주는 광주 구·전남 시군을 함께). 이웃 칸은 흐리게 자리만 채운다(sgg_map_svg dim — 경기는 가운데 서울·인천 자리가
+    비어 보였다). 전국 머리 칸(a0)은 전국 장에만. 칸이 하나뿐이면(세종 — 시 전체 한 칸) 지도가 표 한 줄보다 나을 게 없어 None."""
+    def has(c):
+        if z == '전국':
+            return True
+        zz = WM.sgg_zone(c)
+        return zz is not None and (zz == z or (z in SZ.AGG and SZ.REGION.get(zz) == z))
+    own = [x for x in nation['t'] if has(x[0])]
+    if len(own) < 2:
+        return None
+    x0, y0 = min(x[2] for x in own), min(x[3] for x in own)
+    x1, y1 = max(x[2] for x in own), max(x[3] for x in own)
+    t = [x for x in nation['t'] if x0 <= x[2] <= x1 and y0 <= x[3] <= y1 and (has(x[0]) or x[0] != 'a0')]
+    return {'cols': x1 - x0 + 1, 'rows': y1 - y0 + 1, 't': [[c, nm, x - x0, y - y0, h] for c, nm, x, y, h in t],
+            'dim': [x[0] for x in t if not has(x[0])]}
+
+
+def zone_map(z, k, S, tile, ctx):
+    """잘라 낸 시세 지도 한 장 → (시점, 그림 + 아래 범례 한 줄). 그림은 /weekly/ 머리 지도와 같은 sgg_map_svg(홈 sggMapSvg 의
+    거울)이고, 줄은 홈 drawNationMap 과 같다 — 매매·전세, 월세는 원천(월간)에 있을 때만. 최대 폭은 전국 지도와 칸 크기가 같게
+    줄인다(작은 시도가 화면 가득 커지지 않게). 계열이 없거나 그 지역 칸에 값이 하나도 없으면 (None, '')."""
+    word, href = ZM[k]
+    try:
+        row = S['rows'][-1]
+        mets = ['ma', 'je'] + (['wo'] if isinstance(row.get('wo'), list) else [])
+        vals = [{c: (row.get(m) or [])[i] if i < len(row.get(m) or []) else None for i, c in enumerate(S['codes'])}
+                for m in mets]
+        p = row['p']
+    except (KeyError, IndexError, TypeError):
+        return None, ''
+    if not any(v.get(t[0]) is not None for v in vals for t in tile['t'] if t[0] not in tile['dim']):
+        return None, ''
+    names = ['매매', '전세', '월세'][:len(mets)]
+    svg = MW.sgg_map_svg(vals, names, ctx['ref'][k], href=lambda c: href % c, tile=tile,
+                         label='%s 시군구 %s 변동률 지도' % (z, word),
+                         max_w=round(MW.map_view_w(tile) * MW.MAP_MAX_W / MW.map_view_w(ctx['tile'])), dim=tile['dim'])
+    pos = ('위', '가운데', '아래') if len(names) == 3 else ('위', '아래')
+    return p, ('<div class="mm-scroll">%s</div><p class="zm-cap">%s · 지역을 누르면 그래프'
+               '<span class="zm-swipe" hidden> · 옆으로 밀어 전체 보기</span></p>'
+               % (svg, ' · '.join('%s = %s' % x for x in zip(pos, names))))
+
+
+def weekly_section(z, weekly, names, monthly=None, maps=None):
     """그 시도(집계면 권역)의 시군구 주간 표 구역. 시군구 계열이 없거나 한 주뿐이면 빈 문자열 — 생성기를 죽이지 않고
     표만 뺀다(배치 중단 금지, 2026-09-26 감사 15번 유형).
 
     세종은 시·군·구가 없는 단일 행정구역이라(NO_INNER_UNITS) 원천의 '세종' 한 줄이 곧 시 전체다 — 제목에서 '시군구'를 빼고
     한 줄 요약으로 쓴다. 전남광주는 원천이 따로 내는 광주 구·전남 시군을 한 표에 모은다(sgg_zone). 집계 3장은 많이 오른 곳·
     많이 내린 곳 AGG_TOP 곳씩(곳이 2×AGG_TOP 이하면 전부).
+
+    maps(zone_map_ctx)가 있으면 구역 머리에 그 지역만 잘라 낸 시세 지도를 둔다(2026-10-10). 월간 지도까지 있으면 제목이
+    '주간·월간'이 되고 단추로 주간 묶음(기준 줄·지도·요약·표)과 월간 묶음(기준 줄·지도)을 바꾼다 — 기본은 주간이라 단추를
+    누르지 않으면(스크립트 없이도) 예전과 같은 주간 구역이다. 세종처럼 칸이 하나뿐이면 지도 없이 예전 모양.
     """
     S = (weekly or {}).get('sgg') or {}
     if not names:
@@ -758,11 +840,20 @@ def weekly_section(z, weekly, names):
     except Exception:          # 조사일 모양이 틀어져도 표는 굽는다(날짜 줄만 뺀다)
         basis = ''
     single = len(rows) == 1
-    title = ('%s 주간 아파트 시세' % z) if single else ('%s 시군구 주간 아파트 시세' % z)
-    h = ['<section class="zwk" id="weekly-sgg"><div class="wrap"><h2>%s</h2>' % esc(title),
-         '<p class="zsub">%s한국부동산원 주간 아파트가격 동향 · 전주 대비(%%)%s</p>'
-         % (basis, '' if single else ' · 시군구 %d곳' % len(rows)),
-         '<p class="zwk-lead">%s</p>' % _wk_lead(z, rows)]
+    tile = zone_tile(maps['tile'], z) if maps else None
+    _, wmap = zone_map(z, 'week', S, tile, maps) if tile else (None, '')
+    mp, mmap = zone_map(z, 'month', (monthly or {}).get('sgg') or {}, tile, maps) if tile else (None, '')
+    if single:
+        title = '%s 주간 아파트 시세' % z
+    else:
+        title = '%s 시군구 %s 아파트 시세' % (z, '주간·월간' if mmap else '주간')
+    h = ['<section class="zwk" id="weekly-sgg"><div class="wrap"><h2>%s</h2>' % esc(title)]
+    if mmap:
+        h.append(ZM_SEG + '<div class="zm" data-zm="week">')
+    h += ['<p class="zsub">%s한국부동산원 주간 아파트가격 동향 · 전주 대비(%%)%s</p>'
+          % (basis, '' if single else ' · 시군구 %d곳' % len(rows)),
+          wmap,
+          '<p class="zwk-lead">%s</p>' % _wk_lead(z, rows)]
     split = z in SZ.AGG and len(rows) > 2 * AGG_TOP
     if split:
         # 오른 표에는 오른 곳만, 내린 표에는 내린 곳만(표시값 부호 — WM.direction). 모자라면 그만큼, 없으면 표 대신 한 줄.
@@ -780,6 +871,16 @@ def weekly_section(z, weekly, names):
     h.append('<p class="zsub">%s%d주는 최근 %d주 변동률을 이어 곱한 누적이고, 연속은 발표 표기(소수 '
              '둘째 자리)로 같은 방향이 이어진 주 수입니다. <a href="%s">전국 시군구 전체 표 →</a></p>'
              % (order, WM.CUM_WEEKS, WM.CUM_WEEKS, MW.TABLE_URL))
+    if mmap:
+        # 월간 묶음 — 기준 줄은 /monthly/·홈 월간과 같은 읽는 꼴('2026년 8월', 날짜 두 단계)
+        try:
+            mbasis = esc(SZ.month_text(mp)) + ' · '
+        except Exception:      # 기준월 모양이 틀어져도 지도는 굽는다(날짜만 뺀다 — 주간 기준 줄과 같은 물러섬)
+            mbasis = ''
+        h.append('</div><div class="zm" data-zm="month" hidden>'
+                 '<p class="zsub">%s한국부동산원 월간 아파트가격 동향 · 전월 대비(%%)</p>%s'
+                 '<p class="zsub"><a href="/#stats-market-month">전국 시군구 월간 지도 →</a></p></div>'
+                 % (mbasis, mmap))
     h.append('</div></section>')
     return ''.join(h)
 
@@ -906,7 +1007,7 @@ def page_title(z, calc, lab, p=''):
     return '%s%s 아파트 공급물량 전망, %s 적정물량 대비 %s' % ((yr + '년 ') if yr else '', z, '%g년' % (calc['H'] / 4.0), lab)
 
 
-def build_page(z, calc, stats, pq, others, weekly=None, names=None):
+def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None, maps=None):
     """시도 리포트 한 장. names 는 시군구 이름표(SGG_QNAME, /weekly/ 와 같은 MW.load 의 것) — 없으면 시군구 주간 표를 뺀다."""
     row = [x for x in calc['zones'] if x['z'] == z][0]
     lab, color = GRADE_TXT[row['grade']]
@@ -1110,7 +1211,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None):
                 'win': win_y, 'un_src': UN_SOURCE, 'pwin': SZ.win_years(SZ.PERMIT_WIN)})
 
     h.append(next_links(z, weekly, stats))
-    h.append(weekly_section(z, weekly, names))
+    h.append(weekly_section(z, weekly, names, monthly, maps))
 
     # ── 다른 지역 ──
     h.append('<section><div class="wrap"><h2>다른 지역</h2><div class="zlinks">')
@@ -1425,6 +1526,7 @@ def main():
     except (SystemExit, Exception) as e:   # MW.load 는 이름표가 없으면 SystemExit — 이 생성기는 죽지 않는다
         print('  ⚠️ 시군구 이름표를 못 읽어 시도 리포트의 주간 표를 뺀다: %s' % e)
         sgg_names = None
+    zm_ctx = zone_map_ctx()   # 시세 지도에 쓰는 홈 상수(전국 배치·만색 기준) — 한 번 읽는다
 
     # 옛 생활권 디렉터리 정리. 이름이 통째로 바뀌었으므로 남겨두면 stale 페이지가
     # 색인에 그대로 남는다(리다이렉트도 두지 않기로 함 — 2026-08-06 사용자 결정).
@@ -1452,7 +1554,8 @@ def main():
         d = os.path.join(OUT, z)
         os.makedirs(d, exist_ok=True)
         fp = os.path.join(d, 'index.html')
-        html, lm, ch = keep_dates(build_page(z, calc, stats, pq, calc['zones'], adv.get('weekly'), names=sgg_names),
+        html, lm, ch = keep_dates(build_page(z, calc, stats, pq, calc['zones'], adv.get('weekly'), names=sgg_names,
+                                             monthly=adv.get('monthly'), maps=zm_ctx),
                                   read_old(fp), today)
         if ch:
             changed += 1
