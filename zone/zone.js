@@ -17,4 +17,12 @@ p.scrollIntoView({block:"nearest"});}
 document.querySelectorAll(".ztb tfoot .rbtn").forEach(function(b){
 var own=b.parentNode.parentNode.getAttribute("data-ref");
 b.setAttribute("aria-expanded",(!p.hidden&&own===p.dataset.k)?"true":"false");});});});
+/* 시세 지도 주간·월간(zone_map, 2026-10-10) — 단추(data-zm)와 같은 값의 묶음(.zm)만 보인다. 지도가 상자보다 넓을 때만
+   '옆으로 밀어 전체 보기'를 켠다(홈 syncSwipe 와 같은 생각 — 숨은 묶음은 넓이가 0 이라 보일 때 다시 잰다). */
+function zmSwipe(){document.querySelectorAll(".zwk .mm-scroll").forEach(function(s){var c=s.nextElementSibling,h=c&&c.querySelector(".zm-swipe");if(h)h.hidden=!(s.scrollWidth>s.clientWidth+1);});}
+document.querySelectorAll(".zm-seg button[data-zm]").forEach(function(b){b.addEventListener("click",function(){var k=b.getAttribute("data-zm");
+document.querySelectorAll(".zm-seg button[data-zm]").forEach(function(x){var on=x===b;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on?"true":"false");});
+document.querySelectorAll(".zm[data-zm]").forEach(function(m){m.hidden=m.getAttribute("data-zm")!==k;});
+zmSwipe();});});
+zmSwipe();window.addEventListener("resize",zmSwipe);
 })();
