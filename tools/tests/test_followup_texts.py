@@ -286,7 +286,8 @@ def test_home_weekly_entrances_are_named_by_destination():
     이미 눈앞에 있다. 변이: 옛 `<button onclick="goStats('market')">이번 주 시세 지도 보기` 로 되돌리면 빨개진다."""
     s = _src('index.html')
     home = s[s.index('<div id="view-home">'):s.index('<!-- ===== 통계보기 대시보드 ===== -->')]
-    assert re.search(r'<a class="home-cta" href="#stats-market"[^>]*>시군구 상승·하락 TOP 10 보기</a>', home)
+    # 시세 탭 시장동향의 순위 보기로 바로 간다(2026-10-10 순위·지도 나눔 — test_market_rank_view)
+    assert re.search(r'<a class="home-cta" href="#stats-market-week-rank"[^>]*>시군구 상승·하락 TOP 10 보기</a>', home)
     assert "goStats('market')" not in home and '이번 주 시세 지도 보기' not in home
     assert re.search(r'<a href="/weekly/"[^>]*>이번 주 시세 지도</a>', home), '푸터 주간 링크가 /weekly/ 가 아니다'
     assert 'class="wg-link" href="/weekly/"' in HS.home_source()
