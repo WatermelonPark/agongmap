@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v186';
+const HOME_BUILD='v187';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -343,12 +343,17 @@ function applyHash(){
   if(!h){showView('home',false);return;}
   if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
   /* '~코드'(시장동향만): 지도 칸·TOP 10 지역명에서 고른 지역의 그래프(openTrendRegion). 코드 없는 시장동향 주소는 그 함수가
-     연 그래프를 지도로 되돌린다(뒤로 가기). */
-  const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?(?:~([a-c][0-9]{1,8})(-t)?)?$/);
+     연 그래프를 열기 전 보기(순위·지도 — TR_BACK)로 되돌린다(뒤로 가기). */
+  const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?(-rank)?(?:~([a-c][0-9]{1,8})(-t)?)?$/);
   if(sm){
     showView('stats',false);setStatsMode(sm[1],false);
     // 하위탭 미지정 해시는 기본탭으로 — 뒤로가기가 항상 같은 화면을 재현하도록
-    if(sm[1]==='market'){const t=sm[2]==='month'?'month':'week';setMarketTab(t,false);openTrendRegion(t,sm[3]||null,sm[4]?'t':'g');}
+    /* '-rank'(시장동향만): 순위 보기로 바로 연다 — 홈 '시군구 상승·하락 TOP 10 보기'·/weekly/ 'TOP 10' 링크·블로그 캡처의 입구
+       (2026-10-10, 시장동향 기본 보기는 지도). 다른 보기(그래프·표)처럼 주소에는 남기지 않는다 — 열고 나면 #stats-market-<주기>.
+       지역 그래프를 열어 둔 채 왔으면 그것을 먼저 닫는다(openTrendRegion 이 비동기로 지도 보기로 돌린 뒤에 순위로). */
+    if(sm[1]==='market'){const t=sm[2]==='month'?'month':'week';setMarketTab(t,false);
+      if(sm[3]){Promise.resolve(openTrendRegion(t,null)).then(()=>gtSet(t,'r',true));history.replaceState(null,'','#stats-market-'+t);}
+      else openTrendRegion(t,sm[4]||null,sm[5]?'t':'g');}
     else if(sm[1]==='adv')setAdvTab(sm[2]||'occ',false);
     return;
   }
