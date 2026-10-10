@@ -21,7 +21,7 @@ import blog_feed as BF  # noqa: E402  (블로그 첫 화면 주소의 정본 —
 # 입구(목적지) → to 값. 목적지가 같은 입구도 값이 달라야 한다(/weekly/ 격자·푸터).
 WANT = {
     ('/zone/', '시도별로 자세히 보기'): 'zone_hub',
-    ('#stats-market', '시군구 상승·하락 TOP 10 보기'): 'weekly_map',
+    ('#stats-market-week-rank', '시군구 상승·하락 TOP 10 보기'): 'weekly_map',   # 순위 보기 입구(2026-10-10)
     ('/burini-test/', '부린이 테스트 · 난이도'): 'quiz_burini',
     ('/investor-test/', '투자자 테스트 · 난이도'): 'quiz_investor',
     ('/redev-test/', '재건축·재개발 테스트 · 난이도'): 'quiz_redev',

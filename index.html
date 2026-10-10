@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v186">
+<html lang="ko" data-build="v187">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -342,8 +342,8 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
          소개 문장('빨강·파랑을 한눈에 …')은 범례·지도 아래 안내와 같은 말이라 뺐다(2026-10-03 대표 요청). -->
     <div id="home-weekly-grid" class="wgrid"></div>
     <!-- 입구 둘은 목적지가 다르다: 지도 아래 '이번 주 요약 보기'는 /weekly/(요약·공유 주소), 이 링크는 통계 탭 시군구
-         지도·TOP 10. 버튼이 아니라 링크라 길게 눌러 새 탭·주소 복사가 된다. 이름은 목적지를 말한다. -->
-    <div class="hs-cta"><a class="home-cta" href="#stats-market" onclick="track('home_cta',{to:'weekly_map'})">시군구 상승·하락 TOP 10 보기</a></div>
+         TOP 10(시장동향 순위 보기 — '-rank', 2026-10-10). 버튼이 아니라 링크라 길게 눌러 새 탭·주소 복사가 된다. 이름은 목적지를 말한다. -->
+    <div class="hs-cta"><a class="home-cta" href="#stats-market-week-rank" onclick="track('home_cta',{to:'weekly_map'})">시군구 상승·하락 TOP 10 보기</a></div>
     <!-- 이번 주 해석 글(홈 마케팅 검수 B5·RET-4, 2026-09-27). 배치가 블로그 RSS 에서 읽어 data-core 에 실은 ADV.blog 를
          renderBlogLine 이 채운다 — /weekly/ 하단과 같은 글·같은 말(blog_feed.pick). 글이 없으면 숨은 채로 남는다.
          알림·요일을 약속하지 않는다. -->
@@ -456,7 +456,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 
     <section class="adv-sec gsec gm-m" id="sec-week">
       <div class="adv-h"><h3>주간 아파트 동향</h3><span class="rel" id="rel-week"></span>
-        <div class="gt"><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('week','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('week','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('week','t')">표</button></div></div>
+        <div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('week','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('week','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('week','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('week','t')">표</button></div></div>
       <div class="adv-regsel"><select id="adv-week-reg" onchange="onTrendReg('week')" aria-label="시도 선택"></select><select id="adv-week-sgg" onchange="onTrendSgg('week')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="week-map"></div>
@@ -472,7 +472,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 
     <section class="adv-sec gsec gm-m" id="sec-month" style="display:none">
       <div class="adv-h"><h3>월간 아파트 동향</h3><span class="rel" id="rel-month"></span>
-        <div class="gt"><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('month','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('month','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('month','t')">표</button></div></div>
+        <div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('month','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('month','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('month','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('month','t')">표</button></div></div>
       <div class="adv-regsel"><select id="adv-month-reg" onchange="onTrendReg('month')" aria-label="시도 선택"></select><select id="adv-month-sgg" onchange="onTrendSgg('month')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="month-map"></div>

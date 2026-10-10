@@ -564,13 +564,16 @@
   .gt button.on{background:var(--ink);color:#fff}
   .gsec.gm-g .gt-t{display:none}
   .gsec.gm-t .gt-g{display:none}
-  .gsec.gm-m .gt-g,.gsec.gm-m .gt-t{display:none}
+  .gsec.gm-m .gt-g,.gsec.gm-m .gt-t,.gsec.gm-r .gt-g,.gsec.gm-r .gt-t{display:none}
   .gsec.gm-g .gt-m,.gsec.gm-t .gt-m{display:none}
+  /* 시장동향의 순위·지도는 한 상자(#week-map·#month-map — 날짜 줄·TOP 10·지도를 drawNationMap 이 함께 굽는다)를 나눠 보인다
+     (2026-10-10 대표 결정 — 지도 보기에서 TOP 10 두 표가 지도를 아래로 밀어 '너무 강했다'). 날짜 줄은 둘 다에 남는다. */
+  .gsec.gm-m .map-rank,.gsec.gm-r .map-scroll,.gsec.gm-r .map-suplegend{display:none}
   /* 지도 모드에만 지역 선택이 없다 — 지도가 전 지역을 이미 보여준다.
      표 모드에서는 선택이 '필터'로 실제 일을 한다(아래 .sel-one).
      ⚠️ 한때 PC 표 모드에서 드롭다운을 띄워놓고 매트릭스가 선택을 안 읽어 죽은
      컨트롤이 된 적이 있다(2026-08-01). 컨트롤을 보이게 할 거면 반드시 일을 시킬 것. */
-  .gsec.gm-m .adv-regsel{display:none}
+  .gsec.gm-m .adv-regsel,.gsec.gm-r .adv-regsel{display:none}
   .map-datechip{display:flex;justify-content:center;margin:0 0 12px}
   .map-datechip span{background:var(--ink);color:#fff;font-size:14px;font-weight:600;
     padding:8px 20px;border-radius:0;letter-spacing:.01em}
