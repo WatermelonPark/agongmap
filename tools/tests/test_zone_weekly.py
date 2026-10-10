@@ -436,9 +436,11 @@ SHARED_CAP = 0.75
 
 
 def _sentences(s):
-    """<main> 에서 표·스크립트·스타일을 뺀 본문을 문장으로 나눈다(블록 태그에서 끊고, '.'+공백에서 끊는다)."""
+    """<main> 에서 표·지도(svg)·스크립트·스타일을 뺀 본문을 문장으로 나눈다(블록 태그에서 끊고, '.'+공백에서 끊는다).
+    지도는 표와 같은 자료 그림이라 뺀다 — 칸 글자(지역명·값)는 시도 장과 권역 장(수도권·전국)에 똑같이 실려, 넣으면 그 장들이
+    공통 문장으로 셈해진다(2026-10-10 시세 지도: 넣은 채로 재면 전국 0.93·수도권 0.86·경기 0.76 — 본문 글은 그대로인데 선을 넘는다)."""
     m = re.search(r'<main[^>]*>(.*)</main>', s, re.S).group(1)
-    m = re.sub(r'<(script|style|table)\b.*?</\1>', ' ', m, flags=re.S)
+    m = re.sub(r'<(script|style|table|svg)\b.*?</\1>', ' ', m, flags=re.S)
     m = re.sub(r'<(p|h1|h2|h3|div|section|li|a|i|b|span|br)\b[^>]*>', '\n', m)
     t = H.unescape(re.sub(r'<[^>]+>', ' ', m))
     out = []
