@@ -475,12 +475,13 @@ def test_price_buttons_lock_when_their_data_or_the_map_is_missing(case):
 
 
 OPEN_HARNESS = r'''
+%(decl)s
 %(fn)s
 var TREND={week:{sel:"s"}}, TREND_P=Promise.resolve(), TR_OPEN={week:null}, TRSHOW={}, SGG_HIST_READY=true, calls=[];
 function trendData(){ return {regions:["전국"]}; } function trendTarget(W,c){ return {zone:"전국",sgg:""}; }
 function fillTrendReg(){} function fillSggSel(){} function renderWeekSec(){} function afterLayout(){}
 function gtSet(k,v,silent){ calls.push([k,v,silent]); }
-var document={getElementById:function(){ return {value:""}; }};
+var document={getElementById:function(){ return {value:"",classList:{contains:function(){ return false; }}}; }};
 openTrendRegion("week","a0","t").then(function(){ return openTrendRegion("week","a0"); })
   .then(function(){ process.stdout.write(JSON.stringify(calls)); });
 '''
@@ -492,5 +493,8 @@ def test_open_trend_region_opens_the_table_for_the_t_route():
     변이(실제로 확인): gtSet(k,view==='t'?'t':'g',true) 를 늘 'g' 로 두면 첫 단정이 빨개진다(2026-10-05 리뷰 — 그전엔 시험이 없었다).
     픽스처: 저장소 openTrendRegion 과 합성 통계 탭(데이터 받기는 끝난 상태).
     """
-    got = _node(OPEN_HARNESS % {'fn': _js_func(_src(), 'openTrendRegion')})
+    src = _src()
+    decl = re.search(r'^const TR_BACK=.*$', src, re.M)       # 열기 전 보기(순위·지도, test_market_rank_view)
+    assert decl, 'TR_BACK 선언이 없다'
+    got = _node(OPEN_HARNESS % {'decl': decl.group(0), 'fn': _js_func(src, 'openTrendRegion')})
     assert got == [['week', 't', True], ['week', 'g', True]], got

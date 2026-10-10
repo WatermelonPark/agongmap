@@ -696,7 +696,7 @@ def build(W, Q):
         '    <div class="mm-cap"><span><i style="background:#e0564a"></i>상승</span>'
         '<span><i style="background:#3a7bd5"></i>하락</span><span>시군구 매매가격 전주 대비%s</span>'
         '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'
-        '<a class="go" href="/#stats-market">TOP 10 →</a></div>' % cap_when,
+        '<a class="go" href="/#stats-market-week-rank">TOP 10 →</a></div>' % cap_when,   # 시세 탭 순위 보기(2026-10-10)
         '  </div>',
         '  <style>%s</style>' % MAP_CSS,
     ])
@@ -735,7 +735,7 @@ def build(W, Q):
         '  <div class="rk2">%s%s</div>' % (
             rank_list('▲ 상승', 'up', gu_up, '이번 주 오른 구가 없다'),
             rank_list('▼ 하락', 'dn', gu_dn, '이번 주 내린 구가 없다')),
-        '  <a class="cta" href="/#stats-market">전체 TOP 10 · 시군구 지도 보기</a>',
+        '  <a class="cta" href="/#stats-market-week-rank">전체 TOP 10 보기</a>',   # 시세 탭 순위 보기로 바로(2026-10-10 — 지도는 이 페이지 머리에 있다)
         '</div></section>',
     ])
 

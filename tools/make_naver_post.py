@@ -1790,6 +1790,9 @@ def _shoot_section(exe, z, key, out):
 # (`#week-map .map-rank` / `.map-scroll`) 하나만 보이게 한 뒤, 배경과 다른 영역만 잘라 낸다(지역 편 _shoot_section 과
 # 같은 생각). 화면 배치가 또 바뀌어도 상자 이름만 같으면 따라간다. 상자를 못 찾으면 그림 없이 사유를 돌려준다.
 WEEKLY_SHOTS = {'top10': '.map-rank', 'map': '.map-scroll'}
+# 상자마다 여는 주소 — 시세 탭 시장동향은 순위·지도를 나눠 보인다(2026-10-10, 기본은 지도). TOP 10 은 순위 보기 입구
+# ('#stats-market-week-rank', home-app.js applyHash)로 열어야 상자가 보인다(숨은 상자는 높이가 0 이라 NO-SHOT).
+WEEKLY_SHOT_HASH = {'top10': 'stats-market-week-rank', 'map': 'stats-market'}
 # 캡처용 사본에 넣는 스크립트. 상자가 그려질 때까지 기다렸다가 나머지를 모두 감춘다(visibility — 자리는 그대로라
 # 상자 모양이 사이트와 같다). 끝내 못 찾으면 제목에 표지를 남겨 빈 그림이 성공으로 넘어가지 않게 한다.
 _SHOT_JS = """<script>(function(){
@@ -1854,7 +1857,7 @@ def capture_weekly_map():
         from PIL import Image, ImageChops
         for key, sel in WEEKLY_SHOTS.items():
             out = outs[key]
-            url = 'http://127.0.0.1:%d/drafts/_capture-home.html?sel=%s#stats-market' % (port, urllib.parse.quote(sel))
+            url = 'http://127.0.0.1:%d/drafts/_capture-home.html?sel=%s#%s' % (port, urllib.parse.quote(sel), WEEKLY_SHOT_HASH[key])
             raw = out + '.raw.png'
             try:
                 subprocess.run(
