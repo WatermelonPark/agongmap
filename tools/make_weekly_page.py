@@ -175,10 +175,11 @@ def h1_html(c):
 # 둘이 한 글자도 다르지 않은지는 test_sgg_map 이 node 로 대조한다. 칸(이름·값)을 누르면 홈 통계 시장동향의 그 지역
 # 주간 그래프(/#stats-market-week~코드 → applyHash → openTrendRegion). 이 페이지는 매매만 싣는다(홈 주간 구역과 같다).
 MAP_HREF = '/#stats-market-week~%s'
-MAP_CSS = ('.mm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
-           '.mm-scroll svg a{cursor:pointer}.mm-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}'
-           '.mm-scroll svg a:focus:not(:focus-visible){outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}'
-           '.mm-swipe{display:none}@media(max-width:520px){.mm-swipe{display:inline}}')
+# 지도 상자(.mm-scroll) 규칙 — 시도 리포트의 잘라 낸 지도도 이것만 싣는다(밀기 안내는 zone.js 가 폭을 재서 켠다).
+MAP_BOX_CSS = ('.mm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
+               '.mm-scroll svg a{cursor:pointer}.mm-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}'
+               '.mm-scroll svg a:focus:not(:focus-visible){outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}')
+MAP_CSS = MAP_BOX_CSS + '.mm-swipe{display:none}@media(max-width:520px){.mm-swipe{display:inline}}'
 
 
 def _home_const(src, name):

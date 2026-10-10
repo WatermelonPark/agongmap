@@ -677,9 +677,9 @@ WK_CSS = ('.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}
           '.zwk .ztb .up{color:#a93226}.zwk .ztb .dn{color:var(--gwaing)}'
           '.zwk h3{font-size:14px;font-weight:600;margin:14px 0 6px}'
           '.zyear{font-size:13px;line-height:1.7;color:var(--ink2);margin-top:12px}.zyear b{color:var(--ink);margin-right:4px}'
-          # 시세 지도(zone_map): 주간·월간 단추는 홈 .gt(app.css), 지도 상자는 /weekly/ 머리 지도와 같은 .mm-scroll(MW.MAP_CSS)
+          # 시세 지도(zone_map): 주간·월간 단추는 홈 .gt(app.css), 지도 상자는 /weekly/ 머리 지도와 같은 .mm-scroll(MW.MAP_BOX_CSS)
           '.zm-seg{margin:2px 0 12px}.zm-cap{font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 12px}'
-          + MW.MAP_CSS)
+          + MW.MAP_BOX_CSS)
 
 
 def _wk_cell(v):
@@ -768,20 +768,17 @@ def zone_map_ctx():
 
 def zone_tile(nation, z):
     """전국 배치에서 z 의 칸을 둘러싼 상자만 잘라 왼쪽 위로 붙인 배치(홈 NATION_TILE 모양) + 'dim'(상자 안 이웃 지역 칸 코드).
-    드는 칸: 전국은 전부, 수도권·지방은 그 권역 시도의 칸(SZ.REGION), 시도는 그 시도 칸(WM.sgg_zone — 홈 sggZoneOf 의 거울이라
-    전남광주는 광주 구·전남 시군을 함께). 이웃 칸은 흐리게 자리만 채운다(sgg_map_svg dim — 경기는 가운데 서울·인천 자리가
+    드는 칸은 시군구 표와 같은 판정(WM.in_zone)이다 — 전국은 전부, 수도권·지방은 그 권역 시도의 칸(SZ.REGION), 시도는 그 시도 칸
+    (홈 sggZoneOf 의 거울 sgg_zone 이라 전남광주는 광주 구·전남 시군을 함께). 이웃 칸은 흐리게 자리만 채운다(sgg_map_svg dim — 경기는 가운데 서울·인천 자리가
     비어 보였다). 전국 머리 칸(a0)은 전국 장에만. 칸이 하나뿐이면(세종 — 시 전체 한 칸) 지도가 표 한 줄보다 나을 게 없어 None."""
     def has(c):
-        if z == '전국':
-            return True
-        zz = WM.sgg_zone(c)
-        return zz is not None and (zz == z or (z in SZ.AGG and SZ.REGION.get(zz) == z))
+        return (z == '전국' and c == 'a0') or WM.in_zone(c, z)   # 표(WM.zone_names)와 같은 판정 + 전국 장의 전국 칸
     own = [x for x in nation['t'] if has(x[0])]
     if len(own) < 2:
         return None
     x0, y0 = min(x[2] for x in own), min(x[3] for x in own)
     x1, y1 = max(x[2] for x in own), max(x[3] for x in own)
-    t = [x for x in nation['t'] if x0 <= x[2] <= x1 and y0 <= x[3] <= y1 and (has(x[0]) or x[0] != 'a0')]
+    t = [x for x in nation['t'] if x0 <= x[2] <= x1 and y0 <= x[3] <= y1 and (has(x[0]) or x[0] != 'a0')]   # 전국 칸은 전국 장에만
     return {'cols': x1 - x0 + 1, 'rows': y1 - y0 + 1, 't': [[c, nm, x - x0, y - y0, h] for c, nm, x, y, h in t],
             'dim': [x[0] for x in t if not has(x[0])]}
 
@@ -874,7 +871,7 @@ def weekly_section(z, weekly, names, monthly=None, maps=None):
     if mmap:
         # 월간 묶음 — 기준 줄은 /monthly/·홈 월간과 같은 읽는 꼴('2026년 8월', 날짜 두 단계)
         try:
-            mbasis = esc(SZ.month_text(mp)) + ' · '
+            mbasis = esc(SZ.month_text(mp)) + ' 기준 · '
         except Exception:      # 기준월 모양이 틀어져도 지도는 굽는다(날짜만 뺀다 — 주간 기준 줄과 같은 물러섬)
             mbasis = ''
         h.append('</div><div class="zm" data-zm="month" hidden>'
