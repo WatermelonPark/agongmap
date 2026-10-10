@@ -78,6 +78,27 @@ def test_weekly_draft_lists_the_map(monkeypatch):
     assert 'drafts\\weekly-sgg.png' in names and 'drafts\\weekly-top10.png' in names
 
 
+def test_capture_failure_points_to_the_rank_and_map_urls(monkeypatch):
+    """캡처를 못 떴을 때 초안 안내가 손으로 뜰 주소로 캡처와 같은 주소(WEEKLY_SHOT_HASH)를 준다 — 시세 탭은 순위·지도를 나눠
+    보여 맨 '#stats-market'(지도)에서는 TOP10 이 보이지 않는다(10-10 코드 리뷰). TOP10 만 못 뜬 회차도 안내가 있다.
+    변이(실제로 확인): 지도 실패 안내를 옛 '/#stats-market 을 직접 캡처'로 되돌리면, TOP10 만 실패한 갈래의 안내를 빼면 빨개진다.
+    픽스처: 저장소 data.js 로 만든 주간 초안 — 캡처는 막고 결과만 흉내 낸다."""
+    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py'])
+    adv, sts = P.M.load()
+    rank = '%s/#%s' % (P.SITE, P.WEEKLY_SHOT_HASH['top10'])
+    mapu = '%s/#%s' % (P.SITE, P.WEEKLY_SHOT_HASH['map'])
+    has = lambda note, u: re.search(re.escape(u) + r'(?![-\w~])', note)   # 지도 주소는 순위 주소의 앞부분이다 — 통째로만 센다
+    monkeypatch.setattr(P, 'capture_weekly_map', lambda: (None, None, 'map: NO-SHOT; top10: NO-SHOT'))
+    note = P.draft_weekly(adv, sts)['imgnote']
+    assert has(note, mapu) and has(note, rank), note
+    monkeypatch.setattr(P, 'capture_weekly_map', lambda: ('drafts\\weekly-sgg.png', None, 'top10: NO-SHOT'))
+    note = P.draft_weekly(adv, sts)['imgnote']
+    assert 'TOP10 캡처 실패' in note and has(note, rank) and not has(note, mapu), note
+    monkeypatch.setattr(P, 'capture_weekly_map', lambda: (None, 'drafts\\weekly-top10.png', 'map: NO-SHOT'))
+    note = P.draft_weekly(adv, sts)['imgnote']
+    assert has(note, mapu) and not has(note, rank), note    # TOP10 은 떴다 — 지도만 손으로
+
+
 def test_missing_file_is_reported_not_dropped(tmp_path):
     out = P.img_gallery([(str(tmp_path / 'nope.png'), '전국 시군구 지도')])
     assert '이미지 파일이 없습니다' in out and '전국 시군구 지도' in out

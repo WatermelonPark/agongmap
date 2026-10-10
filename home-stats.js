@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v187';
+var HOME_STATS_BUILD='v188';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -925,13 +925,17 @@ function trendTarget(W,code){
 /* 그래프를 열기 직전의 보기 — 순위(TOP 10)에서 연 그래프는 뒤로 가기로 닫으면 순위로, 그 밖은 지도로 돌아간다(2026-10-10
    순위·지도 나눔). 그래프가 열린 채 다른 지역으로 가면 처음 연 곳을 그대로 둔다. */
 const TR_BACK={week:'m',month:'m'};
-function openTrendRegion(k,code,view){
+/* view 'r'(순위 입구, applyHash): 데이터가 온 뒤 순위로 — 연 그래프가 있으면 먼저 닫는다. seq 는 입구를 요청한 때의 GT_SEQ(home-app.js)라
+   그사이 사람이 다른 보기를 골랐으면 덮지 않는다. */
+function openTrendRegion(k,code,view,seq){
   if(!TREND[k])return;
   return (TREND_P||loadFullData()).then(()=>{
     const T=TREND[k], W=trendData(k); if(!W||!W.regions)return;
     /* 되돌릴 때는 보기만이 아니라 지역 선택도 '전체'로 — 남겨 두면 다음에 '그래프'·'표'를 누를 때 예전 지역이 나온다 */
     if(!code){ if(TR_OPEN[k]){ TR_OPEN[k]=null; document.getElementById(T.sel).value=''; fillSggSel(k,''); TRSHOW[k]=12;
-      (k==='week'?renderWeekSec:renderMonthSec)(); gtSet(k,TR_BACK[k],true); } return; }
+      (k==='week'?renderWeekSec:renderMonthSec)(); gtSet(k,TR_BACK[k],true); }
+      if(view==='r'&&GT_SEQ[k]===seq)gtSet(k,'r',true);
+      return; }
     const t=trendTarget(W,code);
     if(!TR_OPEN[k]){ const s=document.getElementById('sec-'+k); TR_BACK[k]=s&&s.classList.contains('gm-r')?'r':'m'; }
     fillTrendReg(k,W.regions);
@@ -1188,6 +1192,7 @@ function gtSet(sec,v,silent){
   }
   if(v==='m'&&TREND[sec])syncSwipe(sec);
   if(silent)return;   // openTrendRegion 이 바꾼 것 — 사람이 누른 전환만 센다
+  GT_SEQ[sec]=(GT_SEQ[sec]||0)+1;   // 받는 중인 순위 입구가 이 고름을 덮지 않게(openTrendRegion)
   if(v==='m'||v==='r')trOpenDrop(sec);   // 지역 그래프를 닫고 전 지역 보기로 — 주소의 '~코드'도 걷는다
   track('stats_gt',{section:sec,view:v});
 }

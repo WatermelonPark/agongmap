@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v187';
+const HOME_BUILD='v188';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -350,9 +350,11 @@ function applyHash(){
     // 하위탭 미지정 해시는 기본탭으로 — 뒤로가기가 항상 같은 화면을 재현하도록
     /* '-rank'(시장동향만): 순위 보기로 바로 연다 — 홈 '시군구 상승·하락 TOP 10 보기'·/weekly/ 'TOP 10' 링크·블로그 캡처의 입구
        (2026-10-10, 시장동향 기본 보기는 지도). 다른 보기(그래프·표)처럼 주소에는 남기지 않는다 — 열고 나면 #stats-market-<주기>.
-       지역 그래프를 열어 둔 채 왔으면 그것을 먼저 닫는다(openTrendRegion 이 비동기로 지도 보기로 돌린 뒤에 순위로). */
+       순위로 바꾸는 일은 openTrendRegion(셋째 인자 'r')이 데이터가 온 뒤에 한다 — 연 지역 그래프가 있으면 닫고, 받는 사이 사람이
+       고른 보기는 덮지 않는다. 여기서 따로 gtSet 을 부르면 통계 파일을 못 받은 날 그 부름이 파일만 다시 받아 statsOpen 없이 빈
+       화면을 남기고(다시 시도 단추까지 걷힌다), 받는 사이 누른 '그래프'를 늦게 덮었다(10-10 코드 리뷰). */
     if(sm[1]==='market'){const t=sm[2]==='month'?'month':'week';setMarketTab(t,false);
-      if(sm[3]){Promise.resolve(openTrendRegion(t,null)).then(()=>gtSet(t,'r',true));history.replaceState(null,'','#stats-market-'+t);}
+      if(sm[3]){openTrendRegion(t,null,'r',GT_SEQ[t]);history.replaceState(null,'','#stats-market-'+t);}
       else openTrendRegion(t,sm[4]||null,sm[5]?'t':'g');}
     else if(sm[1]==='adv')setAdvTab(sm[2]||'occ',false);
     return;
@@ -492,6 +494,10 @@ function statsNav(hh,replace){
    '시세'를 다시 누르거나 주간 → 월간 → 주간으로 오갈 때 주소가 '#stats-market-week' 로 바뀌는데 화면은 그 지역(서울 등)을
    그대로 보여, 새로고침·주소 복사가 다른 화면을 연다(전수리뷰 A3). */
 const TR_OPEN={week:null,month:null};   // 주기별로 openTrendRegion(home-stats.js)이 연 그래프의 코드(주간·월간을 따로 연다)
+/* 사람이 누른 시장동향 보기 전환 수(home-stats.js gtSet 이 센다). 순위 입구('-rank')는 요청한 때의 수를 openTrendRegion 에 넘기고,
+   데이터가 온 뒤에도 수가 같을 때만 순위로 바꾼다 — 통계 파일은 왔는데 데이터가 늦는 사이 누른 '그래프'를 덮지 않게(10-10 코드
+   리뷰). 요청한 때를 재야 해서 분할 파일이 아니라 여기 둔다. */
+const GT_SEQ={week:0,month:0};
 function statsHashOf(m){
   if(m==='market'){const t=document.getElementById('mtab-month').classList.contains('on')?'month':'week', c=TR_OPEN[t];
     return '#stats-market-'+t+(c?'~'+c+(document.getElementById('sec-'+t).classList.contains('gm-t')?'-t':''):'');}

@@ -6,7 +6,9 @@
 없이 흐리게 자리만 채운다(채우지 않으면 경기는 가운데 서울·인천 자리가 크게 비었다). 세종처럼 한 칸뿐인 곳은 지도 없이 예전 모양.
 픽스처: 배치가 구운 zone/<지역>/index.html·weekly/index.html 과 data.js(ADV.weekly.sgg·ADV.monthly.sgg), 홈 NATION_TILE.
 기대값은 따로 계산한다 — 소속은 홈 sidoOf 의 거울 sgg_sido 로(생성기는 sggZoneOf 거울 sgg_zone), 값 표기는 MW.pv2, 칸 크기는
-/weekly/ 전국 지도의 viewBox·최대 폭에서. 지역·주·달을 박지 않는다(데이터가 앞으로 가도 초록).
+/weekly/ 전국 지도의 viewBox·최대 폭에서. 지역·주·달을 박지 않는다(데이터가 앞으로 가도 초록). 지도·단추가 있어야 하는지도
+데이터에서 정한다 — 원천이 어떤 달 한 지역의 월간 값을 비우면 생성기는 그 장에서 월간 묶음·단추를 빼는데, 그날 게이트가 데이터
+커밋을 막지 않게(10-10 코드 리뷰). 물러서기 시험은 합성 계열로 돈다(실데이터에 그 지역 값이 있는지에 기대지 않는다).
 
 변이(각각 실제로 확인):
   · zone_tile 에서 a0 거름을 빼면(수도권·경기·지방 상자에 '전국' 칸이 흐리게 낀다), 이웃 칸을 dim 에서 빼면, 한 칸 지역에도 지도를
@@ -15,8 +17,12 @@
     단 채 그려진다) → 페이지 대조 시험 빨강.
   · 최대 폭을 늘 640 으로 두면 → 칸 크기 시험 빨강.
   · zone.js 전환이 묶음을 숨기지 않으면, 월간 묶음에서 hidden 을 빼면 → 전환 시험 빨강.
-  · 월간 계열이 없을 때도 단추를 달면, 지도 상수를 못 읽었을 때 지도를 그리려 하면 → 물러서기 시험 빨강.
+  · 월간 계열이 없을 때도(또는 그 지역 월간 값이 모두 비었을 때도) 단추를 달면, 지도 상수를 못 읽었을 때 지도를 그리려 하면
+    → 물러서기 시험 빨강.
+  · 시험이 실데이터에서 지도 유무를 유도하지 않고 '두 장 다 있다'고 박으면 — 제주 월간 값을 비운 data.js 로 생성기를 돌리면
+    빨개졌다(이 판에서는 초록, 10-10 확인).
 """
+import datetime
 import html as H
 import io
 import json
@@ -30,6 +36,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import make_sido_pages as M  # noqa: E402
+import merge_regions as MR  # noqa: E402  (통합 정본 SRC·DST — 광주·전남을 손으로 적지 않는다)
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 import weekly_moves as WM  # noqa: E402
@@ -43,8 +50,8 @@ def _page(z):
 
 
 def _zone_of(c):
-    s = WM.sgg_sido(c)     # 홈 sidoOf 의 거울 — 광주·전남은 판정 단위 전남광주로 접는다
-    return '전남광주' if s in ('광주', '전남') else s
+    s = WM.sgg_sido(c)     # 홈 sidoOf 의 거울 — 통합된 시도(광주·전남)는 판정 단위(전남광주)로 접는다
+    return MR.DST if s in MR.SRC else s
 
 
 def _in(z, c):
@@ -57,6 +64,17 @@ def _in(z, c):
 def _zones():
     adv, _ = M.load()
     return adv, [x['z'] for x in adv['sido']['zones']]
+
+
+def _section(z):
+    m = re.search(r'<section class="zwk" id="weekly-sgg">(.*?)</section>', _page(z), re.S)
+    return m and m.group(1)
+
+
+def _has_vals(S, own):
+    """그 지역 칸(own)에 계열 최신 행의 값이 하나라도 있는가 — 생성기가 그 주기 지도를 싣는 조건."""
+    vals, _ = _latest(S)
+    return any(v is not None for t in own for v in vals.get(t[0], []))
 
 
 def _latest(S):
@@ -99,20 +117,23 @@ def test_page_maps_match_the_data():
     series = {'week': adv['weekly']['sgg'], 'month': adv['monthly']['sgg']}
     seen = 0
     for z in names:
-        sec = re.search(r'<section class="zwk" id="weekly-sgg">(.*?)</section>', _page(z), re.S)
+        sec = _section(z)
         if not sec:
             continue
-        sec = sec.group(1)
         tile = M.zone_tile(N, z)
         if tile is None:
             assert '<svg' not in sec and 'zm-seg' not in sec, z
             continue
+        own = [t for t in tile['t'] if _in(z, t[0])]
         for k, S in series.items():
-            box = re.search(r'<div class="zm" data-zm="%s"[^>]*>(.*?)</svg>' % k, sec, re.S)
+            word = '주간' if k == 'week' else '월간'
+            box = re.search(r'<svg [^>]*aria-label="%s 시군구 %s 변동률 지도">(.*?)</svg>' % (re.escape(z), word), sec, re.S)
+            if not _has_vals(S, own):                    # 원천이 이 지역 값을 비운 회차 — 그 지도는 없어야 한다
+                assert not box, '%s: %s 값이 없는데 지도가 있다' % (z, k)
+                continue
             assert box, '%s: %s 지도가 없다' % (z, k)
             svg = box.group(1)
             vals, mets = _latest(S)
-            own = [t for t in tile['t'] if _in(z, t[0])]
             want = {c for c, _nm, _x, _y, h in own if h or any(v is not None for v in vals.get(c, []))}
             links = re.findall(r'<a href="([^"]+)" data-code="([^"]+)" aria-label="([^"]+)">', svg)
             assert {c for _, c, _ in links} == want, (z, k, sorted({c for _, c, _ in links} ^ want)[:5])
@@ -179,17 +200,17 @@ process.stdout.write(JSON.stringify(out));
 def test_toggle_switches_between_week_and_month():
     """구운 장은 주간 묶음이 보이고 월간 묶음은 hidden, 단추는 주간이 눌린 채다. zone.js 는 단추를 누르면 그 주기 묶음만 보이고
     눌림 표시(aria-pressed·on)를 옮기며, 지도가 상자보다 넓을 때만 '옆으로 밀어' 안내를 켠다."""
-    _, names = _zones()
-    pages = 0
+    adv, names = _zones()
+    N = MW.nation_tile()
     for z in names:
-        sec = re.search(r'<section class="zwk" id="weekly-sgg">(.*?)</section>', _page(z), re.S)
-        if not sec or 'zm-seg' not in sec.group(1):
+        s, tile = _section(z), M.zone_tile(N, z)
+        if not s:
             continue
-        s = sec.group(1)
-        assert s.count(M.ZM_SEG) == 1, z
-        assert re.search(r'<div class="zm" data-zm="week">', s) and re.search(r'<div class="zm" data-zm="month" hidden>', s), z
-        pages += 1
-    assert pages, '주간·월간 단추가 달린 장이 하나도 없다'
+        want = bool(tile) and _has_vals(adv['monthly']['sgg'], [t for t in tile['t'] if _in(z, t[0])])
+        assert ('zm-seg' in s) == want, '%s: 주간·월간 단추가 %s' % (z, '없다' if want else '있다(월간 지도가 없는데)')
+        if want:
+            assert s.count(M.ZM_SEG) == 1, z
+            assert re.search(r'<div class="zm" data-zm="week">', s) and re.search(r'<div class="zm" data-zm="month" hidden>', s), z
     assert 'aria-pressed="true" data-zm="week"' in M.ZM_SEG and 'aria-pressed="false" data-zm="month"' in M.ZM_SEG
     if not shutil.which('node'):
         pytest.skip('node 없음')
@@ -202,24 +223,39 @@ def test_toggle_switches_between_week_and_month():
     assert got['resize'] == 'function'
 
 
+def _synth(codes, n, monthly=False, val=0.01):
+    """합성 시군구 계열 — 모든 칸에 같은 값(val, None 이면 빈 칸). 주간은 2031년 조사일 n 주, 월간은 2031년 n 달·월세 줄까지."""
+    rows = []
+    for k in range(n):
+        p = '2031-%02d' % (k + 1) if monthly else (datetime.date(2031, 1, 6) + datetime.timedelta(days=7 * k)).isoformat()
+        r = {'p': p, 'ma': [val] * len(codes), 'je': [val] * len(codes)}
+        if monthly:
+            r['wo'] = [val] * len(codes)
+        rows.append(r)
+    return {'codes': codes, 'rows': rows}
+
+
 def test_single_tile_zone_and_missing_pieces_fall_back_to_the_old_section():
-    """세종(한 칸)은 지도 없이 예전 제목·표. 월간 계열이 없으면 주간 지도만 두고 단추·월간 묶음 없이 제목도 '주간'.
-    지도 상수를 못 읽으면(maps=None) 지도 없는 예전 구역."""
-    adv, _ = _zones()
-    W, Q = MW.load()
+    """세종(한 칸)은 지도 없이 예전 제목·표. 월간 계열이 없거나 그 지역 월간 값이 모두 비었으면 주간 지도만 두고 단추·월간 묶음
+    없이 제목도 '주간'. 지도 상수를 못 읽으면(maps=None) 지도 없는 예전 구역. 픽스처: 전국 칸 코드 전부에 값을 채운 합성 계열."""
+    _, Q = MW.load()
     ctx = M.zone_map_ctx()
     assert ctx and ctx['ref']['week'] > 0 and ctx['ref']['month'] > 0
+    codes = [t[0] for t in ctx['tile']['t']]
+    W = {'sgg': _synth(codes, 14)}
+    mo, empty = {'sgg': _synth(codes, 1, monthly=True)}, {'sgg': _synth(codes, 1, monthly=True, val=None)}
     one = [z for z in SZ.ORDER if M.zone_tile(ctx['tile'], z) is None]
     for z in one:
-        sec = M.weekly_section(z, W, Q, adv['monthly'], ctx)
-        if sec:
-            assert 'zm-seg' not in sec and '<svg' not in sec and '<h2>%s 주간 아파트 시세</h2>' % z in sec, z
+        sec = M.weekly_section(z, W, Q, mo, ctx)
+        assert sec and 'zm-seg' not in sec and '<svg' not in sec and '<h2>%s 주간 아파트 시세</h2>' % z in sec, z
     many = [z for z in SZ.ORDER if z not in SZ.AGG and z not in one]
     z = max(many, key=lambda x: len(M.zone_tile(ctx['tile'], x)['t']))
-    full = M.weekly_section(z, W, Q, adv['monthly'], ctx)
+    full = M.weekly_section(z, W, Q, mo, ctx)
     assert '<h2>%s 시군구 주간·월간 아파트 시세</h2>' % z in full and M.ZM_SEG in full and full.count('<svg') == 2
-    wk = M.weekly_section(z, W, Q, None, ctx)
-    assert '<h2>%s 시군구 주간 아파트 시세</h2>' % z in wk and 'zm-seg' not in wk and 'data-zm="month"' not in wk
-    assert wk.count('<svg') == 1 and 'stats-market-week~' in wk
-    old = M.weekly_section(z, W, Q, adv['monthly'], None)
+    assert '2031년 1월 기준 · 한국부동산원' in full          # 기준 줄은 '시점 기준 · 출처'(날짜 두 단계)
+    for m in (None, empty):                               # 월간 계열이 없거나 이 지역 월간 값이 모두 비었다
+        wk = M.weekly_section(z, W, Q, m, ctx)
+        assert '<h2>%s 시군구 주간 아파트 시세</h2>' % z in wk and 'zm-seg' not in wk and 'data-zm="month"' not in wk
+        assert wk.count('<svg') == 1 and 'stats-market-week~' in wk
+    old = M.weekly_section(z, W, Q, mo, None)
     assert '<svg' not in old and 'zm-seg' not in old and '<h2>%s 시군구 주간 아파트 시세</h2>' % z in old

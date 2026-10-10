@@ -226,19 +226,18 @@ def sgg_zone(code):
     return DST if s in SRC else s
 
 
+def in_zone(code, z):
+    """시군구 코드가 판정 단위 z 에 드는가 — 집계(전국·수도권·지방)는 소속 시도의 권역(SZ.REGION)으로 모은다. 전국 칸(a0)처럼
+    시도가 없는 코드는 어디에도 들지 않는다. 시도 리포트의 표(zone_names)와 잘라 낸 지도(make_sido_pages.zone_tile)가 같은
+    판정을 쓴다(10-10 코드 리뷰 — 같은 식이 두 곳에 따로 있었다)."""
+    zz = sgg_zone(code)
+    return zz is not None and (z == '전국' or zz == z or (z in SZ.AGG and SZ.REGION.get(zz) == z))
+
+
 def zone_names(codes, names, z):
-    """판정 단위 z 에 드는 시군구의 이름표 부분집합 {코드: 이름}. 집계(전국·수도권·지방)는 소속 시도의 권역(SZ.REGION)으로 모은다.
-    이름표(SGG_QNAME)에 없는 코드는 넣지 않는다 — 홈 TOP 10·/weekly/ 표와 같은 대상."""
-    out = {}
-    for c in codes:
-        if c not in names:
-            continue
-        zz = sgg_zone(c)
-        if zz is None:
-            continue
-        if z == '전국' or zz == z or (z in SZ.AGG and SZ.REGION.get(zz) == z):
-            out[c] = names[c]
-    return out
+    """판정 단위 z 에 드는 시군구의 이름표 부분집합 {코드: 이름}(in_zone). 이름표(SGG_QNAME)에 없는 코드는 넣지 않는다 —
+    홈 TOP 10·/weekly/ 표와 같은 대상."""
+    return {c: names[c] for c in codes if c in names and in_zone(c, z)}
 
 
 def _iso(p):
