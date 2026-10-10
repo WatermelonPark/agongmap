@@ -216,20 +216,32 @@ def map_color(v, ref):
     return ('rgba(224,86,74,%s)' if v > 0 else 'rgba(58,123,213,%s)') % al
 
 
-def sgg_map_svg(vals, names, ref, href=None, tile=None):
-    """홈 sggMapSvg(vals, {ref, names, href}) 와 같은 SVG. vals: 값 줄마다 {코드: 값}. href: 코드 → 주소(없으면 링크 없음)."""
+MAP_TW, MAP_G = 30, 2      # 칸 폭·칸 사이(홈 sggMapSvg 의 T·G) — 잘라 낸 지도의 폭(map_view_w)도 이 값으로 잰다
+MAP_MAX_W = 640            # 전국 지도의 최대 폭(px, 홈과 같다)
+
+
+def map_view_w(tile):
+    """sgg_map_svg 의 viewBox 폭(px 단위 전의 좌표 폭). 잘라 낸 지도의 최대 폭을 전국 지도와 같은 칸 크기로 맞출 때 쓴다
+    (시도 리포트 시세 지도 — 2026-10-10)."""
+    return tile['cols'] * (MAP_TW + MAP_G) - MAP_G + 4
+
+
+def sgg_map_svg(vals, names, ref, href=None, tile=None, label='전국 시군구 변동률 지도', max_w=MAP_MAX_W, dim=()):
+    """홈 sggMapSvg(vals, {ref, names, href}) 와 같은 SVG. vals: 값 줄마다 {코드: 값}. href: 코드 → 주소(없으면 링크 없음).
+    label·max_w·dim 은 시도 리포트의 잘라 낸 지도(tile = 그 지역 둘레 상자)가 쓴다 — dim 칸(상자 안의 이웃 지역)은 값·링크
+    없이 이름만 흐리게 그리고 테두리 셈에서도 뺀다. 기본값이면 홈과 한 글자까지 같다(test_sgg_map)."""
     N = tile or nation_tile()
     n = len(vals)
-    TW, NH, G = 30, 15, 2
+    TW, NH, G = MAP_TW, 15, MAP_G
     VH = 12 if n > 2 else 13
     rowH = NH + n * (VH + 1)
     W = N['cols'] * (TW + G) - G
     H = N['rows'] * (rowH + G) - G
     MAP_FS, MAP_MIN_PX = 9, 11
     minW = math.ceil((W + 4) * MAP_MIN_PX / MAP_FS)
-    sv = ['<svg viewBox="-2 -2 %s %s" xmlns="http://www.w3.org/2000/svg" style="width:100%%;max-width:640px;min-width:%spx;'
-          'margin:0 auto;display:block"%s aria-label="전국 시군구 변동률 지도">'
-          % (W + 4, H + 4, minW, ' role="group"' if href else ' role="img"')]
+    sv = ['<svg viewBox="-2 -2 %s %s" xmlns="http://www.w3.org/2000/svg" style="width:100%%;max-width:%spx;min-width:%spx;'
+          'margin:0 auto;display:block"%s aria-label="%s">'
+          % (W + 4, H + 4, max_w, minW, ' role="group"' if href else ' role="img"', html.escape(label))]
 
     def grp(c):
         if c[0] == 'a':
@@ -266,7 +278,15 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None):
         return p + ' ' if p else ''
     tb = int(math.floor(VH / 2 + 0.5)) + 3   # JS Math.round(반올림 위로) — 파이썬 round 는 짝수 쪽이다
     # 값이 한 줄도 없는 칸은 세우지 않는다(시도 머리 칸은 늘) — 홈 sggMapSvg 의 T 와 같은 규칙(2026-10-07, 인천 신설 4구 월간 빈 칸)
-    T = [t for t in N['t'] if t[4] or any(m.get(t[0]) is not None for m in vals)]
+    T = [t for t in N['t'] if t[0] not in dim and (t[4] or any(m.get(t[0]) is not None for m in vals))]
+    for c, nm, x, y, h in N['t']:
+        # 흐린 이웃 칸 — 그 지역이 전국 지도의 어디쯤인지 보이게 자리만 채운다(가운데가 빈 경기 등). 칸 세우는 규칙은 T 와 같다.
+        if c in dim and (h or any(m.get(c) is not None for m in vals)):
+            fit = (' textLength="%s" lengthAdjust="spacingAndGlyphs"' % (TW - 3)) if len(nm) >= 4 else ''
+            sv.append('<g transform="translate(%s,%s)" opacity=".35" aria-hidden="true">' % (x * (TW + G), y * (rowH + G)) +
+                      '<rect width="%s" height="%s" rx="4" fill="%s" stroke="#d6dced"/>' % (TW, rowH, '#1e2846' if h else '#eef1f8') +
+                      '<text x="%s" y="%s" text-anchor="middle" font-size="%s"%s font-weight="600" fill="%s">%s</text></g>'
+                      % (_js_num(TW / 2), NH - 4, MAP_FS, fit, '#fff' if h else '#1b2426', nm))
     for c, nm, x, y, h in T:
         px, py = x * (TW + G), y * (rowH + G)
         fit = (' textLength="%s" lengthAdjust="spacingAndGlyphs"' % (TW - 3)) if len(nm) >= 4 else ''
@@ -318,6 +338,12 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None):
               'opacity=".85" pointer-events="none"/>' % ''.join(dl))
     sv.append('</svg>')
     return ''.join(sv)
+
+
+def map_refs(src=None):
+    """홈 지도의 만색 기준 {'week': WK_MAP_REF, 'month': MO_MAP_REF} — 시도 리포트의 잘라 낸 지도도 이 값을 쓴다(한 상수)."""
+    src = src or HS.home_source()
+    return {'week': float(_home_const(src, 'WK_MAP_REF')), 'month': float(_home_const(src, 'MO_MAP_REF'))}
 
 
 def week_map(W, src=None):
