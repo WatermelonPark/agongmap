@@ -559,10 +559,15 @@ ROT_ANCHOR = datetime.date(2025, 12, 29)
 # 회차마다 문장을 돌린다(2026-10-15 반복률 측정: 직전 글과 뼈대가 같은 문장이 주간 45%·지역 편 43% — 사이클 2~7%,
 # 도시 편 1%). 네이버는 같거나 거의 같은 글을 거른다. 사실은 같아도 회차마다 말을 바꿔, 숫자만 갈아 끼운 틀로
 # 읽히지 않게 한다. 주간은 조사일의 주 번호로, 지역 편은 회차(seq)로 고른다 — 난수면 검토본과 발행본이 어긋난다.
+# 각 문장 묶음의 0번은 교대 이전 문구다. 교대를 넣은 뒤 첫 회차(주간 10-19 조사분, 지역 편 경남)가 0번을 받으면
+# 옛 틀로 발행한 직전 글과 다시 겹친다(경남 초안 실측 52%). 한 칸 밀어 첫 회차부터 다른 문장을 받게 한다.
+ROT_SHIFT = 1
+
+
 def _wk(p, n):
     """조사일 p('YYYY-MM-DD')로 주간 글 문장 번호(0..n-1)를 고른다. 바로 이웃한 두 주는 늘 다른 번호다."""
     y, m, d = (int(x) for x in p.split('-'))
-    return ((datetime.date(y, m, d) - ROT_ANCHOR).days // 7) % n
+    return ((datetime.date(y, m, d) - ROT_ANCHOR).days // 7 + ROT_SHIFT) % n
 
 
 DISCLAIMERS = (
@@ -1404,8 +1409,13 @@ def draft_zone(adv, sts, r, seq, total):
     # 판정 설명 문장도 같은 inow 로 갈래를 고른다 — 여유 지역에 '앞으로 3년 … 더 들어옵니다'라고 쓰면 바로 아래
     # 식(입주 추정 < 적정물량, 여유는 지난 4년 남은 재고)과 숫자로 부딪친다(인천, 검토 지적 TRUST-2④).
     need, fut, inow, _ = SZ.display_ints(r, SZ.LEAD_Q)
-    body.append('<p>%s 아파트 공급물량을 적정 공급량과 견주면, 현재 '
-                '<b>%s세대가 %s</b> 상태입니다. 판정은 <b>%s</b>입니다. %s.</p>' % (
+    # 첫 문장도 회차마다 돈다(반복률 — 지역 편 이웃 회차에서 마지막까지 겹친 문장이 이 문단이었다). 세 틀 모두
+    # 첫 문장에 지역명과 '적정 공급량'을 둔다(검색어). 뒤의 비율 문장은 사이트 정본이라 돌리지 않는다.
+    lead = ('<p>%s 아파트 공급물량을 적정 공급량과 견주면, 현재 <b>%s세대가 %s</b> 상태입니다. 판정은 <b>%s</b>입니다. %s.</p>',
+            '<p>적정 공급량을 기준으로 재면 %s 아파트는 <b>%s세대가 %s</b> 상태이고, 판정은 <b>%s</b>입니다. %s.</p>',
+            '<p>%s 아파트 공급물량은 적정 공급량보다 <b>%s세대가 %s</b> 상태로, 판정은 <b>%s</b>입니다. %s.</p>'
+            )[(_rot(seq, 3, total) + ROT_SHIFT) % 3]
+    body.append(lead % (
                     esc(SEARCH_NAME.get(nm, nm)), num(abs(t)), state,
                     SZ.GRADE_LABS[r['grade']],
                     # 블로그는 '모자라다'를 쓰지 않는다(블덱스 '#모자' 오분석, 09-28) — 사이트 정본 문장의 그 말만 바꾼다.
@@ -1431,7 +1441,7 @@ def draft_zone(adv, sts, r, seq, total):
     #
     # 새 순서: 결론 → 그 지역의 지금 → 전망 → 다른 지역 → 산식(압축) → 면책.
     shown = SEARCH_NAME.get(nm, nm)
-    k3 = _rot(seq, 3, total)
+    k3 = (_rot(seq, 3, total) + ROT_SHIFT) % 3
     body.append(('<h3>%s%s 지금 어떤 상태인가</h3>' % (esc(shown), eunneun(shown)),
                  '<h3>%s 시세와 미분양</h3>' % esc(shown),
                  '<h3>%s의 지금</h3>' % esc(shown))[k3])
