@@ -1,0 +1,66 @@
+# -*- coding: utf-8 -*-
+"""블로그 초안 반복률 — 같은 카테고리 이웃 회차끼리 뼈대가 같은 문장이 WARN(25%) 아래인지(2026-10-15).
+
+배경: 발행 글 18편 측정에서 직전 글과 뼈대가 같은 문장이 주간 42~46%·지역 편 29~43%였다(사이클 2~7%, 도시 1%).
+네이버는 같거나 거의 같은 글·자동 생성 틀을 거른다. 생성기가 매주 같은 안내 문장을 깔던 탓이라, 안내 문장은
+지우거나 회차마다 돌리고(_wk·_rot), 지역 편의 CD 금리 문장(그 주 모든 지역 편이 같은 숫자)은 뺐다.
+
+무엇을 깨뜨리면 빨개지나(실제로 확인): _wk 가 늘 0 을 돌려주면 주간 시험이, draft_zone 의 k3 를 0 으로 고정하면
+지역 편 시험이, CD 문장을 되살리면 금리 시험이, title_warnings 가 빈 목록만 돌려주면 제목 시험이 빨개진다.
+픽스처: 저장소의 실제 ADV 로 이웃한 두 주(지난 회차는 _cut_weekly)와 이웃 회차 지역 편(캡처·썸네일·RSS 는 끈다).
+"""
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import blog_similarity as B  # noqa: E402
+import make_naver_post as P  # noqa: E402
+
+
+@pytest.fixture
+def env(monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
+    monkeypatch.setattr(P, 'rival_panel', lambda kw: '')
+    monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
+    monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
+    monkeypatch.setattr(P, 'OUT', str(tmp_path))
+    return P.M.load()
+
+
+def _s(d):
+    return B.sentences(B.html_paras(d['body']))
+
+
+def test_weekly_neighbours_do_not_repeat(env):
+    adv, sts = env
+    a = P.draft_weekly(P._cut_weekly(adv, 1), sts, shot=False)
+    b = P.draft_weekly(adv, sts, shot=False)
+    assert B.overlap(_s(a), _s(b)) < B.WARN, [B.skeleton(x) for x in _s(b) if B.skeleton(x) in set(map(B.skeleton, _s(a)))]
+
+
+def test_zone_neighbours_do_not_repeat(env):
+    adv, sts = env
+    zs = [r for r in adv['sido']['zones'] if not r.get('agg')]
+    rates = [B.overlap(_s(P.draft_zone(adv, sts, zs[i], 7 + i, len(zs))), _s(P.draft_zone(adv, sts, zs[i + 1], 8 + i, len(zs))))
+             for i in range(len(zs) - 1)]
+    assert max(rates) < B.WARN, [round(x * 100) for x in rates]
+
+
+def test_zone_has_no_rate_sentence(env):
+    adv, sts = env
+    zs = [r for r in adv['sido']['zones'] if not r.get('agg')]
+    body = P.draft_zone(adv, sts, zs[0], 7, len(zs))['body']
+    assert 'CD 91일물' not in body and '금리가 걸립니다' not in body
+
+
+def test_title_warnings_catch_generic_words():
+    assert P.title_warnings('2027년 광주·전남 아파트 공급물량 전망, 강보합 국면이지만 내년 2분기부터 입주가 크게 줄어듭니다')
+    assert not P.title_warnings('2027년 경남 부동산 전망, 공급물량이 절반에 못 미쳐 오름세가 이어집니다')
+    assert not P.title_warnings('[한국부동산원] 주간 아파트가격 동향(10월 둘째 주) | 경기는 가장 크게 올랐습니다')
+
+
+def test_skeleton_ignores_numbers_and_regions():
+    assert B.skeleton('서울 매매는 +0.16% 올랐습니다.') == B.skeleton('경기 매매는 +0.26% 올랐습니다.')
+    assert B.overlap(['서울 매매는 +0.10%입니다.'], ['부산 매매는 -0.02%입니다.', '완전히 다른 문장 하나입니다.']) == 0.5
