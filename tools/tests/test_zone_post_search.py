@@ -125,7 +125,8 @@ def test_gwangju_jeonnam_uses_search_forms(monkeypatch, survey):
     # 변이: draft_zone 소제목이나 cta() 의 보이는 이름을 nm 으로 되돌리면 빨개진다.
     shown = re.sub(r'href="[^"]*"', '', d['body'])
     assert '전남광주' not in shown, re.findall(r'.{20}전남광주.{20}', shown)
-    assert '광주·전남은 지금 어떤 상태인가' in d['body']
+    # 상태 소제목은 회차마다 돈다(반복률, 10-15) — 어느 틀이든 검색 이름으로 시작해야 한다.
+    assert re.search(r'<h3>광주·전남(은 지금 어떤 상태인가| 시세와 미분양|의 지금)</h3>', d['body'])
 
 
 def test_province_tags_use_the_city_people_search(monkeypatch):

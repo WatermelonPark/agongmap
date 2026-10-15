@@ -365,8 +365,9 @@ def test_weekly_top3_is_the_site_top3(monkeypatch):
     adv = {'weekly': {'regions': regs, 'rows': [dict(row, p='2026-09-14'), row]}}
     body = P.draft_weekly(adv, {}, shot=False)['body']
     up, dn = MW.top3([(z, vals[z]) for z in sido])
-    assert '가장 많이 오른 곳은 %s입니다' % ' · '.join('<b>%s %s</b>' % (k, P.pct(v)) for k, v in up) in body
-    assert '%s는 내렸습니다' % ' · '.join('%s %s' % (k, P.pct(v)) for k, v in dn) in body, body
+    # 문장 틀은 회차마다 돈다(반복률, 10-15) — 순위 목록 자체가 /weekly/ 순서 그대로인지만 본다.
+    assert ' · '.join('<b>%s %s</b>' % (k, P.pct(v)) for k, v in up) in body
+    assert ' · '.join('%s %s' % (k, P.pct(v)) for k, v in dn) in body, body
 
 
 # ── #24·#106 전세가율 기준월, #114 노후주택 기준 해 ──────────────────────────

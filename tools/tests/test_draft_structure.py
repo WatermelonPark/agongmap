@@ -5,7 +5,7 @@
 맨 아래에 두어 CLAUDE.md 블로그 구조(결론 → 내용)와 거꾸로였고, 홈피드(유입 90%) 카드에 썸네일 대신 TOP10 표가 떴다.
 지역 편 미분양 문단은 '부족 판정과 어긋나 보이지만 모순이 아닙니다 —'로 부정형 시작·엠대시였고, 판정 문장에 '모자란'이 남았다.
 
-무엇을 깨뜨리면 빨개지나(실제로 확인): 해석 칸을 표 뒤로 되돌리면 순서 시험이, imgs 에서 썸네일을 빼면 썸네일 시험이,
+무엇을 깨뜨리면 빨개지나(실제로 확인): 해석 칸을 표 뒤로 되돌리면 순서 시험이(자리 표시자 위치 기준), imgs 에서 썸네일을 빼면 썸네일 시험이,
 태그를 '집값전망' 고정으로 되돌리면 태그 시험이, 미분양 문단을 옛 문장으로 되돌리면 지역 편 시험이 빨개진다.
 픽스처: 저장소의 실제 ADV(캡처·경쟁 글 패널은 끈다). 지역 편은 미분양 경고가 붙는 실제 시도를 고른다.
 """
@@ -31,8 +31,9 @@ def weekly(monkeypatch, tmp_path):
 
 def test_weekly_puts_the_interpretation_before_the_table(weekly):
     body = weekly[1]['body']
-    assert body.index('이번 주 눈에 띈 것') < body.index('<table'), '해석(결론)이 표보다 뒤에 있다'
-    assert body.index('[여기에 썸네일') < body.index('이번 주 눈에 띈 것')
+    # 해석 칸의 소제목은 회차마다 돈다(반복률, 10-15) — 자리 표시자 위치로 본다.
+    assert body.index(P.INTERP_PLACEHOLDER) < body.index('<table'), '해석(결론)이 표보다 뒤에 있다'
+    assert body.index('[여기에 썸네일') < body.index(P.INTERP_PLACEHOLDER)
 
 
 def test_weekly_has_a_thumbnail_first(weekly):

@@ -556,6 +556,51 @@ MORE_ROTATION = [
 ROT_ANCHOR = datetime.date(2025, 12, 29)
 
 
+# 회차마다 문장을 돌린다(2026-10-15 반복률 측정: 직전 글과 뼈대가 같은 문장이 주간 45%·지역 편 43% — 사이클 2~7%,
+# 도시 편 1%). 네이버는 같거나 거의 같은 글을 거른다. 사실은 같아도 회차마다 말을 바꿔, 숫자만 갈아 끼운 틀로
+# 읽히지 않게 한다. 주간은 조사일의 주 번호로, 지역 편은 회차(seq)로 고른다 — 난수면 검토본과 발행본이 어긋난다.
+def _wk(p, n):
+    """조사일 p('YYYY-MM-DD')로 주간 글 문장 번호(0..n-1)를 고른다. 바로 이웃한 두 주는 늘 다른 번호다."""
+    y, m, d = (int(x) for x in p.split('-'))
+    return ((datetime.date(y, m, d) - ROT_ANCHOR).days // 7) % n
+
+
+DISCLAIMERS = (
+    '※ 숫자는 한국부동산원·국토교통부·KOSIS·한국은행 공개 데이터를 가공한 것이고, <b>판단과 전망은 글쓴이 개인의 견해</b>'
+    '입니다. 투자 결정과 그 결과는 읽는 분의 몫입니다.',
+    '※ 표와 그림의 숫자는 한국부동산원·국토교통부·KOSIS·한국은행 자료에서 가져왔습니다. <b>해석과 전망은 글쓴이의 개인 '
+    '의견</b>이며, 투자 판단은 각자의 책임으로 해 주세요.',
+    '※ 데이터 출처는 한국부동산원·국토교통부·KOSIS·한국은행입니다. <b>글의 판단은 개인 견해</b>이고, 이 글을 근거로 한 '
+    '투자 결과의 책임은 읽는 분께 있습니다.',
+)
+
+
+def disclaimer(k):
+    """면책 한 줄. ⚠️ '권유하지 않습니다'로 쓰지 않는다 — 본문이 방향을 말하는데 말미에서 부인하면 글이 무르다.
+    사실과 견해를 가르고 책임 소재를 밝힌다. 문장은 회차마다 돌린다(반복률 측정, 2026-10-15)."""
+    return '<p><i>%s</i></p>' % DISCLAIMERS[k % len(DISCLAIMERS)]
+
+
+# 제목 결론절에서 대표 키워드로 잘못 잡히기 쉬운 일반어(2026-10-15 블덱스: 광주·전남 편 '내년 2분기부터'가 '#2분기',
+# 청주 편 '2027년'이 '#2027년'으로 잡혔다. 부산 편 '모자랍니다'→'#모자'와 같은 현상). 결론절에서 이런 말이 앞에 서면
+# 지역명·'공급물량' 대신 이 말이 글의 주제로 읽힌다.
+_TITLE_GENERIC = (r'\d+\s*분기', r'\d{4}\s*년', r'\d+\s*월', '모자')
+
+
+def title_warnings(title):
+    """결론절(첫 쉼표 또는 ' | ' 뒤)에 일반어가 있으면 경고 문장 목록. 앞머리(검색어 자리)의 연도는 규칙상 넣는 것이라 보지 않는다."""
+    cut = title.find(' | ')
+    head_end = cut + 3 if cut >= 0 else title.find(',') + 1
+    tail = title[head_end:] if head_end > 0 else ''
+    out = []
+    for pat in _TITLE_GENERIC:
+        m = re.search(pat, tail)
+        if m:
+            out.append("결론절의 '%s'가 대표 키워드로 잡힐 수 있습니다(블덱스 '#2분기'·'#모자' 사례). "
+                       "지역명·'공급물량'·'입주물량'이 가장 무겁게 남게 바꾸는 편이 낫습니다." % m.group(0))
+    return out
+
+
 def rot_index(p):
     """발표주차 기준 4주 로테이션 인덱스. 날짜에서 뽑으므로 상태 파일이 필요 없고,
     주간 발행을 건너뛰어도 순서가 어긋나지 않는다.
@@ -754,9 +799,13 @@ def draft_weekly(adv, sts, shot=True):
         rowsHtml += ('<tr><td>%s</td><td style="text-align:right">%s</td>'
                      '<td style="text-align:right">%s</td></tr>') % (SEARCH_NAME.get(k, k), pct(m), pct(j))
 
-    lead = ('한국부동산원이 발표한 <b>%s 기준</b> 주간 아파트 가격 동향입니다. '
-            '전국 매매가는 전주 대비 <b>%s</b>, 서울은 <b>%s</b> 움직였습니다.'
-            ) % (kdate(p), pct(nat[0]), pct(seoul[0]))
+    k3 = _wk(p, 3)
+    lead = (('한국부동산원이 발표한 <b>%s 기준</b> 주간 아파트 가격 동향입니다. '
+             '전국 매매가는 전주 대비 <b>%s</b>, 서울은 <b>%s</b> 움직였습니다.'),
+            ('<b>%s 조사</b> 한국부동산원 주간 통계에서 전국 아파트 매매가는 <b>%s</b>, '
+             '서울은 <b>%s</b> 변했습니다.'),
+            ('이번 주(<b>%s 조사</b>) 전국 아파트 매매가는 전주보다 <b>%s</b>, '
+             '서울은 <b>%s</b>입니다.'))[k3] % (kdate(p), pct(nat[0]), pct(seoul[0]))
 
     body = []
     # 첫 이미지가 네이버 대표 이미지(피드 카드)다 — 그래서 썸네일이 맨 앞이다(2026-10-15).
@@ -764,10 +813,10 @@ def draft_weekly(adv, sts, shot=True):
     body.append('<p>%s</p>' % lead)
     # ── 해석(결론)을 첫머리에 둔다(2026-10-15 점검). 예전에는 표·TOP10·지도 뒤 맨 아래에 있어, 결론→내용 순서
     # (CLAUDE.md 블로그 구조)와 거꾸로였다 — 피드로 온 독자는 첫 화면에서 숫자만 보고 떠났다(글당 방문 +0~7).
-    body.append('<h3>이번 주 눈에 띈 것</h3>')
+    body.append('<h3>%s</h3>' % ('이번 주 눈에 띈 것', '이번 주 핵심', '이번 주 시장 읽기')[k3])
     body.append('<p>%s</p>' % INTERP_PLACEHOLDER)
-    body.append('<h3>주요 지역 변동률</h3>')
-    body.append('<p>전주 대비 아파트 매매·전세 변동률입니다.</p>')
+    # '전주 대비 아파트 매매·전세 변동률입니다'는 뺐다 — 표 머리(지역·매매·전세)가 이미 말한다(반복률 측정, 10-15).
+    body.append('<h3>%s</h3>' % ('주요 지역 변동률', '시도별 매매·전세', '지역별 전주 대비 변동')[k3])
     body.append('<table border="1" cellspacing="0" cellpadding="6"><thead>'
                 '<tr><th>지역</th><th>매매</th><th>전세</th></tr></thead>'
                 '<tbody>%s</tbody></table>' % rowsHtml)
@@ -776,17 +825,20 @@ def draft_weekly(adv, sts, shot=True):
     # 채널의 유일한 밑천인데 그 자리에서 무너진다. 부호로 걸러 문장을 만든다.
     sent = []
     if up:
-        sent.append('이번 주 가장 많이 오른 곳은 %s입니다.'
+        sent.append(('이번 주 가장 많이 오른 곳은 %s입니다.', '상승폭 1~3위는 %s입니다.',
+                     '%s 순으로 많이 올랐습니다.')[k3]
                     % ' · '.join('<b>%s %s</b>' % (SEARCH_NAME.get(k, k), pct(v)) for k, v in up))
     if dn:
-        sent.append('%s%s는 내렸습니다.'
-                    % ('반대로 ' if up else '',
-                       ' · '.join('%s %s' % (SEARCH_NAME.get(k, k), pct(v)) for k, v in dn)))
+        dtxt = ' · '.join('%s %s' % (SEARCH_NAME.get(k, k), pct(v)) for k, v in dn)
+        sent.append(('%s%s는 내렸습니다.' % ('반대로 ' if up else '', dtxt),
+                     '%s는 하락했습니다.' % dtxt,
+                     '내린 곳은 %s입니다.' % dtxt)[k3])
     if not sent:
         sent.append('이번 주는 전 지역이 보합입니다.')
     body.append('<p>%s</p>' % ' '.join(sent))
     if gu:
-        body.append('<p>서울 안에서는 %s 순으로 올랐습니다.</p>' %
+        body.append(('<p>서울 안에서는 %s 순으로 올랐습니다.</p>', '<p>서울 25개 구 가운데 %s가 앞섰습니다.</p>',
+                     '<p>서울 구별로는 %s 순입니다.</p>')[k3] %
                     ' · '.join('<b>%s %s</b>' % (k, pct(v)) for k, v in gu))
     # 지난주와 무엇이 달라졌나(B7) — 표지의 정본(weekly_moves)
     moves_p, rank_p = weekly_moves_sentences(W)
@@ -798,19 +850,23 @@ def draft_weekly(adv, sts, shot=True):
     #
     # 두 장으로 가르는 이유: 시군구 전부가 한 장에 들어가면 네이버 모바일에서
     # 타일 글씨가 안 읽힌다.
-    body.append('<p>가장 많이 오르고 내린 곳을 순위로 보면 이렇습니다. '
-                '맨 오른쪽은 <b>지난주 순위에서 몇 계단 움직였는지</b>입니다.</p>')
+    body.append(('<p>가장 많이 오르고 내린 곳을 순위로 보면 이렇습니다. '
+                 '맨 오른쪽은 <b>지난주 순위에서 몇 계단 움직였는지</b>입니다.</p>',
+                 '<p>시군구 상승·하락 순위입니다. 오른쪽 끝 칸이 <b>지난주 대비 순위 변화</b>입니다.</p>',
+                 '<p>순위로 보면 다음과 같습니다. 오른쪽 끝은 <b>지난주보다 몇 계단 움직였는지</b>를 뜻합니다.</p>')[k3])
     body.append('<p>[여기에 상승·하락 TOP10 이미지를 넣어 주세요]</p>')
     if rank_p:
         body.append(rank_p)
-    body.append('<p>시군구로 내려가 보면 같은 권역 안에서도 갈립니다.</p>')
+    body.append(('<p>시군구로 내려가 보면 같은 권역 안에서도 갈립니다.</p>',
+                 '<p>전국 시군구를 한 장에 놓으면 이렇습니다.</p>',
+                 '<p>같은 시도 안에서도 시군구마다 방향이 다릅니다.</p>')[k3])
     # 지도는 한 장으로 간다(2026-09-07 사용자: 둘로 잘리니 보기 안 좋다). 원래
     # 모바일 가독성 때문에 둘로 나눴던 것인데(3ea4781), 잘린 자리가 더 거슬린다.
     body.append('<p>[여기에 전국 시군구 지도 이미지를 넣어 주세요]</p>')
-    body.append('<p>타일마다 위가 매매, 아래가 전세입니다. 붉을수록 오르고 '
-                '푸를수록 내린 곳입니다.<br>👉 '
-                '<a href="%s">지도에서 직접 찾아보기</a></p>'
-                % site_link('/#stats-market', 'weekly_map'))
+    # 범례 문장('타일마다 위가 매매…')은 뺐다 — 지도 이미지 맨 아래에 범례가 같이 찍힌다(반복률 측정, 10-15).
+    body.append('<p>👉 <a href="%s">%s</a></p>'
+                % (site_link('/#stats-market', 'weekly_map'),
+                   ('지도에서 직접 찾아보기', '우리 동네 시세 지도로 보기', '시군구 시세 지도 열기')[k3]))
 
 
     # ── ③ '공급으로 보면'(시도 순위표)은 뺐다(2026-09-07 사용자). 공급 판정은
@@ -833,9 +889,7 @@ def draft_weekly(adv, sts, shot=True):
     # ⚠️ 면책을 '권유하지 않습니다'로 쓰지 않는다. 본문이 방향을 분명히
     # 말하는데 말미에서 그걸 부인하면 글이 스스로를 무른다. 대신 **사실과
     # 견해를 가르고 책임 소재를 밝힌다** — 이 편이 더 정직하고 더 강하다.
-    body.append('<p><i>※ 숫자는 한국부동산원·국토교통부·KOSIS·한국은행 공개 '
-                '데이터를 가공한 것이고, <b>판단과 전망은 글쓴이 개인의 견해</b>'
-                '입니다. 투자 결정과 그 결과는 읽는 분의 몫입니다.</i></p>')
+    body.append(disclaimer(k3))
 
     # 13개에서 5개로 줄였다(2026-08-14). 태그는 순위를 가르는 신호가 아니다 —
     # C-Rank(채널 주제 집중도)와 D.I.A.+(문서 품질)가 가른다. 개수보다 일관성이
@@ -1357,7 +1411,7 @@ def draft_zone(adv, sts, r, seq, total):
                     # 블로그는 '모자라다'를 쓰지 않는다(블덱스 '#모자' 오분석, 09-28) — 사이트 정본 문장의 그 말만 바꾼다.
                     esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True, inow=inow)
                         .replace('모자란', '부족한').replace('모자라', '부족하'))))
-    body.append('<p>셈은 <b>%s</b>입니다.</p>'
+    body.append(('<p>셈은 <b>%s</b>입니다.</p>', '<p>계산하면 <b>%s</b>입니다.</p>', '<p>식으로 쓰면 <b>%s</b>입니다.</p>')[_rot(seq, 3, total)]
                 % esc(SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, need, fut, inow)))
     # 캡처는 이 바로 뒤에 온다 — 앞 문장이 말한 숫자가 화면에 그대로 찍혀 있어
     # 글이 주장한 것을 곧바로 확인시켜 준다.
@@ -1377,7 +1431,10 @@ def draft_zone(adv, sts, r, seq, total):
     #
     # 새 순서: 결론 → 그 지역의 지금 → 전망 → 다른 지역 → 산식(압축) → 면책.
     shown = SEARCH_NAME.get(nm, nm)
-    body.append('<h3>%s%s 지금 어떤 상태인가</h3>' % (esc(shown), eunneun(shown)))
+    k3 = _rot(seq, 3, total)
+    body.append(('<h3>%s%s 지금 어떤 상태인가</h3>' % (esc(shown), eunneun(shown)),
+                 '<h3>%s 시세와 미분양</h3>' % esc(shown),
+                 '<h3>%s의 지금</h3>' % esc(shown))[k3])
     # 그 지역 시세부터. ②만 읽고 가는 사람도 있어서 ①에 있다고 생략하면 안 된다.
     W = adv.get('weekly') or {}
     try:
@@ -1387,24 +1444,39 @@ def draft_zone(adv, sts, r, seq, total):
         pma = prv['ma'][i]
         if ma is not None:
             was = ('(전주 %s)' % pct(pma)) if pma is not None else ''
-            body.append('<p>먼저 시세입니다. %s 기준 매매 <b>%s</b>%s, '
-                        '전세 <b>%s</b>.</p>'
-                        % (kdate(cur['p']), pct(ma), was, pct(je)))
+            # 예전 '먼저 시세입니다. … 매매 +0.04%, 전세 +0.06%.'는 서술어 없이 끝났다(10-15 점검).
+            body.append(('<p>%s 기준 %s 아파트값은 매매 <b>%s</b>%s, 전세 <b>%s</b>입니다.</p>'
+                         % (kdate(cur['p']), esc(shown), pct(ma), was, pct(je)),
+                         '<p>시세부터 보면 %s 조사에서 매매가 <b>%s</b>%s, 전세가 <b>%s</b> 움직였습니다.</p>'
+                         % (kdate(cur['p']), pct(ma), was, pct(je)),
+                         '<p>한국부동산원 %s 조사로 매매는 <b>%s</b>%s, 전세는 <b>%s</b>였습니다.</p>'
+                         % (kdate(cur['p']), pct(ma), was, pct(je)))[k3])
     except (ValueError, IndexError, KeyError):
         pass
     if r.get('unsold'):
         if r.get('uwarn'):
-            # 경고 문장은 M.unsold_warn 정본을 쓴다 — 사본을 두면 사이트와 갈린다.
-            body.append('<p>%s%s %s</p>' % (esc(nm), eunneun(nm), M.unsold_warn(r)))
-            # 부정형으로 문단을 열지 않는다(블로그 규칙) — 예전 '부족 판정과 어긋나 보이지만 모순이 아닙니다 —'(2026-10-15).
-            body.append('<p>미분양이 쌓이면 건설사가 착공을 멈추고, 그래서 <b>앞으로 지을 물량이 '
-                        '줄어듭니다.</b> 지금 남은 재고와 %d년 뒤 부족해질 집은 따로 봐야 합니다.</p>' % yrs)
+            # 숫자는 사이트 경고(M.unsold_warn)와 같은 값(r['unsold']·umx)이고, 문장만 블로그용으로 쓴다. 사이트 문장
+            # '지을 데가 없어서가 아니라 안 팔려서 안 짓는 것일 수 있습니다'를 그대로 옮기면 4편에 같은 문장이 나갔고
+            # (반복률 측정, 10-15), '부족 판정과 어긋나 보이지만 모순이 아닙니다 —'는 부정형 시작이었다.
+            body.append(('<p>%s에는 미분양이 <b>%s세대</b> 쌓여 있습니다(분기 적정물량의 %s). 안 팔린 집이 쌓이면 '
+                         '건설사는 착공을 멈추고, 그래서 <b>앞으로 지을 물량이 줄어듭니다.</b> 지금 남은 재고와 %d년 뒤 '
+                         '부족해질 집은 따로 봐야 합니다.</p>' % (esc(shown), num(r['unsold']), umx(r['um']), yrs),
+                         '<p>미분양은 <b>%s세대</b>로 분기 적정물량의 %s입니다. 이렇게 재고가 쌓인 곳에서는 새 착공이 '
+                         '멈추기 때문에, 지금의 재고가 %d년 뒤 <b>입주 공백</b>으로 이어집니다.</p>'
+                         % (num(r['unsold']), umx(r['um']), yrs),
+                         '<p>%s 미분양은 <b>%s세대</b>, 분기 적정물량의 %s입니다. 팔리지 않은 집이 많으니 건설사가 '
+                         '새로 짓기를 미루고, 그 결과 %d년 뒤에는 <b>들어올 집이 줄어듭니다.</b></p>'
+                         % (esc(shown), num(r['unsold']), umx(r['um']), yrs))[k3])
         else:
-            body.append('<p>미분양은 <b>%s세대</b>입니다. 다 짓고도 팔리지 않은 재고라, '
-                        '쌓이면 분양가와 입주장 전세가에 먼저 반영됩니다.</p>'
-                        % num(r['unsold']))
-    body.append('<p>분기별로 나눠 보면 이렇습니다. 칸 색이 짙을수록 그 분기에 '
-                '들어올 물량이 적정선에 못 미친다는 뜻입니다.</p>')
+            body.append(('<p>미분양은 <b>%s세대</b>입니다. 다 짓고도 팔리지 않은 재고라, '
+                         '쌓이면 분양가와 입주장 전세가에 먼저 반영됩니다.</p>',
+                         '<p>팔리지 않은 새 집이 <b>%s세대</b> 남아 있습니다. 이런 집이 많을수록 분양가와 입주 무렵 '
+                         '전세가가 먼저 눌립니다.</p>',
+                         '<p>남은 미분양은 <b>%s세대</b>입니다. 이 재고가 줄어드는 속도가 분양가와 입주장 전세가를 '
+                         '좌우합니다.</p>')[k3] % num(r['unsold']))
+    # 범례('칸 색이 짙을수록…')는 표 이미지가 말한다(반복률 측정, 10-15).
+    body.append(('<p>분기별로 나눠 보면 이렇습니다.</p>', '<p>앞으로 분기마다 들어올 물량입니다.</p>',
+                 '<p>분기별 물량을 보면 입주가 비는 분기가 어디인지 드러납니다.</p>')[k3])
     body.append('<p>[여기에 분기별 공급표 이미지를 넣어 주세요]</p>')
 
     # 모델이 그 지역과 구조적으로 안 맞는 경우의 공시 — 정본은 M.MODEL_LIMIT_NOTE.
@@ -1428,7 +1500,8 @@ def draft_zone(adv, sts, r, seq, total):
                  key=lambda x: x['um'])
     mine = next((i for i, x in enumerate(ums) if x['z'] == nm), None)
     if mine is not None and r.get('um') is not None:
-        body.append('<h3>그래서 어떻게 될 것인가</h3>')
+        body.append(('<h3>그래서 어떻게 될 것인가</h3>', '<h3>%s 부동산 전망</h3>' % esc(shown),
+                     '<h3>앞으로 %s 집값은</h3>' % esc(shown))[k3])
         # 바로 다음 순위와 견주면 안 된다 — 서울 0.05 vs 세종 0.07이라 '1배 차이'가
         # 되어 뜻이 없다. 대척점(가장 높은 곳)과 견줘야 폭이 드러난다.
         # 조사는 붙이지 않는다 — '세종와도' 같은 오류를 원천에서 없앤다.
@@ -1445,18 +1518,23 @@ def draft_zone(adv, sts, r, seq, total):
         if t > 0 and r['unsold'] and r['unsold'] < t:
             vs_tot = (' 부족분 <b>%s세대의 %.1f%%</b>, %d분의 1입니다.'
                       % (num(t), r['unsold'] / t * 100, round(t / r['unsold'])))
-        body.append('<p>그 미분양은%s</p>' % (vs_tot or
-                    ' 부족분과 견주면 그리 크지 않습니다.'))
+        if vs_tot:
+            body.append(('<p>그 미분양은%s</p>' % vs_tot,
+                         '<p>미분양을 앞으로 부족한 집과 견주면 <b>%.1f%%, %d분의 1</b>에 그칩니다.</p>'
+                         % (r['unsold'] / t * 100, round(t / r['unsold'])),
+                         '<p>쌓인 미분양은 앞으로 부족한 집(%s세대)의 <b>%d분의 1</b> 수준입니다.</p>'
+                         % (num(t), round(t / r['unsold'])))[k3])
+        else:
+            body.append('<p>그 미분양은 부족분과 견주면 그리 크지 않습니다.</p>')
         # '견줘도'는 낮다는 뉘앙스라 제주(2.4배)에서 어긋난다. 중립으로 쓴다.
         # 시도 수를 박지 않는다 — 광주·전남이 '전남광주'로 합쳐져 16곳이 됐다
         # (2026-09-11 확인). 순회 pool 크기(total)를 그대로 쓴다.
-        body.append('<p>분기 적정물량과 견주면 <b>%s</b>로 %d개 시도 가운데 '
-                    '<b>낮은 순 %d번째</b>입니다.%s</p>'
+        body.append(('<p>분기 적정물량과 견주면 <b>%s</b>로 %d개 시도 가운데 <b>낮은 순 %d번째</b>입니다.%s</p>',
+                     '<p>분기 적정물량 대비 미분양은 <b>%s</b>로, %d개 시도 가운데 <b>%d번째로 적습니다.</b>%s</p>',
+                     '<p>미분양 배수(<b>%s</b>)로 줄을 세우면 %d개 시도 가운데 적은 쪽에서 <b>%d번째</b>입니다.%s</p>')[k3]
                     % (umx(r['um']), total, mine + 1, cmp_txt))
-        cd = _cd_change(sts)
-        if cd:
-            body.append('<p>여기에 금리가 걸립니다. CD 91일물이 1년 사이 '
-                        '<b>%s%% → %s%%</b>로 %s%%p 움직였습니다.</p>' % cd)
+        # CD 금리 문장('여기에 금리가 걸립니다…')은 뺐다 — 그 주 모든 지역 편에서 같은 숫자라 지역 정보가 아니라
+        # 반복이었다(반복률 측정, 10-15). 금리는 주간 글 '이번 주의 지표'와 사이클 편이 다룬다.
         # ⚠️ 여기 있던 사이클 고리 설명 두 문단(2021 저금리 그래프 / "전세가 먼저
         # 오르고 그 전세가 매매를 민다")을 뺐다. 회차마다 글자까지 같았고, 그 고리는
         # 이미 전망 문단이 그 지역 숫자로 말한다(부산 편: 전세가율 29개월 연속 상승).
@@ -1478,9 +1556,7 @@ def draft_zone(adv, sts, r, seq, total):
     # ⚠️ 면책을 '권유하지 않습니다'로 쓰지 않는다. 본문이 방향을 분명히
     # 말하는데 말미에서 그걸 부인하면 글이 스스로를 무른다. 대신 **사실과
     # 견해를 가르고 책임 소재를 밝힌다** — 이 편이 더 정직하고 더 강하다.
-    body.append('<p><i>※ 숫자는 한국부동산원·국토교통부·KOSIS·한국은행 공개 '
-                '데이터를 가공한 것이고, <b>판단과 전망은 글쓴이 개인의 견해</b>'
-                '입니다. 투자 결정과 그 결과는 읽는 분의 몫입니다.</i></p>')
+    body.append(disclaimer(k3))
 
     # 5개로 둔다(①과 같은 이유). '입주물량'은 넣지 않는다 — 분양 확정분을 뜻하는
     # 말이라 착공 추정인 우리 숫자와 어긋난다(제목에서 뺀 것과 같은 이유).
@@ -2202,6 +2278,8 @@ def render(p, d1, d2):
         S.append('<section class="draft"><h2>%s</h2>' % head)
         S.append(rival_panel(d['kw']))
         S.append(field('제목', 't%d' % i, esc(d['title']), 't'))
+        for w in title_warnings(d['title']):
+            S.append('<p class="note">⚠ %s</p>' % esc(w))
         if i == 1:
             # 숫자를 기본값으로 두되(기계가 확실히 아는 값), 해석을 쓴 뒤에는
             # 결론절로 바꾸는 게 낫다. 검색결과는 30자쯤만 보여줘서 뒤쪽 숫자가
