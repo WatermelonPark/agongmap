@@ -448,6 +448,7 @@ def _sgg_names():
 
 
 def weekly_moves_sentences(W):
+    # 보이는 지역 이름은 검색 표기(SEARCH_NAME, '광주·전남') — 10-12 주간 초안에 내부 이름 '전남광주'가 나갔다(10-15).
     """'지난주와 무엇이 달라졌나'(홈 마케팅 검수 B7·RET-5) — /weekly/ 표와 **같은 함수**(weekly_moves)의 결과를
     문장으로 옮긴다. 재료만 깔고 해석은 사람이 쓴다. (방향 문단, 순위 이동 문장) — 없으면 빈 문자열.
 
@@ -461,13 +462,14 @@ def weekly_moves_sentences(W):
     parts = []
     if nw['turned']:
         parts.append('지난주와 방향이 바뀐 곳은 %s입니다.'
-                     % ' · '.join('<b>%s</b>(%s)' % (z, WM.TXT_TURN[k]) for z, k in nw['turned']))
+                     % ' · '.join('<b>%s</b>(%s)' % (SEARCH_NAME.get(z, z), WM.TXT_TURN[k]) for z, k in nw['turned']))
     if nw['entered']:
         parts.append('새로 %d주 연속 흐름에 들어선 곳은 %s입니다.'
-                     % (WM.STREAK_MIN, ' · '.join('%s(%s)' % (z, lab[k]) for z, k in nw['entered'])))
+                     % (WM.STREAK_MIN, ' · '.join('%s(%s)' % (SEARCH_NAME.get(z, z), lab[k]) for z, k in nw['entered'])))
     if nw['milestone']:
         parts.append('이번 주로 %s을 채웠습니다.'
-                     % ' · '.join('%s%s %s' % (z, eunneun(z), WM.TXT_STREAK[k] % n) for z, k, n in nw['milestone']))
+                     % ' · '.join('%s%s %s' % (SEARCH_NAME.get(z, z), eunneun(SEARCH_NAME.get(z, z)), WM.TXT_STREAK[k] % n)
+                                  for z, k, n in nw['milestone']))
     para = ('<p>%s</p>' % ' '.join(parts)) if parts else ''
     rank = ''
     S = W.get('sgg') or {}
@@ -750,7 +752,7 @@ def draft_weekly(adv, sts, shot=True):
         if m is None:
             continue
         rowsHtml += ('<tr><td>%s</td><td style="text-align:right">%s</td>'
-                     '<td style="text-align:right">%s</td></tr>') % (k, pct(m), pct(j))
+                     '<td style="text-align:right">%s</td></tr>') % (SEARCH_NAME.get(k, k), pct(m), pct(j))
 
     lead = ('한국부동산원이 발표한 <b>%s 기준</b> 주간 아파트 가격 동향입니다. '
             '전국 매매가는 전주 대비 <b>%s</b>, 서울은 <b>%s</b> 움직였습니다.'
@@ -769,11 +771,11 @@ def draft_weekly(adv, sts, shot=True):
     sent = []
     if up:
         sent.append('이번 주 가장 많이 오른 곳은 %s입니다.'
-                    % ' · '.join('<b>%s %s</b>' % (k, pct(v)) for k, v in up))
+                    % ' · '.join('<b>%s %s</b>' % (SEARCH_NAME.get(k, k), pct(v)) for k, v in up))
     if dn:
         sent.append('%s%s는 내렸습니다.'
                     % ('반대로 ' if up else '',
-                       ' · '.join('%s %s' % (k, pct(v)) for k, v in dn)))
+                       ' · '.join('%s %s' % (SEARCH_NAME.get(k, k), pct(v)) for k, v in dn)))
     if not sent:
         sent.append('이번 주는 전 지역이 보합입니다.')
     body.append('<p>%s</p>' % ' '.join(sent))

@@ -340,7 +340,8 @@ def test_weekly_table_names_are_model_names(monkeypatch):
     W = adv['weekly']
     last = W['rows'][-1]
     # 최신 주 매매값이 없는 지역(2026-04-27~07-06 전남광주 11주처럼)은 표에서 빠지는 것이 도구의 규칙이다
-    assert got == [z for z in SZ.DISPLAY_ORDER if z in P.WEEKLY_TABLE and z in W['regions']
+    # 보이는 이름은 검색 표기다(전남광주 → '광주·전남', 10-15). 행 구성(빠지는 행 없음)은 모델 이름 기준 그대로 본다.
+    assert got == [P.SEARCH_NAME.get(z, z) for z in SZ.DISPLAY_ORDER if z in P.WEEKLY_TABLE and z in W['regions']
                    and last['ma'][W['regions'].index(z)] is not None]
 
 
