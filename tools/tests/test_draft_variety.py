@@ -7,6 +7,7 @@
 
 무엇을 깨뜨리면 빨개지나(실제로 확인): _wk 가 늘 0 을 돌려주면 주간 시험이, draft_zone 의 k3 를 0 으로 고정하면
 지역 편 시험이, CD 문장을 되살리면 금리 시험이, title_warnings 가 빈 목록만 돌려주면 제목 시험이 빨개진다.
+교대 직후 첫 주간(10-19 조사분)이 옛 문구(0번)를 받으면 전환 시험이 빨개진다(ROT_SHIFT 를 0 으로 바꿔 확인).
 픽스처: 저장소의 실제 ADV 로 이웃한 두 주(지난 회차는 _cut_weekly)와 이웃 회차 지역 편(캡처·썸네일·RSS 는 끈다).
 """
 import os
@@ -64,3 +65,8 @@ def test_title_warnings_catch_generic_words():
 def test_skeleton_ignores_numbers_and_regions():
     assert B.skeleton('서울 매매는 +0.16% 올랐습니다.') == B.skeleton('경기 매매는 +0.26% 올랐습니다.')
     assert B.overlap(['서울 매매는 +0.10%입니다.'], ['부산 매매는 -0.02%입니다.', '완전히 다른 문장 하나입니다.']) == 0.5
+
+
+def test_first_weekly_after_the_switch_does_not_reuse_the_old_wording():
+    """0번 문장은 교대 이전 문구다. 10-15 에 옛 틀로 낸 주간 글 다음 회차(10-19 조사분)가 0번이면 다시 겹친다."""
+    assert P._wk('2026-10-19', 3) != 0

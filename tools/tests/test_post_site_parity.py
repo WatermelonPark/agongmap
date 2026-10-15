@@ -197,11 +197,13 @@ def test_zone_post_net_shortage_is_the_site_card_number(monkeypatch):
         m = re.match(r'([\d,]+)세대 (부족|여유)', z['ctxt'])
         if not m:
             continue                      # 0세대(비율만 있는 문구)는 대조할 수가 없다
-        body = P.draft_zone(adv, sts, z, 1, len(zones))['body']
-        g = re.search(r'현재 <b>([\d,]+)세대가 (부족한|남아도는)</b>', body)
         want = (m.group(1), '부족한' if m.group(2) == '부족' else '남아도는')
-        if not g or g.groups() != want:
-            bad.append('%s: 사이트 %s · 블로그 %s' % (z['z'], want, g and g.groups()))
+        # 첫 문장 틀은 회차마다 세 가지로 돈다(반복률, 2026-10-15) — 세 틀 모두에서 숫자를 대조한다.
+        for seq in (1, 2, 3):
+            body = P.draft_zone(adv, sts, z, seq, len(zones))['body']
+            g = re.search(r'<b>([\d,]+)세대가 (부족한|남아도는)</b>', body)
+            if not g or g.groups() != want:
+                bad.append('%s(회차 %d): 사이트 %s · 블로그 %s' % (z['z'], seq, want, g and g.groups()))
     assert not bad, '지역 편 순부족이 사이트 카드와 다르다: %s' % '; '.join(bad)
 
 
