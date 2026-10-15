@@ -516,9 +516,9 @@ CYCLE_SYNC_N = len(CYCLE_SYNC)
 
 
 INTERP_PLACEHOLDER = (
-    '[이번 주 데이터에서 눈에 띈 것을 2~4문장으로. 위 표의 숫자를 다시 읊지 말고 '
-    '왜 그런지, 무엇을 시사하는지 쓸 것. 예: 특정 지역만 튀는 이유, 매매-전세 '
-    '방향이 갈리는 곳, 몇 주째 이어지는 흐름.]')
+    '[이번 주 데이터에서 눈에 띈 것을 3~5문장으로. 이 문단이 글의 첫 화면이다. 첫 문장은 독자가 "맞아" 할 상황이나 '
+    '질문으로 열고 곧바로 결론을 못 박는다(예: 강남은 내렸다는데 우리 동네는 왜 오를까). 아래 표의 숫자를 다시 읊지 말고 '
+    '왜 그런지, 무엇을 시사하는지 쓰고, 마지막은 공급으로 묶는다. 예: 특정 지역만 튀는 이유, 매매-전세 방향이 갈리는 곳, 몇 주째 이어지는 흐름.]')
 
 # 사람이 채우는 자리 전부. 손본 초안 판별(draft_edited)이 이 가운데 새 초안에 있는 것을 하나라도 잃은 기존 초안을
 # '손댔다'로 본다 — 자리를 새로 만들면 여기에 넣는다.
@@ -759,7 +759,13 @@ def draft_weekly(adv, sts, shot=True):
             ) % (kdate(p), pct(nat[0]), pct(seoul[0]))
 
     body = []
+    # 첫 이미지가 네이버 대표 이미지(피드 카드)다 — 그래서 썸네일이 맨 앞이다(2026-10-15).
+    body.append('<p>[여기에 썸네일 이미지를 넣어 주세요 — 첫 이미지가 대표 이미지가 됩니다]</p>')
     body.append('<p>%s</p>' % lead)
+    # ── 해석(결론)을 첫머리에 둔다(2026-10-15 점검). 예전에는 표·TOP10·지도 뒤 맨 아래에 있어, 결론→내용 순서
+    # (CLAUDE.md 블로그 구조)와 거꾸로였다 — 피드로 온 독자는 첫 화면에서 숫자만 보고 떠났다(글당 방문 +0~7).
+    body.append('<h3>이번 주 눈에 띈 것</h3>')
+    body.append('<p>%s</p>' % INTERP_PLACEHOLDER)
     body.append('<h3>주요 지역 변동률</h3>')
     body.append('<p>전주 대비 아파트 매매·전세 변동률입니다.</p>')
     body.append('<table border="1" cellspacing="0" cellpadding="6"><thead>'
@@ -806,11 +812,6 @@ def draft_weekly(adv, sts, shot=True):
                 '<a href="%s">지도에서 직접 찾아보기</a></p>'
                 % site_link('/#stats-market', 'weekly_map'))
 
-    # ── ② 해석 자리. 기계가 채울 수 없는 부분이라 비워 두고, 재료(위 표·순위)만
-    # 앞에 깔아 둔다. 블로그 이웃들이 기대하는 건 숫자 나열이 아니라 해석이므로
-    # 이 자리를 비운 채 발행하면 안 된다.
-    body.append('<h3>이번 주 눈에 띈 것</h3>')
-    body.append('<p>%s</p>' % INTERP_PLACEHOLDER)
 
     # ── ③ '공급으로 보면'(시도 순위표)은 뺐다(2026-09-07 사용자). 공급 판정은
     # 착공 실적으로 매기는데 그건 월 단위로 움직여서, 주간 글에 넣으면 매주
@@ -847,11 +848,23 @@ def draft_weekly(adv, sts, shot=True):
     # 주간아파트동향 3~18, 주간아파트시세 0~3. 거의 안 찾는 '주간아파트시세'를
     # 두 번째로 많이 찾는 '주간아파트동향'으로 바꿨다. '아파트시세'는 '주간'이 없는
     # 일반 검색어라 남긴다.
-    tags = ['주간아파트가격동향', '주간아파트동향', '아파트시세', '집값전망', '아공맵']
+    # 다섯째 칸은 그 주 가장 많이 오른 시도의 세부 키워드다('경기아파트값', 2026-10-15). 고정 넷이 주제를 지키고,
+    # 한 칸은 그 주 사람들이 실제로 찾는 지역 말로 바꾼다 — 일반어 '집값전망'은 경쟁만 크고 우리 글로 오는 말이 아니었다.
+    top_tag = (TAG_NAME.get(up[0][0], SEARCH_NAME.get(up[0][0], up[0][0])).replace('·', '') + '아파트값') if up else '집값전망'
+    tags = ['주간아파트가격동향', '주간아파트동향', '아파트시세', top_tag, '아공맵']
+    thumb = None
+    try:
+        thumb = thumb_weekly(W, sts, _weekly_thumb_msg_arg(sys.argv))
+    except Exception as e:    # 썸네일이 없어도 초안은 나간다
+        print('  ⚠ 주간 썸네일 생략 — %s: %s' % (type(e).__name__, e))
+    if thumb:
+        sggnote = ('<b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)%s<br>' % (
+            thumb, '' if _weekly_thumb_msg_arg(sys.argv) else
+            ' — ⚠ 문구가 기본값입니다. 결론이 서면 <code>--weekly-thumb-msg "첫 줄|*둘째 줄*"</code>로 다시 만드세요')) + sggnote
     return dict(title=title, body='\n'.join(body), tags=tags, kw='주간아파트가격동향',
                 img=(sgg or None), imgnote=sggnote,
                 # 본문 자리 표시자 순서대로(TOP10 → 지도). img_gallery 가 초안 안에 싣는다.
-                imgs=[(top10, '상승·하락 TOP10'), (sgg, '전국 시군구 지도')])
+                imgs=[(thumb, '썸네일 · 글 맨 위, 대표 이미지'), (top10, '상승·하락 TOP10'), (sgg, '전국 시군구 지도')])
 
 
 # ---------------------------------------------------------------- 초안 ②
@@ -1157,20 +1170,26 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
     숫자(고점 대비 %)는 지수에서 그대로 계산한 값만 쓴다.
     실패해도 초안은 나가야 하므로 호출부에서 예외를 잡는다.
     """
+    nm = r['z']
+    curve = _thumb_curve(sts, nm)
+    lines = [x for x in (msg or thumb_message(nm, curve)) if x.strip()][:3]
+    return _draw_thumb(THUMB_GROUP.get(nm, '수도권'), curve, thumb_chip(nm, yr), lines,
+                       os.path.join(OUT, 'thumb-%s.png' % nm), msg)
+
+
+def _draw_thumb(group, curve, chip, lines, path, msg):
+    """썸네일 한 장을 그린다 — 지역 편(thumb_zone)·주간 글(thumb_weekly)이 같이 쓴다. 디자인 규칙은 thumb_zone 설명 그대로."""
     from PIL import Image, ImageDraw
     import make_zone_cards as ZC
     Wd, Ht, K = 1200, 900, 2                      # K배로 그려 줄인다(곡선 계단 방지)
-    nm = r['z']
     # 밝은 바탕. 블로그가 앨범형이라 썸네일이 목록에 나란히 깔리는데, 어두운 카드가
-    # 이어지면 블로그 전체가 침침해진다(2026-09-17 사용자). 같은 색만 이어져도
-    # 색은 권역마다 고정이다(THUMB_GROUP).
-    BG, FILL, DIM, ACCENT = THUMB_PALETTES[THUMB_GROUP.get(nm, '수도권')]
+    # 이어지면 블로그 전체가 침침해진다(2026-09-17 사용자). 색은 권역마다 고정이다(THUMB_GROUP).
+    BG, FILL, DIM, ACCENT = THUMB_PALETTES[group]
     WHITE, SOFT = (19, 30, 36), (94, 111, 116)      # 본문 글자(먹색)·보조 글자
     img = Image.new('RGB', (Wd * K, Ht * K), BG)
     d = ImageDraw.Draw(img)
     F = lambda size, w='Bold': ZC.font(size * K, w)
 
-    curve = _thumb_curve(sts, nm)
     if curve:
         pts = curve[0]
         lo, hi = min(v for _, v in pts), max(v for _, v in pts)
@@ -1181,14 +1200,11 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
         d.polygon(xy + [(x1 * K, Ht * K), (x0 * K, Ht * K)], fill=FILL)
         d.line(xy, fill=DIM, width=6 * K, joint='curve')
 
-    chip = thumb_chip(nm, yr)
     d.text((Wd / 2 * K, 96 * K), chip, font=F(38), fill=SOFT, anchor='mm')
 
-    lines = [x for x in (msg or thumb_message(nm, curve)) if x.strip()][:3]
     clean = [x.strip('*') for x in lines]
     # 글자 크기는 고정이다 — 앨범형 목록에 나란히 깔리므로 회차마다 크기가 들쭉날쭉하면
-    # 지저분하다. THUMB_FONT는 가장 긴 기본 문구("전남광주, 고점에서 -15%")가 들어가는
-    # 크기다. 넘치는 문구만 줄이고, 줄였다는 걸 알린다 — 문구를 줄이는 게 먼저다.
+    # 지저분하다. 넘치는 문구만 줄이고, 줄였다는 걸 알린다 — 문구를 줄이는 게 먼저다.
     size = min([THUMB_FONT * K] +
                [ZC.fit_width(c, (Wd - 120) * K, hi=THUMB_FONT * K, lo=60 * K).size
                 for c in clean])
@@ -1204,21 +1220,63 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
                stroke_fill=BG, fill=ACCENT if raw.startswith('*') else WHITE)
         y += gap
 
-    # 아랫줄 요약("907세대 부족 · 3년 적정물량의 13% · 판정 균형")은 뺐다 — 피드 카드
-    # 크기에서 안 읽히고, 처음 보는 사람은 뜻도 모른다(2026-09-17 사용자). 썸네일은
-    # 키 메시지 하나만 말한다. 서명은 도메인이 아니라 이름 — 네이버 안에서는 주소가
-    # 눌리지도 않고 광고처럼 읽힌다.
+    # 서명은 도메인이 아니라 이름 — 네이버 안에서는 주소가 눌리지도 않고 광고처럼 읽힌다.
     d.text((Wd / 2 * K, (Ht - 78) * K), '아공맵', font=F(44), fill=WHITE,
            anchor='mm', stroke_width=6 * K, stroke_fill=BG)
 
     os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, 'thumb-%s.png' % nm)
     if _keep_existing_thumb(path, msg):
         print('  ⚠ %s 는 이미 있어 그대로 뒀다(--thumb-msg 로 만든 것일 수 있다). 다시 만들려면 --force-thumb.'
               % os.path.basename(path))
         return os.path.relpath(path, ROOT)
     img.resize((Wd, Ht), Image.LANCZOS).save(path)
     return os.path.relpath(path, ROOT)
+
+
+def thumb_weekly(W, sts=None, msg=None):
+    """주간 글 대표 이미지 — drafts/thumb-weekly-<조사일>.png.
+
+    2026-10-15 점검: 블로그 유입의 90%가 홈피드인데 주간 글만 썸네일이 없어, 피드 카드에 빽빽한 TOP10 표가 떴다.
+    지역 편과 같은 틀(곡선 배경 + 키 메시지 두 줄)에 전국 매매지수 곡선을 깐다. 문구는 그 주 결론으로
+    --weekly-thumb-msg "첫 줄|*둘째 줄*" 를 주고, 안 주면 데이터에서 안전망 문구를 만든다(사실 한 줄 + 1위 지역).
+    """
+    p = W['rows'][-1]['p']
+    if msg is None:
+        reg, last = W['regions'], W['rows'][-1]
+        sido = [(z, v) for z, v in zip(reg, last['ma']) if z not in SZ.AGG and v is not None]
+        up, _ = MW.top3(sido)
+        i = reg.index('서울')
+        sign, n = _streak(W, i)
+        msg = ['서울 %d주째 %s' % (n, '상승' if sign == '+' else '하락')]
+        if up:
+            msg.append('*%s %s*' % (SEARCH_NAME.get(up[0][0], up[0][0]), pct(up[0][1])))
+    chip = '%s 아파트값' % MW.WR.week_label(p)
+    return _draw_thumb('수도권', _thumb_curve(sts, '전국'), chip, msg,
+                       os.path.join(OUT, 'thumb-weekly-%s.png' % p), msg if '--weekly-thumb-msg' in sys.argv else None)
+
+
+def _streak(W, i):
+    """매매 연속 부호와 주수 — 발표 반올림(pv2) 기준(0.00 은 보합이라 끊긴다)."""
+    sign, n = None, 0
+    for r in reversed(W['rows']):
+        v = r['ma'][i]
+        t = MW.pv2(v) if v is not None else '0.00'
+        cur = '+' if t.startswith('+') else ('-' if t.startswith('-') else '0')
+        if sign is None:
+            sign = cur
+        if cur != sign or cur == '0':
+            break
+        n += 1
+    return sign, n
+
+
+def _weekly_thumb_msg_arg(argv):
+    """--weekly-thumb-msg "첫 줄|*둘째 줄*" → ['첫 줄', '*둘째 줄*']"""
+    if '--weekly-thumb-msg' in argv:
+        i = argv.index('--weekly-thumb-msg')
+        if i + 1 < len(argv):
+            return [x.strip() for x in argv[i + 1].split('|')]
+    return None
 
 
 def _keep_existing_thumb(path, msg, argv=None):
@@ -1296,7 +1354,9 @@ def draft_zone(adv, sts, r, seq, total):
                 '<b>%s세대가 %s</b> 상태입니다. 판정은 <b>%s</b>입니다. %s.</p>' % (
                     esc(SEARCH_NAME.get(nm, nm)), num(abs(t)), state,
                     SZ.GRADE_LABS[r['grade']],
-                    esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True, inow=inow))))
+                    # 블로그는 '모자라다'를 쓰지 않는다(블덱스 '#모자' 오분석, 09-28) — 사이트 정본 문장의 그 말만 바꾼다.
+                    esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True, inow=inow)
+                        .replace('모자란', '부족한').replace('모자라', '부족하'))))
     body.append('<p>셈은 <b>%s</b>입니다.</p>'
                 % esc(SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, need, fut, inow)))
     # 캡처는 이 바로 뒤에 온다 — 앞 문장이 말한 숫자가 화면에 그대로 찍혀 있어
@@ -1336,10 +1396,9 @@ def draft_zone(adv, sts, r, seq, total):
         if r.get('uwarn'):
             # 경고 문장은 M.unsold_warn 정본을 쓴다 — 사본을 두면 사이트와 갈린다.
             body.append('<p>%s%s %s</p>' % (esc(nm), eunneun(nm), M.unsold_warn(r)))
-            body.append('<p>부족 판정과 어긋나 보이지만 모순이 아닙니다 — 미분양이 '
-                        '쌓이면 건설사가 착공을 멈추고, 그래서 <b>앞으로 지을 물량이 '
-                        '줄어듭니다.</b> 지금 남는 것과 %d년 뒤 모자라는 것은 다른 '
-                        '이야기입니다.</p>' % yrs)
+            # 부정형으로 문단을 열지 않는다(블로그 규칙) — 예전 '부족 판정과 어긋나 보이지만 모순이 아닙니다 —'(2026-10-15).
+            body.append('<p>미분양이 쌓이면 건설사가 착공을 멈추고, 그래서 <b>앞으로 지을 물량이 '
+                        '줄어듭니다.</b> 지금 남은 재고와 %d년 뒤 부족해질 집은 따로 봐야 합니다.</p>' % yrs)
         else:
             body.append('<p>미분양은 <b>%s세대</b>입니다. 다 짓고도 팔리지 않은 재고라, '
                         '쌓이면 분양가와 입주장 전세가에 먼저 반영됩니다.</p>'
