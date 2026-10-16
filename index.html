@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v188">
+<html lang="ko" data-build="v189">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -336,7 +336,10 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 
   <section class="home-sec"><div class="wrap">
     <!-- 머리줄('9/28 조사 · 10/1 발표 · … · 한국부동산원')은 뺐다(2026-10-03 대표 요청 — 군더더기). 발표일은 첫 화면 띠가
-         말하고, 발표가 늦은 주에는 아래 h2 결론 앞에 '9/17 발표 기준'이 붙는다(applyWeeklyStatus). -->
+         말하고, 발표가 늦은 주에는 아래 h2 결론 앞에 '9/17 발표 기준'이 붙는다(applyWeeklyStatus).
+         대신 날짜 없는 구역 이름 한 줄을 둔다(백로그 45, 2026-10-16 대표 승인) — 모드 단추 '월간 시세'를 고른 뒤 내려온 사람이
+         이 주간 시군구 지도를 월간 결과로 읽었다. 고정 문구라 applyWeeklyStatus 가 건드리지 않는다. -->
+    <div class="hs-kicker" id="wk-label">주간 시세 · 시군구</div>
     <h2 id="wk-h2">이번 주, 어디가 오르고 내렸을까?</h2>
     <!-- 아래는 전국 **시군구** 지도다(매매 전주 대비, renderWeeklyGrid). 칸을 누르면 그 지역 주간 그래프가 열린다.
          소개 문장('빨강·파랑을 한눈에 …')은 범례·지도 아래 안내와 같은 말이라 뺐다(2026-10-03 대표 요청). -->
