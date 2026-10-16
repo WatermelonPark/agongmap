@@ -468,10 +468,11 @@ def body(f, sheets, xlsx_name, outlook, k=0):
     if zp:
         # 같은 시도의 지역 편으로 잇는다 — 홈피드 노출이 끝난 옛 지역 편에 조회를 다시 붙인다(10-16 대구 편: 08-30 지역 편이
         # 2,087회 뒤 0). 숫자는 싣지 않는다(지역 편과 다른 콘텐츠).
-        B.append('<p>%s 공급을 시도 단위로 본 글도 있습니다.<br>👉 <a href="%s">%s</a></p>' % (P.SEARCH_NAME.get(sido, sido), esc(zp['url']), esc(zp['title'])))
+        B.append('<p>%s 지역 편에서는 착공 실적으로 앞으로 3년 공급을 따져 봤습니다.<br>👉 <a href="%s">%s</a></p>'
+                 % (P.SEARCH_NAME.get(sido, sido), esc(zp['url']), esc(zp['title'])))
     link = P.site_link('/zone/%s/' % quote(sido), 'city_%s' % quote(city))
-    B.append('<p>%s 전체 공급은 이 글과 다른 시도 단위 기준으로 리포트에서 따로 다룹니다.<br>👉 <a href="%s">%s 공급 리포트</a></p>'
-             % (P.SEARCH_NAME.get(sido, sido), link, P.SEARCH_NAME.get(sido, sido)))
+    B.append('<p>분기마다 들어올 물량은 사이트 리포트에서 바로 확인하실 수 있습니다.<br>👉 <a href="%s">%s 공급 리포트</a></p>'
+             % (link, P.SEARCH_NAME.get(sido, sido)))
     B.append(('<p>이 목록에 빠진 단지나 입주 시기가 바뀐 단지를 아시면 댓글로 알려 주세요. 확인한 내용은 다른 분들도 보실 수 있게 '
               '답글로 남기겠습니다.</p>',
               '<p>%s에 사시면서 입주 일정이 바뀐 단지를 보셨다면 댓글로 알려 주세요. 확인해서 답글로 정리해 두겠습니다.</p>' % city,
