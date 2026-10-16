@@ -878,6 +878,69 @@ POSTS = [
 읽는 분의 몫입니다.</i></p>
 """,
     ),
+    dict(
+        n=7,
+        # 금리(사이트 /cycle/ 참고 ①). 6편 말미 예고("순환 바깥에서 전체를 흔드는 변수인 금리")를 잇는다(2026-10-16 마케팅
+        # 세션). 숫자는 전부 /cycle/ 정본(D.rate_overlay·D.prose)에서 link7_values 가 세고, 문장의 전제가 깨지면 멈춘다.
+        # 경험 문단은 운영자 원고 3장(레고랜드발 금리 급등, [0157]·[0561])을 존댓말로 압축했다. 마지막 두 문장은 다리(새로 씀).
+        title='금리와 집값, 금리가 올라도 집값을 정하는 것은 공급입니다',
+        tags=['금리와집값', '금리인하', '기준금리'],
+        exp=('<p>2022년 가을, 저는 공급 분석만 믿고 있었습니다. 분석은 맞았습니다. 그런데 레고랜드발 금리 급등이 시장 전체를 '
+             '단기간에 뒤집었습니다. 주택담보대출 금리가 3%대에서 6~7%대로 두 배 가까이 오르자 집을 사려는 사람이 사라졌고, '
+             '전세대출 금리까지 오르면서 전세가도 매매가와 함께 떨어졌습니다. 제가 겪은 역전세도 이 경로였습니다.</p>'
+             '<p>그 일로 배운 것은 공급이 틀렸다는 것이 아니었습니다. 금리는 공급과 다른 자리에서, 다른 속도로 시장을 흔든다는 '
+             '것이었습니다.</p>'),
+        imgs=[('cycle-rate.png', '수도권 매매·전세와 CD금리 차트')],
+        body="""
+<p>금리는 집값의 방향을 정하지 못합니다. 시점과 폭을 흔들 뿐이고, 방향은 공급이 정합니다. 지금 수도권이 그 증거입니다. CD금리가 %(now_from)s %(r_from)s%%에서 %(now_to)s %(r_to)s%%로 올랐는데, 같은 기간 수도권 아파트 매매가는 <b>%(mm_now)s</b>, 전세가는 <b>%(je_now)s</b> 올랐습니다.</p>
+
+<p>금리가 공급을 이길 때가 있기는 합니다. 2021년의 급등과 2022년의 급락이 그랬습니다. 그런데 그때와 지금은 매매와 전세가 움직이는 순서부터 다릅니다. 그 순서를 보면 지금 시장을 움직이는 힘이 금리인지 공급인지 가릴 수 있습니다.</p>
+
+%(exp)s
+
+<h3>저금리는 매매를 전세보다 빨리 밀어 올렸습니다</h3>
+
+<p>CD금리는 %(low_q)s에 %(low_r)s%%까지 내려갔습니다. 그 뒤 1년 동안 수도권 매매가는 <b>%(mm_21)s</b> 올랐고 전세가는 <b>%(je_21)s</b> 오르는 데 그쳤습니다. 매매가 전세보다 세 배 넘게 빨리 오른 것입니다.</p>
+
+<p>금리가 낮으면 대출 이자가 줄어서 전세로 사는 것보다 사는 편이 낫다는 계산이 빨리 섭니다. 전세는 거주 수요라 금리와 덜 묶여 있습니다. 그래서 저금리 때는 공급과 상관없이 매매가 먼저, 더 크게 오릅니다. 2편과 3편에서 본 공급 국면의 순서, 곧 전세가 먼저 오르고 매매가 따라오는 순서와 반대입니다.</p>
+
+<h3>고금리는 매매부터 꺾었습니다</h3>
+
+<p>금리가 오르기 시작하자 순서가 다시 거꾸로 나타났습니다. 수도권 매매가는 %(mm_pk_q)s에 정점을 찍고 %(mm_lo_q)s까지 <b>%(mm_fall)s</b> 내렸습니다. 전세가는 그보다 늦은 %(je_pk_q)s에 정점을 찍었고, 내린 폭도 %(je_fall)s로 작았습니다. 그사이 CD금리는 %(hi_q)s에 %(hi_r)s%%까지 올랐습니다.</p>
+
+<p>공급 때문에 내리는 시장에서는 입주가 몰린 동네의 전세가 먼저 꺾입니다(6편). 금리 때문에 내리는 시장에서는 매매가 먼저, 그것도 전국에서 함께 꺾입니다. 금리는 지역마다 다르게 도는 사이클을 한꺼번에 같은 방향으로 밀기 때문입니다.</p>
+
+<p>[여기에 수도권 매매·전세와 CD금리 차트]</p>
+
+<p>노란 점선이 CD금리이고 아래로 갈수록 금리가 높습니다. 수도권 분기 %(rate_n)s개로 재면 금리 변화와 매매가 변화의 상관은 %(rate_r)s입니다. 금리가 내리면 매매가 오르고, 오르면 매매가 내리는 관계가 우연으로 보기 어려울 만큼 뚜렷합니다.</p>
+
+<p>금리와 매매·전세를 함께 그린 차트는 리포트에서 지역별로도 볼 수 있습니다.<br>
+👉 %(cycle7)s</p>
+
+<h3>지금은 금리가 아니라 공급이 움직이고 있습니다</h3>
+
+<p>지금은 금리가 올랐는데도 매매와 전세가 함께 오릅니다. 금리가 시장을 움직이는 때라면 매매가 먼저 꺾여야 하고, 저금리 때라면 매매가 전세보다 훨씬 빨리 올라야 합니다. 지금은 어느 쪽도 아닙니다. 전세가 매매와 같은 속도로 오르고 있다는 것은 거주 수요가 새 집을 찾지 못하고 있다는 뜻입니다.</p>
+
+<p>5편에서 본 입주 절벽이 바로 그 이유입니다. 들어올 아파트가 줄면 전세가 오르고, 오른 전세가 매매를 밀어 올립니다. 이 힘은 금리가 조금 오른 정도로는 꺾이지 않습니다.</p>
+
+<p>제 판단으로는 앞으로 금리가 어느 쪽으로 가도 방향은 같습니다. 금리가 내리면 2021년처럼 매매가 전세보다 빨리 오르면서 상승이 가팔라집니다. 금리가 지금 수준에 머물면 입주 절벽이 이끄는 지금의 상승이 이어집니다. 금리가 크게 뛰는 충격이 오면 2022년처럼 한동안 꺾일 수 있지만, 충격이 지나가면 시장은 공급이 정한 방향으로 돌아옵니다. 절대적인 공급 부족이 그대로인 한 그렇습니다.</p>
+
+<p>시도별 공급 판정과 앞으로의 입주 추정은 지역마다 따로 정리해 두었습니다.<br>
+👉 %(zone)s</p>
+
+<h3>숫자는 이렇게 셌습니다</h3>
+
+<p>가격은 한국부동산원 아파트 실거래가격지수의 수도권 분기 평균, 금리는 한국은행 CD 91일물 금리의 분기 평균입니다. 오른 폭은 지수의 변화율이고, 상관은 분기마다 금리 변화와 매매가 변화를 짝지어 쟀습니다. 사이트 사이클 리포트와 같은 값입니다.</p>
+
+<h3>다음 편</h3>
+
+<p>지금까지 사이클의 여섯 고리와 그 바깥의 금리를 봤습니다. 다음 편은 이 사이클이 지역마다 얼마나 잘 도는지를 다룹니다. 사이클이 가장 뚜렷하게 도는 곳과 거의 돌지 않는 곳이 갈리는데, 그 차이가 집값이 한번 오른 뒤 내려오는 방식까지 바꿉니다.</p>
+
+<p><i>※ 숫자는 한국부동산원·국토교통부·KOSIS·한국은행 공개 데이터를 가공한
+것이고, <b>판단과 전망은 글쓴이 개인의 견해</b>입니다. 투자 결정과 그 결과는
+읽는 분의 몫입니다.</i></p>
+""",
+    ),
 ]
 
 
@@ -920,6 +983,47 @@ def link6_values(D, adv, sts):
                 l6_prov_late=sum(1 for x in prov if x['lag'] == 1),
                 cycle6=link('입주가 전세를 누르는 지역별 결과 보기', path='/cycle/#link6', camp='cycle'),
                 moveins=link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle'))
+
+
+def link7_values(D):
+    """7편 숫자 — /cycle/ 정본 D.rate_overlay(수도권 분기 매매·전세 지수, CD금리)와 D.prose 에서 센다. 문장의 전제가 깨지면
+    멈춘다. 전제: ① 금리 바닥 뒤 1년 매매 상승률이 전세의 3배 넘게 크다, ② 그 뒤 매매 정점이 전세 정점보다 먼저이고 낙폭도 크다,
+    ③ 최근 금리 저점(최근 8분기) 이후 금리가 올랐는데 매매·전세가 모두 올랐다, ④ 금리–매매 상관이 음수다."""
+    r = D['rate_overlay']
+    t, mm, je, rt = r['t'], r['maemae'], r['jeonse'], r['rate']
+    q = lambda i: '%d년 %d분기' % (int(t[i]), int(round((t[i] % 1) * 4)) + 1)
+    pct = lambda a, b: '%.0f%%' % abs((b / a - 1) * 100)      # 문장이 '올랐습니다·내렸습니다'로 방향을 말한다
+    lo = min(range(len(rt)), key=lambda i: rt[i])                       # 금리 바닥(2020년 4분기)
+    a1 = min(lo + 4, len(t) - 1)
+    mm_pk = max(range(lo, len(t)), key=lambda i: mm[i] if t[i] < t[lo] + 3 else -1)
+    je_pk = max(range(lo, len(t)), key=lambda i: je[i] if t[i] < t[lo] + 3 else -1)
+    mm_lo = min(range(mm_pk, len(t)), key=lambda i: mm[i] if t[i] < t[mm_pk] + 2 else 1e9)
+    je_lo = min(range(je_pk, len(t)), key=lambda i: je[i] if t[i] < t[je_pk] + 2 else 1e9)
+    hi = max(range(lo, len(t)), key=lambda i: rt[i])
+    rec = max(len(t) - 8, 0)
+    nlo = min(range(rec, len(t)), key=lambda i: rt[i])                  # 최근 8분기 금리 저점
+    end = len(t) - 1
+    g = lambda a, b, s: s[b] / s[a] - 1
+    bad = []
+    if not g(lo, a1, mm) > 3 * g(lo, a1, je) > 0:
+        bad.append('금리 바닥 뒤 1년 매매 상승률이 전세의 3배를 넘지 않는다')
+    if not (mm_pk < je_pk and g(mm_pk, mm_lo, mm) < g(je_pk, je_lo, je) < 0):
+        bad.append('고금리 국면에서 매매가 먼저·더 크게 꺾이지 않았다')
+    if not (rt[end] > rt[nlo] and mm[end] > mm[nlo] and je[end] > je[nlo] and nlo < end):
+        bad.append('최근 금리가 오르는 동안 매매·전세가 함께 오르지 않았다')
+    if not D['prose']['rate_r'].startswith(('−', '-')):
+        bad.append('금리–매매 상관이 음수가 아니다')
+    if bad:
+        raise SystemExit('7편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % ' · '.join(bad))
+    f2 = lambda v: ('%.2f' % v).rstrip('0').rstrip('.') if v < 1 else '%.2f' % v
+    return dict(now_from=q(nlo), r_from='%.2f' % rt[nlo], now_to=q(end), r_to='%.2f' % rt[end],
+                mm_now=pct(mm[nlo], mm[end]), je_now=pct(je[nlo], je[end]),
+                low_q=q(lo), low_r=f2(rt[lo]), mm_21=pct(mm[lo], mm[a1]), je_21=pct(je[lo], je[a1]),
+                mm_pk_q=q(mm_pk), mm_lo_q=q(mm_lo), mm_fall=pct(mm[mm_pk], mm[mm_lo]),
+                je_pk_q=q(je_pk), je_fall=pct(je[je_pk], je[je_lo]),
+                hi_q=q(hi), hi_r='%.2f' % rt[hi],
+                rate_n=D['prose']['rate_n'], rate_r=D['prose']['rate_r'],
+                cycle7=link('금리와 매매·전세 차트 보기', path='/cycle/#ref1', camp='cycle'))
 
 
 def render(post):
@@ -968,6 +1072,8 @@ def render(post):
         except L4.Link4ClaimError as e:
             raise SystemExit('5편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
         n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
+    elif post['n'] == 7:
+        n4 = link7_values(D)
     elif post['n'] == 6:
         adv, sts = M.load()
         n4 = link6_values(D, adv, sts)
