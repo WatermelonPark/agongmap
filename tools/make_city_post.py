@@ -445,6 +445,11 @@ def body(f, sheets, xlsx_name, outlook):
     B.append('<p>자료: 한국부동산원 입주예정물량정보(%s까지), 청약홈 분양 공고, KOSIS 주민등록인구%s. 두 자료에 모두 있는 단지는 한 번만 '
              '셌습니다. 자세한 기준은 첨부 엑셀의 「읽는 법」 시트에 적었습니다.</p>'
              % (ym_txt(f['occ_max']), ', 국토교통부 준공 실적' if f.get('done') else ''))
+    zp = zone_post(sido)
+    if zp:
+        # 같은 시도의 지역 편으로 잇는다 — 홈피드 노출이 끝난 옛 지역 편에 조회를 다시 붙인다(10-16 대구 편: 08-30 지역 편이
+        # 2,087회 뒤 0). 숫자는 싣지 않는다(지역 편과 다른 콘텐츠).
+        B.append('<p>%s 공급을 시도 단위로 본 글도 있습니다.<br>👉 <a href="%s">%s</a></p>' % (P.SEARCH_NAME.get(sido, sido), esc(zp['url']), esc(zp['title'])))
     link = P.site_link('/zone/%s/' % quote(sido), 'city_%s' % quote(city))
     B.append('<p>%s 전체 공급은 이 글과 다른 시도 단위 기준으로 리포트에서 따로 다룹니다.<br>👉 <a href="%s">%s 공급 리포트</a></p>'
              % (P.SEARCH_NAME.get(sido, sido), link, P.SEARCH_NAME.get(sido, sido)))
@@ -452,6 +457,19 @@ def body(f, sheets, xlsx_name, outlook):
              '답글로 남기겠습니다.</p>')
     B.append(P.disclaimer(f['now_y'] + len(rows)))
     return '\n'.join(B)
+
+
+def zone_post(sido):
+    """같은 시도의 가장 최근 지역 편(블로그 RSS). 못 읽으면 None — 링크만 빠지고 초안은 나간다."""
+    try:
+        import close_published_issues as C
+        posts = C.fetch_posts() or []
+    except Exception:
+        return None
+    nm = P.SEARCH_NAME.get(sido, sido)
+    hit = [p for p in posts if p.get('cat') == '지역별 아파트 공급' and not C.is_city_post(p['title'])
+           and P._zone_of_title(p['title'], [sido]) == sido]
+    return max(hit, key=lambda p: str(p['date'])) if hit else None
 
 
 def outlook_text(f):
