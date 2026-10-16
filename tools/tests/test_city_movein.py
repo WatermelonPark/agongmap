@@ -78,3 +78,26 @@ def test_city_code_is_the_weekly_code_above_its_districts():
     assert code == 'b2' and len(gus) >= 8 and all(c.startswith('b2') for _, c in gus)
     code, gus = MC.city_codes('청주', codes)
     assert code == 'c201' and [g for g, _ in gus] == ['상당구', '서원구', '청원구', '흥덕구']
+
+
+def test_zone_post_link_picks_the_same_sido_zone_post_not_a_city_post(monkeypatch):
+    """도시 편 끝의 '시도 단위로 본 글' 링크 — 같은 시도의 최신 **지역 편**만 고른다. 픽스처는 10-16 RSS 의 실제 제목 셋
+    (대구 지역 편, 청주 도시 편, 광주·전남 지역 편)에 가상의 대구 도시 편 하나를 더한 것. 지역 이름 대조(_zone_of_title)를 빼면
+    광주·전남 편이 골라져 빨개진다(확인). 도시 편은 _zone_of_title 이 이미 None 으로 거르고('입주물량' 제목),
+    is_city_post 는 그 위의 두 번째 방어선이라 그것만 빼서는 빨개지지 않는다."""
+    import datetime
+    import close_published_issues as CPI
+    import make_city_post as MC
+    posts = [
+        dict(date=datetime.date(2026, 8, 30), cat='지역별 아파트 공급', url='u-dg',
+             title='2026년 대구 아파트 공급물량 전망, 안 팔리는데 지어지지도 않습니다'),
+        dict(date=datetime.date(2026, 10, 8), cat='지역별 아파트 공급', url='u-cj',
+             title='2027년 청주 아파트 입주물량, 정점을 찍고 2029년엔 4분의 1로 줄어듭니다'),
+        dict(date=datetime.date(2026, 10, 12), cat='지역별 아파트 공급', url='u-gj',
+             title='2027년 광주·전남 아파트 공급물량 전망, 강보합 국면이지만 내년 2분기부터 입주가 크게 줄어듭니다'),
+        dict(date=datetime.date(2026, 10, 20), cat='지역별 아파트 공급', url='u-dg-city',
+             title='2027년 대구 아파트 입주물량, 적정의 15%에 그쳐 전세가 먼저 오릅니다'),
+    ]
+    monkeypatch.setattr(CPI, 'fetch_posts', lambda *a, **k: posts)
+    assert MC.zone_post('대구')['url'] == 'u-dg'
+    assert MC.zone_post('충북') is None
