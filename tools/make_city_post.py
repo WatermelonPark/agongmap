@@ -342,12 +342,16 @@ def excel(f, path):
 
 
 # ---------------------------------------------------------------- 본문
-def body(f, sheets, xlsx_name, outlook):
+def body(f, sheets, xlsx_name, outlook, k=0):
+    """k = 도시 편 회차 번호(city_seq). 고정 안내 문장은 회차마다 세 틀 가운데 하나를 쓴다 — 10-16 대구 초안이 청주 편과
+    뼈대가 같은 문장 28%(경고 25%)였다. 0번은 청주 편 문구다."""
+    k %= 3
     city, sido, rows = f['city'], f['sido'], f['rows']
     by_year, years, share = f['by_year'], f['years'], f['share']
     yN = str(f['now_y'] + 1)
     B = ['<p>[여기에 썸네일 이미지를 넣어 주세요 — 첫 이미지가 대표 이미지가 됩니다]</p>']
-    B.append('<h3>%s 아파트 입주물량, %s년까지 %d개 단지</h3>' % (city, f['last_ym'][:4], len(rows)))
+    B.append(('<h3>%s 아파트 입주물량, %s년까지 %d개 단지</h3>', '<h3>%s 입주 예정 아파트, %s년까지 %d곳</h3>',
+              '<h3>%s 아파트 입주물량 한눈에(%s년까지 %d개 단지)</h3>')[k] % (city, f['last_ym'][:4], len(rows)))
     per_year = ', '.join(('%s년 <b>%s세대</b>' if y in f['full_years'] else '%s년 %s세대') % (y, num(by_year[y]))
                          for y in years)
     B.append('<p>%s부터 %s까지 %s에 입주가 잡힌 아파트는 <b>%d개 단지, %s세대</b>입니다. 연도별로는 %s입니다. %s</p>'
@@ -368,11 +372,15 @@ def body(f, sheets, xlsx_name, outlook):
                     round(f['pop_share'] * 100), sido, city, f['sido_city'] / f['sido_all'] / f['pop_share']))
     B.append('<p>[여기에 반기별 입주 차트 이미지를 넣어 주세요]</p>')
 
-    B.append('<h3>%s 적정 입주량과 견주면</h3>' % city)
+    B.append(('<h3>%s 적정 입주량과 견주면</h3>', '<h3>%s 인구로 잡은 적정 입주량</h3>', '<h3>%s 입주물량은 적정 입주량의 몇 %%인가</h3>')[k] % city)
     fy = f['full_years']
-    B.append('<p>%s %s 아파트 입주물량은 한 해 적정 입주량의 %s입니다.%s 적정 입주량은 %s 인구 %s명(%s 주민등록)을 가구당 2.5명으로 '
-             '나눈 약 %s세대의 2%%인 <b>연 %s세대</b>입니다. 인구만으로 잡은 참고치이므로 도시의 성격이나 주변 도시로 오가는 수요는 '
-             '반영하지 않습니다.</p>'
+    B.append(('<p>%s %s 아파트 입주물량은 한 해 적정 입주량의 %s입니다.%s ' + (
+             '적정 입주량은 %s 인구 %s명(%s 주민등록)을 가구당 2.5명으로 나눈 약 %s세대의 2%%인 <b>연 %s세대</b>입니다. '
+             '인구만으로 잡은 참고치이므로 도시의 성격이나 주변 도시로 오가는 수요는 반영하지 않습니다.',
+             '여기서 적정 입주량은 %s 인구 %s명(%s 주민등록)에서 나왔습니다. 가구당 2.5명으로 나누면 약 %s세대이고, 그 2%%인 '
+             '<b>연 %s세대</b>를 한 해에 새로 들어와야 할 물량으로 봤습니다. 인구 하나로 잡은 참고치라서 주변 도시로 오가는 수요는 빠져 있습니다.',
+             '잣대는 %s 인구 %s명(%s 주민등록)입니다. 가구당 2.5명으로 나눈 약 %s세대의 2%%, 곧 <b>연 %s세대</b>를 적정 입주량으로 '
+             '잡았습니다. 인구만 본 참고치이고 도시의 성격은 반영하지 않습니다.')[k] + '</p>')
              % ('·'.join('%s년' % y for y in fy), city, '·'.join('<b>%d%%</b>' % share(by_year[y]) for y in fy),
                 ''.join(' %s년은 지금까지 잡힌 물량만으로 %d%%입니다.' % (y, share(by_year[y]))
                         for y in f['part_years'] if y > f['start'][:4]),
@@ -389,8 +397,10 @@ def body(f, sheets, xlsx_name, outlook):
         txt.append('두 단지를 빼면 남는 물량은 %s세대입니다.' % num(f['total'] - sum(r['n'] for r in big)) if len(big) == 2 else '')
     if rent:
         txt.append('%d곳 %s세대는 공공임대·행복주택 같은 임대 단지입니다.' % (len(rent), num(sum(r['n'] for r in rent))))
-    B.append('<p>%s 전체 단지는 아래 표와 같습니다. 주소와 출처까지 담은 엑셀 파일을 글 끝에 첨부했습니다.</p>'
-             % ' '.join(t for t in txt if t))
+    B.append('<p>%s %s</p>' % (' '.join(t for t in txt if t), (
+        '전체 단지는 아래 표와 같습니다. 주소와 출처까지 담은 엑셀 파일을 글 끝에 첨부했습니다.',
+        '단지별 입주 월과 세대수는 아래 표에 모았고, 주소·출처가 든 엑셀 파일은 글 끝에 있습니다.',
+        '아래 표가 전체 목록입니다. 주소까지 보시려면 글 끝의 엑셀 파일을 받으세요.')[k]))
     tr = []
     for r in rows:
         mark = ' ※' if r['src'] == '청약홈' else ''
@@ -425,7 +435,10 @@ def body(f, sheets, xlsx_name, outlook):
     up = sorted((g for g in gw if gw[g]['sma'][0] == '+'), key=lambda g: -gw[g]['sma'][1])
     dn = sorted((g for g in gw if gw[g]['sma'][0] == '-' and gw[g]['sma'][1] >= 8), key=lambda g: -gw[g]['sma'][1])
     je_up = [g for g in gw if gw[g]['sje'][0] == '+']
-    s = ['한국부동산원 %s 기준 %s 아파트값은 매매 <b>%s%%</b>, 전세 <b>%s%%</b>입니다.' % (P.kdate(f['last_p']), city, cw['ma'], cw['je'])]
+    s = [('한국부동산원 %s 기준 %s 아파트값은 매매 <b>%s%%</b>, 전세 <b>%s%%</b>입니다.',
+          '%s 조사(한국부동산원)에서 %s 아파트 매매가는 <b>%s%%</b>, 전세가는 <b>%s%%</b> 움직였습니다.',
+          '가장 최근인 %s 조사에서 %s 아파트값은 매매 <b>%s%%</b>, 전세 <b>%s%%</b>였습니다(한국부동산원).')[k]
+         % (P.kdate(f['last_p']), city, cw['ma'], cw['je'])]
     if len(je_up) == len(gw):
         s.append('주간 시세가 나오는 %s %d개 구·군의 전세가 모두 오르고 있습니다.' % (city, len(gw)))
     if up:
@@ -439,11 +452,17 @@ def body(f, sheets, xlsx_name, outlook):
     B.append('<p>%s</p>' % outlook)
 
     B.append('<h3>단지 목록 엑셀 파일</h3>')
-    B.append('<p>%d개 단지의 입주 예정월, 주소, 세대수, 출처를 엑셀 파일로 정리했습니다. 「%s」와 「%s」 시트도 함께 넣었습니다. '
-             '관심 단지의 입주 시기를 확인하거나 전세 만기와 맞춰 볼 때 쓰시면 됩니다.</p>' % (len(rows), sheets[0], sheets[1]))
+    B.append(('<p>%d개 단지의 입주 예정월, 주소, 세대수, 출처를 엑셀 파일로 정리했습니다. 「%s」와 「%s」 시트도 함께 넣었습니다. '
+              '관심 단지의 입주 시기를 확인하거나 전세 만기와 맞춰 볼 때 쓰시면 됩니다.</p>',
+              '<p>표에 담은 %d개 단지를 주소와 출처까지 엑셀에 넣었습니다. 「%s」·「%s」 시트가 함께 있어서, 전세 만기를 앞두고 '
+              '주변 입주 시기를 찾아볼 때 바로 쓸 수 있습니다.</p>',
+              '<p>엑셀 파일에는 %d개 단지의 주소·세대수·출처와 함께 「%s」, 「%s」 시트가 들어 있습니다. 이사나 전세 계약 시기를 '
+              '정할 때 옆 단지 입주 월을 확인하는 용도로 쓰시면 됩니다.</p>')[k] % (len(rows), sheets[0], sheets[1]))
     B.append('<p>[여기에 엑셀 파일을 첨부해 주세요: %s]</p>' % esc(xlsx_name))
-    B.append('<p>자료: 한국부동산원 입주예정물량정보(%s까지), 청약홈 분양 공고, KOSIS 주민등록인구%s. 두 자료에 모두 있는 단지는 한 번만 '
-             '셌습니다. 자세한 기준은 첨부 엑셀의 「읽는 법」 시트에 적었습니다.</p>'
+    B.append(('<p>자료: 한국부동산원 입주예정물량정보(%s까지), 청약홈 분양 공고, KOSIS 주민등록인구%s. ' + (
+             '두 자료에 모두 있는 단지는 한 번만 셌습니다. 자세한 기준은 첨부 엑셀의 「읽는 법」 시트에 적었습니다.',
+             '겹치는 단지는 한 번만 넣었고, 합친 규칙은 엑셀 「읽는 법」 시트에 있습니다.',
+             '중복 단지는 하나로 셌으며 기준은 엑셀 「읽는 법」 시트에서 보실 수 있습니다.')[k] + '</p>')
              % (ym_txt(f['occ_max']), ', 국토교통부 준공 실적' if f.get('done') else ''))
     zp = zone_post(sido)
     if zp:
@@ -453,10 +472,22 @@ def body(f, sheets, xlsx_name, outlook):
     link = P.site_link('/zone/%s/' % quote(sido), 'city_%s' % quote(city))
     B.append('<p>%s 전체 공급은 이 글과 다른 시도 단위 기준으로 리포트에서 따로 다룹니다.<br>👉 <a href="%s">%s 공급 리포트</a></p>'
              % (P.SEARCH_NAME.get(sido, sido), link, P.SEARCH_NAME.get(sido, sido)))
-    B.append('<p>이 목록에 빠진 단지나 입주 시기가 바뀐 단지를 아시면 댓글로 알려 주세요. 확인한 내용은 다른 분들도 보실 수 있게 '
-             '답글로 남기겠습니다.</p>')
+    B.append(('<p>이 목록에 빠진 단지나 입주 시기가 바뀐 단지를 아시면 댓글로 알려 주세요. 확인한 내용은 다른 분들도 보실 수 있게 '
+              '답글로 남기겠습니다.</p>',
+              '<p>%s에 사시면서 입주 일정이 바뀐 단지를 보셨다면 댓글로 알려 주세요. 확인해서 답글로 정리해 두겠습니다.</p>' % city,
+              '<p>목록과 다른 일정을 아시는 단지가 있으면 댓글을 남겨 주세요. 확인한 뒤 다음 분들도 보시게 답글로 적겠습니다.</p>')[k])
     B.append(P.disclaimer(f['now_y'] + len(rows)))
     return '\n'.join(B)
+
+
+def city_seq(city):
+    """이 도시 편의 회차 번호 — 이미 발행한 도시 편 수(같은 도시는 뺀다). RSS 를 못 읽으면 1(첫 편 청주 문구를 피한다)."""
+    try:
+        import close_published_issues as C
+        posts = C.fetch_posts() or []
+    except Exception:
+        return 1
+    return len([p for p in posts if C.is_city_post(p['title']) and city not in p['title']]) or 1
 
 
 def zone_post(sido):
@@ -508,7 +539,7 @@ def main(argv):
     xlsx_name = '%s-아파트-입주예정-단지-%s-%s.xlsx' % (city, start[:4], f['last_ym'][:4])
     xlsx_path = os.path.join(OUT, xlsx_name)
     sheets = excel(f, xlsx_path)
-    html_body = body(f, sheets, xlsx_name, outlook_text(f))
+    html_body = body(f, sheets, xlsx_name, outlook_text(f), city_seq(city))
     share_n = f['share'](f['by_year'].get(yN, 0))
     # 제목에는 반드시 '입주물량'. 결론절에 연도·월을 넣지 않는다(title_warnings, 블덱스 '#2027년' 사례).
     titles = ['%s년 %s 아파트 입주물량, 적정의 %d%%에 그쳐 전세가 먼저 오릅니다' % (yN, city, share_n),
