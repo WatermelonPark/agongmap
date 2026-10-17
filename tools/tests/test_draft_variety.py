@@ -70,3 +70,15 @@ def test_skeleton_ignores_numbers_and_regions():
 def test_first_weekly_after_the_switch_does_not_reuse_the_old_wording():
     """0번 문장은 교대 이전 문구다. 10-15 에 옛 틀로 낸 주간 글 다음 회차(10-19 조사분)가 0번이면 다시 겹친다."""
     assert P._wk('2026-10-19', 3) != 0
+
+
+def test_zone_says_the_unsold_multiple_once(env):
+    """지역 편이 미분양 배수(예: 1.1배)를 두 번 말하지 않는다(10-17 대표 리뷰: 경남 편 '미분양 1.1배'가 두 절에 나왔다).
+    순위 문장에 배수를 되살리면 빨개진다(확인). 픽스처는 저장소 실제 ADV 의 16개 시도."""
+    adv, sts = env
+    zs = [r for r in adv['sido']['zones'] if not r.get('agg')]
+    for i, r in enumerate(zs):
+        body = P.draft_zone(adv, sts, r, 7 + i, len(zs))['body']
+        u = P.umx(r['um']) if hasattr(P, 'umx') else None
+        if u:
+            assert body.count(u) <= 1, (r['z'], u, body.count(u))
