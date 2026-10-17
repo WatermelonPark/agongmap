@@ -52,6 +52,11 @@ def shown(name):
     return m.group(1) if m else name
 
 
+def ga(w):
+    """이/가 — 받침이 있으면 '이'(천안이), 없으면 '가'(원주가)."""
+    return w + ('이' if (ord(w[-1]) - 0xAC00) % 28 else '가')
+
+
 def half(ym):
     return ym[:4] + ('상' if ym[5:7] <= '06' else '하')
 
@@ -363,9 +368,8 @@ def body(f, sheets, xlsx_name, outlook, k=0):
                          for y in years)
     B.append('<p>%s부터 %s까지 %s에 입주가 잡힌 아파트는 <b>%d개 단지, %s세대</b>입니다. 연도별로는 %s입니다. %s</p>'
              % (ym_txt(f['start']), ym_txt(f['last_ym']), city, len(rows), num(f['total']), per_year,
-                '%s년은 %d월부터 센 것이고, %s 이후는 지금까지 분양 공고가 난 물량만 들어 있습니다.'
-                % (f['start'][:4], int(f['start'][5:]), after(f['occ_max']))
-                if len(years) > 1 else ''))
+                ('%s년은 %d월부터 센 것이고, ' % (f['start'][:4], int(f['start'][5:])) if years[0] == f['start'][:4] else '')
+                + '%s 이후는 지금까지 분양 공고가 난 물량만 들어 있습니다.' % after(f['occ_max'])))
     if f.get('done'):
         ys = sorted(f['done'])[-3:]
         B.append('<p>얼마 전까지는 사정이 달랐습니다. 국토교통부 준공 실적으로 보면 %s에는 %s의 아파트가 지어졌습니다. '
@@ -373,10 +377,10 @@ def body(f, sheets, xlsx_name, outlook, k=0):
                  % (sido, ', '.join('%s년 %s호' % (y, num(f['done'][y])) for y in ys), yN, num(by_year.get(yN, 0))))
     if city != sido:
         B.append('<p>한국부동산원 자료가 있는 %s까지로 좁혀 보면, %s부터 %s에 입주할 %s세대 가운데 <b>%d%%</b>(%s세대)가 %s 단지입니다. '
-                 '%s에는 %s 인구의 %d%%가 살고 있으므로, %s 새 아파트 가운데 %s가 받는 몫은 인구 비중의 %.1f배입니다.</p>'
+                 '%s에는 %s 인구의 %d%%가 살고 있으므로, %s 새 아파트 가운데 %s 받는 몫은 인구 비중의 %.1f배입니다.</p>'
                  % (ym_txt(f['occ_max']), ym_txt(f['start']), sido, num(f['sido_all']),
                     round(f['sido_city'] / f['sido_all'] * 100), num(f['sido_city']), city, city, sido,
-                    round(f['pop_share'] * 100), sido, city, f['sido_city'] / f['sido_all'] / f['pop_share']))
+                    round(f['pop_share'] * 100), sido, ga(city), f['sido_city'] / f['sido_all'] / f['pop_share']))
     B.append('<p>[여기에 반기별 입주 차트 이미지를 넣어 주세요]</p>')
 
     B.append(('<h3>%s 적정 입주량과 견주면</h3>', '<h3>%s 인구로 잡은 적정 입주량</h3>', '<h3>%s 입주물량은 적정 입주량의 몇 %%인가</h3>')[k] % city)
@@ -397,11 +401,16 @@ def body(f, sheets, xlsx_name, outlook, k=0):
     rent = [r for r in rows if r['kind'] == '임대']
     B.append('<h3>%s 입주 예정 단지</h3>' % city)
     txt = []
-    if big:
+    one = lambda r: ' '.join(x for x in (ym_txt(r['ym']), r['gu'], esc(shown(r['name'])), '%s세대' % num(r['n'])) if x)
+    if 0 < len(big) <= 4:
         txt.append('1,000세대가 넘는 단지는 %s%s입니다.' % (
-            ', '.join('%s %s %s %s세대' % (ym_txt(r['ym']), r['gu'], esc(shown(r['name'])), num(r['n'])) for r in big),
-            ' 두 곳' if len(big) == 2 else (' %d곳' % len(big) if len(big) > 2 else '')))
+            ', '.join(one(r) for r in big), ' 두 곳' if len(big) == 2 else (' %d곳' % len(big) if len(big) > 2 else '')))
         txt.append('두 단지를 빼면 남는 물량은 %s세대입니다.' % num(f['total'] - sum(r['n'] for r in big)) if len(big) == 2 else '')
+    elif big:
+        by = Counter(r['ym'][:4] for r in big)
+        top = sorted(big, key=lambda r: -r['n'])[:3]
+        txt.append('1,000세대가 넘는 단지가 %d곳입니다(%s). 가장 큰 곳은 %s입니다.' % (
+            len(big), ', '.join('%s년 %d곳' % (y, n) for y, n in sorted(by.items())), ', '.join(one(r) for r in top)))
     if rent:
         txt.append('%d곳 %s세대는 공공임대·행복주택 같은 임대 단지입니다.' % (len(rent), num(sum(r['n'] for r in rent))))
     B.append('<p>%s %s</p>' % (' '.join(t for t in txt if t), (
@@ -426,14 +435,16 @@ def body(f, sheets, xlsx_name, outlook, k=0):
     prev = [str(f['now_y'] - k) for k in (3, 2, 1)]
     peak_y = max((y for y in ac if y < ny), key=lambda y: ac[y])
     few = ac[ny] * 4 <= ac[peak_y]                 # 가장 많던 해의 4분의 1 이하
+    upto = int(f['start'][5:7])                    # 청약홈을 받은 달(=초안을 만드는 달)까지 셌다
     land = f['now_y'] * 12 + int(f['last_p'][5:7]) - 1 + f['ann_med']
-    B.append(('<h3>%s 분양 공고, 올해는 %d건뿐입니다</h3>' if few else '<h3>%s 분양 공고, 올해 %d건</h3>') % (city, ac[ny]))
+    B.append(('<h3>%s 분양 공고, 올해는 아직 없습니다</h3>' % city) if not ac[ny] else
+             (('<h3>%s 분양 공고, 올해는 %d건뿐입니다</h3>' if few else '<h3>%s 분양 공고, 올해 %d건</h3>') % (city, ac[ny])))
     B.append('<p>2020년 이후 %s 분양 단지는 청약 공고부터 입주 예정월까지 중간값이 <b>%d개월</b>입니다. 지금 공고가 나와도 입주는 '
              '%d년 %d월 무렵이라서, 그 전까지 들어올 새 아파트는 이 표가 사실상 전부입니다. %s 분양 공고는 %s년 %d건(%s세대)이 가장 많았고, '
-             '%s이었다가 올해는 %d월까지 %d건(%s세대)입니다.%s</p>'
+             '%s이었다가 올해는 %d월까지 %s.%s</p>'
              % (city, f['ann_med'], land // 12, land % 12 + 1, city, peak_y, ac[peak_y], num(ah[peak_y]),
-                ', '.join('%s년 %d건(%s세대)' % (y, ac[y], num(ah[y])) for y in prev),
-                int(f['ann_last'][5:7]), ac[ny], num(ah[ny]),
+                ', '.join('%s년 %d건(%s세대)' % (y, ac[y], num(ah[y])) for y in prev if y != peak_y),
+                upto, ('%d건(%s세대)입니다' % (ac[ny], num(ah[ny]))) if ac[ny] else '한 건도 없습니다',
                 ' <b>입주 공백을 메울 공고가 나오지 않고 있습니다.</b>' if few else ''))
 
     cw, gw = f['city_w'], f['gu_w']
@@ -455,7 +466,10 @@ def body(f, sheets, xlsx_name, outlook, k=0):
         s.append('%s 매매는 %s%%로 %d주 연속 내렸습니다.' % (g, gw[g]['ma'], gw[g]['sma'][1]))
     B.append('<p>%s</p>' % ' '.join(s))
 
-    B.append('<h3>%s년 입주 공백 뒤 %s 전세와 매매</h3>' % (yN, city))
+    # 소제목은 그 도시 입주 흐름에 맞춘다 — '입주 공백'은 다음 해 입주가 적정의 70% 아래일 때만 맞는 말이다(10-17 천안 94%).
+    nxt = share(by_year.get(yN, 0))
+    B.append(('<h3>%s년 입주 공백 뒤 %s 전세와 매매</h3>' % (yN, city)) if nxt < 70 else
+             ('<h3>%s 입주 일정으로 본 전세와 매매</h3>' % city))
     B.append('<p>%s</p>' % outlook)
 
     B.append('<h3>단지 목록 엑셀 파일</h3>')
@@ -489,7 +503,17 @@ def body(f, sheets, xlsx_name, outlook, k=0):
 
 
 def city_seq(city):
-    """이 도시 편의 회차 번호 — 이미 발행한 도시 편 수(같은 도시는 뺀다). RSS 를 못 읽으면 1(첫 편 청주 문구를 피한다)."""
+    """이 도시 편의 회차 번호. 예약 상태 파일(drafts/city-queue.json)에 이 도시가 있으면 도시 편 가운데 날짜 순번을 쓴다 —
+    한 번에 여러 도시를 쓰면 발행 수가 같아 세 편이 같은 문장 틀을 받았다(10-17 천안·원주·전주). 없으면 이미 발행한
+    도시 편 수(같은 도시는 뺀다). RSS 를 못 읽으면 1(첫 편 청주 문구를 피한다)."""
+    try:
+        q = json.load(open(os.path.join(OUT, 'city-queue.json'), encoding='utf-8'))
+        cs = sorted((p for p in q.get('posts', []) if p.get('series', 'city') == 'city'), key=lambda p: str(p.get('date')))
+        names = [p.get('city') for p in cs]
+        if city in names:
+            return names.index(city)
+    except Exception:
+        pass
     try:
         import close_published_issues as C
         posts = C.fetch_posts() or []
@@ -530,7 +554,7 @@ def outlook_text(f):
 
 
 def main(argv):
-    args = [a for a in argv if not a.startswith('--') and not (argv.index(a) > 0 and argv[argv.index(a) - 1] == '--thumb-msg')]
+    args = [a for a in argv if not a.startswith('--') and not (argv.index(a) > 0 and argv[argv.index(a) - 1] in ('--thumb-msg', '--title', '--title2'))]
     city, start = args[0], args[1]
     sido = args[2] if len(args) > 2 else city
     f = facts(city, start, sido)
@@ -552,6 +576,10 @@ def main(argv):
     # 제목에는 반드시 '입주물량'. 결론절에 연도·월을 넣지 않는다(title_warnings, 블덱스 '#2027년' 사례).
     titles = ['%s년 %s 아파트 입주물량, 적정의 %d%%에 그쳐 전세가 먼저 오릅니다' % (yN, city, share_n),
               '%s년 %s 입주 예정 아파트 %d곳, 입주물량은 적정의 %d%%입니다' % (yN, city, len(f['rows']), share_n)]
+    # 기본 결론절은 대구(입주 공백)에 맞춘 틀이다. 도시마다 결론이 다르므로 --title·--title2 로 쓴 제목을 앞에 둔다(10-17 천안).
+    for k, flag in enumerate(('--title', '--title2')):
+        if flag in argv and argv.index(flag) + 1 < len(argv):
+            titles[k] = argv[argv.index(flag) + 1]
     assert all(CM_MARK in t for t in titles)
     warn = [w for t in titles for w in P.title_warnings(t)]
     tags = ['%s아파트' % city, '%s입주물량' % city, '%s부동산전망' % city, '%s입주예정아파트' % city, '아공맵']
