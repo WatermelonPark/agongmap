@@ -16,6 +16,7 @@
 import base64
 import json
 import os
+import re
 import statistics
 import sys
 from collections import Counter, defaultdict
@@ -354,7 +355,7 @@ def excel(f, path):
 
 
 # ---------------------------------------------------------------- 본문
-def body(f, sheets, xlsx_name, outlook, k=0):
+def body(f, sheets, xlsx_name, outlook, k=0, lead=''):
     """k = 도시 편 회차 번호(city_seq). 고정 안내 문장은 회차마다 세 틀 가운데 하나를 쓴다 — 10-16 대구 초안이 청주 편과
     뼈대가 같은 문장 28%(경고 25%)였다. 0번은 청주 편 문구다."""
     # 문장 틀은 문장마다 4개 또는 5개다. 회차 번호를 그 개수로 나눈 나머지로 고르므로, 모든 문장이 같은 조합으로 돌아오는
@@ -365,6 +366,9 @@ def body(f, sheets, xlsx_name, outlook, k=0):
     by_year, years, share = f['by_year'], f['years'], f['share']
     yN = str(f['now_y'] + 1)
     B = ['<p>[여기에 썸네일 이미지를 넣어 주세요 — 첫 이미지가 대표 이미지가 됩니다]</p>']
+    # 결론을 맨 앞에(10-17 대표 리뷰: 결론이 글의 80% 지점 전망 문단에서야 나왔다). 전망 파일의 첫 문단이 결론이다.
+    if lead:
+        B.append('<p>%s</p>' % lead)
     B.append(('<h3>%s 아파트 입주물량, %s년까지 %d개 단지</h3>', '<h3>%s 입주 예정 아파트, %s년까지 %d곳</h3>',
               '<h3>%s 아파트 입주물량 한눈에(%s년까지 %d개 단지)</h3>', '<h3>%s 아파트, %s년까지 입주할 %d개 단지</h3>')[kk % 4] % (city, f['last_ym'][:4], len(rows)))
     per_year = ', '.join(('%s년 <b>%s세대</b>' if y in f['full_years'] else '%s년 %s세대') % (y, num(by_year[y]))
@@ -397,6 +401,19 @@ def body(f, sheets, xlsx_name, outlook, k=0):
     B.append(('<h3>%s 적정 입주량과 견주면</h3>', '<h3>%s 인구로 잡은 적정 입주량</h3>', '<h3>%s 입주물량은 적정 입주량의 몇 %%인가</h3>',
               '<h3>%s, 인구에 비해 얼마나 들어오나</h3>')[kk % 4] % city)
     fy = f['full_years']
+    pys = [y for y in f['part_years'] if y > f['start'][:4]]
+
+    def part_txt():
+        # 공고분만 센 해가 여럿이면 한 문장으로 묶는다(10-17 천안: '공고분만 센 …'이 세 번 이어졌다).
+        if not pys:
+            return ''
+        ys_ = '·'.join('%s년' % y for y in pys)
+        ps_ = '·'.join('%d%%' % share(by_year[y]) for y in pys)
+        if len(pys) == 1:
+            return ((' %s은 지금까지 잡힌 물량만으로 %s입니다.', ' 공고분만 센 %s은 %s입니다.',
+                     ' %s은 지금 잡힌 것만으로 적정의 %s입니다.', ' %s은 공고된 물량까지만 셌을 때 %s입니다.')[kk % 4] % (ys_, ps_))
+        return ((' %s은 지금까지 잡힌 물량만으로 각각 %s입니다.', ' 공고분만 센 %s은 각각 %s입니다.',
+                 ' %s은 지금 잡힌 것만으로 적정의 %s입니다.', ' %s은 공고된 물량까지만 세면 %s입니다.')[kk % 4] % (ys_, ps_))
     B.append(('<p>%s %s 아파트 입주물량은 한 해 적정 입주량의 %s입니다.%s ' + (
              '적정 입주량은 %s 인구 %s명(%s 주민등록)을 가구당 2.5명으로 나눈 약 %s세대의 2%%인 <b>연 %s세대</b>입니다. '
              '인구만으로 잡은 참고치이므로 도시의 성격이나 주변 도시로 오가는 수요는 반영하지 않습니다.',
@@ -409,10 +426,7 @@ def body(f, sheets, xlsx_name, outlook, k=0):
              '%s 인구 %s명(%s 주민등록)으로 가구 수를 약 %s세대로 보고, 그 2%%인 <b>연 %s세대</b>를 해마다 필요한 입주로 '
              '잡았습니다. 인구만 쓴 참고치입니다.')[kk % 5] + '</p>')
              % ('·'.join('%s년' % y for y in fy), city, '·'.join('<b>%d%%</b>' % share(by_year[y]) for y in fy),
-                ''.join((' %s년은 지금까지 잡힌 물량만으로 %d%%입니다.', ' 공고분만 센 %s년은 %d%%입니다.',
-                         ' %s년은 지금 잡힌 것만으로 적정의 %d%%입니다.', ' %s년은 공고된 물량까지만 셌을 때 %d%%입니다.')[kk % 4]
-                         % (y, share(by_year[y]))
-                        for y in f['part_years'] if y > f['start'][:4]),
+                part_txt(),
                 city, num(f['pop']), f['pop_txt'], num(int(round(f['hh_est'], -3))), num(f['need'])))
 
     big = sorted([r for r in rows if r['n'] >= BIG], key=lambda r: r['ym'])
@@ -493,10 +507,11 @@ def body(f, sheets, xlsx_name, outlook, k=0):
           '%s 기준 %s 아파트 매매 변동률은 <b>%s%%</b>, 전세는 <b>%s%%</b>입니다(한국부동산원 주간).',
           '한국부동산원 주간 조사(%s)로 %s 아파트는 매매 <b>%s%%</b>, 전세 <b>%s%%</b>를 기록했습니다.')[kk % 5]
          % (P.kdate(f['last_p']), city, cw['ma'], cw['je'])]
+    unit = '구' if gw and all(g.endswith('구') for g in gw) else '구·군'      # 천안·전주는 구만 있다(10-17)
     if gw and len(je_up) == len(gw):
-        s.append(('주간 시세가 나오는 %s %d개 구·군의 전세가 모두 오르고 있습니다.', '%s의 %d개 구·군 전세는 이번 주 모두 올랐습니다.',
-                  '전세는 %s %d개 구·군 어디서도 내리지 않았습니다.', '이번 주 %s %d개 구·군 전세가 빠짐없이 올랐습니다.')[kk % 4]
-                 % (city, len(gw)))
+        s.append(('주간 시세가 나오는 %s %d개 %s의 전세가 모두 오르고 있습니다.', '%s의 %d개 %s 전세는 이번 주 모두 올랐습니다.',
+                  '전세는 %s %d개 %s 어디서도 내리지 않았습니다.', '이번 주 %s %d개 %s 전세가 빠짐없이 올랐습니다.')[kk % 4]
+                 % (city, len(gw), unit))
     if up:
         g = up[0]
         s.append('매매는 %s가 %s%%로 %d주째 가장 오래 오르고 있습니다.' % (g, gw[g]['ma'], gw[g]['sma'][1]))
@@ -589,6 +604,7 @@ def outlook_text(f):
     yN = str(f['now_y'] + 1)
     keys = dict(city=f['city'], y_next=yN, n_next=num(f['by_year'].get(yN, 0)), share_next=f['share'](f['by_year'].get(yN, 0)),
                 need=num(f['need']), ann_med=f['ann_med'], ann_now=f['ann_cnt'][str(f['now_y'])],
+                ann_hh_now=num(f['ann_hh'][str(f['now_y'])]),   # 올해 공고 세대수 — 손으로 적으면 집계 규칙이 바뀔 때 갈린다(10-17 천안 11,102↔10,498)
                 je_streak=cw['sje'][1], ma_streak=cw['sma'][1], je=cw['je'], ma=cw['ma'],
                 ma_down='·'.join(g for g in f['gu_w'] if f['gu_w'][g]['sma'][0] == '-'))
     if f.get('done'):
@@ -596,9 +612,15 @@ def outlook_text(f):
             keys['done_%s' % y] = num(v)
     if not os.path.exists(path):
         print('  ⚠ 전망 문단 파일이 없다: %s — 자리 이름: %s' % (path, ', '.join('{%s}' % k for k in keys)))
-        return '[여기에 전망을 3~5문장으로. 첫 문장에 "제 판단으로는"으로 방향을 못 박고, 시점 유보는 마지막 한 문장]'
+        return '', '[여기에 전망을 3~5문장으로. 첫 문장에 "제 판단으로는"으로 방향을 못 박고, 시점 유보는 마지막 한 문장]'
     with open(path, encoding='utf-8') as fh:
-        return fh.read().strip().format(**keys)
+        txt = fh.read().strip().format(**keys)
+    # 빈 줄로 나눈 첫 덩어리는 글머리 결론(1~2문장), 나머지는 전망 문단이다. 한 덩어리뿐이면 결론 줄은 없다.
+    parts = [x.strip() for x in re.split(r'\n\s*\n', txt) if x.strip()]
+    if len(parts) < 2:
+        print('  ⚠ 전망 파일에 글머리 결론이 없다 — 첫 줄에 결론 1~2문장을 쓰고 빈 줄 뒤에 전망 문단을 쓸 것: %s' % path)
+        return '', txt
+    return parts[0], ' '.join(parts[1:])
 
 
 def main(argv):
@@ -619,7 +641,8 @@ def main(argv):
     xlsx_name = '%s-아파트-입주예정-단지-%s-%s.xlsx' % (city, start[:4], f['last_ym'][:4])
     xlsx_path = os.path.join(OUT, xlsx_name)
     sheets = excel(f, xlsx_path)
-    html_body = body(f, sheets, xlsx_name, outlook_text(f), city_seq(city))
+    lead, outlook = outlook_text(f)
+    html_body = body(f, sheets, xlsx_name, outlook, city_seq(city), lead)
     share_n = f['share'](f['by_year'].get(yN, 0))
     # 제목에는 반드시 '입주물량'. 결론절에 연도·월을 넣지 않는다(title_warnings, 블덱스 '#2027년' 사례).
     titles = ['%s년 %s 아파트 입주물량, 적정의 %d%%에 그쳐 전세가 먼저 오릅니다' % (yN, city, share_n),
