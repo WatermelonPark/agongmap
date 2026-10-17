@@ -126,7 +126,7 @@ def test_gwangju_jeonnam_uses_search_forms(monkeypatch, survey):
     shown = re.sub(r'href="[^"]*"', '', d['body'])
     assert '전남광주' not in shown, re.findall(r'.{20}전남광주.{20}', shown)
     # 상태 소제목은 회차마다 돈다(반복률, 10-15) — 어느 틀이든 검색 이름으로 시작해야 한다.
-    assert re.search(r'<h3>광주·전남(은 지금 어떤 상태인가| 시세와 미분양|의 지금)</h3>', d['body'])
+    assert re.search(r'<h3>광주·전남(은 지금 어떤 상태일까| 시세와 미분양|의 지금, 시세부터)</h3>', d['body'])
 
 
 def test_province_tags_use_the_city_people_search(monkeypatch):
