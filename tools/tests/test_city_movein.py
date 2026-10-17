@@ -115,3 +115,22 @@ def test_tiny_and_shifted_announcements_are_not_new_complexes():
                   ch('2026-10', '천안 용곡 두산위브', '전라북도 전주시 완산구 용곡동 1', 7)]}
     rows = C.merge(raw, '전주', '2026-10')['rows']
     assert sorted(r['n'] for r in rows) == [44, 100], rows
+
+
+def test_announcement_round_tail_is_not_part_of_the_name():
+    """청약홈 공고 이름의 '(2회차)' 꼬리는 단지 이름이 아니다(10-17 천안 '천안 휴먼빌 퍼스트시티(2회차)'가 본문에 그대로 나갔다).
+    _TAIL 에서 회차 규칙을 지우면 빨개진다(확인)."""
+    assert C.base_name('천안 휴먼빌 퍼스트시티(2회차)') == '천안 휴먼빌 퍼스트시티'
+    assert C.base_name('천안 아이파크 시티 2단지(2회차)') == '천안 아이파크 시티 2단지'
+
+
+def test_outlook_file_splits_into_lead_and_outlook(tmp_path, monkeypatch):
+    """전망 파일 첫 덩어리는 글머리 결론으로 맨 앞에 간다(10-17 대표 리뷰: 결론이 글 끝에만 있었다). 빈 줄로 나누는 규칙을
+    지우면(한 덩어리로 돌려주면) 빨개진다(확인). 픽스처는 원주 전망 파일의 꼴(결론 두 문장 + 빈 줄 + 전망)."""
+    import make_city_post as MC
+    monkeypatch.setattr(MC, 'OUT', str(tmp_path))
+    (tmp_path / 'city-원주-outlook.txt').write_text('원주는 결론입니다. 둘째 문장입니다.\n\n제 판단으로는, 전망입니다.', encoding='utf-8')
+    f = dict(city='원주', city_w=dict(sje=('+', 1), sma=('-', 18), je='+0.09', ma='-0.01'), now_y=2026, by_year={}, need=2925,
+             share=lambda v: 0, ann_med=32, ann_cnt={'2026': 0}, gu_w={})
+    lead, outlook = MC.outlook_text(f)
+    assert lead == '원주는 결론입니다. 둘째 문장입니다.' and outlook == '제 판단으로는, 전망입니다.'
