@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v190">
+<html lang="ko" data-build="v191">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -275,6 +275,11 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <button type="button" data-p="y" aria-pressed="false" onclick="tbPer('y')">연</button>
       </div>
       <label class="tb-chk"><input type="checkbox" id="tb-rel" onchange="tbDraw()"> 적정물량 대비로 보기</label>
+      <!-- 공급 모드 기준 줄(2026-10-17 대표 요청 — 지도 아래에서 카드 바로 아래·단추 왼쪽으로, '분기마다 갱신'은 뺐다). 구간은
+           부팅 때 ADV.sido.L·H 에서 계산해 채운다(supplySpan — 판정 모델 sido_zones.calc 의 미래 창 L+1…L+H 와 같은 셈, 손으로
+           적지 않는다). 정적 문구는 스크립트가 못 돌 때만 보인다 — 분기를 약속하지 않는다. 끝 칸(#lt-key)은 카드 신호등 범례 한 줄
+           (부팅 때 채운다). 시세 모드에서는 숨는다(#sec-score.mm-price .map-src — 시세 지도의 출처가 아니다). -->
+      <p class="map-src"><span id="map-span">앞으로 3년 공급</span> · <span>국토교통부 착공·준공 실적 기준</span><span id="lt-key"></span></p>
       <!-- 시세 모드 기준 줄(2026-10-05 대표 요청 — 카드 아래에서 단추 왼쪽으로, 주간·월간 양식 통일). 공급 모드는 비어 숨는다. -->
       <p class="tb-when" id="tb-when"></p>
       <div class="tb-seg tb-view" id="tb-view" role="group" aria-label="보기 방식">
@@ -309,11 +314,6 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     </div>
     <div class="tb-scroll"><table id="tb-main" aria-label="시도별 공급·가격 통합표"></table></div>
     <p class="tb-refnote" id="tb-refnote" aria-live="polite" hidden></p>
-    <!-- 출처·구간 한 줄(홈 마케팅 검수 B9·TRUST-5①). '3년'이 어느 분기부터 어느 분기까지인지 홈 어디에도 없었다. 구간은
-         부팅 때 ADV.sido.L·H 에서 계산해 채운다(supplySpan — 판정 모델 sido_zones.calc 의 미래 창 L+1…L+H 와 같은 셈,
-         손으로 적지 않는다). 아래 정적 문구는 스크립트가 못 돌 때만 보인다 — 분기를 약속하지 않는다. 두 조각은 줄마다
-         따로라(app.css .map-src span) 글자가 바뀌어도 줄 수가 같다. -->
-    <p class="map-src"><span id="map-span">앞으로 3년 공급</span><span>국토교통부 착공·준공 실적 · 분기마다 갱신</span><span id="lt-key"></span></p>
     <p class="tb-more"><a href="/zone/" onclick="track('home_cta',{to:'zone_hub'})">시도별로 자세히 보기 →</a></p>
     <!-- 이달의 통계 입구(B6·IA-8). 매주(시세)·매달(월간 통계)·분기(공급 판정) 세 주기 중 매달만 홈 본문에 입구가 없었다
          (푸터 링크 하나뿐). 구역을 늘리지 않고 이 한 줄만 둔다. 이름은 통계 화면 입구와 같은 말이다. -->

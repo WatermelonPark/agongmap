@@ -183,23 +183,28 @@ def test_supply_span_is_the_model_window_from_L_and_H():
     assert got['none'] == [None, None, None]
 
 
-def test_source_line_sits_under_the_map_and_the_report_mail_is_in_the_footer():
-    """공급 지도 구역(#sec-score) 안, 산출 방법 앞에 출처·구간 줄이 있다. 구간 자리의 정적 문구는 분기를 약속하지 않고(스크립트가
+def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer():
+    """공급 지도 구역(#sec-score) 안, 판정 카드 바로 아래 줄(.tb-bar)의 지도/그래프/표 단추 왼쪽에 출처·구간 줄이 있다(2026-10-17
+    대표 요청 — 지도 아래에서 옮겼고 '분기마다 갱신'은 뺐다, 끝은 '… 실적 기준'). 구간 자리의 정적 문구는 분기를 약속하지 않고(스크립트가
     못 돌면 그대로 보인다) 부팅이 구간을 채운다. 이달의 통계 입구(B6)는 '시도별로 자세히 보기' 바로 아래다(to 값은 test_home_cta).
     지도 아래 운영 주체 줄(B9·TRUST-6)과 '산출 방법' 옆 출처 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 제보 경로는 홈
     푸터 '만든이' 메일이 mailto 링크로 남기고(같은 푸터 세 벌 모두), 출처 기관은 산출 방법을 펼치면 항목마다 있다.
 
-    변이(각각 실제로 확인): 푸터 메일을 일반 텍스트로 되돌리면, 운영 주체 줄(map-who)이나 산출 방법 옆 출처(.src)를 되살리면,
+    변이(각각 실제로 확인): 출처 줄을 지도 아래(산출 방법 앞)로 되돌리면, 문구에 '분기마다 갱신'을 되살리면,
+          푸터 메일을 일반 텍스트로 되돌리면, 운영 주체 줄(map-who)이나 산출 방법 옆 출처(.src)를 되살리면,
           정적 구간 문구에 '2026년 3분기'를 적으면, boot 에서 renderSupplySpan() 을 지우면, 이달의 통계 줄을 산출 방법 뒤로
           옮기면 빨개진다.
     """
     h = _home()
     sec = re.search(r'<section class="home-sec vm-map" id="sec-score".*?</section>', h, re.S).group(0)
     how = sec.index('<details class="sc-how">')
-    # 셋째 칸(#lt-key)은 신호등 범례 한 줄 — 부팅 때 채운다(2026-10-06, 카드 아래에서 옮겼다)
-    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span><span>([^<]*)</span><span id="lt-key"></span></p>', sec)
-    assert src and src.start() < how, '지도 아래 출처·구간 줄이 없다'
+    # 끝 칸(#lt-key)은 신호등 범례 한 줄 — 부팅 때 채운다
+    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span> · <span>([^<]*)</span><span id="lt-key"></span></p>', sec)
+    assert src, '출처·구간 줄이 없다'
+    bar = sec[sec.index('<div class="tb-bar">'):sec.index('id="tb-view"')]
+    assert src.group(0) in bar and sec.index('<div id="agg-wrap">') < sec.index('<div class="tb-bar">'), '출처·구간 줄이 카드 아래 단추 줄에 없다'
     assert not re.search(r'\d{4}|분기~', src.group(1)) and '국토교통부' in src.group(2), src.groups()
+    assert src.group(2).endswith('실적 기준') and '분기마다 갱신' not in src.group(2), src.group(2)
     assert 'map-who' not in h and '개인이 운영합니다' not in sec, '지도 아래 운영 주체 줄이 되살아났다'
     summ = re.search(r'<details class="sc-how"><summary>(.*?)</summary>(.*?)</details>', sec, re.S)
     assert summ and summ.group(1) == '<span class="t">산출 방법</span>', summ and summ.group(1)
