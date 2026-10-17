@@ -56,7 +56,7 @@ def test_hub_lists_sido_in_display_order_without_sort_toggle():
     assert 'sido-sort' not in h, '허브에 정렬 토글이 남아 있다 — 목록은 순위가 아니다'
     m = re.search(r'<div class="zlinks" id="sido-list">(.*?)</div>', h, re.S)
     assert m, '허브 시도 목록을 찾지 못했다'
-    got = re.findall(r'<b>([^<]+)</b>', m.group(1))
+    got = [SZ.key_of(n) for n in re.findall(r'<b>([^<]+)</b>', m.group(1))]   # 화면 이름 → 키(백로그 46)
     sido = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
     assert got == sido, '허브 시도 순서가 표시 순서가 아니다: %s' % got
 

@@ -134,7 +134,7 @@ def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
                 if x.get('@type') == 'Article'][0]['headline']
         want = M.page_title(z['z'], calc, M.GRADE_TXT[z['grade']][0], SZ.latest_survey(adv))
         assert title == M.esc(want) + ' | 아공맵' and og == M.esc(want) and head == want, (z['z'], title, og, head)
-        assert want.startswith('%s년 %s 아파트 공급물량 전망, ' % (SZ.outlook_year(SZ.latest_survey(adv)), z['z']))
+        assert want.startswith('%s년 %s 아파트 공급물량 전망, ' % (SZ.outlook_year(SZ.latest_survey(adv)), SZ.disp(z['z'])))   # 화면 이름(백로그 46)
 
 
 @pytest.mark.parametrize('p,want', [('2026-09-28', '2026'), ('2026-10-05', '2027'), ('2027-01-11', '2027'),

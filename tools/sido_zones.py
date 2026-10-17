@@ -65,6 +65,27 @@ if sorted(DISPLAY_ORDER) != sorted(ORDER) or len(set(DISPLAY_ORDER)) != len(DISP
     raise SystemExit('DISPLAY_ORDER 가 모델 지역과 다르다: %s'
                      % sorted(set(DISPLAY_ORDER) ^ set(ORDER)))
 
+# 화면에 **보이는** 지역 이름(2026-10-17 대표 승인, 백로그 46). 판정 단위 키·주소(/zone/전남광주/)·데이터 키는 그대로 두고
+# 글자만 바꾼다 — '전남광주'는 원천(국토교통부·KOSIS)의 통합 단위 이름이라 검색되지 않고, 사람들은 '광주·전남'으로 찾는다.
+# 사이트 생성기(disp)·홈(split_data 가 ADV.zname 으로 싣는다)·블로그 생성기(make_naver_post.SEARCH_NAME)가 이 표 하나를 읽는다.
+DISPLAY_NAME = {'전남광주': '광주·전남'}
+if set(DISPLAY_NAME) - set(REF_Q):
+    raise SystemExit('DISPLAY_NAME 에 모델에 없는 지역이 있다: %s' % sorted(set(DISPLAY_NAME) - set(REF_Q)))
+
+
+def disp(z):
+    """판정 단위 키 → 화면 이름(DISPLAY_NAME 에 없으면 키 그대로)."""
+    return DISPLAY_NAME.get(z, z)
+
+
+KEY_OF = {v: k for k, v in DISPLAY_NAME.items()}
+
+
+def key_of(name):
+    """화면 이름 → 판정 단위 키(disp 의 역). 페이지 글자를 읽어 데이터와 대조하는 감시·시험이 쓴다."""
+    return KEY_OF.get(name, name)
+
+
 REGION = {z: ('수도권' if z in ('서울', '경기', '인천') else '지방') for z in REF_Q}
 REGION.update({'전국': '전국', '수도권': '수도권', '지방': '지방'})
 

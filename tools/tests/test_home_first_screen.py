@@ -414,7 +414,7 @@ def test_distribution_and_legend_lines_are_gone_with_their_data():
     sido = {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'H': SZ.LEAD_Q, 'zones': zones,
             'dist': '시도 16곳: 부족 이상 10', 'dist_g0': ['인천'], 'ktxt': '지난 4년 덜 지은 몫까지'}   # 옛 data.js 모양
     fns = '\n'.join(_js_func(h, n) for n in ('tintA', 'mapFill', 'supplyFill', 'aggLights', 'aggLightKey', 'aggCard', 'mapKeyHtml', 'mapAria', 'tbNum', 'tbSigned',
-                                              'renderAggCards', 'renderSidoMap'))
+                                              'renderAggCards', 'renderSidoMap', 'zn'))
     consts = '\n'.join(re.search(r'^var %s=.*$' % n, h, re.M).group(0)
                         for n in ('TB_MIN', 'TB_BAL', 'TB_UP', 'TB_GRADE', 'MAP_MODE'))
     js = (geo + '\n' + consts + '\n' + fns + '\nvar ADV={sido:%s,weekly:null};'

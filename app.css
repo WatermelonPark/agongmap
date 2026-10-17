@@ -877,8 +877,8 @@ table.adv thead th:first-child{text-align:center}
   #view-home .agg-lt{display:flex}
   #view-home .agg-lt .zl{margin-left:0;gap:3px}
   #view-home .zl-d{width:21px;height:21px;font-size:13px}
-  /* 지도 아래 출처 줄 끝의 신호등 범례 한 줄(2026-10-06 — 카드 위·아래의 긴 범례를 걷었다). 비어 있는 동안 한 줄 자리를 잡는다. */
-  #view-home #lt-key{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:2px 10px;color:var(--ink2)}
+  /* 공급 기준 줄 끝의 신호등 범례 한 줄(2026-10-06 지도 아래 → 2026-10-17 카드 바로 아래 단추 왼쪽). 비어 있는 동안 한 줄 자리를 잡는다. */
+  #view-home #lt-key{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:2px 10px;color:var(--ink2)}
   #view-home #lt-key:empty{display:block;min-height:1.55em}
   #view-home .agg-lk-i{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
   #view-home #lt-key .zl-d{width:12px;height:12px;margin:0 2px 0 2px;box-shadow:0 0 0 2px #263238}
@@ -1236,8 +1236,10 @@ table.adv thead th:first-child{text-align:center}
   /* 지도 아래 줄들(홈 마케팅 검수 3차 묶음 S, 2026-09-27). 순서: 출처·구간(B9) → 시도별로 자세히 보기 → 이달의 통계(B6)(버튼 두 개).
      내 지역 고르기(C5)는 2026-10-05 에 뺐다. 운영 주체 줄(B9·TRUST-6)은 뺐다(2026-09-28 대표 결정 — 제보 메일은 푸터 mailto). 구간 줄은 두 조각이
      줄마다 따로라 부팅 뒤 글자가 바뀌어도 줄 수가 같다. 글자는 13px 이상(test_home_min_font). */
-  .home-sec p.map-src{margin:12px auto 0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted)}
-  .map-src span{display:block}
+  /* 공급 모드 기준 줄 — 카드 바로 아래, 지도/그래프/표 단추 왼쪽(2026-10-17 대표 요청, 지도 아래에서 옮겼다). 첫 줄은 '앞으로 3년(…) ·
+     국토교통부 착공·준공 실적 기준', 둘째 줄은 신호등 범례(#lt-key). 560px 이하는 단추 옆이 좁아 제 줄을 통째로 쓰고 단추가 아래로 간다. */
+  .home-sec .tb-bar p.map-src{flex:1 1 0;min-width:0;margin:0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted);text-align:left;word-break:keep-all}
+  @media(max-width:560px){.home-sec .tb-bar p.map-src{flex-basis:100%}}
   .map-src #map-span{color:var(--ink2);font-weight:600}
   #sec-score.mm-price .map-src{display:none}   /* 공급 출처 줄 — 시세 모드(주간·월간)에서는 그 지도의 출처가 아니다(mapMode) */
   /* 이달의 통계 입구 — 글자 링크였는데 2026-10-05 대표 요청으로 버튼(흰 바탕·먹색 테두리). 바로 위 '시도별로 자세히 보기'(먹색

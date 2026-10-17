@@ -131,6 +131,6 @@ def test_outlook_file_splits_into_lead_and_outlook(tmp_path, monkeypatch):
     monkeypatch.setattr(MC, 'OUT', str(tmp_path))
     (tmp_path / 'city-원주-outlook.txt').write_text('원주는 결론입니다. 둘째 문장입니다.\n\n제 판단으로는, 전망입니다.', encoding='utf-8')
     f = dict(city='원주', city_w=dict(sje=('+', 1), sma=('-', 18), je='+0.09', ma='-0.01'), now_y=2026, by_year={}, need=2925,
-             share=lambda v: 0, ann_med=32, ann_cnt={'2026': 0}, gu_w={})
+             share=lambda v: 0, ann_med=32, ann_cnt={'2026': 0}, ann_hh={'2026': 0}, gu_w={})   # ann_hh: 공고 세대수(cb395a3 ann_hh_now) — 실제 f 는 ann_cnt 와 함께 만든다
     lead, outlook = MC.outlook_text(f)
     assert lead == '원주는 결론입니다. 둘째 문장입니다.' and outlook == '제 판단으로는, 전망입니다.'
