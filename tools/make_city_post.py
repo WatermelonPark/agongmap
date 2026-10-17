@@ -62,7 +62,14 @@ def city_codes(city, weekly_codes):
     names = P._sgg_names()
     gus = sorted((v.split(' ', 1)[1], k) for k, v in names.items() if v.startswith(city + ' '))
     if not gus:
-        return None, []
+        one = [k for k, v in names.items() if v == city and k in weekly_codes]     # 구가 없는 시(원주)
+        return (one[0] if one else None), []
+    # 도시 합계 칸은 이름표에 없고 첫 구 바로 앞에 온다(청주 c201 ← c20101, 천안 c301 ← c302, 대구 b2 ← b201).
+    # 공통 앞부분만 줄이면 천안 c302·c303 → 'c3'(충남 전체)로 잘못 간다(10-17).
+    first = min(weekly_codes.index(k) for _, k in gus if k in weekly_codes)
+    prev = weekly_codes[first - 1] if first > 0 else None
+    if prev and prev not in names and prev.startswith(os.path.commonprefix([k for _, k in gus])[:len(prev) - 1]):
+        return prev, gus
     pre = os.path.commonprefix([k for _, k in gus])
     while pre and (pre not in weekly_codes or pre in [k for _, k in gus]):
         pre = pre[:-1]
@@ -439,7 +446,7 @@ def body(f, sheets, xlsx_name, outlook, k=0):
           '%s 조사(한국부동산원)에서 %s 아파트 매매가는 <b>%s%%</b>, 전세가는 <b>%s%%</b> 움직였습니다.',
           '가장 최근인 %s 조사에서 %s 아파트값은 매매 <b>%s%%</b>, 전세 <b>%s%%</b>였습니다(한국부동산원).')[k]
          % (P.kdate(f['last_p']), city, cw['ma'], cw['je'])]
-    if len(je_up) == len(gw):
+    if gw and len(je_up) == len(gw):
         s.append('주간 시세가 나오는 %s %d개 구·군의 전세가 모두 오르고 있습니다.' % (city, len(gw)))
     if up:
         g = up[0]

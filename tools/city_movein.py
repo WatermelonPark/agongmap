@@ -131,11 +131,12 @@ def merge(raw, city, start):
         best = None
         for i, r in enumerate(rows):
             a = norm(r['name'])
-            if abs(_months(r['ym']) - _months(ym)) > 2:
-                continue
-            if a == b:
+            gap = abs(_months(r['ym']) - _months(ym))
+            if a == b and gap <= 6:      # 이름이 똑같으면 입주 월이 몇 달 밀려도 같은 단지다(10-17 전주 '에코시티 더 클래스' 5월↔8월)
                 best = i
                 break
+            if gap > 2:
+                continue
             part = bool(a and b and (a in b or b in a))
             if best is None and part and (addr_key(r['addr']) == akey or r['ym'] == ym):
                 best = i
@@ -149,6 +150,8 @@ def merge(raw, city, start):
             r['src'] = '입주예정물량정보 + 청약홈'
             r['note'] = '두 자료에 모두 있음, 세대수는 입주예정물량정보'
             continue
+        if ym <= occ_max and n < 30:
+            continue      # 부동산원 목록은 30세대 이상 단지다. 그보다 작은 청약홈 공고는 잔여·추가 공고다(10-17 천안 '용곡 두산위브' 7세대)
         if ym <= occ_max:
             # 부동산원 목록 기간인데 그쪽에 없는 공고 — 목록 갱신 뒤에 나온 공고다(10-16 대구 '더샵 동인센트리체' 10-02 공고).
             rows.append(dict(ym=ym, name=base_name(c.get('HOUSE_NM')), gu=gu_of(c.get('HSSPLY_ADRES'), city),
