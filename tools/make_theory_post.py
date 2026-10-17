@@ -1035,7 +1035,7 @@ def render(post):
     S.append('<style>%s</style>' % P.CSS)
     S.append('<h1>부동산 사이클 시리즈 %02d편</h1>' % post['n'])
     S.append('<p class="hint">[복사] → 스마트에디터에 붙여넣기 → 이미지 끌어놓기 → 발행. '
-             '카테고리는 <b>부동산 사이클</b>, 주제는 <b>부동산</b>으로 두세요.</p>')
+             '카테고리는 <b>부동산 사이클</b>, 주제는 <b>비즈니스·경제</b>로 두세요(주제 목록에 부동산은 없다, 10-17 대표).</p>')
     S.append('<section class="draft"><h2>%s</h2>' % post['title'])
     S.append(P.rival_panel('부동산 사이클'))
     S.append(P.field('제목', 't1', P.esc(post['title']), 't'))
