@@ -19,6 +19,11 @@
   --force           손본 초안(naver-<주차>.html)도 덮는다. 썸네일은 건드리지 않는다
   --force-thumb     문구 없이도 썸네일을 기본 문구로 다시 만든다(--thumb-msg 로 만든 맞춤 썸네일이 덮인다).
                     2026-10-05 전까지는 --force 하나가 초안·썸네일을 같이 덮었다 — 지금은 둘을 따로 준다
+  --zone 이름       지역 편을 이 지역으로 쓴다('광주·전남'처럼 검색 이름도 받는다). 결과는 naver-<주차>-<지역>.html 에 따로
+                    쓰고(주간 칸은 캡처 없이), 주간 초안 파일과 순회 기록은 건드리지 않는다
+  --pending-zones 이름,이름
+                    예약은 걸렸지만 아직 발행되지 않은 지역 — 순회에서 이미 다룬 것으로 센다. 주간 묶음(금 19시)이 한 주에
+                    지역 편을 두 편 쓸 때, RSS 에 아직 없는 첫 편 지역을 다시 고르지 않게 한다(2026-10-17)
   --open            만든 초안을 브라우저로 연다
   --no-shortcut     바탕화면 바로가기를 만들지 않는다(윈도우에서만 만든다)
   -h, --help        이 설명을 찍는다
@@ -322,7 +327,24 @@ def _published_zone_posts(names):
     return out
 
 
-def pick_zone(rows, published=None):
+def _zone_name(arg, names):
+    """사람이 준 지역 이름 → 판정 단위 이름. 검색 이름(SEARCH_NAME 값, '광주·전남')도 받는다."""
+    rev = {v: k for k, v in SEARCH_NAME.items()}
+    nm = rev.get(arg, arg)
+    if nm not in names:
+        raise SystemExit('지역 이름을 모른다: %s — 가능한 이름: %s' % (arg, ', '.join(sorted(names))))
+    return nm
+
+
+def _list_arg(argv, flag):
+    if flag in argv:
+        i = argv.index(flag)
+        if i + 1 < len(argv):
+            return [x.strip() for x in argv[i + 1].split(',') if x.strip()]
+    return []
+
+
+def pick_zone(rows, published=None, pending=(), force=None):
     """아직 안 다룬 지역 중 하나를 고른다 — PRIORITY 먼저, 그다음 |순부족| 순.
 
     **'다뤘다'의 기준은 실제 발행이다**(2026-09-17). 예전엔 초안을 저장할 때마다 순회
@@ -356,6 +378,8 @@ def pick_zone(rows, published=None):
     for nm, urls in published.items():
         if urls:                       # 실제 주소를 알게 되면 옛 자리표는 버린다
             seen[nm] = {u for u in seen.get(nm, set()) if not u.startswith('legacy:')} | urls
+    for nm in pending:                 # 예약됐지만 아직 RSS 에 없는 지역(주간 묶음) — 이번 바퀴에 다룬 것으로 센다
+        seen.setdefault(_zone_name(nm, names), set()).add('pending:' + nm)
     seen = {k: v for k, v in seen.items() if k in names}
 
     def rank(r):
@@ -368,6 +392,9 @@ def pick_zone(rows, published=None):
     lap = min(len(seen.get(r['z'], ())) for r in pool)
     done = [r['z'] for r in pool if len(seen.get(r['z'], ())) > lap]
     pick = next(r for r in pool if r['z'] not in done)
+    if force:
+        fz = _zone_name(force, names)
+        pick = next(r for r in pool if r['z'] == fz)
     # seq 는 **누적 회차**다(전수리뷰 #80). 바퀴마다 1부터 다시 세면 두 바퀴째 서울 편이 1바퀴 서울 편과 같은
     # 캠페인(zone_deep_1)·같은 유도문·같은 제목 실험 팔을 받는다. 한 바퀴째 값은 예전(len(done)+1)과 같다 —
     # 이미 나간 글의 캠페인·팔과 어긋나지 않는다. 바퀴 안 순번은 (seq-1) % total + 1 이다.
@@ -2375,7 +2402,9 @@ def main():
     adv = _cut_weekly(adv, back)
     p = adv['weekly']['rows'][-1]['p']
 
-    d1 = draft_weekly(adv, sts, shot=not back)
+    force = _list_arg(sys.argv, '--zone')
+    pending = _list_arg(sys.argv, '--pending-zones')
+    d1 = draft_weekly(adv, sts, shot=not back and not force)
     if back:
         # 과거 회차 채우기 — 시세 글만 만든다.
         d2 = None
@@ -2383,12 +2412,19 @@ def main():
     else:
         # 심층은 개별 시도만 순회한다(집계 3종 제외).
         pool = SZ.zone_order(rows)
-        pick, seq, total, commit_rotation = pick_zone(pool)
+        if force or pending:
+            pick, seq, total, commit_rotation = pick_zone(pool, pending=pending, force=force[0] if force else None)
+        else:
+            pick, seq, total, commit_rotation = pick_zone(pool)
         d2 = draft_zone(adv, sts, pick, seq, total)
 
     if not os.path.isdir(OUT):
         os.makedirs(OUT)
     path = os.path.join(OUT, 'naver-%s.html' % p)
+    if force:
+        # 지정한 지역 편은 따로 쓴다 — 목요일 초안(naver-<주차>.html, 주간 해석·지역 전망을 사람이 채운 파일)을 건드리지 않는다.
+        path = os.path.join(OUT, 'naver-%s-%s.html' % (p, pick['z']))
+        commit_rotation = lambda: None
     html = render(p, d1, d2)   # 파일을 열기 전에 끝낸다(write_draft 주석)
 
     # 손댄 초안은 덮지 않는다. drafts/는 gitignore라 덮어쓰면 되돌릴 데가 없다
