@@ -78,6 +78,9 @@ def test_city_code_is_the_weekly_code_above_its_districts():
     assert code == 'b2' and len(gus) >= 8 and all(c.startswith('b2') for _, c in gus)
     code, gus = MC.city_codes('청주', codes)
     assert code == 'c201' and [g for g, _ in gus] == ['상당구', '서원구', '청원구', '흥덕구']
+    # 천안은 구 코드 공통 앞부분이 'c30'이라 줄이면 충남 전체(c3)로 갔다(10-17). 첫 구 앞의 이름 없는 칸이 도시 합계다.
+    assert MC.city_codes('천안', codes)[0] == 'c301'
+    assert MC.city_codes('원주', codes) == ('c102', [])      # 구가 없는 시
 
 
 def test_zone_post_link_picks_the_same_sido_zone_post_not_a_city_post(monkeypatch):
@@ -101,3 +104,14 @@ def test_zone_post_link_picks_the_same_sido_zone_post_not_a_city_post(monkeypatc
     monkeypatch.setattr(CPI, 'fetch_posts', lambda *a, **k: posts)
     assert MC.zone_post('대구')['url'] == 'u-dg'
     assert MC.zone_post('충북') is None
+
+
+def test_tiny_and_shifted_announcements_are_not_new_complexes():
+    """10-17 천안·전주 원천: 부동산원 목록 기간의 30세대 미만 청약홈 공고(잔여분 7세대)는 새 단지가 아니고, 이름이 똑같은
+    단지는 입주 월이 석 달 밀려도 같은 단지다. 30세대 규칙이나 6개월 창을 지우면 빨개진다(확인)."""
+    raw = {'occ': [occ('2027-08', '전주 에코시티 더 클래스', '전라북도 전주시 덕진구 송천동 1-1', 44),
+                   occ('2028-06', '끝 단지', '전라북도 전주시 완산구 효자동 1-1', 100)],
+           'ch': [ch('2027-05', '전주 에코시티 더 클래스', '전라북도 전주시 덕진구 송천동2가 1', 48),
+                  ch('2026-10', '천안 용곡 두산위브', '전라북도 전주시 완산구 용곡동 1', 7)]}
+    rows = C.merge(raw, '전주', '2026-10')['rows']
+    assert sorted(r['n'] for r in rows) == [44, 100], rows
