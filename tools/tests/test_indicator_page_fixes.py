@@ -31,7 +31,7 @@ def _jeonse(cur, ago, ym='2026.05'):
 
 
 def _row(html, name):
-    m = re.search(r'<tr><td>%s</td><td>([\d.]+)%%</td><td>([\d.]+)%%</td><td class="(\w+)">([^<]+)</td></tr>' % name, html)
+    m = re.search(r'<tr><td>%s</td><td>([\d.]+)%%</td><td>([\d.]+)%%</td><td class="(\w+)">([^<]+)</td></tr>' % SZ.disp(name), html)
     assert m, '%s 행을 못 찾았다' % name
     return float(m.group(1)), float(m.group(2)), m.group(3), m.group(4)
 
@@ -125,8 +125,8 @@ def test_moveins_sentence_rounds_like_the_table():
     assert ys[0]['v'][i] / rf * 100 == 0.5, '픽스처가 정확히 0.5% 를 못 만들었다'
     html, _ = I.build_moveins(a)
     # 판정 열은 지역 바로 뒤(백로그 36-5), 낱말은 신호등과 같은 적음·보통·많음(36-2)
-    cell = re.search(r'<tr><td>%s</td><td class="\w+">(\d+)%% (?:적음|보통|많음)</td>(?:<td>[^<]*</td>){4}</tr>' % z, html)
-    sent = re.search(r'가장 못 미치는 곳은 <strong>%s\(적정물량의 (\d+)%%\)</strong>' % z, html)
+    cell = re.search(r'<tr><td>%s</td><td class="\w+">(\d+)%% (?:적음|보통|많음)</td>(?:<td>[^<]*</td>){4}</tr>' % SZ.disp(z), html)
+    sent = re.search(r'가장 못 미치는 곳은 <strong>%s\(적정물량의 (\d+)%%\)</strong>' % SZ.disp(z), html)
     assert cell and sent, '표 행이나 문장을 못 찾았다'
     assert cell.group(1) == sent.group(1) == '1', (cell.group(1), sent.group(1))
 

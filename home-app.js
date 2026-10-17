@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v189';
+const HOME_BUILD='v191';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -658,6 +658,9 @@ function _ymP(s){const m=String(s).match(/(\d{4})[.\-\/]\s*(\d{1,2})/);return m?
 function _ymT(s){const p=_ymP(s);return p?p[0]+'년 '+p[1]+'월':String(s);}
 function _ymS(s){const p=_ymP(s);return p?String(p[0]).slice(2)+'.'+p[1]:String(s);}
 function _qT(k){const m=String(k).match(/^(\d{4})Q([1-4])$/);return m?m[1]+'년 '+m[2]+'분기':String(k);}
+/* 판정 단위 키 → 화면 이름(백로그 46 — 원천 이름 '전남광주'를 화면에서는 '광주·전남'으로). 표는 split_data 가 정본
+   sido_zones.DISPLAY_NAME 에서 ADV.zname 으로 싣는다. 데이터·주소·GA 값은 키 그대로 두고 글자만 이것으로 바꾼다(test_display_name). */
+function zn(r){const m=(typeof ADV!=='undefined'&&ADV&&ADV.zname)||{};return m[r]||r;}
 function _dS(iso){const a=String(iso).split('-');return a.length<3?String(iso):a[0].slice(2)+'.'+(+a[1])+'.'+(+a[2]);}
 /* 연휴 주(hedge)는 날짜를 단정하지 않되 안내 문구도 적지 않는다(빈 문자열 — 2026-10-05 대표 요청으로 '연휴로 발표 일정이
    바뀔 수 있습니다'를 뺐다). 그래서 이어 붙이는 쪽은 빈 조각을 거른다(wkWhenText·통계 탭 rel-week).
@@ -902,7 +905,7 @@ function tbDraw(){
   B.regs.forEach(function(r){
     /* 추정 지역 표식(*)은 달지 않는다 — 뜻을 알 길 없는 기호였다(2026-08-08
        사용자). 어느 지역이 추정인지는 '산출 방법' 접힘이 문장으로 말한다. */
-    h+='<th scope="col"><a class="tb-zl" href="/zone/'+encodeURIComponent(r)+'/">'+r+'</a></th>';
+    h+='<th scope="col"><a class="tb-zl" href="/zone/'+encodeURIComponent(r)+'/">'+zn(r)+'</a></th>';
   });
   /* ⚠️ 적정물량 '수치'까지 th scope="col"로 두면 스크린리더가 그 열의 모든 칸마다
      '95,000'을 헤더로 읽는다. 열 이름은 위 줄(지역명)이고 이 줄은 데이터다
@@ -1157,8 +1160,8 @@ function aggLights(z){
   return '<span class="zl" role="img" aria-label="'+(z.ya||'')+'">'
     +z.yl.map(function(y){ return '<span class="zl-d '+y.k+'">'+y.n+'</span>'; }).join('')+'</span>';
 }
-/* 신호등 범례 — 짧은 한 줄을 지도 아래 출처 줄(#lt-key)에 둔다(2026-10-06 대표 지적 — 카드 바로 아래 두 줄 범례는 장황하고
-   콘텐츠 위를 가렸다. 문턱 70·130%는 지역 탭 '읽는 법'·FAQ 가 말한다). 이름은 ADV.sido.ylg(sido_zones.light_legend). */
+/* 신호등 범례 — 짧은 한 줄을 공급 기준 줄 끝(#lt-key)에 둔다. 2026-10-06 에 카드 아래 두 줄 범례를 지도 아래로 걷었고, 2026-10-17
+   대표 요청으로 기준 줄째 카드 바로 아래(지도/그래프/표 단추 왼쪽)로 다시 올렸다. 문턱 70·130%는 지역 탭 '읽는 법'·FAQ 가 말한다). 이름은 ADV.sido.ylg(sido_zones.light_legend). */
 function aggLightKey(z){
   var g=ADV.sido&&ADV.sido.ylg; if(!g||!g.length||!z||!z.yl) return '';
   var ns=z.yl.map(function(y){ return y.n; }).join('·');   // 해 수는 실린 값에서 센다(손으로 '1·2·3'을 적지 않는다)
@@ -1456,8 +1459,8 @@ function renderSidoMap(){
     /* 시세 모드(M)는 색·이름표·링크가 바뀐다 — 지역을 누르면 그 시도의 주간·월간 그래프(시세 탭, 2026-10-04 대표 요청).
        공급 모드는 시도 공급 리포트. 탭 표적·라벨은 모드와 무관하다. */
     var code=M?sidoCode(a.n):null;
-    var lab=M?key+' — '+M.lead+' 매매 '+wkPct(M.v[key])+' · 누르면 '+M.adj+' 그래프'
-      :key+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
+    var lab=M?zn(key)+' — '+M.lead+' 매매 '+wkPct(M.v[key])+' · 누르면 '+M.adj+' 그래프'
+      :zn(key)+' — '+(TB_GRADE[z.grade]||'')+' · '+(z.ctxt||('누적 '+tbSigned(z.tot||0)+'세대'));
     var small=SMALL[a.n]||key!==a.n;
     /* 한 판정 단위의 두 번째 도형(전남광주의 작은 쪽)은 같은 곳으로 가는 링크라 초점이 두 번 섰다(백로그 36-8) — 마우스·터치로는
        눌리게 두고 키보드 순서·읽기에서만 뺀다. */
@@ -1466,7 +1469,7 @@ function renderSidoMap(){
       :'<a href="/zone/'+encodeURIComponent(key)+'/"'+dup+' aria-label="'+lab+'">')
       +'<path d="'+a.d+'" fill="'+(M?wkFill(M.v[key],M.ref):supplyFill(z))+'"></path>'
       +(SMALL[a.n]?'<polygon class="tap" points="'+tapShape(a)+'" fill="transparent"></polygon>':'')
-      +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+key+'</text>':'')
+      +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+zn(key)+'</text>':'')
       +'<title>'+lab+'</title></a>';
   });
   h+='</svg></div>';
@@ -1518,10 +1521,10 @@ function renderSidoGraph(){
   var bw=iw/rows.length;
   var h='<div class="gr-bar"><label class="gr-lab" for="gr-reg">지역</label>'
     +'<select id="gr-reg" onchange="grSet(this.value)">'
-    +B.regs.map(function(r){ return '<option'+(r===GR_REG?' selected':'')+'>'+r+'</option>'; }).join('')
-    +'</select><a class="gr-more" href="/zone/'+encodeURIComponent(GR_REG)+'/">'+GR_REG+' 상세 리포트 →</a></div>';
+    +B.regs.map(function(r){ return '<option value="'+r+'"'+(r===GR_REG?' selected':'')+'>'+zn(r)+'</option>'; }).join('')
+    +'</select><a class="gr-more" href="/zone/'+encodeURIComponent(GR_REG)+'/">'+zn(GR_REG)+' 상세 리포트 →</a></div>';
   h+='<div class="gr-box"><svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'
-    +GR_REG+' 분기별 아파트 공급과 적정물량">';
+    +zn(GR_REG)+' 분기별 아파트 공급과 적정물량">';
   var y0=PT+ih;
   /* y축 눈금 — 적정선 하나로는 막대의 절대 크기를 가늠할 기준이 없다
      (2026-08-08 사용자 승인). 보기 좋은 단위로 2~3줄, 적정선과 겹치면 생략. */

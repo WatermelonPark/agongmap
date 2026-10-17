@@ -40,7 +40,7 @@ def _permit_rows(h=None):
     for tr in re.findall(r'<tr[^>]*><th scope="row">(.*?)</th>(.*?)</tr>', m.group(0), re.S):
         tds = re.findall(r'<td>(.*?)</td>', tr[1])
         conv = [None if t.strip() in ('·', '') else int(t.replace(',', '')) for t in tds]
-        out[tr[0].strip()] = tuple(conv[:2])
+        out[SZ.key_of(tr[0].strip())] = tuple(conv[:2])   # 행 머리는 화면 이름(백로그 46)
     assert out, '인허가 표에 행이 없다'
     for agg in ('전국', '수도권', '지방'):
         assert agg in out, '집계 행 %s 를 못 읽었다 — 파서가 마크업을 놓치고 있다' % agg

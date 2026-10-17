@@ -275,6 +275,19 @@ def fill_spans(page, values):
     return page
 
 
+ZN_RE = re.compile(r'const ZN=\{[^\n]*?\},zname=')
+
+
+def fill_zname(page):
+    """차트 이름표의 화면 이름 표(const ZN)를 정본 SZ.DISPLAY_NAME 으로 다시 쓴다(백로그 46).
+
+    차트 데이터의 region 은 판정 단위 키('전남광주')이고, 이름표만 화면 이름('광주·전남')으로 바꾼다.
+    """
+    if not ZN_RE.search(page):
+        raise RuntimeError('사이클 페이지에 화면 이름 표(const ZN)가 없다')
+    return ZN_RE.sub(lambda m: 'const ZN=%s,zname=' % json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False), page, count=1)
+
+
 def splice(page, key, value):
     """const D={...} 안의 "key": <값> 하나를 통째로 갈아 끼운다."""
     i = page.find('"%s": ' % key)
@@ -326,6 +339,7 @@ def main():
     prose.update(jr)
     page = splice(page, 'prose', prose)
     page = fill_spans(page, jr)
+    page = fill_zname(page)
     # 수도권·지방 평균은 페이지 어디서도 읽지 않아 D에서 뺐다. 배치 로그로는
     # 계속 남겨 두는 편이 갱신 결과를 눈으로 확인하는 데 쓸모가 있다.
 

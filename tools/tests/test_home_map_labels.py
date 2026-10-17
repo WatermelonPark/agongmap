@@ -34,6 +34,13 @@ def _loop_src():
     return s[a:b]
 
 
+def _zn_src():
+    """홈의 화면 이름 함수 zn(백로그 46) — 루프가 라벨·aria 를 이것으로 낸다. 표는 split_data 처럼 정본 DISPLAY_NAME."""
+    m = re.search(r'^function zn\(r\)\{.*\}$', HS.home_source(), re.M)
+    assert m, '홈에서 zn 을 찾지 못했다'
+    return m.group(0)
+
+
 def _geo():
     s = io.open(os.path.join(ROOT, 'sido-geo.js'), encoding='utf-8').read()
     return json.loads(re.search(r'SIDO_GEO\s*=\s*(\{.*\})\s*;?\s*$', s, re.S).group(1))
@@ -43,7 +50,7 @@ def _labels():
     if not shutil.which('node'):
         pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
-    js = ('var ADV={sido:{L:""}},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";'
+    js = ('var ADV={sido:{L:""},zname:%s},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";%s\n'
           'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}'
           # 지도 모드(C3): M 은 주간 모드 재료(null = 공급 모드). 주간 모드에서도 같은 표적·라벨인지는 test_home_map_mode 가 본다.
           'var M=null;function wkFill(){return "#ccc"}function wkPct(){return ""}function mapKeyHtml(){return ""}'
@@ -51,10 +58,13 @@ def _labels():
           'var out=[],re=/<text[^>]*>([^<]*)<\\/text>/g,m;while((m=re.exec(h)))out.push(m[1]);'
           'var links=[],r2=/href="\\/zone\\/([^\\/]*)\\//g;while((m=r2.exec(h)))links.push(decodeURIComponent(m[1]));'
           'process.stdout.write(JSON.stringify({labels:out,links:links}));'
-          % (json.dumps(zones, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _loop_src()))
+          % (json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False), json.dumps(zones, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _zn_src(), _loop_src()))
     p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
+    got = json.loads(p.stdout.decode('utf-8'))
+    got['shown'] = got['labels']
+    got['labels'] = [SZ.key_of(x) for x in got['labels']]   # 라벨은 화면 이름 — 판정 단위 키로 되돌려 대조한다(백로그 46)
+    return got
 
 
 def test_every_label_is_a_zone_and_appears_once():

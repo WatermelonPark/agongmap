@@ -956,7 +956,13 @@ def link6_values(D, adv, sts):
     sudo = [x for x in sig if x['zone'] == '수도권']
     prov = [x for x in sig if x['zone'] != '수도권']
     top = sorted(rg, key=lambda x: x['r'])
-    n4 = L4.link4_numbers(adv, sts)
+    try:
+        n4 = L4.link4_numbers(adv, sts)
+    except L4.Link4ClaimError as e:
+        # 5편 단정이 깨진 회차는 6편도 초안을 만들지 않는다 — render 의 5편 가드와 같이 SystemExit 로 바꾼다. 예외 그대로 두면
+        # 초안 생성 가드를 SystemExit 로 거르는 게이트 시험(test_home_entry 의 _all_drafts)이 데이터가 움직인 날 배치를 멈춘다
+        # (2026-10-17 다음 분기 전진 시험에서 fut_high 가 바뀌어 실제로 그랬다).
+        raise SystemExit('6편을 만들 수 없다 — %s. 5편 문장을 먼저 고칠 것.' % e)
     high = [z for z in n4['fut_high_names'].split('·') if z]
     bad = []
     if any(x['region'] == '서울' and x['sig'] for x in rg):

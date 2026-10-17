@@ -347,7 +347,7 @@ h2.t .t-sub{display:block;font-size:clamp(16px,2.2vw,19px);font-weight:600;color
     <div class="cap">왼쪽(낮은 전세가율)일수록 투자성, 오른쪽일수록 실거주성. 수도권·광역시·지방이 띠를 이룬다. <b><span data-d="jr_prd">2026년 8월</span> 기준</b>.</div>
     <div class="cwrap tall"><canvas id="c4"></canvas></div>
   </div>
-  <div class="read"><span class="lab">쉽게 말하면</span>서울(<span data-d="jr_seoul">52</span>%)은 집값의 절반 가까이가 '미래 기대'로 채워진 투자 시장이다. 전남광주(<span data-d="jr_jnl">78</span>%)는 거의 거주 가치 그대로인 실거주 시장이다. 대구·대전(<span data-d="jr_mid">70%대</span>)은 그 사이에 있다. <b>전세가율이 낮을수록 기대·금리에 민감하게 출렁인다.</b></div>
+  <div class="read"><span class="lab">쉽게 말하면</span>서울(<span data-d="jr_seoul">52</span>%)은 집값의 절반 가까이가 '미래 기대'로 채워진 투자 시장이다. 광주·전남(<span data-d="jr_jnl">78</span>%)는 거의 거주 가치 그대로인 실거주 시장이다. 대구·대전(<span data-d="jr_mid">70%대</span>)은 그 사이에 있다. <b>전세가율이 낮을수록 기대·금리에 민감하게 출렁인다.</b></div>
 </div></section>
 
 <!-- 참고3: 투자 호흡 -->
@@ -477,6 +477,8 @@ const COL={sudo:'#127a70',jib:'#a89578',weak:'#c6d0cb',live:'#2f8f6f',mid:'#e0a9
   reach:'#e0a93b',early:'#cdc3a8',inCap:'#3aa17e',overCap:'#e0564a'};
 /* 멸실 절이 '40년 도달'을 세기 시작하는 해 — tools/rebuild_cycle_analysis.SUPER_FROM 과 같아야 한다(시험이 대조). */
 const SUPER_FROM=2028;
+/* 화면 이름 — 판정 단위 키(D 의 region)를 사람이 읽는 이름으로. 값은 tools/refresh_cycle_data 가 sido_zones.DISPLAY_NAME 에서 매 회차 다시 쓴다(백로그 46). */
+const ZN={"전남광주": "광주·전남"},zname=r=>ZN[r]||r;
 /* Chart.js는 생성 시점에 텍스트를 한 번 래스터화하고 폰트 로드로 다시 그리지 않는다.
    이게 없으면 웹폰트가 늦게 도착할 때 차트 라벨만 폴백 폰트로 굳어 본문과 어긋난다.
    호출부 14곳을 건드리는 대신 캔버스를 훑는다 — 이 시점 이후 만들어지는 차트는
@@ -523,7 +525,7 @@ new Chart(cL1,{type:'bar',data:{labels:D.link1_new.levels,
 document.querySelectorAll('[data-d]').forEach(function(e){var v=(D.prose||{})[e.getAttribute('data-d')];if(v!=null)e.textContent=v;});
 /* ===== C6 sync ===== */
 D.sync.sort((a,b)=>b.corr-a.corr);
-new Chart(c6,{type:'bar',data:{labels:D.sync.map(r=>r.region),
+new Chart(c6,{type:'bar',data:{labels:D.sync.map(r=>zname(r.region)),
   datasets:[{data:D.sync.map(r=>r.corr),backgroundColor:D.sync.map(r=>r.sudo?COL.sudo:COL.jib),borderRadius:3}]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
     plugins:{tooltip:{callbacks:{label:c=>'동조성 '+fmtN(c.raw)}}},
@@ -532,7 +534,7 @@ new Chart(c6,{type:'bar',data:{labels:D.sync.map(r=>r.region),
 
 /* ===== c4: 전세가율 투자성↔실거주성 ===== */
 const jtColor=t=>t==='투자성'?'#e0a93b':(t==='실거주성'?'#2f8f6f':'#a5b5ad');
-new Chart(c4,{type:'bar',data:{labels:D.jratio_level.map(r=>r.region),
+new Chart(c4,{type:'bar',data:{labels:D.jratio_level.map(r=>zname(r.region)),
   datasets:[{data:D.jratio_level.map(r=>r.val),
     backgroundColor:D.jratio_level.map(r=>jtColor(r.type)),borderRadius:3}]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
@@ -559,7 +561,7 @@ document.querySelector('#ztog button').style.color='#1d2742';
 dz(zn[0]);
 
 /* ===== cL3: 매매→인허가 지역별 강도 ===== */
-new Chart(cL3,{type:'bar',data:{labels:D.link3_regional.map(d=>d.region),
+new Chart(cL3,{type:'bar',data:{labels:D.link3_regional.map(d=>zname(d.region)),
   datasets:[{data:D.link3_regional.map(d=>d.r),
     backgroundColor:D.link3_regional.map(d=>d.r<0?COL.cut:(d.r>=0.3?COL.live:COL.mid)),borderRadius:3}]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
@@ -568,7 +570,7 @@ new Chart(cL3,{type:'bar',data:{labels:D.link3_regional.map(d=>d.region),
       y:{grid:{display:false}}}}});
 
 /* ===== cL6: 준공→전세하락 지역별 강도 (수도권/지방 색구분) ===== */
-new Chart(cL6,{type:'bar',data:{labels:D.link6_regional.map(d=>d.region),
+new Chart(cL6,{type:'bar',data:{labels:D.link6_regional.map(d=>zname(d.region)),
   datasets:[{data:D.link6_regional.map(d=>Math.abs(d.r)),
     backgroundColor:D.link6_regional.map(d=>!d.sig?COL.weak:(d.zone==='수도권'?COL.sudo:COL.jib)),borderRadius:3}]},
   options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
@@ -608,7 +610,7 @@ new Chart(cRate,{type:'line',data:{labels:R.t.map(fy),datasets:[
 })();
 
 /* ===== cStr strength ===== */
-new Chart(cStr,{type:'bar',data:{labels:D.cycle_strength.map(d=>d.region),
+new Chart(cStr,{type:'bar',data:{labels:D.cycle_strength.map(d=>zname(d.region)),
   datasets:[{data:D.cycle_strength.map(d=>d.score),
     backgroundColor:D.cycle_strength.map(d=>d.score>=4?COL.live:(d.score<=1?COL.cut:COL.mid)),
     borderColor:D.cycle_strength.map(d=>SUDO.includes(d.region)?'#0c5f56':'rgba(0,0,0,0)'),

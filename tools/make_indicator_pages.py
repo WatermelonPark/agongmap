@@ -410,7 +410,7 @@ def build_jeonse(sts, today=None):
     trs = []
     for name, cur, ago, d in body_rows:
         trs.append('<tr%s><td>%s</td><td>%.1f%%</td><td>%s</td>%s</tr>' % (
-            ' class="agg"' if name in aggs else '', name, cur,
+            ' class="agg"' if name in aggs else '', SZ.disp(name), cur,   # 화면 이름(백로그 46)
             '·' if ago is None else '%.1f%%' % ago, cell_d(d)))
 
     nat = at('전국', li)
@@ -580,7 +580,7 @@ def build_moveins(adv, today=None):
         rf = ref.get(name)
         # 판정 열(적정물량 대비)을 지역 바로 뒤에 둔다 — 375px 에서 맨 끝이던 이 열이 화면 밖이었다(백로그 36-5).
         trs.append('<tr%s><td>%s</td>%s%s<td>%s</td></tr>' % (
-            ' class="agg"' if name == '수도권' else '', name, pct_cell(t[Y], rf),
+            ' class="agg"' if name == '수도권' else '', SZ.disp(name), pct_cell(t[Y], rf),   # 화면 이름(백로그 46)
             ''.join('<td>%s</td>' % ('·' if t[y] is None else num(t[y])) for y in years),
             '·' if not rf else num(rf)))
 
@@ -643,8 +643,8 @@ def build_moveins(adv, today=None):
 """ % dict(nat26=num(nat26), nat27=num(nat27), trs='\n'.join(trs),
            basis=MOVEINS_BASIS % (last_act[:4], last_act[5:]),
            conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
-           lo1=lo1[0], lo1p=pct_shown(ytot(lo1[0], Y) or 0, ref[lo1[0]]),
-           hi1=hi1[0], hi1p=pct_shown(ytot(hi1[0], Y) or 0, ref[hi1[0]]),
+           lo1=SZ.disp(lo1[0]), lo1p=pct_shown(ytot(lo1[0], Y) or 0, ref[lo1[0]]),
+           hi1=SZ.disp(hi1[0]), hi1p=pct_shown(ytot(hi1[0], Y) or 0, ref[hi1[0]]),
            # 연수·추정 지역·문턱은 모델 상수에서(전수 리뷰 #20, 대표 결정 ③)
            lead_y='%g년' % (SZ.LEAD_Q / 4.0), back_y='%g년' % (SZ.BACKLOG_WINDOW / 4.0), est_txt=est_regions_text(),
            occ_lo=SZ.OCC_LO_PCT, occ_hi=SZ.OCC_HI_PCT,

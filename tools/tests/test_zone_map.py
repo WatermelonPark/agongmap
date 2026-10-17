@@ -127,7 +127,7 @@ def test_page_maps_match_the_data():
         own = [t for t in tile['t'] if _in(z, t[0])]
         for k, S in series.items():
             word = '주간' if k == 'week' else '월간'
-            box = re.search(r'<svg [^>]*aria-label="%s 시군구 %s 변동률 지도">(.*?)</svg>' % (re.escape(z), word), sec, re.S)
+            box = re.search(r'<svg [^>]*aria-label="%s 시군구 %s 변동률 지도">(.*?)</svg>' % (re.escape(SZ.disp(z)), word), sec, re.S)
             if not _has_vals(S, own):                    # 원천이 이 지역 값을 비운 회차 — 그 지도는 없어야 한다
                 assert not box, '%s: %s 값이 없는데 지도가 있다' % (z, k)
                 continue
