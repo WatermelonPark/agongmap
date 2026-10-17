@@ -604,6 +604,7 @@ def outlook_text(f):
     yN = str(f['now_y'] + 1)
     keys = dict(city=f['city'], y_next=yN, n_next=num(f['by_year'].get(yN, 0)), share_next=f['share'](f['by_year'].get(yN, 0)),
                 need=num(f['need']), ann_med=f['ann_med'], ann_now=f['ann_cnt'][str(f['now_y'])],
+                ann_hh_now=num(f['ann_hh'][str(f['now_y'])]),   # 올해 공고 세대수 — 손으로 적으면 집계 규칙이 바뀔 때 갈린다(10-17 천안 11,102↔10,498)
                 je_streak=cw['sje'][1], ma_streak=cw['sma'][1], je=cw['je'], ma=cw['ma'],
                 ma_down='·'.join(g for g in f['gu_w'] if f['gu_w'][g]['sma'][0] == '-'))
     if f.get('done'):
