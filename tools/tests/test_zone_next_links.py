@@ -48,7 +48,7 @@ def _md(p, plus=0):
 
 def _block(z):
     s = _page(z)
-    m = re.search(r'<section><div class="wrap"><h2>%s 시세도 함께</h2>(.*?)</section>' % re.escape(z), s, re.S)
+    m = re.search(r'<section><div class="wrap"><h2>%s 시세도 함께</h2>(.*?)</section>' % re.escape(SZ.disp(z)), s, re.S)   # 화면 이름(백로그 46)
     return s, (m.group(1) if m else None), (m.start() if m else -1)
 
 

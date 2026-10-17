@@ -11,7 +11,7 @@
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
 // home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
 // — 하나라도 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v189'; // 홈 주간 시군구 지도 구역 머리말(백로그 45, 2026-10-16)
+const VERSION = 'v190'; // 화면 지역 이름 '광주·전남'(백로그 46, 2026-10-17)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가

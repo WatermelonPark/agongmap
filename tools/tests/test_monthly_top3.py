@@ -45,7 +45,7 @@ def _section(h, sid):
 def _rows(sec):
     out = {}
     for name, rest in re.findall(r'<tr[^>]*><th scope="row">(.*?)</th>(.*?)</tr>', sec, re.S):
-        out[name.strip()] = [_val(re.sub(r'<[^>]+>', '', c)) for c in re.findall(r'<td[^>]*>(.*?)</td>', rest, re.S)]
+        out[SZ.key_of(name.strip())] = [_val(re.sub(r'<[^>]+>', '', c)) for c in re.findall(r'<td[^>]*>(.*?)</td>', rest, re.S)]
     return out
 
 
@@ -55,7 +55,7 @@ def _top(sec):
     if not m:
         return None
     items = re.findall(r'<a href="/zone/([^/"]+)/">([^<]+)</a> ([^<·]+?)(?= · |$)', m.group(1).strip())
-    return [(urllib.parse.unquote(href), name, _val(re.sub(r'[^\d.+\-,]', '', v))) for href, name, v in items]
+    return [(urllib.parse.unquote(href), SZ.key_of(name), _val(re.sub(r'[^\d.+\-,]', '', v))) for href, name, v in items]
 
 
 # 섹션 → (표에서 '변화량'을 꺼내는 방법, 양수만 보는가)

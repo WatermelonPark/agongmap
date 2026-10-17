@@ -150,8 +150,9 @@ def conclusion(W):
     if r == 0:
         return {'p': p, 'text': HEAD_FLAT, 'dir': '', 'who': None, 'val': None, 'verb': HEAD_FLAT, 'best': best}
     verb = HEAD_UP if r > 0 else HEAD_DN
-    return {'p': p, 'text': '%s %s%%, %s' % (best[0], pv2(best[1]), verb), 'dir': sign(best[1]),
-            'who': best[0], 'val': pv2(best[1]) + '%', 'verb': verb, 'best': best}
+    who = SZ.disp(best[0])   # 화면 이름(백로그 46) — best 는 키 그대로 둔다
+    return {'p': p, 'text': '%s %s%%, %s' % (who, pv2(best[1]), verb), 'dir': sign(best[1]),
+            'who': who, 'val': pv2(best[1]) + '%', 'verb': verb, 'best': best}
 
 
 def head_payload(W):

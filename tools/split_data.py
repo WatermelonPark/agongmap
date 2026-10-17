@@ -68,7 +68,7 @@ CORE_ADV = ['sido', 'holidays']
 # 묶음 T 제보). 통계 탭(home-stats.js)이 읽는 키만 둔다 — 새 지표를 통계 탭에 올리면 여기에 적는다.
 TREND_ADV = ('sido', 'holidays', 'weekly', 'monthly', 'occupancy', 'permits', 'bubble')
 # 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다(ADV.blog, B5 · ADV.fresh).
-CORE_ONLY_ADV = ('blog', 'fresh')   # fresh: 모드 단추 N 배지(2026-10-08)
+CORE_ONLY_ADV = ('blog', 'fresh', 'zname')   # fresh: 모드 단추 N 배지(2026-10-08) · zname: 화면 이름(백로그 46)
 
 # ⚠️ 거부목록이 아니라 **허용목록**이다. 예전엔 뺄 키를 나열했더니 새로 생긴 키가
 # 아무도 안 막아준 채 홈 페이로드로 새어 나갔다 — permits.city(150KB)로 data-core가
@@ -341,6 +341,9 @@ def main():
             'note': mo.get('note', ''),
             'agg': price_agg(mo),      # 분기·연 합(원값으로 한 번, #110) — 홈 tbAgg 가 읽는다
         }
+
+    # 판정 단위 키 → 화면 이름(정본 sido_zones.DISPLAY_NAME, 백로그 46). 홈은 키로 데이터를 찾고 글자는 zn() 으로 이 표에서 읽는다.
+    core_adv['zname'] = dict(_SZ.DISPLAY_NAME)
 
     periods = fresh_periods(core_adv)
     core_adv['fresh'] = fresh_marks(periods, old_fresh(OUT), _kst.today_iso(), fresh_pub(periods))

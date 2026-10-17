@@ -446,12 +446,12 @@ def head(z, desc, title, url=None, crumb=None, desk='report'):
          "author": {"@type": "Organization", "name": "아공맵"},
          "publisher": {"@type": "Organization", "name": "아공맵"},
          "mainEntityOfPage": u,
-         "about": {"@type": "Place", "name": z}},
+         "about": {"@type": "Place", "name": SZ.disp(z)}},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "아공맵", "item": SITE + "/"},
             {"@type": "ListItem", "position": 2, "name": "시도 공급 분석", "item": SITE + "/zone/"}]
             + ([] if crumb is False else
-               [{"@type": "ListItem", "position": 3, "name": z, "item": u}])},
+               [{"@type": "ListItem", "position": 3, "name": SZ.disp(z), "item": u}])},
     ]
     return '''<!DOCTYPE html>
 <html lang="ko">
@@ -520,7 +520,7 @@ def share_section(z):
     Web Share API를 쓰면 모바일에서 카톡 포함 네이티브 시트가 열려 결과가 같으면서
     스크립트가 0바이트다. 링크만 건너가면 카톡이 og:image(share/zone-<지역>.png)를
     읽어 지역명 카드를 띄운다. 데스크톱은 클립보드로 폴백한다."""
-    e = esc(z)
+    e = esc(SZ.disp(z))
     return (
         '<section class="zshare"><div class="wrap">'
         '<p class="zsub" style="text-align:center;margin-bottom:10px">'
@@ -537,13 +537,13 @@ def share_section(z):
         'border:1.5px solid var(--ink);border-radius:3px;cursor:pointer;font-family:inherit;'
         'font-size:15px;font-weight:600;padding:13px 20px}</style>'
         '<script>function shareZone(){'
-        'var nm=%s;'
+        'var nm=%s,rk=%s;'
         'var u=location.origin+location.pathname+'
         '"?utm_source=zone_share&utm_medium=viral&utm_campaign=zone";'
         'var t=nm+" 아파트 공급 분석 — 아공맵";'
         'var x=nm+"에 필요한 집과 앞으로 들어올 집, 국가 통계로 확인해보세요.";'
         'try{gtag("event","share",{content_type:"zone",'
-        'method:navigator.share?"web_share":"copy",region:nm});}catch(e){}'
+        'method:navigator.share?"web_share":"copy",region:rk});}catch(e){}'
         'if(navigator.share){navigator.share({title:t,text:x,url:u}).catch(function(){});return;}'
         'var b=document.querySelector(".zshare-btn");'
         'function done(m){if(!b)return;var o=b.innerHTML;b.textContent=m;'
@@ -552,7 +552,7 @@ def share_section(z):
         'navigator.clipboard.writeText(t+"\\n"+u).then(function(){done("링크가 복사됐어요");})'
         '.catch(function(){done("복사 실패 — 주소창을 복사하세요");});}'
         'else{done("복사 실패 — 주소창을 복사하세요");}}</script>'
-        % (e, json.dumps(z, ensure_ascii=False)))
+        % (e, json.dumps(SZ.disp(z), ensure_ascii=False), json.dumps(z, ensure_ascii=False)))
 
 
 FOOT = '''</main>
@@ -584,17 +584,18 @@ def _write_merged_stub(path, old, new):
     하는데, noindex면 그 신호를 보기 전에 색인에서 빼버린다.
     """
     url = SITE + '/zone/' + urllib.parse.quote(new) + '/'
+    nd = SZ.disp(new)   # 화면 이름 정본(백로그 46) — 주소는 키 그대로
     h = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
          '<meta name="viewport" content="width=device-width,initial-scale=1">'
          + RM.TAG +   # 검색 로봇 메타 정본(D2) — 통합 안내도 큰 미리보기 조건을 같이 싣는다
-         '<title>%s 아파트 공급 분석 — %s로 통합 | 아공맵</title>'
+         '<title>%s 아파트 공급 분석 — %s%s 통합 | 아공맵</title>'
          '<link rel="canonical" href="%s">'
          '<meta http-equiv="refresh" content="3;url=%s">'
          '<meta name="description" content="%s의 공급 통계는 %s 페이지에서 볼 수 있습니다.">'
          '<link rel="icon" type="image/svg+xml" href="/favicon.svg">'   # 없으면 /favicon.ico 404
          '<link rel="stylesheet" href="/app.css"></head><body>'
          '<main class="wrap" style="max-width:640px;margin:12vh auto;text-align:center">'
-         '<h1 style="font-size:20px">%s %s로 합쳐졌습니다</h1>'
+         '<h1 style="font-size:20px">%s %s%s 합쳐졌습니다</h1>'
          '<p style="line-height:1.7;color:var(--muted)">국토교통부가 2026년 7월분부터 '
          '공급 통계를 <b>%s</b> 하나로 발표하기 시작했습니다. 시군구 단위 자료가 없어 '
          '두 지역을 따로 계산할 수 없게 되어, 아공맵도 판정 단위를 합쳤습니다.</p>'
@@ -602,7 +603,7 @@ def _write_merged_stub(path, old, new):
          'background:var(--ink);color:var(--paper);padding:12px 22px;border-radius:3px;'
          'text-decoration:none">%s 공급 분석 보기</a></p>'
          '<p style="font-size:12px;color:var(--muted);margin-top:18px">3초 뒤 자동으로 이동합니다.</p>'
-         '</main></body></html>') % (old, new, url, url, old, new, old + _topic(old), new, new, url, new)
+         '</main></body></html>') % (old, nd, _euro(nd), url, url, old, nd, old + _topic(old), nd, _euro(nd), nd, url, nd)
     io.open(os.path.join(path, 'index.html'), 'w', encoding='utf-8',
             newline='\n').write(h)
 
@@ -636,7 +637,7 @@ def summary_parts(z, row, calc, lab):
     d_tot = disp_tot(row, calc['H'])
     # 판정(등급 이름)을 먼저 말하고 세대수 문구를 잇는다 — ctxt 가 괄호로 끝나서('…부족(1년 적정물량의 4.2배)') 예전처럼 그 뒤에
     # '(매우 부족)'을 붙이면 괄호가 겹쳤다(2026-10-05).
-    return [('%s 아파트 공급 판정은 %s입니다. ' % (z, lab), 0), (row.get('ctxt') or signed(d_tot), 1),
+    return [('%s 아파트 공급 판정은 %s입니다. ' % (SZ.disp(z), lab), 0), (row.get('ctxt') or signed(d_tot), 1),
             ('. 앞으로 %.0f년 착공 기준 공급 ' % (calc['H'] / 4.0), 0), ('%s세대' % num(rnd(row['fut'])), 1),
             (', 분기 적정물량 ', 0), ('%s세대' % num(rnd(row['ref'])), 1),
             ('. %s 기준, 국토교통부 준공·착공 실적으로 분기마다 갱신.' % (calc.get('Ltxt') or calc['L']), 0)]
@@ -720,7 +721,7 @@ def _wk_lead(z, rows):
                    ('최근 %d주 누적은 %s입니다. ' % (WM.CUM_WEEKS, ', '.join(cum))) if cum else '', tail))
     d = [WM.direction(r['ma']) for r in rows]
     out = ['%s 시군구 %d곳 가운데 이번 주 매매가 오른 곳은 %d곳, 내린 곳은 %d곳, 보합은 %d곳입니다.'
-           % (esc(z), len(rows), d.count(1), d.count(-1), d.count(0))]
+           % (esc(SZ.disp(z)), len(rows), d.count(1), d.count(-1), d.count(0))]
     ends = []
     if d[0] == 1:
         ends.append('가장 많이 오른 곳은 %s(%s)' % (esc(rows[0]['name']), pct(rows[0]['ma'])))
@@ -800,7 +801,7 @@ def zone_map(z, k, S, tile, ctx):
         return None, ''
     names = ['매매', '전세', '월세'][:len(mets)]
     svg = MW.sgg_map_svg(vals, names, ctx['ref'][k], href=lambda c: href % c, tile=tile,
-                         label='%s 시군구 %s 변동률 지도' % (z, word),
+                         label='%s 시군구 %s 변동률 지도' % (SZ.disp(z), word),
                          max_w=round(MW.map_view_w(tile) * MW.MAP_MAX_W / MW.map_view_w(ctx['tile'])), dim=tile['dim'])
     pos = ('위', '가운데', '아래') if len(names) == 3 else ('위', '아래')
     return p, ('<div class="mm-scroll">%s</div><p class="zm-cap">%s · 지역을 누르면 그래프'
@@ -841,9 +842,9 @@ def weekly_section(z, weekly, names, monthly=None, maps=None):
     _, wmap = zone_map(z, 'week', S, tile, maps) if tile else (None, '')
     mp, mmap = zone_map(z, 'month', (monthly or {}).get('sgg') or {}, tile, maps) if tile else (None, '')
     if single:
-        title = '%s 주간 아파트 시세' % z
+        title = '%s 주간 아파트 시세' % SZ.disp(z)
     else:
-        title = '%s 시군구 %s 아파트 시세' % (z, '주간·월간' if mmap else '주간')
+        title = '%s 시군구 %s 아파트 시세' % (SZ.disp(z), '주간·월간' if mmap else '주간')
     h = ['<section class="zwk" id="weekly-sgg"><div class="wrap"><h2>%s</h2>' % esc(title)]
     if mmap:
         h.append(ZM_SEG + '<div class="zm" data-zm="week">')
@@ -858,12 +859,12 @@ def weekly_section(z, weekly, names, monthly=None, maps=None):
             pick = [r for r in pool if WM.direction(r['ma']) == d][:AGG_TOP]
             if pick:
                 h.append('<h3>매매가 가장 많이 %s %d곳</h3>' % (word, len(pick)))
-                h.append(_wk_table(pick, '%s 시군구 매매 %s 상위 %d곳' % (z, '상승' if d > 0 else '하락', len(pick))))
+                h.append(_wk_table(pick, '%s 시군구 매매 %s 상위 %d곳' % (SZ.disp(z), '상승' if d > 0 else '하락', len(pick))))
             else:
                 h.append('<h3>매매가 %s 곳</h3><p class="zwk-none">이번 주 매매가 %s 시군구는 없습니다.</p>' % (word, word))
         order = '위 표는 많이 오른 곳부터, 아래 표는 많이 내린 곳부터 적었습니다. '
     else:
-        h.append(_wk_table(rows, '%s 시군구 주간 매매·전세 변동률' % z))
+        h.append(_wk_table(rows, '%s 시군구 주간 매매·전세 변동률' % SZ.disp(z)))
         order = '' if single else '이번 주 매매 변동률이 큰 곳부터 적었습니다. '
     h.append('<p class="zsub">%s%d주는 최근 %d주 변동률을 이어 곱한 누적이고, 연속은 발표 표기(소수 '
              '둘째 자리)로 같은 방향이 이어진 주 수입니다. <a href="%s">전국 시군구 전체 표 →</a></p>'
@@ -919,7 +920,7 @@ def next_links(z, weekly, stats):
     if not cards and not year:
         return ''
     return ('<section><div class="wrap"><h2>%s 시세도 함께</h2>%s%s</div></section>'
-            % (esc(z), ('<div class="zlinks">%s</div>' % ''.join(cards)) if cards else '', year))
+            % (esc(SZ.disp(z)), ('<div class="zlinks">%s</div>' % ''.join(cards)) if cards else '', year))
 
 
 # 전세가율 기준월 한 번 계산해 둔다(19장이 같은 STATS 를 읽는다 — 보류 경고가 장마다 찍히지 않게). [계열 객체, 열 번호]
@@ -1001,7 +1002,7 @@ def page_title(z, calc, lab, p=''):
     '균형'·'공급 여유' 등급에서도 문장이 된다.
     """
     yr = SZ.outlook_year(p)
-    return '%s%s 아파트 공급물량 전망, %s 적정물량 대비 %s' % ((yr + '년 ') if yr else '', z, '%g년' % (calc['H'] / 4.0), lab)
+    return '%s%s 아파트 공급물량 전망, %s 적정물량 대비 %s' % ((yr + '년 ') if yr else '', SZ.disp(z), '%g년' % (calc['H'] / 4.0), lab)
 
 
 def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None, maps=None):
@@ -1038,7 +1039,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<h1>%s 아파트 공급</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
              '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>'
-             % (esc(z), esc(z), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
+             % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
                 esc(calc.get('Ltxt') or calc['L'])))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
@@ -1120,7 +1121,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '미래 구간에서는 적정물량 대비 모자란 정도입니다.</p>'
              '<div class="ztb-scroll"><table class="ztb" aria-label="%s의 분기별 공급">'
              '<thead><tr><th>기간</th><th>공급</th><th>적정 대비</th>'
-             '<th>매매</th><th>전세</th><th>월세</th></tr></thead><tbody>' % (esc(z), esc(z)))
+             '<th>매매</th><th>전세</th><th>월세</th></tr></thead><tbody>' % (esc(SZ.disp(z)), esc(SZ.disp(z))))
     first_fut = True
     for i, v, isfut in rows:
         cls = ''
@@ -1217,7 +1218,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
             continue
         # 허브와 같은 칸 — 판정 태그 대신 해마다 입주 신호등(2026-10-05 대표 결정)
         h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i></a>'
-                 % (urllib.parse.quote(o['z']), esc(o['z']),
+                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])),
                     lights_html(SZ.yearly_supply(stats, o['z'], Lq, calc['H']) if stats else []),
                     esc(o['rtxt'])))
     h.append('</div><p class="zsub" style="margin-top:14px">'
@@ -1392,7 +1393,7 @@ def build_hub(calc, stats=None):
     # 판정 태그(.sc-tier)는 칸에서 뺐다 — 그 자리를 해마다 입주 신호등이 맡는다(2026-10-05 대표 결정). 판정은 지도 색·리포트 본문에 남는다.
     for o in agg:
         h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
-                 % (urllib.parse.quote(o['z']), esc(o['z']), lights_html(outl[o['z']]),
+                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
                     esc(o['rtxt']), gauge_html(o)))
     h.append('</div><h2 class="z17">%d개 시도</h2>' % len(sido) +
              ''
@@ -1401,7 +1402,7 @@ def build_hub(calc, stats=None):
         h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>%s<i>%s</i>%s</a>'
                  % (urllib.parse.quote(o['z']), SZ.GRADE_KEYS.index(o['grade']),
                     disp_tot(o, calc['H']),
-                    esc(o['z']), lights_html(outl[o['z']]),
+                    esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
                     card_html(o), gauge_html(o)))
     h.append('</div></div></section>')
     h.append('<section class="zread"><div class="wrap"><h2>읽는 법</h2>%s<p class="zg-note">%s</p>%s</div></section>'

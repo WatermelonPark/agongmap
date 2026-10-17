@@ -113,7 +113,7 @@ def test_jeonse_table_compares_with_twelve_months_ago():
         cur, ago = ser[r][-1], ser[r][-13]
         d = round(cur - ago, 1)
         cls = 'up' if d > 0 else 'dn' if d < 0 else 'mut'
-        row = '<td>%s</td><td>%.1f%%</td><td>%.1f%%</td><td class="%s">%+.1f%%p</td></tr>' % (r, cur, ago, cls, d)
+        row = '<td>%s</td><td>%.1f%%</td><td>%.1f%%</td><td class="%s">%+.1f%%p</td></tr>' % (I.SZ.disp(r), cur, ago, cls, d)   # 행은 화면 이름(백로그 46)
         assert row in html, '%s 행이 12개월 전과 견주지 않았다' % r
     nat_d = round(ser['전국'][-1] - ser['전국'][-13], 1)
     assert '1년 전 대비 %+.1f%%p' % nat_d in html

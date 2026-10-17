@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v189';
+var HOME_STATS_BUILD='v190';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -189,7 +189,7 @@ function fillRegions(){
   const has=r=>{const s=D.series[r]; return !s||s.some(v=>v!=null);};
   const regs=regSort(ST.ds==='규모별'?(D.regions||[]):Object.keys(D.series).filter(has));
   if(!regs.includes(ST.reg)) ST.reg = ST.ds==='규모별'?regs[0]:(regs.includes('서울')?'서울':regs[0]);
-  sel.innerHTML=regs.map(r=>`<option${r===ST.reg?' selected':''}>${r}</option>`).join('');
+  sel.innerHTML=regs.map(r=>`<option value="${r}"${r===ST.reg?' selected':''}>${zn(r)}</option>`).join('');
 }
 /* 보조선 위치(차트 칸 번호). find 가 있으면 labels·vals 의 from~to 구간에서 최댓값·최솟값 칸, 없으면 그 연월 칸. */
 function auxPos(l,labels,vals){
@@ -241,7 +241,7 @@ function drawStat(){
      소유권이 꼬여 'Canvas is already in use'가 터지면 buildMatrix까지 못 가서
      행열 전환이 조용히 죽었다(인허가·착공·분양·준공·미분양에서 실측). */
   document.getElementById('meta-bar').innerHTML=
-    `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${ST.reg}</b></span><span>출처 <b>${D.source}</b></span>`;
+    `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${zn(ST.reg)}</b></span><span>출처 <b>${D.source}</b></span>`;
   buildTable(D,labels,vals,idx,parsed);
   buildMatrix(D,idx,parsed);
   document.getElementById('src-note').innerHTML=
@@ -327,13 +327,13 @@ function buildMatrix(D,idx,parsed){
     h=['<table class="adv"><thead><tr><th>지역</th>'+idx.map(i=>`<th>${_ymCell(parsed[i].label)}</th>`).join('')+'</tr></thead><tbody>'];
     regs.forEach(r=>{
       const f=dsFirst(D.series[r]);
-      h.push(`<tr><td>${r}</td>`+idx.map(i=>{
+      h.push(`<tr><td>${zn(r)}</td>`+idx.map(i=>{
         const v=dsV(D.series[r][i],i,f);
         return `<td>${v==null?'·':fmtN(v)}</td>`;
       }).join('')+'</tr>');
     });
   }else{
-    h=['<table class="adv"><thead><tr><th>'+(isMonthly?'연월':'연도')+'</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    h=['<table class="adv"><thead><tr><th>'+(isMonthly?'연월':'연도')+'</th>'+regs.map(r=>`<th>${zn(r)}</th>`).join('')+'</tr></thead><tbody>'];
     for(let k=idx.length-1;k>=0;k--){
       const i=idx[k];
       h.push(`<tr><td>${_ymCell(parsed[i].label)}</td>`+regs.map(r=>{
@@ -547,7 +547,7 @@ function drawSizePivot(){
   document.getElementById('prange').innerHTML=idx.length?
     `<b>${_ymT(D.dates[idx[0]])}</b> ~ <b>${_ymT(D.dates[idx[idx.length-1]])}</b> · ${idx.length}개월`:'';
   document.getElementById('meta-bar').innerHTML=
-    `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${reg}</b></span><span>출처 <b>${D.source}</b></span>`;
+    `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${zn(reg)}</b></span><span>출처 <b>${D.source}</b></span>`;
   document.getElementById('src-note').innerHTML=
     `※ ${D.note}. 총계 대신 규모별로 보면 초소형(오피스텔성) 물량의 왜곡 없이 시장을 읽을 수 있다.`;
 }
@@ -587,7 +587,7 @@ function advSel(id, regions){
   const s=document.getElementById(id);
   if(s.options.length) return s.value;
   const list=regSort(regions);
-  s.innerHTML=list.map(r=>`<option value="${r}">${r}</option>`).join('');
+  s.innerHTML=list.map(r=>`<option value="${r}">${zn(r)}</option>`).join('');
   return list[0];
 }
 /* --- 인허가 --- */
@@ -605,10 +605,10 @@ function renderAdvPermits(){
   if(TRANSP.permit){
     mx=['<table class="adv"><thead><tr><th>지역</th>'+P.rows.map(r=>`<th>${plab(r.p)}</th>`).join('')+'</tr></thead><tbody>'];
     regs.forEach((r,j)=>{
-      mx.push(`<tr><td>${r}</td>`+P.rows.map(row=>`<td class="${permitCls(r,row.v[j])}">${advFmt(row.v[j])}</td>`).join('')+'</tr>');
+      mx.push(`<tr><td>${zn(r)}</td>`+P.rows.map(row=>`<td class="${permitCls(r,row.v[j])}">${advFmt(row.v[j])}</td>`).join('')+'</tr>');
     });
   }else{
-    mx=['<table class="adv"><thead><tr><th>반기</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    mx=['<table class="adv"><thead><tr><th>반기</th>'+regs.map(r=>`<th>${zn(r)}</th>`).join('')+'</tr></thead><tbody>'];
     for(let i=P.rows.length-1;i>=0;i--){
       const row=P.rows[i];
       mx.push(`<tr><td>${plab(row.p)}</td>`+
@@ -621,7 +621,7 @@ function renderAdvPermits(){
   const pw=document.getElementById('permit-when'), pl=P.rows.length?P.rows[P.rows.length-1].p:'';
   if(pw)pw.textContent=pl?pl.replace(/^(\d{4})H([12])$/,(_,y,h)=>y+'년 '+(h==='1'?'상':'하')+'반기')+' 기준 · ':'';
   const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
-  const cp=['<table class="adv"><thead><tr><th>반기</th><th>'+reg+'</th></tr></thead><tbody>'];
+  const cp=['<table class="adv"><thead><tr><th>반기</th><th>'+zn(reg)+'</th></tr></thead><tbody>'];
   for(let i=P.rows.length-1;i>=Math.max(0,P.rows.length-12);i--){
     const row=P.rows[i], v=row.v[ri];
     cp.push(`<tr><td>${row.p.replace('H1',' 상').replace('H2',' 하')}</td><td class="${permitCls(reg,v)}">${advFmt(v)}</td></tr>`);
@@ -661,13 +661,13 @@ function renderAdvOcc(){
        현재 분기가 이미 추정 구간이라 특히 그렇다(2026-08-08 감사). 글로도 붙인다. */
     mx=['<table class="adv"><caption class="sr-only">지역별 분기 입주물량. 별표(*)가 붙은 분기는 착공 실적으로 추정한 값입니다.</caption><thead><tr><th scope="col">지역</th>'+O.rows.map(r=>`<th scope="col"${occEst(r)?' style="color:#9a7000" title="착공 기준 추정"':''}>${r.p.slice(2)}${occEst(r)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`).join('')+'</tr></thead><tbody>'];
     regs.forEach((r,j)=>{
-      mx.push(`<tr><td>${r}</td>`+O.rows.map(row=>{
+      mx.push(`<tr><td>${zn(r)}</td>`+O.rows.map(row=>{
         const cls=[occCls(r,row.v[j]),occEst(row)?'fut':''].filter(Boolean).join(' ');
         return `<td class="${cls}">${occFmt(row.v[j])}</td>`;
       }).join('')+'</tr>');
     });
   }else{
-    mx=['<table class="adv"><thead><tr><th>분기</th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    mx=['<table class="adv"><thead><tr><th>분기</th>'+regs.map(r=>`<th>${zn(r)}</th>`).join('')+'</tr></thead><tbody>'];
     for(let i=O.rows.length-1;i>=0;i--){
       const row=O.rows[i];
       mx.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row"${occEst(row)?' title="착공 기준 추정"':''}>${row.p.slice(2)}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th>`+
@@ -679,7 +679,7 @@ function renderAdvOcc(){
   const reg=advSel('adv-occ-reg',regs), ri=regs.indexOf(reg), ref=O.ref[reg];
   const rows=O.rows, ci=rows.findIndex(r=>occEst(r));
   const start=Math.max(0,(ci<0?rows.length:ci)-6), end=Math.min(rows.length,(ci<0?rows.length:ci)+6);
-  const cp=['<table class="adv"><thead><tr><th>분기</th><th>'+reg+'</th></tr></thead><tbody>'];
+  const cp=['<table class="adv"><thead><tr><th>분기</th><th>'+zn(reg)+'</th></tr></thead><tbody>'];
   for(let i=end-1;i>=start;i--){
     const row=rows[i], v=row.v[ri];
     cp.push(`<tr class="${occEst(row)?'fut':''}"><th scope="row">${row.p.slice(2)}${occEst(row)?'<abbr title="착공 기준 추정">*</abbr>':''}</th><td class="${occCls(reg,v)}">${occFmt(v)}</td></tr>`);
@@ -883,7 +883,7 @@ function fillSggSel(k,keep){
   const list=sggOfSido(W,sido);
   if(!list.length){ sub.hidden=true; sub.innerHTML=''; return; }
   sub.hidden=false;
-  sub.innerHTML='<option value="">'+sido+' 전체</option>'+
+  sub.innerHTML='<option value="">'+zn(sido)+' 전체</option>'+
     regSort(list,c=>SGG_QNAME[c]||c).map(c=>'<option value="'+c+'">'+SGG_QNAME[c]+'</option>').join('');
   if(keep&&list.indexOf(keep)>=0)sub.value=keep;
 }
@@ -894,7 +894,7 @@ function fillTrendReg(k,regs){
   const s=document.getElementById(TREND[k].sel); if(!s)return '';
   if(!s.options.length){
     s.innerHTML='<option value="">전체 지역</option>'+
-      regSort(regs).map(r=>'<option value="'+r+'">'+r+'</option>').join('');
+      regSort(regs).map(r=>'<option value="'+r+'">'+zn(r)+'</option>').join('');
   }
   return s.value;
 }
@@ -977,12 +977,12 @@ function renderTrendTables(k){
   if(TRANSP[k]){
     mx=['<table class="adv"><thead><tr><th>지역</th><th></th>'+R.map(r=>`<th>${T.lab(r.p)}</th>`).join('')+'</tr></thead><tbody>'];
     regs.forEach((r,ri)=>{
-      mx.push(`<tr><td rowspan="${nSub}">${r}</td><td style="position:static;text-align:left;color:var(--muted);font-weight:600">매매</td>`+R.map(row=>wkCell(row.ma[ri])).join('')+'</tr>');
+      mx.push(`<tr><td rowspan="${nSub}">${zn(r)}</td><td style="position:static;text-align:left;color:var(--muted);font-weight:600">매매</td>`+R.map(row=>wkCell(row.ma[ri])).join('')+'</tr>');
       mx.push(`<tr><td style="position:static;text-align:left;color:var(--muted);font-weight:600">전세</td>`+R.map(row=>wkCell(row.je[ri])).join('')+'</tr>');
       if(hasWo)mx.push(`<tr><td style="position:static;text-align:left;color:var(--muted);font-weight:600">월세</td>`+R.map(row=>wkCell((row.wo||[])[ri])).join('')+'</tr>');
     });
   }else{
-    mx=['<table class="adv"><thead><tr><th>'+T.col+'</th><th></th>'+regs.map(r=>`<th>${r}</th>`).join('')+'</tr></thead><tbody>'];
+    mx=['<table class="adv"><thead><tr><th>'+T.col+'</th><th></th>'+regs.map(r=>`<th>${zn(r)}</th>`).join('')+'</tr></thead><tbody>'];
     for(let i=R.length-1;i>=0;i--){
       const row=R[i], label=T.lab(row.p);
       mx.push(`<tr><td rowspan="${nSub}">${label}</td><td style="position:static;text-align:left;color:var(--muted);font-weight:600">매매</td>`+row.ma.map(wkCell).join('')+'</tr>');
@@ -1239,7 +1239,7 @@ function bbToggle(row){
   if(!wasOpen){
     d.style.display='block';
     row.setAttribute('aria-expanded','true');
-    track('bubble_detail',{region:row.querySelector('.bb-lab').textContent});
+    track('bubble_detail',{region:row.dataset.r});   // GA 값은 키(이름표는 zn 화면 이름, 백로그 46)
   }
 }
 function renderBubbleSec(){
@@ -1283,7 +1283,7 @@ function renderBubbleSec(){
     const redIn=(pH+NW>98)||(pN>pH&&pN<pH+NW);
     const blueSt='left:'+blueAnc+'%;transform:translate(calc(-100% - 3px),-50%);color:#1a5276';
     const redSt=redIn?'left:'+pH+'%;transform:translate(calc(-100% - 3px),-50%);color:#a93226':'left:'+pH+'%;transform:translate(3px,-50%);color:#a93226';
-    h+='<div class="bb-row" role="button" tabindex="0" aria-expanded="false" onclick="bbToggle(this)" onkeydown="rowKey(event,this)"><span class="bb-lab">'+rg+'</span>'
+    h+='<div class="bb-row" data-r="'+rg+'" role="button" tabindex="0" aria-expanded="false" onclick="bbToggle(this)" onkeydown="rowKey(event,this)"><span class="bb-lab">'+zn(rg)+'</span>'
       +'<div class="bb-track" title="월세수익률 '+lo.toFixed(2)+'% ~ 위험선 '+hi.toFixed(2)+'% · 대출금리 '+loan.toFixed(2)+'%">'
       +'<div class="bb-band" style="left:'+px(lo)+'%;width:'+Math.max(2,px(hi)-px(lo))+'%"></div>'
       +'<div class="bb-loan" style="left:'+px(loan)+'%"></div>'

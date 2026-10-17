@@ -165,7 +165,7 @@ def main():
         px, py = ox + x * (TW + G), oy + y * (TH + G)
         v = val.get(name)
         d.rounded_rectangle((px, py, px + TW, py + TH), 16, fill=cell_bg(v), outline=LINE, width=2)
-        d.text((px + TW // 2, py + 34), name, font=noto(30), fill=INK, anchor='mm')
+        d.text((px + TW // 2, py + 34), _SZ.disp(name), font=noto(30), fill=INK, anchor='mm')   # 화면 이름(백로그 46)
         # 글자색도 표시값 기준(pv2r) — 원값으로 정하면 '0.00'이 빨강/파랑으로 갈린다
         rv = pv2r(v) or 0
         tc = (143, 35, 24) if rv > 0 else ((18, 60, 92) if rv < 0 else MUTED)
@@ -179,10 +179,10 @@ def main():
     up3, dn3 = summary_top3(regs, row)
     sy = oy + 5 * TH + 4 * G + 34
     if up3:
-        d.text((IW // 2, sy), '상승: ' + ' · '.join('%s %s' % (r, fmt(v)) for r, v in up3),
+        d.text((IW // 2, sy), '상승: ' + ' · '.join('%s %s' % (_SZ.disp(r), fmt(v)) for r, v in up3),
                font=noto(24), fill=(143, 35, 24), anchor='mm')
     if dn3:
-        d.text((IW // 2, sy + 36), '하락: ' + ' · '.join('%s %s' % (r, fmt(v)) for r, v in dn3),
+        d.text((IW // 2, sy + 36), '하락: ' + ' · '.join('%s %s' % (_SZ.disp(r), fmt(v)) for r, v in dn3),
                font=noto(24), fill=(18, 60, 92), anchor='mm')
 
     # 푸터
