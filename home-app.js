@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v190';
+const HOME_BUILD='v191';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1160,8 +1160,8 @@ function aggLights(z){
   return '<span class="zl" role="img" aria-label="'+(z.ya||'')+'">'
     +z.yl.map(function(y){ return '<span class="zl-d '+y.k+'">'+y.n+'</span>'; }).join('')+'</span>';
 }
-/* 신호등 범례 — 짧은 한 줄을 지도 아래 출처 줄(#lt-key)에 둔다(2026-10-06 대표 지적 — 카드 바로 아래 두 줄 범례는 장황하고
-   콘텐츠 위를 가렸다. 문턱 70·130%는 지역 탭 '읽는 법'·FAQ 가 말한다). 이름은 ADV.sido.ylg(sido_zones.light_legend). */
+/* 신호등 범례 — 짧은 한 줄을 공급 기준 줄 끝(#lt-key)에 둔다. 2026-10-06 에 카드 아래 두 줄 범례를 지도 아래로 걷었고, 2026-10-17
+   대표 요청으로 기준 줄째 카드 바로 아래(지도/그래프/표 단추 왼쪽)로 다시 올렸다. 문턱 70·130%는 지역 탭 '읽는 법'·FAQ 가 말한다). 이름은 ADV.sido.ylg(sido_zones.light_legend). */
 function aggLightKey(z){
   var g=ADV.sido&&ADV.sido.ylg; if(!g||!g.length||!z||!z.yl) return '';
   var ns=z.yl.map(function(y){ return y.n; }).join('·');   // 해 수는 실린 값에서 센다(손으로 '1·2·3'을 적지 않는다)
