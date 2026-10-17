@@ -1240,7 +1240,30 @@ def thumb_chip(nm, yr):
     return '%s%s 아파트 공급 전망' % ((yr + '년 ') if yr else '', SEARCH_NAME.get(nm, nm))
 
 
-def thumb_zone(r, yr, yrs, sts=None, msg=None):
+def _thumb_bars(adv, nm):
+    """지역 편 썸네일 배경 — 그 지역의 해마다 아파트 입주(사이트 분기 공급표 adv['occupancy'] 를 해 단위로 더한 것)와
+    연 적정물량. 네 분기를 다 채운 해만 쓴다. 못 쓰면 None.
+
+    2026-10-17 대표 지적: "썸네일에 그래프가 똑같은 거 계속 갖다 쓰는 것 같다." 10년 매매지수 곡선은 시도마다 달라도
+    2021년 정점 모양이 거의 같아(서울·경기·세종) 피드에서 같은 그림으로 보였고, 글의 주제(공급)와도 무관했다.
+    입주 막대는 지역마다 모양이 확연히 다르고(대구는 2023~24 정점 뒤 절벽, 대전은 앞으로가 높다) 글이 말하는 것을 그린다."""
+    o = (adv or {}).get('occupancy') or {}
+    if nm not in (o.get('regions') or []):
+        return None
+    i = o['regions'].index(nm)
+    acc = {}
+    for row in o.get('rows') or []:
+        y = row['p'][:4]
+        v, n, e = acc.get(y, (0.0, 0, False))
+        acc[y] = (v + (row['v'][i] or 0), n + 1, e or bool(row.get('e')))
+    ys = [(y, v, e) for y, (v, n, e) in sorted(acc.items()) if n == 4]
+    ref = (o.get('ref') or {}).get(nm)
+    if len(ys) < 6 or not ref:
+        return None
+    return ys, ref * 4
+
+
+def thumb_zone(r, yr, yrs, sts=None, msg=None, adv=None):
     """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (1200x900).
 
     2026-09-17 실측: 발행 12편의 대표 이미지가 전부 사이트 캡처였다. 글자가 빽빽해
@@ -1260,11 +1283,12 @@ def thumb_zone(r, yr, yrs, sts=None, msg=None):
     curve = _thumb_curve(sts, nm)
     lines = [x for x in (msg or thumb_message(nm, curve)) if x.strip()][:3]
     return _draw_thumb(THUMB_GROUP.get(nm, '수도권'), curve, thumb_chip(nm, yr), lines,
-                       os.path.join(OUT, 'thumb-%s.png' % nm), msg)
+                       os.path.join(OUT, 'thumb-%s.png' % nm), msg, bars=_thumb_bars(adv, nm))
 
 
-def _draw_thumb(group, curve, chip, lines, path, msg):
-    """썸네일 한 장을 그린다 — 지역 편(thumb_zone)·주간 글(thumb_weekly)이 같이 쓴다. 디자인 규칙은 thumb_zone 설명 그대로."""
+def _draw_thumb(group, curve, chip, lines, path, msg, bars=None):
+    """썸네일 한 장을 그린다 — 지역 편(thumb_zone)·주간 글(thumb_weekly)이 같이 쓴다. 디자인 규칙은 thumb_zone 설명 그대로.
+    bars = (연도별 [(연도, 세대수, 추정 여부)], 연 적정물량) 이면 곡선 대신 그 지역의 해마다 입주 막대를 깐다(_thumb_bars)."""
     from PIL import Image, ImageDraw
     import make_zone_cards as ZC
     Wd, Ht, K = 1200, 900, 2                      # K배로 그려 줄인다(곡선 계단 방지)
@@ -1276,7 +1300,22 @@ def _draw_thumb(group, curve, chip, lines, path, msg):
     d = ImageDraw.Draw(img)
     F = lambda size, w='Bold': ZC.font(size * K, w)
 
-    if curve:
+    if bars:
+        ys, ref = bars
+        top = max([v for _, v, _ in ys] + [ref]) * 1.08
+        x0, x1, yb, yt = 30, Wd - 30, Ht - 40, 170
+        bw = (x1 - x0) / len(ys)
+        for i, (_, v, est) in enumerate(ys):
+            h = (yb - yt) * v / top
+            box = [(x0 + bw * i + bw * .14) * K, (yb - h) * K, (x0 + bw * (i + 1) - bw * .14) * K, yb * K]
+            # 지난 해는 채우고, 착공으로 추정한 앞으로의 해는 테두리만 — 실적과 추정을 한눈에 가른다.
+            d.rectangle(box, fill=BG if est else FILL, outline=DIM, width=(4 if est else 0) * K)
+        yr_ = yb - (yb - yt) * ref / top
+        xx = x0
+        while xx < x1:                              # 연 적정물량 점선
+            d.line([xx * K, yr_ * K, min(xx + 16, x1) * K, yr_ * K], fill=DIM, width=4 * K)
+            xx += 30
+    elif curve:
         pts = curve[0]
         lo, hi = min(v for _, v in pts), max(v for _, v in pts)
         x0, x1, yb, yt = 0, Wd, Ht - 40, 150
@@ -1337,8 +1376,41 @@ def thumb_weekly(W, sts=None, msg=None):
         if up:
             msg.append('*%s %s*' % (SEARCH_NAME.get(up[0][0], up[0][0]), pct(up[0][1])))
     chip = '%s 아파트값' % MW.WR.week_label(p)
-    return _draw_thumb('수도권', _thumb_curve(sts, '전국'), chip, msg,
+    focus = _weekly_focus(W, sys.argv)
+    return _draw_thumb(THUMB_GROUP.get(focus, '수도권'), _weekly_curve(W, focus) or _thumb_curve(sts, '전국'), chip, msg,
                        os.path.join(OUT, 'thumb-weekly-%s.png' % p), msg if '--weekly-thumb-msg' in sys.argv else None)
+
+
+def _weekly_focus(W, argv):
+    """주간 썸네일 곡선의 지역 — --weekly-thumb-region 이 있으면 그 지역, 없으면 그 주 매매 상승 1위 시도.
+    2026-10-17 대표 지적("썸네일 그래프가 매번 같다"): 예전엔 매주 전국 10년 지수를 깔아 회차마다 같은 그림이었다."""
+    reg = W['regions']
+    if '--weekly-thumb-region' in argv:
+        i = argv.index('--weekly-thumb-region')
+        if i + 1 < len(argv):
+            rev = {v: k for k, v in SEARCH_NAME.items()}
+            z = rev.get(argv[i + 1], argv[i + 1])
+            if z in reg:
+                return z
+    last = W['rows'][-1]
+    sido = [(z, v) for z, v in zip(reg, last['ma']) if z not in SZ.AGG and v is not None]
+    up, _ = MW.top3(sido)
+    return up[0][0] if up else '전국'
+
+
+def _weekly_curve(W, nm, n=52):
+    """그 지역의 최근 n주 매매 누적 곡선(주간 변동률을 곱해 이은 것). (점 목록, None, None) — 못 쓰면 None."""
+    if nm not in W['regions']:
+        return None
+    i = W['regions'].index(nm)
+    v, pts = 100.0, []
+    for row in W['rows'][-n:]:
+        x = row['ma'][i]
+        if x is None:
+            continue
+        v *= 1 + x / 100
+        pts.append((row['p'], v))
+    return (pts, None, None) if len(pts) >= 12 else None
 
 
 def _streak(W, i):
@@ -1609,7 +1681,7 @@ def draft_zone(adv, sts, r, seq, total):
         shot, shots, err = capture_zone(nm)
     thumb = None
     try:
-        thumb = thumb_zone(r, yr, yrs, sts, _thumb_msg_arg(sys.argv))
+        thumb = thumb_zone(r, yr, yrs, sts, _thumb_msg_arg(sys.argv), adv=adv)
     except Exception as e:    # 썸네일이 없어도 초안은 나간다
         print('  ⚠ 썸네일 생략 — %s: %s' % (type(e).__name__, e))
     if shot:
