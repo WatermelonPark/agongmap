@@ -597,6 +597,45 @@ def _wk(p, n):
     return ((datetime.date(y, m, d) - ROT_ANCHOR).days // 7 + ROT_SHIFT) % n
 
 
+# 주간 글 제목 두 꼴(2026-10-17 조사, A/B). 'bar'는 2026-09-12 형식 교체 뒤 쓰던 '[기관] 라벨(주차) | 결론절'.
+# 'paren'은 '[기관] 라벨 주차 (결론절)' — 부동산 커뮤니티의 데이터형 연재 글이 "YYYY년 N월 ○○ 정리 (한 줄 결론)"
+# 꼴로 같은 요일에 이어 올리며 조회 중앙값 1만을 꾸준히 내고, 그 제목의 56%가 괄호 부제였다. 우리 주간 글도 매주
+# 같은 요일에 같은 틀로 나가는 연재라 같은 구조를 실험한다. 라벨 '주간 아파트가격 동향'(MW.TITLE_KW)은 데이터랩
+# 실측으로 고른 검색어라 두 꼴 모두 그대로 둔다. 어느 꼴인지는 조사일의 주 번호(_wk)로 2주씩 번갈아 정한다 —
+# 난수면 검토본과 발행본이 어긋나고, 매주 바꾸면 한 꼴의 표본이 한 주마다 끊긴다.
+WEEKLY_TITLE_FORMS = ('bar', 'paren')
+WEEKLY_TITLE_RUN = 2    # 한 꼴을 이어 쓰는 주 수
+
+
+def weekly_title_form(p):
+    """조사일 p 의 주간 제목 꼴('bar' | 'paren'). WEEKLY_TITLE_RUN 주씩 번갈아 나온다."""
+    return WEEKLY_TITLE_FORMS[_wk(p, WEEKLY_TITLE_RUN * len(WEEKLY_TITLE_FORMS)) // WEEKLY_TITLE_RUN]
+
+
+def weekly_title(p, tail):
+    """주간 글 제목. tail 은 결론절(초안 기본값은 '서울 +0.16% 전국 +0.10%', 해석을 쓴 뒤 한 줄 결론으로 바꾼다).
+    주차 서수는 weekly_release.week_label 하나에서 만든다 — /weekly/ title·머리줄과 같은 이름(홈 마케팅 검수 B4·SEO-4).
+    라벨 말도 /weekly/ title 과 같은 상수(MW.TITLE_KW)다."""
+    if weekly_title_form(p) == 'paren':
+        return '[한국부동산원] %s %s (%s)' % (MW.TITLE_KW, MW.WR.week_label(p), tail)
+    return '[한국부동산원] %s(%s) | %s' % (MW.TITLE_KW, MW.WR.week_label(p), tail)
+
+
+def weekly_title_note(form):
+    """초안 제목 칸 아래 안내문(HTML). 숫자를 기본값으로 두되(기계가 확실히 아는 값), 해석을 쓴 뒤에는 결론절로 바꾸는 게
+    낫다. 검색결과는 30자쯤만 보여줘서 뒤쪽 숫자가 잘리고, 무엇보다 +0.21%가 큰지 작은지는 들어와야 안다. 결론은 클릭
+    전에도 뜻이 통한다 — 우리 제목으로 검색했을 때 1위였던 글이 그 형태였다(2026-08-15). 괄호 꼴은 앞머리가 그대로 보인
+    채 부제가 뒤에 붙는 자리라 20자 안팎으로 짧게 권한다(비교 대상 연재의 부제 길이)."""
+    if form == 'paren':
+        return ('✍ 해석을 쓴 뒤 <b>괄호 안</b>을 <b>결론 한 줄</b>로 바꾸세요(이번 회차는 괄호 부제 꼴 — 2주씩 번갈아 '
+                '시험 중). 예: <code>[한국부동산원] 주간 아파트가격 동향 10월 둘째 주 (비강남이 끌어 서울 88주째 상승)</code>. '
+                '괄호 안은 <b>20자 안팎</b>이 알맞습니다 — 앞머리까지 다 보인 채 한 줄 결론이 따라붙는 자리라 길면 잘립니다. '
+                '앞부분은 이 장르의 관례라 그대로 둡니다.')
+    return ('✍ 해석을 쓴 뒤 <code>|</code> 뒤를 <b>결론 한 줄</b>로 바꾸세요(이번 회차는 세로줄 꼴 — 2주씩 번갈아 시험 중). '
+            '예: <code>[한국부동산원] 주간 아파트가격 동향(9월 둘째 주) | 강남 3구가 모두 내렸고 22개 구는 올랐습니다</code>. '
+            '앞부분은 이 장르의 관례라 그대로 두고, 숫자는 검색결과에서 잘리니 결론으로 바꿉니다.')
+
+
 DISCLAIMERS = (
     '※ 숫자는 한국부동산원·국토교통부·KOSIS·한국은행 공개 데이터를 가공한 것이고, <b>판단과 전망은 글쓴이 개인의 견해</b>'
     '입니다. 투자 결정과 그 결과는 읽는 분의 몫이에요.',
@@ -619,11 +658,23 @@ def disclaimer(k):
 _TITLE_GENERIC = (r'\d+\s*분기', r'\d{4}\s*년', r'\d+\s*월', '모자')
 
 
-def title_warnings(title):
-    """결론절(첫 쉼표 또는 ' | ' 뒤)에 일반어가 있으면 경고 문장 목록. 앞머리(검색어 자리)의 연도는 규칙상 넣는 것이라 보지 않는다."""
+def title_tail(title):
+    """제목의 결론절. ' | ' 뒤(주간 bar 꼴) → 제목 끝 괄호 부제 안(주간 paren 꼴) → 첫 쉼표 뒤(지역·도시 편) 순서로 찾고,
+    셋 다 없으면 ''. 괄호 부제를 보지 않으면 paren 꼴 주간 글의 결론절은 검사에서 통째로 빠진다."""
     cut = title.find(' | ')
-    head_end = cut + 3 if cut >= 0 else title.find(',') + 1
-    tail = title[head_end:] if head_end > 0 else ''
+    if cut >= 0:
+        return title[cut + 3:]
+    m = re.search(r'\(([^()]*)\)\s*$', title)
+    if m:
+        return m.group(1)
+    cut = title.find(',')
+    return title[cut + 1:] if cut >= 0 else ''
+
+
+def title_warnings(title):
+    """결론절(title_tail — ' | ' 뒤, 끝 괄호 부제 안, 첫 쉼표 뒤)에 일반어가 있으면 경고 문장 목록.
+    앞머리(검색어 자리)의 연도는 규칙상 넣는 것이라 보지 않는다."""
+    tail = title_tail(title)
     out = []
     for pat in _TITLE_GENERIC:
         m = re.search(pat, tail)
@@ -814,10 +865,9 @@ def draft_weekly(adv, sts, shot=True):
     # 자동완성 실측에서 '주간시장동향'은 제안어가 0개인 반면 '주간아파트'를 치면
     # 첫 제안이 '주간아파트가격동향'이었다(검색량 절대값은 우리 키로 못 잰다 —
     # 데이터랩·검색광고 API 모두 인증 불가). 사람이 실제로 치는 말로 라벨을 맞춘다.
-    # 주차 서수는 weekly_release.week_label 하나에서 만든다 — /weekly/ title·머리줄과 같은 이름(홈 마케팅 검수 B4·SEO-4).
-    # 라벨 말도 /weekly/ title 과 같은 상수(MW.TITLE_KW)다.
-    title = '[한국부동산원] %s(%s) | 서울 %s 전국 %s' % (
-        MW.TITLE_KW, MW.WR.week_label(p), pct(seoul[0]), pct(nat[0]))
+    #
+    # 2026-10-17 연재형 괄호 부제 꼴을 A/B 로 더했다(weekly_title·weekly_title_form 주석).
+    title = weekly_title(p, '서울 %s 전국 %s' % (pct(seoul[0]), pct(nat[0])))
 
     rowsHtml = ''
     for k in [z for z in SZ.DISPLAY_ORDER if z in WEEKLY_TABLE]:
@@ -948,7 +998,7 @@ def draft_weekly(adv, sts, shot=True):
         sggnote = ('<b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)%s<br>' % (
             thumb, '' if _weekly_thumb_msg_arg(sys.argv) else
             ' — ⚠ 문구가 기본값입니다. 결론이 서면 <code>--weekly-thumb-msg "첫 줄|*둘째 줄*"</code>로 다시 만드세요')) + sggnote
-    return dict(title=title, body='\n'.join(body), tags=tags, kw='주간아파트가격동향',
+    return dict(title=title, title_form=weekly_title_form(p), body='\n'.join(body), tags=tags, kw='주간아파트가격동향',
                 img=(sgg or None), imgnote=sggnote,
                 # 본문 자리 표시자 순서대로(TOP10 → 지도). img_gallery 가 초안 안에 싣는다.
                 imgs=[(thumb, '썸네일 · 글 맨 위, 대표 이미지'), (top10, '상승·하락 TOP10'), (sgg, '전국 시군구 지도')])
@@ -2396,15 +2446,8 @@ def render(p, d1, d2):
         for w in title_warnings(d['title']):
             S.append('<p class="note">⚠ %s</p>' % esc(w))
         if i == 1:
-            # 숫자를 기본값으로 두되(기계가 확실히 아는 값), 해석을 쓴 뒤에는
-            # 결론절로 바꾸는 게 낫다. 검색결과는 30자쯤만 보여줘서 뒤쪽 숫자가
-            # 잘리고, 무엇보다 +0.21%가 큰지 작은지는 들어와야 안다. 결론은
-            # 클릭 전에도 뜻이 통한다 — 우리 제목으로 검색했을 때 1위였던 글이
-            # 그 형태였다(2026-08-15).
-            S.append('<p class="note">✍ 해석을 쓴 뒤 <code>|</code> 뒤를 <b>결론 한 줄</b>로 '
-                     '바꾸세요. 예: <code>[한국부동산원] 주간 아파트가격 동향(9월 둘째 주) | '
-                     '강남 3구가 모두 내렸고 22개 구는 올랐습니다</code>. 앞부분은 이 장르의 '
-                     '관례라 그대로 두고, 숫자는 검색결과에서 잘리니 결론으로 바꿉니다.</p>')
+            # 제목 꼴(세로줄·괄호 부제)에 맞는 안내 — 왜 결론절인지는 weekly_title_note 독스트링.
+            S.append('<p class="note">%s</p>' % weekly_title_note(d.get('title_form')))
         S.append(field('본문', 'b%d' % i, d['body']))
         # imgnote는 완결된 안내문이다. 예전엔 문장 안에 끼워 넣는 구조였는데,
         # 이미지가 여러 장이 되면서 문장이 깨졌다(2026-08-16).

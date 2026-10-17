@@ -47,11 +47,21 @@ def test_blog_title_uses_the_same_label_function_and_words():
     """블로그 주간 초안 제목이 /weekly/ 와 같은 함수(week_label)·같은 말(TITLE_KW)을 쓴다 — 사본 서수표가 남지 않는다.
 
     변이: make_naver_post 에 예전 `ORD = ('첫째', …)` 계산을 되살리거나 라벨을 문자열로 다시 적으면 빨개진다(확인).
+    2026-10-17 제목 두 꼴(weekly_title 의 'bar'·'paren')이 생겨 원문 한 줄 대신 두 꼴의 포맷 문자열과, 실제 제목에 라벨·주차가
+    들어가는지를 본다 — 어느 한 꼴에서 라벨을 글자로 다시 적으면 빨개진다(확인).
     """
     src = io.open(os.path.join(ROOT, 'tools', 'make_naver_post.py'), encoding='utf-8').read()
     assert "'첫째'" not in src and 'ORD[' not in src
-    assert "'[한국부동산원] %s(%s) | 서울 %s 전국 %s' % (\n        MW.TITLE_KW, MW.WR.week_label(p)" in src
+    assert "'[한국부동산원] %s %s (%s)' % (MW.TITLE_KW, MW.WR.week_label(p), tail)" in src
+    assert "'[한국부동산원] %s(%s) | %s' % (MW.TITLE_KW, MW.WR.week_label(p), tail)" in src
     assert MW.TITLE_KW == '주간 아파트가격 동향'
+    import make_naver_post as P
+    seen = set()
+    for p in ('2026-10-12', '2026-10-26'):        # 괄호 꼴·세로줄 꼴 한 번씩
+        t = P.weekly_title(p, '결론')
+        seen.add(P.weekly_title_form(p))
+        assert t.startswith('[한국부동산원] ' + MW.TITLE_KW) and WR.week_label(p) in t and t.endswith(('(결론)', '| 결론')), t
+    assert seen == {'bar', 'paren'}
 
 
 def _week(p='2026-09-21'):
