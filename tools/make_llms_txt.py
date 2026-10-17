@@ -152,7 +152,7 @@ def build(root=ROOT, sitemap_xml=None):
             note = '시도 리포트'
         else:
             note = '리포트'
-        out.append(item('%s 아파트 공급' % name, loc, note))
+        out.append(item('%s 아파트 공급' % SZ.disp(name), loc, note))   # 화면 이름(백로그 46) — 주소는 키 그대로
     out += ['',
             '## 시세와 통계', '',
             item('주간 아파트 시세', base + '/weekly/',

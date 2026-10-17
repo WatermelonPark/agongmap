@@ -70,6 +70,7 @@ def test_region_rows_match_the_model(html):
     import sys, os
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
     import sido_zones as SZ
+    names = [SZ.key_of(n) for n in names]   # 화면 이름 → 키(백로그 46 — 행 머리는 '광주·전남')
     assert '전남광주' in names, '통합 지역이 화면에 없다'
     assert '광주' not in names and '전남' not in names, '통합 전 이름이 남아 있다'
     unknown = [n for n in names if n not in SZ.REF_Q]

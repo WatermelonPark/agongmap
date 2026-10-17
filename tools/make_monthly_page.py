@@ -329,7 +329,7 @@ def table(head, rows, note=''):
         if tds is None:
             continue
         body.append('<tr%s><th scope="row">%s</th>%s</tr>'
-                    % (' class="agg"' if r in AGG else '', esc(r), tds))
+                    % (' class="agg"' if r in AGG else '', esc(SZ.disp(r)), tds))   # 화면 이름(백로그 46) — 원천 표의 이름은 '전남광주'
     return ('<div class="tbl-wrap"><table><thead><tr>'
             '<th scope="col">%s</th>%s'
             '</tr></thead><tbody>%s</tbody></table></div>%s'
@@ -600,7 +600,7 @@ def _with_top(section_html, tops):
     else:
         line = ('<p class="top3"><b>%s</b> %s</p>'
                 % (esc(t[0]), ' · '.join('<a href="/zone/%s/">%s</a> %s'
-                                         % (urllib.parse.quote(r), esc(r), esc(v)) for r, v in t[1])))
+                                         % (urllib.parse.quote(r), esc(SZ.disp(r)), esc(v)) for r, v in t[1])))
     i = section_html.find('</p>') + len('</p>')
     return section_html[:i] + line + section_html[i:]
 

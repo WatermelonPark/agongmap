@@ -62,6 +62,13 @@ def _tap_r():
     return float(m.group(1))
 
 
+def _zn_src():
+    """홈의 화면 이름 함수 zn(백로그 46) — 루프가 라벨·aria 를 이것으로 낸다. 표는 split_data 처럼 정본 DISPLAY_NAME."""
+    m = re.search(r'^function zn\(r\)\{.*\}$', HS.home_source(), re.M)
+    assert m, '홈에서 zn 을 찾지 못했다'
+    return m.group(0)
+
+
 def _geo():
     s = io.open(os.path.join(ROOT, 'sido-geo.js'), encoding='utf-8').read()
     return json.loads(re.search(r'SIDO_GEO\s*=\s*(\{.*\})\s*;?\s*$', s, re.S).group(1))
@@ -78,7 +85,7 @@ def _targets():
     if not shutil.which('node'):
         pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
-    js = ('var ADV={sido:{L:""}},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";'
+    js = ('var ADV={sido:{L:""},zname:%s},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";%s\n'
           'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}'
           # 지도 모드(C3): M 은 주간 모드 재료(null = 공급 모드). 주간 모드에서도 같은 표적·라벨인지는 test_home_map_mode 가 본다.
           'var M=null;function wkFill(){return "#ccc"}function wkPct(){return ""}function mapKeyHtml(){return ""}'
@@ -87,7 +94,7 @@ def _targets():
           're2=/<a href="[^"]*"[^>]*><path[^>]*><\\/path>(<(?:circle|polygon)[^>]*>)?/g;'
           'while((m=re2.exec(h))){if(m[1])out.push({n:names[i],el:m[1]});i++;}'
           'process.stdout.write(JSON.stringify({out:out,count:i}));'
-          % (json.dumps(zones, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _loop_src()))
+          % (json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False), json.dumps(zones, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _zn_src(), _loop_src()))
     p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
     got = json.loads(p.stdout.decode('utf-8'))

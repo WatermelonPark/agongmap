@@ -626,10 +626,10 @@ def make_prose(sync, l1, l3, l3split, l4, lead, l6, l6_sig, l6_mean, l6_scale,
                       else ('%.1f%%로 꺾였다' % hi)),
         'sync_mean': '%.2f' % (sum(x['corr'] for x in sync) / len(sync)),
         'seoul_sync': '%.2f' % seoul_sync,
-        'sync_top2': '·'.join(x['region'] for x in sync[:2]),
+        'sync_top2': '·'.join(SZ.disp(x['region']) for x in sync[:2]),   # 화면 이름(백로그 46)
         'sync_top_v': '%.1f' % sync[1]['corr'],
-        'l3_top3': '·'.join(x['region'] for x in strong[:3]),
-        'l3_top2': '·'.join(x['region'] for x in strong[:2]),
+        'l3_top3': '·'.join(SZ.disp(x['region']) for x in strong[:3]),
+        'l3_top2': '·'.join(SZ.disp(x['region']) for x in strong[:2]),
         'l3_range': rng,
         'l3_mean': '%.2f' % l3split['strong_mean'],
         'l3_n': str(l3[0]['n']),
@@ -709,9 +709,9 @@ def build(st):
                   'n': '시도당 분기 %d개' % sync[0]['n']},
         'link3': {'level': '지역별로 갈림', 'r': l3split['strong_mean'],
                   'basis': '택지 여유 지역(%s)은 1년 뒤 인허가로 이어짐(평균 %.2f). 택지 포화된 곳(%s)은 끊김'
-                           % ('·'.join(l3split['strong_regions'][:3]),
+                           % ('·'.join(map(SZ.disp, l3split['strong_regions'][:3])),
                               l3split['strong_mean'],
-                              '·'.join(l3split['broken_regions'][:3])),
+                              '·'.join(map(SZ.disp, l3split['broken_regions'][:3]))),
                   'n': '시도별 연 %d개' % l3[0]['n']},
         'link45': {'level': '매우 높음', 'r': lead['all_r'],
                    'basis': '착공→준공 리드타임이 과거 %d개월→최근 %d개월로 증가. 관계 자체는 r %.2f로 견고'
@@ -791,8 +791,9 @@ def strength_prose(cs):
         raise RuntimeError('cycle_strength 가 비었다')
     hi = max(x['score'] for x in cs)
     lo = min(x['score'] for x in cs)
-    top = [x['region'] for x in cs if x['score'] == hi]
-    low = [x['region'] for x in cs if x['score'] == lo]
+    # 문장에 들어가는 이름은 화면 이름(SZ.disp, 백로그 46) — 조사도 그 이름의 받침을 따른다
+    top = [SZ.disp(x['region']) for x in cs if x['score'] == hi]
+    low = [SZ.disp(x['region']) for x in cs if x['score'] == lo]
     return {'str_top': '·'.join(top), 'str_top_j': '은' if _jong(top[-1]) else '는',
             'str_top_n': str(hi),
             'str_low': '·'.join(low), 'str_low_j': '은' if _jong(low[-1]) else '는',
