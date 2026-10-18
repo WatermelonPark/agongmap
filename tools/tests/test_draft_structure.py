@@ -83,15 +83,37 @@ def test_weekly_fifth_tag_is_this_weeks_top_region(weekly):
 
 
 def test_zone_unsold_paragraph_is_not_defensive(monkeypatch):
+    """지역 편 미분양 경고 문단(세 문장 틀 모두)이 방어 문장('모순이 아닙니다')·'모자'·엠대시 없이 나간다.
+
+    예전 시험은 실데이터에 미분양 경고 지역이 없으면 pytest.skip 했다 — CI 에서는 건너뜀이 실패라, 경고 지역이 0곳이 되는 회차
+    (미분양 이력으로 되짚으면 2014~16·2021년에 그런 달이 있다)에 게이트가 막혔다(전수리뷰 BL1-4·T1-3). 또 seq=7 한 틀만 봤다.
+    이제 실제 경고 지역(있으면)과 실제 시도 한 줄을 경고로 바꾼 합성 행(늘)을, 문장 틀 세 개(k3 = 0·1·2)마다 굽는다. 모델 한계
+    덧붙임(MODEL_LIMIT_NOTE)이 붙는 지역은 고르지 않는다 — 그 안내문은 이 시험이 보는 미분양 문단이 아니다.
+    변이(실제로 확인): 미분양 경고 문단 첫 틀을 옛 '부족 판정과 어긋나 보이지만 모순이 아닙니다 — …'로 되돌리면 빨개진다.
+    픽스처: 저장소의 실제 ADV(캡처·경쟁 글 패널·썸네일은 끈다) + 그 행을 uwarn=True·um≥1.2·미분양≥1,000세대로 덮은 사본.
+    """
     monkeypatch.setattr(P, 'rival_panel', lambda kw: '')
     monkeypatch.setattr(P, 'series_links', lambda nm, seq, total=None: '')
+    monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
     monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
     adv, sts = P.M.load()
-    rows = [r for r in adv['sido']['zones'] if not r.get('agg') and r.get('uwarn')]
-    if not rows:
-        pytest.skip('미분양 경고 지역이 없는 회차')
-    d = P.draft_zone(adv, sts, rows[0], 7, 16)
-    text = re.sub(r'<[^>]+>', '', d['body']).replace('첫 이미지가 대표 이미지가 됩니다', '')
-    assert '모순이 아닙니다' not in text
-    assert '모자' not in text, re.findall(r'.{15}모자.{10}', text)
-    assert '—' not in re.sub(r'\[[^\]]*\]', '', text), re.findall(r'.{20}—.{10}', text)
+    zs = [r for r in adv['sido']['zones'] if not r.get('agg')]
+    notes = getattr(P.M, 'MODEL_LIMIT_NOTE', None) or {}
+    plain = [r for r in zs if r['z'] not in notes and r.get('um') is not None]
+    assert plain, '고를 시도가 없다 — 시험이 헛돈다'
+    base = plain[0]
+    rows = [r for r in plain if r.get('uwarn') and r.get('unsold')][:1] + [
+        dict(base, uwarn=True, um=max(base['um'], 1.2), unsold=max(base.get('unsold') or 0, 1000))]
+    total = len(zs)
+    seqs = {}
+    for seq in range(1, 3 * total + 1):          # 미분양 문단 틀은 draft_zone 과 같은 k3 규칙으로 돈다
+        seqs.setdefault((P._rot(seq, 3, total) + P.ROT_SHIFT) % 3, seq)
+    assert sorted(seqs) == [0, 1, 2], seqs
+    for r in rows:
+        for k3, seq in sorted(seqs.items()):
+            d = P.draft_zone(adv, sts, r, seq, total)
+            text = re.sub(r'<[^>]+>', '', d['body']).replace('첫 이미지가 대표 이미지가 됩니다', '')
+            assert '분기 적정물량의 %s' % P.umx(r['um']) in text, (r['z'], k3, '경고 문단이 안 찍혔다 — 시험이 헛돈다')
+            assert '모순이 아닙니다' not in text, (r['z'], k3)
+            assert '모자' not in text, (r['z'], k3, re.findall(r'.{15}모자.{10}', text))
+            assert '—' not in re.sub(r'\[[^\]]*\]', '', text), (r['z'], k3, re.findall(r'.{20}—.{10}', text))
