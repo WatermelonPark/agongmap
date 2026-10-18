@@ -99,25 +99,37 @@ def test_jeonse_page_names_the_true_lowest_and_highest():
     assert '%s %.1f%%로 가장 높고 %s %.1f%%' % (I.ga(hi), sido[hi], I.neun(lo), sido[lo]) in html
 
 
-def test_jeonse_table_compares_with_twelve_months_ago():
-    """표의 '1년 전'·'변화'와 머리 숫자·'1년 새 가장 크게 오른 곳'은 12개월 전(li−12) 값과 견준다.
+def _shown_delta(cur, ago):
+    """'변화' 칸의 계약(전수 리뷰 #16): **표시값(소수 첫째 자리)끼리의 차**. 정본 I.jeonse_delta 를 가져다 쓰지 않고 여기서
+    따로 셈한다 — 같은 함수로 기대값을 만들면 그 함수의 회귀(원값 차로 되돌림)를 못 잡는다(전수리뷰 T2-7)."""
+    return round(float('%.1f' % cur) - float('%.1f' % ago), 1) + 0.0
 
-    변이: build_jeonse 의 `at(name, li - 12)` 를 `li - 11` 로 바꾸면 모든 행의 '1년 전'이 틀려 빨개진다
-          (실제로 바꿔 확인). 머리의 전국 변화(`nat_d`)만 li−11 로 바꿔도 빨개진다.
-    픽스처: 지역마다 1년 변화폭이 다른 14개월 계열(_jeonse_sts) — 11개월 전과 12개월 전이 다른 값이다.
+
+def test_jeonse_table_compares_with_twelve_months_ago():
+    """표의 '1년 전'·'변화'와 머리 숫자·'1년 새 가장 크게 오른 곳'은 12개월 전 값과 견주고, 변화는 표시값끼리의 차다.
+
+    변이(실제로 확인): build_jeonse 의 `SZ.month_back(dates, li, 12)` 를 11 로 바꾸면 모든 행의 '1년 전'이 틀려 빨개진다.
+          jeonse_delta 를 원값 차 `round(cur - ago, 1) + 0.0` 으로 되돌리면 둘째 자리가 경계에 걸린 행에서 빨개진다
+          (예전 기대식 round(cur - ago, 1) 은 cur 가 첫째 자리뿐인 픽스처라 그 변이에도 초록이었다 — 전수리뷰 T2-7).
+    픽스처: 지역마다 1년 변화폭이 다른 14개월 계열(_jeonse_sts) — 11개월 전과 12개월 전이 다른 값이다. 기준월 값에는 둘째 자리
+          (+0.04, 표시값은 그대로)를 얹어 전남광주 가중평균 계열 같은 실제 모양(78.72·77.16 → 표 +1.5, 원값 차 +1.6)을 만든다.
     """
     sts = _jeonse_sts()
     ser = sts['전세가율']['series']
+    for r in ser:
+        ser[r][-1] = round(ser[r][-1] + 0.04, 3)
+    gap = [r for r in _JR if _shown_delta(ser[r][-1], ser[r][-13]) != round(ser[r][-1] - ser[r][-13], 1) + 0.0]
+    assert gap, '픽스처에 표시값 차와 원값 차가 갈리는 행이 없다 — 이 시험이 원값 차 회귀를 못 잡는다'
     html, _ = I.build_jeonse(sts)
     for r in list(_JR):
         cur, ago = ser[r][-1], ser[r][-13]
-        d = round(cur - ago, 1)
+        d = _shown_delta(cur, ago)
         cls = 'up' if d > 0 else 'dn' if d < 0 else 'mut'
         row = '<td>%s</td><td>%.1f%%</td><td>%.1f%%</td><td class="%s">%+.1f%%p</td></tr>' % (I.SZ.disp(r), cur, ago, cls, d)   # 행은 화면 이름(백로그 46)
         assert row in html, '%s 행이 12개월 전과 견주지 않았다' % r
-    nat_d = round(ser['전국'][-1] - ser['전국'][-13], 1)
+    nat_d = _shown_delta(ser['전국'][-1], ser['전국'][-13])
     assert '1년 전 대비 %+.1f%%p' % nat_d in html
-    ch = {r: round(ser[r][-1] - ser[r][-13], 1) for r in I.SIDO17}
+    ch = {r: _shown_delta(ser[r][-1], ser[r][-13]) for r in I.SIDO17}
     top = max(I.SIDO17, key=lambda r: ch[r])
     assert '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>' % (top, ch[top]) in html
 

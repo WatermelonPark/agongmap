@@ -193,6 +193,9 @@ def _fixture():
     adv = {'monthly': {'regions': regs, 'rows': [{'p': '2026.07', 'ma': ma, 'je': je, 'wo': wo}]}}
     dates = ['2025.%02d' % m for m in range(6, 13)] + ['2026.%02d' % m for m in range(1, 8)]   # 14개월
     jr = {r: [60.0 + i + 0.3 * k for k in range(len(dates))] for i, r in enumerate(regs)}
+    for s in jr.values():               # 기준월 x.x6·1년 전 x.x4 — 표시값 차(+3.8)와 원값 차 반올림(+3.7)이 갈리는 모양
+        s[-1] = round(s[-1] + 0.06, 2)
+        s[-13] = round(s[-13] - 0.06, 2)
     un = {r: [1000.0 * (i + 1), 1000.0 * (i + 1) + 37 * (i + 1)] for i, r in enumerate(regs)}
     sts = {'전세가율': {'dates': dates, 'series': jr},
            '미분양': {'dates': ['2026.06', '2026.07'], 'series': un}}
@@ -223,15 +226,24 @@ def test_price_table_puts_each_series_in_its_own_column():
 def test_jeonse_and_unsold_tables_use_the_right_reference_month():
     """전세가율 표는 '최신값, 12개월 전 대비', 미분양 표는 '최신값, 전월 대비'다.
 
-    변이: 전세가율의 `series_at(jr, i - 12)` 를 `i - 11` 로 바꾸면 변화가 +3.60 이 아니라 +3.30 이 되어
-          빨개진다. 미분양의 전월 대비를 `prev[r] - c` 로 뒤집어도 빨개진다(둘 다 확인).
-    픽스처: 전세가율이 달마다 0.3%p 오르는 14개월, 미분양이 한 달 새 늘어난 두 달.
+    '1년 전 대비'는 정본 I.jeonse_delta 의 계약(전수 리뷰 #16) — **표시값(소수 첫째 자리)끼리의 차** — 을 여기서 따로 셈해
+    대조한다(같은 함수를 가져다 쓰면 그 함수의 회귀를 못 잡는다 — 전수리뷰 T2-7. 예전 기대식 pv2r(원값 차)는 픽스처가 첫째
+    자리뿐이라 우연히 같아 초록이었다).
+    변이(실제로 확인): 전세가율의 `SZ.month_back(jr['dates'], i, 12)` 를 11 로 바꾸면 변화가 +3.8 이 아니라 +3.4 가 되어
+          빨개진다. 표의 1년 변화를 원값 차 `round(c - prev[r], 1)` 로 되돌려도 빨개진다(+3.7 ≠ +3.8). 미분양의 전월 대비를
+          `prev[r] - c` 로 뒤집어도 빨개진다.
+    픽스처: 전세가율이 달마다 0.3%p 오르는 14개월(기준월 +0.06, 1년 전 −0.06 — 둘째 자리가 표시 경계를 넘는 전남광주 가중평균
+          같은 모양), 미분양이 한 달 새 늘어난 두 달.
     """
     adv, sts, _ = _fixture()
     jr = _cells(adv, sts, 'jeonse')
-    for r, ser in sts['전세가율']['series'].items():
+    shown = lambda c, a: round(float('%.1f' % c) - float('%.1f' % a), 1) + 0.0   # noqa: E731
+    sers = sts['전세가율']['series']
+    assert any(shown(s[-1], s[-13]) != round(s[-1] - s[-13], 1) for s in sers.values()), (
+        '픽스처에 표시값 차와 원값 차가 갈리는 칸이 없다 — 원값 차 회귀를 못 잡는다')
+    for r, ser in sers.items():
         assert jr[r][0] == float('%.1f' % ser[-1]), r
-        assert abs(jr[r][1] - MW.pv2r(ser[-1] - ser[-13])) < 1e-9, '%s: 1년 전 대비 %s' % (r, jr[r][1])
+        assert abs(jr[r][1] - shown(ser[-1], ser[-13])) < 1e-9, '%s: 1년 전 대비 %s' % (r, jr[r][1])
     un = _cells(adv, sts, 'unsold')
     for r, ser in sts['미분양']['series'].items():
         assert un[r] == [ser[-1], ser[-1] - ser[-2]], '%s: %s' % (r, un[r])
