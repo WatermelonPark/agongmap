@@ -253,11 +253,14 @@ def test_home_subtitle_is_two_lines_at_most_on_mobile():
         assert n <= 2, '%dpx 에서 부제가 %d줄' % (vw, n)
 
 
-def test_home_title_drops_the_moveins_term():
-    """A6·SEO-5: 홈 title 에서 '입주물량'을 빼고 '시도별 3년 공급·이번 주 시세'를 담는다(기존 형식 유지).
-    변이: 옛 title('시도별 입주물량·주간 시세')로 되돌리면 빨개진다(확인)."""
+def test_home_title_puts_the_brand_first_and_stays_short():
+    """홈 title 은 '아공맵 | 전국 아파트 공급 지도·이번 주 시세'(2026-10-18 대표 결정 — 브랜드를 맨 앞으로, 네이버 모바일 검색
+    결과에 보이는 30자쯤 안에 핵심 검색어가 다 들어가게 '시도별 3년 공급'은 뺐다). A6·SEO-5 의 '입주물량' 빼기는 그대로다.
+    변이: 9/26 꼴('전국 아파트 공급 지도 — 시도별 3년 공급·이번 주 시세 | 아공맵')로 되돌리거나 옛 '시도별 입주물량'을 되살리면
+    빨개진다(확인)."""
     t = re.search(r'<title>(.*?)</title>', _src('index.html')).group(1)
-    assert t == '전국 아파트 공급 지도 — 시도별 3년 공급·이번 주 시세 | 아공맵', t
+    assert t == '아공맵 | 전국 아파트 공급 지도·이번 주 시세', t
+    assert len(t) <= 30 and '입주물량' not in t, t
 
 
 def test_home_section_headings_are_one_level():
