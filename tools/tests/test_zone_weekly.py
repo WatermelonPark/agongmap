@@ -144,10 +144,15 @@ def _d(p):
 
 
 def _cum12(rows, i, met):
-    """12주 누적을 여기서 다시 계산한다 — 조사일로 창을 고르고(최신 − 84일 < p ≤ 최신) 지수처럼 이어 곱한다."""
+    """12주 누적을 여기서 다시 계산한다 — 조사일로 창을 고르고(최신 − 84일 < p ≤ 최신) 지수처럼 이어 곱한다.
+
+    창의 기준 주(최신 − 84일) **그 행**이 없으면 None 이다(정본 weekly_moves.cum_window 의 계약, 전수리뷰 #12 — 원천이 연휴로
+    거른 주의 12주 뒤 회차는 창 첫 행이 두 주 치 변동을 싣고 들어와 13주가 된다). 예전엔 '기준 주 이하 행이 하나라도 있으면'
+    곱해서, 거른 주(2025-01-27·2025-10-06)의 12주 뒤 회차에 생성기는 '·'를 굽는데 이 기대만 숫자가 되어 그 주 내내 게이트가
+    섰다(전수리뷰 T3-2 — data.js 주간 행을 2025-04-21 까지 잘라 굽고 확인)."""
     last = _d(rows[-1]['p'])
     base = last - datetime.timedelta(days=7 * WM.CUM_WEEKS)
-    if not any(_d(r['p']) <= base for r in rows):
+    if base not in {_d(r['p']) for r in rows}:
         return None
     acc = 1.0
     for r in rows:
@@ -350,6 +355,29 @@ def test_table_survives_dates_moving_forward():
     up = ['+0.10', MW.pv2((1.001 ** WM.CUM_WEEKS - 1) * 100), '▲14 이상']      # 14주 전부 상승 = 보관 이력 첫 주까지
     dn = ['-0.10', MW.pv2((0.999 ** WM.CUM_WEEKS - 1) * 100), '▼14 이상']
     assert tabs == [[['가구'] + up + up, ['나구'] + dn + dn]], tabs
+
+
+def test_table_leaves_the_12_week_cell_empty_when_the_base_week_was_skipped():
+    """원천이 연휴로 한 주를 거르면 그 12주 뒤 회차의 12주 칸은 '·'다 — 생성기 표와 이 파일의 다시 구현(_cum12)이 같은 답을 낸다.
+
+    재현하는 실제 상태: 원천은 2025-01-27(설)·2025-10-06(추석) 주를 거렀고, 12주 뒤 회차(2025-04-21·2025-12-29)의 시도 리포트
+    표는 12주 칸을 비운다(정본 cum_window, 전수리뷰 #12). 예전 _cum12 는 그 회차에 숫자를 기대해 실데이터 대조 시험
+    (test_zone_tables_match_weekly_moves_and_the_weekly_page_order)이 그 주 내내 게이트를 막았다(전수리뷰 T3-2).
+    변이(실제로 확인): cum_window 의 `if base not in ds: return None` 을 #12 이전 식(기준 주 이하 행이 하나라도 있으면 진행)으로
+          되돌리면 첫 표의 12주 칸이 숫자가 되어 빨개진다. _cum12 를 옛 가드로 되돌리면 _cum12 단정이 빨개진다.
+    픽스처: 2031년(실데이터와 겹치지 않는 먼 미래) 16주 이력에서 최신 주의 84일 전 주 하나를 뺀 계열과, 빼지 않은 대조 계열.
+    """
+    ps = _weeks('2031-01-06', 16)
+    base = (_d(ps[-1]) - datetime.timedelta(days=7 * WM.CUM_WEEKS)).isoformat()
+    assert base in ps, '픽스처 전제: 기준 주가 이력 안에 있어야 한다'
+    Q = {'a7010101': '서울 가구'}
+    for skip, want_empty in ((set(), False), ({base}, True)):
+        rows = [{'p': p, 'ma': [0.1], 'je': [0.1]} for p in ps if p not in skip]
+        S = {'codes': ['a7010101'], 'rows': rows}
+        _, tabs = _tables(M.weekly_section('서울', {'sgg': S}, Q))
+        row = tabs[0][0]
+        assert (row[2], row[5]) == (('·', '·') if want_empty else (MW.pv2((1.001 ** WM.CUM_WEEKS - 1) * 100),) * 2), (skip, row)
+        assert (_cum12(rows, 0, 'ma') is None) == want_empty, (skip, _cum12(rows, 0, 'ma'))
 
 
 # ── D4: 12개월 한 줄 ─────────────────────────────────────────────────────────────────────────
