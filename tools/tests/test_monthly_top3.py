@@ -15,6 +15,8 @@ import re
 import sys
 import urllib.parse
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
@@ -145,6 +147,61 @@ def test_moveins_estimate_on_a_half_rounds_like_the_site_and_the_summary_follows
     assert rows['대구'] == [3281.0, 240.0], rows['대구']
     _assert_summary_matches_table('moveins', sec)
     assert {n: v for _, n, v in _top(sec)} == {'서울': 719.0 - 5001.0, '대구': 240.0 - 3281.0}
+
+
+def _no_rank_fixture(kind):
+    """다섯 섹션 모두 순위에 올릴 시도가 없는 한 달(집계 3행은 값이 있다).
+
+    kind='empty' 는 시도 값이 전부 빈 달 — 원천이 시도 이름·계층을 바꾼 회차에 fetch 가 만드는 모양(2025-05 광주·전남이
+    '전남광주>광주'로 옮겨 가 두 지역이 15개월 결측이던 전례가 16곳에 한꺼번에 온 경우). 전세가율은 기준월이 완비여야 굽히므로
+    (jeonse_ref_index) 1년 전 칸만 비우고, 인허가는 전월 누계는 있고 이 달만 빈다. kind='still' 은 값은 있는데 변화가 없는 달
+    (매매 0.001 → 표시 0.00, 인허가 누계 그대로, 입주·미분양·전세가율 같은 값). 날짜는 실데이터와 겹치지 않는 2031년.
+    """
+    regs = list(SZ.ORDER)
+    sido = {r for r in regs if r not in SZ.AGG}
+    e = kind == 'empty'
+
+    def v(r, agg, still):
+        return agg if r not in sido else (None if e else still)
+    adv = {'monthly': {'regions': regs, 'rows': [{'p': '2031-07', 'ma': [v(r, 0.12, 0.001) for r in regs],
+                                                  'je': [v(r, -0.05, 0.0) for r in regs], 'wo': [v(r, 0.01, 0.0) for r in regs]}]},
+           'occupancy': {'regions': regs, 'rows': [{'p': '2031Q2', 'v': [v(r, 5000.0, 1000.0) for r in regs]},
+                                                   {'p': '2031Q3', 'v': [v(r, 6000.0, 1000.0) for r in regs], 'e': 1}]}}
+    jd = ['2030.%02d' % m for m in range(6, 13)] + ['2031.%02d' % m for m in range(1, 8)]   # 14개월
+    jr = {r: [70.0] * len(jd) for r in regs}
+    for r in (sido if e else ()):
+        jr[r][-13] = None
+    pm = {r: ([100.0, None] if e else [100.0, 100.0]) if r in sido else [500.0, 900.0] for r in regs}
+    un = {r: ([None, None] if e else [300.0, 300.0]) if r in sido else [1000.0, 1100.0] for r in regs}
+    sts = {'전세가율': {'dates': jd, 'series': jr},
+           '인허가': {'dates': ['2031.06', '2031.07'], 'series': pm},
+           '미분양': {'dates': ['2031.06', '2031.07'], 'series': un}}
+    return adv, sts
+
+
+@pytest.mark.parametrize('kind', ['empty', 'still'])
+def test_section_without_a_ranking_still_says_why(kind):
+    """순위에 올릴 시도가 없는 섹션도 표 위에 사유 한 줄을 둔다 — 시도 값이 전부 비었으면 '자료가 비어', 값은 있는데 변화가
+    없으면 그 사실을 적는다. 그 줄은 표와 모순되지 않는다(_assert_summary_matches_table 의 빈 요약 갈래).
+
+    재현하는 실제 상태: 예전 top3_lines 는 비교 달이 없을 때만 사유를 적고 순위가 비면 줄을 아예 빼, 시도 값이 전부 빈 달에
+    생성기 8개는 rc=0 인데 게이트의 '요약 줄이 있다'·'요약을 읽지 못했다' 두 시험이 그날 데이터 커밋 전체를 막았다(전수리뷰 T2-2
+    — data.js 최신 월간 행의 시도 ma·je·wo 를 None 으로 두고 굽어 재현). 그런 달은 이제 수집이 보류한다
+    (update_adv_data._hold_sido_empty — test_adv_main_guards 가 본다). 이 시험은 그래도 남은 경우의 방어선이다.
+    변이(실제로 확인): top3_lines 의 price 를 옛 `('매매 변동이 큰 곳', [...])` 로 되돌리면(사유 없음) 두 갈래 모두 빨개진다.
+          _why_empty 의 두 문구를 맞바꾸면 '비어 있어' 단정이 빨개진다.
+    픽스처: _no_rank_fixture(kind) — 2031년 합성 한 달.
+    """
+    adv, sts = _no_rank_fixture(kind)
+    secs, _ = MP.build(adv, sts)
+    h = ''.join(secs)
+    for sid in PICK:
+        sec = _section(h, sid)
+        assert '<p class="top3">' in sec and sec.index('<p class="top3">') < sec.index('<table'), '%s 섹션에 사유 줄이 없다' % sid
+        _assert_summary_matches_table(sid, sec)
+        assert _top(sec) == [], (sid, _top(sec))
+        line = re.search(r'<p class="top3"><b>[^<]*</b>(.*?)</p>', sec, re.S).group(1)
+        assert ('비어 있어' in line) == (kind == 'empty'), (sid, line)
 
 
 def test_summary_links_point_to_existing_zone_reports():

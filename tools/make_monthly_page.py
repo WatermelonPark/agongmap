@@ -516,12 +516,21 @@ def _signed(v):
     return ('+' if r > 0 else '') + format(r, ',')
 
 
+def _why_empty(vals, empty_word, still_word):
+    """순위가 빈 섹션의 사유 한 줄(전수리뷰 T2-2) — 시도 값이 하나도 없으면 empty_word, 값은 있는데 순위에 올릴 변화가 없으면
+    still_word. 예전엔 비교 달이 없을 때만 사유를 적고 그 밖에 순위가 비면 요약 줄을 아예 빼, 시도 값이 전부 빈 달에 생성기는
+    정상 종료하는데 '요약 줄이 있다'는 게이트 시험만 빨개졌다. 수집은 그런 달을 보류한다(update_adv_data._hold_sido_empty) —
+    이 줄은 그래도 남은 경우의 방어선이다."""
+    have = [v for r, v in vals.items() if r in ORDER and r not in AGG and v is not None]
+    return empty_word if not have else still_word
+
+
 def top3_lines(adv, sts):
     """섹션마다 '이번 달 변화가 큰 3곳' — 표와 같은 값에서 뽑는다(2026-09-15 점검 후속 ④).
 
     ⚠️ 문장을 박지 않는다. 지역·수치는 매달 바뀌고, 박아 두면 표와 요약이 서로 다른 달을
        말한다. 표를 만드는 도우미(cum_month·series_at·last_idx)를 그대로 써서 같은 값을 본다.
-    반환: {섹션 id: (머리말, [(지역, 표시값)])}
+    반환: {섹션 id: (머리말, [(지역, 표시값)])} — 순위가 비면 (머리말, [], 사유 한 줄)이다(비교 달 없음·_why_empty).
     """
     tops = {}
     mo = adv.get('monthly') or {}
@@ -529,13 +538,18 @@ def top3_lines(adv, sts):
     if mrows:
         ma = mrows[-1].get('ma') or []
         vals = {r: ma[i] for i, r in enumerate(mregs) if i < len(ma)}
-        tops['price'] = ('매매 변동이 큰 곳',
-                         [(r, pv2(v) + '%') for r, v in _rank(vals) if pv2(v) != '0.00'])
+        top = [(r, pv2(v) + '%') for r, v in _rank(vals) if pv2(v) != '0.00']
+        tops['price'] = ('매매 변동이 큰 곳', top) if top else (
+            '매매 변동이 큰 곳', [], _why_empty(vals, '시도 매매 자료가 비어 있어 순위를 싣지 않습니다.', '시도 모두 보합입니다.'))
     pm = sts.get('인허가')
     if pm:
         i, _ = last_idx(pm)
-        vals = {r: v for r, v in cum_month(pm, i).items() if v is not None and v > 0}
-        tops['permits'] = ('이 달 인허가가 많은 곳', [(r, num(v) + '세대') for r, v in _rank(vals)])
+        raw = cum_month(pm, i)
+        vals = {r: v for r, v in raw.items() if v is not None and v > 0}
+        top = [(r, num(v) + '세대') for r, v in _rank(vals)]
+        tops['permits'] = ('이 달 인허가가 많은 곳', top) if top else (
+            '이 달 인허가가 많은 곳', [], _why_empty(raw, '이 달 시도 인허가 자료가 비어 있어 순위를 싣지 않습니다.',
+                                                 '이 달 인허가가 잡힌 시도가 없습니다.'))
     occ = adv.get('occupancy') or {}
     orows, oregs = occ.get('rows') or [], occ.get('regions') or []
     act = [r for r in orows if not r.get('e')]
@@ -547,8 +561,10 @@ def top3_lines(adv, sts):
         # 1세대 갈려('대구 -3,042세대' 위에 표는 3,281 → 240) 게이트가 그 분기 내내 막힌다(감사 #18).
         vals = {r: SZ.half_up(nv[i]) - SZ.half_up(lv[i]) for i, r in enumerate(oregs)
                 if i < len(lv) and i < len(nv) and lv[i] is not None and nv[i] is not None}
-        tops['moveins'] = ('%s 실적 대비 %s 예정, 증감이 큰 곳' % (month_label(last.get('p', '')), month_label(nxt.get('p', ''))),
-                           [(r, _signed(v) + '세대') for r, v in _rank(vals)])
+        head = '%s 실적 대비 %s 예정, 증감이 큰 곳' % (month_label(last.get('p', '')), month_label(nxt.get('p', '')))
+        top = [(r, _signed(v) + '세대') for r, v in _rank(vals)]
+        tops['moveins'] = (head, top) if top else (
+            head, [], _why_empty(vals, '시도 입주 자료가 비어 있어 증감을 싣지 않습니다.', '시도 모두 실적과 예정이 같습니다.'))
     # 미분양·전세가율은 비교 달을 표와 같은 SZ.month_back 으로 찾는다. 그 달 칸이 없으면(보류한 달이
     # 끝내 안 채워진 채 다음 달이 들어온 회차 — 감사 #17) 표의 증감 칸이 전부 '·'가 되므로, 요약도
     # 3곳을 뽑지 않고 왜 비었는지를 한 줄로 적는다(세 번째 원소). 두 달 치 변화를 '전월 대비'로 싣지 않는다.
@@ -564,7 +580,9 @@ def top3_lines(adv, sts):
             cur, prev = series_at(un, i), series_at(un, j)
             vals = {r: cur[r] - prev[r] for r in ORDER
                     if cur.get(r) is not None and prev.get(r) is not None}
-            tops['unsold'] = (head, [(r, _signed(v) + '세대') for r, v in _rank(vals)])
+            top = [(r, _signed(v) + '세대') for r, v in _rank(vals)]
+            tops['unsold'] = (head, top) if top else (
+                head, [], _why_empty(vals, '시도 미분양 자료가 비어 있어 증감을 싣지 않습니다.', '시도 모두 전월과 같습니다.'))
     jr = sts.get('전세가율')
     if jr:
         i, _ = jeonse_idx(jr)
@@ -576,7 +594,9 @@ def top3_lines(adv, sts):
         else:
             cur, prev = series_at(jr, i), series_at(jr, j)
             vals = {r: I.jeonse_delta(cur.get(r), prev.get(r)) for r in ORDER}
-            tops['jeonse'] = (head, [(r, jr_delta(v) + '%p') for r, v in _rank(vals)])
+            top = [(r, jr_delta(v) + '%p') for r, v in _rank(vals)]
+            tops['jeonse'] = (head, top) if top else (
+                head, [], _why_empty(vals, '시도 전세가율 자료가 비어 있어 변화를 싣지 않습니다.', '시도 모두 1년 전과 같습니다.'))
     return tops
 
 
