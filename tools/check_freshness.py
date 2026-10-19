@@ -680,28 +680,43 @@ REGION_STATE_ENV = 'WATCH_STATE_DIR'
 REGION_STATE_FILE = 'region_fetch_fail.json'
 
 
-def region_fail_tolerated(today, state_dir):
-    """오늘의 지역 목록 조회 실패를 경고로 둘 수 있나(True) — 아니면 실패로 올린다(False).
+# 같은 회차·다음 회차를 가르는 경과 시간(시간). 달력 날짜로 가르면 자정을 걸친다 — 감시는 예약 18:07 KST 에
+# 실측 +0~10시간 늦게 시작해 KST 20시~다음 날 04시 사이에 돌고(2026-10 실측: 예약 실행 89회 중 37회가 자정 뒤),
+# 같은 실행의 1차(23:50)와 재확인(00:10)이 '어제·오늘'로, 이웃 예약 실행(01:54 → 23:28)이 '같은 날'로 읽혔다
+# (전수리뷰 F-2). 예약은 하루 한 번이라 이웃 회차 간격은 24±10시간(14~34시간)이다.
+#   같은 실행 id → 그 결정을 따른다. 실행 id 가 다르거나 모르면 직전 실패와의 경과 시간으로:
+#   REGION_SAME_ROUND_H(12) 안 → 같은 회차(수동 재실행)로 보고 그 결정을 따른다.
+#   REGION_NEXT_ROUND_H(40) 안 → 이틀 연속(다음 예약 회차)이라 올린다. 그보다 길면 첫날로 본다.
+REGION_SAME_ROUND_H = 12
+REGION_NEXT_ROUND_H = 40
 
-    상태 파일은 마지막 실패 날과 그날의 결정이다. 어제도 실패했으면 올린다. 오늘 이미 결정했으면(1차 뒤 재확인 잡)
-    같은 결정을 따른다 — 재확인이 경고를 실패로, 실패를 경고로 뒤집지 않게. 그 밖(처음·이틀 넘게 비었다)은 경고다.
-    ⚠️ '조용히 통과' 분기가 아니다: 경고는 실행 화면 주석·잡 요약에 남고, 다음 날도 끊기면 실패 메일이 간다.
+
+def region_fail_tolerated(now, state_dir, run_id=None):
+    """이번 지역 목록 조회 실패를 경고로 둘 수 있나(True) — 아니면 실패로 올린다(False).
+
+    now 는 UTC epoch 초, run_id 는 GITHUB_RUN_ID(없으면 None). 상태 파일은 마지막 실패의 시각·실행 id·그때의 결정이다.
+    같은 실행이면(1차 뒤 재확인 잡) 같은 결정을 따른다 — 재확인이 경고를 실패로, 실패를 경고로 뒤집지 않게.
+    다른 실행이면 경과 시간으로 같은 회차·다음 회차를 가른다(REGION_SAME_ROUND_H·REGION_NEXT_ROUND_H 주석).
+    ⚠️ '조용히 통과' 분기가 아니다: 경고는 실행 화면 주석·잡 요약에 남고, 다음 회차도 끊기면 실패 메일이 간다.
     """
-    import datetime
     path = os.path.join(state_dir, REGION_STATE_FILE)
     try:
         with open(path, encoding='utf-8') as f:
             prev = json.load(f)
+        prev_ts = float(prev['ts'])
     except Exception:
-        prev = None
-    if prev and prev.get('date') == today:
-        return not prev.get('escalated')
-    d = datetime.date.fromisoformat(today)
-    yesterday = (d - datetime.timedelta(days=1)).isoformat()
-    escalate = bool(prev and prev.get('date') == yesterday)
+        prev, prev_ts = None, None
+    if prev is not None:
+        gap_h = (now - prev_ts) / 3600.0
+        same_run = run_id is not None and prev.get('run') == run_id
+        if same_run or 0 <= gap_h < REGION_SAME_ROUND_H:
+            return not prev.get('escalated')
+        escalate = REGION_SAME_ROUND_H <= gap_h <= REGION_NEXT_ROUND_H
+    else:
+        escalate = False
     os.makedirs(state_dir, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
-        json.dump({'date': today, 'escalated': escalate}, f)
+        json.dump({'ts': now, 'run': run_id, 'escalated': escalate}, f)
     return not escalate
 
 
@@ -728,7 +743,7 @@ def _region_names_retry(fetch, tbl, cycle, waits=None, direct=None, sleep=None):
     raise last
 
 
-def check_region_rows(fetch=None, today=None, state_dir=None, retry=None):
+def check_region_rows(fetch=None, now=None, state_dir=None, retry=None, run_id=None):
     """원천 계층에서 **우리 지역을 실제로 집을 수 있는가**를 본다.
 
     왜 이걸 보는가(2026-08-26 리뷰):
@@ -781,9 +796,10 @@ def check_region_rows(fetch=None, today=None, state_dir=None, retry=None):
                  len(gu), '' if not (missing or dup) else '  실패 (%s)' % state))
     if lost:
         # 조회 실패는 '이상 없음'이 아니라 '못 봤다'다. 상태 폴더가 없으면 FETCH_FAIL(새 IP 재확인 → 실패)로,
-        # 있으면 첫날은 경고, 이틀 연속이면 FETCH_FAIL 로 올린다(region_fail_tolerated). SKIPPED 는 게이트 분자라 안 쓴다.
-        if state_dir and region_fail_tolerated(today or KST.today_iso(), state_dir):
-            WARN.append('지역 계층(%s) 목록 조회가 끊겨 오늘은 보지 못했다 — 내일도 끊기면 실패로 올린다' % ', '.join(lost))
+        # 있으면 첫 회차는 경고, 이틀(이웃 예약 회차) 연속이면 FETCH_FAIL 로 올린다(region_fail_tolerated). SKIPPED 는 게이트 분자라 안 쓴다.
+        if state_dir and region_fail_tolerated(time.time() if now is None else now, state_dir,
+                                               run_id if run_id is not None else os.environ.get('GITHUB_RUN_ID')):
+            WARN.append('지역 계층(%s) 목록 조회가 끊겨 이번 회차는 보지 못했다 — 다음 회차(내일)도 끊기면 실패로 올린다' % ', '.join(lost))
         else:
             FETCH_FAIL.extend('지역 계층(%s)' % label for label in lost)
     elif state_dir:
