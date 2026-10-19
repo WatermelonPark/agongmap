@@ -119,7 +119,8 @@ def test_each_image_has_a_png_only_copy_button(tmp_path, monkeypatch):
     assert 'text/html' not in handler and 'text/plain' not in handler
 
 
-def test_theory_draft_embeds_images(tmp_path, monkeypatch):
+def test_theory_draft_embeds_images(tmp_path, monkeypatch, link1_holds):
+    # link1_holds: 고리① 전제가 서는 D — 재산정이 1·2편 전제를 뒤집는 날에도 이 시험(이미지 싣기)은 돈다(대표 결정 D1, conftest)
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
     monkeypatch.setattr(P, 'OUT', str(tmp_path))
     _png(tmp_path, 'cycle-loop.png')

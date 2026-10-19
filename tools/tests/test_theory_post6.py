@@ -98,6 +98,9 @@ def test_real_data_passes_or_stops_with_a_named_premise():
     except SystemExit as e:
         msg = str(e)
         assert msg.startswith('6편을 만들 수 없다 — ') and len(msg) > len('6편을 만들 수 없다 — ') + 5, msg
+        import batch_notes as N      # 그 상태는 배치 기록 ℹ️ 줄로 알린다(D1) — 편 번호가 실렸는지 본다
+        tags = [re.match(r'\S+ 사이클 ([\d·]+)편 전제가', ln) for ln in N.theory_claim_lines()]
+        assert any(m and '6' in m.group(1).split('·') for m in tags), msg
         assert '5편' not in msg, msg
         return
     assert SLOTS <= set(v), sorted(SLOTS - set(v))

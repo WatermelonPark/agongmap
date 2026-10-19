@@ -15,6 +15,7 @@
 사용:  python tools/batch_notes.py [--data data.js]     # 알릴 것이 없으면 아무것도 안 찍는다
 """
 import argparse
+import re
 import sys
 
 import month_lag as ML
@@ -33,25 +34,52 @@ def permit_gaps(adv):
     return [z.get('z') for z in zones(adv) if z.get('pbr') is None]
 
 
-def sync_claim_lines():
-    """사이클 3편이 못 박은 주장('전부 양수', '최저는 서울')이 지금 데이터와 어긋나면 ℹ️ 로 알린다.
+_STOP_HEAD = re.compile(r'^[\d·]+편을 만들 수 없다 — ')
+_STOP_TAIL = re.compile(r'\s*(?:\d편 )?문장을 먼저 고칠 것\.?$')
 
-    예전엔 이것이 pytest 게이트의 실데이터 단정이었다(test_theory_sync_claims). 재산정으로 최저 지역이
-    바뀌면 "발행본은 고치지 않는다"는 결정과 맞물려 데이터 커밋이 막혔을 것이다(리뷰 09-18 19번).
-    게이트는 코드 회귀만 막고, 데이터 상태는 여기서 알린다. 생성 가드(make_theory_post)는 그대로다.
-    ⚠️ lines(adv) 에 넣지 않는다(전수리뷰 #32·#94). 이 함수는 인자 adv 가 아니라 저장소 cycle/index.html 의 D.sync 를
-       읽는다. lines() 를 부르는 합성 픽스처 시험이 '줄이 정확히 몇 개'를 단정하므로, 안에 두면 재산정으로 최저 지역이
-       바뀌는 날 무관한 시험이 빨개져 알림으로 돌린 데이터 상태가 다시 게이트 실패가 된다. main() 이 따로 붙인다.
+
+def theory_claim_lines():
+    """사이클 이론편(1~7편)이 못 박은 전제가 지금 데이터와 어긋나면 편마다 ℹ️ 한 줄로 알린다(대표 결정 2026-10-18 D1).
+
+    전제가 깨진 편은 초안 도구(make_theory_post <편>)만 SystemExit 로 멈춘다 — 게이트 시험은 그 데이터 상태로 실패하지 않는다.
+    대신 사람이 알아야 하니(발행본을 다시 볼지 정한다) 여기서 알린다. 검사는 초안 도구와 같은 함수(make_theory_post.guard_values —
+    1·2편 고리①, 3편 동조성, 4편 theory_link3, 5편 theory_link4, 6편 link6_values, 7편 link7_values)를 지금 데이터로 돌린 것이다.
+    같은 이유로 멈춘 이웃 편은 한 줄로 묶는다(1·2편은 고리① 전제 하나를 함께 쓴다). 가드가 SystemExit 말고 다른 예외로 죽으면 코드
+    결함이라 그 편을 '검사 불가'로 적는다(도구·데이터를 못 올리면 '이론편 검사 불가' 한 줄). 옛 sync_claim_lines(3편만)를 접었다 —
+    3편도 이 검사가 보므로 따로 두면 같은 줄이 두 번 나간다.
+    ⚠️ lines(adv) 에 넣지 않는다(전수리뷰 #32·#94). 인자 adv 가 아니라 저장소 data.js·cycle/index.html 을 읽는다. lines() 를 부르는
+       합성 픽스처 시험이 '줄이 정확히 몇 개'를 단정하므로, 안에 두면 데이터 상태가 바뀌는 날 무관한 시험이 빨개져 알림으로 돌린
+       데이터 상태가 다시 게이트 실패가 된다. main() 이 따로 붙인다.
     """
     try:
         import make_theory_post as T
-        T.check_sync_claims()
-    except SystemExit as e:
-        return ['%s 사이클 3편 주장이 지금 데이터와 어긋남 — %s (발행본은 두고 재발행을 검토)'
-                % (ML.MARK, str(e).replace('\n', ' ')[:140])]
-    except Exception as e:   # 도구를 못 올리면 그것도 알린다 — 조용히 통과하지 않는다
-        return ['%s 사이클 3편 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
-    return []
+        D = T.P.cycle_d()
+        data = T.M.load()
+    except Exception as e:   # 도구·데이터를 못 올리면 그것도 알린다 — 조용히 통과하지 않는다
+        return ['%s 사이클 이론편 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
+    got = []                 # [(편 번호들, 'stop'|'crash', 글)] — 편 순서대로
+    for post in T.POSTS:
+        n = post['n']
+        try:
+            T.guard_values(n, D, data)
+            continue
+        except SystemExit as e:
+            kind, why = 'stop', _STOP_TAIL.sub('', _STOP_HEAD.sub('', str(e).replace('\n', ' ')))
+        except Exception as e:
+            kind, why = 'crash', '%s: %s' % (type(e).__name__, str(e).replace('\n', ' '))
+        if got and got[-1][1:] == (kind, why):
+            got[-1][0].append(n)
+        else:
+            got.append(([n], kind, why))
+    out = []
+    for ns, kind, why in got:
+        tag = '·'.join(str(n) for n in ns)
+        if kind == 'stop':
+            out.append('%s 사이클 %s편 전제가 지금 데이터와 어긋남 — %s (초안 생성만 멈춤, 발행본 재검토)'
+                       % (ML.MARK, tag, why[:160]))
+        else:
+            out.append('%s 사이클 %s편 검사 불가 — %s' % (ML.MARK, tag, why[:120]))
+    return out
 
 
 def quiz_review_lines(today, src=None):
@@ -73,7 +101,7 @@ def quiz_review_lines(today, src=None):
 
 
 def lines(adv):
-    """인자 adv 만 보고 찍을 줄. 저장소 파일·오늘 날짜를 읽는 곁가지(sync_claim_lines·quiz_review_lines)는 main() 이 붙인다."""
+    """인자 adv 만 보고 찍을 줄. 저장소 파일·오늘 날짜를 읽는 곁가지(theory_claim_lines·quiz_review_lines)는 main() 이 붙인다."""
     out = []
     gaps = permit_gaps(adv)
     if gaps:
@@ -93,7 +121,7 @@ def main(argv=None):
         sys.stderr.write('batch_notes: 데이터를 읽지 못했다 (%s)\n' % e)
         return 0
     import kst
-    for ln in lines(adv) + sync_claim_lines() + quiz_review_lines(kst.today()):
+    for ln in lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()):
         sys.stdout.write(ln + '\n')
     return 0
 

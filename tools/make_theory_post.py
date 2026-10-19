@@ -1054,9 +1054,65 @@ def link7_values(D):
                 cycle7=link('금리와 매매·전세 차트 보기', path='/cycle/#ref1', camp='cycle'))
 
 
-def render(post):
-    if post['n'] == 3:
+def guard_values(n, D=None, data=None):
+    """n편 본문의 데이터 칸 — 편마다 문장 전제 가드를 지나야 나온다. 전제가 깨지면 SystemExit('N편을 만들 수 없다 — …').
+
+    render 와 batch_notes.theory_claim_lines 가 이 함수 하나를 부른다(같은 대상을 재는 코드는 하나). 대표 결정 2026-10-18 D1:
+    지금 데이터가 발행본의 전제와 어긋나면 **초안 생성만** 멈추고, 배치 게이트는 막지 않고 기록 줄(ℹ️)로 알린다. SystemExit 말고
+    다른 예외(TypeError·KeyError …)가 나면 코드 결함이다 — 가드가 셈을 못 하고 죽었으니 고칠 곳은 가드다.
+    D 는 /cycle/ 정본(없으면 읽는다), data 는 (adv, sts)(4~6편에서만 쓰고, 없으면 M.load() 로 읽는다)."""
+    D = P.cycle_d() if D is None else D
+
+    def load():
+        return M.load() if data is None else data
+    if n in (1, 2):
+        return link1_values(D)
+    if n == 3:
         check_sync_claims()
+        return {}
+    if n == 4:
+        # 4편 숫자는 데이터에서 센다. 단정이 깨지면 초안을 만들지 않는다(theory_link3 docstring).
+        import theory_link3 as L3
+        adv, sts = load()
+        try:
+            v = L3.link3_numbers(adv, sts)
+        except L3.Link3DataError as e:
+            # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
+            raise SystemExit('4편을 만들 수 없다 — %s. 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
+                             '(update_adv_data._basis_reason) — git pull 로 그 데이터를 받은 뒤 다시 돌린다. 로컬에서 '
+                             '--heal-basic 으로 최근 달만 다시 받으면 단절이 다시 생긴다.' % e)
+        except L3.Link3ClaimError as e:
+            raise SystemExit('4편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
+        v['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
+        return v
+    if n == 5:
+        # 5편 숫자도 같은 원칙: 데이터에서 세고, 단정이 깨지면 초안을 만들지 않는다(theory_link4 docstring).
+        import theory_link4 as L4
+        adv, sts = load()
+        try:
+            v = L4.link4_numbers(adv, sts)
+        except L4.Link4DataError as e:
+            # 문장 탓이 아니다 — 착공·준공 두 표 가운데 한쪽만 새 달을 받은 회차(전수리뷰 T3-6·BL2-3·T1-2). 4편 Link3DataError 와 같은 갈래.
+            raise SystemExit('5편을 만들 수 없다 — %s. 문장 탓이 아니다 — 다음 클라우드 배치가 두 계열을 같은 달까지 받으면 풀린다'
+                             '(git pull 로 받은 뒤 다시 돌린다).' % e)
+        except L4.Link4ClaimError as e:
+            raise SystemExit('5편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
+        v['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
+        return v
+    if n == 6:
+        adv, _ = load()
+        return link6_values(D, adv)
+    if n == 7:
+        return link7_values(D)
+    return {}
+
+
+def render(post):
+    # 문장 전제 가드부터 — 전제가 깨진 편은 아무것도 만들기 전에 멈춘다(guard_values, 대표 결정 2026-10-18 D1).
+    D = P.cycle_d()
+    n4 = guard_values(post['n'], D)
+    if post['n'] == 2 and not n4['l1_mid']:
+        print("  ⚠ 2편 '가운데가 가장 높은 이유' 절을 뺐다 — /cycle/ 정본에서 '보통' 구간이 가장 높지 않다. 절을 다시 쓸지 정할 것.")
     S = []
     S.append('<!doctype html><html lang="ko"><meta charset="utf-8">')
     S.append('<title>이론 시리즈 초안 %02d — %s</title>' % (post['n'], post['title']))
@@ -1074,45 +1130,7 @@ def render(post):
     _S = sync_stats()
     # 3편 동조성 문장의 값은 /cycle/ 본문 칸(D.prose)을 그대로 읽는다(전수리뷰 #77). 블로그가 다시 계산하면
     # 같은 문장('대구·부산은 0.8')이 사이트는 2위 값, 블로그는 1위 값으로 갈린다.
-    D = P.cycle_d()
     pr = D['prose']
-    # 4편 숫자는 데이터에서 센다. 단정이 깨지면 초안을 만들지 않는다(theory_link3 docstring).
-    n4 = {}
-    if post['n'] == 4:
-        import theory_link3 as L3
-        adv, sts = M.load()
-        try:
-            n4 = L3.link3_numbers(adv, sts)
-        except L3.Link3DataError as e:
-            # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
-            raise SystemExit('4편을 만들 수 없다 — %s. 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
-                             '(update_adv_data._basis_reason) — git pull 로 그 데이터를 받은 뒤 다시 돌린다. 로컬에서 '
-                             '--heal-basic 으로 최근 달만 다시 받으면 단절이 다시 생긴다.' % e)
-        except L3.Link3ClaimError as e:
-            raise SystemExit('4편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
-        n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
-    elif post['n'] == 5:
-        # 5편 숫자도 같은 원칙: 데이터에서 세고, 단정이 깨지면 초안을 만들지 않는다(theory_link4 docstring).
-        import theory_link4 as L4
-        adv, sts = M.load()
-        try:
-            n4 = L4.link4_numbers(adv, sts)
-        except L4.Link4DataError as e:
-            # 문장 탓이 아니다 — 착공·준공 두 표 가운데 한쪽만 새 달을 받은 회차(전수리뷰 T3-6·BL2-3·T1-2). 4편 Link3DataError 와 같은 갈래.
-            raise SystemExit('5편을 만들 수 없다 — %s. 문장 탓이 아니다 — 다음 클라우드 배치가 두 계열을 같은 달까지 받으면 풀린다'
-                             '(git pull 로 받은 뒤 다시 돌린다).' % e)
-        except L4.Link4ClaimError as e:
-            raise SystemExit('5편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
-        n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
-    elif post['n'] == 7:
-        n4 = link7_values(D)
-    elif post['n'] == 6:
-        adv, _ = M.load()
-        n4 = link6_values(D, adv)
-    elif post['n'] in (1, 2):
-        n4 = link1_values(D)
-        if post['n'] == 2 and not n4['l1_mid']:
-            print("  ⚠ 2편 '가운데가 가장 높은 이유' 절을 뺐다 — /cycle/ 정본에서 '보통' 구간이 가장 높지 않다. 절을 다시 쓸지 정할 것.")
     body = post['body'].strip() % dict(n4, **{
         'link': link('아공맵 부동산 사이클 리포트 보기'),
         'cycle': link('고리별 검증 결과 보기'),

@@ -208,12 +208,13 @@ def test_zone_post_net_shortage_is_the_site_card_number(monkeypatch):
 
 
 # ── ⑥ 이론 편의 시도 수 ──────────────────────────────────────────────────────
-def test_theory_posts_say_the_model_sido_count():
+def test_theory_posts_say_the_model_sido_count(link1_holds):
     """이론 1·2편의 'N개 시도를 같은 기준으로'가 모델의 시도 수(= /zone/ 허브의 N_SIDO)와 같다.
 
     깨뜨리면 빨개지는 것: 1·2편 템플릿의 `%(nsido)d` 를 모델과 다른 수('17개')로 박으면 빨개진다(변이로 확인).
     오늘 모델(16곳)과 같은 '16개'를 박은 옛 코드는 여기서는 초록이다 — 그건 아래 시험이 잡는다.
-    픽스처: 실제 POSTS 1·2편 본문. 3편은 발행본이라 고치지 않고(대표 결정), 곳 수도 다른 대상(sync_n)이다.
+    픽스처: 실제 POSTS 1·2편 본문. 3편은 발행본이라 고치지 않고(대표 결정), 곳 수도 다른 대상(sync_n)이다. /cycle/ D 는 고리① 전제가
+    서는 사본(conftest link1_holds) — 재산정이 1·2편 전제를 뒤집는 날 초안만 멈추고 이 시험은 돈다(대표 결정 2026-10-18 D1).
     """
     n = len([z for z in SZ.ORDER if z not in SZ.AGG])
     assert M.N_SIDO == n
@@ -225,7 +226,7 @@ def test_theory_posts_say_the_model_sido_count():
         assert set(got) == {n}, '%d편이 %s개 시도라고 쓴다(모델 %d)' % (no, got, n)
 
 
-def test_theory_render_follows_a_changed_model(monkeypatch):
+def test_theory_render_follows_a_changed_model(monkeypatch, link1_holds):
     """모델 시도 수가 바뀌면 이론 편 문장도 따라 바뀐다 — 숫자를 박으면 여기가 빨개진다.
 
     깨뜨리면 빨개지는 것: make_theory_post 1·2편 템플릿의 `%(nsido)d` 를 옛 '16'(또는 어떤 수로든) 박으면

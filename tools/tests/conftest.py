@@ -186,6 +186,28 @@ def _drafts_out_of_repo(monkeypatch, tmp_path_factory):
             monkeypatch.setattr(m, a, d if a == 'OUT' else os.path.join(d, os.path.basename(old)))
 
 
+# ── 1·2편 고리① 전제가 서는 /cycle/ D ───────────────────────────────────────────────────
+# 이론 1·2편을 렌더링해 다른 것(이미지 싣기·시도 수 문장)을 보는 시험이 저장소 D 의 고리① 칸에 기대면, 손으로 돌리는 사이클 재산정이
+# 그 전제를 뒤집는 날(공급이 적은 분기의 전세 상승률 ≤ 많은 분기) link1_values 의 SystemExit 로 게이트가 빨개진다 — 대표 결정
+# 2026-10-18 D1 은 그때 초안 생성만 멈추고 게이트는 막지 않는다. 이 픽스처는 저장소 D 사본에서 고리① 칸만 2026-09 /cycle/ 정본
+# 값(적음 2.66 · 보통 1.74 · 많음 −0.36, 본문 칸 2.7 · −0.4)으로 두고 make_naver_post.cycle_d 를 그 사본으로 바꾼다.
+# 무엇을 깨뜨리면 빨개지나: 이 픽스처를 쓰는 시험에서 픽스처를 빼고 저장소 D 의 고리① 을 뒤집으면(rise [0.5, 1.0, 1.2]) 그 시험들이
+# SystemExit 로 빨개진다(실제로 확인).
+@pytest.fixture
+def link1_holds(monkeypatch):
+    import copy
+    import sys
+    tools = os.path.join(_ROOT, 'tools')
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    import make_naver_post as P
+    D = P.cycle_d()
+    D['link1_new'] = dict(D.get('link1_new') or {}, jeonse_rise=[2.66, 1.74, -0.36])
+    D['prose'] = dict(D.get('prose') or {}, l1_lo='2.7', l1_hi='−0.4')
+    monkeypatch.setattr(P, 'cycle_d', lambda: copy.deepcopy(D))
+    return D
+
+
 def pytest_sessionfinish(session, exitstatus):
     _fail_collect_skips(session)
     if _BEFORE is None:
