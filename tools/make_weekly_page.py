@@ -721,8 +721,9 @@ def build(W, Q):
         '  ' + stale_js,
         '  <div class="minimap">',
         '    <div class="mm-scroll">%s</div>' % svg,
-        '    <div class="mm-cap"><span><i style="background:#e0564a"></i>상승</span>'
-        '<span><i style="background:#3a7bd5"></i>하락</span><span>시군구 매매가격 전주 대비%s</span>'
+        # 범례는 왼쪽 하락 → 오른쪽 상승(시세 가로축 정본, 2026-10-06) — 홈 주간 구역 wg-key 와 같은 방향(전수리뷰 X2-9·Z2-7)
+        '    <div class="mm-cap"><span><i style="background:#3a7bd5"></i>하락</span>'
+        '<span><i style="background:#e0564a"></i>상승</span><span>시군구 매매가격 전주 대비%s</span>'
         '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'
         '<a class="go" href="/#stats-market-week-rank">TOP 10 →</a></div>' % cap_when,   # 시세 탭 순위 보기(2026-10-10)
         '  </div>',

@@ -136,7 +136,8 @@ def share_payload(adv, sts, root=None):
         return None
     img, w, h = share_image(adv, root)
     top = top3_lines(adv, sts).get('price')
-    text = ('%s: %s' % (top[0], ' · '.join('%s %s' % x for x in top[1]))) if top and top[1] else \
+    # 지역은 화면 이름(SZ.disp, 백로그 46) — 이 문구는 카카오·OS 공유 설명으로 나간다(전수리뷰 X2-3·Z2-3).
+    text = ('%s: %s' % (top[0], ' · '.join('%s %s' % (SZ.disp(r), v) for r, v in top[1]))) if top and top[1] else \
         '시도별 매매·전세·월세, 인허가, 입주물량, 미분양, 전세가율을 한 화면에'
     return {'p': v, 'ct': 'monthly', 'url': PS.link(URL, SHARE_SOURCE, 'month_' + v.replace('-', '')),
             'title': '이달의 공급 통계 · %s 기준' % month_label(v), 'text': text,
