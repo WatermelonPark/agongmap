@@ -507,12 +507,25 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
        # 데스크톱 틀(desk.css): 리포트는 왼쪽 판정 요약·오른쪽 표, 허브는 글 단 그대로(site_nav.DESK_KINDS)
        'desk_link': N.desk_link(), 'desk_body': N.desk_body(desk),
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,
-       # 지역 카드(make_zone_cards.py 산출물). 없으면 브랜드 카드로 떨어진다 —
-       # 카드를 아직 안 구웠거나 지역이 새로 생긴 회차에도 미리보기가 깨지지 않게.
-       'ogimg': ((SITE + '/share/zone-' + urllib.parse.quote(z) + '.png')
-                 if os.path.exists(os.path.join(ROOT, 'share', 'zone-%s.png' % z))
-                 else SITE + '/og-brand.png'),
+       'ogimg': zone_card(z),
        'ld': json.dumps(ld, ensure_ascii=False)}
+
+
+def zone_card(z):
+    """지역 카드(make_zone_cards.py 산출물 — 사람이 돌린다)의 og:image 주소. 없으면 브랜드 카드로 떨어진다 — 카드를 아직 안 구웠거나
+    지역이 새로 생긴 회차에도 미리보기가 깨지지 않게.
+
+    주소에 카드 **내용 해시**를 ?v= 로 붙인다(전수리뷰 Z1-5 — /weekly/·/monthly/ 카드의 ?v= 와 같은 까닭). 카카오톡·네이버는 미리보기
+    그림을 주소 단위로 오래 보관해, 같은 주소에 다시 구운 카드(화면 이름 '광주·전남'·정본 용어 '적정물량')가 이미 퍼진 미리보기에
+    닿지 않았다. 카드가 바뀌면 리포트 HTML 도 바뀌어 dateModified·sitemap lastmod 가 따라온다(keep_dates). GitHub Pages 는 쿼리를 무시한다.
+    """
+    p = os.path.join(ROOT, 'share', 'zone-%s.png' % z)
+    if not os.path.exists(p):
+        return SITE + '/og-brand.png'
+    import hashlib
+    with open(p, 'rb') as f:
+        v = hashlib.sha1(f.read()).hexdigest()[:8]
+    return SITE + '/share/zone-' + urllib.parse.quote(z) + '.png?v=' + v
 
 
 def share_section(z):
