@@ -785,12 +785,19 @@ def conv_measured(stats, region='전국', start=None, years=None):
     return (sum(pairs) / len(pairs)) if len(pairs) == years else None
 
 
-def permit_over_start_pct(stats, region='전국', step=5):
-    """'인허가는 같은 해 착공보다 N%쯤 많다'의 N — permit_start_conv(착공 ÷ 인허가)의 역수에서 step 단위로 반올림.
+PERMIT_OVER_STEP = 5    # '착공보다 N%쯤 많다'의 반올림 단위(%p) — 리포트 값과 손 페이지 대조의 허용 한 칸이 같은 값이다
 
-    시도 리포트 '어떻게 계산했나'가 이 값을 굽고, 손 페이지(홈 산출 방법·소개·FAQ)의 같은 문장은 시험이 이 값과 대조한다
-    (전수 리뷰 #112 — '15%쯤'이 네 곳에 박혀 있었다). 잴 수 없으면 None(문장이 그 구절을 뺀다).
+
+def permit_over_start_pct(stats, region='전국', step=None):
+    """'인허가는 같은 해 착공보다 N%쯤 많다'의 N — permit_start_conv(착공 ÷ 인허가)의 역수에서 step(PERMIT_OVER_STEP) 단위로 반올림.
+
+    시도 리포트 '어떻게 계산했나'가 이 값을 굽는다(전수 리뷰 #112 — '15%쯤'이 네 곳에 박혀 있었다). 손 페이지(홈 산출 방법·소개·FAQ)의
+    같은 문장은 사람이 고치므로 두 겹으로 본다(전수리뷰 X1-11): 게이트 시험(test_hand_page_numbers)은 이 값과 같은 단위의 수인지,
+    한 칸(PERMIT_OVER_STEP) 안인지 — 데이터가 한 칸 넘어가도 그날 커밋을 막지 않게 —, 정확히 같은지는 배치 기록 ℹ️ 줄
+    (batch_notes.hand_permit_lines)이 알린다. 예전 독스트링은 '시험이 이 값과 대조한다'였지만 시험은 측정값 ±5%p 를 봐, 리포트 '20%쯤'과
+    손 페이지 '15%쯤'이 갈려도 아무도 몰랐다. 잴 수 없으면 None(문장이 그 구절을 뺀다).
     """
+    step = PERMIT_OVER_STEP if step is None else step
     c = permit_start_conv(stats, region)
     if not c:
         return None
