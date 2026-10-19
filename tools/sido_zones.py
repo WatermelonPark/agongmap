@@ -377,26 +377,39 @@ def permit_trail12(stats, region):
     결측으로 봐서, 전년 같은 달이 null 이면 값이 사라지고(대구·충북·세종 2025.01) 최신 달이 null 이면 그 지역만 전년
     1~12월로 물러나 기간이 섞였다(대구 2024.01 → '2023.12', 전수 리뷰 #11). 같은 null 을 한 파일의 두 함수가 다르게
     쟀던 것이다 — 이제 permit_monthly 하나만 잰다.
-    기준 달은 계열 전체에서 값이 있는 마지막 달(지역마다 따로 정하지 않는다). 그 달부터 12개월 중 하나라도
+    기준 달은 계열 전체에서 값이 있는 마지막 달(permit_ref_month — 지역마다 따로 정하지 않는다). 그 달부터 12개월 중 하나라도
     permit_monthly 에 없으면 None 을 돌려주고 줄을 접는다(반쪽 계산으로 오탐을 내지 않는다).
     """
-    s = stats.get('인허가') or {}
-    dates = s.get('dates') or []
-    series = (s.get('series') or {}).values()
-    ref = None
-    for i in range(len(dates) - 1, -1, -1):
-        if any(i < len(v) and v[i] is not None for v in series):
-            ref = i
-            break
-    if ref is None or region not in (s.get('series') or {}):
+    ym = permit_ref_month(stats)
+    if ym is None or region not in ((stats.get('인허가') or {}).get('series') or {}):
         return None, None
     mon = permit_monthly(stats, region)
-    ym = dates[ref]
-    t = int(ym[:4]) * 12 + int(ym[5:7]) - 1
-    keys = ['%d.%02d' % ((t - k) // 12, (t - k) % 12 + 1) for k in range(12)]
+    keys = _months_back(ym, 12)
     if any(k not in mon for k in keys):
         return None, None
     return sum(mon[k] for k in keys), ym
+
+
+def permit_ref_month(stats):
+    """인허가 계열 **전체**에서 값이 있는 마지막 달의 라벨('2026.08') — 없으면 None.
+
+    '인허가 1년' 참고 행(permit_trail12, 최근 12개월)과 '3년 너머' 신호(permit_signal, 최근 PERMIT_WIN 개월)가 이 한 달로 창을 잡는다
+    (전수리뷰 #11·Z1-4). 예전 permit_signal 은 그 지역 permit_monthly 의 마지막 달로 잡아, 한 지역의 최신 달이 비면 '인허가 1년' 행은
+    접히는데 '3년 너머' 줄은 그 지역만 몇 달 물러난 창을 '최근 2년'이라 말했다 — 같은 null 을 한 파일의 두 함수가 다르게 쟀다.
+    """
+    s = stats.get('인허가') or {}
+    dates = s.get('dates') or []
+    series = list((s.get('series') or {}).values())
+    for i in range(len(dates) - 1, -1, -1):
+        if any(i < len(v) and v[i] is not None for v in series):
+            return dates[i]
+    return None
+
+
+def _months_back(ym, n):
+    """'2026.08' 부터 거꾸로 n 달의 키(['2026.08', '2026.07', …]) — permit_monthly 의 키 모양."""
+    t = int(ym[:4]) * 12 + int(ym[5:7]) - 1
+    return ['%d.%02d' % ((t - k) // 12, (t - k) % 12 + 1) for k in range(n)]
 
 
 # 기간 정본(2026-09-15 점검후속 ③). 페이지마다 인허가→입주가 "3~4년"·"4~6년"·"3년"으로
@@ -883,20 +896,17 @@ def permit_signal(stats, region, ref_q):
     값 = 최근 PERMIT_WIN개월 인허가의 연평균 × 착공 전환율 ÷ 연 적정물량.
     12월 몫 = 최근 12개월 인허가 중 12월 한 달의 비중. 이례 여부를 가르는 문턱은
     두지 않고 숫자만 보여준다(2026-09-13 대표 결정).
-    돌려주는 값: {'pbr', 'pdec', 'pconv'} — 계산할 수 없으면 None.
+    돌려주는 값: {'pbr', 'pdec', 'pconv'} — 계산할 수 없으면 None(배치 기록 batch_notes.permit_gaps 가 ⚠️ 줄로 알린다).
+    창의 끝은 '인허가 1년' 행과 같은 permit_ref_month(계열 전체의 마지막 달)다 — 그 지역의 최신 달이 비면 묵은 창을 '최근 2년'이라
+    말하지 않고 None 이다(전수리뷰 Z1-4).
     """
     mon = permit_monthly(stats, region)
-    ks = sorted(mon)
     conv = permit_start_conv(stats, region)
-    if len(ks) < PERMIT_WIN or not conv or not ref_q:
+    ym = permit_ref_month(stats)
+    if ym is None or not conv or not ref_q:
         return None
     # 창이 중간에 비면(월 결측) 연평균이 줄어 얇게 잡힌다 — 연속된 달만 쓴다
-    last = ks[-1]
-    ly, lm = int(last[:4]), int(last[5:7])
-    want = []
-    for i in range(PERMIT_WIN):
-        t = ly * 12 + lm - 1 - i
-        want.append('%d.%02d' % (t // 12, t % 12 + 1))
+    want = _months_back(ym, PERMIT_WIN)
     if any(k not in mon for k in want):
         return None
     yearly = sum(mon[k] for k in want) * 12.0 / PERMIT_WIN
@@ -1102,7 +1112,8 @@ def calc(stats):
     # 다시 굽는 것과 같은 함수다.
     return refresh_texts({'L': qkey(L), 'S': qkey(S), 'H': H,
             'lead': LEAD_Q, 'conv': CONV, 'window': BACKLOG_WINDOW,
-            'unsold_prd': un_prd, 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))})
+            # 'permit_prd' — '인허가 1년'(pm12)·'3년 너머'(pbr) 창의 끝 달. 리포트 참고 행이 미분양 행처럼 기준 달을 적는다(전수리뷰 Z1 overflow)
+            'unsold_prd': un_prd, 'permit_prd': permit_ref_month(stats), 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))})
 
 
 def supply_rows(stats):

@@ -681,6 +681,32 @@ def test_최신_미분양은_아직_안_나온_달을_건너뛴다():
                                        'series': {z: [8700, None]}}}, z) == (8700, '2026.06')
 
 
+def test_인허가_두_창은_계열_전체의_마지막_달에서_끝난다():
+    """'인허가 1년'(permit_trail12)과 '3년 너머'(permit_signal)는 같은 기준 달(permit_ref_month — 인허가 계열 전체에서 값이 있는
+    마지막 달)로 창을 잡는다. 한 지역의 최신 달이 비면 두 값 모두 None 이고 배치 기록(batch_notes.permit_gaps)이 ⚠️ 줄로 알린다(전수리뷰
+    Z1-4). 재현한 상태: permit_signal 만 그 지역 permit_monthly 의 마지막 달로 창을 잡아, '인허가 1년' 행이 접힌 지역도 리포트가 몇 달
+    물러난 창을 '최근 2년 인허가를 착공으로 환산하면 …'이라 말했고 permit_gaps 는 조용했다(경기 2026.06~08 을 비운 사본: 126%).
+    변이(실제로 확인): permit_signal 의 창 끝을 옛 `ks[-1]`(그 지역 마지막 달)로 되돌리면 비운 지역의 pbr·'… 너머' 줄이 살아나 빨개진다.
+    픽스처: _edge_stats 합성(2011.01~2026.06, 전국과 서울 두 계열) — 서울 인허가 누계의 마지막 한 달, 그리고 마지막 석 달을 비운다
+    (누계가 쌓인 뒤의 빈칸 = 원천이 그 지역 행만 비운 모양). 전국은 그대로라 기준 달은 2026.06 이다.
+    """
+    import batch_notes as N
+    for gap in (1, 3):
+        st = _edge_stats('서울', k=0.9)
+        ser = st['인허가']['series']['서울']
+        ser[-gap:] = [None] * gap
+        assert M.permit_ref_month(st) == '2026.06'
+        r = M.calc(st)
+        by = {x['z']: x for x in r['zones']}
+        assert r['permit_prd'] == '2026.06'
+        assert by['서울']['pbr'] is None and by['서울']['pm12'] is None and by['서울']['split']['ref'] is None, (gap, by['서울']['pbr'])
+        assert by['전국']['pbr'] is not None and by['전국']['split']['ref'] is not None, '비우지 않은 계열까지 접혔다'
+        assert N.permit_gaps({'sido': r}) == ['서울'], N.permit_gaps({'sido': r})
+    # 빈칸이 없으면 두 창 모두 같은 달에서 끝난다(전국·서울 모두 값이 있다)
+    r = M.calc(_edge_stats('서울', k=0.9))
+    assert all(x['pbr'] is not None and x['pm12'] is not None for x in r['zones']) and r['permit_prd'] == '2026.06'
+
+
 def test_인허가_1년은_연간_적정물량과_견준다():
     """표 아래 '인허가 1년' 행의 배수(pmr)는 최근 12개월 인허가 ÷ **연간** 적정(분기 × 4)이다.
 

@@ -1159,10 +1159,13 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
                        umx(row['um']) if row.get('um') is not None else '–',
                        SZ.month_text(calc.get('unsold_prd') or '')))
     if row.get('pm12') is not None:
+        # 기준 달(창의 끝)은 미분양 행처럼 적는다 — 판정(calc)이 실은 permit_prd. 다음 배치 전의 옛 판정에는 없어 그때는 뺀다.
+        # 퍼센트는 화면 정수 정본 rnd(half_up) — '%.0f' 는 짝수 쪽 반올림이라 x.5 에서 홈(Math.round)과 갈렸다(전수리뷰 X2 overflow).
         foot.append('<tr class="zref" data-ref="pm"><td>%s</td><td>%s</td><td>%s</td>'
-                    '<td colspan="3" class="zfut">착공 전 단계의 선행 물량</td></tr>'
+                    '<td colspan="3" class="zfut">%s착공 전 단계의 선행 물량</td></tr>'
                     % (refbtn('인허가 1년'), num(row['pm12']),
-                       ('%.0f%%' % (row['pmr'] * 100)) if row.get('pmr') is not None else '–'))
+                       ('%d%%' % rnd(row['pmr'] * 100)) if row.get('pmr') is not None else '–',
+                       ('%s 기준 · ' % SZ.month_text(calc['permit_prd'])) if calc.get('permit_prd') else ''))
     if foot:
         h.append('<tfoot>' + ''.join(foot) + '</tfoot>')
     # 표 아래 설명 문단은 2026-08-11 사용자 결정으로 삭제 — 굵은 줄은 보면 알고,
