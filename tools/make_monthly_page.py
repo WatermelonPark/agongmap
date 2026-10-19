@@ -68,6 +68,19 @@ SHARE_LEAD = '이번 달 통계를 필요한 사람에게 보내 보세요'
 TOC_ITEMS = (('price', '1 매매·전세·월세'), ('permits', '2 인허가'), ('moveins', '3 입주물량'),
              ('unsold', '4 미분양'), ('jeonse', '5 전세가율'))
 
+# 입주물량 뒤 칸(ADV.occupancy 의 e=1 행)은 원천 값이 아니라 sido_zones.supply_rows 가 착공 실적을 LEAD_Q 분기 밀어 CONV 를
+# 곱한 우리 추정이다. 열 머리·원천 줄·주석·페이지 끝 문장이 모두 그렇게 말한다 — /moveins/(MOVEINS_EST)·홈·시도 리포트와
+# 같은 원칙(2026-09-27 C9 '추정치를 입주물량이라 부르지 않는다'). 연수·전환율은 모델 상수에서 읽는다(전수리뷰 Z2-4).
+EST_HEAD = '추정'
+MOVEINS_SOURCE = '국토교통부 준공·착공 실적'
+
+
+def moveins_est_note():
+    """입주물량 표 주석의 추정 설명 한 문장 — 연수(SZ.LEAD_Q)·전환율(SZ.CONV)은 모델 상수에서."""
+    return ('뒤 칸은 %s — 착공 실적을 %g년 뒤로 밀어 전환율 %.3f(착공한 물량의 약 %d%%가 준공)을 곱한 값입니다.'
+            % (I.MOVEINS_EST, SZ.LEAD_Q / 4.0, SZ.CONV, int(round(SZ.CONV * 100))))
+
+
 def load():
     """data.js → (ADV, STATS)."""
     src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
@@ -435,11 +448,11 @@ def build(adv, sts):
         raw = last.get('p', '')
         lab = month_label(raw)      # 기준 줄은 '2026년 2분기', 좁은 표 머리는 '26Q2'(날짜 두 단계)
         basis_list.append(raw)
-        out.append(sec('moveins', 3, '입주물량', lab, '국토교통부 준공 실적',
+        out.append(sec('moveins', 3, '입주물량', lab, MOVEINS_SOURCE,
                        table(['지역', '%s 실적' % SZ.quarter_short(raw),
-                              '%s 예정' % (SZ.quarter_short(nxt.get('p', '')) if nxt else '-')],
+                              '%s %s' % (SZ.quarter_short(nxt.get('p', '')) if nxt else '-', EST_HEAD)],
                              cells,
-                             '실제로 집이 들어온 물량(세대). 분기 단위라 다른 지표와 '
+                             '앞 칸은 실제로 집이 들어온 물량(세대), ' + moveins_est_note() + ' 분기 단위라 다른 지표와 '
                              '기준 시점이 다릅니다 — 표에 분기를 그대로 적었습니다. '
                              '<a href="/moveins/">입주물량 자세히 보기</a>')))
 
@@ -562,10 +575,11 @@ def top3_lines(adv, sts):
         # 1세대 갈려('대구 -3,042세대' 위에 표는 3,281 → 240) 게이트가 그 분기 내내 막힌다(감사 #18).
         vals = {r: SZ.half_up(nv[i]) - SZ.half_up(lv[i]) for i, r in enumerate(oregs)
                 if i < len(lv) and i < len(nv) and lv[i] is not None and nv[i] is not None}
-        head = '%s 실적 대비 %s 예정, 증감이 큰 곳' % (month_label(last.get('p', '')), month_label(nxt.get('p', '')))
+        head = '%s 실적 대비 %s ' + EST_HEAD + ', 증감이 큰 곳'
+        head = head % (month_label(last.get('p', '')), month_label(nxt.get('p', '')))
         top = [(r, _signed(v) + '세대') for r, v in _rank(vals)]
         tops['moveins'] = (head, top) if top else (
-            head, [], _why_empty(vals, '시도 입주 자료가 비어 있어 증감을 싣지 않습니다.', '시도 모두 실적과 예정이 같습니다.'))
+            head, [], _why_empty(vals, '시도 입주 자료가 비어 있어 증감을 싣지 않습니다.', '시도 모두 실적과 추정이 같습니다.'))
     # 미분양·전세가율은 비교 달을 표와 같은 SZ.month_back 으로 찾는다. 그 달 칸이 없으면(보류한 달이
     # 끝내 안 채워진 채 다음 달이 들어온 회차 — 감사 #17) 표의 증감 칸이 전부 '·'가 되므로, 요약도
     # 3곳을 뽑지 않고 왜 비었는지를 한 줄로 적는다(세 번째 원소). 두 달 치 변화를 '전월 대비'로 싣지 않는다.
@@ -691,9 +705,10 @@ def main():
             + toc + ''.join(secs)
             + share_block
             + '<section><div class="wrap"><p class="note">'
-            '모든 값은 공개 통계 원자료에서 그대로 가져옵니다. 가공은 단위 환산과 '
-            '합계뿐이며, 없는 값을 추정해 채우지 않습니다.'
-            '</p></div></section>')
+            + ('모든 값은 공개 통계 원자료에서 그대로 가져옵니다. 가공은 단위 환산과 '
+               '합계뿐이며, 없는 값을 추정해 채우지 않습니다. 예외는 입주물량 표의 '
+               '%s 칸(%s) 하나입니다.' % (EST_HEAD, I.MOVEINS_EST))
+            + '</p></div></section>')
 
     html = I.fill(
         I.SHELL, desk='doc',
