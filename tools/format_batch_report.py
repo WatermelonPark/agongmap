@@ -44,20 +44,22 @@ OK = '✅'
 SKIP = '➖'
 
 
+# 아래 세 날짜 도우미는 sido_zones 날짜 정본(day_text·month_text·quarter_text — 읽는 자리의 두 단계 표기)의 거울이다.
+# 이 도구는 설치 없이 도는 결과 보고라 정본 모듈을 불러오지 않는다(F-6). 일치는 test_batch_report.test_date_helpers_mirror_the_canon 이 본다.
 def _month_day(s):
-    """'2026-09-07' → '9월 7일'. 못 읽으면 원문 그대로."""
+    """'2026-09-07' → '9/7'(sido_zones.day_text). 못 읽으면 원문 그대로."""
     m = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', s.strip())
-    return '%d월 %d일' % (int(m.group(2)), int(m.group(3))) if m else s.strip()
+    return '%d/%d' % (int(m.group(2)), int(m.group(3))) if m else s.strip()
 
 
 def _year_month(s):
-    """'2026-07' / '2026.07' → '2026년 7월'."""
+    """'2026-07' / '2026.07' → '2026년 7월'(sido_zones.month_text)."""
     m = re.match(r'^(\d{4})[-.](\d{2})$', s.strip())
     return '%s년 %d월' % (m.group(1), int(m.group(2))) if m else s.strip()
 
 
 def _quarter(s):
-    """'2026Q2' → '2026년 2분기'."""
+    """'2026Q2' → '2026년 2분기'(sido_zones.quarter_text)."""
     m = re.match(r'^(\d{4})Q([1-4])$', s.strip())
     return '%s년 %s분기' % (m.group(1), m.group(2)) if m else s.strip()
 

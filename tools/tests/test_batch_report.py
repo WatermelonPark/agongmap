@@ -131,7 +131,7 @@ def test_first_lines_are_conclusion_then_todo():
 
 def test_basis_is_written_in_human_dates():
     body, _ = _b(CLEAN)
-    assert '주간 시세 9월 7일' in body
+    assert '주간 시세 9/7' in body
     assert '월간 통계 2026년 7월' in body
     assert '공급 2026년 2분기' in body
     for raw_form in ('2026-09-07', '2026Q2', '2026-07'):
@@ -290,3 +290,19 @@ def test_fallback_title_is_red_when_the_record_has_a_failure(tmp_path):
         subprocess.run(['bash', '-c', 'set -e\nR=%s\n%s' % (r, blk)], cwd=tmp_path, check=True)
         meta = (tmp_path / '_report.meta').read_text(encoding='utf-8').splitlines()
         assert meta[0] == '1' and meta[1].startswith(want), (rec, meta)
+
+
+def test_date_helpers_mirror_the_canon():
+    """결과 보고의 날짜 도우미가 sido_zones 날짜 정본(읽는 자리 표기)과 같은 답을 낸다(전수리뷰 F overflow — 예전엔 주간을
+    '9월 7일'로 적어 사이트의 '9/7'과 갈렸다).
+
+    변이(실제로 확인): _month_day 를 예전 '%d월 %d일' 로 되돌리면 빨강. _year_month 의 '%s년 %d월' 을 '%s.%02d' 로 바꿔도 빨강.
+    픽스처: 연 넘김·한 자리 달·10월 이상 달·네 분기를 고루 담은 합성 시점.
+    """
+    import sido_zones as SZ
+    for d in ('2026-09-07', '2026-01-01', '2025-12-29', '2026-10-13'):
+        assert F._month_day(d) == SZ.day_text(d), d
+    for m in ('2026-07', '2026.07', '2025.12', '2026-10'):
+        assert F._year_month(m) == SZ.month_text(m), m
+    for q in ('2026Q1', '2026Q2', '2025Q3', '2025Q4'):
+        assert F._quarter(q) == SZ.quarter_text(q), q
