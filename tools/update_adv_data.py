@@ -5,7 +5,7 @@ data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이�
 (2026-07-19 분리: 데이터는 index.html이 아니라 data.js에 있다.)
 실운영 갱신은 클라우드 배치(.github/workflows/update-cloud.yml) 하나가 담당한다. KOSIS가 해외 IP를
 간헐 차단하므로 러너 3개의 IP 프리플라이트로 우회하고, 0/3이면 update-cloud-retry.yml이 재시도한다.
-로컬 러너(tools/run_weekly_update.bat)는 2026-07-23 이후 휴면이다(재가동은 대표 결정 대기, 백로그 22).
+로컬 러너(tools/run_weekly_update.bat)는 2026-07-23 이후 휴면이고, 2026-09-23 대표 결정으로 휴면 확정이다(백로그 22 — bat 은 비상용).
 
 사용:
   KOSIS_API_KEY=... python tools/update_adv_data.py --update      # 실제 갱신
@@ -14,7 +14,8 @@ data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이�
 데이터셋 구성:
   permits  — 국토교통부 「주택건설실적통계」 주택유형별 인허가실적(월별 누계, DT_MLTM_1948)의
              아파트 행: 6월 누계 = 상반기, 12월 누계 − 6월 누계 = 하반기
-  occupancy — 입주물량은 공공 API가 없어 자동 갱신 대상에서 제외(수동 시딩 유지)
+  occupancy — 입주물량 표. main()이 매 회차 sido_zones.supply_rows(준공 실적 + 착공 3년 시프트 — 홈 공급표와 같은 원천)로
+             다시 만든다(옛 odcloud 입주예정 수동 시딩은 2026-08-07 에 걷어냈다)
   monthly  — 월간 매매·전세·월세 동향(R-ONE 단일 소스): 시장동향 월간 지도·그래프에
              쓰이는 라이브 데이터로 매 실행 갱신한다(fetch_monthly, adv['monthly']).
 """
@@ -158,9 +159,10 @@ def drop_raw_aggregates(stats):
 
 
 def _supply_region(full):
-    """R-ONE CLS_FULLNM → STATS 지역명. 두 표의 계층이 서로 다르다.
+    """R-ONE CLS_FULLNM → STATS 지역명. 배치는 분양표(R-ONE)에, 감시(check_freshness.rone_latest_complete)도 같은 함수를 쓴다.
        분양표:  '전국' · '수도권' · '수도권>서울' · '기타지방>강원'
-       미분양표: '강원>계' (시도 소계가 '계')
+       옛 R-ONE 미분양표: '강원>계' (시도 소계가 '계') — 미분양은 2026-10-07 KOSIS(C1_NM, _fetch_supply_kosis)로 옮겼고
+       이 갈래는 그 모양을 다시 만나도 읽게 남긴다.
        '기타지방'·'5대광역시 및 세종특별자치시' 같은 중간 집계행은 STATS에
        대응 지역이 없어 버린다(전국/수도권/지방은 아래 _supply_rollup이 만든다)."""
     parts = [p.strip() for p in (full or '').split('>') if p.strip()]
@@ -197,7 +199,8 @@ def _fold_gj(vals, weighted=False, synth=True):
     광주나 전남을 소급 정정하면 시도합≠전국이 되어 pytest 게이트가 그 달이 창을 벗어날 때까지 매일 빨개지고,
     권하는 교정(--heal-basic)도 같은 경로라 못 고친다(2026-09-26 데이터 감사 #4).
 
-    규칙(merge_regions 의 이력 병합과 같은 정본 — 이름·가중치·반올림):
+    규칙(merge_regions 의 이력 병합과 같은 정본 — 이름·가중치·반올림. 한 조각 규칙만은 다르다 — 09-10 1회용 merge_series 는
+    한 조각 값을 쓰거나 0 으로 더했고, 여기서는 만들지 않는다):
       - 원천이 통합 행을 직접 주면 그 값을 쓴다(원천 숫자 우선).
       - 아니면 **두 조각이 다 있을 때만** 만든다. 물량(호·세대)은 합, 지수·비율(merge_regions.WEIGHTED)은
         W_GJ 가중평균(소수 2자리, merge_regions.merge_series 와 같다).
@@ -215,8 +218,9 @@ def _fold_gj(vals, weighted=False, synth=True):
 def _merge_gj(fetched):
     """공급(분양·미분양) {(y,m): {지역: 값}}의 광주·전남을 '전남광주'로 접는다(2026-09-10 통합).
 
-    R-ONE이 아직 두 지역을 따로 준다. 규칙은 _fold_gj(수집 경로 공통)다 — 호·세대라 합이고,
-    두 조각이 다 있을 때만 만든다. 한 조각만 온 달은 전남광주가 비어 _drop_incomplete 가 보류한다.
+    분양(R-ONE)은 아직 두 지역을 따로 주고, 미분양(KOSIS)은 통합 뒤 달을 통합 행 '전남광주'로 준다(통합 전 달은 두 이름).
+    규칙은 _fold_gj(수집 경로 공통)다 — 호·세대라 합이고, 원천 통합 행이 있으면 그것, 아니면 두 조각이 다 있을 때만 만든다.
+    한 조각만 온 달은 전남광주가 비어 _drop_incomplete 가 보류한다.
     """
     for vals in fetched.values():
         _fold_gj(vals)
@@ -272,8 +276,8 @@ def write_supply_stalled(root=None):
 
 
 def _supply_rollup(fetched, regions):
-    """미분양표는 시도만 주므로 전국/수도권/지방 합계를 직접 만든다.
-       분양표처럼 원천이 이미 주는 경우엔 덮어쓰지 않는다."""
+    """원천이 합계 행을 주지 않으면(옛 R-ONE 미분양표는 시도만 줬다) 전국/수도권/지방 합계를 직접 만든다.
+       분양표(R-ONE)·미분양(KOSIS, 전국·수도권 행이 있다)처럼 원천이 이미 주는 경우엔 덮어쓰지 않는다."""
     for vals in fetched.values():
         sido = {k: v for k, v in vals.items() if k in SUPPLY_SIDO}
         if len(sido) < len(SUPPLY_SIDO) - 2:     # 결측이 많으면 합계를 만들지 않는다
@@ -384,7 +388,7 @@ def update_supply(stats, months=None, failed=None):
                                'series': {r: [] for r in base}, 'source': cfg['source']}
             D = stats[name]
             regions = set(D['series'])
-            # ⚠️ 원천은 미분양·분양을 아직 광주·전남으로 따로 준다. 저장 계열에는
+            # ⚠️ 원천은 분양을 아직 광주·전남으로 따로 주고, 미분양도 통합 전 달은 두 이름이다. 저장 계열에는
             # '전남광주'만 있으므로, 조회 단계에서 지역 필터에 두 옛 이름을 함께
             # 넣어야 _merge_gj가 합칠 대상을 받는다. 이걸 빠뜨리면 두 지역이
             # 조회에서 버려져 전남광주가 비고, 롤업이 만든 '전국'이 그만큼
@@ -2622,7 +2626,7 @@ def main():
             write_adv(adv)
         # ⚠️ 가드에 걸린 회차는 occupancy도 쓰지 않는다. 점수(ADV.sido)만 지키고
         # 여기서 쓰면 홈 표와 통계 탭이 다시 갈리고, write_adv가 성공해 '변경 있음'이
-        # 되면서 전량실패 회로차단기(len(failed)>=5 and not changed)까지 풀린다
+        # 되면서 전량실패 회로차단기(set(MAIN_SOURCES) <= set(failed) and not changed)까지 풀린다
         # (2026-08-07 감사).
         if 'sido-shrink' in failed:
             raise RuntimeError('sido 가드에 걸려 occupancy도 갱신하지 않는다')
