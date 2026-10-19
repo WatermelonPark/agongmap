@@ -289,7 +289,8 @@ def zone_table(S, names, z):
     """시도 리포트 주간 표의 행 — 판정 단위 z 의 시군구를 이번 주 매매 순(sgg_ranks 와 같은 순서·같은 대상)으로.
 
     돌려주는 것: [{'c': 코드, 'name': 이름, 'ma'/'je': 이번 주 원값, 'ma12'/'je12': CUM_WEEKS 주 누적(원값) 또는 None,
-    'sma'/'sje': 연속(streak — 상승 +N·하락 −N·0), 'oma'/'oje': 연속이 보관 이력 첫 주까지 닿았나}] — 행이 둘 미만이면 [].
+    'sma'/'sje': 연속(streak — 상승 +N·하락 −N·0), 'oma'/'oje': 연속이 보관 이력 첫 주까지 닿았나,
+    'tma'/'tje': 이번 주 표지 tag() 또는 None}] — 행이 둘 미만이면 [].
     표시(반올림)는 부르는 쪽이 make_weekly_page.pv2 로 한다. 연속은 streak() 그대로(표시값 부호, 보합·결측에서 끊김, 전체 이력).
     """
     rows = (S or {}).get('rows') or []
@@ -311,6 +312,7 @@ def zone_table(S, names, z):
             r[met + '12'] = cum_change(rows, win, i, met)
             r['s' + met] = s
             r['o' + met] = opened(vals, abs(s))
+            r['t' + met] = tag(vals)       # 이번 주 표지(연속 STREAK_MIN 주 이상·전환) — 한 줄 요약(세종)이 같은 낱말로 쓴다
         out.append(r)
     return out
 

@@ -694,11 +694,12 @@ def _wk_streak(s, o):
     return '<td%s>%s</td>' % ((' class="%s"' % k) if k else '', WM.streak_text(s, o))
 
 
-def _wk_table(rows, label):
+def _wk_table(rows, label, unit='시군구'):
+    """unit — 첫 칸 머리. 세종처럼 시·군·구가 없는 한 줄 표는 '지역'(전수리뷰 Z1-7)."""
     head = ('<div class="zwk-scroll"><table class="ztb" aria-label="%s"><thead>'
-            '<tr><th rowspan="2">시군구</th><th colspan="3">매매</th><th colspan="3">전세</th></tr>'
+            '<tr><th rowspan="2">%s</th><th colspan="3">매매</th><th colspan="3">전세</th></tr>'
             '<tr>%s%s</tr></thead><tbody>'
-            % (esc(label), *(['<th>주간</th><th>%d주</th><th>연속(주)</th>' % WM.CUM_WEEKS] * 2)))
+            % (esc(label), esc(unit), *(['<th>주간</th><th>%d주</th><th>연속(주)</th>' % WM.CUM_WEEKS] * 2)))
     body = ''.join('<tr><td>%s</td>%s%s%s%s%s%s</tr>'
                    % (esc(r['name']), _wk_cell(r['ma']), _wk_cell(r['ma12']), _wk_streak(r['sma'], r['oma']),
                       _wk_cell(r['je']), _wk_cell(r['je12']), _wk_streak(r['sje'], r['oje'])) for r in rows)
@@ -712,8 +713,17 @@ def _wk_lead(z, rows):
     if len(rows) == 1:
         r = rows[0]
         s = r['sma']
-        tail = ('매매는 %d주%s 연속 %s입니다.' % (abs(s), ' 이상' if r['oma'] else '', '상승' if s > 0 else '하락')
-                if s else '매매는 이번 주 보합입니다.')
+        # 방향 낱말은 /weekly/·블로그 표지와 같은 WM.tag(전수리뷰 Z1-7) — 'N주 연속'은 STREAK_MIN 주부터, 막 돌아선 주는 '상승 전환'.
+        # 예전엔 연속 1주에도 '매매는 1주 연속 상승입니다'라 썼다(세종은 방향이 자주 바뀌어 최근 52주 중 20주가 그랬다).
+        t = r.get('tma')
+        if t and t[2] >= WM.STREAK_MIN:
+            tail = '매매는 %s입니다.' % t[1]
+        elif t:
+            tail = '매매는 이번 주 %s입니다.' % t[1]
+        elif s:
+            tail = '매매는 이번 주 %s입니다.' % ('상승' if s > 0 else '하락')
+        else:
+            tail = '매매는 이번 주 보합입니다.'
         # 값이 없는 조각은 뺀다('전세 ·%' 를 찍지 않는다)
         now = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma'), ('전세', 'je')) if r[m] is not None]
         cum = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma12'), ('전세', 'je12')) if r[m] is not None]
@@ -864,9 +874,12 @@ def weekly_section(z, weekly, names, monthly=None, maps=None):
             else:
                 h.append('<h3>매매가 %s 곳</h3><p class="zwk-none">이번 주 매매가 %s 시군구는 없습니다.</p>' % (word, word))
         order = '위 표는 많이 오른 곳부터, 아래 표는 많이 내린 곳부터 적었습니다. '
+    elif single:   # 세종 — 시·군·구가 없는 단일 행정구역이라 표 머리·읽어 줄 이름에서도 '시군구'를 뺀다(전수리뷰 Z1-7)
+        h.append(_wk_table(rows, '%s 주간 매매·전세 변동률' % SZ.disp(z), unit='지역'))
+        order = ''
     else:
         h.append(_wk_table(rows, '%s 시군구 주간 매매·전세 변동률' % SZ.disp(z)))
-        order = '' if single else '이번 주 매매 변동률이 큰 곳부터 적었습니다. '
+        order = '이번 주 매매 변동률이 큰 곳부터 적었습니다. '
     h.append('<p class="zsub">%s%d주는 최근 %d주 변동률을 이어 곱한 누적이고, 연속은 발표 표기(소수 '
              '둘째 자리)로 같은 방향이 이어진 주 수입니다. <a href="%s">전국 시군구 전체 표 →</a></p>'
              % (order, WM.CUM_WEEKS, WM.CUM_WEEKS, MW.TABLE_URL))
