@@ -118,14 +118,18 @@ def test_retry_job_runs_after_failed_fetch_legs():
 
     변이(실제로 확인): retry 잡의 if 에서 `!cancelled() && ` 를 지우면(예전 조건) 빨개진다. `always() && ` 로 바꿔도
     빨개진다. need_retry 비교를 지워도 빨개진다.
-    픽스처: update-cloud.yml 원문 — 잡 단위 if 줄을 잡 경계로 잘라 읽는다. commit 잡도 같은 이유로 always() 인지 본다.
+    픽스처: update-cloud.yml 원문 — 잡 단위 if 줄을 잡 경계로 잘라 읽는다. commit 잡도 같은 이유로 상태 함수가 있어야
+    하고, 사람이 취소한 런에서는 돌지 않게 always() 가 아니라 !cancelled() 다(전수리뷰 F-7 — 변이: commit 잡 if 를
+    always() 로 되돌리면 빨강, if 를 지워도 빨강).
     """
     y = io.open(WF, encoding='utf-8').read()
     cond = _job_if(y, 'retry')
     assert cond, 'retry 잡에 if 가 없다'
     assert re.fullmatch(r"\$\{\{\s*!cancelled\(\)\s*&&\s*needs\.commit\.outputs\.need_retry\s*==\s*'true'\s*\}\}",
                         cond), 'retry 잡 조건에 !cancelled() 가 없다 — fetch 러너가 실패한 날(재시도가 필요한 날) 건너뛴다: ' + cond
-    assert _job_if(y, 'commit') == 'always()', 'commit 잡이 fetch 실패 날에 돌지 않는다 — need_retry 를 세울 잡이 없다'
+    assert re.fullmatch(r'\$\{\{\s*!cancelled\(\)\s*\}\}', _job_if(y, 'commit') or ''), \
+        ('commit 잡은 !cancelled() 여야 한다 — 상태 함수가 없으면 fetch 실패 날(need_retry 를 세울 날)에 건너뛰고, always() 면 '
+         '사람이 취소한 런에서도 돌아 걸리지 않을 재시도를 알리거나 취소한 회차를 커밋한다(전수리뷰 F-7): %r' % _job_if(y, 'commit'))
 
 
 def test_reason_is_uploaded_even_when_the_runner_fails():

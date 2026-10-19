@@ -196,7 +196,12 @@ jobs:
 
   commit:
     needs: fetch
-    if: always()
+    # fetch 러너가 실패해도(0/3 → need_retry) 돌아야 하므로 상태 함수가 있어야 하고, 사람이 런을 취소했을 때는 돌지
+    # 않는다 — always() 이던 때는 취소된 런에서도 돌아 재시도가 걸리지 않는데 '35분 뒤 자동 재시도' 메일을 보내거나 취소한
+    # 회차 데이터를 커밋했다(전수리뷰 F-7). retry 잡·감시 recheck2 와 같은 조건이다. fetch 다리의 timeout-minutes 초과는
+    # 런 취소가 아니라 그 잡의 결과일 뿐이다(2026-07-23 실행 29972120661: 다리 둘이 시간 초과로 끝난 뒤 이 잡의 암묵
+    # success() 스텝까지 모두 돌았다 — 취소 요청 상태가 아니었다).
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write       # 데이터 커밋·푸시
