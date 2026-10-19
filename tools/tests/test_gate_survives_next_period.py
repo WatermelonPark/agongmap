@@ -40,7 +40,7 @@ AGONGMAP_ALLOW_SKIP=1 을 통째로 줘 모든 건너뜀이 rc=0 으로 지나�
   - 배치 잡 가드(_in_batch_gate)를 지우면 test_forward_check_never_gates_the_batch_commit 이 빨개진다.
   - 사본에서만 건너뛰는 시험(저장소 뿌리에 .git 이 없으면 pytest.skip)을 하나 넣으면 안쪽 게이트가 '건너뜀이 실패다'로
     빨개져 이 시험이 빨개진다. 안쪽 env 에 AGONGMAP_ALLOW_SKIP=1 을 되살리면 같은 상태에서 초록이 된다(T1-4).
-픽스처: 저장소의 실제 data.js 를 한 분기(준공·착공)·한 주·한 달 앞당긴 것. 실행 시간 약 30초(안쪽 게이트가 대부분).
+픽스처: 저장소의 실제 data.js 를 한 분기(준공·착공)·한 주·한 달 앞당긴 것. 실행 시간 약 3분(안쪽 게이트가 대부분 — 2026-10 실측).
 """
 import datetime
 import io
