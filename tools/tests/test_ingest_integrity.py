@@ -325,6 +325,7 @@ def test_quarter_closing_month_on_one_series_only_is_held(monkeypatch):
     before = SZ.calc(st)
     assert before['H'] == before['lead'], '픽스처: 저장분이 이미 어긋나 있다'
     j0, c0 = copy.deepcopy(st['준공']), copy.deepcopy(st['착공'])
+    U.drop_raw_aggregates({'준공': j0, '착공': c0})   # update_basic 은 모델 밖 원천 집계 행을 먼저 뺀다(D2) — 병합 전 상태의 기준
     failed, changed = _basic_run(monkeypatch, st, {'준공': _new_quarter(j0),
                                                   '착공': RuntimeError('KOSIS err 20: 픽스처')})
     assert '착공' in failed and 'sido-h' in failed

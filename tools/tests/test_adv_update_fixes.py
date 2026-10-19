@@ -387,6 +387,40 @@ def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
     assert {'weekly', 'monthly', 'permits', 'holidays'} <= set(rec)
 
 
+# ── 4-1. 모델 밖 원천 집계 행(대표 결정 2026-10-18 D2, 전수리뷰 A-5) ─────────────────────
+def test_raw_aggregate_rows_leave_the_model_series_for_good(monkeypatch):
+    """지역 축이 판정 모델인 계열(전세가율·인허가·착공·준공·분양·미분양)에서 모델 밖 원천 집계 행을 빼고, 다음 회차에 원천이 그 행을
+    또 줘도 다시 들어오지 않는다. KAB 실거래가격지수(매매·전세지수)의 원천 권역 행은 결정 밖이라 남는다. 뺀 회차는 바뀐 것으로 쓴다.
+
+    변이(각각 실제로 확인): update_basic 의 drop_raw_aggregates 호출을 지우면 집계 행이 남아, MODEL_REGION_SERIES 에 flat 계열까지
+          넣으면(모드 거르기를 빼면) 매매지수 권역 행이 지워져 빨개진다.
+    픽스처: 2026.07 광주·전남 통합 때 원천이 같은 이름 집계 행의 구성을 바꾼 상태 — 저장 계열에 집계 행 하나(이름은 합성), 원천
+            응답(2026.07)에도 같은 행. 매매지수에는 원천 권역 행 하나(합성 이름).
+    """
+    stats = {n: {'dates': ['2026.06'], 'series': {z: [1.0] for z in MODEL}} for n in list(U.BASIC_CONF) + list(U.SUPPLY_CONF)}
+    for n in U.MODEL_REGION_SERIES:
+        stats[n]['series']['합성집계'] = [70.0]
+    flat = [n for n, c in U.BASIC_CONF.items() if c['mode'] == 'flat']
+    assert flat and set(U.MODEL_REGION_SERIES) >= {n for n, c in U.BASIC_CONF.items() if c['mode'] != 'flat'}
+    for n in flat:
+        stats[n]['series']['합성권역'] = [99.0]
+    written = []
+    monkeypatch.setattr(U, 'read_current_stats', lambda: stats)
+    monkeypatch.setattr(U, 'write_stats', lambda st: written.append(True))
+    monkeypatch.setattr(U, 'ECOS_KEY', '')
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    monkeypatch.setattr(U, '_fetch_basic_one', lambda name, *a, **k: ({(2026, 7): {'합성집계': 71.0, MODEL[0]: 2.0}}, {}))
+    for fn in ('update_size', 'update_supply', 'update_annual'):
+        monkeypatch.setattr(U, fn, lambda *a, **k: [])
+    changed = U.update_basic([])
+    for n in U.MODEL_REGION_SERIES:
+        assert '합성집계' not in stats[n]['series'], n
+    for n in flat:
+        assert '합성권역' in stats[n]['series'], '결정 밖 원천 권역 행까지 뺐다'
+    assert any(t.startswith('집계행정리') for t in changed) and written, changed
+    assert U.drop_raw_aggregates(stats) == {}, '두 번째 회차에도 뺄 것이 남았다'
+
+
 # ── 5. _merge_hist: 열 목록이 바뀐 회차 ─────────────────────────────────────
 def test_history_is_realigned_by_name_when_columns_change():
     """최신 응답의 열 목록이 바뀌어도 옛 행 값이 한 칸씩 밀리지 않고, 응답에서 빠진 열도 이력이 있으면 남는다
