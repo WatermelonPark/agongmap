@@ -944,11 +944,15 @@ POSTS = [
 ]
 
 
-def link6_values(D, adv, sts):
-    """6편 숫자 — /cycle/ 정본(D.prose·D.link6_regional)과 5편 함수(theory_link4)에서 읽는다. 문장의 전제가 깨지면 멈춘다
-    (3편 check_sync_claims 와 같은 원칙). 전제: ① 서울은 효과가 확인되지 않는다, ② 수도권으로 묶으면 서울보다 강하다,
-    ③ 광역시가 도보다 강하다, ④ 확인된 수도권 시도는 모두 한 분기 뒤 반응, ⑤ 가장 강한 시도가 앞으로 입주가 적정물량을
-    넘는 곳이다, ⑥ 앞으로 입주가 적정물량을 넘는 시도가 있다."""
+def link6_values(D, adv):
+    """6편 숫자 — /cycle/ 정본(D.prose·D.link6_regional)과 앞으로 입주 목록(theory_link4.fut_lists — 5편과 같은 규칙)에서 읽는다.
+    문장의 전제가 깨지면 멈춘다(3편 check_sync_claims 와 같은 원칙). 전제: ① 서울은 효과가 확인되지 않는다, ② 수도권으로 묶으면
+    서울보다 강하다, ③ 광역시가 도보다 강하다, ④ 확인된 수도권 시도는 모두 한 분기 뒤 반응, ⑤ 가장 강한 시도가 앞으로 입주가
+    적정물량을 넘는 곳이다, ⑥ 앞으로 입주가 적정물량을 넘는 시도가 있다, ⑦ 앞으로 입주가 적정물량의 3분의 1에도 못 미치는 시도가
+    있다('가장 적은 곳은 …'), ⑧ 적정물량에 못 미치는 시도가 대부분이다('대부분 지역에서 적정물량에 못 미치는데요' — 5편 '대부분'과
+    같은 문턱 L4.MOST).
+    5편의 단정(link4_numbers — 착공 증가율·2027년 입주·시차 정본·2026년 데이터 전제 등 약 60개)에는 묶지 않는다. 6편 본문이 5편에서
+    읽는 값은 앞으로 입주 목록 넷뿐이고, 5편은 발행본이라 '5편 문장을 고치라'는 안내를 따를 수도 없다(전수리뷰 BL2-4)."""
     import theory_link4 as L4
     pr, rg = D['prose'], D['link6_regional']
     num = lambda s: float(s.replace('−', '-'))
@@ -956,14 +960,14 @@ def link6_values(D, adv, sts):
     sudo = [x for x in sig if x['zone'] == '수도권']
     prov = [x for x in sig if x['zone'] != '수도권']
     top = sorted(rg, key=lambda x: x['r'])
+    nm = lambda z: P.SEARCH_NAME.get(z, z)
     try:
-        n4 = L4.link4_numbers(adv, sts)
+        F = L4.fut_lists(adv, name=nm)
     except L4.Link4ClaimError as e:
-        # 5편 단정이 깨진 회차는 6편도 초안을 만들지 않는다 — render 의 5편 가드와 같이 SystemExit 로 바꾼다. 예외 그대로 두면
-        # 초안 생성 가드를 SystemExit 로 거르는 게이트 시험(test_home_entry 의 _all_drafts)이 데이터가 움직인 날 배치를 멈춘다
-        # (2026-10-17 다음 분기 전진 시험에서 fut_high 가 바뀌어 실제로 그랬다).
-        raise SystemExit('6편을 만들 수 없다 — %s. 5편 문장을 먼저 고칠 것.' % e)
-    high = [z for z in n4['fut_high_names'].split('·') if z]
+        # 판정 칸(ADV.sido)을 못 읽는 회차 — 문장 탓이 아니다. 예외 그대로 두면 초안 생성 가드를 SystemExit 로 거르는 게이트 시험
+        # (test_home_entry 의 _all_drafts)이 그날 배치를 멈춘다(대표 결정 2026-10-18 D1).
+        raise SystemExit('6편을 만들 수 없다 — %s. 문장 탓이 아니다 — 판정 칸을 읽을 수 있는 데이터로 다시 돌린다.' % e)
+    high = F['hi']
     bad = []
     if any(x['region'] == '서울' and x['sig'] for x in rg):
         bad.append('서울이 유의로 나온다')
@@ -976,12 +980,16 @@ def link6_values(D, adv, sts):
     if not high:
         bad.append('앞으로 입주가 적정물량을 넘는 시도가 없다')
     elif top[0]['region'] not in high:
-        bad.append('가장 강한 시도(%s)가 앞으로 입주 과잉 지역이 아니다' % top[0]['region'])
+        bad.append('가장 강한 시도(%s)가 앞으로 입주가 적정물량을 넘는 곳이 아니다' % nm(top[0]['region']))
+    if not F['lo']:
+        bad.append('앞으로 입주가 적정물량의 3분의 1에도 못 미치는 시도가 없다')
+    if F['below'] < F['n'] * L4.MOST:
+        bad.append('앞으로 입주가 적정물량에 못 미치는 시도가 대부분이 아니다(%d/%d곳)' % (F['below'], F['n']))
     if bad:
-        raise SystemExit('6편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % ' · '.join(bad))
-    nm = lambda z: P.SEARCH_NAME.get(z, z)
+        raise SystemExit('6편을 만들 수 없다 — %s. 6편 문장을 먼저 고칠 것.' % ' · '.join(bad))
     eunneun = lambda w: w + ('은' if (ord(w[-1]) - 0xAC00) % 28 else '는')
-    return dict(n4, l6_total=pr['l6_total'], l6_sig=pr['l6_sig'], l6_metro=pr['l6_metro'], l6_prov=pr['l6_prov'],
+    return dict(fut_high=F['fut_high'], fut_high_names=F['fut_high_names'], fut_low=F['fut_low'], win_y=F['win_y'],
+                l6_total=pr['l6_total'], l6_sig=pr['l6_sig'], l6_metro=pr['l6_metro'], l6_prov=pr['l6_prov'],
                 seoul_l6=pr['seoul_l6'], sudo_l6=pr['sudo_l6'], rate_r=pr['rate_r'],
                 l6_top3='·'.join(nm(x['region']) for x in top[:3]), l6_top1=eunneun(nm(top[0]['region'])),
                 l6_sudo_sig=eunneun('·'.join(nm(x['region']) for x in sudo)),
@@ -1085,8 +1093,8 @@ def render(post):
     elif post['n'] == 7:
         n4 = link7_values(D)
     elif post['n'] == 6:
-        adv, sts = M.load()
-        n4 = link6_values(D, adv, sts)
+        adv, _ = M.load()
+        n4 = link6_values(D, adv)
     elif post['n'] in (1, 2):
         n4 = link1_values(D)
         if post['n'] == 2 and not n4['l1_mid']:
