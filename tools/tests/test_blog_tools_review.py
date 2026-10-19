@@ -393,6 +393,11 @@ def test_weekly_top3_is_the_site_top3(monkeypatch):
 
 # ── #24·#106 전세가율 기준월, #114 노후주택 기준 해 ──────────────────────────
 def test_jeonse_section_uses_the_site_reference_month():
+    """전세가율 절은 사이트 정본 기준월(jeonse_ref_index)의 값을 싣고, 기준월 전달 값이 없으면 '전월 대비'를 못 써 절째 뺀다.
+
+    예전엔 기준월 바로 전달의 전국 값이 빈 회차에 도구가 규칙대로 절을 빼는데 시험이 그 절 글자를 요구해 게이트가 막혔다(전수리뷰
+    overflow). 이제 그 칸이 비었으면 사본에서 채워 기준월 대조를 늘 돌리고, 빈 칸 갈래(절 생략)는 따로 단정한다.
+    변이: extra_section 이 전월 값 없이도 절을 쓰게(`or prv is None` 삭제) 하면 마지막 단정이 TypeError 로 빨갛다(확인)."""
     adv, sts = M.load()
     sts = copy.deepcopy(sts)
     j = sts['전세가율']
@@ -400,9 +405,16 @@ def test_jeonse_section_uses_the_site_reference_month():
     for rg, s in j['series'].items():
         s.append(99.9 if rg == '전국' else None)   # 전국만 먼저 온 새 달
     i = I.jeonse_ref_index(j, I.JEONSE_NEED)
+    k = SZ.month_back(j['dates'], i, 1)
+    assert k is not None, '기준월의 전달이 계열에 없다 — 대조가 헛돈다'
+    nat = j['series']['전국']
+    if nat[k] is None:                         # 기준월 바로 전달의 전국 값이 빈 회차 — 사본에서 채운다
+        nat[k] = round(nat[i] - 0.1, 1)
     html = P.extra_section(adv, sts, 0)
     assert '(%s 기준' % j['dates'][i] in html and '2099.01' not in html and '99.9%' not in html
-    assert '<b>%.1f%%</b>' % j['series']['전국'][i] in html
+    assert '<b>%.1f%%</b>' % nat[i] in html
+    nat[k] = None                              # 그 칸이 빈 갈래 — 절을 통째로 뺀다(도구의 규칙)
+    assert P.extra_section(adv, sts, 0) == ''
 
 
 def test_aged_section_uses_one_complete_year():
