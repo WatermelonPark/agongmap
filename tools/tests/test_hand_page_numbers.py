@@ -4,11 +4,12 @@
 두 페이지는 사람이 쓴 파일이라 배치가 고치지 않는다. 2026-09-30 전수 리뷰 때 아래 수치는 값은 맞았지만 대조하는
 시험이 없어, 원천·분석·모델이 바뀌어도 아무것도 빨개지지 않았다(CLAUDE.md '사람이 센 수를 박지 않는다').
 
-  ① '인허가는 같은 해 착공보다 15%쯤 많다'(about·faq·홈 index.html) — 정본은 sido_zones.permit_start_conv(전국 착공÷인허가,
-     CONV_FROM 이후 완비 연도 합계). 지금 0.867 → 인허가가 약 15.3% 많다.
-     게이트 안전: 합계 비율이라 한 해가 더 들어와도 크게 움직이지 않는다. 2012~2025 중 가장 치우친 해(2023년,
-     착공÷인허가 0.54)와 같은 해가 한 번 더 들어와도 15.3% → 18.1%, 약 2.8%p 움직인다. 그래서 '쯤'의 허용 폭을 ±5%p 로 둔다 — 한 회차의
-     데이터 전진은 게이트를 막지 않고, 여러 해가 쌓여 문장이 실제로 틀려지면 빨개진다.
+  ① '인허가는 같은 해 착공보다 15%쯤 많다'(about·faq·홈 index.html) — 정본은 시도 리포트가 같은 문장을 굽는
+     sido_zones.permit_over_start_pct(전국 착공÷인허가의 역수, PERMIT_OVER_STEP=5 단위 반올림). 지금 0.867 → 15.3% → '15%쯤'.
+     손 숫자는 리포트 값과 **같은 단위**(5의 배수)여야 하고, 게이트는 리포트 값에서 한 칸(PERMIT_OVER_STEP) 안까지 봐 준다 —
+     합계 비율이라 한 해가 더 들어와도 크게 움직이지 않지만(가장 치우친 해 2023년 0.54 와 같은 해가 한 번 더 들어와도 15.3% → 18.1%),
+     17.5% 를 넘는 날 리포트는 '20%쯤'이 된다. 그날 커밋을 막지 않고, 정확히 같은지는 배치 기록 ℹ️ 줄(batch_notes.hand_permit_lines)이
+     알린다(전수리뷰 X1-11 — 예전엔 측정값 ±5%p 라 리포트 20% 와 손 페이지 15% 가 갈린 채 초록이었고 아무 데도 알리지 않았다).
   ② '착공부터 준공까지 2018년 전에는 약 28개월, 그 뒤로는 약 37개월'(faq 본문·JSON-LD) — 정본은 /cycle/ 의
      D.prose lead_old·lead_new(rebuild_cycle_analysis 가 사람 손으로 돌 때만 바뀐다 — 배치는 이 칸을 고치지 않으므로
      게이트를 막지 않는다. 재산정한 사람의 PR 에서 빨개진다).
@@ -19,7 +20,8 @@
 '16개 시도'는 test_handwritten_sido_count 가 이미 본다.
 
 무엇을 깨뜨리면 빨개지나(모두 실제로 확인):
-  · about/index.html(또는 홈 index.html)의 '15%쯤'을 '25%쯤'으로 바꾸면 ①이 실패한다.
+  · about/index.html(또는 홈 index.html)의 '15%쯤'을 '25%쯤'으로 바꾸면 ①이 실패한다. '17%쯤'(리포트와 다른 단위)으로 바꿔도 실패한다.
+  · batch_notes.hand_permit_lines 의 정확 대조를 측정값 ±5 허용으로 바꾸면 ①의 배치 기록 시험이 실패한다.
   · faq/index.html 본문의 '약 37개월'을 '약 36개월'로 바꾸면 ②가 실패한다(JSON-LD 쪽만 바꿔도 실패).
   · sido_zones.GRADE_CUTS 의 1.5 를 1.6 으로 바꾸면 ③이 실패한다.
   · faq '11단계'를 '10단계'로 바꾸면 ④가 실패한다.
@@ -36,24 +38,60 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import home_src as HS  # noqa: E402  (홈 스크립트는 이 입구로만 읽는다)
 import sido_zones as SZ  # noqa: E402
 
-PERMIT_TOL = 5   # %p — 근거는 위 독스트링 ①
+PERMIT_TOL = SZ.PERMIT_OVER_STEP   # %p — 리포트의 반올림 단위 한 칸. 근거는 위 독스트링 ①
 
 
 def _read(rel):
     return io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
 
 
-def test_permit_excess_percent_follows_measured_conversion():
-    conv = SZ.permit_start_conv(SZ._load_stats(), '전국')
-    assert conv, '전국 착공÷인허가를 재지 못했다'
-    measured = (1 / conv - 1) * 100
-    for rel in ('about/index.html', 'faq/index.html', 'index.html'):
+HAND_PERMIT = ('about/index.html', 'faq/index.html', 'index.html')
+
+
+def _hand_permit_numbers():
+    out = {}
+    for rel in HAND_PERMIT:
         text = HS.home_source() if HS.is_home(rel) else _read(rel)
         got = [int(x) for x in re.findall(r'착공보다 (\d+)%쯤 많', text)]
         assert got, "%s: '착공보다 N%%쯤 많' 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것" % rel
+        out[rel] = got
+    return out
+
+
+def test_permit_excess_percent_follows_measured_conversion():
+    st = SZ._load_stats()
+    report = SZ.permit_over_start_pct(st)          # 시도 리포트가 같은 문장에 굽는 값
+    assert report is not None, '전국 착공÷인허가를 재지 못했다'
+    for rel, got in _hand_permit_numbers().items():
         for n in got:
-            assert abs(n - measured) <= PERMIT_TOL, (
-                '%s: 인허가가 착공보다 %d%%쯤 많다고 적었는데 데이터는 %.1f%% — 문장을 고친다' % (rel, n, measured))
+            assert n % SZ.PERMIT_OVER_STEP == 0, '%s: %d%%쯤 — 리포트와 같은 %d 단위로 적는다' % (rel, n, SZ.PERMIT_OVER_STEP)
+            assert abs(n - report) <= PERMIT_TOL, (
+                '%s: 인허가가 착공보다 %d%%쯤 많다고 적었는데 리포트는 %d%%쯤 — 문장을 고친다' % (rel, n, report))
+
+
+def test_hand_permit_mismatch_reaches_the_batch_record():
+    """손 페이지의 'N%쯤'이 리포트 값(permit_over_start_pct)과 **정확히** 다르면 배치 기록에 ℹ️ 한 줄이 실린다 — 게이트는 한 칸까지 봐
+    주므로 갈린 날 사람에게 닿는 통로다(전수리뷰 X1-11). 실데이터는 두 갈래 모두 의미 있게 본다(같으면 줄 없음, 다르면 그 페이지 이름이
+    줄에 있다). 합성은 리포트가 '20%쯤'이 되는 상태(착공÷인허가 0.8461 → 18.2%)에서 손 문장 15%·20% 두 갈래.
+    변이(실제로 확인): hand_permit_lines 의 정확 대조(`int(n) != want`)를 측정값 ±5 허용으로 바꾸면 합성 15% 갈래가 빨개진다.
+    """
+    import batch_notes as N
+    st = SZ._load_stats()
+    want = SZ.permit_over_start_pct(st)
+    off = sorted(rel for rel, got in _hand_permit_numbers().items() if any(n != want for n in got))
+    real = N.hand_permit_lines(st)
+    if off:
+        assert len(real) == 1 and all(rel in real[0] for rel in off) and '%d%%쯤' % want in real[0], real
+    else:
+        assert real == [], real
+    dates = ['%d.%02d' % (y, m) for y in (2012, 2013) for m in range(1, 13)]
+    syn = {'인허가': {'dates': dates, 'series': {'전국': [100.0 * m for m in range(1, 13)] * 2}},
+           '착공': {'dates': dates, 'series': {'전국': [84.61] * 24}}}
+    assert SZ.permit_over_start_pct(syn) == 20
+    line = N.hand_permit_lines(syn, {'about/index.html': '인허가는 같은 해 착공보다 15%쯤 많고'})
+    assert len(line) == 1 and 'about/index.html' in line[0] and '20%쯤' in line[0] and line[0].startswith(N.ML.MARK), line
+    assert N.hand_permit_lines(syn, {'about/index.html': '인허가는 같은 해 착공보다 20%쯤 많고'}) == []
+    assert N.hand_permit_lines({}, {'about/index.html': '착공보다 15%쯤 많'}) == [], '리포트가 구절을 빼는 상태(잴 수 없음)에는 줄이 없다'
 
 
 def _cycle_prose():

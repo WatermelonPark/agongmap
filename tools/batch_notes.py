@@ -14,11 +14,13 @@
     없이 사라진다. 2026-09-17 현재 19곳 모두 값이 있으므로 None 은 평상 상태가 아니다.
   · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋나거나 데이터 상태로 초안이 멈춘 편
     (theory_claim_lines — 초안 도구만 멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한
-    경과(quiz_review_lines).
+    경과(quiz_review_lines), 손 페이지 '인허가는 착공보다 N%쯤 많다'가 시도 리포트 값과 다른 날(hand_permit_lines, 전수리뷰 X1-11).
 
 사용:  python tools/batch_notes.py [--data data.js]     # 알릴 것이 없으면 아무것도 안 찍는다
 """
 import argparse
+import io
+import os
 import re
 import sys
 
@@ -110,6 +112,36 @@ def quiz_review_lines(today, src=None):
     return ['%s %s' % (ML.MARK, q) for q in qo]
 
 
+# 손 페이지(사람이 고친다)의 '인허가는 같은 해 착공보다 N%쯤 많다' — 시도 리포트는 같은 문장을 SZ.permit_over_start_pct 로 굽는다.
+HAND_PERMIT_PAGES = ('index.html', 'about/index.html', 'faq/index.html')
+HAND_PERMIT_RE = re.compile(r'착공보다 (\d+)%쯤 많')
+
+
+def hand_permit_lines(stats, texts=None):
+    """손 페이지의 '인허가는 착공보다 N%쯤 많다'가 시도 리포트의 같은 문장(SZ.permit_over_start_pct)과 다르면 ℹ️ 한 줄로 알린다
+    (전수리뷰 X1-11). 게이트 시험(test_hand_page_numbers)은 데이터가 한 칸 넘어가도 그날 커밋을 막지 않게 한 칸(PERMIT_OVER_STEP)까지
+    봐 주므로, 갈린 날 사람에게 닿는 통로가 여기다. stats 는 data.js 의 STATS(main 이 읽은 것), texts 는 {경로: 글}(없으면 저장소
+    파일 — 홈은 home_src 입구로). 리포트가 그 구절을 빼는 상태(잴 수 없음)면 줄이 없다.
+    ⚠️ lines(adv) 에 넣지 않는다 — 데이터가 앞으로 가는 날 '줄이 정확히 몇 개'를 단정하는 시험이 빨개진다(quiz_review_lines 와 같은 까닭)."""
+    try:
+        import sido_zones as SZ
+        want = SZ.permit_over_start_pct(stats or {})
+        if want is None:
+            return []
+        if texts is None:
+            import home_src as HS
+            root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            texts = {rel: (HS.home_source() if HS.is_home(rel) else io.open(os.path.join(root, rel), encoding='utf-8').read())
+                     for rel in HAND_PERMIT_PAGES}
+    except Exception as e:   # 알림 곁가지라 배치를 멈추지 않는다 — 못 본 것도 알린다
+        return ['%s 손 페이지 인허가 배율 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
+    bad = sorted({rel for rel, s in texts.items() for n in HAND_PERMIT_RE.findall(s) if int(n) != want})
+    if not bad:
+        return []
+    return ["%s 손 페이지의 '인허가는 착공보다 N%%쯤 많다'가 시도 리포트(%d%%쯤)와 다르다 — %s 문장을 고칠 것"
+            % (ML.MARK, want, ', '.join(bad))]
+
+
 def lines(adv):
     """인자 adv 만 보고 찍을 줄. 저장소 파일·오늘 날짜를 읽는 곁가지(theory_claim_lines·quiz_review_lines)는 main() 이 붙인다."""
     out = []
@@ -125,13 +157,13 @@ def main(argv=None):
     ap.add_argument('--data', help='data.js 경로(기본: 저장소 루트)')
     a = ap.parse_args(argv)
     try:
-        adv, _ = ML.load(a.data)
+        adv, sts = ML.load(a.data)
     except Exception as e:
         # 알림용 곁가지다. 읽지 못해도 배치를 멈추지 않는다 — 대신 이유를 남긴다.
         sys.stderr.write('batch_notes: 데이터를 읽지 못했다 (%s)\n' % e)
         return 0
     import kst
-    for ln in lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()):
+    for ln in lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()) + hand_permit_lines(sts):
         sys.stdout.write(ln + '\n')
     return 0
 
