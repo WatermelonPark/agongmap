@@ -944,8 +944,11 @@ def next_links(z, weekly, stats):
         je = (row.get('je') or [])[i] if i < len(row.get('je') or []) else None
         parts = ['%s %s%%' % (k, MW.pv2(v)) for k, v in (('매매', ma), ('전세', je)) if v is not None]
         if parts:
-            cards.append('<a href="/weekly/"><b>이번 주 시세</b><i>%s · %s 조사 · %s 발표</i></a>'
-                         % (' · '.join(parts), MW.md(row['p']), MW.md(MW.pub(row['p']))))
+            try:
+                when = ' · %s 조사 · %s 발표' % (MW.md(row['p']), MW.md(MW.pub(row['p'])))
+            except Exception:   # 조사일 모양이 틀어져도 카드는 굽는다 — 날짜만 뺀다(weekly_section 기준 줄과 같은 물러섬, 전수리뷰 Z1 overflow)
+                when = ''
+            cards.append('<a href="/weekly/"><b>이번 주 시세</b><i>%s%s</i></a>' % (' · '.join(parts), when))
     j = (stats or {}).get('전세가율') or {}
     ser, dates = (j.get('series') or {}).get(z), j.get('dates') or []
     li = jeonse_index(j) if ser and dates else None
