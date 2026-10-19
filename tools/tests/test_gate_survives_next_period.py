@@ -20,8 +20,11 @@ yaml 로 5회 막힌 사고와 같은 모양). 그래서 배치 한 회차를 �
   4. 커밋 잡이 게이트 앞에서 돌리는 생성기(update-cloud.yml 에서 읽는다)를 사본에서 돌린다 — 전부 rc=0.
   5. 사본에서 pytest 게이트를 그대로 돈다(이 파일만 뺀다) — 전부 통과.
 
-사본에는 .git 이 없어 git 이력을 읽는 시험(sw.js 버전)은 건너뛴다. 그래서 안쪽 게이트에만 AGONGMAP_ALLOW_SKIP=1 을
-준다. 그 시험들은 바깥 게이트에서 제대로 돈다. 사본 안의 git 이 저장소를 찾아 올라가지 않게 GIT_CEILING_DIRECTORIES 를 둔다.
+안쪽 게이트는 배치 게이트와 같은 조건으로 돈다 — 건너뜀도 실패다(GITHUB_ACTIONS=true, AGONGMAP_ALLOW_SKIP 없음). 전진한
+데이터에서만 건너뛰는 시험은 그날 배치 게이트에서 실패로 데이터 커밋을 막기 때문이다. 사본에는 .git 이 없어 판정할 수 없는
+sw.js 이력 시험 하나(NO_GIT_TEST)만 골라 뺀다 — 그 시험은 바깥 게이트에서 제대로 돈다. 예전엔 안쪽 게이트에
+AGONGMAP_ALLOW_SKIP=1 을 통째로 줘 모든 건너뜀이 rc=0 으로 지나갔다(전수리뷰 T1-4). 사본 안의 git 이 저장소를 찾아 올라가지
+않게 GIT_CEILING_DIRECTORIES 를 둔다.
 
 ⚠️ 배치 커밋 잡(update-cloud.yml 의 commit 잡, GITHUB_JOB=commit) 안에서는 이 전진 시험을 돌리지 않는다.
    이건 **다음 분기** 문제를 미리 보는 시험이라, 배치 게이트에서 빨개지면 오늘 받은 멀쩡한 데이터까지 막는다 —
@@ -35,6 +38,8 @@ yaml 로 5회 막힌 사고와 같은 모양). 그래서 배치 한 회차를 �
   - 전진 단계(_advance_supply)를 건너뛰면 픽스처 자기 확인('L 이 한 분기 나아가지 않았다')이 빨개진다.
   - commit_job_generators 가 빈 목록을 돌려주면 파서 자기 확인 시험이 빨개진다.
   - 배치 잡 가드(_in_batch_gate)를 지우면 test_forward_check_never_gates_the_batch_commit 이 빨개진다.
+  - 사본에서만 건너뛰는 시험(저장소 뿌리에 .git 이 없으면 pytest.skip)을 하나 넣으면 안쪽 게이트가 '건너뜀이 실패다'로
+    빨개져 이 시험이 빨개진다. 안쪽 env 에 AGONGMAP_ALLOW_SKIP=1 을 되살리면 같은 상태에서 초록이 된다(T1-4).
 픽스처: 저장소의 실제 data.js 를 한 분기(준공·착공)·한 주·한 달 앞당긴 것. 실행 시간 약 30초(안쪽 게이트가 대부분).
 """
 import datetime
@@ -60,6 +65,8 @@ YML = os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml')
 GATE = 'python3 -m pytest tools/tests'
 BATCH_JOB = 'commit'      # update-cloud.yml 의 커밋 잡 키 = 그 잡의 GITHUB_JOB. 파서와 가드가 같이 쓴다
 SELF = os.path.basename(os.path.abspath(__file__))
+# 사본(.git 없음)에서 판정할 수 없어 안쪽 게이트에서 빼는 유일한 시험 — git 이력의 sw.js 최대 버전을 읽는다.
+NO_GIT_TEST = 'tools/tests/test_sw_version.py::test_sw_version_never_goes_below_the_highest_ever_shipped'
 
 
 def _in_batch_gate():
@@ -242,9 +249,13 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
              if SZ.quarter_text(SZ.qkey(new_L)) not in page('zone', z['z'], 'index.html')]
     assert not stale, '/zone/ 이 새 분기로 구워지지 않았다: %s' % stale
 
-    genv = dict(env, AGONGMAP_ALLOW_SKIP='1')
+    # 안쪽 게이트도 건너뜀=실패(배치 게이트와 같은 조건). 바깥이 로컬이어도 그렇게 돌도록 GITHUB_ACTIONS 를 켜고 ALLOW_SKIP 은
+    # 지운다 — .git 이 없어 판정할 수 없는 NO_GIT_TEST 하나만 골라 뺀다(T1-4).
+    genv = {k: v for k, v in env.items() if k != 'AGONGMAP_ALLOW_SKIP'}
+    genv['GITHUB_ACTIONS'] = 'true'
     rc, out = _run(['-m', 'pytest', 'tools/tests', '-q', '-p', 'no:cacheprovider',
-                    '--ignore', 'tools/tests/' + SELF, '--basetemp', str(tmp_path / 'inner')],
+                    '--ignore', 'tools/tests/' + SELF, '--deselect', NO_GIT_TEST,
+                    '--basetemp', str(tmp_path / 'inner')],
                    str(repo), genv, timeout=600)
     assert rc == 0, ('다음 분기(준공·착공 %s, 주간 %s, 월간 %s) 데이터에서 게이트가 빨개진다 — 그날 배치가 '
                      '데이터 커밋 전체를 멈춘다. 실데이터의 날짜·값을 박은 시험인지 볼 것:\n%s'
