@@ -63,9 +63,10 @@ def test_report_bars_share_the_light_colors_and_say_the_state():
     데이터에서 유도한다). 회색 칸의 색은 pbr 을 준 블록으로 데이터와 무관하게 늘 본다.
 
     변이(각각 실제로 확인): build_page 가 머리 신호등(zlights)을 되살리면, outlook_cells 가 참고 칸을 light_of 로 칠하면(실데이터와
-    합성 블록 둘 다), 막대 아래 상태 글자를 빼면 빨개진다. 경기 행의 pbr 을 None 으로 둔 판정으로 구우면 회색 칸이 빠지고 시험은
-    초록이다(옛 단정은 빨강).
-    픽스처: 저장소 data.js 의 경기 판정·착공(3년 너머 126% 인 실제 모양)과, 같은 해마다 칸에 pbr 1.26 을 준 합성 블록.
+    합성 블록 둘 다), 막대 아래 상태 글자를 빼면 빨개진다. outlook_block 이 pbr 이 없어도 0% 회색 칸을 세우면
+    (`ref_pct = SZ.pbr_pct(pbr or 0)`) 빈 갈래 합성 단정이 빨개진다. 경기 행의 pbr 을 None 으로 둔 판정으로 구우면 회색 칸이 빠지고
+    시험은 초록이다(옛 단정은 빨강).
+    픽스처: 저장소 data.js 의 경기 판정·착공(3년 너머 126% 인 실제 모양)과, 같은 해마다 칸에 pbr 1.26 을 준·주지 않은 합성 블록 둘.
     """
     stats, s, Lq = _ctx()
     page = M.build_page('경기', s, stats, {}, s['zones'])
@@ -78,6 +79,8 @@ def test_report_bars_share_the_light_colors_and_say_the_state():
     assert bars == keys + (['na'] if row.get('pbr') is not None else []), (bars, keys, row.get('pbr'))
     ref = re.findall(r'<span class="zo-b (\w+)"', M.outlook_block(ys, pbr=1.26, H=s['H']))
     assert keys and ref == keys + ['na'], ref
+    # 빈 갈래도 데이터와 무관하게 늘 본다 — pbr 이 없으면 회색 칸 없이 해마다 칸만 선다(생성기 계약)
+    assert re.findall(r'<span class="zo-b (\w+)"', M.outlook_block(ys, pbr=None, H=s['H'])) == keys
     labs = re.findall(r'<small>([^<]+)</small>', blk)
     assert labs[:len(ys)] == ['%d년 차 · %s' % (y['n'], M.light_of(y['pct'])[1]) for y in ys], labs
     others = re.search(r'<h2>다른 지역</h2><div class="zlinks">(.*?)</div>', page, re.S).group(1)
