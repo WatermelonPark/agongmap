@@ -1032,8 +1032,8 @@ def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
     블로그 초안 '더 보기')는 그 값이고, 손 페이지(홈 사이클 배너·FAQ)의 손 햇수는 그 값을 넘지 않는다(넘으면 과장 — 자료 기간은
     해마다 늘기만 하므로 이 단정은 데이터가 앞으로 가도 초록이다).
 
-    변이(실제로 확인): refresh_cycle_data.main 에서 fill_meta_span 호출을 지우면 한 해 전진 단정이, make_naver_post 의 햇수를
-    옛 손 숫자 20 으로 되돌리면 블로그 단정(전진 사본)이, 홈 배너 햇수를 99 로 바꾸면 손 페이지 단정이 빨개진다.
+    변이(실제로 확인): refresh_cycle_data.main 에서 fill_meta_span 호출을 지우면 한 해 전진 단정이, make_naver_post '더 보기'의
+    햇수를 옛 손 글자 '20년'으로 되돌리면 블로그 원문 단정이, 홈 배너 햇수를 99 로 바꾸면 손 페이지 단정이 빨개진다.
     픽스처: 게이트 시점 페이지 D·머리, 그 D 의 zones 한 지역에 한 해 뒤 분기를 더한 사본(새해 자료가 들어온 날), 홈·FAQ 원문.
     """
     import home_src as HS
@@ -1047,6 +1047,8 @@ def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
     assert len(metas) >= 3 and set(metas) == {str(n)}, '/cycle/ 머리의 햇수가 자료 기간과 다르다: %s vs %d' % (metas, n)
     assert P.CYCLE_SPAN_N == n
     assert any('%d개 시도 %d년 데이터' % (P.CYCLE_SYNC_N, n) in r['desc'] for r in P.MORE_ROTATION)
+    src = io.open(P.__file__, encoding='utf-8').read()
+    assert not re.search(r'개 시도 \d+년', src), '블로그 도구에 손으로 적은 햇수가 있다 — CYCLE_SPAN_N 을 쓸 것'
     # 새해 자료가 들어온 날 — 햇수가 따라 오른다
     adv = copy.deepcopy(D)
     z0 = next(iter(adv['zones'].values()))
@@ -1055,6 +1057,7 @@ def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
     z0['jeonse'].append(z0['jeonse'][-1])
     assert RC.span_years(adv['zones']) == n + 1
     monkeypatch.setattr(RF, 'build_zones', lambda S: copy.deepcopy(adv['zones']))
+    monkeypatch.setattr(RF, 'index_bases_agree', lambda S: True)     # 지수 기준이 갈린 날에도 이 갈래를 돈다
     page = tmp_path / 'index.html'
     page.write_text(s, encoding='utf-8')
     monkeypatch.setattr(RF, 'PAGE', str(page))
