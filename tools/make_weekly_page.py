@@ -40,7 +40,7 @@ import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 
 import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
 import blog_feed as BF  # noqa: E402  (최신 주간 해설 글 — 홈 주간 구역과 같은 pick, 홈 마케팅 검수 B5)
 import page_share as PS  # noqa: E402  (공유 버튼 — 홈 마케팅 검수 B8)
-import weekly_moves as WM  # noqa: E402  (방향 표지·시군구 순위 이동 정본 — 홈 마케팅 검수 B7)
+import weekly_moves as WM  # noqa: E402  (시군구 순위 이동 정본 rank_moves·move_text — 홈 마케팅 검수 B7)
 import robots_meta as RM  # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
