@@ -464,3 +464,73 @@ document.getElementById('sec-week').classList.add('gm-t'); OUT.table=statsHashOf
     assert got['same'] == '#stats-market-week~a7', got
     assert got['nav'] == [['#stats-market-week~a7', True], ['#stats-market-month', False], ['#stats-market-week~a7', False]], got
     assert got['table'] == '#stats-market-week~a7-t', got
+
+
+# ── 전수리뷰 H2-10 규모별 표의 빈 끝 달 ─────────────────────────────────────────
+def _size_payload():
+    """data-size.json 2026-10 모양 — 축 2024.06~2026.07(26달), 매매·전세·월세는 2026.06 까지(2025.03 은 가운데 빈 달),
+    전환율(3구간)은 2026.07 까지. 지역은 전국 하나."""
+    dates, y, m = [], 2024, 6
+    while (y, m) <= (2026, 7):
+        dates.append('%d.%02d' % (y, m))
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    price = [None if d in ('2025.03', '2026.07') else [0.1] * 6 for d in dates]
+    conv = [[5.0, 5.1, 5.2, None, None, None] for _ in dates]
+    series = {'매매': {'전국': price}, '전세': {'전국': list(price)}, '월세': {'전국': list(price)}, '전환율': {'전국': conv}}
+    return {'dates': dates, 'sizes': ['40㎡↓', '40~60㎡', '60~85㎡', '85~102㎡', '102~135㎡', '135㎡↑'],
+            'conv_sizes': ['60㎡↓', '60~85㎡', '85㎡↑'], 'metrics': ['매매', '전세', '월세', '전환율'], 'regions': ['전국'],
+            'unit': '전월 대비 % (전환율은 %)', 'source': '한국부동산원', 'note': '합성', 'series': series}
+
+
+def test_size_pivot_drops_trailing_months_without_selected_values():
+    """규모별 표는 고른 지표·규모 칸이 모두 빈 **끝** 달을 줄·기간 줄에서 뺀다 — 가운데 빈 달은 남긴다(전수리뷰 H2-10).
+    기간 창(1년 보기)도 자른 끝에서 잰다.
+
+    변이(각각 실제로 확인): drawSizePivot 의 끝 달 자르기(`while(end>=0&&…)end--;`)를 지우면 매매·전세 표 첫 줄이 빈 '26.7'이고
+          기간 줄이 '2026년 7월'까지라 빨개진다. 1년 보기 창을 예전처럼 축 끝(`D.dates.length-ST.years*12`)에서 재면 11줄이 되어
+          빨개진다.
+    픽스처: 위 _size_payload(실제 상태 — 전환율만 2026.07 을 실은 축).
+    """
+    app = dict(HS.home_files())['home-app.js']
+    pre = '\n'.join(_fn(app, n) for n in ('pv2r', 'pv2', 'pvSign')) + '\nconst SD_=%s;' % json.dumps(
+        _size_payload(), ensure_ascii=False)
+    got = _node(_stats_js(r"""
+const T=document.getElementById('stat-tbl'), TH=document.getElementById('__th'), TB=document.getElementById('__tb');
+T.querySelector=s=>s==='thead'?TH:TB;
+document.getElementById('size-ctl').innerHTML='x';
+STATS['규모별']=SD_; ST.ds='규모별'; ST.reg='전국';
+function snap(){ const rows=TB.innerHTML.split('<tr>').slice(1);
+  return {n:rows.length, first:(rows[0]||'').replace(/<[^>]+>/g,'|').split('|').filter(Boolean)[0],
+    last:(rows[rows.length-1]||'').replace(/<[^>]+>/g,'|').split('|').filter(Boolean)[0],
+    mid:rows.some(r=>r.indexOf('>25.3<')>=0),
+    range:document.getElementById('prange').innerHTML.replace(/<[^>]+>/g,'')}; }
+ST.years=0; SZ.met=new Set(['매매','전세']); SZ.siz=new Set([2]); SZ.desc=true; SZ.tr=false;
+drawSizePivot(); OUT.price=snap();
+SZ.met=new Set(['전환율']); drawSizePivot(); OUT.conv=snap();
+SZ.met=new Set(['매매']); ST.years=1; drawSizePivot(); OUT.year=snap();
+""", pre=pre))
+    assert got['price']['n'] == 25 and got['price']['first'] == '26.6' and got['price']['mid'], got['price']
+    assert got['price']['range'] == '2024년 6월 ~ 2026년 6월 · 25개월', got['price']
+    assert got['conv']['n'] == 26 and got['conv']['first'] == '26.7', got['conv']
+    assert got['year']['n'] == 12 and got['year']['first'] == '26.6' and got['year']['last'] == '25.7', got['year']
+
+
+# ── 전수리뷰 A-8 · 대표 결정 2026-10-18 D3: 값이 없는 지역 열 ─────────────────────────────
+def test_basic_matrix_skips_a_region_with_no_values():
+    """기본통계 PC 표(buildMatrix)는 값이 하나도 없는 지역 열을 세우지 않는다 — 지역 선택(fillRegions)과 같은 규칙. 광주·전남
+    주택보급률을 비운 뒤(D3) '·'뿐인 열이 서던 자리다.
+
+    변이(실제로 확인): buildMatrix 의 `&&D.series[r].some(v=>v!=null)` 를 빼면 통합 지역 열이 서서 빨개진다.
+    픽스처: data-rest.json 보급률 사본에서 통합 지역(merge_regions.DST)을 전부 비운 상태 — 배치가 이력을 지운 뒤의 모양.
+    """
+    from merge_regions import DST
+    D = _load('data-rest.json')['STATS']['보급률']
+    D['series'][DST] = [None] * len(D['dates'])
+    got = _node(_stats_js(r"""
+ST.ds='보급률'; STATS['보급률']=D_;
+const parsed=D_.dates.map(parseDate);
+buildMatrix(D_, parsed.map((p,i)=>i), parsed);
+OUT.html=document.getElementById('stat-matrix').innerHTML;
+""", pre='const D_=%s;' % json.dumps(D, ensure_ascii=False)))
+    assert '<th>서울</th>' in got['html'], got['html'][:300]
+    assert DST not in got['html'], '값이 없는 지역 열이 섰다'

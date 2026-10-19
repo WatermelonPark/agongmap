@@ -410,6 +410,13 @@ jobs:
           if [ -s "$SRC/.fetch_failed" ]; then
             rep "ℹ️ 원천 일부 실패 — $(cat "$SRC/.fetch_failed") (그 계열만 직전 값 유지, 계속되면 키·주소 확인)"
           fi
+          # 기본통계 창 밖 원천 소급 정정을 다시 받은 회차(전수리뷰 A-1). 같은 원천 표를 두 경로로 받는 인허가(투자지표 반기 ↔ 기본통계
+          # 누계)가 어긋난 해를 인허가·착공·준공 셋 다 다시 받으면 변경 토큰(.stats_changed)에 update_adv_data.REVISION_MARK 가 붙는다.
+          # 판정 입력(착공·준공)이 옛 해에서 바뀌었을 수 있으니 사람이 알게 ℹ️ 로 남긴다(메일 없음). grep 이 못 찾아도 스텝이 죽지 않게 || true.
+          if [ -s "$SRC/.stats_changed" ]; then
+            REV=$(tr ',' '\n' < "$SRC/.stats_changed" | grep '원천정정' || true)
+            if [ -n "$REV" ]; then rep "ℹ️ 원천 소급 정정 반영 — $(echo "$REV" | tr '\n' ' ')(투자지표 인허가와 기본통계 인허가 누계가 갈려 그 해를 다시 받았다)"; fi
+          fi
           for f in data-sgg.json data-size.json; do
             [ -f "$SRC/$f" ] && cp "$SRC/$f" . || echo "::warning::$f 산출물 없음(구 러너?) — 기존 파일 유지"
           done
