@@ -128,9 +128,13 @@ def test_zone_title_is_the_search_shape_for_every_grade(grade):
 
 
 def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
-    """배치가 구운 시도 리포트마다 <title>·og:title·JSON-LD headline 이 같은 값이고 그 값이 기준 분기의 연도로 시작한다.
+    """배치가 구운 시도 리포트마다 <title>·og:title·JSON-LD headline 이 같은 값이고, 그 값이 주간 최신 조사일의 **전망 연도**
+    (sido_zones.outlook_year(latest_survey(adv)) — 10월부터 다음 해, 2026-09-27 대표 결정)와 화면 이름으로 시작한다. 기준 분기(calc['L'])의
+    연도가 아니다 — 그 규칙은 위 시험이 변이로 적어 두었다(전수리뷰 T3-16: 이 독스트링만 옛 규칙을 적고 있었다).
 
-    변이: head() 에서 og:title 이나 headline 에 옛 제목을 따로 넘기면 빨개진다(확인). 게이트는 생성기 뒤라 새 제목을 본다.
+    변이: head() 에서 og:title 이나 headline 에 옛 제목을 따로 넘기면 빨개진다(확인). page_title 이 연도를 기준 분기(calc['L'][:4])에서
+    읽게 바꾸고 다시 구우면 10~12월 조사일에서 빨개진다(확인 — 10-12 조사분 2027 대 2026. 1~9월에는 두 연도가 같아 위 시험이 맡는다).
+    게이트는 생성기 뒤라 새 제목을 본다.
     픽스처: 저장소 data.js 의 ADV.sido 와 그걸로 구운 zone/<지역>/index.html(허브·통합 안내 페이지는 뺀다).
     """
     adv, _ = M.load()
