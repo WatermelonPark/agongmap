@@ -699,9 +699,11 @@ def test_region_fail_rounds_cross_midnight(tmp_path):
     재현한 실제 상태: 감시 예약 실행은 18:07 KST 예약에 +0~10시간 늦게 시작해 자정을 걸친다(2026-10 실측
     10-03 23:17, 10-04 23:45, 10-06 03:21(10-05 예약분), 10-07 00:53, 10-14 01:54(10-13 예약분)→10-14 23:28).
     (a) 한 실행의 1차 23:50·재확인 00:10 → 둘 다 경고(첫 회차). (b) 매일 끊긴 실측 시작 열 → 경고·실패·실패·실패.
-    (c) 같은 KST 날의 이웃 예약 회차(01:54 → 23:28) → 둘째는 실패. (d) 수동 재실행(실행 id 다름, 2시간 뒤)은 그 결정을 따른다.
+    (c) 같은 KST 날의 이웃 예약 회차(01:54 → 23:28) → 둘째는 실패. (d) 수동 재실행(실행 id 다름, 2시간 뒤)은 그 결정을 따른다
+    — 경고였으면 경고, (f) 이미 실패로 올린 회차 뒤의 수동 재실행이면 실패.
     변이(실제로 확인): region_fail_tolerated 를 옛 달력 날짜 판정(prev 날짜 == 오늘이면 결정 따름, == 어제면 올림)으로
     되돌리면 (a) 재확인과 (b)·(c) 단정이 빨강. REGION_NEXT_ROUND_H 를 24로 줄이면 (b) 의 10-06 03:21 단정이 빨강.
+    같은 회차 경과 시간 분기를 빼고 실행 id 만 보면(`if same_run:`) (f) 가 빨강(수동 재실행이 실패를 경고로 뒤집는다).
     """
     def run(d, seq):
         out = []
@@ -717,6 +719,9 @@ def test_region_fail_rounds_cross_midnight(tmp_path):
     assert run(c, [('2026-10-14 01:54', 'r1'), ('2026-10-14 23:28', 'r2')]) == [True, False]
     d = tmp_path / 'd'
     assert run(d, [('2026-10-20 22:00', 'r1'), ('2026-10-21 00:00', 'manual')]) == [True, True]
+    f = tmp_path / 'f'
+    assert run(f, [('2026-10-20 22:00', 'r1'), ('2026-10-21 22:30', 'r2'), ('2026-10-22 00:30', 'manual')]) == \
+        [True, False, False]
     # 회차가 하루 넘게 비면(성공 회차는 기록을 지운다) 다시 첫 회차
     e = tmp_path / 'e'
     assert run(e, [('2026-10-20 22:00', 'r1'), ('2026-10-23 22:00', 'r2')]) == [True, True]
@@ -727,8 +732,8 @@ def test_price_source_uses_period_window_and_page_retry(monkeypatch):
     창이 없으면 주간 매매 표 170쪽 안팎의 깊은 쪽을 읽는데, R-ONE 은 그 요청을 간헐적으로 응답 없이 끊는다(2026-08-15 실측).
 
     변이(실제로 확인): source_jobs 의 '주간' 람다에서 since 를 빼면(rone_latest(tbl, 'WK')) 첫 단정이 빨강. rone_latest 의
-    head 조회를 get_json 으로 되돌리면(재시도 없음) 둘째 단정(첫 호출 끊김 뒤 성공)이 빨강.
-    픽스처: 합성 ADV(주간 2026-01-05·월간 2026-01 — 연 넘김 창) 와 가짜 R-ONE(창 안 2,500행 = 3쪽, 첫 호출은 끊김).
+    head 조회나 마지막 쪽 조회를 get_json 으로 되돌리면(재시도 없음) 둘째 단정(각 조회의 첫 호출 끊김 뒤 성공)이 빨강.
+    픽스처: 합성 ADV(주간 2026-01-05·월간 2026-01 — 연 넘김 창) 와 가짜 R-ONE(창 안 2,500행 = 3쪽, head·마지막 쪽의 첫 호출은 끊김).
     """
     seen = {}
 
@@ -748,7 +753,7 @@ def test_price_source_uses_period_window_and_page_retry(monkeypatch):
 
     def fake_get(url):
         calls.append(url)
-        if len(calls) == 1:
+        if len(calls) in (1, 3):
             raise OSError('Remote end closed connection without response')
         if 'pSize=1&' in url + '&':
             return {'SttsApiTblData': [{'head': [{'list_total_count': 2500}]}]}
@@ -756,5 +761,5 @@ def test_price_source_uses_period_window_and_page_retry(monkeypatch):
     monkeypatch.setattr(C, 'get_json', fake_get)
     monkeypatch.setattr(C.time, 'sleep', lambda s: None)
     assert C.rone_latest('T', 'WK', '20251201') == '2026-01-19'
-    assert len(calls) == 3 and all('START_WRTTIME=20251201' in u for u in calls), calls
+    assert len(calls) == 4 and all('START_WRTTIME=20251201' in u for u in calls), calls
     assert 'pIndex=3&' in calls[-1] + '&', calls[-1]
