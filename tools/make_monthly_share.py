@@ -87,7 +87,7 @@ def draw(adv):
         if not items:
             continue
         d.text((x0, y), lab, font=noto(22, 'Medium'), fill=MUTED, anchor='ls')
-        d.text((x0, y + 42), '%s %s%%' % (items[0][0], _fmt(items[0][1])), font=noto(34), fill=col, anchor='ls')
+        d.text((x0, y + 42), '%s %s%%' % (SZ.disp(items[0][0]), _fmt(items[0][1])), font=noto(34), fill=col, anchor='ls')   # 화면 이름(백로그 46)
         y += 100
     d.line((x0, IH - 96, 470, IH - 96), fill=LINE, width=2)
     d.text((x0, IH - 58), 'agongmap.co.kr/monthly', font=noto(26), fill=INK, anchor='ls')
@@ -100,7 +100,8 @@ def draw(adv):
         px, py = ox + cx * (TW + G), oy + cy * (TH + G)
         v = val.get(name)
         d.rounded_rectangle((px, py, px + TW, py + TH), 14, fill=WS.cell_bg(v, REF), outline=LINE, width=2)
-        d.text((px + TW // 2, py + 36), name, font=noto(26 if len(name) < 4 else 22), fill=INK, anchor='mm')
+        shown = SZ.disp(name)   # 그리는 글자는 화면 이름(백로그 46, 주간 카드와 같다) — 값은 키로 찾는다
+        d.text((px + TW // 2, py + 36), shown, font=noto(26 if len(shown) < 4 else 22), fill=INK, anchor='mm')
         d.text((px + TW // 2, py + 76), _fmt(v), font=noto(30), fill=_ink(v), anchor='mm')
     return img, ver
 
