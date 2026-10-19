@@ -11,8 +11,9 @@
     떨어뜨리고, 24개월 창에 그 달이 있는 동안 permit_signal 이 None 이다. 그러면 리포트
     머리의 '3년 너머' 줄이 경고 없이 사라진다. 2026-09-17 현재 19곳 모두 값이 있으므로
     None 은 평상 상태가 아니다.
-  · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋난 편(theory_claim_lines — 초안 도구만
-    멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한 경과(quiz_review_lines).
+  · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋나거나 데이터 상태로 초안이 멈춘 편
+    (theory_claim_lines — 초안 도구만 멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한
+    경과(quiz_review_lines).
 
 사용:  python tools/batch_notes.py [--data data.js]     # 알릴 것이 없으면 아무것도 안 찍는다
 """
@@ -49,6 +50,9 @@ def theory_claim_lines():
     같은 이유로 멈춘 이웃 편은 한 줄로 묶는다(1·2편은 고리① 전제 하나를 함께 쓴다). 가드가 SystemExit 말고 다른 예외로 죽으면 코드
     결함이라 그 편을 '검사 불가'로 적는다(도구·데이터를 못 올리면 '이론편 검사 불가' 한 줄). 옛 sync_claim_lines(3편만)를 접었다 —
     3편도 이 검사가 보므로 따로 두면 같은 줄이 두 번 나간다.
+    문장 전제가 아니라 데이터 상태로 멈춘 편(멈춤 문구에 make_theory_post.NOT_THE_TEXT — 4편 지수 기준 단절, 5편 착공·준공 끝 달
+    어긋남, 6편 판정 칸을 못 읽음, 7편 금리 오버레이 빈 분기)은 '전제가 어긋남 … 발행본 재검토'가 아니라 '데이터 상태' 줄로 적는다 —
+    발행본을 다시 볼 일이 아니라 다음 배치에서 풀리는 일이다.
     ⚠️ lines(adv) 에 넣지 않는다(전수리뷰 #32·#94). 인자 adv 가 아니라 저장소 data.js·cycle/index.html 을 읽는다. lines() 를 부르는
        합성 픽스처 시험이 '줄이 정확히 몇 개'를 단정하므로, 안에 두면 데이터 상태가 바뀌는 날 무관한 시험이 빨개져 알림으로 돌린
        데이터 상태가 다시 게이트 실패가 된다. main() 이 따로 붙인다.
@@ -59,14 +63,15 @@ def theory_claim_lines():
         data = T.M.load()
     except Exception as e:   # 도구·데이터를 못 올리면 그것도 알린다 — 조용히 통과하지 않는다
         return ['%s 사이클 이론편 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
-    got = []                 # [(편 번호들, 'stop'|'crash', 글)] — 편 순서대로
+    got = []                 # [(편 번호들, 'stop'|'data'|'crash', 글)] — 편 순서대로
     for post in T.POSTS:
         n = post['n']
         try:
             T.guard_values(n, D, data)
             continue
         except SystemExit as e:
-            kind, why = 'stop', _STOP_TAIL.sub('', _STOP_HEAD.sub('', str(e).replace('\n', ' ')))
+            why = _STOP_TAIL.sub('', _STOP_HEAD.sub('', str(e).replace('\n', ' ')))
+            kind = 'data' if T.NOT_THE_TEXT in why else 'stop'
         except Exception as e:
             kind, why = 'crash', '%s: %s' % (type(e).__name__, str(e).replace('\n', ' '))
         if got and got[-1][1:] == (kind, why):
@@ -79,6 +84,8 @@ def theory_claim_lines():
         if kind == 'stop':
             out.append('%s 사이클 %s편 전제가 지금 데이터와 어긋남 — %s (초안 생성만 멈춤, 발행본 재검토)'
                        % (ML.MARK, tag, why[:160]))
+        elif kind == 'data':
+            out.append('%s 사이클 %s편 초안 생성 멈춤(데이터 상태, 발행본과 무관) — %s' % (ML.MARK, tag, why[:160]))
         else:
             out.append('%s 사이클 %s편 검사 불가 — %s' % (ML.MARK, tag, why[:120]))
     return out
