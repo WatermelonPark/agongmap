@@ -513,3 +513,24 @@ SZ.met=new Set(['매매']); ST.years=1; drawSizePivot(); OUT.year=snap();
     assert got['price']['range'] == '2024년 6월 ~ 2026년 6월 · 25개월', got['price']
     assert got['conv']['n'] == 26 and got['conv']['first'] == '26.7', got['conv']
     assert got['year']['n'] == 12 and got['year']['first'] == '26.6' and got['year']['last'] == '25.7', got['year']
+
+
+# ── 전수리뷰 A-8 · 대표 결정 2026-10-18 D3: 값이 없는 지역 열 ─────────────────────────────
+def test_basic_matrix_skips_a_region_with_no_values():
+    """기본통계 PC 표(buildMatrix)는 값이 하나도 없는 지역 열을 세우지 않는다 — 지역 선택(fillRegions)과 같은 규칙. 광주·전남
+    주택보급률을 비운 뒤(D3) '·'뿐인 열이 서던 자리다.
+
+    변이(실제로 확인): buildMatrix 의 `&&D.series[r].some(v=>v!=null)` 를 빼면 통합 지역 열이 서서 빨개진다.
+    픽스처: data-rest.json 보급률 사본에서 통합 지역(merge_regions.DST)을 전부 비운 상태 — 배치가 이력을 지운 뒤의 모양.
+    """
+    from merge_regions import DST
+    D = _load('data-rest.json')['STATS']['보급률']
+    D['series'][DST] = [None] * len(D['dates'])
+    got = _node(_stats_js(r"""
+ST.ds='보급률'; STATS['보급률']=D_;
+const parsed=D_.dates.map(parseDate);
+buildMatrix(D_, parsed.map((p,i)=>i), parsed);
+OUT.html=document.getElementById('stat-matrix').innerHTML;
+""", pre='const D_=%s;' % json.dumps(D, ensure_ascii=False)))
+    assert '<th>서울</th>' in got['html'], got['html'][:300]
+    assert DST not in got['html'], '값이 없는 지역 열이 섰다'

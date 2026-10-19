@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 import update_adv_data as U  # noqa: E402
 import sido_zones as SZ      # noqa: E402
 import check_freshness as C  # noqa: E402
-from merge_regions import SRC, DST, W_GJ, WEIGHTED  # noqa: E402
+from merge_regions import SRC, DST, W_GJ, WEIGHTED, UNFOLDABLE  # noqa: E402
 
 KOSIS_AGG = {v: k for k, v in U.BASIC_REGMAP.items()}      # '전국' → '총계' …
 # 국토교통부 주택건설실적통계가 광주·전남을 '전남광주' 한 행으로 내기 시작한 달(원천 최종변경일 2026-08-31,
@@ -395,8 +395,10 @@ def _annual_rows(name, prd, vals):
 @pytest.mark.parametrize('name', [n for n, c in U.ANNUAL_CONF.items() if not c.get('region')])
 @pytest.mark.parametrize('shape', sorted(ANNUAL_SHAPES))
 def test_annual_path_folds_like_the_other_paths(monkeypatch, name, shape):
-    """연간 계열(보급률·멸실·노후)도 기본통계와 같은 규칙으로 광주·전남을 전남광주로 접는다. 비율 계열(보급률)은
-    W_GJ 가중평균, 물량은 합, 원천 통합 행 우선, 한 조각이면 만들지 않는다.
+    """연간 계열(멸실·노후)도 기본통계와 같은 규칙으로 광주·전남을 전남광주로 접는다 — 물량은 합, 원천 통합 행 우선, 한 조각이면
+    만들지 않는다. 주택보급률(merge_regions.UNFOLDABLE)은 두 조각으로 통합 값을 만들지 않고 원천 통합 행만 남긴다(대표 결정
+    2026-10-18 D3 — 주택 수 ÷ 가구 수라 W_GJ 가중평균은 원천으로 재현되지 않는다).
+    변이(D3, 실제로 확인): fold_annual 의 synth 를 늘 True 로 두면(예전처럼 조각으로 만들면) 보급률 'both'·'merged' 아닌 모양이 빨개진다.
 
     변이: _fetch_annual_one 끝의 `for vals in out.values(): _fold_gj(vals, weighted)` 두 줄을 지우면 'both'·'one'·
           'merged+one'·'merged+both' 가 빨개진다(확인 — 옛 이름이 남아 merge_annual 이 버리고 전남광주가 빈다).
@@ -406,8 +408,11 @@ def test_annual_path_folds_like_the_other_paths(monkeypatch, name, shape):
     vals = ANNUAL_SHAPES[shape]
     rows = _annual_rows(name, '2025', vals)
     monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
-    got = U._fetch_annual_one(name)['2025']
-    want = U._fold_gj(dict(vals), name in WEIGHTED)
+    got = U._fetch_annual_one(name).get('2025', {})
+    if name in UNFOLDABLE:
+        want = {k: v for k, v in vals.items() if k not in SRC}     # 원천 통합 행만 남는다(D3)
+    else:
+        want = U._fold_gj(dict(vals), name in WEIGHTED)
     assert got == want, (got, want)
     assert not (set(SRC) & set(got))
 
@@ -511,6 +516,56 @@ def test_annual_zero_is_missing_for_the_ratio_series(monkeypatch):
     assert not failed
     assert all(a[i] is None for r, a in D['series'].items() for i in range(5)), '저장된 옛 해 0 이 남았다'
     assert D['series'][one][5] is None and all(D['series'][r][6:] == keep[r] for r in keep), '0 이 아닌 칸이 바뀌었거나 0 이 남았다'
+
+
+# ── 전수리뷰 A-8 · 대표 결정 2026-10-18 D3: 광주·전남 주택보급률은 비운다 ─────────────────────
+def test_unfoldable_ratio_history_is_blanked_by_the_batch(monkeypatch):
+    """주택보급률의 통합 지역(전남광주) 값은 두 조각(광주·전남)으로 만들지 않는다. 저장 이력 중 원천이 아직 두 조각으로 주는 해까지의
+    값(merge_regions 09-10 병합·옛 접기의 W_GJ 가중평균)은 배치(update_annual)가 지우고, 원천이 통합 행을 직접 준 해는 남긴다.
+
+    변이(각각 실제로 확인): update_annual 의 `n += blank_unfoldable(...)` 를 지우면 저장 이력이 남아, blank_unfoldable 의
+          `y not in direct` 를 빼면 원천 통합 행이 있던 해까지 지워져 빨개진다. (조각으로 만들지 않는 규칙 자체는
+          test_annual_path_folds_like_the_other_paths 가 본다 — synth 를 늘 True 로 두면 거기서 빨개진다.)
+    픽스처: 저장 STATS 보급률(전남광주 이력이 가중평균으로 차 있는 실제 상태)과 원천 응답 — 저장 마지막 두 해는 광주·전남 두 조각
+            (마지막 해는 통합 행도 함께 오는 전환기 모양), 그다음 새 해는 통합 행 '전남광주'만.
+    """
+    st = _stats()
+    D = st['보급률']
+    y1, y2 = D['dates'][-2:]
+    y3 = str(int(y2) + 1)
+    D['series'][DST][D['dates'].index(y1)] = 104.0                    # 가중평균으로 만든 저장값(지워질 칸)이 적어도 하나 있게
+    rows = []
+    for y in (y1, y2):
+        i = D['dates'].index(y)
+        vals = {r: a[i] for r, a in D['series'].items() if a[i] is not None and r != DST}
+        vals[SRC[0]], vals[SRC[1]] = 106.4, 113.0
+        if y == y2:
+            vals[DST] = 109.5                                         # 전환기: 원천이 통합 행도 함께 낸 해
+        rows += _annual_rows('보급률', y, vals)
+    vals = {r: a[-1] for r, a in D['series'].items() if a[-1] is not None and r != DST}
+    vals[DST] = 109.9
+    rows += _annual_rows('보급률', y3, vals)
+    failed = _annual_update(monkeypatch, st, '보급률', rows)
+    assert not failed
+    at = {y: v for y, v in zip(D['dates'], D['series'][DST])}
+    assert D['dates'][-1] == y3 and at[y3] == 109.9 and at[y2] == 109.5, '원천 통합 행이 실리지 않았거나 지워졌다'
+    assert all(v is None for y, v in at.items() if y < y2), '두 조각에서 만든 통합 이력이 남았다'
+    assert not (set(SRC) & set(D['series'])), '옛 두 이름이 저장 계열에 생겼다'
+
+
+def test_one_time_history_merge_blanks_the_unfoldable_series():
+    """merge_regions.merge_series(09-10 이력 병합 도구)도 같은 규칙 — 주택보급률은 통합 칸을 비우고 옛 두 이름을 뺀다(D3).
+
+    변이(실제로 확인): merge_series 의 UNFOLDABLE 분기를 지우면 보급률이 WEIGHTED 밖이라 두 조각의 합(219.4)이 실려 빨개진다.
+    픽스처: 통합 전 저장 계열 모양 — 광주·전남 두 열(한 해는 한쪽만 값).
+    """
+    import merge_regions as MR
+    ser = {SRC[0]: [106.4, None], SRC[1]: [113.0, 112.0], '서울': [94.0, 93.9]}
+    assert MR.merge_series('보급률', ser) == 2
+    assert ser[DST] == [None, None] and not (set(SRC) & set(ser)) and ser['서울'] == [94.0, 93.9]
+    vol = {SRC[0]: [1, 2], SRC[1]: [3, None]}
+    MR.merge_series('준공', vol)
+    assert vol[DST] == [4, 2], '물량 계열은 여전히 합이다'
 
 
 # ── 전수리뷰 #4: 응답에 서울구 열이 하나도 없으면 직전 블록을 지킨다 ───────────────────────
