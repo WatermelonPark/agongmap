@@ -147,6 +147,24 @@ def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
         assert want.startswith('%s년 %s 아파트 공급물량 전망, ' % (SZ.outlook_year(SZ.latest_survey(adv)), SZ.disp(z['z'])))   # 화면 이름(백로그 46)
 
 
+def _article(html):
+    ld = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S).group(1))
+    return [x for x in ld if x.get('@type') == 'Article'][0]
+
+
+def test_zone_json_ld_about_is_a_real_place():
+    """시도 리포트 JSON-LD Article 의 about 은 그 판정 단위의 Place(화면 이름)이고, 허브('시도별 공급')에는 about 이 없다(전수리뷰 Z1-12).
+    재현한 실제 상태(10-18 zone/index.html): 허브가 z 자리에 제목을 넘겨 about {"@type": "Place", "name": "시도별 공급"} — 없는 장소였다
+    (canonical·og:url 은 url 인자로, 빵부스러기 3단은 crumb=False 로 이미 피했다).
+    변이(실제로 확인): head() 의 `if z in SZ.ORDER` 조건을 지우면 허브 단정이 빨개진다. Place 이름에서 SZ.disp 를 빼면 화면 이름 단정이
+    빨개진다.
+    픽스처: 저장소 판정(ADV.sido)으로 메모리에서 구운 허브, DISPLAY_NAME 의 키(전남광주)와 서울 리포트 머리."""
+    adv, stats = M.load()
+    assert 'about' not in _article(M.build_hub(adv['sido'], stats))
+    for z in sorted(SZ.DISPLAY_NAME) + ['서울']:
+        assert _article(M.head(z, 'd', 't'))['about'] == {'@type': 'Place', 'name': SZ.disp(z)}, z
+
+
 @pytest.mark.parametrize('p,want', [('2026-09-28', '2026'), ('2026-10-05', '2027'), ('2027-01-11', '2027'),
                                     ('2026-12-28', '2027'), ('', ''), (None, '')])
 def test_outlook_year_is_the_year_being_forecast(p, want):

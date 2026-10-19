@@ -446,14 +446,17 @@ def head(z, desc, title, url=None, crumb=None, desk='report'):
          "dateModified": today,
          "author": {"@type": "Organization", "name": "아공맵"},
          "publisher": {"@type": "Organization", "name": "아공맵"},
-         "mainEntityOfPage": u,
-         "about": {"@type": "Place", "name": SZ.disp(z)}},
+         "mainEntityOfPage": u},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "아공맵", "item": SITE + "/"},
             {"@type": "ListItem", "position": 2, "name": "시도 공급 분석", "item": SITE + "/zone/"}]
             + ([] if crumb is False else
                [{"@type": "ListItem", "position": 3, "name": SZ.disp(z), "item": u}])},
     ]
+    # 글의 주제 장소(about)는 판정 단위일 때만 싣는다 — 허브는 z 자리에 제목('시도별 공급')을 넘겨, 없는 장소가 구조화 데이터에
+    # 실렸다(전수리뷰 Z1-12). 이름은 화면 이름(백로그 46).
+    if z in SZ.ORDER:
+        ld[0]["about"] = {"@type": "Place", "name": SZ.disp(z)}
     return '''<!DOCTYPE html>
 <html lang="ko">
 <head>
