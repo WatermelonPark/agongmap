@@ -40,10 +40,13 @@ AGONGMAP_ALLOW_SKIP=1 을 통째로 줘 모든 건너뜀이 rc=0 으로 지나�
   - commit_job_generators 가 빈 목록을 돌려주면 파서 자기 확인 시험이 빨개진다.
   - 배치 잡 가드(_in_batch_gate)를 지우면 test_forward_check_never_gates_the_batch_commit 이 빨개진다.
   - 7편 가드 link7_values 가 끝 칸 전세 None 을 그대로 비교하던 판(전수리뷰 BL2-1 고치기 전)에서는 지수 전진(_advance_indices)
-    단계가 test_theory_post7 둘·test_home_entry 둘을 TypeError 로 빨갛게 해 이 시험이 빨개진다(확인 — 전진 단계를 빼면 초록이라
-    그 정지를 못 봤다).
+    단계가 실데이터 시험 넷(test_theory_post7·test_theory_guards 하나씩, test_home_entry 둘)을 TypeError 로 빨갛게 해 이 시험이
+    빨개진다. 확인은 옛 link7_values 를 되살리고, 그 판에서 혼자 빨개지는 합성 시험 둘(test_theory_post7 의 끝 칸·빈 분기)을 뺀
+    사본으로 했다 — 같은 사본에서 전진 단계만 빼면 초록이라, 이 단계 없이는 그 정지를 못 봤다.
   - 사본에서만 건너뛰는 시험(저장소 뿌리에 .git 이 없으면 pytest.skip)을 하나 넣으면 안쪽 게이트가 '건너뜀이 실패다'로
     빨개져 이 시험이 빨개진다. 안쪽 env 에 AGONGMAP_ALLOW_SKIP=1 을 되살리면 같은 상태에서 초록이 된다(T1-4).
+  - 지수 전진의 자기 확인(_short_of)을 '목표 달과 같아야'로 되돌리면 달 초에 금리가 매매보다 두 달 앞선 날 헛되이 빨개진다 —
+    test_index_advance_makes_the_next_quarter_first_month_shape 가 합성 STATS 로 본다(이 큰 시험은 그날 데이터에서만 드러난다).
 픽스처: 저장소의 실제 data.js 를 한 분기(준공·착공)·한 주·한 달 앞당긴 것. 실행 시간 약 3분(안쪽 게이트가 대부분 — 2026-10 실측).
 """
 import datetime
@@ -166,6 +169,12 @@ def _advance_indices(stats):
     return targets
 
 
+def _short_of(stats, targets):
+    """_advance_indices 뒤 목표 달에 못 미친 계열. 목표보다 **앞선** 계열은 그대로 둔다 — 금리(ECOS)는 다음 달 초에 실리고 매매는 그
+    달 말에 실려, 매매 발표가 며칠 밀린 달 초에는 금리가 매매보다 두 달 앞선다(매매가 분기 끝 달이면 목표 달보다 한 달 앞)."""
+    return [k for k, (y, m) in targets.items() if stats[k]['dates'][-1][:7] < '%d.%02d' % (y, m)]
+
+
 def _advance_rows(block, step, keep):
     rows = block['rows']
     new = json.loads(json.dumps(rows[-1]))
@@ -213,6 +222,35 @@ def test_parser_reads_the_commit_job_generators():
     gens = commit_job_generators()
     assert len(gens) >= 5 and 'make_sido_pages' in gens and 'refresh_cycle_data' in gens, gens
     assert 'split_data' not in gens and 'update_adv_data' not in gens, '수집 잡의 도구가 섞였다: %s' % gens
+
+
+def test_index_advance_makes_the_next_quarter_first_month_shape():
+    """지수 전진(_advance_indices)은 원천이 새 분기 첫 달을 낸 날의 모양을 만든다 — 매매는 다음 분기 첫 달(잠정 'p)', 옛 꼬리표는
+    뗀다), 전세는 한 달 늦게, 금리는 매매와 같은 달까지. 이미 목표보다 앞선 계열(달 초의 금리)은 그대로 두고, 아래 큰 시험의 자기
+    확인(_short_of)도 그것을 '못 미침'으로 치지 않는다.
+
+    재현하는 실제 상태: 금리(ECOS)는 다음 달 초에, 매매는 그 달 말에 실린다(저장소 이력 — 08-28 매매 2026.07 p)·금리 2026.07,
+    09-01 금리 2026.08). 매매 발표가 며칠 밀린 달 초에는 매매가 분기 끝 달(2026.09 p))에 머문 채 금리가 2026.11 이라 목표 달(2026.10)
+    보다 앞선다 — 예전 자기 확인은 금리가 목표 달과 '같아야' 한다고 봐, 그런 날 매일 예약 CI 의 전진 시험을 데이터 결함 없이
+    빨갛게 할 참이었다. 해 넘김(매매 2026.12 p) → 2027.01)도 본다.
+    변이(각각 실제로 확인): _short_of 의 판정을 '목표 달과 다르면'(!=)으로 바꾸면 둘째 경우가, 전세 목표의 `tm - 1` 을 `tm` 으로
+          바꾸거나 해 넘김의 `y + 1` 을 `y` 로 바꾸면 첫째 경우가 빨개진다.
+    픽스처: 합성 STATS 두 벌(지역 하나, 값은 달마다 1씩 올라 끝 두 달 흐름을 잇는지 보인다). 실데이터를 읽지 않는다.
+    """
+    def st(mm, je, rt):
+        def s(dates, base):
+            return {'dates': list(dates), 'series': {'전국': [base + i for i in range(len(dates))]}}
+        return {'매매지수': s(mm, 100.0), '전세지수': s(je, 90.0), '금리': s(rt, 3.0)}
+    a = st(['2026.10', '2026.11', '2026.12 p)'], ['2026.10', '2026.11'], ['2026.11', '2026.12'])   # 해 넘김
+    t = _advance_indices(a)
+    assert t == {'매매지수': (2027, 1), '전세지수': (2026, 12), '금리': (2027, 1)}, t
+    assert a['매매지수']['dates'][-2:] == ['2026.12', '2027.01 p)'] and a['매매지수']['series']['전국'][-1] == 103.0, a['매매지수']
+    assert a['전세지수']['dates'][-1] == '2026.12' and a['금리']['dates'][-1] == '2027.01' and not _short_of(a, t)
+    b = st(['2026.08', '2026.09 p)'], ['2026.07', '2026.08'], ['2026.10', '2026.11'])   # 달 초 — 금리가 매매보다 두 달 앞
+    t = _advance_indices(b)
+    assert t['금리'] == (2026, 10) and b['금리']['dates'] == ['2026.10', '2026.11'], b['금리']
+    assert b['매매지수']['dates'][-1] == '2026.10 p)' and b['전세지수']['dates'][-1] == '2026.09', (b['매매지수'], b['전세지수'])
+    assert not _short_of(b, t), _short_of(b, t)
 
 
 def test_forward_check_never_gates_the_batch_commit(tmp_path, monkeypatch):
@@ -264,8 +302,8 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
     assert adv2['sido']['H'] == SZ.LEAD_Q, '전진한 사본이 H≠lead 다 — 준공·착공을 같은 달까지 채우지 못했다'
     assert new_w > old_w and new_m > old_m
     st2 = U.read_current_stats()
-    assert all(st2[k]['dates'][-1][:7] == '%d.%02d' % idx[k] for k in idx) and st2['매매지수']['dates'][-1].endswith(' p)'), \
-        '매매·전세지수·금리가 새 분기 첫 달 모양(전세 한 달 늦음)으로 나아가지 않았다'
+    assert not _short_of(st2, idx) and st2['매매지수']['dates'][-1].endswith(' p)'), \
+        '매매·전세지수·금리가 새 분기 첫 달 모양(전세 한 달 늦음)으로 나아가지 않았다: %s' % _short_of(st2, idx)
 
     bad = []
     for g in commit_job_generators():
