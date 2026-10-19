@@ -242,3 +242,23 @@ def test_service_worker_leaves_llms_txt_alone():
     assert m and "'%s'" % L.PATH in m.group(1), 'sw.js NO_SW 에 /llms.txt 가 없다'
     rb = _read('robots.txt')
     assert not re.search(r'(?im)^Disallow:\s*/(llms\.txt)?\s*$', rb), 'robots.txt 가 /llms.txt 를 막는다'
+
+
+def test_weekly_and_moveins_descriptions_match_the_current_pages():
+    """/weekly/·/moveins/ 설명이 지금 화면과 같은 말이다(전수리뷰 Z2-9).
+
+    실제 상태(픽스처): 지금 저장소로 구운 llms.txt. 예전 설명은 /weekly/ 에서 2026-10-02·03 에 걷은 '방향이 이어진 곳'과
+    /moveins/ 의 옛 낱말 '부족·과잉'을 말했다(화면은 신호등 '적음·보통·많음', SZ.LIGHT).
+    변이(실제로 확인): make_llms_txt 의 /moveins/ 설명을 옛 '적정물량과 견준 부족·과잉'으로, 또는 WEEKLY_DESC 를 옛
+          '… 매매가격 변동과 방향이 이어진 곳'으로 되돌리면 빨강.
+    """
+    t = L.build()
+    lines = {u: line for line in t.splitlines() for _, u in LINK.findall(line)}
+    wk = [line for u, line in lines.items() if u.endswith('/weekly/')]
+    mv = [line for u, line in lines.items() if u.endswith('/moveins/')]
+    assert len(wk) == 1 and len(mv) == 1, (wk, mv)
+    lights = '·'.join(w for _, (_, w) in sorted(SZ.LIGHT.items()))
+    assert lights in mv[0] and '과잉' not in mv[0], mv[0]
+    assert '이어진' not in wk[0] and '방향' not in wk[0] and '시군구' in wk[0], wk[0]
+    for bad in ('과잉', '적정수요', '필요량', '수요 기준선'):
+        assert bad not in t, 'llms.txt 에 정본 밖 낱말 %r' % bad
