@@ -853,7 +853,8 @@ function sggOfSido(W,sido){
   const S=W.sgg; if(!S)return [];
   /* ⚠️ 값이 하나도 없는 시군구는 세우지 않는다. 인천 신설 4구(제물포·영종·검단·서해)는
      주간표에는 있고 **월간표에는 아직 없어**, 고르면 영원히 빈 그래프가 나오는
-     죽은 선택지였다(2026-08-08 감사). 원천이 생기면 자동으로 다시 나타난다. */
+     죽은 선택지였다(2026-08-08 감사). 월간 매핑(SGG_RONE_CLS)에 코드가 들어가야 다시 나타난다 — 원천이 내기 시작해도
+     저절로 붙지 않는다(배치 기록 ℹ️ 줄 batch_notes.sgg_map_gap_lines 가 알린다). */
   const has=c=>{const i=S.codes.indexOf(c);
     return i>=0&&(S.rows||[]).some(r=>['ma','je','wo'].some(f=>(r[f]||[])[i]!=null));};
   return S.codes.filter(c=>SGG_QNAME[c]&&sggZoneOf(W,c)===sido&&has(c));

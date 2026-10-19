@@ -232,3 +232,59 @@ def test_main_appends_theory_claim_lines(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
     assert N.main(['--data', str(p)]) == 0
     assert capsys.readouterr().out.splitlines() == [line]
+
+
+# ── ⑤ 월간 시군구 매핑 공백(전수리뷰 A-6) ──────────────────────────────────
+def _wk(vals):
+    """ADV.weekly.sgg 블록 — vals = {코드: 매매 값 또는 None}(전세는 비운다)."""
+    codes = list(vals)
+    return {'weekly': {'sgg': {'codes': codes, 'rows': [
+        {'p': '2026-10-05', 'ma': [None] * len(codes), 'je': [None] * len(codes)},
+        {'p': '2026-10-12', 'ma': [vals[c] for c in codes], 'je': [None] * len(codes)}]}}}
+
+
+def _gap_fixture(monkeypatch):
+    """매핑에 있는 시도 머리 코드 하나·매핑에서 뺀 시군구 둘(하나만 주간 값이 있다). 실제 매핑 상태와 무관하게 합성한다."""
+    mapped = next(c for c in U.SGG_CODES if len(c) == 2 and c in U.SGG_RONE_CLS)
+    gone, empty = [c for c in U.SGG_CODES if len(c) > 2][:2]
+    monkeypatch.setattr(U, 'SGG_RONE_CLS', {k: v for k, v in U.SGG_RONE_CLS.items() if k not in (gone, empty)})
+    return mapped, gone, empty
+
+
+def test_sgg_map_gap_names_only_unmapped_codes_with_weekly_values(monkeypatch):
+    """주간 값이 있는데 월간 매핑에 없는 시군구만, 홈 이름으로 한 줄에 나온다.
+
+    변이(각각 실제로 확인): sgg_map_gap_lines 에서 `c not in U.SGG_RONE_CLS` 거르기를 빼면(매핑된 코드까지) 빨개지고,
+          값 확인(live)을 빼고 codes 전부를 보면 값 없는 코드까지 나와 빨개진다.
+    픽스처: 인천 신설 4구 모양 — 주간 2026-07-13 부터 값이 있는데 월간 매핑에 코드가 없는 상태. 매핑에 있는 시도 머리 칸과
+            주간 값도 없는 코드 하나를 함께 둔다(실제 매핑에서 두 코드를 빼 합성 — 매핑을 고친 뒤에도 시험이 낡지 않는다).
+    """
+    import gen_sgg_rone_map as G
+    mapped, gone, empty = _gap_fixture(monkeypatch)
+    out = N.sgg_map_gap_lines(_wk({mapped: 0.1, gone: 0.2, empty: None}))
+    qn = G.qname_map()
+    assert len(out) == 1 and out[0].startswith(N.ML.MARK) and '1곳' in out[0], out
+    assert qn[gone] in out[0] and qn[empty] not in out[0], out
+    assert N.sgg_map_gap_lines(_wk({mapped: 0.1, empty: None})) == []
+    assert N.sgg_map_gap_lines({}) == []
+
+
+def test_main_appends_the_sgg_map_gap_line(tmp_path, monkeypatch, capsys):
+    """배치가 부르는 main() 이 매핑 공백 줄을 기록에 싣는다.
+
+    변이(실제로 확인): main() 에서 `+ sgg_map_gap_lines(adv)` 를 지우면 빨개진다.
+    픽스처: 인허가 신호가 모두 있고 주간 시군구에 매핑 없는 코드 하나가 값이 있는 최소 data.js, 오늘은 퀴즈 기한 전.
+    """
+    import datetime
+    import json
+    import kst
+    mapped, gone, empty = _gap_fixture(monkeypatch)
+    adv = dict(_adv(('가', 0.8)), **_wk({mapped: 0.1, gone: 0.2}))
+    p = tmp_path / 'data.js'
+    p.write_text('/*ADV_DATA_START*/ const ADV=%s; /*ADV_DATA_END*/\nconst STATS={};\n'
+                 % json.dumps(adv, ensure_ascii=False), encoding='utf-8')
+    monkeypatch.setattr(N, 'theory_claim_lines', lambda: [])
+    monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
+    assert N.main(['--data', str(p)]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert len(out) == 1 and '월간 시군구 매핑 없음' in out[0], out
