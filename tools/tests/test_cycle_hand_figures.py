@@ -852,20 +852,21 @@ def test_region_toggle_reports_its_state_to_assistive_tech(tmp_path):
 # ---------------------------------------------------------------- 공급 흐름·노후 재고 (전수리뷰 C-4)
 
 def _advance_flows(S):
-    """인허가(연내 누계)·착공·준공을 마지막 달 뒤로 이어 그해(마지막 달이 12월이면 다음 해)를 열두 달 채우고, 노후주택30년에 다음
-    해를 하나 더한 사본. 돌려주는 값: (사본, 새로 다 찬 해)."""
+    """인허가(연내 누계)·착공·준공을 각자 마지막 달 뒤로 이어, 인허가의 그해(마지막 달이 12월이면 다음 해) 12월까지 채우고, 노후주택30년에
+    다음 해를 하나 더한 사본. 세 계열의 마지막 달은 다를 수 있다(다음 분기 전진 시험의 합성 데이터). 돌려주는 값:
+    (사본, 새로 다 찬 해, 노후 재고의 새 해)."""
     S = copy.deepcopy(S)
     last = S['인허가']['dates'][-1]
-    y, m = int(last[:4]), int(last[5:7])
-    if m == 12:
-        y, m = y + 1, 0
+    y = int(last[:4]) + (1 if last[5:7] == '12' else 0)
     for key in ('인허가', '착공', '준공'):
         blk = S[key]
-        assert blk['dates'][-1] == last, '세 계열의 마지막 달이 다르다 — 픽스처를 고칠 것'
-        for mm in range(m + 1, 13):
-            blk['dates'].append('%d.%02d' % (y, mm))
+        ly, lm = int(blk['dates'][-1][:4]), int(blk['dates'][-1][5:7])
+        assert ly <= y, '%s 가 인허가보다 한 해 넘게 앞선다 — 픽스처를 고칠 것' % key
+        while (ly, lm) < (y, 12):
+            ly, lm = (ly + 1, 1) if lm == 12 else (ly, lm + 1)
+            blk['dates'].append('%d.%02d' % (ly, lm))
             for r, ser in blk['series'].items():
-                prev = ser[-1] if (key == '인허가' and mm > 1 and ser[-1] is not None) else 0.0
+                prev = ser[-1] if (key == '인허가' and lm > 1 and ser[-1] is not None) else 0.0
                 ser.append(prev + 1000.0)
     b = S['노후주택30년']
     ny = int(str(b['dates'][-1])[:4]) + 1
