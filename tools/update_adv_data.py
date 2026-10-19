@@ -1909,6 +1909,24 @@ SIZE_LABELS = ['40㎡↓', '40~60㎡', '60~85㎡', '85~102㎡', '102~135㎡', '1
 SIZE_MONTHS = 62
 
 
+def size_last(D):
+    """규모별 페이로드(STATS['규모별']) → {지표: 그 지표에 값이 하나라도 있는 마지막 달 라벨}. 값이 하나도 없는 지표는 빠진다.
+
+    축(dates)은 네 표 시점의 **합집합**이라 끝 달이 한 지표에만 있을 수 있다 — 2026-09-28 전환율(N0009)이 2026.07 을 실어
+    축 끝이 2026.07 이 됐는데 매매·전세·월세는 2026.06 에서 석 달째 멈춰 있었다. 감시와 월간 뒤처짐 알림이 축 끝(dates[-1])을
+    읽어 그 정지가 가려졌다(전수리뷰 A-2). 감시(check_freshness)·month_lag 가 이 함수 하나로 지표별 최신을 읽는다.
+    """
+    dates = D.get('dates') or []
+    out = {}
+    for m, per in (D.get('series') or {}).items():
+        for i in range(len(dates) - 1, -1, -1):
+            if any(isinstance(a, list) and i < len(a) and isinstance(a[i], list) and any(v is not None for v in a[i])
+                   for a in (per or {}).values()):
+                out[m] = dates[i]
+                break
+    return out
+
+
 def _size_levels(rows):
     """규모별 표 응답 → {지역: {PRD_DE: [6구간 값]}} (원천 수준값 그대로).
 
