@@ -118,12 +118,16 @@ def test_permit_year_row_names_its_month_and_rounds_half_up():
 def test_table_start_is_one_constant():
     """시도 리포트 분기 표·홈 통합표(split_data)·통계 탭 입주물량(supply_rows)이 같은 첫 분기·첫 달에서 시작한다 — 정본
     SZ.TABLE_FROM_YEAR(전수리뷰 X1 overflow — '2017'이 make_sido_pages·sido_zones·split_data 세 곳에 따로 박혀 있었고 일치 시험이 없었다).
-    홈 TB_FROM 거울 대조는 홈 쪽 시험이 맡는다.
-    변이(실제로 확인): supply_rows 의 시작을 qidx(2018, 1) 로, split_data.TABLE_FROM 을 '2018.01' 로 박으면 각각 빨개진다.
-    픽스처: 저장소 STATS(실데이터) — 표의 첫 행만 본다(데이터가 앞으로 가도 첫 행은 그대로다)."""
+    홈 통합표는 split_data.TABLE_FROM 을 읽지 않고 자기 거울 TB_FROM(home-app.js 'var TB_FROM=<해>*12')을 쓰므로 그 해도 같은지 본다(검토 보강 —
+    거울 대조가 어디에도 없었다).
+    변이(실제로 확인): supply_rows 의 시작을 qidx(2018, 1) 로, split_data.TABLE_FROM 을 '2018.01' 로, 홈 TB_FROM 을 2018*12 로 박으면 각각 빨개진다.
+    픽스처: 저장소 STATS(실데이터) — 표의 첫 행만 본다(데이터가 앞으로 가도 첫 행은 그대로다) — 와 홈 스크립트(home_src 입구)."""
     import split_data as S
+    import home_src as HS
     y = SZ.TABLE_FROM_YEAR
     assert P.TABLE_FROM == SZ.qidx(y, 1) and S.TABLE_FROM == '%d.01' % y, (P.TABLE_FROM, S.TABLE_FROM)
+    tb = re.findall(r'var TB_FROM\s*=\s*(\d+)\s*\*\s*12\b', HS.home_source())
+    assert tb == [str(y)], '홈 TB_FROM 거울이 정본 TABLE_FROM_YEAR(%d)와 다르다: %s' % (y, tb)
     _, calc, st = _page()
     assert SZ.supply_rows(st)['rows'][0]['p'] == '%dQ1' % y
     assert P.series(st, '서울', calc)[0][0] == SZ.qidx(y, 1)
