@@ -92,19 +92,27 @@ def test_permit_year_row_names_its_month_and_rounds_half_up():
     기준 달은 판정(calc)이 실은 permit_prd(= SZ.permit_ref_month, '3년 너머' 창과 같은 달)이고, 그 칸이 없는 옛 판정(다음 배치 전)은
     달 없이 굽는다.
     변이(실제로 확인): 행에서 기준 달 조각을 빼면 첫 단정이, 퍼센트를 '%.0f%%' 로 되돌리면 0.925(=92.5%) 단정이 빨개진다.
-    픽스처: 저장소 STATS 로 새로 돌린 판정(지금 코드), 서울 행의 pmr 만 0.925(100배가 이진수로 정확히 92.5)로 바꾼 사본, permit_prd 를 뺀 사본.
+    픽스처: 저장소 STATS 로 새로 돌린 판정(지금 코드). 서울 행에 인허가 1년 값(실데이터 값, 비면 합성 12,345)과 pmr 0.925(100배가 이진수로
+    정확히 92.5)를 실은 사본 — 실데이터에 그 지역 값이 비는 회차에도 행이 선다 —, 그 사본에서 permit_prd 를 뺀 사본. 실데이터 행은 값이
+    있으면 퍼센트를, 없으면 행이 서지 않음을 본다.
     """
     html, calc, st = _page()
-    assert calc['permit_prd'] == SZ.permit_ref_month(st) and calc['permit_prd'], calc.get('permit_prd')
-    cells = _pm_row(html)
-    assert cells[3] == '%s 기준 · 착공 전 단계의 선행 물량' % SZ.month_text(calc['permit_prd']), cells
-    row = [z for z in calc['zones'] if z['z'] == '서울'][0]
-    assert cells[2] == '%d%%' % SZ.half_up(row['pmr'] * 100), cells
+    assert calc['permit_prd'] == SZ.permit_ref_month(st), calc.get('permit_prd')
     adv, _ = P.load()
-    c2 = dict(calc, zones=[dict(z, pmr=0.925) if z['z'] == '서울' else z for z in calc['zones']])
-    assert _pm_row(P.build_page('서울', c2, st, P.price_quarters(adv), c2['zones']))[2] == '93%'
-    c3 = {k: v for k, v in calc.items() if k != 'permit_prd'}
-    assert _pm_row(P.build_page('서울', c3, st, P.price_quarters(adv), c3['zones']))[3] == '착공 전 단계의 선행 물량'
+    pq = P.price_quarters(adv)
+    prd = calc['permit_prd'] or '2026.08'
+    zs = [dict(z, pm12=z.get('pm12') or 12345, pmr=0.925) if z['z'] == '서울' else z for z in calc['zones']]
+    c2 = dict(calc, permit_prd=prd, zones=zs)
+    cells = _pm_row(P.build_page('서울', c2, st, pq, zs))
+    assert cells[3] == '%s 기준 · 착공 전 단계의 선행 물량' % SZ.month_text(prd), cells
+    assert cells[2] == '93%', cells
+    c3 = {k: v for k, v in c2.items() if k != 'permit_prd'}
+    assert _pm_row(P.build_page('서울', c3, st, pq, zs))[3] == '착공 전 단계의 선행 물량'
+    row = [z for z in calc['zones'] if z['z'] == '서울'][0]
+    if row.get('pm12') is not None and row.get('pmr') is not None:
+        assert _pm_row(html)[2] == '%d%%' % SZ.half_up(row['pmr'] * 100)
+    else:
+        assert 'data-ref="pm"' not in html, '인허가 1년 값이 없는데 행이 섰다'
 
 
 def test_table_start_is_one_constant():
