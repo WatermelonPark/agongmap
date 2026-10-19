@@ -13,7 +13,8 @@
 D.prose 의 rate_r·rate_n 을 옮겨 적은 것이다. 끝 분기 전세 빈칸 시험은 매매가 새 분기 첫 달(잠정)을 받고 전세가 한 달 늦은 회차
 (2026-08-28~09-27 에 실제로 /cycle/ 끝 칸이 [137.5, None] 이었다)를 SNAP 끝에 한 분기 덧붙여 재현한다.
 무엇을 깨뜨리면 빨개지나(각각 실제로 확인):
-  - link7_values 의 '세 값이 다 찬 분기만' 자르기를 지우면 → test_incomplete_last_quarter_uses_the_last_complete_quarter(TypeError)
+  - link7_values 의 '세 값이 다 찬 분기만' 자르기를 지우면 → test_incomplete_last_quarter_uses_the_last_complete_quarter(끝 칸이
+    빈 분기 검사에 걸려 멈춘다 — 그 검사까지 지운 옛 판이면 TypeError)
   - 첫 검사(3배)를 지우면 → test_sales_not_three_times_jeonse_in_the_low_rate_year_stops_the_draft
   - 둘째 검사(고금리 순서)를 지우면 → test_jeonse_peaking_first_stops_the_draft
   - 셋째 검사(최근 동반 상승)를 지우면 → test_prices_falling_while_rates_rise_stops_the_draft·test_rates_falling_to_a_new_low_stops_the_draft
