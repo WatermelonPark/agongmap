@@ -21,11 +21,6 @@ from test_freshness_parallel import _live, _run  # noqa: E402  (main() 통째 �
 DAY = datetime.timedelta(days=1)
 
 
-def _in_batch_gate():
-    """배치 커밋 잡의 게이트 안인가(test_gate_survives_next_period 와 같은 판정)."""
-    return bool(os.environ.get('GITHUB_ACTIONS')) and os.environ.get('GITHUB_JOB') == 'commit'
-
-
 def _series():
     """저장소 데이터의 계열별 (이름, 최신 시점, 상한) — main() 이 넘기는 상한과 같은 짝."""
     adv, last = _live()
