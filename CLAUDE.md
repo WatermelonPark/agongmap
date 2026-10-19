@@ -28,7 +28,7 @@
 | 퀴즈 3종(`burini-test/`, `investor-test/`, `redev-test/`) | 랜딩은 손으로 쓴 파일, 점수별 하위 페이지(`/0/`~)는 `make_quiz_share_pages.py`가 만든다 |
 | `about/`, `faq/`, `privacy/` | 운영 주체·설명·개인정보 페이지. GA 이벤트를 더하거나 보내는 값을 바꾸면 개인정보처리방침의 전송 목록 표(`#ga-events`)도 고친다(`test_privacy_ga_events`가 코드의 모든 GA 호출과 대조) |
 | `tools/` | 배치·생성기·발행 도구 (아래 표) |
-| `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다 |
+| `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다. 시험 중 블로그 초안 도구(make_naver_post·make_theory_post·make_city_post)의 쓰기 자리(OUT·STATE)는 conftest 의 autouse 픽스처 `_drafts_out_of_repo`가 임시 폴더로 돌리고, 저장소 쓰기 감시가 gitignore 폴더 `drafts/`도 파일마다(크기·수정 시각) 본다 — 초안 도구에 새 쓰기 자리 상수를 두면 conftest 의 `_DRAFT_TOOLS`에도 올린다(`test_repo_write_guard`) |
 | `tools/data/` | 시딩 데이터·캐시·스탬프. `tools/cache/`와 벌크 원본은 gitignore |
 | `docs/` | 세션 간 요청서·결정 기록·백로그. 날짜 접두 파일명. 목록은 `docs/README.md`, 종결된 요청서는 `docs/archive/`로 옮긴다 |
 | `.github/workflows/` | 클라우드 배치·감시·발행 알림 (아래 "자동화") |
@@ -38,10 +38,10 @@
 
 | 도구 | 역할 |
 |---|---|
-| `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키가 필요하다(`--dry-run`은 없어졌다. 키 없이는 pytest로 검증한다). 매매·전세지수의 기준시점이 바뀌면 옛 계열에 이어 붙이지 않고 **스스로 전 기간을 다시 받는다**(`_basis_reason`·`refetch_basic_full`, 연결계수 금지 — 2026-09-30 대표 결정). 받지 못하면 그 계열만 보류하고 `.fetch_failed`에 '기준변경 보류'를 남긴다. 지수 단절 판정의 정본은 `index_breaks`(`BREAK_JUMP`·`BREAK_REGIONS`)이고 사이클 재산정·`/cycle/` 보류·블로그 도구가 같은 함수를 부른다 |
+| `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키가 필요하다(`--dry-run`은 없어졌다. 키 없이는 pytest로 검증한다). 매매·전세지수의 기준시점이 바뀌면 옛 계열에 이어 붙이지 않고 **스스로 전 기간을 다시 받는다**(`_basis_reason`·`refetch_basic_full`, 연결계수 금지 — 2026-09-30 대표 결정). 받지 못하면 그 계열만 보류하고 `.fetch_failed`에 '기준변경 보류'를 남긴다. 월간 응답에서 시도 값(매매·전세)이 전부 빈 달(원천이 시도 이름·계층을 바꾼 회차)은 싣지 않는다 — 저장분에 있던 달은 저장값을 지키고 새 달은 시도·서울구·시군구 세 블록 모두에서 보류한다(`_hold_sido_empty`, 'monthly:시도 결측 보류'). `/monthly/`는 순위가 빈 절에도 사유 한 줄을 쓴다(`make_monthly_page._why_empty`). 지수 단절 판정의 정본은 `index_breaks`(`BREAK_JUMP`·`BREAK_REGIONS`)이고 사이클 재산정·`/cycle/` 보류·블로그 도구가 같은 함수를 부른다 |
 | `split_data.py` | `data.js` → `data-core.js`, `data-*.json` 분리. 홈 통계용 `data-trend.json`은 허용목록 `TREND_ADV`만 싣는다(새 ADV 키를 홈 통계에 쓰려면 여기에 올린다). 분기·연 가격 합(`ADV.monthly.agg`, 원값 합·달이 덜 찬 칸은 비움)과 입주물량 문턱(`ADV.occupancy.band`)을 실어 홈이 계산하지 않고 읽게 한다 |
 | `make_sido_pages.py`, `make_indicator_pages.py`, `make_monthly_page.py`, `make_weekly_page.py` | 시도·지표·월간·주간 페이지 생성. `make_home_summary.py`(홈 표식 구간·설명 메타), `refresh_cycle_data.py`, `make_feed.py`(`/feed.xml` RSS), `make_llms_txt.py`(`/llms.txt` AI 검색 요약 — 숫자 없이, 시도 목록은 sitemap 에서)와 함께 배치가 이 순서로 돌리는 생성기 여덟 개다(`ci-tests.yml`·bat·`test_batch_parity`가 같은 목록). 시도 리포트 설명 메타와 `<main>` 첫 문단은 `summary_parts` 한 목록에서 나오고, 시세 구역 머리에는 홈 전국 시군구 지도를 그 지역 칸만 잘라(`zone_tile` — 상자 안 이웃 칸은 흐리게, 한 칸뿐인 세종은 생략) 주간·월간 두 장을 단추(`zone.js`)로 바꿔 보인다(기본 주간, 2026-10-10 대표 요청, `test_zone_map`). `/zone/`·`/monthly/`·`/jeonse-ratio/`·`/moveins/`의 dateModified·sitemap lastmod는 내용이 바뀐 날(`keep_dates`, KST)이다. 그래서 dateModified 는 데이터 시점을 말하지 않는다 — 감시는 화면의 시점 문구를 읽는다(`/moveins/`는 `make_indicator_pages.MOVEINS_BASIS`) |
-| `sido_zones.py` | 판정 단위(시도) 목록·등급·정렬의 **정본**. 순위는 반드시 `zone_order()`를 쓴다(등급군 → 절대량). 절대 세대수로 순위를 매기면 판정과 모순이 난다. 시도 **목록을 보여줄 때**는 순위가 아니라 `DISPLAY_ORDER`(관심 지역 고정 순서)를 쓴다. `/monthly/`처럼 정부 표와 대조하는 화면은 `ORDER`(발표 원천 순서)를 유지한다. 화면 숫자의 정본도 여기 있다: 분기·연 가격 칸 `price_periods`(달이 다 찬 칸만·원값 합), 쌓인 부족·여유의 크기 `need_mult`('1년 적정물량의 N배' — 반올림이 등급 컷을 넘지 않게, 컷 글은 `cut_mult`. 2026-10-05 안 A′로 옛 부족률 퍼센트 `ratio_pct`를 대신했다), 전환율을 잰 첫 착공 연도 `CONV_START_FROM`, '인허가가 착공보다 N%쯤 많다'의 `permit_over_start_pct`, 입주물량 적정 대비 문턱 `OCC_LO_PCT`·`OCC_HI_PCT`(70·130%, 홈과 `/moveins/` 공통 — 2026-09-30 대표 결정. 지역 칸·시도 리포트·홈 판정 카드의 해마다 입주 신호등·막대 색도 이 문턱이다 — `light_of`·`year_lights`, 2026-10-05). 손 페이지(홈·소개·FAQ)에 적힌 같은 숫자는 `test_home_hand_numbers`·`test_hand_page_numbers`가 대조한다. 화면에 보이는 지역 이름도 여기가 정본이다 — `DISPLAY_NAME`(키 '전남광주' → '광주·전남', 2026-10-17 대표 승인, 백로그 46)을 생성기는 `disp`로, 홈은 `split_data`가 실은 `ADV.zname`을 `zn()`으로, `/cycle/` 차트는 `refresh_cycle_data`가 다시 쓰는 `const ZN`으로, 블로그는 `make_naver_post.SEARCH_NAME`으로 읽는다. 주소·데이터 키·GA 값·선택 상자 `value`는 키 그대로, 페이지 글자를 읽어 대조하는 시험은 `key_of`로 되돌린다(`test_display_name`) |
+| `sido_zones.py` | 판정 단위(시도) 목록·등급·정렬의 **정본**. 순위는 반드시 `zone_order()`를 쓴다(등급군 → 절대량). 절대 세대수로 순위를 매기면 판정과 모순이 난다. 시도 **목록을 보여줄 때**는 순위가 아니라 `DISPLAY_ORDER`(관심 지역 고정 순서)를 쓴다. `/monthly/`처럼 정부 표와 대조하는 화면은 `ORDER`(발표 원천 순서)를 유지한다. 화면 숫자의 정본도 여기 있다: 분기·연 가격 칸 `price_periods`(달이 다 찬 칸만·원값 합), 쌓인 부족·여유의 크기 `need_mult`('1년 적정물량의 N배' — 반올림이 등급 컷을 넘지 않게, 컷 글은 `cut_mult`. 2026-10-05 안 A′로 옛 부족률 퍼센트 `ratio_pct`를 대신했다), 전환율을 잰 첫 착공 연도 `CONV_START_FROM`, '인허가가 착공보다 N%쯤 많다'의 `permit_over_start_pct`, 입주물량 적정 대비 문턱 `OCC_LO_PCT`·`OCC_HI_PCT`(70·130%, 홈과 `/moveins/` 공통 — 2026-09-30 대표 결정. 지역 칸·시도 리포트·홈 판정 카드의 해마다 입주 신호등·막대 색도 이 문턱이다 — `light_of`·`year_lights`, 2026-10-05). 손 페이지(홈·소개·FAQ)에 적힌 같은 숫자는 `test_home_hand_numbers`·`test_hand_page_numbers`가 대조한다. 화면에 보이는 지역 이름도 여기가 정본이다 — `DISPLAY_NAME`(키 '전남광주' → '광주·전남', 2026-10-17 대표 승인, 백로그 46)을 생성기는 `disp`로, 홈은 `split_data`가 실은 `ADV.zname`을 `zn()`으로, `/cycle/` 차트는 `refresh_cycle_data`가 다시 쓰는 `const ZN`으로, 블로그는 `make_naver_post.SEARCH_NAME`으로 읽는다. 주소·데이터 키·GA 값·선택 상자 `value`는 키 그대로, 페이지 글자를 읽어 대조하는 시험은 `key_of`로 되돌린다(`test_display_name`). 데이터에 따라 바뀌는 이름 자리(가장 높은·낮은 곳, 가장 크게 움직인 시도 같은 결론 문장과 그것을 옮기는 설명 메타·og·RSS)도 `disp`를 거치고 조사는 화면 이름 끝 글자로 센다 — `test_display_name`은 그날 데이터가 지나는 갈래만 보므로 그런 자리는 그 키가 1위가 되는 합성 픽스처 시험으로 늘 본다(2026-10-18 전수리뷰) |
 | `check_freshness.py` | 데이터 신선도·정합성 검사. 감시 워크플로가 부른다 |
 | `weekly_release.py` | 주간 발표 일정(조사일·발표일·다음 발표·지연 판정)의 파이썬 정본. 감시의 주간 유예(`GRACE_WEEKLY`), `/weekly/` 머리줄, `split_data`가 싣는 `ADV.weekly.grace`가 여기서 나오고, 홈의 `weeklyRelease()`와 같은 답을 내는지 `test_weekly_release`가 node로 대조한다 |
 | `refresh_cycle_data.py` | `/cycle/` 사이클 리포트 데이터 |
@@ -53,7 +53,7 @@
 | `site_nav.py` | 하단 탭바(홈·지역·시세·사이클)의 정본. 생성기는 `bottomnav()`로 굽고, 손 페이지 탭바는 손으로 맞추되 `test_site_nav`가 저장소의 모든 HTML 탭바를 대조한다. 탭 식별자(`stats` 등)는 GA 값이라 라벨을 바꿔도 그대로 둔다. 라벨 글자 크기도 여기(`LABEL_PX`)가 정본이다. 손 페이지(소개·FAQ·개인정보·퀴즈 랜딩·404) 푸터 `HAND_FOOTER`와 탭바 초점 규칙 `NAV_FOCUS_CSS`, 데스크톱 틀 `desk_link`·`desk_body`·왼쪽 목차 `dtoc`·`DTOC_JS`도 여기다(2026-10-06) |
 | `make_zone_cards.py`, `make_og_cards.py`, `make_weekly_share.py` | 공유용 이미지·OG 카드. 이미지 도구는 pillow 만 쓴다(numpy 등 금지). 디자인 감사·적용(`audit_design.py`·`apply_design.py`)은 `RADIUS_SHAPE`·`RADIUS_OK` 한 기준을 쓴다 |
 | `make_quiz_share_pages.py` | 퀴즈 점수별 정적 공유 페이지. 퀴즈 세트나 공유 이미지를 바꿨을 때 사람이 돌린다 |
-| `make_naver_post.py`, `make_theory_post.py <편번호>` | 네이버 블로그 초안 생성 → `drafts/`. 배치가 부르지 않고 사람이 발행 직전에 돌린다. 이론 초안은 편번호가 필수이고, 사람이 채운 기존 초안은 덮지 않고 `.new.html`에 쓴다(`--force`일 때만 덮음). 숫자는 `/cycle/`의 `D.prose`에서 읽고 전제가 정본과 어긋나거나 지수 단절이 있으면 멈춘다. 멈춤은 **그 편 초안만**이다 — 게이트 시험은 그 데이터 상태로 실패하지 않고, 배치 기록에 `batch_notes.theory_claim_lines`가 편마다 ℹ️ 한 줄로 알린다(1~7편 전제 가드의 정본 입구 `make_theory_post.guard_values`, 2026-10-18 대표 결정 — 09-30 '게이트도 멈춘다'를 대신함) |
+| `make_naver_post.py`, `make_theory_post.py <편번호>` | 네이버 블로그 초안 생성 → `drafts/`. 배치가 부르지 않고 사람이 발행 직전에 돌린다. 이론 초안은 편번호가 필수이고, 사람이 채운 기존 초안은 덮지 않고 `.new.html`에 쓴다(`--force`일 때만 덮음). 숫자는 `/cycle/`의 `D.prose`에서 읽고 전제가 정본과 어긋나거나 지수 단절이 있으면 멈춘다. 멈춤은 **그 편 초안만**이다 — 게이트 시험은 그 데이터 상태로 실패하지 않고, 배치 기록에 `batch_notes.theory_claim_lines`가 편마다 ℹ️ 한 줄로 알린다(1~7편 전제 가드의 정본 입구 `make_theory_post.guard_values`, 2026-10-18 대표 결정 — 09-30 '게이트도 멈춘다'를 대신함). 문장 전제가 깨진 편은 '전제가 지금 데이터와 어긋남 … 발행본 재검토' 줄, 멈춤 문구에 `NOT_THE_TEXT`('문장 탓이 아니다')가 든 데이터 상태 멈춤(지수 기준 단절·착공·준공 끝 달 어긋남·판정 칸 못 읽음·금리 오버레이 빈 분기)은 '초안 생성 멈춤(데이터 상태, 발행본과 무관)' 줄이다 — 데이터 멈춤 문구를 새로 쓰면 이 상수를 넣는다. 6편 가드는 5편 단정에 묶이지 않고 앞으로 입주 목록의 정본 `theory_link4.fut_lists`만 읽는다 |
 | `naver_serp.py` | 네이버 검색 API로 색인·순위 확인(`--index`, `--track`) |
 | `run_weekly_update.bat` | 로컬 배치 러너(Windows 작업 스케줄러). 실패 시 즉시 중단하고 종료 코드로 사유를 남긴다 |
 
@@ -83,7 +83,7 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
 - **시험**: `ci-tests.yml`이 PR·`main` 푸시·매일 예약(22:17 KST)에서 배치 게이트와 같은 조건(3.12, `pytest`·`pillow`만,
   depth 200, split_data·생성기 먼저)으로 pytest 를 돌리고, 설치 없이 도는 진입점을 따로 돌려 본다. 둘이 같은지는
   `test_ci_workflow_mirrors_gate`가 본다. 봇 데이터 커밋은 푸시로 이 워크플로를 부르지 못해 예약 실행을 둔다 —
-  배치 게이트가 경고로만 넘기는 '다음 분기 전진 시험'(`test_gate_survives_next_period`)이 여기서 실패로 돈다.
+  배치 게이트가 경고로만 넘기는 '다음 분기 전진 시험'(`test_gate_survives_next_period`)이 여기서 실패로 돈다. 전진 시험은 준공·착공·주간·월간에 더해 매매·전세지수·금리도 새 분기 첫 달 모양(전세 한 달 늦음)으로 밀고, 안쪽 게이트도 건너뜀을 실패로 돈다(.git 없는 사본에서 판정 못 하는 sw.js 이력 시험 하나만 뺀다).
 - **러너 판**: 모든 워크플로는 `ubuntu-24.04` 고정이다(ci-tests 의 `inputs.runner` 기본값이 정본, `test_runner_pin`). `runner-trial.yml`이
   같은 시험을 다음 판(26.04)에서 주 1회·수동으로 돌린다. 몇 주 초록이면 고정 판을 함께 올린다(2026-10-06 대표 결정).
 - **감시**: `watchdog.yml`이 매일 `check_freshness.py`로 라이브 데이터를 원천과 대조한다. 워크플로 자체가
@@ -120,7 +120,7 @@ Windows 콘솔에서 한글이 깨지면 `PYTHONUTF8=1`을 준다.
   들어오는 날 게이트가 그날 데이터 커밋을 막는다(2026-09-26 데이터 감사: 20건 중 7건이 '데이터가 앞으로 가면 그날
   커밋이 막히는' 유형이었다 — 시험 5건, 생성기 중단 2건). 기대값은 데이터에서
   유도하고, 날짜가 지나서 생기는 일(검토 기한 등)은 게이트가 아니라 감시 경고·배치 기록 줄로 알린다. '오늘'은
-  `tools/kst.py`, '전월'·'1년 전' 칸은 인덱스 차가 아니라 `sido_zones.month_back`으로 찾는다.
+  `tools/kst.py`, '전월'·'1년 전' 칸은 인덱스 차가 아니라 `sido_zones.month_back`으로 찾는다. 실데이터 게이트 시험에는 시장값 문턱(지역 사이 순서, '5 미만' 같은 상한)도 두지 않는다 — 상한은 역대 최고를 크게 넘는 단위 사고 막이로만 둔다(2026-10-18 전수리뷰: 인허가 신호 순서는 165개월 중 77개월 뒤집혔다).
 - 계산법 공개가 핵심 가치다. 산식을 바꾸면 사이트 설명문과 블로그 초안 생성기를 같이 고친다.
 - 생성 페이지의 문구는 생성기(`make_*.py`)를 고친다. 출력물을 직접 고치면 다음 배치에서 되돌아간다.
 
