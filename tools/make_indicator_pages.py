@@ -474,7 +474,7 @@ def build_jeonse(sts, today=None):
     <a href="/#stats-adv-bubble">버블밴드<span>전세가율로 계산한 지역별 고평가·저평가 밴드</span></a>
     <a href="/#stats-basic">기본통계 차트<span>전세가율 2012년부터 월별 추이를 지역별로</span></a>
     <a href="/moveins/">아파트 입주물량<span>전세가율을 움직이는 원인 — 시도별 입주 예정</span></a>
-    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도를 부족·과잉 등급으로</span></a>
+    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도의 부족·여유를 등급으로</span></a>
     <a href="/cycle/">아파트 사이클 리포트<span>전세가율이 매매를 미는 고리, 데이터 검증</span></a>
   </div>
 </section>
@@ -631,7 +631,7 @@ def build_moveins(adv, today=None):
 
 %(city)s<section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>%(Y)s년 입주가 적정물량에 가장 못 미치는 곳은 <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정선의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
+  <p>%(Y)s년 입주가 적정물량에 가장 못 미치는 곳은 <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정물량의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
