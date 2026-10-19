@@ -40,8 +40,9 @@ AGONGMAP_ALLOW_SKIP=1 을 통째로 줘 모든 건너뜀이 rc=0 으로 지나�
   - commit_job_generators 가 빈 목록을 돌려주면 파서 자기 확인 시험이 빨개진다.
   - 배치 잡 가드(_in_batch_gate)를 지우면 test_forward_check_never_gates_the_batch_commit 이 빨개진다.
   - 7편 가드 link7_values 가 끝 칸 전세 None 을 그대로 비교하던 판(전수리뷰 BL2-1 고치기 전)에서는 지수 전진(_advance_indices)
-    단계가 test_theory_post7 둘·test_home_entry 둘을 TypeError 로 빨갛게 해 이 시험이 빨개진다(확인 — 전진 단계를 빼면 초록이라
-    그 정지를 못 봤다).
+    단계가 실데이터 시험 넷(test_theory_post7·test_theory_guards 하나씩, test_home_entry 둘)을 TypeError 로 빨갛게 해 이 시험이
+    빨개진다. 확인은 옛 link7_values 를 되살리고, 그 판에서 혼자 빨개지는 합성 시험 둘(test_theory_post7 의 끝 칸·빈 분기)을 뺀
+    사본으로 했다 — 같은 사본에서 전진 단계만 빼면 초록이라, 이 단계 없이는 그 정지를 못 봤다.
   - 사본에서만 건너뛰는 시험(저장소 뿌리에 .git 이 없으면 pytest.skip)을 하나 넣으면 안쪽 게이트가 '건너뜀이 실패다'로
     빨개져 이 시험이 빨개진다. 안쪽 env 에 AGONGMAP_ALLOW_SKIP=1 을 되살리면 같은 상태에서 초록이 된다(T1-4).
   - 지수 전진의 자기 확인(_short_of)을 '목표 달과 같아야'로 되돌리면 달 초에 금리가 매매보다 두 달 앞선 날 헛되이 빨개진다 —
