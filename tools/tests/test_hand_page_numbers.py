@@ -45,7 +45,8 @@ def _read(rel):
     return io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
 
 
-HAND_PERMIT = ('about/index.html', 'faq/index.html', 'index.html')
+import batch_notes as BN  # noqa: E402
+HAND_PERMIT = BN.HAND_PERMIT_PAGES   # 배치 기록 줄(hand_permit_lines)과 같은 페이지 목록 — 한쪽에만 페이지를 더하면 게이트와 알림이 갈린다
 
 
 def _hand_permit_numbers():
