@@ -201,3 +201,41 @@ def test_indicator_main_keeps_dates_across_same_content_runs(tmp_path, monkeypat
     for sub, (first, second) in got.items():
         assert first == ('2031-03-03', '2031-03-03'), (sub, first)
         assert second == first, '%s: 내용이 같은데 날짜가 %s 로 움직였다' % (sub, second)
+
+
+def _moveins_with_pcts(adv, pcts):
+    """머리 해(Y) 입주 합을 지역마다 '적정물량의 pcts[지역]%'로 맞춘 사본(첫 분기에 몰아 싣고 나머지 분기는 0)."""
+    a = copy.deepcopy(adv)
+    o = a['occupancy']
+    Y = str(int([r['p'] for r in o['rows'] if not r.get('e')][-1][:4]))
+    ys = [r for r in o['rows'] if r['p'].startswith(Y)]
+    for z, pct in pcts.items():
+        i = o['regions'].index(z)
+        for r in ys:
+            r['v'][i] = 0
+        ys[0]['v'][i] = o['ref'][z] * 4 * pct / 100.0
+    return a
+
+
+def test_moveins_lowest_sentence_is_true_and_lists_ties():
+    """/moveins/ 해설의 '가장 적은·많은 곳'은 표 칸과 같은 표시 정수로 가리고 같은 값이면 모두 적으며(전수리뷰 Z1-10 정본 결정), 가장 적은
+    곳도 적정물량 이상(100% 이상)인 해에는 '적정물량에 가장 못 미치는 곳'이라 하지 않는다(전수리뷰 Z1 overflow — 거짓 문장).
+    변이(실제로 확인): 머리말을 늘 '적정물량에 가장 못 미치는 곳은'으로 되돌리면 첫 갈래가, 동률 거름을 빼고 한 곳만 적게 되돌리면 동률
+    단정이 빨개진다.
+    픽스처: 저장소 ADV.occupancy 에서 시도마다 머리 해 합을 맞춘 두 사본 — ① 모든 시도가 적정물량 이상(두 곳 105%·두 곳 150%·나머지
+    130%), ② 한 곳만 50%(나머지 130%). 지역은 SIDO17 의 앞뒤에서 고른다(이름을 박지 않는다)."""
+    adv, _ = P.load()
+    lo2, hi2 = I.SIDO17[:2], I.SIDO17[-2:]
+    pcts = {z: 130 for z in I.SIDO17}
+    pcts.update({z: 105 for z in lo2})
+    pcts.update({z: 150 for z in hi2})
+    html, _ = I.build_moveins(_moveins_with_pcts(adv, pcts))
+    want_lo = I.names_text([SZ.disp(z) for z in lo2])
+    want_hi = I.names_text([SZ.disp(z) for z in reversed(hi2)])
+    assert '입주가 적정물량 대비 가장 적은 곳은 <strong>%s(적정물량의 105%%)</strong>' % want_lo in html, html[-3000:]
+    assert '가장 많은 곳은 <strong>%s(적정물량의 150%%)</strong>' % want_hi in html
+    assert '가장 못 미치는' not in html
+    one = {z: 130 for z in I.SIDO17}
+    one[I.SIDO17[3]] = 50
+    html2, _ = I.build_moveins(_moveins_with_pcts(adv, one))
+    assert '입주가 적정물량에 가장 못 미치는 곳은 <strong>%s(적정물량의 50%%)</strong>' % SZ.disp(I.SIDO17[3]) in html2
