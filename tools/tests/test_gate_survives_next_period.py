@@ -15,13 +15,17 @@ yaml 로 5회 막힌 사고와 같은 모양). 그래서 배치 한 회차를 �
      - 준공·착공: 다음 분기(L+1)가 끝나는 달까지. 지역마다 12개월 전 값을 되풀이하므로 전국=Σ시도,
        수도권=서울+경기+인천 이 그대로다(원천이 새 분기를 낸 날의 모양).
      - 주간 시세: 한 주(시도·시군구·서울 구 모두). 월간 시세: 한 달. 보관 길이는 배치 상한(CONF) 그대로.
+     - 매매·전세지수·금리: 매매는 다음 분기 첫 달(잠정 'p)'), 전세는 한 달 늦게, 금리는 매매와 같은 달까지(_advance_indices).
   3. 배치처럼 ADV.sido·occupancy 를 다시 굽고(update_adv_data --seed-sido — --update 와 같은 sido_zones.calc·
      supply_rows), split_data 를 돈다.
   4. 커밋 잡이 게이트 앞에서 돌리는 생성기(update-cloud.yml 에서 읽는다)를 사본에서 돌린다 — 전부 rc=0.
   5. 사본에서 pytest 게이트를 그대로 돈다(이 파일만 뺀다) — 전부 통과.
 
-사본에는 .git 이 없어 git 이력을 읽는 시험(sw.js 버전)은 건너뛴다. 그래서 안쪽 게이트에만 AGONGMAP_ALLOW_SKIP=1 을
-준다. 그 시험들은 바깥 게이트에서 제대로 돈다. 사본 안의 git 이 저장소를 찾아 올라가지 않게 GIT_CEILING_DIRECTORIES 를 둔다.
+안쪽 게이트는 배치 게이트와 같은 조건으로 돈다 — 건너뜀도 실패다(GITHUB_ACTIONS=true, AGONGMAP_ALLOW_SKIP 없음). 전진한
+데이터에서만 건너뛰는 시험은 그날 배치 게이트에서 실패로 데이터 커밋을 막기 때문이다. 사본에는 .git 이 없어 판정할 수 없는
+sw.js 이력 시험 하나(NO_GIT_TEST)만 골라 뺀다 — 그 시험은 바깥 게이트에서 제대로 돈다. 예전엔 안쪽 게이트에
+AGONGMAP_ALLOW_SKIP=1 을 통째로 줘 모든 건너뜀이 rc=0 으로 지나갔다(전수리뷰 T1-4). 사본 안의 git 이 저장소를 찾아 올라가지
+않게 GIT_CEILING_DIRECTORIES 를 둔다.
 
 ⚠️ 배치 커밋 잡(update-cloud.yml 의 commit 잡, GITHUB_JOB=commit) 안에서는 이 전진 시험을 돌리지 않는다.
    이건 **다음 분기** 문제를 미리 보는 시험이라, 배치 게이트에서 빨개지면 오늘 받은 멀쩡한 데이터까지 막는다 —
@@ -35,7 +39,15 @@ yaml 로 5회 막힌 사고와 같은 모양). 그래서 배치 한 회차를 �
   - 전진 단계(_advance_supply)를 건너뛰면 픽스처 자기 확인('L 이 한 분기 나아가지 않았다')이 빨개진다.
   - commit_job_generators 가 빈 목록을 돌려주면 파서 자기 확인 시험이 빨개진다.
   - 배치 잡 가드(_in_batch_gate)를 지우면 test_forward_check_never_gates_the_batch_commit 이 빨개진다.
-픽스처: 저장소의 실제 data.js 를 한 분기(준공·착공)·한 주·한 달 앞당긴 것. 실행 시간 약 30초(안쪽 게이트가 대부분).
+  - 7편 가드 link7_values 가 끝 칸 전세 None 을 그대로 비교하던 판(전수리뷰 BL2-1 고치기 전)에서는 지수 전진(_advance_indices)
+    단계가 실데이터 시험 넷(test_theory_post7·test_theory_guards 하나씩, test_home_entry 둘)을 TypeError 로 빨갛게 해 이 시험이
+    빨개진다. 확인은 옛 link7_values 를 되살리고, 그 판에서 혼자 빨개지는 합성 시험 둘(test_theory_post7 의 끝 칸·빈 분기)을 뺀
+    사본으로 했다 — 같은 사본에서 전진 단계만 빼면 초록이라, 이 단계 없이는 그 정지를 못 봤다.
+  - 사본에서만 건너뛰는 시험(저장소 뿌리에 .git 이 없으면 pytest.skip)을 하나 넣으면 안쪽 게이트가 '건너뜀이 실패다'로
+    빨개져 이 시험이 빨개진다. 안쪽 env 에 AGONGMAP_ALLOW_SKIP=1 을 되살리면 같은 상태에서 초록이 된다(T1-4).
+  - 지수 전진의 자기 확인(_short_of)을 '목표 달과 같아야'로 되돌리면 달 초에 금리가 매매보다 두 달 앞선 날 헛되이 빨개진다 —
+    test_index_advance_makes_the_next_quarter_first_month_shape 가 합성 STATS 로 본다(이 큰 시험은 그날 데이터에서만 드러난다).
+픽스처: 저장소의 실제 data.js 를 한 분기(준공·착공)·한 주·한 달 앞당긴 것. 실행 시간 약 3분(안쪽 게이트가 대부분 — 2026-10 실측).
 """
 import datetime
 import io
@@ -60,6 +72,8 @@ YML = os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml')
 GATE = 'python3 -m pytest tools/tests'
 BATCH_JOB = 'commit'      # update-cloud.yml 의 커밋 잡 키 = 그 잡의 GITHUB_JOB. 파서와 가드가 같이 쓴다
 SELF = os.path.basename(os.path.abspath(__file__))
+# 사본(.git 없음)에서 판정할 수 없어 안쪽 게이트에서 빼는 유일한 시험 — git 이력의 sw.js 최대 버전을 읽는다.
+NO_GIT_TEST = 'tools/tests/test_sw_version.py::test_sw_version_never_goes_below_the_highest_ever_shipped'
 
 
 def _in_batch_gate():
@@ -128,6 +142,39 @@ def _advance_supply(stats):
     return L + 1
 
 
+def _advance_indices(stats):
+    """매매·전세지수·금리를 원천이 새 분기 첫 달을 낸 날의 모양으로 민다 — 매매는 다음 분기 첫 달(잠정 'p)'), 전세는 한 달 늦게,
+    금리는 매매와 같은 달까지. 값은 끝 두 달의 흐름을 이어 붙인다(끝 값을 되풀이하면 전월=전전월이 되어 '잠정 증감률 기준 달'
+    시험의 픽스처 전제가 깨진다). 전세가 한 달 늦게 실리는 창(매 분기 첫 달분이 실린 날부터 한 달)에 /cycle/ rate_overlay 끝
+    분기의 전세가 비는 모양을 미리 본다(전수리뷰 BL2-1 — 7편 가드 TypeError)."""
+    mm = stats['매매지수']['dates'][-1]
+    y, m = int(mm[:4]), int(mm[5:7])
+    q_first = ((m - 1) // 3 + 1) * 3 + 1
+    ty, tm = (y + 1, q_first - 12) if q_first > 12 else (y, q_first)
+    targets = {'매매지수': (ty, tm), '전세지수': (ty, tm - 1) if tm > 1 else (ty - 1, 12), '금리': (ty, tm)}
+    for key, (yy, mo) in targets.items():
+        s = stats[key]
+        n = len(s['dates'])
+        for v in s['series'].values():
+            v.extend([None] * (n - len(v)))
+        s['dates'] = [d.replace(' p)', '') for d in s['dates']]
+        target = '%d.%02d' % (yy, mo)
+        while s['dates'][-1][:7] < target:
+            s['dates'].append('%d.%02d' % _next_month(s['dates'][-1]))
+            for v in s['series'].values():
+                a, b = v[-2], v[-1]
+                v.append(None if b is None else round(b + (b - a if a is not None else 0), 2 if key == '금리' else 3))
+        if key == '매매지수':
+            s['dates'][-1] += ' p)'
+    return targets
+
+
+def _short_of(stats, targets):
+    """_advance_indices 뒤 목표 달에 못 미친 계열. 목표보다 **앞선** 계열은 그대로 둔다 — 금리(ECOS)는 다음 달 초에 실리고 매매는 그
+    달 말에 실려, 매매 발표가 며칠 밀린 달 초에는 금리가 매매보다 두 달 앞선다(매매가 분기 끝 달이면 목표 달보다 한 달 앞)."""
+    return [k for k, (y, m) in targets.items() if stats[k]['dates'][-1][:7] < '%d.%02d' % (y, m)]
+
+
 def _advance_rows(block, step, keep):
     rows = block['rows']
     new = json.loads(json.dumps(rows[-1]))
@@ -177,6 +224,35 @@ def test_parser_reads_the_commit_job_generators():
     assert 'split_data' not in gens and 'update_adv_data' not in gens, '수집 잡의 도구가 섞였다: %s' % gens
 
 
+def test_index_advance_makes_the_next_quarter_first_month_shape():
+    """지수 전진(_advance_indices)은 원천이 새 분기 첫 달을 낸 날의 모양을 만든다 — 매매는 다음 분기 첫 달(잠정 'p)', 옛 꼬리표는
+    뗀다), 전세는 한 달 늦게, 금리는 매매와 같은 달까지. 이미 목표보다 앞선 계열(달 초의 금리)은 그대로 두고, 아래 큰 시험의 자기
+    확인(_short_of)도 그것을 '못 미침'으로 치지 않는다.
+
+    재현하는 실제 상태: 금리(ECOS)는 다음 달 초에, 매매는 그 달 말에 실린다(저장소 이력 — 08-28 매매 2026.07 p)·금리 2026.07,
+    09-01 금리 2026.08). 매매 발표가 며칠 밀린 달 초에는 매매가 분기 끝 달(2026.09 p))에 머문 채 금리가 2026.11 이라 목표 달(2026.10)
+    보다 앞선다 — 예전 자기 확인은 금리가 목표 달과 '같아야' 한다고 봐, 그런 날 매일 예약 CI 의 전진 시험을 데이터 결함 없이
+    빨갛게 할 참이었다. 해 넘김(매매 2026.12 p) → 2027.01)도 본다.
+    변이(각각 실제로 확인): _short_of 의 판정을 '목표 달과 다르면'(!=)으로 바꾸면 둘째 경우가, 전세 목표의 `tm - 1` 을 `tm` 으로
+          바꾸거나 해 넘김의 `y + 1` 을 `y` 로 바꾸면 첫째 경우가 빨개진다.
+    픽스처: 합성 STATS 두 벌(지역 하나, 값은 달마다 1씩 올라 끝 두 달 흐름을 잇는지 보인다). 실데이터를 읽지 않는다.
+    """
+    def st(mm, je, rt):
+        def s(dates, base):
+            return {'dates': list(dates), 'series': {'전국': [base + i for i in range(len(dates))]}}
+        return {'매매지수': s(mm, 100.0), '전세지수': s(je, 90.0), '금리': s(rt, 3.0)}
+    a = st(['2026.10', '2026.11', '2026.12 p)'], ['2026.10', '2026.11'], ['2026.11', '2026.12'])   # 해 넘김
+    t = _advance_indices(a)
+    assert t == {'매매지수': (2027, 1), '전세지수': (2026, 12), '금리': (2027, 1)}, t
+    assert a['매매지수']['dates'][-2:] == ['2026.12', '2027.01 p)'] and a['매매지수']['series']['전국'][-1] == 103.0, a['매매지수']
+    assert a['전세지수']['dates'][-1] == '2026.12' and a['금리']['dates'][-1] == '2027.01' and not _short_of(a, t)
+    b = st(['2026.08', '2026.09 p)'], ['2026.07', '2026.08'], ['2026.10', '2026.11'])   # 달 초 — 금리가 매매보다 두 달 앞
+    t = _advance_indices(b)
+    assert t['금리'] == (2026, 10) and b['금리']['dates'] == ['2026.10', '2026.11'], b['금리']
+    assert b['매매지수']['dates'][-1] == '2026.10 p)' and b['전세지수']['dates'][-1] == '2026.09', (b['매매지수'], b['전세지수'])
+    assert not _short_of(b, t), _short_of(b, t)
+
+
 def test_forward_check_never_gates_the_batch_commit(tmp_path, monkeypatch):
     """배치 커밋 잡(GITHUB_JOB=commit)에서는 전진 시험이 아무것도 하지 않고 경고만 남긴다.
 
@@ -207,6 +283,7 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
     stats = U.read_current_stats()
     old_L = SZ.last_full_quarter(stats, '준공')
     new_L = _advance_supply(stats)
+    idx = _advance_indices(stats)
     U.write_stats(stats)
     _, _, _, adv = U.read_current_adv()
     old_w, old_m = adv['weekly']['rows'][-1]['p'], adv['monthly']['rows'][-1]['p']
@@ -224,6 +301,9 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
         'L 이 한 분기 나아가지 않았다: %s → %s' % (SZ.qkey(old_L), adv2['sido']['L'])
     assert adv2['sido']['H'] == SZ.LEAD_Q, '전진한 사본이 H≠lead 다 — 준공·착공을 같은 달까지 채우지 못했다'
     assert new_w > old_w and new_m > old_m
+    st2 = U.read_current_stats()
+    assert not _short_of(st2, idx) and st2['매매지수']['dates'][-1].endswith(' p)'), \
+        '매매·전세지수·금리가 새 분기 첫 달 모양(전세 한 달 늦음)으로 나아가지 않았다: %s' % _short_of(st2, idx)
 
     bad = []
     for g in commit_job_generators():
@@ -242,9 +322,13 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
              if SZ.quarter_text(SZ.qkey(new_L)) not in page('zone', z['z'], 'index.html')]
     assert not stale, '/zone/ 이 새 분기로 구워지지 않았다: %s' % stale
 
-    genv = dict(env, AGONGMAP_ALLOW_SKIP='1')
+    # 안쪽 게이트도 건너뜀=실패(배치 게이트와 같은 조건). 바깥이 로컬이어도 그렇게 돌도록 GITHUB_ACTIONS 를 켜고 ALLOW_SKIP 은
+    # 지운다 — .git 이 없어 판정할 수 없는 NO_GIT_TEST 하나만 골라 뺀다(T1-4).
+    genv = {k: v for k, v in env.items() if k != 'AGONGMAP_ALLOW_SKIP'}
+    genv['GITHUB_ACTIONS'] = 'true'
     rc, out = _run(['-m', 'pytest', 'tools/tests', '-q', '-p', 'no:cacheprovider',
-                    '--ignore', 'tools/tests/' + SELF, '--basetemp', str(tmp_path / 'inner')],
+                    '--ignore', 'tools/tests/' + SELF, '--deselect', NO_GIT_TEST,
+                    '--basetemp', str(tmp_path / 'inner')],
                    str(repo), genv, timeout=600)
     assert rc == 0, ('다음 분기(준공·착공 %s, 주간 %s, 월간 %s) 데이터에서 게이트가 빨개진다 — 그날 배치가 '
                      '데이터 커밋 전체를 멈춘다. 실데이터의 날짜·값을 박은 시험인지 볼 것:\n%s'

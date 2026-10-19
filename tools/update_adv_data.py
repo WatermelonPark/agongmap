@@ -833,6 +833,49 @@ def _reindex_rows(rows, old_cols, new_cols):
     return out
 
 
+def _hold_sido_empty(monthly, cur, failed=None):
+    """월간 응답에서 **시도 값(매매·전세)이 전부 빈 달**은 싣지 않는다(전수리뷰 T2-2, 2026-10-18 결정).
+
+    원천이 시도 이름·계층을 바꾸면(2025-05 광주·전남이 '전남광주>광주'로 옮겨 간 전례) fetch_monthly_rone 의 sido() 가 이름을
+    못 찾아 그 달 시도 칸이 전부 None 이 된다. 그대로 실으면 /monthly/ 시도 표가 '·'로 비고, 개편이 창(최근 RECENT_MONTHS 달)
+    전체에 걸리면 저장된 시도 값이 None 으로 덮인다. '원천 분류가 바뀐 달은 보류한다'(데이터 원칙, _drop_incomplete 와 같은 꼴):
+      - 저장분에 있던 달은 저장된 시도 행을 그대로 쓴다(열은 이름으로 맞춘다).
+      - 저장분에 없던 새 달은 시도·서울구·시군구 세 블록 모두에서 뺀다(그 달을 통째로 보류 — 화면마다 다른 달을 보이지 않게).
+    다음 회차에 원천이 시도를 채우면 그때 들어오고, 계속 비면 감시가 우리 최신 달이 원천보다 늦은 것으로 잡는다. 보류한
+    회차는 failed 에 'monthly:시도 결측 보류'로 남긴다(.fetch_failed → 배치 알림 ℹ️ 줄). 집계(전국·수도권·지방) 열은 보지
+    않는다 — 집계만 남은 달이 바로 이 모양이다. 월세(wo)는 원래 늦게 붙는 계열이라 판정에 넣지 않는다.
+    """
+    regs = monthly.get('regions') or []
+    idx = [i for i, r in enumerate(regs) if r in SZ.ORDER and r not in SZ.AGG]
+    if not idx or not monthly.get('rows'):
+        return []
+
+    def empty(row):
+        return all(i >= len(row.get(k) or []) or row[k][i] is None for k in ('ma', 'je') for i in idx)
+    cur = cur or {}
+    saved = {r['p']: r for r in cur.get('rows') or []}
+    held, rows = [], []
+    for row in monthly['rows']:
+        if not empty(row):
+            rows.append(row)
+            continue
+        held.append(row['p'])
+        if row['p'] in saved:
+            rows += _reindex_rows([copy.deepcopy(saved[row['p']])], cur.get('regions') or regs, regs)
+    if not held:
+        return []
+    monthly['rows'] = rows
+    new = [p for p in held if p not in saved]
+    for part in ('seoul', 'sgg'):
+        if monthly.get(part) and new:
+            monthly[part]['rows'] = [r for r in monthly[part].get('rows') or [] if r.get('p') not in new]
+    print('::warning::monthly: 시도 값이 전부 빈 달 %s — 저장값을 지키고 새 달(%s)은 보류한다(원천 시도 이름·계층 확인)'
+          % (', '.join(held), ', '.join(new) or '없음'))
+    if failed is not None:
+        failed.append('monthly:시도 결측 보류')
+    return held
+
+
 def _union_cols(old_cols, new_cols):
     """새 열 목록에 옛 열 중 빠진 것을 **옛 순서 자리에** 끼운 목록. 둘 다 정렬돼 있으면 결과도 정렬된다."""
     out = list(new_cols)
@@ -2255,6 +2298,7 @@ def main():
             print('monthly: 월세 표가 빈 응답 — 저장된 월세를 유지한다')
             soft_failed.append('monthly:월세 빈 응답')
         mo_cur = adv.get('monthly') or {}
+        _hold_sido_empty(monthly, mo_cur, soft_failed)   # 시도 값이 전부 빈 달은 보류(전수리뷰 T2-2)
         mo_last = mo_cur['rows'][-1]['p'] if mo_cur.get('rows') else ''
         # 역행 방지(weekly와 동일 가드). 부분 응답으로 옛 월만 받아졌더라도
         # 이미 갖고 있던 더 최신 월을 덮어쓰지 않는다(과거 실사고 재발 방지).

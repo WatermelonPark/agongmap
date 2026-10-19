@@ -10,7 +10,9 @@
 교대 직후 첫 주간(10-19 조사분)이 옛 문구(0번)를 받으면 전환 시험이 빨개진다(ROT_SHIFT 를 0 으로 바꿔 확인).
 픽스처: 저장소의 실제 ADV 로 이웃한 두 주(지난 회차는 _cut_weekly)와 이웃 회차 지역 편(캡처·썸네일·RSS 는 끈다).
 """
+import copy
 import os
+import re
 import sys
 
 import pytest
@@ -72,13 +74,72 @@ def test_first_weekly_after_the_switch_does_not_reuse_the_old_wording():
     assert P._wk('2026-10-19', 3) != 0
 
 
+def _paras(body):
+    return re.findall(r'<p>(.*?)</p>', body, re.S)
+
+
+def _tokens(u, html):
+    """배수 표기 u('1.1배'·'5%')가 온전한 숫자로 나온 횟수. 다른 숫자의 꼬리('+0.07%'·'4.7%' 안의 '7%')는 세지 않는다."""
+    return len(re.findall(r'(?<![\d.,+\-−])' + re.escape(u), re.sub(r'<[^>]+>', '', html)))
+
+
+def _tail_twins(adv):
+    """주간 변동률 숫자가 퍼센트 배수(um<1 → '5%'·'57%')로 끝나는 주를 모든 지역에 만든 사본. 2026-09-21(세종 전세 +0.07% —
+    부족분 대비 '4.7%' 와 함께 '7%' 두 번)·08-03(서울 '(전주 +0.25%)'·'전세가 +0.25%')처럼, 본문을 부분 문자열로 세던 옛 시험이
+    배수를 두 번 말한 것으로 잘못 센 상태다(실데이터 80주 되감기에서 13주)."""
+    adv = copy.deepcopy(adv)
+    W = adv['weekly']
+    cur, prv = W['rows'][-1], W['rows'][-2]
+    for r in adv['sido']['zones']:
+        u = P.umx(r['um']) if r.get('um') is not None else ''
+        if r['z'] in W['regions'] and re.match(r'^\d+%$', u):
+            i, v = W['regions'].index(r['z']), int(u[:-1]) / 100.0
+            cur['ma'][i], cur['je'][i], prv['ma'][i] = 1 + v, v, 2 + v     # '+1.57%'·'+0.57%'·'(전주 +2.57%)'
+    return adv
+
+
 def test_zone_says_the_unsold_multiple_once(env):
     """지역 편이 미분양 배수(예: 1.1배)를 두 번 말하지 않는다(10-17 대표 리뷰: 경남 편 '미분양 1.1배'가 두 절에 나왔다).
-    순위 문장에 배수를 되살리면 빨개진다(확인). 픽스처는 저장소 실제 ADV 의 16개 시도."""
+
+    문단 단위로 본다: 순위 문단('N개 시도 가운데 … 번째')에는 그 지역 배수가 없고, 미분양 경고 지역의 미분양 문단에는 배수가 꼭 한 번
+    있다(경고가 아닌 지역의 미분양 문단에는 없다). 예전 시험은 본문 전체를 부분 문자열로 세어(body.count('7%')) 주간 변동률
+    '+0.07%'·부족분 대비 '4.7%' 의 꼬리까지 세었다 — 배수를 두 번 말하지 않아도 주간 값 끝자리만으로 게이트가 막혔다(전수리뷰
+    BL1-1·T1-1). um 이 None 인 지역(sido_zones 가 허용한다)은 순위 문단 자체가 없어야 하고, umx(None) 을 부르지 않는다.
+
+    변이(실제로 확인): 순위 문장에 배수를 되살리면(6215ffd 이전 '분기 적정물량과 견주면 <b>%s</b>로 …') 실데이터·사본 모두 빨개진다.
+    경고 문단 세 틀에서 배수를 빼면 경고 갈래가 빨개진다. 아래 '경고 아님' 합성 행 채움을 지우면, 모든 시도가 경고인 상태(시도 행을
+    전부 uwarn=True·um≥1 로 덮은 사본)에서 이 시험이 {'plain': 0} 으로 빨개진다 — 채움이 없을 때의 게이트 정지(전수리뷰 G1b 재검토).
+    픽스처: 저장소 실제 ADV 의 시도 전부(실데이터) + 주간 변동률 숫자가 퍼센트 배수로 끝나는 사본(_tail_twins — 옛 시험이 헛빨강을
+    내던 상태, 이 시험은 초록이어야 한다). 세 갈래(경고 지역·경고 아닌 지역·um 없음)가 늘 돌도록, 데이터에 빠진 갈래는 실제 시도
+    한 줄을 그 갈래로 바꾼 합성 행으로 채운다(경고 지역이 0곳인 회차·모든 시도가 경고인 회차·um 이 None 인 지역이 없는 지금).
+    """
     adv, sts = env
-    zs = [r for r in adv['sido']['zones'] if not r.get('agg')]
-    for i, r in enumerate(zs):
-        body = P.draft_zone(adv, sts, r, 7 + i, len(zs))['body']
-        u = P.umx(r['um']) if hasattr(P, 'umx') else None
-        if u:
-            assert body.count(u) <= 1, (r['z'], u, body.count(u))
+    for case in (adv, _tail_twins(adv)):
+        zs = [r for r in case['sido']['zones'] if not r.get('agg')]
+        rows = list(zs)
+        base = next(r for r in zs if r.get('um') is not None)
+        if not any(r.get('uwarn') and r.get('unsold') and r.get('um') is not None for r in zs):
+            rows.append(dict(base, uwarn=True, um=max(base['um'], 1.2), unsold=max(base.get('unsold') or 0, 1000)))
+        if not any(not r.get('uwarn') and r.get('unsold') and r.get('um') is not None for r in zs):
+            rows.append(dict(base, uwarn=False, unsold=max(base.get('unsold') or 0, 1000)))
+        if not any(r.get('um') is None for r in zs):
+            rows.append(dict(base, um=None, uwarn=False))
+        seen = {'warn': 0, 'plain': 0, 'none': 0}
+        for i, r in enumerate(rows):
+            ps = _paras(P.draft_zone(case, sts, r, 7 + i, len(zs))['body'])
+            rank = [p for p in ps if '번째' in p and '개 시도' in p]
+            if r.get('um') is None:
+                assert not rank, (r['z'], rank)
+                seen['none'] += 1
+                continue
+            u = P.umx(r['um'])
+            assert len(rank) == 1, (r['z'], rank)
+            assert _tokens(u, rank[0]) == 0, ('순위 문단이 배수를 다시 말한다', r['z'], u, rank[0])
+            unsold = [p for p in ps if r.get('unsold') and '<b>%s세대</b>' % P.num(r['unsold']) in p]
+            if r.get('uwarn') and r.get('unsold'):
+                assert len(unsold) == 1 and _tokens(u, unsold[0]) == 1, (r['z'], u, unsold)
+                seen['warn'] += 1
+            elif unsold:
+                assert len(unsold) == 1 and _tokens(u, unsold[0]) == 0, (r['z'], u, unsold)
+                seen['plain'] += 1
+        assert all(seen.values()), seen

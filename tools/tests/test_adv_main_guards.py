@@ -221,6 +221,47 @@ def test_empty_wolse_table_keeps_the_saved_wolse_and_is_recorded(monkeypatch, tm
         assert 'monthly:월세 빈 응답' in run.file('.fetch_failed')
 
 
+@pytest.mark.parametrize('shape', ['new-month', 'whole-window'])
+def test_month_with_every_sido_empty_is_held(monkeypatch, tmp_path, shape):
+    """월간 응답에서 시도 값(매매·전세)이 전부 빈 달은 싣지 않는다 — 새 달은 시도·서울구·시군구 모두에서 보류하고, 저장분에
+    있던 달은 저장된 시도 값을 지킨다. .fetch_failed 에 'monthly:시도 결측 보류'가 남는다(전수리뷰 T2-2, 2026-10-18 결정).
+
+    변이(실제로 확인): main() 의 `_hold_sido_empty(monthly, mo_cur, soft_failed)` 를 지우면 new-month 는 빈 새 달이 붙어,
+          whole-window 는 저장된 시도 값이 None 으로 덮여 빨개진다. _hold_sido_empty 의 `failed.append(...)` 를 지우면 기록
+          단정이, 새 달을 서울구·시군구에서 빼는 줄을 지우면 new-month 의 상세 단정이 빨개진다.
+    픽스처: 실제 저장분 월간 블록의 최근 RECENT_MONTHS 달을 다시 받은 응답. new-month 는 끝에 다음 달 한 행을 붙인다 — 집계 3열만
+            값이 있고 시도는 None(원천이 시도 이름·계층을 바꾼 회차에 fetch_monthly_rone 의 sido() 가 만드는 모양), 서울구·시군구는
+            그 달 값이 있다(시군구는 CLS_ID 로 찾아 이름 개편을 타지 않는다). whole-window 는 창의 모든 달 시도 값을 None 으로 둔다
+            (개편이 창 전체에 걸려 저장된 14달을 덮으려는 회차).
+    """
+    run = _Run(monkeypatch, tmp_path)
+    cur = run.before['monthly']
+    resp = _truncated(cur, -U.RECENT_MONTHS, None)
+    sido = {i for i, r in enumerate(resp['regions']) if r in sido_zones.ORDER and r not in sido_zones.AGG}
+    assert sido, '픽스처 전제: 월간 열에 시도가 있어야 한다'
+
+    def blank(row):
+        for k in ('ma', 'je', 'wo'):
+            if isinstance(row.get(k), list):
+                row[k] = [None if i in sido else x for i, x in enumerate(row[k])]
+        return row
+    if shape == 'new-month':
+        y, m = (int(x) for x in resp['rows'][-1]['p'].split('-'))
+        nxt = '%04d-%02d' % (y + (m == 12), m % 12 + 1)
+        resp['rows'].append(blank(dict(copy.deepcopy(resp['rows'][-1]), p=nxt)))
+        for part in ('seoul', 'sgg'):
+            resp[part]['rows'].append(dict(copy.deepcopy(resp[part]['rows'][-1]), p=nxt))
+    else:
+        for r in resp['rows']:
+            blank(r)
+    run.set('fetch_monthly', resp)
+    got = run.main()['monthly']
+    assert [r['p'] for r in got['rows']] == [r['p'] for r in cur['rows']], '시도 값이 빈 달이 붙었거나 깊이가 바뀌었다'
+    assert got['rows'] == cur['rows'], '저장된 시도 값이 빈 응답으로 덮였다'
+    assert got['seoul'] == cur['seoul'] and got['sgg'] == cur['sgg'], '보류한 달이 서울구·시군구에만 실렸다'
+    assert 'monthly:시도 결측 보류' in run.file('.fetch_failed')
+
+
 def test_seoul_gu_dropped_from_one_response_is_kept_and_recorded(monkeypatch, tmp_path):
     """주간 응답의 서울구 블록에서 구 하나가 빠져도 저장 블록은 그 구의 열과 창 밖 이력을 지키고, .fetch_failed 에
     '주간 서울구 열 빠짐(구)' 이 남는다(배치 알림 ℹ️ 줄).

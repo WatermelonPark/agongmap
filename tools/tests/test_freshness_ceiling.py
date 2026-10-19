@@ -21,11 +21,6 @@ from test_freshness_parallel import _live, _run  # noqa: E402  (main() 통째 �
 DAY = datetime.timedelta(days=1)
 
 
-def _in_batch_gate():
-    """배치 커밋 잡의 게이트 안인가(test_gate_survives_next_period 와 같은 판정)."""
-    return bool(os.environ.get('GITHUB_ACTIONS')) and os.environ.get('GITHUB_JOB') == 'commit'
-
-
 def _series():
     """저장소 데이터의 계열별 (이름, 최신 시점, 상한) — main() 이 넘기는 상한과 같은 짝."""
     adv, last = _live()
@@ -38,6 +33,8 @@ def _series():
            ('주담대 금리', adv['bubble']['loan']['p'], C.MAX_AGE_BUBBLE_LOAN)]
     out += [(n, last[n], C.MAX_AGE_BASIC) for n in sorted(U.BASIC_CONF) + ['규모별'] + sorted(U.SUPPLY_CONF)]
     out += [(n, last[n], C.MAX_AGE_ANNUAL) for n in sorted(U.ANNUAL_CONF)]
+    # 시도 지표(ADV.sido.L)는 분기 표기('2026Q2')라 period_end 가 못 읽는다 — main() 과 같이 분기 끝날(_q_to_date)로 잰다
+    out.append(('시도 지표', C._q_to_date(adv['sido']['L']), C.MAX_AGE_SIDO_Q))
     return adv, out
 
 
@@ -83,12 +80,16 @@ def test_ceiling_holds_when_the_source_cannot_be_reached(monkeypatch):
 
     변이(확인): retry_failed 의 check 호출에서 `max_age=max_age` 를 빼면 실패 사유가 사라져 빨개진다. check() 의 건너뜀
     분기를 `return None` 으로 되돌려도 빨개진다.
+    retry_failed 는 전역 C.FETCH_TIMEOUT 을 20 으로 바꾼다 — monkeypatch 로 잡아 두어 시험이 끝나면 감시 기본값으로 돌아간다
+    (test_freshness_invariant._reset_retry 와 같은 이유, 전수리뷰 T1 overflow). 확인: 그 줄을 지우고 같은 세션에서 이 파일 뒤에
+    `C.FETCH_TIMEOUT == 25` 를 보는 임시 시험을 돌리면 'assert 20 == 25' 로 빨갛고, 두면 초록이다.
     픽스처: 저장소 데이터의 월간 최신 시점, 오늘은 그 달 말일 + 상한 + 1일, 원천은 매번 타임아웃.
     """
     adv, _ = _live()
     mo = adv['monthly']['rows'][-1]['p']
     monkeypatch.setattr(C, 'TODAY', C.period_end(mo) + (C.MAX_AGE_MONTHLY + 1) * DAY)
     monkeypatch.setattr(C.time, 'sleep', lambda s: None)
+    monkeypatch.setattr(C, 'FETCH_TIMEOUT', C.FETCH_TIMEOUT)   # retry_failed 가 바꾸는 전역 타임아웃을 시험 끝에 되돌린다
     for lst in (C.SKIPPED, C.RETRYQ, C.FETCH_FAIL):
         lst.clear()
 
@@ -166,10 +167,46 @@ def test_ceilings_cover_the_publication_cadence():
     """상한은 계열의 정상 발표 지연을 덮어야 한다 — 짧으면 원천이 정상인 달에도 감시가 헛경보를 낸다.
     하한(일)은 발표 주기에서 잡는다: 주간은 다음 발표 + 연휴로 한 주 거른 경우(14), 월간·금리는 다음 달 중순 발표의
     두 달 치(60), 기본통계·공급은 다음 달 말 발표 + 한 달(95), 전환율·주담대는 실측 정상 지연(90·56) 이상, 연간은 2년(730).
-    변이(확인): MAX_AGE_BASIC 을 30 으로, MAX_AGE_WEEKLY 를 9 로 줄이면 빨개진다.
-    픽스처: 없음(상수만 — 데이터가 앞으로 가도 같은 판정).
+    변이(확인): MAX_AGE_BASIC 을 30 으로, MAX_AGE_WEEKLY 를 9 로, MAX_AGE_SIDO_Q 를 100 으로 줄이면 빨개진다.
+    픽스처: 없음(상수만 — 데이터가 앞으로 가도 같은 판정). 모든 MAX_AGE_ 상수가 하한 표에 있는지도 본다(새 상한이 하한 없이
+    들어오지 않게).
     """
     floors = {'MAX_AGE_WEEKLY': 14, 'MAX_AGE_MONTHLY': 60, 'MAX_AGE_RATE': 60, 'MAX_AGE_BASIC': 95,
-              'MAX_AGE_BUBBLE_CONV': 90, 'MAX_AGE_BUBBLE_LOAN': 56, 'MAX_AGE_ANNUAL': 730}
+              'MAX_AGE_BUBBLE_CONV': 90, 'MAX_AGE_BUBBLE_LOAN': 56, 'MAX_AGE_ANNUAL': 730,
+              'MAX_AGE_SIDO_Q': 125}   # 분기: 분기 끝 + 다음 분기 마지막 달 준공 발표(이듬달 말)까지 약 123일
     low = {k: (getattr(C, k), v) for k, v in floors.items() if getattr(C, k) < v}
     assert not low, '상한이 정상 발표 지연보다 짧다(상한, 하한): %s' % low
+    assert set(floors) == {n for n in dir(C) if n.startswith('MAX_AGE_')}, '하한 표에 없는 MAX_AGE_ 상수가 있다'
+
+
+def test_sido_quarter_ceiling_fails_through_main(monkeypatch, capsys):
+    """main() 경로: 라이브 ADV.sido.L(준공 전국 마지막 완결 분기)이 끝난 지 MAX_AGE_SIDO_Q 일을 넘으면 '시도 지표' 실패 줄이
+    찍힌다 — 상한을 켠 날(오늘 고정)에만. 상한 날까지는 그 줄이 없다.
+
+    변이(확인): main() 의 시도 지표 검사를 `fails.append(None)` 으로 지우면 첫 단정이, check_age 의 `age > grace` 를
+          `age >= grace` 로 바꾸면 둘째 단정이 빨개진다.
+    픽스처: 하니스의 정상 날 원천, 오늘 = L 분기 끝 + 상한 + 1일 / + 상한(데이터에서 유도 — 분기를 박지 않는다).
+    """
+    adv, _ = _live()
+    end = C.period_end(C._q_to_date(adv['sido']['L']))
+    line = '시도 지표(마지막 수집 %s, 경과 %d일 > %d일)'
+    r = _run(monkeypatch, capsys, 4, today=end + (C.MAX_AGE_SIDO_Q + 1) * DAY)
+    assert line % (end.isoformat(), C.MAX_AGE_SIDO_Q + 1, C.MAX_AGE_SIDO_Q) in r['out'], r['out'][-800:]
+    r = _run(monkeypatch, capsys, 4, today=end + C.MAX_AGE_SIDO_Q * DAY)
+    assert '시도 지표(마지막 수집' not in r['out'], r['out'][-800:]
+
+
+def test_harness_with_ceilings_off_stays_green_however_far_today_moves(monkeypatch, capsys):
+    """상한을 끈 하니스(_run 에 today 없음)는 감시의 오늘이 아무리 앞으로 가도 초록이다 — main() 의 날짜 판정이 모두 MAX_AGE_
+    고리를 거친다. 그래야 이 하니스를 쓰는 시험(test_freshness_parallel·test_quiz_review_is_a_warning)이 데이터가 멈춘 날에도
+    게이트를 막지 않는다(그 경보는 감시가 실패 메일로 낸다).
+
+    재현하는 실제 상태: '시도 지표' 나이 검사가 숫자 200 을 main() 에 박아 하니스가 끄지 못했다. 준공 원천이 멈춰 L 이 2026Q2 에
+    머문 채 KST 2027-01-17(6/30 + 201일)이 되면 test_watchdog_stays_green_on_a_normal_day_after_the_deadline·
+    test_majority_outage_fails_through_main 이 빨개졌다(전수리뷰 F-1 — 오늘을 고정해 재현).
+    변이(확인): main() 의 시도 지표 검사를 상수 대신 숫자 200 으로 되돌리면 빨개진다.
+    픽스처: 하니스의 정상 날 원천, 감시의 오늘 = 실제 오늘 + 10년(상한을 켰다면 모든 계열이 넘을 날).
+    """
+    monkeypatch.setattr(C, 'TODAY', C.TODAY + 3650 * DAY)
+    r = _run(monkeypatch, capsys, 4)
+    assert r['rc'] == 0 and 'VERDICT=ok' in r['out'], r['out'][-800:]
