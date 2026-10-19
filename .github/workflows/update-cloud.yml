@@ -48,6 +48,10 @@ on:
 # 재시도가 생기면서 두 실행이 겹칠 수 있다(재시도 런이 도는 중에 정기 크론이
 # 도착하는 등). 커밋 잡 둘이 같은 파일에 push 경쟁하지 않게 직렬화한다.
 # cancel-in-progress는 끈다 — 도는 배치를 죽이면 그 회차 데이터가 유실된다.
+# ⚠️ 대기(pending)한 런의 github.sha 는 런이 생길 때의 main 이다. 체크아웃이 그 값을 받으면 앞 런의 데이터 커밋 전
+#    data.js 에서 수집·커밋해, 한 줄(ADV·STATS)을 앞 런과 다르게 고친 두 커밋이 rebase 에서 충돌한다(전수리뷰 F-3,
+#    2026-10-05 실측: 대기 런의 잡이 앞 런 커밋 뒤에 시작했는데 head 는 옛 main). 그래서 fetch·commit 두 잡 모두
+#    `ref: main` 으로 **잡이 실제로 시작할 때의** main 끝에서 출발한다(한쪽만 바꾸면 여전히 옛 기준 위 커밋이다).
 concurrency:
   group: update-cloud
   cancel-in-progress: false
@@ -70,6 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: main                  # 대기한 런도 앞 런이 커밋한 data.js 위에서 수집한다(머리 concurrency 주석)
           persist-credentials: false
       - uses: actions/setup-python@v6
         with:
@@ -202,6 +207,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: main                  # fetch 잡과 같은 이유(머리 concurrency 주석) — 커밋을 지금의 main 위에 만든다
           # ⚠️ 기본값(depth 1)이면 sw.js 버전 단조 증가 시험이 '이력을 못 읽었다'고 skip 한다 —
           #    게이트가 "366 passed, 1 skipped" 로 초록이었고 그 방어선은 한 번도 돈 적이 없었다
           #    (2026-09-18 리뷰). 시험은 최근 커밋의 sw.js diff 를 읽으므로 200이면 충분하다.
@@ -592,9 +598,18 @@ jobs:
           #    데이터는 다음 회차가 다시 만들지만 사람의 수정은 아무도 못 만든다.
           # ⚠️ 루프 마지막 명령이 sleep이면 3회 모두 실패해도 스텝이 exit 0으로 끝나
           # 커밋 유실이 초록 체크로 은폐된다(2026-08-04 감사). pushed 플래그로 판정한다.
+          # pull --rebase 가 우리 커밋을 '이미 반영된 패치'로 버리면(겹친 앞 배치 런이 같은 내용을 먼저 커밋) HEAD 가 원격
+          # 끝과 같아진다. 그때 push 는 '최신'이라 성공하지만 커밋한 것은 없다 — ✅ 커밋·푸시로 적지 않는다(전수리뷰 F-3).
           pushed=0
           for i in 1 2 3; do
-            if git pull --rebase origin main && git push; then
+            PULLED=0
+            git pull --rebase origin main && PULLED=1
+            if [ "$PULLED" = 1 ] && [ "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)" ]; then
+              pushed=2
+              rep "➖ 커밋 없음 — 같은 내용을 앞 배치 런이 이미 커밋했다(정상)"
+              break
+            fi
+            if [ "$PULLED" = 1 ] && git push; then
               echo "푸시 완료"; pushed=1
               rep "✅ 커밋·푸시 (${NF}개 파일)"
               # 색인 요청. PC 배치(run_weekly_update.bat)에만 있던 스텝이라
@@ -614,10 +629,12 @@ jobs:
             git rebase --abort 2>/dev/null || true
             echo "push 재시도 $i"; sleep 5
           done
-          if [ "$pushed" -ne 1 ]; then
-            rep "❌ 푸시 3회 실패 — 이 회차 커밋 유실. 충돌이면 사람이 같은 줄을 고친 것"
+          if [ "$pushed" -eq 0 ]; then
+            # 충돌 상대는 원격 끝 커밋이다 — 작성자가 stats-bot 이면 겹친 배치 런, 아니면 사람의 수정이다.
+            WHO=$(git log -1 --format='%an' FETCH_HEAD 2>/dev/null || true)
+            rep "❌ 푸시 3회 실패 — 이 회차 커밋 유실. 충돌이면 겹친 배치 런 또는 사람이 같은 줄을 고친 것(원격 끝 작성자: ${WHO:-모름})"
             echo "::error::push 3회 모두 실패 — 이 회차 커밋이 러너와 함께 유실된다."
-            echo "::error::충돌이라면 사람이 같은 줄을 고쳤다는 뜻이다. 그 수정을 확인한 뒤 재실행할 것."
+            echo "::error::충돌 상대(원격 끝 커밋 작성자: ${WHO:-모름}) — stats-bot 이면 겹친 배치 런이 다른 data.js 를 먼저 커밋한 것(다음 회차가 흡수), 사람이면 그 수정을 확인한 뒤 재실행할 것."
             exit 1
           fi
 
