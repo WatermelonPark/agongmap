@@ -815,7 +815,7 @@ def rone_latest_complete(tbl, since=None, want_total=False):
     # ~246행이라, 보류 중(since 고정)에 원천이 앞서 나가면 창이 1000행을 넘는다 — 마지막 쪽만 읽으면
     # 미완비 최신 달의 꼬리만 남아 의도된 보류가 매일 결정론 red 가 된다(전수리뷰 #36).
     rows = _rone_rows(tbl, 'MM', since)
-    want = {z for z in U.WEEKLY_REGIONS if z not in ('전국', '수도권', '지방')}
+    want = set(U.SUPPLY_SIDO)   # 배치 _drop_incomplete·kosis_supply_latest 와 같은 정본 집합 — 식을 따로 적지 않는다
     by, vals = {}, {}
     for r in rows:
         t = (r.get('WRTTIME_IDTFR_ID') or '').strip()
