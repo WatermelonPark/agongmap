@@ -187,7 +187,9 @@ def build_jratio(S):
 # 도니, 그쪽 prose로 만들면 다음 날 차트와 문장이 어긋난다. 재산정은 jr_ 키를 보존한다.
 # jr_prd 는 차트 캡션의 기준월이다(백로그 17, 2026-09-17). 캡션에 손으로 적어 둔
 # '2026.06 기준'이 값이 07로 넘어간 뒤에도 그대로 남아 있었다.
-JR_KEYS = ('jr_seoul', 'jr_jnl', 'jr_mid', 'jr_prd')
+# jr_jnl_nm·jr_jnl_j 는 광주·전남의 화면 이름과 그 뒤 조사다(전수리뷰 C-8). 백로그 46 이 '전남광주(…)는'의 이름만 '광주·전남'으로
+# 바꿔 받침 있는 '남' 뒤에 '는'이 남았다 — 이름은 정본(SZ.disp), 조사는 그 이름의 받침(RC._jong)에서 고른다.
+JR_KEYS = ('jr_seoul', 'jr_jnl', 'jr_jnl_nm', 'jr_jnl_j', 'jr_mid', 'jr_prd')
 
 
 def jratio_prose(lvl, prd):
@@ -214,8 +216,11 @@ def jratio_prose(lvl, prd):
         mid = '약 %d%%' % SZ.half_up(lo)
     else:
         mid = '%d~%d%%' % (SZ.half_up(lo), SZ.half_up(hi))
+    jnl = SZ.disp('전남광주')
     return {'jr_seoul': '%d' % SZ.half_up(by['서울']),
             'jr_jnl': '%d' % SZ.half_up(by['전남광주']),
+            'jr_jnl_nm': jnl,
+            'jr_jnl_j': '은' if RC._jong(jnl) else '는',
             'jr_mid': mid,
             'jr_prd': SZ.month_text(prd)}   # 캡션은 읽는 자리 — '2026년 8월'(날짜 두 단계, 백로그 36-1)
 

@@ -546,3 +546,51 @@ def test_cycle_markup_is_balanced_and_ranges_use_tilde():
     dash = re.findall(r'\d[–—]\d', text)
     assert not dash, '/cycle/ 본문 범위에 en 대시가 남았다(정본은 ~): %s' % dash
     assert re.search(r'\d~\d', text), '범위 검사가 헛돈다 — 본문에서 ~ 범위를 하나도 못 찾았다'
+
+
+# ---------------------------------------------------------------- 지역 이름 뒤 조사 (전수리뷰 C-8·X1-7)
+
+_PAIRS = {'은': ('은', '는'), '는': ('은', '는'), '이': ('이', '가'), '가': ('이', '가'),
+          '을': ('을', '를'), '를': ('을', '를'), '과': ('과', '와'), '와': ('과', '와')}
+
+
+def _particle_faults(text, names):
+    """화면 이름 뒤(괄호 칸 하나는 건너뛴다) 조사가 그 이름의 받침(RC._jong)과 맞지 않는 곳. '이다'(서술격)는 보지 않는다."""
+    pat = re.compile('(%s)(\\([^)]*\\))?(은|는|이|가|을|를|과|와)' % '|'.join(
+        map(re.escape, sorted(names, key=len, reverse=True))))
+    bad, seen = [], 0
+    for m in pat.finditer(text):
+        if m.group(3) == '이' and text[m.end():m.end() + 1] == '다':
+            continue
+        seen += 1
+        want = _PAIRS[m.group(3)][0 if RC._jong(m.group(1)) else 1]
+        if m.group(3) != want:
+            bad.append(m.group(0))
+    return bad, seen
+
+
+def test_cycle_particles_follow_the_display_name():
+    """/cycle/ 본문에서 지역 화면 이름 뒤 조사(은/는·이/가·을/를·과/와)는 그 이름의 받침을 따른다.
+
+    백로그 46(10-17)이 '전남광주(78%)는'의 이름만 '광주·전남'으로 바꿔 받침 있는 '남' 뒤에 '는'이 남았다(C-8·X1-7). 이제 그
+    자리의 이름·조사는 칸(jr_jnl_nm·jr_jnl_j — refresh_cycle_data.jratio_prose 가 SZ.disp·RC._jong 으로)이다.
+    변이(실제로 확인): jratio_prose 의 jr_jnl_j 를 '는' 고정으로 바꾸고 refresh 를 돌리면(아래 픽스처 경로) 첫 단정이, 본문 칸을
+    옛 손 글자 '광주·전남(…)는'으로 되돌리면 페이지 단정이 빨개진다.
+    픽스처: ① 저장소 STATS 로 굽는 jratio_prose(화면 이름이 바뀌어도 조사가 따라오는지 — 받침 없는 가상 이름 '전남광주'로도 본다),
+            ② 게이트 시점 cycle/index.html 의 보이는 글자(칸 값 포함).
+    """
+    lvl = [{'region': r, 'val': v} for r, v in (('서울', 52.3), ('전남광주', 78.1), ('대구', 70.9), ('대전', 71.8))]
+    got = RF.jratio_prose(lvl, '2026.08')
+    assert got['jr_jnl_nm'] == RF.SZ.disp('전남광주')
+    assert got['jr_jnl_j'] == ('은' if RC._jong(got['jr_jnl_nm']) else '는')
+    import unittest.mock as um
+    with um.patch.object(RF.SZ, 'disp', lambda k: '전남광주' if k == '전남광주' else k):
+        assert RF.jratio_prose(lvl, '2026.08')['jr_jnl_j'] == '는', '받침 없는 이름에 조사가 따라오지 않는다'
+    assert _particle_faults('광주·전남(78%)는 서울(52%)은', ['광주·전남', '서울']) == (['광주·전남(78%)는'], 2)
+    _, s = _page()
+    body = s[s.find('<body'):s.find('<script>', s.find('</footer>'))]
+    text = re.sub(r'<[^>]+>', '', body)
+    names = {RF.SZ.disp(k) for k in RF.SZ.ORDER}
+    bad, seen = _particle_faults(text, names)
+    assert seen >= 10, '조사 검사가 헛돈다(%d곳)' % seen
+    assert not bad, '/cycle/ 지역 이름 뒤 조사가 받침과 맞지 않는다: %s' % bad
