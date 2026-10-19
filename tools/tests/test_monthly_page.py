@@ -198,3 +198,58 @@ def test_unsold_source_is_the_canonical_agency_and_sources_escape_once():
     assert basis('permits') == '국토교통부 &amp; KOSIS', basis('permits')
     with_un = [n for n, _, d in L.SOURCES if '미분양' in d]
     assert with_un == [SP.UN_SOURCE], with_un
+
+
+def _moveins_section():
+    import make_monthly_page as MP
+    adv, sts = MP.load()
+    occ = adv.get('occupancy') or {}
+    assert [r for r in occ.get('rows') or [] if r.get('e')], 'ADV.occupancy 에 추정 행(e=1)이 없다 — 픽스처 전제가 바뀌었다'
+    secs, _ = MP.build(adv, sts)
+    seg = [s for s in secs if '<section id="moveins"' in s]
+    assert len(seg) == 1, '입주물량 절이 없다'
+    return MP, seg[0]
+
+
+def test_moveins_estimate_column_says_estimate_not_scheduled():
+    """/monthly/ 입주물량 뒤 칸은 착공 실적 × 전환율로 셈한 우리 추정이다 — 열 머리·원천 줄·주석·요약 머리가 그렇게 말한다(전수리뷰 Z2-4).
+
+    실제 상태(픽스처): data.js 의 ADV.occupancy 는 마지막 준공 실적 분기 뒤를 sido_zones.supply_rows 가 착공을 LEAD_Q 분기 밀어
+    CONV 를 곱한 행(e=1)으로 채운다. 예전 화면은 그 칸을 '26Q3 예정'·'국토교통부 준공 실적'·'실제로 집이 들어온 물량'이라 적어
+    정부가 낸 예정 물량처럼 읽혔다(/moveins/ 는 같은 값을 MOVEINS_EST '착공 기준 추정'으로 밝힌다 — 2026-09-27 C9).
+    변이(실제로 확인): 열 머리를 '%s 예정' 으로 되돌리면, 또는 원천 줄을 '국토교통부 준공 실적' 으로 되돌리면 빨강.
+    """
+    import make_indicator_pages as I
+    MP, seg = _moveins_section()
+    heads = re.findall(r'<th scope="col">([^<]*)</th>', seg)
+    assert '예정' not in seg, '입주물량 절에 아직 "예정"이 있다: %s' % heads
+    est = [h for h in heads if re.search(r'^\d{2}Q[1-4] ', h) and h.endswith(' ' + MP.EST_HEAD)]
+    assert len(est) == 1, '추정 열 머리가 없다: %s' % heads
+    assert '기준 · %s</p>' % MP.MOVEINS_SOURCE in seg and '착공' in MP.MOVEINS_SOURCE, '원천 줄에 착공이 없다'
+    assert MP.moveins_est_note() in seg and I.MOVEINS_EST in seg, '주석에 추정 설명이 없다'
+    m = re.search(r'<p class="top3"><b>([^<]*)</b>', seg)
+    assert m and MP.EST_HEAD in m.group(1), '요약 머리가 추정이라 말하지 않는다: %s' % (m and m.group(1))
+
+
+def test_moveins_estimate_note_reads_model_constants(monkeypatch):
+    """추정 설명의 연수·전환율은 모델 상수(SZ.LEAD_Q·SZ.CONV)에서 읽는다 — 손으로 적은 '3년·0.958' 이 아니다.
+
+    픽스처: 상수를 가상의 값(LEAD_Q 8 = 2년, CONV 0.5)으로 바꾼 모델.
+    변이(실제로 확인): moveins_est_note 의 SZ.CONV 를 0.958 리터럴로 바꾸면 빨강.
+    """
+    import make_monthly_page as MP
+    import sido_zones as SZ
+    monkeypatch.setattr(SZ, 'LEAD_Q', 8)
+    monkeypatch.setattr(SZ, 'CONV', 0.5)
+    note = MP.moveins_est_note()
+    assert '2년' in note and '0.500' in note and '50%' in note, note
+
+
+def test_closing_note_names_the_moveins_estimate(html):
+    """페이지 끝 '없는 값을 추정해 채우지 않습니다' 문장이 입주물량 추정 칸을 예외로 밝힌다(전수리뷰 Z2-4).
+
+    변이(실제로 확인): main 의 끝 문장에서 예외 문장을 지우면 빨강.
+    """
+    import make_indicator_pages as I
+    m = re.search(r'추정해 채우지 않습니다\.([^<]*)</p>', html)
+    assert m and I.MOVEINS_EST in m.group(1), '끝 문장이 입주물량 추정을 밝히지 않는다: %s' % (m and m.group(1))
