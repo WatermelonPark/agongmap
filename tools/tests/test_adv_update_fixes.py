@@ -371,7 +371,7 @@ def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
         monkeypatch.setattr(U, fn, _boom)
     soft = list(U.BASIC_CONF)
 
-    def basic(failed=None):
+    def basic(failed=None, permits=None):
         failed.extend(soft)
         return []
     monkeypatch.setattr(U, 'update_basic', basic)
