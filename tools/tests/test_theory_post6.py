@@ -16,7 +16,10 @@ batch_notes 의 ℹ️ 줄이 알린다). 그래서 실데이터 시험은 멈�
 무엇을 깨뜨리면 빨개지나(각각 실제로 확인):
   - link6_values 의 서울 유의 검사(①)를 지우면 → test_seoul_turning_significant_stops_the_draft
   - 가장 강한 시도 검사(⑤)를 지우면 → test_strongest_region_outside_the_oversupply_list_stops_the_draft
+  - ⑥ 검사를 지우면 → test_no_oversupply_region_stops_the_draft
   - ⑦·⑧ 검사를 지우면 → test_no_region_below_a_third_stops_the_draft·test_most_regions_not_short_stops_the_draft
+  - 실데이터 시험의 멈춤 갈래가 틀리면(옛 꼴 str(e.value)) → 저장소 D 에서 서울을 유의로 바꾼 pytest 플러그인 아래 그 시험이
+    AttributeError 로 빨갛다 — 멈춤 갈래도 실제로 돌려 확인한다
   - link6_values 가 다시 link4_numbers 를 부르면 → test_a_fifth_post_only_claim_does_not_stop_the_sixth
   - fut_lists 의 Link4ClaimError → SystemExit 변환을 지우면 → test_unreadable_judgement_cells_stop_the_draft_instead_of_raising
   - fut_lists 에 이름 함수(name=)를 넘기지 않으면 → test_region_names_follow_the_blog_display_name
@@ -93,7 +96,7 @@ def test_real_data_passes_or_stops_with_a_named_premise():
     try:
         v = T.link6_values(D, adv)
     except SystemExit as e:
-        msg = str(e.value)
+        msg = str(e)
         assert msg.startswith('6편을 만들 수 없다 — ') and len(msg) > len('6편을 만들 수 없다 — ') + 5, msg
         assert '5편' not in msg, msg
         return
