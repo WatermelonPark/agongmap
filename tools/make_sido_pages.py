@@ -599,6 +599,11 @@ def _write_merged_stub(path, old, new):
     """
     url = SITE + '/zone/' + urllib.parse.quote(new) + '/'
     nd = SZ.disp(new)   # 화면 이름 정본(백로그 46) — 주소는 키 그대로
+    # 원천이 무엇을 했는지는 사실대로 쓴다 — 원천(국토교통부·KOSIS) 표의 통합 단위 이름은 '전남광주'라, '광주·전남 하나로 발표'라 쓰면
+    # 원천 표에 없는 이름을 원천의 말처럼 내세운다(전수리뷰 Z1-9). 키를 화면에 내지 않고 '광주와 전남의 … 한 단위로 묶어'로 쓴다.
+    # 묶인 지역은 MERGED_INTO 에서 모은다(손 목록 금지).
+    parts = [o for o, n in MERGED_INTO.items() if n == new]
+    both = ('·'.join(parts[:-1]) + _wa(parts[-2]) + ' ' + parts[-1]) if len(parts) > 1 else new
     h = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
          '<meta name="viewport" content="width=device-width,initial-scale=1">'
          + RM.TAG +   # 검색 로봇 메타 정본(D2) — 통합 안내도 큰 미리보기 조건을 같이 싣는다
@@ -611,13 +616,13 @@ def _write_merged_stub(path, old, new):
          '<main class="wrap" style="max-width:640px;margin:12vh auto;text-align:center">'
          '<h1 style="font-size:20px">%s %s%s 합쳐졌습니다</h1>'
          '<p style="line-height:1.7;color:var(--muted)">국토교통부가 2026년 7월분부터 '
-         '공급 통계를 <b>%s</b> 하나로 발표하기 시작했습니다. 시군구 단위 자료가 없어 '
+         '<b>%s</b>의 공급 통계를 한 단위로 묶어 발표하기 시작했습니다. 시군구 단위 자료가 없어 '
          '두 지역을 따로 계산할 수 없게 되어, 아공맵도 판정 단위를 합쳤습니다.</p>'
          '<p style="margin-top:22px"><a href="%s" style="display:inline-block;'
          'background:var(--ink);color:var(--paper);padding:12px 22px;border-radius:3px;'
          'text-decoration:none">%s 공급 분석 보기</a></p>'
          '<p style="font-size:12px;color:var(--muted);margin-top:18px">3초 뒤 자동으로 이동합니다.</p>'
-         '</main></body></html>') % (old, nd, _euro(nd), url, url, old, nd, old + _topic(old), nd, _euro(nd), nd, url, nd)
+         '</main></body></html>') % (old, nd, _euro(nd), url, url, old, nd, old + _topic(old), nd, _euro(nd), both, url, nd)
     io.open(os.path.join(path, 'index.html'), 'w', encoding='utf-8',
             newline='\n').write(h)
 
@@ -629,6 +634,14 @@ def _topic(word):
     if not ('가' <= last <= '힣'):
         return '는'
     return '은' if (ord(last) - 0xAC00) % 28 else '는'
+
+
+def _wa(word):
+    """받침에 맞는 접속 조사 와/과(_topic 과 같은 판정) — '광주와 전남'. 한글로 안 끝나면 '와'."""
+    last = word[-1] if word else ''
+    if not ('가' <= last <= '힣'):
+        return '와'
+    return '과' if (ord(last) - 0xAC00) % 28 else '와'
 
 
 def _iga(word):
