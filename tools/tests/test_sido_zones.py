@@ -283,22 +283,28 @@ def test_pwarn_threshold_avoids_knife_edge():
 
 
 def test_pwarn_fires_on_live_data_where_expected():
-    """실데이터의 인허가 신호(pbr): 실린 곳마다 범위가 온전하고(0 이상 5 미만 — 24개월 인허가 평균 × 착공 전환율 ÷ 1년 적정물량),
-    빈 곳은 배치 기록 ⚠️ 줄(batch_notes.permit_gaps)이 그대로 알린다. 생성기 계약대로 빈 곳 자체로는 게이트를 막지 않는다
-    (그 지역 리포트의 '… 너머' 칸만 빠진다 — test_zone_lights).
+    """실데이터의 인허가 신호(pbr): 실린 곳마다 온전한 수이고(유한한 0 이상, 단위 사고 막이 PBR_SANE 미만 — 24개월 인허가 평균 ×
+    착공 전환율 ÷ 1년 적정물량), 빈 곳은 배치 기록 ⚠️ 줄(batch_notes.permit_gaps)이 그대로 알린다. 생성기 계약대로 빈 곳 자체로는
+    게이트를 막지 않는다(그 지역 리포트의 '… 너머' 칸만 빠진다 — test_zone_lights).
 
     ⚠️ 지역 사이 **순서**는 단정하지 않는다(전수리뷰 T3-9). 예전엔 '경남·대구·서울 < 대전·충남'을 배포 게이트에 박아 두었는데,
        pbr 은 시장값이라 원천이 깨끗해도 순서가 바뀐다 — 같은 코드로 달마다 잘라 재면 165개월 중 77개월이 뒤집혔고(충남은
        2026.01 1.62 → 08 1.29 로 내려가는 중), 주석에 적힌 변이(permit_monthly 가 누계를 풀지 않음)는 순서를 보존해 잡지도
        못했다. 계열 오염은 감시·게이트의 시도합=전국 검사(check_freshness.check_sido_sum)가 맡는다.
+    ⚠️ 위쪽 한계도 시장값이 닿는 자리에 두지 않는다. 한때 둔 '5 미만'은 세종이 지금 적정물량·전환율로 2013~2017년 인허가를
+       다시 받으면 4.6~6.9(24개월 창 최고 8.8, 2014.08)가 되는 값이라, 세종 인허가가 지금의 약 2.6배로 늘면 그날부터 게이트가
+       데이터 커밋을 막는다(전수리뷰 G2b 재검토). PBR_SANE(20)은 그 역대 최고의 두 배를 넘는 단위 사고 막이다(백분율로 저장하는
+       ×100 같은 사고). 누계를 풀지 않는 변이(약 6.5배)는 이 시험이 아니라 test_split_permit 의 합성 픽스처
+       (test_permit_is_de_cumulated_before_use)와 저장값 = 산식 대조(test_stored_split_matches_the_function)가 맡는다.
     ⚠️ 전국·수도권·부산처럼 경고 컷(PWARN_CUT 0.95) 언저리 지역의 경고 여부도 단정하지 않는다(2026-08-15 리뷰) — 시장이
        정상적으로 움직인 날 배치 전체가 커밋을 못 하게 된다.
-    변이(실제로 확인): permit_monthly 가 연내 누계를 풀지 않고 그대로 돌려주게 바꿔 ADV.sido 를 다시 구우면
-          (update_adv_data --seed-sido) 대전 8.8 등이 범위를 넘어 빨개진다. ⚠️ 이 시험은 **저장된** ADV.sido 를 읽으므로 코드만
-          바꿔서는 안 빨개지고 다시 구운 뒤에 걸린다(산식 자체의 변이는 test_split_permit 의 합성 픽스처가 맡는다).
-          permit_gaps 가 빈 곳을 빠뜨리면(조건을 `is None and False` 로) 합성 갈래가 빨개진다.
+    변이(실제로 확인): permit_signal 이 pbr 을 백분율(×100)로 돌려주게 바꿔 ADV.sido 를 다시 구우면(update_adv_data --seed-sido)
+          세종 196 등이 PBR_SANE 을 넘어 빨개진다. ⚠️ 이 시험은 **저장된** ADV.sido 를 읽으므로 코드만 바꿔서는 안 빨개지고 다시
+          구운 뒤에 걸린다. permit_gaps 가 빈 곳을 빠뜨리면(조건을 `is None and False` 로) 합성 갈래가 빨개진다. 저장된 세종 pbr 을
+          6.89(2013년 모양)로 둔 사본에서 예전 '5 미만' 단정은 빨갛고 이 시험은 초록이다.
     픽스처: 저장소 data.js 의 ADV.sido. 값이 빈 지역이 없으면 그 사본에서 한 곳을 비운 합성 행으로 빈 갈래도 본다.
     """
+    import math
     import copy
     import io, json, re, os
     import batch_notes as N
@@ -309,8 +315,10 @@ def test_pwarn_fires_on_live_data_where_expected():
     zones = adv['sido']['zones']
     have = [z for z in zones if z.get('pbr') is not None]
     assert have or N.permit_gaps(adv) == [z['z'] for z in zones], '인허가 신호가 하나도 없는데 배치 기록이 알리지 않는다'
-    bad = [(z['z'], z['pbr']) for z in have if not (isinstance(z['pbr'], (int, float)) and 0 <= z['pbr'] < 5)]
-    assert not bad, '인허가 신호가 범위(0~5) 밖이다 — 누계를 풀지 않았거나 단위가 바뀌었다: %s' % bad
+    PBR_SANE = 20
+    bad = [(z['z'], z['pbr']) for z in have
+           if not (isinstance(z['pbr'], (int, float)) and math.isfinite(z['pbr']) and 0 <= z['pbr'] < PBR_SANE)]
+    assert not bad, '인허가 신호가 온전한 수가 아니다(0 이상 %d 미만) — 단위·자릿수가 바뀌었다: %s' % (PBR_SANE, bad)
     gaps = [z['z'] for z in zones if z.get('pbr') is None]
     if not gaps:                      # 빈 갈래를 늘 지나게 — 실데이터 사본에서 한 곳을 비운다
         adv = copy.deepcopy(adv)
