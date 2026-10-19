@@ -767,17 +767,22 @@ def build(W, Q):
         '</div></section>',
     ])
 
+    # 설명문·og 의 지역도 결론과 같은 화면 이름(c['who'] = SZ.disp, 백로그 46)이다 — 예전엔 best[0](키)를 넣어 전남광주가
+    # 가장 크게 움직인 주에 h1 은 '광주·전남', 검색 설명·og·RSS(make_feed 가 이 desc 를 옮긴다)는 '전남광주'로 갈렸고 게이트가
+    # 그 주 데이터 커밋을 막았다(전수리뷰 X2-2·Z2-1·T3-7·T3-8). who 는 보합 주에 None 이다 — 그 주엔 둘 다 '시도 모두 보합'.
+    who = c['who']
     desc_bits = ['%s 기준 이번 주 아파트 매매가격은' % datestr]
     desc_bits.append(('전국 %s%%, ' % pv2(nation) if nation is not None else '')
-                     + ('%s %s%%로 %s.' % (best[0], pv2(best[1]), '가장 크게 올랐다' if pv2r(best[1]) > 0 else '가장 크게 내렸다')
-                        if pv2r(best[1]) != 0 else '시도 모두 보합이다.'))
+                     + ('%s %s%%로 %s.' % (who, pv2(best[1]), '가장 크게 올랐다' if pv2r(best[1]) > 0 else '가장 크게 내렸다')
+                        if who is not None else '시도 모두 보합이다.'))
     if su:
         desc_bits.append('시군구 상승 1위 %s %s%%%s.' % (su[0][0], pv2(su[0][1]),
                          (', 하락 1위 %s %s%%' % (sd[0][0], pv2(sd[0][1]))) if sd else ''))
     desc = ' '.join(desc_bits) + ' 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.'
     # 전국 값이 없는 주(R-ONE 부분 응답)엔 desc·리드·공유 문구처럼 전국 조각을 뺀다 — '전국 ·%' 를 굽지 않는다(전수리뷰 #29).
-    og = '%s · %s%s %s%%. 시군구·서울 구별 변동률 지도.' % (
-        datestr, ('전국 %s%%, ' % pv2(nation)) if nation is not None else '', best[0], pv2(best[1]))
+    og = '%s · %s%s. 시군구·서울 구별 변동률 지도.' % (
+        datestr, ('전국 %s%%, ' % pv2(nation)) if nation is not None else '',
+        '%s %s%%' % (who, pv2(best[1])) if who is not None else '시도 모두 보합')
     return head, answer, desc, og
 
 

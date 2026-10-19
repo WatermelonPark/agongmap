@@ -182,6 +182,10 @@ GRACE_BUBBLE_LOAN = 100
 #             실측 최대 59일. 한 달 남짓 여유.
 #   연간 1100 : 보급률·멸실·아파트건설·노후주택은 한 해 치를 이듬해 중반~이태 초에 낸다 — 정상 최대 약 2년(실측 643일,
 #             2024 계열의 10-05 나이). 짧게 잡으면 매년 정상 지연에 오경보가 나므로 약 3년(한 회차를 통째로 놓친 뒤)으로 둔다.
+#   시도 지표 200 : 라이브 ADV.sido.L(준공 전국 마지막 완결 분기, 나이는 그 분기 끝날부터)은 분기 마지막 달 준공이 이듬달 말에
+#             나와야 다음 분기로 넘어간다 — 정상 최대 약 125일(9월분이 나오는 10월 말에 6/30 부터 123일). 그 위로 두 달 남짓.
+#             수집 도장 검사(check_age)지만 날짜에 기대는 판정이라 다른 상한과 같은 고리(MAX_AGE_)에 둔다 — 숫자를 main() 에
+#             박아 두었을 때 하니스가 끄지 못해, 준공이 멈춰 L 끝 + 201일이 되는 날 게이트 시험 둘이 빨개졌다(전수리뷰 F-1).
 # 시험(main 하니스)은 날짜가 앞으로 가도 초록이어야 해서, 상한은 TODAY 를 고정한 시험에서만 켠다(test_freshness_ceiling).
 MAX_AGE_WEEKLY = 16
 MAX_AGE_MONTHLY = 75
@@ -190,6 +194,7 @@ MAX_AGE_BASIC = 130
 MAX_AGE_BUBBLE_CONV = 160
 MAX_AGE_BUBBLE_LOAN = 100
 MAX_AGE_ANNUAL = 1100
+MAX_AGE_SIDO_Q = 200
 
 
 def get_json(url):
@@ -810,7 +815,7 @@ def rone_latest_complete(tbl, since=None, want_total=False):
     # ~246행이라, 보류 중(since 고정)에 원천이 앞서 나가면 창이 1000행을 넘는다 — 마지막 쪽만 읽으면
     # 미완비 최신 달의 꼬리만 남아 의도된 보류가 매일 결정론 red 가 된다(전수리뷰 #36).
     rows = _rone_rows(tbl, 'MM', since)
-    want = {z for z in U.WEEKLY_REGIONS if z not in ('전국', '수도권', '지방')}
+    want = set(U.SUPPLY_SIDO)   # 배치 _drop_incomplete·kosis_supply_latest 와 같은 정본 집합 — 식을 따로 적지 않는다
     by, vals = {}, {}
     for r in rows:
         t = (r.get('WRTTIME_IDTFR_ID') or '').strip()
@@ -1436,8 +1441,9 @@ def main():
             if n_z < want:
                 fails.append('ADV.sido 지역이 %d곳뿐이다(%d곳이어야 함) — 빠진 곳: %s'
                              % (n_z, want, ', '.join(sido.get('missing') or ['?'])))
-            fails.append(check_age('시도 지표', None if not sido.get('L') else
-                                   _q_to_date(sido['L']), 200))
+            # 상한이 꺼져 있으면(None — 시험 하니스) 보지 않되 항목은 남긴다: fails 길이가 검사한 계열 수(개수 게이트의 분모)다.
+            fails.append(None if MAX_AGE_SIDO_Q is None else
+                         check_age('시도 지표', None if not sido.get('L') else _q_to_date(sido['L']), MAX_AGE_SIDO_Q))
     except Exception as e:
         # 이건 조회 실패다 — SKIPPED에는 안 넣는다(위 게이트의 분자를 바꾸면
         # 안 되므로). 대신 FETCH_FAIL에 남겨 '새 IP로 재확인' 쪽으로 분류되게 한다.

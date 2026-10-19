@@ -273,12 +273,15 @@ def test_basic_failures_are_recorded(monkeypatch):
 
 
 def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
-    """부분 실패는 .fetch_failed 에 실리지만 rc=3 판정(len(failed) >= 5)에는 들어가지 않는다.
+    """부분 실패는 .fetch_failed 에 실리지만 rc=3 판정에는 들어가지 않는다. rc=3 은 주요 지표 MAIN_SOURCES 다섯
+    (weekly·monthly·permits·holidays·bubble)이 **모두** failed 이고 바뀐 것이 없을 때다(update_adv_data.main 의
+    `set(MAIN_SOURCES) <= set(failed) and not changed` — 예전 개수 문턱 `len(failed) >= 5` 가 아니다).
 
-    변이: main 의 rc 판정을 `len(failed + soft_failed) >= 5` 로 바꾸면 SystemExit(3) 이 나서 빨개지고,
-          .fetch_failed 에 `failed` 만 쓰면 둘째 단정이 빨개진다(둘 다 확인).
-    픽스처: R-ONE(주간·월간)·인허가·공휴일이 죽고(주요 4갈래) 새 데이터가 하나도 없는 회차에, 기본통계
-            계열 여섯이 KOSIS 오류로 죽은 상태. 주요 실패가 5 미만이므로 예전과 같이 rc=0 이어야 한다.
+    변이(각각 실제로 확인): MAIN_SOURCES 에서 bubble 을 빼면 픽스처의 네 실패가 주요 지표를 다 덮어 SystemExit(3) 으로 빨개지고,
+          rc 판정을 개수 문턱 `len(failed + soft_failed) >= 5` 로 바꿔도 빨개진다. .fetch_failed 에 `failed` 만 쓰면 둘째 단정이
+          빨개진다.
+    픽스처: R-ONE(주간·월간)·인허가·공휴일이 죽고(주요 다섯 중 넷 — ECOS 키가 없어 bubble 은 시도하지 않아 failed 에 없다) 새
+            데이터가 하나도 없는 회차에, 기본통계 계열 여섯이 KOSIS 오류로 죽은 상태. 주요 지표가 다 죽지는 않았으므로 rc=0 이어야 한다.
     """
     src = io.open(U.DATA, encoding='utf-8').read()
     data = tmp_path / 'data.js'
