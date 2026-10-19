@@ -2,7 +2,7 @@
 """추적 파일에 저장소 밖 로컬 경로(개인 홈 폴더·키 파일 경로)를 적지 않는다(공개 저장소 규칙, 전수리뷰 #7·#116).
 
 CLAUDE.md 하드 룰: '저장소 밖 로컬 경로(원고 폴더, 강의 아카이브, 키 파일 경로 등)를 문서·코드·커밋 메시지에 적지 않는다',
-'키는 환경 변수로만 읽는다'. 2026-09-30 까지 R-ONE 일회성 도구 두 개(fetch_index_levels·gen_sgg_rone_map)가 홈 폴더의 키
+'키는 환경 변수로만 읽는다'. 2026-09-30 까지 R-ONE 일회성 도구 두 개(fetch_index_levels — 2026-10-19 걷어 냄 · gen_sgg_rone_map)가 홈 폴더의 키
 파일 경로를 코드·오류 문구에 적고 그 파일을 정규식으로 읽었고, 로컬 러너 bat 도 같은 경로를 세 곳에 적었다. 지금은 두 도구가
 환경 변수 RONE_API_KEY 만 읽고, bat 은 키 파일 경로를 환경 변수 AGONGMAP_KEYS 로 받는다.
 
@@ -11,7 +11,7 @@ git 이 없으면 숨은 폴더·drafts·logs·cache 를 뺀 저장소 전체를
 컨테이너 기본 경로(/home/user/), 셸 변수 `$HOME` 을 쓰는 캐시 경로처럼 특정 사람·파일을 가리키지 않는 것.
 
 무엇을 깨뜨리면 빨개지나(각각 실제로 깨뜨려 확인):
-  - fetch_index_levels._key() 에 홈 폴더 키 파일 폴백(expanduser 로 '~/.' 로 시작하는 키 파일 경로)을 되살리면 → 빨강
+  - gen_sgg_rone_map._key() 에 홈 폴더 키 파일 폴백(expanduser 로 '~/.' 로 시작하는 키 파일 경로)을 되살리면 → 빨강
   - gen_sgg_rone_map 의 오류 문구에 '~/.' 로 시작하는 '..._keys.bat' 파일명을 다시 적으면 → 빨강
   - run_weekly_update.bat 의 `call "%AGONGMAP_KEYS%"` 를 `%USERPROFILE%\\<키 파일>` 로 되돌리면 → 빨강
   - docs 요청서에 Windows 사용자 폴더(`C:` + `\\Users\\이름\\`) 나 macOS 홈(`/Users/이름/`)을 적으면 → 빨강
