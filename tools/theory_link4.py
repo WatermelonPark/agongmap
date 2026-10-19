@@ -39,6 +39,11 @@ class Link4ClaimError(Exception):
     """5편 본문의 단정이 데이터와 어긋난다."""
 
 
+class Link4DataError(Link4ClaimError):
+    """입력 계열끼리 맞지 않아 셀 수 없다(착공·준공 끝 달이 다르다) — 문장 탓이 아니다. 다음 배치가 두 계열을 같은 달까지
+    받으면 풀린다. Link4ClaimError 의 하위라 그것을 받는 자리는 그대로 멈춘다(4편 theory_link3.Link3DataError 와 같은 구분)."""
+
+
 def _won(n):
     return format(int(round(n)), ',')
 
@@ -81,7 +86,12 @@ def link4_numbers(adv, sts):
         return sum(m[k] for k in ks)
 
     last_m = max(MON('준공', '전국'))             # 준공 계열의 마지막 달
-    assert last_m == max(MON('착공', '전국')), '착공·준공 마지막 달이 다르다'
+    # 두 계열은 KOSIS 의 서로 다른 표다. 분기를 닫지 않는 달에 한쪽만 새 달을 받으면(착공 호출만 순단·원천이 한 표를 늦게 실음)
+    # 판정 창 H 는 그대로라 수집(_hold_horizon)·생성기가 모두 통과한다 — 예전엔 맨 assert 라 AssertionError 가 가드(Link4ClaimError
+    # → SystemExit)를 비켜 게이트 시험 넷을 죽였다(전수리뷰 T3-6·BL2-3·T1-2). 문장 탓이 아니라 입력 시차라 Link4DataError 다.
+    last_st = max(MON('착공', '전국'))
+    if last_m != last_st:
+        raise Link4DataError('착공·준공 마지막 달이 다르다 — 준공 %s, 착공 %s' % (last_m, last_st))
     CUR_Y, CUR_M = int(last_m[:4]), int(last_m[5:7])
     if CUR_Y != 2026:                             # 본문 '지난해 하반기'(2025H2)·'올해'가 2026년 발행을 전제한다
         raise Link4ClaimError('5편 본문은 2026년 데이터를 전제한다(지난해 하반기=2025) — 지금 %s' % last_m)
@@ -475,4 +485,9 @@ def link4_numbers(adv, sts):
             out[k] = f()
         except (AssertionError, ValueError, StopIteration) as e:
             raise Link4ClaimError('5편 본문의 단정이 데이터와 어긋난다 — %s: %s' % (k, e))
+        except (KeyError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
+            # 계열에 빈 달·빈 칸이 생겨 셈이 안 서는 회차(12개월 합의 끝 달이 없다, 전년 같은 기간이 0, 칸이 None 등) — 가드를
+            # 비켜 날 예외로 새면 초안 생성 가드(SystemExit)를 거르는 시험이 죽는다(대표 결정 2026-10-18 D1, theory_link3 와 같은
+            # 받기). 예외 이름을 문구에 남겨 배치 기록 줄(batch_notes)에서 코드 결함과 데이터 상태를 사람이 가를 수 있게 한다.
+            raise Link4ClaimError('5편 본문의 단정이 데이터와 어긋난다 — %s: %s: %s' % (k, type(e).__name__, e))
     return out
