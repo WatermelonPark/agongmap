@@ -83,6 +83,9 @@ AGG_NOTE = {
 # '국토교통부'와 '한국부동산원'으로 달리 말했다. 주택 미분양 현황은 국토교통부가 작성하는 통계다(한국부동산원 R-ONE 은
 # 배포 창구). 홈 TB_REFNOTE 거울(test_refnote_copy_is_identical_on_home_and_zone)과 홈 산출 방법도 이 기관명을 쓴다.
 UN_SOURCE = '국토교통부'
+# 리포트 머리 기준 줄의 출처 — 기준 줄은 '시점 기준 · 출처' 한 양식이다(2026-10-06 대표 결정, 전수리뷰 Z1 overflow: 머리는 '… 기준 · 분기마다
+# 갱신'이라 출처가 없었다). 판정은 준공·착공 실적만으로 낸다. 갱신 주기는 바로 아래 첫 문단(summary_parts)이 말한다.
+BASIS_SRC = '국토교통부 준공·착공 실적'
 REFNOTE = {
     'un': '미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(' + UN_SOURCE + ' 월간 집계). '
           '이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, '
@@ -1084,9 +1087,9 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
              '<h1>%s 아파트 공급</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
-             '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>'
+             '<span class="zbasis">%s 기준 · %s</span></p>'
              % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
-                esc(calc.get('Ltxt') or calc['L'])))
+                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC)))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의

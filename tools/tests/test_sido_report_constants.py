@@ -119,3 +119,15 @@ def test_table_start_is_one_constant():
     _, calc, st = _page()
     assert SZ.supply_rows(st)['rows'][0]['p'] == '%dQ1' % y
     assert P.series(st, '서울', calc)[0][0] == SZ.qidx(y, 1)
+
+
+def test_report_head_basis_line_names_its_source():
+    """리포트 머리 기준 줄은 '시점 기준 · 출처' 한 양식이다(2026-10-06 대표 결정 — 날짜 두 단계·기준 줄 양식). 재현한 실제 상태: 머리 줄이
+    '2026년 2분기 기준 · 분기마다 갱신'이라 출처가 없었다(전수리뷰 Z1 overflow). 갱신 주기는 <main> 첫 문단이 말한다.
+    변이(실제로 확인): 기준 줄을 옛 '… 기준 · 분기마다 갱신'으로 되돌리면 빨개진다.
+    픽스처: 저장소 STATS 로 새로 돌린 판정으로 서울 리포트를 메모리에서 굽는다."""
+    html, calc, _ = _page()
+    m = re.search(r'<span class="zbasis">([^<]*)</span>', html)
+    assert m and m.group(1) == '%s 기준 · %s' % (calc['Ltxt'], P.BASIS_SRC), m and m.group(1)
+    row = [z for z in calc['zones'] if z['z'] == '서울'][0]
+    assert '국토교통부' in P.BASIS_SRC and '분기마다 갱신' in P.summary_text(P.summary_parts('서울', row, calc, '부족'))
