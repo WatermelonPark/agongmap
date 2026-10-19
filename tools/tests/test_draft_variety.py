@@ -107,9 +107,11 @@ def test_zone_says_the_unsold_multiple_once(env):
     BL1-1·T1-1). um 이 None 인 지역(sido_zones 가 허용한다)은 순위 문단 자체가 없어야 하고, umx(None) 을 부르지 않는다.
 
     변이(실제로 확인): 순위 문장에 배수를 되살리면(6215ffd 이전 '분기 적정물량과 견주면 <b>%s</b>로 …') 실데이터·사본 모두 빨개진다.
+    경고 문단 세 틀에서 배수를 빼면 경고 갈래가 빨개진다. 아래 '경고 아님' 합성 행 채움을 지우면, 모든 시도가 경고인 상태(시도 행을
+    전부 uwarn=True·um≥1 로 덮은 사본)에서 이 시험이 {'plain': 0} 으로 빨개진다 — 채움이 없을 때의 게이트 정지(전수리뷰 G1b 재검토).
     픽스처: 저장소 실제 ADV 의 시도 전부(실데이터) + 주간 변동률 숫자가 퍼센트 배수로 끝나는 사본(_tail_twins — 옛 시험이 헛빨강을
-    내던 상태, 이 시험은 초록이어야 한다). 두 갈래(경고 지역·아닌 지역)가 늘 돌도록, 데이터에 경고 지역이 없으면 실제 시도 한 줄을
-    경고로 바꾼 합성 행을, um 이 None 인 지역이 없으면 그런 합성 행을 더한다.
+    내던 상태, 이 시험은 초록이어야 한다). 세 갈래(경고 지역·경고 아닌 지역·um 없음)가 늘 돌도록, 데이터에 빠진 갈래는 실제 시도
+    한 줄을 그 갈래로 바꾼 합성 행으로 채운다(경고 지역이 0곳인 회차·모든 시도가 경고인 회차·um 이 None 인 지역이 없는 지금).
     """
     adv, sts = env
     for case in (adv, _tail_twins(adv)):
@@ -118,6 +120,8 @@ def test_zone_says_the_unsold_multiple_once(env):
         base = next(r for r in zs if r.get('um') is not None)
         if not any(r.get('uwarn') and r.get('unsold') and r.get('um') is not None for r in zs):
             rows.append(dict(base, uwarn=True, um=max(base['um'], 1.2), unsold=max(base.get('unsold') or 0, 1000)))
+        if not any(not r.get('uwarn') and r.get('unsold') and r.get('um') is not None for r in zs):
+            rows.append(dict(base, uwarn=False, unsold=max(base.get('unsold') or 0, 1000)))
         if not any(r.get('um') is None for r in zs):
             rows.append(dict(base, um=None, uwarn=False))
         seen = {'warn': 0, 'plain': 0, 'none': 0}

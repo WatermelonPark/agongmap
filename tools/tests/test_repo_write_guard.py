@@ -62,17 +62,23 @@ def test_writing_into_drafts_fails_the_run(tmp_path):
     """drafts/(.gitignore — 블로그 초안·썸네일, 로컬 전용이라 덮이면 되돌릴 데가 없다)에 새 파일을 만들거나 있던 파일을 덮어도
     실행이 빨개진다(전수리뷰 T1-5·T3-11·BL1-12).
 
-    변이(실제로 확인): conftest 의 `_WATCH_DIRS` 에서 'drafts' 를 빼면 이 시험이 빨개진다(두 경우 모두 rc 0).
+    변이(실제로 확인): conftest 의 `_WATCH_DIRS` 에서 'drafts' 를 빼면 이 시험이 빨개진다(두 경우 모두 rc 0). 감시가 파일마다
+    크기만 보게(mtime_ns 를 빼게) 바꾸면 ②가, 이름만 보게 바꾸면 ②가 빨개진다(전수리뷰 G1b 재검토 — 예전 ②는 크기가 다른 내용으로
+    덮어 크기만 보는 감시도 초록이었다).
     픽스처: ① drafts/ 가 없는 새 클론(CI·배치 러너의 모양)에서 시험이 썸네일 한 장을 만든다 — 2026-10-16 공유 트리에 실제로
-    남은 thumb-weekly-2026-09-21.png 와 같은 이름. ② 로컬 작업 트리처럼 같은 이름의 파일이 이미 있고 시험이 크기가 다른 내용으로
-    덮는다(이름 목록만 보면 놓치는 경우).
+    남은 thumb-weekly-2026-09-21.png 와 같은 이름. ② 로컬 작업 트리처럼 같은 이름의 파일이 이미 있고(수정 시각은 지난 시각으로
+    고정 — 파일 시스템 시각 단위와 무관하게) 시험이 **크기가 같은** 다른 내용으로 덮는다. .rotation.json 의 날짜 한 칸처럼 길이가
+    같은 고쳐 쓰기는 이름·크기만 보면 놓친다.
     """
     rc, out = _run(tmp_path / 'a', DRAFT_WRITER % 3)
     assert rc != 0 and '저장소 파일을 바꿨다' in out and 'drafts' in out, out[-400:]
     b = tmp_path / 'b'
     (b / 'drafts').mkdir(parents=True)
-    (b / 'drafts' / 'thumb-weekly-2026-09-21.png').write_bytes(b'y')
+    old = b / 'drafts' / 'thumb-weekly-2026-09-21.png'
+    old.write_bytes(b'y' * 5)
+    os.utime(str(old), (1700000000, 1700000000))
     rc, out = _run(b, DRAFT_WRITER % 5)
+    assert old.read_bytes() == b'x' * 5, '픽스처가 같은 크기로 덮지 못했다 — 시험이 헛돈다'
     assert rc != 0 and 'drafts/thumb-weekly-2026-09-21.png' in out, out[-400:]
 
 
