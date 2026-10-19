@@ -80,12 +80,16 @@ def test_ceiling_holds_when_the_source_cannot_be_reached(monkeypatch):
 
     변이(확인): retry_failed 의 check 호출에서 `max_age=max_age` 를 빼면 실패 사유가 사라져 빨개진다. check() 의 건너뜀
     분기를 `return None` 으로 되돌려도 빨개진다.
+    retry_failed 는 전역 C.FETCH_TIMEOUT 을 20 으로 바꾼다 — monkeypatch 로 잡아 두어 시험이 끝나면 감시 기본값으로 돌아간다
+    (test_freshness_invariant._reset_retry 와 같은 이유, 전수리뷰 T1 overflow). 확인: 그 줄을 지우고 같은 세션에서 이 파일 뒤에
+    `C.FETCH_TIMEOUT == 25` 를 보는 임시 시험을 돌리면 'assert 20 == 25' 로 빨갛고, 두면 초록이다.
     픽스처: 저장소 데이터의 월간 최신 시점, 오늘은 그 달 말일 + 상한 + 1일, 원천은 매번 타임아웃.
     """
     adv, _ = _live()
     mo = adv['monthly']['rows'][-1]['p']
     monkeypatch.setattr(C, 'TODAY', C.period_end(mo) + (C.MAX_AGE_MONTHLY + 1) * DAY)
     monkeypatch.setattr(C.time, 'sleep', lambda s: None)
+    monkeypatch.setattr(C, 'FETCH_TIMEOUT', C.FETCH_TIMEOUT)   # retry_failed 가 바꾸는 전역 타임아웃을 시험 끝에 되돌린다
     for lst in (C.SKIPPED, C.RETRYQ, C.FETCH_FAIL):
         lst.clear()
 
