@@ -947,20 +947,21 @@ def split_text(inow, fut, need, ref, sig, est, H=None, W=None):
     W = BACKLOG_WINDOW if W is None else W
     past = '%g년' % (W / 4.0)
     ahead = '%g년' % (H / 4.0)
-    now = int(round(100.0 * inow / (ref * W))) if ref else 0
+    # 화면 퍼센트는 half_up 하나로(전수리뷰 X1 overflow — int(round()) 는 짝수 쪽 반올림이라 12.5 가 12 였다. pbr_pct·/moveins/ 와 같은 규칙)
+    now = half_up(100.0 * inow / (ref * W)) if ref else 0
     if now <= -1:
         l1 = '적정물량보다 %d%% 덜 지었습니다' % -now
     elif now >= 1:
         l1 = '적정물량보다 %d%% 더 지었습니다' % now
     else:
         l1 = '적정물량만큼 지었습니다'
-    l2 = '적정물량의 %d%%가 들어옵니다' % int(round(100.0 * fut / need)) if need else None
+    l2 = '적정물량의 %d%%가 들어옵니다' % half_up(100.0 * fut / need) if need else None
     l3 = dec = None
     thin = False
     if sig:
         l3 = '최근 %s 인허가를 착공으로 환산하면 적정물량의 %d%%입니다' % (win_years(PERMIT_WIN), pbr_pct(sig['pbr']))
         if sig.get('pdec') is not None:
-            dec = '최근 %s 인허가 중 12월 한 달이 %d%%입니다' % (win_years(PDEC_WIN), int(round(100 * sig['pdec'])))
+            dec = '최근 %s 인허가 중 12월 한 달이 %d%%입니다' % (win_years(PDEC_WIN), half_up(100 * sig['pdec']))
         thin = pbr_thin(sig['pbr'])
     return {
         'rows': [('지난 %s' % past, l1), ('앞으로 %s' % ahead, l2)],
