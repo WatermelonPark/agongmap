@@ -138,12 +138,19 @@ def test_missing_national_row_is_not_silently_skipped():
 
 
 def test_rule_set_does_not_shrink_silently():
-    """대상 계열·규칙이 줄면 검사가 꺼진 줄 모른다."""
+    """대상 계열·규칙이 줄면 검사가 꺼진 줄 모른다. 검사 대상 시도(SIDO17)는 판정 모델의 시도 전부(SZ.ORDER 에서 집계 셋만 뺀
+    것)여야 한다 — 손으로 센 '16'을 박지 않는다(모델이 바뀌면 이 숫자만 따로 고쳐야 했다. 2026-09-10 광주·전남 통합 때 그랬다).
+    모델 자체에서 지역이 조용히 빠지는 일은 test_live_data_satisfies_every_rule 이 실데이터 '시도합=전국'으로 잡는다.
+
+    변이(각각 실제로 확인): check_freshness 의 SIDO17 에서 한 곳을 빼면(`[:-1]`) 이 시험과 실데이터 규칙 시험이 함께 빨개진다.
+          SUM_SERIES·SUM_RULES 에서 하나를 빼도 빨개진다.
+    픽스처: check_freshness 의 규칙 상수와 판정 모델(sido_zones.ORDER·AGG).
+    """
+    import sido_zones as SZ
     assert set(C.SUM_SERIES) == {'준공', '착공', '인허가', '분양', '미분양'}
     assert len(C.SUM_RULES) == 4
-    # 2026-09-10 광주·전남 통합으로 16곳이 됐다. 개수를 박아두는 이유는 그대로다 —
-    # 지역이 조용히 빠지면 합계 검사가 통과하면서 그 지역만 사라진다.
-    assert len(C.SIDO17) == 16
+    want = [z for z in SZ.ORDER if z not in SZ.AGG]
+    assert want and C.SIDO17 == want, '감시가 판정 모델의 시도 일부만 더한다: 빠짐 %s' % sorted(set(want) - set(C.SIDO17))
 
 
 def test_sido17_excludes_aggregate_rows():
@@ -292,16 +299,19 @@ def test_moveins_basis_marker_is_what_the_generator_prints():
 # 원천 조회 재시도 — 광역 장애(2026-08-12)는 IP를 바꿔도 소용없다
 # ---------------------------------------------------------------------------
 
-def _reset_retry():
+def _reset_retry(monkeypatch):
+    """재시도 대기·건너뜀 목록을 비우고 원천 타임아웃을 60초로 둔다. 타임아웃은 monkeypatch 로 바꿔 시험이 끝나면 감시 기본값
+    (C.FETCH_TIMEOUT 25초)으로 되돌린다 — 예전엔 전역에 60(과 retry_failed 가 바꾼 20)을 그대로 남겨, 시험 순서에 따라 뒤 시험이
+    보는 값이 갈렸다(전수리뷰 T1 overflow)."""
     C.RETRYQ.clear()
     C.SKIPPED.clear()
-    C.FETCH_TIMEOUT = 60
+    monkeypatch.setattr(C, 'FETCH_TIMEOUT', 60)
 
 
 def test_transient_origin_outage_recovers_on_retry(monkeypatch):
     """1차 조회가 죽었다 재시도에 살아나면 건너뜀도 실패도 아니어야 한다 —
     2026-08-12 KOSIS·R-ONE 광역 타임아웃(14/18)이 정확히 이 모양이었다."""
-    _reset_retry()
+    _reset_retry(monkeypatch)
     monkeypatch.setattr(C.time, 'sleep', lambda s: None)
     calls = {'n': 0}
 
@@ -321,7 +331,7 @@ def test_transient_origin_outage_recovers_on_retry(monkeypatch):
 def test_persistent_outage_still_alarms(monkeypatch):
     """재시도까지 죽으면 SKIPPED로 확정 — 게이트를 무디게 하는 게 아니다.
     표 ID 변경·키 만료는 여기로 와야 잡힌다."""
-    _reset_retry()
+    _reset_retry(monkeypatch)
     monkeypatch.setattr(C.time, 'sleep', lambda s: None)
 
     def dead():
@@ -330,7 +340,7 @@ def test_persistent_outage_still_alarms(monkeypatch):
     fails = [C.check('월간', '2026.06', dead, 50)]
     C.retry_failed(fails, wait=0)
     assert C.SKIPPED == ['월간'], '재시도까지 실패하면 기존 게이트로 가야 한다'
-    _reset_retry()
+    _reset_retry(monkeypatch)
 
 
 def test_gate_arithmetic_survives_the_retry_pass(monkeypatch):
@@ -338,7 +348,7 @@ def test_gate_arithmetic_survives_the_retry_pass(monkeypatch):
     한다. 첫 구현이 재시도 결과(None)를 fails에 그대로 append해 분모를 부풀렸고,
     2026-08-12 시나리오(18계열 중 14 지속 실패)가 28>32 거짓으로 **OK를 찍었다**
     (2026-08-13 리뷰에서 재현·확정). main()의 산식을 그대로 복제해 잠근다."""
-    _reset_retry()
+    _reset_retry(monkeypatch)
     monkeypatch.setattr(C.time, 'sleep', lambda s: None)
 
     def dead():
@@ -353,13 +363,13 @@ def test_gate_arithmetic_survives_the_retry_pass(monkeypatch):
     assert not [f for f in fails if f], '뒤처짐이 아니라 조회 실패다 — bad는 비어야 한다'
     assert len(C.SKIPPED) * 2 > len(fails), \
         '지속 광역 장애가 OK로 통과한다 — 재시도가 분모를 부풀렸는지 확인'
-    _reset_retry()
+    _reset_retry(monkeypatch)
 
 
 def test_retry_still_catches_a_genuinely_stale_series(monkeypatch):
     """재시도에 살아난 원천이 더 최신이면 뒤처짐 검사는 그대로 받아야 한다 —
     재시도가 '봐주기'가 되면 감시가 켜진 채 아무것도 안 보게 된다."""
-    _reset_retry()
+    _reset_retry(monkeypatch)
     monkeypatch.setattr(C.time, 'sleep', lambda s: None)
     calls = {'n': 0}
 
@@ -373,7 +383,7 @@ def test_retry_still_catches_a_genuinely_stale_series(monkeypatch):
     C.retry_failed(fails, wait=0)
     bad = [f for f in fails if f]
     assert bad and '월간' in bad[0], '뒤처짐이 재시도 뒤에도 잡혀야 한다'
-    _reset_retry()
+    _reset_retry(monkeypatch)
 
 
 # ---------------------------------------------------------------------------

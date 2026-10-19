@@ -283,47 +283,45 @@ def test_pwarn_threshold_avoids_knife_edge():
 
 
 def test_pwarn_fires_on_live_data_where_expected():
-    """실데이터 고정점(2026-08-10 시장 통념과 대조): 경남(인허가가 특히 적은 곳)은
-    뜨고, 대전(그나마 있다)·충남(너무 많았다)은 안 뜬다. 이 관계가 뒤집히면
-    인허가 계열이 오염된 것이다.
+    """실데이터의 인허가 신호(pbr): 실린 곳마다 범위가 온전하고(0 이상 5 미만 — 24개월 인허가 평균 × 착공 전환율 ÷ 1년 적정물량),
+    빈 곳은 배치 기록 ⚠️ 줄(batch_notes.permit_gaps)이 그대로 알린다. 생성기 계약대로 빈 곳 자체로는 게이트를 막지 않는다
+    (그 지역 리포트의 '… 너머' 칸만 빠진다 — test_zone_lights).
 
-    2026-09-13부터 pwarn은 12개월 원값(pmr)이 아니라 24개월 × 착공 전환율(pbr)로
-    켠다(대표 결정). 고정점 지역은 두 방식 모두에서 문턱과 멀리 떨어져 그대로 쓴다."""
+    ⚠️ 지역 사이 **순서**는 단정하지 않는다(전수리뷰 T3-9). 예전엔 '경남·대구·서울 < 대전·충남'을 배포 게이트에 박아 두었는데,
+       pbr 은 시장값이라 원천이 깨끗해도 순서가 바뀐다 — 같은 코드로 달마다 잘라 재면 165개월 중 77개월이 뒤집혔고(충남은
+       2026.01 1.62 → 08 1.29 로 내려가는 중), 주석에 적힌 변이(permit_monthly 가 누계를 풀지 않음)는 순서를 보존해 잡지도
+       못했다. 계열 오염은 감시·게이트의 시도합=전국 검사(check_freshness.check_sido_sum)가 맡는다.
+    ⚠️ 전국·수도권·부산처럼 경고 컷(PWARN_CUT 0.95) 언저리 지역의 경고 여부도 단정하지 않는다(2026-08-15 리뷰) — 시장이
+       정상적으로 움직인 날 배치 전체가 커밋을 못 하게 된다.
+    변이(실제로 확인): permit_monthly 가 연내 누계를 풀지 않고 그대로 돌려주게 바꿔 ADV.sido 를 다시 구우면
+          (update_adv_data --seed-sido) 대전 8.8 등이 범위를 넘어 빨개진다. ⚠️ 이 시험은 **저장된** ADV.sido 를 읽으므로 코드만
+          바꿔서는 안 빨개지고 다시 구운 뒤에 걸린다(산식 자체의 변이는 test_split_permit 의 합성 픽스처가 맡는다).
+          permit_gaps 가 빈 곳을 빠뜨리면(조건을 `is None and False` 로) 합성 갈래가 빨개진다.
+    픽스처: 저장소 data.js 의 ADV.sido. 값이 빈 지역이 없으면 그 사본에서 한 곳을 비운 합성 행으로 빈 갈래도 본다.
+    """
+    import copy
     import io, json, re, os
+    import batch_notes as N
     root = os.path.join(os.path.dirname(__file__), '..', '..')
     src = io.open(os.path.join(root, 'data.js'), encoding='utf-8').read()
     adv = json.loads(re.search(
         r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
-    by = {z['z']: z for z in adv['sido']['zones']}
-    # 2026-09-17 실측: thin 의 pbr 0.23~0.58, thick 1.30~1.55. 경고 컷(PWARN_CUT 0.95)에서
-    # 양쪽 다 0.35 이상 떨어져 있다.
-    thin = ('경남', '대구', '서울')
-    thick = ('대전', '충남')
-    # ⚠️ 예전엔 thin 의 pwarn 참·thick 의 pwarn 거짓을 단정했다. 충남 pbr 은 2026.01 1.62 → 07 1.30 으로
-    #    6개월에 0.32 내려, 같은 기울기면 6~7개월 뒤 경고 컷(0.95) 아래가 되어 매일 배치가 막혔을 것이다
-    #    (리뷰 09-18 21번). 문턱 통과 여부는 시장이 정하므로 단정하지 않는다 — 아래 **관계**만 본다.
-    #    산식 변이(24개월 평균 → 12개월 합 등)는 test_split_permit 의 합성 픽스처가 잡는다.
-    for z in thin + thick:
-        assert by[z].get('pbr') is not None, '%s pbr 이 없다 — 인허가 계열 결측' % z
-    # 오염 판정의 본체는 문턱 통과 여부가 아니라 **관계**다. 얇은 쪽이 두꺼운 쪽보다 낮아야 한다.
-    # ⚠️ 예전에는 `max(thin) < min(thick) / 2` 였는데 실측이 0.578 대 0.6515 로 여유가 0.07
-    #    뿐이었다(리뷰 09-16 5번). 서울 24개월 인허가 평균이 13%만 올라도 이 시험이 배포
-    #    게이트를 막는 셈이라 "실데이터 값을 배포 게이트에 단정하지 않는다"는 규칙과 어긋났다.
-    #    순서만 본다 — 여유는 0.58 대 1.30 이다. 절반이라는 배수에는 근거가 없었다.
-    # 변이: permit_monthly 가 연내 누계를 풀지 않고 그대로 돌려주면 pbr 이 부풀어(SZ.calc 로
-    #       직접 재 봄: 서울 0.58→2.92, 경남 0.38→2.03) 두 곳의 경고가 꺼지고 위의 pwarn
-    #       단정이 빨개진다. ⚠️ 이 시험은 **저장된** ADV.sido 를 읽는다. 코드만 바꿔서는 안
-    #       빨개지고, 배치가 그 코드로 data.js 를 다시 구운 뒤(게이트는 생성 뒤·커밋 앞)에
-    #       걸린다. 산식 자체의 변이는 test_split_permit 의 합성 픽스처가 맡는다.
-    assert max(by[z]['pbr'] for z in thin) < min(by[z]['pbr'] for z in thick)
+    zones = adv['sido']['zones']
+    have = [z for z in zones if z.get('pbr') is not None]
+    assert have or N.permit_gaps(adv) == [z['z'] for z in zones], '인허가 신호가 하나도 없는데 배치 기록이 알리지 않는다'
+    bad = [(z['z'], z['pbr']) for z in have if not (isinstance(z['pbr'], (int, float)) and 0 <= z['pbr'] < 5)]
+    assert not bad, '인허가 신호가 범위(0~5) 밖이다 — 누계를 풀지 않았거나 단위가 바뀌었다: %s' % bad
+    gaps = [z['z'] for z in zones if z.get('pbr') is None]
+    if not gaps:                      # 빈 갈래를 늘 지나게 — 실데이터 사본에서 한 곳을 비운다
+        adv = copy.deepcopy(adv)
+        adv['sido']['zones'][-1]['pbr'] = None
+        gaps = [adv['sido']['zones'][-1]['z']]
+    assert N.permit_gaps(adv) == gaps, '빈 인허가 신호를 배치 기록이 빠뜨렸다'
 
-    # ⚠️ 전국·수도권·부산은 **일부러 단정하지 않는다.** 실측 pmr이 전국 0.853,
+    # ⚠️ 전국·수도권·부산은 **일부러 경고 여부를 단정하지 않는다.** 실측 pmr이 전국 0.853,
     # 부산 0.925, 수도권 1.000으로 컷(0.95)에서 0.03~0.10밖에 안 떨어져 있다.
-    # 인허가는 월별로 들쭉날쭉한 계열이라 정상적인 회복만으로도 부호가 뒤집힌다.
-    # 이 테스트는 update-cloud.yml의 배포 게이트(exit 1)라, 여기서 단정하면
-    # **시장이 정상적으로 움직인 날 배치 전체가 커밋을 못 한다** — data.js·지역
-    # 20페이지·sitemap이 통째로 얼고, 다음 날 감시가 그 정지를 다시 빨간불로
-    # 보고한다. 값이 실려 있고 범위가 온전한지만 확인한다(2026-08-15 리뷰).
+    # 값이 실려 있고 범위가 온전한지만 확인한다(2026-08-15 리뷰).
+    by = {z['z']: z for z in zones}
     for z in ('전국', '수도권', '부산'):
         assert isinstance(by[z]['pmr'], float) and 0 < by[z]['pmr'] < 5, z
 

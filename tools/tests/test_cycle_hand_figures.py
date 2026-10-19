@@ -172,14 +172,42 @@ def test_rebuild_write_refuses_a_big_drift_without_force(monkeypatch, tmp_path):
     monkeypatch.setattr(RC, 'report', lambda D: None)
     monkeypatch.setattr(RC, 'current_payload', lambda page: cur)
     monkeypatch.setattr(RC, 'splice', lambda page, D: wrote.append(1) or 0)
+    # --write 는 보관 분석(RC.ANALYSIS)도 늘 쓴다(C-7) — 저장소 tools/data/cycle_analysis.json 을 픽스처로 덮지 않게 tmp 로 돌린다.
+    monkeypatch.setattr(RC, 'ANALYSIS', str(tmp_path / 'analysis.json'))
     out = str(tmp_path / 'a.json')
     monkeypatch.setattr(sys, 'argv', ['x', '--write', '--json', out])
     with pytest.raises(SystemExit):
         RC.main()
-    assert not wrote, '크게 다른 결과를 --force 없이 썼다'
+    assert not wrote and not os.path.exists(RC.ANALYSIS), '크게 다른 결과를 --force 없이 썼다'
     monkeypatch.setattr(sys, 'argv', ['x', '--write', '--force', '--json', out])
     RC.main()
     assert wrote == [1]
+
+
+def test_rebuild_write_with_json_still_updates_the_archived_analysis(monkeypatch, tmp_path):
+    """--write 는 페이지(cycle/index.html)를 고친 회차의 결과를 보관 분석(tools/data/cycle_analysis.json)에도 늘 쓰고, --json 은
+    그 사본을 하나 더 쓴다. 보관 분석이 옛 판으로 남으면 test_prose_is_what_the_analysis_computed 가 '페이지와 보관 분석의
+    prose가 다르다'로 다음 배치 게이트에서 데이터 커밋을 막는다.
+
+    재현하는 실제 상태: 사람이 결과 사본을 남기려고 `--write --json <사본>` 으로 재산정해 커밋한 회차(전수리뷰 C-7 — 예전
+    main 은 `path = a.json or ANALYSIS` 라 보관 분석을 건드리지 않았다. 개인 작업 트리에서 그대로 돌려 게이트 실패 재현).
+    변이(실제로 확인): main 을 옛 `path = a.json or ANALYSIS` 한 곳 쓰기로 되돌리면 보관 분석 단정이 빨개진다. --json 사본
+          쓰기를 빼면 사본 단정이 빨개진다.
+    픽스처: 재산정 결과 D 하나(prose 두 칸)와 tmp 의 보관 분석·사본 경로. 페이지 쓰기(splice)·입력 읽기는 가짜로 둔다.
+    """
+    D = {'prose': {'seoul_sync': '0.55', 'l6_sig': '11'}}
+    monkeypatch.setattr(RC, 'load_stats', lambda p=None: {})
+    monkeypatch.setattr(RC, 'build', lambda st: D)
+    monkeypatch.setattr(RC, 'report', lambda D: None)
+    monkeypatch.setattr(RC, 'current_payload', lambda page: D)
+    monkeypatch.setattr(RC, 'splice', lambda page, D: 0)
+    monkeypatch.setattr(RC, 'ANALYSIS', str(tmp_path / 'data' / 'cycle_analysis.json'))
+    copy_path = str(tmp_path / 'copy.json')
+    monkeypatch.setattr(sys, 'argv', ['x', '--write', '--json', copy_path])
+    RC.main()
+    for where, path in (('보관 분석', RC.ANALYSIS), ('--json 사본', copy_path)):
+        assert os.path.exists(path), '%s을 쓰지 않았다 — 페이지와 다른 회차로 남는다' % where
+        assert json.loads(io.open(path, encoding='utf-8').read()) == D, where
 
 
 # ---------------------------------------------------------------- 금리 자릿수 (#30)

@@ -187,20 +187,33 @@ def _years(holidays):
     return sorted({int(str(h)[:4]) for h in holidays})
 
 
-def _cases(years):
+# 대조하는 유예: 감시 상수·10(감시를 배치 앞으로 옮길 때의 값)·없음(옛 캐시). _cases 의 경계 날과 _js_matches_python 이 같이 쓴다.
+GRACES = (WR.GRACE_WEEKLY, 10, None)
+
+
+def _cases(years, holidays=()):
     """years 의 모든 월요일 × 발표 전후 여러 날 × KST 자정 전후·정오 전후 시각.
 
     범위는 첫 해 1/1 이 든 주의 **한 주 앞** 월요일(다음 발표가 1월 첫 주에 걸리는 조사분)부터 마지막 해
     12/31 이 든 주의 월요일까지다. 범위를 날짜로 박지 않고 공휴일 목록의 연도에서 잡는다 — 배치
     (update_adv_data.fetch_holidays)는 ADV.holidays 를 '올해+내년'으로 통째로 바꾸므로, 박아 둔 범위는 해가
     바뀌면 공휴일이 하나도 없는 구간이 된다.
+    날은 조사일 + 3·9~13·17일에 더해 유예마다 '반영 대기' 경계 — 파이썬 정본이 낸 due 당일과 다음 날 — 를 넣는다. 연휴 주의
+    due 는 biz_day(조사일+유예+1+7)(조사일+17일 이후)라 고정 목록만으로는 연휴 주 반영 대기(hedge·stale) 갈래가 한 번도
+    비교되지 않았다(전수리뷰 T3-10: JS stale 을 연휴 주에만 하루 늦춘 변이에 두 거울 시험이 초록이었다).
     """
     first, last = datetime.date(years[0], 1, 1), datetime.date(years[-1], 12, 31)
     p = first - datetime.timedelta(days=first.weekday() + 7)
     end = last - datetime.timedelta(days=last.weekday())
     out = []
     while p <= end:
-        for dd in (3, 9, 10, 11, 12, 13, 17):
+        days = {3, 9, 10, 11, 12, 13, 17}
+        for g in GRACES:
+            due = WR.status(p.isoformat(), None, holidays, g)['due']
+            if due is not None:
+                k = (_d(due) - p).days
+                days |= {k, k + 1}
+        for dd in sorted(days):
             for hh, mm in ((0, 30), (11, 59), (23, 30)):
                 t = datetime.datetime.combine(p + datetime.timedelta(days=dd), datetime.time(hh, mm), tzinfo=kst.KST)
                 out.append((p.isoformat(), int(t.timestamp() * 1000), t))
@@ -214,7 +227,7 @@ def _js_matches_python(holidays, cases):
     유예는 감시 상수·10·없음(옛 캐시) 세 가지. 파이썬 쪽 결과를 돌려준다(갈래 확인용)."""
     if not shutil.which('node'):
         pytest.skip('node 없음')
-    graces = (WR.GRACE_WEEKLY, 10, None)
+    graces = GRACES
     js = (_js_block() + '\n_HOLIDAYS=new Set(%s);\nconst C=%s, G=%s, out=[];\n'
           'for(const [p,ms] of C)for(const g of G){const r=weeklyRelease(p,new Date(ms),g);'
           'out.push([r.survey,r.pub,r.next,r.hedge,r.due,r.stale,wkNextText(r),wkWhenText(r),wkPubLead(r)]);}\n'
@@ -241,15 +254,16 @@ def test_js_and_python_give_the_same_dates_and_sentences():
 
     변이(각각 실제로 확인): JS 의 연휴 창 `k<=3` → `k<3`, 유예 `b+grace+1` → `b+grace`, KST 보정(+9h) 제거
     (23:30 KST 가 전날로 셈), JS _bizDay 가 공휴일을 보지 않음(추석 주 지연 판정이 갈림), 파이썬 WEEKDAYS 순서
-    어긋남 — 모두 빨개진다. 공휴일을 빈 목록으로 돌리면(평평한 픽스처) 마지막 갈래 단정이 빨개진다.
-    픽스처: 고정 표 H2026(추석 9/24~26 목~토, 설 2/16~18 월~수)과 유예 9·10·없음. 갈래(평상·연휴·반영 대기)가
-    모두 나오는지는 **이 고정 픽스처에만** 건다 — 실데이터 공휴일은 해마다 바뀌므로 갈래 단정을 걸면 게이트가
+    어긋남, JS stale 을 연휴 주에만 하루 늦춤(`_kst(now).day>due+(hedge?1:0)` — 전수리뷰 T3-10, 경계 날을 넣기 전엔
+    초록이었다) — 모두 빨개진다. 공휴일을 빈 목록으로 돌리면(평평한 픽스처) 마지막 갈래 단정이 빨개진다.
+    픽스처: 고정 표 H2026(추석 9/24~26 목~토, 설 2/16~18 월~수)과 유예 9·10·없음. 갈래(평상·연휴 × 반영 대기 여부)가
+    네 가지 모두 나오는지는 **이 고정 픽스처에만** 건다 — 실데이터 공휴일은 해마다 바뀌므로 갈래 단정을 걸면 게이트가
     날짜에 묶인다(아래 실데이터 대조 시험의 독스트링).
     """
-    want = _js_matches_python(H2026, _cases(_years(H2026)))
-    # 픽스처가 실제로 세 갈래(평상·연휴·반영 대기)를 모두 지났는지 — 평평한 픽스처로 초록이 되지 않게
+    want = _js_matches_python(H2026, _cases(_years(H2026), H2026))
+    # 픽스처가 실제로 네 갈래(평상·연휴 × 반영 대기 여부)를 모두 지났는지 — 평평한 픽스처로 초록이 되지 않게
     kinds = {(w[3], w[5]) for w in want}
-    assert {(False, False), (True, False)} <= kinds and any(w[5] for w in want), kinds
+    assert {(False, False), (True, False), (False, True), (True, True)} <= kinds, kinds
 
 
 def test_js_and_python_agree_on_the_live_holiday_list():
@@ -265,9 +279,11 @@ def test_js_and_python_agree_on_the_live_holiday_list():
     픽스처: data.js 의 실제 ADV.holidays. 비어 있으면(키 없는 회차) 올해 한 해를 빈 공휴일로 대조만 한다.
     """
     holidays = _adv().get('holidays') or []
-    want = _js_matches_python(holidays, _cases(_years(holidays) or [kst.today().year]))
+    want = _js_matches_python(holidays, _cases(_years(holidays) or [kst.today().year], holidays))
     if any(_d(h).weekday() <= 3 for h in holidays):
         assert any(w[3] for w in want), '월~목 공휴일이 있는데 연휴 주가 한 번도 나오지 않았다'
+        # 연휴 주가 있으면 그 주의 반영 대기 경계(due 다음 날)도 사례에 들어 있어야 한다 — 경계 날을 넣는 _cases 의 계약
+        assert any(w[3] and w[5] for w in want), '연휴 주의 반영 대기 갈래가 대조되지 않았다'
 
 
 # ---- /weekly/ ----

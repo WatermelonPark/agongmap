@@ -60,24 +60,60 @@ def test_no_live_render_script_overwrites_the_baked_answer():
 
 
 def test_head_map_links_every_tile_to_its_weekly_graph():
-    """머리는 시도 타일 대신 전국 시군구 지도다(2026-10-02 대표 요청). 지도의 모든 칸(NATION_TILE — 홈 소스에서 읽는다)이
-    홈 통계의 그 지역 주간 그래프 주소(/#stats-market-week~코드 — 홈 applyHash 가 받는 모양)로 가는 링크이고, 칸 설명의
-    매매 값이 data.js 시군구 최신 주 값(pv2)과 같다. 시도 타일(mm-tile)은 없다.
+    """머리는 시도 타일 대신 전국 시군구 지도다(2026-10-02 대표 요청). 지도에 **선** 칸(NATION_TILE — 홈 소스에서 읽는다 — 가운데
+    시도 머리 칸과 그 주 매매 값이 있는 칸. 값이 한 줄도 없는 칸은 세우지 않는다: sgg_map_svg·홈 sggMapSvg 의 2026-10-07 규칙,
+    test_sgg_map 과 같은 셈)마다 홈 통계의 그 지역 주간 그래프 주소(/#stats-market-week~코드 — 홈 applyHash 가 받는 모양)로 가는
+    링크이고, 칸 설명의 매매 값이 data.js 시군구 최신 주 값(pv2)과 같다. 시도 타일(mm-tile)은 없다.
+    예전엔 NATION_TILE 전 칸을 기대해, 원천이 최신 주에 시군구 하나를 비운 회차에 생성기는 그 칸을 바르게 빼고 굽는데 이 시험만
+    빨개져 게이트가 데이터 커밋을 막을 수 있었다(전수리뷰 Z2-2 — data.js 최신 주 a906 매매를 None 으로 두고 굽어 확인).
 
     변이(각각 실제로 확인): MAP_HREF 를 '/#stats-market' 으로 바꾸면 주소 단정이, week_map 이 전세(je) 줄을 읽으면 값 단정이,
-    build 가 옛 tile() 격자를 되살리면 마지막 단정이 빨개진다.
+    build 가 옛 tile() 격자를 되살리면 마지막 단정이 빨개진다. 빈 칸 거름은 아래 합성 시험이 늘 본다.
     픽스처: 저장소 data.js 최신 주와 그걸로 구운 weekly/index.html(게이트는 생성기 뒤에 돈다).
     """
     W, _ = MW.load()
     head = _block('HEAD')
-    tiles = MW.nation_tile()['t']
-    links = re.findall(r'<a href="/#stats-market-week~([a-c][0-9]{1,8})" data-code="([^"]+)" aria-label="([^"]+)">', head)
-    assert [c for c, _, _ in links] == [t[0] for t in tiles] and all(c == d for c, d, _ in links), '지도 칸 링크가 배치와 다르다'
     S = W['sgg']
-    v = {c: S['rows'][-1]['ma'][i] for i, c in enumerate(S['codes'])}
+    ma = S['rows'][-1]['ma']
+    v = {c: ma[i] for i, c in enumerate(S['codes']) if i < len(ma)}
+    tiles = MW.nation_tile()['t']
+    drawn = [t[0] for t in tiles if t[4] or v.get(t[0]) is not None]
+    links = re.findall(r'<a href="/#stats-market-week~([a-c][0-9]{1,8})" data-code="([^"]+)" aria-label="([^"]+)">', head)
+    assert drawn and [c for c, _, _ in links] == drawn and all(c == d for c, d, _ in links), '지도 칸 링크가 배치와 다르다'
     bad = [(c, lab) for c, _, lab in links if not lab.endswith('매매 %s%%' % MW.pv2(v.get(c)))]
     assert not bad, '칸 설명의 매매 값이 data.js 와 다르다: %s' % bad[:5]
     assert 'mm-tile' not in head and 'mm-grid' not in head, '머리에 시도 타일이 되살아났다'
+
+
+def test_head_map_drops_a_tile_whose_week_is_empty():
+    """그 주 매매 값이 빈 시군구 칸(시도 머리 칸이 아닌 칸)은 머리 지도에 서지 않고 링크도 없다 — 나머지 칸은 같은 순서로 다 남는다.
+
+    재현하는 실제 상태: R-ONE 이 최신 주에 시군구 하나를 내지 않은 회차(fetch_weekly_rone 은 응답에 없는 칸을 None 으로 싣는다)나
+    행정구역 개편으로 옛 코드가 끊긴 회차. 이력 156주 중 142주에 값 없는 칸이 있었다(인천 신설 4구·화성 분구 — 코드가 데이터보다
+    먼저 들어간 기간). 전수리뷰 Z2-2.
+    변이(실제로 확인): sgg_map_svg 의 칸 거름(T)을 N['t'] 로 되돌려 빈 칸도 세우면 빨개진다(실데이터 시험은 오늘 빈 칸이 없으면
+          그 변이에 초록이라 이 합성 시험이 맡는다).
+    픽스처: 저장소 data.js 주간 계열의 깊은 복사에서 최신 주 비머리 칸 하나(값이 있는 첫 칸)의 매매만 None 으로 둔 주.
+    """
+    import copy
+    W, Q = MW.load()
+    W = copy.deepcopy(W)
+    S = W['sgg']
+    row = S['rows'][-1]
+    idx = {c: i for i, c in enumerate(S['codes'])}
+    tiles = MW.nation_tile()['t']
+    gone = next((t[0] for t in tiles if not t[4] and t[0] in idx and idx[t[0]] < len(row['ma'])
+                 and row['ma'][idx[t[0]]] is not None), None)
+    assert gone, '픽스처 전제: 최신 주에 값이 있는 비머리 칸이 하나는 있어야 한다'
+
+    def drawn():
+        v = {c: row['ma'][i] for i, c in enumerate(S['codes']) if i < len(row['ma'])}
+        return [t[0] for t in tiles if t[4] or v.get(t[0]) is not None]
+    before = drawn()
+    row['ma'][idx[gone]] = None
+    links = re.findall(r'<a href="/#stats-market-week~([a-c][0-9]{1,8})" data-code="', MW.build(W, Q)[0])
+    assert gone not in links, '값이 빈 칸 %s 가 지도에 섰다' % gone
+    assert links == drawn() == [c for c in before if c != gone], '빈 칸 하나만 빠져야 한다: %s' % links[:5]
 
 
 def test_a_region_without_a_value_still_bakes_the_head():
@@ -125,6 +161,9 @@ def test_headline_names_the_biggest_mover_with_its_value():
     변이(실제로 확인): 보합 분기의 설명문 단정을 옛 모양('%s %s%%' % best)으로 되돌리면 위 보합 재현에서 빨갛고, 생성기
     설명문이 보합 주에도 'X 0.00%'를 쓰게 바꾸면 보합 분기가 빨갛다(make_weekly_page 의 '시도 모두 보합이다.' 를 다른 말로 바꿈).
     픽스처: 저장소 data.js 최신 주와 그걸로 구운 weekly/index.html(게이트는 생성기 뒤에 돈다).
+    지역 이름은 화면 이름(SZ.disp — 백로그 46)으로 대조한다. 예전엔 키(best[0])를 h1 에서 찾아, 전남광주가 가장 크게 움직인 주에
+    h1 '광주·전남 …'과 어긋나 게이트가 그 주 데이터 커밋을 막았다(전수리뷰 T3-7 — data.js 최신 주 전남광주 ma 를 0.9 로 두고
+    구워 재현). 그 갈래는 실데이터가 지나지 않으므로 아래 test_desc_og_and_feed_name_the_mover_by_its_display_name 이 합성 주로 본다.
     """
     W, _ = MW.load()
     row = W['rows'][-1]
@@ -137,8 +176,9 @@ def test_headline_names_the_biggest_mover_with_its_value():
         assert '보합' in h1
         assert '시도 모두 보합' in desc, '보합 주의 검색 설명문에 결론이 없다: %s' % desc
     else:
-        assert '%s %s%%' % (best[0], _fmt(best[1])) in h1, '제목 결론이 데이터와 다르다: %s' % h1
-        assert '%s %s%%' % (best[0], _fmt(best[1])) in desc, '검색 설명문에 결론이 없다'
+        want = '%s %s%%' % (SZ.disp(best[0]), _fmt(best[1]))
+        assert want in h1, '제목 결론이 데이터와 다르다: %s' % h1
+        assert want in desc, '검색 설명문에 결론이 없다'
 
 
 def test_sgg_top_matches_home_ranking_rule():
@@ -275,6 +315,39 @@ def test_up_week_headline_names_the_biggest_rise():
     assert '가장 많이' not in head, '시도 집계 리드 문장이 되살아났다(2026-10-03 대표 요청으로 뺐다)'
 
 
+def test_desc_og_and_feed_name_the_mover_by_its_display_name():
+    """가장 크게 움직인 시도가 화면 이름이 따로 있는 지역(DISPLAY_NAME 키 — 지금은 전남광주 하나)인 주에도 h1·검색 설명문(description)·
+    og:description·RSS 설명(make_feed.weekly_item — 이 description 을 옮긴다)이 모두 화면 이름('광주·전남 -0.55%')을 쓰고 키는 보이는
+    글자 어디에도 없다. 시도 모두 보합인 주에는 og 도 h1·설명문처럼 '시도 모두 보합'이다.
+
+    재현하는 실제 상태: 10-17 백로그 46 수정이 conclusion() 의 who 만 SZ.disp 로 바꾸고 build() 의 desc·og 는 키를 남겨, 전남광주가
+    가장 크게 움직인 주(156주 중 아직 없고, 2위 3주·3위 5주 — 2023-10-30 은 경기와 |0.08| 동률)에 test_display_name 이 게이트에서
+    weekly/index.html·feed.xml 을 빨갛게 했다(전수리뷰 X2-2·Z2-1·T3-8). 실데이터 시험은 그 갈래를 지나지 않아 합성 주로 늘 본다.
+    픽스처: _week — 시도 모두 +0.02 에 그 키만 -0.55 인 주, 시도 모두 +0.001(표시 0.00) 인 보합 주.
+    변이(각각 실제로 확인): build 의 desc 에서 who 를 best[0] 으로 되돌리면 desc·feed 단정이, og 에서 되돌리면 og 단정이 빨개진다.
+          og 의 보합 갈래를 지우면 마지막 단정이 빨개진다.
+    """
+    import make_feed as F
+    from test_display_name import _visible
+    keys = [k for k in SZ.DISPLAY_NAME if k in MW.SIDO]
+    assert keys, '화면 이름이 따로 있는 시도가 없다 — 이 시험이 아무것도 보지 않는다'
+    for k in keys:
+        W, Q = _week(dict(_base(0.02), **{k: -0.55}), _DOWN_SGG, _DOWN_GU)
+        head, _, desc, og = MW.build(W, Q)
+        h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
+        feed = F.weekly_item(W, Q)['desc']
+        want = '%s -0.55%%' % SZ.disp(k)
+        for where, s in (('h1', h1), ('description', desc), ('og:description', og), ('RSS', feed)):
+            assert want in s, '%s 에 화면 이름 결론(%s)이 없다: %s' % (where, want, s)
+            leak = [x for x in SZ.DISPLAY_NAME if x in _visible(s)]
+            assert not leak, '%s 에 판정 단위 키 %s 가 보인다: %s' % (where, leak, s)
+    W, Q = _week(_base(0.001), _DOWN_SGG, _DOWN_GU)
+    head, _, desc, og = MW.build(W, Q)
+    assert '시도 모두 보합' in head and '시도 모두 보합이다.' in desc, (head[:200], desc)
+    named = [z for z in MW.SIDO if '%s 0.00%%' % SZ.disp(z) in og]
+    assert '시도 모두 보합.' in og and not named, '보합 주 og 가 한 지역을 결론처럼 적는다: %s' % og
+
+
 def test_down_top3_lists_the_largest_falls_first():
     """하락 TOP 3 은 가장 많이 내린 곳부터다(마시 −0.62 → 나구 −0.44 → 사시 −0.30).
 
@@ -293,21 +366,37 @@ def test_og_description_drops_the_nation_part_when_it_is_missing():
     """전국 값이 없는 주(R-ONE 부분 응답 — update_adv_data 의 chg 는 원천이 없으면 None)에 og:description 이 '전국 ·%'를
     굽지 않는다. desc·리드·공유 문구처럼 전국 조각을 뺀다(전수리뷰 #29).
 
-    픽스처: 저장소 data.js 주간 계열의 최신 행에서 '전국' 칸만 None 으로 바꾼 것(값·날짜는 데이터에서).
+    픽스처: 저장소 data.js 주간 계열의 최신 행에서 '전국' 칸만 None 으로 바꾼 것(값·날짜는 데이터에서), 그 사본에서 시도를 모두
+          보합(±0.001)으로 둔 주와 한 시도만 크게(+0.5) 움직인 주 — og 의 두 갈래(지역 결론·'시도 모두 보합')를 실데이터 방향과
+          상관없이 늘 지난다. 마지막은 전국 칸에 값(+0.07)을 넣은 사본.
     변이(실제로 확인): build 의 og 를 예전 식('%s · 전국 %s%%, %s %s%%.' % (datestr, pv2(nation), …))으로 되돌리면 빨개진다.
+          og 의 보합 갈래를 지우고 늘 '%s %s%%' % (who, …) 를 쓰면 보합 사본에서 빨개진다(전수리뷰 Z2-1 — 예전 og 는 보합 주에
+          'X 0.00%' 로 한 지역을 결론처럼 적어 h1 '시도 모두 보합'과 갈렸다).
     """
     import copy
     W, Q = MW.load()
     W = copy.deepcopy(W)
-    W['rows'][-1]['ma'][W['regions'].index('전국')] = None
-    _, _, desc, og = MW.build(W, Q)
-    for name, s in (('og', og), ('desc', desc)):
-        assert '·%' not in s and '전국 ·' not in s, '%s: %s' % (name, s)
-    best = MW.conclusion(W)['best']
-    assert best[0] in og and '전국' not in og.split('발표')[1].split(best[0])[0], og
+    ma = W['rows'][-1]['ma']
+    ma[W['regions'].index('전국')] = None
+    flat, moved = copy.deepcopy(W), copy.deepcopy(W)
+    for z in MW.SIDO:
+        flat['rows'][-1]['ma'][W['regions'].index(z)] = 0.001
+        moved['rows'][-1]['ma'][W['regions'].index(z)] = 0.001
+    moved['rows'][-1]['ma'][W['regions'].index(MW.SIDO[-1])] = 0.5
+    seen = set()
+    for w in (W, flat, moved):
+        _, _, desc, og = MW.build(w, Q)
+        for name, s in (('og', og), ('desc', desc)):
+            assert '·%' not in s and '전국 ·' not in s, '%s: %s' % (name, s)
+        who = MW.conclusion(w)['who']   # 화면 이름(SZ.disp) — 보합 주에는 None
+        after = og.split('발표', 1)[1]
+        if who is None:
+            assert after.startswith(' · 시도 모두 보합.'), og
+        else:
+            assert who in og and '전국' not in after.split(who)[0], og
+        seen.add(who is None)
+    assert seen == {True, False}, '두 갈래(보합·지역 결론)를 다 지나지 않았다'
     # 전국 값이 있으면 예전처럼 싣는다
-    W2, _ = MW.load()
-    _, _, _, og2 = MW.build(W2, Q)
-    nat = W2['rows'][-1]['ma'][W2['regions'].index('전국')]
-    if nat is not None:
-        assert '전국 %s%%' % MW.pv2(nat) in og2
+    W2 = copy.deepcopy(W)
+    W2['rows'][-1]['ma'][W2['regions'].index('전국')] = 0.07
+    assert '전국 +0.07%' in MW.build(W2, Q)[3]
