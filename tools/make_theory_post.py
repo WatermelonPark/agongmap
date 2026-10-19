@@ -1002,9 +1002,23 @@ def link6_values(D, adv):
 def link7_values(D):
     """7편 숫자 — /cycle/ 정본 D.rate_overlay(수도권 분기 매매·전세 지수, CD금리)와 D.prose 에서 센다. 문장의 전제가 깨지면
     멈춘다. 전제: ① 금리 바닥 뒤 1년 매매 상승률이 전세의 3배 넘게 크다, ② 그 뒤 매매 정점이 전세 정점보다 먼저이고 낙폭도 크다,
-    ③ 최근 금리 저점(최근 8분기) 이후 금리가 올랐는데 매매·전세가 모두 올랐다, ④ 금리–매매 상관이 음수다."""
+    ③ 최근 금리 저점(최근 8분기) 이후 금리가 올랐는데 매매·전세가 모두 올랐다, ④ 금리–매매 상관이 음수다.
+
+    매매·전세·금리가 모두 찬 분기만 쓴다. 전세지수는 매매보다 한 달 늦게 실려, 매매가 새 분기 첫 달(잠정)을 받은 날부터 한 달쯤
+    오버레이 끝 분기의 전세가 비어 있다(refresh_cycle_data.build_overlay 는 매매·금리가 있는 분기를 고르고 전세는 je.get — 차트는 그
+    분기를 그대로 그린다). 예전엔 그 None 과 견주다 TypeError 로 죽어, 초안 가드를 SystemExit 로 거르는 게이트 시험이 매 분기 한 달쯤
+    배치를 멈추게 돼 있었다(전수리뷰 BL2-1·C-1). 그래서 세 값이 다 찬 첫 분기~마지막 분기만 잘라 읽고, 그 사이에 빈 분기가 있으면
+    (분기 간격 'N분기 뒤'가 틀어진다) 문장 탓이 아닌 데이터 결함으로 멈춘다."""
     r = D['rate_overlay']
-    t, mm, je, rt = r['t'], r['maemae'], r['jeonse'], r['rate']
+    full = [i for i in range(len(r['t'])) if None not in (r['maemae'][i], r['jeonse'][i], r['rate'][i])]
+    if not full:
+        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이에 매매·전세·금리가 모두 찬 분기가 없다. 문장 탓이 아니다 — '
+                         '/cycle/ 데이터가 찬 뒤 다시 돌린다.')
+    t, mm, je, rt = (list(r[k][full[0]:full[-1] + 1]) for k in ('t', 'maemae', 'jeonse', 'rate'))
+    gap = [x for x, a, b, c in zip(t, mm, je, rt) if None in (a, b, c)]
+    if gap:
+        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이 가운데 매매·전세·금리 가운데 하나가 빈 분기가 있다(%s). 문장 탓이 '
+                         '아니다 — /cycle/ 데이터를 먼저 확인할 것.' % ', '.join('%g' % x for x in gap))
     q = lambda i: '%d년 %d분기' % (int(t[i]), int(round((t[i] % 1) * 4)) + 1)
     pct = lambda a, b: '%.0f%%' % abs((b / a - 1) * 100)      # 문장이 '올랐습니다·내렸습니다'로 방향을 말한다
     lo = min(range(len(rt)), key=lambda i: rt[i])                       # 금리 바닥(2020년 4분기)
