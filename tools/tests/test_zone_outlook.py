@@ -120,7 +120,7 @@ def test_outlook_picture_reads_out_the_states_and_the_reference():
     real = SZ.yearly_supply(stats, '경기', Lq, s['H'])
     synth = [{'n': 1, 'from': '2026Q3', 'to': '2027Q2', 'pct': 61}, {'n': 2, 'from': '2027Q3', 'to': '2028Q2', 'pct': 96},
              {'n': 3, 'from': '2028Q3', 'to': '2029Q2', 'pct': 140}]
-    for ys in (real, synth):
+    for ys in ([real] if real else []) + [synth]:   # 실데이터 칸이 비는 회차(착공 결측)에도 합성 칸은 늘 돈다
         for pbr in (1.26, None):
             block = M.outlook_block(ys, pbr, s['H'])
             aria = re.search(r'<div class="zo zo-lg" role="img" aria-label="([^"]*)">', block).group(1)
