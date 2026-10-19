@@ -650,19 +650,9 @@ def check_derived_pages(adv, stats):
     return out
 
 
-def _sido_lookup(names, key):
-    """배치(update_adv_data의 sido())와 **같은 규칙**으로 지역 행을 찾는다.
-
-    평평한 이름이 있으면 그것, 없으면 '>이름'으로 끝나는 키 중 가장 얕은 것.
-    규칙이 갈리면 감시가 배치와 다른 것을 보게 되므로 여기만 고치지 말 것.
-    """
-    key = {'지방': '지방권'}.get(key, key)
-    if key in names:
-        return key
-    cand = [k for k in names if k.endswith('>' + key)]
-    if not cand:
-        return None
-    return min(cand, key=lambda k: k.count('>'))
+# 지역 행 찾기는 배치 함수 **그 자체**다(전수리뷰 A-7). 예전엔 여기 거울을 따로 적고 일치를 원문 문자열 포함으로만 봐서,
+# 배치 쪽 한 벌만 바뀌어도 감시는 옛 규칙으로 '전부 집힘'을 찍었다. 규칙은 update_adv_data.rone_sido_key 에서 고친다.
+_sido_lookup = U.rone_sido_key
 
 
 # 지역 계층을 보는 표 둘. main()의 병렬 조회와 check_region_rows()가 같은 목록을 쓴다.

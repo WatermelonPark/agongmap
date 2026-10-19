@@ -678,6 +678,42 @@ def _rone_recent_rows(tbl, need_rows, cycle='WK', since=None):
     return rows
 
 
+# R-ONE 이 우리 지역 이름과 다르게 부르는 행. 평평한 이름으로 못 찾을 때만 쓰지 않고 **늘** 이 이름으로 찾는다.
+RONE_ALIAS = {'지방': '지방권'}
+
+
+def rone_sido_key(names, name):
+    """R-ONE 계층 이름(CLS_FULLNM) 모음에서 우리 지역 name 의 행 키. 못 찾으면 None. **계층 개편을 자동으로 따라간다.**
+
+    names 는 이름 목록이든 {이름: 값} 이든 된다(있는지 보고 훑기만 한다). 규칙: RONE_ALIAS 로 원천 이름을 고른 뒤, 평평한
+    이름이 있으면 그것, 없으면 '>이름'으로 끝나는 키 중 **가장 얕은 것**(시군구가 아니라 시도를 집는다).
+
+    ⚠️ 이 함수 하나를 주간·월간 시세 수집(fetch_weekly_rone·fetch_monthly_rone)과 감시(check_freshness.check_region_rows)가
+    함께 쓴다(전수리뷰 A-7). 예전엔 두 수집 함수 안의 클로저 둘과 감시의 거울 하나, 세 벌이었고 일치 시험은 원문에 규칙
+    문자열이 하나라도 있는지만 봐서 월간 쪽 별칭 하나만 바뀌어도(→ 월간 '지방' 열 통째 None) 관련 시험이 모두 초록이었다.
+    ⚠️ 예전엔 '전남광주>광주' 같은 전체 경로를 하드코딩했다. R-ONE 이 상위 묶음을 바꾸면(2026-07 에 '전남광주'가 새로 생겼다)
+    그 즉시 그 지역이 통째로 None 이 된다 — 시점은 최신이고 합계 검사 대상도 아니라 **아무 경보 없이 값만 빈다**(2026-08-26
+    리뷰). 이 프로젝트는 같은 함정에 강원·전북으로 두 번, 광주·전남으로 15개월 당했다(2026-08-07 감사 — 2025-05 부터
+    '광주'·'전남'이 '전남광주>광주'·'전남광주>전남'으로 옮겨 갔는데 평평한 이름만 찾았다).
+    """
+    key = RONE_ALIAS.get(name, name)
+    if key in names:
+        return key
+    cand = [k for k in names if k.endswith('>' + key)]
+    if not cand:
+        return None
+    return min(cand, key=lambda k: k.count('>'))
+
+
+def rone_seoul_gu(snap):
+    """{CLS_FULLNM: 값} 한 시점에서 서울 구 값 {구 이름: 값}(계층 마지막 조각을 이름으로). 주간·월간 수집이 같이 쓴다."""
+    out = {}
+    for full, v in snap.items():
+        if full.startswith('서울>') and full.endswith('구'):
+            out[full.rsplit('>', 1)[-1]] = v
+    return out
+
+
 def fetch_weekly_rone(weeks=None):
     weeks = weeks or RECENT_WEEKS   # 최근 구간만 — 3년 히스토리는 main() 병합이 보존
     need = (weeks + 2) * 240        # 주당 ~236행
@@ -703,31 +739,11 @@ def fetch_weekly_rone(weeks=None):
         raise RuntimeError('R-ONE 주간 데이터 부족')
 
     def sido(week, name):
-        """시도 이름 → 그 주의 값. **계층 개편을 자동으로 따라간다.**
+        """시도 이름 → 그 주의 값(계층 규칙은 rone_sido_key — 월간·감시와 같은 함수)."""
+        k = rone_sido_key(week, name)
+        return None if k is None else week[k]
 
-        ⚠️ 예전엔 '전남광주>광주' 같은 전체 경로를 하드코딩했다. 지금 계층에서는
-        맞지만, R-ONE이 상위 묶음을 한 번 더 바꾸면(2026-07에 실제로 '전남광주'가
-        새로 생겼다) 그 즉시 광주·전남이 통째로 None이 된다 — 시점은 최신이고
-        합계 검사 대상도 아니라 **아무 경보 없이 값만 빈다**(2026-08-26 리뷰).
-        월간 sido()가 이미 쓰던 방식으로 통일한다: 평평한 이름이 없으면
-        '>이름'으로 끝나는 키 중 **가장 얕은 것**을 쓴다(시군구가 아니라 시도를 집는다).
-        이 프로젝트는 같은 함정에 강원·전북으로 두 번, 광주·전남으로 15개월
-        당했다(2026-08-07 감사).
-        """
-        key = {'지방': '지방권'}.get(name, name)
-        if key in week:
-            return week[key]
-        cand = [k for k in week if k.endswith('>' + key)]
-        if not cand:
-            return None
-        return week[min(cand, key=lambda k: k.count('>'))]
-
-    def seoul_gu(week):
-        out = {}
-        for full, v in week.items():
-            if full.startswith('서울>') and full.endswith('구'):
-                out[full.rsplit('>', 1)[-1]] = v
-        return out
+    seoul_gu = rone_seoul_gu
 
     def chg(a, b):
         return None if (a in (None, 0) or b is None) else round((b / a - 1) * 100, 4)
@@ -1059,29 +1075,11 @@ def fetch_monthly_rone(months=None):
         raise RuntimeError('R-ONE 월간 데이터 부족')
 
     def sido(mon, name):
-        """시도 이름 → 그 달의 값. **계층 개편을 자동으로 따라간다.**
+        """시도 이름 → 그 달의 값(계층 규칙은 rone_sido_key — 주간·감시와 같은 함수)."""
+        k = rone_sido_key(mon, name)
+        return None if k is None else mon[k]
 
-        ⚠️ R-ONE은 시도를 상위 묶음 밑으로 옮기곤 한다. 2025-05부터 광주·전남이
-        '광주'·'전남'에서 '전남광주>광주'·'전남광주>전남'으로 바뀌었는데, 이 함수가
-        평평한 이름만 찾아서 두 지역이 **15개월째 전 항목 결측**이었다(2026-08-07 감사).
-        이 프로젝트는 같은 함정에 강원·전북으로 두 번 당했다 — 이름이 안 맞으면
-        '>이름'으로 끝나는 키 중 가장 얕은 것을 쓴다(시군구가 아니라 시도를 집는다).
-        """
-        key = {'지방': '지방권'}.get(name, name)
-        if key in mon:
-            return mon[key]
-        tail = '>' + key
-        cand = [k for k in mon if k.endswith(tail)]
-        if not cand:
-            return None
-        return mon[min(cand, key=lambda k: k.count('>'))]
-
-    def seoul_gu(mon):
-        out = {}
-        for full, v in mon.items():
-            if full.startswith('서울>') and full.endswith('구'):
-                out[full.rsplit('>', 1)[-1]] = v
-        return out
+    seoul_gu = rone_seoul_gu
 
     def chg(a, b):
         return None if (a in (None, 0) or b is None) else round((b / a - 1) * 100, 4)
