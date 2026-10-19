@@ -66,16 +66,59 @@ def test_build_only_keys_are_not_shipped_to_browser(out):
     assert 'aged30' not in core_adv, 'aged30은 폐기된 지표다'
 
 
+# 홈 페이로드(data-core.js) 예산 — 자라지 않는 몫엔 고정 상한, 시간에 따라 자라는 몫엔 칸당 상한(전수리뷰 T3-13).
+FIXED_CAP = 45_000   # 자라지 않는 몫: 시도 판정 카드·주간 마지막 회차·블로그·N 배지·화면 이름·휴일·껍데기 — 2026-10 실측 31,919B
+ROW_CAP = 600        # monthly.rows 한 행 평균(조사월 + 매매·전세·월세 × 시도) — 실측 평균 455B·최대 487B
+AGG_CAP = 400        # monthly.agg 한 칸 평균(분기·연 하나의 매매·전세·월세 × 시도) — 실측 평균 286B·최대 316B
+CELL_CAP = 12        # STATS 준공·착공 한 칸(한 달 × 한 지역, 날짜 몫 포함) — 실측 7.0B
+ROW_KEYS, AGG_KEYS = {'p', 'ma', 'je', 'wo'}, {'ma', 'je', 'wo'}   # 홈 표(tbAgg·가격 3등분)가 읽는 칸 모양
+
+
+def _bytes(o):
+    """data-core.js 가 싣는 모양(split_data.main 의 dump — 빈칸 없는 JSON)의 바이트 수."""
+    return len(json.dumps(o, ensure_ascii=False, separators=(',', ':')).encode('utf-8'))
+
+
 def test_home_payload_stays_small(out):
-    """분리 구조의 존재 이유가 홈 전송량이다. 상한은 고정 몫 + 월 수에 비례한 몫이다 — 월별 행(가격·준공·착공)은
-    한 달에 약 600B 씩 자라므로 고정 상한을 박으면 몇 해 뒤 데이터가 앞으로 간 날 게이트가 막힌다. 달마다 750B 를 주면
-    시간이 지나도 초록이고, 빌드 전용 키가 40KB 넘게 새면 빨개진다(2026-09 새로 구운 크기 약 90KB, 상한 약 132KB).
-    변이(실제로 확인): 2026-08-05 사고 모양 — CORE_ADV 에 'permits' 를 넣고 core 쪽 strip_units 를 빼면 554KB 로 빨개진다."""
-    months = len(((out['core_adv'].get('monthly') or {}).get('rows')) or [])
-    assert months, '월별 가격 행이 없다'
-    limit = 45_000 + 750 * months
-    n = out['core_bytes']
-    assert n < limit, 'data-core.js %d bytes > %d — 빌드 전용 데이터가 샜는지 확인할 것' % (n, limit)
+    """분리 구조의 존재 이유가 홈 전송량이다. 상한을 두 갈래로 잰다 — 시간에 따라 자라는 몫(가격 행 monthly.rows, 분기·연 합
+    monthly.agg, 표의 STATS 준공·착공)은 칸 수에 비례한 칸당 상한, 나머지(자라지 않는 몫)는 고정 상한 FIXED_CAP. 빌드 전용 키가
+    새면 고정 몫이 넘쳐 빨개지고, 데이터가 앞으로 가는 것만으로는 빨개지지 않는다.
+
+    2026-10 실측(저장소 data.js 사본에 split_data): data-core.js 129,862B = 고정 몫 31,919 + monthly.rows 53,192(117행, 행당 455B)
+    + monthly.agg 13,740(분기 39·연 9 = 48칸, 칸당 286B) + STATS 준공·착공 31,011(2 × 116달 × 19곳 = 4,408칸, 칸당 7.0B). 한 달에
+    약 800B 씩 자라지만 가격 행은 배치가 120개월 창(update_adv_data CONF months_hist)으로 자르고, 준공·착공은 TABLE_FROM 부터 끝없이
+    자란다. 예전 상한(45,000 + 750 × 가격 행 수)은 가격 행이 120에서 멈춘 뒤 135,000B 로 굳어, 누출 없이 데이터 전진만으로 2028년
+    봄(+18개월)에 게이트가 데이터 커밋을 막을 참이었고(그때 여유 2.9KB — 독스트링은 '여유 40KB'로 낡아 있었다), 정당한 3KB 키
+    하나도 '빌드 전용 데이터가 샜다'로 오진했다.
+
+    칸에 값이 새로 붙는 누출(가격 행마다 시도 값 한 줄)은 칸 모양(ROW_KEYS·AGG_KEYS)이 먼저 잡고, 칸당 상한은 값 모양이 바뀌는
+    것(반올림을 빼 꼬리가 길어짐 등)을 잡는다.
+
+    변이(각각 실제로 확인): 2026-08-05 사고 모양 — CORE_ADV 에 'permits' 를 넣고 core 쪽 strip_units 를 빼면 고정 몫 단정이 빨개진다
+          (자라지 않는 몫 486,474B). core 의 주간 시군구를 마지막 한 줄이 아니라 통째로 실으면 고정 몫이(511,265B), core 가격 행마다
+          시도 값 한 줄(19칸)을 더 실으면 칸 모양 단정이, 가격 행 값을 소수 넷째 자리 대신 길게(_r4 를 v + 1e-9 로) 실으면 행당
+          상한이 빨개진다. 가격·준공·착공을 12·17·18·60·120개월 앞당긴 data.js 로는 이 시험이 모두 초록이다(옛 상한은 +18개월
+          135,182B > 135,000B 에서 빨강).
+    픽스처: 저장소의 실제 data.js 사본에 split_data.main() 을 tmp 경로로 돌린 data-core.js(모듈 픽스처 out).
+    """
+    adv, stats = _core(out)
+    mo = adv.get('monthly') or {}
+    rows, agg = mo.get('rows') or [], mo.get('agg') or {}
+    agg_cells = sum(len(v) for v in agg.values())
+    tbl = [stats[k] for k in S.TABLE_STATS if k in stats]
+    cells = sum(len(s['dates']) * len(s['series']) for s in tbl)
+    assert rows and agg_cells and cells, '자라는 몫이 비었다 — 칸당 상한이 아무것도 재지 않는다'
+    shape = sorted({tuple(sorted(r)) for r in rows if set(r) != ROW_KEYS}
+                   | {tuple(sorted(c)) for v in agg.values() for c in v.values() if set(c) != AGG_KEYS})
+    assert not shape, '가격 행·합 칸에 홈이 읽지 않는 값이 실렸다: %s' % shape[:3]
+    grow = {'monthly.rows': (_bytes(rows), ROW_CAP * len(rows)),
+            'monthly.agg': (_bytes(agg), AGG_CAP * agg_cells),
+            'STATS 준공·착공': (sum(_bytes(s) for s in tbl), CELL_CAP * cells)}
+    over = ['%s %dB > %dB' % (k, n, cap) for k, (n, cap) in grow.items() if n > cap]
+    assert not over, '칸마다 싣는 양이 늘었다 — 값 모양(자릿수)이 바뀌었거나 칸에 빌드 전용 값이 붙었는지 확인할 것: %s' % over
+    fixed = out['core_bytes'] - sum(n for n, _ in grow.values())
+    assert 0 < fixed < FIXED_CAP, ('data-core.js 의 자라지 않는 몫 %dB > %dB — 빌드 전용 데이터가 샜는지 확인할 것'
+                                   % (fixed, FIXED_CAP))
 
 
 def test_table_stats_are_trimmed_to_the_table_window(out):
