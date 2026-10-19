@@ -1353,7 +1353,7 @@ def outlook_block(yrs, pbr=None, H=None):
     # 설명은 막대 아래 한 줄(2026-10-06 대표 지적 — 문턱·기간·참고값 설명이 다섯 줄이라 장황했다). 문턱은 막대 아래 상태 글자
     # (적음·보통·많음)가 이미 말하고, 3년 너머가 참고값이라는 말은 바로 위 split 블록의 '참고' 줄이 한다.
     y1 = yrs[0]
-    ref_pct = None if pbr is None else SZ.pbr_pct(pbr)   # 리포트 '… 너머' 줄과 같은 정수
+    ref_pct = None if pbr is None else SZ.pbr_pct(pbr)   # 리포트 '… 너머' 줄과 같은 정수 — calc 가 원값을 싣는다(전수리뷰 Z1-3)
     beyond = '%g년 너머' % ((SZ.LEAD_Q if H is None else H) / 4.0)   # split_text 의 '… 너머' 줄과 같은 연수
     return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(1년 적정물량 대비)</h3>'
             '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'

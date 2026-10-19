@@ -53,6 +53,44 @@ def test_move_in_percents_round_half_up_like_moveins():
     assert SZ.pbr_pct(0.125) == 13 and SZ.half_up(12.5) == 13
 
 
+def _split_pct(row):
+    return int(re.search(r'적정물량의 (\d+)%입니다', row['split']['ref'][1]).group(1))
+
+
+def _ref_cell_pct(block):
+    return int(re.search(r'<span class="zo-p">(\d+)%</span><small>[^<]*너머', block).group(1))
+
+
+def test_beyond_cell_and_split_line_print_one_integer(monkeypatch):
+    """'… 너머' 회색 칸(outlook_block)과 바로 위 split 줄('…적정물량의 N%입니다'), 경고(pwarn)가 한 정수를 쓴다 — 화면 정수는 원값에서
+    한 번만 반올림한다(sido_zones.pbr_pct, 전수리뷰 Z1-3·X1-2).
+
+    재현한 실제 상태(2026-10-18): calc 가 pbr 을 셋째 자리로 굳혀 저장해(원값 0.424576 → 0.425) 경북 리포트가 줄에는 42%, 그 아래
+    회색 칸에는 43%(저장값 42.5 를 다시 반올림)를 찍었다. 100×원값의 소수부가 [0.45, 0.5) 인 지역마다(지역당 약 5%) 생긴다. 원값이
+    [0.9445, 0.945) 이면 pwarn(원값 94%)과 저장값 경고(0.945 → 95%)도 갈려 test_split_permit 의 경고 대조가 빨개진다.
+    변이(실제로 확인): calc 의 'pbr' 저장을 round(sig['pbr'], 3) 로 되돌리면 합성 갈래 둘(42·94)과 실데이터 경북이 빨개진다.
+    픽스처: ① 저장소 STATS 로 지금 코드의 SZ.calc 를 새로 돌린 행(배치가 다음 회차에 싣는 값 — 저장된 data.js 의 옛 행은 다음 배치 전까지
+    셋째 자리일 수 있다), ② permit_signal 을 원값 0.424576(경북 10-18 모양)·0.94475(문턱 경계)·1.240479(경고 없는 갈래, 경기 모양)로
+    바꾼 합성 행 — 실데이터가 그 창에 없어도 늘 돌고, 경고 있음·없음 두 갈래를 다 지난다.
+    """
+    adv, stats, s, _ = _ctx()
+    fresh = SZ.calc(stats)
+    Lq, H = SZ.qidx(int(fresh['L'][:4]), int(fresh['L'][-1])), fresh['H']
+    rows = [z for z in fresh['zones'] if z.get('pbr') is not None]
+    assert rows, '인허가 신호가 있는 지역이 없다 — 시험이 헛돈다'
+    for z in rows:
+        want = SZ.pbr_pct(z['pbr'])
+        block = M.outlook_block(SZ.yearly_supply(stats, z['z'], Lq, H), z['pbr'], H)
+        assert _split_pct(z) == want == _ref_cell_pct(block), (z['z'], z['pbr'], _split_pct(z), _ref_cell_pct(block))
+        assert z['pwarn'] == SZ.pbr_thin(z['pbr']) == z['split']['ref'][3], z['z']
+    for raw, pct in ((0.424576, 42), (0.94475, 94), (1.240479, 124)):
+        monkeypatch.setattr(SZ, 'permit_signal', lambda st, zz, ref, _r=raw: {'pbr': _r, 'pdec': 0.2, 'pconv': 0.8})
+        row = [z for z in SZ.calc(stats)['zones'] if z['z'] == '경북'][0]
+        block = M.outlook_block(SZ.yearly_supply(stats, '경북', Lq, H), row['pbr'], H)
+        assert _split_pct(row) == SZ.pbr_pct(row['pbr']) == _ref_cell_pct(block) == pct, (raw, row['pbr'])
+        assert row['pwarn'] == SZ.pbr_thin(row['pbr']) == row['split']['ref'][3] == (pct < SZ.PWARN_CUT * 100), raw
+
+
 def test_hub_and_report_show_the_years():
     adv, stats, s, Lq = _ctx()
     h = M.build_hub(s, stats)
