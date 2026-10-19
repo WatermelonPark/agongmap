@@ -41,6 +41,7 @@ import sido_zones as SZ  # noqa: E402  (식·창 길이·등급 이름·시도 �
 import weekly_release as WR  # noqa: E402  (발표 요일)
 import make_feed as F  # noqa: E402  (도메인·사이트 이름·피드 설명)
 import make_monthly_page as MP  # noqa: E402  (/monthly/ 설명)
+import make_indicator_pages as I  # noqa: E402  (/moveins/ 추정 표시 MOVEINS_EST)
 import make_sido_pages as SP  # noqa: E402  (미분양 출처 기관 정본 UN_SOURCE)
 import ping_indexnow as P  # noqa: E402  (sitemap 읽기 — IndexNow 와 같은 눈)
 
@@ -106,6 +107,17 @@ def years(q):
     return '%g년' % (q / 4.0)
 
 
+# /weekly/·/moveins/ 설명 — 숫자 없이 지금 화면을 말한다(전수리뷰 Z2-9). 예전 문구는 걷어 낸 '방향이 이어진 곳'과 옛 낱말
+# '부족·과잉'을 말했다. 입주 수준 낱말은 신호등 정본(SZ.LIGHT), 추정 표시는 /moveins/ 정본(MOVEINS_EST)에서 읽는다.
+WEEKLY_DESC = ('한국부동산원 주간 통계로 본 이번 주 시군구 매매가격 지도, 상승·하락 상위 시군구, 서울 구별 요약과 '
+               '시군구 전체 표')
+
+
+def moveins_desc():
+    light = '·'.join(w for _, (_, w) in sorted(SZ.LIGHT.items()))
+    return '시도별 연간 입주물량 — 준공 실적과 %s, 연간 적정물량과 견준 %s' % (I.MOVEINS_EST, light)
+
+
 def build(root=ROOT, sitemap_xml=None):
     """llms.txt 문자열. sitemap_xml 을 주지 않으면 저장소의 sitemap.xml 을 읽는다. 오늘 날짜를 읽지 않는다."""
     base = site(root)
@@ -155,11 +167,10 @@ def build(root=ROOT, sitemap_xml=None):
         out.append(item('%s 아파트 공급' % SZ.disp(name), loc, note))   # 화면 이름(백로그 46) — 주소는 키 그대로
     out += ['',
             '## 시세와 통계', '',
-            item('주간 아파트 시세', base + '/weekly/',
-                 '한국부동산원 주간 통계로 본 이번 주 시도·시군구·서울 구별 매매가격 변동과 방향이 이어진 곳'),
+            # 지금 화면 그대로(전수리뷰 Z2-9): 머리의 시도 타일·방향 표지는 2026-10-02·03 에 걷혔다.
+            item('주간 아파트 시세', base + '/weekly/', WEEKLY_DESC),
             item('이달의 통계', base + '/monthly/', MP.DESC),
-            item('아파트 입주물량', base + '/moveins/',
-                 '시도별 연간 입주물량 — 준공 실적과 착공 기준 추정, 적정물량과 견준 부족·과잉'),
+            item('아파트 입주물량', base + '/moveins/', moveins_desc()),
             item('전세가율', base + '/jeonse-ratio/', '매매가 대비 전세가 비율의 시도별 현황과 사이클 신호로서의 뜻'),
             item('아파트 사이클 리포트', base + '/cycle/',
                  '공급 부족 → 전세 상승 → 매매 상승 → 신축 공급 → 입주 → 전세 하락 → 매매 하락의 고리를 국가 통계로 검증한 리포트'),
