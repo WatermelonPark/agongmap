@@ -613,7 +613,14 @@ def build_moveins(adv, today=None):
     sudo = {y: ytot('수도권', y) for y in years}
     shorts = sorted([(r, (ytot(r, Y) or 0) / ref[r] * 100)
                      for r in SIDO17 if ref.get(r)], key=lambda x: x[1])
-    lo1, hi1 = shorts[0], shorts[-1]
+    # 가장 적은·많은 곳은 표 칸과 같은 표시 정수(pct_shown)로 가리고, 같은 표시값이면 모두 적는다(전수리뷰 Z1-10 정본 결정 — 동률은 다 적는다).
+    # 가장 적은 곳도 적정물량 이상(100% 이상)이면 '적정물량에 가장 못 미치는 곳'이 사실이 아니라 '적정물량 대비 가장 적은 곳'으로 쓴다
+    # (전수리뷰 Z1 overflow — 지금은 세종 0% 라 해당 없지만 모든 시도가 적정물량 이상인 해에 틀린 말이 된다).
+    shown = [(r, pct_shown(ytot(r, Y) or 0, ref[r])) for r, _ in shorts]
+    lo1p, hi1p = shown[0][1], shown[-1][1]
+    lo1 = names_text([SZ.disp(r) for r, p in shown if p == lo1p])
+    hi1 = names_text([SZ.disp(r) for r, p in reversed(shown) if p == hi1p])
+    lo_head = '적정물량에 가장 못 미치는 곳은' if lo1p < 100 else '적정물량 대비 가장 적은 곳은'
 
     # 검색 수요가 있는 '입주물량'은 머리에 두고, 이 숫자가 분양 단지 목록이 아니라 '착공 기준 추정'이라는 것을
     # title·description(og 포함)에서 드러낸다(홈 마케팅 검수 C9·SEO-5). 블로그는 추정치를 입주물량이라 부르지
@@ -651,7 +658,7 @@ def build_moveins(adv, today=None):
 
 %(city)s<section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>%(Y)s년 입주가 적정물량에 가장 못 미치는 곳은 <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정물량의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
+  <p>%(Y)s년 입주가 %(lo_head)s <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정물량의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
@@ -667,8 +674,7 @@ def build_moveins(adv, today=None):
 """ % dict(nat26=num(nat26), nat27=num(nat27), trs='\n'.join(trs),
            basis=MOVEINS_BASIS % (last_act[:4], last_act[5:]),
            conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
-           lo1=SZ.disp(lo1[0]), lo1p=pct_shown(ytot(lo1[0], Y) or 0, ref[lo1[0]]),
-           hi1=SZ.disp(hi1[0]), hi1p=pct_shown(ytot(hi1[0], Y) or 0, ref[hi1[0]]),
+           lo1=lo1, lo1p=lo1p, hi1=hi1, hi1p=hi1p, lo_head=lo_head,
            # 연수·추정 지역·문턱은 모델 상수에서(전수 리뷰 #20, 대표 결정 ③)
            lead_y='%g년' % (SZ.LEAD_Q / 4.0), back_y='%g년' % (SZ.BACKLOG_WINDOW / 4.0), est_txt=est_regions_text(),
            occ_lo=SZ.OCC_LO_PCT, occ_hi=SZ.OCC_HI_PCT,
