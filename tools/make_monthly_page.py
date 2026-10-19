@@ -506,7 +506,8 @@ def build(adv, sts):
         raw = p
         lab = month_label(raw)
         basis_list.append(raw)
-        out.append(sec('jeonse', 5, '전세가율', lab, jr.get('source') or '한국부동산원',
+        # 원천은 /jeonse-ratio/ 와 같은 정본(I.JR_SOURCE, 전수리뷰 Z2-12) — 수집 계열 source 칸은 기관명이 빠진 옛 글자다
+        out.append(sec('jeonse', 5, '전세가율', lab, I.JR_SOURCE,
                        table(['지역', '전세가율(%)', '1년 전 대비(%p)'], cells,
                              '매매가 대비 전세가 비율. <a href="/jeonse-ratio/">전세가율 자세히 보기</a>')))
 

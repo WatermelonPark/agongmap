@@ -277,3 +277,24 @@ def test_unsold_definition_is_the_one_canon():
         assert '다 짓고' not in text and '이미 지어진 재고' not in text, '%s 에 준공 후 미분양 정의가 남았다' % where
     blog = io.open(os.path.join(ROOT, 'tools', 'make_naver_post.py'), encoding='utf-8').read()
     assert 'SZ.UNSOLD_NATURE' in blog and '다 짓고도' not in blog, '블로그 초안 미분양 정의가 정본과 다르다'
+
+
+def test_jeonse_source_names_the_agency_like_the_jeonse_ratio_page():
+    """/monthly/ 전세가율 절 원천 줄은 /jeonse-ratio/ 와 같은 정본(make_indicator_pages.JR_SOURCE)이고 작성 기관을 말한다(전수리뷰 Z2-12).
+
+    픽스처: 저장소 data.js 그대로 — 수집 계열 STATS.전세가율.source 는 기관명이 빠진 'KOSIS 매매가격 대비 전세가격비'인 실제 상태다
+    (그 칸을 일부러 그 글자로 덮어 상태가 바뀌어도 같은 것을 본다).
+    변이(실제로 확인): 전세가율 절 원천을 옛 jr.get('source') or '한국부동산원' 으로 되돌리면 빨강, /jeonse-ratio/ 주석을 손 글자로
+          되돌리면(jrsrc 대신) 둘째 단정이 빨강.
+    """
+    import html as _html
+    import make_monthly_page as MP
+    import make_indicator_pages as I
+    adv, sts = MP.load()
+    sts['전세가율'] = dict(sts['전세가율'], source='KOSIS 매매가격 대비 전세가격비')
+    h = ''.join(MP.build(adv, sts)[0])
+    seg = h.split('id="jeonse"', 1)[1].split('</section>', 1)[0]
+    got = re.search(r'<p class="basis"><b>[^<]+</b> 기준 · ([^<]+)</p>', seg).group(1)
+    assert _html.unescape(got) == I.JR_SOURCE and '한국부동산원' in got, got
+    page = I.build_jeonse(sts)[0]
+    assert '자료: %s' % I.JR_SOURCE in page, '/jeonse-ratio/ 주석이 정본 원천을 쓰지 않는다'
