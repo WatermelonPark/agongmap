@@ -285,7 +285,7 @@ def test_jeonse_source_names_the_agency_like_the_jeonse_ratio_page():
     픽스처: 저장소 data.js 그대로 — 수집 계열 STATS.전세가율.source 는 기관명이 빠진 'KOSIS 매매가격 대비 전세가격비'인 실제 상태다
     (그 칸을 일부러 그 글자로 덮어 상태가 바뀌어도 같은 것을 본다).
     변이(실제로 확인): 전세가율 절 원천을 옛 jr.get('source') or '한국부동산원' 으로 되돌리면 빨강, /jeonse-ratio/ 주석을 손 글자로
-          되돌리면(jrsrc 대신) 둘째 단정이 빨강.
+          되돌리면(jrsrc 대신) 둘째 단정이, 푸터 src 를 옛 'KOSIS 한국부동산원 …' 으로 되돌리면 셋째 단정이 빨강.
     """
     import html as _html
     import make_monthly_page as MP
@@ -297,4 +297,5 @@ def test_jeonse_source_names_the_agency_like_the_jeonse_ratio_page():
     got = re.search(r'<p class="basis"><b>[^<]+</b> 기준 · ([^<]+)</p>', seg).group(1)
     assert _html.unescape(got) == I.JR_SOURCE and '한국부동산원' in got, got
     page = I.build_jeonse(sts)[0]
-    assert '자료: %s' % I.JR_SOURCE in page, '/jeonse-ratio/ 주석이 정본 원천을 쓰지 않는다'
+    assert '정렬. 자료: %s, 매월 갱신.' % I.JR_SOURCE in page, '/jeonse-ratio/ 표 주석이 정본 원천을 쓰지 않는다'
+    assert '· 자료: %s' % I.JR_SOURCE in page, '/jeonse-ratio/ 푸터가 정본 원천을 쓰지 않는다'
