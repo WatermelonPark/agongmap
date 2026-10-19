@@ -84,8 +84,9 @@ AGG_NOTE = {
 # 배포 창구). 홈 TB_REFNOTE 거울(test_refnote_copy_is_identical_on_home_and_zone)과 홈 산출 방법도 이 기관명을 쓴다.
 UN_SOURCE = '국토교통부'
 REFNOTE = {
-    'un': '미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(' + UN_SOURCE + ' 월간 집계). '
-          '이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, '
+    # 정의·이유는 sido_zones 정본(UNSOLD_NATURE·UNSOLD_RANK_WHY, 전수리뷰 Z2-6)
+    'un': '미분양은 ' + SZ.UNSOLD_NATURE + '입니다(' + UN_SOURCE + ' 월간 집계). '
+          + SZ.UNSOLD_RANK_WHY + ' 순위 계산에 다시 넣으면 이중계산이라, '
           '참고로만 보여줍니다.',
     # 2026-09-13 대표 결정: 인허가는 허수가 많아 참고로만 본다는 점을 분명히 한다.
     # 기간을 단정하지 않는다(2026-09-15): 사업 단위 인허가→입주 시차는 측정된 적이 없다.

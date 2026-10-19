@@ -253,3 +253,27 @@ def test_closing_note_names_the_moveins_estimate(html):
     import make_indicator_pages as I
     m = re.search(r'추정해 채우지 않습니다\.([^<]*)</p>', html)
     assert m and I.MOVEINS_EST in m.group(1), '끝 문장이 입주물량 추정을 밝히지 않는다: %s' % (m and m.group(1))
+
+
+def test_unsold_definition_is_the_one_canon():
+    """미분양 정의·순위에서 빼는 이유는 sido_zones 정본(UNSOLD_NATURE·UNSOLD_RANK_WHY) 하나다(전수리뷰 Z2-6).
+
+    실제 상태(픽스처): 수집 계열은 KOSIS DT_MLTM_2080 '국토교통부 미분양주택현황' 총합 행이라 공사 중 물량을 포함한 전체
+    미분양이다. 예전 /monthly/ 주석·시도 리포트 참고 안내·홈 거울·블로그 초안은 준공 후 미분양의 정의('다 짓고도 팔리지
+    않은 집·이미 지어진 재고')를 적었다. 홈 거울 TB_REFNOTE 는 test_refnote_copy_is_identical_on_home_and_zone 이 REFNOTE 와 묶는다.
+    변이(실제로 확인): /monthly/ 미분양 주석을 옛 '다 짓고도 팔리지 않아 남은 집. 이미 지어진 재고라' 로 되돌리면 빨강,
+          make_sido_pages.REFNOTE['un'] 을 옛 문구로 되돌리면 빨강.
+    """
+    import make_monthly_page as MP
+    import make_sido_pages as P
+    import sido_zones as SZ
+    adv, sts = MP.load()
+    assert sts.get('미분양'), '미분양 계열이 없다 — 픽스처 전제가 바뀌었다'
+    secs, _ = MP.build(adv, sts)
+    seg = [s for s in secs if '<section id="unsold"' in s]
+    assert len(seg) == 1
+    for where, text in (('/monthly/ 미분양 주석', seg[0]), ('시도 리포트 참고 안내', P.REFNOTE['un'])):
+        assert SZ.UNSOLD_NATURE in text and SZ.UNSOLD_RANK_WHY in text, '%s 가 정본 정의를 쓰지 않는다: %s' % (where, text)
+        assert '다 짓고' not in text and '이미 지어진 재고' not in text, '%s 에 준공 후 미분양 정의가 남았다' % where
+    blog = io.open(os.path.join(ROOT, 'tools', 'make_naver_post.py'), encoding='utf-8').read()
+    assert 'SZ.UNSOLD_NATURE' in blog and '다 짓고도' not in blog, '블로그 초안 미분양 정의가 정본과 다르다'
