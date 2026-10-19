@@ -7,8 +7,9 @@
 100%다). 착공 기반 추정 대비 1.29~1.68배 과대였고, 그게 "서울이 균형으로 나온다"의
 원인이었다. 설계 근거는 docs/superpowers/specs/2026-08-06-sido-supply-table-design.md.
 
-핵심: **착공과 준공은 같은 통계표(국토부 주택건설실적)의 두 열**이라 정의가 일치하고
-오차가 같은 방향으로 걸린다. 착공을 3년 뒤로 밀면 준공과 맞는다(전환율 0.958,
+핵심: **착공과 준공은 같은 통계(국토부 주택건설실적)의 두 계열**이라 정의가 일치하고
+오차가 같은 방향으로 걸린다(KOSIS 표는 준공 DT_MLTM_5373·착공 DT_MLTM_5387 로 따로 받아 도착은 갈릴 수
+있다 — calc 의 H 경고). 착공을 3년 뒤로 밀면 준공과 맞는다(전환율 0.958,
 변동계수 0.138 — k=2는 0.208, k=4는 0.239로 더 흔들린다).
 
 ⚠️ KOSIS는 값 0을 '-'로 준다. 시리즈의 None은 결측이 아니라 **진짜 0**이다
@@ -343,6 +344,14 @@ def demol_of(by, year):
     return by[min(by, key=lambda y: (abs(y - year), y))]
 
 
+def um_times(um):
+    """미분양 배수(분기 적정물량 대비, 판정이 싣는 셋째 자리 값)를 화면이 '배'로 적는가 — 표기 '%.1f' 가 1.0 이상이면 'N.N배',
+    아니면 퍼센트(make_sido_pages.umx). 판정과 미분양이 어긋날 때의 경고(calc 의 uwarn)도 이 함수 하나로 가른다(전수리뷰 Z1-6) —
+    예전 uwarn 은 반올림 전 원값 1.0 으로 갈라, 0.95~0.999 는 카드에 '1.0배'로 찍히는데 경고가 없고 1.0 에는 같은 '1.0배'에 경고가
+    붙었다(저장값 1.0 인 원값 0.9995~1.0 도 '1.0배'인데 경고가 없었다)."""
+    return um is not None and float('%.1f' % um) >= 1
+
+
 def unsold_latest(stats, region):
     """가장 최근 미분양 호수와 그 시점. (호수, 'YYYY.MM') — 없으면 (None, None).
 
@@ -377,26 +386,39 @@ def permit_trail12(stats, region):
     결측으로 봐서, 전년 같은 달이 null 이면 값이 사라지고(대구·충북·세종 2025.01) 최신 달이 null 이면 그 지역만 전년
     1~12월로 물러나 기간이 섞였다(대구 2024.01 → '2023.12', 전수 리뷰 #11). 같은 null 을 한 파일의 두 함수가 다르게
     쟀던 것이다 — 이제 permit_monthly 하나만 잰다.
-    기준 달은 계열 전체에서 값이 있는 마지막 달(지역마다 따로 정하지 않는다). 그 달부터 12개월 중 하나라도
+    기준 달은 계열 전체에서 값이 있는 마지막 달(permit_ref_month — 지역마다 따로 정하지 않는다). 그 달부터 12개월 중 하나라도
     permit_monthly 에 없으면 None 을 돌려주고 줄을 접는다(반쪽 계산으로 오탐을 내지 않는다).
     """
-    s = stats.get('인허가') or {}
-    dates = s.get('dates') or []
-    series = (s.get('series') or {}).values()
-    ref = None
-    for i in range(len(dates) - 1, -1, -1):
-        if any(i < len(v) and v[i] is not None for v in series):
-            ref = i
-            break
-    if ref is None or region not in (s.get('series') or {}):
+    ym = permit_ref_month(stats)
+    if ym is None or region not in ((stats.get('인허가') or {}).get('series') or {}):
         return None, None
     mon = permit_monthly(stats, region)
-    ym = dates[ref]
-    t = int(ym[:4]) * 12 + int(ym[5:7]) - 1
-    keys = ['%d.%02d' % ((t - k) // 12, (t - k) % 12 + 1) for k in range(12)]
+    keys = _months_back(ym, 12)
     if any(k not in mon for k in keys):
         return None, None
     return sum(mon[k] for k in keys), ym
+
+
+def permit_ref_month(stats):
+    """인허가 계열 **전체**에서 값이 있는 마지막 달의 라벨('2026.08') — 없으면 None.
+
+    '인허가 1년' 참고 행(permit_trail12, 최근 12개월)과 '3년 너머' 신호(permit_signal, 최근 PERMIT_WIN 개월)가 이 한 달로 창을 잡는다
+    (전수리뷰 #11·Z1-4). 예전 permit_signal 은 그 지역 permit_monthly 의 마지막 달로 잡아, 한 지역의 최신 달이 비면 '인허가 1년' 행은
+    접히는데 '3년 너머' 줄은 그 지역만 몇 달 물러난 창을 '최근 2년'이라 말했다 — 같은 null 을 한 파일의 두 함수가 다르게 쟀다.
+    """
+    s = stats.get('인허가') or {}
+    dates = s.get('dates') or []
+    series = list((s.get('series') or {}).values())
+    for i in range(len(dates) - 1, -1, -1):
+        if any(i < len(v) and v[i] is not None for v in series):
+            return dates[i]
+    return None
+
+
+def _months_back(ym, n):
+    """'2026.08' 부터 거꾸로 n 달의 키(['2026.08', '2026.07', …]) — permit_monthly 의 키 모양."""
+    t = int(ym[:4]) * 12 + int(ym[5:7]) - 1
+    return ['%d.%02d' % ((t - k) // 12, (t - k) % 12 + 1) for k in range(n)]
 
 
 # 기간 정본(2026-09-15 점검후속 ③). 페이지마다 인허가→입주가 "3~4년"·"4~6년"·"3년"으로
@@ -763,12 +785,19 @@ def conv_measured(stats, region='전국', start=None, years=None):
     return (sum(pairs) / len(pairs)) if len(pairs) == years else None
 
 
-def permit_over_start_pct(stats, region='전국', step=5):
-    """'인허가는 같은 해 착공보다 N%쯤 많다'의 N — permit_start_conv(착공 ÷ 인허가)의 역수에서 step 단위로 반올림.
+PERMIT_OVER_STEP = 5    # '착공보다 N%쯤 많다'의 반올림 단위(%p) — 리포트 값과 손 페이지 대조의 허용 한 칸이 같은 값이다
 
-    시도 리포트 '어떻게 계산했나'가 이 값을 굽고, 손 페이지(홈 산출 방법·소개·FAQ)의 같은 문장은 시험이 이 값과 대조한다
-    (전수 리뷰 #112 — '15%쯤'이 네 곳에 박혀 있었다). 잴 수 없으면 None(문장이 그 구절을 뺀다).
+
+def permit_over_start_pct(stats, region='전국', step=None):
+    """'인허가는 같은 해 착공보다 N%쯤 많다'의 N — permit_start_conv(착공 ÷ 인허가)의 역수에서 step(PERMIT_OVER_STEP) 단위로 반올림.
+
+    시도 리포트 '어떻게 계산했나'가 이 값을 굽는다(전수 리뷰 #112 — '15%쯤'이 네 곳에 박혀 있었다). 손 페이지(홈 산출 방법·소개·FAQ)의
+    같은 문장은 사람이 고치므로 두 겹으로 본다(전수리뷰 X1-11): 게이트 시험(test_hand_page_numbers)은 이 값과 같은 단위의 수인지,
+    한 칸(PERMIT_OVER_STEP) 안인지 — 데이터가 한 칸 넘어가도 그날 커밋을 막지 않게 —, 정확히 같은지는 배치 기록 ℹ️ 줄
+    (batch_notes.hand_permit_lines)이 알린다. 예전 독스트링은 '시험이 이 값과 대조한다'였지만 시험은 측정값 ±5%p 를 봐, 리포트 '20%쯤'과
+    손 페이지 '15%쯤'이 갈려도 아무도 몰랐다. 잴 수 없으면 None(문장이 그 구절을 뺀다).
     """
+    step = PERMIT_OVER_STEP if step is None else step
     c = permit_start_conv(stats, region)
     if not c:
         return None
@@ -883,20 +912,17 @@ def permit_signal(stats, region, ref_q):
     값 = 최근 PERMIT_WIN개월 인허가의 연평균 × 착공 전환율 ÷ 연 적정물량.
     12월 몫 = 최근 12개월 인허가 중 12월 한 달의 비중. 이례 여부를 가르는 문턱은
     두지 않고 숫자만 보여준다(2026-09-13 대표 결정).
-    돌려주는 값: {'pbr', 'pdec', 'pconv'} — 계산할 수 없으면 None.
+    돌려주는 값: {'pbr', 'pdec', 'pconv'} — 계산할 수 없으면 None(배치 기록 batch_notes.permit_gaps 가 ⚠️ 줄로 알린다).
+    창의 끝은 '인허가 1년' 행과 같은 permit_ref_month(계열 전체의 마지막 달)다 — 그 지역의 최신 달이 비면 묵은 창을 '최근 2년'이라
+    말하지 않고 None 이다(전수리뷰 Z1-4).
     """
     mon = permit_monthly(stats, region)
-    ks = sorted(mon)
     conv = permit_start_conv(stats, region)
-    if len(ks) < PERMIT_WIN or not conv or not ref_q:
+    ym = permit_ref_month(stats)
+    if ym is None or not conv or not ref_q:
         return None
     # 창이 중간에 비면(월 결측) 연평균이 줄어 얇게 잡힌다 — 연속된 달만 쓴다
-    last = ks[-1]
-    ly, lm = int(last[:4]), int(last[5:7])
-    want = []
-    for i in range(PERMIT_WIN):
-        t = ly * 12 + lm - 1 - i
-        want.append('%d.%02d' % (t // 12, t % 12 + 1))
+    want = _months_back(ym, PERMIT_WIN)
     if any(k not in mon for k in want):
         return None
     yearly = sum(mon[k] for k in want) * 12.0 / PERMIT_WIN
@@ -921,20 +947,21 @@ def split_text(inow, fut, need, ref, sig, est, H=None, W=None):
     W = BACKLOG_WINDOW if W is None else W
     past = '%g년' % (W / 4.0)
     ahead = '%g년' % (H / 4.0)
-    now = int(round(100.0 * inow / (ref * W))) if ref else 0
+    # 화면 퍼센트는 half_up 하나로(전수리뷰 X1 overflow — int(round()) 는 짝수 쪽 반올림이라 12.5 가 12 였다. pbr_pct·/moveins/ 와 같은 규칙)
+    now = half_up(100.0 * inow / (ref * W)) if ref else 0
     if now <= -1:
         l1 = '적정물량보다 %d%% 덜 지었습니다' % -now
     elif now >= 1:
         l1 = '적정물량보다 %d%% 더 지었습니다' % now
     else:
         l1 = '적정물량만큼 지었습니다'
-    l2 = '적정물량의 %d%%가 들어옵니다' % int(round(100.0 * fut / need)) if need else None
+    l2 = '적정물량의 %d%%가 들어옵니다' % half_up(100.0 * fut / need) if need else None
     l3 = dec = None
     thin = False
     if sig:
         l3 = '최근 %s 인허가를 착공으로 환산하면 적정물량의 %d%%입니다' % (win_years(PERMIT_WIN), pbr_pct(sig['pbr']))
         if sig.get('pdec') is not None:
-            dec = '최근 %s 인허가 중 12월 한 달이 %d%%입니다' % (win_years(PDEC_WIN), int(round(100 * sig['pdec'])))
+            dec = '최근 %s 인허가 중 12월 한 달이 %d%%입니다' % (win_years(PDEC_WIN), half_up(100 * sig['pdec']))
         thin = pbr_thin(sig['pbr'])
     return {
         'rows': [('지난 %s' % past, l1), ('앞으로 %s' % ahead, l2)],
@@ -1025,6 +1052,7 @@ def calc(stats):
         #  '예측력'으로 오독하기 쉬운 자리라 수치를 남긴다.)
         # 대신 어긋남은 uwarn으로 드러낸다 — 숨기지 않되 순위는 건드리지 않는다.
         um = (un / float(ref)) if (un is not None and ref) else None
+        um = None if um is None else round(um, 3)   # 저장되는 값으로 화면 배수와 경고(uwarn)를 함께 정한다(um_times, 전수리뷰 Z1-6)
         # 표 아래 '인허가 1년' 참고 행은 여전히 최근 12개월 원값(pm12·pmr)을 보여준다.
         pm, _ = permit_trail12(stats, z)
         pmr = (pm / float(ref * 4)) if (pm is not None and ref) else None
@@ -1047,11 +1075,14 @@ def calc(stats):
             # 리포트 카드의 세 정수로 검산한 값과 1세대 어긋난다(경기 50,578 vs 50,579).
             'dtot': half_up(ref) * H - round(fut) - round(inow),
             'unsold': (None if un is None else round(un)),
-            'um': (None if um is None else round(um, 3)),
-            'uwarn': bool(um is not None and um >= 1.0 and g in ('g4', 'g3', 'g2')),
+            'um': um,
+            'uwarn': bool(um_times(um) and g in ('g4', 'g3', 'g2')),   # 화면이 'N.N배'로 적는 값부터 — umx 와 한 규칙
             'pm12': (None if pm is None else round(pm)),
             'pmr': (None if pmr is None else round(pmr, 3)),
-            'pbr': (None if sig is None else round(sig['pbr'], 3)),
+            # 원값 그대로 싣는다 — 화면 정수(pbr_pct)는 원값에서 **한 번만** 반올림한다(전수리뷰 Z1-3·X1-2). 셋째 자리로 굳혀 두면
+            # 리포트 셋째 줄(split_text — 원값 42.46 → 42%)과 바로 아래 '… 너머' 회색 칸(outlook_block — 저장값 0.425 → 43%)이
+            # 갈렸다(경북 2026-10). 경고(pwarn)·강조(thin)도 같은 원값을 pbr_thin 으로 가른다.
+            'pbr': (None if sig is None else sig['pbr']),
             'pdec': (None if (sig is None or sig['pdec'] is None) else round(sig['pdec'], 3)),
             'pconv': (None if sig is None else round(sig['pconv'], 3)),
             'pwarn': bool(sig is not None and pbr_thin(sig['pbr'])),   # 리포트 강조(thin)와 같은 함수(B3)
@@ -1099,7 +1130,13 @@ def calc(stats):
     # 다시 굽는 것과 같은 함수다.
     return refresh_texts({'L': qkey(L), 'S': qkey(S), 'H': H,
             'lead': LEAD_Q, 'conv': CONV, 'window': BACKLOG_WINDOW,
-            'unsold_prd': un_prd, 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))})
+            # 'permit_prd' — '인허가 1년'(pm12)·'3년 너머'(pbr) 창의 끝 달. 리포트 참고 행이 미분양 행처럼 기준 달을 적는다(전수리뷰 Z1 overflow)
+            'unsold_prd': un_prd, 'permit_prd': permit_ref_month(stats), 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))})
+
+
+# 표가 시작하는 해(그해 1월·1분기부터). 시도 리포트 분기 표(make_sido_pages.TABLE_FROM)·홈 통합표(split_data.TABLE_FROM — 홈
+# TB_FROM 은 그 거울)·통계 탭 입주물량(supply_rows)이 이 한 값을 쓴다(전수리뷰 X1 overflow). 적정물량 기준표와 같은 시작점이다.
+TABLE_FROM_YEAR = 2017
 
 
 def supply_rows(stats):
@@ -1119,7 +1156,7 @@ def supply_rows(stats):
     regs = [z for z in ORDER]
     dn = {z: quarterly(stats, '준공', z) for z in regs}
     st = {z: quarterly(stats, '착공', z) for z in regs}
-    start = qidx(2017, 1)
+    start = qidx(TABLE_FROM_YEAR, 1)
     rows = []
     for i in range(start, S + LEAD_Q + 1):
         fut = i > L

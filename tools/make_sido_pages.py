@@ -38,9 +38,9 @@ import robots_meta as RM          # noqa: E402  검색 로봇 메타 정본(홈 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
 GA = 'G-3FJNG6G1F3'
-# 표 시작. 홈 통합표(index.html TB_FROM = 2017.01)와 같은 지점이어야 한다 —
-# 두 화면이 같은 지역을 다른 구간으로 그리면 숫자를 맞춰보는 사람이 어긋난 걸 본다.
-TABLE_FROM = SZ.qidx(2017, 1)
+# 표 시작. 홈 통합표(split_data.TABLE_FROM, 홈 TB_FROM 거울)와 같은 지점이어야 한다 —
+# 두 화면이 같은 지역을 다른 구간으로 그리면 숫자를 맞춰보는 사람이 어긋난 걸 본다. 정본 SZ.TABLE_FROM_YEAR(전수리뷰 X1 overflow).
+TABLE_FROM = SZ.qidx(SZ.TABLE_FROM_YEAR, 1)
 
 # 등급 색. 라벨은 여기 적지 않는다 — 정본 sido_zones.GRADE_LABS 에서 만든다(전수 리뷰 #17·#115). 예전엔 라벨을 손으로 옮긴
 # 사본이라, 사다리를 바꿀 때 GRADE_LABS·홈만 고치면 리포트 배지·제목·허브만 옛 이름으로 남고 아무것도 빨개지지 않았다.
@@ -83,6 +83,9 @@ AGG_NOTE = {
 # '국토교통부'와 '한국부동산원'으로 달리 말했다. 주택 미분양 현황은 국토교통부가 작성하는 통계다(한국부동산원 R-ONE 은
 # 배포 창구). 홈 TB_REFNOTE 거울(test_refnote_copy_is_identical_on_home_and_zone)과 홈 산출 방법도 이 기관명을 쓴다.
 UN_SOURCE = '국토교통부'
+# 리포트 머리 기준 줄의 출처 — 기준 줄은 '시점 기준 · 출처' 한 양식이다(2026-10-06 대표 결정, 전수리뷰 Z1 overflow: 머리는 '… 기준 · 분기마다
+# 갱신'이라 출처가 없었다). 판정은 준공·착공 실적만으로 낸다. 갱신 주기는 바로 아래 첫 문단(summary_parts)이 말한다.
+BASIS_SRC = '국토교통부 준공·착공 실적'
 REFNOTE = {
     'un': '미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(' + UN_SOURCE + ' 월간 집계). '
           '이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, '
@@ -95,7 +98,7 @@ REFNOTE = {
 
 
 def zone_js():
-    """지역 20장이 공유하는 표 동작 스크립트 — /zone/zone.js로 나간다.
+    """지역 리포트 전부가 공유하는 표 동작 스크립트 — /zone/zone.js로 나간다.
 
     예전엔 이 코드가 페이지마다 인라인으로 들어가 20벌 구워졌다(장당 +2.2KB,
     배포 44KB). 지역과 무관하게 완전히 같은 코드라 한 파일로 뺀다. 지역 페이지는
@@ -146,7 +149,7 @@ def zone_js_src():
     """`/zone/zone.js?v=<내용 해시>` — 쿼리에 해시를 다는 이유가 둘이다.
 
     ① **lastmod가 따라 움직인다.** REFNOTE 문구가 이제 HTML엔 없어서, 문구만
-       고치면 20장이 바이트 동일이 되고 keep_dates가 '안 바뀜'으로 판정한다.
+       고치면 리포트가 모두 바이트 동일이 되고 keep_dates가 '안 바뀜'으로 판정한다.
        그러면 보이는 글이 바뀌었는데 dateModified·sitemap lastmod는 얼어붙는다
        (2026-08-15 리뷰). 해시를 태그에 실으면 HTML이 함께 바뀐다.
     ② **캐시가 알아서 갈린다.** sw.js 정적 자산은 cache-first라 옛 파일이 한 번
@@ -181,9 +184,10 @@ def umx(v):
     1 이상은 첫째 자리로 충분하다(2.4배).
     분기는 원값이 아니라 **첫째 자리로 반올림한 표기**로 정한다 — 0.996을 원값(<1)으로
     가르면 '1.00배'가 되어 1.0의 '1.0배'와 자릿수가 갈린다(2026-08-13 리뷰 경계 케이스).
+    그 갈림은 정본 SZ.um_times 하나다 — 판정의 미분양 경고(uwarn)도 같은 함수로 켠다(전수리뷰 Z1-6).
     """
     s = '%.1f' % v
-    if float(s) >= 1:
+    if SZ.um_times(v):
         return s + '배'
     # 1 미만은 퍼센트(2026-09-15 점검후속 ⑤: '분기 적정물량의 0.05배'는 읽기 어렵다)
     pct = rnd(v * 100)
@@ -314,7 +318,7 @@ def ld_date(html, key='dateModified'):
 def keep_dates(new_html, old_html, today):
     """내용이 같고 날짜만 다르면 **옛 페이지를 그대로** 돌려준다.
 
-    ⚠️ 이게 없으면 데이터가 안 바뀐 날에도 21장과 sitemap의 lastmod가 날짜만
+    ⚠️ 이게 없으면 데이터가 안 바뀐 날에도 리포트·허브 전부와 sitemap의 lastmod가 날짜만
     달라진 채 매일 커밋된다(옛 make_zone_pages가 같은 이유로 갖고 있던 장치인데
     2026-08-06 재편 때 빠뜨렸다). 검색엔진에도 '매일 전부 갱신'이라는 틀린 신호가
     간다. 페이지 안의 YYYY-MM-DD는 datePublished·dateModified 둘뿐이라 날짜만
@@ -445,14 +449,17 @@ def head(z, desc, title, url=None, crumb=None, desk='report'):
          "dateModified": today,
          "author": {"@type": "Organization", "name": "아공맵"},
          "publisher": {"@type": "Organization", "name": "아공맵"},
-         "mainEntityOfPage": u,
-         "about": {"@type": "Place", "name": SZ.disp(z)}},
+         "mainEntityOfPage": u},
         {"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "아공맵", "item": SITE + "/"},
             {"@type": "ListItem", "position": 2, "name": "시도 공급 분석", "item": SITE + "/zone/"}]
             + ([] if crumb is False else
                [{"@type": "ListItem", "position": 3, "name": SZ.disp(z), "item": u}])},
     ]
+    # 글의 주제 장소(about)는 판정 단위일 때만 싣는다 — 허브는 z 자리에 제목('시도별 공급')을 넘겨, 없는 장소가 구조화 데이터에
+    # 실렸다(전수리뷰 Z1-12). 이름은 화면 이름(백로그 46).
+    if z in SZ.ORDER:
+        ld[0]["about"] = {"@type": "Place", "name": SZ.disp(z)}
     return '''<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -506,12 +513,25 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
        # 데스크톱 틀(desk.css): 리포트는 왼쪽 판정 요약·오른쪽 표, 허브는 글 단 그대로(site_nav.DESK_KINDS)
        'desk_link': N.desk_link(), 'desk_body': N.desk_body(desk),
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,
-       # 지역 카드(make_zone_cards.py 산출물). 없으면 브랜드 카드로 떨어진다 —
-       # 카드를 아직 안 구웠거나 지역이 새로 생긴 회차에도 미리보기가 깨지지 않게.
-       'ogimg': ((SITE + '/share/zone-' + urllib.parse.quote(z) + '.png')
-                 if os.path.exists(os.path.join(ROOT, 'share', 'zone-%s.png' % z))
-                 else SITE + '/og-brand.png'),
+       'ogimg': zone_card(z),
        'ld': json.dumps(ld, ensure_ascii=False)}
+
+
+def zone_card(z):
+    """지역 카드(make_zone_cards.py 산출물 — 사람이 돌린다)의 og:image 주소. 없으면 브랜드 카드로 떨어진다 — 카드를 아직 안 구웠거나
+    지역이 새로 생긴 회차에도 미리보기가 깨지지 않게.
+
+    주소에 카드 **내용 해시**를 ?v= 로 붙인다(전수리뷰 Z1-5 — /weekly/·/monthly/ 카드의 ?v= 와 같은 까닭). 카카오톡·네이버는 미리보기
+    그림을 주소 단위로 오래 보관해, 같은 주소에 다시 구운 카드(화면 이름 '광주·전남'·정본 용어 '적정물량')가 이미 퍼진 미리보기에
+    닿지 않았다. 카드가 바뀌면 리포트 HTML 도 바뀌어 dateModified·sitemap lastmod 가 따라온다(keep_dates). GitHub Pages 는 쿼리를 무시한다.
+    """
+    p = os.path.join(ROOT, 'share', 'zone-%s.png' % z)
+    if not os.path.exists(p):
+        return SITE + '/og-brand.png'
+    import hashlib
+    with open(p, 'rb') as f:
+        v = hashlib.sha1(f.read()).hexdigest()[:8]
+    return SITE + '/share/zone-' + urllib.parse.quote(z) + '.png?v=' + v
 
 
 def share_section(z):
@@ -541,7 +561,7 @@ def share_section(z):
         'var u=location.origin+location.pathname+'
         '"?utm_source=zone_share&utm_medium=viral&utm_campaign=zone";'
         'var t=nm+" 아파트 공급 분석 — 아공맵";'
-        'var x=nm+"에 필요한 집과 앞으로 들어올 집, 국가 통계로 확인해보세요.";'
+        'var x=nm+"의 적정물량과 앞으로 들어올 집, 국가 통계로 확인해보세요.";'
         'try{gtag("event","share",{content_type:"zone",'
         'method:navigator.share?"web_share":"copy",region:rk});}catch(e){}'
         'if(navigator.share){navigator.share({title:t,text:x,url:u}).catch(function(){});return;}'
@@ -585,6 +605,11 @@ def _write_merged_stub(path, old, new):
     """
     url = SITE + '/zone/' + urllib.parse.quote(new) + '/'
     nd = SZ.disp(new)   # 화면 이름 정본(백로그 46) — 주소는 키 그대로
+    # 원천이 무엇을 했는지는 사실대로 쓴다 — 원천(국토교통부·KOSIS) 표의 통합 단위 이름은 '전남광주'라, '광주·전남 하나로 발표'라 쓰면
+    # 원천 표에 없는 이름을 원천의 말처럼 내세운다(전수리뷰 Z1-9). 키를 화면에 내지 않고 '광주와 전남의 … 한 단위로 묶어'로 쓴다.
+    # 묶인 지역은 MERGED_INTO 에서 모은다(손 목록 금지).
+    parts = [o for o, n in MERGED_INTO.items() if n == new]
+    both = ('·'.join(parts[:-1]) + _wa(parts[-2]) + ' ' + parts[-1]) if len(parts) > 1 else new
     h = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
          '<meta name="viewport" content="width=device-width,initial-scale=1">'
          + RM.TAG +   # 검색 로봇 메타 정본(D2) — 통합 안내도 큰 미리보기 조건을 같이 싣는다
@@ -597,13 +622,13 @@ def _write_merged_stub(path, old, new):
          '<main class="wrap" style="max-width:640px;margin:12vh auto;text-align:center">'
          '<h1 style="font-size:20px">%s %s%s 합쳐졌습니다</h1>'
          '<p style="line-height:1.7;color:var(--muted)">국토교통부가 2026년 7월분부터 '
-         '공급 통계를 <b>%s</b> 하나로 발표하기 시작했습니다. 시군구 단위 자료가 없어 '
+         '<b>%s</b>의 공급 통계를 한 단위로 묶어 발표하기 시작했습니다. 시군구 단위 자료가 없어 '
          '두 지역을 따로 계산할 수 없게 되어, 아공맵도 판정 단위를 합쳤습니다.</p>'
          '<p style="margin-top:22px"><a href="%s" style="display:inline-block;'
          'background:var(--ink);color:var(--paper);padding:12px 22px;border-radius:3px;'
          'text-decoration:none">%s 공급 분석 보기</a></p>'
          '<p style="font-size:12px;color:var(--muted);margin-top:18px">3초 뒤 자동으로 이동합니다.</p>'
-         '</main></body></html>') % (old, nd, _euro(nd), url, url, old, nd, old + _topic(old), nd, _euro(nd), nd, url, nd)
+         '</main></body></html>') % (old, nd, _euro(nd), url, url, old, nd, old + _topic(old), nd, _euro(nd), both, url, nd)
     io.open(os.path.join(path, 'index.html'), 'w', encoding='utf-8',
             newline='\n').write(h)
 
@@ -615,6 +640,14 @@ def _topic(word):
     if not ('가' <= last <= '힣'):
         return '는'
     return '은' if (ord(last) - 0xAC00) % 28 else '는'
+
+
+def _wa(word):
+    """받침에 맞는 접속 조사 와/과(_topic 과 같은 판정) — '광주와 전남'. 한글로 안 끝나면 '와'."""
+    last = word[-1] if word else ''
+    if not ('가' <= last <= '힣'):
+        return '와'
+    return '과' if (ord(last) - 0xAC00) % 28 else '와'
 
 
 def _iga(word):
@@ -693,11 +726,12 @@ def _wk_streak(s, o):
     return '<td%s>%s</td>' % ((' class="%s"' % k) if k else '', WM.streak_text(s, o))
 
 
-def _wk_table(rows, label):
+def _wk_table(rows, label, unit='시군구'):
+    """unit — 첫 칸 머리. 세종처럼 시·군·구가 없는 한 줄 표는 '지역'(전수리뷰 Z1-7)."""
     head = ('<div class="zwk-scroll"><table class="ztb" aria-label="%s"><thead>'
-            '<tr><th rowspan="2">시군구</th><th colspan="3">매매</th><th colspan="3">전세</th></tr>'
+            '<tr><th rowspan="2">%s</th><th colspan="3">매매</th><th colspan="3">전세</th></tr>'
             '<tr>%s%s</tr></thead><tbody>'
-            % (esc(label), *(['<th>주간</th><th>%d주</th><th>연속(주)</th>' % WM.CUM_WEEKS] * 2)))
+            % (esc(label), esc(unit), *(['<th>주간</th><th>%d주</th><th>연속(주)</th>' % WM.CUM_WEEKS] * 2)))
     body = ''.join('<tr><td>%s</td>%s%s%s%s%s%s</tr>'
                    % (esc(r['name']), _wk_cell(r['ma']), _wk_cell(r['ma12']), _wk_streak(r['sma'], r['oma']),
                       _wk_cell(r['je']), _wk_cell(r['je12']), _wk_streak(r['sje'], r['oje'])) for r in rows)
@@ -711,8 +745,17 @@ def _wk_lead(z, rows):
     if len(rows) == 1:
         r = rows[0]
         s = r['sma']
-        tail = ('매매는 %d주%s 연속 %s입니다.' % (abs(s), ' 이상' if r['oma'] else '', '상승' if s > 0 else '하락')
-                if s else '매매는 이번 주 보합입니다.')
+        # 방향 낱말은 /weekly/·블로그 표지와 같은 WM.tag(전수리뷰 Z1-7) — 'N주 연속'은 STREAK_MIN 주부터, 막 돌아선 주는 '상승 전환'.
+        # 예전엔 연속 1주에도 '매매는 1주 연속 상승입니다'라 썼다(세종은 방향이 자주 바뀌어 최근 52주 중 20주가 그랬다).
+        t = r.get('tma')
+        if t and t[2] >= WM.STREAK_MIN:
+            tail = '매매는 %s입니다.' % t[1]
+        elif t:
+            tail = '매매는 이번 주 %s입니다.' % t[1]
+        elif s:
+            tail = '매매는 이번 주 %s입니다.' % ('상승' if s > 0 else '하락')
+        else:
+            tail = '매매는 이번 주 보합입니다.'
         # 값이 없는 조각은 뺀다('전세 ·%' 를 찍지 않는다)
         now = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma'), ('전세', 'je')) if r[m] is not None]
         cum = ['%s %s' % (k, pct(r[m])) for k, m in (('매매', 'ma12'), ('전세', 'je12')) if r[m] is not None]
@@ -863,9 +906,12 @@ def weekly_section(z, weekly, names, monthly=None, maps=None):
             else:
                 h.append('<h3>매매가 %s 곳</h3><p class="zwk-none">이번 주 매매가 %s 시군구는 없습니다.</p>' % (word, word))
         order = '위 표는 많이 오른 곳부터, 아래 표는 많이 내린 곳부터 적었습니다. '
+    elif single:   # 세종 — 시·군·구가 없는 단일 행정구역이라 표 머리·읽어 줄 이름에서도 '시군구'를 뺀다(전수리뷰 Z1-7)
+        h.append(_wk_table(rows, '%s 주간 매매·전세 변동률' % SZ.disp(z), unit='지역'))
+        order = ''
     else:
         h.append(_wk_table(rows, '%s 시군구 주간 매매·전세 변동률' % SZ.disp(z)))
-        order = '' if single else '이번 주 매매 변동률이 큰 곳부터 적었습니다. '
+        order = '이번 주 매매 변동률이 큰 곳부터 적었습니다. '
     h.append('<p class="zsub">%s%d주는 최근 %d주 변동률을 이어 곱한 누적이고, 연속은 발표 표기(소수 '
              '둘째 자리)로 같은 방향이 이어진 주 수입니다. <a href="%s">전국 시군구 전체 표 →</a></p>'
              % (order, WM.CUM_WEEKS, WM.CUM_WEEKS, MW.TABLE_URL))
@@ -901,8 +947,11 @@ def next_links(z, weekly, stats):
         je = (row.get('je') or [])[i] if i < len(row.get('je') or []) else None
         parts = ['%s %s%%' % (k, MW.pv2(v)) for k, v in (('매매', ma), ('전세', je)) if v is not None]
         if parts:
-            cards.append('<a href="/weekly/"><b>이번 주 시세</b><i>%s · %s 조사 · %s 발표</i></a>'
-                         % (' · '.join(parts), MW.md(row['p']), MW.md(MW.pub(row['p']))))
+            try:
+                when = ' · %s 조사 · %s 발표' % (MW.md(row['p']), MW.md(MW.pub(row['p'])))
+            except Exception:   # 조사일 모양이 틀어져도 카드는 굽는다 — 날짜만 뺀다(weekly_section 기준 줄과 같은 물러섬, 전수리뷰 Z1 overflow)
+                when = ''
+            cards.append('<a href="/weekly/"><b>이번 주 시세</b><i>%s%s</i></a>' % (' · '.join(parts), when))
     j = (stats or {}).get('전세가율') or {}
     ser, dates = (j.get('series') or {}).get(z), j.get('dates') or []
     li = jeonse_index(j) if ser and dates else None
@@ -1038,9 +1087,9 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
              '<h1>%s 아파트 공급</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
-             '<span class="zbasis">%s 기준 · 분기마다 갱신</span></p>'
+             '<span class="zbasis">%s 기준 · %s</span></p>'
              % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
-                esc(calc.get('Ltxt') or calc['L'])))
+                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC)))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의
@@ -1159,10 +1208,13 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
                        umx(row['um']) if row.get('um') is not None else '–',
                        SZ.month_text(calc.get('unsold_prd') or '')))
     if row.get('pm12') is not None:
+        # 기준 달(창의 끝)은 미분양 행처럼 적는다 — 판정(calc)이 실은 permit_prd. 다음 배치 전의 옛 판정에는 없어 그때는 뺀다.
+        # 퍼센트는 화면 정수 정본 rnd(half_up) — '%.0f' 는 짝수 쪽 반올림이라 x.5 에서 홈(Math.round)과 갈렸다(전수리뷰 X2 overflow).
         foot.append('<tr class="zref" data-ref="pm"><td>%s</td><td>%s</td><td>%s</td>'
-                    '<td colspan="3" class="zfut">착공 전 단계의 선행 물량</td></tr>'
+                    '<td colspan="3" class="zfut">%s착공 전 단계의 선행 물량</td></tr>'
                     % (refbtn('인허가 1년'), num(row['pm12']),
-                       ('%.0f%%' % (row['pmr'] * 100)) if row.get('pmr') is not None else '–'))
+                       ('%d%%' % rnd(row['pmr'] * 100)) if row.get('pmr') is not None else '–',
+                       ('%s 기준 · ' % SZ.month_text(calc['permit_prd'])) if calc.get('permit_prd') else ''))
     if foot:
         h.append('<tfoot>' + ''.join(foot) + '</tfoot>')
     # 표 아래 설명 문단은 2026-08-11 사용자 결정으로 삭제 — 굵은 줄은 보면 알고,
@@ -1315,8 +1367,14 @@ def outlook_cells(yrs, ref_pct=None, ref_lab=None):
     return ''.join(cells)
 
 
-def outlook_aria(yrs):
-    return '적정 대비 입주 ' + ', '.join('%d년 차 %d%%' % (y['n'], y['pct']) for y in yrs)
+def outlook_aria(yrs, ref_pct=None, ref_lab=None):
+    """해마다 입주 그림(role=img)의 읽어 줄 글 — 그림 칸과 같은 값: 해마다의 퍼센트와 상태 낱말(적음·보통·많음 — 허브 신호등의
+    SZ.lights_aria 와 같은 꼴), '… 너머' 참고 칸이 있으면 그 퍼센트까지(전수리뷰 Z1-11). img 의 자식(막대 아래 상태 글자·회색 칸)은
+    보조기술에 읽히지 않아, 예전 글('적정 대비 입주 1년 차 96%, …')로는 그 지역이 적음·보통·많음 가운데 어디인지 들을 수 없었다."""
+    out = SZ.lights_aria(yrs)
+    if ref_pct is not None:
+        out += ', %s(참고) %d%%' % (ref_lab, ref_pct)
+    return out
 
 
 # ── 해마다 입주 신호등(2026-10-05 대표 요청 — '부족·균형 태그보다 신호등 3개로 3년을 한눈에') ─────────────────────────
@@ -1353,12 +1411,12 @@ def outlook_block(yrs, pbr=None, H=None):
     # 설명은 막대 아래 한 줄(2026-10-06 대표 지적 — 문턱·기간·참고값 설명이 다섯 줄이라 장황했다). 문턱은 막대 아래 상태 글자
     # (적음·보통·많음)가 이미 말하고, 3년 너머가 참고값이라는 말은 바로 위 split 블록의 '참고' 줄이 한다.
     y1 = yrs[0]
-    ref_pct = None if pbr is None else SZ.pbr_pct(pbr)   # 리포트 '… 너머' 줄과 같은 정수
+    ref_pct = None if pbr is None else SZ.pbr_pct(pbr)   # 리포트 '… 너머' 줄과 같은 정수 — calc 가 원값을 싣는다(전수리뷰 Z1-3)
     beyond = '%g년 너머' % ((SZ.LEAD_Q if H is None else H) / 4.0)   # split_text 의 '… 너머' 줄과 같은 연수
     return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(1년 적정물량 대비)</h3>'
             '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'
             '<p class="zo-note">가로선 = 1년 적정물량 · 1년 차 = %s~%s · 회색 = 참고값</p></div>'
-            % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond),
+            % (esc(outlook_aria(yrs, ref_pct, beyond)), outlook_cells(yrs, ref_pct, beyond),
                esc(SZ.quarter_text(y1['from'])), esc(SZ.quarter_text(y1['to']))))
 
 
@@ -1399,10 +1457,9 @@ def build_hub(calc, stats=None):
              ''
              '<div class="zlinks" id="sido-list">')
     for o in sido:
-        h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>%s<i>%s</i>%s</a>'
-                 % (urllib.parse.quote(o['z']), SZ.GRADE_KEYS.index(o['grade']),
-                    disp_tot(o, calc['H']),
-                    esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
+        # 칸의 data-gi·data-tot(옛 정렬 토글이 읽던 등급·세대수)는 토글을 뺀 뒤 읽는 곳이 없어 걷었다(전수리뷰 Z1 overflow).
+        h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
+                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
                     card_html(o), gauge_html(o)))
     h.append('</div></div></section>')
     h.append('<section class="zread"><div class="wrap"><h2>읽는 법</h2>%s<p class="zg-note">%s</p>%s</div></section>'
@@ -1464,8 +1521,10 @@ def update_sitemap(names, lastmods, hub_lastmod, home_lastmod):
     리다이렉트 페이지로 남겼다 — sitemap 에는 넣지 않는다.
 
     ⚠️ lastmod는 **페이지별로 실제 내용이 바뀐 날**이다. 오늘 날짜를 일괄로 박으면
-    안 바뀐 날에도 21줄이 매일 달라져 커밋되고, 검색엔진엔 '매일 전부 갱신'이라는
-    틀린 신호가 간다. home_lastmod는 한 장이라도 바뀐 날에만 넘어온다(아니면 None).
+    안 바뀐 날에도 /zone/ 줄이 전부 매일 달라져 커밋되고, 검색엔진엔 '매일 전부 갱신'이라는
+    틀린 신호가 간다. home_lastmod(홈·/weekly/)는 _home_lastmod 도장이 정한 날이라 늘 들어온다 —
+    data-core.js 내용이 같으면 옛 날짜, 바뀌면 오늘(전수리뷰 Z1-13: 예전 독스트링의 '아니면 None'은 2026-08-07
+    _home_lastmod 도입 전 이야기다).
     """
     p = os.path.join(ROOT, 'sitemap.xml')
     x = io.open(p, encoding='utf-8').read()
@@ -1502,9 +1561,11 @@ def main():
     # 점수(24,297세대 부족)인데 분기 표는 전 칸 0인 자가당착 페이지가 나온다
     # (2026-08-07 감사에서 울산으로 재현). 지역 구성까지 같은지 본다.
     # ⚠️ H는 착공 끝 − 준공 끝 + 리드타임이라, 두 시리즈가 같은 분기에서 끝나야
-    # H == lead가 된다. 한쪽만 늦게 들어온 회차(부분 수집)에는 H가 13이 되고
-    # 등급이 3곳까지 조용히 바뀌는데 테스트·게이트가 전부 통과한다(2026-08-08 감사).
-    # 실측상 두 계열은 같은 표의 두 열이라 늘 함께 도착한다 — 어긋나면 수집 사고다.
+    # H == lead가 된다. 한쪽만 늦게 들어온 회차(부분 수집)에는 H가 11(착공 늦음) 또는 13(준공 늦음)이
+    # 되고 등급이 3곳까지 조용히 바뀌는데 테스트·게이트가 전부 통과했다(2026-08-07·08 감사).
+    # 준공(KOSIS DT_MLTM_5373)과 착공(DT_MLTM_5387)은 **다른 표**라 따로 받는다 — 한쪽만 실패하거나 원천이
+    # 늦으면 어긋난다(08-07 '착공만 늦게 도착' 사례). 수집 쪽 update_adv_data._hold_horizon 이 먼저 되돌리고,
+    # 이 ABORT 는 마지막 방어선이다 — 지우지 않는다(전수리뷰 Z1-13: 예전 주석은 '같은 표의 두 열이라 늘 함께 도착'이라 적었다).
     if _live['H'] != _live['lead']:
         raise SystemExit('ABORT: 준공(~%s)과 착공(~%s)의 끝 분기가 달라 H=%d다(정상 %d) — '
                          '한쪽만 수집된 회차로 보인다. 데이터를 먼저 맞출 것.'
@@ -1562,12 +1623,12 @@ def main():
     hub_fp = os.path.join(OUT, 'index.html')
     hub, hub_lm, hub_ch = keep_dates(build_hub(calc, stats), read_old(hub_fp), today)
     io.open(hub_fp, 'w', encoding='utf-8', newline='\n').write(hub)
-    # 20장이 공유하는 표 동작 스크립트. 페이지와 같은 실행에서 함께 써야
+    # 리포트 전부가 공유하는 표 동작 스크립트. 페이지와 같은 실행에서 함께 써야
     # '마크업은 새 판, 스크립트는 옛 판'이 생기지 않는다.
     io.open(os.path.join(OUT, 'zone.js'), 'w', encoding='utf-8',
             newline='\n').write(zone_js())
     # ⚠️ 홈·/weekly/ lastmod를 zone 변경에만 묶으면 안 된다. 주간 회차가 새로 들어온
-    # 날 홈 히어로 지도와 /weekly/ 지도는 실제로 바뀌는데 zone 20장은 분기 준공·착공만
+    # 날 홈 히어로 지도와 /weekly/ 지도는 실제로 바뀌는데 zone 리포트는 분기 준공·착공만
     # 읽으므로 changed=0이 되고, 두 페이지 lastmod가 영영 안 움직인다(2026-08-07 감사).
     # data-core.js의 내용 해시로 판정한다 — 그게 두 페이지의 실제 입력이다.
     home_lm = _home_lastmod(today)
