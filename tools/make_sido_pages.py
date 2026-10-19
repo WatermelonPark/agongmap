@@ -95,7 +95,7 @@ REFNOTE = {
 
 
 def zone_js():
-    """지역 20장이 공유하는 표 동작 스크립트 — /zone/zone.js로 나간다.
+    """지역 리포트 전부가 공유하는 표 동작 스크립트 — /zone/zone.js로 나간다.
 
     예전엔 이 코드가 페이지마다 인라인으로 들어가 20벌 구워졌다(장당 +2.2KB,
     배포 44KB). 지역과 무관하게 완전히 같은 코드라 한 파일로 뺀다. 지역 페이지는
@@ -146,7 +146,7 @@ def zone_js_src():
     """`/zone/zone.js?v=<내용 해시>` — 쿼리에 해시를 다는 이유가 둘이다.
 
     ① **lastmod가 따라 움직인다.** REFNOTE 문구가 이제 HTML엔 없어서, 문구만
-       고치면 20장이 바이트 동일이 되고 keep_dates가 '안 바뀜'으로 판정한다.
+       고치면 리포트가 모두 바이트 동일이 되고 keep_dates가 '안 바뀜'으로 판정한다.
        그러면 보이는 글이 바뀌었는데 dateModified·sitemap lastmod는 얼어붙는다
        (2026-08-15 리뷰). 해시를 태그에 실으면 HTML이 함께 바뀐다.
     ② **캐시가 알아서 갈린다.** sw.js 정적 자산은 cache-first라 옛 파일이 한 번
@@ -315,7 +315,7 @@ def ld_date(html, key='dateModified'):
 def keep_dates(new_html, old_html, today):
     """내용이 같고 날짜만 다르면 **옛 페이지를 그대로** 돌려준다.
 
-    ⚠️ 이게 없으면 데이터가 안 바뀐 날에도 21장과 sitemap의 lastmod가 날짜만
+    ⚠️ 이게 없으면 데이터가 안 바뀐 날에도 리포트·허브 전부와 sitemap의 lastmod가 날짜만
     달라진 채 매일 커밋된다(옛 make_zone_pages가 같은 이유로 갖고 있던 장치인데
     2026-08-06 재편 때 빠뜨렸다). 검색엔진에도 '매일 전부 갱신'이라는 틀린 신호가
     간다. 페이지 안의 YYYY-MM-DD는 datePublished·dateModified 둘뿐이라 날짜만
@@ -1516,8 +1516,10 @@ def update_sitemap(names, lastmods, hub_lastmod, home_lastmod):
     리다이렉트 페이지로 남겼다 — sitemap 에는 넣지 않는다.
 
     ⚠️ lastmod는 **페이지별로 실제 내용이 바뀐 날**이다. 오늘 날짜를 일괄로 박으면
-    안 바뀐 날에도 21줄이 매일 달라져 커밋되고, 검색엔진엔 '매일 전부 갱신'이라는
-    틀린 신호가 간다. home_lastmod는 한 장이라도 바뀐 날에만 넘어온다(아니면 None).
+    안 바뀐 날에도 /zone/ 줄이 전부 매일 달라져 커밋되고, 검색엔진엔 '매일 전부 갱신'이라는
+    틀린 신호가 간다. home_lastmod(홈·/weekly/)는 _home_lastmod 도장이 정한 날이라 늘 들어온다 —
+    data-core.js 내용이 같으면 옛 날짜, 바뀌면 오늘(전수리뷰 Z1-13: 예전 독스트링의 '아니면 None'은 2026-08-07
+    _home_lastmod 도입 전 이야기다).
     """
     p = os.path.join(ROOT, 'sitemap.xml')
     x = io.open(p, encoding='utf-8').read()
@@ -1554,9 +1556,11 @@ def main():
     # 점수(24,297세대 부족)인데 분기 표는 전 칸 0인 자가당착 페이지가 나온다
     # (2026-08-07 감사에서 울산으로 재현). 지역 구성까지 같은지 본다.
     # ⚠️ H는 착공 끝 − 준공 끝 + 리드타임이라, 두 시리즈가 같은 분기에서 끝나야
-    # H == lead가 된다. 한쪽만 늦게 들어온 회차(부분 수집)에는 H가 13이 되고
-    # 등급이 3곳까지 조용히 바뀌는데 테스트·게이트가 전부 통과한다(2026-08-08 감사).
-    # 실측상 두 계열은 같은 표의 두 열이라 늘 함께 도착한다 — 어긋나면 수집 사고다.
+    # H == lead가 된다. 한쪽만 늦게 들어온 회차(부분 수집)에는 H가 11(착공 늦음) 또는 13(준공 늦음)이
+    # 되고 등급이 3곳까지 조용히 바뀌는데 테스트·게이트가 전부 통과했다(2026-08-07·08 감사).
+    # 준공(KOSIS DT_MLTM_5373)과 착공(DT_MLTM_5387)은 **다른 표**라 따로 받는다 — 한쪽만 실패하거나 원천이
+    # 늦으면 어긋난다(08-07 '착공만 늦게 도착' 사례). 수집 쪽 update_adv_data._hold_horizon 이 먼저 되돌리고,
+    # 이 ABORT 는 마지막 방어선이다 — 지우지 않는다(전수리뷰 Z1-13: 예전 주석은 '같은 표의 두 열이라 늘 함께 도착'이라 적었다).
     if _live['H'] != _live['lead']:
         raise SystemExit('ABORT: 준공(~%s)과 착공(~%s)의 끝 분기가 달라 H=%d다(정상 %d) — '
                          '한쪽만 수집된 회차로 보인다. 데이터를 먼저 맞출 것.'
@@ -1614,12 +1618,12 @@ def main():
     hub_fp = os.path.join(OUT, 'index.html')
     hub, hub_lm, hub_ch = keep_dates(build_hub(calc, stats), read_old(hub_fp), today)
     io.open(hub_fp, 'w', encoding='utf-8', newline='\n').write(hub)
-    # 20장이 공유하는 표 동작 스크립트. 페이지와 같은 실행에서 함께 써야
+    # 리포트 전부가 공유하는 표 동작 스크립트. 페이지와 같은 실행에서 함께 써야
     # '마크업은 새 판, 스크립트는 옛 판'이 생기지 않는다.
     io.open(os.path.join(OUT, 'zone.js'), 'w', encoding='utf-8',
             newline='\n').write(zone_js())
     # ⚠️ 홈·/weekly/ lastmod를 zone 변경에만 묶으면 안 된다. 주간 회차가 새로 들어온
-    # 날 홈 히어로 지도와 /weekly/ 지도는 실제로 바뀌는데 zone 20장은 분기 준공·착공만
+    # 날 홈 히어로 지도와 /weekly/ 지도는 실제로 바뀌는데 zone 리포트는 분기 준공·착공만
     # 읽으므로 changed=0이 되고, 두 페이지 lastmod가 영영 안 움직인다(2026-08-07 감사).
     # data-core.js의 내용 해시로 판정한다 — 그게 두 페이지의 실제 입력이다.
     home_lm = _home_lastmod(today)
