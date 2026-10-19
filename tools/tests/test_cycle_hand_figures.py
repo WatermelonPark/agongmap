@@ -685,3 +685,165 @@ def test_hand_particles_and_claims_hold_for_any_recomputed_value():
         assert '소폭 하락' in str(e.value)
         assert io.open(page, encoding='utf-8').read() == s, '전제가 깨진 재산정으로 페이지를 고쳤다'
         RC.splice(page, copy.deepcopy(D))      # 전제가 서면 쓴다
+
+
+# ---------------------------------------------------------------- 페이지 스크립트를 node 로 돌려 본다 (전수리뷰 C-2·C-6·C-13)
+
+# cycle/index.html 의 본문 스크립트(initReport 가 든 <script>)를 가짜 DOM·가짜 Chart 위에서 돌려, 차트마다 넘긴 설정(데이터셋 색·축)과
+# 지역 전환 단추의 상태를 JSON 으로 돌려준다. 차트 라이브러리를 늦게 싣는 부트 경로(load → setTimeout → script onload)도 그대로 탄다.
+# 인자: 페이지 경로, (선택) const D 를 갈아 끼울 JSON 경로.
+_PAGE_JS = r"""const fs=require('fs'),vm=require('vm');
+const A=process.argv.slice(2);const html=fs.readFileSync(A[0],"utf8"),over=A[1]?JSON.parse(fs.readFileSync(A[1],"utf8")):null;
+const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+let src=scripts.find(x=>x.includes('function initReport()'));
+if(over) src=src.replace(/const D=\{.*?\};\n/s,()=>'const D='+JSON.stringify(over)+';\n');
+function El(tag,id){this.tagName=tag.toUpperCase();this.id=id||'';this.attrs={};this.children=[];this.style={};this.textContent='';
+  const cl=new Set();this.classList={add:c=>cl.add(c),remove:c=>cl.delete(c),contains:c=>cl.has(c),toggle:()=>{}};this._cl=cl;}
+El.prototype.setAttribute=function(k,v){this.attrs[k]=String(v)};El.prototype.getAttribute=function(k){return k in this.attrs?this.attrs[k]:null};
+El.prototype.appendChild=function(c){this.children.push(c);c.parentElement=this;return c};El.prototype.remove=function(){};
+El.prototype.matches=function(){return false};El.prototype.querySelector=function(){return null};
+const ids=[...html.matchAll(/<canvas id="(\w+)"/g)].map(m=>m[1]);
+const canv={};ids.forEach(i=>canv[i]=new El('canvas',i));
+const ztog=new El('div','ztog');let scriptEl=null;const charts={};const loads=[];
+const document={fonts:undefined,readyState:'loading',head:{appendChild:e=>{scriptEl=e}},body:{classList:{toggle(){}}},documentElement:{scrollHeight:0},
+  getElementById:i=>i==='ztog'?ztog:(canv[i]||null),createElement:t=>new El(t),
+  querySelector:q=>q==='#ztog button'?ztog.children[0]:(q==='canvas'?canv[ids[0]]:null),
+  querySelectorAll:q=>q==='#ztog button'?ztog.children:(q==='canvas'?ids.map(i=>canv[i]):[])};
+function Chart(el,cfg){charts[el.id]=cfg;this.destroy=()=>{};this.update=()=>{};}
+Chart.getChart=()=>null;Chart.defaults={font:{},plugins:{legend:{}}};
+const ctx=Object.assign({document,Chart,console,JSON,Math,Object,Array,Number,String,isNaN,
+  window:{addEventListener:(e,f)=>{if(e==='load')loads.push(f)}},addEventListener(){},requestAnimationFrame(){},
+  setTimeout:f=>f(),navigator:{},location:{search:''},innerHeight:800,scrollY:0},canv);
+vm.createContext(ctx);vm.runInContext(src,ctx);
+loads.forEach(f=>f());
+if(!scriptEl)throw new Error('차트 스크립트를 싣지 않았다');
+scriptEl.onload();
+const btn=()=>ztog.children.map(b=>({text:b.textContent,type:b.type||null,pressed:b.getAttribute('aria-pressed')}));
+const out={charts:{},buttons0:btn(),c5_0:{role:canv.c5&&canv.c5.getAttribute('role'),label:canv.c5&&canv.c5.getAttribute('aria-label')}};
+if(ztog.children.length>1){ztog.children[1].onclick();out.buttons1=btn();out.c5_1={role:canv.c5.getAttribute('role'),label:canv.c5.getAttribute('aria-label')};}
+for(const [k,c] of Object.entries(charts)){out.charts[k]={datasets:c.data.datasets.map(d=>({label:d.label||null,bg:d.backgroundColor,border:typeof d.borderColor==='string'?d.borderColor:null,data:d.data})),labels:c.data.labels,scales:JSON.parse(JSON.stringify(c.options.scales||{}))};}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _run_page_js(tmp_path, D=None):
+    import shutil
+    import subprocess
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    h = tmp_path / 'harness.js'
+    h.write_text(_PAGE_JS, encoding='utf-8')
+    args = ['node', str(h), PAGE]
+    if D is not None:
+        d = tmp_path / 'D.json'
+        d.write_text(json.dumps(D, ensure_ascii=False), encoding='utf-8')
+        args.append(str(d))
+    proc = subprocess.run(args, capture_output=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr.decode('utf-8', 'replace')
+    return json.loads(proc.stdout.decode('utf-8'))
+
+
+def test_jratio_spectrum_axis_widens_for_values_outside_the_default_band(tmp_path):
+    """참고② 전세가율 스펙트럼(c4)의 가로축은 값이 50~82 밖이어도 막대를 담는다(전수리뷰 C-2).
+
+    축을 min:50·max:82 로 박아 두면 세종 49.9(2019.04~2025.12 내내 50 미만) 같은 막대가 그림 영역 밖에 그려져 이름표만 남고,
+    82 를 넘는 막대(전북 2019.12 82.7)는 82 에서 잘린다. 지금은 suggestedMin·suggestedMax 라 Chart.js 가 값에 맞춰 넓힌다.
+    변이(실제로 확인): c4 축을 옛 `min:50,max:82` 로 되돌리면 빨개진다.
+    픽스처: 저장소 페이지 D 에서 전세가율 가장 낮은 곳을 45.0, 가장 높은 곳을 85.0 으로 바꾼 사본(실제로 있었던 범위 밖 달의 모양).
+    """
+    D, _ = _page()
+    D = copy.deepcopy(D)
+    D['jratio_level'][0]['val'] = 45.0
+    D['jratio_level'][-1]['val'] = 85.0
+    out = _run_page_js(tmp_path, D)
+    x = out['charts']['c4']['scales']['x']
+    vals = out['charts']['c4']['datasets'][0]['data']
+    assert min(vals) == 45.0 and max(vals) == 85.0, vals
+    assert x.get('min', -1e9) <= min(vals) and x.get('max', 1e9) >= max(vals), '전세가율 축이 값을 담지 못한다: %s' % x
+
+
+def _cap_of(s, cid):
+    for body, c in re.findall(r'<div class="chartbox"[^>]*>(.*?)<canvas id="(\w+)"', s, re.S):
+        if c == cid:
+            return ' '.join(re.findall(r'<div class="cap"[^>]*>(.*?)</div>', body, re.S))
+    raise AssertionError('%s 캡션이 없다' % cid)
+
+
+def _word(w):
+    w = w.strip('(),.')
+    return w if w in COLOR_WORDS else w[:-1] if w.endswith('색') and w[:-1] in COLOR_WORDS else w
+
+
+def test_caption_colour_pairs_match_the_rows(tmp_path):
+    """캡션이 말하는 '색 = 대상' 짝이 막대·선의 실제 색과 맞는다 — 색 이름이 차트 어딘가에 있는지만 보던 시험(위)을 짝 단위로 좁힌다
+    (전수리뷰 C-6: c6·cL6 의 수도권·지방 색을 서로 바꿔도 초록이었다).
+
+    차트별 짝: c6·cL6 '청록=수도권, 황갈=지방'(cL6 은 '회색=효과 약함'), cL3 '살아있는 곳(r 0.3 이상)은 초록, … (0~0.3)은 호박색,
+    … 끊긴 곳은 회색', cRate '매매(빨강)·전세(보라)', '금리(노랑, …)'. 색 이름은 캡션에서 읽고, 대상 조건은 차트 스크립트의 조건과 같다.
+    변이(각각 실제로 확인): c6 `r.sudo?COL.sudo:COL.jib` 를 `r.sudo?COL.jib:COL.sudo` 로, cL6 의 수도권·지방 색을 서로, cL3 의
+    COL.cut·COL.live 를 서로, cRate 매매·전세 borderColor 를 서로 바꾸면 각각 빨개진다.
+    픽스처: 저장소 페이지 D 에 모든 갈래(수도권·지방 / 유의·비유의 / r≥0.3·0~0.3·음)가 반드시 있도록 합성 행을 더한 사본.
+    """
+    D, s = _page()
+    D = copy.deepcopy(D)
+    D['sync'] += [{'region': '합성수도권', 'corr': 0.5, 'sudo': True}, {'region': '합성지방', 'corr': 0.6, 'sudo': False}]
+    D['link3_regional'] += [{'region': '합성강', 'r': 0.45, 'sudo': False}, {'region': '합성중', 'r': 0.1, 'sudo': False},
+                            {'region': '합성끊김', 'r': -0.2, 'sudo': True}]
+    D['link6_regional'] += [dict(region='합성수도권', r=-0.4, lag=1, zone='수도권', sig=True, lagtxt='1분기 뒤'),
+                            dict(region='합성지방', r=-0.4, lag=0, zone='지방', sig=True, lagtxt='즉시'),
+                            dict(region='합성약함', r=-0.1, lag=0, zone='지방', sig=False, lagtxt='효과 약함')]
+    out = _run_page_js(tmp_path, D)['charts']
+    rules = {
+        'c6': ('sync', [(r'(\S+?)=수도권', lambda r: r['sudo']), (r'(\S+?)=지방', lambda r: not r['sudo'])]),
+        'cL6': ('link6_regional', [(r'(\S+?)=수도권', lambda r: r['sig'] and r['zone'] == '수도권'),
+                                   (r'(\S+?)=지방', lambda r: r['sig'] and r['zone'] != '수도권'),
+                                   (r'(\S+?)=효과 약함', lambda r: not r['sig'])]),
+        'cL3': ('link3_regional', [(r'살아있는 곳\([^)]*\)은 (\S+?),', lambda r: r['r'] >= 0.3),
+                                   (r'이어진 곳\([^)]*\)은 (\S+?),', lambda r: 0 <= r['r'] < 0.3),
+                                   (r'끊긴 곳은 (\S+?)이다', lambda r: r['r'] < 0)]),
+    }
+    checked = 0
+    for cid, (key, pairs) in rules.items():
+        cap = _cap_of(s, cid)
+        rows = D[key]
+        if cid == 'c6':
+            rows = sorted(rows, key=lambda r: -r['corr'])     # 페이지가 그리기 전에 동조성 내림차순으로 정렬한다
+        bg = out[cid]['datasets'][0]['bg']
+        assert len(bg) == len(rows), cid
+        for pat, pred in pairs:
+            m = re.search(pat, cap)
+            assert m, '%s 캡션에서 색 짝을 못 찾았다(%s) — 문구를 바꿨으면 이 시험도 고칠 것' % (cid, pat)
+            word = _word(m.group(1))
+            assert word in COLOR_WORDS, (cid, word)
+            hit = [(r['region'], c) for r, c in zip(rows, bg) if pred(r)]
+            assert hit, '%s 의 %s 갈래 행이 없다 — 픽스처가 헛돈다' % (cid, pat)
+            wrong = [(n, c) for n, c in hit if c.lower() not in COLOR_WORDS[word]]
+            assert not wrong, '%s 캡션은 %s 이라 하는데 다른 색으로 칠했다: %s' % (cid, word, wrong[:3])
+            checked += 1
+    cap = _cap_of(s, 'cRate')
+    ds = {d['label']: (d['border'] or '').lower() for d in out['cRate']['datasets']}
+    for pat, label in ((r'매매\((\S+?)\)', '매매'), (r'전세\((\S+?)\)', '전세'), (r'금리\((\S+?),', 'CD금리')):
+        m = re.search(pat, cap)
+        assert m and label in ds, (pat, sorted(ds))
+        assert ds[label] in COLOR_WORDS[_word(m.group(1))], 'cRate %s 선이 캡션 색(%s)이 아니다: %s' % (label, m.group(1), ds[label])
+        checked += 1
+    assert checked == 11, checked
+
+
+def test_region_toggle_reports_its_state_to_assistive_tech(tmp_path):
+    """참고① 지역별 매매·전세 추이의 지역 전환 단추는 묶음 이름(role=group·aria-label)과 눌림 상태(aria-pressed)를 갖고, 차트 이름에
+    고른 지역을 싣는다(전수리뷰 C-13 — 홈 map-mode·tb-view, zone.js zm-seg 와 같은 꼴).
+
+    변이(실제로 확인): onclick 에서 누른 단추의 aria-pressed 를 'true' 로 바꾸는 줄을 빼면 누른 뒤 단정이, dz() 의 role='img' 를 빼면
+    (아래 캔버스 이름 루프는 이름이 이미 있으면 건너뛴다) 역할 단정이, #ztog 의 role="group" 을 빼면 첫 단정이 빨개진다.
+    픽스처: 저장소 cycle/index.html(D.zones 의 지역 넷) — 둘째 단추를 누른 상태까지 본다.
+    """
+    _, s = _page()
+    assert re.search(r'<div class="toggle" id="ztog" role="group" aria-label="[^"]+">', s), '#ztog 에 묶음 역할·이름이 없다'
+    out = _run_page_js(tmp_path)
+    b0, b1 = out['buttons0'], out['buttons1']
+    assert len(b0) >= 2 and all(b['type'] == 'button' for b in b0), b0
+    assert [b['pressed'] for b in b0] == ['true'] + ['false'] * (len(b0) - 1), b0
+    assert [b['pressed'] for b in b1] == ['false', 'true'] + ['false'] * (len(b1) - 2), b1
+    for st, b in ((out['c5_0'], b0[0]), (out['c5_1'], b1[1])):
+        assert st['role'] == 'img' and st['label'] and st['label'].endswith(b['text']), (st, b)
