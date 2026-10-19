@@ -594,3 +594,94 @@ def test_cycle_particles_follow_the_display_name():
     bad, seen = _particle_faults(text, names)
     assert seen >= 10, '조사 검사가 헛돈다(%d곳)' % seen
     assert not bad, '/cycle/ 지역 이름 뒤 조사가 받침과 맞지 않는다: %s' % bad
+
+
+# ---------------------------------------------------------------- 고리⑥ 반응 시차 칸 (전수리뷰 C-3)
+
+def test_link6_caption_counts_come_from_the_chart_rows():
+    """고리⑥ 캡션·읽기 칸의 '유의한 지방 N곳 가운데 a곳은 즉시, b곳은 한 분기 뒤, 수도권(…)'은 같은 차트 데이터(D.link6_regional)
+    에서 센 칸(RC.link6_lag_prose — l6p_)이다. 6편 블로그 초안(make_theory_post.link6_values)도 같은 함수를 읽는다.
+
+    손 캡션 '유의한 지역만 보면 지방은 즉시'는 같은 막대 툴팁('지방 · 1분기 뒤' — 대구·전북·부산·울산)과 처음부터 어긋났다.
+    변이(실제로 확인): link6_lag_prose 의 l6p_late 를 `lag == 0` 으로 세면 합성 뒤집기 단정이, 캡션을 옛 손 문장으로 되돌리면
+    칸·옛 문장 단정이 빨개진다.
+    픽스처: 게이트 시점 페이지 D(생성기가 방금 구운 값)와, 그 행에서 유의한 지방 한 곳의 시차를 1→0(또는 0→1)으로 바꾼 합성 행.
+    """
+    D, s = _page()
+    rows = D['link6_regional']
+    want = RC.link6_lag_prose(rows)
+    assert {k: D['prose'].get(k) for k in want} == want, '고리⑥ 시차 칸이 차트 데이터와 다르다 — refresh_cycle_data 를 돌릴 것'
+    prov = [x for x in rows if x['sig'] and x['zone'] != '수도권']
+    assert prov and int(want['l6p_now']) + int(want['l6p_late']) == len(prov) == int(want['l6p_sig'])
+    flip = copy.deepcopy(rows)
+    x = next(r for r in flip if r['sig'] and r['zone'] != '수도권')
+    x['lag'] = 1 - x['lag']
+    got = RC.link6_lag_prose(flip)
+    d = 1 if x['lag'] == 0 else -1
+    assert (int(got['l6p_now']), int(got['l6p_late'])) == (int(want['l6p_now']) + d, int(want['l6p_late']) - d), got
+    sec = _para(s, 'id="link6"')
+    cap = re.search(r'<div class="cap">(.*?)</div>\s*<div class="cwrap tall"><canvas id="cL6"', sec, re.S).group(1)
+    for k in want:
+        assert '<span data-d="%s">' % k in cap, 'cL6 캡션에 %s 칸이 없다' % k
+    bare = re.sub(r'<span data-d="[a-z0-9_]+">[^<]*</span>', '', sec)
+    for old in ('지방은 즉시', '대체로 즉시'):
+        assert old not in bare, '고리⑥에 차트와 어긋나는 손 문장이 남았다: %s' % old
+
+
+# ---------------------------------------------------------------- 재산정 칸 뒤 손 문장 (전수리뷰 C-10)
+
+# 칸 값의 끝 글자가 바뀌어도 받침이 늘 같은 칸 — 뒤에 손 조사를 둬도 된다(_years 는 '…년'·'…남짓'으로만 끝난다).
+_FIXED_TAIL = {'lead_old_y', 'lead_new_y'}
+
+
+def test_hand_particles_and_claims_hold_for_any_recomputed_value():
+    """재산정 칸 바로 뒤에는 값에 기대는 손 조사를 두지 않고, 칸 값의 방향·순서를 단정하는 손 문장은 RC.claim_breaks 가 본다.
+
+    예전 본문은 '−0.30으로 약하다'·'−0.40으로 살아난다'·'0.55로 가장 느슨'처럼 지금 값의 끝 숫자에 맞춘 조사였고(−0.31 이면
+    '−0.31으로'), 공급 많은 분기 상승률이 +0.1 이 되면 같은 절이 '0.1%로 꺾였다'와 '소폭 하락으로 돌아선다'를 함께 말했다.
+    변이(실제로 확인): 본문 l6_prov 뒤를 옛 '으로 약하다'로 되돌리면 칸 뒤 조사 단정이, claim_breaks 의 공급 많은 분기 부호 검사를
+    지우면 그 뒤집기 단정이, RC.splice 의 claim_breaks 호출을 지우면 쓰기 거절 단정이 빨개진다.
+    픽스처: 게이트 시점 페이지 D·본문(그 칸은 손 재산정에서만 바뀐다 — 매일 배치는 건드리지 않는다)과, 그 D 에서 전제를 하나씩
+            뒤집은 합성 사본.
+    """
+    D, s = _page()
+    body = s[s.find('<body'):s.find('<script>', s.find('</footer>'))]
+    bad = []
+    for m in re.finditer(r'<span data-d="([a-z0-9_]+)">([^<]*)</span>((?:</(?:b|strong)>)*)(으로|로|은|는|이|가|을|를|과|와)', body):
+        if m.group(1) not in _FIXED_TAIL:
+            bad.append(m.group(0))
+    assert not bad, '재산정 칸 바로 뒤에 값에 기대는 손 조사가 있다(칸으로 만들거나 조사 없는 말로): %s' % bad
+    assert RC.claim_breaks(D) == [], RC.claim_breaks(D)
+
+    def broken(fn):
+        x = copy.deepcopy(D)
+        fn(x)
+        return RC.claim_breaks(x)
+
+    def seoul_top(x):
+        next(r for r in x['sync'] if r['region'] == '서울')['corr'] = 0.99
+    flips = {
+        '소폭 하락': lambda x: x['link1_new'].__setitem__('jeonse_rise', x['link1_new']['jeonse_rise'][:2] + [0.1]),
+        '계단처럼': lambda x: x['link1_new'].__setitem__('jeonse_rise', [1.0, 2.0, -0.4]),
+        '서울은 가장 느슨': seoul_top,
+        '지방 대도시': lambda x: [r.__setitem__('corr', 0.98) for r in x['sync'] if r['region'] not in RC.METRO][:1],
+        '광역시는 강하고': lambda x: x['prose'].update(l6_metro='−0.20'),
+        '살아난다': lambda x: x['prose'].update(sudo_l6='−0.05'),
+        '서울은 예외': lambda x: [r.__setitem__('sig', True) for r in x['link6_regional'] if r['region'] == '서울'],
+        '수도권은 한 분기 뒤': lambda x: [r.__setitem__('lag', 0) for r in x['link6_regional'] if r['zone'] == '수도권'],
+    }
+    for why, fn in flips.items():
+        got = broken(fn)
+        assert any(why in g for g in got), '%s 전제를 뒤집었는데 claim_breaks 가 못 봤다: %s' % (why, got)
+    # 쓰기(RC.splice)는 전제가 깨진 재산정을 쓰지 않는다 — 페이지 사본으로 본다
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        page = os.path.join(td, 'index.html')
+        io.open(page, 'w', encoding='utf-8', newline='').write(s)
+        x = copy.deepcopy(D)
+        x['link1_new']['jeonse_rise'][2] = 0.1
+        with pytest.raises(SystemExit) as e:
+            RC.splice(page, x)
+        assert '소폭 하락' in str(e.value)
+        assert io.open(page, encoding='utf-8').read() == s, '전제가 깨진 재산정으로 페이지를 고쳤다'
+        RC.splice(page, copy.deepcopy(D))      # 전제가 서면 쓴다
