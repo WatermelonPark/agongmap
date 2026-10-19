@@ -471,6 +471,48 @@ def test_annual_new_year_reaches_the_merged_region(monkeypatch, state):
         assert at(late) == gj2 + 10, '한 조각이던 해를 두 조각 응답이 채우지 못했다'
 
 
+# ── 전수리뷰 A-4: 보급률의 원천 0 은 '없음'이다 ─────────────────────────────────────────
+def test_annual_zero_is_missing_for_the_ratio_series(monkeypatch):
+    """보급률(주택 수 ÷ 가구 수 %)의 원천 0 은 값이 아니라 없음이다 — 받을 때 버리고, 저장된 0 도 다음 회차가 칸 단위로 지운다.
+    물량 계열(아파트멸실)의 0 은 진짜 0 이라 그대로 둔다(전수리뷰 A-4).
+
+    변이(각각 확인): _fetch_annual_one 의 `if cfg.get('zero_missing') and v == 0: continue` 를 지우면 받은 해의 0 이 실려 '원천 0'
+          단정이, update_annual 의 blank_zero_cells 호출을 지우면 저장된 옛 해 0 이 남아 '옛 해 0' 단정이, blank_zero_cells 의 zero_missing 확인을
+          빼면 아파트멸실의 진짜 0 이 지워져 첫 단정(물량 계열)이 빨개진다.
+    픽스처: 2026-08-08 '--heal-annual 보급률' 뒤의 저장 상태 — 저장 STATS 보급률의 가장 옛 해 다섯은 전 지역 0, 그다음 해 하나는
+            한 지역만 0(세종 2010~2014 모양). 원천 응답은 마지막 해 하나에 그 지역만 '0'(다른 지역은 저장값 그대로).
+    """
+    # 물량 계열의 0 은 진짜 0 이다(먼저 본다 — _annual_update 가 ANNUAL_CONF 를 그 계열 하나로 줄인다)
+    m = '아파트멸실'
+    st2 = _stats()
+    M = st2[m]
+    reg = next(r for r in M['series'] if r != DST)
+    M['series'][reg][0] = 0
+    _annual_update(monkeypatch, st2, m, [])
+    assert M['series'][reg][0] == 0, '물량 계열의 진짜 0 을 지웠다'
+    monkeypatch.undo()
+    name = '보급률'
+    st = _stats()
+    D = st[name]
+    one = next(r for r in D['series'] if r not in (DST,) + tuple(SZ.AGG))
+    for arr in D['series'].values():
+        for i in range(5):
+            arr[i] = 0.0
+    D['series'][one][5] = 0.0
+    y = D['dates'][-1]
+    vals = {r: a[-1] for r, a in D['series'].items() if a[-1] is not None and r != DST}
+    vals[one] = 0
+    rows = _annual_rows(name, y, vals)
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
+    got = U._fetch_annual_one(name)[y]
+    assert one not in got and len(got) == len(vals) - 1, '원천 0 이 값으로 실렸다'
+    keep = {r: [None if v == 0 else v for v in a[6:]] for r, a in D['series'].items() if r != DST}   # 0 만 비고 나머지는 그대로
+    failed = _annual_update(monkeypatch, st, name, rows)
+    assert not failed
+    assert all(a[i] is None for r, a in D['series'].items() for i in range(5)), '저장된 옛 해 0 이 남았다'
+    assert D['series'][one][5] is None and all(D['series'][r][6:] == keep[r] for r in keep), '0 이 아닌 칸이 바뀌었거나 0 이 남았다'
+
+
 # ── 전수리뷰 #4: 응답에 서울구 열이 하나도 없으면 직전 블록을 지킨다 ───────────────────────
 @pytest.mark.parametrize('kind,window', [('weekly', U.RECENT_WEEKS), ('monthly', U.RECENT_MONTHS)])
 def test_gu_block_with_no_columns_keeps_the_saved_block(kind, window):

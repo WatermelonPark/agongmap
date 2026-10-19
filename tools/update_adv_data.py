@@ -407,9 +407,12 @@ def update_supply(stats, months=None, failed=None):
 # 아파트건설 333,452·노후 2,517,244가 아래 표에서 그대로 재현됨).
 #   only: 그 컬럼이 해당 값인 행만 사용. region: 지역축이 없는 표의 고정 지역명.
 #   shortmap: 원천이 '서울특별시' 같은 전체명이라 BUBBLE_SHORT로 축약해 맞춘다.
+#   zero_missing: 원천의 0 은 값이 아니라 '없음'이다(0 이 될 수 없는 비율). 받을 때 버리고, 저장된 0 도 매 회차 칸 단위로 지운다.
 ANNUAL_CONF = {
+    # 보급률(주택 수 ÷ 가구 수 %)은 0 이 될 수 없다. 2026-08-08 '--heal-annual 보급률' 재조회가 새 지표가 없는 2005~2009(17곳)와
+    # 세종 2010~2014 에 원천이 준 0 을 그대로 실어, 홈 통계 '주택보급률'이 0% 에서 100% 대로 뛰는 선을 그렸다(전수리뷰 A-4).
     '보급률':      {'org': '116', 'tbl': 'DT_MLTM_2100', 'objn': 1, 'dec': 1,
-                    'itm': '보급률(다가구 구분거처 반영)'},
+                    'itm': '보급률(다가구 구분거처 반영)', 'zero_missing': True},
     '주택멸실':    {'org': '116', 'tbl': 'DT_MLTM_5416', 'objn': 1, 'dec': 0,
                     'itm': '계'},
     # 같은 표에서 유형만 '아파트'로 좁힌 계열. 러닝재고(준공−멸실−적정)가 쓰는 건
@@ -1738,6 +1741,8 @@ def _fetch_annual_one(name, years=None):
             v = float(row['DT'])
         except (TypeError, ValueError, KeyError):
             continue
+        if cfg.get('zero_missing') and v == 0:
+            continue                       # 원천의 0 = 없음(ANNUAL_CONF 주석) — 값으로 싣지 않는다
         if len(y) == 4 and y.isdigit():
             out.setdefault(y, {})[reg] = v
     # 통합 전 두 이름(광주·전남)을 접는다 — 기본통계·인허가 표·공급과 같은 함수(_fold_gj). 이게 없으면
@@ -1775,22 +1780,39 @@ def merge_annual(D, fetched, dec):
     return changed
 
 
+def blank_zero_cells(name, D):
+    """zero_missing 계열(ANNUAL_CONF)의 저장된 0 을 칸 단위로 None 으로 바꾼다. 바꾼 칸 수.
+
+    받을 때 거르는 것만으로는 안 된다 — 평소 배치는 최근 ANNUAL_YEARS 해만 다시 받고, 해 단위 지우기(--heal-annual)는 원천이 그 해를
+    아예 안 준 경우만 지워 '다른 지역 값이 있는 해의 0'(세종 2010~2014)이 남는다. 매 회차 칸 단위로 지워 다음 배치가 스스로 고친다."""
+    if not ANNUAL_CONF.get(name, {}).get('zero_missing'):
+        return 0
+    n = 0
+    for arr in (D.get('series') or {}).values():
+        for i, v in enumerate(arr):
+            if v is not None and v == 0:
+                arr[i] = None
+                n += 1
+    return n
+
+
 def update_annual(stats, failed=None):
     changed = []
     for name in ANNUAL_CONF:
         if name not in stats:
             print('annual %s skip: STATS에 없음' % name)
             continue
+        n = blank_zero_cells(name, stats[name])      # 원천 조회와 무관한 저장분 정리 — 조회가 죽은 날도 돈다
         try:
             fetched = _fetch_annual_one(name)
             time.sleep(0.2)
-            n = merge_annual(stats[name], fetched, ANNUAL_CONF[name]['dec'])
-            if n:
-                changed.append('%s(%d)' % (name, n))
+            n += merge_annual(stats[name], fetched, ANNUAL_CONF[name]['dec'])
         except Exception as e:
             if failed is not None:
                 failed.append(name)
             print('annual %s skip: %s' % (name, e))
+        if n:
+            changed.append('%s(%d)' % (name, n))
     return changed
 
 
@@ -2217,7 +2239,7 @@ def main():
         st = read_current_stats()
         fetched = _fetch_annual_one(name, years)
         D = st[name]
-        n = merge_annual(D, fetched, ANNUAL_CONF[name]['dec'])
+        n = merge_annual(D, fetched, ANNUAL_CONF[name]['dec']) + blank_zero_cells(name, D)
         # ⚠️ 조회 범위 **안**에서만 지운다. 밖(더 옛 연도)은 '새 지표에 없다'가 아니라
         # '이번에 안 물어봤다'이다 — 이걸 구분하지 않아 아파트건설의 1970~1994년
         # 25셀을 한 번 날렸다(2026-08-08, 백업에서 복원).
