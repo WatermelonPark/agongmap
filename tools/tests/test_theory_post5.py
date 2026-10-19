@@ -101,7 +101,9 @@ def test_arithmetic_break_in_a_claim_is_a_claim_stop_not_a_traceback(tmp_path, m
 
 
 def test_no_hand_written_counts_in_body():
-    text = re.sub(r'%\(\w+\)s', '', POST['body']).replace('허가 100호 가운데', '')   # 비율을 풀어 쓴 분모
+    # 5편 본문에는 비율을 풀어 쓴 분모 문장('허가 100세대 가운데 …')이 없다 — 그 문장은 4편에만 있다(test_theory_post4 가 뺀다).
+    # 4편 시험을 본떠 옮겨 온 옛 '허가 100호 가운데' 지우기는 한 번도 맞은 적 없는 죽은 코드라 뺐다(전수리뷰 T3-15).
+    text = re.sub(r'%\(\w+\)s', '', POST['body'])
     # 연도(4자리)·편 번호·'1년' 같은 가정은 문장이다. 세대·호·퍼센트·배수는 전부 계산값이어야 한다.
     hand = re.findall(r'\d[\d,]*\s*(?:호|세대|%%|배)', text)
     assert not hand, hand
