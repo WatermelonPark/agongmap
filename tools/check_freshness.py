@@ -843,13 +843,16 @@ def rone_latest_complete(tbl, since=None, want_total=False):
     for r in rows:
         t = (r.get('WRTTIME_IDTFR_ID') or '').strip()
         reg = U._supply_region(r.get('CLS_FULLNM'))
-        if not (t and reg) or r.get('DTA_VAL') in (None, ''):
+        if not (t and reg):
+            continue
+        # 숫자로 읽히는 값만 '있음'으로 센다 — 배치 _fetch_supply_one 은 float 이 실패한 지역('-' 등)을 빼고 그 달을 보류한다.
+        # 예전엔 비어 있지 않으면 셌다: 원천이 한 지역을 '-'로 주면 배치는 보류, 감시는 완비로 읽어 뒤처짐 헛경보(전수리뷰 F overflow).
+        try:
+            v = float(r['DTA_VAL'])
+        except (TypeError, ValueError, KeyError):
             continue
         by.setdefault(t, set()).add(reg)
-        try:
-            vals.setdefault(t, {})[reg] = float(r['DTA_VAL'])
-        except (TypeError, ValueError):
-            pass
+        vals.setdefault(t, {})[reg] = v
     if not by:
         raise RuntimeError('시점 파싱 실패')
     # 원천이 아직 옛 이름(광주·전남)으로 주는 계열이 있다. 배치가 조회 뒤 접으므로 감시도 **같은 함수**
