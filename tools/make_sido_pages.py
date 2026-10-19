@@ -542,7 +542,7 @@ def share_section(z):
         'var u=location.origin+location.pathname+'
         '"?utm_source=zone_share&utm_medium=viral&utm_campaign=zone";'
         'var t=nm+" 아파트 공급 분석 — 아공맵";'
-        'var x=nm+"에 필요한 집과 앞으로 들어올 집, 국가 통계로 확인해보세요.";'
+        'var x=nm+"의 적정물량과 앞으로 들어올 집, 국가 통계로 확인해보세요.";'
         'try{gtag("event","share",{content_type:"zone",'
         'method:navigator.share?"web_share":"copy",region:rk});}catch(e){}'
         'if(navigator.share){navigator.share({title:t,text:x,url:u}).catch(function(){});return;}'
