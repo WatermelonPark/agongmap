@@ -134,6 +134,28 @@ SUPPLY_CONF = {
 SUPPLY_MONTHS = 8          # 최근 8개월(소급 정정 커버) — BASIC_MONTHS와 같은 기조
 SUPPLY_SIDO = [r for r in WEEKLY_REGIONS if r not in ('전국', '수도권', '지방')]
 
+# 원천 표의 지역 축이 판정 모델(시도)인 계열 — 모델 밖 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)을 싣지 않는다
+# (대표 결정 2026-10-18 D2, 전수리뷰 A-5). 원천은 2026.07 광주·전남 통합 때 같은 이름의 집계 행 구성을 바꿨는데(광역시 묶음에서 광주,
+# 도 묶음에서 전남이 빠졌다) 이름만 보고 이어 붙여, 홈 통계에 '8개도 전세가율 −5.8%p'·'기타광역시 인허가 전년 동월 대비 −41%' 같은
+# 없던 변화가 그려졌다. 이 행들을 읽는 곳은 홈 통계 지역 선택뿐이었다. 지역 키는 모델(sido_zones.ORDER)에서 유도한다.
+# KAB 실거래가격지수(매매·전세지수, mode 'flat')의 원천 권역 행(광역시·지방도·서울 권역)은 결정 밖이라 그대로 둔다.
+MODEL_REGION_SERIES = [n for n, c in BASIC_CONF.items() if c['mode'] != 'flat'] + list(SUPPLY_CONF)
+
+
+def drop_raw_aggregates(stats):
+    """MODEL_REGION_SERIES 계열에서 판정 모델(sido_zones.ORDER) 밖 지역 키를 뺀다 → {계열: [뺀 키]}. 한 번 빼면 merge_basic 은
+    저장된 키만 채우므로 다시 들어오지 않는다(배치가 매 회차 불러도 두 번째부터는 빈 결과)."""
+    keep = set(SZ.ORDER)
+    out = {}
+    for name in MODEL_REGION_SERIES:
+        ser = (stats.get(name) or {}).get('series')
+        gone = [r for r in (ser or {}) if r not in keep]
+        for r in gone:
+            ser.pop(r)
+        if gone:
+            out[name] = gone
+    return out
+
 
 def _supply_region(full):
     """R-ONE CLS_FULLNM → STATS 지역명. 두 표의 계층이 서로 다르다.
@@ -377,8 +399,8 @@ def update_supply(stats, months=None, failed=None):
                 continue
             _merge_gj(fetched)
             # ⚠️ 완비 기준은 regions가 아니라 SUPPLY_SIDO(실제 시도 16곳)다.
-            # regions는 저장 계열의 키라 '기타광역시'·'기타지방'까지 안고 있는데,
-            # 그 둘은 _supply_region()이 중간 집계행이라고 **일부러 버리는** 이름이라
+            # regions는 저장 계열의 키라 예전엔 '기타광역시'·'기타지방'까지 안고 있었는데(2026-10-18 D2 로 수집에서 뺐다 —
+            # drop_raw_aggregates), 그 둘은 _supply_region()이 중간 집계행이라고 **일부러 버리는** 이름이라
             # 원천 응답에 영영 나타나지 않는다. regions로 재면 missing이 절대 비지
             # 않아 **모든 달이 제외된다** — 2026-09-08~12 배치 로그에 'supply 분양:
             # 완비된 달이 없어 건너뜀'이 매 회차 찍혔고 미분양이 2026.06에 묶였다.
@@ -1903,6 +1925,10 @@ def update_basic(failed=None):
     failed = [] if failed is None else failed
     stats = read_current_stats()
     changed = []
+    gone = drop_raw_aggregates(stats)           # 모델 밖 원천 집계 행(D2) — 원천 조회와 무관한 저장분 정리
+    if gone:
+        print('basic: 모델 밖 집계 행을 뺀다 — %s' % ' · '.join('%s:%s' % (k, '·'.join(v)) for k, v in gone.items()))
+        changed.append('집계행정리(%d)' % sum(len(v) for v in gone.values()))
     try:
         changed += update_rate(stats)
     except Exception as e:
