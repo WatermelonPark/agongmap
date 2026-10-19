@@ -165,6 +165,20 @@ def test_link3_direction_claims_are_guarded(region, f, key):
     assert (' %s:' % key) in str(e.value), str(e.value)
 
 
+def test_link3_beyond_percent_is_the_site_integer():
+    """4편 '최근 2년 인허가를 착공으로 환산하면 적정물량의 N%'(sd_pbr·jb_pbr)는 시도 리포트 줄·'… 너머' 칸과 같은 정수다 — 정본
+    SZ.pbr_pct(원값에서 한 번 half_up, 전수리뷰 Z1-3). 재현한 실제 상태(2026-10-18): '%.0f' 는 짝수 쪽 반올림이라 저장값 0.965(수도권)를
+    '96%'로 써, 사이트 리포트의 97% 와 갈렸다(블로그와 사이트가 다른 숫자를 말하면 안 된다).
+    변이(실제로 확인): _sd_pbr·_jb_pbr 을 '%.0f%%' % (pbr*100) 로 되돌리면 빨개진다.
+    픽스처: 4편 고정 스냅숏(_link3_fixture)에서 수도권 pbr 0.965·지방 0.425 — 100배가 이진수로 정확히 x.5 인 값이라 두 반올림이 갈린다."""
+    adv, sts = _link3_fixture()
+    for x in adv['sido']['zones']:
+        if x['z'] in ('수도권', '지방'):
+            x['pbr'] = {'수도권': 0.965, '지방': 0.425}[x['z']]
+    v = L3.link3_numbers(adv, sts)
+    assert (v['sd_pbr'], v['jb_pbr']) == ('%d%%' % SZ.pbr_pct(0.965), '%d%%' % SZ.pbr_pct(0.425)) == ('97%', '43%'), v
+
+
 def test_link3_missing_half_year_is_a_claim_error_not_a_traceback():
     adv, sts = _link3_fixture()
     for r in adv['permits']['rows']:

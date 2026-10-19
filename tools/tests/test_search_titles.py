@@ -128,9 +128,13 @@ def test_zone_title_is_the_search_shape_for_every_grade(grade):
 
 
 def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
-    """배치가 구운 시도 리포트마다 <title>·og:title·JSON-LD headline 이 같은 값이고 그 값이 기준 분기의 연도로 시작한다.
+    """배치가 구운 시도 리포트마다 <title>·og:title·JSON-LD headline 이 같은 값이고, 그 값이 주간 최신 조사일의 **전망 연도**
+    (sido_zones.outlook_year(latest_survey(adv)) — 10월부터 다음 해, 2026-09-27 대표 결정)와 화면 이름으로 시작한다. 기준 분기(calc['L'])의
+    연도가 아니다 — 그 규칙은 위 시험이 변이로 적어 두었다(전수리뷰 T3-16: 이 독스트링만 옛 규칙을 적고 있었다).
 
-    변이: head() 에서 og:title 이나 headline 에 옛 제목을 따로 넘기면 빨개진다(확인). 게이트는 생성기 뒤라 새 제목을 본다.
+    변이: head() 에서 og:title 이나 headline 에 옛 제목을 따로 넘기면 빨개진다(확인). page_title 이 연도를 기준 분기(calc['L'][:4])에서
+    읽게 바꾸고 다시 구우면 10~12월 조사일에서 빨개진다(확인 — 10-12 조사분 2027 대 2026. 1~9월에는 두 연도가 같아 위 시험이 맡는다).
+    게이트는 생성기 뒤라 새 제목을 본다.
     픽스처: 저장소 data.js 의 ADV.sido 와 그걸로 구운 zone/<지역>/index.html(허브·통합 안내 페이지는 뺀다).
     """
     adv, _ = M.load()
@@ -145,6 +149,24 @@ def test_baked_zone_pages_share_one_title_across_title_og_and_headline():
         want = M.page_title(z['z'], calc, M.GRADE_TXT[z['grade']][0], SZ.latest_survey(adv))
         assert title == M.esc(want) + ' | 아공맵' and og == M.esc(want) and head == want, (z['z'], title, og, head)
         assert want.startswith('%s년 %s 아파트 공급물량 전망, ' % (SZ.outlook_year(SZ.latest_survey(adv)), SZ.disp(z['z'])))   # 화면 이름(백로그 46)
+
+
+def _article(html):
+    ld = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', html, re.S).group(1))
+    return [x for x in ld if x.get('@type') == 'Article'][0]
+
+
+def test_zone_json_ld_about_is_a_real_place():
+    """시도 리포트 JSON-LD Article 의 about 은 그 판정 단위의 Place(화면 이름)이고, 허브('시도별 공급')에는 about 이 없다(전수리뷰 Z1-12).
+    재현한 실제 상태(10-18 zone/index.html): 허브가 z 자리에 제목을 넘겨 about {"@type": "Place", "name": "시도별 공급"} — 없는 장소였다
+    (canonical·og:url 은 url 인자로, 빵부스러기 3단은 crumb=False 로 이미 피했다).
+    변이(실제로 확인): head() 의 `if z in SZ.ORDER` 조건을 지우면 허브 단정이 빨개진다. Place 이름에서 SZ.disp 를 빼면 화면 이름 단정이
+    빨개진다.
+    픽스처: 저장소 판정(ADV.sido)으로 메모리에서 구운 허브, DISPLAY_NAME 의 키(전남광주)와 서울 리포트 머리."""
+    adv, stats = M.load()
+    assert 'about' not in _article(M.build_hub(adv['sido'], stats))
+    for z in sorted(SZ.DISPLAY_NAME) + ['서울']:
+        assert _article(M.head(z, 'd', 't'))['about'] == {'@type': 'Place', 'name': SZ.disp(z)}, z
 
 
 @pytest.mark.parametrize('p,want', [('2026-09-28', '2026'), ('2026-10-05', '2027'), ('2027-01-11', '2027'),
