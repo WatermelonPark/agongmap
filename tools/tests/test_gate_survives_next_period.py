@@ -15,6 +15,7 @@ yaml 로 5회 막힌 사고와 같은 모양). 그래서 배치 한 회차를 �
      - 준공·착공: 다음 분기(L+1)가 끝나는 달까지. 지역마다 12개월 전 값을 되풀이하므로 전국=Σ시도,
        수도권=서울+경기+인천 이 그대로다(원천이 새 분기를 낸 날의 모양).
      - 주간 시세: 한 주(시도·시군구·서울 구 모두). 월간 시세: 한 달. 보관 길이는 배치 상한(CONF) 그대로.
+     - 매매·전세지수·금리: 매매는 다음 분기 첫 달(잠정 'p)'), 전세는 한 달 늦게, 금리는 매매와 같은 달까지(_advance_indices).
   3. 배치처럼 ADV.sido·occupancy 를 다시 굽고(update_adv_data --seed-sido — --update 와 같은 sido_zones.calc·
      supply_rows), split_data 를 돈다.
   4. 커밋 잡이 게이트 앞에서 돌리는 생성기(update-cloud.yml 에서 읽는다)를 사본에서 돌린다 — 전부 rc=0.
@@ -38,6 +39,9 @@ AGONGMAP_ALLOW_SKIP=1 을 통째로 줘 모든 건너뜀이 rc=0 으로 지나�
   - 전진 단계(_advance_supply)를 건너뛰면 픽스처 자기 확인('L 이 한 분기 나아가지 않았다')이 빨개진다.
   - commit_job_generators 가 빈 목록을 돌려주면 파서 자기 확인 시험이 빨개진다.
   - 배치 잡 가드(_in_batch_gate)를 지우면 test_forward_check_never_gates_the_batch_commit 이 빨개진다.
+  - 7편 가드 link7_values 가 끝 칸 전세 None 을 그대로 비교하던 판(전수리뷰 BL2-1 고치기 전)에서는 지수 전진(_advance_indices)
+    단계가 test_theory_post7 둘·test_home_entry 둘을 TypeError 로 빨갛게 해 이 시험이 빨개진다(확인 — 전진 단계를 빼면 초록이라
+    그 정지를 못 봤다).
   - 사본에서만 건너뛰는 시험(저장소 뿌리에 .git 이 없으면 pytest.skip)을 하나 넣으면 안쪽 게이트가 '건너뜀이 실패다'로
     빨개져 이 시험이 빨개진다. 안쪽 env 에 AGONGMAP_ALLOW_SKIP=1 을 되살리면 같은 상태에서 초록이 된다(T1-4).
 픽스처: 저장소의 실제 data.js 를 한 분기(준공·착공)·한 주·한 달 앞당긴 것. 실행 시간 약 3분(안쪽 게이트가 대부분 — 2026-10 실측).
@@ -135,6 +139,33 @@ def _advance_supply(stats):
     return L + 1
 
 
+def _advance_indices(stats):
+    """매매·전세지수·금리를 원천이 새 분기 첫 달을 낸 날의 모양으로 민다 — 매매는 다음 분기 첫 달(잠정 'p)'), 전세는 한 달 늦게,
+    금리는 매매와 같은 달까지. 값은 끝 두 달의 흐름을 이어 붙인다(끝 값을 되풀이하면 전월=전전월이 되어 '잠정 증감률 기준 달'
+    시험의 픽스처 전제가 깨진다). 전세가 한 달 늦게 실리는 창(매 분기 첫 달분이 실린 날부터 한 달)에 /cycle/ rate_overlay 끝
+    분기의 전세가 비는 모양을 미리 본다(전수리뷰 BL2-1 — 7편 가드 TypeError)."""
+    mm = stats['매매지수']['dates'][-1]
+    y, m = int(mm[:4]), int(mm[5:7])
+    q_first = ((m - 1) // 3 + 1) * 3 + 1
+    ty, tm = (y + 1, q_first - 12) if q_first > 12 else (y, q_first)
+    targets = {'매매지수': (ty, tm), '전세지수': (ty, tm - 1) if tm > 1 else (ty - 1, 12), '금리': (ty, tm)}
+    for key, (yy, mo) in targets.items():
+        s = stats[key]
+        n = len(s['dates'])
+        for v in s['series'].values():
+            v.extend([None] * (n - len(v)))
+        s['dates'] = [d.replace(' p)', '') for d in s['dates']]
+        target = '%d.%02d' % (yy, mo)
+        while s['dates'][-1][:7] < target:
+            s['dates'].append('%d.%02d' % _next_month(s['dates'][-1]))
+            for v in s['series'].values():
+                a, b = v[-2], v[-1]
+                v.append(None if b is None else round(b + (b - a if a is not None else 0), 2 if key == '금리' else 3))
+        if key == '매매지수':
+            s['dates'][-1] += ' p)'
+    return targets
+
+
 def _advance_rows(block, step, keep):
     rows = block['rows']
     new = json.loads(json.dumps(rows[-1]))
@@ -214,6 +245,7 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
     stats = U.read_current_stats()
     old_L = SZ.last_full_quarter(stats, '준공')
     new_L = _advance_supply(stats)
+    idx = _advance_indices(stats)
     U.write_stats(stats)
     _, _, _, adv = U.read_current_adv()
     old_w, old_m = adv['weekly']['rows'][-1]['p'], adv['monthly']['rows'][-1]['p']
@@ -231,6 +263,9 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
         'L 이 한 분기 나아가지 않았다: %s → %s' % (SZ.qkey(old_L), adv2['sido']['L'])
     assert adv2['sido']['H'] == SZ.LEAD_Q, '전진한 사본이 H≠lead 다 — 준공·착공을 같은 달까지 채우지 못했다'
     assert new_w > old_w and new_m > old_m
+    st2 = U.read_current_stats()
+    assert all(st2[k]['dates'][-1][:7] == '%d.%02d' % idx[k] for k in idx) and st2['매매지수']['dates'][-1].endswith(' p)'), \
+        '매매·전세지수·금리가 새 분기 첫 달 모양(전세 한 달 늦음)으로 나아가지 않았다'
 
     bad = []
     for g in commit_job_generators():
