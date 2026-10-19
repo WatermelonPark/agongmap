@@ -161,6 +161,9 @@ def test_headline_names_the_biggest_mover_with_its_value():
     변이(실제로 확인): 보합 분기의 설명문 단정을 옛 모양('%s %s%%' % best)으로 되돌리면 위 보합 재현에서 빨갛고, 생성기
     설명문이 보합 주에도 'X 0.00%'를 쓰게 바꾸면 보합 분기가 빨갛다(make_weekly_page 의 '시도 모두 보합이다.' 를 다른 말로 바꿈).
     픽스처: 저장소 data.js 최신 주와 그걸로 구운 weekly/index.html(게이트는 생성기 뒤에 돈다).
+    지역 이름은 화면 이름(SZ.disp — 백로그 46)으로 대조한다. 예전엔 키(best[0])를 h1 에서 찾아, 전남광주가 가장 크게 움직인 주에
+    h1 '광주·전남 …'과 어긋나 게이트가 그 주 데이터 커밋을 막았다(전수리뷰 T3-7 — data.js 최신 주 전남광주 ma 를 0.9 로 두고
+    구워 재현). 그 갈래는 실데이터가 지나지 않으므로 아래 test_desc_og_and_feed_name_the_mover_by_its_display_name 이 합성 주로 본다.
     """
     W, _ = MW.load()
     row = W['rows'][-1]
@@ -173,8 +176,9 @@ def test_headline_names_the_biggest_mover_with_its_value():
         assert '보합' in h1
         assert '시도 모두 보합' in desc, '보합 주의 검색 설명문에 결론이 없다: %s' % desc
     else:
-        assert '%s %s%%' % (best[0], _fmt(best[1])) in h1, '제목 결론이 데이터와 다르다: %s' % h1
-        assert '%s %s%%' % (best[0], _fmt(best[1])) in desc, '검색 설명문에 결론이 없다'
+        want = '%s %s%%' % (SZ.disp(best[0]), _fmt(best[1]))
+        assert want in h1, '제목 결론이 데이터와 다르다: %s' % h1
+        assert want in desc, '검색 설명문에 결론이 없다'
 
 
 def test_sgg_top_matches_home_ranking_rule():
@@ -311,6 +315,39 @@ def test_up_week_headline_names_the_biggest_rise():
     assert '가장 많이' not in head, '시도 집계 리드 문장이 되살아났다(2026-10-03 대표 요청으로 뺐다)'
 
 
+def test_desc_og_and_feed_name_the_mover_by_its_display_name():
+    """가장 크게 움직인 시도가 화면 이름이 따로 있는 지역(DISPLAY_NAME 키 — 지금은 전남광주 하나)인 주에도 h1·검색 설명문(description)·
+    og:description·RSS 설명(make_feed.weekly_item — 이 description 을 옮긴다)이 모두 화면 이름('광주·전남 -0.55%')을 쓰고 키는 보이는
+    글자 어디에도 없다. 시도 모두 보합인 주에는 og 도 h1·설명문처럼 '시도 모두 보합'이다.
+
+    재현하는 실제 상태: 10-17 백로그 46 수정이 conclusion() 의 who 만 SZ.disp 로 바꾸고 build() 의 desc·og 는 키를 남겨, 전남광주가
+    가장 크게 움직인 주(156주 중 아직 없고, 2위 3주·3위 5주 — 2023-10-30 은 경기와 |0.08| 동률)에 test_display_name 이 게이트에서
+    weekly/index.html·feed.xml 을 빨갛게 했다(전수리뷰 X2-2·Z2-1·T3-8). 실데이터 시험은 그 갈래를 지나지 않아 합성 주로 늘 본다.
+    픽스처: _week — 시도 모두 +0.02 에 그 키만 -0.55 인 주, 시도 모두 +0.001(표시 0.00) 인 보합 주.
+    변이(각각 실제로 확인): build 의 desc 에서 who 를 best[0] 으로 되돌리면 desc·feed 단정이, og 에서 되돌리면 og 단정이 빨개진다.
+          og 의 보합 갈래를 지우면 마지막 단정이 빨개진다.
+    """
+    import make_feed as F
+    from test_display_name import _visible
+    keys = [k for k in SZ.DISPLAY_NAME if k in MW.SIDO]
+    assert keys, '화면 이름이 따로 있는 시도가 없다 — 이 시험이 아무것도 보지 않는다'
+    for k in keys:
+        W, Q = _week(dict(_base(0.02), **{k: -0.55}), _DOWN_SGG, _DOWN_GU)
+        head, _, desc, og = MW.build(W, Q)
+        h1 = re.search(r'<h1>(.*?)</h1>', head, re.S).group(1)
+        feed = F.weekly_item(W, Q)['desc']
+        want = '%s -0.55%%' % SZ.disp(k)
+        for where, s in (('h1', h1), ('description', desc), ('og:description', og), ('RSS', feed)):
+            assert want in s, '%s 에 화면 이름 결론(%s)이 없다: %s' % (where, want, s)
+            leak = [x for x in SZ.DISPLAY_NAME if x in _visible(s)]
+            assert not leak, '%s 에 판정 단위 키 %s 가 보인다: %s' % (where, leak, s)
+    W, Q = _week(_base(0.001), _DOWN_SGG, _DOWN_GU)
+    head, _, desc, og = MW.build(W, Q)
+    assert '시도 모두 보합' in head and '시도 모두 보합이다.' in desc, (head[:200], desc)
+    named = [z for z in MW.SIDO if '%s 0.00%%' % SZ.disp(z) in og]
+    assert '시도 모두 보합.' in og and not named, '보합 주 og 가 한 지역을 결론처럼 적는다: %s' % og
+
+
 def test_down_top3_lists_the_largest_falls_first():
     """하락 TOP 3 은 가장 많이 내린 곳부터다(마시 −0.62 → 나구 −0.44 → 사시 −0.30).
 
@@ -329,21 +366,37 @@ def test_og_description_drops_the_nation_part_when_it_is_missing():
     """전국 값이 없는 주(R-ONE 부분 응답 — update_adv_data 의 chg 는 원천이 없으면 None)에 og:description 이 '전국 ·%'를
     굽지 않는다. desc·리드·공유 문구처럼 전국 조각을 뺀다(전수리뷰 #29).
 
-    픽스처: 저장소 data.js 주간 계열의 최신 행에서 '전국' 칸만 None 으로 바꾼 것(값·날짜는 데이터에서).
+    픽스처: 저장소 data.js 주간 계열의 최신 행에서 '전국' 칸만 None 으로 바꾼 것(값·날짜는 데이터에서), 그 사본에서 시도를 모두
+          보합(±0.001)으로 둔 주와 한 시도만 크게(+0.5) 움직인 주 — og 의 두 갈래(지역 결론·'시도 모두 보합')를 실데이터 방향과
+          상관없이 늘 지난다. 마지막은 전국 칸에 값(+0.07)을 넣은 사본.
     변이(실제로 확인): build 의 og 를 예전 식('%s · 전국 %s%%, %s %s%%.' % (datestr, pv2(nation), …))으로 되돌리면 빨개진다.
+          og 의 보합 갈래를 지우고 늘 '%s %s%%' % (who, …) 를 쓰면 보합 사본에서 빨개진다(전수리뷰 Z2-1 — 예전 og 는 보합 주에
+          'X 0.00%' 로 한 지역을 결론처럼 적어 h1 '시도 모두 보합'과 갈렸다).
     """
     import copy
     W, Q = MW.load()
     W = copy.deepcopy(W)
-    W['rows'][-1]['ma'][W['regions'].index('전국')] = None
-    _, _, desc, og = MW.build(W, Q)
-    for name, s in (('og', og), ('desc', desc)):
-        assert '·%' not in s and '전국 ·' not in s, '%s: %s' % (name, s)
-    best = MW.conclusion(W)['best']
-    assert best[0] in og and '전국' not in og.split('발표')[1].split(best[0])[0], og
+    ma = W['rows'][-1]['ma']
+    ma[W['regions'].index('전국')] = None
+    flat, moved = copy.deepcopy(W), copy.deepcopy(W)
+    for z in MW.SIDO:
+        flat['rows'][-1]['ma'][W['regions'].index(z)] = 0.001
+        moved['rows'][-1]['ma'][W['regions'].index(z)] = 0.001
+    moved['rows'][-1]['ma'][W['regions'].index(MW.SIDO[-1])] = 0.5
+    seen = set()
+    for w in (W, flat, moved):
+        _, _, desc, og = MW.build(w, Q)
+        for name, s in (('og', og), ('desc', desc)):
+            assert '·%' not in s and '전국 ·' not in s, '%s: %s' % (name, s)
+        who = MW.conclusion(w)['who']   # 화면 이름(SZ.disp) — 보합 주에는 None
+        after = og.split('발표', 1)[1]
+        if who is None:
+            assert after.startswith(' · 시도 모두 보합.'), og
+        else:
+            assert who in og and '전국' not in after.split(who)[0], og
+        seen.add(who is None)
+    assert seen == {True, False}, '두 갈래(보합·지역 결론)를 다 지나지 않았다'
     # 전국 값이 있으면 예전처럼 싣는다
-    W2, _ = MW.load()
-    _, _, _, og2 = MW.build(W2, Q)
-    nat = W2['rows'][-1]['ma'][W2['regions'].index('전국')]
-    if nat is not None:
-        assert '전국 %s%%' % MW.pv2(nat) in og2
+    W2 = copy.deepcopy(W)
+    W2['rows'][-1]['ma'][W2['regions'].index('전국')] = 0.07
+    assert '전국 +0.07%' in MW.build(W2, Q)[3]
