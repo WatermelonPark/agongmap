@@ -1051,7 +1051,10 @@ def calc(stats):
             'uwarn': bool(um is not None and um >= 1.0 and g in ('g4', 'g3', 'g2')),
             'pm12': (None if pm is None else round(pm)),
             'pmr': (None if pmr is None else round(pmr, 3)),
-            'pbr': (None if sig is None else round(sig['pbr'], 3)),
+            # 원값 그대로 싣는다 — 화면 정수(pbr_pct)는 원값에서 **한 번만** 반올림한다(전수리뷰 Z1-3·X1-2). 셋째 자리로 굳혀 두면
+            # 리포트 셋째 줄(split_text — 원값 42.46 → 42%)과 바로 아래 '… 너머' 회색 칸(outlook_block — 저장값 0.425 → 43%)이
+            # 갈렸다(경북 2026-10). 경고(pwarn)·강조(thin)도 같은 원값을 pbr_thin 으로 가른다.
+            'pbr': (None if sig is None else sig['pbr']),
             'pdec': (None if (sig is None or sig['pdec'] is None) else round(sig['pdec'], 3)),
             'pconv': (None if sig is None else round(sig['pconv'], 3)),
             'pwarn': bool(sig is not None and pbr_thin(sig['pbr'])),   # 리포트 강조(thin)와 같은 함수(B3)
