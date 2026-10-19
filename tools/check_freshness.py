@@ -136,6 +136,8 @@ SOURCE_WORKERS = 4
 #   (head 2회 + 뒤에서 3쪽 = 5회 × 25s = 125초).
 #   1차   30×25s / 4 + 125s ≈ 188 + 125 = 313초, 사이트 140 + 45 = 185초 → 약 8.3분
 #   재시도 30×20/4 + 5×20 = 250초 → 합계 ≈ 313 + 185 + 75 + 250 = 823초 ≈ 13.7분(30분 예산 안).
+#   (2026-10-19 전수리뷰 A-2: 규모별을 표 넷으로 따로 조회해 KOSIS 1회짜리 작업이 3건 늘었다 — 1차 +3×25/4 ≈ 19초,
+#    재시도 +3×20/4 = 15초. 합계 ≈ 857초 ≈ 14.3분.)
 #   watchdog.yml의 timeout-minutes: 30은 그대로 둔다 — 잡 시간은 체크아웃·파이썬
 #   설치·프리플라이트(최대 15초)도 먹고, 산수가 또 틀렸을 때 판정 없이 죽는 쪽을 막는
 #   여유다. 줄여서 얻는 것은 장애 밤에 알림이 몇 분 빨라지는 것뿐이다.
@@ -407,9 +409,8 @@ def _q_to_date(q):
 
 
 # ⚠️ 여기 16곳은 **실제 행정구역만**이다. 저장분에는 집계 행이 섞여 있어
-# (STATS 21곳 = 16시도 + 전국·수도권·지방·기타광역시·기타지방,
-#  ADV.sido = 시도 + 전국·수도권·지방) 전부 더하면 전국의 세 배가 나온다.
-# 개수가 19/21/16으로 달라 보이는 건 집계를 몇 개 안고 있느냐의 차이일 뿐이다.
+# (STATS·ADV.sido = 16시도 + 전국·수도권·지방 — 원천 집계 행 기타광역시·기타지방은 2026-10-18 D2 로 수집에서 뺐다,
+#  update_adv_data.drop_raw_aggregates) 전부 더하면 전국의 세 배가 나온다.
 # ⚠️ 이름은 SIDO17이지만 2026-09-10 광주·전남 통합으로 실제 길이는 16이다.
 #    sido_zones.ORDER 에서 파생하므로 값은 늘 맞는다 — 이름만 옛것이다.
 # 손으로 옮겨 적으면 정본(개칭·구성 변경)에서 갈라져 합계 검사가 행을 조용히
@@ -650,19 +651,9 @@ def check_derived_pages(adv, stats):
     return out
 
 
-def _sido_lookup(names, key):
-    """배치(update_adv_data의 sido())와 **같은 규칙**으로 지역 행을 찾는다.
-
-    평평한 이름이 있으면 그것, 없으면 '>이름'으로 끝나는 키 중 가장 얕은 것.
-    규칙이 갈리면 감시가 배치와 다른 것을 보게 되므로 여기만 고치지 말 것.
-    """
-    key = {'지방': '지방권'}.get(key, key)
-    if key in names:
-        return key
-    cand = [k for k in names if k.endswith('>' + key)]
-    if not cand:
-        return None
-    return min(cand, key=lambda k: k.count('>'))
+# 지역 행 찾기는 배치 함수 **그 자체**다(전수리뷰 A-7). 예전엔 여기 거울을 따로 적고 일치를 원문 문자열 포함으로만 봐서,
+# 배치 쪽 한 벌만 바뀌어도 감시는 옛 규칙으로 '전부 집힘'을 찍었다. 규칙은 update_adv_data.rone_sido_key 에서 고친다.
+_sido_lookup = U.rone_sido_key
 
 
 # 지역 계층을 보는 표 둘. main()의 병렬 조회와 check_region_rows()가 같은 목록을 쓴다.
@@ -1025,9 +1016,23 @@ def rone_latest(tbl, cycle, since=None):
 # 감시는 여기 한 곳에 모으고, 배치가 실제로 부르는 인자와 같은지는 test_freshness_sources 가 배치 함수를
 # 가짜 원천으로 돌려 본다(전수리뷰 #40·#109). 배치가 계열을 바꾸면 그 시험이 빨개진다 — 이 값을 함께 바꿀 것.
 RATE_ECOS = ('721Y001', 'M', '2010000')          # CD(91일) — update_rate
-SIZE_KOSIS = ('408', {'objL1': '01'})             # 규모별 — update_size
+SIZE_KOSIS = ('408', {'objL1': '01'})             # 규모별 — update_size(네 표 U.SIZE_TBLS 모두 같은 인자)
+# 규모별은 표 넷(매매 B014·전세 B015·월세 B005·전환율 N0009)을 **표마다** 원천과 견주고, 우리 최신은 그 지표에 값이 있는 마지막 달
+# (update_adv_data.size_last)이다(전수리뷰 A-2). 예전엔 매매 표 하나만 조회하고 우리 최신을 축 끝(dates[-1] — 네 표 시점의 합집합)
+# 으로 읽어, 전환율 하나가 앞서 나가자 매매·전세·월세가 석 달째 멈춘 것을 감시도 나이 상한도 못 봤다.
+SIZE_LABEL = '규모별 %s'
 BUBBLE_KOSIS = ('408', 'DT_30404_N0010')          # 전월세전환율 — fetch_bubble
 BUBBLE_ECOS = ('121Y006', 'M', 'BECBLA0302')      # 주담대 신규취급 금리 — fetch_bubble
+
+
+def size_checks(D, pre):
+    """규모별(STATS['규모별'] = D) 표 넷을 표마다 원천과 견준 check 결과 목록(표 순서 — fails 에 넣을 항목 넷).
+
+    우리 최신은 축 끝(dates[-1])이 아니라 그 지표에 값이 있는 마지막 달(update_adv_data.size_last)이다 — 축은 네 표 시점의
+    합집합이라 전환율 하나가 앞서 나가면 매매·전세·월세의 정지가 가려졌다(전수리뷰 A-2). pre 는 source_jobs 의 받아 둔 조회."""
+    last = U.size_last(D)
+    return [check(SIZE_LABEL % name, last.get(name), pre[('규모별', name)], GRACE_BASIC, max_age=MAX_AGE_BASIC)
+            for name, _, _ in U.SIZE_TBLS]
 
 
 def kosis_latest(org, tbl, objn, prd, extra=None):
@@ -1283,8 +1288,8 @@ def source_jobs(stats):
     for name, cfg in sorted(U.BASIC_CONF.items()):
         jobs[('basic', name)] = lambda c=cfg: kosis_latest(c['org'], c['tbl'], c['objn'], 'M')
     if '규모별' in stats:
-        sz = U.SIZE_TBLS[0][1]
-        jobs['규모별'] = lambda: kosis_latest(SIZE_KOSIS[0], sz, 3, 'M', SIZE_KOSIS[1])
+        for name, tbl, _ in U.SIZE_TBLS:
+            jobs[('규모별', name)] = lambda t=tbl: kosis_latest(SIZE_KOSIS[0], t, 3, 'M', SIZE_KOSIS[1])
     for name, cfg in sorted(U.SUPPLY_CONF.items()):
         last = ((stats.get(name) or {}).get('dates') or [None])[-1]
         jobs[('supply', name)] = (lambda c=cfg, sc=_supply_since(last):
@@ -1361,8 +1366,7 @@ def main():
                 fails.append('%s이(가) 라이브에 없다 — %s 배포·조회 확인 필요'
                              % (name, fname))
     if '규모별' in stats:
-        last = (stats['규모별'].get('dates') or [None])[-1]
-        fails.append(check('규모별', last, pre['규모별'], GRACE_BASIC, max_age=MAX_AGE_BASIC))
+        fails.extend(size_checks(stats['규모별'], pre))
 
     # 분양·미분양은 BASIC_CONF가 아니라 SUPPLY_CONF에 있어 예전엔 감시에서 통째로
     # 빠져 있었다(2026-07-31 발견). 새 지표를 추가할 때 감시에도 들어왔는지

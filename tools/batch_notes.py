@@ -13,7 +13,7 @@
     None 은 평상 상태가 아니다.
   · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋나거나 데이터 상태로 초안이 멈춘 편
     (theory_claim_lines — 초안 도구만 멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한
-    경과(quiz_review_lines).
+    경과(quiz_review_lines), 주간에는 값이 있는데 월간 시군구 매핑에 코드가 없는 곳(sgg_map_gap_lines, 전수리뷰 A-6).
 
 사용:  python tools/batch_notes.py [--data data.js]     # 알릴 것이 없으면 아무것도 안 찍는다
 """
@@ -109,6 +109,39 @@ def quiz_review_lines(today, src=None):
     return ['%s %s' % (ML.MARK, q) for q in qo]
 
 
+def _sgg_names(codes):
+    """시군구 코드 → 홈 SGG_QNAME 이름(못 읽으면 코드 그대로). 알림 글자라 읽기 실패로 줄을 잃지 않는다."""
+    try:
+        import gen_sgg_rone_map as G
+        qn = G.qname_map()
+    except (Exception, SystemExit):
+        qn = {}
+    return [qn.get(c) or c for c in codes]
+
+
+def sgg_map_gap_lines(adv):
+    """주간 시군구에는 값이 있는데 월간 매핑(update_adv_data.SGG_RONE_CLS)에 코드가 없는 곳을 ℹ️ 한 줄로 알린다(전수리뷰 A-6).
+
+    월간 매핑은 손으로 옮기는 표다. fetch_monthly_rone 은 매핑이 없는 코드를 조용히 None 으로 두고, 값이 없는 칸은 지도·순위·
+    리포트 타일에서 아예 빠지므로(2026-10-07) 비어 있다는 사실도 보이지 않는다. 인천 신설 4구(제물포·영종·검단·서해)가 주간
+    2026-07-13 부터 값이 있는데 월간에는 한 번도 서지 않은 채 석 달이 갔다. 원천 월간표가 그 구를 내는지는 키가 있는 세션이
+    gen_sgg_rone_map 으로 확인해 '신규'를 옮긴다. 데이터 상태라 lines(adv)(합성 픽스처 시험이 줄 수를 단정한다)가 아니라 main() 이 붙인다.
+    """
+    try:
+        import update_adv_data as U
+    except Exception as e:   # 못 올리면 그것도 알린다 — 조용히 통과하지 않는다
+        return ['%s 월간 시군구 매핑 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
+    blk = ((adv or {}).get('weekly') or {}).get('sgg') or {}
+    codes, rows = blk.get('codes') or [], blk.get('rows') or []
+    live = [c for j, c in enumerate(codes)
+            if any(isinstance(r.get(f), list) and j < len(r[f]) and r[f][j] is not None for r in rows for f in ('ma', 'je'))]
+    gap = [c for c in live if c not in U.SGG_RONE_CLS]
+    if not gap:
+        return []
+    return ['%s 월간 시군구 매핑 없음 %d곳 — %s: 주간에는 값이 있는데 월간 지도·순위·리포트 타일에 서지 않는다'
+            '(키가 있는 세션이 gen_sgg_rone_map 으로 월간 매핑 재생성)' % (ML.MARK, len(gap), ', '.join(_sgg_names(gap)))]
+
+
 def lines(adv):
     """인자 adv 만 보고 찍을 줄. 저장소 파일·오늘 날짜를 읽는 곁가지(theory_claim_lines·quiz_review_lines)는 main() 이 붙인다."""
     out = []
@@ -130,7 +163,7 @@ def main(argv=None):
         sys.stderr.write('batch_notes: 데이터를 읽지 못했다 (%s)\n' % e)
         return 0
     import kst
-    for ln in lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()):
+    for ln in lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()) + sgg_map_gap_lines(adv):
         sys.stdout.write(ln + '\n')
     return 0
 

@@ -552,7 +552,8 @@ function sggMapSvg(vals,o){
   const tb=Math.round(VH/2)+3;
   /* 값이 한 줄도 없는 칸은 세우지 않는다(시도 머리 칸은 늘 세운다) — 추세 그래프 지역 목록(sggOfSido)과 같은 규칙. 인천 신설
      4구(제물포·영종·검단·서해, 2026-07 개편)는 주간표에는 있고 월간표에는 아직 없어 월간 지도에 '·' 빈 칸 넷이 섰다(2026-10-07
-     대표 지적). 원천이 그 칸을 내기 시작하면 저절로 다시 선다. 경계선·점선 묶음도 세운 칸만으로 긋는다. */
+     대표 지적). 월간 매핑(update_adv_data.SGG_RONE_CLS)은 손으로 옮기는 표라 원천이 그 칸을 내기 시작해도 저절로 서지 않는다 —
+     배치 기록 ℹ️ 줄(batch_notes.sgg_map_gap_lines)이 알리면 매핑을 재생성한다. 경계선·점선 묶음도 세운 칸만으로 긋는다. */
   const T=N.t.filter(([c,,,,h])=>h||vals.some(m=>m[c]!=null));
   T.forEach(([c,nm,x,y,h])=>{
     const px=x*(TW+G), py=y*(rowH+G), href=o.href?o.href(c):null;

@@ -286,28 +286,34 @@ def test_cd_rate_query_matches_the_batch(monkeypatch):
 
 
 def test_size_query_matches_the_batch(monkeypatch):
-    """감시 '규모별' 조회와 배치 update_size() 가 같은 기관·표·objL1(규모 전체)을 부른다.
+    """감시 '규모별' 조회 넷(표마다 하나 — 전수리뷰 A-2)과 배치 update_size() 가 같은 기관·표·objL1(규모 전체)을 같은 순서로 부른다.
 
-    변이(확인): C.SIZE_KOSIS 의 objL1 을 '02' 로 바꾸면 빨개진다.
-    픽스처: 배치 kosis() 와 감시 get_json 을 가로채 첫 조회의 인자만 본다.
+    변이(각각 확인): C.SIZE_KOSIS 의 objL1 을 '02' 로 바꾸면, source_jobs 가 예전처럼 매매 표(SIZE_TBLS[0]) 하나만 조회하면
+    빨개진다(표 셋이 감시 밖 — 매매·전세·월세가 2026.06 에 멈춘 것을 못 본 모양).
+    픽스처: 배치 kosis() 와 감시 get_json 을 가로채 조회 인자를 적는다(배치는 표마다 한 번씩 부르게 빈 응답을 돌려준다).
     """
-    seen = {}
+    seen = {'batch': [], 'wd': []}
 
     def batch_kosis(params):
-        seen['batch'] = params
-        raise _Stop
+        seen['batch'].append(params)
+        return []
 
     def wd_get(url):
-        seen['wd'] = dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
+        seen['wd'].append(dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query)))
         raise _Stop
     monkeypatch.setattr(U, 'kosis', batch_kosis)
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
     monkeypatch.setattr(C, 'get_json', wd_get)
-    with pytest.raises(_Stop):
-        U.update_size({})
-    with pytest.raises(_Stop):
-        C.source_jobs({'규모별': {}})['규모별']()
-    for k in ('orgId', 'tblId', 'objL1'):
-        assert seen['batch'][k] == seen['wd'][k], k
+    with pytest.raises(Exception):
+        U.update_size({})          # 빈 응답이라 build_size 에서 멈춘다 — 조회 인자만 본다
+    jobs = C.source_jobs({'규모별': {}})
+    for name, _, _ in U.SIZE_TBLS:
+        with pytest.raises(_Stop):
+            jobs[('규모별', name)]()
+    assert len(seen['batch']) == len(seen['wd']) == len(U.SIZE_TBLS)
+    for b, w in zip(seen['batch'], seen['wd']):
+        for k in ('orgId', 'tblId', 'objL1'):
+            assert b[k] == w[k], (k, b[k], w[k])
 
 
 def _bubble_rows(aug='half'):

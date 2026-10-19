@@ -183,15 +183,92 @@ def test_size_guard_requires_every_model_region():
 
 
 def test_size_note_discloses_the_weighted_bridge():
-    """화면 각주(※ D.note)가 통합 지역을 어떻게 이었는지와 그 가중치를 정본 값으로 밝힌다(계산법 공개).
+    """화면 각주(※ D.note)가 통합 지역을 어떻게 이었는지와 그 가중치를 정본 값으로 밝힌다(계산법 공개). 지역은 화면 이름
+    (SZ.disp — 백로그 46)이고 판정 단위 키는 각주에 나오지 않는다(전수리뷰 H2-12 — 홈 규모별 출처 줄에 '전남광주는'이 그대로 찍혔다).
 
-    변이: build_size 의 note 를 예전 문구('지수 3종은 … 수준(%)')로 되돌리면 빨개진다(확인).
+    변이(각각 확인): build_size 의 note 를 예전 문구('지수 3종은 … 수준(%)')로 되돌리면, note 의 SZ.disp(_GJ_NEW) 를 _GJ_NEW 로
+    되돌리면 빨개진다.
     픽스처: 모델 지역이 다 있는 평상 응답 — 각주는 가드를 통과한 회차에만 실린다.
     """
     ps = ['202605', '202606']
     metrics = {name: U._size_series(_size_rows(_levels(ps)), is_idx) for name, _, is_idx in U.SIZE_TBLS}
     note = U.build_size(metrics, {})['note']
-    assert DST in note and ('%.3f' % W_GJ) in note
+    assert SZ.disp(DST) in note and ('%.3f' % W_GJ) in note
+    assert not any(k in note for k in SZ.DISPLAY_NAME if SZ.disp(k) != k), note
+
+
+# ── 2-1. 규모별: 직전 값과 칸 단위 병합(전수리뷰 A-3) ─────────────────────────
+def _resp(months, pieces_until=None, merged_from=None):
+    """규모별 표 응답 수준 — 통합 지역을 뺀 모델 지역은 months 전부, 옛 두 조각은 pieces_until 까지, 원천 통합 행은 merged_from 부터."""
+    base = {}
+    for i, z in enumerate(MODEL):
+        if z != DST:
+            base[z] = {p: 100.0 + i + k for k, p in enumerate(months)}
+    if pieces_until:
+        base[SRC[0]] = {p: 100.0 + 2 * k for k, p in enumerate(months) if p <= pieces_until}
+        base[SRC[1]] = {p: 90.0 + k for k, p in enumerate(months) if p <= pieces_until}
+    if merged_from:
+        base[DST] = {p: 200.0 + 3 * k for k, p in enumerate(months) if p >= merged_from}
+    return base
+
+
+def _metrics(levels_of):
+    """{지표: _size_series(..)} — levels_of(지표 이름) 이 그 표의 응답 수준."""
+    return {name: U._size_series(_size_rows(levels_of(name)), is_idx) for name, _, is_idx in U.SIZE_TBLS}
+
+
+PREV_MONTHS = ['202601', '202602', '202603', '202604', '202605', '202606']
+NEW_MONTHS = PREV_MONTHS[1:] + ['202607']
+
+
+def _prev():
+    """09-27 의 저장 상태 — 옛 두 조각이 전 기간 있는 응답으로 만든 페이로드."""
+    return U.build_size(_metrics(lambda n: _resp(PREV_MONTHS, pieces_until=PREV_MONTHS[-1])), {})
+
+
+def _count(D, name, reg):
+    return sum(v is not None for v in D['series'][name][reg])
+
+
+def test_size_history_survives_when_the_source_drops_the_old_pieces():
+    """원천이 옛 두 행(광주·전남)을 빼고 통합 행을 새 달에만 내도(2026-09-28 전환율 N0009 의 모양) 통합 지역 이력이 남는다.
+
+    변이(실제로 확인): build_size 의 칸 병합을 예전처럼 응답만으로(`(was or {}).get(lab)` 대신 None) 만들면 전환율 전남광주가
+          1칸만 남아 빨개진다.
+    픽스처: 전환율 표는 새 축 전 달에 다른 지역이 있고 전남광주는 2026.07 원천 통합 행 하나뿐(옛 조각 없음), 가격 세 표는 옛 모양으로
+            2026.06 까지(2026.07 없음 — 실제로 멈춰 있던 상태). 직전 페이로드는 옛 조각이 전 기간 있던 09-27 상태.
+    """
+    prev = _prev()
+
+    def levels(name):
+        if name == '전환율':
+            return _resp(NEW_MONTHS, merged_from=NEW_MONTHS[-1])
+        return _resp(NEW_MONTHS[:-1], pieces_until=NEW_MONTHS[-2])
+    got = U.build_size(_metrics(levels), prev)
+    other = next(z for z in MODEL if z != DST)
+    assert _count(got, '전환율', DST) == _count(got, '전환율', other) == len(got['dates']), \
+        '통합 지역 전환율 이력이 줄었다'
+    i_prev = got['dates'].index('2026.06')
+    assert got['series']['전환율'][DST][i_prev] == prev['series']['전환율'][DST][prev['dates'].index('2026.06')]
+    assert got['series']['전환율'][DST][-1] == [200.0 + 3 * (len(NEW_MONTHS) - 1)] * 6, '새 달은 원천 통합 값'
+
+
+def test_size_keeps_a_region_the_source_stops_sending_and_records_it():
+    """가격 표까지 같은 모양(옛 두 행 없음, 통합 행은 새 달 하나)이면 통합 지역이 응답에서 통째로 빠진다 — 규모별 전체를 멈추지 않고
+    직전 값을 지키며(새 달 칸은 빈다), failed 에 '규모별:<지역> 응답 빠짐(직전 값 유지)'을 남긴다. 직전 값도 없으면 예전처럼 가드다.
+
+    변이(실제로 확인): `if new is None and not was:` 를 `if new is None:` 으로 되돌리면(직전 값을 보지 않으면) 가드
+          RuntimeError 로 빨개진다. failed.append 줄을 지우면 기록 단정이 빨개진다.
+    픽스처: 표 넷 모두 전남광주를 2026.07 통합 행 하나로만 낸 회차(첫 달은 같은 바탕의 전달 수준이 없어 지수 변동률이 안 나온다).
+    """
+    prev = _prev()
+    failed = []
+    got = U.build_size(_metrics(lambda n: _resp(NEW_MONTHS, merged_from=NEW_MONTHS[-1])), prev, failed)
+    assert got['series']['매매'][DST][-1] is None, '통합 첫 달 변동률은 비어야 한다(바탕이 다른 두 수준을 나누지 않는다)'
+    assert _count(got, '매매', DST) == len(got['dates']) - 1
+    assert '규모별:%s 응답 빠짐(직전 값 유지)' % DST in failed, failed
+    with pytest.raises(RuntimeError, match=DST):
+        U.build_size(_metrics(lambda n: _resp(NEW_MONTHS, merged_from=NEW_MONTHS[-1])), {'dates': prev['dates']})
 
 
 # ── 3. merge_basic: 늦게 도착한 옛 달 ───────────────────────────────────────
@@ -294,7 +371,7 @@ def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
         monkeypatch.setattr(U, fn, _boom)
     soft = list(U.BASIC_CONF)
 
-    def basic(failed=None):
+    def basic(failed=None, permits=None):
         failed.extend(soft)
         return []
     monkeypatch.setattr(U, 'update_basic', basic)
@@ -308,6 +385,40 @@ def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
     rec = (tmp_path / '.fetch_failed').read_text(encoding='utf-8').split(',')
     assert set(soft) <= set(rec), '기본통계 실패가 .fetch_failed 에 없다'
     assert {'weekly', 'monthly', 'permits', 'holidays'} <= set(rec)
+
+
+# ── 4-1. 모델 밖 원천 집계 행(대표 결정 2026-10-18 D2, 전수리뷰 A-5) ─────────────────────
+def test_raw_aggregate_rows_leave_the_model_series_for_good(monkeypatch):
+    """지역 축이 판정 모델인 계열(전세가율·인허가·착공·준공·분양·미분양)에서 모델 밖 원천 집계 행을 빼고, 다음 회차에 원천이 그 행을
+    또 줘도 다시 들어오지 않는다. KAB 실거래가격지수(매매·전세지수)의 원천 권역 행은 결정 밖이라 남는다. 뺀 회차는 바뀐 것으로 쓴다.
+
+    변이(각각 실제로 확인): update_basic 의 drop_raw_aggregates 호출을 지우면 집계 행이 남아, MODEL_REGION_SERIES 에 flat 계열까지
+          넣으면(모드 거르기를 빼면) 매매지수 권역 행이 지워져 빨개진다.
+    픽스처: 2026.07 광주·전남 통합 때 원천이 같은 이름 집계 행의 구성을 바꾼 상태 — 저장 계열에 집계 행 하나(이름은 합성), 원천
+            응답(2026.07)에도 같은 행. 매매지수에는 원천 권역 행 하나(합성 이름).
+    """
+    stats = {n: {'dates': ['2026.06'], 'series': {z: [1.0] for z in MODEL}} for n in list(U.BASIC_CONF) + list(U.SUPPLY_CONF)}
+    for n in U.MODEL_REGION_SERIES:
+        stats[n]['series']['합성집계'] = [70.0]
+    flat = [n for n, c in U.BASIC_CONF.items() if c['mode'] == 'flat']
+    assert flat and set(U.MODEL_REGION_SERIES) >= {n for n, c in U.BASIC_CONF.items() if c['mode'] != 'flat'}
+    for n in flat:
+        stats[n]['series']['합성권역'] = [99.0]
+    written = []
+    monkeypatch.setattr(U, 'read_current_stats', lambda: stats)
+    monkeypatch.setattr(U, 'write_stats', lambda st: written.append(True))
+    monkeypatch.setattr(U, 'ECOS_KEY', '')
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    monkeypatch.setattr(U, '_fetch_basic_one', lambda name, *a, **k: ({(2026, 7): {'합성집계': 71.0, MODEL[0]: 2.0}}, {}))
+    for fn in ('update_size', 'update_supply', 'update_annual'):
+        monkeypatch.setattr(U, fn, lambda *a, **k: [])
+    changed = U.update_basic([])
+    for n in U.MODEL_REGION_SERIES:
+        assert '합성집계' not in stats[n]['series'], n
+    for n in flat:
+        assert '합성권역' in stats[n]['series'], '결정 밖 원천 권역 행까지 뺐다'
+    assert any(t.startswith('집계행정리') for t in changed) and written, changed
+    assert U.drop_raw_aggregates(stats) == {}, '두 번째 회차에도 뺄 것이 남았다'
 
 
 # ── 5. _merge_hist: 열 목록이 바뀐 회차 ─────────────────────────────────────
@@ -382,6 +493,29 @@ def test_holidays_keep_saved_year_when_that_year_fails(monkeypatch):
     assert '%d-10-09' % yr in got, '성공한 해의 새 값이 안 들어왔다'
     assert '%d-01-01' % (yr + 1) in got and '%d-03-01' % (yr + 1) in got, '실패한 해의 저장분이 사라졌다'
     assert failed == ['holidays:%d' % (yr + 1)]
+
+
+def test_holidays_keep_last_year_from_the_saved_list(monkeypatch):
+    """새해 첫 회차에도 작년 공휴일은 저장 목록에서 이어 둔다(원천은 다시 묻지 않는다). 1월 초에는 아직 12월 조사 주가 최신이라
+    발표 지연 판정(weekly_release.status 의 hedge)이 작년 연휴(월요일 성탄)를 봐야 한다 — 예전엔 목록을 올해·내년으로 갈아 끼워
+    홈 '반영 대기'·감시 주간 나이 상한이 그 주에 헛경보를 낼 수 있었다(전수리뷰 A overflow).
+
+    변이(실제로 확인): fetch_holidays 의 작년 이어 두기(`out = [d for d in (prev or []) if …(yr - 1)]`)를 `out = []` 로 되돌리면 빨개진다.
+    픽스처: 해가 바뀐 뒤 첫 회차 — 저장 목록은 두 해 전·작년·올해, 원천은 올해·내년을 정상으로 준다(날짜는 오늘에서 만든다).
+    """
+    yr = datetime.date.today().year
+    prev = ['%d-12-25' % (yr - 2), '%d-12-25' % (yr - 1), '%d-01-01' % yr]
+
+    def fake(url, tries=3):
+        y = yr + 1 if 'solYear=%d' % (yr + 1) in url else yr
+        return {'response': {'header': {'resultCode': '00'},
+                             'body': {'items': {'item': [{'locdate': int('%d0101' % y)}]}, 'totalCount': 1}}}
+    monkeypatch.setattr(U, 'DATAGO_KEY', 'x')
+    monkeypatch.setattr(U, 'http_json', fake)
+    failed = []
+    got = U.fetch_holidays(prev, failed)
+    assert not failed
+    assert got == ['%d-12-25' % (yr - 1), '%d-01-01' % yr, '%d-01-01' % (yr + 1)], got
 
 
 def test_holidays_empty_200_response_counts_as_failure(monkeypatch):
@@ -469,9 +603,9 @@ def test_size_token_only_when_the_payload_changes(monkeypatch):
     monkeypatch.setattr(U, 'kosis', lambda p: [])
     monkeypatch.setattr(U, '_size_series', lambda rows, is_idx: {})
     monkeypatch.setattr(U.time, 'sleep', lambda s: None)
-    monkeypatch.setattr(U, 'build_size', lambda metrics, prev: copy.deepcopy(saved))
+    monkeypatch.setattr(U, 'build_size', lambda metrics, prev, failed=None: copy.deepcopy(saved))
     assert U.update_size(st) == []
     changed = copy.deepcopy(saved)
     changed['dates'] = changed['dates'] + ['9999.12']
-    monkeypatch.setattr(U, 'build_size', lambda metrics, prev: copy.deepcopy(changed))
+    monkeypatch.setattr(U, 'build_size', lambda metrics, prev, failed=None: copy.deepcopy(changed))
     assert U.update_size(st) == ['규모별(%d)' % len(changed['dates'])]

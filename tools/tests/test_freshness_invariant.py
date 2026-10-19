@@ -571,34 +571,22 @@ def test_lookup_failure_is_not_read_as_healthy(monkeypatch):
 
 
 def test_batch_and_watchdog_resolve_regions_identically():
-    """배치와 감시가 **같은 계층에서 같은 행**을 집어야 한다.
+    """배치와 감시가 **같은 계층에서 같은 행**을 집어야 한다 — 감시의 _sido_lookup 은 배치 규칙 함수 그 자체다(전수리뷰 A-7).
 
-    감시의 _sido_lookup은 배치 sido()의 거울이다. 한쪽만 고치면 감시는 통과하는데
-    배치는 못 집는(또는 그 반대) 상태가 되고, 그게 바로 이 검사가 막으려던 것이다.
-    거울이 맞는지 말로 두지 않고 두 함수를 같은 입력에 돌려 비교한다.
-
-    ⚠️ 배치 sido()는 fetch_weekly_rone/fetch_monthly_rone 안의 지역 클로저라
-    직접 부를 수 없다. 소스에서 규칙을 뽑아 비교하는 대신, **양쪽 소스에 같은
-    규칙 문장이 있는지**로 잠근다(얕은 것 우선 + '지방'→'지방권' 별칭).
+    예전 이 시험은 두 수집 클로저와 감시 거울의 원문에 규칙 문자열이 하나라도 있는지만 봐서, 월간 쪽 별칭만 바뀌어도 초록이었다.
+    지금은 한 함수(update_adv_data.rone_sido_key)를 셋이 부르고, 수집 행동(계층 픽스처로 fetch_weekly_rone·fetch_monthly_rone 을
+    돌려 지역마다 맞는 행의 값이 실리는지)은 test_rone_region_lookup 이 본다. 여기서는 감시가 쓰는 계층 모양 하나를 더 본다.
+    변이(실제로 확인): check_freshness 에 `_sido_lookup` 을 따로 적은 함수로 두면 동일성 단정이, rone_sido_key 의 min 을 max 로
+    바꾸면 '전남광주>광주' 미끼(통합 지역 밑 옛 조각) 단정이 빨개진다.
+    픽스처: 감시 시험의 _full() — 2026-07 R-ONE 계층(평평한 시도 + 통합 지역 밑 옛 두 조각).
     """
-    import io as _io, os, re
-    root = os.path.join(os.path.dirname(__file__), '..')
-    batch = _io.open(os.path.join(root, 'update_adv_data.py'), encoding='utf-8').read()
-    # 주간·월간 sido() 둘 다 자동추적이어야 한다(하드코딩 경로가 남아 있으면 안 됨).
-    assert batch.count("cand = [k for k in") >= 2, \
-        '배치 sido()가 자동추적이 아니다 — 상위 묶음이 바뀌면 그 지역이 통째로 빈다'
-    assert "min(cand, key=lambda k: k.count('>'))" in batch, '얕은 것 우선 규칙이 없다'
-    # ⚠️ 주석에도 '전남광주>광주'가 예시로 나온다 — 문자열 포함으로 보면 주석을
-    # 코드로 오인해 오탐이 난다(이 테스트를 만들며 실제로 걸렸다). 대입/조회로
-    # 쓰이는 줄만 본다.
-    hard = [ln.strip() for ln in batch.splitlines()
-            if "'전남광주>광주'" in ln and ('get(' in ln or '=' in ln.split('#')[0])]
-    assert not hard, '주간 sido()에 전체 경로 하드코딩이 남아 있다: %s' % hard
-    # 감시도 같은 규칙
-    wd = _io.open(os.path.join(root, 'check_freshness.py'), encoding='utf-8').read()
-    assert "min(cand, key=lambda k: k.count('>'))" in wd, '감시가 배치와 다른 규칙을 쓴다'
-    assert "{'지방': '지방권'}" in wd and "{'지방': '지방권'}" in batch, \
-        "'지방'→'지방권' 별칭이 한쪽에만 있다"
+    from merge_regions import SRC, DST
+    assert C._sido_lookup is U.rone_sido_key
+    piece = '%s>%s' % (DST, SRC[0])
+    names = _full() | {'%s>%s' % (DST, p) for p in SRC} | {'%s>%s' % (piece, SRC[0])}
+    for z in U.WEEKLY_REGIONS:
+        assert C._sido_lookup(names, z) == U.RONE_ALIAS.get(z, z), z
+    assert C._sido_lookup(names, SRC[0]) == piece, '얕은 행이 아니라 깊은 미끼를 집었다'
 
 
 def test_region_count_gate_follows_the_model():
