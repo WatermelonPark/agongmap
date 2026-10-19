@@ -157,19 +157,27 @@ def test_미분양은_점수에_안_들어간다():
 
 
 def test_모순_표시는_부족_판정에만_붙는다():
-    """공급 여유인데 미분양이 많은 건 모순이 아니라 일관이다(충남)."""
+    """공급 여유인데 미분양이 많은 건 모순이 아니라 일관이다(충남). 부족 판정의 경고(uwarn)는 **화면이 'N.N배'로 적는 값**부터 켠다 —
+    배수 표기(make_sido_pages.umx)와 경고가 한 함수(SZ.um_times)를 쓴다(전수리뷰 Z1-6).
+
+    재현한 상태: 예전 uwarn 은 반올림 전 원값 1.0 으로 갈라, 미분양이 분기 적정물량의 0.96·0.99995 배인 부족 지역은 카드·경고문
+    자리에 '1.0배'로 찍히는데 ⚠ 문단이 없고, 1.0 배인 곳은 같은 '1.0배'에 경고가 붙었다. 0.94 배는 '94%'로 찍히고 경고가 없다.
+    변이(실제로 확인): calc 의 uwarn 을 옛 `um >= 1.0`(반올림 전 원값)으로 되돌리면 0.96·ref−1 갈래가 빨개진다. umx 의 '배'/'%'
+    갈림을 원값 `v >= 1` 로 바꾸면 표기 대조가 빨개진다.
+    픽스처: 합성 서울(부족 판정)에 미분양 ref·ref−1(원값 0.99995 → 저장 1.0)·0.96 ref·0.94 ref 를 차례로 싣는다.
+    """
+    import make_sido_pages as P
     cut = (2026 - 2011) * 12 + 6
     z = [0] * cut
     s = _stats({'전국': list(z), '서울': list(z)},
                {'전국': list(z), '서울': list(z)}, y0=2011, m0=1)
     ref = M.REF_Q['서울']
-    s['미분양'] = {'dates': ['2026.06'], 'series': {'전국': [0], '서울': [ref]}}
-    row = [x for x in M.calc(s)['zones'] if x['z'] == '서울'][0]
-    assert row['grade'] in ('g4', 'g3', 'g2') and row['um'] == 1.0
-    assert row['uwarn'] is True, '부족 + 미분양 1배면 모순 표시'
-    s['미분양']['series']['서울'] = [ref - 1]
-    row2 = [x for x in M.calc(s)['zones'] if x['z'] == '서울'][0]
-    assert row2['uwarn'] is False, '1배 미만이면 표시하지 않는다'
+    for un, shown, warn in ((ref, '1.0배', True), (ref - 1, '1.0배', True), (0.96 * ref, '1.0배', True),
+                            (0.94 * ref, '94%', False)):
+        s['미분양'] = {'dates': ['2026.06'], 'series': {'전국': [0], '서울': [un]}}
+        row = [x for x in M.calc(s)['zones'] if x['z'] == '서울'][0]
+        assert row['grade'] in ('g4', 'g3', 'g2'), row['grade']
+        assert P.umx(row['um']) == shown and row['uwarn'] is warn and M.um_times(row['um']) is warn, (un, row['um'], row['uwarn'])
 
 
 def test_전_기간_None인_지역은_missing으로_빠진다():
