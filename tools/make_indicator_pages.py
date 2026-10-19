@@ -91,6 +91,21 @@ def neun(w):
     return w + ('은' if 0xAC00 <= c <= 0xD7A3 and (c - 0xAC00) % 28 else '는')
 
 
+def names_text(names):
+    """지역 이름 여럿을 문장 속 나열로 — ['서울'] → '서울', ['서울', '세종'] → '서울과 세종', 셋 이상 → '서울, 세종과 제주'.
+    조사(ga·neun)는 부르는 쪽이 끝 이름 뒤에 붙인다. '·'로 잇지 않는다 — 화면 이름 '광주·전남'이 셋으로 읽힌다(전수리뷰 Z1-10)."""
+    if len(names) == 1:
+        return names[0]
+    c = ord(names[-2][-1])
+    wa = '과' if 0xAC00 <= c <= 0xD7A3 and (c - 0xAC00) % 28 else '와'
+    return '%s%s %s' % (', '.join(names[:-1]), wa, names[-1])
+
+
+def shown1(v):
+    """전세가율 표시값(소수 첫째 자리) — 표 칸('%.1f%%')과 같은 값. 가장 높은·낮은 곳의 동률을 이 값으로 가린다(전수리뷰 Z1-10)."""
+    return float('%.1f' % v)
+
+
 # 표두를 눌러 정렬하는 스크립트(id="utable" 표 하나에 붙는다). SHELL 페이지(/moveins/·/jeonse-ratio/)와 /weekly/ 시군구
 # 전체 표(make_weekly_page.table_html)가 같은 것을 쓴다 — 정렬 관례를 한 곳에 둔다(홈 마케팅 검수 C10②, 2026-09-27).
 SORT_SCRIPT = """<script>
@@ -368,7 +383,7 @@ def jeonse_delta(cur, ago):
     """
     if cur is None or ago is None:
         return None
-    return round(float('%.1f' % cur) - float('%.1f' % ago), 1) + 0.0
+    return round(shown1(cur) - shown1(ago), 1) + 0.0
 
 
 def build_jeonse(sts, today=None):
@@ -417,25 +432,31 @@ def build_jeonse(sts, today=None):
     nat_ago = at('전국', ya)
     # 1년 전 값이 없으면 그 비교 문구만 뺀다. 예전엔 None 과 빼기를 해 생성기가 죽었고, 배치는 그날 커밋을 통째로 막았다.
     nat_d = jeonse_delta(nat, nat_ago)
-    hi = max(vals, key=lambda v: v[1])
-    lo = min(vals, key=lambda v: v[1])
-    moved = [v for v in vals if v[2] is not None]
-    up_most = max(moved, key=lambda v: v[2]) if moved else None
+    # 가장 높은·낮은 곳(그리고 1년 새 가장 크게 오른 곳)은 **표시값**(소수 첫째 자리)으로 가리고, 표시값이 같은 곳은 모두 적는다(전수리뷰
+    # Z1-10). 원값 max/min 은 같은 '52.3%' 가운데 한 곳(서울)만 골라 표 맨 아래의 세종을 뺐고(2026.08), 원값이 갈리는 표시값 동률
+    # (2026.05 전남광주 78.72·경북 78.7)에는 표만 보는 사람에게 근거 없는 1위를 말했다. 나열 순서는 표와 같다(전세가율 내림차순).
+    order = sorted(vals, key=lambda v: -v[1])
+    top, bot = max(shown1(v[1]) for v in vals), min(shown1(v[1]) for v in vals)
+    his = [v for v in order if shown1(v[1]) == top]
+    los = [v for v in order if shown1(v[1]) == bot]
+    moved = [v for v in order if v[2] is not None]
+    upv = max(v[2] for v in moved) if moved else None   # 변화는 이미 표시값끼리의 차(jeonse_delta)
+    ups = [v for v in moved if v[2] == upv]
     # 문장·설명 메타에 찍는 이름도 화면 이름이다(백로그 46) — 조사(이/가·은/는)도 화면 이름 끝 글자로 센다('광주·전남이').
     # 예전엔 표 행만 disp 를 거쳐, 전남광주가 최고·최저·최대 상승인 달(2026.05 실데이터)에 키가 그대로 나가 게이트가 그날 데이터
-    # 커밋을 막았다(전수리뷰 X2-1·Z1-1).
-    hi_n, lo_n = SZ.disp(hi[0]), SZ.disp(lo[0])
+    # 커밋을 막았다(전수리뷰 X2-1·Z1-1). 여럿이면 '서울과 세종'처럼 잇고 조사는 끝 이름에 붙는다.
+    hi_n, lo_n = names_text([SZ.disp(v[0]) for v in his]), names_text([SZ.disp(v[0]) for v in los])
     natd_desc = '' if nat_d is None else '로 1년 전보다 %+.1f%%p' % nat_d
     natd_sub = '' if nat_d is None else ' · 1년 전 대비 %+.1f%%p' % nat_d
     # 오른 곳이 없으면(가장 큰 변화가 0 이하 — 모든 시도가 그대로이거나 내린 해) '가장 크게 오른 곳'을 말하지 않는다(전수리뷰 B2).
     # 변화는 표시값(소수 첫째 자리)끼리의 차라 표의 '+0.0%p' 와 같은 기준이다.
-    upm_p = ('' if up_most is None or up_most[2] <= 0 else
-             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (SZ.disp(up_most[0]), up_most[2]))
+    upm_p = ('' if upv is None or upv <= 0 else
+             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (names_text([SZ.disp(v[0]) for v in ups]), upv))
 
     title = '전세가율이란 — 전국·시도별 아파트 전세가율 현황 %s | 아공맵' % prd
     desc = ('전세가율은 매매가 대비 전세가 비율. %s 기준 전국 아파트 전세가율은 %.1f%%%s. '
             '%s %.1f%%로 가장 높고 %s %.1f%%. 시도별 현황과 사이클 신호로서의 의미를 데이터로 정리했다.'
-            ) % (prd, nat, natd_desc or '다', ga(hi_n), hi[1], neun(lo_n), lo[1])
+            ) % (prd, nat, natd_desc or '다', ga(hi_n), top, neun(lo_n), bot)
     url = SITE + '/jeonse-ratio/'
 
     body = """<header class="wrap">
@@ -479,7 +500,7 @@ def build_jeonse(sts, today=None):
   </div>
 </section>
 """ % dict(nat=nat, natd=natd_sub, prd=prd, trs='\n'.join(trs),
-           hi=hi_n, hiv=hi[1], lo=lo_n, lov=lo[1], upm=upm_p)
+           hi=hi_n, hiv=top, lo=lo_n, lov=bot, upm=upm_p)
 
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,
