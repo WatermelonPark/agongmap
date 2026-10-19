@@ -44,7 +44,7 @@ class _Run:
         monkeypatch.setattr(U.time, 'sleep', lambda s: None)
         for fn in ('fetch_weekly', 'fetch_monthly', 'fetch_permits', 'fetch_holidays', 'fetch_bubble'):
             monkeypatch.setattr(U, fn, _boom)
-        monkeypatch.setattr(U, 'update_basic', lambda failed=None: [])
+        monkeypatch.setattr(U, 'update_basic', lambda failed=None, permits=None: [])
         monkeypatch.setattr(sys, 'argv', ['update_adv_data.py', '--update'])
         self.before = self.adv()
         # 시도 점수·입주물량은 STATS에서 다시 계산한다 — 기본은 '저장분과 같음'(변화 없음)
@@ -423,7 +423,7 @@ def test_all_main_sources_down_exits_3(monkeypatch, tmp_path, stored):
     assert e.value.code == 3
     assert set(run.file('.fetch_failed')) >= set(U.MAIN_SOURCES)
 
-    monkeypatch.setattr(U, 'update_basic', lambda failed=None: ['준공(3)'])
+    monkeypatch.setattr(U, 'update_basic', lambda failed=None, permits=None: ['준공(3)'])
     run.main()   # SystemExit 없이 끝나야 한다
 
 

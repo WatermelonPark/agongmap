@@ -1874,6 +1874,73 @@ def update_annual(stats, failed=None):
     return changed
 
 
+# ---- 창 밖 원천 소급 정정(전수리뷰 A-1·H2-1) -------------------------------------
+# 같은 원천 표(DT_MLTM_1948 아파트)를 두 경로가 읽는다 — 투자지표 인허가(fetch_permits)는 2007~올해 6·12월 누계를 매 회차 전부
+# 다시 받고, 기본통계 인허가(STATS)는 최근 BASIC_MONTHS 달만 다시 받는다. 원천이 2026-10-07 회차에 2025년을 고치자 ADV.permits 만
+# 따라가 두 화면이 다른 수를 냈다(전국 2025 하반기 232,955 대 224,469, 경북 +40%). 착공·준공(같은 국토교통부 실적 표 묶음)도 같은
+# 창이라 같은 회차의 정정을 놓쳤을 수 있다 — 대조할 두 번째 경로가 없어 인허가가 어긋난 해에 셋을 함께 다시 받는다.
+# 창을 넓히지 않는 까닭: mltm 은 달마다 한 번씩 부르는 표라 창을 전년 1월까지 넓히면 매일 호출이 세 배가 된다(KOSIS 차단 위험).
+# 어긋날 때만, 한 회차에 PERMIT_HEAL_YEARS 해씩 다시 받는다(해마다 세 표 × 12달 = 36호출). 게이트로 막지 않는다 — 원천이 고친 날
+# 커밋이 멈추면 안 된다. 다시 받은 회차는 변경 토큰에 REVISION_MARK 를 달아 배치 기록 ℹ️ 줄로 올리고(update-cloud.yml 커밋 잡),
+# 받지 못했거나 받아도 어긋나면 .fetch_failed(ℹ️ 원천 일부 실패 줄)에 남긴다.
+PERMIT_HEAL_SERIES = [n for n, c in BASIC_CONF.items() if c['mode'] == 'mltm']    # 인허가·착공·준공
+PERMIT_HEAL_YEARS = 1
+REVISION_MARK = '원천정정'
+
+
+def permit_half_mismatch(permits, stats):
+    """ADV.permits 반기 값과 STATS 인허가 누계(상반기 = 6월 누계, 하반기 = 12월 누계 − 6월 누계)가 다른 칸 →
+    [(반기 'YYYYH1|H2', 지역, ADV 값, STATS 값)]. 한쪽이라도 비어 있는 칸은 견주지 않는다(세종 2012 상반기처럼 출범 전)."""
+    D = (stats or {}).get('인허가') or {}
+    at = {}
+    for i, d in enumerate(D.get('dates') or []):
+        ym = _label_ym(d)
+        if ym and 'p' not in str(d):
+            at[ym] = i
+    ser = D.get('series') or {}
+    regions = (permits or {}).get('regions') or []
+    out = []
+    for row in (permits or {}).get('rows') or []:
+        p = str(row.get('p') or '')
+        if len(p) != 6 or p[4:] not in ('H1', 'H2'):
+            continue
+        y = int(p[:4])
+        for k, reg in enumerate(regions):
+            v = (row.get('v') or [])[k] if k < len(row.get('v') or []) else None
+            arr = ser.get(reg) or []
+            cum = [arr[at[(y, m)]] if (y, m) in at and at[(y, m)] < len(arr) else None for m in (6, 12)]
+            got = cum[0] if p.endswith('H1') else (None if None in cum else cum[1] - cum[0])
+            if v is not None and got is not None and int(round(got)) != int(round(v)):
+                out.append((p, reg, v, got))
+    return out
+
+
+def heal_permit_years(stats, permits, failed):
+    """permit_half_mismatch 가 어긋난 해를 가장 늦은 해부터 PERMIT_HEAL_YEARS 해만 인허가·착공·준공 12달씩 다시 받아 병합한다.
+    변경 토큰 목록(REVISION_MARK 포함)을 돌려준다. 받지 못했거나 받아도 어긋나면 failed 에 남긴다."""
+    years = sorted({int(h[:4]) for h, _, _, _ in permit_half_mismatch(permits, stats)}, reverse=True)
+    out = []
+    for y in years[:PERMIT_HEAL_YEARS]:
+        n = 0
+        try:
+            for name in PERMIT_HEAL_SERIES:
+                fetched, _ = _fetch_basic_one(name, 12, upto=(y, 12))
+                n += merge_basic(stats[name], fetched)
+                time.sleep(0.2)
+        except Exception as e:
+            print('basic 인허가: %d년 원천 정정 재수집 실패 — %s' % (y, e))
+            failed.append('인허가:원천 정정 재수집 실패(%d)' % y)
+            continue
+        left = [b for b in permit_half_mismatch(permits, stats) if b[0].startswith(str(y))]
+        print('basic 인허가: 투자지표 인허가와 %d년 누계가 갈려 %s 를 다시 받았다(%d칸 교정, 남은 어긋남 %d칸)'
+              % (y, '·'.join(PERMIT_HEAL_SERIES), n, len(left)))
+        if left:
+            failed.append('인허가:원천 정정 대조 어긋남(%d)' % y)
+        if n:
+            out.append('%s(%s %d년 %d칸)' % ('·'.join(PERMIT_HEAL_SERIES), REVISION_MARK, y, n))
+    return out
+
+
 # sido_zones.calc 가 미래 시야 H(= 착공 끝 분기 − 준공 끝 분기 + LEAD_Q)를 재는 두 계열.
 _HORIZON_SERIES = ('준공', '착공')
 
@@ -1914,8 +1981,9 @@ def _hold_horizon(stats, before, failed):
     return True
 
 
-def update_basic(failed=None):
+def update_basic(failed=None, permits=None):
     """기본통계(STATS) 증분 갱신. 변경 토큰 목록을 돌려주고, 실패한 계열 이름은 failed에 넣는다.
+    permits(ADV.permits)를 주면 같은 원천 표의 STATS 인허가 누계와 맞춰 보고 어긋난 해를 다시 받는다(heal_permit_years, A-1).
 
     ⚠️ 예전엔 여기 예외가 print로만 끝나 .fetch_failed 에 닿지 않았다. 준공·착공·인허가가
     KOSIS 오류로 몇 회차째 죽어도 배치 기록은 ✅였고, 감시의 나이 검사(100일 유예)가 잡을
@@ -1964,6 +2032,9 @@ def update_basic(failed=None):
             failed.append(name); print('basic %s skip: %s' % (name, e))
     if _hold_horizon(stats, before, failed):
         changed[:] = [t for t in changed if t not in {tokens.get(k) for k in before}]
+    if permits:
+        # 시야 보류 뒤에 한다 — 보류가 병합 전으로 되돌리는 준공·착공에 창 밖 정정이 함께 지워지지 않게(지난 해만 고치므로 끝 분기는 그대로).
+        changed += heal_permit_years(stats, permits, failed)
     try:
         changed += update_size(stats, failed)
     except Exception as e:
@@ -2512,7 +2583,7 @@ def main():
         failed.append('bubble'); print('bubble skip:', e)
     if changed:
         write_adv(adv)
-    changed += update_basic(soft_failed)   # 기본통계(STATS) 증분 갱신
+    changed += update_basic(soft_failed, adv.get('permits'))   # 기본통계(STATS) 증분 갱신 + 인허가 두 경로 대조(A-1)
     # ── 시도 공급 지표 ───────────────────────────────────────────────────────
     # STATS의 준공·착공·아파트멸실에서 파생하므로 **update_basic 뒤**에 와야 한다.
     # 앞에 두면 이번 회차에 갱신된 통계가 아니라 지난 회차 값으로 점수가 나온다.
