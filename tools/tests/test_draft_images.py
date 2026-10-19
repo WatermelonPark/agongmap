@@ -17,7 +17,8 @@ data URI 이미지를 어떻게 받는지 확인할 수 없다).
     <img src="data:…"> HTML 을 같이 실어 스마트에디터가 "허용되지 않는 형식의 이미지"로
     뺐다(2026-09-27 사용자 실측). 버튼은 image/png 만 싣는다.
 픽스처: tmp_path 에 만든 작은 PNG 바이트(실제 캡처 파일의 이름·자리 이름을 그대로 쓴다).
-네이버 경쟁 글 조회는 막는다(키 없는 PC와 같은 경로). 저장소의 drafts/ 는 건드리지 않는다.
+네이버 경쟁 글 조회는 막는다(키 없는 PC와 같은 경로). 저장소의 drafts/ 는 건드리지 않는다 — 주간 초안이 그리는 썸네일까지
+초안 도구의 쓰기 자리는 conftest 의 _drafts_out_of_repo 가 시험마다 임시 폴더로 돌린다(전수리뷰 T1-5).
 """
 import base64
 import os
@@ -118,7 +119,8 @@ def test_each_image_has_a_png_only_copy_button(tmp_path, monkeypatch):
     assert 'text/html' not in handler and 'text/plain' not in handler
 
 
-def test_theory_draft_embeds_images(tmp_path, monkeypatch):
+def test_theory_draft_embeds_images(tmp_path, monkeypatch, link1_holds):
+    # link1_holds: 고리① 전제가 서는 D — 재산정이 1·2편 전제를 뒤집는 날에도 이 시험(이미지 싣기)은 돈다(대표 결정 D1, conftest)
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
     monkeypatch.setattr(P, 'OUT', str(tmp_path))
     _png(tmp_path, 'cycle-loop.png')

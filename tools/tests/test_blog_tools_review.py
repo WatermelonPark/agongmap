@@ -38,7 +38,7 @@
   끝 열 일부만 참·서울 최신 확정치 −8%와 수도권 판정 반전은 고치기 전 시험에서 빨갛고 지금은 초록이다.
   - 전세가율·노후주택: 실제 계열 끝에 새 달·새 해 열을 붙이고 일부 지역만 채운 상태(merge 가 새 열을 전 지역 None 으로
     만들고 받은 지역만 채우는 구조, 2026.06·07 실제 사례).
-네트워크·저장소 파일 쓰기 없음(초안은 tmp_path).
+네트워크·저장소 파일 쓰기 없음(초안·썸네일의 쓰기 자리는 conftest 의 _drafts_out_of_repo 가 시험마다 임시 폴더로 돌린다 — 전수리뷰 T1-5).
 """
 import copy
 import io
@@ -264,19 +264,40 @@ def test_link1_values_follow_the_site_numbers():
 
 
 def test_theory1_2_print_the_site_link1_numbers(monkeypatch):
+    """1·2편은 /cycle/ 본문 칸(prose.l1_lo·l1_hi) 글자를 그대로 싣는다.
+
+    대표 결정 2026-10-18 D1: 손으로 돌리는 재산정이 고리① 전제를 뒤집으면 초안만 멈추고 게이트는 막지 않는다. 그래서 옮겨 싣기는
+    전제가 서는 합성 칸(3.1 · −0.3 — 실제 정본에 없는 값이라 손으로 박은 숫자가 우연히 맞지 않는다)으로 늘 보고, 실데이터는 전제가
+    서면 그 칸 그대로, 깨진 회차면 1·2편 가드의 멈춤 문구를 본다.
+    변이: 1·2편 본문에 '1.42%%' 를 되돌리거나 render 가 l1_lo 대신 다른 값을 실으면 합성 갈래가 빨개진다."""
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
+    posts = [next(p for p in T.POSTS if p['n'] == n) for n in (1, 2)]
+    for post in posts:
+        assert not re.findall(r'\d+\.\d+%%', post['body']), '%d편 본문에 손 숫자' % post['n']
+    D = P.cycle_d()
+    D['link1_new'] = dict(D['link1_new'], jeonse_rise=[3.14, 1.0, -0.27])
+    D['prose'] = dict(D['prose'], l1_lo='3.1', l1_hi='−0.3')
+    with monkeypatch.context() as m:
+        m.setattr(P, 'cycle_d', lambda: copy.deepcopy(D))
+        for post in posts:
+            html = T.render(post)
+            assert '<b>3.1%</b>' in html and '<b>−0.3%</b>' in html, post['n']
     pr = P.cycle_d()['prose']
-    for n in (1, 2):
-        post = next(p for p in T.POSTS if p['n'] == n)
-        assert not re.findall(r'\d+\.\d+%%', post['body']), '%d편 본문에 손 숫자' % n
-        html = T.render(post)
-        assert '<b>%s%%</b>' % pr['l1_lo'] in html and '<b>%s%%</b>' % pr['l1_hi'] in html, n
+    for post in posts:
+        try:
+            html = T.render(post)
+        except SystemExit as e:
+            assert str(e).startswith('1·2편을 만들 수 없다 — 고리① 전제'), str(e)
+            continue
+        assert '<b>%s%%</b>' % pr['l1_lo'] in html and '<b>%s%%</b>' % pr['l1_hi'] in html, post['n']
 
 
 def test_theory2_drops_the_middle_section_when_the_site_says_otherwise(monkeypatch):
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
     D = P.cycle_d()
     D['link1_new']['jeonse_rise'] = [2.66, 1.74, -0.36]
+    # 본문 칸도 같은 정본 값으로 — 저장소 칸에 기대면 재산정이 고리① 전제를 뒤집는 날 이 시험이 멈춤으로 빨개진다(대표 결정 D1)
+    D['prose'] = dict(D['prose'], l1_lo='2.7', l1_hi='−0.4')
     monkeypatch.setattr(P, 'cycle_d', lambda: D)
     assert '가운데가 가장 높은 이유' not in T.render(next(p for p in T.POSTS if p['n'] == 2))
 
@@ -372,6 +393,11 @@ def test_weekly_top3_is_the_site_top3(monkeypatch):
 
 # ── #24·#106 전세가율 기준월, #114 노후주택 기준 해 ──────────────────────────
 def test_jeonse_section_uses_the_site_reference_month():
+    """전세가율 절은 사이트 정본 기준월(jeonse_ref_index)의 값을 싣고, 기준월 전달 값이 없으면 '전월 대비'를 못 써 절째 뺀다.
+
+    예전엔 기준월 바로 전달의 전국 값이 빈 회차에 도구가 규칙대로 절을 빼는데 시험이 그 절 글자를 요구해 게이트가 막혔다(전수리뷰
+    overflow). 이제 그 칸이 비었으면 사본에서 채워 기준월 대조를 늘 돌리고, 빈 칸 갈래(절 생략)는 따로 단정한다.
+    변이: extra_section 이 전월 값 없이도 절을 쓰게(`or prv is None` 삭제) 하면 마지막 단정이 TypeError 로 빨갛다(확인)."""
     adv, sts = M.load()
     sts = copy.deepcopy(sts)
     j = sts['전세가율']
@@ -379,9 +405,16 @@ def test_jeonse_section_uses_the_site_reference_month():
     for rg, s in j['series'].items():
         s.append(99.9 if rg == '전국' else None)   # 전국만 먼저 온 새 달
     i = I.jeonse_ref_index(j, I.JEONSE_NEED)
+    k = SZ.month_back(j['dates'], i, 1)
+    assert k is not None, '기준월의 전달이 계열에 없다 — 대조가 헛돈다'
+    nat = j['series']['전국']
+    if nat[k] is None:                         # 기준월 바로 전달의 전국 값이 빈 회차 — 사본에서 채운다
+        nat[k] = round(nat[i] - 0.1, 1)
     html = P.extra_section(adv, sts, 0)
     assert '(%s 기준' % j['dates'][i] in html and '2099.01' not in html and '99.9%' not in html
-    assert '<b>%.1f%%</b>' % j['series']['전국'][i] in html
+    assert '<b>%.1f%%</b>' % nat[i] in html
+    nat[k] = None                              # 그 칸이 빈 갈래 — 절을 통째로 뺀다(도구의 규칙)
+    assert P.extra_section(adv, sts, 0) == ''
 
 
 def test_aged_section_uses_one_complete_year():

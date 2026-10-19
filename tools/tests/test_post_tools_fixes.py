@@ -12,7 +12,7 @@
   - close_published_issues.match 의 예정일 조건·카테고리 조건을 빼면 → match 시험 둘
   - note_record 가 view 실패에도 --body 를 넘기면 → test_body_is_not_overwritten_when_view_fails
   - 닫기 실패 뒤 제목 복원을 빼면 → test_title_is_restored_when_close_fails
-  - batch_notes.sync_claim_lines 가 SystemExit 을 삼키면 → test_sync_claim_mismatch_is_noted
+  - batch_notes.theory_claim_lines 가 SystemExit 을 삼키면 → test_sync_claim_mismatch_is_noted
 픽스처: 합성 곡선·제목·RSS 항목·가짜 gh(subprocess.run 대체). 네트워크·저장소 파일 쓰기 없음.
 """
 import datetime
@@ -246,8 +246,9 @@ def test_sync_claim_mismatch_is_noted(monkeypatch):
     import make_theory_post as T
     rows = [{'region': '대구', 'corr': 0.3, 'sudo': False}, {'region': '서울', 'corr': 0.55, 'sudo': True}]
     monkeypatch.setattr(T, 'CYCLE_SYNC', sorted(rows, key=lambda x: -x['corr']))
-    out = N.sync_claim_lines()
-    assert out and out[0].startswith(N.ML.MARK) and '3편' in out[0], out
+    out = N.theory_claim_lines()      # 3편도 이론편 점검(theory_claim_lines — 옛 sync_claim_lines 를 접었다)이 본다
+    line = next((ln for ln in out if ' 사이클 3편 ' in ln), None)   # 다른 편 줄은 실데이터 상태에 따라 있을 수도 없을 수도
+    assert line and line.startswith(N.ML.MARK) and '대구' in line and '검사 불가' not in line, out
     # 알림 줄은 main() 이 붙인다 — lines(adv) 는 인자만 보고 실데이터 점검을 싣지 않는다(전수리뷰 #32·#94,
-    # main 쪽은 test_batch_notes.test_main_appends_sync_claim_lines 가 본다)
+    # main 쪽은 test_batch_notes.test_main_appends_theory_claim_lines 가 본다)
     assert N.lines({'sido': {'zones': [{'z': '서울', 'pbr': 1.0}]}}) == []

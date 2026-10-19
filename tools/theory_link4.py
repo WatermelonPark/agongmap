@@ -7,6 +7,9 @@ sts['착공']·sts['준공'](국토교통부 주택건설 실적 중 아파트, 
 분기 입주 추정: 과거는 준공 실적, 이후는 착공 × 전환율을 3년 뒤로), adv['sido'] 판정(zones 의 split·fut),
 /cycle/ 의 정본 D(prose 의 lead_old·lead_new·lead_r).
 
+앞으로 3년 입주 목록(fut_lists — 적정물량을 넘는 곳·3분의 1에도 못 미치는 곳)은 6편(make_theory_post.link6_values)과 같이 쓰는
+정본이다. 6편은 그 목록만 읽고 5편의 다른 단정에는 묶이지 않는다(전수리뷰 BL2-4).
+
 공사 기간은 사이트 정본(D.prose)을 쓰고, 같은 계산 함수(rebuild_cycle_analysis.link45_leadtime)를 지금 데이터로
 다시 돌려 정본과 같은지 assert 한다. 같은 대상을 재는 코드가 둘이 되지 않도록 시도별 시차도 그 모듈의 _roll12·
 paired·corr 로 같은 방식(2018년 이후 착공분, 18~60개월)으로 잰다.
@@ -37,6 +40,54 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(SZ.__file__)))   # tools/
 
 class Link4ClaimError(Exception):
     """5편 본문의 단정이 데이터와 어긋난다."""
+
+
+class Link4DataError(Link4ClaimError):
+    """입력 계열끼리 맞지 않아 셀 수 없다(착공·준공 끝 달이 다르다) — 문장 탓이 아니다. 다음 배치가 두 계열을 같은 달까지
+    받으면 풀린다. Link4ClaimError 의 하위라 그것을 받는 자리는 그대로 멈춘다(4편 theory_link3.Link3DataError 와 같은 구분)."""
+
+
+LOW = 1 / 3      # 본문 '3분의 1에도 못 미치는 곳' — 앞으로 3년 입주 / 적정물량
+MOST = 2 / 3     # 본문 '대부분'이 서는 몫 — 5편 '추정 분기 대부분'(_fq_below)과 6편 '대부분 지역에서'(fut_lists 의 below)가 같은 문턱
+
+
+def fut_pct(z):
+    """판정 행 z 의 '앞으로 3년' 퍼센트 — 판정 split 칸 글자(사이트 정본)에서 읽는다. 5편·6편이 같은 함수를 쓴다."""
+    r = z['split']['rows'][1]
+    assert r[0] == '앞으로 3년', z['z']
+    return int(re.search(r'(\d+)%', r[1]).group(1))
+
+
+def fut_ratio(z):
+    """판정 행 z 의 앞으로 3년 들어올 물량 / 적정물량 원값(정렬·문턱용, 반올림 전)."""
+    return z['fut'] / z['need']
+
+
+def fut_lists(adv, name=SZ.disp):
+    """앞으로 3년 입주가 적정물량에 견줘 어떤지로 가른 시도 목록 — 5편(link4_numbers 의 fut_*)과 6편(make_theory_post.link6_values)이
+    같은 규칙을 쓰는 한 정본이다. 예전엔 6편이 이 넷을 얻으려고 5편의 단정 약 60개 전부(link4_numbers)를 돌려, 6편과 무관한 5편
+    숫자가 바뀌어도 멈추고 '발행한 5편 문장을 고치라'고 안내했다(전수리뷰 BL2-4).
+
+    돌려주는 것: hi(적정물량을 넘는 시도 키, 많은 순)·lo(LOW 에도 못 미치는 시도 키, 적은 순)·below(적정물량에 못 미치는 시도 수)·
+    n(시도 수)·fut_high·fut_low('대전 115%, 충남 112%' 꼴 글자)·fut_high_names('대전·충남')·win_y(판정 창 햇수 글자).
+    글자 속 지역 이름은 name(키 → 이름)으로 바꾼다 — 화면 이름 정본 SZ.disp 가 기본이고, 블로그는 검색 표기(make_naver_post.SEARCH_NAME)를
+    넘긴다. 판정 칸을 못 읽으면(키·모양이 바뀌었거나 적정물량이 0·빈칸) Link4ClaimError — 그 밖의 예외로 새지 않는다.
+    """
+    try:
+        SD = adv['sido']
+        zs = [z for z in SD['zones'] if not z.get('agg')]
+        hi = sorted([z for z in zs if fut_ratio(z) > 1], key=lambda z: -fut_ratio(z))
+        lo = sorted([z for z in zs if fut_ratio(z) < LOW], key=fut_ratio)
+        out = dict(hi=[z['z'] for z in hi], lo=[z['z'] for z in lo], n=len(zs),
+                   below=sum(1 for z in zs if fut_ratio(z) < 1),
+                   fut_high=', '.join('%s %d%%' % (name(z['z']), fut_pct(z)) for z in hi),
+                   fut_low=', '.join('%s %d%%' % (name(z['z']), fut_pct(z)) for z in lo),
+                   fut_high_names='·'.join(name(z['z']) for z in hi))
+        assert zs and SD['H'] % 4 == 0, ('시도 수', len(zs), '판정 창', SD['H'])
+        out['win_y'] = str(SD['H'] // 4)
+    except (AssertionError, AttributeError, KeyError, IndexError, TypeError, ZeroDivisionError) as e:
+        raise Link4ClaimError('앞으로 입주 목록을 셀 수 없다(판정 칸 ADV.sido) — %s: %s' % (type(e).__name__, e))
+    return out
 
 
 def _won(n):
@@ -81,7 +132,12 @@ def link4_numbers(adv, sts):
         return sum(m[k] for k in ks)
 
     last_m = max(MON('준공', '전국'))             # 준공 계열의 마지막 달
-    assert last_m == max(MON('착공', '전국')), '착공·준공 마지막 달이 다르다'
+    # 두 계열은 KOSIS 의 서로 다른 표다. 분기를 닫지 않는 달에 한쪽만 새 달을 받으면(착공 호출만 순단·원천이 한 표를 늦게 실음)
+    # 판정 창 H 는 그대로라 수집(_hold_horizon)·생성기가 모두 통과한다 — 예전엔 맨 assert 라 AssertionError 가 가드(Link4ClaimError
+    # → SystemExit)를 비켜 게이트 시험 넷을 죽였다(전수리뷰 T3-6·BL2-3·T1-2). 문장 탓이 아니라 입력 시차라 Link4DataError 다.
+    last_st = max(MON('착공', '전국'))
+    if last_m != last_st:
+        raise Link4DataError('착공·준공 마지막 달이 다르다 — 준공 %s, 착공 %s' % (last_m, last_st))
     CUR_Y, CUR_M = int(last_m[:4]), int(last_m[5:7])
     if CUR_Y != 2026:                             # 본문 '지난해 하반기'(2025H2)·'올해'가 2026년 발행을 전제한다
         raise Link4ClaimError('5편 본문은 2026년 데이터를 전제한다(지난해 하반기=2025) — 지금 %s' % last_m)
@@ -115,15 +171,8 @@ def link4_numbers(adv, sts):
     def Z(z):
         return next(x for x in SD['zones'] if x['z'] == z)
 
-    def FUT(z):                       # 판정 split 의 '앞으로 3년' 퍼센트(사이트 정본)
-        r = Z(z)['split']['rows'][1]
-        assert r[0] == '앞으로 3년', z
-        return int(re.search(r'(\d+)%', r[1]).group(1))
-
-    def FR(z):                        # 앞으로 3년 들어올 물량 / 적정물량 원값(정렬·문턱용, 반올림 전)
-        return Z(z)['fut'] / Z(z)['need']
-
-    SIDO = [z['z'] for z in SD['zones'] if not z.get('agg')]
+    def FUT(z):                       # 판정 split 의 '앞으로 3년' 퍼센트(사이트 정본) — 6편과 같은 함수(fut_pct)
+        return fut_pct(Z(z))
 
     def OY(rg, y):                    # 입주 추정(과거 실적 + 이후 추정) 그해 네 분기 합
         rs = [r for r in O['rows'] if r['p'][:4] == str(y)]
@@ -353,7 +402,7 @@ def link4_numbers(adv, sts):
     def _fq_below():
         # 추정 분기 가운데 분기 적정에 못 미치는 분기 수. '대부분'이 서도록 3분의 2 이상
         n = sum(1 for r in EST if r['v'][0] < O['ref']['전국'])
-        assert n >= len(EST) * 2 / 3
+        assert n >= len(EST) * MOST
         return str(n)
 
     def _st_ytd():
@@ -372,8 +421,8 @@ def link4_numbers(adv, sts):
         return str(t // 12)
 
     def _fut_low_n():
-        # 앞으로 3년 적정물량의 3분의 1에도 못 미치는 시도 수
-        return str(sum(1 for z in SIDO if FR(z) < 1 / 3))
+        # 앞으로 3년 적정물량의 3분의 1에도 못 미치는 시도 수(6편과 같은 목록 — fut_lists)
+        return str(len(fut_lists(adv)['lo']))
 
     def _dn25_old():
         # 예전 시차(lead_old 개월)로 셈한 2025년 준공: 그 시차만큼 앞선 12개월 착공 × 전환율
@@ -409,9 +458,8 @@ def link4_numbers(adv, sts):
         return '%.0f%%' % (MIN4()[2] / (O['ref']['전국'] * 4) * 100)
 
     def _win_y():
-        # 판정 창(앞으로 N년) = H 분기 / 4. 본문 '앞으로 N년'
-        assert SD['H'] % 4 == 0
-        return str(SD['H'] // 4)
+        # 판정 창(앞으로 N년) = H 분기 / 4. 본문 '앞으로 N년'(6편과 같은 값 — fut_lists)
+        return fut_lists(adv)['win_y']
 
     def _shift_y():
         # 입주 추정이 착공을 옮기는 햇수 = 모델 lead 분기 / 4(=LEAD_Q). 본문 '착공을 N년 뒤로'
@@ -433,20 +481,20 @@ def link4_numbers(adv, sts):
         return '60'
 
     def _fut_low():
-        # 그 시도들(낮은 순). 본문이 서울을 따로 이어 쓰므로 서울 포함을 assert, 목록이 바뀌면 멈춘다
-        lo = sorted([z for z in SIDO if FR(z) < 1 / 3], key=FR)
-        assert set(lo) == {'대구', '제주', '서울', '경북'}, lo
-        return ', '.join('%s %d%%' % (z, FUT(z)) for z in lo)
+        # 그 시도들(낮은 순). 본문이 서울을 따로 이어 쓰므로 서울 포함을 assert, 목록이 바뀌면 멈춘다(5편만의 단정 — 6편은 걸지 않는다)
+        F = fut_lists(adv)
+        assert set(F['lo']) == {'대구', '제주', '서울', '경북'}, F['lo']
+        return F['fut_low']
 
     def _fut_high():
-        # 적정물량을 넘는 물량이 들어오는 시도. 목록이 바뀌면 멈춘다
-        hi = sorted([z for z in SIDO if FR(z) > 1], key=lambda z: -FR(z))
-        assert set(hi) == {'대전', '충남'}, hi
-        return ', '.join('%s %d%%' % (z, FUT(z)) for z in hi)
+        # 적정물량을 넘는 물량이 들어오는 시도. 목록이 바뀌면 멈춘다(5편만의 단정 — 6편은 걸지 않는다)
+        F = fut_lists(adv)
+        assert set(F['hi']) == {'대전', '충남'}, F['hi']
+        return F['fut_high']
 
     def _fut_high_names():
-        # 6편 연결 문장용 이름만('대전·충남'). fut_high 와 같은 규칙
-        return '·'.join(sorted([z for z in SIDO if FR(z) > 1], key=lambda z: -FR(z)))
+        # 5편 끝 6편 연결 문장용 이름만('대전·충남'). fut_high 와 같은 규칙(fut_lists)
+        return fut_lists(adv)['fut_high_names']
 
     def _gg_fut():
         # 경기 앞으로 3년 / 적정물량. '서울과 달리 적정물량 가까이' = 80% 이상
@@ -475,4 +523,9 @@ def link4_numbers(adv, sts):
             out[k] = f()
         except (AssertionError, ValueError, StopIteration) as e:
             raise Link4ClaimError('5편 본문의 단정이 데이터와 어긋난다 — %s: %s' % (k, e))
+        except (KeyError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
+            # 계열에 빈 달·빈 칸이 생겨 셈이 안 서는 회차(12개월 합의 끝 달이 없다, 전년 같은 기간이 0, 칸이 None 등) — 가드를
+            # 비켜 날 예외로 새면 초안 생성 가드(SystemExit)를 거르는 시험이 죽는다(대표 결정 2026-10-18 D1, theory_link3 와 같은
+            # 받기). 예외 이름을 문구에 남겨 배치 기록 줄(batch_notes)에서 코드 결함과 데이터 상태를 사람이 가를 수 있게 한다.
+            raise Link4ClaimError('5편 본문의 단정이 데이터와 어긋난다 — %s: %s: %s' % (k, type(e).__name__, e))
     return out

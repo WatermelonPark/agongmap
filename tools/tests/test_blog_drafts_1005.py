@@ -12,8 +12,9 @@
   - _thumb_curve 가 고점을 그린 구간(2016.01~) 안에서만 찾으면 → test_thumb_peak_is_searched_over_the_full_series (D4)
   - thumb_message 를 옛 규칙(고점이 최근 3점 안이고 하락 3% 미만이면 '역대 최고가', 하락은 min(값, -1))으로 되돌리면
     → test_thumb_states_the_actual_fall
-  - theory_link4.min_window 를 추정 분기만 훑게(start 를 첫 추정 분기로) 되돌리면 → test_min_window_includes_this_year,
-    test_link4_min4_is_not_above_this_year (D5, 2026.08 데이터에서 231,328 > 215,877)
+  - theory_link4.min_window 를 추정 분기만 훑게(start 를 첫 추정 분기로) 되돌리면 → test_min_window_includes_this_year
+    (D5, 2026.08 데이터에서 231,328 > 215,877). min_window 가 시작 분기를 빼고 훑으면(`>= start` → `> start`) 실데이터 대조
+    test_min4_window_is_not_above_any_full_year 도 빨갛다(2026.08 데이터에서 2026Q2~2027Q1 218,768 > 2026년 215,877)
   - series_links 의 자기 건너뛰기를 `nm in 제목` 으로 되돌리면 → test_series_links_skip_self_by_zone_of_title
 
 픽스처가 재현하는 실제 상태:
@@ -173,17 +174,26 @@ def test_min_window_includes_this_year():
     assert s <= min(year.values()), '가장 적은 네 분기가 어느 해 네 분기보다 많다 — 앞 문단 올해 입주와 어긋난다'
 
 
-def test_link4_min4_is_not_above_this_year():
-    """실데이터 대조. 5편 단정이 새 데이터로 깨지면(Link4ClaimError) 초안 도구가 멈출 일이라 여기서는 대조하지 않는다 —
-    게이트가 데이터 커밋을 막지 않게(CLAUDE.md 게이트 시험 원칙)."""
+def test_min4_window_is_not_above_any_full_year():
+    """실데이터 대조(D5). 5편 '가장 적은 네 분기'(min_window)는 같은 입주 계열(과거 실적 + 이후 추정)을 올해 1분기부터 훑으므로,
+    그 범위의 어느 해 네 분기 합보다도 크지 않다 — 앞 문단 '올해 입주'(OY)와 어긋나지 않는다.
+
+    link4_numbers 를 거치지 않는다(전수리뷰 T1-7): 그 함수는 5편 본문이 2026년 데이터를 전제해 2027년 자료부터 늘 Link4ClaimError 로
+    빠지고, 예전 시험은 그때 조용히 return 해 이 대조가 영영 꺼졌다. 시작 분기는 데이터에서 유도한다(판정 L 분기의 해 1분기 = 실적이
+    든 올해 — 5편의 '올해 1분기부터'). 늘 단정한다: 범위 안에 네 분기가 다 찬 해가 없으면 그것도 실패다.
+    픽스처: 저장소 data.js 의 ADV.occupancy(전국 열)·ADV.sido.L 그대로."""
     import make_sido_pages as M
-    adv, sts = M.load()
-    try:
-        n = L4.link4_numbers(adv, sts)
-    except L4.Link4ClaimError:
-        return
-    num = lambda k: int(n[k].replace(',', ''))
-    assert num('fq_min4v') <= num('y26') and num('fq_min4v') <= num('y27'), (n['fq_min4'], n['fq_min4v'], n['y26'], n['y27'])
+    adv, _ = M.load()
+    rows = adv['occupancy']['rows']
+    start = adv['sido']['L'][:4] + 'Q1'
+    a, b, s = L4.min_window(rows, start)
+    years = {}
+    for r in rows:
+        if r['p'] >= start:
+            years.setdefault(r['p'][:4], []).append(r['v'][0])
+    full = {y: sum(v) for y, v in years.items() if len(v) == 4}
+    assert full, '훑은 범위에 네 분기가 다 찬 해가 없다 — 대조가 헛돈다: %s' % sorted(years)
+    assert all(s <= v + 1e-6 for v in full.values()), (a, b, s, full)
 
 
 # ── series_links 자기 건너뛰기 ───────────────────────────────────────────
