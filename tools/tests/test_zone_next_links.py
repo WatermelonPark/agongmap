@@ -124,3 +124,20 @@ def test_faq_has_the_common_disclaimer():
     s = io.open(os.path.join(ROOT, 'faq', 'index.html'), encoding='utf-8').read()
     foot = re.search(r'<footer[^>]*>.*?</footer>', s, re.S)   # 공용 푸터는 class="sfoot"(백로그 36-4)
     assert foot and '투자자문이 아닙니다' in foot.group(0), 'FAQ 푸터에 투자 면책이 없다'
+
+
+def test_weekly_card_survives_a_malformed_survey_date():
+    """'이번 주 시세' 카드는 조사일 모양이 틀어져도(원천이 날짜 칸을 바꾼 회차) 생성기를 죽이지 않고 날짜 조각만 뺀다 — 같은 페이지의
+    주간 구역 기준 줄(weekly_section)과 같은 물러섬이다(전수리뷰 Z1 overflow: 이 칸만 MW.md·MW.pub 를 거르지 않고 불러, 그 회차에는
+    이 칸이 먼저 생성기를 죽였다 — 배치 중단 금지, 2026-09-26 감사 15번 유형).
+    변이(실제로 확인): try/except 를 빼고 날짜를 바로 찍게 되돌리면 빨개진다(ValueError).
+    픽스처: 합성 주간 한 행 — 조사일이 '2026-13-45'(모양이 틀어진 값)·없음, 그리고 정상 날짜(날짜 조각이 붙는 갈래)."""
+    import make_sido_pages as P
+    for p, dated in (('2026-13-45', False), (None, False), ('2026-10-12', True)):
+        row = {'ma': [0.12], 'je': [0.05]}
+        if p is not None:
+            row['p'] = p
+        html = P.next_links('서울', {'regions': ['서울'], 'rows': [row]}, {})
+        card = re.search(r'<b>이번 주 시세</b><i>([^<]*)</i>', html).group(1)
+        assert card.startswith('매매 +0.12% · 전세 +0.05%'), card
+        assert ('조사' in card) is dated, (p, card)
