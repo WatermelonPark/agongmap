@@ -944,11 +944,15 @@ POSTS = [
 ]
 
 
-def link6_values(D, adv, sts):
-    """6편 숫자 — /cycle/ 정본(D.prose·D.link6_regional)과 5편 함수(theory_link4)에서 읽는다. 문장의 전제가 깨지면 멈춘다
-    (3편 check_sync_claims 와 같은 원칙). 전제: ① 서울은 효과가 확인되지 않는다, ② 수도권으로 묶으면 서울보다 강하다,
-    ③ 광역시가 도보다 강하다, ④ 확인된 수도권 시도는 모두 한 분기 뒤 반응, ⑤ 가장 강한 시도가 앞으로 입주가 적정물량을
-    넘는 곳이다, ⑥ 앞으로 입주가 적정물량을 넘는 시도가 있다."""
+def link6_values(D, adv):
+    """6편 숫자 — /cycle/ 정본(D.prose·D.link6_regional)과 앞으로 입주 목록(theory_link4.fut_lists — 5편과 같은 규칙)에서 읽는다.
+    문장의 전제가 깨지면 멈춘다(3편 check_sync_claims 와 같은 원칙). 전제: ① 서울은 효과가 확인되지 않는다, ② 수도권으로 묶으면
+    서울보다 강하다, ③ 광역시가 도보다 강하다, ④ 확인된 수도권 시도는 모두 한 분기 뒤 반응, ⑤ 가장 강한 시도가 앞으로 입주가
+    적정물량을 넘는 곳이다, ⑥ 앞으로 입주가 적정물량을 넘는 시도가 있다, ⑦ 앞으로 입주가 적정물량의 3분의 1에도 못 미치는 시도가
+    있다('가장 적은 곳은 …'), ⑧ 적정물량에 못 미치는 시도가 대부분이다('대부분 지역에서 적정물량에 못 미치는데요' — 5편 '대부분'과
+    같은 문턱 L4.MOST).
+    5편의 단정(link4_numbers — 착공 증가율·2027년 입주·시차 정본·2026년 데이터 전제 등 약 60개)에는 묶지 않는다. 6편 본문이 5편에서
+    읽는 값은 앞으로 입주 목록 넷뿐이고, 5편은 발행본이라 '5편 문장을 고치라'는 안내를 따를 수도 없다(전수리뷰 BL2-4)."""
     import theory_link4 as L4
     pr, rg = D['prose'], D['link6_regional']
     num = lambda s: float(s.replace('−', '-'))
@@ -956,14 +960,14 @@ def link6_values(D, adv, sts):
     sudo = [x for x in sig if x['zone'] == '수도권']
     prov = [x for x in sig if x['zone'] != '수도권']
     top = sorted(rg, key=lambda x: x['r'])
+    nm = lambda z: P.SEARCH_NAME.get(z, z)
     try:
-        n4 = L4.link4_numbers(adv, sts)
+        F = L4.fut_lists(adv, name=nm)
     except L4.Link4ClaimError as e:
-        # 5편 단정이 깨진 회차는 6편도 초안을 만들지 않는다 — render 의 5편 가드와 같이 SystemExit 로 바꾼다. 예외 그대로 두면
-        # 초안 생성 가드를 SystemExit 로 거르는 게이트 시험(test_home_entry 의 _all_drafts)이 데이터가 움직인 날 배치를 멈춘다
-        # (2026-10-17 다음 분기 전진 시험에서 fut_high 가 바뀌어 실제로 그랬다).
-        raise SystemExit('6편을 만들 수 없다 — %s. 5편 문장을 먼저 고칠 것.' % e)
-    high = [z for z in n4['fut_high_names'].split('·') if z]
+        # 판정 칸(ADV.sido)을 못 읽는 회차 — 문장 탓이 아니다. 예외 그대로 두면 초안 생성 가드를 SystemExit 로 거르는 게이트 시험
+        # (test_home_entry 의 _all_drafts)이 그날 배치를 멈춘다(대표 결정 2026-10-18 D1).
+        raise SystemExit('6편을 만들 수 없다 — %s. 문장 탓이 아니다 — 판정 칸을 읽을 수 있는 데이터로 다시 돌린다.' % e)
+    high = F['hi']
     bad = []
     if any(x['region'] == '서울' and x['sig'] for x in rg):
         bad.append('서울이 유의로 나온다')
@@ -976,12 +980,16 @@ def link6_values(D, adv, sts):
     if not high:
         bad.append('앞으로 입주가 적정물량을 넘는 시도가 없다')
     elif top[0]['region'] not in high:
-        bad.append('가장 강한 시도(%s)가 앞으로 입주 과잉 지역이 아니다' % top[0]['region'])
+        bad.append('가장 강한 시도(%s)가 앞으로 입주가 적정물량을 넘는 곳이 아니다' % nm(top[0]['region']))
+    if not F['lo']:
+        bad.append('앞으로 입주가 적정물량의 3분의 1에도 못 미치는 시도가 없다')
+    if F['below'] < F['n'] * L4.MOST:
+        bad.append('앞으로 입주가 적정물량에 못 미치는 시도가 대부분이 아니다(%d/%d곳)' % (F['below'], F['n']))
     if bad:
-        raise SystemExit('6편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % ' · '.join(bad))
-    nm = lambda z: P.SEARCH_NAME.get(z, z)
+        raise SystemExit('6편을 만들 수 없다 — %s. 6편 문장을 먼저 고칠 것.' % ' · '.join(bad))
     eunneun = lambda w: w + ('은' if (ord(w[-1]) - 0xAC00) % 28 else '는')
-    return dict(n4, l6_total=pr['l6_total'], l6_sig=pr['l6_sig'], l6_metro=pr['l6_metro'], l6_prov=pr['l6_prov'],
+    return dict(fut_high=F['fut_high'], fut_high_names=F['fut_high_names'], fut_low=F['fut_low'], win_y=F['win_y'],
+                l6_total=pr['l6_total'], l6_sig=pr['l6_sig'], l6_metro=pr['l6_metro'], l6_prov=pr['l6_prov'],
                 seoul_l6=pr['seoul_l6'], sudo_l6=pr['sudo_l6'], rate_r=pr['rate_r'],
                 l6_top3='·'.join(nm(x['region']) for x in top[:3]), l6_top1=eunneun(nm(top[0]['region'])),
                 l6_sudo_sig=eunneun('·'.join(nm(x['region']) for x in sudo)),
@@ -994,9 +1002,23 @@ def link6_values(D, adv, sts):
 def link7_values(D):
     """7편 숫자 — /cycle/ 정본 D.rate_overlay(수도권 분기 매매·전세 지수, CD금리)와 D.prose 에서 센다. 문장의 전제가 깨지면
     멈춘다. 전제: ① 금리 바닥 뒤 1년 매매 상승률이 전세의 3배 넘게 크다, ② 그 뒤 매매 정점이 전세 정점보다 먼저이고 낙폭도 크다,
-    ③ 최근 금리 저점(최근 8분기) 이후 금리가 올랐는데 매매·전세가 모두 올랐다, ④ 금리–매매 상관이 음수다."""
+    ③ 최근 금리 저점(최근 8분기) 이후 금리가 올랐는데 매매·전세가 모두 올랐다, ④ 금리–매매 상관이 음수다.
+
+    매매·전세·금리가 모두 찬 분기만 쓴다. 전세지수는 매매보다 한 달 늦게 실려, 매매가 새 분기 첫 달(잠정)을 받은 날부터 한 달쯤
+    오버레이 끝 분기의 전세가 비어 있다(refresh_cycle_data.build_overlay 는 매매·금리가 있는 분기를 고르고 전세는 je.get — 차트는 그
+    분기를 그대로 그린다). 예전엔 그 None 과 견주다 TypeError 로 죽어, 초안 가드를 SystemExit 로 거르는 게이트 시험이 매 분기 한 달쯤
+    배치를 멈추게 돼 있었다(전수리뷰 BL2-1·C-1). 그래서 세 값이 다 찬 첫 분기~마지막 분기만 잘라 읽고, 그 사이에 빈 분기가 있으면
+    (분기 간격 'N분기 뒤'가 틀어진다) 문장 탓이 아닌 데이터 결함으로 멈춘다."""
     r = D['rate_overlay']
-    t, mm, je, rt = r['t'], r['maemae'], r['jeonse'], r['rate']
+    full = [i for i in range(len(r['t'])) if None not in (r['maemae'][i], r['jeonse'][i], r['rate'][i])]
+    if not full:
+        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이에 매매·전세·금리가 모두 찬 분기가 없다. 문장 탓이 아니다 — '
+                         '/cycle/ 데이터가 찬 뒤 다시 돌린다.')
+    t, mm, je, rt = (list(r[k][full[0]:full[-1] + 1]) for k in ('t', 'maemae', 'jeonse', 'rate'))
+    gap = [x for x, a, b, c in zip(t, mm, je, rt) if None in (a, b, c)]
+    if gap:
+        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이 가운데 매매·전세·금리 가운데 하나가 빈 분기가 있다(%s). 문장 탓이 '
+                         '아니다 — /cycle/ 데이터를 먼저 확인할 것.' % ', '.join('%g' % x for x in gap))
     q = lambda i: '%d년 %d분기' % (int(t[i]), int(round((t[i] % 1) * 4)) + 1)
     pct = lambda a, b: '%.0f%%' % abs((b / a - 1) * 100)      # 문장이 '올랐습니다·내렸습니다'로 방향을 말한다
     lo = min(range(len(rt)), key=lambda i: rt[i])                       # 금리 바닥(2020년 4분기)
@@ -1032,9 +1054,65 @@ def link7_values(D):
                 cycle7=link('금리와 매매·전세 차트 보기', path='/cycle/#ref1', camp='cycle'))
 
 
-def render(post):
-    if post['n'] == 3:
+def guard_values(n, D=None, data=None):
+    """n편 본문의 데이터 칸 — 편마다 문장 전제 가드를 지나야 나온다. 전제가 깨지면 SystemExit('N편을 만들 수 없다 — …').
+
+    render 와 batch_notes.theory_claim_lines 가 이 함수 하나를 부른다(같은 대상을 재는 코드는 하나). 대표 결정 2026-10-18 D1:
+    지금 데이터가 발행본의 전제와 어긋나면 **초안 생성만** 멈추고, 배치 게이트는 막지 않고 기록 줄(ℹ️)로 알린다. SystemExit 말고
+    다른 예외(TypeError·KeyError …)가 나면 코드 결함이다 — 가드가 셈을 못 하고 죽었으니 고칠 곳은 가드다.
+    D 는 /cycle/ 정본(없으면 읽는다), data 는 (adv, sts)(4~6편에서만 쓰고, 없으면 M.load() 로 읽는다)."""
+    D = P.cycle_d() if D is None else D
+
+    def load():
+        return M.load() if data is None else data
+    if n in (1, 2):
+        return link1_values(D)
+    if n == 3:
         check_sync_claims()
+        return {}
+    if n == 4:
+        # 4편 숫자는 데이터에서 센다. 단정이 깨지면 초안을 만들지 않는다(theory_link3 docstring).
+        import theory_link3 as L3
+        adv, sts = load()
+        try:
+            v = L3.link3_numbers(adv, sts)
+        except L3.Link3DataError as e:
+            # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
+            raise SystemExit('4편을 만들 수 없다 — %s. 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
+                             '(update_adv_data._basis_reason) — git pull 로 그 데이터를 받은 뒤 다시 돌린다. 로컬에서 '
+                             '--heal-basic 으로 최근 달만 다시 받으면 단절이 다시 생긴다.' % e)
+        except L3.Link3ClaimError as e:
+            raise SystemExit('4편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
+        v['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
+        return v
+    if n == 5:
+        # 5편 숫자도 같은 원칙: 데이터에서 세고, 단정이 깨지면 초안을 만들지 않는다(theory_link4 docstring).
+        import theory_link4 as L4
+        adv, sts = load()
+        try:
+            v = L4.link4_numbers(adv, sts)
+        except L4.Link4DataError as e:
+            # 문장 탓이 아니다 — 착공·준공 두 표 가운데 한쪽만 새 달을 받은 회차(전수리뷰 T3-6·BL2-3·T1-2). 4편 Link3DataError 와 같은 갈래.
+            raise SystemExit('5편을 만들 수 없다 — %s. 문장 탓이 아니다 — 다음 클라우드 배치가 두 계열을 같은 달까지 받으면 풀린다'
+                             '(git pull 로 받은 뒤 다시 돌린다).' % e)
+        except L4.Link4ClaimError as e:
+            raise SystemExit('5편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
+        v['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
+        return v
+    if n == 6:
+        adv, _ = load()
+        return link6_values(D, adv)
+    if n == 7:
+        return link7_values(D)
+    return {}
+
+
+def render(post):
+    # 문장 전제 가드부터 — 전제가 깨진 편은 아무것도 만들기 전에 멈춘다(guard_values, 대표 결정 2026-10-18 D1).
+    D = P.cycle_d()
+    n4 = guard_values(post['n'], D)
+    if post['n'] == 2 and not n4['l1_mid']:
+        print("  ⚠ 2편 '가운데가 가장 높은 이유' 절을 뺐다 — /cycle/ 정본에서 '보통' 구간이 가장 높지 않다. 절을 다시 쓸지 정할 것.")
     S = []
     S.append('<!doctype html><html lang="ko"><meta charset="utf-8">')
     S.append('<title>이론 시리즈 초안 %02d — %s</title>' % (post['n'], post['title']))
@@ -1052,41 +1130,7 @@ def render(post):
     _S = sync_stats()
     # 3편 동조성 문장의 값은 /cycle/ 본문 칸(D.prose)을 그대로 읽는다(전수리뷰 #77). 블로그가 다시 계산하면
     # 같은 문장('대구·부산은 0.8')이 사이트는 2위 값, 블로그는 1위 값으로 갈린다.
-    D = P.cycle_d()
     pr = D['prose']
-    # 4편 숫자는 데이터에서 센다. 단정이 깨지면 초안을 만들지 않는다(theory_link3 docstring).
-    n4 = {}
-    if post['n'] == 4:
-        import theory_link3 as L3
-        adv, sts = M.load()
-        try:
-            n4 = L3.link3_numbers(adv, sts)
-        except L3.Link3DataError as e:
-            # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
-            raise SystemExit('4편을 만들 수 없다 — %s. 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
-                             '(update_adv_data._basis_reason) — git pull 로 그 데이터를 받은 뒤 다시 돌린다. 로컬에서 '
-                             '--heal-basic 으로 최근 달만 다시 받으면 단절이 다시 생긴다.' % e)
-        except L3.Link3ClaimError as e:
-            raise SystemExit('4편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
-        n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
-    elif post['n'] == 5:
-        # 5편 숫자도 같은 원칙: 데이터에서 세고, 단정이 깨지면 초안을 만들지 않는다(theory_link4 docstring).
-        import theory_link4 as L4
-        adv, sts = M.load()
-        try:
-            n4 = L4.link4_numbers(adv, sts)
-        except L4.Link4ClaimError as e:
-            raise SystemExit('5편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
-        n4['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
-    elif post['n'] == 7:
-        n4 = link7_values(D)
-    elif post['n'] == 6:
-        adv, sts = M.load()
-        n4 = link6_values(D, adv, sts)
-    elif post['n'] in (1, 2):
-        n4 = link1_values(D)
-        if post['n'] == 2 and not n4['l1_mid']:
-            print("  ⚠ 2편 '가운데가 가장 높은 이유' 절을 뺐다 — /cycle/ 정본에서 '보통' 구간이 가장 높지 않다. 절을 다시 쓸지 정할 것.")
     body = post['body'].strip() % dict(n4, **{
         'link': link('아공맵 부동산 사이클 리포트 보기'),
         'cycle': link('고리별 검증 결과 보기'),
