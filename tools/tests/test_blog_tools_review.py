@@ -264,19 +264,40 @@ def test_link1_values_follow_the_site_numbers():
 
 
 def test_theory1_2_print_the_site_link1_numbers(monkeypatch):
+    """1·2편은 /cycle/ 본문 칸(prose.l1_lo·l1_hi) 글자를 그대로 싣는다.
+
+    대표 결정 2026-10-18 D1: 손으로 돌리는 재산정이 고리① 전제를 뒤집으면 초안만 멈추고 게이트는 막지 않는다. 그래서 옮겨 싣기는
+    전제가 서는 합성 칸(3.1 · −0.3 — 실제 정본에 없는 값이라 손으로 박은 숫자가 우연히 맞지 않는다)으로 늘 보고, 실데이터는 전제가
+    서면 그 칸 그대로, 깨진 회차면 1·2편 가드의 멈춤 문구를 본다.
+    변이: 1·2편 본문에 '1.42%%' 를 되돌리거나 render 가 l1_lo 대신 다른 값을 실으면 합성 갈래가 빨개진다."""
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
+    posts = [next(p for p in T.POSTS if p['n'] == n) for n in (1, 2)]
+    for post in posts:
+        assert not re.findall(r'\d+\.\d+%%', post['body']), '%d편 본문에 손 숫자' % post['n']
+    D = P.cycle_d()
+    D['link1_new'] = dict(D['link1_new'], jeonse_rise=[3.14, 1.0, -0.27])
+    D['prose'] = dict(D['prose'], l1_lo='3.1', l1_hi='−0.3')
+    with monkeypatch.context() as m:
+        m.setattr(P, 'cycle_d', lambda: copy.deepcopy(D))
+        for post in posts:
+            html = T.render(post)
+            assert '<b>3.1%</b>' in html and '<b>−0.3%</b>' in html, post['n']
     pr = P.cycle_d()['prose']
-    for n in (1, 2):
-        post = next(p for p in T.POSTS if p['n'] == n)
-        assert not re.findall(r'\d+\.\d+%%', post['body']), '%d편 본문에 손 숫자' % n
-        html = T.render(post)
-        assert '<b>%s%%</b>' % pr['l1_lo'] in html and '<b>%s%%</b>' % pr['l1_hi'] in html, n
+    for post in posts:
+        try:
+            html = T.render(post)
+        except SystemExit as e:
+            assert str(e).startswith('1·2편을 만들 수 없다 — 고리① 전제'), str(e)
+            continue
+        assert '<b>%s%%</b>' % pr['l1_lo'] in html and '<b>%s%%</b>' % pr['l1_hi'] in html, post['n']
 
 
 def test_theory2_drops_the_middle_section_when_the_site_says_otherwise(monkeypatch):
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
     D = P.cycle_d()
     D['link1_new']['jeonse_rise'] = [2.66, 1.74, -0.36]
+    # 본문 칸도 같은 정본 값으로 — 저장소 칸에 기대면 재산정이 고리① 전제를 뒤집는 날 이 시험이 멈춤으로 빨개진다(대표 결정 D1)
+    D['prose'] = dict(D['prose'], l1_lo='2.7', l1_hi='−0.4')
     monkeypatch.setattr(P, 'cycle_d', lambda: D)
     assert '가운데가 가장 높은 이유' not in T.render(next(p for p in T.POSTS if p['n'] == 2))
 
