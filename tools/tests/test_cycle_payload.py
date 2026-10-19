@@ -200,7 +200,7 @@ def test_jratio_types_and_capital_vs_rest_means():
     assert by['경기']['type'] == by['제주']['type'] == by['대구']['type'] == '중간'
     assert by['전남광주']['type'] == by['울산']['type'] == '실거주성'
     assert [x['val'] for x in lvl] == sorted(x['val'] for x in lvl), '낮은 순 정렬이 아니다'
-    assert by['서울']['sudo'] and not by['부산']['sudo']
+    assert set(by['서울']) == {'region', 'val', 'type'}, '페이지가 읽지 않는 하위 값(sudo 등)을 싣는다(전수리뷰 C-11)'
     cap = [v for r, v in _JR_2026_07.items() if r in ('서울', '경기', '인천')]
     rest = [v for r, v in _JR_2026_07.items() if r not in ('서울', '경기', '인천')]
     assert (sudo, jib) == (round(sum(cap) / len(cap), 1), round(sum(rest) / len(rest), 1)), (sudo, jib)
