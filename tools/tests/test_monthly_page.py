@@ -178,8 +178,9 @@ def test_unsold_source_is_the_canonical_agency_and_sources_escape_once():
     변이(각각 실제로 확인): 미분양 섹션의 원천을 옛 `esc(un.get('source') or '국토교통부')` 로 되돌리면 첫 단정이, 인허가
           호출부에 esc() 를 되살리면 둘째 단정이, llms SOURCES 의 한국부동산원 줄에 옛 '…동향과 미분양' 을 되살리면 셋째
           단정이 빨개진다.
-    픽스처: 저장소 data.js(수집 계열 STATS.미분양.source 가 배포 창구 '한국부동산원 R-ONE …'인 실제 상태)에 인허가 원천만
-          '&' 가 든 글자로 바꾼 것.
+    픽스처: 저장소 data.js 에서 미분양 source 를 옛 배포 창구 글자('한국부동산원 R-ONE …')로 **일부러** 덮어쓰고, 인허가 원천을
+          '&' 가 든 글자로 바꾼 것. 지금 실제 원천 칸('국토교통부 미분양주택현황(KOSIS)', 2026-10-07 KOSIS 전환)은 UN_SOURCE 로
+          시작해, 그대로 두면 원천 칸을 그대로 쓰는 회귀를 가르지 못한다.
     """
     import sys
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
