@@ -105,3 +105,17 @@ def test_permit_year_row_names_its_month_and_rounds_half_up():
     assert _pm_row(P.build_page('서울', c2, st, P.price_quarters(adv), c2['zones']))[2] == '93%'
     c3 = {k: v for k, v in calc.items() if k != 'permit_prd'}
     assert _pm_row(P.build_page('서울', c3, st, P.price_quarters(adv), c3['zones']))[3] == '착공 전 단계의 선행 물량'
+
+
+def test_table_start_is_one_constant():
+    """시도 리포트 분기 표·홈 통합표(split_data)·통계 탭 입주물량(supply_rows)이 같은 첫 분기·첫 달에서 시작한다 — 정본
+    SZ.TABLE_FROM_YEAR(전수리뷰 X1 overflow — '2017'이 make_sido_pages·sido_zones·split_data 세 곳에 따로 박혀 있었고 일치 시험이 없었다).
+    홈 TB_FROM 거울 대조는 홈 쪽 시험이 맡는다.
+    변이(실제로 확인): supply_rows 의 시작을 qidx(2018, 1) 로, split_data.TABLE_FROM 을 '2018.01' 로 박으면 각각 빨개진다.
+    픽스처: 저장소 STATS(실데이터) — 표의 첫 행만 본다(데이터가 앞으로 가도 첫 행은 그대로다)."""
+    import split_data as S
+    y = SZ.TABLE_FROM_YEAR
+    assert P.TABLE_FROM == SZ.qidx(y, 1) and S.TABLE_FROM == '%d.01' % y, (P.TABLE_FROM, S.TABLE_FROM)
+    _, calc, st = _page()
+    assert SZ.supply_rows(st)['rows'][0]['p'] == '%dQ1' % y
+    assert P.series(st, '서울', calc)[0][0] == SZ.qidx(y, 1)
