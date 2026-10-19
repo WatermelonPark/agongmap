@@ -90,7 +90,8 @@ def test_watchdog_routes_unsold_to_kosis(monkeypatch):
 
 
 def test_watchdog_kosis_fetch_uses_the_watchdog_timeout(monkeypatch):
-    """감시는 원천 조회를 FETCH_TIMEOUT(25초, 재시도 20초) 한 번으로 셈해 잡 예산(30분)을 맞췄다. 배치 조회(http_json 60초·3번·쉼)를
+    """감시의 KOSIS 조회는 FETCH_TIMEOUT(25초, 재시도 층 20초) 한 번이다(R-ONE 쪽은 _rone_get 3회 — 전체 최악은
+    test_freshness_budget 가 실제로 잰다). 배치 조회(http_json 60초·3번·쉼)를
     타면 원천이 막힌 날 이 계열 하나가 3분 넘게 붙잡는다(2026-10-07 리뷰). 픽스처: 배치 조회는 부르면 실패, 감시 조회는 2026.08 표."""
     seen = []
     monkeypatch.setattr(U, 'http_json', lambda *a, **k: pytest.fail('감시가 배치의 http_json 으로 조회했다'))
