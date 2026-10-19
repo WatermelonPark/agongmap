@@ -207,8 +207,11 @@ def jratio_prose(lvl, prd):
     # '70%대'는 두 곳 값의 십의 자리(반올림 전 값의 내림)가 같을 때만 참이다. 갈리면 범위로 쓴다.
     # 반올림한 정수로 십 단위를 보면 69.6 이 '70%대'가 되고 70.9·79.6 이 '71~80%'가 됐다(전수 리뷰 #25).
     # 정수는 사이트 규칙(half-up, SZ.half_up)으로 만든다 — 파이썬 round() 는 52.5 를 52 로 내린다.
+    # 십의 자리는 갈리는데 반올림한 정수가 같으면(69.6·70.3) 범위가 '70~70%'로 무너진다 — 그때는 '약 70%'로 쓴다(전수리뷰 C-9).
     if int(math.floor(lo)) // 10 == int(math.floor(hi)) // 10:
         mid = '%d%%대' % (int(math.floor(lo)) // 10 * 10)
+    elif SZ.half_up(lo) == SZ.half_up(hi):
+        mid = '약 %d%%' % SZ.half_up(lo)
     else:
         mid = '%d~%d%%' % (SZ.half_up(lo), SZ.half_up(hi))
     return {'jr_seoul': '%d' % SZ.half_up(by['서울']),
