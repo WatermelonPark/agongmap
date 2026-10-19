@@ -369,3 +369,26 @@ def test_rss_read_has_a_wall_clock_cap(tmp_path, monkeypatch):
     assert BF.main(path=f, fetch=slow) == 0
     assert time.time() - t0 < 2, '벽시계 상한이 걸리지 않았다'
     assert io.open(f, encoding='utf-8').read() == before
+
+
+def test_feed_without_a_weekly_post_still_refreshes_city_posts(tmp_path):
+    """RSS 는 읽었는데 창 안에 주간 글이 없으면(도시·지역 편이 연달아 올라와 주간 글이 밀린 날) 주간 칸은 지난 값으로 두고
+    도시 입주물량 편 목록은 새로 쓴다(전수리뷰 F overflow). 예전엔 '못 읽었다'고 적고 도시 편까지 그대로 뒀다.
+
+    변이(실제로 확인): main 을 예전처럼 `new is None` 이면 곧바로 끝내게 되돌리면 도시 편 단정이 빨강. 지난 주간 값을 읽지 않고
+    None 으로 쓰면 주간 단정이 빨강.
+    픽스처: 첫 회차는 주간 글이 있는 RSS, 둘째 회차는 도시 편 하나뿐인 RSS(지역 공급 카테고리, '… 아파트 입주물량, …' 제목).
+    """
+    f = str(tmp_path / 'blog.json')
+    assert BF.main(path=f, fetch=lambda: CP.parse_posts(RSS)) == 0
+    assert BF.read(f)['date'] == '2026-09-25' and BF.read_city(f) == []
+    title = '2027년 청주 아파트 입주물량, 20개 단지가 들어온다'
+    assert CP.is_city_post(title)
+    rss2 = ('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>블로그</title>'
+            + _item(CP.KIND_TO_CATEGORY['지역 공급'], title, BF.BLOG_HOME + '/224000000009',
+                    'Tue, 13 Oct 2026 09:00:00 +0900')
+            + '</channel></rss>')
+    assert BF.latest_weekly(CP.parse_posts(rss2)) is None
+    assert BF.main(path=f, fetch=lambda: CP.parse_posts(rss2)) == 0
+    assert BF.read(f)['date'] == '2026-09-25', '주간 글이 없는 회차에 지난 주간 값을 지웠다'
+    assert [c['title'] for c in BF.read_city(f)] == [title], '도시 편 목록을 새로 쓰지 않았다'
