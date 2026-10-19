@@ -1000,7 +1000,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--write', action='store_true', help='cycle/index.html을 갱신한다')
     ap.add_argument('--data', default=None, help='읽을 data.js 경로')
-    ap.add_argument('--json', default=None, help='계산 결과를 이 경로에 저장한다')
+    ap.add_argument('--json', default=None,
+                    help='계산 결과를 이 경로에 저장한다(--write 와 함께면 보관 분석 tools/data/cycle_analysis.json 에 더한 사본)')
     ap.add_argument('--force', action='store_true',
                     help='지금 페이지와 크게 다른 결과도 쓴다(모델을 바꾼 재산정일 때만)')
     a = ap.parse_args()
@@ -1016,18 +1017,25 @@ def main():
                 raise SystemExit('쓰지 않았다. 입력(지수 기준 단절·지역 모델)을 확인하고, 모델을 바꾼 재산정이 맞으면 '
                                  '--force 로 다시 돌린다.')
         n = splice(page, D)
-        path = a.json or ANALYSIS
-        d = os.path.dirname(path)
-        if d and not os.path.isdir(d):
-            os.makedirs(d)
-        open(path, 'w', encoding='utf-8', newline='\n').write(
-            json.dumps(D, ensure_ascii=False, indent=1, sort_keys=True) + '\n')
+        # 보관 분석(ANALYSIS)은 --write 마다 늘 쓴다 — 페이지 prose 와 같은 회차여야 게이트(test_prose_is_what_the_analysis_computed)가
+        # 초록이다. --json 은 덧붙이는 사본이다. 예전엔 `path = a.json or ANALYSIS` 라 --json 을 함께 주면 페이지만 새 판이 되고
+        # 보관 분석은 옛 판으로 남아, 그대로 커밋하면 다음 배치 게이트가 데이터 커밋을 막았다(전수리뷰 C-7).
+        paths = [ANALYSIS] + ([a.json] if a.json and os.path.abspath(a.json) != os.path.abspath(ANALYSIS) else [])
+        for path in paths:
+            _dump(D, path)
         print('\ncycle/index.html 갱신: 차트가 읽는 키 %d개를 다시 계산했다(D는 키 %d개)'
               % (len(KEYS), n))
-        print('계산 근거 전체: %s' % os.path.relpath(path, ROOT))
+        print('계산 근거 전체: %s' % ', '.join(os.path.relpath(x, ROOT) for x in paths))
     elif a.json:
-        open(a.json, 'w', encoding='utf-8', newline='\n').write(
-            json.dumps(D, ensure_ascii=False, indent=1, sort_keys=True) + '\n')
+        _dump(D, a.json)
+
+
+def _dump(D, path):
+    d = os.path.dirname(path)
+    if d and not os.path.isdir(d):
+        os.makedirs(d)
+    open(path, 'w', encoding='utf-8', newline='\n').write(
+        json.dumps(D, ensure_ascii=False, indent=1, sort_keys=True) + '\n')
 
 
 if __name__ == '__main__':

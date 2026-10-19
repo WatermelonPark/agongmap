@@ -412,35 +412,63 @@ def test_annual_path_folds_like_the_other_paths(monkeypatch, name, shape):
     assert not (set(SRC) & set(got))
 
 
-def test_annual_new_year_reaches_the_merged_region(monkeypatch):
-    """새 연도가 들어오면 전남광주도 값을 받고(두 조각의 합), 3년 창 안의 소급 정정도 전남광주에 실린다.
+def _annual_update(monkeypatch, st, name, rows):
+    """원천이 rows 를 주는 회차에 update_annual 을 그 계열 하나만 돈다(저장소에 쓰지 않는다)."""
+    monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    monkeypatch.setattr(U, 'ANNUAL_CONF', {name: U.ANNUAL_CONF[name]})
+    failed = []
+    U.update_annual(st, failed)
+    return failed
+
+
+def _one_piece_year(monkeypatch, st, name):
+    """원천이 새 해를 광주·전남 가운데 광주 조각만 먼저 낸 회차를 지난 상태 — 접기 규칙(_fold_gj)은 한 조각이면 전남광주를 만들지
+    않고 merge_annual 은 새 해 열을 None 으로 붙이므로, 저장 마지막 해의 전남광주가 None 이다(다른 지역은 앞 해 값)."""
+    D = st[name]
+    y = str(int(D['dates'][-1]) + 1)
+    vals = {r: a[-1] for r, a in D['series'].items() if a[-1] is not None and r != DST}
+    vals[SRC[0]] = _split([v for v in D['series'][DST] if v is not None][-1])[0]   # 저장 끝 해가 이미 한 조각이어도 된다
+    failed = _annual_update(monkeypatch, st, name, _annual_rows(name, y, vals))
+    assert not failed and D['dates'][-1] == y and D['series'][DST][-1] is None, '픽스처: 한 조각 해가 만들어지지 않았다'
+    return y
+
+
+@pytest.mark.parametrize('state', ['saved', 'one-piece-last'])
+def test_annual_new_year_reaches_the_merged_region(monkeypatch, state):
+    """새 연도가 들어오면 전남광주도 값을 받고(두 조각의 합), 3년 창 안의 소급 정정도 전남광주에 실린다. 원천이 한 해를 한
+    조각만 먼저 낸 상태(저장 마지막 해 전남광주 None)에서도 이 시험은 돈다 — 그 해는 다음 회차 두 조각 응답이 채운다.
 
     변이: 위와 같은 두 줄을 지우면 새 연도 전남광주가 None, 정정이 안 실려 빨개진다(확인 — 리뷰 재현값 [98, 1284, None]).
-    픽스처: 저장 STATS 아파트멸실의 마지막 두 해와 다음 해를 원천 모양으로 되돌린 응답. 전남광주는 광주·전남 두 행
-            (통합 전 연도 실제 모양), 마지막 해 광주 +7 소급 정정, 새 해는 각 지역 마지막 값 +10.
+          기준 해를 예전처럼 저장 마지막 두 해(dates[-2:])로 되돌리면 one-piece-last 가 int(None) TypeError 로 빨개진다(확인 —
+          생성기 8개는 rc=0 인데 이 시험만 그날 게이트를 막던 상태, 전수리뷰 T2-3).
+    픽스처: 저장 STATS 아파트멸실에서 **전남광주 값이 있는 마지막 두 해**와 저장 마지막 해의 다음 해를 원천 모양으로 되돌린
+            응답. 전남광주는 광주·전남 두 행(통합 전 연도 실제 모양), 둘째 기준 해 광주 +7 소급 정정, 새 해는 둘째 기준 해 값 +10.
+            one-piece-last 는 그 앞에 한 조각 해를 하나 지난 상태(_one_piece_year)이고, 새 해 응답에 그 해 두 조각도 싣는다.
     """
     name = '아파트멸실'
     st = _stats()
     D = st[name]
-    y1, y2 = D['dates'][-2], D['dates'][-1]
-    y3 = str(int(y2) + 1)
+    late = _one_piece_year(monkeypatch, st, name) if state == 'one-piece-last' else None
+    have = [i for i, v in enumerate(D['series'][DST]) if v is not None]
+    assert len(have) >= 2, '픽스처 전제: 전남광주 값이 있는 해가 둘 이상'
+    (i1, i2), y3 = have[-2:], str(int(D['dates'][-1]) + 1)
+    y1, y2 = D['dates'][i1], D['dates'][i2]
     rows = []
-    for y, i, add in ((y1, -2, 0), (y2, -1, 0), (y3, -1, 10)):
+    for y, i, add in ((y1, i1, 0), (y2, i2, 0), (y3, i2, 10)) + (((late, i2, 5),) if late else ()):
         vals = {r: a[i] + add for r, a in D['series'].items() if a[i] is not None and r != DST}
         g, j = _split(D['series'][DST][i])
         vals[SRC[0]], vals[SRC[1]] = g + add + (7 if y == y2 else 0), j + add
         rows += _annual_rows(name, y, vals)
-    gj2 = D['series'][DST][-1]
-    monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
-    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
-    failed = []
-    only = {name: U.ANNUAL_CONF[name]}
-    monkeypatch.setattr(U, 'ANNUAL_CONF', only)
-    U.update_annual(st, failed)
+    gj2 = D['series'][DST][i2]
+    failed = _annual_update(monkeypatch, st, name, rows)
     D = st[name]
+    at = lambda y: D['series'][DST][D['dates'].index(y)]   # noqa: E731  연도 라벨로 찾는다(끝 칸 번호에 기대지 않는다)
     assert D['dates'][-1] == y3 and not failed
-    assert D['series'][DST][-2] == gj2 + 7, '소급 정정이 전남광주에 안 실렸다'
-    assert D['series'][DST][-1] == gj2 + 20, '새 연도 전남광주가 비었다'
+    assert at(y2) == gj2 + 7, '소급 정정이 전남광주에 안 실렸다'
+    assert at(y3) == gj2 + 20, '새 연도 전남광주가 비었다'
+    if late:
+        assert at(late) == gj2 + 10, '한 조각이던 해를 두 조각 응답이 채우지 못했다'
 
 
 # ── 전수리뷰 #4: 응답에 서울구 열이 하나도 없으면 직전 블록을 지킨다 ───────────────────────

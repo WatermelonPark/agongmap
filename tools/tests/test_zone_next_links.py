@@ -82,7 +82,15 @@ def test_weekly_line_matches_saved_data():
 def test_jeonse_line_matches_saved_data():
     """전세가율 칸의 기준월은 /jeonse-ratio/ 와 같다 — 전국·16개 시도가 **전부** 채워진 마지막 달(보류 달은 건너뛴다,
     make_indicator_pages.jeonse_ref_index). 1년 전은 라벨로 찾은 12달 전(SZ.month_back). 여기서는 그 규칙을 다시 구현해 대조한다.
-    변이: next_links 가 dates[-1] 을 읽으면 최신 달이 보류된 날 빨개진다(합성 대조는 test_zone_weekly 가 늘 본다)."""
+    변이: next_links 가 dates[-1] 을 읽으면 최신 달이 보류된 날 빨개진다(합성 대조는 test_zone_weekly 가 늘 본다).
+
+    '1년 전 대비'는 정본 jeonse_delta 의 계약(전수 리뷰 #16) — **표시값(소수 첫째 자리)끼리의 차** — 을 여기서 따로 셈한다
+    (같은 함수를 가져다 쓰면 그 함수의 회귀를 못 잡는다). 예전엔 원값 차를 반올림해(round(cur - ago, 1)) 기대했는데, 생성기가
+    #16 으로 바뀐 뒤엔 둘째 자리가 있는 칸(전남광주 가중평균 계열)이 표시 경계에 걸린 달마다 이 시험만 빨개져 게이트가 섰다
+    (전수리뷰 T3-1 — 완비 달 165개 중 40개 달이 그 모양, 예: 2026.05 78.72·77.16 → 생성기 +1.5, 옛 기대 +1.6).
+    변이(실제로 확인): data.js 의 전남광주 기준월 값을 78.44(1년 전 77.48)로 바꿔 굽고 next_links 를 원값 차
+          round(cur - ago, 1) 로 되돌리면 +1.0 ≠ +0.9 로 빨개진다. 같은 상태에서 정본 생성기는 초록이다.
+    픽스처: 저장소 data.js·생성된 /zone/ 페이지 그대로(표시 경계 모양은 test_indicator_page_fixes 의 합성 계열이 늘 본다)."""
     _, sts = _data()
     j = sts['전세가율']
     need = ['전국'] + [z for z in SZ.ORDER if z not in SZ.AGG]
@@ -100,7 +108,7 @@ def test_jeonse_line_matches_saved_data():
         ago = ser[ya] if ya is not None and ya < len(ser) else None
         want = '%.1f%%' % cur
         if ago is not None:
-            want += ' · 1년 전 대비 %+.1f%%p' % (round(cur - ago, 1) + 0.0)
+            want += ' · 1년 전 대비 %+.1f%%p' % (round(float('%.1f' % cur) - float('%.1f' % ago), 1) + 0.0)
         want += ' · %s 기준' % SZ.month_text(j['dates'][li])   # 읽는 꼴(날짜 두 단계, 백로그 36-1)
         assert m and m.group(1) == want, '%s: %r ≠ %r' % (z, m and m.group(1), want)
 

@@ -106,15 +106,22 @@ def test_no_generator_still_carries_the_old_split_names():
        TAG_NAME = {'전남광주': '광주'} 를 넣어 게이트가 막힌 상태.
        시군구 접두 표(weekly_moves.SGG_PREFIX)는 홈 sidoOf 의 거울이라 원천 시도 이름을 그대로 들고, 판정 단위로는
        sgg_zone 이 merge_regions.SRC·DST 로 접는다(홈 마케팅 검수 D4 — 일치는 test_zone_weekly 가 본다).
+       안내 페이지 표(make_sido_pages.MERGED_INTO)와 시군구 접두 표(weekly_moves.SGG_PREFIX)는 **그 정의 블록만** 뺀다 — 예전엔
+       두 파일을 통째로 빼서 그 안에 새 판정 줄(`z == '광주'`)이 생겨도 못 봤다(전수리뷰 G2 overflow — 변이로 확인: 두 파일에
+       그런 줄을 넣으면 빨개진다).
     """
-    ok = ('gen_sido_geo.py', 'gen_sgg_rone_map.py', 'update_adv_data.py',
-          'make_sido_pages.py', 'merge_regions.py', 'weekly_moves.py')
+    ok = ('gen_sido_geo.py', 'gen_sgg_rone_map.py', 'update_adv_data.py', 'merge_regions.py')
+    blocks = {'make_sido_pages.py': ('MERGED_INTO',), 'weekly_moves.py': ('SGG_PREFIX',)}   # 정의 블록만 빼는 자리
     bad = []
     tools = os.path.join(ROOT, 'tools')
     for fn in os.listdir(tools):
         if not fn.endswith('.py') or fn in ok:
             continue
-        for ln in io.open(os.path.join(tools, fn), encoding='utf-8', errors='replace').read().splitlines():
+        src = io.open(os.path.join(tools, fn), encoding='utf-8', errors='replace').read()
+        for name in blocks.get(fn, ()):
+            src, n = re.subn(r'^%s = \{[^}]*\}' % name, '', src, flags=re.M)
+            assert n == 1, '%s 에서 %s 정의 블록을 못 찾았다 — 이름이 바뀌었으면 이 시험도 고칠 것' % (fn, name)
+        for ln in src.splitlines():
             # 주석의 산문 언급은 기록이라 허용한다(주석 줄은 건너뛴다). 검색 표기 사전(SEARCH_NAME·TAG_NAME)은 판정이 아니라
             # 블로그 제목·태그의 검색어라 옛 이름이 값으로 들어간다(2026-09-29 대표 키워드도구 조회 — 전남광주를 사람들은 '광주'로 찾는다).
             if ln.lstrip().startswith('#') or _SEARCH_LABEL.match(ln):
