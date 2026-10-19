@@ -908,3 +908,67 @@ def test_flow_chain_and_old_stock_follow_data_js(monkeypatch, tmp_path):
         assert '<span data-d="%s">' % k in ref4, '참고 ④에 %s 칸이 없다' % k
     bare = re.sub(r'<span data-d="[a-z0-9_]+">[^<]*</span>', '', ref4)
     assert '2024년' not in bare and '5배' not in bare, '노후 재고 문장에 손으로 적은 해·배수가 남았다'
+
+
+# ---------------------------------------------------------------- 싣는 하위 필드 (전수리뷰 C-11)
+
+def _fields(k, v):
+    if k == 'zones':
+        return [set(z) for z in v.values()]
+    if isinstance(v, list):
+        return [set(x) for x in v]
+    return [set(v)]
+
+
+def _with_dead_fields(D):
+    """09-12 이후에도 남아 있던 '아무도 읽지 않는 하위 값'을 되살린 사본(2026-10-18 저장소 D 의 모양)."""
+    D = copy.deepcopy(D)
+    D['rate_overlay']['jratio'] = [60.0] * len(D['rate_overlay']['t'])
+    for x in D['jratio_level']:
+        x['sudo'] = x['region'] in ('서울', '경기', '인천')
+    for x in D['link6_regional']:
+        x['p'] = 0.01
+    D['link1_new'].update(r=-0.37, p=0.009, lag=1)
+    D['super'].update(need_annual=210000, stock2030_2024=3763170)
+    return D
+
+
+def test_payload_sub_fields_are_exactly_what_readers_use(monkeypatch, tmp_path):
+    """/cycle/ const D 의 키마다 하위 필드는 RC.SHIP_FIELDS(페이지 스크립트·본문 칸·블로그 이론편이 읽는 것)와 같다.
+
+    최상위 키 시험(test_cycle_payload.test_every_payload_key_is_read_by_the_page)은 하위 값을 못 봐, rate_overlay.jratio(매일 47분기)
+    ·jratio_level[].sudo·link6_regional[].p·link1_new.r·p·lag·super.need_annual·stock2030_2024 가 아무도 읽지 않는 채 실렸다.
+    변이(실제로 확인): refresh_cycle_data.main 의 SHIP_FIELDS 깎기 루프를 지우면 되살린 사본 단정이, RC.splice 의 깎기를 지우면
+    재산정 단정이, build_overlay 에 jratio 를 되살리면(루프가 깎지만) 함수 단정이 빨개진다.
+    픽스처: ① 게이트 시점 페이지 D, ② 그 D 에 옛 죽은 하위 값을 되살린 페이지 사본(2026-10-18 저장소의 모양)으로 돈 배치·재산정.
+    """
+    D, s = _page()
+    extra = sorted(set(D) - set(RC.SHIP_FIELDS) - {'prose'})
+    assert not extra, 'SHIP_FIELDS 에 없는 키가 D 에 있다(읽는 하위 필드를 등록할 것): %s' % extra
+
+    def check(D, where):
+        for k, f in RC.SHIP_FIELDS.items():
+            assert k in D, '%s: D 에 %s 가 없다' % (where, k)
+            rows = _fields(k, D[k])
+            assert rows, '%s: %s 가 비었다' % (where, k)
+            bad = [r for r in rows if r != set(f)]
+            assert not bad, '%s: %s 의 하위 필드가 SHIP_FIELDS 와 다르다: %s' % (where, k, sorted(bad[0] ^ set(f)))
+    check(D, '게이트 페이지')
+    assert 'jratio' not in RF.build_overlay(RF.load_stats())
+    assert all('sudo' not in x for x in RF.build_jratio(RF.load_stats())[0])
+    # 배치: 죽은 하위 값이 남은 옛 페이지에서 돌아도 깎아 낸다
+    dead = _with_dead_fields(D)
+    old = s.replace(re.search(r'const D=(\{.*?\});\n', s, re.S).group(1), json.dumps(dead, ensure_ascii=False), 1)
+    page = tmp_path / 'index.html'
+    page.write_text(old, encoding='utf-8')
+    monkeypatch.setattr(RF, 'PAGE', str(page))
+    monkeypatch.setattr(RF.I, 'bump_sitemap', lambda *a, **k: None)
+    RF.main()
+    check(json.loads(re.search(r'const D=(\{.*?\});\n', page.read_text(encoding='utf-8'), re.S).group(1)), '배치')
+    # 재산정 쓰기(RC.splice): 재산정 결과(보관 분석 모양 — p·lag 포함)를 받아도 페이지에는 깎아 싣는다
+    page.write_text(old, encoding='utf-8')
+    RC.splice(str(page), copy.deepcopy(dead))
+    got = json.loads(re.search(r'const D=(\{.*?\});\n', page.read_text(encoding='utf-8'), re.S).group(1))
+    for k in ('link1_new', 'link6_regional'):
+        bad = [r for r in _fields(k, got[k]) if r != set(RC.SHIP_FIELDS[k])]
+        assert not bad, '재산정: %s 에 읽지 않는 하위 값이 실렸다: %s' % (k, bad[0])
