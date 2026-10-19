@@ -105,3 +105,33 @@ def test_hub_and_report_show_the_years():
     others = s['zones']
     page = M.build_page('경기', calc, stats, pq, others)
     assert '<div class="zout">' in page and '3년 너머' in page
+
+
+def test_outlook_picture_reads_out_the_states_and_the_reference():
+    """해마다 입주 그림(role=img)의 읽어 줄 글(aria-label)이 그림 칸이 보이는 것을 다 말한다 — 해마다의 퍼센트와 막대 아래 상태 낱말
+    (적음·보통·많음), '… 너머' 참고 칸이 있으면 그 퍼센트(전수리뷰 Z1-11). img 의 자식 글자는 보조기술에 읽히지 않는다.
+    재현한 실제 상태(10-18 zone/전남광주): aria-label '적정 대비 입주 1년 차 96%, 2년 차 23%, 3년 차 48%' — 화면의 '1년 차 · 보통'·
+    '2년 차 · 적음'과 회색 '48% 3년 너머'가 이름에 없었다.
+    변이(실제로 확인): outlook_aria 를 옛 '적정 대비 입주 …'(상태·참고값 없음)로 되돌리면 빨개진다.
+    픽스처: 저장소 판정·착공으로 센 경기 해마다 칸에 참고값 1.26(126%)을 준 블록과 주지 않은 블록 — 신호등 세 낱말이 다 나오도록
+    합성 칸(61·96·140%)도 하나.
+    """
+    adv, stats, s, Lq = _ctx()
+    real = SZ.yearly_supply(stats, '경기', Lq, s['H'])
+    synth = [{'n': 1, 'from': '2026Q3', 'to': '2027Q2', 'pct': 61}, {'n': 2, 'from': '2027Q3', 'to': '2028Q2', 'pct': 96},
+             {'n': 3, 'from': '2028Q3', 'to': '2029Q2', 'pct': 140}]
+    for ys in (real, synth):
+        for pbr in (1.26, None):
+            block = M.outlook_block(ys, pbr, s['H'])
+            aria = re.search(r'<div class="zo zo-lg" role="img" aria-label="([^"]*)">', block).group(1)
+            shown = re.findall(r'<span class="zo-p">(\d+)%</span><small>([^<]*)</small>', block)
+            assert len(shown) == len(ys) + (pbr is not None), shown
+            for (pct, lab), y in zip(shown, ys):
+                n, word = re.match(r'(\d+)년 차 · (\S+)', lab).groups()
+                assert '%s년 차 %s%% %s' % (n, pct, word) in aria, (aria, lab)
+            if pbr is not None:
+                pct, lab = shown[-1]
+                assert '%s(참고) %s%%' % (lab, pct) in aria, aria
+            else:
+                assert '참고' not in aria
+    assert {w for w in ('적음', '보통', '많음') if w in M.outlook_aria(synth)} == {'적음', '보통', '많음'}
