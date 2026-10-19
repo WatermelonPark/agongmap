@@ -49,6 +49,11 @@ EXP_PLACEHOLDER = (
     '빗나갔는지가 가장 좋습니다. 맞힌 이야기보다 틀린 이야기가 더 읽힙니다. '
     '지어낸 일화는 넣지 마세요 — 이 블로그의 무기가 실제 경력입니다.]')
 
+# 문장 전제가 깨진 게 아니라 데이터 상태(입력 계열이 끊겼다·덜 찼다·칸을 못 읽는다)로 초안을 멈출 때 멈춤 문구에 넣는 말.
+# 배치 기록(batch_notes.theory_claim_lines)이 이 말로 그 편을 '전제가 어긋남 — 발행본 재검토'가 아니라 '데이터 상태' 줄로 가른다 —
+# 멈춤 문구와 판별이 이 상수 하나를 쓴다(4편 지수 기준 단절, 5편 착공·준공 끝 달 어긋남, 6편 판정 칸, 7편 금리 오버레이 빈 분기).
+NOT_THE_TEXT = '문장 탓이 아니다'
+
 
 def link(text, path='/cycle/', camp='cycle'):
     # UTM 을 '#' 앞에 두는 규칙은 주간·지역 초안과 한 함수(P.site_link)를 쓴다(홈 마케팅 검수 A1).
@@ -966,7 +971,7 @@ def link6_values(D, adv):
     except L4.Link4ClaimError as e:
         # 판정 칸(ADV.sido)을 못 읽는 회차 — 문장 탓이 아니다. 예외 그대로 두면 초안 생성 가드를 SystemExit 로 거르는 게이트 시험
         # (test_home_entry 의 _all_drafts)이 그날 배치를 멈춘다(대표 결정 2026-10-18 D1).
-        raise SystemExit('6편을 만들 수 없다 — %s. 문장 탓이 아니다 — 판정 칸을 읽을 수 있는 데이터로 다시 돌린다.' % e)
+        raise SystemExit('6편을 만들 수 없다 — %s. %s — 판정 칸을 읽을 수 있는 데이터로 다시 돌린다.' % (e, NOT_THE_TEXT))
     high = F['hi']
     bad = []
     if any(x['region'] == '서울' and x['sig'] for x in rg):
@@ -1012,13 +1017,13 @@ def link7_values(D):
     r = D['rate_overlay']
     full = [i for i in range(len(r['t'])) if None not in (r['maemae'][i], r['jeonse'][i], r['rate'][i])]
     if not full:
-        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이에 매매·전세·금리가 모두 찬 분기가 없다. 문장 탓이 아니다 — '
-                         '/cycle/ 데이터가 찬 뒤 다시 돌린다.')
+        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이에 매매·전세·금리가 모두 찬 분기가 없다. %s — '
+                         '/cycle/ 데이터가 찬 뒤 다시 돌린다.' % NOT_THE_TEXT)
     t, mm, je, rt = (list(r[k][full[0]:full[-1] + 1]) for k in ('t', 'maemae', 'jeonse', 'rate'))
     gap = [x for x, a, b, c in zip(t, mm, je, rt) if None in (a, b, c)]
     if gap:
-        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이 가운데 매매·전세·금리 가운데 하나가 빈 분기가 있다(%s). 문장 탓이 '
-                         '아니다 — /cycle/ 데이터를 먼저 확인할 것.' % ', '.join('%g' % x for x in gap))
+        raise SystemExit('7편을 만들 수 없다 — 금리 오버레이 가운데 매매·전세·금리 가운데 하나가 빈 분기가 있다(%s). %s — '
+                         '/cycle/ 데이터를 먼저 확인할 것.' % (', '.join('%g' % x for x in gap), NOT_THE_TEXT))
     q = lambda i: '%d년 %d분기' % (int(t[i]), int(round((t[i] % 1) * 4)) + 1)
     pct = lambda a, b: '%.0f%%' % abs((b / a - 1) * 100)      # 문장이 '올랐습니다·내렸습니다'로 방향을 말한다
     lo = min(range(len(rt)), key=lambda i: rt[i])                       # 금리 바닥(2020년 4분기)
@@ -1078,9 +1083,9 @@ def guard_values(n, D=None, data=None):
             v = L3.link3_numbers(adv, sts)
         except L3.Link3DataError as e:
             # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
-            raise SystemExit('4편을 만들 수 없다 — %s. 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
+            raise SystemExit('4편을 만들 수 없다 — %s. %s — 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
                              '(update_adv_data._basis_reason) — git pull 로 그 데이터를 받은 뒤 다시 돌린다. 로컬에서 '
-                             '--heal-basic 으로 최근 달만 다시 받으면 단절이 다시 생긴다.' % e)
+                             '--heal-basic 으로 최근 달만 다시 받으면 단절이 다시 생긴다.' % (e, NOT_THE_TEXT))
         except L3.Link3ClaimError as e:
             raise SystemExit('4편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
         v['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')
@@ -1093,8 +1098,8 @@ def guard_values(n, D=None, data=None):
             v = L4.link4_numbers(adv, sts)
         except L4.Link4DataError as e:
             # 문장 탓이 아니다 — 착공·준공 두 표 가운데 한쪽만 새 달을 받은 회차(전수리뷰 T3-6·BL2-3·T1-2). 4편 Link3DataError 와 같은 갈래.
-            raise SystemExit('5편을 만들 수 없다 — %s. 문장 탓이 아니다 — 다음 클라우드 배치가 두 계열을 같은 달까지 받으면 풀린다'
-                             '(git pull 로 받은 뒤 다시 돌린다).' % e)
+            raise SystemExit('5편을 만들 수 없다 — %s. %s — 다음 클라우드 배치가 두 계열을 같은 달까지 받으면 풀린다'
+                             '(git pull 로 받은 뒤 다시 돌린다).' % (e, NOT_THE_TEXT))
         except L4.Link4ClaimError as e:
             raise SystemExit('5편을 만들 수 없다 — %s. 문장을 먼저 고칠 것.' % e)
         v['moveins'] = link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle')

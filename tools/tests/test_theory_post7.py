@@ -83,7 +83,8 @@ def test_real_data_passes_or_stops_with_a_named_premise():
         msg = str(e)
         assert msg.startswith('7편을 만들 수 없다 — ') and len(msg) > len('7편을 만들 수 없다 — ') + 5, msg
         import batch_notes as N      # 그 상태는 배치 기록 ℹ️ 줄로 알린다(D1) — 편 번호가 실렸는지 본다
-        tags = [re.match(r'\S+ 사이클 ([\d·]+)편 전제가', ln) for ln in N.theory_claim_lines()]
+        # 전제가 어긋난 줄이든 데이터 상태 줄(오버레이 빈 분기 — T.NOT_THE_TEXT)이든 7편이 실려야 한다
+        tags = [re.match(r'\S+ 사이클 ([\d·]+)편 (?:전제가|초안 생성 멈춤)', ln) for ln in N.theory_claim_lines()]
         assert any(m and '7' in m.group(1).split('·') for m in tags), msg
         return
     assert SLOTS <= set(v), sorted(SLOTS - set(v))
