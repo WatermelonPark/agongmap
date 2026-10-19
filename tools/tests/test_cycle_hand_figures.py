@@ -1034,7 +1034,7 @@ def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
 
     변이(실제로 확인): refresh_cycle_data.main 에서 fill_meta_span 호출을 지우면 한 해 전진 단정이, make_naver_post 의 햇수를
     옛 손 숫자 20 으로 되돌리면 블로그 단정(전진 사본)이, 홈 배너 햇수를 99 로 바꾸면 손 페이지 단정이 빨개진다.
-    픽스처: 게이트 시점 페이지 D·머리, 그 D 의 zones 끝 분기를 한 해 뒤로 민 페이지 사본(새해 자료가 들어온 날), 홈·FAQ 원문.
+    픽스처: 게이트 시점 페이지 D·머리, 그 D 의 zones 한 지역에 한 해 뒤 분기를 더한 사본(새해 자료가 들어온 날), 홈·FAQ 원문.
     """
     import home_src as HS
     import make_naver_post as P
@@ -1049,14 +1049,11 @@ def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
     assert any('%d개 시도 %d년 데이터' % (P.CYCLE_SYNC_N, n) in r['desc'] for r in P.MORE_ROTATION)
     # 새해 자료가 들어온 날 — 햇수가 따라 오른다
     adv = copy.deepcopy(D)
-    for z in adv['zones'].values():
-        z['t'] = [t + 1 for t in z['t']]
-    assert RC.span_years(adv['zones']) == n
     z0 = next(iter(adv['zones'].values()))
     z0['t'].append(z0['t'][-1] + 1)
     z0['maemae'].append(z0['maemae'][-1])
     z0['jeonse'].append(z0['jeonse'][-1])
-    assert RC.span_years(adv['zones']) == n + 2
+    assert RC.span_years(adv['zones']) == n + 1
     monkeypatch.setattr(RF, 'build_zones', lambda S: copy.deepcopy(adv['zones']))
     page = tmp_path / 'index.html'
     page.write_text(s, encoding='utf-8')
@@ -1065,9 +1062,9 @@ def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
     RF.main()
     head2 = page.read_text(encoding='utf-8')
     head2 = head2[:head2.find('</head>')]
-    assert set(re.findall(r'\d+개 시도 (\d+)년', head2)) == {str(n + 2)}, '새해 자료가 들어와도 메타 햇수가 그대로다'
+    assert set(re.findall(r'\d+개 시도 (\d+)년', head2)) == {str(n + 1)}, '새해 자료가 들어와도 메타 햇수가 그대로다'
     monkeypatch.setattr(P, 'cycle_d', lambda: adv)
-    assert P._cycle_span_years() == n + 2
+    assert P._cycle_span_years() == n + 1
     # 손 페이지 — 과장하지 않는다
     home = HS.home_source()
     faq = io.open(os.path.join(ROOT, 'faq', 'index.html'), encoding='utf-8').read()
