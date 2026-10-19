@@ -209,3 +209,38 @@ def test_lag_does_not_mask_a_real_failure():
     assert body.startswith('### ⚠️ 데이터 갱신 중단')
     assert mention is True
     assert '4개월 차이' in body
+
+
+def _workflow_alert_lines():
+    """update-cloud.yml 이 기록에 남기는 ❌·⚠️ 줄(rep "…", echo "…" >> "$R", ${IXN:-…} 기본값)을 모두 뽑는다.
+    셸 변수·명령 치환은 '1'로 바꾼다(동적 줄도 고정 부분으로 PLAIN 에 걸려야 한다)."""
+    import io
+    import re
+    wf = io.open(os.path.join(os.path.dirname(__file__), '..', '..', '.github', 'workflows', 'update-cloud.yml'),
+                 encoding='utf-8').read()
+    out = []
+    for m in re.finditer(r'(?:rep "|echo "|\$\{IXN:-)((?:❌|⚠️).*)', wf):
+        ln = re.sub(r'\$\([^)]*\)|\$\{[^}]*\}|\$[A-Za-z_]+', '1', m.group(1))
+        out.append(ln.split('"', 1)[0].rstrip('}').strip())
+    return out
+
+
+def test_every_workflow_alert_line_has_a_plain_sentence():
+    """워크플로가 기록에 남기는 ❌·⚠️ 줄마다 PLAIN 에 받는 사람의 문장이 있고, 그 문장에 내부 말(커밋·푸시·러너)이 없다
+    (전수리뷰 F-5). 대응이 없으면 plain() 이 원문을 그대로 써 '주간 시세 페이지 실패 — 커밋 안 함'이 메일 본문에 나갔다.
+
+    변이(실제로 확인): PLAIN 에서 '주간 시세 페이지 실패' 대응을 지우면 빨강. 워크플로에 대응 없는 rep "❌ 새 단계 실패"
+    줄을 더해도 빨강.
+    픽스처: 저장소의 실제 update-cloud.yml(생성기 여덟·게이트·공유카드·git·푸시·감시 되짚기 줄).
+    """
+    import re
+    lines = _workflow_alert_lines()
+    assert len(lines) >= 10, lines           # 뽑기가 깨져 빈 목록으로 통과하지 않게
+    assert any('주간 시세 페이지 실패' in ln for ln in lines), lines
+    for ln in lines:
+        body = ln.lstrip('❌⚠️').strip()
+        hit = [say for pat, say in F.PLAIN if re.search(pat, body)]
+        assert hit, 'PLAIN 에 대응이 없다 — 메일에 내부 기록 줄이 그대로 나간다: %s' % ln
+        said = F.plain(ln)
+        for w in ('커밋', '푸시', '러너'):
+            assert w not in said, '%r → %r 에 내부 말 %r' % (ln, said, w)
