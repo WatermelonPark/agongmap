@@ -720,3 +720,41 @@ def test_region_fail_rounds_cross_midnight(tmp_path):
     # 회차가 하루 넘게 비면(성공 회차는 기록을 지운다) 다시 첫 회차
     e = tmp_path / 'e'
     assert run(e, [('2026-10-20 22:00', 'r1'), ('2026-10-23 22:00', 'r2')]) == [True, True]
+
+
+def test_price_source_uses_period_window_and_page_retry(monkeypatch):
+    """감시 핵심 계열 '주간'·'월간' 원천 조회가 배치처럼 기간 창(START_WRTTIME)을 주고, 쪽마다 끊기면 다시 받는다(전수리뷰 F-4).
+    창이 없으면 주간 매매 표 170쪽 안팎의 깊은 쪽을 읽는데, R-ONE 은 그 요청을 간헐적으로 응답 없이 끊는다(2026-08-15 실측).
+
+    변이(실제로 확인): source_jobs 의 '주간' 람다에서 since 를 빼면(rone_latest(tbl, 'WK')) 첫 단정이 빨강. rone_latest 의
+    head 조회를 get_json 으로 되돌리면(재시도 없음) 둘째 단정(첫 호출 끊김 뒤 성공)이 빨강.
+    픽스처: 합성 ADV(주간 2026-01-05·월간 2026-01 — 연 넘김 창) 와 가짜 R-ONE(창 안 2,500행 = 3쪽, 첫 호출은 끊김).
+    """
+    seen = {}
+
+    def fake_latest(tbl, cycle, since=None):
+        seen[cycle] = since
+        return 'x'
+    monkeypatch.setattr(C, 'rone_latest', fake_latest)
+    adv = {'weekly': {'rows': [{'p': '2026-01-05'}]}, 'monthly': {'rows': [{'p': '2026-01'}]}}
+    jobs = C.source_jobs({}, adv)
+    jobs['주간']()
+    jobs['월간']()
+    assert seen == {'WK': '20251201', 'MM': '202512'}, seen
+    assert C._price_since(None, 'WK') is None       # 우리 시점을 못 읽으면 예전처럼 전량
+
+    monkeypatch.undo()
+    calls = []
+
+    def fake_get(url):
+        calls.append(url)
+        if len(calls) == 1:
+            raise OSError('Remote end closed connection without response')
+        if 'pSize=1&' in url + '&':
+            return {'SttsApiTblData': [{'head': [{'list_total_count': 2500}]}]}
+        return {'SttsApiTblData': [{'row': [{'WRTTIME_DESC': '2026-01-12'}, {'WRTTIME_DESC': '2026-01-19'}]}]}
+    monkeypatch.setattr(C, 'get_json', fake_get)
+    monkeypatch.setattr(C.time, 'sleep', lambda s: None)
+    assert C.rone_latest('T', 'WK', '20251201') == '2026-01-19'
+    assert len(calls) == 3 and all('START_WRTTIME=20251201' in u for u in calls), calls
+    assert 'pIndex=3&' in calls[-1] + '&', calls[-1]

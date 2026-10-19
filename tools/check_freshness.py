@@ -1009,7 +1009,9 @@ def rone_latest(tbl, cycle, since=None):
             % (os.environ.get('RONE_API_KEY', ''), tbl, cycle))
     if since:
         base += '&START_WRTTIME=%s' % since
-    head = get_json(base + '&pIndex=1&pSize=1')
+    # 쪽마다 _rone_get(3회·쉼) — 지역 계층·공급 조회와 같다(전수리뷰 F-4: 예전엔 get_json 한 번이라 깊은 쪽 끊김이 그대로
+    # 핵심 계열 '주간' 미검증·재확인으로 갔다).
+    head = _rone_get(base + '&pIndex=1&pSize=1')
     total = None
     for blk in head.get('SttsApiTblData', []):
         for h in blk.get('head', []) or []:
@@ -1023,7 +1025,7 @@ def rone_latest(tbl, cycle, since=None):
     if not total:
         raise RuntimeError('list_total_count 없음')
     rows = []
-    for blk in get_json(base + '&pIndex=%d&pSize=1000' % (-(-total // 1000))).get('SttsApiTblData', []):
+    for blk in _rone_get(base + '&pIndex=%d&pSize=1000' % (-(-total // 1000))).get('SttsApiTblData', []):
         if 'row' in blk:
             rows = blk['row']
     if cycle == 'WK':
@@ -1286,7 +1288,20 @@ def weekly_max_age(p, holidays=()):
     return MAX_AGE_WEEKLY + (WR.WEEK if hedge else 0)
 
 
-def source_jobs(stats):
+def _price_since(p, cycle):
+    """주간·월간 시세 원천 조회의 하한(START_WRTTIME) — 우리 최신 시점의 전달(주간은 그달 1일 'YYYYMM01', 월간 'YYYYMM').
+
+    원천이 우리보다 최신이면 반드시 이 창에 들어온다(rone_latest 독스트링). 창이 없으면 R-ONE 은 과거부터 쪽을 나눠 주간 매매가
+    170쪽 안팎의 깊은 쪽을 읽게 되고, 그 요청을 간헐적으로 응답 없이 끊는다(2026-08-15 실측 — 배치는 이미 창을 쓴다, 전수리뷰 F-4).
+    우리 시점을 못 읽으면 None(예전처럼 전량).
+    """
+    since = _supply_since(p)
+    if not since:
+        return None
+    return since + ('01' if cycle == 'WK' else '')
+
+
+def source_jobs(stats, adv=None):
     """원천 대조에 쓸 조회를 **main()이 판정하는 순서대로** 모은다 — {키: getter}.
 
     main()은 이것을 prefetch()로 한꺼번에 병렬로 받은 뒤 예전처럼 한 줄씩 판정한다.
@@ -1294,8 +1309,11 @@ def source_jobs(stats):
     여기 없는 원천 조회를 main()에 새로 넣으면 그 조회만 직렬로 돈다 — 새 계열은 여기에도 넣을 것.
     """
     jobs = {}
-    jobs['주간'] = lambda: rone_latest(U.RONE_TBL['maega'], 'WK')
-    jobs['월간'] = lambda: rone_latest(U.RONE_MONTHLY_TBL['maega'], 'MM')
+    adv = adv or {}
+    wk = ((adv.get('weekly') or {}).get('rows') or [{}])[-1].get('p')
+    mo = ((adv.get('monthly') or {}).get('rows') or [{}])[-1].get('p')
+    jobs['주간'] = lambda s=_price_since(wk, 'WK'): rone_latest(U.RONE_TBL['maega'], 'WK', s)
+    jobs['월간'] = lambda s=_price_since(mo, 'MM'): rone_latest(U.RONE_MONTHLY_TBL['maega'], 'MM', s)
     for name, cfg in sorted(U.BASIC_CONF.items()):
         jobs[('basic', name)] = lambda c=cfg: kosis_latest(c['org'], c['tbl'], c['objn'], 'M')
     if '규모별' in stats:
@@ -1330,7 +1348,7 @@ def main():
     adv, stats = live_adv_stats()
     # 원천 조회는 여기서 한꺼번에 병렬로 받는다(백로그 25). 아래 판정은 받아 둔 결과로
     # 예전과 같은 순서·같은 분기로 한 줄씩 한다 — 조회 실패도 check()가 그대로 분류한다.
-    jobs = source_jobs(stats)
+    jobs = source_jobs(stats, adv)
     pre = dict(zip(jobs, prefetch(jobs.values())))
     fails = []
     print('[시세 — 원천 R-ONE]')
