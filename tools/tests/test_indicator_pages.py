@@ -94,9 +94,10 @@ def test_jeonse_page_names_the_true_lowest_and_highest():
     sido = {r: v for r, v in _JR.items() if r in I.SIDO17}
     lo = min(sido, key=sido.get)
     hi = max(sido, key=sido.get)
-    assert '가장 높은 곳은 <strong>%s %.1f%%</strong>' % (hi, sido[hi]) in html
-    assert '가장 낮은 곳은 <strong>%s %.1f%%</strong>' % (lo, sido[lo]) in html
-    assert '%s %.1f%%로 가장 높고 %s %.1f%%' % (I.ga(hi), sido[hi], I.neun(lo), sido[lo]) in html
+    hn, ln = I.SZ.disp(hi), I.SZ.disp(lo)   # 문장의 이름은 화면 이름(백로그 46)
+    assert '가장 높은 곳은 <strong>%s %.1f%%</strong>' % (hn, sido[hi]) in html
+    assert '가장 낮은 곳은 <strong>%s %.1f%%</strong>' % (ln, sido[lo]) in html
+    assert '%s %.1f%%로 가장 높고 %s %.1f%%' % (I.ga(hn), sido[hi], I.neun(ln), sido[lo]) in html
 
 
 def _shown_delta(cur, ago):
@@ -131,7 +132,44 @@ def test_jeonse_table_compares_with_twelve_months_ago():
     assert '1년 전 대비 %+.1f%%p' % nat_d in html
     ch = {r: _shown_delta(ser[r][-1], ser[r][-13]) for r in I.SIDO17}
     top = max(I.SIDO17, key=lambda r: ch[r])
-    assert '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>' % (top, ch[top]) in html
+    assert '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>' % (I.SZ.disp(top), ch[top]) in html   # 화면 이름(백로그 46)
+
+
+def test_jeonse_sentences_name_regions_by_their_display_name():
+    """'가장 높은 곳'·'가장 낮은 곳'·'1년 새 가장 크게 오른 곳'과 설명 메타(og·JSON-LD 같은 글)는 판정 단위 키가 아니라 화면 이름을
+    쓰고, 조사도 화면 이름 끝 글자로 센다('광주·전남이 …로 가장 높고', '광주·전남은 …'). 표 행만 화면 이름이던 때(10-17 백로그 46
+    수정은 표 행만 바꿨다) 전남광주가 최고·최저·최대 상승인 달에 키가 그대로 나가 test_display_name 이 게이트에서 그날 데이터
+    커밋을 막았다(전수리뷰 X2-1·Z1-1). 그 시험은 그날 데이터가 지나는 갈래만 보므로 여기서 세 자리를 합성 계열로 늘 본다.
+
+    재현하는 실제 상태: 2026.05 전세가율 — 전남광주 78.72 가 경북 78.7 을 넘어 시도 최고였다(2012~2026 완비 165개월 중 59개월).
+    픽스처: _jeonse_sts(2026.07 실측 모양)에서 DISPLAY_NAME 의 각 키(지금은 전남광주 하나)를 ① 최고이면서 1년 상승 1위인 값,
+          ② 최저인 값으로 바꾼 두 계열.
+    변이(각각 실제로 확인): build_jeonse 의 hi_n·lo_n·upm_p 가운데 하나에서 SZ.disp 를 빼면 빨개진다.
+    """
+    from test_display_name import _visible
+    keys = [k for k in I.SZ.DISPLAY_NAME if k in I.SIDO17]
+    assert keys, '화면 이름이 따로 있는 시도가 없다 — 이 시험이 아무것도 보지 않는다'
+    for k in keys:
+        name = I.SZ.disp(k)
+        for case in ('high', 'low'):
+            sts = _jeonse_sts()
+            ser = sts['전세가율']['series']
+            others = [ser[r][-1] for r in I.SIDO17 if r != k]
+            ser[k][-1] = round(max(others) + 1.5 if case == 'high' else min(others) - 1.5, 3)
+            html, _ = I.build_jeonse(sts)
+            v = _visible(html)
+            leak = [x for x in I.SZ.DISPLAY_NAME if x in v]
+            assert not leak, '%s: 문장에 판정 단위 키 %s 가 보인다' % (case, leak)
+            cur = ser[k][-1]
+            if case == 'high':
+                ch = {r: _shown_delta(ser[r][-1], ser[r][-13]) for r in I.SIDO17}
+                assert max(ch, key=ch.get) == k, '픽스처 전제: %s 가 1년 상승 1위여야 한다' % k
+                assert '가장 높은 곳은 <strong>%s %.1f%%</strong>' % (name, cur) in html
+                assert '%s %.1f%%로 가장 높고' % (I.ga(name), cur) in html
+                assert '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>' % (name, ch[k]) in html
+            else:
+                assert '가장 낮은 곳은 <strong>%s %.1f%%</strong>' % (name, cur) in html
+                assert '%s %.1f%%.' % (I.neun(name), cur) in html
 
 
 def test_jeonse_page_names_no_riser_when_nothing_rose():

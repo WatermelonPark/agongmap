@@ -421,17 +421,21 @@ def build_jeonse(sts, today=None):
     lo = min(vals, key=lambda v: v[1])
     moved = [v for v in vals if v[2] is not None]
     up_most = max(moved, key=lambda v: v[2]) if moved else None
+    # 문장·설명 메타에 찍는 이름도 화면 이름이다(백로그 46) — 조사(이/가·은/는)도 화면 이름 끝 글자로 센다('광주·전남이').
+    # 예전엔 표 행만 disp 를 거쳐, 전남광주가 최고·최저·최대 상승인 달(2026.05 실데이터)에 키가 그대로 나가 게이트가 그날 데이터
+    # 커밋을 막았다(전수리뷰 X2-1·Z1-1).
+    hi_n, lo_n = SZ.disp(hi[0]), SZ.disp(lo[0])
     natd_desc = '' if nat_d is None else '로 1년 전보다 %+.1f%%p' % nat_d
     natd_sub = '' if nat_d is None else ' · 1년 전 대비 %+.1f%%p' % nat_d
     # 오른 곳이 없으면(가장 큰 변화가 0 이하 — 모든 시도가 그대로이거나 내린 해) '가장 크게 오른 곳'을 말하지 않는다(전수리뷰 B2).
     # 변화는 표시값(소수 첫째 자리)끼리의 차라 표의 '+0.0%p' 와 같은 기준이다.
     upm_p = ('' if up_most is None or up_most[2] <= 0 else
-             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (up_most[0], up_most[2]))
+             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (SZ.disp(up_most[0]), up_most[2]))
 
     title = '전세가율이란 — 전국·시도별 아파트 전세가율 현황 %s | 아공맵' % prd
     desc = ('전세가율은 매매가 대비 전세가 비율. %s 기준 전국 아파트 전세가율은 %.1f%%%s. '
             '%s %.1f%%로 가장 높고 %s %.1f%%. 시도별 현황과 사이클 신호로서의 의미를 데이터로 정리했다.'
-            ) % (prd, nat, natd_desc or '다', ga(hi[0]), hi[1], neun(lo[0]), lo[1])
+            ) % (prd, nat, natd_desc or '다', ga(hi_n), hi[1], neun(lo_n), lo[1])
     url = SITE + '/jeonse-ratio/'
 
     body = """<header class="wrap">
@@ -475,7 +479,7 @@ def build_jeonse(sts, today=None):
   </div>
 </section>
 """ % dict(nat=nat, natd=natd_sub, prd=prd, trs='\n'.join(trs),
-           hi=hi[0], hiv=hi[1], lo=lo[0], lov=lo[1], upm=upm_p)
+           hi=hi_n, hiv=hi[1], lo=lo_n, lov=lo[1], upm=upm_p)
 
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,
