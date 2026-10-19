@@ -334,6 +334,19 @@ def fill_zname(page):
     return ZN_RE.sub(lambda m: 'const ZN=%s,zname=' % json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False), page, count=1)
 
 
+META_SPAN_RE = re.compile(r'(\d+개 시도 )\d+(년)')
+
+
+def fill_meta_span(page, n):
+    """머리(<head>)의 메타 설명·og·JSON-LD '14개 시도 N년'의 햇수를 자료 기간(RC.span_years)으로 다시 쓴다. 메타는 속성이라 칸을
+    둘 수 없다. 자리가 하나도 없으면 멈춘다(문구를 바꿨으면 이 함수도 고칠 것)."""
+    i = page.find('</head>')
+    head, n_hit = META_SPAN_RE.subn(lambda m: '%s%d%s' % (m.group(1), n, m.group(2)), page[:i])
+    if not n_hit:
+        raise RuntimeError("사이클 페이지 머리에 'N개 시도 N년' 자리가 없다")
+    return head + page[i:]
+
+
 def splice(page, key, value):
     """const D={...} 안의 "key": <값> 하나를 통째로 갈아 끼운다."""
     i = page.find('"%s": ' % key)
@@ -397,6 +410,7 @@ def main():
     page = splice(page, 'prose', prose)
     page = fill_spans(page, jr)
     page = fill_zname(page)
+    page = fill_meta_span(page, RC.span_years(zones))
     # 수도권·지방 평균은 페이지 어디서도 읽지 않아 D에서 뺐다. 배치 로그로는
     # 계속 남겨 두는 편이 갱신 결과를 눈으로 확인하는 데 쓸모가 있다.
 
