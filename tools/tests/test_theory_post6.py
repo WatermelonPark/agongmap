@@ -15,6 +15,8 @@ batch_notes 의 ℹ️ 줄이 알린다). 그래서 실데이터 시험은 멈�
 (16개 시도 + 집계 3행의 앞으로 3년 들어올 물량·적정물량·판정 split 문장, 판정 창 12분기). 실데이터 시험만 저장소 파일을 읽는다.
 무엇을 깨뜨리면 빨개지나(각각 실제로 확인):
   - link6_values 의 서울 유의 검사(①)를 지우면 → test_seoul_turning_significant_stops_the_draft
+  - ②·③·④ 검사를 지우면 → test_capital_region_not_stronger_than_seoul_stops_the_draft·
+    test_metro_not_stronger_than_province_stops_the_draft·test_capital_region_reacting_in_the_same_quarter_stops_the_draft
   - 가장 강한 시도 검사(⑤)를 지우면 → test_strongest_region_outside_the_oversupply_list_stops_the_draft
   - ⑥ 검사를 지우면 → test_no_oversupply_region_stops_the_draft
   - ⑦·⑧ 검사를 지우면 → test_no_region_below_a_third_stops_the_draft·test_most_regions_not_short_stops_the_draft
@@ -99,7 +101,8 @@ def test_real_data_passes_or_stops_with_a_named_premise():
         msg = str(e)
         assert msg.startswith('6편을 만들 수 없다 — ') and len(msg) > len('6편을 만들 수 없다 — ') + 5, msg
         import batch_notes as N      # 그 상태는 배치 기록 ℹ️ 줄로 알린다(D1) — 편 번호가 실렸는지 본다
-        tags = [re.match(r'\S+ 사이클 ([\d·]+)편 전제가', ln) for ln in N.theory_claim_lines()]
+        # 전제가 어긋난 줄이든 데이터 상태 줄(판정 칸을 못 읽음 — T.NOT_THE_TEXT)이든 6편이 실려야 한다
+        tags = [re.match(r'\S+ 사이클 ([\d·]+)편 (?:전제가|초안 생성 멈춤)', ln) for ln in N.theory_claim_lines()]
         assert any(m and '6' in m.group(1).split('·') for m in tags), msg
         assert '5편' not in msg, msg
         return
@@ -110,6 +113,33 @@ def test_seoul_turning_significant_stops_the_draft():
     D, adv = _snap()
     next(x for x in D['link6_regional'] if x['region'] == '서울')['sig'] = True
     _stops(D, adv, '서울이 유의로 나온다')
+
+
+def test_capital_region_not_stronger_than_seoul_stops_the_draft():
+    """② '서울·경기·인천을 하나로 묶으면 상관이 …, 효과가 뚜렷하게 나타나요'는 수도권 상관이 서울보다 강할(더 음수) 때만 참이다.
+    변이: link6_values 의 ② 검사를 지우면 빨갛다(실제로 확인 — 고치기 전에는 ②③④를 지워도 이 파일이 초록이었다).
+    픽스처: 스냅숏에서 수도권 상관만 −0.05 로(서울 −0.10 보다 약하게) 바꾼 가상 재산정."""
+    D, adv = _snap()
+    D['prose']['sudo_l6'] = '−0.05'
+    _stops(D, adv, '수도권으로 묶어도 서울보다 강하지 않다')
+
+
+def test_metro_not_stronger_than_province_stops_the_draft():
+    """③ '광역시는 평균 …인데 도는 …입니다'(도는 합치면 상쇄된다)는 광역시가 도보다 강할 때만 참이다.
+    변이: link6_values 의 ③ 검사를 지우면 빨갛다(실제로 확인).
+    픽스처: 스냅숏에서 광역시 평균만 −0.25 로(도 −0.30 보다 약하게) 바꾼 가상 재산정."""
+    D, adv = _snap()
+    D['prose']['l6_metro'] = '−0.25'
+    _stops(D, adv, '광역시가 도보다 강하지 않다')
+
+
+def test_capital_region_reacting_in_the_same_quarter_stops_the_draft():
+    """④ '수도권의 … 한 분기 뒤에 반응했어요'는 효과가 확인된 수도권 시도가 모두 한 분기 뒤 반응일 때만 참이다.
+    변이: link6_values 의 ④ 검사를 지우면 빨갛다(실제로 확인).
+    픽스처: 스냅숏에서 경기(확인된 수도권 시도)의 시차만 0(같은 분기)으로 바꾼 가상 재산정."""
+    D, adv = _snap()
+    next(x for x in D['link6_regional'] if x['region'] == '경기')['lag'] = 0
+    _stops(D, adv, '같은 분기 반응 시도가 있다')
 
 
 def test_strongest_region_outside_the_oversupply_list_stops_the_draft():

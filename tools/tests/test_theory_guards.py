@@ -16,6 +16,8 @@
   - 코드 결함(그 밖의 예외) 받기를 빼면 → test_crashing_guard_is_reported_as_unchecked(예외가 그대로 샌다)
   - 도구·데이터를 못 올릴 때의 받기를 빼면 → test_unloadable_tools_are_reported
   - render 가 guard_values 를 거치지 않고 제 가드를 따로 두면 → test_render_and_batch_notes_share_one_guard
+  - theory_claim_lines 가 데이터 상태 멈춤(멈춤 문구의 T.NOT_THE_TEXT)을 가르지 않거나, 데이터 상태 멈춤 문구 하나에서 그 말을
+    빼면 → test_data_state_stops_are_not_blamed_on_the_published_post
 """
 import os
 import re
@@ -28,12 +30,13 @@ import batch_notes as N  # noqa: E402
 import format_batch_report as F  # noqa: E402
 import make_theory_post as T  # noqa: E402
 
-STOP_LINE = re.compile(r'^%s 사이클 ([\d·]+)편 전제가 지금 데이터와 어긋남 — (.+) \(초안 생성만 멈춤, 발행본 재검토\)$'
-                       % re.escape(N.ML.MARK))
+STOP_LINE = re.compile(r'^%s 사이클 ([\d·]+)편 (?:전제가 지금 데이터와 어긋남 — .+ \(초안 생성만 멈춤, 발행본 재검토\)'
+                       r'|초안 생성 멈춤\(데이터 상태, 발행본과 무관\) — .+)$' % re.escape(N.ML.MARK))
+DATA_LINE = re.compile(r'^%s 사이클 ([\d·]+)편 초안 생성 멈춤\(데이터 상태, 발행본과 무관\) — ' % re.escape(N.ML.MARK))
 
 
 def _reported(lines):
-    """기록 줄에서 '전제가 어긋나 멈췄다'고 알린 편 번호들."""
+    """기록 줄에서 '멈췄다'고 알린 편 번호들(전제가 어긋남·데이터 상태 두 꼴)."""
     out = set()
     for ln in lines:
         m = STOP_LINE.match(ln)
@@ -121,6 +124,50 @@ def test_crashing_guard_is_reported_as_unchecked(monkeypatch):
     _stub(monkeypatch, {6: TypeError("'>' not supported between instances of 'NoneType' and 'float'")})
     assert N.theory_claim_lines() == ["%s 사이클 6편 검사 불가 — TypeError: '>' not supported between instances of "
                                       "'NoneType' and 'float'" % N.ML.MARK]
+
+
+def _data_stops(monkeypatch):
+    """데이터 상태로 멈추는 갈래마다 실제 가드(guard_values)를 돌려 얻은 멈춤 [(편, SystemExit)] — 합성 입력이라 저장소 데이터와 무관하다."""
+    import theory_link3 as L3
+
+    def grab(n, D, data):
+        with pytest.raises(SystemExit) as e:
+            T.guard_values(n, D, data)
+        return n, e.value
+
+    def rebased(adv, sts):
+        raise L3.Link3DataError('매매지수 기준 단절 — 매매지수 2026.01 (27개 지역, 예: 서울 189.83→94.62)')
+    monkeypatch.setattr(L3, 'link3_numbers', rebased)
+    sts5 = {k: {'dates': ['2026.%02d' % m for m in range(1, last + 1)], 'series': {'전국': [1000] * last}}
+            for k, last in (('준공', 8), ('착공', 7))}
+    adv6 = {'sido': {'H': 12, 'zones': [dict(z='가', fut=1000, need=0)]}}
+    D6 = {'prose': {}, 'link6_regional': []}
+
+    def D7(je):
+        return {'rate_overlay': {'t': [2026.0, 2026.25, 2026.5], 'maemae': [100.0, 101.0, 102.0], 'jeonse': je,
+                                 'rate': [3.0, 3.1, 3.2], 'jratio': [None] * 3}, 'prose': {'rate_r': '−0.5', 'rate_n': '3'}}
+    return [grab(4, {}, ({}, {})), grab(5, {}, ({}, sts5)), grab(6, D6, (adv6, None)),
+            grab(7, D7([None, None, None]), None), grab(7, D7([100.0, None, 101.0]), None)]
+
+
+def test_data_state_stops_are_not_blamed_on_the_published_post(monkeypatch):
+    """문장 전제가 아니라 데이터 상태로 멈춘 편은 '전제가 어긋남 … 발행본 재검토'가 아니라 '데이터 상태' 줄로 알린다 — 발행본을 다시
+    볼 일이 아니라 다음 배치에서 풀리는 일인데, 같은 꼴로 쓰면 월요일 확인 메일이 발행본 재검토를 시킨다(전수리뷰 G1a 검토).
+    멈춤 문구와 판별이 한 상수(make_theory_post.NOT_THE_TEXT)를 쓰는지도 갈래마다 실제 가드의 문구로 본다.
+
+    변이(각각 실제로 확인): theory_claim_lines 가 NOT_THE_TEXT 로 가르지 않으면(모두 '전제가 어긋남') 다섯 갈래가 모두 빨갛다. 4편
+    Link3DataError 멈춤 문구에서 NOT_THE_TEXT 를 빼면(고치기 전 문구) 4편 갈래가 빨갛다.
+    픽스처: 갈래마다 그 상태만 만든 합성 입력 — 4편 매매지수 기준 단절(2026-09-28 실제 사례 모양의 Link3DataError), 5편 준공 2026.08·
+    착공 2026.07(착공 표만 한 달 늦은 회차, Link4DataError), 6편 적정물량이 0 인 판정 칸, 7편 세 값이 다 찬 분기가 없는 금리 오버레이와
+    가운데 분기 전세가 빈 오버레이."""
+    stops = _data_stops(monkeypatch)
+    assert len(stops) == 5
+    for n, e in stops:
+        assert T.NOT_THE_TEXT in str(e), (n, str(e))
+        _stub(monkeypatch, {n: e})
+        out = N.theory_claim_lines()
+        assert len(out) == 1 and DATA_LINE.match(out[0]) and DATA_LINE.match(out[0]).group(1) == str(n), out
+        assert '발행본 재검토' not in out[0] and STOP_LINE.match(out[0]) and _reported(out) == {n}, out
 
 
 def test_unloadable_tools_are_reported(monkeypatch):
