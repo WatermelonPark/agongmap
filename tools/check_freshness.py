@@ -986,11 +986,12 @@ def rone_region_names(tbl, cycle):
     return by[max(by)]
 
 
-def check_age(label, stamp, grace):
+def check_age(label, stamp, grace, what='마지막 수집'):
     """수집 시점 도장(YYYY-MM-DD)이 grace일보다 오래됐으면 실패 사유를 반환.
 
     원천 대조(check)와 달리 '언제 마지막으로 받아왔나'만 본다 — 원천에 '최신 시점'
     질의가 없거나, 있어도 일일 쿼터를 감시가 축내면 안 되는 소스에 쓴다.
+    what 은 도장이 무엇인지다 — 시도 지표는 수집 날이 아니라 판정 기준 분기의 끝날이다(전수리뷰 F overflow).
     """
     if not stamp:
         return '%s: 수집 시점 도장이 없음' % label
@@ -999,7 +1000,7 @@ def check_age(label, stamp, grace):
         return '%s: 수집 시점 해석 불가(%s)' % (label, stamp)
     if age > grace:
         print('  %-12s %-12s %s일  실패 (grace %d일)' % (label, stamp, age, grace))
-        return '%s(마지막 수집 %s, 경과 %s일 > %d일)' % (label, stamp, age, grace)
+        return '%s(%s %s, 경과 %s일 > %d일)' % (label, what, stamp, age, grace)
     print('  %-12s %-12s %s일' % (label, stamp, age))
     return None
 
@@ -1492,7 +1493,8 @@ def main():
                              % (n_z, want, ', '.join(sido.get('missing') or ['?'])))
             # 상한이 꺼져 있으면(None — 시험 하니스) 보지 않되 항목은 남긴다: fails 길이가 검사한 계열 수(개수 게이트의 분모)다.
             fails.append(None if MAX_AGE_SIDO_Q is None else
-                         check_age('시도 지표', None if not sido.get('L') else _q_to_date(sido['L']), MAX_AGE_SIDO_Q))
+                         check_age('시도 지표', None if not sido.get('L') else _q_to_date(sido['L']), MAX_AGE_SIDO_Q,
+                                   what='기준 분기 끝'))
     except Exception as e:
         # 이건 조회 실패다 — SKIPPED에는 안 넣는다(위 게이트의 분자를 바꾸면
         # 안 되므로). 대신 FETCH_FAIL에 남겨 '새 IP로 재확인' 쪽으로 분류되게 한다.
