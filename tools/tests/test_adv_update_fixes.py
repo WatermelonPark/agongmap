@@ -495,6 +495,29 @@ def test_holidays_keep_saved_year_when_that_year_fails(monkeypatch):
     assert failed == ['holidays:%d' % (yr + 1)]
 
 
+def test_holidays_keep_last_year_from_the_saved_list(monkeypatch):
+    """새해 첫 회차에도 작년 공휴일은 저장 목록에서 이어 둔다(원천은 다시 묻지 않는다). 1월 초에는 아직 12월 조사 주가 최신이라
+    발표 지연 판정(weekly_release.status 의 hedge)이 작년 연휴(월요일 성탄)를 봐야 한다 — 예전엔 목록을 올해·내년으로 갈아 끼워
+    홈 '반영 대기'·감시 주간 나이 상한이 그 주에 헛경보를 낼 수 있었다(전수리뷰 A overflow).
+
+    변이(실제로 확인): fetch_holidays 의 작년 이어 두기(`out = [d for d in (prev or []) if …(yr - 1)]`)를 `out = []` 로 되돌리면 빨개진다.
+    픽스처: 해가 바뀐 뒤 첫 회차 — 저장 목록은 두 해 전·작년·올해, 원천은 올해·내년을 정상으로 준다(날짜는 오늘에서 만든다).
+    """
+    yr = datetime.date.today().year
+    prev = ['%d-12-25' % (yr - 2), '%d-12-25' % (yr - 1), '%d-01-01' % yr]
+
+    def fake(url, tries=3):
+        y = yr + 1 if 'solYear=%d' % (yr + 1) in url else yr
+        return {'response': {'header': {'resultCode': '00'},
+                             'body': {'items': {'item': [{'locdate': int('%d0101' % y)}]}, 'totalCount': 1}}}
+    monkeypatch.setattr(U, 'DATAGO_KEY', 'x')
+    monkeypatch.setattr(U, 'http_json', fake)
+    failed = []
+    got = U.fetch_holidays(prev, failed)
+    assert not failed
+    assert got == ['%d-12-25' % (yr - 1), '%d-01-01' % yr, '%d-01-01' % (yr + 1)], got
+
+
 def test_holidays_empty_200_response_counts_as_failure(monkeypatch):
     """HTTP 200 인데 items 가 빈 응답(키 만료 때 공공데이터포털이 실제로 주는 모양)도 실패로 다룬다.
 

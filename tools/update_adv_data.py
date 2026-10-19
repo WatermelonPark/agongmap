@@ -1039,7 +1039,10 @@ def fetch_holidays(prev=None, failed=None):
     if not DATAGO_KEY:
         return None
     yr = datetime.date.today().year
-    out = []
+    # 작년 공휴일은 저장분에서 이어 둔다(원천은 다시 묻지 않는다 — 호출 수 그대로). 예전엔 새해 첫 회차가 목록을 올해·내년으로
+    # 갈아 끼워, 1월 초에 아직 최신인 12월 조사 주의 발표 지연 판정(weekly_release.status 의 hedge — 성탄이 월요일인 해)을 잃었다.
+    # 홈 '반영 대기'와 감시 주간 나이 상한이 그 주에 헛경보를 낼 수 있었다(전수리뷰 A overflow). 목록은 늘 세 해까지다.
+    out = [d for d in (prev or []) if str(d).startswith('%d-' % (yr - 1))]
     for y in (yr, yr + 1):
         n0 = len(out)
         try:
