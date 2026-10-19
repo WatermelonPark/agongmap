@@ -120,12 +120,10 @@ def test_tag_rule_on_every_branch():
     for z, (_, want) in CASES.items():
         got = mv['tags'].get(z)
         assert (tuple(got[:2]) if got else None) == want, (z, got, want)
-    # 한 줄 요약은 전환한 시도만, 표시 순서대로
-    turned = [z for z in SZ.DISPLAY_ORDER if z in CASES and CASES[z][1] and CASES[z][1][1].endswith('전환')]
-    assert [z for z, _ in mv['turned']] == turned
-    assert mv['line'] == '지난주와 방향이 바뀐 곳: ' + ' · '.join(
-        '%s %s' % (z, CASES[z][1][1]) for z in turned)
-    assert WM.turned_line([]) == WM.LINE_NONE
+    # 전환한 시도 목록(news — 블로그 초안이 읽는다)은 전환한 시도만, 표시 순서대로
+    turned = [z for z in SZ.DISPLAY_ORDER if z in CASES and z not in SZ.AGG
+              and CASES[z][1] and CASES[z][1][1].endswith('전환')]
+    assert turned and [z for z, _ in WM.news(mv)['turned']] == turned
 
 
 def _grid_js(W, seen=None):
@@ -234,9 +232,9 @@ def test_weekly_page_head_has_no_sido_moves_and_table_uses_the_same_moves():
     W['seoul'] = Wr['seoul']
     W['holidays'] = []
     head = MW.build(W, Q)[0]
-    mv = WM.moves(W)
-    assert mv['line'] != WM.LINE_NONE, '픽스처에 전환이 없으면 그 줄이 되살아나도 가리지 못한다'
-    for bad in ('mm-tile', 'mm-tag', 'mm-moves', mv['line']):
+    turned = WM.news(WM.moves(W))['turned']
+    assert turned, '픽스처에 전환이 없으면 그 줄이 되살아나도 가리지 못한다'
+    for bad in ['mm-tile', 'mm-tag', 'mm-moves', '방향이 바뀐'] + ['%s %s' % (z, WM.TXT_TURN[k]) for z, k in turned]:
         assert bad not in head, '머리에 광역(시도) 단위가 되살아났다: %s' % bad
     table = MW.table_html(W, Q)
     rows = re.findall(r'<tr><th scope="row">([^<]+)</th><td[^>]*>([^<]+)</td><td[^>]*>[^<]*</td>'

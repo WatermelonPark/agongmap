@@ -138,7 +138,8 @@ def _weekly_head(w):
 # 공유 내용(ADV.weekly.share, B8)은 /weekly/ 공유 버튼과 같은 함수(make_weekly_page.share_payload)에서 온다. 결론 한 줄
 # (head)처럼 못 만들면 빼고 쪼갠다 — 홈은 없으면 공유 버튼 없이 그린다.
 # 시도 방향 표지(ADV.weekly.moves)와 최근 4주(recent)는 더 싣지 않는다 — 홈 주간 구역의 시도 칸을 걷고 시군구 지도로 바꿔
-# (2026-10-02 대표 요청) 읽는 곳이 없다. 표지는 /weekly/·블로그 초안이 weekly_moves 를 직접 불러 쓴다.
+# (2026-10-02 대표 요청) 읽는 곳이 없다. 표지(weekly_moves.moves·news)는 블로그 주간 초안만 직접 불러 쓰고, /weekly/ 시군구
+# 전체 표는 순위 이동(weekly_moves.rank_moves)만 쓴다.
 
 
 def _weekly_share(w):
