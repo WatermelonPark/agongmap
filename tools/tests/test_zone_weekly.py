@@ -569,6 +569,32 @@ def test_single_row_lead_drops_missing_pieces_and_order_note():
     assert '큰 곳부터' not in sec and '<h2>세종 주간 아파트 시세</h2>' in sec
 
 
+@pytest.mark.parametrize('ma,tail', [
+    ([-0.05] * 13 + [0.02], '매매는 이번 주 상승 전환입니다.'),            # 막 돌아선 주(앞 주 값 있음) — WM.tag 의 전환
+    ([-0.05] * 12 + [0.02, 0.02], '매매는 이번 주 상승입니다.'),           # 2주 — 'N주 연속'은 STREAK_MIN 주부터
+    ([None] * 13 + [-0.02], '매매는 이번 주 하락입니다.'),                 # 앞 주가 결측이면 전환이라 하지 않는다(tag 와 같다)
+    ([-0.01, 0.03] + [0.02] * 12, '매매는 13주 연속 상승입니다.'),
+    ([0.02] * 14, '매매는 14주 이상 연속 상승입니다.'),                    # 보관 이력 첫 주까지 닿은 연속
+    ([0.02] * 13 + [0.001], '매매는 이번 주 보합입니다.'),                 # 발표 표기 0.00
+])
+def test_single_row_lead_uses_the_weekly_tag_words(ma, tail):
+    """세종처럼 시·군·구가 없는 한 줄 표의 요약 끝말은 /weekly/·블로그 표지와 같은 규칙(WM.tag — 연속은 STREAK_MIN 주부터, 막 돌아선 주는
+    '상승 전환')이고, 표 머리·읽어 줄 이름에 '시군구'가 없다(전수리뷰 Z1-7). 재현한 실제 상태(10-15 배치 zone/세종): '…매매는 1주 연속
+    상승입니다.'(최근 52주 중 20주가 이 모양), 표 머리 <th>시군구</th>, aria-label '세종 시군구 주간 매매·전세 변동률'.
+    변이(실제로 확인): 끝말을 옛 '매매는 %d주%s 연속 …' 으로 되돌리면 전환·2주·결측 갈래가, 표 머리를 '시군구' 로 고정하면 머리 단정이
+    빨개진다. 여러 줄 표는 그대로 '시군구' 머리다.
+    픽스처: 합성 세종(b6) 14주 — 매매 계열만 갈래마다 바꾼다(전세는 늘 +0.03).
+    """
+    S = {'codes': ['b6'], 'rows': [{'p': p, 'ma': [v], 'je': [0.03]} for p, v in zip(_weeks('2031-01-06', 14), ma)]}
+    sec = M.weekly_section('세종', {'sgg': S}, {'b6': '세종'})
+    lead = _text(re.search(r'<p class="zwk-lead">(.*?)</p>', sec, re.S).group(1))
+    assert lead.endswith(tail) and '1주 연속' not in lead, lead
+    assert '<th rowspan="2">지역</th>' in sec and 'aria-label="세종 주간 매매·전세 변동률"' in sec, sec[:400]
+    assert '시군구' not in re.search(r'<table.*?</thead>', sec, re.S).group(0)
+    S2, Q2 = _sgg([0.1, -0.1], n=2)
+    assert '<th rowspan="2">시군구</th>' in M.weekly_section('서울', {'sgg': S2}, Q2)
+
+
 def test_link_goes_to_the_weekly_table_anchor_and_it_opens():
     """시도 리포트의 '전국 시군구 전체 표 →' 는 /weekly/ 표 앵커(MW.TABLE_URL)로 가고, /weekly/ 는 그 id 를 표 <details> 에 달고
     앵커로 들어오면 펼치는 스크립트를 싣는다(표가 접혀 있어 앵커만으로는 닫힌 요약 줄에 떨어진다).
