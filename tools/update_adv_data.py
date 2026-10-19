@@ -1924,14 +1924,18 @@ def permit_half_mismatch(permits, stats):
 def heal_permit_years(stats, permits, failed):
     """permit_half_mismatch 가 어긋난 해를 가장 늦은 해부터 PERMIT_HEAL_YEARS 해만 인허가·착공·준공 12달씩 다시 받아 병합한다.
     변경 토큰 목록(REVISION_MARK 포함)을 돌려준다. 받지 못했거나 받아도 어긋나면 failed 에 남긴다."""
-    years = sorted({int(h[:4]) for h, _, _, _ in permit_half_mismatch(permits, stats)}, reverse=True)
+    # ⚠️ 다 찬 해(12월이 STATS 인허가에 있는 해)만, 이미 있는 달만 고친다 — 다시 받기가 새 달을 덧붙이면 _hold_horizon(이 함수보다
+    # 앞에서 돈다)을 비켜 준공·착공의 끝 분기가 갈라질 수 있다(올해 상반기 칸이 그날 기본통계 조회 실패로 어긋난 회차 등).
+    have = {name: {_label_ym(d) for d in (stats.get(name) or {}).get('dates') or []} for name in PERMIT_HEAL_SERIES}
+    years = sorted({int(h[:4]) for h, _, _, _ in permit_half_mismatch(permits, stats)
+                    if (int(h[:4]), 12) in have.get('인허가', ())}, reverse=True)
     out = []
     for y in years[:PERMIT_HEAL_YEARS]:
         n = 0
         try:
             for name in PERMIT_HEAL_SERIES:
                 fetched, _ = _fetch_basic_one(name, 12, upto=(y, 12))
-                n += merge_basic(stats[name], fetched)
+                n += merge_basic(stats[name], {ym: v for ym, v in fetched.items() if ym in have[name]})
                 time.sleep(0.2)
         except Exception as e:
             print('basic 인허가: %d년 원천 정정 재수집 실패 — %s' % (y, e))

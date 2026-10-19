@@ -168,3 +168,31 @@ def test_live_data_mismatch_is_counted_by_the_same_function():
     assert adv.get('permits', {}).get('rows'), '투자지표 인허가를 못 읽었다 — 대조가 헛돈다'
     for p, reg, v, got in bad:
         assert re.match(r'^\d{4}H[12]$', p) and reg in adv['permits']['regions'] and round(got) != round(v)
+
+
+def test_heal_never_adds_months_or_touches_an_open_year(monkeypatch):
+    """다시 받기는 다 찬 해의 이미 있는 달만 고친다 — 새 달을 덧붙이면 앞에서 돈 _hold_horizon 을 비켜 준공·착공 끝 분기가 갈라진다.
+
+    재현하는 상태: 올해(픽스처 2026, 8월까지) 상반기 칸이 그날 기본통계 조회 실패로 투자지표와 어긋난 회차 — 예전 코드는 2026 을
+    upto=(2026,12)로 다시 받아 원천이 막 낸 착공 새 달(2026.09)을 덧붙였다. 다 찬 해(2025)의 재수집 응답에 섞인 픽스처 밖 달(2023.05)도
+    덧붙이지 않는다.
+    변이: heal_permit_years 의 `if (int(h[:4]), 12) in have.get('인허가', ())` 를 지우면 2026 호출 단정이, merge_basic 앞
+    `if ym in have[name]` 거르기를 지우면 덧붙인 달 단정이 빨개진다(각각 실제로 확인).
+    """
+    st = _stats()
+    D = st['인허가']
+    j6 = D['dates'].index('2026.06')
+    permits = _permits(st, [('2026H1', NAT, D['series'][NAT][j6] + 5)])
+    _, _, calls = _run_basic(monkeypatch, copy.deepcopy(st), permits, lambda name, upto: {(2026, 9): {NAT: 1}})
+    assert calls == [], '12월이 없는 올해를 다시 받았다: %s' % calls
+
+    st = _stats()
+    D = st['인허가']
+    i6, i12 = D['dates'].index('2025.06'), D['dates'].index('2025.12')
+    permits = _permits(st, [('2025H2', NAT, D['series'][NAT][i12] - D['series'][NAT][i6] + 10)])
+    before = {n: list(st[n]['dates']) for n in U.PERMIT_HEAL_SERIES}
+    _, _, calls = _run_basic(monkeypatch, st, permits,
+                             lambda name, upto: {(2025, 12): {NAT: 5}, (2023, 5): {NAT: 9}, (2026, 9): {NAT: 9}})
+    assert calls, '어긋난 다 찬 해를 다시 받지 않았다 — 거르기 단정이 헛돈다'
+    assert {n: st[n]['dates'] for n in U.PERMIT_HEAL_SERIES} == before, '다시 받기가 달을 덧붙였다'
+    assert all(st[n]['series'][NAT][i12] == 5 for n in U.PERMIT_HEAL_SERIES), '있는 달은 고쳐야 한다'
