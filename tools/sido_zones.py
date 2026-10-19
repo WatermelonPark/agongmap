@@ -343,6 +343,14 @@ def demol_of(by, year):
     return by[min(by, key=lambda y: (abs(y - year), y))]
 
 
+def um_times(um):
+    """미분양 배수(분기 적정물량 대비, 판정이 싣는 셋째 자리 값)를 화면이 '배'로 적는가 — 표기 '%.1f' 가 1.0 이상이면 'N.N배',
+    아니면 퍼센트(make_sido_pages.umx). 판정과 미분양이 어긋날 때의 경고(calc 의 uwarn)도 이 함수 하나로 가른다(전수리뷰 Z1-6) —
+    예전 uwarn 은 반올림 전 원값 1.0 으로 갈라, 0.95~0.999 는 카드에 '1.0배'로 찍히는데 경고가 없고 1.0 에는 같은 '1.0배'에 경고가
+    붙었다(저장값 1.0 인 원값 0.9995~1.0 도 '1.0배'인데 경고가 없었다)."""
+    return um is not None and float('%.1f' % um) >= 1
+
+
 def unsold_latest(stats, region):
     """가장 최근 미분양 호수와 그 시점. (호수, 'YYYY.MM') — 없으면 (None, None).
 
@@ -1035,6 +1043,7 @@ def calc(stats):
         #  '예측력'으로 오독하기 쉬운 자리라 수치를 남긴다.)
         # 대신 어긋남은 uwarn으로 드러낸다 — 숨기지 않되 순위는 건드리지 않는다.
         um = (un / float(ref)) if (un is not None and ref) else None
+        um = None if um is None else round(um, 3)   # 저장되는 값으로 화면 배수와 경고(uwarn)를 함께 정한다(um_times, 전수리뷰 Z1-6)
         # 표 아래 '인허가 1년' 참고 행은 여전히 최근 12개월 원값(pm12·pmr)을 보여준다.
         pm, _ = permit_trail12(stats, z)
         pmr = (pm / float(ref * 4)) if (pm is not None and ref) else None
@@ -1057,8 +1066,8 @@ def calc(stats):
             # 리포트 카드의 세 정수로 검산한 값과 1세대 어긋난다(경기 50,578 vs 50,579).
             'dtot': half_up(ref) * H - round(fut) - round(inow),
             'unsold': (None if un is None else round(un)),
-            'um': (None if um is None else round(um, 3)),
-            'uwarn': bool(um is not None and um >= 1.0 and g in ('g4', 'g3', 'g2')),
+            'um': um,
+            'uwarn': bool(um_times(um) and g in ('g4', 'g3', 'g2')),   # 화면이 'N.N배'로 적는 값부터 — umx 와 한 규칙
             'pm12': (None if pm is None else round(pm)),
             'pmr': (None if pmr is None else round(pmr, 3)),
             # 원값 그대로 싣는다 — 화면 정수(pbr_pct)는 원값에서 **한 번만** 반올림한다(전수리뷰 Z1-3·X1-2). 셋째 자리로 굳혀 두면
