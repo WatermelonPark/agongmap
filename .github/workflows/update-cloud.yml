@@ -695,8 +695,13 @@ jobs:
           #    그대로 두되 멘션을 붙여 사람이 이상을 알아채게 한다.
           if ! python3 tools/format_batch_report.py "$R" --kst "$KST"                  --run-url "$RUN" --owner "$OWNER" --weekday "$WD" --meta _report.meta > _report.md; then
             echo "::warning::알림 본문 생성 실패 — 옛 형식으로 보낸다"
-            # 본문을 못 만든 것 자체가 이상이다 — 메일을 보내고 제목에 그렇게 적는다.
-            printf '1\n🟡 알림 본문을 만들지 못함 · 세션이 확인 · 하실 일 없음\n' > _report.meta
+            # 본문을 못 만든 것 자체가 이상이다 — 메일을 보내고 제목에 그렇게 적는다. 기록에 ❌ 줄이 있으면 제목은 🔴 다
+            # (제목만 보고 판단하라는 설계 — 생성기 회귀가 형식기까지 죽인 회차가 🟡 로 나가면 안 된다, 전수리뷰 F-6).
+            if grep -q '^❌' "$R"; then
+              printf '1\n🔴 데이터 갱신 실패 · 알림 본문도 만들지 못함 · 하실 일 없음\n' > _report.meta
+            else
+              printf '1\n🟡 알림 본문을 만들지 못함 · 세션이 확인 · 하실 일 없음\n' > _report.meta
+            fi
             {
               echo "### 아공맵 배치 $KST KST"
               echo ""

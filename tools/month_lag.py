@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """월간 계열 중 기준월이 뒤처진 것을 배치 기록에 한 줄로 남긴다 (PM 요청 2026-09-16).
 
-왜 필요한가. 미분양은 원천(R-ONE)이 광주·전남 행을 주지 않아 2026.06 에 묶여 있다.
-그 달을 통째로 버리는 것은 의도된 동작이고, 신선도 점검도 배치와 **같은 완비 기준**을
+왜 필요한가. 원천이 한 지역 행을 빼고 내면 배치는 그 달을 통째로 버린다(2026-09 미분양이 옛 원천
+R-ONE 의 광주·전남 결측으로 2026.06 에 묶였던 일 — 10-07 KOSIS 로 옮겨 풀렸다, 백로그 39).
+그 달을 버리는 것은 의도된 동작이고, 신선도 점검도 배치와 **같은 완비 기준**을
 쓰기 때문에 실패로 잡지 않는다. 즉 방어선이 스스로를 못 본다. 그동안은 사람이 주 1회
 /monthly/ 를 눈으로 봐서 메웠다. 그 눈을 여기로 옮긴다.
 
@@ -42,15 +43,31 @@ ESCALATE_MONTHS = 3  # 이만큼이면 매 회차 알리고 멘션을 붙인다
 # 금리가 새 달로 넘어가는 매달 초마다 3개월 차이가 되어 매 회차 메일이 갔을 것이다(리뷰 2026-09-18).
 # 허용 시차는 감시(check_freshness)와 **같은 상수**에서 파생한다 — 두 방어선이 다른 기준으로 재면
 # 한쪽이 다른 쪽을 가린다(CLAUDE.md 데이터 원칙). 위 "가장 빠른 계열" 자체는 시차 0으로 본다.
-import check_freshness as CF   # noqa: E402
-import update_adv_data as U    # noqa: E402
-SLOW_ALLOWANCE = max(0, int(round((CF.GRACE_BASIC - CF.GRACE_MONTHLY) / 30.0)))
-SLOW_SERIES = frozenset(list(U.BASIC_CONF) + ['규모별'])   # 감시가 GRACE_BASIC 으로 보는 계열
+# ⚠️ check_freshness·update_adv_data 는 **처음 쓸 때** 불러온다(SLOW_ALLOWANCE·SLOW_SERIES 는 모듈 __getattr__).
+#    결과 보고(format_batch_report)가 MARK·ESCALATE_MONTHS 때문에 이 모듈을 부르는데, 맨 위에서 불러오면 감시를 거쳐
+#    생성기 십여 개가 따라 올라와, 생성기 하나의 불러오기 회귀가 보고까지 죽이고 실패 회차 메일 제목이 🔴 대신 🟡 로
+#    나갔다(전수리뷰 F-6, test_batch_report.test_report_formatter_imports_no_generator).
+
+
+def _slow():
+    import check_freshness as CF   # noqa: E402
+    import update_adv_data as U    # noqa: E402
+    return (max(0, int(round((CF.GRACE_BASIC - CF.GRACE_MONTHLY) / 30.0))),
+            frozenset(list(U.BASIC_CONF) + ['규모별']))   # 감시가 GRACE_BASIC 으로 보는 계열
+
+
+def __getattr__(name):
+    if name == 'SLOW_ALLOWANCE':
+        return _slow()[0]
+    if name == 'SLOW_SERIES':
+        return _slow()[1]
+    raise AttributeError(name)
 
 
 def allowance(name):
     """그 계열의 정상 시차(개월). 뒤처짐은 이만큼을 뺀 '정상을 넘은 개월'로 잰다."""
-    return SLOW_ALLOWANCE if name in SLOW_SERIES else 0
+    slow_allowance, slow_series = _slow()
+    return slow_allowance if name in slow_series else 0
 
 MARK = 'ℹ️'          # 실패·경고 표시가 아니다 — 형식기가 요일 규칙으로 싣는다
 # 뒤에 붙는 잠정치 표시('2026.07 p)')는 허용하되, 일 단위('2026-09-07')는 받지 않는다.

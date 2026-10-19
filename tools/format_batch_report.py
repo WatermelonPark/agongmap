@@ -35,7 +35,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import month_lag as ML  # noqa: E402  (뒤처짐 표시와 기준 개월을 한 곳에서 가져온다)
+import month_lag as ML  # noqa: E402  (뒤처짐 표시와 기준 개월을 한 곳에서 가져온다 — 생성기·감시는 끌어오지 않는다, F-6)
 
 # 상태 표시 → 심각도. 기록의 각 줄은 이 중 하나로 시작한다(rep() 호출부 참조).
 BAD = '❌'
