@@ -44,6 +44,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      # 러너 시스템 파이썬이 아니라 배치·감시와 같은 3.12 를 쓴다 — 러너 이미지가 바뀌어도 판이 같다(전수리뷰 F overflow,
+      # test_workflow_python.test_every_python_job_pins_setup_python).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
 
       - name: 오늘 쓸 글 정하기
         id: plan
@@ -54,7 +59,7 @@ jobs:
           import datetime, os
 
           # KST 기준으로 요일을 본다. UTC로 보면 금요일 알림이 목요일로 잡힌다.
-          kst = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+          kst = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=9)   # 옛 utc 호출은 3.12 에서 폐지 예고
           d = kst.date()
 
           # 화요일 격주 교대의 기준점. 2026-08-18(화)이 지역 편(대구) 차례다.
