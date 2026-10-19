@@ -972,3 +972,54 @@ def test_payload_sub_fields_are_exactly_what_readers_use(monkeypatch, tmp_path):
     for k in ('link1_new', 'link6_regional'):
         bad = [r for r in _fields(k, got[k]) if r != set(RC.SHIP_FIELDS[k])]
         assert not bad, '재산정: %s 에 읽지 않는 하위 값이 실렸다: %s' % (k, bad[0])
+
+
+# ---------------------------------------------------------------- 바뀐 날만 날짜를 올린다 (전수리뷰 C-5, 백로그 29)
+
+def test_cycle_date_moves_only_when_the_content_changes(monkeypatch, tmp_path):
+    """/cycle/ 의 JSON-LD dateModified 와 sitemap lastmod 는 데이터 칸이 실제로 바뀐 회차에만 오늘(KST)로 오른다.
+
+    조건이 풀리면 매일 배치가 /cycle/ 날짜·sitemap 을 오늘로 올려 매일 커밋·IndexNow 핑이 나가고 검색엔진에 '매일 갱신' 신호가
+    간다 — 게이트는 초록이었다(조건을 `if True:` 로 바꿔도 222 passed).
+    변이(실제로 확인): main 의 `if _strip_date(page) != _strip_date(RM.ensure(old)):` 를 `if True:` 로 바꾸면 같은 데이터 둘째
+    회차 단정이, `RM.ensure(old)` 를 `old` 로 바꾸면 로봇 메타 한 줄만 빠진 옛 판 단정이, 날짜 올리기·bump 를 지우면 값이 바뀐 회차
+    단정이 빨개진다.
+    픽스처: 저장소 페이지 사본과 저장소 STATS — ① 같은 데이터로 두 번, ② 전세가율 기준월의 서울 한 칸을 +0.7 바꾼 STATS,
+            ③ 로봇 메타 줄만 빠진 옛 판(D2 이전 페이지의 모양). 오늘은 가짜 날('1999-12-31')로 둔다.
+    """
+    import make_indicator_pages as I
+    fake = '1999-12-31'
+    bumps = []
+    page = tmp_path / 'index.html'
+    page.write_text(io.open(RF.PAGE, encoding='utf-8').read(), encoding='utf-8')
+    monkeypatch.setattr(RF, 'PAGE', str(page))
+    monkeypatch.setattr(RF, '_today_kst', lambda: fake)
+    monkeypatch.setattr(RF.I, 'bump_sitemap', lambda rows, *a, **k: bumps.append(list(rows)))
+    S = RF.load_stats()
+    monkeypatch.setattr(RF, 'load_stats', lambda: copy.deepcopy(S))
+
+    def date():
+        return re.search(r'"dateModified":\s*"([^"]*)"', page.read_text(encoding='utf-8')).group(1)
+    RF.main()                       # 첫 회차는 저장소 판이 이미 최신이면 그대로, 아니면 오늘로
+    d1, first = date(), bumps[:]
+    del bumps[:]
+    RF.main()                       # ① 같은 데이터 둘째 회차 — 날짜·sitemap 그대로
+    assert date() == d1 and bumps == [], '데이터가 그대로인데 날짜를 올렸다: %s %s' % (date(), bumps)
+    assert d1 == fake or not first, (d1, first)
+    # ③ 로봇 메타 한 줄만 빠진 옛 판 — 메타는 넣되 날짜는 그대로
+    txt = page.read_text(encoding='utf-8')
+    meta = re.search(r'<meta name="robots"[^>]*>\n', txt)
+    assert meta, '로봇 메타 줄이 없다 — 픽스처 전제가 깨졌다'
+    page.write_text(txt.replace(meta.group(0), '', 1), encoding='utf-8')
+    RF.main()
+    assert date() == d1 and bumps == [], '로봇 메타 한 줄 때문에 날짜를 올렸다'
+    assert '<meta name="robots"' in page.read_text(encoding='utf-8')
+    # ② 전세가율 한 칸이 바뀐 회차 — 오늘로, sitemap 도
+    page.write_text(page.read_text(encoding='utf-8').replace('"dateModified": "%s"' % d1, '"dateModified": "2000-01-01"'),
+                    encoding='utf-8')
+    S2 = copy.deepcopy(S)
+    k = I.jeonse_ref_index(S2['전세가율'], I.JEONSE_NEED)
+    S2['전세가율']['series']['서울'][k] += 0.7
+    monkeypatch.setattr(RF, 'load_stats', lambda: copy.deepcopy(S2))
+    RF.main()
+    assert date() == fake and bumps == [[('/cycle/', fake)]], (date(), bumps)
