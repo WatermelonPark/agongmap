@@ -1457,10 +1457,9 @@ def build_hub(calc, stats=None):
              ''
              '<div class="zlinks" id="sido-list">')
     for o in sido:
-        h.append('<a href="/zone/%s/" data-gi="%d" data-tot="%d"><b>%s</b>%s<i>%s</i>%s</a>'
-                 % (urllib.parse.quote(o['z']), SZ.GRADE_KEYS.index(o['grade']),
-                    disp_tot(o, calc['H']),
-                    esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
+        # 칸의 data-gi·data-tot(옛 정렬 토글이 읽던 등급·세대수)는 토글을 뺀 뒤 읽는 곳이 없어 걷었다(전수리뷰 Z1 overflow).
+        h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
+                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
                     card_html(o), gauge_html(o)))
     h.append('</div></div></section>')
     h.append('<section class="zread"><div class="wrap"><h2>읽는 법</h2>%s<p class="zg-note">%s</p>%s</div></section>'
