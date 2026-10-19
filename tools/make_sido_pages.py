@@ -1358,8 +1358,14 @@ def outlook_cells(yrs, ref_pct=None, ref_lab=None):
     return ''.join(cells)
 
 
-def outlook_aria(yrs):
-    return '적정 대비 입주 ' + ', '.join('%d년 차 %d%%' % (y['n'], y['pct']) for y in yrs)
+def outlook_aria(yrs, ref_pct=None, ref_lab=None):
+    """해마다 입주 그림(role=img)의 읽어 줄 글 — 그림 칸과 같은 값: 해마다의 퍼센트와 상태 낱말(적음·보통·많음 — 허브 신호등의
+    SZ.lights_aria 와 같은 꼴), '… 너머' 참고 칸이 있으면 그 퍼센트까지(전수리뷰 Z1-11). img 의 자식(막대 아래 상태 글자·회색 칸)은
+    보조기술에 읽히지 않아, 예전 글('적정 대비 입주 1년 차 96%, …')로는 그 지역이 적음·보통·많음 가운데 어디인지 들을 수 없었다."""
+    out = SZ.lights_aria(yrs)
+    if ref_pct is not None:
+        out += ', %s(참고) %d%%' % (ref_lab, ref_pct)
+    return out
 
 
 # ── 해마다 입주 신호등(2026-10-05 대표 요청 — '부족·균형 태그보다 신호등 3개로 3년을 한눈에') ─────────────────────────
@@ -1401,7 +1407,7 @@ def outlook_block(yrs, pbr=None, H=None):
     return ('<div class="zout"><h3>앞으로 해마다 들어올 입주(1년 적정물량 대비)</h3>'
             '<div class="zo zo-lg" role="img" aria-label="%s">%s</div>'
             '<p class="zo-note">가로선 = 1년 적정물량 · 1년 차 = %s~%s · 회색 = 참고값</p></div>'
-            % (esc(outlook_aria(yrs)), outlook_cells(yrs, ref_pct, beyond),
+            % (esc(outlook_aria(yrs, ref_pct, beyond)), outlook_cells(yrs, ref_pct, beyond),
                esc(SZ.quarter_text(y1['from'])), esc(SZ.quarter_text(y1['to']))))
 
 
