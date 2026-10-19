@@ -53,7 +53,7 @@
 | `site_nav.py` | 하단 탭바(홈·지역·시세·사이클)의 정본. 생성기는 `bottomnav()`로 굽고, 손 페이지 탭바는 손으로 맞추되 `test_site_nav`가 저장소의 모든 HTML 탭바를 대조한다. 탭 식별자(`stats` 등)는 GA 값이라 라벨을 바꿔도 그대로 둔다. 라벨 글자 크기도 여기(`LABEL_PX`)가 정본이다. 손 페이지(소개·FAQ·개인정보·퀴즈 랜딩·404) 푸터 `HAND_FOOTER`와 탭바 초점 규칙 `NAV_FOCUS_CSS`, 데스크톱 틀 `desk_link`·`desk_body`·왼쪽 목차 `dtoc`·`DTOC_JS`도 여기다(2026-10-06) |
 | `make_zone_cards.py`, `make_og_cards.py`, `make_weekly_share.py` | 공유용 이미지·OG 카드. 이미지 도구는 pillow 만 쓴다(numpy 등 금지). 디자인 감사·적용(`audit_design.py`·`apply_design.py`)은 `RADIUS_SHAPE`·`RADIUS_OK` 한 기준을 쓴다 |
 | `make_quiz_share_pages.py` | 퀴즈 점수별 정적 공유 페이지. 퀴즈 세트나 공유 이미지를 바꿨을 때 사람이 돌린다 |
-| `make_naver_post.py`, `make_theory_post.py <편번호>` | 네이버 블로그 초안 생성 → `drafts/`. 배치가 부르지 않고 사람이 발행 직전에 돌린다. 이론 초안은 편번호가 필수이고, 사람이 채운 기존 초안은 덮지 않고 `.new.html`에 쓴다(`--force`일 때만 덮음). 숫자는 `/cycle/`의 `D.prose`에서 읽고 전제가 정본과 어긋나거나 지수 단절이 있으면 멈춘다 |
+| `make_naver_post.py`, `make_theory_post.py <편번호>` | 네이버 블로그 초안 생성 → `drafts/`. 배치가 부르지 않고 사람이 발행 직전에 돌린다. 이론 초안은 편번호가 필수이고, 사람이 채운 기존 초안은 덮지 않고 `.new.html`에 쓴다(`--force`일 때만 덮음). 숫자는 `/cycle/`의 `D.prose`에서 읽고 전제가 정본과 어긋나거나 지수 단절이 있으면 멈춘다. 멈춤은 **그 편 초안만**이다 — 게이트 시험은 그 데이터 상태로 실패하지 않고, 배치 기록에 `batch_notes.theory_claim_lines`가 편마다 ℹ️ 한 줄로 알린다(1~7편 전제 가드의 정본 입구 `make_theory_post.guard_values`, 2026-10-18 대표 결정 — 09-30 '게이트도 멈춘다'를 대신함) |
 | `naver_serp.py` | 네이버 검색 API로 색인·순위 확인(`--index`, `--track`) |
 | `run_weekly_update.bat` | 로컬 배치 러너(Windows 작업 스케줄러). 실패 시 즉시 중단하고 종료 코드로 사유를 남긴다 |
 
