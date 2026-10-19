@@ -158,11 +158,13 @@ def _supply_region(full):
 # 정본은 과거 시계열을 합친 merge_regions.py 다 — 사본을 두면 이력 병합과 수집 병합이 서로
 # 다른 이름·가중치를 보게 된다.
 from merge_regions import SRC as _GJ_OLD, DST as _GJ_NEW, W_GJ  # noqa: E402
-from merge_regions import WEIGHTED as _GJ_WEIGHTED  # noqa: E402
+from merge_regions import WEIGHTED as _GJ_WEIGHTED, UNFOLDABLE as _GJ_UNFOLDABLE  # noqa: E402
 
 
-def _fold_gj(vals, weighted=False):
+def _fold_gj(vals, weighted=False, synth=True):
     """한 시점의 {지역: 값}에서 통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 접는다. vals를 고쳐 돌려준다.
+    synth=False 면(merge_regions.UNFOLDABLE — 주택보급률, 대표 결정 2026-10-18 D3) 두 조각으로 통합 값을 만들지 않는다 — 원천이
+    통합 행을 직접 줄 때만 남고 옛 두 이름은 빠진다.
 
     **수집 다섯 경로(아파트 인허가 표 · 기본통계 STATS · 분양·미분양 · 연간 계열 · 버블밴드 전월세전환율)가 이 함수
     하나를 쓴다**(연간·버블은 2026-09-30 전수리뷰 #1·#5에서 합류). 규칙이 경로마다
@@ -183,7 +185,7 @@ def _fold_gj(vals, weighted=False):
     옛 두 이름은 어느 경우에도 빠진다(저장 계열에는 통합 지역만 있다).
     """
     g, j = (vals.pop(k, None) for k in _GJ_OLD)
-    if _GJ_NEW not in vals and g is not None and j is not None:
+    if synth and _GJ_NEW not in vals and g is not None and j is not None:
         vals[_GJ_NEW] = round(W_GJ * g + (1 - W_GJ) * j, 2) if weighted else g + j
     return vals
 
@@ -1701,8 +1703,24 @@ def update_rate(stats):
 
 
 def _fetch_annual_one(name, years=None):
-    """{연도(str): {지역: 값}} 반환. 다년 요청이 40,000셀을 넘으면 연 단위로 쪼갠다
-       (노후주택30년은 지역×유형이 넓어 3년치가 한계다)."""
+    """{연도(str): {지역: 값}} 반환(광주·전남은 접은 뒤 — fold_annual). 원천 응답 그대로는 _fetch_annual_raw."""
+    return fold_annual(name, _fetch_annual_raw(name, years))
+
+
+def fold_annual(name, out):
+    """연간 응답 {연도: {지역: 값}}의 통합 전 두 이름(광주·전남)을 접는다(out 을 고쳐 돌려준다) — 기본통계·인허가 표·공급과 같은
+    함수(_fold_gj). 이게 없으면 merge_annual 의 지역 필터가 두 이름을 버려, 새 연도에 전남광주만 None 이 되고(멸실은
+    sido_zones.demol_of 가 직전 연도 값으로 조용히 대체한다) 3년 창 안의 원천 소급 정정도 전남광주에 실리지 않는다(전수리뷰 #1).
+    UNFOLDABLE 계열(주택보급률)은 조각으로 만들지 않는다(D3)."""
+    weighted, synth = name in _GJ_WEIGHTED, name not in _GJ_UNFOLDABLE
+    for vals in out.values():
+        _fold_gj(vals, weighted, synth)
+    return out
+
+
+def _fetch_annual_raw(name, years=None):
+    """원천 응답 {연도(str): {지역: 값}} — 옛 두 이름(광주·전남)이 있으면 그대로 둔다. 다년 요청이 40,000셀을 넘으면 연 단위로
+       쪼갠다(노후주택30년은 지역×유형이 넓어 3년치가 한계다)."""
     import datetime
     cfg = ANNUAL_CONF[name]
     n = years or ANNUAL_YEARS
@@ -1745,12 +1763,6 @@ def _fetch_annual_one(name, years=None):
             continue                       # 원천의 0 = 없음(ANNUAL_CONF 주석) — 값으로 싣지 않는다
         if len(y) == 4 and y.isdigit():
             out.setdefault(y, {})[reg] = v
-    # 통합 전 두 이름(광주·전남)을 접는다 — 기본통계·인허가 표·공급과 같은 함수(_fold_gj). 이게 없으면
-    # merge_annual 의 지역 필터가 두 이름을 버려, 새 연도에 전남광주만 None 이 되고(멸실은 sido_zones.demol_of 가
-    # 직전 연도 값으로 조용히 대체한다) 3년 창 안의 원천 소급 정정도 전남광주에 실리지 않는다(전수리뷰 #1).
-    weighted = name in _GJ_WEIGHTED
-    for vals in out.values():
-        _fold_gj(vals, weighted)
     return out
 
 
@@ -1796,6 +1808,29 @@ def blank_zero_cells(name, D):
     return n
 
 
+def blank_unfoldable(name, D, raw):
+    """UNFOLDABLE 계열(주택보급률)의 저장된 통합 지역 값 가운데 **두 조각에서 만든 것**을 지운다. 지운 칸 수(대표 결정 2026-10-18 D3).
+
+    원천이 이번 응답에서 아직 옛 두 조각(광주·전남)으로 주는 가장 늦은 해 hi 까지는 통합 전 해다 — 그 해들의 저장 통합 값은 원천이
+    준 것이 아니라 merge_regions(09-10)·옛 접기가 W_GJ 가중평균으로 만든 것이므로 지운다. 원천이 통합 행을 직접 준 해는 남긴다.
+    조각이 응답에 없으면(통합 뒤 해만 받는 날) 아무것도 지우지 않는다 — 이미 지운 뒤이고, 그 뒤의 값은 원천 통합 행이다.
+    배치가 매 회차 부르므로 PR 에 data.js 를 싣지 않아도 다음 배치가 이력을 비운다."""
+    if name not in _GJ_UNFOLDABLE:
+        return 0
+    arr = (D.get('series') or {}).get(_GJ_NEW)
+    pieces = [y for y, vals in raw.items() if any(k in vals for k in _GJ_OLD)]
+    if not arr or not pieces:
+        return 0
+    hi = max(pieces)
+    direct = {y for y, vals in raw.items() if _GJ_NEW in vals}
+    n = 0
+    for i, y in enumerate(D['dates']):
+        if i < len(arr) and arr[i] is not None and y <= hi and y not in direct:
+            arr[i] = None
+            n += 1
+    return n
+
+
 def update_annual(stats, failed=None):
     changed = []
     for name in ANNUAL_CONF:
@@ -1804,9 +1839,10 @@ def update_annual(stats, failed=None):
             continue
         n = blank_zero_cells(name, stats[name])      # 원천 조회와 무관한 저장분 정리 — 조회가 죽은 날도 돈다
         try:
-            fetched = _fetch_annual_one(name)
+            raw = _fetch_annual_raw(name)
             time.sleep(0.2)
-            n += merge_annual(stats[name], fetched, ANNUAL_CONF[name]['dec'])
+            n += merge_annual(stats[name], fold_annual(name, copy.deepcopy(raw)), ANNUAL_CONF[name]['dec'])
+            n += blank_unfoldable(name, stats[name], raw)
         except Exception as e:
             if failed is not None:
                 failed.append(name)
@@ -2237,9 +2273,11 @@ def main():
         assert name in ANNUAL_CONF, '계열: %s' % ', '.join(ANNUAL_CONF)
         assert KEY, 'KOSIS_API_KEY 환경변수 필요'
         st = read_current_stats()
-        fetched = _fetch_annual_one(name, years)
+        raw = _fetch_annual_raw(name, years)
+        fetched = fold_annual(name, copy.deepcopy(raw))
         D = st[name]
-        n = merge_annual(D, fetched, ANNUAL_CONF[name]['dec']) + blank_zero_cells(name, D)
+        n = (merge_annual(D, fetched, ANNUAL_CONF[name]['dec']) + blank_zero_cells(name, D)
+             + blank_unfoldable(name, D, raw))
         # ⚠️ 조회 범위 **안**에서만 지운다. 밖(더 옛 연도)은 '새 지표에 없다'가 아니라
         # '이번에 안 물어봤다'이다 — 이걸 구분하지 않아 아파트건설의 1970~1994년
         # 25셀을 한 번 날렸다(2026-08-08, 백업에서 복원).
