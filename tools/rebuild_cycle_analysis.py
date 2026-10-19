@@ -834,7 +834,12 @@ def super_prose(sp):
             'sup_fail_melt': str(fail['melt']),
             'sup_fail_done': str(fail['done']),
             'sup_ok_min': str(min(s['melt'] for s in ok)),
-            'sup_stock30': str(_man(sp['stock30_2024']))}
+            # 30년 이상 아파트 재고 — data.js 노후주택30년 전국의 첫 해·마지막 해(refresh_cycle_data.stock30, 전수리뷰 C-4)
+            'sup_s30_y0': str(sp['stock30']['from']),
+            'sup_s30_v0': str(_man(sp['stock30']['from_v'])),
+            'sup_s30_y': str(sp['stock30']['to']),
+            'sup_stock30': str(_man(sp['stock30']['to_v'])),
+            'sup_s30_x': str(SZ.half_up(float(sp['stock30']['to_v']) / sp['stock30']['from_v']))}
 
 
 def span_prose(zones):

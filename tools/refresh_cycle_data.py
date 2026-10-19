@@ -158,6 +158,46 @@ def build_overlay(S):
             'jratio': [jr.get(t) for t in ts]}
 
 
+def build_flow(S, prev):
+    """고리④⑤ '전국 아파트 공급 흐름'(cFlow) — 전국 인허가·착공·준공의 연 합(천 세대, 소수 첫째 자리). 열두 달이 다 찬 해만 쓴다.
+
+    예전 flow_chain 은 07-30 에 손으로 구운 뒤 아무도 다시 쓰지 않아, 새해 실적이 들어와도 2025 에서 멈추고 KOSIS 소급 정정이
+    오면 통계 탭과 갈렸다(전수리뷰 C-4). 인허가는 연내 누계라 SZ.permit_monthly 로 풀어 RC.m_y_sum, 착공·준공은 RC.y_sum —
+    사이클 재산정과 같은 합산 정본이다. 해 축은 인허가가 다 찬 해이고, 착공·준공이 열두 달 차지 않은 해(통계가 2010·2011 년에
+    시작)는 0 으로 둬 차트가 비운다(noZero). 인허가를 셀 수 없으면 어제 판을 둔다(배치를 멈추지 않는다).
+    """
+    pm = RC.m_y_sum(SZ.permit_monthly(S, '전국'))
+    if not pm:
+        print('  ⚠️ 전국 인허가에서 열두 달이 다 찬 해가 없다 — flow_chain 은 어제 판을 둔다')
+        return prev
+
+    def ysum(key):
+        b = S.get(key) or {}
+        ser = (b.get('series') or {}).get('전국')
+        return RC.y_sum(ser, b['dates']) if ser else {}
+    st, dn = ysum('착공'), ysum('준공')
+    ys = sorted(pm)
+    k = lambda v: round(v / 1000.0, 1)
+    return {'t': [int(y) for y in ys], 'permit': [k(pm[y]) for y in ys],
+            'start': [k(st.get(y, 0.0)) for y in ys], 'done': [k(dn.get(y, 0.0)) for y in ys]}
+
+
+def stock30(S, prev):
+    """참고④ '30년 이상 아파트는 Y0년 V0만 세대에서 Y년 V만 세대로 N배'의 재료 — 노후주택30년 전국의 첫 해·마지막 해(값이 있는 해).
+
+    손으로 적던 '2024년 252만·5배'는 data.js 에 2025(295만)가 들어온 뒤에도 그대로였다(전수리뷰 C-4). 연간 계열이라 값이 있는 해가
+    다 찬 해다. 계열을 못 읽으면 어제 판을 둔다.
+    """
+    b = S.get('노후주택30년') or {}
+    pts = [(int(str(d)[:4]), v) for d, v in zip(b.get('dates') or [], (b.get('series') or {}).get('전국') or [])
+           if v is not None]
+    if len(pts) < 2:
+        print('  ⚠️ 노후주택30년 전국 값이 두 해 미만 — super.stock30 은 어제 판을 둔다')
+        return prev
+    (y0, v0), (y1, v1) = pts[0], pts[-1]
+    return {'from': y0, 'from_v': v0, 'to': y1, 'to_v': v1}
+
+
 def build_jratio(S):
     """전세가율 최신월 기준 시도 스펙트럼 + 수도권·지방 평균."""
     D = S['전세가율']
@@ -335,6 +375,12 @@ def main():
     page = splice(page, 'zones', zones)
     page = splice(page, 'rate_overlay', overlay)
     page = splice(page, 'jratio_level', lvl)
+    prev = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+    page = splice(page, 'flow_chain', build_flow(S, prev.get('flow_chain')))
+    sup = dict(prev['super'])
+    sup['stock30'] = stock30(S, sup.get('stock30'))
+    sup.pop('stock30_2024', None)     # 옛 손 칸(2024 고정) — stock30 이 대신한다
+    page = splice(page, 'super', sup)
     # 전세가율 풀이 칸 — 차트와 같은 값으로 D.prose와 본문을 함께 갱신한다
     m = re.search(r'const D=(\{.*?\});\n', page, re.S)
     cur = json.loads(m.group(1))

@@ -847,3 +847,64 @@ def test_region_toggle_reports_its_state_to_assistive_tech(tmp_path):
     assert [b['pressed'] for b in b1] == ['false', 'true'] + ['false'] * (len(b1) - 2), b1
     for st, b in ((out['c5_0'], b0[0]), (out['c5_1'], b1[1])):
         assert st['role'] == 'img' and st['label'] and st['label'].endswith(b['text']), (st, b)
+
+
+# ---------------------------------------------------------------- 공급 흐름·노후 재고 (전수리뷰 C-4)
+
+def _advance_flows(S):
+    """인허가(연내 누계)·착공·준공을 마지막 달 뒤로 이어 그해(마지막 달이 12월이면 다음 해)를 열두 달 채우고, 노후주택30년에 다음
+    해를 하나 더한 사본. 돌려주는 값: (사본, 새로 다 찬 해)."""
+    S = copy.deepcopy(S)
+    last = S['인허가']['dates'][-1]
+    y, m = int(last[:4]), int(last[5:7])
+    if m == 12:
+        y, m = y + 1, 0
+    for key in ('인허가', '착공', '준공'):
+        blk = S[key]
+        assert blk['dates'][-1] == last, '세 계열의 마지막 달이 다르다 — 픽스처를 고칠 것'
+        for mm in range(m + 1, 13):
+            blk['dates'].append('%d.%02d' % (y, mm))
+            for r, ser in blk['series'].items():
+                prev = ser[-1] if (key == '인허가' and mm > 1 and ser[-1] is not None) else 0.0
+                ser.append(prev + 1000.0)
+    b = S['노후주택30년']
+    ny = int(str(b['dates'][-1])[:4]) + 1
+    b['dates'].append(str(ny))
+    for r, ser in b['series'].items():
+        ser.append(None if r != '전국' else (ser[-1] or 0) * 1.1)
+    return S, y, ny
+
+
+def test_flow_chain_and_old_stock_follow_data_js(monkeypatch, tmp_path):
+    """고리④⑤ 공급 흐름(D.flow_chain)과 참고④ '30년 이상 아파트 … N배'(D.super.stock30)는 매일 배치가 data.js 에서 다시 쓴다.
+
+    예전엔 둘 다 07-30 에 손으로 구운 값이라, 새해 실적·소급 정정이 와도 공급 흐름은 2025 에서, 본문은 '2024년 252만·5배'에서
+    멈췄다(data.js 에는 이미 2025 295만이 있었다).
+    변이(실제로 확인): main 의 flow_chain splice 를 지우면 전진 단정이, stock30 을 어제 판(prev)으로 두면 노후 재고 전진 단정이,
+    build_flow 의 연 합을 RC.y_sum 대신 열두 달을 따지지 않는 합으로 바꾸면 반쯤 찬 해 단정이 빨개진다.
+    픽스처: 저장소 STATS 를 마지막 달 뒤로 이어 그해를 다 채운 사본(새해 실적이 들어온 날)과, 그 직전(그해가 덜 찬) 상태.
+    """
+    S = RF.load_stats()
+    D, s = _page()
+    # 게이트 시점 페이지: 차트 데이터는 data.js 에서 다시 만든 값이다(생성기 뒤)
+    assert D['flow_chain'] == RF.build_flow(S, None), '공급 흐름 차트가 data.js 와 다르다 — refresh_cycle_data 를 돌릴 것'
+    assert D['super'].get('stock30') == RF.stock30(S, None) and 'stock30_2024' not in D['super']
+    last = S['인허가']['dates'][-1]
+    if last[5:7] != '12':
+        assert int(last[:4]) not in RF.build_flow(S, None)['t'], '덜 찬 해를 공급 흐름에 실었다'
+    S2, y, ny = _advance_flows(S)
+    (tmp_path / 'adv').mkdir()
+    D2 = _run_refresh(monkeypatch, tmp_path / 'adv', S2)
+    fc = D2['flow_chain']
+    assert fc['t'][-1] == y, '새로 다 찬 해(%d)를 공급 흐름에 싣지 않았다: %s' % (y, fc['t'][-3:])
+    pm = RC.m_y_sum(RF.SZ.permit_monthly(S2, '전국'))[str(y)]
+    assert fc['permit'][-1] == round(pm / 1000.0, 1) and fc['start'][-1] > 0 and fc['done'][-1] > 0, fc
+    st = D2['super']['stock30']
+    assert st['to'] == ny and st['from'] == int(str(S['노후주택30년']['dates'][0])[:4]), st
+    assert D2['prose']['sup_s30_y'] == str(ny) and D2['prose']['sup_stock30'] == str(RC._man(st['to_v']))
+    assert D2['prose']['sup_s30_x'] == str(RF.SZ.half_up(float(st['to_v']) / st['from_v']))
+    ref4 = _para(s, 'id="ref4"')
+    for k in ('sup_s30_y0', 'sup_s30_v0', 'sup_s30_y', 'sup_stock30', 'sup_s30_x'):
+        assert '<span data-d="%s">' % k in ref4, '참고 ④에 %s 칸이 없다' % k
+    bare = re.sub(r'<span data-d="[a-z0-9_]+">[^<]*</span>', '', ref4)
+    assert '2024년' not in bare and '5배' not in bare, '노후 재고 문장에 손으로 적은 해·배수가 남았다'
