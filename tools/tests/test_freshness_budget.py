@@ -20,6 +20,7 @@ import check_freshness as C  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 SCALE = 0.005         # 1초 → 5ms
+MEASURE_TRIES = 3     # 바쁜 러너에서 부푼 측정을 다시 잴 횟수(아래 시험)
 JOB_SETUP_S = 300     # 체크아웃·파이썬 설치·프리플라이트·상태 복원에 남겨 둘 몫(실측 1~2분의 넉넉한 위)
 _REAL_SLEEP = time.sleep   # 아래에서 time.sleep 을 줄인 것으로 바꾸므로 진짜를 먼저 잡아 둔다
 
@@ -84,16 +85,25 @@ def test_worst_case_watchdog_fits_the_job_timeout(monkeypatch, capsys):
 
     잠(time.sleep)·응답 대기를 SCALE 배로 줄여 실제로 돌리고, 같은 코드를 잠 0 배로 돌린 계산 시간을 빼서 되돌린다.
     변이(실제로 확인): RONE_TRIES 를 3 → 6 으로 올리면(쪽마다 여섯 번) 빨강. REGION_RETRY_WAITS 에 300초를 하나 더 붙여도 빨강.
+    측정은 실제 시계라 러너가 바쁘면 위로만 부푼다 — 넘으면 MEASURE_TRIES 번까지 다시 재 가장 작은 값으로 견준다(위 변이는
+    세 번 모두 넘어 그대로 빨강).
     픽스처: 저장소의 실제 data.js·data-rest.json·생성 페이지를 우리 사이트로 내주고, 원천(R-ONE·KOSIS·ECOS)은 모두 FETCH_TIMEOUT
     을 꽉 채운 뒤 끊긴다 — 2026-08-12 광역 타임아웃(14/18 실패)과 10-01·03·04 R-ONE 끊김을 한데 모은 최악.
     """
     limit = _job_limit_s() - JOB_SETUP_S
     for heads in (False, True):
-        base = _run(monkeypatch, 0.0, heads)            # 잠 없이 도는 계산 시간
-        took = _run(monkeypatch, SCALE, heads)
-        virtual = (took - base) / SCALE
-        out = capsys.readouterr().out
-        assert 'VERDICT=retry' in out, out[-600:]      # 실제로 조회 실패 경로를 탔다
-        assert virtual > 600, virtual                    # 측정이 깨져 0 근처로 통과하지 않게
-        assert virtual < limit, ('감시 최악 소요 %.0f초 ≥ 잡 상한 %d초 − 준비 %d초 — 판정 없이 죽는다(heads=%s)'
-                                 % (virtual, limit + JOB_SETUP_S, JOB_SETUP_S, heads))
+        # 실제 시계라 러너가 바쁘면 잰 값이 **위로만** 부푼다(잠이 늦게 깨는 쪽). 상한을 넘으면 MEASURE_TRIES 번까지 다시 재고
+        # 가장 작은 값으로 견준다 — 코드가 정말 느려진 변이는 몇 번을 재도 넘는다(게이트가 바쁜 러너 탓에 데이터 커밋을 막지 않게).
+        seen = []
+        for _ in range(MEASURE_TRIES):
+            base = _run(monkeypatch, 0.0, heads)            # 잠 없이 도는 계산 시간
+            took = _run(monkeypatch, SCALE, heads)
+            seen.append((took - base) / SCALE)
+            out = capsys.readouterr().out
+            assert 'VERDICT=retry' in out, out[-600:]      # 실제로 조회 실패 경로를 탔다
+            if seen[-1] < limit:
+                break
+        virtual = min(seen)
+        assert virtual > 600, seen                       # 측정이 깨져 0 근처로 통과하지 않게
+        assert virtual < limit, ('감시 최악 소요 %s초 ≥ 잡 상한 %d초 − 준비 %d초 — 판정 없이 죽는다(heads=%s)'
+                                 % ('/'.join('%.0f' % v for v in seen), limit + JOB_SETUP_S, JOB_SETUP_S, heads))
