@@ -75,12 +75,26 @@ def test_call_site_uses_the_canonical_sido_set():
         "섞여 있어 모든 달이 제외된다 — SUPPLY_SIDO를 쓸 것." % m.group(1))
 
 
-def test_batch_and_watchdog_measure_the_same_thing():
-    """감시(rone_latest_complete)와 배치가 같은 집합으로 완비를 재는지.
+def test_batch_and_watchdog_measure_the_same_thing(monkeypatch):
+    """감시(check_freshness.rone_latest_complete)와 배치(_drop_incomplete 에 넘기는 SUPPLY_SIDO)가 같은 집합으로 완비를 재는지 —
+    감시 함수를 직접 돌려 본다. 예전엔 감시의 식(WEEKLY_REGIONS − 집계 셋)을 이 시험에 다시 적어 대조해, 감시 쪽 식이 바뀌어도
+    이 시험은 몰랐다(전수리뷰 G2 overflow). 지금 감시는 U.SUPPLY_SIDO 를 그대로 읽는다.
 
     기준이 갈리면 배치는 일부러 안 받고 감시는 그걸 뒤처짐이라 하거나(오경보),
     반대로 배치가 멈춘 것을 감시가 못 본다(2026-09에 실제로 후자였다).
+    변이(실제로 확인): rone_latest_complete 의 want 에서 한 곳을 빼면(SUPPLY_SIDO 의 마지막 지역) 그 지역이 빠진 달을 완비로 쳐
+          빨개진다. want 에 원천에 없는 이름('기타지방')을 더하면 완비 달이 없어져 최신 달로 되돌아가 빨개진다.
+    픽스처: R-ONE 미분양 표 모양의 행('강원>계' 꼴) — 앞 달은 SUPPLY_SIDO 가 다 있고, 최신 달은 한 곳만 빠진 원천 응답.
     """
-    watchdog = {z for z in U.WEEKLY_REGIONS if z not in ('전국', '수도권', '지방')}
-    assert set(U.SUPPLY_SIDO) == watchdog, \
-        '배치와 감시의 시도 집합이 다르다: %s' % sorted(set(U.SUPPLY_SIDO) ^ watchdog)
+    import check_freshness as C
+    regs = list(U.SUPPLY_SIDO)
+
+    def rows(tbl, cycle, since=None):
+        out = []
+        for t, have in (('202606', regs), ('202607', regs[:-1])):
+            out += [{'WRTTIME_IDTFR_ID': t, 'CLS_FULLNM': '%s>계' % r, 'DTA_VAL': '100'} for r in have]
+        return out
+    monkeypatch.setattr(C, '_rone_rows', rows)
+    monkeypatch.setattr(C, '_COMPLETE_CACHE', {})
+    assert C.rone_latest_complete('T') == '202606', '배치가 보류하는 달(한 곳 빠짐)을 감시가 완비로 친다'
+    assert C.rone_latest_complete('T', since='x', want_total=True) == ('202606', 100.0 * len(regs))
