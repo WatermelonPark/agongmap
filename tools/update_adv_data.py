@@ -1881,7 +1881,7 @@ def update_basic(failed=None):
     if _hold_horizon(stats, before, failed):
         changed[:] = [t for t in changed if t not in {tokens.get(k) for k in before}]
     try:
-        changed += update_size(stats)
+        changed += update_size(stats, failed)
     except Exception as e:
         failed.append('규모별'); print('size skip:', e)
     try:
@@ -2015,7 +2015,9 @@ def _size_series(rows, is_idx):
     return out
 
 
-def update_size(stats):
+def update_size(stats, failed=None):
+    """규모별 표 넷을 받아 STATS['규모별'] 을 다시 만든다(직전 값과 칸 단위로 병합 — build_size). failed 에는 build_size 가 남기는
+    부분 실패(응답에서 빠져 직전 값을 지킨 지역)가 붙는다."""
     metrics = {}
     for name, tbl, is_idx in SIZE_TBLS:
         rows = kosis({'orgId': '408', 'tblId': tbl, 'objL1': '01', 'objL2': 'ALL',
@@ -2024,7 +2026,7 @@ def update_size(stats):
         time.sleep(0.2)
         metrics[name] = _size_series(rows, is_idx)
     old = copy.deepcopy(stats.get('규모별'))
-    stats['규모별'] = build_size(metrics, stats.get('규모별') or {})
+    stats['규모별'] = build_size(metrics, stats.get('규모별') or {}, failed)
     # 값이 그대로면 토큰을 내지 않는다 — 매 회차 '규모별(N)'이 changed 를 채우면 rc=3 판정(`and not changed`)이
     # 무뎌지고 커밋 메시지도 헛 변경을 적는다(전수리뷰 #2).
     if json.dumps(old, sort_keys=True, ensure_ascii=False) == json.dumps(stats['규모별'], sort_keys=True, ensure_ascii=False):
@@ -2032,11 +2034,19 @@ def update_size(stats):
     return ['규모별(%d)' % len(stats['규모별']['dates'])]
 
 
-def build_size(metrics, prev):
+def build_size(metrics, prev, failed=None):
     """{지표: {지역: {PRD_DE: [6]}}} → STATS['규모별'] 페이로드. 가드에 걸리면 RuntimeError.
 
     예외로 올리는 이유: 예전엔 print 뒤 []를 돌려줘 '변경 없음'과 겉모습이 같았다. 지금은
     update_basic이 받아 .fetch_failed 에 남긴다(배치 알림의 ℹ️ 줄).
+
+    ⚠️ 직전 페이로드(prev)와 (지표·지역·달) 칸 단위로 **병합**한다(전수리뷰 A-3). 축은 이번 응답이 정하고(매 회차 SIZE_MONTHS
+    달을 다시 받는다 — 축이 끝없이 늘지 않는다), 이번 응답에 **없는** 칸(그 지역의 그 달 항목이 통째로 없다)만 직전 값을 지킨다.
+    예전엔 통째로 갈아 끼워, 원천이 광주·전남 옛 두 행을 빼고 통합 행을 새 달에만 내자(2026-09-28 전환율 N0009) 그 회차 응답 안의
+    조각만으로 만든 전남광주 이력이 61달 중 1달로 줄었다 — 가드는 지역 키가 있는지만 봤다. 지수 3종은 전월비라 직전 칸을 그대로
+    이어도 바탕이 섞이지 않는다(통합 첫 달은 같은 바탕의 전달 수준이 없어 비워 둔다 — _size_fold_old).
+    응답에서 지역이 통째로 빠졌는데 직전 값이 있으면 직전 값을 지키고 failed 에 '규모별:<지역> 응답 빠짐(직전 값 유지)'을 남긴다
+    (.fetch_failed → 배치 알림 ℹ️ 줄). 직전 값도 없으면 예전처럼 채택하지 않는다(가드).
     """
     dates = set()
     for per in metrics.values():
@@ -2045,15 +2055,25 @@ def build_size(metrics, prev):
     # 공통 시간축: 지수 변동률이 시작되는 달부터 (전환율의 2011~ 과거는 싣지 않음)
     base = min(min(s) for s in metrics['매매'].values())
     ds = sorted(d for d in dates if d >= base)
-    series = {}
-    for name, _, _ in SIZE_TBLS:
-        series[name] = {reg: [metrics[name].get(reg, {}).get(d) for d in ds]
-                        for reg in WEEKLY_REGIONS if reg in metrics[name]}
-    # ⚠️ 전면 대체가 아니라 **병합**이다. 예전엔 이 자리에서 통째로 갈아 끼워,
-    # KOSIS가 한 번만 부분 응답을 주면 20지역×60개월이 1지역×5개월로 조용히
-    # 쪼그라들었다(2026-08-07 감사). 기존 계열보다 얕으면 채택하지 않는다.
     _pd = prev.get('dates') or []
     _nd = ['%s.%s' % (d[:4], d[4:6]) for d in ds]
+    old = {}       # {지표: {지역: {달 라벨: 직전 칸}}}
+    for name, per in (prev.get('series') or {}).items():
+        for reg, arr in (per or {}).items():
+            old.setdefault(name, {})[reg] = {lab: v for lab, v in zip(_pd, arr or []) if v is not None}
+    series, kept = {}, []
+    for name, _, _ in SIZE_TBLS:
+        series[name] = {}
+        for reg in WEEKLY_REGIONS:
+            new, was = metrics[name].get(reg), (old.get(name) or {}).get(reg)
+            if new is None and not was:
+                continue                      # 응답에도 직전에도 없다 — 아래 lack 가드
+            if new is None:
+                kept.append(reg)
+            series[name][reg] = [(new or {}).get(d) if (new or {}).get(d) is not None else (was or {}).get(lab)
+                                 for d, lab in zip(ds, _nd)]
+    # 기존 계열보다 얕으면 채택하지 않는다 — KOSIS가 한 번만 부분 응답을 주면 20지역×60개월이 1지역×5개월로 조용히
+    # 쪼그라들었다(2026-08-07 감사). 칸 병합은 축이 아니라 칸을 지키므로 이 가드는 그대로 둔다.
     _nr = [r for r in WEEKLY_REGIONS if r in series['매매']]
     if _pd and len(_nd) < len(_pd) * 0.8:
         raise RuntimeError('규모별 GUARD: %d개월 -> %d개월로 급감해 채택하지 않음(KOSIS 부분 응답 의심)'
@@ -2066,6 +2086,10 @@ def build_size(metrics, prev):
     if lack:
         raise RuntimeError('규모별 GUARD: 모델 지역 %d곳 중 %s 빠짐 — 채택하지 않음(직전 값 유지)'
                            % (len(WEEKLY_REGIONS), ', '.join(lack)))
+    for reg in sorted(set(kept), key=WEEKLY_REGIONS.index):
+        print('size %s: 응답에서 빠진 지표가 있어 직전 값을 지킨다(이번 달 칸은 빈다)' % reg)
+        if failed is not None and '규모별:%s 응답 빠짐(직전 값 유지)' % reg not in failed:
+            failed.append('규모별:%s 응답 빠짐(직전 값 유지)' % reg)
     return {
         'dates': _nd,
         'sizes': SIZE_LABELS,
@@ -2080,10 +2104,11 @@ def build_size(metrics, prev):
         'regions': _nr,
         'unit': '전월 대비 % (전환율은 %)',
         'source': '한국부동산원 전국주택가격동향조사(월간) · 아파트',
-        # 계산법 공개: 통합 지역을 원천 통합값이 없는 달에 어떻게 잇는지 화면 각주(※)에 싣는다.
-        'note': ('지수 3종은 전월 대비 변동률, 전월세전환율은 수준(%%) · %s는 원천이 통합 값을 내지 않은 '
-                 '달을 %s·%s 값의 가중평균(%s 몫 %.3f)으로 잇는다'
-                 % (_GJ_NEW, _GJ_OLD[0], _GJ_OLD[1], _GJ_OLD[0], W_GJ)),
+        # 계산법 공개: 통합 지역을 원천 통합값이 없는 달에 어떻게 잇는지 화면 각주(※)에 싣는다. 지역은 화면 이름(SZ.disp — 백로그 46,
+        # 전수리뷰 H2-12)이고, 조사가 이름 받침에 기대지 않는 어순으로 쓴다.
+        'note': ('지수 3종은 전월 대비 변동률, 전월세전환율은 수준(%%) · %s 통합 값을 원천이 내지 않은 달은 '
+                 '옛 두 지역(%s·%s) 값의 가중평균(%s 몫 %.3f)으로 잇는다'
+                 % (SZ.disp(_GJ_NEW), _GJ_OLD[0], _GJ_OLD[1], _GJ_OLD[0], W_GJ)),
         'series': series}
 
 
