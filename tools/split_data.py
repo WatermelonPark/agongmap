@@ -78,8 +78,6 @@ CORE_ONLY_ADV = ('blog', 'fresh', 'zname')   # fresh: 모드 단추 N 배지(202
 # permits 가 data-core 에서 빠진 뒤(2026-09-27 B11)에도 통계 탭 파일(data-trend.json)이 같은 규칙으로 싣는다.
 KEEP_PERMITS = ('regions', 'ref', 'rows', 'note')
 
-# 홈 통합표가 그리는 구간·지역. 적정물량 기준표와 같은 시작점(2017)이다.
-TABLE_FROM = '2017.01'
 TABLE_STATS = ('준공', '착공')
 # 주간 '반영 대기' 판정 유예(일). 감시(check_freshness)와 같은 상수를 홈이 읽게 ADV.weekly.grace 로 싣는다
 # (홈 마케팅 검수 A2, 2026-09-27). 홈 JS 가 9 를 따로 적으면 감시를 옮길 때 화면과 감시가 갈린다.
@@ -93,6 +91,9 @@ from weekly_release import GRACE_WEEKLY  # noqa: E402
 import kst as _kst  # noqa: E402
 import sido_zones as _SZ  # noqa: E402
 TABLE_REGIONS = set(_SZ.ORDER)
+# 홈 통합표가 그리는 구간의 첫 달. 시도 리포트 분기 표(make_sido_pages.TABLE_FROM)·통계 탭 입주물량(supply_rows)과 같은 정본
+# sido_zones.TABLE_FROM_YEAR 에서 만든다(전수리뷰 X1 overflow — '2017'이 세 곳에 따로 박혀 있었다). 적정물량 기준표와 같은 시작점이다.
+TABLE_FROM = '%d.01' % _SZ.TABLE_FROM_YEAR
 # 이번 주 결론 한 줄(ADV.weekly.head, 홈 마케팅 검수 B1·IA-4). /weekly/ 제목과 같은 함수(make_weekly_page.conclusion)
 # 에서 만들어 싣고 홈은 읽기만 한다. 생성기를 못 불러오면 head 없이 쪼갠다 — 홈은 head 가 없으면 띠를 데이터 없는
 # 기본 문구로 두고 주간 h2 는 고정 질문으로 둔다(옛 캐시와 같은 동작). 게이트 시험이 head 가 실리는지 본다.

@@ -1134,6 +1134,11 @@ def calc(stats):
             'unsold_prd': un_prd, 'permit_prd': permit_ref_month(stats), 'missing': missing, 'agg_warn': warn, 'Ltxt': quarter_text(qkey(L)), 'zones': sorted(out, key=lambda x: DISPLAY_ORDER.index(x['z']))})
 
 
+# 표가 시작하는 해(그해 1월·1분기부터). 시도 리포트 분기 표(make_sido_pages.TABLE_FROM)·홈 통합표(split_data.TABLE_FROM — 홈
+# TB_FROM 은 그 거울)·통계 탭 입주물량(supply_rows)이 이 한 값을 쓴다(전수리뷰 X1 overflow). 적정물량 기준표와 같은 시작점이다.
+TABLE_FROM_YEAR = 2017
+
+
 def supply_rows(stats):
     """통계 탭 '입주물량'과 /moveins/가 쓸 분기 시계열 — **홈 표와 같은 소스**.
 
@@ -1151,7 +1156,7 @@ def supply_rows(stats):
     regs = [z for z in ORDER]
     dn = {z: quarterly(stats, '준공', z) for z in regs}
     st = {z: quarterly(stats, '착공', z) for z in regs}
-    start = qidx(2017, 1)
+    start = qidx(TABLE_FROM_YEAR, 1)
     rows = []
     for i in range(start, S + LEAD_Q + 1):
         fut = i > L

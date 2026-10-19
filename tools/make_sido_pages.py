@@ -38,9 +38,9 @@ import robots_meta as RM          # noqa: E402  검색 로봇 메타 정본(홈 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
 GA = 'G-3FJNG6G1F3'
-# 표 시작. 홈 통합표(index.html TB_FROM = 2017.01)와 같은 지점이어야 한다 —
-# 두 화면이 같은 지역을 다른 구간으로 그리면 숫자를 맞춰보는 사람이 어긋난 걸 본다.
-TABLE_FROM = SZ.qidx(2017, 1)
+# 표 시작. 홈 통합표(split_data.TABLE_FROM, 홈 TB_FROM 거울)와 같은 지점이어야 한다 —
+# 두 화면이 같은 지역을 다른 구간으로 그리면 숫자를 맞춰보는 사람이 어긋난 걸 본다. 정본 SZ.TABLE_FROM_YEAR(전수리뷰 X1 overflow).
+TABLE_FROM = SZ.qidx(SZ.TABLE_FROM_YEAR, 1)
 
 # 등급 색. 라벨은 여기 적지 않는다 — 정본 sido_zones.GRADE_LABS 에서 만든다(전수 리뷰 #17·#115). 예전엔 라벨을 손으로 옮긴
 # 사본이라, 사다리를 바꿀 때 GRADE_LABS·홈만 고치면 리포트 배지·제목·허브만 옛 이름으로 남고 아무것도 빨개지지 않았다.
