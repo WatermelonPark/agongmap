@@ -148,14 +148,12 @@ def build_zones(S):
 def build_overlay(S):
     ma = quarterly(S['매매지수'], '수도권', OVERLAY_FROM)
     je = quarterly(S['전세지수'], '수도권', OVERLAY_FROM)
-    jr = quarterly(S['전세가율'], '수도권', OVERLAY_FROM)
     rt = quarterly(S['금리'], 'CD(91일)', OVERLAY_FROM, nd=2)
     ts = sorted(t for t in ma if t in rt)
     return {'t': ts,
             'maemae': [ma[t] for t in ts],
             'jeonse': [je.get(t) for t in ts],
-            'rate': [rt[t] for t in ts],
-            'jratio': [jr.get(t) for t in ts]}
+            'rate': [rt[t] for t in ts]}
 
 
 def build_flow(S, prev):
@@ -214,7 +212,7 @@ def build_jratio(S):
     rows = [(r, D['series'][r][k]) for r in SIDO
             if D['series'][r][k] is not None]
     rows.sort(key=lambda x: x[1])
-    lvl = [{'region': r, 'val': round(v, 1), 'sudo': r in SUDO,
+    lvl = [{'region': r, 'val': round(v, 1),
             'type': '투자성' if v < 60 else ('중간' if v < 73 else '실거주성')}
            for r, v in rows]
     sudo = [v for r, v in rows if r in SUDO]
@@ -381,6 +379,11 @@ def main():
     sup['stock30'] = stock30(S, sup.get('stock30'))
     sup.pop('stock30_2024', None)     # 옛 손 칸(2024 고정) — stock30 이 대신한다
     page = splice(page, 'super', sup)
+    # 페이지가 읽지 않는 하위 값은 싣지 않는다(RC.SHIP_FIELDS — 재산정만 쓰는 키도 매일 깎는다, 전수리뷰 C-11)
+    prev = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+    for k in RC.SHIP_FIELDS:
+        if k in prev and RC.ship(k, prev[k]) != prev[k]:
+            page = splice(page, k, RC.ship(k, prev[k]))
     # 전세가율 풀이 칸 — 차트와 같은 값으로 D.prose와 본문을 함께 갱신한다
     m = re.search(r'const D=(\{.*?\});\n', page, re.S)
     cur = json.loads(m.group(1))

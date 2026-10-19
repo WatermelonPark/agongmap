@@ -567,6 +567,38 @@ def cycle_strength(P):
 KEYS = ('sync', 'link1_new', 'link3_regional', 'link6_regional', 'cycle_strength',
         'prose')
 
+# 페이지 D 의 키마다 싣는 하위 필드(전수리뷰 C-11). 페이지 스크립트·본문 칸(page_prose)·블로그 이론편(make_theory_post)이 읽는
+# 것만 둔다 — 09-12 에 최상위 키 12개를 걷어 낸 뒤에도 rate_overlay.jratio(매일 47분기)·jratio_level[].sudo·link6_regional[].p·
+# link1_new.r·p·lag·super.need_annual·stock2030_2024 처럼 아무도 읽지 않는 하위 값이 남아 있었다. 틀려도 화면이 멀쩡해 아무도
+# 모른다. 재산정(splice)과 매일 배치(refresh_cycle_data)가 이 목록으로 D 를 깎고, 시험이 D 와 이 목록이 같은지 본다.
+# 분석 결과 전체(p·lag·n 등)는 보관 분석(tools/data/cycle_analysis.json)에 남는다.
+SHIP_FIELDS = {
+    'sync': ('region', 'corr', 'sudo'),                            # c6 막대·색
+    'link1_new': ('levels', 'jeonse_rise'),                        # cL1 · 1·2편 · drift
+    'link3_regional': ('region', 'r', 'sudo'),                     # cL3 막대·색·툴팁
+    'link6_regional': ('region', 'r', 'lag', 'zone', 'sig', 'lagtxt'),   # cL6 · link6_lag_prose · 6편
+    'cycle_strength': ('region', 'score'),                         # cStr · strength_prose
+    'jratio_level': ('region', 'val', 'type'),                     # c4 · jratio_prose
+    'zones': ('t', 'maemae', 'jeonse'),                            # c5 (지역마다)
+    'rate_overlay': ('t', 'maemae', 'jeonse', 'rate'),             # cRate · 7편
+    'flow_chain': ('t', 'permit', 'start', 'done'),                # cFlow
+    'super': ('timeline', 'peak_year', 'peak_units', 'acc_8895', 'reach_2845_total', 'reach_2845_avg',
+              'melt_scenarios', 'recent_melt', 'stock30'),         # cSuper·cMelt · super_prose
+}
+
+
+def ship(key, v):
+    """페이지 D 의 key 값을 SHIP_FIELDS 로 깎는다. 목록에 없는 키는 그대로."""
+    f = SHIP_FIELDS.get(key)
+    if f is None:
+        return v
+    if key == 'zones':
+        return {r: {k: z[k] for k in f if k in z} for r, z in v.items()}
+    if isinstance(v, list):
+        return [{k: x[k] for k in f if k in x} for x in v]
+    return {k: v[k] for k in f if k in v}
+
+
 # 계산은 하되 페이지에는 싣지 않는 값. 본문에 이미 글자로 적혀 있어 D에 두면
 # 같은 숫자를 두 곳에 보관하는 셈이고, 방문자는 읽지도 않을 5KB를 받게 된다.
 # 대신 ANALYSIS 파일에 남겨 다음 재산정 때 견주고 시험이 본문과 대조한다.
@@ -981,6 +1013,9 @@ def splice(page, D):
     cur['prose'].update(page_prose(cur))
     for k in DROP:
         cur.pop(k, None)
+    for k in SHIP_FIELDS:
+        if k in cur:
+            cur[k] = ship(k, cur[k])
     broken = claim_breaks(cur)
     if broken:
         raise SystemExit('쓰지 않았다 — /cycle/ 손 문장의 전제가 깨졌다: %s. cycle/index.html 문장(과 claim_breaks)을 먼저 고칠 것.'
