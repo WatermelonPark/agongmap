@@ -898,6 +898,13 @@ def link6_lag_prose(rows):
             'l6p_sudo': '·'.join(SZ.disp(r) for r in SZ.ORDER if r in sudo)}
 
 
+def span_years(zones):
+    """자료 기간의 햇수(span_y '2006~2026' → 20). 메타 설명·블로그의 '14개 시도 N년'이 이 값이다 — 손으로 적은 '20년'은 새해 자료가
+    들어와도 그대로였다(전수리뷰 C overflow)."""
+    a, b = span_prose(zones)['span_y'].split('~')
+    return int(b) - int(a)
+
+
 def page_prose(D):
     """페이지 D 에서 바로 나오는 본문 칸 전부."""
     out = strength_prose(D['cycle_strength'])
@@ -1043,7 +1050,8 @@ def splice(page, D):
     if unused:
         raise RuntimeError('어느 본문 칸도 쓰지 않는 prose 값: %s' % ', '.join(unused))
     # 메타 설명은 속성이라 칸을 둘 수 없다 — 같은 값으로 문구 속 숫자만 바꾼다
-    out = re.sub(r'\d+개 시도 20년', prose['n_panel'] + '개 시도 20년', out)
+    # 햇수는 매일 배치(refresh_cycle_data.fill_meta_span)가 자료 기간에서 채운다 — 여기서는 곳 수만 바꾼다
+    out = re.sub(r'\d+개 시도 (\d+)년', lambda mm: '%s개 시도 %s년' % (prose['n_panel'], mm.group(1)), out)
     open(page, 'w', encoding='utf-8', newline='\n').write(out)
     return len(cur)
 

@@ -1023,3 +1023,57 @@ def test_cycle_date_moves_only_when_the_content_changes(monkeypatch, tmp_path):
     monkeypatch.setattr(RF, 'load_stats', lambda: copy.deepcopy(S2))
     RF.main()
     assert date() == fake and bumps == [[('/cycle/', fake)]], (date(), bumps)
+
+
+# ---------------------------------------------------------------- '14개 시도 N년'의 햇수 (전수리뷰 C overflow)
+
+def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
+    """'14개 시도 20년'의 햇수는 자료 기간(D.zones → RC.span_years)에서 나온다. 생성기가 쓰는 자리(/cycle/ 메타 설명·og·JSON-LD,
+    블로그 초안 '더 보기')는 그 값이고, 손 페이지(홈 사이클 배너·FAQ)의 손 햇수는 그 값을 넘지 않는다(넘으면 과장 — 자료 기간은
+    해마다 늘기만 하므로 이 단정은 데이터가 앞으로 가도 초록이다).
+
+    변이(실제로 확인): refresh_cycle_data.main 에서 fill_meta_span 호출을 지우면 한 해 전진 단정이, make_naver_post 의 햇수를
+    옛 손 숫자 20 으로 되돌리면 블로그 단정(전진 사본)이, 홈 배너 햇수를 99 로 바꾸면 손 페이지 단정이 빨개진다.
+    픽스처: 게이트 시점 페이지 D·머리, 그 D 의 zones 끝 분기를 한 해 뒤로 민 페이지 사본(새해 자료가 들어온 날), 홈·FAQ 원문.
+    """
+    import home_src as HS
+    import make_naver_post as P
+    D, s = _page()
+    n = RC.span_years(D['zones'])
+    a, b = D['prose']['span_y'].split('~')
+    assert n == int(b) - int(a) and n > 0
+    head = s[:s.find('</head>')]
+    metas = re.findall(r'\d+개 시도 (\d+)년', head)
+    assert len(metas) >= 3 and set(metas) == {str(n)}, '/cycle/ 머리의 햇수가 자료 기간과 다르다: %s vs %d' % (metas, n)
+    assert P.CYCLE_SPAN_N == n
+    assert any('%d개 시도 %d년 데이터' % (P.CYCLE_SYNC_N, n) in r['desc'] for r in P.MORE_ROTATION)
+    # 새해 자료가 들어온 날 — 햇수가 따라 오른다
+    adv = copy.deepcopy(D)
+    for z in adv['zones'].values():
+        z['t'] = [t + 1 for t in z['t']]
+    assert RC.span_years(adv['zones']) == n
+    z0 = next(iter(adv['zones'].values()))
+    z0['t'].append(z0['t'][-1] + 1)
+    z0['maemae'].append(z0['maemae'][-1])
+    z0['jeonse'].append(z0['jeonse'][-1])
+    assert RC.span_years(adv['zones']) == n + 2
+    monkeypatch.setattr(RF, 'build_zones', lambda S: copy.deepcopy(adv['zones']))
+    page = tmp_path / 'index.html'
+    page.write_text(s, encoding='utf-8')
+    monkeypatch.setattr(RF, 'PAGE', str(page))
+    monkeypatch.setattr(RF.I, 'bump_sitemap', lambda *a, **k: None)
+    RF.main()
+    head2 = page.read_text(encoding='utf-8')
+    head2 = head2[:head2.find('</head>')]
+    assert set(re.findall(r'\d+개 시도 (\d+)년', head2)) == {str(n + 2)}, '새해 자료가 들어와도 메타 햇수가 그대로다'
+    monkeypatch.setattr(P, 'cycle_d', lambda: adv)
+    assert P._cycle_span_years() == n + 2
+    # 손 페이지 — 과장하지 않는다
+    home = HS.home_source()
+    faq = io.open(os.path.join(ROOT, 'faq', 'index.html'), encoding='utf-8').read()
+    hand = [('홈 배너', re.findall(r'<div class="hs-kicker">\d+개 시도 · (\d+)년</div>', home)),
+            ('홈 배너 설명', re.findall(r'(\d+)년 데이터로 검증한 순환', home)),
+            ('FAQ', re.findall(r'검증한 시도의 (\d+)년 데이터', faq))]
+    for where, got in hand:
+        assert got, '%s 의 햇수 자리를 못 찾았다 — 문구를 바꿨으면 이 시험도 고칠 것' % where
+        assert all(int(x) <= n for x in got), '%s 이 자료 기간(%d년)보다 긴 %s년을 말한다' % (where, n, got)
