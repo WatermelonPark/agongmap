@@ -79,10 +79,10 @@ def _unsold():
             'series': {r: [1000.0 + i, 1100.0 + i, 1130.0 + i] for i, r in enumerate(regs)}}
 
 
-def _jeonse(skip=('2025.12',)):
-    """2025.01~2026.08 에서 skip 달이 빠진 전세가율. 값은 달마다 0.7 씩, 지역마다 1.0 씩 다르다. 기준월(2026.08)에 +0.04, 1년 전
+def _jeonse(skip=('2025.12',), second=False):
+    """2025.01~2026.08 에서 skip 달이 빠진 전세가율. 값은 달마다 0.7 씩, 지역마다 1.0 씩 다르다. second 면 기준월(2026.08)에 +0.04, 1년 전
     (2025.08)에 +0.06 의 둘째 자리를 얹는다 — 전남광주 가중평균 계열 같은 실제 모양이라 '1년 변화'의 표시값 차(정본 jeonse_delta,
-    64.0 − 55.7 = 8.3)와 원값 차(8.38 → 8.4)가 갈린다."""
+    64.0 − 55.7 = 8.3)와 원값 차(8.38 → 8.4)가 갈린다. 기본은 첫째 자리뿐(다른 파일이 원값을 표 칸과 바로 견주며 가져다 쓴다)."""
     dates = _months('2025.01', '2026.08', skip)
     regs = list(dict.fromkeys(list(SZ.ORDER) + ['전국', '수도권', '지방'] + list(I.SIDO17)))
     ser = {}
@@ -90,7 +90,7 @@ def _jeonse(skip=('2025.12',)):
         ser[r] = []
         for lab in dates:
             y, m = (int(x) for x in lab.split('.'))
-            ser[r].append(round(50.0 + i + 0.7 * ((y - 2025) * 12 + m) + {'2026.08': 0.04, '2025.08': 0.06}.get(lab, 0), 2))
+            ser[r].append(round(50.0 + i + 0.7 * ((y - 2025) * 12 + m) + ({'2026.08': 0.04, '2025.08': 0.06}.get(lab, 0) if second else 0), 2))
     return {'dates': dates, 'series': ser}
 
 
@@ -133,7 +133,7 @@ def test_monthly_unsold_with_the_month_present_still_compares():
 
 
 def test_monthly_jeonse_compares_with_the_same_month_a_year_ago():
-    jr = _jeonse()
+    jr = _jeonse(second=True)
     secs, _ = MP.build({}, {'전세가율': jr})
     sec = _section(''.join(secs), 'jeonse')
     for r, cells in _rows(sec).items():
@@ -153,7 +153,7 @@ def test_monthly_jeonse_without_the_year_ago_month_leaves_it_blank():
 
 # ── /jeonse-ratio/ · 시도 리포트 카드 ────────────────────────────────────
 def test_jeonse_page_compares_with_the_same_month_a_year_ago():
-    jr = _jeonse()
+    jr = _jeonse(second=True)
     html, _ = I.build_jeonse({'전세가율': jr})
     nat = _val(jr, '전국', '2026.08')
     ago = _val(jr, '전국', '2025.08')
@@ -171,7 +171,7 @@ def test_jeonse_page_survives_a_missing_year_ago_month():
 
 
 def test_zone_card_compares_with_the_same_month_a_year_ago():
-    jr = _jeonse()
+    jr = _jeonse(second=True)
     z = next(r for r in SZ.ORDER if r not in SZ.AGG)
     html = SP.next_links(z, None, {'전세가율': jr})
     want = _shown_delta(_val(jr, z, '2026.08'), _val(jr, z, '2025.08'))
