@@ -27,9 +27,10 @@
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import sido_zones as SZ  # noqa: E402  화면 이름 정본(DISPLAY_NAME) — 그리는 글자만 바꾸고 파일 이름은 키 그대로
 
 W, H = 1200, 630
 
@@ -51,7 +52,7 @@ OUT_DIR = os.path.join(ROOT, 'share')
 
 # 칩은 '시도'라고 못 박지 않는다 — 목록에 전국·수도권·지방 같은 집계도 섞여 있다.
 CHIP = '아공맵 지역 리포트'
-SUB = '필요한 집 vs 들어올 집'
+SUB = '적정물량 vs 들어올 집'   # 기준 물량은 '적정물량' 한 이름(2026-10-06 대표 결정 — 옛 '필요한 집', 전수리뷰 Z1-5)
 # 2026-08-06 재편 반영: 미래 공급을 인허가가 아니라 착공 실적으로 센다.
 FOOT = '준공·착공 실적으로 본 아파트 공급'
 
@@ -74,6 +75,12 @@ def fit_width(text, target, weight='Bold', hi=140, lo=40):
         else:
             hi = mid - 1
     return font(best, weight)
+
+
+def label(name):
+    """카드에 그리는 지역 이름 — 화면 이름 정본 SZ.disp('전남광주' → '광주·전남', 백로그 46·전수리뷰 Z1-5·P-2). 파일 이름
+    share/zone-<키>.png 는 make_sido_pages 가 og:image 로 키를 찾으므로 그대로 둔다."""
+    return SZ.disp(name)
 
 
 def zone_names():
@@ -125,11 +132,12 @@ def make(name):
     d.text((MX + px - cbb[0], 66 + py - cbb[1]), CHIP, font=cf, fill=WHITE)
 
     # 지역명 — 아이콘 왼쪽까지만 쓰고, 그 폭에 맞춰 크기를 잡는다.
+    shown = label(name)
     tw = max(320, icon_left - 40 - MX)
-    hf = fit_width(name, tw, hi=140)
-    hbb = d.textbbox((0, 0), name, font=hf)
+    hf = fit_width(shown, tw, hi=140)
+    hbb = d.textbbox((0, 0), shown, font=hf)
     y1 = 176
-    d.text((MX - hbb[0], y1 - hbb[1]), name, font=hf, fill=INK)
+    d.text((MX - hbb[0], y1 - hbb[1]), shown, font=hf, fill=INK)
     name_bottom = y1 + (hbb[3] - hbb[1])
 
     # 부제
@@ -146,7 +154,11 @@ def make(name):
     d.text((W - MX - (dbb[2] - dbb[0]), fy + 22), dom, font=df, fill=RED)
 
     out = os.path.join(OUT_DIR, 'zone-%s.png' % name)
-    img.convert('RGB').save(out, 'PNG', optimize=True)
+    # 그린 이름·부제를 PNG 글 칸에 함께 싣는다 — 시험(test_zone_cards)이 커밋된 카드가 지금 도구의 글자와 같은지 읽는다(그림은 못 읽는다)
+    meta = PngImagePlugin.PngInfo()
+    meta.add_text('label', shown)
+    meta.add_text('sub', SUB)
+    img.convert('RGB').save(out, 'PNG', optimize=True, pnginfo=meta)
     return out
 
 
