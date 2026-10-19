@@ -31,7 +31,8 @@ def _series():
            ('금리', last['금리'], C.MAX_AGE_RATE),
            ('전월세전환율', adv['bubble']['prd'], C.MAX_AGE_BUBBLE_CONV),
            ('주담대 금리', adv['bubble']['loan']['p'], C.MAX_AGE_BUBBLE_LOAN)]
-    out += [(n, last[n], C.MAX_AGE_BASIC) for n in sorted(U.BASIC_CONF) + ['규모별'] + sorted(U.SUPPLY_CONF)]
+    out += [(n, last[n], C.MAX_AGE_BASIC) for n in sorted(U.BASIC_CONF) + sorted(U.SUPPLY_CONF)]
+    out += [(C.SIZE_LABEL % n, last[C.SIZE_LABEL % n], C.MAX_AGE_BASIC) for n, _, _ in U.SIZE_TBLS]   # 표마다(A-2)
     out += [(n, last[n], C.MAX_AGE_ANNUAL) for n in sorted(U.ANNUAL_CONF)]
     # 시도 지표(ADV.sido.L)는 분기 표기('2026Q2')라 period_end 가 못 읽는다 — main() 과 같이 분기 끝날(_q_to_date)로 잰다
     out.append(('시도 지표', C._q_to_date(adv['sido']['L']), C.MAX_AGE_SIDO_Q))

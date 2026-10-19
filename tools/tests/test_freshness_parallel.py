@@ -78,6 +78,9 @@ def _live():
     for f in ('data-rest.json', 'data-size.json'):
         stats.update(json.load(open(os.path.join(ROOT, f), encoding='utf-8'))['STATS'])
     last = {k: C.digits((v.get('dates') or [''])[-1]) for k, v in stats.items()}
+    # 규모별은 표마다 그 지표에 값이 있는 마지막 달이 우리 최신이다(감시 size_checks — 전수리뷰 A-2)
+    for name, lab in U.size_last(stats.get('규모별') or {}).items():
+        last[C.SIZE_LABEL % name] = C.digits(lab)
     return adv, last
 
 
@@ -87,7 +90,8 @@ def _kosis_tables():
     out = {}
     for n, c in list(U.BASIC_CONF.items()) + list(U.ANNUAL_CONF.items()):
         out.setdefault(c['tbl'], []).append(n)
-    out.setdefault(U.SIZE_TBLS[0][1], []).append('규모별')
+    for name, tbl, _ in U.SIZE_TBLS:          # 규모별은 표 넷을 따로 본다(전수리뷰 A-2)
+        out.setdefault(tbl, []).append(C.SIZE_LABEL % name)
     return out
 
 

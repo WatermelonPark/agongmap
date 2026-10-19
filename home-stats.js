@@ -498,8 +498,6 @@ function drawSizePivot(){
   document.getElementById('stat-matrix').innerHTML='';
   {const _o=window.Chart&&Chart.getChart('statChart'); if(_o)_o.destroy();} statChartObj=null;   // 표만 그린다(#53)
   const reg=ST.reg||D.regions[0];
-  let idx=D.dates.map((_,i)=>i);
-  if(ST.years>0)idx=idx.filter(i=>i>=D.dates.length-ST.years*12);
   const mets=D.metrics.filter(m=>SZ.met.has(m));
   const sizes=[...SZ.siz].sort((a,b)=>a-b);
   const short=s=>s.replace(/㎡/g,'');
@@ -516,6 +514,14 @@ function drawSizePivot(){
     }
   });
   const val=c=>i=>{const a=(D.series[c.m][reg]||[])[i];return a?a[c.si]:null;};
+  /* 축(D.dates)은 네 표 시점의 합집합이라 끝 달이 전환율에만 있을 수 있다 — 고른 지표·규모 칸이 모두 빈 **끝** 달은 줄과
+     기간 줄에서 뺀다(가운데 빈 달은 그대로 둔다). 예전엔 매매·전세를 고른 표 첫 줄이 빈 '26.7'이고 기간 줄이 '~2026년 7월'이라
+     7월 가격 자료가 있는 것처럼 읽혔다(전수리뷰 H2-10). 고른 칸이 하나도 안 찬 지역이면 예전처럼 축 전체를 보인다. */
+  let end=D.dates.length-1;
+  while(end>=0&&!cols.some(c=>val(c)(end)!=null))end--;
+  if(end<0)end=D.dates.length-1;
+  let idx=D.dates.map((_,i)=>i).filter(i=>i<=end);
+  if(ST.years>0)idx=idx.filter(i=>i>end-ST.years*12);
   // grp: 세로 블록 경계(szgrp)를 붙일지 — 세로 모드에서만 참. 전치 모드는 행이
   // 한 조합이라 c.first를 그대로 쓰면 그 행 전체에 세로선이 그려진다(실사고).
   const cell=(c,v,grp)=>{

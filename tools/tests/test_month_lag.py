@@ -72,9 +72,12 @@ def test_real_data_is_readable_and_agrees_with_the_stored_series():
     months = L.monthly_months(adv, sts)
     assert len(months) >= 5, '월간으로 잡힌 계열이 너무 적다 — 모양 판별이 헛돈다'
     for name, ym in months.items():
-        assert ym == L.month_of((sts.get(name) or {}).get('dates', [None])[-1]
-                                if name in sts else
-                                adv[name]['rows'][-1]['p']), name
+        d = sts.get(name) or {}
+        if d.get('metrics'):    # 규모별 피벗은 가장 뒤처진 지표의 값 있는 마지막 달(전수리뷰 A-2, test_size_latest)
+            want = min(L.month_of(v) for v in L.U.size_last(d).values())
+        else:
+            want = L.month_of(d.get('dates', [None])[-1] if name in sts else adv[name]['rows'][-1]['p'])
+        assert ym == want, name
 
 
 # ── 계열별 정상 시차(리뷰 2026-09-18 20번) ───────────────────────────────────
