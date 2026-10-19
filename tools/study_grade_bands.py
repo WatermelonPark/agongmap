@@ -22,6 +22,10 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else None
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import sido_zones as SZ  # noqa: E402
 import rebuild_cycle_analysis as RC  # noqa: E402  (지수 연속성 검사 — 사이클 재산정과 같은 문턱)
+import kst  # noqa: E402
+
+# 조회·표본의 끝 연도는 오늘(KST)에서 — 박아 두면 그 해가 지난 뒤 재현에서 새 분기를 버린다(전수 리뷰 Z1 overflow).
+END_Y = kst.today().year
 
 st = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)',
                           io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read(),
@@ -32,7 +36,7 @@ RC.require_continuous(st, 'study_grade_bands')
 
 # ---- 물가: ECOS 901Y009 총지수, 분기 ----
 k = os.environ['ECOS_API_KEY']
-u = ('https://ecos.bok.or.kr/api/StatisticSearch/%s/json/kr/1/400/901Y009/Q/2006Q1/2026Q4/0' % k)
+u = ('https://ecos.bok.or.kr/api/StatisticSearch/%s/json/kr/1/400/901Y009/Q/2006Q1/%dQ4/0' % (k, END_Y))
 rows = json.loads(urllib.request.urlopen(u, timeout=40).read().decode('utf-8'))['StatisticSearch']['row']
 CPI = {SZ.qidx(int(r['TIME'][:4]), int(r['TIME'][5])): float(r['DATA_VALUE']) for r in rows}
 
@@ -66,7 +70,7 @@ for z in SIDO:
     if not dn or not sq:
         continue
     lo_dn, lo_st = min(dn), min(sq)
-    for L in range(SZ.qidx(2010, 1), SZ.qidx(2026, 4)):
+    for L in range(SZ.qidx(2010, 1), SZ.qidx(END_Y, 4)):
         # 과거 재고창이 준공 자료 안에, 미래 공급이 L 시점에 이미 알려진 착공 안에 있어야 한다
         if L - W + 1 < lo_dn or L - H + 1 < lo_st:
             continue
