@@ -2305,6 +2305,18 @@ class _SidoHeld(Exception):
     """시도 점수 가드(H ≠ lead)에 걸려 입주물량 갱신도 건너뛴다는 신호. 실패가 아니라 보류다."""
 
 
+def sido_guard(sd, n_old=0):
+    """시도 점수 sd 를 채택하면 안 되는 까닭 — 'shrink'(지역이 모델보다 적거나 직전 n_old 곳보다 줄었다) | 'h'(준공·착공 끝 분기가
+    갈라져 미래 시야 H ≠ lead) | None. --update(main)와 --seed-sido 가 같은 판정을 쓴다 — 예전 --seed-sido 는 가드 없이 ADV.sido·
+    occupancy 를 써서, 그 상태로 make_sido_pages 가 ABORT 하거나 /zone/ 이 지역을 잃을 수 있었다(전수리뷰 A overflow)."""
+    n_new = len(sd.get('zones') or [])
+    if n_new < len(SZ.ORDER) or (n_old and n_new < n_old):
+        return 'shrink'
+    if sd.get('H') != sd.get('lead'):
+        return 'h'
+    return None
+
+
 def main():
     # 기본값을 --update로. --dry-run 핸들러는 사라졌는데 기본 인자만 남아
     # 인자 없이 실행하면 AssertionError로 죽었다(2026-08-07 감사).
@@ -2429,7 +2441,14 @@ def main():
         # 산식이나 적정물량 상수를 고친 뒤 데이터를 즉시 맞출 때 쓴다.
         import sido_zones
         st = read_current_stats()
-        adv['sido'] = sido_zones.calc(st)
+        sd = sido_zones.calc(st)
+        why = sido_guard(sd)       # 직전과의 비교(n_old)는 빼고 모델·시야만 본다 — 모델이 지역을 합칠 때(09-10) 다시 굽는 길이다
+        if why:
+            raise SystemExit('sido GUARD(--seed-sido): %s — 쓰지 않는다(지역 %d곳/모델 %d곳 · 미래 시야 %s분기/정상 %s, 준공 %s·착공 %s)'
+                             % ({'shrink': '지역이 빠졌다', 'h': '준공·착공의 끝 분기가 갈라졌다'}[why],
+                                len(sd.get('zones') or []), len(sido_zones.ORDER), sd.get('H'), sd.get('lead'),
+                                sd.get('L'), sd.get('S')))
+        adv['sido'] = sd
         adv.pop('livezone', None)   # 생활권 31곳 체제 잔재 (2026-08-06 폐기)
         # ⚠️ occupancy(통계 탭 입주물량·/moveins/)도 같은 함수에서 나온다. 여기서 같이
         # 갱신하지 않으면 산식을 고친 뒤 홈만 새 값, 통계 탭은 옛 값이 된다 —
@@ -2604,14 +2623,15 @@ def main():
         # sido_zones.ORDER가 알고 있으므로 절대 기준으로도 본다.
         want = len(sido_zones.ORDER)
         gone = sorted(sd.get('missing') or [])
-        if n_new < want or (n_old and n_new < n_old):
+        why = sido_guard(sd, n_old)      # --seed-sido 와 같은 판정
+        if why == 'shrink':
             if not gone and n_old:
                 gone = sorted({z['z'] for z in adv['sido']['zones']} - {z['z'] for z in sd['zones']})
             print('sido GUARD: 지역이 %d곳뿐이라 채택하지 않음(%d곳이어야 함, 직전 %d곳). 빠진 곳: %s '
                   '(통계 부분 응답 의심. zone 페이지·sitemap 보존)'
                   % (n_new, want, n_old, ', '.join(gone) or '?'))
             failed.append('sido-shrink')
-        elif sd.get('H') != sd.get('lead'):
+        elif why == 'h':
             # 가드: 준공·착공의 끝 분기가 갈라진 점수(미래 시야 H ≠ lead)는 채택하지 않는다. 그런 점수는
             # 전 지역 비율이 함께 움직인 값이고 make_sido_pages 가 어차피 ABORT 한다. 옛 점수·입주물량을
             # 지키고 부분 실패('sido-h')로만 남긴다 — rc=3 판정(failed)에는 넣지 않는다(2026-09-26 데이터
