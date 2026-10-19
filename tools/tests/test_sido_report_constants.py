@@ -78,3 +78,30 @@ def test_permit_ratio_is_measured():
     no_permit = {k: v for k, v in st.items() if k != '인허가'}
     html2, _, _ = _page(stats=no_permit)
     assert '착공보다' not in html2 and '해마다 크게 흔들리기 때문입니다' in html2
+
+
+def _pm_row(html):
+    m = re.search(r'<tr class="zref" data-ref="pm">(.*?)</tr>', html, re.S)
+    assert m, "'인허가 1년' 참고 행을 못 찾았다"
+    return [re.sub(r'<[^>]+>', '', c) for c in re.findall(r'<td[^>]*>(.*?)</td>', m.group(1), re.S)]
+
+
+def test_permit_year_row_names_its_month_and_rounds_half_up():
+    """표 아래 '인허가 1년' 참고 행이 미분양 행처럼 기준 달('2026년 8월 기준 · …', 날짜 두 단계의 읽는 꼴)을 적고, 퍼센트는 화면 정수
+    정본 rnd(half_up)로 찍는다(전수리뷰 Z1 overflow — 창의 끝 달을 버리고 '%.0f' 로 짝수 쪽 반올림했다).
+    기준 달은 판정(calc)이 실은 permit_prd(= SZ.permit_ref_month, '3년 너머' 창과 같은 달)이고, 그 칸이 없는 옛 판정(다음 배치 전)은
+    달 없이 굽는다.
+    변이(실제로 확인): 행에서 기준 달 조각을 빼면 첫 단정이, 퍼센트를 '%.0f%%' 로 되돌리면 0.925(=92.5%) 단정이 빨개진다.
+    픽스처: 저장소 STATS 로 새로 돌린 판정(지금 코드), 서울 행의 pmr 만 0.925(100배가 이진수로 정확히 92.5)로 바꾼 사본, permit_prd 를 뺀 사본.
+    """
+    html, calc, st = _page()
+    assert calc['permit_prd'] == SZ.permit_ref_month(st) and calc['permit_prd'], calc.get('permit_prd')
+    cells = _pm_row(html)
+    assert cells[3] == '%s 기준 · 착공 전 단계의 선행 물량' % SZ.month_text(calc['permit_prd']), cells
+    row = [z for z in calc['zones'] if z['z'] == '서울'][0]
+    assert cells[2] == '%d%%' % SZ.half_up(row['pmr'] * 100), cells
+    adv, _ = P.load()
+    c2 = dict(calc, zones=[dict(z, pmr=0.925) if z['z'] == '서울' else z for z in calc['zones']])
+    assert _pm_row(P.build_page('서울', c2, st, P.price_quarters(adv), c2['zones']))[2] == '93%'
+    c3 = {k: v for k, v in calc.items() if k != 'permit_prd'}
+    assert _pm_row(P.build_page('서울', c3, st, P.price_quarters(adv), c3['zones']))[3] == '착공 전 단계의 선행 물량'
