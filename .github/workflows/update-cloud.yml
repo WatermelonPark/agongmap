@@ -327,11 +327,13 @@ jobs:
             # 번호 순서로 1번이 이겼다. 파일이 없으면 0(실패 없음). awk 는 일치가 없어도 0으로 끝나 bash -e 에서 안전하다.
             nf=0; [ -f "$d/.fetch_failed" ] && nf=$(awk -F, '{for(i=1;i<=NF;i++) if($i ~ /[^[:space:]]/) n++} END{print n+0}' "$d/.fetch_failed")
             echo "후보 $d: weekly=${wk:--} monthly=${mo:--} sidoL=${sl:--} H=${sh:--}/${sld:--} 기준복구=${bok} 원천실패=${nf}"
+            # 시야 정합(hok)이 첫째 키다(전수리뷰 F overflow). 주간이 새것이어도 어긋난 산출물을 고르면 make_sido_pages 가 ABORT 해
+            # 그날 커밋 전체가 막힌다 — 정합한 러너가 한 주 묵은 주간을 가졌어도 그것을 커밋하고 다음 회차가 주간을 따라잡는 편이 낫다.
             newer=0
             if [ -n "$wk" ]; then
-              if [ -z "$BEST" ] || [ "$wk" \> "$BEST" ]; then newer=1
-              elif [ "$wk" = "$BEST" ] && [ -n "$mo" ] && [ "$mo" \> "$BESTMO" ]; then newer=1
-              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" \> "$BESTHOK" ]; then newer=1
+              if [ -z "$BEST" ] || [ "$hok" \> "$BESTHOK" ]; then newer=1
+              elif [ "$hok" = "$BESTHOK" ] && [ "$wk" \> "$BEST" ]; then newer=1
+              elif [ "$hok" = "$BESTHOK" ] && [ "$wk" = "$BEST" ] && [ -n "$mo" ] && [ "$mo" \> "$BESTMO" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" \> "$BESTBOK" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" = "$BESTBOK" ] && [ "$nf" -lt "$BESTNF" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" = "$BESTBOK" ] && [ "$nf" = "$BESTNF" ] && [ -n "$sl" ] && [ "$sl" \> "$BESTSL" ]; then newer=1
