@@ -446,7 +446,7 @@ def test_no_hand_counted_faq_size_or_data_span():
     for m in re.finditer(r'(\d+)\s*문답', s):
         assert int(m.group(1)) == n_faq, '/cycle/ 이 FAQ 를 %s문답이라 부르지만 실제 %d개다' % (m.group(1), n_faq)
     hero = s[s.find('<header class="hero">'):s.find('</header>')]
-    assert re.search(r'<span data-d="span_y">\d{4}[~–]\d{4}</span> 분기·연', hero), '자료 기간이 칸이 아니다'
+    assert re.search(r'<span data-d="span_y">\d{4}~\d{4}</span> 분기·연', hero), '자료 기간이 칸이 아니다'
     D, _ = _page()
     assert D['prose'].get('span_y') == RC.span_prose(D['zones'])['span_y']
 
@@ -492,3 +492,57 @@ def test_zone_captions_compare_growth_not_index_levels():
     a, b = ov['t'].index(2019.25), ov['t'].index(2021.75)
     ma, je = ov['maemae'][b] / ov['maemae'][a] - 1, ov['jeonse'][b] / ov['jeonse'][a] - 1
     assert '매매(빨강)가 전세(보라)보다 훨씬 가파르게' in page and ma > 1.5 * je, (ma, je)
+
+
+# ---------------------------------------------------------------- 마크업·범위 기호 (전수리뷰 C-12·C-14)
+
+_VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr',
+         'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'stop', 'use', 'ellipse'}
+
+
+def _tag_faults(html):
+    """짝 없는 닫는 태그(stray)와 닫히지 않은 여는 태그(unclosed)를 (종류, 태그, 행) 목록으로."""
+    from html.parser import HTMLParser
+
+    class _P(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.st, self.bad = [], []
+
+        def handle_starttag(self, t, a):
+            if t not in _VOID:
+                self.st.append((t, self.getpos()[0]))
+
+        def handle_endtag(self, t):
+            if t in _VOID:
+                return
+            if not any(x[0] == t for x in self.st):
+                self.bad.append(('stray', t, self.getpos()[0]))
+                return
+            while self.st:
+                x = self.st.pop()
+                if x[0] == t:
+                    break
+                self.bad.append(('unclosed', x[0], x[1]))
+    p = _P()
+    p.feed(html)
+    return p.bad + [('unclosed', t, ln) for t, ln in p.st]
+
+
+def test_cycle_markup_is_balanced_and_ranges_use_tilde():
+    """/cycle/ 손 서술은 태그 짝이 맞고, 연도·수 범위를 '~'로 쓴다(날짜 두 단계 결정 — 범위는 '~', 백로그 36-1).
+
+    고리⑥ '그리고 다시 처음으로.' 상자는 <p> 없이 </p> 로 닫혀 브라우저가 빈 문단(아래 여백 14px)을 만들었다(C-12).
+    '2020–23년'·'2020–22년' 두 곳만 en 대시로 남아 같은 페이지의 '2011~17'·'1988~95년'과 모양이 갈렸다(C-14).
+    변이(실제로 확인): 그 상자 끝에 '</p>' 를 되돌리면 첫 단정이, '2020~23년' 을 '2020–23년' 으로 되돌리면 둘째 단정이
+    빨개진다. 검사기 자체는 아래 합성 조각(짝 없는 </p>)으로 헛돌지 않음을 본다.
+    픽스처: 저장소 cycle/index.html(손 서술 — 배치는 const D·data-d 칸·const ZN·dateModified 만 다시 쓴다).
+    """
+    assert _tag_faults('<div class="note"><b>x</b> y.</p></div>') == [('stray', 'p', 1)]
+    _, s = _page()
+    assert _tag_faults(s) == [], '/cycle/ 태그 짝이 어긋난다: %s' % _tag_faults(s)[:5]
+    body = s[s.find('<body'):s.find('<script>', s.find('</footer>'))]
+    text = re.sub(r'<[^>]+>', '', body)
+    dash = re.findall(r'\d[–—]\d', text)
+    assert not dash, '/cycle/ 본문 범위에 en 대시가 남았다(정본은 ~): %s' % dash
+    assert re.search(r'\d~\d', text), '범위 검사가 헛돈다 — 본문에서 ~ 범위를 하나도 못 찾았다'
