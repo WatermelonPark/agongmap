@@ -5,7 +5,7 @@
 그려져 검색엔진과 카카오·네이버 링크 미리보기에 결론이 보이지 않았다. 답(시군구 TOP·서울 구)을
 보려면 한 번 더 눌러야 했고, 광주·전남 타일은 판정 단위가 합쳐진 뒤에도 따로 나왔다.
 
-페이지 뼈대(스타일·더 둘러보기·네비)는 손으로 관리하고, 아래 자리만 이 도구가 채운다.
+페이지 뼈대(스타일·네비)는 배치 산출물이고, 아래 자리는 이 도구가 채운다('더 둘러보기' 링크 묶음도 put_more 가 굽는다).
   <!--WK:HEAD-->   … <!--/WK:HEAD-->    조사일·발표일·다음 발표·결론 제목·시도 타일
   <!--WK:ANSWER--> … <!--/WK:ANSWER-->  시군구 상승·하락 TOP 3, 서울 구별 요약
   <!--WK:SHARE-->  … <!--/WK:SHARE-->   공유 버튼(B8·VIRAL-1). 표식이 없으면 ANSWER 뒤에 자리를 낸다
@@ -57,6 +57,10 @@ def load():
     # 다음 발표가 연휴에 걸리는지는 배치가 특일정보 API 로 채운 ADV.holidays 로 본다(홈 JS 와 같은 입력).
     # 반환 모양(W, Q)을 바꾸지 않으려고 W 사본에 얹는다 — 합성 픽스처처럼 없으면 공휴일 없음으로 본다.
     W = dict(adv['weekly'], holidays=adv.get('holidays') or [])
+    # 구조화 데이터 Dataset 은 주간·월간을 함께 말한다 — 기간(temporalCoverage) 시작은 두 계열의 첫 달에서(put_coverage)
+    mrows = (adv.get('monthly') or {}).get('rows') or []
+    if mrows:
+        W['mfirst'] = str(mrows[0]['p'])
     return W, json.loads(m.group(1))
 
 
@@ -827,6 +831,62 @@ def put_dataset_url(s):
     return pat.sub(lambda m: m.group(1) + canon[0] + m.group(2), s)
 
 
+def coverage_start(W):
+    """Dataset 기간의 시작 달 'YYYY-MM' — 주간 계열 첫 조사일과 (있으면) 월간 계열 첫 달 가운데 이른 것."""
+    firsts = [str(W['rows'][0]['p'])[:7].replace('.', '-')]
+    if W.get('mfirst'):
+        firsts.append(W['mfirst'][:7].replace('.', '-'))
+    return min(firsts)
+
+
+def put_coverage(s, W):
+    """구조화 데이터 Dataset 의 temporalCoverage 를 데이터에서 굽는다. 뼈대의 손 값 '2025/..' 는 주간(2023-10~)·월간(2016-10~)
+    어느 계열과도 맞지 않았다(전수리뷰 overflow)."""
+    pat = re.compile(r'("temporalCoverage":\s*")[^"]*(")')
+    if len(pat.findall(s)) != 1 or s.find('"@type": "Dataset"') < 0 or s.find('"temporalCoverage"') < s.find('"@type": "Dataset"'):
+        raise SystemExit('weekly/index.html 에서 Dataset temporalCoverage 를 찾지 못했다')
+    return pat.sub(lambda m: m.group(1) + coverage_start(W) + '/..' + m.group(2), s)
+
+
+# ── '더 둘러보기'(전수리뷰 Z2-8) ─────────────────────────────────────────────────────────────────────
+# 뼈대는 배치 산출물이라 PR 로 고칠 수 없어, 2026-10-06 용어 통일(적정물량, 판정 부족·균형·여유, 해마다 입주 적음·보통·많음)이
+# 이 구역에만 닿지 않았다('적정수요 대비 부족·과잉', 손으로 박은 '2026·2027'). 생성기가 링크와 설명을 통째로 굽는다.
+# 시도 수는 모델에서 세고, 신호등 낱말은 SZ.LIGHT 에서, 연도는 적지 않는다(/moveins/ 머리 연도는 실적 분기와 함께 움직인다).
+JUDGE_WORDS = '부족·균형·여유'   # 판정 낱말(CLAUDE.md 화면 설계 원칙 — 신호등 낱말과 겹치지 않는 판정 쪽 이름)
+
+
+def more_links():
+    light = '·'.join(w for _, (_, w) in sorted(SZ.LIGHT.items()))
+    return [
+        ('/#stats', '부동산 데이터 통계', '실거래지수·전세가율·인허가·입주물량까지 지역·기간별로'),
+        ('/zone/', '시도별 공급 분석', '%d개 시도의 %s 판정, 준공 실적과 착공으로' % (len(SIDO), JUDGE_WORDS)),
+        ('/moveins/', '아파트 입주물량', '시도별 연간 입주, 1년 적정물량과 견준 %s' % light),
+        ('/monthly/', '이달의 통계', '매달 발표되는 매매·인허가·입주물량·미분양·전세가율, 시도별 한 화면'),
+        ('/jeonse-ratio/', '전세가율 현황', '매매가 대비 전세가 — 시도별 최신값과 1년 변화'),
+        ('/cycle/', '아파트 사이클 리포트', '집값은 돌고 돈다 — 데이터로 검증한 6개 고리'),
+        ('/burini-test/', '부린이 테스트', '내 부동산 감각 5분 점검, 10문항'),
+    ]
+
+
+_MORE = re.compile(r'(<h2>더 둘러보기</h2>\s*<div class="links">)(.*?)(\s*</div>)', re.S)
+
+
+def more_html(nl='\n'):
+    return ''.join(nl + '    <a href="%s">%s<span>%s</span></a>' % (html.escape(u), html.escape(t), html.escape(d))
+                   for u, t, d in more_links())
+
+
+def put_more(s):
+    nl = '\r\n' if '\r\n' in s else '\n'
+    if len(_MORE.findall(s)) != 1:
+        raise SystemExit("weekly/index.html 에서 '더 둘러보기' 링크 묶음을 찾지 못했다")
+    return _MORE.sub(lambda m: m.group(1) + more_html(nl) + m.group(3), s, 1)
+
+
+# 뼈대 스타일의 범례 견본 모서리 2px 는 디자인 두 값 규칙(audit_design.RADIUS_OK: 0·3px) 밖이다(전수리뷰 #89 후속 overflow).
+_CAP_RADIUS = re.compile(r'(\.mm-cap i\{[^}]*border-radius:)\s*2px')
+
+
 def put_source(s):
     pat = re.compile(r'(<h2>숫자의 출처</h2>\s*<p>)(.*?)(</p>)', re.S)
     if len(pat.findall(s)) != 1:
@@ -938,7 +998,10 @@ def render(s, W, Q, root=None):
     s = put_meta(s, 'name', 'description', desc)
     s = put_meta(s, 'property', 'og:description', og)
     s = put_dataset_url(s)
+    s = put_coverage(s, W)             # Dataset 기간 시작을 데이터에서(overflow)
     s = put_source(s)
+    s = put_more(s)                    # '더 둘러보기' 링크·설명(전수리뷰 Z2-8)
+    s = _CAP_RADIUS.sub(lambda m: m.group(1) + 'var(--r-touch)', s)
     p = W['rows'][-1]['p']
     s = put_titles(s, p)               # title·og:title·twitter:title·WebPage name 에 연도·주차(B4)
     s = put_ld_dates(s, pub(p))        # JSON-LD 발표일(B4)
