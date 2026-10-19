@@ -1384,6 +1384,7 @@ def main():
     # 빠져 있었다(2026-07-31 발견). 새 지표를 추가할 때 감시에도 들어왔는지
     # 확인하는 자리가 여기다 — 라이브 STATS 계열 수와 아래 점검 수가 맞아야 한다.
     print('[공급 파이프라인 — 원천 R-ONE(분양)·KOSIS(미분양)]')
+    value_later = []   # 1차 조회가 실패해 값 대조를 미룬 공급 계열 — 재시도 뒤에 본다(아래 ②)
     for name, cfg in sorted(U.SUPPLY_CONF.items()):
         D = stats.get(name) or {}
         last = (D.get('dates') or [None])[-1]
@@ -1403,10 +1404,14 @@ def main():
         #      재시도 루프에서 재현·확정한 것과 같은 회귀다.
         #   ② 위의 나이 검사 조회가 성공해 캐시에 있을 때만 값을 견준다. 조회가 실패한
         #      직후에 같은 원천을 곧바로 다시 부르면 광역 장애 때 계열당 타임아웃이 한 번씩
-        #      더 붙는다. 그 계열은 재시도 큐가 다시 본다.
-        r = supply_value_fail(name, D, cfg['tbl'], since)
-        if r:
-            fails.append(r)
+        #      더 붙는다. 그 계열은 retry_failed 가 시점을 다시 받아 캐시를 채운 **뒤에** 값을 견준다
+        #      (value_later — 재시도는 check() 만 다시 불러, 예전엔 1차 실패·재시도 성공 날 값 대조가 꺼졌다, 전수리뷰 F-8).
+        if (cfg['tbl'], since) in _COMPLETE_CACHE:
+            r = supply_value_fail(name, D, cfg['tbl'], since)
+            if r:
+                fails.append(r)
+        else:
+            value_later.append((name, D, cfg['tbl'], since))
 
     print('[금리 — 원천 한국은행 ECOS]')
     D = stats.get('금리') or {}
@@ -1497,6 +1502,11 @@ def main():
                      % ', '.join(unknown))
 
     retry_failed(fails)
+    # 재시도에서 시점 조회가 살아난 공급 계열의 값 대조(위 ②). 재시도도 실패면 캐시가 비어 None 이다 — 원천을 더 부르지 않는다.
+    for name, D, tbl, since in value_later:
+        r = supply_value_fail(name, D, tbl, since)
+        if r:
+            fails.append(r)
     _emit_warnings(WARN, SUMMARY)
     _gate(fails)
 
