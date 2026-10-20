@@ -1292,7 +1292,8 @@ function bbToggle(row){
 function renderBubbleSec(){
   const sec=document.getElementById('sec-bubble');if(!sec)return;
   const B=ADV.bubble;
-  if(!B||!B.conv||!B.jr){sec.style.display='none';return;}
+  /* 전세가율 완비 달이 없으면(bubble_jeonse 가 jp=None·jr={}) 그 회차엔 숨는다 — 빈 jr({})도 참이라 jp 로 본다 */
+  if(!B||!B.conv||!B.jr||!B.jp){sec.style.display='none';return;}
   const loan=B.loan.v;
   /* 전세가율은 split_data 가 사이트 기준월 정본(make_indicator_pages.bubble_jeonse — /jeonse-ratio/ 과 같은 달)으로 골라 싣는다.
      예전엔 지역마다 '마지막 비결측 값'을 읽어 부분 달 회차에 /jeonse-ratio/ 과 다른 값을 말했고, 배지는 전환율 달만 적었다

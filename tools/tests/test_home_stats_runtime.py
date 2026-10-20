@@ -315,6 +315,28 @@ def test_bubble_band_reads_the_site_reference_month_and_says_both_months():
     assert got2['badge'] == '2026년 9월 기준', got2
 
 
+def test_bubble_band_hides_when_no_jeonse_month_is_complete():
+    """전세가율에 JEONSE_NEED 가 모두 찬 달이 하나도 없으면 bubble_payload 는 jp=None·jr={} 를 싣고, 버블밴드는 그 회차에 숨는다
+    (bubble_jeonse 독스트링의 약속). 재현한 상태: 원천이 시도 행 이름을 바꿔 모든 달에 한 시도가 빈 회차(2026-09-26 데이터 감사의
+    지방권·6대광역시 공백과 같은 꼴). 픽스처: _bubble_fixture 에서 제주 계열을 통째로 비운 것. 대조로 완비 달이 있는 원래 픽스처는
+    보인다(두 갈래 모두 확인).
+
+    변이(실제로 확인): renderBubbleSec 의 숨김 조건에서 `!B.jp` 를 빼면 빈 jr({})가 참이라 '0개 지역' 요약과 빈 막대가 그려져 빨개진다.
+    """
+    import make_indicator_pages as I
+    B, J = _bubble_fixture(jr_last_partial=False)
+    J2 = dict(J, series=dict(J['series'], 제주=[None, None]))
+    B0 = I.bubble_payload({k: v for k, v in B.items() if k not in ('jp', 'jr')}, J2)
+    assert B0['jp'] is None and B0['jr'] == {}, (B0['jp'], B0['jr'])
+    out = {}
+    for name, b in (('none', B0), ('full', B)):
+        out[name] = _node(_stats_js('ADV.bubble=%s;document.getElementById("sec-bubble");renderBubbleSec();'
+                                    'OUT.d=document.getElementById("sec-bubble").style.display||"";'
+                                    'OUT.h=document.getElementById("bubble-wrap").innerHTML.length;' % json.dumps(b, ensure_ascii=False)))
+    assert out['none'] == {'d': 'none', 'h': 0}, out['none']
+    assert out['full']['d'] != 'none' and out['full']['h'] > 0, out['full']
+
+
 def test_permit_and_occupancy_notes_sit_below_the_chart():
     """인허가·입주물량 설명 문단은 그래프·표 아래 한 문장(2026-10-06 '설명·범례는 콘텐츠 아래' — 전수리뷰 H2-7).
     재현한 실제 상태: 375px 에서 인허가 두 문장(62px)·입주물량 한 문장이 그래프 위에 있었다.
