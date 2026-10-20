@@ -165,6 +165,19 @@ def rank_moves(S, names, met='ma'):
     return [(c, v, rk[c], (prev[c] - rk[c]) if c in prev else None) for c, v in order]
 
 
+def top_split(items, n):
+    """[(키, 값)] → (오른 곳 앞 n, 내린 곳 앞 n). 값 내림차순(안정 정렬) 뒤 오른 곳(표시값 > 0)은 앞에서, 내린 곳(표시값 < 0)은
+    뒤에서 센다. 0.00(보합)은 어느 쪽에도 없다 — 모두 오른 주에 가장 덜 오른 곳을 '하락'이라 적지 않는다.
+
+    홈 통계 탭 TOP 10(home-stats.js rankTables, n=10)과 /weekly/ TOP 3(make_weekly_page.top3, n=3)·블로그 초안의 정본이다.
+    두 화면이 한 규칙인지는 test_weekly_moves 가 한쪽으로 쏠린 합성 픽스처로 node 대조한다(전수리뷰 H2-2·X2-4).
+    """
+    arr = sorted(items, key=lambda x: -x[1])
+    up = [x for x in arr if _pv2r(x[1]) > 0][:n]
+    dn = [x for x in reversed(arr) if _pv2r(x[1]) < 0][:n]
+    return up, dn
+
+
 def move_text(d):
     """이동 → 표에 찍는 글자. 홈 TOP 10 dcell 과 같은 모양('▲3위' 대신 표 칸이 좁아 '▲3')."""
     if d is None:

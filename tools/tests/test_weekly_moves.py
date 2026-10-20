@@ -372,7 +372,10 @@ def test_home_top10_rank_moves_follow_each_tables_own_order():
     for bi, dn in ((0, False), (1, True)):
         rows = re.findall(r'<tr><td>(<span class="rk-medal">[^<]*</span>)?(\d+)</td><td><a class="rk-go" href="[^"]*~([^"]+)"'
                           r'.*?<td>(?:<span class="rk-(up|dn|same|new)">([^<]*)</span>)</td></tr>', boxes[bi], re.S)
-        assert len(rows) == 10, boxes[bi][:300]
+        # 그 방향으로 움직인 곳만(정본 weekly_moves.top_split) — 쏠린 주엔 10줄보다 적다(데이터가 앞으로 가도 같은 규칙)
+        want_codes = [c for c, _ in WM.top_split([(c, v) for c, v in zip(S['codes'], S['rows'][1]['ma'])
+                                                  if c in Q and v is not None], 10)[1 if dn else 0]]
+        assert [r[2] for r in rows] == want_codes, (bi, [r[2] for r in rows], want_codes)
         for medal, rank, c, cls, txt in rows:
             assert bool(medal) == (not dn and int(rank) <= 3), (bi, rank, medal)
             if c not in was:
@@ -384,3 +387,59 @@ def test_home_top10_rank_moves_follow_each_tables_own_order():
             d = w - nw
             want = ('up', '▲%d위' % d) if d > 0 else (('dn', '▼%d위' % -d) if d < 0 else ('same', '–'))
             assert (cls, txt) == want, (Q[c], dn, w, nw, cls, txt)
+
+
+def _home_rank_boxes(S, Q, k='month', met='ma'):
+    """홈 rankTables 를 node 로 돌려 두 표(상승·하락)의 [(메달 유무, 순위, 코드, 값 글자)] 와 빈 표 안내를 돌려준다."""
+    h = HS.home_source()
+    fns = '\n'.join(_js_func(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'sggRanks', 'rankTables'))
+    js = '\n'.join(['const SGG_QNAME=%s;' % json.dumps(Q, ensure_ascii=False), "const RANKMET={%s:'%s'};" % (k, met), fns,
+                    'const S=%s;' % json.dumps(S, ensure_ascii=False),
+                    'process.stdout.write(JSON.stringify(rankTables(S,"전월 대비","%s")));' % k])
+    out = _node(js)
+    boxes = re.findall(r'<div class="rank-box">(.*?)</table>', out, re.S)
+    assert len(boxes) == 2, out[:300]
+    res = []
+    for b in boxes:
+        rows = re.findall(r'<tr><td>(<span class="rk-medal">[^<]*</span>)?(\d+)</td><td><a class="rk-go" href="[^"]*~([^"]+)"', b)
+        none = re.findall(r'<td colspan="\d+" class="rk-none">([^<]*)</td>', b)
+        res.append(([(bool(m), int(r), c) for m, r, c in rows], none))
+    return res
+
+
+def test_home_top10_lists_only_regions_moving_that_way():
+    """홈 TOP 10 의 상승 표에는 오른 곳만, 하락 표에는 내린 곳만 — /weekly/ TOP 3 와 한 규칙(weekly_moves.top_split, 전수리뷰 H2-2·X2-4).
+    재현한 실제 상태: 2023-01 월간 매매는 오른 시군구가 1곳뿐이라 홈 '상승 TOP 10'이 🥇영주 +0.38% 뒤로 🥈김제 0.00%·🥉밀양 0.00%·
+    4~10위 내린 곳을 실었고, 2021-09 매매·2026-04 월세는 '하락 TOP 10' 뒤쪽에 오른 곳이 섞였다. 픽스처는 그 모양을 합성한다 —
+    한 달은 오른 곳 1·보합 2(0.004 는 표시 0.00)·내린 곳 다수(상승 표 1줄, 메달 하나), 다른 달은 모두 0 이상(하락 표가 비어 안내 한 줄).
+    기대값은 파이썬 정본 top_split(n=10)이고, /weekly/ top3 는 같은 함수의 n=3 이라 앞 세 곳이 홈 앞 세 곳과 같아야 한다.
+
+    변이(실제로 확인): rankTables 의 상승 표를 옛 `cr.order.slice(0,10)` 으로 되돌리면, 하락 표 거르기(pvSign(v)<0)를 빼면,
+    빈 표 안내 줄을 빼면 빨개진다. make_weekly_page.top3 를 옛 '하락만 거름'으로 되돌리면(상승 쪽 거르기 없음) 대조가 빨개진다.
+    """
+    codes = list(MW.load()[1].keys())[:14]
+    Q = {c: 'q%d' % i for i, c in enumerate(codes)}
+    one_up = [0.38, 0.004, -0.004] + [-0.03 * (i + 1) for i in range(len(codes) - 3)]
+    all_up = [0.02 * (i + 1) for i in range(len(codes) - 1)] + [0.0]
+    checked = 0
+    for vals, empty_side in ((one_up, None), (all_up, 1)):
+        S = {'codes': codes, 'rows': [{'p': '2031.01', 'ma': list(reversed(vals))}, {'p': '2031.02', 'ma': vals}]}
+        boxes = _home_rank_boxes(S, Q)
+        items = [(c, v) for c, v in zip(codes, vals)]
+        want = WM.top_split(items, 10)
+        for side in (0, 1):
+            rows, none = boxes[side]
+            assert [c for _, _, c in rows] == [c for c, _ in want[side]], (side, rows, want[side])
+            assert [r for _, r, _ in rows] == list(range(1, len(rows) + 1))
+            assert all(m == (side == 0 and r <= 3) for m, r, _ in rows), rows
+            if side == empty_side:
+                assert not rows and none and '내린 시군구가 없다' in none[0], (rows, none)
+                checked += 1
+            else:
+                assert rows and not none
+        # /weekly/ TOP 3 는 같은 규칙의 앞 세 곳
+        up3, dn3 = MW.top3(items)
+        assert [c for c, _ in up3] == [c for _, _, c in boxes[0][0]][:3]
+        assert [c for c, _ in dn3] == [c for _, _, c in boxes[1][0]][:3]
+    assert len(_home_rank_boxes({'codes': codes, 'rows': [{'p': '2031.02', 'ma': one_up}]}, Q)[0][0]) == 1
+    assert checked == 1

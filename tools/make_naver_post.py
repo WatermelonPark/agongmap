@@ -502,7 +502,9 @@ def weekly_moves_sentences(W):
     S = W.get('sgg') or {}
     if len(S.get('rows') or []) > 1:
         q = _sgg_names()
-        top = [(q[c], d) for c, _, r, d in WM.rank_moves(S, q)[:10] if d is not None and d > 0]
+        mv = WM.rank_moves(S, q)
+        ups = {c for c, _ in WM.top_split([(c, v) for c, v, _, _ in mv], 10)[0]}   # 홈 상승 TOP 10 과 같은 곳(오른 곳만)
+        top = [(q[c], d) for c, _, r, d in mv if c in ups and d is not None and d > 0]
         if top:
             name, d = max(top, key=lambda x: x[1])   # 같은 폭이면 순위가 앞선 곳
             rank = ('<p>상승 TOP 10 가운데 지난주보다 순위가 가장 많이 뛴 곳은 <b>%s</b>(▲%d위)입니다.</p>' % (name, d))
