@@ -5,6 +5,7 @@
 더 나쁜 것은 조용히 꺼진 쪽이었다. 감시의 퀴즈 검토 기한 검사가 제도 문항 0개로 통과했고, '없어야 한다'류
 단정 다섯 곳이 초록불로 남았다. 그래서 입구는 못 찾으면 예외를 던지고, 모든 읽는 쪽은 이 입구만 쓴다.
 """
+import ast
 import io
 import os
 import re
@@ -100,12 +101,30 @@ DIRECT = re.compile(r"os\.path\.join\(\s*(?:ROOT|root|HERE,\s*os\.pardir|os\.pat
 HELPER_CALL = re.compile(r"_(?:read|src)\(\s*['\"]index\.html['\"]\s*\)")
 
 
+JOIN_VAR = re.compile(r"os\.path\.join\(\s*(?:ROOT|root)\s*,\s*[A-Za-z_]\w*\s*\)")
+
+
+def _home_in_a_list(src):
+    """'index.html' 이 튜플·목록·집합의 원소로 있는가 — 목록을 돌며 os.path.join(ROOT, rel) 로 여는 꼴(전수리뷰 2차 T2-5).
+    함수 인자(os.path.join(…, 'zone', z, 'index.html') 등 생성 페이지 경로)는 원소가 아니라 걸리지 않는다."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return False
+    return any(isinstance(n, (ast.Tuple, ast.List, ast.Set))
+               and any(isinstance(e, ast.Constant) and e.value == 'index.html' for e in n.elts)
+               for n in ast.walk(tree))
+
+
 def _offenders(src):
     out = []
     if DIRECT.search(src):
         out.append('루트 index.html 을 직접 연다')
     if HELPER_CALL.search(src) and 'HS.is_home(' not in src:
         out.append('_read/_src 로 홈을 읽는데 입구로 위임하지 않는다')
+    if (_home_in_a_list(src) and JOIN_VAR.search(src)
+            and not re.search(r'HS\.(?:is_home|home_source|home_files)\(', src)):
+        out.append("'index.html' 을 목록에 두고 돌며 여는데 입구로 위임하지 않는다")
     return out
 
 
@@ -115,6 +134,12 @@ def test_scanner_catches_the_known_shapes():
     assert _offenders("open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'index.html'),")
     assert _offenders("def _read(*p):\n    return io.open(os.path.join(ROOT, *p)).read()\ns = _read('index.html')")
     assert not _offenders("p = os.path.join(ROOT, 'zone', z, 'index.html')")
+    # 목록을 돌며 여는 꼴(전수리뷰 2차 T2-5 — test_permit_factor_text 가 이렇게 마크업만 읽어 홈 스크립트 문구를 못 봤다).
+    # 변이(실제로 확인): _offenders 에서 _home_in_a_list 줄을 지우면 아래 첫 단정이 빨개진다.
+    loop = ("SRCS = ('index.html', 'about/index.html')\n"
+            "for rel in SRCS:\n    src = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()\n")
+    assert _offenders(loop)
+    assert not _offenders(loop.replace("src = io.open(", "src = HS.home_source() if HS.is_home(rel) else io.open("))
 
 
 def test_no_tool_or_test_reads_the_home_directly():

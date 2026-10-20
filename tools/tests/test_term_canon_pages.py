@@ -21,6 +21,10 @@ import glob
 import io
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 FORBIDDEN = ('과잉', '적정선', '적정 물량', '적정수요', '필요한 집', '필요량', '수요 기준선')
@@ -30,6 +34,10 @@ GENERATORS = ('tools/make_indicator_pages.py', 'tools/make_sido_pages.py', 'tool
 
 
 def _read(rel):
+    # 홈은 입구(home_src)로 읽되 마크업(index.html)만 본다 — 표 보기 범례·산출 방법 같은 손 문구가 여기 있고, 홈 스크립트의
+    # 화면 문구는 이 시험의 범위가 아니다(스크립트 주석에는 옛 이름의 이력이 남아 있다).
+    if HS.is_home(rel):
+        return dict(HS.home_files())['index.html']
     return io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
 
 
