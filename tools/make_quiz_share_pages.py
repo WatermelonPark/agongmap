@@ -38,7 +38,7 @@ PAGE = '''<!doctype html>
 <meta property="og:image" content="%(img)s">
 <meta property="og:image:width" content="%(w)d">
 <meta property="og:image:height" content="%(h)d">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="%(tw)s">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/app.css">
 </head><body>
@@ -80,6 +80,12 @@ def png_size(path):
     return struct.unpack('>II', head[16:24])
 
 
+def twitter_card(w, h):
+    """트위터(X) 카드 종류 — 큰 그림(summary_large_image)은 2:1 로 잘려 보이므로, 정사각형에 가까운 점수 카드(800x800)는 작은 정사각형
+    카드(summary)로 둔다(전수리뷰 P 묶음 overflow — 예전엔 800x800 카드에 summary_large_image 를 달아 가운데 띠만 보였다)."""
+    return 'summary_large_image' if w >= 1.5 * h else 'summary'
+
+
 def pages():
     """[(경로, 내용)]"""
     slug, sets, n = load()
@@ -91,7 +97,7 @@ def pages():
                 raise SystemExit('공유 이미지가 없다: share/%s-%d.png' % (key, sc))
             w, h = png_size(img)
             body = PAGE % {
-                'robots': RM.TAG, 'title': html.escape(title), 'emoji': emoji, 'sc': sc, 'n': n, 'slug': slug[key], 'w': w, 'h': h,
+                'tw': twitter_card(w, h), 'robots': RM.TAG, 'title': html.escape(title), 'emoji': emoji, 'sc': sc, 'n': n, 'slug': slug[key], 'w': w, 'h': h,
                 'landing': '%s/%s/' % (SITE, slug[key]), 'url': '%s/%s/%d/' % (SITE, slug[key], sc),
                 'img': '%s/share/%s-%d.png' % (SITE, key, sc)}
             out.append((os.path.join(ROOT, slug[key], str(sc), 'index.html'), body))
