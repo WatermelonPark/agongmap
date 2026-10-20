@@ -172,3 +172,25 @@ def test_province_tags_use_the_city_people_search(monkeypatch):
     d = _zone(monkeypatch, name='충북', seq=7, patch={'uwarn': False})
     assert '청주부동산전망' in d['tags'] and '청주아파트' in d['tags'] and '충북아파트공급물량' in d['tags']
     assert '충북' in d['title']
+
+
+def test_zone_draft_stops_when_the_site_window_differs(monkeypatch):
+    """배치가 구운 판정 창 H 가 블로그 셈의 SZ.LEAD_Q 와 다르면(부분 수집으로 H=11) 지역 편을 만들지 않고 멈춘다 — 블로그만 다른
+    적정물량·배수를 쓰지 않게(전수리뷰 BL1 overflow: H=11 이면 블로그 '3년 적정물량 224,400'·4.4배 vs 사이트 '2.75년 205,700'·4.0배).
+    같은 창이면 그대로 만든다.
+    변이(확인): draft_zone 의 H 가드를 지우면 빨개진다.
+    픽스처: 실제 ADV.sido 사본의 H 를 LEAD_Q−1 로 둔 상태(update_adv_data 가 막는 부분 수집의 모양)."""
+    import copy
+    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
+    monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
+    monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
+    adv, sts = M.load()
+    r = dict(next(z for z in adv['sido']['zones'] if not z.get('agg')))
+    ok = copy.deepcopy(adv)
+    ok['sido']['H'] = SZ.LEAD_Q
+    assert P.draft_zone(ok, sts, r, 1, 16)['body']
+    bad = copy.deepcopy(adv)
+    bad['sido']['H'] = SZ.LEAD_Q - 1
+    with pytest.raises(SystemExit) as e:
+        P.draft_zone(bad, sts, r, 1, 16)
+    assert '판정 창' in str(e.value)

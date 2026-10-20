@@ -1560,6 +1560,12 @@ def blog_limit_note(nm):
 
 def draft_zone(adv, sts, r, seq, total):
     nm = r['z']
+    # 블로그 셈(display_ints·ratio_text·formula_text·'N년')은 SZ.LEAD_Q 로 센다. 사이트는 배치가 구운 판정 창 H 로 센다 —
+    # 둘이 같을 때(배치 가드 H == lead)만 같은 숫자다. 다르면 블로그만 다른 숫자를 쓰게 되므로 멈춘다(전수리뷰 BL1 overflow).
+    H = (adv.get('sido') or {}).get('H')
+    if H is not None and H != SZ.LEAD_Q:
+        raise SystemExit('ADV.sido 의 판정 창이 %s분기다(블로그 셈은 %d분기) — 사이트와 다른 숫자가 나가므로 지역 편을 만들지 '
+                         '않는다. 배치가 정상 창(H == lead)으로 다시 구운 뒤 돌린다' % (H, SZ.LEAD_Q))
     # 순부족은 사이트 카드·리포트가 찍는 정수(배치가 구운 dtot)를 쓴다. 'tot'는 반올림 전
     # 값들로 계산돼 카드의 세 정수로 검산한 값과 1세대 갈린다(경기 50,578 vs 사이트 50,579 등
     # 4개 시도, 2026-09-23 전체 점검). M.disp_tot 가 사이트 쪽 정본이다.
