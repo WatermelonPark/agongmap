@@ -506,7 +506,9 @@ def weekly_moves_sentences(W):
     para = ('<p>%s</p>' % ' '.join(parts)) if parts else ''
     rank = ''
     S = W.get('sgg') or {}
-    if len(S.get('rows') or []) > 1:
+    # 시군구 계열이 시도보다 늦은 회차면 순위 이동은 지난 조사분이다 — '이번 주' 문장으로 쓰지 않는다(전수리뷰 BL1-9).
+    # /weekly/ 는 같은 상태에서 '(M/D 조사 기준)'을 붙인다(make_weekly_page.build sgg_note).
+    if len(S.get('rows') or []) > 1 and S['rows'][-1]['p'] == W['rows'][-1]['p']:
         q = _sgg_names()
         top = [(q[c], d) for c, _, r, d in WM.rank_moves(S, q)[:10] if d is not None and d > 0]
         if top:
@@ -565,6 +567,14 @@ INTERP_PLACEHOLDER = (
 # 사람이 채우는 자리 전부. 손본 초안 판별(draft_edited)이 이 가운데 새 초안에 있는 것을 하나라도 잃은 기존 초안을
 # '손댔다'로 본다 — 자리를 새로 만들면 여기에 넣는다.
 DRAFT_PLACEHOLDERS = (INTERP_PLACEHOLDER, OUTLOOK_PLACEHOLDER)
+
+# 주간 시군구 지도 그림의 범례 한 줄(본문에 싣는다 — 캡처 그림에는 범례가 없다, 전수리뷰 BL1-6). 칸 안 숫자 순서는 홈
+# drawNationMap 의 범례('타일 값: 위 = 매매 · 아래 = 전세'), 색은 /weekly/ 범례(상승 붉은색·하락 푸른색)와 같다.
+MAP_LEGEND = (
+    '칸마다 위 숫자가 매매, 아래 숫자가 전세 변동률이에요. 붉을수록 올랐고 푸를수록 내린 곳입니다.',
+    '지도 칸의 숫자 두 개는 위가 매매, 아래가 전세입니다. 빨간 칸은 상승, 파란 칸은 하락이고요.',
+    '한 칸에 숫자가 둘인데요, 위가 매매이고 아래가 전세 변동률이에요. 색이 붉으면 상승, 푸르면 하락입니다.',
+)
 
 # ⑤ 더 보기 — 4주에 걸쳐 사이트의 다른 코너를 하나씩 소개한다.
 MORE_ROTATION = [
@@ -736,7 +746,9 @@ def _series_last(sts, key, region='전국'):
 
 
 def extra_section(adv, sts, rot):
-    """④ 이번 주의 다른 지표 — 4주 로테이션. 데이터가 없으면 섹션째 생략한다."""
+    """④ 이번 주의 다른 지표 — 4주 로테이션. 데이터가 없으면 섹션째 생략한다.
+    기준 달은 SZ.month_text('2026년 8월')로 쓴다 — 데이터 라벨('2026.08')을 그대로 찍으면 같은 값을 '2026년 8월 기준'으로
+    적는 사이트(/jeonse-ratio/ 등)와 꼴이 갈린다(날짜 두 단계 정본, 전수리뷰 BL1-17)."""
     if rot == 0:
         # 기준월은 /jeonse-ratio/ 와 같은 정본 규칙(_jeonse_at_ref). 전월이 없으면 '전월 대비'를 못 쓰므로 생략한다.
         cur, prv, when = _jeonse_at_ref(sts) or (None, None, None)
@@ -746,7 +758,7 @@ def extra_section(adv, sts, rot):
         return ('<h3>이번 주의 지표: 전세가율</h3>'
                 '<p>전국 전세가율은 <b>%.1f%%</b>입니다(%s 기준, 전월 %.1f%%에서 %s). '
                 '매매가 대비 전세가의 비율로, 높아질수록 사는 값과 빌리는 값의 차이가 '
-                '좁아져 매매 전환 압력이 커집니다.</p>' % (cur, when, prv, mv))
+                '좁아져 매매 전환 압력이 커집니다.</p>' % (cur, SZ.month_text(when), prv, mv))
     if rot == 1:
         cur, prv, when = _series_last(sts, '미분양')
         if cur is None:
@@ -757,7 +769,7 @@ def extra_section(adv, sts, rot):
         return ('<h3>이번 주의 지표: 미분양</h3>'
                 '<p>전국 미분양은 <b>%s세대</b>입니다(%s 기준, 전월 대비 %s). '
                 '미분양은 공급이 수요를 넘어선 흔적이라, 쌓이면 그 지역 분양가와 '
-                '입주장 전세가에 먼저 반영됩니다.</p>' % (num(cur), when, mv))
+                '입주장 전세가에 먼저 반영됩니다.</p>' % (num(cur), SZ.month_text(when), mv))
     if rot == 2:
         # 값과 판정은 홈 버블밴드와 같은 산식·같은 경계를 쓴다(rent_yield 주석).
         # 홈은 loan<=lo 를 '매수 신호권'(이자가 임대수익보다 싸다)으로 본다.
@@ -775,7 +787,8 @@ def extra_section(adv, sts, rot):
                 '어차피 어딘가에는 살아야 하므로, 이 차이는 실거주 매수를 '
                 '검토할지 판단하는 출발점이 됩니다.</p>'
                 # 금리는 월 단위로 늦게 나온다 — 몇 월 값인지 붙인다(전수리뷰 묶음 F 제안)
-                % (fixed2(lo), fixed2(loan), ('(%s 기준)' % esc(loan_p)) if loan_p else '', judge))
+                # 기준 달은 날짜 두 단계 정본의 읽는 꼴('2026년 8월', SZ.month_text) — 사이트와 같은 꼴(전수리뷰 BL1-17)
+                % (fixed2(lo), fixed2(loan), ('(%s 기준)' % esc(SZ.month_text(loan_p))) if loan_p else '', judge))
     # ⚠️ ADV.aged30은 쓰지 않는다 — 2026-08-06 시도 재편 전의 생활권 키('서울권',
     # '경기남부권' …)가 그대로 남아 있어서, 사이트엔 없는 지역명이 블로그로 나간다
     # (2026-08-11 실측으로 확인). STATS['노후주택30년']이 시도 키로 살아 있다.
@@ -816,8 +829,8 @@ def draft_weekly(adv, sts, shot=True):
     # (지도 보기)에서는 TOP10 이 보이지 않는다(10-10 코드 리뷰).
     by_hand = lambda k: '%s/#%s' % (SITE, WEEKLY_SHOT_HASH[k])
     if sgg:
-        # 한 장짜리 지도는 맨 아래 범례("위 = 매매 · 아래 = 전세")까지 같이 잘려
-        # 들어온다. 반 장일 때 필요했던 캡션 안내는 그래서 뺐다.
+        # 지도 캡처는 요소(.map-scroll, SVG 타일)만 찍는다(10-09) — 화면의 범례 줄(.map-suplegend)은 형제 요소라 그림에
+        # 없다. 그래서 본문 지도 자리 바로 뒤에 범례 한 줄(MAP_LEGEND)을 둔다(전수리뷰 BL1-6).
         sggnote = ('지도·표를 자동으로 떴습니다.<br>'
                    '<b>%s</b> → [전국 시군구 지도]<br>' % sgg
                    + ('<b>%s</b> → [상승·하락 TOP10]<br>' % top10 if top10 else
@@ -853,13 +866,19 @@ def draft_weekly(adv, sts, shot=True):
     up, dn = MW.top3(sido)
 
     # 서울 구별
-    gu = []
+    gu, gu_n = [], 0
     S = W.get('seoul') or {}
-    if S.get('rows'):
-        sr = S['rows'][-1]
+    # 시도와 **같은 조사일** 행만 쓴다(전수리뷰 BL1-9). 서울 구 응답이 빈 회차엔 수집이 직전 블록을 그대로 둬 서울 구가
+    # 한 주 늦는다 — 그 값을 '이번 주' 문장으로 쓰면 같은 날 /weekly/('(M/D 조사 기준)')와 다른 말을 한다.
+    sr = next((r for r in S.get('rows') or [] if r['p'] == p), None)
+    if S.get('rows') and sr is None:
+        print('  ⚠ 서울 구 계열이 %s 조사분이라(시도 %s) 서울 구 문장을 뺀다' % (S['rows'][-1]['p'], p))
+    if sr is not None:
         # ⚠️ `x[1] or -9`로 쓰면 안 된다 — 보합(0.00%)도 거짓값이라 하락한 구보다
         # 뒤로 밀린다. 결측(None)만 맨 뒤로 보내는 게 의도다.
-        gu = MW.top3([(g, v) for g, v in zip(S['regions'], sr['ma']) if v is not None])[0]   # /weekly/ 서울 구별과 같은 함수
+        gv = [(g, v) for g, v in zip(S['regions'], sr['ma']) if v is not None]
+        gu_n = len(gv)       # 값이 온 구의 수 — /weekly/ count_text('서울 %d개 구')와 같은 셈(전수리뷰 BL1-13·X1-15)
+        gu = MW.top3(gv)[0]   # /weekly/ 서울 구별과 같은 함수
 
     # 검색어를 맨 앞에 둔다. 2026-08-14 네이버 검색 실측에서 이 자리를 차지한
     # 블로그 글이 '한국부동산원 주간동향｜8월 1주 전국 아파트 시세 분석' 형태였고,
@@ -935,7 +954,7 @@ def draft_weekly(adv, sts, shot=True):
         sent.append('이번 주는 전 지역이 보합이에요.')
     body.append('<p>%s</p>' % ' '.join(sent))
     if gu:
-        body.append(('<p>서울 안에서는 %s 순으로 올랐어요.</p>', '<p>서울 25개 구 가운데서는 %s가 앞섰습니다.</p>',
+        body.append(('<p>서울 안에서는 %s 순으로 올랐어요.</p>', '<p>서울 %d개 구 가운데서는 %%s가 앞섰습니다.</p>' % gu_n,
                      '<p>서울을 구별로 보면 %s 순이더라고요.</p>')[k3] %
                     ' · '.join('<b>%s %s</b>' % (k, pct(v)) for k, v in gu))
     # 지난주와 무엇이 달라졌나(B7) — 표지의 정본(weekly_moves)
@@ -961,7 +980,9 @@ def draft_weekly(adv, sts, shot=True):
     # 지도는 한 장으로 간다(2026-09-07 사용자: 둘로 잘리니 보기 안 좋다). 원래
     # 모바일 가독성 때문에 둘로 나눴던 것인데(3ea4781), 잘린 자리가 더 거슬린다.
     body.append('<p>[여기에 전국 시군구 지도 이미지를 넣어 주세요]</p>')
-    # 범례 문장('타일마다 위가 매매…')은 뺐다 — 지도 이미지 맨 아래에 범례가 같이 찍힌다(반복률 측정, 10-15).
+    # 범례 한 줄. 10-15 에 '지도 이미지 맨 아래에 범례가 같이 찍힌다'며 뺐지만 그 전제는 10-09 요소 캡처로 이미 거짓이었다 —
+    # 그림엔 칸마다 숫자 둘만 있고 어느 쪽이 매매인지 없다(전수리뷰 BL1-6). 문장은 회차마다 돈다(반복률).
+    body.append('<p>%s</p>' % MAP_LEGEND[k3])
     body.append('<p>👉 <a href="%s">%s</a></p>'
                 % (site_link('/#stats-market', 'weekly_map'),
                    ('지도에서 직접 찾아보기', '우리 동네 시세 지도로 보기', '시군구 시세 지도 열기')[k3]))
