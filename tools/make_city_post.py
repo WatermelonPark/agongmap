@@ -103,15 +103,18 @@ def facts(city, start, sido):
     f.update(pop=pop, pop_txt='%s년 %d월' % (prd[:4], int(prd[4:])), need=int(round(pop / PER_HH * RATE)),
              hh_est=pop / PER_HH)
     f['share'] = lambda v: int(round(v / f['need'] * 100))
-    # 시도 안 몫(도시 ≠ 시도일 때만)
-    full_sido = next(k for k, v in __import__('update_adv_data').BUBBLE_SHORT.items() if v == sido and k in
-                     {x.get('C1_NM') for x in raw['pop']})
-    f['sido_full'] = full_sido
+    # 시도 안 몫(도시 ≠ 시도일 때만). 시도 전체 이름은 정본(CM.full_names)에서 센다 — 판정 단위를 합친 광주·전남은
+    # 광주광역시·전라남도 두 이름이다(전수리뷰 BL2-15: 한 이름만 찾던 next() 가 '전남광주'에서 StopIteration 으로 죽었다).
+    fulls = CM.full_names(sido)
+    pop_fulls = [n for n in fulls if n in {x.get('C1_NM') for x in raw['pop']}]
+    if not pop_fulls:
+        raise SystemExit('%s: 인구 원천에 시도 행(%s)이 없다 — city_movein.py --fetch 를 다시 돌릴 것' % (sido, '·'.join(fulls)))
+    f['sido_full'] = tuple(pop_fulls)
     if city != sido:
-        sd = [x for x in raw['occ'] if (x['주소'] or '').startswith(full_sido) and x['입주예정월'] >= start]
+        sd = [x for x in raw['occ'] if (x['주소'] or '').startswith(fulls) and x['입주예정월'] >= start]
         f['sido_all'] = sum(int(x['세대수']) for x in sd)
-        f['sido_city'] = sum(int(x['세대수']) for x in sd if CM.in_city(x['주소'], city))
-        f['pop_share'] = pop / CM.population(raw, full_sido)[0]
+        f['sido_city'] = sum(int(x['세대수']) for x in sd if CM.in_city(x['주소'], city, CM.within_of(raw)))
+        f['pop_share'] = pop / sum(CM.population(raw, n)[0] for n in pop_fulls)
     # 과거 준공(국토교통부 준공 실적, 사이트 분기 공급표와 같은 값) — 도시가 곧 시도인 광역시만
     if city == sido:
         o = adv['occupancy']
@@ -121,10 +124,13 @@ def facts(city, start, sido):
             if not r.get('e'):
                 done[r['p'][:4]] += r['v'][i]
         f['done'] = {y: int(round(v)) for y, v in done.items() if len([1 for r in o['rows'] if r['p'][:4] == y and not r.get('e')]) == 4}
-    # 분양 공고 이력(청약홈, 2020년 이후 아파트 분양주택) — 공고→입주 기간과 해마다 공고 수(리뷰 F3)
-    ann = [c for c in raw['ch'] if CM.in_city(c.get('HSSPLY_ADRES'), city) and c.get('RENT_SECD_NM') == '분양주택'
+    # 분양 공고 이력(청약홈, 2020년 이후 아파트 분양주택) — 공고→입주 기간과 해마다 공고 수(리뷰 F3). 공고 하나하나를 세되 재공고
+    # (잔여·무순위 …)는 빼고 '(N회차)'·조합원 취소분은 넣는다 — 병합(CM.merge)이 세대를 더하는 규칙과 같은 분류(CM.adds_households,
+    # 전수리뷰 BL2-5). 예전엔 꼬리가 붙은 공고를 모두 빼서 회차 공고 세대가 병합에는 들고 여기서는 빠졌다.
+    ann = [c for c in raw['ch'] if CM.in_city(c.get('HSSPLY_ADRES'), city, CM.within_of(raw))
+           and c.get('RENT_SECD_NM') == '분양주택'
            and c.get('HOUSE_SECD_NM') == 'APT' and (c.get('RCRIT_PBLANC_DE') or '') >= '2020' and c.get('MVN_PREARNGE_YM')
-           and CM.base_name(c.get('HOUSE_NM')) == (c.get('HOUSE_NM') or '').strip()]
+           and CM.adds_households(c.get('HOUSE_NM'))]
 
     def lag(c):
         y, d = c['MVN_PREARNGE_YM'], c['RCRIT_PBLANC_DE']
@@ -363,6 +369,7 @@ def body(f, sheets, xlsx_name, outlook, k=0, lead=''):
     # 다음 회차(천안 3)는 4·5개 어느 쪽으로도 대구가 받은 틀(옛 2번·0번)과 다른 번호가 나온다.
     kk = k
     city, sido, rows = f['city'], f['sido'], f['rows']
+    sname = P.SEARCH_NAME.get(sido, sido)       # 본문에 보이는 시도 이름(화면 이름 정본, '전남광주' → '광주·전남')
     by_year, years, share = f['by_year'], f['years'], f['share']
     yN = str(f['now_y'] + 1)
     B = ['<p>[여기에 썸네일 이미지를 넣어 주세요 — 첫 이미지가 대표 이미지가 됩니다]</p>']
@@ -397,9 +404,9 @@ def body(f, sheets, xlsx_name, outlook, k=0, lead=''):
         # 출처·기준은 뒤로(괄호). 예전 문장('한국부동산원 자료가 있는 2028년 6월까지로 좁혀 보면,')이 §10 이 꼽은 딱딱한 예였다.
         B.append('<p>%s까지로 좁혀 보면(한국부동산원 자료가 있는 구간), %s부터 %s에 입주할 %s세대 가운데 <b>%d%%</b>(%s세대)가 %s 단지예요. '
                  '%s에는 %s 인구의 %d%%가 사는데요. 그러니까 %s 새 아파트 가운데 %s 받는 몫이 인구 비중의 %.1f배라는 뜻입니다.</p>'
-                 % (ym_txt(f['occ_max']), ym_txt(f['start']), sido, num(f['sido_all']),
-                    round(f['sido_city'] / f['sido_all'] * 100), num(f['sido_city']), city, city, sido,
-                    round(f['pop_share'] * 100), sido, ga(city), f['sido_city'] / f['sido_all'] / f['pop_share']))
+                 % (ym_txt(f['occ_max']), ym_txt(f['start']), sname, num(f['sido_all']),
+                    round(f['sido_city'] / f['sido_all'] * 100), num(f['sido_city']), city, city, sname,
+                    round(f['pop_share'] * 100), sname, ga(city), f['sido_city'] / f['sido_all'] / f['pop_share']))
     B.append('<p>[여기에 반기별 입주 차트 이미지를 넣어 주세요]</p>')
 
     B.append(('<h3>%s 적정 입주량과 견주면</h3>', '<h3>%s 인구로 잡은 적정 입주량</h3>', '<h3>%s 입주물량은 적정 입주량의 몇 %%일까</h3>',
@@ -630,7 +637,9 @@ def outlook_text(f):
 def main(argv):
     args = [a for a in argv if not a.startswith('--') and not (argv.index(a) > 0 and argv[argv.index(a) - 1] in ('--thumb-msg', '--title', '--title2'))]
     city, start = args[0], args[1]
-    sido = args[2] if len(args) > 2 else city
+    sido = CM.site_key(args[2] if len(args) > 2 else city)     # '광주'·'전남' → 사이트 시도 키 '전남광주'(전수리뷰 BL2-15)
+    if sido not in P.THUMB_GROUP:
+        raise SystemExit('%s: 사이트 시도 키가 아니다 — 셋째 인자로 시도(%s)를 줄 것' % (sido, '·'.join(P.THUMB_GROUP)))
     f = facts(city, start, sido)
     pal = P.THUMB_PALETTES[P.THUMB_GROUP[sido]]
     os.makedirs(OUT, exist_ok=True)
