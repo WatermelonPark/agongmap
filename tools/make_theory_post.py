@@ -80,9 +80,9 @@ def sync_table(cols=3):
             k = c * rows_per + i
             if k < len(r):
                 nm, cv = r[k]['region'], r[k]['corr']
-                bold = nm == r[-1]['region']      # 본문이 따로 다루는 최저 지역
-                tds.append('<td>%s%s%s</td><td>%s%.2f%s</td>' % (
-                    '<b>' if bold else '', P.esc(nm), '</b>' if bold else '',
+                bold = nm == r[-1]['region']      # 본문이 따로 다루는 최저 지역(키로 견준다)
+                tds.append('<td>%s%s%s</td><td>%s%.2f%s</td>' % (      # 보이는 이름은 블로그 정본 SEARCH_NAME(전수리뷰 BL2-10)
+                    '<b>' if bold else '', P.esc(P.SEARCH_NAME.get(nm, nm)), '</b>' if bold else '',
                     '<b>' if bold else '', cv, '</b>' if bold else ''))
             else:
                 tds.append('<td></td><td></td>')
@@ -96,7 +96,7 @@ def sync_stats():
     r = CYCLE_SYNC
     avg = sum(x['corr'] for x in r) / len(r)
     return dict(n=len(r), avg=avg, top=r[0], low=r[-1],
-                top2='·'.join(x['region'] for x in r[:2]))
+                top2='·'.join(P.SEARCH_NAME.get(x['region'], x['region']) for x in r[:2]))
 
 
 SYNC_LOW_REGION = '서울'     # 3편 "서울은 왜 다른가" 절이 전제하는 최저 지역
@@ -675,7 +675,7 @@ POSTS = [
 
 <p>서울은 반대편 끝에 있습니다. 서울 아파트값은 %(se_tr)s 바닥에서 %(se_pk)s까지 %(se_x)s가 됐습니다. 그런데 %(se_y0)s년부터 2025년까지 서울 인허가는 해마다 %(se_min)s세대에서 %(se_max)s세대 사이를 오르내렸을 뿐, 값의 흐름을 따라가지 않았습니다. 상승기가 끝난 뒤인 2022~2025년 연평균(%(se_2225)s세대)은 2007년 이후 연평균(%(se_avg)s세대)보다 적습니다. 그 사이 서울 아파트값은 지난 꼭대기를 이미 넘어섰습니다.</p>
 
-<p>서울에서는 허가받은 세대 수보다 실제로 늘어나는 집이 적습니다. 빈 땅이 없어 기존 집을 헐고 다시 짓는 몫이 허가에 섞이기 때문입니다. %(se_demol_y0)s~%(se_demol_y1)s년 서울 아파트 멸실은 같은 기간 인허가의 %(se_demol)s였습니다. 허가 100세대 가운데 %(se_demol_n)s호쯤은 헐린 집을 다시 채우는 몫입니다.</p>
+<p>서울에서는 허가받은 세대 수보다 실제로 늘어나는 집이 적습니다. 빈 땅이 없어 기존 집을 헐고 다시 짓는 몫이 허가에 섞이기 때문입니다. %(se_demol_y0)s~%(se_demol_y1)s년 서울 아파트 멸실은 같은 기간 인허가의 %(se_demol)s였습니다. 허가 100세대 가운데 %(se_demol_n)s세대쯤은 헐린 집을 다시 채우는 몫입니다.</p>
 
 <p>수도권 전체도 마찬가지입니다. 2025년 수도권 인허가는 %(sd_25)s세대로, 2007년 이후 연평균(%(sd_avg)s세대)과 비슷합니다. 지난 상승기를 지나고도 공급은 평소 수준에 머물러 있습니다. 부족이 쌓이는 동안 그 부족을 메울 물량은 늘지 않았습니다.</p>
 
@@ -1125,7 +1125,8 @@ def render(post):
     S.append('<style>%s</style>' % P.CSS)
     S.append('<h1>부동산 사이클 시리즈 %02d편</h1>' % post['n'])
     S.append('<p class="hint">[복사] → 스마트에디터에 붙여넣기 → 이미지 끌어놓기 → 발행. '
-             '카테고리는 <b>부동산 사이클</b>, 주제는 <b>비즈니스·경제</b>로 두세요(주제 목록에 부동산은 없다, 10-17 대표).</p>')
+             '카테고리는 <b>%s</b>, 주제는 <b>비즈니스·경제</b>로 두세요(주제 목록에 부동산은 없다, 10-17 대표).</p>'
+             % P.CP.KIND_TO_CATEGORY['사이클 이론'])      # 카테고리 이름 정본(전수리뷰 BL2-11). 아래 rival_panel 인자는 검색어라 그대로 둔다
     S.append('<section class="draft"><h2>%s</h2>' % post['title'])
     S.append(P.rival_panel('부동산 사이클'))
     S.append(P.field('제목', 't1', P.esc(post['title']), 't'))

@@ -115,8 +115,8 @@ def report(posts):
 
 def check_draft(path, posts):
     s = io.open(path, encoding='utf-8').read()
-    cats = {'b1': '주간 아파트 시세', 'b2': '지역별 아파트 공급'}
     import close_published_issues as C
+    cats = {'b1': C.KIND_TO_CATEGORY['주간 시세'], 'b2': C.KIND_TO_CATEGORY['지역 공급']}     # 카테고리 이름 정본(전수리뷰 BL2-11)
     rows = []
     for box, cat in cats.items():
         if 'id="%s"' % box not in s:
