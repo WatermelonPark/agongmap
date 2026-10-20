@@ -759,13 +759,14 @@ function rankTables(S,unit,k){
     return '<td class="'+cls.trim()+'">'+(v==null?'·':pv2(v)+'%')+'</td>';
   }
   const cols=hasWo?['ma','je','wo']:['ma','je'];
-  function tbl(title,items,base,dn){
+  function tbl(title,items,base,dn,empty){
     /* 정렬 머리는 열 머리(th)로 두고 안에 단추를 넣는다 — th 에 role="button" 을 달면 열 머리가 아니게 되어 정렬 상태(aria-sort)를
        알릴 수 없었다(백로그 36-8). 상승 표는 큰 값부터(descending), 하락 표는 작은 값부터(ascending)다. */
     const th=cols.map(m=>'<th class="rk-sort'+(m===met?' on':'')+'"'+(m===met?' aria-sort="'+(dn?'ascending':'descending')+'"':'')
       +' data-k="'+k+'" data-met="'+m+'"><button type="button" title="'+MLAB[m]+' 기준으로 정렬">'+MLAB[m]+'</button></th>').join('');
     const h=['<div class="rank-box"><div class="rank-h">'+title+'</div><div class="rank-wrap"><table class="rank-tbl'+(hasWo?' wide':'')+'">',
       '<thead><tr><th>순위</th><th>지역</th>'+th+'<th>'+unit+'</th></tr></thead><tbody>'];
+    if(!items.length)h.push('<tr><td colspan="'+(cols.length+3)+'" class="rk-none">'+empty+'</td></tr>');
     items.forEach(([c,v],i)=>{
       const rank=base+i;
       const medal=(!dn&&rank<=3)?'<span class="rk-medal">'+['🥇','🥈','🥉'][rank-1]+'</span>':'';   // 많이 내린 곳에는 메달을 달지 않는다
@@ -776,9 +777,14 @@ function rankTables(S,unit,k){
     return h.join('');
   }
   const basis='<span style="font-weight:600;color:var(--muted);font-size:13px">'+MLAB[met]+' 기준</span>';
+  /* 상승 표에는 오른 곳만, 하락 표에는 내린 곳만 싣는다(표시값 부호, 0.00 은 어느 표에도 없다) — /weekly/ TOP 3 와 같은 규칙
+     (파이썬 정본 weekly_moves.top_split, test_weekly_moves 가 node 로 대조). 예전엔 앞 10·뒤 10 을 부호 없이 실어, 한쪽으로 쏠린 달에
+     '상승 TOP 10'에 내린 곳이 메달까지 달고 섰다(2023-01 월간 매매 🥈김제 0.00% 등, 전수리뷰 H2-2). 거른 목록은 정렬의 앞·뒤 그대로라
+     순위 번호·순위 이동은 전체 순위 그대로 맞다. */
+  const per=k==='week'?'주':'달';
   return '<div class="map-rank">'+
-    tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.slice(0,10),1)+
-    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1,true)+
+    tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
+    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.filter(([,v])=>pvSign(v)<0).slice(-10).reverse(),1,true,'이번 '+per+' 내린 시군구가 없다')+
     '</div>';
 }
 /* 지도 '옆으로 밀어 전체 보기' 안내 — 상자가 지도보다 좁을 때만. 숨은 상태(폭 0)에서는 판정하지 않고, 보일 때

@@ -601,6 +601,7 @@
     display:block;margin:-4px 0;padding:4px 0}   /* 누름 면을 칸 높이 전체로(글자 줄 15px → 칸 높이, 백로그 36-8) */
   .rank-tbl a.rk-go:hover{text-decoration-color:currentColor}
   .rank-tbl td:first-child{color:var(--muted);font-weight:600}
+  .rank-tbl td.rk-none{font-weight:400;padding:10px 8px}   /* 그 방향으로 움직인 곳이 없을 때 한 줄(rankTables) */
   /* 정렬 가능한 헤더 — 현재 기준 열은 잉크로 눌러 강조하고 본문 열도 짙게 */
   .rank-tbl thead th.rk-sort{cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.06);white-space:nowrap}
   .rank-tbl thead th.rk-sort::after{content:'';display:inline-block;width:0;height:0;margin-left:3px;
