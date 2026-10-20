@@ -238,3 +238,23 @@ def test_theory_render_follows_a_changed_model(monkeypatch, link1_holds):
         html = T.render(next(p for p in T.POSTS if p['n'] == no))
         got = re.findall(r'(\d+)개 시도를 같은 기준으로', html)
         assert got and set(got) == {'99'}, '%d편이 모델을 따라오지 않는다: %s' % (no, got)
+
+
+def test_theory1_permit_over_start_is_the_report_number(monkeypatch):
+    """1편 '인허가는 … 같은 해 착공보다 N배쯤 많고'는 시도 리포트 '어떻게 계산했나'가 같은 사실을 굽는 정본(SZ.permit_over_start_pct,
+    'N%쯤')을 배수로 쓴 값이다 — 손으로 적은 '1.15배'를 대신한다(전수리뷰 overflow, CLAUDE.md '사람이 센 수를 박지 않는다').
+    픽스처: 저장소 STATS(인허가·착공)와, 착공이 인허가의 0.8배가 되게 착공을 줄인 합성 상태(정본이 20%·25% 쪽으로 움직인다).
+    변이(실제로 확인): 본문을 '1.15배' 글자로 되돌리거나 guard_values 가 permit_over 를 싣지 않으면 빨개진다."""
+    import copy
+    post = next(p for p in T.POSTS if p['n'] == 1)
+    assert '%(permit_over)s배쯤' in post['body'] and not re.search(r'착공보다 \d[\d.]*배', post['body'])
+    adv, sts = M.load()
+    monkeypatch.setattr(T, 'link1_values', lambda D=None: {})
+    for st in (sts, copy.deepcopy(sts)):
+        if st is not sts:
+            c = st['착공']['series']['전국']
+            st['착공']['series']['전국'] = [None if v is None else v * 0.8 for v in c]
+        pct = SZ.permit_over_start_pct(st)
+        assert pct is not None
+        got = T.guard_values(1, {}, (adv, st))['permit_over']
+        assert abs(float(got) - (1 + pct / 100.0)) < 1e-9, (got, pct)

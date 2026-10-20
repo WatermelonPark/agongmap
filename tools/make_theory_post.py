@@ -148,6 +148,17 @@ L1_MID_2 = """<h3>가운데가 가장 높은 이유</h3>
 """
 
 
+def permit_over_x(sts):
+    """1편 '인허가는 같은 해 착공보다 N배쯤 많고'의 N — 시도 리포트가 같은 사실을 굽는 정본 SZ.permit_over_start_pct('N%쯤')를 배수로
+    쓴 것(15 → '1.15'). 손으로 적은 '1.15배'를 대신한다(전수리뷰 overflow). 잴 수 없으면 데이터 상태로 멈춘다."""
+    import sido_zones as SZ
+    pct = SZ.permit_over_start_pct(sts)
+    if pct is None:
+        raise SystemExit('1편을 만들 수 없다 — 전국 인허가·착공으로 인허가가 착공보다 얼마나 많은지 잴 수 없다. %s — 통계 계열이 찬 뒤 '
+                         '다시 돌린다.' % NOT_THE_TEXT)
+    return ('%.2f' % (1 + pct / 100.0)).rstrip('0').rstrip('.')
+
+
 def link1_values(D=None):
     """1·2편 고리① 숫자와 방향 문구 — /cycle/ 정본 D(prose·link1_new)에서 읽는다(전수리뷰 #76, 대표 결정 ⑥).
 
@@ -346,7 +357,7 @@ POSTS = [
 사는 값과 빌리는 값의 차이가 좁아져 매매 전환 압력이 커집니다.</p>
 
 <p><b>③④를 보려면 착공 실적.</b> 인허가가 아닙니다. 인허가는 삽을 안 뜬 계획이
-섞여 같은 해 착공보다 1.15배쯤 많고, 해마다 크게 흔들립니다. 착공한 현장이 3년 뒤 입주로 이어집니다.</p>
+섞여 같은 해 착공보다 %(permit_over)s배쯤 많고, 해마다 크게 흔들립니다. 착공한 현장이 3년 뒤 입주로 이어집니다.</p>
 
 <p><b>⑤⑥을 보려면 입주물량.</b> 절대량이 아니라 그 지역의 분기 적정물량과
 견줘야 많고 적음이 판단됩니다.</p>
@@ -1114,7 +1125,9 @@ def guard_values(n, D=None, data=None):
     def load():
         return M.load() if data is None else data
     if n in (1, 2):
-        return link1_values(D)
+        v = link1_values(D)
+        v['permit_over'] = permit_over_x(load()[1])
+        return v
     if n == 3:
         check_sync_claims()
         return {}
