@@ -1229,8 +1229,9 @@ function moMapModel(W){
   if(!row||!row.ma||!W.regions||!W.regions.length||!/^\d{4}-\d{2}$/.test(row.p||'')) return null;
   var v={};
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
-  var y=+row.p.slice(0,4), m=+row.p.slice(5,7), lead=m+'월 기준';
-  return {v:v,when:y+'년 '+m+'월 기준 · 한국부동산원',lead:lead,stale:false,
+  /* 읽는 자리(범례 뜻 줄·지도 이름·칸 설명)라 날짜 두 단계 정본의 긴 꼴 '2026년 8월'(_ymT) — 예전 '8월 기준'은 연도가 없었다(전수리뷰 2차 overflow) */
+  var lead=_ymT(row.p)+' 기준';
+  return {v:v,when:lead+' · 한국부동산원',lead:lead,stale:false,
     k:'month',ref:MO_MAP_REF,unit:'전월 대비',adj:'월간',href:'/monthly/',to:'monthly_map_card'};
 }
 /* 지금 모드의 시세 재료 — 공급 모드면 null. data-core 가 안 왔으면(ADV 없음) 시세 모드도 없다(2026-10-05 리뷰). */
