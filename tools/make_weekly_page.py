@@ -54,7 +54,7 @@ def load():
     h = HS.home_source()
     m = re.search(r'const SGG_QNAME=(\{.*?\});', h)
     if not m:
-        raise SystemExit('index.html 에서 SGG_QNAME 을 찾지 못했다 — 시군구 이름표 위치가 바뀌었는지 볼 것')
+        raise SystemExit('홈 스크립트(home-stats.js, home_src 경유)에서 SGG_QNAME 을 찾지 못했다 — 시군구 이름표 위치가 바뀌었는지 볼 것')
     # 다음 발표가 연휴에 걸리는지는 배치가 특일정보 API 로 채운 ADV.holidays 로 본다(홈 JS 와 같은 입력).
     # 반환 모양(W, Q)을 바꾸지 않으려고 W 사본에 얹는다 — 합성 픽스처처럼 없으면 공휴일 없음으로 본다.
     W = dict(adv['weekly'], holidays=adv.get('holidays') or [])

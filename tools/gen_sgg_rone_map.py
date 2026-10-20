@@ -8,7 +8,7 @@ update_adv_data.SGG_RONE_CLS 는 월간, SGG_RONE_CLS_WK 는 주간 시군구 �
 내기 시작해도 **저절로 붙지 않는다**(인천 신설 4구 월간 — 배치 기록 줄이 알린다, batch_notes.sgg_map_gap_lines).
 
 재료
-  · KOSIS 코드 목록      : update_adv_data.SGG_CODES (index.html NATION_TILE과 동일 집합)
+  · KOSIS 코드 목록      : update_adv_data.SGG_CODES (home-app.js NATION_TILE과 동일 집합)
   · KOSIS 코드 → 지역명  : 홈 SGG_QNAME (예: 'a80703' → '양주')
   · R-ONE CLS_ID → 지역명: R-ONE 매매지수표(월간 A_2024_00045 · 주간 T244183132827305) 최신 시점 행의
                            CLS_ID / CLS_NM / CLS_FULLNM
@@ -62,11 +62,11 @@ def _key():
 
 
 def qname_map():
-    """index.html SGG_QNAME — KOSIS 코드 → 표시용 지역명(접미사 없는 형태)."""
+    """홈 SGG_QNAME(home-stats.js, home_src 경유) — KOSIS 코드 → 표시용 지역명(접미사 없는 형태)."""
     h = HS.home_source()
     m = re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S)
     if not m:
-        raise SystemExit('index.html에서 SGG_QNAME을 찾지 못했다 — 구조가 바뀌었는지 확인할 것')
+        raise SystemExit('홈 스크립트(home-stats.js, home_src 경유)에서 SGG_QNAME을 찾지 못했다 — 구조가 바뀌었는지 확인할 것')
     return json.loads(m.group(1).replace("'", '"'))
 
 
