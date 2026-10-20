@@ -35,8 +35,7 @@ let BUILD_RELOAD=false;
 
 
 const FONT="'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',sans-serif";
-const INK="#131e24",INK2="#4c5f66",GRID="#dde4e1",MUTED="#5e6f74";
-const MAEMAE="#c0392b",JEONSE="#6c4ab6",STOCK="#1f8a70",FLOW="#d99a00";
+const INK="#131e24",INK2="#4c5f66",GRID="#dde4e1";   // INK·GRID 는 home-stats.js 그래프 축이 쓴다
 /* Chart.js는 defer라 이 시점엔 아직 없다 — boot()에서 부른다. */
 function chartSetup(){
   Chart.defaults.font.family=FONT;Chart.defaults.font.size=12;Chart.defaults.color=INK2;
@@ -179,7 +178,6 @@ if(document.fonts&&document.fonts.ready){
     });
   }).catch(()=>{});
 }
-const fy=t=>Math.floor(t),SUDO=["서울","경기","인천"];
 
 
 
@@ -380,7 +378,7 @@ window.addEventListener('hashchange',applyHash);
 /* ============ 통계 대시보드 → home-stats.js(B11 코드 분할, 통계 화면을 열 때 받는다) ============ */
 
 /* ============ 부동산 테스트 (부린이 / 투자자) ============ */
-/* 부린이 테스트 레벨 10단계 (점수 0~10 → 태아부터 교수님까지).
+/* 부린이 테스트 레벨 표 (점수 0~10 → 무주택 달걀부터 부동산 봉황까지 — 칸 수·이름은 아래 표가 정본).
    share/beginner-{0..10}.png 카드의 스탬프·이모지·문구와 1:1로 대응한다. */
 const BLV=[
   {lv:'LV1',emoji:'\u{1F95A}',g:'무주택 달걀',
@@ -614,12 +612,10 @@ function onTrendLink(e,from){
    다음 발표일까지 계산해 보여준다 — 유저가 '언제 새로 나오나'를 알 수 있게. */
 // <wk-release> ── 이 구간은 test_weekly_release 가 통째로 node 에 올려 파이썬 정본(tools/weekly_release.py)과
 // 대조한다. 여기에는 DOM·ADV 를 만지지 않는 순수 함수만 둔다.
-/* 법정공휴일(대체공휴일 포함). 배치가 특일정보 API로 채운 ADV.holidays가 있으면 그걸(_syncHolidays),
-   없으면 이 하드코딩으로. const가 아니라 let인 이유는 데이터 도착 시 갈아끼우기 위함이다. */
-let _HOLIDAYS=new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18',
-  '2026-03-01','2026-03-02','2026-05-05','2026-05-25','2026-06-06','2026-08-15',
-  '2026-08-17','2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05',
-  '2026-10-09','2026-12-25']);
+/* 법정공휴일(대체공휴일 포함). 정본은 배치가 특일정보 API로 채운 ADV.holidays 하나다(_syncHolidays). 없으면(옛 캐시) 빈
+   목록 — 파이썬 weekly_release.status 의 기본값(holidays=())과 같다. 예전 하드코딩 2026 목록은 5/1·5/24·6/3·7/17 이 빠진 채
+   낡아 파이썬과 연휴 판정이 갈렸다(전수리뷰 2차 overflow). const가 아니라 let인 이유는 데이터 도착 시 갈아끼우기 위함이다. */
+let _HOLIDAYS=new Set();
 /* 날짜는 'UTC 자정 기준 일수'(정수)로만 다룬다. Date 의 지역 시간 메서드를 쓰면 방문자 기기의 시간대에
    따라 날짜가 하루 갈린다. '오늘'은 KST(+9, 일광 절약 없음) — tools/kst.py 와 같다. */
 const _DAY=864e5;
@@ -1387,7 +1383,8 @@ function renderSidoMap(){
     /* 지도는 기본 모드다 — sido-geo.js가 안 오면(404·차단) 조용히 빠지면
        홈 첫 화면이 빈 상자가 된다(2026-08-08 감사 세션 지적). 표로 폴백하고
        지도 버튼은 잠근다. 그래프·표는 이 파일 없이도 온전하다. */
-    if(TB_VIEW==='map'&&MAP_MODE==='supply') tbView('table');   // 시세 모드는 priceOk 가 막아 여기 오지 않는다
+    /* 사람이 고른 보기가 아니라 자동 폴백이라 supply_view GA 를 보내지 않는다(quiet, 전수리뷰 2차 overflow) */
+    if(TB_VIEW==='map'&&MAP_MODE==='supply') tbView('table',true);   // 시세 모드는 priceOk 가 막아 여기 오지 않는다
     var mb=document.querySelector('#tb-view [data-v="map"]');
     if(mb){ mb.disabled=true; mb.title='지도 데이터를 불러오지 못했습니다'; }
     return;

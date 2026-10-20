@@ -735,7 +735,7 @@
   .home-sec h2{font-size:clamp(21px,4.6vw,27px);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
   .home-sec h3{font-size:clamp(17px,3.6vw,20px);font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
   .home-sec p{font-size:var(--fs-read);line-height:1.75;color:var(--ink2);max-width:520px;margin:0 auto}
-  /* 주간 시세 = 전국 시군구 지도(renderWeeklyGrid, 매매만). 예전엔 시도 20칸 격자였다(2026-10-02 대표 요청으로 걷음).
+  /* 주간 시세 = 전국 시군구 지도(renderWeeklyGrid, 매매만). 예전엔 시도 격자였다(2026-10-02 대표 요청으로 걷음).
      지도는 통계 탭과 같은 sggMapSvg 라 글자 하한(11px)을 지키는 최소 폭이 있고, 좁은 화면에서는 상자 안에서 옆으로 민다
      (.map-scroll). 칸을 누르면 그 지역 주간 그래프. 글자는 13px 이상(test_home_min_font — SVG 지도 라벨은 제외). */
   .wgrid{max-width:560px;margin:18px auto 0}
@@ -805,7 +805,7 @@
   .sc-tier{flex:none;width:62px;text-align:center;font-size:11.5px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted);white-space:nowrap}
   .sc-tier.g4{background:#fdecea;color:#a93226}
   .sc-tier.g3{background:#fbeee9;color:#c0392b}
-  /* 3.34:1이라 10.5px 기준(4.5:1)에 미달했다 — 20곳 중 7곳이 다는 최다
+  /* 3.34:1이라 10.5px 기준(4.5:1)에 미달했다 — 여러 곳이 다는 최다
      배지다(2026-08-07 오딧). 배경 faf3e7은 audit_design DATA_TINTS 예외라
      그대로 두고 글자만 내렸다: #b9770e → #8f5806 = 5.34:1. */
   .sc-tier.g2{background:#faf3e7;color:#8f5806}
@@ -843,7 +843,7 @@ table.adv thead th:first-child{text-align:center}
 #sec-score .thead{margin-top:18px}
 
   /* ===== 공급·가격 통합표 (홈, 2026-08-06) =====================================
-     행=기간, 열=시도 20곳. 칸 배경은 과거=가격 변동 세로 3등분, 미래=적정물량 대비.
+     행=기간, 열=판정 단위(시도·집계) 전부. 칸 배경은 과거=가격 변동 세로 3등분, 미래=적정물량 대비.
      20열이라 가로 스크롤이 전제다 — 기간 열과 표두는 붙박이로 둔다. */
   .tb-bar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:16px 0 10px}
   /* ── 홈 3모드(지도/그래프/표) — 표시 여부는 섹션의 vm-* 클래스가 정한다.
@@ -1218,7 +1218,7 @@ table.adv thead th:first-child{text-align:center}
   #tb-main .tb-zl{color:inherit;text-decoration:none;display:block;
     margin:-6px -9px;padding:9px}
   #tb-main .tb-zl:hover{text-decoration:underline}
-  /* 허브(/zone/) 진입점. 푸터에만 있어서 표를 보던 사람이 20곳을 나란히
+  /* 허브(/zone/) 진입점. 푸터에만 있어서 표를 보던 사람이 판정 단위 전부를 나란히
      견주는 화면으로 갈 길이 없었다(2026-08-07 오딧). 표 다음 동작 자리에 둔다. */
   /* 회색 테두리 상자는 어떤 기존 어휘에도 안 속해 따로 놀았다(2026-08-08
      사용자: "어색하고 눈에 안 띔") — 히어로 주 CTA(.home-cta: 먹색 채움·
@@ -1269,7 +1269,7 @@ table.adv thead th:first-child{text-align:center}
   .inst-go{background:var(--ink);color:#fff;border:0}
   .inst-x{margin-left:auto;background:#fff;color:var(--ink2);border:1px solid var(--line)}
   .zsort{margin-top:12px}
-  /* 허브: '17개 시도' 제목이 위 집계 박스에 붙어 있었다(2026-08-08 사용자) */
+  /* 허브: 'N개 시도' 제목이 위 집계 박스에 붙어 있었다(2026-08-08 사용자) */
   .z17{margin-top:36px}
 
   /* ===== 시도 상세 페이지 (2026-08-06) ======================================
@@ -1293,7 +1293,7 @@ table.adv thead th:first-child{text-align:center}
 
   /* 격자선을 컨테이너 배경(--line)으로 깔고 gap:1px로 뚫어 보이게 하던 방식이었는데,
      카드가 5개라 넓은 화면에서 4열이 잡히면 둘째 줄 빈 칸 3개에 그 배경이 그대로
-     드러났다(17개 시도 전부). 셀이 없는 자리는 --paper로 덮이지 않기 때문이다.
+     드러났다(시도 전부). 셀이 없는 자리는 --paper로 덮이지 않기 때문이다.
      그래서 선을 셀이 스스로 그리게 바꾼다 — 빈 자리에는 아무것도 안 그려진다.
      box-shadow는 바깥으로 1px 번지므로 gap:1px을 인접 셀끼리 나눠 채워 1px 선이
      되고, 레이아웃을 밀지 않아 열 계산에도 영향이 없다. auto-fit이라 열 수가
