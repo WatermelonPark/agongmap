@@ -1246,7 +1246,7 @@ function priceModel(mode){
 }
 /* 범례 한 덩어리 — M 이 없으면 공급, 있으면 그 시세(주간·월간). 끝말·가운데 칸을 모드마다 바꾸고, 주간은 뜻 한 줄(제목과 단위)을 단다.
    공급 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 … · 2026년 2분기 기준')은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리.
-   식은 카드 ⓘ·산출 방법에, 3년 구간은 지도 아래 '앞으로 3년(…~…)' 줄에 있다).
+   식은 카드 ⓘ·산출 방법에, 3년 구간은 카드 아래 기준 줄 '앞으로 3년(…~…)'에 있다).
    주간 램프의 양끝·가운데 색은 지도 채움과 같은 wkFill 에서 뽑는다(범례와 지도가 다른 색을 말하지 않게). */
 function mapKeyHtml(M){
   /* 공급 범례는 왼쪽 부족 → 오른쪽 여유(2026-10-06 대표 결정 — 지역 칸 막대·신호등과 같은 방향, '오른쪽일수록 공급이 많다').
@@ -1294,7 +1294,7 @@ function mapMode(m){
   });
   var el=document.getElementById('map-wrap');
   if(el) el.dataset.done='';
-  /* 지도 아래 공급 출처 줄('앞으로 3년 공급 · 국토교통부 …')은 시세 지도의 출처가 아니다 — 시세 모드에서는 숨긴다(app.css .mm-price, 2026-10-05 리뷰) */
+  /* 카드 아래 공급 기준 줄('앞으로 3년 공급 · 국토교통부 …')은 시세 지도의 출처가 아니다 — 시세 모드에서는 숨긴다(app.css .mm-price, 2026-10-05 리뷰) */
   var sec=document.getElementById('sec-score');
   if(sec) sec.classList.toggle('mm-price',m!=='supply');
   /* 시세 모드의 그래프·표는 시세 탭이 맡는다(tbView) — 공급 그래프·표를 보던 중이면 지도로 돌린다 */
@@ -1684,7 +1684,7 @@ function renderWeeklyGrid(){
      요청으로 시도 칸을 모두 걷고 통계 탭과 같은 시군구 지도(sggMapSvg)를 그 자리에 둔다 — 시도 값은 지도의 진한 머리 칸
      (서울·경기 …)이 말한다. 칸(이름·값)을 누르면 그 지역 주간 그래프(통계 시장동향, openTrendRegion). 전세 줄은 싣지 않는다
      (2026-09-28 대표 결정 — 홈 주간 구역은 매매만). 색·값은 통계 지도와 같은 mapColor(…, WK_MAP_REF)·pv2 다.
-     요약·공유 주소인 /weekly/ 로 가는 길은 머리줄 오른쪽 링크다(home_cta 의 to 값 weekly_grid 는 GA 값이라 그대로 둔다). */
+     요약·공유 주소인 /weekly/ 로 가는 길은 지도 아래 줄(.wg-foot) 오른쪽 링크다(home_cta 의 to 값 weekly_grid 는 GA 값이라 그대로 둔다). */
   const v={}; S.codes.forEach((c,i)=>{v[c]=row.ma[i];});
   const svg=sggMapSvg([v],{ref:WK_MAP_REF,names:['매매'],href:c=>'#stats-market-week~'+c});
   /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). */
@@ -1995,7 +1995,7 @@ function boot(){
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
   renderBlogLine();   // 주간 구역 아래 이번 주 해석 글 한 줄(B5)
-  renderSupplySpan(); // 지도 아래 '앞으로 3년(…~…)' 구간(B9)
+  renderSupplySpan(); // 카드 아래 기준 줄의 '앞으로 3년(…~…)' 구간(B9)
   dropOldMyZone();    // 뺀 '내 지역'의 옛 저장값 정리
   /* ⚠️ 표(분기 1,000칸 HTML 조립)는 여기서 굽지 않는다. 기본 모드가 지도인데
      숨은 표를 먼저 구우면 그 비용(월 모드 실측 200ms+)이 기본 화면 페인트를 막고,
