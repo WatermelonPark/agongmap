@@ -156,6 +156,10 @@ def permit_over_x(sts):
     if pct is None:
         raise SystemExit('1편을 만들 수 없다 — 전국 인허가·착공으로 인허가가 착공보다 얼마나 많은지 잴 수 없다. %s — 통계 계열이 찬 뒤 '
                          '다시 돌린다.' % NOT_THE_TEXT)
+    if pct <= 0:
+        # '착공보다 N배쯤 많고'는 인허가가 착공보다 많을 때만 참이다 — 0·음수면 '1배'·'0.9배쯤 많고'가 나간다
+        raise SystemExit('1편을 만들 수 없다 — 전국 인허가가 착공보다 많지 않다(정본 %s%%) — 1편 문장의 전제가 깨졌다. %s'
+                         % (pct, NOT_THE_TEXT))
     return ('%.2f' % (1 + pct / 100.0)).rstrip('0').rstrip('.')
 
 
