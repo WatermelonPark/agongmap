@@ -91,6 +91,21 @@ def neun(w):
     return w + ('은' if 0xAC00 <= c <= 0xD7A3 and (c - 0xAC00) % 28 else '는')
 
 
+def names_text(names):
+    """지역 이름 여럿을 문장 속 나열로 — ['서울'] → '서울', ['서울', '세종'] → '서울과 세종', 셋 이상 → '서울, 세종과 제주'.
+    조사(ga·neun)는 부르는 쪽이 끝 이름 뒤에 붙인다. '·'로 잇지 않는다 — 화면 이름 '광주·전남'이 셋으로 읽힌다(전수리뷰 Z1-10)."""
+    if len(names) == 1:
+        return names[0]
+    c = ord(names[-2][-1])
+    wa = '과' if 0xAC00 <= c <= 0xD7A3 and (c - 0xAC00) % 28 else '와'
+    return '%s%s %s' % (', '.join(names[:-1]), wa, names[-1])
+
+
+def shown1(v):
+    """전세가율 표시값(소수 첫째 자리) — 표 칸('%.1f%%')과 같은 값. 가장 높은·낮은 곳의 동률을 이 값으로 가린다(전수리뷰 Z1-10)."""
+    return float('%.1f' % v)
+
+
 # 표두를 눌러 정렬하는 스크립트(id="utable" 표 하나에 붙는다). SHELL 페이지(/moveins/·/jeonse-ratio/)와 /weekly/ 시군구
 # 전체 표(make_weekly_page.table_html)가 같은 것을 쓴다 — 정렬 관례를 한 곳에 둔다(홈 마케팅 검수 C10②, 2026-09-27).
 SORT_SCRIPT = """<script>
@@ -288,11 +303,10 @@ def fill(shell, desk='wide', **kw):
 
 
 def not_before_pub(iso):
-    """dateModified가 datePublished보다 과거가 되지 않게 막는다.
-    두 페이지의 lastmod는 '마지막 실적 분기'에서 오는데(데이터가 안 바뀌면
-    안 움직이게 하려는 의도), 그 분기가 페이지 공개일보다 앞서면
-    '2026-07-29 발행 · 2026-06-01 수정'이라는 불가능한 조합이 나간다
-    (2026-08-07 감사에서 실제로 그 상태였다)."""
+    """dateModified가 datePublished보다 과거가 되지 않게 막는다 — 공개일 하한만 맡는다.
+    전수 리뷰 #18 뒤로 두 페이지의 dateModified·lastmod 는 **내용이 바뀐 날(KST)**이다(main 의 keep_dates). 예전엔 '마지막 실적
+    분기'에서 왔는데, 그 분기가 공개일보다 앞서 '2026-07-29 발행 · 2026-06-01 수정'이라는 불가능한 조합이 나갔다(2026-08-07 감사).
+    지금도 옛 판의 날짜를 물려받는 길에서 같은 조합이 생기지 않게 둔다(전수리뷰 Z1-13 — 독스트링이 #18 전 동작을 적고 있었다)."""
     return max(iso, PUBLISHED)
 
 
@@ -368,7 +382,13 @@ def jeonse_delta(cur, ago):
     """
     if cur is None or ago is None:
         return None
-    return round(float('%.1f' % cur) - float('%.1f' % ago), 1) + 0.0
+    return round(shown1(cur) - shown1(ago), 1) + 0.0
+
+
+# 전세가율 원천 표기의 정본 — 작성 기관(한국부동산원)과 배포 창구(KOSIS)를 함께 적는다. /jeonse-ratio/ 의 주석·푸터와 /monthly/
+# 전세가율 절이 이것 하나를 쓴다(전수리뷰 Z2-12 — /monthly/ 는 수집 계열 source 칸 'KOSIS 매매가격 대비 전세가격비'를 그대로 써
+# 기관명이 빠졌다. 미분양의 UN_SOURCE 와 같은 이유로 수집 칸 대신 정본을 쓴다).
+JR_SOURCE = 'KOSIS·한국부동산원 「매매가격 대비 전세가격비」'
 
 
 def build_jeonse(sts, today=None):
@@ -417,25 +437,31 @@ def build_jeonse(sts, today=None):
     nat_ago = at('전국', ya)
     # 1년 전 값이 없으면 그 비교 문구만 뺀다. 예전엔 None 과 빼기를 해 생성기가 죽었고, 배치는 그날 커밋을 통째로 막았다.
     nat_d = jeonse_delta(nat, nat_ago)
-    hi = max(vals, key=lambda v: v[1])
-    lo = min(vals, key=lambda v: v[1])
-    moved = [v for v in vals if v[2] is not None]
-    up_most = max(moved, key=lambda v: v[2]) if moved else None
+    # 가장 높은·낮은 곳(그리고 1년 새 가장 크게 오른 곳)은 **표시값**(소수 첫째 자리)으로 가리고, 표시값이 같은 곳은 모두 적는다(전수리뷰
+    # Z1-10). 원값 max/min 은 같은 '52.3%' 가운데 한 곳(서울)만 골라 표 맨 아래의 세종을 뺐고(2026.08), 원값이 갈리는 표시값 동률
+    # (2026.05 전남광주 78.72·경북 78.7)에는 표만 보는 사람에게 근거 없는 1위를 말했다. 나열 순서는 표와 같다(전세가율 내림차순).
+    order = sorted(vals, key=lambda v: -v[1])
+    top, bot = max(shown1(v[1]) for v in vals), min(shown1(v[1]) for v in vals)
+    his = [v for v in order if shown1(v[1]) == top]
+    los = [v for v in order if shown1(v[1]) == bot]
+    moved = [v for v in order if v[2] is not None]
+    upv = max(v[2] for v in moved) if moved else None   # 변화는 이미 표시값끼리의 차(jeonse_delta)
+    ups = [v for v in moved if v[2] == upv]
     # 문장·설명 메타에 찍는 이름도 화면 이름이다(백로그 46) — 조사(이/가·은/는)도 화면 이름 끝 글자로 센다('광주·전남이').
     # 예전엔 표 행만 disp 를 거쳐, 전남광주가 최고·최저·최대 상승인 달(2026.05 실데이터)에 키가 그대로 나가 게이트가 그날 데이터
-    # 커밋을 막았다(전수리뷰 X2-1·Z1-1).
-    hi_n, lo_n = SZ.disp(hi[0]), SZ.disp(lo[0])
+    # 커밋을 막았다(전수리뷰 X2-1·Z1-1). 여럿이면 '서울과 세종'처럼 잇고 조사는 끝 이름에 붙는다.
+    hi_n, lo_n = names_text([SZ.disp(v[0]) for v in his]), names_text([SZ.disp(v[0]) for v in los])
     natd_desc = '' if nat_d is None else '로 1년 전보다 %+.1f%%p' % nat_d
     natd_sub = '' if nat_d is None else ' · 1년 전 대비 %+.1f%%p' % nat_d
     # 오른 곳이 없으면(가장 큰 변화가 0 이하 — 모든 시도가 그대로이거나 내린 해) '가장 크게 오른 곳'을 말하지 않는다(전수리뷰 B2).
     # 변화는 표시값(소수 첫째 자리)끼리의 차라 표의 '+0.0%p' 와 같은 기준이다.
-    upm_p = ('' if up_most is None or up_most[2] <= 0 else
-             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (SZ.disp(up_most[0]), up_most[2]))
+    upm_p = ('' if upv is None or upv <= 0 else
+             '1년 새 가장 크게 오른 곳은 <strong>%s(%+.1f%%p)</strong>. ' % (names_text([SZ.disp(v[0]) for v in ups]), upv))
 
     title = '전세가율이란 — 전국·시도별 아파트 전세가율 현황 %s | 아공맵' % prd
     desc = ('전세가율은 매매가 대비 전세가 비율. %s 기준 전국 아파트 전세가율은 %.1f%%%s. '
             '%s %.1f%%로 가장 높고 %s %.1f%%. 시도별 현황과 사이클 신호로서의 의미를 데이터로 정리했다.'
-            ) % (prd, nat, natd_desc or '다', ga(hi_n), hi[1], neun(lo_n), lo[1])
+            ) % (prd, nat, natd_desc or '다', ga(hi_n), top, neun(lo_n), bot)
     url = SITE + '/jeonse-ratio/'
 
     body = """<header class="wrap">
@@ -459,7 +485,7 @@ def build_jeonse(sts, today=None):
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. 자료: KOSIS·한국부동산원 「매매가격 대비 전세가격비」, 매월 갱신.</div>
+  <div class="note">표두를 누르면 정렬. 자료: %(jrsrc)s, 매월 갱신.</div>
 </section>
 
 <section class="wrap">
@@ -474,17 +500,17 @@ def build_jeonse(sts, today=None):
     <a href="/#stats-adv-bubble">버블밴드<span>전세가율로 계산한 지역별 고평가·저평가 밴드</span></a>
     <a href="/#stats-basic">기본통계 차트<span>전세가율 2012년부터 월별 추이를 지역별로</span></a>
     <a href="/moveins/">아파트 입주물량<span>전세가율을 움직이는 원인 — 시도별 입주 예정</span></a>
-    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도를 부족·과잉 등급으로</span></a>
+    <a href="/zone/">시도별 공급 분석<span>__NSIDO__개 시도의 부족·여유를 등급으로</span></a>
     <a href="/cycle/">아파트 사이클 리포트<span>전세가율이 매매를 미는 고리, 데이터 검증</span></a>
   </div>
 </section>
 """ % dict(nat=nat, natd=natd_sub, prd=prd, trs='\n'.join(trs),
-           hi=hi_n, hiv=hi[1], lo=lo_n, lov=lo[1], upm=upm_p)
+           hi=hi_n, hiv=top, lo=lo_n, lov=bot, upm=upm_p, jrsrc=JR_SOURCE)
 
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,
                 ld=ld_pack('전세가율 — 전국·시도별 현황과 의미', desc, url, '전세가율', today),
-                src='KOSIS 한국부동산원 매매가격 대비 전세가격비',
+                src=JR_SOURCE,
                 nsido=str(len(SIDO17)))   # 본문을 넣은 뒤에 치환되도록 마지막에 둔다
     return html, not_before_pub(today)
 
@@ -593,7 +619,14 @@ def build_moveins(adv, today=None):
     sudo = {y: ytot('수도권', y) for y in years}
     shorts = sorted([(r, (ytot(r, Y) or 0) / ref[r] * 100)
                      for r in SIDO17 if ref.get(r)], key=lambda x: x[1])
-    lo1, hi1 = shorts[0], shorts[-1]
+    # 가장 적은·많은 곳은 표 칸과 같은 표시 정수(pct_shown)로 가리고, 같은 표시값이면 모두 적는다(전수리뷰 Z1-10 정본 결정 — 동률은 다 적는다).
+    # 가장 적은 곳도 적정물량 이상(100% 이상)이면 '적정물량에 가장 못 미치는 곳'이 사실이 아니라 '적정물량 대비 가장 적은 곳'으로 쓴다
+    # (전수리뷰 Z1 overflow — 지금은 세종 0% 라 해당 없지만 모든 시도가 적정물량 이상인 해에 틀린 말이 된다).
+    shown = [(r, pct_shown(ytot(r, Y) or 0, ref[r])) for r, _ in shorts]
+    lo1p, hi1p = shown[0][1], shown[-1][1]
+    lo1 = names_text([SZ.disp(r) for r, p in shown if p == lo1p])
+    hi1 = names_text([SZ.disp(r) for r, p in reversed(shown) if p == hi1p])
+    lo_head = '적정물량에 가장 못 미치는 곳은' if lo1p < 100 else '적정물량 대비 가장 적은 곳은'
 
     # 검색 수요가 있는 '입주물량'은 머리에 두고, 이 숫자가 분양 단지 목록이 아니라 '착공 기준 추정'이라는 것을
     # title·description(og 포함)에서 드러낸다(홈 마케팅 검수 C9·SEO-5). 블로그는 추정치를 입주물량이라 부르지
@@ -631,7 +664,7 @@ def build_moveins(adv, today=None):
 
 %(city)s<section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
-  <p>%(Y)s년 입주가 적정물량에 가장 못 미치는 곳은 <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정선의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
+  <p>%(Y)s년 입주가 %(lo_head)s <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정물량의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
 </section>
 
@@ -647,8 +680,7 @@ def build_moveins(adv, today=None):
 """ % dict(nat26=num(nat26), nat27=num(nat27), trs='\n'.join(trs),
            basis=MOVEINS_BASIS % (last_act[:4], last_act[5:]),
            conv='%.3f' % SZ.CONV, convp=int(round(SZ.CONV * 100)),
-           lo1=SZ.disp(lo1[0]), lo1p=pct_shown(ytot(lo1[0], Y) or 0, ref[lo1[0]]),
-           hi1=SZ.disp(hi1[0]), hi1p=pct_shown(ytot(hi1[0], Y) or 0, ref[hi1[0]]),
+           lo1=lo1, lo1p=lo1p, hi1=hi1, hi1p=hi1p, lo_head=lo_head,
            # 연수·추정 지역·문턱은 모델 상수에서(전수 리뷰 #20, 대표 결정 ③)
            lead_y='%g년' % (SZ.LEAD_Q / 4.0), back_y='%g년' % (SZ.BACKLOG_WINDOW / 4.0), est_txt=est_regions_text(),
            occ_lo=SZ.OCC_LO_PCT, occ_hi=SZ.OCC_HI_PCT,

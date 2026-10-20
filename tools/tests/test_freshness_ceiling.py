@@ -31,7 +31,8 @@ def _series():
            ('금리', last['금리'], C.MAX_AGE_RATE),
            ('전월세전환율', adv['bubble']['prd'], C.MAX_AGE_BUBBLE_CONV),
            ('주담대 금리', adv['bubble']['loan']['p'], C.MAX_AGE_BUBBLE_LOAN)]
-    out += [(n, last[n], C.MAX_AGE_BASIC) for n in sorted(U.BASIC_CONF) + ['규모별'] + sorted(U.SUPPLY_CONF)]
+    out += [(n, last[n], C.MAX_AGE_BASIC) for n in sorted(U.BASIC_CONF) + sorted(U.SUPPLY_CONF)]
+    out += [(C.SIZE_LABEL % n, last[C.SIZE_LABEL % n], C.MAX_AGE_BASIC) for n, _, _ in U.SIZE_TBLS]   # 표마다(A-2)
     out += [(n, last[n], C.MAX_AGE_ANNUAL) for n in sorted(U.ANNUAL_CONF)]
     # 시도 지표(ADV.sido.L)는 분기 표기('2026Q2')라 period_end 가 못 읽는다 — main() 과 같이 분기 끝날(_q_to_date)로 잰다
     out.append(('시도 지표', C._q_to_date(adv['sido']['L']), C.MAX_AGE_SIDO_Q))
@@ -184,16 +185,17 @@ def test_sido_quarter_ceiling_fails_through_main(monkeypatch, capsys):
     찍힌다 — 상한을 켠 날(오늘 고정)에만. 상한 날까지는 그 줄이 없다.
 
     변이(확인): main() 의 시도 지표 검사를 `fails.append(None)` 으로 지우면 첫 단정이, check_age 의 `age > grace` 를
-          `age >= grace` 로 바꾸면 둘째 단정이 빨개진다.
+          `age >= grace` 로 바꾸면 둘째 단정이 빨개진다. 시도 지표 호출에서 what='기준 분기 끝' 을 빼면(옛 '마지막 수집') 첫
+          단정이 빨개진다(확인).
     픽스처: 하니스의 정상 날 원천, 오늘 = L 분기 끝 + 상한 + 1일 / + 상한(데이터에서 유도 — 분기를 박지 않는다).
     """
     adv, _ = _live()
     end = C.period_end(C._q_to_date(adv['sido']['L']))
-    line = '시도 지표(마지막 수집 %s, 경과 %d일 > %d일)'
+    line = '시도 지표(기준 분기 끝 %s, 경과 %d일 > %d일)'   # 도장은 수집 날이 아니라 분기 끝날이다(전수리뷰 F overflow)
     r = _run(monkeypatch, capsys, 4, today=end + (C.MAX_AGE_SIDO_Q + 1) * DAY)
     assert line % (end.isoformat(), C.MAX_AGE_SIDO_Q + 1, C.MAX_AGE_SIDO_Q) in r['out'], r['out'][-800:]
     r = _run(monkeypatch, capsys, 4, today=end + C.MAX_AGE_SIDO_Q * DAY)
-    assert '시도 지표(마지막 수집' not in r['out'], r['out'][-800:]
+    assert '시도 지표(' not in r['out'], r['out'][-800:]
 
 
 def test_harness_with_ceilings_off_stays_green_however_far_today_moves(monkeypatch, capsys):

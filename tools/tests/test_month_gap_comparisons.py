@@ -20,6 +20,8 @@ update_supply 전 경로로 재현한 모양), 전세가율은 12달 창 안에�
   - _with_top 의 사유 줄 분기를 지우면 → 요약 줄이 사라져 빨강
   - build_jeonse 의 `at(name, ya)` 를 `at(name, li - 12)` 로 되돌리면 → 13달 전 값이 실려 빨강
   - 시도 카드의 ya 를 `li - 12` 로, 블로그의 j 를 `idx[-2]`(결측 건너뛴 앞 값)로 되돌리면 → 각 시험 빨강
+  - make_indicator_pages.jeonse_delta 를 원값 차(`round(cur - ago, 1)`)로 되돌리면 → 월간·전세가율·시도 카드 시험 빨강(픽스처의
+    기준월·1년 전 둘째 자리 — 전수리뷰 W1 G2b overflow. 예전 기대값은 원값 차라 정본에서 벗어나도 초록이었다)
   - 홈 buildTable 의 비교를 `(k>=lag)?vals[k-lag]:null` 로 되돌리면 → 홈 시험 둘 다 빨강, 연 1점 구간 예외를
     지우면 → 미분양 2006.12 단정이 빨강
 """
@@ -77,8 +79,10 @@ def _unsold():
             'series': {r: [1000.0 + i, 1100.0 + i, 1130.0 + i] for i, r in enumerate(regs)}}
 
 
-def _jeonse(skip=('2025.12',)):
-    """2025.01~2026.08 에서 skip 달이 빠진 전세가율. 값은 달마다 0.7 씩, 지역마다 1.0 씩 다르다."""
+def _jeonse(skip=('2025.12',), second=False):
+    """2025.01~2026.08 에서 skip 달이 빠진 전세가율. 값은 달마다 0.7 씩, 지역마다 1.0 씩 다르다. second 면 기준월(2026.08)에 +0.04, 1년 전
+    (2025.08)에 +0.06 의 둘째 자리를 얹는다 — 전남광주 가중평균 계열 같은 실제 모양이라 '1년 변화'의 표시값 차(정본 jeonse_delta,
+    64.0 − 55.7 = 8.3)와 원값 차(8.38 → 8.4)가 갈린다. 기본은 첫째 자리뿐(다른 파일이 원값을 표 칸과 바로 견주며 가져다 쓴다)."""
     dates = _months('2025.01', '2026.08', skip)
     regs = list(dict.fromkeys(list(SZ.ORDER) + ['전국', '수도권', '지방'] + list(I.SIDO17)))
     ser = {}
@@ -86,8 +90,14 @@ def _jeonse(skip=('2025.12',)):
         ser[r] = []
         for lab in dates:
             y, m = (int(x) for x in lab.split('.'))
-            ser[r].append(round(50.0 + i + 0.7 * ((y - 2025) * 12 + m), 1))
+            ser[r].append(round(50.0 + i + 0.7 * ((y - 2025) * 12 + m) + ({'2026.08': 0.04, '2025.08': 0.06}.get(lab, 0) if second else 0), 2))
     return {'dates': dates, 'series': ser}
+
+
+def _shown_delta(cur, ago):
+    """전세가율 '1년 전 대비'의 계약 — 표시값(소수 첫째 자리)끼리의 차. 정본 I.jeonse_delta 를 가져다 쓰지 않고 따로 센다(전수리뷰 W1 G2b
+    overflow — 이 파일은 원값 차로 기대값을 적어, 픽스처가 소수 첫째 자리뿐인 동안 정본에서 벗어나도 초록이었다)."""
+    return round(float('%.1f' % cur) - float('%.1f' % ago), 1) + 0.0
 
 
 def _val(block, r, lab):
@@ -123,12 +133,12 @@ def test_monthly_unsold_with_the_month_present_still_compares():
 
 
 def test_monthly_jeonse_compares_with_the_same_month_a_year_ago():
-    jr = _jeonse()
+    jr = _jeonse(second=True)
     secs, _ = MP.build({}, {'전세가율': jr})
     sec = _section(''.join(secs), 'jeonse')
     for r, cells in _rows(sec).items():
-        want = _val(jr, r, '2026.08') - _val(jr, r, '2025.08')
-        assert cells[1] == float(MP.pv2(want)), '%s: 1년 전 대비 %s ≠ %s(2025.08 과 견줌)' % (r, cells[1], want)
+        want = _shown_delta(_val(jr, r, '2026.08'), _val(jr, r, '2025.08'))
+        assert cells[1] == want, '%s: 1년 전 대비 %s ≠ %s(2025.08 과 견줌)' % (r, cells[1], want)
     _assert_summary_matches_table('jeonse', sec)
 
 
@@ -143,13 +153,14 @@ def test_monthly_jeonse_without_the_year_ago_month_leaves_it_blank():
 
 # ── /jeonse-ratio/ · 시도 리포트 카드 ────────────────────────────────────
 def test_jeonse_page_compares_with_the_same_month_a_year_ago():
-    jr = _jeonse()
+    jr = _jeonse(second=True)
     html, _ = I.build_jeonse({'전세가율': jr})
     nat = _val(jr, '전국', '2026.08')
     ago = _val(jr, '전국', '2025.08')
-    assert '1년 전 대비 %+.1f%%p' % round(nat - ago, 1) in html
+    assert '1년 전 대비 %+.1f%%p' % _shown_delta(nat, ago) in html
     row = re.search(r'<tr class="agg"><td>전국</td><td>[\d.]+%</td><td>([\d.]+)%</td>', html)
-    assert row and float(row.group(1)) == ago, '전국 1년 전 칸이 2025.08 이 아니다: %s' % (row and row.group(1))
+    assert row and float(row.group(1)) == float('%.1f' % ago), '전국 1년 전 칸이 2025.08 이 아니다: %s' % (row and row.group(1))
+    assert _shown_delta(nat, ago) != round(nat - ago, 1) + 0.0, '픽스처에 표시값 차와 원값 차가 갈리지 않는다 — 원값 차 회귀를 못 잡는다'
 
 
 def test_jeonse_page_survives_a_missing_year_ago_month():
@@ -160,10 +171,10 @@ def test_jeonse_page_survives_a_missing_year_ago_month():
 
 
 def test_zone_card_compares_with_the_same_month_a_year_ago():
-    jr = _jeonse()
+    jr = _jeonse(second=True)
     z = next(r for r in SZ.ORDER if r not in SZ.AGG)
     html = SP.next_links(z, None, {'전세가율': jr})
-    want = round(_val(jr, z, '2026.08') - _val(jr, z, '2025.08'), 1) + 0.0
+    want = _shown_delta(_val(jr, z, '2026.08'), _val(jr, z, '2025.08'))
     assert '1년 전 대비 %+.1f%%p' % want in html, html
 
 

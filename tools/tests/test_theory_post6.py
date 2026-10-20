@@ -88,6 +88,12 @@ def test_snapshot_passes_and_fills_every_slot():
     assert SLOTS and SLOTS <= set(v), sorted(SLOTS - set(v))
     assert v['fut_high'] == '대전 115%, 충남 112%' and v['fut_high_names'] == '대전·충남', v
     assert v['fut_low'] == '대구 17%, 제주 24%, 경북 32%, 서울 32%' and v['win_y'] == '3', v
+    # 지방 반응 시차 수는 /cycle/ 고리⑥ 캡션 칸과 같은 함수(RC.link6_lag_prose)에서 센다(전수리뷰 C-3). 변이(실제로 확인):
+    # link6_values 가 유의 전체(수도권 포함)를 세면 빨개진다.
+    import rebuild_cycle_analysis as RC
+    lag = RC.link6_lag_prose(D['link6_regional'])
+    assert (v['l6_prov_sig'], v['l6_prov_now'], v['l6_prov_late']) == (lag['l6p_sig'], lag['l6p_now'], lag['l6p_late']) \
+        == ('9', '5', '4'), v
 
 
 def test_real_data_passes_or_stops_with_a_named_premise():

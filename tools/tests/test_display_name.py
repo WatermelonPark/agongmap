@@ -90,6 +90,26 @@ def test_merged_stub_particles_follow_the_display_name():
         assert '/zone/' + urllib.parse.quote(new) + '/' in s, '안내 페이지의 주소는 키 그대로다'
 
 
+def test_merged_stub_says_what_the_source_did(tmp_path):
+    """통합 안내 페이지는 원천이 한 일을 사실대로 쓴다 — '광주와 전남의 공급 통계를 한 단위로 묶어 발표'(묶인 지역은 MERGED_INTO 에서,
+    조사 와/과는 받침으로). 화면 이름('광주·전남')을 원천이 쓰는 이름처럼 '<b>광주·전남</b> 하나로 발표'라 쓰지 않는다 — 원천 표의 통합
+    단위 이름은 키 '전남광주'다(전수리뷰 Z1-9). 키도 화면에 내지 않는다(test_no_page_shows_a_renamed_key).
+    변이(실제로 확인): 문장을 옛 '공급 통계를 <b>%s</b> 하나로'(화면 이름)로 되돌리면 빨개진다.
+    픽스처: MERGED_INTO 의 옛 지역마다 임시 폴더에 안내 페이지를 굽는다."""
+    assert P.MERGED_INTO
+    for old, new in P.MERGED_INTO.items():
+        d = tmp_path / old
+        d.mkdir()
+        P._write_merged_stub(str(d), old, new)
+        s = (d / 'index.html').read_text(encoding='utf-8')
+        parts = [o for o, n in P.MERGED_INTO.items() if n == new]
+        want = '·'.join(parts[:-1]) + P._wa(parts[-2]) + ' ' + parts[-1]
+        assert '<b>%s</b>의 공급 통계를 한 단위로 묶어 발표' % want in s, s
+        assert '<b>%s</b> 하나로' % SZ.disp(new) not in s
+        assert new not in _visible(s), '안내 페이지 글자에 판정 단위 키가 보인다'
+    assert P._wa('광주') == '와' and P._wa('전남') == '과'
+
+
 def test_core_payload_carries_the_canon_table():
     s = _read('data-core.js')
     m = re.search(r'"zname":(\{[^}]*\})', s)

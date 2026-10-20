@@ -148,14 +148,52 @@ def build_zones(S):
 def build_overlay(S):
     ma = quarterly(S['매매지수'], '수도권', OVERLAY_FROM)
     je = quarterly(S['전세지수'], '수도권', OVERLAY_FROM)
-    jr = quarterly(S['전세가율'], '수도권', OVERLAY_FROM)
     rt = quarterly(S['금리'], 'CD(91일)', OVERLAY_FROM, nd=2)
     ts = sorted(t for t in ma if t in rt)
     return {'t': ts,
             'maemae': [ma[t] for t in ts],
             'jeonse': [je.get(t) for t in ts],
-            'rate': [rt[t] for t in ts],
-            'jratio': [jr.get(t) for t in ts]}
+            'rate': [rt[t] for t in ts]}
+
+
+def build_flow(S, prev):
+    """고리④⑤ '전국 아파트 공급 흐름'(cFlow) — 전국 인허가·착공·준공의 연 합(천 세대, 소수 첫째 자리). 열두 달이 다 찬 해만 쓴다.
+
+    예전 flow_chain 은 07-30 에 손으로 구운 뒤 아무도 다시 쓰지 않아, 새해 실적이 들어와도 2025 에서 멈추고 KOSIS 소급 정정이
+    오면 통계 탭과 갈렸다(전수리뷰 C-4). 인허가는 연내 누계라 SZ.permit_monthly 로 풀어 RC.m_y_sum, 착공·준공은 RC.y_sum —
+    사이클 재산정과 같은 합산 정본이다. 해 축은 인허가가 다 찬 해이고, 착공·준공이 열두 달 차지 않은 해(통계가 2010·2011 년에
+    시작)는 0 으로 둬 차트가 비운다(noZero). 인허가를 셀 수 없으면 어제 판을 둔다(배치를 멈추지 않는다).
+    """
+    pm = RC.m_y_sum(SZ.permit_monthly(S, '전국'))
+    if not pm:
+        print('  ⚠️ 전국 인허가에서 열두 달이 다 찬 해가 없다 — flow_chain 은 어제 판을 둔다')
+        return prev
+
+    def ysum(key):
+        b = S.get(key) or {}
+        ser = (b.get('series') or {}).get('전국')
+        return RC.y_sum(ser, b['dates']) if ser else {}
+    st, dn = ysum('착공'), ysum('준공')
+    ys = sorted(pm)
+    k = lambda v: round(v / 1000.0, 1)
+    return {'t': [int(y) for y in ys], 'permit': [k(pm[y]) for y in ys],
+            'start': [k(st.get(y, 0.0)) for y in ys], 'done': [k(dn.get(y, 0.0)) for y in ys]}
+
+
+def stock30(S, prev):
+    """참고④ '30년 이상 아파트는 Y0년 V0만 세대에서 Y년 V만 세대로 N배'의 재료 — 노후주택30년 전국의 첫 해·마지막 해(값이 있는 해).
+
+    손으로 적던 '2024년 252만·5배'는 data.js 에 2025(295만)가 들어온 뒤에도 그대로였다(전수리뷰 C-4). 연간 계열이라 값이 있는 해가
+    다 찬 해다. 계열을 못 읽으면 어제 판을 둔다.
+    """
+    b = S.get('노후주택30년') or {}
+    pts = [(int(str(d)[:4]), v) for d, v in zip(b.get('dates') or [], (b.get('series') or {}).get('전국') or [])
+           if v is not None]
+    if len(pts) < 2:
+        print('  ⚠️ 노후주택30년 전국 값이 두 해 미만 — super.stock30 은 어제 판을 둔다')
+        return prev
+    (y0, v0), (y1, v1) = pts[0], pts[-1]
+    return {'from': y0, 'from_v': v0, 'to': y1, 'to_v': v1}
 
 
 def build_jratio(S):
@@ -174,7 +212,7 @@ def build_jratio(S):
     rows = [(r, D['series'][r][k]) for r in SIDO
             if D['series'][r][k] is not None]
     rows.sort(key=lambda x: x[1])
-    lvl = [{'region': r, 'val': round(v, 1), 'sudo': r in SUDO,
+    lvl = [{'region': r, 'val': round(v, 1),
             'type': '투자성' if v < 60 else ('중간' if v < 73 else '실거주성')}
            for r, v in rows]
     sudo = [v for r, v in rows if r in SUDO]
@@ -187,7 +225,9 @@ def build_jratio(S):
 # 도니, 그쪽 prose로 만들면 다음 날 차트와 문장이 어긋난다. 재산정은 jr_ 키를 보존한다.
 # jr_prd 는 차트 캡션의 기준월이다(백로그 17, 2026-09-17). 캡션에 손으로 적어 둔
 # '2026.06 기준'이 값이 07로 넘어간 뒤에도 그대로 남아 있었다.
-JR_KEYS = ('jr_seoul', 'jr_jnl', 'jr_mid', 'jr_prd')
+# jr_jnl_nm·jr_jnl_j 는 광주·전남의 화면 이름과 그 뒤 조사다(전수리뷰 C-8). 백로그 46 이 '전남광주(…)는'의 이름만 '광주·전남'으로
+# 바꿔 받침 있는 '남' 뒤에 '는'이 남았다 — 이름은 정본(SZ.disp), 조사는 그 이름의 받침(RC._jong)에서 고른다.
+JR_KEYS = ('jr_seoul', 'jr_jnl', 'jr_jnl_nm', 'jr_jnl_j', 'jr_mid', 'jr_prd')
 
 
 def jratio_prose(lvl, prd):
@@ -207,12 +247,18 @@ def jratio_prose(lvl, prd):
     # '70%대'는 두 곳 값의 십의 자리(반올림 전 값의 내림)가 같을 때만 참이다. 갈리면 범위로 쓴다.
     # 반올림한 정수로 십 단위를 보면 69.6 이 '70%대'가 되고 70.9·79.6 이 '71~80%'가 됐다(전수 리뷰 #25).
     # 정수는 사이트 규칙(half-up, SZ.half_up)으로 만든다 — 파이썬 round() 는 52.5 를 52 로 내린다.
+    # 십의 자리는 갈리는데 반올림한 정수가 같으면(69.6·70.3) 범위가 '70~70%'로 무너진다 — 그때는 '약 70%'로 쓴다(전수리뷰 C-9).
     if int(math.floor(lo)) // 10 == int(math.floor(hi)) // 10:
         mid = '%d%%대' % (int(math.floor(lo)) // 10 * 10)
+    elif SZ.half_up(lo) == SZ.half_up(hi):
+        mid = '약 %d%%' % SZ.half_up(lo)
     else:
         mid = '%d~%d%%' % (SZ.half_up(lo), SZ.half_up(hi))
+    jnl = SZ.disp('전남광주')
     return {'jr_seoul': '%d' % SZ.half_up(by['서울']),
             'jr_jnl': '%d' % SZ.half_up(by['전남광주']),
+            'jr_jnl_nm': jnl,
+            'jr_jnl_j': '은' if RC._jong(jnl) else '는',
             'jr_mid': mid,
             'jr_prd': SZ.month_text(prd)}   # 캡션은 읽는 자리 — '2026년 8월'(날짜 두 단계, 백로그 36-1)
 
@@ -288,6 +334,19 @@ def fill_zname(page):
     return ZN_RE.sub(lambda m: 'const ZN=%s,zname=' % json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False), page, count=1)
 
 
+META_SPAN_RE = re.compile(r'(\d+개 시도 )\d+(년)')
+
+
+def fill_meta_span(page, n):
+    """머리(<head>)의 메타 설명·og·JSON-LD '14개 시도 N년'의 햇수를 자료 기간(RC.span_years)으로 다시 쓴다. 메타는 속성이라 칸을
+    둘 수 없다. 자리가 하나도 없으면 멈춘다(문구를 바꿨으면 이 함수도 고칠 것)."""
+    i = page.find('</head>')
+    head, n_hit = META_SPAN_RE.subn(lambda m: '%s%d%s' % (m.group(1), n, m.group(2)), page[:i])
+    if not n_hit:
+        raise RuntimeError("사이클 페이지 머리에 'N개 시도 N년' 자리가 없다")
+    return head + page[i:]
+
+
 def splice(page, key, value):
     """const D={...} 안의 "key": <값> 하나를 통째로 갈아 끼운다."""
     i = page.find('"%s": ' % key)
@@ -327,6 +386,17 @@ def main():
     page = splice(page, 'zones', zones)
     page = splice(page, 'rate_overlay', overlay)
     page = splice(page, 'jratio_level', lvl)
+    prev = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+    page = splice(page, 'flow_chain', build_flow(S, prev.get('flow_chain')))
+    sup = dict(prev['super'])
+    sup['stock30'] = stock30(S, sup.get('stock30'))
+    sup.pop('stock30_2024', None)     # 옛 손 칸(2024 고정) — stock30 이 대신한다
+    page = splice(page, 'super', sup)
+    # 페이지가 읽지 않는 하위 값은 싣지 않는다(RC.SHIP_FIELDS — 재산정만 쓰는 키도 매일 깎는다, 전수리뷰 C-11)
+    prev = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+    for k in RC.SHIP_FIELDS:
+        if k in prev and RC.ship(k, prev[k]) != prev[k]:
+            page = splice(page, k, RC.ship(k, prev[k]))
     # 전세가율 풀이 칸 — 차트와 같은 값으로 D.prose와 본문을 함께 갱신한다
     m = re.search(r'const D=(\{.*?\});\n', page, re.S)
     cur = json.loads(m.group(1))
@@ -340,6 +410,7 @@ def main():
     page = splice(page, 'prose', prose)
     page = fill_spans(page, jr)
     page = fill_zname(page)
+    page = fill_meta_span(page, RC.span_years(zones))
     # 수도권·지방 평균은 페이지 어디서도 읽지 않아 D에서 뺐다. 배치 로그로는
     # 계속 남겨 두는 편이 갱신 결과를 눈으로 확인하는 데 쓸모가 있다.
 

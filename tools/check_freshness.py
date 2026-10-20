@@ -112,7 +112,7 @@ SITE_TIMEOUT = 20
 # 최대 4개이고(브라우저가 한 호스트에 여는 연결 수 6보다 적다), 정상일 때 KOSIS 12건이
 # 3파(波)로 끝난다. 6이나 8로 올려도 아래 식의 최악 합계는 약 1.7분·2.5분 줄어드는 데
 # 그친다('가장 긴 한 건 75초'와 재시도 대기 75초는 병렬도와 무관하다). 4로도 30분 예산에서
-# 18분이 남는데, 동시 요청을 늘렸을 때의 차단 위험은 원천 쪽 사정이라 우리가 잴 수 없다.
+# 12분 남짓 남는데(아래 2026-10-19 실측), 동시 요청을 늘렸을 때의 차단 위험은 원천 쪽 사정이라 우리가 잴 수 없다.
 # 그래서 작게 잡았다. 파생 페이지 감시(8)는 우리 사이트(GitHub Pages)라 사정이 다르다.
 SOURCE_WORKERS = 4
 
@@ -136,10 +136,19 @@ SOURCE_WORKERS = 4
 #   (head 2회 + 뒤에서 3쪽 = 5회 × 25s = 125초).
 #   1차   30×25s / 4 + 125s ≈ 188 + 125 = 313초, 사이트 140 + 45 = 185초 → 약 8.3분
 #   재시도 30×20/4 + 5×20 = 250초 → 합계 ≈ 313 + 185 + 75 + 250 = 823초 ≈ 13.7분(30분 예산 안).
+#   (2026-10-19 전수리뷰 A-2: 규모별을 표 넷으로 따로 조회해 KOSIS 1회짜리 작업이 3건 늘었다 — 1차 +3×25/4 ≈ 19초,
+#    재시도 +3×20/4 = 15초. 합계 ≈ 857초 ≈ 14.3분.)
 #   watchdog.yml의 timeout-minutes: 30은 그대로 둔다 — 잡 시간은 체크아웃·파이썬
 #   설치·프리플라이트(최대 15초)도 먹고, 산수가 또 틀렸을 때 판정 없이 죽는 쪽을 막는
 #   여유다. 줄여서 얻는 것은 장애 밤에 알림이 몇 분 빨라지는 것뿐이다.
-# 이 숫자들을 바꿀 땐 **곱해서** 다시 확인할 것 — 주석의 "최악 N분"은 두 번 다
+# ⚠️ 위 13.7분도 낡았다(전수리뷰 F-9): 그 뒤 R-ONE 쪽 재시도(_rone_get, 3회·쉼 2·4초 — 쪽 하나 최대 3×25+6 = 81초,
+#   재시도 패스 66초), 지역 목록 재시도(REGION_RETRY_WAITS 10·30초, 두 표 직렬로 두 번 더 — 최대 2×(10+81+30+81) ≈ 404초,
+#   check_region_rows 는 retry_failed 앞이라 25초 타임아웃), '주간'·'월간' 조회의 쪽 재시도(F-4)가 붙었다. 손셈을 그만두고
+#   tools/tests/test_freshness_budget.py 가 main() 을 잠·응답 대기를 같은 비율로 줄인 시계로 실제로 돌려 잰다(원천 전부
+#   타임아웃·사이트는 타임아웃 직전 응답 / R-ONE 머리만 받히고 본문 쪽이 끊김). 2026-10-19 실측 둘 다 약 1,040초(17.4분).
+#   그 시험이 잡 상한(watchdog.yml freshness timeout-minutes)에서 준비 몫 5분을 뺀 값과 견준다. 손셈으로 '쪽마다 두 번
+#   타임아웃 뒤 성공'하는 드문 조합까지 곱하면 30분을 넘길 수 있다 — 넘기면 잡 시간 초과 → 재확인 잡이라 조용한 통과는 아니다.
+# 이 숫자들을 바꿀 땐 **곱해서** 다시 확인할 것 — 주석의 "최악 N분"은 세 번 다
 # 과소평가였다(원래 "~15분"이라고 적혀 있었으나 실제로는 30분을 넘겼다).
 
 # 계열별 정상 최대 나이(일). 이 안쪽이면 '발표 직후 배치 전'일 수 있어 봐준다.
@@ -407,9 +416,8 @@ def _q_to_date(q):
 
 
 # ⚠️ 여기 16곳은 **실제 행정구역만**이다. 저장분에는 집계 행이 섞여 있어
-# (STATS 21곳 = 16시도 + 전국·수도권·지방·기타광역시·기타지방,
-#  ADV.sido = 시도 + 전국·수도권·지방) 전부 더하면 전국의 세 배가 나온다.
-# 개수가 19/21/16으로 달라 보이는 건 집계를 몇 개 안고 있느냐의 차이일 뿐이다.
+# (STATS·ADV.sido = 16시도 + 전국·수도권·지방 — 원천 집계 행 기타광역시·기타지방은 2026-10-18 D2 로 수집에서 뺐다,
+#  update_adv_data.drop_raw_aggregates) 전부 더하면 전국의 세 배가 나온다.
 # ⚠️ 이름은 SIDO17이지만 2026-09-10 광주·전남 통합으로 실제 길이는 16이다.
 #    sido_zones.ORDER 에서 파생하므로 값은 늘 맞는다 — 이름만 옛것이다.
 # 손으로 옮겨 적으면 정본(개칭·구성 변경)에서 갈라져 합계 검사가 행을 조용히
@@ -650,19 +658,9 @@ def check_derived_pages(adv, stats):
     return out
 
 
-def _sido_lookup(names, key):
-    """배치(update_adv_data의 sido())와 **같은 규칙**으로 지역 행을 찾는다.
-
-    평평한 이름이 있으면 그것, 없으면 '>이름'으로 끝나는 키 중 가장 얕은 것.
-    규칙이 갈리면 감시가 배치와 다른 것을 보게 되므로 여기만 고치지 말 것.
-    """
-    key = {'지방': '지방권'}.get(key, key)
-    if key in names:
-        return key
-    cand = [k for k in names if k.endswith('>' + key)]
-    if not cand:
-        return None
-    return min(cand, key=lambda k: k.count('>'))
+# 지역 행 찾기는 배치 함수 **그 자체**다(전수리뷰 A-7). 예전엔 여기 거울을 따로 적고 일치를 원문 문자열 포함으로만 봐서,
+# 배치 쪽 한 벌만 바뀌어도 감시는 옛 규칙으로 '전부 집힘'을 찍었다. 규칙은 update_adv_data.rone_sido_key 에서 고친다.
+_sido_lookup = U.rone_sido_key
 
 
 # 지역 계층을 보는 표 둘. main()의 병렬 조회와 check_region_rows()가 같은 목록을 쓴다.
@@ -680,28 +678,43 @@ REGION_STATE_ENV = 'WATCH_STATE_DIR'
 REGION_STATE_FILE = 'region_fetch_fail.json'
 
 
-def region_fail_tolerated(today, state_dir):
-    """오늘의 지역 목록 조회 실패를 경고로 둘 수 있나(True) — 아니면 실패로 올린다(False).
+# 같은 회차·다음 회차를 가르는 경과 시간(시간). 달력 날짜로 가르면 자정을 걸친다 — 감시는 예약 18:07 KST 에
+# 실측 +0~10시간 늦게 시작해 KST 20시~다음 날 04시 사이에 돌고(2026-10 실측: 예약 실행 89회 중 37회가 자정 뒤),
+# 같은 실행의 1차(23:50)와 재확인(00:10)이 '어제·오늘'로, 이웃 예약 실행(01:54 → 23:28)이 '같은 날'로 읽혔다
+# (전수리뷰 F-2). 예약은 하루 한 번이라 이웃 회차 간격은 24±10시간(14~34시간)이다.
+#   같은 실행 id → 그 결정을 따른다. 실행 id 가 다르거나 모르면 직전 실패와의 경과 시간으로:
+#   REGION_SAME_ROUND_H(12) 안 → 같은 회차(수동 재실행)로 보고 그 결정을 따른다.
+#   REGION_NEXT_ROUND_H(40) 안 → 이틀 연속(다음 예약 회차)이라 올린다. 그보다 길면 첫날로 본다.
+REGION_SAME_ROUND_H = 12
+REGION_NEXT_ROUND_H = 40
 
-    상태 파일은 마지막 실패 날과 그날의 결정이다. 어제도 실패했으면 올린다. 오늘 이미 결정했으면(1차 뒤 재확인 잡)
-    같은 결정을 따른다 — 재확인이 경고를 실패로, 실패를 경고로 뒤집지 않게. 그 밖(처음·이틀 넘게 비었다)은 경고다.
-    ⚠️ '조용히 통과' 분기가 아니다: 경고는 실행 화면 주석·잡 요약에 남고, 다음 날도 끊기면 실패 메일이 간다.
+
+def region_fail_tolerated(now, state_dir, run_id=None):
+    """이번 지역 목록 조회 실패를 경고로 둘 수 있나(True) — 아니면 실패로 올린다(False).
+
+    now 는 UTC epoch 초, run_id 는 GITHUB_RUN_ID(없으면 None). 상태 파일은 마지막 실패의 시각·실행 id·그때의 결정이다.
+    같은 실행이면(1차 뒤 재확인 잡) 같은 결정을 따른다 — 재확인이 경고를 실패로, 실패를 경고로 뒤집지 않게.
+    다른 실행이면 경과 시간으로 같은 회차·다음 회차를 가른다(REGION_SAME_ROUND_H·REGION_NEXT_ROUND_H 주석).
+    ⚠️ '조용히 통과' 분기가 아니다: 경고는 실행 화면 주석·잡 요약에 남고, 다음 회차도 끊기면 실패 메일이 간다.
     """
-    import datetime
     path = os.path.join(state_dir, REGION_STATE_FILE)
     try:
         with open(path, encoding='utf-8') as f:
             prev = json.load(f)
+        prev_ts = float(prev['ts'])
     except Exception:
-        prev = None
-    if prev and prev.get('date') == today:
-        return not prev.get('escalated')
-    d = datetime.date.fromisoformat(today)
-    yesterday = (d - datetime.timedelta(days=1)).isoformat()
-    escalate = bool(prev and prev.get('date') == yesterday)
+        prev, prev_ts = None, None
+    if prev is not None:
+        gap_h = (now - prev_ts) / 3600.0
+        same_run = run_id is not None and prev.get('run') == run_id
+        if same_run or 0 <= gap_h < REGION_SAME_ROUND_H:
+            return not prev.get('escalated')
+        escalate = REGION_SAME_ROUND_H <= gap_h <= REGION_NEXT_ROUND_H
+    else:
+        escalate = False
     os.makedirs(state_dir, exist_ok=True)
     with open(path, 'w', encoding='utf-8') as f:
-        json.dump({'date': today, 'escalated': escalate}, f)
+        json.dump({'ts': now, 'run': run_id, 'escalated': escalate}, f)
     return not escalate
 
 
@@ -728,7 +741,7 @@ def _region_names_retry(fetch, tbl, cycle, waits=None, direct=None, sleep=None):
     raise last
 
 
-def check_region_rows(fetch=None, today=None, state_dir=None, retry=None):
+def check_region_rows(fetch=None, now=None, state_dir=None, retry=None, run_id=None):
     """원천 계층에서 **우리 지역을 실제로 집을 수 있는가**를 본다.
 
     왜 이걸 보는가(2026-08-26 리뷰):
@@ -781,9 +794,10 @@ def check_region_rows(fetch=None, today=None, state_dir=None, retry=None):
                  len(gu), '' if not (missing or dup) else '  실패 (%s)' % state))
     if lost:
         # 조회 실패는 '이상 없음'이 아니라 '못 봤다'다. 상태 폴더가 없으면 FETCH_FAIL(새 IP 재확인 → 실패)로,
-        # 있으면 첫날은 경고, 이틀 연속이면 FETCH_FAIL 로 올린다(region_fail_tolerated). SKIPPED 는 게이트 분자라 안 쓴다.
-        if state_dir and region_fail_tolerated(today or KST.today_iso(), state_dir):
-            WARN.append('지역 계층(%s) 목록 조회가 끊겨 오늘은 보지 못했다 — 내일도 끊기면 실패로 올린다' % ', '.join(lost))
+        # 있으면 첫 회차는 경고, 이틀(이웃 예약 회차) 연속이면 FETCH_FAIL 로 올린다(region_fail_tolerated). SKIPPED 는 게이트 분자라 안 쓴다.
+        if state_dir and region_fail_tolerated(time.time() if now is None else now, state_dir,
+                                               run_id if run_id is not None else os.environ.get('GITHUB_RUN_ID')):
+            WARN.append('지역 계층(%s) 목록 조회가 끊겨 이번 회차는 보지 못했다 — 다음 회차(내일)도 끊기면 실패로 올린다' % ', '.join(lost))
         else:
             FETCH_FAIL.extend('지역 계층(%s)' % label for label in lost)
     elif state_dir:
@@ -820,13 +834,16 @@ def rone_latest_complete(tbl, since=None, want_total=False):
     for r in rows:
         t = (r.get('WRTTIME_IDTFR_ID') or '').strip()
         reg = U._supply_region(r.get('CLS_FULLNM'))
-        if not (t and reg) or r.get('DTA_VAL') in (None, ''):
+        if not (t and reg):
+            continue
+        # 숫자로 읽히는 값만 '있음'으로 센다 — 배치 _fetch_supply_one 은 float 이 실패한 지역('-' 등)을 빼고 그 달을 보류한다.
+        # 예전엔 비어 있지 않으면 셌다: 원천이 한 지역을 '-'로 주면 배치는 보류, 감시는 완비로 읽어 뒤처짐 헛경보(전수리뷰 F overflow).
+        try:
+            v = float(r['DTA_VAL'])
+        except (TypeError, ValueError, KeyError):
             continue
         by.setdefault(t, set()).add(reg)
-        try:
-            vals.setdefault(t, {})[reg] = float(r['DTA_VAL'])
-        except (TypeError, ValueError):
-            pass
+        vals.setdefault(t, {})[reg] = v
     if not by:
         raise RuntimeError('시점 파싱 실패')
     # 원천이 아직 옛 이름(광주·전남)으로 주는 계열이 있다. 배치가 조회 뒤 접으므로 감시도 **같은 함수**
@@ -960,11 +977,12 @@ def rone_region_names(tbl, cycle):
     return by[max(by)]
 
 
-def check_age(label, stamp, grace):
+def check_age(label, stamp, grace, what='마지막 수집'):
     """수집 시점 도장(YYYY-MM-DD)이 grace일보다 오래됐으면 실패 사유를 반환.
 
     원천 대조(check)와 달리 '언제 마지막으로 받아왔나'만 본다 — 원천에 '최신 시점'
     질의가 없거나, 있어도 일일 쿼터를 감시가 축내면 안 되는 소스에 쓴다.
+    what 은 도장이 무엇인지다 — 시도 지표는 수집 날이 아니라 판정 기준 분기의 끝날이다(전수리뷰 F overflow).
     """
     if not stamp:
         return '%s: 수집 시점 도장이 없음' % label
@@ -973,7 +991,7 @@ def check_age(label, stamp, grace):
         return '%s: 수집 시점 해석 불가(%s)' % (label, stamp)
     if age > grace:
         print('  %-12s %-12s %s일  실패 (grace %d일)' % (label, stamp, age, grace))
-        return '%s(마지막 수집 %s, 경과 %s일 > %d일)' % (label, stamp, age, grace)
+        return '%s(%s %s, 경과 %s일 > %d일)' % (label, what, stamp, age, grace)
     print('  %-12s %-12s %s일' % (label, stamp, age))
     return None
 
@@ -993,7 +1011,9 @@ def rone_latest(tbl, cycle, since=None):
             % (os.environ.get('RONE_API_KEY', ''), tbl, cycle))
     if since:
         base += '&START_WRTTIME=%s' % since
-    head = get_json(base + '&pIndex=1&pSize=1')
+    # 쪽마다 _rone_get(3회·쉼) — 지역 계층·공급 조회와 같다(전수리뷰 F-4: 예전엔 get_json 한 번이라 깊은 쪽 끊김이 그대로
+    # 핵심 계열 '주간' 미검증·재확인으로 갔다).
+    head = _rone_get(base + '&pIndex=1&pSize=1')
     total = None
     for blk in head.get('SttsApiTblData', []):
         for h in blk.get('head', []) or []:
@@ -1007,7 +1027,7 @@ def rone_latest(tbl, cycle, since=None):
     if not total:
         raise RuntimeError('list_total_count 없음')
     rows = []
-    for blk in get_json(base + '&pIndex=%d&pSize=1000' % (-(-total // 1000))).get('SttsApiTblData', []):
+    for blk in _rone_get(base + '&pIndex=%d&pSize=1000' % (-(-total // 1000))).get('SttsApiTblData', []):
         if 'row' in blk:
             rows = blk['row']
     if cycle == 'WK':
@@ -1025,9 +1045,23 @@ def rone_latest(tbl, cycle, since=None):
 # 감시는 여기 한 곳에 모으고, 배치가 실제로 부르는 인자와 같은지는 test_freshness_sources 가 배치 함수를
 # 가짜 원천으로 돌려 본다(전수리뷰 #40·#109). 배치가 계열을 바꾸면 그 시험이 빨개진다 — 이 값을 함께 바꿀 것.
 RATE_ECOS = ('721Y001', 'M', '2010000')          # CD(91일) — update_rate
-SIZE_KOSIS = ('408', {'objL1': '01'})             # 규모별 — update_size
+SIZE_KOSIS = ('408', {'objL1': '01'})             # 규모별 — update_size(네 표 U.SIZE_TBLS 모두 같은 인자)
+# 규모별은 표 넷(매매 B014·전세 B015·월세 B005·전환율 N0009)을 **표마다** 원천과 견주고, 우리 최신은 그 지표에 값이 있는 마지막 달
+# (update_adv_data.size_last)이다(전수리뷰 A-2). 예전엔 매매 표 하나만 조회하고 우리 최신을 축 끝(dates[-1] — 네 표 시점의 합집합)
+# 으로 읽어, 전환율 하나가 앞서 나가자 매매·전세·월세가 석 달째 멈춘 것을 감시도 나이 상한도 못 봤다.
+SIZE_LABEL = '규모별 %s'
 BUBBLE_KOSIS = ('408', 'DT_30404_N0010')          # 전월세전환율 — fetch_bubble
 BUBBLE_ECOS = ('121Y006', 'M', 'BECBLA0302')      # 주담대 신규취급 금리 — fetch_bubble
+
+
+def size_checks(D, pre):
+    """규모별(STATS['규모별'] = D) 표 넷을 표마다 원천과 견준 check 결과 목록(표 순서 — fails 에 넣을 항목 넷).
+
+    우리 최신은 축 끝(dates[-1])이 아니라 그 지표에 값이 있는 마지막 달(update_adv_data.size_last)이다 — 축은 네 표 시점의
+    합집합이라 전환율 하나가 앞서 나가면 매매·전세·월세의 정지가 가려졌다(전수리뷰 A-2). pre 는 source_jobs 의 받아 둔 조회."""
+    last = U.size_last(D)
+    return [check(SIZE_LABEL % name, last.get(name), pre[('규모별', name)], GRACE_BASIC, max_age=MAX_AGE_BASIC)
+            for name, _, _ in U.SIZE_TBLS]
 
 
 def kosis_latest(org, tbl, objn, prd, extra=None):
@@ -1270,7 +1304,20 @@ def weekly_max_age(p, holidays=()):
     return MAX_AGE_WEEKLY + (WR.WEEK if hedge else 0)
 
 
-def source_jobs(stats):
+def _price_since(p, cycle):
+    """주간·월간 시세 원천 조회의 하한(START_WRTTIME) — 우리 최신 시점의 전달(주간은 그달 1일 'YYYYMM01', 월간 'YYYYMM').
+
+    원천이 우리보다 최신이면 반드시 이 창에 들어온다(rone_latest 독스트링). 창이 없으면 R-ONE 은 과거부터 쪽을 나눠 주간 매매가
+    170쪽 안팎의 깊은 쪽을 읽게 되고, 그 요청을 간헐적으로 응답 없이 끊는다(2026-08-15 실측 — 배치는 이미 창을 쓴다, 전수리뷰 F-4).
+    우리 시점을 못 읽으면 None(예전처럼 전량).
+    """
+    since = _supply_since(p)
+    if not since:
+        return None
+    return since + ('01' if cycle == 'WK' else '')
+
+
+def source_jobs(stats, adv=None):
     """원천 대조에 쓸 조회를 **main()이 판정하는 순서대로** 모은다 — {키: getter}.
 
     main()은 이것을 prefetch()로 한꺼번에 병렬로 받은 뒤 예전처럼 한 줄씩 판정한다.
@@ -1278,13 +1325,16 @@ def source_jobs(stats):
     여기 없는 원천 조회를 main()에 새로 넣으면 그 조회만 직렬로 돈다 — 새 계열은 여기에도 넣을 것.
     """
     jobs = {}
-    jobs['주간'] = lambda: rone_latest(U.RONE_TBL['maega'], 'WK')
-    jobs['월간'] = lambda: rone_latest(U.RONE_MONTHLY_TBL['maega'], 'MM')
+    adv = adv or {}
+    wk = ((adv.get('weekly') or {}).get('rows') or [{}])[-1].get('p')
+    mo = ((adv.get('monthly') or {}).get('rows') or [{}])[-1].get('p')
+    jobs['주간'] = lambda s=_price_since(wk, 'WK'): rone_latest(U.RONE_TBL['maega'], 'WK', s)
+    jobs['월간'] = lambda s=_price_since(mo, 'MM'): rone_latest(U.RONE_MONTHLY_TBL['maega'], 'MM', s)
     for name, cfg in sorted(U.BASIC_CONF.items()):
         jobs[('basic', name)] = lambda c=cfg: kosis_latest(c['org'], c['tbl'], c['objn'], 'M')
     if '규모별' in stats:
-        sz = U.SIZE_TBLS[0][1]
-        jobs['규모별'] = lambda: kosis_latest(SIZE_KOSIS[0], sz, 3, 'M', SIZE_KOSIS[1])
+        for name, tbl, _ in U.SIZE_TBLS:
+            jobs[('규모별', name)] = lambda t=tbl: kosis_latest(SIZE_KOSIS[0], t, 3, 'M', SIZE_KOSIS[1])
     for name, cfg in sorted(U.SUPPLY_CONF.items()):
         last = ((stats.get(name) or {}).get('dates') or [None])[-1]
         jobs[('supply', name)] = (lambda c=cfg, sc=_supply_since(last):
@@ -1314,7 +1364,7 @@ def main():
     adv, stats = live_adv_stats()
     # 원천 조회는 여기서 한꺼번에 병렬로 받는다(백로그 25). 아래 판정은 받아 둔 결과로
     # 예전과 같은 순서·같은 분기로 한 줄씩 한다 — 조회 실패도 check()가 그대로 분류한다.
-    jobs = source_jobs(stats)
+    jobs = source_jobs(stats, adv)
     pre = dict(zip(jobs, prefetch(jobs.values())))
     fails = []
     print('[시세 — 원천 R-ONE]')
@@ -1361,13 +1411,13 @@ def main():
                 fails.append('%s이(가) 라이브에 없다 — %s 배포·조회 확인 필요'
                              % (name, fname))
     if '규모별' in stats:
-        last = (stats['규모별'].get('dates') or [None])[-1]
-        fails.append(check('규모별', last, pre['규모별'], GRACE_BASIC, max_age=MAX_AGE_BASIC))
+        fails.extend(size_checks(stats['규모별'], pre))
 
     # 분양·미분양은 BASIC_CONF가 아니라 SUPPLY_CONF에 있어 예전엔 감시에서 통째로
     # 빠져 있었다(2026-07-31 발견). 새 지표를 추가할 때 감시에도 들어왔는지
     # 확인하는 자리가 여기다 — 라이브 STATS 계열 수와 아래 점검 수가 맞아야 한다.
     print('[공급 파이프라인 — 원천 R-ONE(분양)·KOSIS(미분양)]')
+    value_later = []   # 1차 조회가 실패해 값 대조를 미룬 공급 계열 — 재시도 뒤에 본다(아래 ②)
     for name, cfg in sorted(U.SUPPLY_CONF.items()):
         D = stats.get(name) or {}
         last = (D.get('dates') or [None])[-1]
@@ -1387,10 +1437,14 @@ def main():
         #      재시도 루프에서 재현·확정한 것과 같은 회귀다.
         #   ② 위의 나이 검사 조회가 성공해 캐시에 있을 때만 값을 견준다. 조회가 실패한
         #      직후에 같은 원천을 곧바로 다시 부르면 광역 장애 때 계열당 타임아웃이 한 번씩
-        #      더 붙는다. 그 계열은 재시도 큐가 다시 본다.
-        r = supply_value_fail(name, D, cfg['tbl'], since)
-        if r:
-            fails.append(r)
+        #      더 붙는다. 그 계열은 retry_failed 가 시점을 다시 받아 캐시를 채운 **뒤에** 값을 견준다
+        #      (value_later — 재시도는 check() 만 다시 불러, 예전엔 1차 실패·재시도 성공 날 값 대조가 꺼졌다, 전수리뷰 F-8).
+        if (cfg['tbl'], since) in _COMPLETE_CACHE:
+            r = supply_value_fail(name, D, cfg['tbl'], since)
+            if r:
+                fails.append(r)
+        else:
+            value_later.append((name, D, cfg['tbl'], since))
 
     print('[금리 — 원천 한국은행 ECOS]')
     D = stats.get('금리') or {}
@@ -1443,7 +1497,8 @@ def main():
                              % (n_z, want, ', '.join(sido.get('missing') or ['?'])))
             # 상한이 꺼져 있으면(None — 시험 하니스) 보지 않되 항목은 남긴다: fails 길이가 검사한 계열 수(개수 게이트의 분모)다.
             fails.append(None if MAX_AGE_SIDO_Q is None else
-                         check_age('시도 지표', None if not sido.get('L') else _q_to_date(sido['L']), MAX_AGE_SIDO_Q))
+                         check_age('시도 지표', None if not sido.get('L') else _q_to_date(sido['L']), MAX_AGE_SIDO_Q,
+                                   what='기준 분기 끝'))
     except Exception as e:
         # 이건 조회 실패다 — SKIPPED에는 안 넣는다(위 게이트의 분자를 바꾸면
         # 안 되므로). 대신 FETCH_FAIL에 남겨 '새 IP로 재확인' 쪽으로 분류되게 한다.
@@ -1481,6 +1536,11 @@ def main():
                      % ', '.join(unknown))
 
     retry_failed(fails)
+    # 재시도에서 시점 조회가 살아난 공급 계열의 값 대조(위 ②). 재시도도 실패면 캐시가 비어 None 이다 — 원천을 더 부르지 않는다.
+    for name, D, tbl, since in value_later:
+        r = supply_value_fail(name, D, tbl, since)
+        if r:
+            fails.append(r)
     _emit_warnings(WARN, SUMMARY)
     _gate(fails)
 
@@ -1489,7 +1549,7 @@ def main():
 ADV_WATCHED = ('weekly',     # 원천 대조('주간') + 공유 카드
                'monthly',    # 원천 대조('월간')
                'sido',       # data-core.js ADV.sido 나이·지역 수 + 지역 페이지
-               'occupancy',  # /moveins/ dateModified
+               'occupancy',  # /moveins/ 화면 시점 문구(make_indicator_pages.MOVEINS_BASIS)
                'bubble')     # 원천 대조('전월세전환율'·'주담대 금리')
 ADV_UNWATCHED = {
     'permits': '반기 인허가(KOSIS 누적월 조회) — 원천 대조가 아직 없다(알려진 공백)',

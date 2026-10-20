@@ -11,12 +11,12 @@
      상승·하락 TOP 10(home-app.js sggRanks·rankTables, 블로그가 캡처해 싣는 표)은 같은 규칙을 JS 로 계산한다 —
      둘이 같은 순위를 내는지는 test_weekly_moves 가 실데이터로 node 대조한다.
 
-■ 표지 판정 규칙(정본 — 바꾸면 홈·/weekly/·블로그가 함께 바뀐다)
+■ 표지 판정 규칙(정본 — 지금 읽는 곳은 블로그 주간 초안(news)뿐이다. 홈·/weekly/ 머리의 시도 표지는 2026-10-02·03 에 걷혔다)
   - 한 주의 방향은 **표시값**(make_weekly_page.pv2r, 소수 둘째 자리 half-up — 사이트 pv2r 와 같다)의 부호다.
     표시가 0.00 이면 **보합**(방향 0)이다. 원값 +0.004 는 화면에 '0.00'으로 찍히므로 상승으로 세지 않는다 —
     원값 부호로 세면 '0.00' 칸에 '상승 전환'이 붙어 글자와 표지가 다른 말을 한다(2026-08-08 pv2 규칙과 같은 이유).
   - 연속(streak): 최신 주부터 거꾸로 같은 방향(상승 또는 하락)이 이어진 주 수. 보합·결측(None)에서 끊긴다.
-    최신 주가 보합이거나 결측이면 0. 전체 이력(data.js 156주)으로 센다 — 코어가 싣는 최근 WINDOW 주로 자르지 않는다.
+    최신 주가 보합이거나 결측이면 0. 전체 이력(data.js 의 주간 계열 전부)으로 센다.
   - 표지(하나만, 위에서 먼저 맞는 것):
       · 'N주 연속 상승' / 'N주 연속 하락' — 연속이 STREAK_MIN(3)주 이상. 연속이 **그 지역의 첫 값까지** 닿으면(그보다
         앞은 우리 자료에 없다) 'N주 이상 연속 상승'이라 적는다 — 이력이 156주뿐이라 '156주 연속'은 사실보다 짧게 말할 수 있다.
@@ -44,8 +44,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import sido_zones as SZ  # noqa: E402
 
-# 홈 코어(data-core.js)에 싣는 최근 주 수. 표지는 전체 이력으로 판정해 싣고, 행은 이만큼만 싣는다.
-WINDOW = 4
 # 'N주 연속' 표지를 붙이는 최소 연속 주 수(RET-5 '3주 연속 ▲').
 STREAK_MIN = 3
 
@@ -56,8 +54,6 @@ TXT_STREAK_OPEN = {UP: '%d주 이상 연속 상승', DN: '%d주 이상 연속 �
 # 블로그가 '오래 이어진 연속'을 다시 쓰는 주(연속 주 수가 이 값에 막 닿은 주만). 3주(STREAK_MIN)는 '새로 연속에 들어선 곳'으로
 # 따로 쓰고, 4주는 그 바로 다음 주라 두 주 연달아 같은 곳을 말하게 되므로 뺐다. 대략 두 달·한 분기·반년·1년·2년·3년.
 MILESTONES = (8, 13, 26, 52, 104, 156)
-LINE_HEAD = '지난주와 방향이 바뀐 곳'
-LINE_NONE = '지난주와 방향이 바뀐 시도는 없습니다'
 
 
 def _pv2r(v):
@@ -113,9 +109,9 @@ def moves(W):
 
     돌려주는 것:
       {'p': 최신 조사일, 'prev': 앞 회차 조사일,
-       'tags': {지역: ['up'|'dn', 문구, 연속 주 수, 이력 끝 1|0]}   — 표지가 있는 지역만(집계 포함). 전환은 연속 1,
-       'turned': [[시도, 'up'|'dn'], …]   — 전환 표지가 붙은 시도(집계 제외), 표시 순서(DISPLAY_ORDER),
-       'line': '지난주와 방향이 바뀐 곳: 부산 상승 전환 · 대구 하락 전환' 또는 LINE_NONE}
+       'tags': {지역: ['up'|'dn', 문구, 연속 주 수, 이력 끝 1|0]}}   — 표지가 있는 지역만(집계 포함). 전환은 연속 1.
+    전환한 시도 목록은 news() 가 tags 에서 만든다. 예전의 'turned'·'line'('지난주와 방향이 바뀐 곳: …' 한 줄)은 /weekly/ 머리에서
+    그 줄을 걷은(2026-10-03) 뒤 읽는 곳이 없어 지웠다(전수리뷰 Z2-10·X1-13 — 판정 단위 키를 화면 이름 없이 잇고 있었다).
     """
     rows = W.get('rows') or []
     regs = W.get('regions') or []
@@ -127,17 +123,7 @@ def moves(W):
         t = tag(vals)
         if t:
             tags[r] = list(t)
-    order = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG] + [z for z in regs if z not in SZ.DISPLAY_ORDER]
-    turned = [[z, tags[z][0]] for z in order if z in tags and tags[z][2] == 1]
-    return {'p': rows[-1]['p'], 'prev': rows[-2].get('p'), 'tags': tags, 'turned': turned,
-            'line': turned_line(turned)}
-
-
-def turned_line(turned):
-    """전환 시도 목록 → 한 줄('지난주와 방향이 바뀐 곳: …')."""
-    if not turned:
-        return LINE_NONE
-    return '%s: %s' % (LINE_HEAD, ' · '.join('%s %s' % (z, TXT_TURN[k]) for z, k in turned))
+    return {'p': rows[-1]['p'], 'prev': rows[-2].get('p'), 'tags': tags}
 
 
 def news(mv):
@@ -289,7 +275,8 @@ def zone_table(S, names, z):
     """시도 리포트 주간 표의 행 — 판정 단위 z 의 시군구를 이번 주 매매 순(sgg_ranks 와 같은 순서·같은 대상)으로.
 
     돌려주는 것: [{'c': 코드, 'name': 이름, 'ma'/'je': 이번 주 원값, 'ma12'/'je12': CUM_WEEKS 주 누적(원값) 또는 None,
-    'sma'/'sje': 연속(streak — 상승 +N·하락 −N·0), 'oma'/'oje': 연속이 보관 이력 첫 주까지 닿았나}] — 행이 둘 미만이면 [].
+    'sma'/'sje': 연속(streak — 상승 +N·하락 −N·0), 'oma'/'oje': 연속이 보관 이력 첫 주까지 닿았나,
+    'tma'/'tje': 이번 주 표지 tag() 또는 None}] — 행이 둘 미만이면 [].
     표시(반올림)는 부르는 쪽이 make_weekly_page.pv2 로 한다. 연속은 streak() 그대로(표시값 부호, 보합·결측에서 끊김, 전체 이력).
     """
     rows = (S or {}).get('rows') or []
@@ -311,6 +298,7 @@ def zone_table(S, names, z):
             r[met + '12'] = cum_change(rows, win, i, met)
             r['s' + met] = s
             r['o' + met] = opened(vals, abs(s))
+            r['t' + met] = tag(vals)       # 이번 주 표지(연속 STREAK_MIN 주 이상·전환) — 한 줄 요약(세종)이 같은 낱말로 쓴다
         out.append(r)
     return out
 

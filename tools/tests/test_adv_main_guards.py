@@ -44,7 +44,7 @@ class _Run:
         monkeypatch.setattr(U.time, 'sleep', lambda s: None)
         for fn in ('fetch_weekly', 'fetch_monthly', 'fetch_permits', 'fetch_holidays', 'fetch_bubble'):
             monkeypatch.setattr(U, fn, _boom)
-        monkeypatch.setattr(U, 'update_basic', lambda failed=None: [])
+        monkeypatch.setattr(U, 'update_basic', lambda failed=None, permits=None: [])
         monkeypatch.setattr(sys, 'argv', ['update_adv_data.py', '--update'])
         self.before = self.adv()
         # 시도 점수·입주물량은 STATS에서 다시 계산한다 — 기본은 '저장분과 같음'(변화 없음)
@@ -423,8 +423,37 @@ def test_all_main_sources_down_exits_3(monkeypatch, tmp_path, stored):
     assert e.value.code == 3
     assert set(run.file('.fetch_failed')) >= set(U.MAIN_SOURCES)
 
-    monkeypatch.setattr(U, 'update_basic', lambda failed=None: ['준공(3)'])
+    monkeypatch.setattr(U, 'update_basic', lambda failed=None, permits=None: ['준공(3)'])
     run.main()   # SystemExit 없이 끝나야 한다
+
+
+@pytest.mark.parametrize('bad', ['shrink', 'h'])
+def test_seed_sido_goes_through_the_same_guard(monkeypatch, tmp_path, bad):
+    """--seed-sido 도 --update 와 같은 시도 가드(sido_guard)를 거친다 — 지역이 빠졌거나 준공·착공 끝 분기가 갈라진 점수는 쓰지 않고
+    멈춘다(data.js 그대로). 정상 점수는 예전처럼 쓴다(전수리뷰 A overflow).
+
+    변이(실제로 확인): --seed-sido 의 `if why: raise SystemExit(...)` 를 지우면 두 경우 모두 빨개진다(예전처럼 가드 없이 덮는다).
+    sido_guard 의 `if sd.get('H') != sd.get('lead'): return 'h'` 를 지우면 'h' 경우와 --update 의 시야 가드 시험이 함께 빨개진다.
+    픽스처: 저장 STATS 로 구운 실제 점수에서 한 지역을 뺀 결과(통계 부분 응답의 모양) · H 를 lead−1 로 바꾼 결과(착공만 늦게 도착한
+            날의 모양).
+    """
+    run = _Run(monkeypatch, tmp_path)
+    sd = copy.deepcopy(run.before['sido'])
+    assert U.sido_guard(sd) is None, '픽스처 전제: 저장 점수는 가드를 통과한다'
+    if bad == 'shrink':
+        sd['zones'] = sd['zones'][:-1]
+    else:
+        sd['H'] = sd['lead'] - 1
+    monkeypatch.setattr(sido_zones, 'calc', lambda st: copy.deepcopy(sd))
+    monkeypatch.setattr(sys, 'argv', ['update_adv_data.py', '--seed-sido'])
+    before = io.open(U.DATA, encoding='utf-8').read()
+    with pytest.raises(SystemExit) as e:
+        U.main()
+    assert 'sido GUARD' in str(e.value)
+    assert io.open(U.DATA, encoding='utf-8').read() == before, '가드에 걸린 점수가 data.js 에 쓰였다'
+    monkeypatch.setattr(sido_zones, 'calc', lambda st: copy.deepcopy(run.before['sido']))
+    U.main()                                   # 정상 점수는 쓴다(SystemExit 없음)
+    assert run.adv()['sido'] == run.before['sido']
 
 
 def test_one_holiday_year_down_is_not_a_main_failure(monkeypatch, tmp_path):

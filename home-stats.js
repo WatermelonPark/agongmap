@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v192';
+var HOME_STATS_BUILD='v193';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -171,7 +171,7 @@ function initStats(){
    인구순도 후보였지만 통계 드롭다운엔 지역명만 있고 인구가 없다. 모든 목록에 적용할 수
    있는 건 가나다순뿐이고, 찾는 목적에도 그게 낫다(위치가 이름으로 정해진다).
    전국·수도권 같은 집계 항목은 시도의 동료가 아니므로 맨 앞에 원래 순서로 남긴다. */
-const REG_AGG=['전국','수도권','지방','6대광역시','5대광역시','9개도','8개도'];
+const REG_AGG=['전국','수도권','지방'];   // 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)은 수집에서 뺐다(2026-10-18 D2)
 function regSort(list,label){
   const nameOf=label||(x=>x);
   const agg=list.filter(x=>REG_AGG.indexOf(nameOf(x))>=0);
@@ -300,7 +300,9 @@ function buildMatrix(D,idx,parsed){
      옛 이름을 들고 있어, 데이터에 있는 전남광주가 PC 표 모드에서 안 보였다.
      같은 사고가 사이클 전세가율 차트에도 있었다(355d767). 조용히 빠뜨리지 않도록
      데이터에만 있는 지역은 뒤에 붙이고 콘솔에 남긴다. */
-  const regs=MATRIX_REGIONS.filter(r=>D.series[r]);
+  /* 값이 하나도 없는 지역은 열로 세우지 않는다 — 지역 선택(fillRegions)과 같은 규칙. 광주·전남 주택보급률은 원천 통합 값이 나올
+     때까지 비워 두므로(대표 결정 2026-10-18 D3) '·'뿐인 열이 섰다. */
+  const regs=MATRIX_REGIONS.filter(r=>D.series[r]&&D.series[r].some(v=>v!=null));
   /* ⚠️ 경고만 하고 **표에 넣지는 않는다.** 넣었더니 전세가율의 권역 집계
      (6대광역시·5대광역시·9개도·8개도)까지 시도 표 끝에 붙었다 — 원래 여기 오면
      안 되는 행이다. 데이터에만 있다고 다 시도인 것이 아니라서, 무엇을 넣을지는
@@ -312,8 +314,7 @@ function buildMatrix(D,idx,parsed){
      시도가 아니라 여기 올 일이 없는데, 그걸 그대로 세면 경고가 **매 방문 뜬다**.
      항상 켜진 경고는 아무것도 가리키지 못해 진짜 누락을 묻는다(2026-09-12 리뷰:
      전세가율 4개·매매지수 8개가 늘 걸렸다). 시도처럼 생긴 것만 남긴다. */
-  const NON_SIDO=['6대광역시','5대광역시','광역시','지방광역시','9개도','8개도','지방도',
-    '기타광역시','기타지방','도심권','동북권','동남권','서북권','서남권','CD(91일)'];
+  const NON_SIDO=['광역시','지방광역시','지방도','도심권','동북권','동남권','서북권','서남권','CD(91일)'];
   const missed=Object.keys(D.series||{})
     .filter(r=>MATRIX_REGIONS.indexOf(r)<0 && NON_SIDO.indexOf(r)<0);
   if(missed.length)
@@ -498,8 +499,6 @@ function drawSizePivot(){
   document.getElementById('stat-matrix').innerHTML='';
   {const _o=window.Chart&&Chart.getChart('statChart'); if(_o)_o.destroy();} statChartObj=null;   // 표만 그린다(#53)
   const reg=ST.reg||D.regions[0];
-  let idx=D.dates.map((_,i)=>i);
-  if(ST.years>0)idx=idx.filter(i=>i>=D.dates.length-ST.years*12);
   const mets=D.metrics.filter(m=>SZ.met.has(m));
   const sizes=[...SZ.siz].sort((a,b)=>a-b);
   const short=s=>s.replace(/㎡/g,'');
@@ -516,6 +515,14 @@ function drawSizePivot(){
     }
   });
   const val=c=>i=>{const a=(D.series[c.m][reg]||[])[i];return a?a[c.si]:null;};
+  /* 축(D.dates)은 네 표 시점의 합집합이라 끝 달이 전환율에만 있을 수 있다 — 고른 지표·규모 칸이 모두 빈 **끝** 달은 줄과
+     기간 줄에서 뺀다(가운데 빈 달은 그대로 둔다). 예전엔 매매·전세를 고른 표 첫 줄이 빈 '26.7'이고 기간 줄이 '~2026년 7월'이라
+     7월 가격 자료가 있는 것처럼 읽혔다(전수리뷰 H2-10). 고른 칸이 하나도 안 찬 지역이면 예전처럼 축 전체를 보인다. */
+  let end=D.dates.length-1;
+  while(end>=0&&!cols.some(c=>val(c)(end)!=null))end--;
+  if(end<0)end=D.dates.length-1;
+  let idx=D.dates.map((_,i)=>i).filter(i=>i<=end);
+  if(ST.years>0)idx=idx.filter(i=>i>end-ST.years*12);
   // grp: 세로 블록 경계(szgrp)를 붙일지 — 세로 모드에서만 참. 전치 모드는 행이
   // 한 조합이라 c.first를 그대로 쓰면 그 행 전체에 세로선이 그려진다(실사고).
   const cell=(c,v,grp)=>{
@@ -853,7 +860,8 @@ function sggOfSido(W,sido){
   const S=W.sgg; if(!S)return [];
   /* ⚠️ 값이 하나도 없는 시군구는 세우지 않는다. 인천 신설 4구(제물포·영종·검단·서해)는
      주간표에는 있고 **월간표에는 아직 없어**, 고르면 영원히 빈 그래프가 나오는
-     죽은 선택지였다(2026-08-08 감사). 원천이 생기면 자동으로 다시 나타난다. */
+     죽은 선택지였다(2026-08-08 감사). 월간 매핑(SGG_RONE_CLS)에 코드가 들어가야 다시 나타난다 — 원천이 내기 시작해도
+     저절로 붙지 않는다(배치 기록 ℹ️ 줄 batch_notes.sgg_map_gap_lines 가 알린다). */
   const has=c=>{const i=S.codes.indexOf(c);
     return i>=0&&(S.rows||[]).some(r=>['ma','je','wo'].some(f=>(r[f]||[])[i]!=null));};
   return S.codes.filter(c=>SGG_QNAME[c]&&sggZoneOf(W,c)===sido&&has(c));

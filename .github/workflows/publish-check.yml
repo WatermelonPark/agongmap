@@ -40,6 +40,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
+      # 러너 시스템 파이썬이 아니라 배치·감시와 같은 3.12 를 쓴다 — 러너 이미지가 바뀌어도 판이 같다(전수리뷰 F overflow,
+      # test_workflow_python.test_every_python_job_pins_setup_python).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
 
       - name: 발행 확인 후 이슈 닫기
         env:

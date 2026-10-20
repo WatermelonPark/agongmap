@@ -1,36 +1,46 @@
 # -*- coding: utf-8 -*-
-"""SGG_RONE_CLS(KOSIS SGG 코드 → R-ONE CLS_ID) 재생성·검증.
+"""SGG_RONE_CLS(월간)·SGG_RONE_CLS_WK(주간) — KOSIS SGG 코드 → R-ONE CLS_ID 매핑 재생성·검증.
 
-update_adv_data.SGG_RONE_CLS는 월간 시군구 시세를 R-ONE에서 받기 위한 매핑인데,
-예전 주석이 존재하지 않는 `tools/scratchpad gen_map2.py`를 가리켜 부동산원이 표를
-재구조화하면 재생성 방법이 없었다(2026-08-01 병렬 세션 인수인계 ①). 이 스크립트가
-그 절차다 — 저장소 안의 자료만으로 전부 복원된다.
+update_adv_data.SGG_RONE_CLS 는 월간, SGG_RONE_CLS_WK 는 주간 시군구 시세를 R-ONE 에서 받기 위한 매핑인데,
+예전 주석이 존재하지 않는 `tools/scratchpad gen_map2.py`(월간)·`gen_map_wk.py`(주간)를 가리켜 부동산원이 표를
+재구조화하면 재생성 방법이 없었다(2026-08-01 병렬 세션 인수인계 ①, 주간은 전수리뷰 A-9). 이 스크립트가 두 표의
+절차다 — 저장소 안의 자료와 R-ONE 최신 시점 응답만으로 복원된다. ⚠️ 매핑은 손으로 옮기는 표라 원천이 새 시군구를
+내기 시작해도 **저절로 붙지 않는다**(인천 신설 4구 월간 — 배치 기록 줄이 알린다, batch_notes.sgg_map_gap_lines).
 
 재료
   · KOSIS 코드 목록      : update_adv_data.SGG_CODES (index.html NATION_TILE과 동일 집합)
-  · KOSIS 코드 → 지역명  : index.html SGG_QNAME (예: 'a80703' → '양주')
-  · R-ONE CLS_ID → 지역명: R-ONE 월간 매매지수표(A_2024_00045) 최신월 행의
+  · KOSIS 코드 → 지역명  : 홈 SGG_QNAME (예: 'a80703' → '양주')
+  · R-ONE CLS_ID → 지역명: R-ONE 매매지수표(월간 A_2024_00045 · 주간 T244183132827305) 최신 시점 행의
                            CLS_ID / CLS_NM / CLS_FULLNM
 
 매칭 규칙
   R-ONE CLS_NM은 '양주시'처럼 접미사가 붙고 SGG_QNAME은 '양주'라 접미사(시/군/구)를
-  떼고 맞춘다. 이름이 겹치는 구(중구·동구 등)는 CLS_FULLNM의 시도 접두로 가른다 —
-  KOSIS 코드의 시도 접두(a7=서울, a8=경기, b1=부산 …)를 SIDO_PREFIX로 대조한다.
+  떼고 맞춘다. 이름이 겹치는 구(중구·동구 등)는 그 행이 어느 시도 행 **밑에** 있는지로 가른다 —
+  시도 행은 배치 수집과 같은 함수(update_adv_data.rone_sido_key: 평평한 이름, 없으면 가장 얕은 '>이름')로 찾는다.
+  ⚠️ 예전엔 CLS_FULLNM 의 첫 토큰을 시도로 봤다. R-ONE 이 광주·전남을 '전남광주>광주'·'전남광주>전남' 밑으로 옮긴 뒤로는
+  첫 토큰이 '전남광주'라 광주·전남 시도와 시군구 13개를 못 붙였다(전수리뷰 A-9 — 합성 계층으로 재현).
 
 사용
-  python tools/gen_sgg_rone_map.py            # 현재 매핑과 대조만(변경 없음)
-  python tools/gen_sgg_rone_map.py --write    # tools/data/sgg_rone_cls.json으로 저장
+  python tools/gen_sgg_rone_map.py                    # 월간: 현재 매핑과 대조만(변경 없음)
+  python tools/gen_sgg_rone_map.py --write            # 월간: tools/data/sgg_rone_cls.json 으로 저장
+  python tools/gen_sgg_rone_map.py --weekly [--write] # 주간: SGG_RONE_CLS_WK 와 대조(저장은 sgg_rone_cls_wk.json)
+  --write 는 현재 매핑에만 있는 코드(재생성이 못 붙인 코드)가 하나라도 있으면 쓰지 않는다 — 통째로 옮기면 그 시군구가 빈다.
 """
-import io, json, os, re, sys, urllib.parse, urllib.request
+import io, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import update_adv_data as U
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
-API = 'https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do'
-TBL = 'A_2024_00045'          # (월) 매매가격지수_아파트 — 시도·권역·시군구가 다 있다
-OUT = os.path.join(HERE, 'data', 'sgg_rone_cls.json')
+# 표 종류 → (R-ONE 표, 주기, 시점 칸, 대조할 현재 매핑 이름(update_adv_data), 저장 파일)
+KINDS = {
+    'monthly': (U.RONE_MONTHLY_TBL['maega'], 'MM', 'WRTTIME_IDTFR_ID', 'SGG_RONE_CLS', 'sgg_rone_cls.json'),
+    'weekly': (U.RONE_TBL['maega'], 'WK', 'WRTTIME_DESC', 'SGG_RONE_CLS_WK', 'sgg_rone_cls_wk.json'),
+}
+# 최신 시점 하나가 쪽 경계에 걸려도 온전히 담기는 행 수(주간 한 주 ~236행·월간 한 달 ~234행) — 감시 RONE_FALLBACK_ROWS 와 같은 크기
+NEED_ROWS = 3000
+
 
 # KOSIS SGG 코드의 시도 접두 → R-ONE CLS_FULLNM의 시도 토큰
 SIDO_PREFIX = {
@@ -60,60 +70,70 @@ def qname_map():
     return json.loads(m.group(1).replace("'", '"'))
 
 
-def rone_regions(key):
-    """R-ONE 최신월 행 → [(CLS_ID, 시도토큰, 이름토큰들)]."""
-    base = {'KEY': key, 'Type': 'json', 'STATBL_ID': TBL, 'DTACYCLE_CD': 'MM'}
-    d = _get(API + '?' + urllib.parse.urlencode(dict(base, pIndex=1, pSize=1)))
-    k = list(d.keys())[0]
-    total = d[k][0]['head'][0]['list_total_count']
-    last = (total + 999) // 1000
-    d = _get(API + '?' + urllib.parse.urlencode(dict(base, pIndex=last, pSize=1000)))
-    rows = d[list(d.keys())[0]][1].get('row') or []
-    mx = max(r['WRTTIME_IDTFR_ID'] for r in rows)
+def rone_rows(kind):
+    """R-ONE 표의 최근 행(배치 수집과 같은 조회 — 쪽 경계에 최신 시점이 잘리지 않게 끝에서 NEED_ROWS 행, 최근 석 달 창)."""
+    _key()
+    tbl, cycle = KINDS[kind][:2]
+    return U._rone_recent_rows(tbl, NEED_ROWS, cycle=cycle, since=U._rone_since(cycle, 3))
+
+
+def rone_regions(rows, field):
+    """R-ONE 최신 시점 행 → [(CLS_ID, CLS_FULLNM, 이름토큰들, CLS_NM)]."""
+    stamps = [str(r.get(field) or '').strip() for r in rows]
+    mx = max(t for t in stamps if t)
     out = []
-    for r in rows:
-        if r['WRTTIME_IDTFR_ID'] != mx:
+    for r, t in zip(rows, stamps):
+        if t != mx:
             continue
         full = (r.get('CLS_FULLNM') or '').strip()
         parts = [p.strip() for p in full.split('>') if p.strip()]
         nm = (r.get('CLS_NM') or (parts[-1] if parts else '')).strip()
-        out.append((int(r['CLS_ID']), parts[0] if parts else '', parts, nm))
+        out.append((int(r['CLS_ID']), '>'.join(parts), parts, nm))
     return out
 
 
-def _get(url, tries=3):
-    import time
-    for i in range(tries):
-        try:
-            with urllib.request.urlopen(url, timeout=90) as r:
-                return json.loads(r.read().decode('utf-8'))
-        except Exception:
-            if i == tries - 1:
-                raise
-            time.sleep(2 * (i + 1))
+def sido_rows(regions):
+    """{시도 토큰(SIDO_PREFIX 값·'전국'): 그 시도 행의 CLS_FULLNM} — 배치 수집과 같은 함수(rone_sido_key)로 찾는다."""
+    fulls = [full for _, full, _, _ in regions]
+    out = {}
+    for s in sorted(set(SIDO_PREFIX.values()) | {'전국'}):
+        k = U.rone_sido_key(fulls, s)
+        if k:
+            out[s] = k
+    return out
+
+
+def sido_of(full, srows):
+    """행 CLS_FULLNM 이 어느 시도 행 밑에 있나(가장 긴 시도 행 경로가 앞에 붙은 것). 없으면 ''."""
+    best = ''
+    for s, k in srows.items():
+        if s != '전국' and full.startswith(k + '>') and len(k) > len(srows.get(best, '')):
+            best = s
+    return best
 
 
 def strip_sfx(s):
     return SUFFIX.sub('', s) or s
 
 
-def build():
-    key = _key()
+def build(kind='monthly', rows=None):
+    """kind 표의 매핑을 다시 만든다 → (매핑, 못 붙인 것 [(코드, 이름, 이유)]). rows 를 주면 원천 대신 그것을 읽는다(시험)."""
+    field, cur_name = KINDS[kind][2:4]
+    cur = getattr(U, cur_name)
     qn = qname_map()
-    regions = rone_regions(key)
+    regions = rone_regions(rone_rows(kind) if rows is None else rows, field)
+    srows = sido_rows(regions)
     # (시도토큰, 이름토큰) -> CLS_ID. 같은 이름이 여러 depth에 있으면 더 깊은 쪽(구)을 우선.
     idx = {}
-    for cid, sido, parts, nm in regions:
-        k = (sido, strip_sfx(nm))
+    for cid, full, parts, nm in regions:
+        k = (sido_of(full, srows), strip_sfx(nm))
         if k not in idx or len(parts) > idx[k][1]:
             idx[k] = (cid, len(parts))
-    # 전국·시도 레벨: SGG_QNAME(타일 표시용)엔 없고 R-ONE 최상위 depth에 있다.
+    # 전국·시도 레벨: SGG_QNAME(타일 표시용)엔 없고 R-ONE 시도 행(sido_rows)에 있다.
     # ⚠️ 시도명엔 strip_sfx를 쓰지 않는다 — '대구'가 '대'로 잘린다(접미사 정규식이
-    # 끝의 '구'를 시군구 접미사로 본다). R-ONE 최상위 이름은 이미 정규형이다.
-    top = {}
-    for cid, sido, parts, nm in regions:
-        if len(parts) == 1:
-            top[parts[0]] = cid
+    # 끝의 '구'를 시군구 접미사로 본다). 시도 행은 이름 그대로 찾는다.
+    cid_of = {full: cid for cid, full, _, _ in regions}
+    top = {s: cid_of[k] for s, k in srows.items()}
     # 분구 도시 본체(a80102 안양 등): SGG_QNAME엔 '안양 동안구'처럼 구 단위만 있어
     # 시 레벨 이름이 없다. 같은 접두를 공유하는 하위 코드들의 시 이름에서 되찾는다
     # (예: a801021 '안양 만안구' → 시 이름 '안양').
@@ -159,7 +179,7 @@ def build():
             out[code] = hit[0]
         else:
             # 현재 매핑에도 없으면 R-ONE 미수록(신설 행정구역 등) — 결함이 아니다.
-            why = ('R-ONE 미수록(신설·개편 등)' if code not in U.SGG_RONE_CLS
+            why = ('R-ONE 미수록(신설·개편 등)' if code not in cur
                    else '%s에서 %s 못 찾음' % (sido, leaf))
             miss.append((code, nm, why))
 
@@ -185,14 +205,16 @@ def build():
     return out, miss
 
 
-def main():
-    built, miss = build()
-    cur = U.SGG_RONE_CLS
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    kind = 'weekly' if '--weekly' in argv else 'monthly'
+    built, miss = build(kind)
+    cur = getattr(U, KINDS[kind][3])
     same = sum(1 for k, v in built.items() if cur.get(k) == v)
     diff = {k: (cur.get(k), v) for k, v in built.items() if k in cur and cur[k] != v}
     only_cur = sorted(set(cur) - set(built))
     only_new = sorted(set(built) - set(cur))
-    print('재생성 %d개 · 현재 %d개' % (len(built), len(cur)))
+    print('[%s] 재생성 %d개 · 현재 %d개' % (kind, len(built), len(cur)))
     print('  일치 %d · 불일치 %d · 현재에만 %d · 신규 %d'
           % (same, len(diff), len(only_cur), len(only_new)))
     if diff:
@@ -201,14 +223,21 @@ def main():
             print('    %-10s %s -> %s' % (k, a, b))
     if only_cur:
         print('  현재에만 있음(재생성이 못 찾음):', ', '.join(only_cur[:20]))
+    if only_new:
+        print('  신규(현재 매핑에 없음 — 손으로 옮길 후보):', ', '.join('%s=%s' % (k, built[k]) for k in only_new[:20]))
     if miss:
         print('  매칭 실패 %d건:' % len(miss))
         for c, n, why in miss[:15]:
             print('    %-10s %-12s %s' % (c, n, why))
-    if '--write' in sys.argv:
-        os.makedirs(os.path.dirname(OUT), exist_ok=True)
-        json.dump(built, io.open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
-        print('saved', OUT)
+    if '--write' in argv:
+        if only_cur:
+            # 통째로 옮기면 그 시군구가 지도에서 빈다 — 못 붙인 이유(계층 개편 등)를 먼저 고친다.
+            raise SystemExit('쓰지 않는다: 현재 매핑에만 있는 코드 %d개(%s) — 재생성이 못 붙인 이유를 먼저 확인할 것'
+                             % (len(only_cur), ', '.join(only_cur[:10])))
+        out = os.path.join(HERE, 'data', KINDS[kind][4])
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        json.dump(built, io.open(out, 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
+        print('saved', out)
     return 0
 
 
