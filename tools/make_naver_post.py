@@ -24,6 +24,11 @@
   --pending-zones 이름,이름
                     예약은 걸렸지만 아직 발행되지 않은 지역 — 순회에서 이미 다룬 것으로 센다. 주간 묶음(금 19시)이 한 주에
                     지역 편을 두 편 쓸 때, RSS 에 아직 없는 첫 편 지역을 다시 고르지 않게 한다(2026-10-17)
+  --weekly-thumb-msg "첫 줄|*둘째 줄*"
+                    주간 썸네일 문구(안 주면 데이터에서 안전망 문구를 만든다)
+  --weekly-thumb-region 이름
+                    주간 썸네일 곡선의 지역(안 주면 그 주 매매 상승 1위 시도)
+  --no-shot         사이트 화면 캡처(주간 지도·TOP 10, 지역 리포트)를 건너뛴다
   --open            만든 초안을 브라우저로 연다
   --no-shortcut     바탕화면 바로가기를 만들지 않는다(윈도우에서만 만든다)
   -h, --help        이 설명을 찍는다
@@ -584,7 +589,9 @@ MORE_ROTATION = [
          # 시군구 지도는 홈 시세 화면에 있다. /weekly/ 에는 시도 격자·시군구 표만 있다(전수리뷰 #83).
          path='/#stats-market', label='시군구 지도 보기'),
     dict(h='우리 동네 공급은 어떤가',
-         desc='우리 동네에 앞으로 3년간 얼마나 들어오고 얼마나 필요한지, 시도별로 견준 리포트가 있어요. 지역을 골라 들어가 보세요.',
+         # 연수는 판정 창 정본(SZ.LEAD_Q)에서 — 박아 두면 창이 바뀌어도 따라오지 않는다(BL1 overflow)
+         desc='우리 동네에 앞으로 %d년간 얼마나 들어오고 얼마나 필요한지, 시도별로 견준 리포트가 있어요. '
+              '지역을 골라 들어가 보세요.' % (SZ.LEAD_Q // 4),
          path='/zone/', label='전국 시도별 공급'),
     dict(h='집값은 왜 도는가',
          # 곳 수는 사이트의 고리 검증 대상과 같아야 한다(CYCLE_SYNC_N).
@@ -755,7 +762,9 @@ def extra_section(adv, sts, rot):
         cur, prv, when = _jeonse_at_ref(sts) or (None, None, None)
         if cur is None or prv is None:
             return ''
-        mv = '올랐습니다' if cur > prv else ('내렸습니다' if cur < prv else '보합입니다')
+        # 방향은 찍는 값(소수 한 자리)으로 가른다 — 원값으로 가르면 '전월 69.1%에서 올랐습니다(69.1%)'가 된다(BL1 overflow)
+        c1, p1 = round(cur, 1), round(prv, 1)
+        mv = '올랐습니다' if c1 > p1 else ('내렸습니다' if c1 < p1 else '보합입니다')
         return ('<h3>이번 주의 지표: 전세가율</h3>'
                 '<p>전국 전세가율은 <b>%.1f%%</b>입니다(%s 기준, 전월 %.1f%%에서 %s). '
                 '매매가 대비 전세가의 비율로, 높아질수록 사는 값과 빌리는 값의 차이가 '
@@ -1137,7 +1146,7 @@ def series_links(nm, seq, total=None):
                          latest(CP.KIND_TO_CATEGORY['주간 시세'])) if p]
     if not picks:
         return ''
-    items = ''.join('<br>👉 <a href="%s">%s</a>' % (p['url'], esc(p['title']))
+    items = ''.join('<br>👉 <a href="%s">%s</a>' % (esc(p['url']), esc(p['title']))   # RSS 값은 이스케이프한다
                     for p in picks)
     return '<p>%s%s</p>' % (SERIES_INTRO[_rot(seq, len(SERIES_INTRO), total)], items)
 
@@ -1988,9 +1997,9 @@ CHROME_PATHS = (
     r'%s\Microsoft\Edge\Application\msedge.exe' % os.environ.get('ProgramFiles', ''),
 )
 
-# 화면 크기. 높이 1100은 제목·판정·경고·'숫자로 보면' 카드까지 담기는 값이다
-# (경고가 0~2줄로 지역마다 달라 여유를 뒀다). 하단 네비게이션은 position:fixed라
-# 창 높이와 무관하게 항상 바닥에 깔리므로, 그 높이만큼 잘라낸다.
+# 화면 크기. 창 높이 SHOT_H 는 주간 지도·TOP 10 요소 캡처와 지역 리포트 머리 캡처가 함께 쓰는 값으로, 전국 시군구 지도
+# 한 장과 리포트 머리·'숫자로 보면' 카드가 창 안에 다 들어오는 높이다(경고 줄 수가 지역마다 달라 여유를 뒀다).
+# 하단 네비게이션은 position:fixed라 창 높이와 무관하게 항상 바닥에 깔리므로, 그 높이만큼 잘라낸다.
 SHOT_W, SHOT_H, SHOT_SCALE = 1100, 3400, 2
 NAV_CSS_H = 112
 
@@ -2257,51 +2266,6 @@ def capture_weekly_map():
     m = os.path.relpath(outs['map'], ROOT) if os.path.exists(outs['map']) else None
     t = os.path.relpath(outs['top10'], ROOT) if os.path.exists(outs['top10']) else None
     return m, t, ('; '.join('%s: %s' % kv for kv in errs.items()) or None)
-
-
-def _blocks(im, gap=70, keep=60):
-    """배경 여백으로 끊어 본 내용 덩어리 목록 [(시작, 끝, 높이)].
-
-    지역 페이지는 덩어리 구조가 지역과 무관하게 규칙적이다(2026-08-16 실측,
-    서울·대구·제주 대조):
-        0) 머리말      경고 줄 수에 따라 373~444로 **여기만 달라진다**
-        1) 숫자로 보면   584
-        2) 분기별 공급 표 1246
-        3) 어떻게 계산했나 577
-        4) 다른 지역     704
-    그래서 픽셀 좌표가 아니라 **순번**으로 잡으면 머리말 길이가 달라져도
-    따라간다. 고정 좌표는 경기(경고 0줄)에서 이미 한 번 깨졌다.
-    """
-    w, h = im.size
-    px = im.load()
-    bg = px[5, 5]
-    xs = list(range(0, w, max(1, w // 200)))
-
-    def is_bg(y):
-        return all(abs(px[x, y][0] - bg[0]) + abs(px[x, y][1] - bg[1])
-                   + abs(px[x, y][2] - bg[2]) <= 24 for x in xs)
-
-    flags = [is_bg(y) for y in range(h)]
-    out, y = [], 0
-    while y < h:
-        if flags[y]:
-            y += 1
-            continue
-        s = y
-        while y < h:
-            if flags[y]:
-                g = y
-                while g < h and flags[g]:
-                    g += 1
-                if g - y >= gap:
-                    break
-                y = g
-            else:
-                y += 1
-        if y - s >= keep:
-            out.append((s, y, y - s))
-        y += 1
-    return out
 
 
 def _cut_after_cards(im):
