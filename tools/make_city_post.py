@@ -229,32 +229,31 @@ def chart(f, path, pal):
     img.resize((Wd, Ht), Image.LANCZOS).save(path)
 
 
-def thumb(f, path, lines, pal):
+def thumb(f, path, lines, pal, _marks=None):
+    """도시 편 대표 이미지 — 지역·주간 썸네일과 같은 틀(make_naver_post 의 THUMB_* 정본: 1080 정사각형·안전 구역·글줄 폭 상한,
+    백로그 47). 배경은 그 도시의 반기별 입주 막대다. 글줄이 THUMB_MAX_LINE 을 넘으면 줄이지 않고 P.ThumbTooWide 를 낸다
+    (10-16 대구 편 '2027년 입주 2,846세대' 1,036px 가 홈피드 정사각형 자르기에서 앞뒤가 잘렸다). 칩(차트 제목 줄)에 도시 이름이 든다."""
     from PIL import Image, ImageDraw
-    K, Wd, Ht = 2, 1200, 900
+    chip = '%s 아파트 입주물량 %s~%s' % (f['city'], f['start'][:4], f['last_ym'][:4])
+    P.thumb_check_lines(chip, lines)
+    marks = [] if _marks is None else _marks
+    K, Wd, Ht = P.THUMB_K, P.THUMB_PX, P.THUMB_PX
+    lo, hi = P.THUMB_SAFE
     BG, FILL, DIM, ACC = pal
     img = Image.new('RGB', (Wd * K, Ht * K), BG)
     d = ImageDraw.Draw(img)
     hs = halves(f)
     top = max(max(f['by_half'].values()), f['need'] / 2)
-    bw = Wd / len(hs)
+    bw = (hi - lo) / len(hs)
     for i, h in enumerate(hs):
-        hh = (Ht - 260) * f['by_half'][h] / top
-        d.rectangle([(bw * i + bw * .12) * K, (Ht - 40 - hh) * K, (bw * (i + 1) - bw * .12) * K, (Ht - 40) * K], fill=FILL)
-    d.text((Wd / 2 * K, 96 * K), '%s 아파트 입주물량 %s~%s' % (f['city'], f['start'][:4], f['last_ym'][:4]),
-           font=ZC.font(38 * K, 'Bold'), fill=SOFT, anchor='mm')
-    size = min([P.THUMB_FONT * K] + [ZC.fit_width(c.strip('*'), (Wd - 120) * K, hi=P.THUMB_FONT * K, lo=60 * K).size
-                                     for c in lines])
-    fnt = ZC.font(size, 'Bold')
-    gap = int(size * 1.22)
-    y = Ht / 2 * K - gap * (len(lines) - 1) / 2 + 10 * K
-    for ln in lines:
-        d.text((Wd / 2 * K, y), ln.strip('*'), font=fnt, anchor='mm', stroke_width=10 * K, stroke_fill=BG,
-               fill=ACC if ln.startswith('*') else INK)
-        y += gap
-    d.text((Wd / 2 * K, (Ht - 78) * K), '아공맵', font=ZC.font(44 * K, 'Bold'), fill=INK, anchor='mm',
-           stroke_width=6 * K, stroke_fill=BG)
-    img.resize((Wd, Ht), Image.LANCZOS).save(path)
+        hh = (hi - P.THUMB_CHIP_Y - 80) * f['by_half'][h] / top
+        box = (lo + bw * i + bw * .12, hi - hh, lo + bw * (i + 1) - bw * .12, hi)
+        d.rectangle([c * K for c in box], fill=FILL)
+        marks.append(('bar', h, 0, box))
+    P.thumb_text_block(d, marks, chip, lines, INK, SOFT, ACC, BG)
+    bad = P.thumb_safe_problems(marks)
+    assert not bad, '썸네일 틀이 안전 구역을 벗어남: %s' % bad
+    P.thumb_save(img, path)
 
 
 # ---------------------------------------------------------------- 엑셀
@@ -641,7 +640,12 @@ def main(argv):
     lines = P._thumb_msg_arg(argv) or ['%s년 입주 %s세대' % (yN, num(f['by_year'].get(yN, 0))), '*적정의 %d%%*' % f['share'](f['by_year'].get(yN, 0))]
     if not P._thumb_msg_arg(argv):
         print('  ⚠ 썸네일 문구가 기본값이다. 결론에 맞춰 --thumb-msg "첫 줄|*둘째 줄*" 로 바꿀 것')
-    thumb(f, thumb_path, lines, pal)
+    thumb_note = '<b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % os.path.relpath(thumb_path, REPO)
+    try:
+        thumb(f, thumb_path, lines, pal)
+    except P.ThumbTooWide as e:    # 줄이지 않고 썸네일만 뺀다(백로그 47) — 초안은 나간다
+        print('  ⚠ %s — %s' % (P.THUMB_SKIP, e))
+        thumb_note, thumb_path = P.thumb_skip_note(e, '--thumb-msg'), None
     xlsx_name = '%s-아파트-입주예정-단지-%s-%s.xlsx' % (city, start[:4], f['last_ym'][:4])
     xlsx_path = os.path.join(OUT, xlsx_name)
     sheets = excel(f, xlsx_path)
@@ -667,11 +671,11 @@ def main(argv):
          P.field('제목', 't1', esc(titles[0]), 't'),
          '<p class="note">제목 후보 2: <code>%s</code>%s</p>' % (esc(titles[1]), ''.join('<br>⚠ ' + esc(w) for w in warn)),
          P.field('본문', 'b1', html_body),
-         '<p class="note">📎 이미지 두 장과 엑셀 파일 하나입니다.<br><b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)<br>'
+         '<p class="note">📎 이미지 두 장과 엑셀 파일 하나입니다.<br>%s<br>'
          '<b>%s</b> → [반기별 입주 차트]<br><b>%s</b> → 본문 [엑셀 파일] 자리. 스마트에디터 위쪽 도구 막대의 '
          '<b>파일</b> 버튼 → 내 PC → 이 파일을 고르면 글 안에 내려받기 칸이 생깁니다.</p>'
-         % (os.path.relpath(thumb_path, REPO), os.path.relpath(chart_path, REPO), 'drafts\\' + xlsx_name),
-         P.img_gallery([(os.path.relpath(thumb_path, REPO), '썸네일 · 글 맨 위, 대표 이미지'),
+         % (thumb_note, os.path.relpath(chart_path, REPO), 'drafts\\' + xlsx_name),
+         P.img_gallery([(thumb_path and os.path.relpath(thumb_path, REPO), '썸네일 · 글 맨 위, 대표 이미지'),
                         (os.path.relpath(chart_path, REPO), '반기별 입주 차트')]),
          # 첨부 엑셀은 태그 바로 앞(10-09 대표). 초안 안에 싣는다.
          '<p class="note">📎 <a download="%s" href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,%s" '

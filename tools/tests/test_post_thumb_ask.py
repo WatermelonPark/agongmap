@@ -32,7 +32,7 @@ RISE = [100 + i for i in range(60)]
 def test_message_states_the_fall_from_the_index():
     c = P._thumb_curve(_sts(FALL), '세종')
     assert round(c[2]) == -24
-    assert P.thumb_message('세종', c)[0] == '세종, 고점에서 -24%'
+    assert P.thumb_message('세종', c)[0] == '세종시, 고점에서 -24%'   # 블로그 표기(SEARCH_NAME)
 
 
 def test_message_at_peak_does_not_claim_a_fall():
@@ -41,10 +41,11 @@ def test_message_at_peak_does_not_claim_a_fall():
 
 
 def test_thumb_renders_even_without_series(tmp_path, monkeypatch):
+    # 캔버스는 1080 정사각형이다(백로그 47 — 네이버 홈피드·검색이 가운데 정사각형으로 자른다). 변이: THUMB_PX 를 1200 으로 → 빨강.
     from PIL import Image
     monkeypatch.setattr(P, 'OUT', str(tmp_path))
     rel = P.thumb_zone({'z': '세종', 'tot': 907, 'grade': 'g1'}, '2026년', 3, sts={})
-    assert Image.open(os.path.join(P.ROOT, rel)).size == (1200, 900)
+    assert Image.open(os.path.join(P.ROOT, rel)).size == (1080, 1080)
 
 
 def test_every_zone_has_a_thumb_group():

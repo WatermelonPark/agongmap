@@ -844,8 +844,7 @@ def draft_weekly(adv, sts, shot=True):
     # 상위·하위 3은 /weekly/ 와 **같은 함수**(MW.top3, 같은 시도 목록 MW.SIDO·같은 순서)로 뽑는다(전수리뷰 #84).
     # 예전 사본은 원천 순서로 늘어선 val 에서 정렬해, 반올림 전 값이 같은 두 곳의 순서(하락 쪽)가 /weekly/ 와 갈릴 수
     # 있었다. 부호는 표시값(pv2r)으로 가른다 — 원값 0.001 을 '오른 곳 0.00%'로 쓰지 않게(/weekly/ 와 같은 규칙).
-    sido = [(k, val[k][0]) for k in MW.SIDO if k in val and val[k][0] is not None]
-    up, dn = MW.top3(sido)
+    up, dn = week_top3(W)   # 썸네일 문구·곡선 지역과 같은 도우미(같은 1위)
 
     # 서울 구별
     gu = []
@@ -1002,6 +1001,9 @@ def draft_weekly(adv, sts, shot=True):
     thumb = None
     try:
         thumb = thumb_weekly(W, sts, _weekly_thumb_msg_arg(sys.argv))
+    except ThumbTooWide as e:    # 넘치는 글줄은 줄이지 않고 그 썸네일만 뺀다(백로그 47) — 초안은 나간다
+        print('  ⚠ 주간 %s — %s' % (THUMB_SKIP, e))
+        sggnote = thumb_skip_note(e, '--weekly-thumb-msg') + '<br>' + sggnote
     except Exception as e:    # 썸네일이 없어도 초안은 나간다
         print('  ⚠ 주간 썸네일 생략 — %s: %s' % (type(e).__name__, e))
     if thumb:
@@ -1257,14 +1259,29 @@ def thumb_message(nm, curve):
     # 하락이 3% 미만이면 그렇게 찍어, 고점 두 달 뒤 -2.9% 인 곳도 '지금이 역대 최고가'였다(2026-10-05 리뷰 D4; 그 앞의
     # 리뷰 09-18 19번은 2년 전 고점을 그렇게 부른 것). 하락 폭은 실제 값을 적는다 — 예전 `min(값, -1)` 은 -0.4% 를 '-1%'로
     # 부풀렸다.
+    # 지역 이름은 블로그 표기(SEARCH_NAME — '광주·전남'·'세종시')다. 예전엔 키를 써서 칩은 '광주·전남'인데 큰 글자는
+    # '전남광주, 고점에서 -15%'였다(전수리뷰 BL1-15 검증).
+    name = SEARCH_NAME.get(nm, nm)
     if curve:
         pct = thumb_pct(curve[2])
         if pct is None:
-            return ['%s, 지금이 역대 최고가' % nm,
+            return ['%s, 역대 최고가' % name,
                     '*%s*' % THUMB_ASK_PEAK[k % len(THUMB_ASK_PEAK)]]
-        return ['%s, 고점에서 %s' % (nm, pct),
+        return ['%s, 고점에서 %s' % (name, pct),
                 '*%s*' % THUMB_ASK_FALL[k % len(THUMB_ASK_FALL)]]
-    return ['%s 아파트' % nm, '*앞으로 3년 공급은*']
+    return ['%s 아파트' % name, '*앞으로 3년 공급은*']
+
+
+def thumb_message_bars(nm, grade):
+    """입주 막대 배경(_thumb_bars)일 때의 기본 문구 — 그림이 말하는 공급의 판정(사이트 정본 SZ.GRADE_LABS)을 쓴다.
+
+    막대 배경에 매매가 '고점에서 -N%'를 얹으면 그림에 없는 계열의 숫자라 '공급이 고점보다 N% 줄었다'로 읽힌다(전수리뷰
+    BL1-15). 새 숫자는 만들지 않는다. 판정 낱말은 '공급' 뒤에 붙여 읽히게 앞의 '공급 '을 뗀다('공급 여유' → '여유').
+    판정이 없으면 기존 기본값(thumb_message(nm, None))."""
+    lab = SZ.GRADE_LABS.get(grade)
+    if not lab:
+        return thumb_message(nm, None)
+    return ['%s 아파트 공급' % SEARCH_NAME.get(nm, nm), '*%s*' % re.sub(r'^공급 ', '', lab)]
 
 
 # 썸네일 색은 **권역마다 고정**이다(2026-09-17 사용자 제안). 블로그가 앨범형이라 썸네일이
@@ -1291,7 +1308,108 @@ THUMB_GROUP = {
 }
 
 
-THUMB_FONT = 104
+# 썸네일 틀(백로그 47, 2026-10-19 대표 승인) — 지역·주간(_draw_thumb)과 도시 편(make_city_post.thumb)이 같이 쓰는 정본.
+# 네이버 앱 홈피드 카드(370px)·모바일 검색(104px)·RSS 는 대표 이미지를 **정사각형으로 다시 자른다**. 1200x900 은 좌우 25%가
+# 잘려 10-16 대구 도시 편의 큰 글줄(폭 1,036px)이 '027년 입주 2,846세'로 앞뒤가 잘린 채 하루 2,087회 노출됐다.
+THUMB_PX = 1080                 # 캔버스 한 변(정사각형). K배로 그려 줄인다(곡선 계단 방지)
+THUMB_K = 2
+THUMB_SAFE = (60, 1020)         # 모든 글자·표식 상자가 x·y 모두 이 안에 든다
+THUMB_CAROUSEL = (920, 120)     # 오른쪽 위 x ≥ 920, y ≤ 120 은 홈피드 캐러셀 '1/5' 표시 자리 — 비운다
+THUMB_MAX_LINE = THUMB_SAFE[1] - THUMB_SAFE[0]   # 글줄 폭 상한 960px. 넘으면 줄이지 않고 그 썸네일을 만들지 않는다
+THUMB_FONT = 104                # 큰 글줄(뜻을 맡는 글자 92~104px)
+THUMB_LABEL = 40                # 라벨(칩) — 370px 카드에서 약 14px. 하한 40px
+THUMB_SIGN = 44                 # 서명 '아공맵'
+THUMB_CHIP_Y, THUMB_SIGN_Y, THUMB_BLOCK_Y = 150, 962, 560   # 칩·서명·큰 글줄 묶음의 가운데 높이
+THUMB_PREVIEWS = (370, 104)     # 원본 옆에 같이 저장하는 축소본(홈피드 카드·검색 목록) — 발행 전에 눈으로 본다
+THUMB_SKIP = '썸네일 없음(문구가 %dpx을 넘음)' % THUMB_MAX_LINE
+
+
+class ThumbTooWide(Exception):
+    """글줄이 THUMB_MAX_LINE 보다 넓다 — 그 썸네일만 만들지 않는다(초안은 THUMB_SKIP 을 적고 계속 나간다)."""
+
+
+def thumb_skip_note(e, flag):
+    """초안 이미지 안내 칸에 적는 '썸네일 없음' 한 줄(지역·주간·도시 편 공통)."""
+    return ('<b>⚠ %s</b> — %s. <code>%s "첫 줄|*둘째 줄*"</code>로 문구를 줄여 다시 만드세요.'
+            % (THUMB_SKIP, esc(str(e)), flag))
+
+
+def _is_red(rgb):
+    """빨간 계열인가(색상 ±25°, 채도 0.5 이상). 사이트에서 빨강은 상승이라 숫자 글자에 쓰지 않는다 — 빨강은 표식(원 테두리)에만."""
+    import colorsys
+    h, _, s = colorsys.rgb_to_hls(*(c / 255 for c in rgb))
+    return s >= 0.5 and min(h, 1 - h) * 360 <= 25
+
+
+def thumb_line_fill(raw, ink, accent):
+    """큰 글줄의 글자색. `*…*` 줄은 강조색이되, 강조색이 빨간 계열(영남 살구 판)이고 줄에 숫자가 있으면 먹색이다."""
+    if not raw.startswith('*'):
+        return ink
+    return ink if (_is_red(accent) and re.search(r'\d', raw)) else accent
+
+
+def thumb_text(d, marks, xy, text, px, **kw):
+    """썸네일 글자 하나를 그리고 그 상자(테두리 후광 제외, 최종 1080 좌표)를 marks 에 적는다. 폭이 THUMB_MAX_LINE 을 넘으면
+    그리지 않고 ThumbTooWide — 글자를 줄이지 않는다(앨범형 목록에서 크기가 들쭉날쭉하면 지저분하고, 줄여도 홈피드에서 안 읽힌다)."""
+    import make_zone_cards as ZC
+    K = THUMB_K
+    fnt = ZC.font(px * K, kw.pop('weight', 'Bold'))
+    bb = d.textbbox((xy[0] * K, xy[1] * K), text, font=fnt, anchor='mm')
+    box = tuple(v / K for v in bb)
+    if box[2] - box[0] > THUMB_MAX_LINE:
+        raise ThumbTooWide('「%s」 %dpx 글줄 폭 %.0fpx' % (text, px, box[2] - box[0]))
+    if kw.get('stroke_width'):
+        kw['stroke_width'] *= K
+    d.text((xy[0] * K, xy[1] * K), text, font=fnt, anchor='mm', **kw)
+    marks.append(('text', text, px, box))
+    return box
+
+
+def thumb_check_lines(chip, lines):
+    """그리기 전에 글줄 폭을 잰다 — 하나라도 넘으면 ThumbTooWide(그림을 반쯤 그리고 멈추지 않게)."""
+    from PIL import Image, ImageDraw
+    d = ImageDraw.Draw(Image.new('RGB', (4, 4)))
+    for t, px in [(chip, THUMB_LABEL)] + [(x.strip('*'), THUMB_FONT) for x in lines] + [('아공맵', THUMB_SIGN)]:
+        thumb_text(d, [], (THUMB_PX / 2, THUMB_PX / 2), t, px)
+
+
+def thumb_text_block(d, marks, chip, lines, ink, soft, accent, bg):
+    """칩(위)·큰 글줄(가운데, THUMB_FONT 고정)·서명(아래)을 그린다. 지역·주간·도시 편 썸네일 공통."""
+    cx = THUMB_PX / 2
+    thumb_text(d, marks, (cx, THUMB_CHIP_Y), chip, THUMB_LABEL, fill=soft)
+    gap = THUMB_FONT * 1.22
+    y = THUMB_BLOCK_Y - gap * (len(lines) - 1) / 2
+    for raw in lines:
+        # 곡선·막대 위에서도 읽히게 글자 뒤에 배경색 테두리를 두른다.
+        thumb_text(d, marks, (cx, y), raw.strip('*'), THUMB_FONT, stroke_width=10, stroke_fill=bg,
+                   fill=thumb_line_fill(raw, ink, accent))
+        y += gap
+    # 서명은 도메인이 아니라 이름 — 네이버 안에서는 주소가 눌리지도 않고 광고처럼 읽힌다.
+    thumb_text(d, marks, (cx, THUMB_SIGN_Y), '아공맵', THUMB_SIGN, fill=ink, stroke_width=6, stroke_fill=bg)
+
+
+def thumb_safe_problems(marks):
+    """안전 구역을 벗어난 상자 목록(비면 정상) — 모든 글자·표식 상자가 x·y THUMB_SAFE 안, 캐러셀 자리(THUMB_CAROUSEL)와 겹치지 않음."""
+    lo, hi = THUMB_SAFE
+    cxl, cyl = THUMB_CAROUSEL
+    bad = []
+    for kind, text, _, (x0, y0, x1, y1) in marks:
+        if x0 < lo or y0 < lo or x1 > hi or y1 > hi:
+            bad.append((kind, text, '안전 구역 밖'))
+        elif x1 > cxl and y0 < cyl:
+            bad.append((kind, text, '캐러셀 자리'))
+    return bad
+
+
+def thumb_save(img, path):
+    """K배 그림을 THUMB_PX 로 줄여 저장하고, 옆에 THUMB_PREVIEWS 축소본(<이름>-370px.png 등)을 같이 둔다."""
+    from PIL import Image
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    out = img.resize((THUMB_PX, THUMB_PX), Image.LANCZOS)
+    out.save(path)
+    base = os.path.splitext(path)[0]
+    for n in THUMB_PREVIEWS:
+        out.resize((n, n), Image.LANCZOS).save('%s-%dpx.png' % (base, n))
 
 
 def thumb_chip(nm, yr):
@@ -1325,125 +1443,142 @@ def _thumb_bars(adv, nm):
 
 
 def thumb_zone(r, yr, yrs, sts=None, msg=None, adv=None):
-    """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (1200x900).
+    """홈피드 카드용 대표 이미지 — drafts/thumb-<지역>.png (THUMB_PX 정사각형, 백로그 47).
 
     2026-09-17 실측: 발행 12편의 대표 이미지가 전부 사이트 캡처였다. 글자가 빽빽해
     피드의 작은 카드에서는 아무것도 안 읽힌다. 피드에서 우리가 쥔 손잡이는 제목과
     썸네일 둘인데 썸네일은 한 번도 만든 적이 없었다.
 
     첫 시안(지역명+숫자 카드)은 사용자가 "AI 양산형"이라며 버렸다 — 글자만 갈아
-    끼우는 틀이라 그렇다. 그래서 **그 지역의 실제 10년 가격 곡선을 배경에** 깐다.
-    곡선은 지역마다 모양이 달라(세종은 절벽, 서울은 우상향) 찍어낸 카드로 안 보인다.
-    그 위 가운데에 큰 글자로 키 메시지를 얹는다(사용자 제안) — 클릭은 메시지가 번다.
+    끼우는 틀이라 그렇다. 그래서 **그 지역의 실제 데이터를 배경에** 깐다 — 해마다 입주 막대와 연 적정물량 점선
+    (_thumb_bars, 10-17), 그것을 못 쓰면 10년 가격 곡선. 그 위 가운데에 큰 글자로 키 메시지를 얹는다(사용자 제안).
+    기본 문구는 배경과 같은 계열이다 — 막대면 공급 판정(thumb_message_bars), 곡선이면 고점 대비(thumb_message).
 
     ⚠️ 세로축은 0이 아니라 구간 최저에서 시작한다. 배경 그림이라 눈금을 안 찍고,
     숫자(고점 대비 %)는 지수에서 그대로 계산한 값만 쓴다.
-    실패해도 초안은 나가야 하므로 호출부에서 예외를 잡는다.
+    문구가 THUMB_MAX_LINE 을 넘으면 ThumbTooWide(초안이 THUMB_SKIP 을 적는다). 그 밖의 실패도 호출부에서 잡는다.
     """
     nm = r['z']
+    bars = _thumb_bars(adv, nm)
     curve = _thumb_curve(sts, nm)
-    lines = [x for x in (msg or thumb_message(nm, curve)) if x.strip()][:3]
+    base = msg if msg is not None else (thumb_message_bars(nm, r.get('grade')) if bars else thumb_message(nm, curve))
+    lines = [x for x in base if x.strip()][:3]
     return _draw_thumb(THUMB_GROUP.get(nm, '수도권'), curve, thumb_chip(nm, yr), lines,
-                       os.path.join(OUT, 'thumb-%s.png' % nm), msg, bars=_thumb_bars(adv, nm))
+                       os.path.join(OUT, 'thumb-%s.png' % nm), msg, bars=bars)
 
 
-def _draw_thumb(group, curve, chip, lines, path, msg, bars=None):
+def _draw_thumb(group, curve, chip, lines, path, msg, bars=None, _marks=None):
     """썸네일 한 장을 그린다 — 지역 편(thumb_zone)·주간 글(thumb_weekly)이 같이 쓴다. 디자인 규칙은 thumb_zone 설명 그대로.
-    bars = (연도별 [(연도, 세대수, 추정 여부)], 연 적정물량) 이면 곡선 대신 그 지역의 해마다 입주 막대를 깐다(_thumb_bars)."""
+    bars = (연도별 [(연도, 세대수, 추정 여부)], 연 적정물량) 이면 곡선 대신 그 지역의 해마다 입주 막대를 깐다(_thumb_bars).
+
+    틀은 THUMB_* 정본(1080 정사각형·안전 구역·글줄 폭 상한)이다. 글줄이 넘치면 ThumbTooWide — 줄이지 않는다.
+    배경 곡선의 면·선은 배경 그림이라 가장자리까지 깔고, 표식(막대·점선)과 글자는 안전 구역 안에 둔다.
+    _marks 에 리스트를 주면 그린 글자·표식 상자를 적는다(시험용)."""
     from PIL import Image, ImageDraw
-    import make_zone_cards as ZC
-    Wd, Ht, K = 1200, 900, 2                      # K배로 그려 줄인다(곡선 계단 방지)
+    if _keep_existing_thumb(path, msg):
+        print('  ⚠ %s 는 이미 있어 그대로 뒀다(--thumb-msg 로 만든 것일 수 있다). 다시 만들려면 --force-thumb.'
+              % os.path.basename(path))
+        return os.path.relpath(path, ROOT)
+    thumb_check_lines(chip, lines)
+    marks = [] if _marks is None else _marks
+    Wd = Ht = THUMB_PX
+    K = THUMB_K
+    lo, hi = THUMB_SAFE
     # 밝은 바탕. 블로그가 앨범형이라 썸네일이 목록에 나란히 깔리는데, 어두운 카드가
     # 이어지면 블로그 전체가 침침해진다(2026-09-17 사용자). 색은 권역마다 고정이다(THUMB_GROUP).
     BG, FILL, DIM, ACCENT = THUMB_PALETTES[group]
     WHITE, SOFT = (19, 30, 36), (94, 111, 116)      # 본문 글자(먹색)·보조 글자
     img = Image.new('RGB', (Wd * K, Ht * K), BG)
     d = ImageDraw.Draw(img)
-    F = lambda size, w='Bold': ZC.font(size * K, w)
 
     if bars:
         ys, ref = bars
         top = max([v for _, v, _ in ys] + [ref]) * 1.08
-        x0, x1, yb, yt = 30, Wd - 30, Ht - 40, 170
+        x0, x1, yb, yt = lo, hi, hi, THUMB_CHIP_Y + 80
         bw = (x1 - x0) / len(ys)
-        for i, (_, v, est) in enumerate(ys):
+        for i, (y_, v, est) in enumerate(ys):
             h = (yb - yt) * v / top
-            box = [(x0 + bw * i + bw * .14) * K, (yb - h) * K, (x0 + bw * (i + 1) - bw * .14) * K, yb * K]
+            box = (x0 + bw * i + bw * .14, yb - h, x0 + bw * (i + 1) - bw * .14, yb)
             # 지난 해는 채우고, 착공으로 추정한 앞으로의 해는 테두리만 — 실적과 추정을 한눈에 가른다.
-            d.rectangle(box, fill=BG if est else FILL, outline=DIM, width=(4 if est else 0) * K)
+            d.rectangle([c * K for c in box], fill=BG if est else FILL, outline=DIM, width=(4 if est else 0) * K)
+            marks.append(('bar', y_, 0, box))
         yr_ = yb - (yb - yt) * ref / top
         xx = x0
         while xx < x1:                              # 연 적정물량 점선
             d.line([xx * K, yr_ * K, min(xx + 16, x1) * K, yr_ * K], fill=DIM, width=4 * K)
             xx += 30
+        marks.append(('ref', '적정물량', 0, (x0, yr_ - 2, x1, yr_ + 2)))
     elif curve:
         pts = curve[0]
-        lo, hi = min(v for _, v in pts), max(v for _, v in pts)
-        x0, x1, yb, yt = 0, Wd, Ht - 40, 150
+        lo_v, hi_v = min(v for _, v in pts), max(v for _, v in pts)
+        x0, x1, yb, yt = 0, Wd, Ht - 40, THUMB_CHIP_Y + 60
         xy = [((x0 + (x1 - x0) * i / (len(pts) - 1)) * K,
-               (yb - (yb - yt) * (v - lo) / ((hi - lo) or 1)) * K)
+               (yb - (yb - yt) * (v - lo_v) / ((hi_v - lo_v) or 1)) * K)
               for i, (_, v) in enumerate(pts)]
         d.polygon(xy + [(x1 * K, Ht * K), (x0 * K, Ht * K)], fill=FILL)
         d.line(xy, fill=DIM, width=6 * K, joint='curve')
 
-    d.text((Wd / 2 * K, 96 * K), chip, font=F(38), fill=SOFT, anchor='mm')
-
-    clean = [x.strip('*') for x in lines]
-    # 글자 크기는 고정이다 — 앨범형 목록에 나란히 깔리므로 회차마다 크기가 들쭉날쭉하면
-    # 지저분하다. 넘치는 문구만 줄이고, 줄였다는 걸 알린다 — 문구를 줄이는 게 먼저다.
-    size = min([THUMB_FONT * K] +
-               [ZC.fit_width(c, (Wd - 120) * K, hi=THUMB_FONT * K, lo=60 * K).size
-                for c in clean])
-    if size < THUMB_FONT * K:
-        print('  ⚠ 썸네일 문구가 길어 글자를 %dpx → %dpx로 줄였다. 한 줄 11자 안팎이 맞다.'
-              % (THUMB_FONT, size // K))
-    gap = int(size * 1.22)
-    y = Ht / 2 * K - gap * (len(lines) - 1) / 2 + 10 * K
-    fnt = ZC.font(size, 'Bold')
-    for raw, c in zip(lines, clean):
-        # 곡선 위에서도 읽히게 글자 뒤에 배경색 테두리를 두른다.
-        d.text((Wd / 2 * K, y), c, font=fnt, anchor='mm', stroke_width=10 * K,
-               stroke_fill=BG, fill=ACCENT if raw.startswith('*') else WHITE)
-        y += gap
-
-    # 서명은 도메인이 아니라 이름 — 네이버 안에서는 주소가 눌리지도 않고 광고처럼 읽힌다.
-    d.text((Wd / 2 * K, (Ht - 78) * K), '아공맵', font=F(44), fill=WHITE,
-           anchor='mm', stroke_width=6 * K, stroke_fill=BG)
-
-    os.makedirs(OUT, exist_ok=True)
-    if _keep_existing_thumb(path, msg):
-        print('  ⚠ %s 는 이미 있어 그대로 뒀다(--thumb-msg 로 만든 것일 수 있다). 다시 만들려면 --force-thumb.'
-              % os.path.basename(path))
-        return os.path.relpath(path, ROOT)
-    img.resize((Wd, Ht), Image.LANCZOS).save(path)
+    # 글자 크기는 고정이다 — 앨범형 목록에 나란히 깔리므로 회차마다 크기가 들쭉날쭉하면 지저분하다.
+    # 넘치는 문구는 줄이지 않고 썸네일을 만들지 않는다(thumb_check_lines) — 문구를 줄이는 게 먼저다(한 줄 9자 안팎).
+    thumb_text_block(d, marks, chip, lines, WHITE, SOFT, ACCENT, BG)
+    bad = thumb_safe_problems(marks)
+    assert not bad, '썸네일 틀이 안전 구역을 벗어남: %s' % bad
+    thumb_save(img, path)
     return os.path.relpath(path, ROOT)
+
+
+def week_top3(W):
+    """그 주 매매 상승·하락 상위 3 시도 — /weekly/ 와 같은 함수(MW.top3)·같은 시도 목록과 순서(MW.SIDO).
+
+    초안 본문·다섯째 태그(draft_weekly), 주간 썸네일 문구(thumb_weekly), 썸네일 곡선 지역(_weekly_focus)이 모두 이것을 읽는다.
+    예전엔 썸네일 쪽 둘이 W['regions'](원천) 순서로 따로 골라, 원값이 같은 두 시도가 있으면 썸네일과 본문의 1위가 갈릴 수 있었다."""
+    reg, last = W['regions'], W['rows'][-1]
+    val = dict(zip(reg, last['ma']))
+    return MW.top3([(z, val[z]) for z in MW.SIDO if z in val and val[z] is not None])
+
+
+def thumb_weekly_message(W):
+    """주간 썸네일 기본(안전망) 문구 — 서울 연속(정본 WM.streak·WM.opened, /weekly/ 와 같은 셈) + 그 주 상승 1위 시도.
+
+    서울이 보합(표시 0.00)이면 '서울 보합', 결측이면 서울 줄을 뺀다. 예전 사본(_streak)은 그 주에 '서울 0주째 하락'을 찍었다
+    (실데이터 156주 중 6주, 전수리뷰 BL1-8). 연속이 보관 이력 첫 주까지 닿으면 'N주 이상'(WM.TXT_STREAK_OPEN 과 같은 뜻)."""
+    msg = []
+    if '서울' in W['regions']:
+        i = W['regions'].index('서울')
+        vals = [r['ma'][i] for r in W['rows']]
+        s = WM.streak(vals)
+        if s:
+            n = abs(s)
+            msg.append('서울 %d주%s %s' % (n, ' 이상' if WM.opened(vals, n) else '째', '상승' if s > 0 else '하락'))
+        elif vals[-1] is not None:
+            msg.append('서울 보합')
+    up, _ = week_top3(W)
+    if up:
+        msg.append('*%s %s*' % (SEARCH_NAME.get(up[0][0], up[0][0]), pct(up[0][1])))
+    return msg or ['%s 아파트값' % SZ.disp('전국')]
 
 
 def thumb_weekly(W, sts=None, msg=None):
     """주간 글 대표 이미지 — drafts/thumb-weekly-<조사일>.png.
 
     2026-10-15 점검: 블로그 유입의 90%가 홈피드인데 주간 글만 썸네일이 없어, 피드 카드에 빽빽한 TOP10 표가 떴다.
-    지역 편과 같은 틀(곡선 배경 + 키 메시지 두 줄)에 전국 매매지수 곡선을 깐다. 문구는 그 주 결론으로
-    --weekly-thumb-msg "첫 줄|*둘째 줄*" 를 주고, 안 주면 데이터에서 안전망 문구를 만든다(사실 한 줄 + 1위 지역).
+    지역 편과 같은 틀(곡선 배경 + 키 메시지 두 줄)에 그 주 초점 지역(_weekly_focus)의 52주 곡선을 깐다. 문구는 그 주 결론으로
+    --weekly-thumb-msg "첫 줄|*둘째 줄*" 를 주고, 안 주면 데이터에서 안전망 문구를 만든다(thumb_weekly_message).
+    --weekly-thumb-region 만 줘도 다시 그린다 — 예전엔 문구가 없으면 기존 파일을 지켜(_keep_existing_thumb) 지역 옵션이 조용히
+    무시됐다.
     """
     p = W['rows'][-1]['p']
+    redraw = '--weekly-thumb-msg' in sys.argv or '--weekly-thumb-region' in sys.argv
     if msg is None:
-        reg, last = W['regions'], W['rows'][-1]
-        sido = [(z, v) for z, v in zip(reg, last['ma']) if z not in SZ.AGG and v is not None]
-        up, _ = MW.top3(sido)
-        i = reg.index('서울')
-        sign, n = _streak(W, i)
-        msg = ['서울 %d주째 %s' % (n, '상승' if sign == '+' else '하락')]
-        if up:
-            msg.append('*%s %s*' % (SEARCH_NAME.get(up[0][0], up[0][0]), pct(up[0][1])))
+        msg = thumb_weekly_message(W)
     chip = '%s 아파트값' % MW.WR.week_label(p)
     focus = _weekly_focus(W, sys.argv)
     return _draw_thumb(THUMB_GROUP.get(focus, '수도권'), _weekly_curve(W, focus) or _thumb_curve(sts, '전국'), chip, msg,
-                       os.path.join(OUT, 'thumb-weekly-%s.png' % p), msg if '--weekly-thumb-msg' in sys.argv else None)
+                       os.path.join(OUT, 'thumb-weekly-%s.png' % p), msg if redraw else None)
 
 
 def _weekly_focus(W, argv):
-    """주간 썸네일 곡선의 지역 — --weekly-thumb-region 이 있으면 그 지역, 없으면 그 주 매매 상승 1위 시도.
+    """주간 썸네일 곡선의 지역 — --weekly-thumb-region 이 있으면 그 지역, 없으면 그 주 매매 상승 1위 시도(week_top3).
     2026-10-17 대표 지적("썸네일 그래프가 매번 같다"): 예전엔 매주 전국 10년 지수를 깔아 회차마다 같은 그림이었다."""
     reg = W['regions']
     if '--weekly-thumb-region' in argv:
@@ -1453,9 +1588,7 @@ def _weekly_focus(W, argv):
             z = rev.get(argv[i + 1], argv[i + 1])
             if z in reg:
                 return z
-    last = W['rows'][-1]
-    sido = [(z, v) for z, v in zip(reg, last['ma']) if z not in SZ.AGG and v is not None]
-    up, _ = MW.top3(sido)
+    up, _ = week_top3(W)
     return up[0][0] if up else '전국'
 
 
@@ -1472,21 +1605,6 @@ def _weekly_curve(W, nm, n=52):
         v *= 1 + x / 100
         pts.append((row['p'], v))
     return (pts, None, None) if len(pts) >= 12 else None
-
-
-def _streak(W, i):
-    """매매 연속 부호와 주수 — 발표 반올림(pv2) 기준(0.00 은 보합이라 끊긴다)."""
-    sign, n = None, 0
-    for r in reversed(W['rows']):
-        v = r['ma'][i]
-        t = MW.pv2(v) if v is not None else '0.00'
-        cur = '+' if t.startswith('+') else ('-' if t.startswith('-') else '0')
-        if sign is None:
-            sign = cur
-        if cur != sign or cur == '0':
-            break
-        n += 1
-    return sign, n
 
 
 def _weekly_thumb_msg_arg(argv):
@@ -1506,9 +1624,24 @@ def _keep_existing_thumb(path, msg, argv=None):
 
     ⚠️ --force(초안 덮기)는 썸네일을 건드리지 않는다. 예전엔 한 깃발이 둘을 같이 했다 — 초안을 덮으려고 --force 를
     주면 --thumb-msg 로 만든 맞춤 썸네일까지 기본 문구로 덮였다(2026-10-05 리뷰 D1).
+
+    옛 틀(정사각형이 아닌 1200x900)로 그린 파일은 지키지 않고 다시 그린다 — 지키면 백로그 47 이전 썸네일이 홈피드 정사각형
+    자르기에 그대로 나간다(10-18 전수리뷰 T47 검토). 그림으로 열리지 않는 파일은 예전처럼 지킨다.
     """
     argv = sys.argv if argv is None else argv
-    return msg is None and '--force-thumb' not in argv and os.path.exists(path)
+    if not (msg is None and '--force-thumb' not in argv and os.path.exists(path)):
+        return False
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            size = im.size
+    except Exception:
+        return True
+    if size != (THUMB_PX, THUMB_PX):
+        print('  ⚠ %s 는 옛 틀(%dx%d)이라 %d 정사각형으로 다시 그린다. 맞춤 문구였다면 --thumb-msg 로 다시 주세요.'
+              % (os.path.basename(path), size[0], size[1], THUMB_PX))
+        return False
+    return True
 
 
 def _thumb_msg_arg(argv):
@@ -1745,9 +1878,12 @@ def draft_zone(adv, sts, r, seq, total):
     shot, shots, err = (None, {}, '--no-shot 로 건너뜀')
     if '--no-shot' not in sys.argv:
         shot, shots, err = capture_zone(nm)
-    thumb = None
+    thumb = thumb_skip = None
     try:
         thumb = thumb_zone(r, yr, yrs, sts, _thumb_msg_arg(sys.argv), adv=adv)
+    except ThumbTooWide as e:    # 넘치는 글줄은 줄이지 않고 그 썸네일만 뺀다(백로그 47) — 초안은 나간다
+        print('  ⚠ %s — %s' % (THUMB_SKIP, e))
+        thumb_skip = thumb_skip_note(e, '--thumb-msg')
     except Exception as e:    # 썸네일이 없어도 초안은 나간다
         print('  ⚠ 썸네일 생략 — %s: %s' % (type(e).__name__, e))
     if shot:
@@ -1768,6 +1904,8 @@ def draft_zone(adv, sts, r, seq, total):
                 '넣으세요.' % err)
         if thumb:
             note += '<br><b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % thumb
+    if thumb_skip:
+        note = thumb_skip + '<br>' + note
     return dict(title=title, body='\n'.join(body), tags=tags, img=shot,
                 kw='%s 아파트 공급물량' % nm, imgnote=note,
                 seq='%d / %d번째 지역%s · 제목 실험 %s안' % (
