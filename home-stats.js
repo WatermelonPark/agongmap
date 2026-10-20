@@ -236,13 +236,14 @@ function drawStat(){
   }
   const labels=idx.map(i=>parsed[i].label);
   const rawFirst=dsFirst(raw);
-  const vals=idx.map(i=>dsV(raw[i],i,rawFirst));   // 진짜 0인 달을 차트가 건너뛰지 않게
+  const all=parsed.map((p,i)=>dsV(raw[i],i,rawFirst));   // 진짜 0인 달을 차트가 건너뛰지 않게
+  const vals=idx.map(i=>all[i]);
   /* 표를 차트보다 먼저 그린다(2026-08-03). 예전엔 차트 생성이 먼저라, 캔버스
      소유권이 꼬여 'Canvas is already in use'가 터지면 buildMatrix까지 못 가서
      행열 전환이 조용히 죽었다(인허가·착공·분양·준공·미분양에서 실측). */
   document.getElementById('meta-bar').innerHTML=
     `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${zn(ST.reg)}</b></span><span>출처 <b>${D.source}</b></span>`;
-  buildTable(D,labels,vals,idx,parsed);
+  buildTable(D,labels,vals,idx,parsed,all);
   buildMatrix(D,idx,parsed);
   document.getElementById('src-note').innerHTML=
     `※ ${D.note?D.note+'. ':''}가공 없는 원자료다.`;
@@ -369,25 +370,28 @@ function dsV(v,i,first){
    찍히고, 2월 이후 %도 분자는 그 달 실적·분모는 전월까지 누적이라 의미가 없다
    (2026-08-08 감사). 누계 계열은 **전년 동월 대비**로 견준다. */
 const DS_CUM=new Set(['인허가']);
-function buildTable(D,labels,vals,idx,parsed){
+function buildTable(D,labels,vals,idx,parsed,all){
   const thead=document.querySelector('#stat-tbl thead'),tbody=document.querySelector('#stat-tbl tbody');
   const isMonthly=!D.annual && parsed[0].m>0;
   const cum=DS_CUM.has(ST.ds), lag=cum?(isMonthly?12:1):1;
   thead.innerHTML=`<tr><th>${isMonthly?'연월':'연도'}</th><th>${DS_LABEL[ST.ds]}</th><th>${cum?'전년 동월 대비':'전기 대비'}</th></tr>`;
   /* 비교 칸은 인덱스 차(k-lag)가 아니라 연월로 찾는다. 배치가 보류한 달(미분양 2026.07)이 끝내
      안 채워지면 dates에 그 달 칸이 없어 k-1이 두 달 전이 되고 '전기 대비'에 두 달 치가 실린다
-     (2026-09-26 데이터 감사 #17, 생성기는 sido_zones.month_back). 연 자료는 12달 = 1기다. */
+     (2026-09-26 데이터 감사 #17, 생성기는 sido_zones.month_back). 연 자료는 12달 = 1기다.
+     비교 상대는 기간으로 자르기 전 전체 계열(all)에서 찾는다 — 예전엔 보이는 구간 안에서만 찾아, '1년' 보기의 인허가
+     '전년 동월 대비'가 13줄 중 12줄 비었다(전수리뷰 H2-3). 표 줄만 기간(idx)으로 자른다. */
   const ymk=p=>p.y*12+p.m, step=isMonthly?1:12;
-  const at=new Map(idx.map((i,k)=>[ymk(parsed[i]),k]));
+  const at=new Map(parsed.map((p,j)=>[ymk(p),j]));
   let html='';
   for(let k=labels.length-1;k>=0;k--){
     const v=vals[k]; if(v==null)continue;   // drawStat에서 이미 dsV를 거쳤다
     let chg='';
-    let pk=at.get(ymk(parsed[idx[k]])-lag*step);
+    const i=idx[k];
+    let pj=at.get(ymk(parsed[i])-lag*step);
     /* 미분양은 2000~2006년이 해마다 12월 한 점이다. 그 구간의 '전기'는 전년 12월이므로, 바로 앞 칸이
        정확히 12달 앞이면 그 칸과 견준다(빠진 달은 1~11달 차라 여기에 걸리지 않는다). */
-    if(pk==null&&k>=1&&ymk(parsed[idx[k]])-ymk(parsed[idx[k-1]])===12)pk=k-1;
-    const prev=pk==null?null:vals[pk];
+    if(pj==null&&i>=1&&ymk(parsed[i])-ymk(parsed[i-1])===12)pj=i-1;
+    const prev=pj==null?null:all[pj];
     if(prev!=null){
       const d=v-prev;
       const cls=d>0?'chg-up':(d<0?'chg-dn':'');
