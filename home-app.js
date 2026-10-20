@@ -1688,7 +1688,7 @@ function renderWeeklyGrid(){
   const v={}; S.codes.forEach((c,i)=>{v[c]=row.ma[i];});
   const svg=sggMapSvg([v],{ref:WK_MAP_REF,names:['매매'],href:c=>'#stats-market-week~'+c});
   /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). */
-  const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel);
+  const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel,wkPs(ADV.weekly));
   if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
   const lines=since?'<p class="wg-since">'+since+'</p>':'';
   const sh=weeklyShare(ADV.weekly);
@@ -1745,13 +1745,26 @@ function weeklyShare(W){
   return (s&&s.url&&row&&s.p===row.p)?s:null;
 }
 /* 지난 방문 이후 새 발표(RET-5). 마지막으로 본 발표일을 이 기기에만 둔다(개인정보처리방침 '브라우저에만 저장').
-   seen: 지난번에 본 발표일(YYYY-MM-DD), r: weeklyRelease. 새 발표가 없거나 처음 온 기기면 null. 발표는 매주 한 번이라
-   두 발표일의 주 차이가 곧 새 발표 수다. */
+   seen: 지난번에 본 발표일(YYYY-MM-DD), r: weeklyRelease, ps: 최근 조사기준일 목록(split_data 가 싣는 ADV.weekly.ps — wkPs).
+   새 발표가 없거나 처음 온 기기면 null. 새 발표 수는 seen 뒤에 나온 발표(조사일+3, weeklyRelease 의 pub)를 실제 조사일로 센다 —
+   예전엔 두 발표일의 주 차이를 셌는데 원천은 긴 연휴 주에 조사를 한 주 거른다(2025-01-20→02-03, 2025-09-29→10-13)라
+   그 사이를 지난 재방문자에게 한 번 더 셌다(전수리뷰 2차 X2-8). 목록의 모든 발표가 seen 뒤면 그 앞은 모르므로 'N회 이상'.
+   목록이 없는 옛 캐시만 주 차이로 센다. */
 const WK_SEEN_KEY='wk_seen';
-function wkSinceText(seen,r){
+function wkSinceText(seen,r,ps){
   if(!r||!seen||!/^\d{4}-\d{2}-\d{2}$/.test(seen)||!(seen<r.pub))return null;
-  const n=Math.round((_dn(r.pub)-_dn(seen))/7);
-  return n>=1?'지난 방문('+_md(seen)+' 발표) 이후 새 발표 '+n+'회':null;
+  let n, more='';
+  if(ps&&ps.length){
+    n=ps.map(p=>_iso(_dn(p)+3)).filter(d=>d>seen&&d<=r.pub).length;
+    if(n===ps.length)more=' 이상';
+  }else n=Math.round((_dn(r.pub)-_dn(seen))/7);
+  return n>=1?'지난 방문('+_md(seen)+' 발표) 이후 새 발표 '+n+'회'+more:null;
+}
+/* 조사기준일 목록 — 코어는 ps(최근 몇 주)를, 통계 탭 데이터가 ADV.weekly 를 바꾼 뒤에는 전체 rows 를 읽는다 */
+function wkPs(W){
+  if(!W)return null;
+  if(W.ps&&W.ps.length)return W.ps;
+  return (W.rows&&W.rows.length>1)?W.rows.map(r=>r.p):null;
 }
 /* 더 새 발표일만 적는다 — 서비스워커·브라우저 캐시의 옛 data-core 로 그린 화면이 이미 본 새 발표일을 옛 날짜로 덮으면
    다음 방문에 '새 발표'를 한 번 더 센다(3차 검토). */
