@@ -110,7 +110,7 @@ def test_home_table_supply_cells_are_the_zone_report_cells(home_table):
 
     변이(각각 실제로 확인): tbBuild 의 미래 칸을 월마다 Math.round(…*S.conv) 로 반올림하면(2026-08-07 감사 때의 결함)
     세대수 칸이, 홈 TB_FROM 을 2018*12 로 바꾸면 분기 집합 단정이, split_data.TABLE_FROM 을 '2018.01' 로 바꾸면(홈 표 2017년
-    행이 진짜 0처럼 찍힌다) 세대수 칸이 빨개진다.
+    행이 진짜 0처럼 찍힌다) 세대수 칸이, split_data.TABLE_REGIONS 에서 지역 하나를 빼면 열 집합 단정이 빨개진다.
     """
     adv, stats = P.load()
     calc = adv['sido']
@@ -126,7 +126,10 @@ def test_home_table_supply_cells_are_the_zone_report_cells(home_table):
     assert not diff, '홈 표와 시도 리포트 표가 %d칸에서 갈린다(앞 5칸: %s)' % (len(diff), diff[:5])
     futs = [k for k, v in got.items() if v[2]]
     assert futs and len(futs) < len(got), '실적·추정 두 구간이 모두 대조되지 않았다'
-    assert len(got) >= 19 * 40, '대조한 칸이 너무 적다(%d)' % len(got)
+    # 칸 수는 손으로 센 수가 아니라 지역 수 × 분기 수다 — 지역 하나라도 빠지면(헛통과) 빨개진다
+    regs = home_table['regs']
+    assert regs and set(regs) == set(SZ.ORDER), '홈 표 열이 판정 단위 정본(ORDER)과 다르다: %s' % regs
+    assert len(got) == len(regs) * len({k[0] for k in got}) == len(home_table['cells']), len(got)
 
 
 def test_home_table_starts_where_the_canon_starts(home_table):
