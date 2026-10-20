@@ -1623,9 +1623,24 @@ def _keep_existing_thumb(path, msg, argv=None):
 
     ⚠️ --force(초안 덮기)는 썸네일을 건드리지 않는다. 예전엔 한 깃발이 둘을 같이 했다 — 초안을 덮으려고 --force 를
     주면 --thumb-msg 로 만든 맞춤 썸네일까지 기본 문구로 덮였다(2026-10-05 리뷰 D1).
+
+    옛 틀(정사각형이 아닌 1200x900)로 그린 파일은 지키지 않고 다시 그린다 — 지키면 백로그 47 이전 썸네일이 홈피드 정사각형
+    자르기에 그대로 나간다(10-18 전수리뷰 T47 검토). 그림으로 열리지 않는 파일은 예전처럼 지킨다.
     """
     argv = sys.argv if argv is None else argv
-    return msg is None and '--force-thumb' not in argv and os.path.exists(path)
+    if not (msg is None and '--force-thumb' not in argv and os.path.exists(path)):
+        return False
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            size = im.size
+    except Exception:
+        return True
+    if size != (THUMB_PX, THUMB_PX):
+        print('  ⚠ %s 는 옛 틀(%dx%d)이라 %d 정사각형으로 다시 그린다. 맞춤 문구였다면 --thumb-msg 로 다시 주세요.'
+              % (os.path.basename(path), size[0], size[1], THUMB_PX))
+        return False
+    return True
 
 
 def _thumb_msg_arg(argv):
