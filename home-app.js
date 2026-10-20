@@ -187,7 +187,7 @@ const vHome=document.getElementById('view-home'),vStats=document.getElementById(
 let statsInited=false,curView=null;
 let _fullData=null;
 function loadFullData(){
-  /* 홈은 core(48KB)만 받고, 주간 155주·기본통계 11계열은 통계 탭을 열 때 받는다.
+  /* 홈은 data-core.js 만 받고, 주간 155주·투자지표(data-trend.json)·기본통계(data-rest.json)는 통계 탭을 열 때 받는다.
      data.js를 런타임에 정규식으로 파싱하지 않는다 — 선언 형태가 조금만 바뀌어도
      조용히 깨지므로 분리기가 낸 JSON을 그대로 읽는다. */
   return loadData('/data-trend.json');
@@ -661,6 +661,7 @@ function _qT(k){const m=String(k).match(/^(\d{4})Q([1-4])$/);return m?m[1]+'년 
    sido_zones.DISPLAY_NAME 에서 ADV.zname 으로 싣는다. 데이터·주소·GA 값은 키 그대로 두고 글자만 이것으로 바꾼다(test_display_name). */
 function zn(r){const m=(typeof ADV!=='undefined'&&ADV&&ADV.zname)||{};return m[r]||r;}
 function _dS(iso){const a=String(iso).split('-');return a.length<3?String(iso):a[0].slice(2)+'.'+(+a[1])+'.'+(+a[2]);}
+function _dL(iso){const a=String(iso).split('-');return a.length<3?String(iso):a[0]+'년 '+(+a[1])+'월 '+(+a[2])+'일';}   // 해를 넘겨 보이는 날짜(sido_zones.day_long)
 /* 연휴 주(hedge)는 날짜를 단정하지 않되 안내 문구도 적지 않는다(빈 문자열 — 2026-10-05 대표 요청으로 '연휴로 발표 일정이
    바뀔 수 있습니다'를 뺐다). 그래서 이어 붙이는 쪽은 빈 조각을 거른다(wkWhenText·통계 탭 rel-week).
    wkWhenText 는 /weekly/ 머리줄(파이썬 weekly_release.when_text)의 JS 거울이다 — 홈 화면은 2026-10-05 부터 '9/28 기준 ·

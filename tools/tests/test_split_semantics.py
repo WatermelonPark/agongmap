@@ -148,7 +148,10 @@ def test_rest_carries_every_basic_series_except_lazy_ones(split):
     assert set(rest) == set(want), '빠진 계열 %s · 더 실린 계열 %s' % (
         sorted(set(want) - set(rest)), sorted(set(rest) - set(want)))
     for k, v in want.items():
-        assert rest[k] == v, '%s 값이 원천과 다르다' % k
+        got = rest[k]
+        if k == '전세가율':   # 출처 칸만 정본 표기(JR_SOURCE)로 바뀐다 — 값·날짜는 원천 그대로(아래 시험이 출처를 본다)
+            got = dict(got, source=v.get('source'))
+        assert got == v, '%s 값이 원천과 다르다' % k
     assert set(rest) & set(S.LAZY_STATS) == set(), '지연 계열이 rest에도 실렸다(중복 전송)'
 
 
@@ -167,7 +170,7 @@ def test_size_file_carries_the_lazy_series(split):
 
 
 def test_trend_keeps_the_newest_district_rows_and_sgg_keeps_all(split):
-    """통계 탭 그래프(trend)는 시군구·서울구의 **최근** TREND_SGG_KEEP행만, data-sgg.json은 전체를 싣는다.
+    """통계 탭 그래프(trend)는 시군구의 **최근** TREND_SGG_KEEP행만, data-sgg.json은 전체를 싣는다(서울 구 블록은 둘 다 없다).
 
     변이: trend 자르기를 `sec['rows'][:TREND_SGG_KEEP]` 로 바꾸면 가장 오래된 12행이 실려 빨개진다(확인).
     픽스처: 실제 data.js — weekly 156행·monthly 120행씩 쌓인 sgg·seoul 블록(모두 12행보다 길다).
@@ -177,7 +180,10 @@ def test_trend_keeps_the_newest_district_rows_and_sgg_keeps_all(split):
     n = S.TREND_SGG_KEEP
     checked = 0
     for k in ('weekly', 'monthly'):
-        for part in ('sgg', 'seoul'):
+        # 서울 구 블록은 홈이 읽지 않아 두 파일 어디에도 싣지 않는다(전수리뷰 H2-17 — 변이: split_data 의 w.pop('seoul') 을 빼면 빨강)
+        assert adv[k].get('seoul', {}).get('rows'), '픽스처 data.js 에 서울 구 블록이 있어야 뺀 것을 본다'
+        assert 'seoul' not in trend[k] and 'seoul' not in sgg.get(k, {}), '%s.seoul 이 통계 탭 파일에 실렸다' % k
+        for part in ('sgg',):
             rows = adv[k][part]['rows']
             assert len(rows) > n, '픽스처가 짧으면 자르기를 못 본다'
             assert trend[k][part]['rows'] == rows[-n:], '%s.%s trend가 최근 %d행이 아니다' % (k, part, n)
@@ -186,4 +192,20 @@ def test_trend_keeps_the_newest_district_rows_and_sgg_keeps_all(split):
             checked += 1
         # 시도 행은 자르지 않는다(그래프 3년 탭)
         assert trend[k]['rows'] == adv[k]['rows']
-    assert checked == 4
+    assert checked == 2
+
+
+def test_rest_jeonse_source_and_trend_bubble_use_the_site_canon(split):
+    """홈 기본통계의 전세가율 출처는 /jeonse-ratio/·/monthly/ 와 같은 정본 표기(make_indicator_pages.JR_SOURCE — 기관명 포함)이고,
+    통계 탭 버블밴드는 정본 기준월(bubble_jeonse)의 전세가율(jp·jr)을 싣는다(전수리뷰 H2-6).
+    재현한 실제 상태: 수집 계열 source 칸 'KOSIS 매매가격 대비 전세가격비'를 그대로 실어 홈만 기관명(한국부동산원)이 빠졌고, 버블밴드는
+    지역마다 마지막 비결측 값을 읽었다. 픽스처: 실제 data.js 사본에 split 을 돌린 산출물.
+
+    변이(실제로 확인): split_data 의 rest 전세가율 source 덮기를 빼면, bubble_payload 줄을 빼면 빨개진다.
+    """
+    import make_indicator_pages as I
+    _, stats, out = split
+    assert out['rest']['STATS']['전세가율']['source'] == I.JR_SOURCE
+    B = out['trend']['ADV']['bubble']
+    jp, jr = I.bubble_jeonse(stats['전세가율'], B.get('regions') or list(B['conv']))
+    assert jp and jr and B.get('jp') == jp and B.get('jr') == jr, (B.get('jp'), jp)

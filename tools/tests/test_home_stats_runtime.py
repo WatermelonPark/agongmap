@@ -245,17 +245,202 @@ def test_bubble_summary_counts_provinces_only():
     """버블밴드 요약 'N개 지역'은 집계(전국·수도권·지방)를 빼고 센다 — 시도 수를 넘지 않는다.
 
     변이(실제로 확인): 루프의 `one`(집계면 0)을 1 로 되돌리면 금리를 아주 낮춘 사례가 시도 수보다 커져 빨개진다.
-    픽스처: 저장소 data-trend.json 의 ADV.bubble 과 data-rest.json 의 전세가율, 대출금리만 0.01%(모든 지역이 매수 신호권).
+    픽스처: 저장소 data-trend.json 의 ADV.bubble 에 data-rest.json 전세가율을 split_data 와 같은 함수(bubble_payload)로 실은 것,
+    대출금리만 0.01%(모든 지역이 매수 신호권).
     """
+    import make_indicator_pages as I
     trend, rest = _load('data-trend.json'), _load('data-rest.json')
-    B = trend['ADV']['bubble']
+    B = I.bubble_payload(trend['ADV']['bubble'], rest['STATS']['전세가율'])
     B['loan'] = dict(B['loan'], v=0.01)
-    got = _node(_stats_js('ADV.bubble=%s;STATS["전세가율"]=%s;renderBubbleSec();'
+    got = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
                           'OUT.sum=document.getElementById("bubble-wrap").innerHTML.split("</p>")[0];'
-                          % (json.dumps(B, ensure_ascii=False), json.dumps(rest['STATS']['전세가율'], ensure_ascii=False))))
+                          % json.dumps(B, ensure_ascii=False)))
     n = int(re.search(r'(\d+)개 지역', got['sum']).group(1))
     regs = [r for r in (B.get('regions') or list(B['conv'])) if r not in SZ.AGG]
-    assert n == len([r for r in regs if B['conv'].get(r) is not None]) and n <= len(SZ.ORDER), (n, got['sum'])
+    assert n == len([r for r in regs if B['conv'].get(r) is not None and B['jr'].get(r) is not None]) and n <= len(SZ.ORDER), (n, got['sum'])
+
+
+# ── H2-6·H2-7·H2-13 버블밴드: 정본 기준월·두 달 배지·범례 위치·여유 반올림 ──────────────────────
+def _bubble_fixture(jr_last_partial=True):
+    """시도 전부 + 집계 셋. 마지막 달(2026.09)은 서울·경기만 채워진 부분 달(merge_basic 이 새 달을 None 으로 만들고 받은 지역만
+    채운 모양 — 전수리뷰 H2-6 재현), 그 앞 달(2026.08)은 모두 찼다."""
+    import make_indicator_pages as I
+    regs = ['전국', '수도권', '지방'] + list(SZ.ORDER)
+    ser = {r: [60.0, 60.0] for r in regs}
+    ser['서울'] = [50.0, 52.6]
+    ser['경기'] = [60.0, 70.0]
+    if jr_last_partial:
+        for r in regs:
+            if r not in ('서울', '경기'):
+                ser[r][1] = None
+    J = {'dates': ['2026.08', '2026.09'], 'series': ser}
+    # 위험선까지 남은 폭: 서울 0.997(두 자리 1.00 → '1%p 미만' 아님), 경기 0.994(0.99 → 근접), 나머지는 넉넉
+    conv = {r: 7.0 for r in regs}            # 그 밖: 60 × 7 = 4.2 ~ 8.4, 대출금리 6.0 은 밴드 안·여유 2.4
+    conv['서울'] = (6.0 + 0.997) / 2 / 0.5      # 서울 jr 50.0(기준월) → lo=0.5*cv
+    conv['경기'] = (6.0 + 0.994) / 2 / 0.6
+    B = {'prd': '2026.07', 'loan': {'v': 6.0, 'p': '2026.08'}, 'regions': regs, 'conv': conv}
+    return I.bubble_payload(B, J), J
+
+
+def test_bubble_band_reads_the_site_reference_month_and_says_both_months():
+    """버블밴드 전세가율은 사이트 기준월 정본(jeonse_ref_index — /jeonse-ratio/ 과 같은 달)의 값이고, 배지는 전세가율·전환율 달을
+    함께 적는다. 범례는 막대 아래 한 줄, 위험선까지 남은 폭은 칩·상세·근접 셈이 같은 두 자리 값을 쓴다.
+    재현한 실제 상태: 새 달이 일부 지역만 채워진 회차(전수리뷰 H2-6·#106)에 홈은 서울 52.6%(부분 달)로, /jeonse-ratio/ 은
+    직전 완비 달 값으로 월세수익률을 말했고 배지는 '2026년 7월 기준'(전환율 달)만 적었다. 범례 네 줄이 막대 위에 섰다(H2-7).
+    위험선까지 0.97%p 인 지역이 칩 '여유 1.0%p'인데 요약은 '1%p 미만'에 셌다(H2-13).
+    픽스처: _bubble_fixture — 2026.09 는 서울·경기만 찬 부분 달, 대출금리 6.0, 서울 여유 0.997(→1.00)·경기 0.994(→0.99), 매수 신호권 0.
+
+    변이(실제로 확인): bubble_jeonse 를 지역마다 마지막 비결측 값으로 바꾸면, 배지를 옛 `_ymT(B.prd)+' 기준'` 으로 되돌리면,
+    범례를 막대 앞(h 머리)으로 되돌리면, 근접 셈을 원값 `hi-loan<1` 로 되돌리면 빨개진다.
+    """
+    B, J = _bubble_fixture()
+    assert B['jp'] == '2026.08' and B['jr']['서울'] == 50.0, B['jp']
+    got = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
+                          'OUT.html=document.getElementById("bubble-wrap").innerHTML;'
+                          'OUT.badge=document.getElementById("bubble-prd").textContent;' % json.dumps(B, ensure_ascii=False)))
+    assert got['badge'] == '전세가율 2026년 8월 · 전환율 2026년 7월 기준', got['badge']
+    h = got['html']
+    assert '전세가율 50% ×' in h and '52.6' not in h, '부분 달 값을 읽었다'
+    first_row, legend = h.find('class="bb-row"'), h.find('class="bb-legend"')
+    assert 0 <= first_row < legend, '범례가 막대 위에 있다'
+    assert '<br>' not in h[legend:], '범례가 한 줄이 아니다'
+    chips = dict(re.findall(r'data-r="([^"]+)".*?<span class="bb-chip[^"]*">([^<]*)</span>', h))
+    assert chips['서울'] == '여유 1.00%p' and chips['경기'] == '여유 0.99%p', (chips['서울'], chips['경기'])
+    assert '1개 지역이 위험선까지 1%p 미만' in h.split('</p>')[0], h.split('</p>')[0]
+    # 완비 달이 마지막이면 배지는 전환율 달과 다를 때만 둘 — 같으면 한 달만 적는다
+    B2, _ = _bubble_fixture(jr_last_partial=False)
+    B2['prd'] = B2['jp']
+    got2 = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();OUT.badge=document.getElementById("bubble-prd").textContent;'
+                           % json.dumps(B2, ensure_ascii=False)))
+    assert got2['badge'] == '2026년 9월 기준', got2
+
+
+def test_bubble_band_hides_when_no_jeonse_month_is_complete():
+    """전세가율에 JEONSE_NEED 가 모두 찬 달이 하나도 없으면 bubble_payload 는 jp=None·jr={} 를 싣고, 버블밴드는 그 회차에 숨는다
+    (bubble_jeonse 독스트링의 약속). 재현한 상태: 원천이 시도 행 이름을 바꿔 모든 달에 한 시도가 빈 회차(2026-09-26 데이터 감사의
+    지방권·6대광역시 공백과 같은 꼴). 픽스처: _bubble_fixture 에서 제주 계열을 통째로 비운 것. 대조로 완비 달이 있는 원래 픽스처는
+    보인다(두 갈래 모두 확인).
+
+    변이(실제로 확인): renderBubbleSec 의 숨김 조건에서 `!B.jp` 를 빼면 빈 jr({})가 참이라 '0개 지역' 요약과 빈 막대가 그려져 빨개진다.
+    """
+    import make_indicator_pages as I
+    B, J = _bubble_fixture(jr_last_partial=False)
+    J2 = dict(J, series=dict(J['series'], 제주=[None, None]))
+    B0 = I.bubble_payload({k: v for k, v in B.items() if k not in ('jp', 'jr')}, J2)
+    assert B0['jp'] is None and B0['jr'] == {}, (B0['jp'], B0['jr'])
+    out = {}
+    for name, b in (('none', B0), ('full', B)):
+        out[name] = _node(_stats_js('ADV.bubble=%s;document.getElementById("sec-bubble");renderBubbleSec();'
+                                    'OUT.d=document.getElementById("sec-bubble").style.display||"";'
+                                    'OUT.h=document.getElementById("bubble-wrap").innerHTML.length;' % json.dumps(b, ensure_ascii=False)))
+    assert out['none'] == {'d': 'none', 'h': 0}, out['none']
+    assert out['full']['d'] != 'none' and out['full']['h'] > 0, out['full']
+
+
+def test_permit_and_occupancy_notes_sit_below_the_chart():
+    """인허가·입주물량 설명 문단은 그래프·표 아래 한 문장(2026-10-06 '설명·범례는 콘텐츠 아래' — 전수리뷰 H2-7).
+    재현한 실제 상태: 375px 에서 인허가 두 문장(62px)·입주물량 한 문장이 그래프 위에 있었다.
+    변이(실제로 확인): index.html 에서 #sec-permit 의 .adv-note 를 옛 자리(.adv-regsel 앞)로 옮기면 빨개진다.
+    픽스처: 저장소 index.html."""
+    html = dict(HS.home_files())['index.html']
+    for sec in ('sec-permit', 'sec-occ'):
+        a = html.index('id="%s"' % sec)
+        body = html[a:html.index('</section>', a)]
+        note, chart = body.find('class="adv-note"'), body.find('class="gt-g"')
+        assert 0 <= chart < note, sec
+        txt = re.search(r'class="adv-note">([^<]*)<', body).group(1)
+        assert txt.count('니다.') == 1, (sec, txt)
+        if sec == 'sec-permit':
+            assert SZ.PERMIT_NATURE in txt, '인허가 성격 문구가 정본(sido_zones.PERMIT_NATURE)과 갈렸다'
+
+
+# ── H2-9 지역 선택 상자 순서 ─────────────────────────────────────────────────
+def test_region_select_follows_the_display_order_then_other_rows():
+    """통계 탭 지역 선택은 판정 단위를 목록 표시 정본(sido_zones.DISPLAY_ORDER — ADV.sido.zones 가 그 순서로 온다)으로 세우고,
+    그 밖의 원천 권역 행(매매지수의 광역시·지방도·서울 권역)은 뒤에 화면 이름 가나다순으로 모은다.
+    재현한 실제 상태(전수리뷰 H2-9): 키로 가나다순을 매겨 '광주·전남'(키 전남광주)이 '인천'과 '전북' 사이에 섰고, 매매지수
+    목록은 '경북, 광역시, 대구, 대전, 도심권, …'처럼 시도와 권역 행이 섞였다.
+    픽스처: 저장소 data-rest.json 매매지수의 지역 키 전부, ADV.sido.zones 는 DISPLAY_ORDER 순서, ADV.zname 은 DISPLAY_NAME.
+
+    변이(실제로 확인): regSort 의 정렬 기준을 옛 '집계(REG_AGG)만 앞·나머지 키 가나다'로 되돌리면(ord=REG_AGG) 빨개진다.
+    """
+    keys = list(_load('data-rest.json')['STATS']['매매지수']['series'])
+    model = [k for k in keys if k in SZ.DISPLAY_ORDER]
+    other = [k for k in keys if k not in SZ.DISPLAY_ORDER]
+    assert model and other, '매매지수에 판정 단위와 권역 행이 둘 다 있어야 이 시험이 뜻이 있다'
+    zones = [{'z': z} for z in SZ.DISPLAY_ORDER]
+    got = _node(_stats_js('ADV.sido={zones:%s};ADV.zname=%s;OUT.list=regSort(%s);'
+                          % (json.dumps(zones), json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False),
+                             json.dumps(list(reversed(keys)), ensure_ascii=False)),
+                          pre='function zn(r){return (ADV.zname||{})[r]||r;}'))
+    want_head = [z for z in SZ.DISPLAY_ORDER if z in keys]
+    assert got['list'][:len(want_head)] == want_head, got['list']
+    tail = got['list'][len(want_head):]
+    assert sorted(tail) == sorted(other) and len(tail) == len(other)
+    collator = _node('process.stdout.write(JSON.stringify(%s.sort((a,b)=>a.localeCompare(b,"ko"))));'
+                     % json.dumps(other, ensure_ascii=False))
+    assert tail == collator, tail
+
+
+# ── H2-15 규모별 진입·이탈의 보기 ───────────────────────────────────────────
+def test_size_dataset_switches_view_quietly_and_restores_it():
+    """기본통계에서 규모별(표 전용)을 고르면 표 보기로 **조용히** 바꾸고(stats_gt 를 보내지 않는다), 다른 계열로 나가면 들어오기 전
+    보기로 되돌린다. 재현한 실제 상태(전수리뷰 H2-15, Playwright): 그래프(gm-g)로 보던 중 규모별 → 매매지수로 돌아오면 'gsec gm-t'
+    (표)에 머물렀고, 규모별을 누를 때마다 stats_gt{section:basicmain, view:t} 가 사람 누름처럼 쌓였다.
+    픽스처: 계열 단추 셋(매매지수·규모별·착공)의 클릭 처리기를 실제 initStats 로 단다. 그리기 함수는 모형이다.
+
+    변이(실제로 확인): 규모별 진입을 옛 `gtSet('basicmain','t')`(silent 없음)로 되돌리면 stats_gt 가 쌓여, 이탈 때 되돌리기 줄을
+    빼면 표에 머물러 빨개진다.
+    """
+    got = _node(_stats_js(r"""
+STATS={'매매지수':{series:{}},'착공':{series:{}},'규모별':{series:{},regions:[]}};
+const btns={};
+const seg=document.getElementById('ds-seg');
+seg.querySelectorAll=()=>Object.keys(STATS).map(k=>{const b=btns[k]||(btns[k]=__mk('b-'+k));b.dataset.ds=k;
+  b.addEventListener=(e,f)=>{b.click=f;};return b;});
+document.getElementById('reg-sel').parentElement=__mk('p');
+fillRegions=()=>{};renderAux=()=>{};drawStat=()=>{};drawLeadtime=()=>{};
+const sec=document.getElementById('sec-basicmain'); sec.classList.add('gm-g'); sec.classList.add('gsec');
+initStats();
+const view=()=>sec.classList.contains('gm-t')?'t':(sec.classList.contains('gm-g')?'g':'?');
+__TR.length=0;
+btns['규모별'].click(); OUT.inSize=view();
+btns['규모별'].click(); OUT.again=view();
+btns['매매지수'].click(); OUT.back=view();
+OUT.gt=__TR.filter(t=>t[0]==='stats_gt').length;
+// 표로 보던 사람은 표로 돌아온다
+sec.classList.remove('gm-g'); sec.classList.add('gm-t');
+btns['규모별'].click(); btns['착공'].click(); OUT.backT=view();
+"""))
+    assert got == {'inSize': 't', 'again': 't', 'back': 'g', 'gt': 0, 'backT': 't'}, got
+
+
+# ── H2 overflow: 기간 단추 95% 규칙·입주 추정 분기의 '오늘'·옛 시군구 파일 ─────────────────────
+def test_period_button_kst_quarter_and_stale_sgg_file():
+    """① 시장동향 기간 단추: 행이 기간의 95~100% 면 단추가 보이고, 그 단추를 고른 채 그려도 '전체'로 바뀌지 않는다.
+    ② 입주물량 추정 분기(occFut)는 한국 시간으로 센다 — UTC 12/31 15:30 은 한국 1/1 00:30 이라 새해 1분기는 '미래'가 아니다.
+    ③ data-sgg.json 이 지금 것보다 옛 주(HTTP 캐시)면 시군구 행을 덮지 않는다.
+    재현한 실제 상태(전수리뷰 H2 overflow 세 건): 보이는 '3년'을 눌러도 '전체'로 바뀜(have 150 < 156), 기기 시간대로 분기를 셈,
+    옛 파일이 새 주 행을 되돌림. 픽스처: 주간 150행, 고정 시각 2030-12-31T15:30Z, 최신 2031-01-13 대 옛 파일 2031-01-06.
+
+    변이(실제로 확인): renderTrPeriods 의 되돌림 조건을 옛 `cur[1]>have` 로, occFut 를 기기 시간대(getFullYear·getMonth)로,
+    ensureSggHist 의 날짜 비교를 빼면 빨개진다(③은 node 가 TZ=UTC 일 때 ②와 함께).
+    """
+    got = _node(_stats_js(r"""
+ADV.weekly={rows:Array.from({length:150},(_,i)=>({p:'w'+i}))};
+TRP.week=2; renderTrPeriods('week'); OUT.kept=TRP.week;
+OUT.has3y=document.getElementById('week-period').innerHTML.indexOf('3년')>=0;
+const RD=Date; Date.now=()=>RD.UTC(2030,11,31,15,30);
+OUT.fut=[occFut('2031Q1'), occFut('2031Q2'), occFut('2030Q4')];
+ADV.weekly.sgg={codes:['a'],rows:[{p:'2031-01-13'}]}; ADV.monthly={sgg:{codes:['a'],rows:[{p:'2030-12'}]}};
+globalThis.fetch=()=>Promise.resolve({ok:true,json:()=>({ADV:{weekly:{sgg:{codes:['a'],rows:[{p:'2031-01-06'}]}},
+  monthly:{sgg:{codes:['a'],rows:[{p:'2030-11'},{p:'2030-12'}]}}}})});
+await ensureSggHist();
+OUT.wk=ADV.weekly.sgg.rows.map(r=>r.p); OUT.mo=ADV.monthly.sgg.rows.length;
+"""))
+    assert got['kept'] == 2 and got['has3y'], got
+    assert got['fut'] == [False, True, False], got['fut']
+    assert got['wk'] == ['2031-01-13'] and got['mo'] == 2, got
 
 
 # ── #59 보조선 정점·바닥 ─────────────────────────────────────────────────────
@@ -288,6 +473,64 @@ for(const ds of ['매매지수','전세지수','금리']){
             assert at == pick[0][:7], (key, find, at, pick)
             lab[key] = at
     assert '{y:2021,m:9,t:\'2021 정점\'' not in src
+
+
+def test_apartment_build_aux_labels_come_from_the_data():
+    """아파트건설 보조선 라벨의 수량·40년차 연도·정점 해는 그 칸의 원자료에서 만든다(전수리뷰 H2-14).
+    재현한 실제 상태: '38만 돌파 · 40년차 2032'·'정점 43만 · 40년차 2035'를 글자로 박아, 원천이 옛 해 값을 고치거나 다른 해가
+    1995년을 넘으면 선은 1995에 선 채 그래프와 다른 말을 했다. 픽스처: 저장소 data-rest.json 아파트건설(전국) 그대로 한 번,
+    1997년 값을 정점보다 크게 바꾼 사본 한 번(정점이 옮겨 가는 경우).
+
+    변이(실제로 확인): 정점 선을 옛 {y:1995,m:12,t:'정점 43만 · 40년차 2035'} 로 되돌리면 사본에서, fmt 의 +40 을 박은 연도로 바꾸면
+    빨개진다.
+    """
+    D = _load('data-rest.json')['STATS']['아파트건설']
+    reg = '전국'
+    moved = json.loads(json.dumps(D))
+    i97 = moved['dates'].index(next(d for d in moved['dates'] if d.startswith('1997')))
+    moved['series'][reg][i97] = max(v for v in moved['series'][reg] if v is not None) + 20000
+    for data in (D, moved):
+        got = _node(_stats_js(r"""
+const labels=S_.dates.map(d=>parseDate(d).label), vals=S_.series['전국'];
+OUT.t=AUXLINES['아파트건설'].map(l=>{const p=auxPos(l,labels,vals);return p<0?null:[labels[p],auxText(l,labels[p],vals[p])];});
+""", pre='const S_=%s;' % json.dumps(data, ensure_ascii=False)))
+        pts = [(d[:4], v) for d, v in zip(data['dates'], data['series'][reg]) if v is not None and '1980' <= d[:4] <= '2005']
+        py, pv = max(pts, key=lambda x: x[1])
+        assert got['t'][-1] == [py, '정점 %d만 · 40년차 %d' % (round(pv / 1e4), int(py) + 40)], got['t']
+        v92 = dict(pts)['1992']
+        assert got['t'][1] == ['1992', '%d만 돌파 · 40년차 %d' % (v92 // 10000, 1992 + 40)], got['t']
+    src = dict(HS.home_files())['home-stats.js']
+    assert not re.search(r"t:'[^']*\d+만", src), '보조선 이름에 손으로 옮긴 수량이 있다'
+
+
+def test_aux_line_labels_stack_and_restore_the_canvas():
+    """기본통계 보조선 플러그인(vlines)은 라벨마다 캔버스 상태를 되돌리고(save 수 = restore 수), 가까운 라벨은 다음 줄로 내려
+    겹치지 않게 찍는다. 재현한 실제 상태(전수리뷰 2차 Hb 검토): H2-11 수정 때 fillText 줄 끝에 붙인 `//` 주석이 같은 줄의
+    `drawn.push(…);ctx.restore();` 를 삼켜, 아파트건설 보조선 셋(1988·1992·정점)이 한 줄에 겹쳐 찍히고 restore 없이 save 만 쌓였다
+    (node --check 는 문법만 보므로 통과했다).
+    픽스처: 저장소 data-rest.json 아파트건설(전국), 보조선 셋 모두 켬, 모형 Chart 가 받은 설정의 afterDraw 를 x 픽셀이 모두 같은
+    모형 축으로 부른다(세 라벨이 70px 안에 붙은 좁은 화면).
+
+    변이(실제로 확인): home-stats.js 의 그 줄을 옛 모양(주석 뒤에 `drawn.push({x:x,row:row});ctx.restore();`)으로 되돌리면
+    restore 0 회·같은 y 셋이라 빨개진다.
+    """
+    D = _load('data-rest.json')['STATS']['아파트건설']
+    got = _node(_stats_js(r"""
+ST.ds='아파트건설'; ST.reg='전국'; ST.years=0; STATS['아파트건설']=S_;
+ST.aux=new Set(AUXLINES['아파트건설'].map((_,i)=>String(i)));
+buildTable=()=>{}; buildMatrix=()=>{};
+let CFG=null; globalThis.Chart=class{constructor(el,cfg){CFG=cfg;} static getChart(){return null;}};
+drawStat();
+const C={save:0,restore:0,y:[]};
+const ctx={save(){C.save++},restore(){C.restore++},beginPath(){},moveTo(){},lineTo(){},stroke(){},setLineDash(){},
+  fillText(t,x,y){C.y.push(y)}};
+CFG.plugins.find(p=>p.id==='vlines').afterDraw({ctx,scales:{y:{top:0,bottom:100},x:{right:500,getPixelForValue(){return 100;}}}});
+OUT=C;
+""", pre='const S_=%s;const FONT="x",GRID="#ddd";function areaGrad(){return "#fff";}' % json.dumps(D, ensure_ascii=False)))
+    n = len(got['y'])
+    assert n >= 2, got
+    assert got['save'] == got['restore'] == n, got
+    assert len(set(got['y'])) == n, got
 
 
 # ── #54 밀기 안내 ────────────────────────────────────────────────────────────
@@ -326,6 +569,38 @@ OUT={tbl, meta:document.getElementById('meta-bar').innerHTML.length>0,
         'function loadChart(){return Promise.resolve();}', 'function loadChart(){return Promise.reject(new Error("x"));}'))
     assert got['tbl'] == 1 and got['meta'], got
     assert '그래프를 불러오지 못했습니다' in got['note'], got['note']
+
+
+# ── H2-4 시장동향·투자지표 그래프의 라이브러리 실패 ─────────────────────────────────
+def test_market_and_investor_charts_say_when_the_library_fails():
+    """차트 라이브러리를 못 받으면 시장동향(주간·월간)·인허가·입주물량 그래프도 그 그래프 상자 위에 안내와 '다시 시도'를 달고,
+    시장동향은 기간 단추·범위 줄을 그린다. 다시 시도는 그 그래프를 다시 그린다(chartRedo).
+    재현한 실제 상태(전수리뷰 H2-4, Playwright 로 /chart-4.4.1.umd.js 를 막음): '#stats-adv-occ' 는 빈 캔버스뿐, '#stats-market-week~a7' 은
+    기간 단추가 없고 범위 줄이 '변동률(%)'뿐이었고, 유일한 안내는 숨은 기본통계 출처 줄에 있었다.
+    픽스처: 저장소 data-trend.json(주간·월간·인허가·입주물량), needChart 는 늘 '기다림', loadChart 는 거부.
+
+    변이(실제로 확인): drawTrendChart 의 needChart 를 옛 자리(함수 첫 줄, 안내 없음)로 되돌리면, drawPermitChart·drawOccChart 에서
+    chartFailNote 를 빼면, CHART_FAIL 의 week 자리를 'src-note' 로 바꾸면 빨개진다.
+    """
+    trend = _load('data-trend.json')['ADV']
+    got = _node(_stats_js(r"""
+Object.assign(ADV, T_);
+['adv-week-reg','adv-week-sgg','adv-month-reg','adv-month-sgg','adv-permit-reg','adv-occ-reg'].forEach(id=>{document.getElementById(id).options=[];});
+let redo=[]; drawTrendChart=(k=>{const f=drawTrendChart; return k2=>{redo.push(k2); return f(k2);};})();
+drawTrendChart('week'); drawTrendChart('month'); drawPermitChart(); drawOccChart();
+await new Promise(r=>setTimeout(r,0));
+const g=id=>document.getElementById(id).innerHTML;
+OUT={box:['weekChartBox','monthChartBox','permitChartBox','occChartBox'].map(g), src:g('src-note'),
+  period:g('week-period'), unit:document.getElementById('week-unit').textContent};
+redo=[]; chartRedo('month'); OUT.redo=redo;
+""", pre='const T_=%s;' % json.dumps({k: trend[k] for k in ('weekly', 'monthly', 'permits', 'occupancy')}, ensure_ascii=False)
+    ).replace('function needChart(){return false;}', 'function needChart(){return true;}').replace(
+        'function loadChart(){return Promise.resolve();}', 'function loadChart(){return Promise.reject(new Error("x"));}'))
+    for i, b in enumerate(got['box']):
+        assert '그래프를 불러오지 못했습니다' in b and 'retry-btn' in b and 'chartRedo(' in b, (i, b)
+    assert got['src'] == '', got['src']
+    assert '<button' in got['period'] and '~' in got['unit'], got
+    assert got['redo'] == ['month'], got['redo']
 
 
 # ── #43 data-core 없이 부팅 ──────────────────────────────────────────────────

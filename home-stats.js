@@ -17,9 +17,9 @@ var HOME_STATS_BUILD='v193';
    봉우리가 정본(tools/data/cycle_analysis.json leadtime = sido_zones.START_DONE_MONTHS_*)과 같은지는
    test_home_stats_runtime 이 본다 — 사이클을 재산정하면 이 곡선도 같은 데이터로 다시 굽는다. */
 const LEADTIME={"lags": [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50], "all": [0.511, 0.545, 0.582, 0.621, 0.661, 0.696, 0.731, 0.764, 0.792, 0.813, 0.827, 0.836, 0.839, 0.836, 0.825, 0.805, 0.777, 0.74, 0.697, 0.648, 0.595, 0.535, 0.471, 0.4, 0.321, 0.247, 0.175, 0.106, 0.034, -0.033, -0.1], "old": [0.821, 0.848, 0.874, 0.901, 0.924, 0.941, 0.956, 0.967, 0.971, 0.97, 0.96, 0.947, 0.928, 0.906, 0.883, 0.855, 0.824, 0.79, 0.752, 0.711, 0.666, 0.612, 0.55, 0.484, 0.41, 0.327, 0.243, 0.159, 0.071, -0.011, -0.09], "new": [-0.006, 0.016, 0.059, 0.112, 0.182, 0.25, 0.327, 0.406, 0.483, 0.551, 0.615, 0.677, 0.736, 0.786, 0.823, 0.854, 0.869, 0.876, 0.869, 0.846, 0.813, 0.77, 0.732, 0.65, 0.548, 0.46, 0.394, 0.341, 0.283, 0.227, 0.152]};
-/* 시군구·서울구 전체 시계열은 '구를 고른 사람'만 받는다(통계 탭 기본 전송량 유지).
+/* 시군구 전체 시계열은 '구를 고른 사람'만 받는다(통계 탭 기본 전송량 유지). 서울 구도 sgg 의 a7… 코드다(서울 구 블록은 싣지 않는다).
    ⚠️ Object.assign(ADV, d.ADV)를 쓰면 ADV.weekly가 통째로 교체돼 시도 rows를 잃는다 —
-   그래서 sgg/seoul만 골라 덮어쓴다. */
+   그래서 sgg만 골라 덮어쓴다. */
 let SGG_HIST_READY=false, _sggReq=null;
 function ensureSggHist(){
   if(SGG_HIST_READY)return Promise.resolve();
@@ -31,7 +31,9 @@ function ensureSggHist(){
     const src=(d&&d.ADV)||{};
     ['weekly','monthly'].forEach(k=>{
       const s2=src[k]; if(!s2||!ADV[k])return;
-      ['sgg','seoul'].forEach(part=>{ if(s2[part]&&s2[part].rows)ADV[k][part]=s2[part]; });
+      /* 받은 파일이 지금 것보다 옛 주(HTTP 캐시의 옛 파일)면 덮지 않는다 — 새 주 시군구 행을 옛 주로 되돌리지 않게(전수리뷰 H2 overflow) */
+      const cur=ADV[k].sgg, last=s=>s&&s.rows&&s.rows.length?s.rows[s.rows.length-1].p:'';
+      if(s2.sgg&&s2.sgg.rows&&last(s2.sgg)>=last(cur))ADV[k].sgg=s2.sgg;
     });
     SGG_HIST_READY=true;
   }).catch(e=>{ _sggReq=null; throw e; });
@@ -47,10 +49,9 @@ function onTrendSgg(k){
   if(sub&&sub.value&&!SGG_HIST_READY)ensureSggHist().then(render).catch(()=>{});
 }
 /* 통계 화면 첫 진입(home-app.js showView). 대기열이 이 파일과 그래프 데이터(data-trend.json)를 둘 다 받은 뒤에 부르므로
-   주간·월간 그래프는 곧바로 그린다. 기본통계 세그먼트와 버블밴드는 기본통계 데이터(data-rest.json)를 기다린다 — 버블밴드
-   입력(ADV.bubble·STATS 전세가율)은 B11 에 data-core 에서 빠져 trend·rest 로만 온다(예전엔 코어에 있어 기다리지 않았다).
-   ⚠️ renderBubbleSec 가 읽는 건 그 둘뿐이다(옛 주석이 주택멸실도 읽는다고 적어 소비자 없는 계열이 코어에 남았던 일,
-   2026-08-07 감사). 못 받으면 statsInited 를 되돌려 다음 진입에서 다시 받는다.
+   주간·월간 그래프는 곧바로 그린다. 기본통계 세그먼트는 기본통계 데이터(data-rest.json)를 기다린다. 버블밴드 입력은
+   ADV.bubble 하나다 — 전세가율(기준월 jp·지역값 jr)까지 split_data 가 trend 에 싣는다(전수리뷰 H2-6, 예전엔 STATS 전세가율을
+   읽었다). 순서는 그대로 rest 뒤에 그린다. 못 받으면 statsInited 를 되돌려 다음 진입에서 다시 받는다.
    ⚠️ 첫머리에서 그래프 데이터(loadFullData)를 **다시** 기다린다(전수리뷰 #42·#48). 이 파일은 받고 data-trend.json 만
    실패하면 대기열은 실패로 끝나지만 여기 최상위 선언이 이미 대기 함수를 덮어써서, 다시 들어올 때 showView 가 이 함수를
    곧바로 부른다. 예전엔 여기서 trend 를 부르지 않아 코어 4주치를 '전체'로 그렸고 투자지표에서 TypeError 가 났다.
@@ -98,12 +99,16 @@ const AUXLINES={
   '금리':[{find:'min',from:'2020.01',to:'2021.12',t:'금리 바닥',c:'#3aa17e'},{find:'max',from:'2022.01',to:'2023.12',t:'금리 정점',c:'#e0564a'}],
   '착공':[{y:2022,m:1,t:'착공 급감',c:'#e0564a'}],
   // 준공연도 + 40년 = 재건축 연한 도래 시점. 축은 준공연도라 도래 연도를 라벨에
-  // 병기한다(실측: 1988년 16.2만 → 2028년 / 1992년 38.1만 → 2032년 / 1995년 43.0만
-  // → 2035년). 40년차 도래는 '헐릴 물량'이 아니라 후보 재고다 — 실현 비율은 별개.
-  '아파트건설':[{y:1988,m:12,t:'88올림픽 급증 · 40년차 2028',c:'#e0564a'},
-    {y:1992,m:12,t:'38만 돌파 · 40년차 2032',c:'#b5651d'},
-    {y:1995,m:12,t:'정점 43만 · 40년차 2035',c:'#9a7000'}],
+  // 병기한다. 40년차 도래는 '헐릴 물량'이 아니라 후보 재고다 — 실현 비율은 별개.
+  // 수량·도래 연도·정점 해는 그 칸의 원자료에서 만든다(fmt — 라벨, t 는 단추 이름). 예전엔 '38만 돌파'·'정점 43만'·'2035'를
+  // 글자로 박아, 원천이 옛 해 값을 고치거나 다른 해가 정점을 넘으면 그래프와 다른 말을 했다(전수리뷰 H2-14). 정점 구간은
+  // /cycle/ 멸실 타임라인(D.super)과 같은 1980~2005.
+  '아파트건설':[{y:1988,m:12,t:'88올림픽 급증',fmt:(lb,v)=>'88올림픽 급증 · 40년차 '+(+lb+40),c:'#e0564a'},
+    {y:1992,m:12,t:'1992 급증',fmt:(lb,v)=>Math.floor(v/1e4)+'만 돌파 · 40년차 '+(+lb+40),c:'#b5651d'},
+    {find:'max',from:'1980',to:'2005',t:'정점',fmt:(lb,v)=>'정점 '+Math.round(v/1e4)+'만 · 40년차 '+(+lb+40),c:'#9a7000'}],
 };
+/* 보조선 라벨 — fmt 가 있으면 그 칸의 원자료(연도 라벨·값)로 만들고, 없으면 이름 + (찾은 선이면) 그 달의 좁은 꼴 */
+function auxText(l,lb,v){ return l.fmt?l.fmt(lb,v):l.t+(l.find?' '+_ymCell(lb):''); }
 const DS_LABEL={매매지수:'매매 실거래지수',전세지수:'전세 실거래지수',전세가율:'전세가율',
   규모별:'규모별 동향',
   인허가:'인허가',착공:'착공',분양:'신규 분양',준공:'준공',미분양:'미분양',
@@ -143,6 +148,7 @@ function initStats(){
   seg.innerHTML=keys.map(k=>
     `<button data-ds="${k}"${k===ST.ds?' class="on"':''}>${DS_LABEL[k]}</button>`).join('');
   seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    const wasSize=ST.ds==='규모별';
     ST.ds=b.dataset.ds;ST.aux.clear();ST.reg=null;
     track('stats_dataset',{dataset:ST.ds});
     seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
@@ -154,7 +160,10 @@ function initStats(){
     // 규모별은 표 전용(피벗) — 그래프/표 토글을 숨기고 표 모드로 고정
     const gth=document.querySelector('#sec-basicmain .gt-head');
     if(gth)gth.style.display=isSize?'none':'';
-    if(isSize)gtSet('basicmain','t');
+    /* 규모별 진입·이탈은 조용히 바꾼다(사람이 누른 보기 전환이 아니다 — stats_gt 를 보내지 않는다). 떠날 때는 들어오기 전 보기로
+       되돌린다 — 예전엔 그래프로 보던 사람이 규모별을 거쳐 돌아오면 표에 머물렀다(전수리뷰 H2-15). */
+    if(isSize&&!wasSize){ ST.gtPrev=document.getElementById('sec-basicmain').classList.contains('gm-t')?'t':'g'; gtSet('basicmain','t',true); }
+    else if(!isSize&&wasSize)gtSet('basicmain',ST.gtPrev||'g',true);
     // 지연 계열(규모별)은 fillRegions가 STATS[ST.ds]를 바로 읽으므로 여기서 먼저 받는다
     const go=()=>{ if(isLead){drawLeadtime();}else{fillRegions();renderAux();drawStat();} };
     if(!isLead&&!STATS[ST.ds]) ensureSizeStats().then(go).catch(()=>{}); else go();
@@ -175,16 +184,18 @@ function initStats(){
 }
 /* 지역 목록 정렬은 사이트 전체가 하나여야 한다 — 예전엔 목록마다 데이터 적재 순서를
    그대로 써서 화면마다 순서가 달랐고, 내 지역을 찾으려면 매번 훑어야 했다(2026-08-01).
-   인구순도 후보였지만 통계 드롭다운엔 지역명만 있고 인구가 없다. 모든 목록에 적용할 수
-   있는 건 가나다순뿐이고, 찾는 목적에도 그게 낫다(위치가 이름으로 정해진다).
-   전국·수도권 같은 집계 항목은 시도의 동료가 아니므로 맨 앞에 원래 순서로 남긴다. */
+   판정 단위(집계 3·시도)는 사이트의 목록 표시 정본 sido_zones.DISPLAY_ORDER(관심 지역 고정 순서 — ADV.sido.zones 가 그 순서로
+   온다)를 따르고, 그 밖의 원천 권역 행(매매·전세지수의 광역시·지방도·서울 권역 등)은 그 뒤에 화면 이름 가나다순으로 모은다.
+   예전엔 키로 가나다순을 매겨 '광주·전남'(키 전남광주)이 '인천'과 '전북' 사이에, 권역 행이 시도 사이에 섰다(전수리뷰 H2-9).
+   시군구 목록처럼 label 을 넘기면 그 이름으로 가나다순이다. */
 const REG_AGG=['전국','수도권','지방'];   // 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)은 수집에서 뺐다(2026-10-18 D2)
+function regOrder(){ const z=(typeof ADV!=='undefined'&&ADV&&ADV.sido&&ADV.sido.zones)||[]; return z.length?z.map(x=>x.z):REG_AGG; }
 function regSort(list,label){
-  const nameOf=label||(x=>x);
-  const agg=list.filter(x=>REG_AGG.indexOf(nameOf(x))>=0);
-  const rest=list.filter(x=>REG_AGG.indexOf(nameOf(x))<0)
+  const nameOf=label||zn, ord=label?[]:regOrder();
+  const head=list.filter(x=>ord.indexOf(x)>=0).sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
+  const rest=list.filter(x=>ord.indexOf(x)<0)
                  .sort((a,b)=>String(nameOf(a)).localeCompare(String(nameOf(b)),'ko'));
-  return agg.concat(rest);
+  return head.concat(rest);
 }
 function fillRegions(){
   const sel=document.getElementById('reg-sel');
@@ -219,11 +230,22 @@ function renderAux(){
 }
 /* 기본통계 표·메타·출처는 차트 라이브러리와 무관하다 — 라이브러리를 못 받아도 표는 그리고, 그래프 자리에만 안내를
    단다(전수리뷰 #53). 예전엔 drawStat 첫 줄에서 라이브러리를 기다려, 못 받으면 표·피벗·출처까지 안내 없이 비었다. */
-function chartFailNote(){
+/* 그래프마다 안내를 다는 자리와 다시 그릴 함수. 기본통계·리드타임은 출처 줄 끝에, 시장동향·인허가·입주물량은 그 그래프 상자
+   바로 위에 단다 — 예전엔 기본통계 출처 줄에만 달아, 시장동향·투자지표 그래프는 숨은 화면의 안내 하나만 남기고 빈 상자였다
+   (전수리뷰 H2-4). */
+const CHART_FAIL={stat:['src-note',()=>drawStat()],lead:['src-note',()=>drawLeadtime()],
+  week:['weekChartBox',()=>drawTrendChart('week')],month:['monthChartBox',()=>drawTrendChart('month')],
+  permit:['permitChartBox',()=>drawPermitChart()],occ:['occChartBox',()=>drawOccChart()]};
+function chartRedo(key){ CHART_FAIL[key][1](); }
+function chartFailNote(key){
+  const host=CHART_FAIL[key][0];
   loadChart().catch(()=>{
-    const n=document.getElementById('src-note');
+    const n=document.getElementById(host); if(!n)return;
+    const inNote=host==='src-note', prev=n.previousElementSibling;
+    if(inNote?n.querySelector('.chart-fail'):(prev&&prev.classList.contains('chart-fail')))return;
+    const tag=inNote?'b':'p';
     // 다시 시도 단추(백로그 36-6) — 안내를 걷고 같은 그래프를 다시 그린다(loadChart 는 실패한 주소를 다시 받는다)
-    if(n&&!n.querySelector('.chart-fail'))n.insertAdjacentHTML('beforeend',' <b class="chart-fail">그래프를 불러오지 못했습니다. 연결을 확인해 주세요. <button type="button" class="retry-btn" onclick="this.closest(\'.chart-fail\').remove();drawStat()">다시 시도</button></b>');
+    n.insertAdjacentHTML(inNote?'beforeend':'beforebegin',(inNote?' ':'')+'<'+tag+' class="chart-fail">그래프를 불러오지 못했습니다. 연결을 확인해 주세요. <button type="button" class="retry-btn" onclick="this.closest(\'.chart-fail\').remove();chartRedo(\''+key+'\')">다시 시도</button></'+tag+'>');
   });
 }
 function drawStat(){
@@ -243,17 +265,18 @@ function drawStat(){
   }
   const labels=idx.map(i=>parsed[i].label);
   const rawFirst=dsFirst(raw);
-  const vals=idx.map(i=>dsV(raw[i],i,rawFirst));   // 진짜 0인 달을 차트가 건너뛰지 않게
+  const all=parsed.map((p,i)=>dsV(raw[i],i,rawFirst));   // 진짜 0인 달을 차트가 건너뛰지 않게
+  const vals=idx.map(i=>all[i]);
   /* 표를 차트보다 먼저 그린다(2026-08-03). 예전엔 차트 생성이 먼저라, 캔버스
      소유권이 꼬여 'Canvas is already in use'가 터지면 buildMatrix까지 못 가서
      행열 전환이 조용히 죽었다(인허가·착공·분양·준공·미분양에서 실측). */
   document.getElementById('meta-bar').innerHTML=
     `<span>단위 <b>${unitT(D.unit)}</b></span><span>지역 <b>${zn(ST.reg)}</b></span><span>출처 <b>${D.source}</b></span>`;
-  buildTable(D,labels,vals,idx,parsed);
+  buildTable(D,labels,vals,idx,parsed,all);
   buildMatrix(D,idx,parsed);
   document.getElementById('src-note').innerHTML=
     `※ ${D.note?D.note+'. ':''}가공 없는 원자료다.`;
-  if(needChart(()=>drawStat())){ chartFailNote(); return; }   // 그래프만 라이브러리를 기다린다(#53)
+  if(needChart(()=>drawStat())){ chartFailNote('stat'); return; }   // 그래프만 라이브러리를 기다린다(#53)
   /* statChartObj만 믿고 destroy하면 참조가 어긋났을 때(비동기 재진입 등) 캔버스에
      고아 차트가 남아 이후 모든 생성이 실패한다 — 실소유 차트를 찾아 파괴한다. */
   const _own=Chart.getChart('statChart'); if(_own)_own.destroy();
@@ -288,7 +311,7 @@ function drawStat(){
         while(drawn.some(d=>d.row===row&&Math.abs(d.x-x)<70))row++;
         const ty=ya.top+11+row*14;
         ctx.textAlign=x>xa.right-50?'right':'left';
-        ctx.fillText(' '+l.t+(l.find?' '+labels[pos]:''),x,ty);drawn.push({x:x,row:row});ctx.restore();
+        ctx.fillText(' '+auxText(l,labels[pos],vals[pos]),x,ty);drawn.push({x:x,row:row});ctx.restore();   // 그래프 안 날짜는 좁은 꼴('21.10', 눈금과 같다 — H2-11)
       });
     }}]
   });
@@ -376,25 +399,28 @@ function dsV(v,i,first){
    찍히고, 2월 이후 %도 분자는 그 달 실적·분모는 전월까지 누적이라 의미가 없다
    (2026-08-08 감사). 누계 계열은 **전년 동월 대비**로 견준다. */
 const DS_CUM=new Set(['인허가']);
-function buildTable(D,labels,vals,idx,parsed){
+function buildTable(D,labels,vals,idx,parsed,all){
   const thead=document.querySelector('#stat-tbl thead'),tbody=document.querySelector('#stat-tbl tbody');
   const isMonthly=!D.annual && parsed[0].m>0;
   const cum=DS_CUM.has(ST.ds), lag=cum?(isMonthly?12:1):1;
   thead.innerHTML=`<tr><th>${isMonthly?'연월':'연도'}</th><th>${DS_LABEL[ST.ds]}</th><th>${cum?'전년 동월 대비':'전기 대비'}</th></tr>`;
   /* 비교 칸은 인덱스 차(k-lag)가 아니라 연월로 찾는다. 배치가 보류한 달(미분양 2026.07)이 끝내
      안 채워지면 dates에 그 달 칸이 없어 k-1이 두 달 전이 되고 '전기 대비'에 두 달 치가 실린다
-     (2026-09-26 데이터 감사 #17, 생성기는 sido_zones.month_back). 연 자료는 12달 = 1기다. */
+     (2026-09-26 데이터 감사 #17, 생성기는 sido_zones.month_back). 연 자료는 12달 = 1기다.
+     비교 상대는 기간으로 자르기 전 전체 계열(all)에서 찾는다 — 예전엔 보이는 구간 안에서만 찾아, '1년' 보기의 인허가
+     '전년 동월 대비'가 13줄 중 12줄 비었다(전수리뷰 H2-3). 표 줄만 기간(idx)으로 자른다. */
   const ymk=p=>p.y*12+p.m, step=isMonthly?1:12;
-  const at=new Map(idx.map((i,k)=>[ymk(parsed[i]),k]));
+  const at=new Map(parsed.map((p,j)=>[ymk(p),j]));
   let html='';
   for(let k=labels.length-1;k>=0;k--){
     const v=vals[k]; if(v==null)continue;   // drawStat에서 이미 dsV를 거쳤다
     let chg='';
-    let pk=at.get(ymk(parsed[idx[k]])-lag*step);
+    const i=idx[k];
+    let pj=at.get(ymk(parsed[i])-lag*step);
     /* 미분양은 2000~2006년이 해마다 12월 한 점이다. 그 구간의 '전기'는 전년 12월이므로, 바로 앞 칸이
        정확히 12달 앞이면 그 칸과 견준다(빠진 달은 1~11달 차라 여기에 걸리지 않는다). */
-    if(pk==null&&k>=1&&ymk(parsed[idx[k]])-ymk(parsed[idx[k-1]])===12)pk=k-1;
-    const prev=pk==null?null:vals[pk];
+    if(pj==null&&i>=1&&ymk(parsed[i])-ymk(parsed[i-1])===12)pj=i-1;
+    const prev=pj==null?null:all[pj];
     if(prev!=null){
       const d=v-prev;
       const cls=d>0?'chg-up':(d<0?'chg-dn':'');
@@ -432,7 +458,7 @@ function drawLeadtime(){
   tbody.innerHTML=h;
   document.getElementById('src-note').innerHTML=
     `※ 착공량과 준공량의 12개월 이동평균을 시차를 두고 비교한 것. 곡선의 봉우리가 평균 공사기간을 뜻한다. 과거 약 ${pOld[0]}개월에서 최근 약 ${pNew[0]}개월로 길어졌다 — 공사비·인력·안전기준 변화 등이 원인으로 추정된다.`;
-  if(needChart(()=>drawLeadtime())){ chartFailNote(); return; }
+  if(needChart(()=>drawLeadtime())){ chartFailNote('lead'); return; }
   {const _o=Chart.getChart('statChart'); if(_o)_o.destroy();}
   statChartObj=new Chart(document.getElementById('statChart'),{
     type:'line',
@@ -660,8 +686,9 @@ function occCls(region,v){
   return '';
 }
 function occFut(p){
+  /* '오늘'은 한국 시간이다(사이트 전체 규칙 — 기기 시계의 시간대가 아니다). 예전엔 기기 시간대로 분기를 셌다(전수리뷰 H2 overflow). */
   const y=+p.slice(0,4), q=+p.slice(5);
-  const now=new Date(), cy=now.getFullYear(), cq=Math.floor(now.getMonth()/3)+1;
+  const k=new Date(Date.now()+9*36e5), cy=k.getUTCFullYear(), cq=Math.floor(k.getUTCMonth()/3)+1;
   return y>cy || (y===cy && q>cq);
 }
 function occEst(row){ return row.e===1 || (row.e===undefined && occFut(row.p)); }
@@ -716,7 +743,10 @@ const TREND={
   month:{sel:'adv-month-reg',sel2:'adv-month-sgg',matrix:'adv-month-matrix',compact:'adv-month-compact',chart:'monthChart',col:'월간',lab:_ymS,tick:l=>l,periods:[['3개월',3],['1년',12],['3년',36],['전체',0]],map:'month-map',maplab:'month-maplab',unit:'전월 대비'}
 };
 /* --- 시도 타일 지도 (빨강=상승 · 파랑=하락, 진할수록 변동 큼) --- */
-const SGG_QNAME={"a80703": "양주", "a80702": "동두천", "a80701": "포천", "a80603": "파주", "a80704": "의정부", "a80402": "구리", "a80401": "남양주", "a7010301": "서울 은평구", "a7010206": "서울 강북구", "a7010207": "서울 도봉구", "a7010208": "서울 노원구", "a7010302": "서울 서대문구", "a7010101": "서울 종로구", "a7010205": "서울 성북구", "a7010203": "서울 동대문구", "a7010204": "서울 중랑구", "a7010303": "서울 마포구", "a7010102": "서울 중구", "a7010103": "서울 용산구", "a7010201": "서울 성동구", "a7010202": "서울 광진구", "a7020102": "서울 강서구", "a7020101": "서울 양천구", "a7020105": "서울 영등포구", "a7020106": "서울 동작구", "a7020202": "서울 강남구", "a7020203": "서울 송파구", "a7020204": "서울 강동구", "a7020103": "서울 구로구", "a7020104": "서울 금천구", "a7020107": "서울 관악구", "a7020201": "서울 서초구", "a80403": "하남", "a80404": "광주", "a80601": "김포", "a908": "인천 검단구", "a909": "인천 서해구", "a907": "인천 계양구", "a902": "인천 영종구", "a906": "인천 부평구", "a901": "인천 제물포구", "a903": "인천 미추홀구", "a905": "인천 남동구", "a904": "인천 연수구", "a80303": "시흥", "a80304": "광명", "a80101": "과천", "a80105": "의왕", "a80104": "군포", "a80501": "이천", "a80502": "여주", "a80306": "오산", "a80201": "안성", "a80307": "평택", "c106": "속초", "c101": "춘천", "c103": "강릉", "c102": "원주", "c104": "동해", "c105": "태백", "c107": "삼척", "c313": "당진", "c306": "아산", "c206": "음성", "c203": "충주", "c204": "제천", "c307": "서산", "c312": "예산", "c302": "천안 동남구", "c303": "천안 서북구", "c20103": "청주 흥덕구", "c20104": "청주 청원구", "c311": "홍성", "c304": "공주", "b6": "세종", "c20101": "청주 상당구", "c20102": "청주 서원구", "c305": "보령", "c309": "계룡", "b404": "대전 유성구", "b405": "대전 대덕구", "c308": "논산", "b403": "대전 서구", "b402": "대전 중구", "b401": "대전 동구", "c404": "군산", "c405": "익산", "c402": "전주 완산구", "c403": "전주 덕진구", "c408": "김제", "c406": "정읍", "c407": "남원", "c606": "영주", "c609": "문경", "c605": "안동", "c60302": "포항 북구", "c608": "상주", "c602": "구미", "c611": "칠곡", "c60301": "포항 남구", "c604": "김천", "c610": "경산", "c607": "영천", "c601": "경주", "b304": "광주 북구", "b305": "광주 광산구", "b302": "광주 서구", "b301": "광주 동구", "b303": "광주 남구", "b205": "대구 북구", "b202": "대구 동구", "b203": "대구 서구", "b201": "대구 중구", "b206": "대구 수성구", "b208": "대구 달성군", "b207": "대구 달서구", "b204": "대구 남구", "b504": "울산 북구", "b501": "울산 중구", "b503": "울산 동구", "b505": "울산 울주군", "b502": "울산 남구", "c504": "나주", "c503": "순천", "c505": "광양", "c506": "무안", "c501": "목포", "c502": "여수", "c707": "밀양", "c709": "양산", "c70101": "창원 의창구", "c70102": "창원 성산구", "c706": "김해", "c70104": "창원 마산회원구", "c70103": "창원 마산합포구", "c702": "창원 진해구", "c703": "진주", "c705": "사천", "c704": "통영", "c708": "거제", "b10301": "부산 북구", "b10202": "부산 금정구", "b10204": "부산 기장군", "b10302": "부산 강서구", "b10303": "부산 사상구", "b10203": "부산 동래구", "b10201": "부산 해운대구", "b10304": "부산 사하구", "b10105": "부산 부산진구", "b10107": "부산 연제구", "b10108": "부산 수영구", "b10102": "부산 서구", "b10101": "부산 중구", "b10106": "부산 남구", "b10103": "부산 동구", "b10104": "부산 영도구", "c801": "제주", "c802": "서귀포", "a802031": "수원 장안구", "a802032": "수원 권선구", "a802033": "수원 팔달구", "a802034": "수원 영통구", "a801031": "성남 수정구", "a801032": "성남 중원구", "a801033": "성남 분당구", "a802021": "용인 처인구", "a802022": "용인 기흥구", "a802023": "용인 수지구", "a801021": "안양 만안구", "a801022": "안양 동안구", "a806021": "고양 덕양구", "a806022": "고양 일산동구", "a806023": "고양 일산서구", "a803011": "부천 원미구", "a803012": "부천 소사구", "a803013": "부천 오정구", "a803021": "안산 상록구", "a803022": "안산 단원구", "a803051": "화성 동탄구", "a803052": "화성 만세구", "a803053": "화성 병점구", "a803054": "화성 효행구"};
+/* 시군구 이름표 — 홈 TOP 10·시군구 선택·/weekly/ 표·시도 리포트 표·블로그가 이 한 표를 읽는다. 공백 없는 이름이 다른 이름의 앞말
+   (광역시 이름)과 같으면 그 광역시로 읽힌다 — 경기 광주시는 '광주'가 아니라 '경기 광주'다(광주광역시 구는 '광주 북구' 꼴, 전수리뷰
+   H2-21, test_weekly_moves 가 막는다). */
+const SGG_QNAME={"a80703": "양주", "a80702": "동두천", "a80701": "포천", "a80603": "파주", "a80704": "의정부", "a80402": "구리", "a80401": "남양주", "a7010301": "서울 은평구", "a7010206": "서울 강북구", "a7010207": "서울 도봉구", "a7010208": "서울 노원구", "a7010302": "서울 서대문구", "a7010101": "서울 종로구", "a7010205": "서울 성북구", "a7010203": "서울 동대문구", "a7010204": "서울 중랑구", "a7010303": "서울 마포구", "a7010102": "서울 중구", "a7010103": "서울 용산구", "a7010201": "서울 성동구", "a7010202": "서울 광진구", "a7020102": "서울 강서구", "a7020101": "서울 양천구", "a7020105": "서울 영등포구", "a7020106": "서울 동작구", "a7020202": "서울 강남구", "a7020203": "서울 송파구", "a7020204": "서울 강동구", "a7020103": "서울 구로구", "a7020104": "서울 금천구", "a7020107": "서울 관악구", "a7020201": "서울 서초구", "a80403": "하남", "a80404": "경기 광주", "a80601": "김포", "a908": "인천 검단구", "a909": "인천 서해구", "a907": "인천 계양구", "a902": "인천 영종구", "a906": "인천 부평구", "a901": "인천 제물포구", "a903": "인천 미추홀구", "a905": "인천 남동구", "a904": "인천 연수구", "a80303": "시흥", "a80304": "광명", "a80101": "과천", "a80105": "의왕", "a80104": "군포", "a80501": "이천", "a80502": "여주", "a80306": "오산", "a80201": "안성", "a80307": "평택", "c106": "속초", "c101": "춘천", "c103": "강릉", "c102": "원주", "c104": "동해", "c105": "태백", "c107": "삼척", "c313": "당진", "c306": "아산", "c206": "음성", "c203": "충주", "c204": "제천", "c307": "서산", "c312": "예산", "c302": "천안 동남구", "c303": "천안 서북구", "c20103": "청주 흥덕구", "c20104": "청주 청원구", "c311": "홍성", "c304": "공주", "b6": "세종", "c20101": "청주 상당구", "c20102": "청주 서원구", "c305": "보령", "c309": "계룡", "b404": "대전 유성구", "b405": "대전 대덕구", "c308": "논산", "b403": "대전 서구", "b402": "대전 중구", "b401": "대전 동구", "c404": "군산", "c405": "익산", "c402": "전주 완산구", "c403": "전주 덕진구", "c408": "김제", "c406": "정읍", "c407": "남원", "c606": "영주", "c609": "문경", "c605": "안동", "c60302": "포항 북구", "c608": "상주", "c602": "구미", "c611": "칠곡", "c60301": "포항 남구", "c604": "김천", "c610": "경산", "c607": "영천", "c601": "경주", "b304": "광주 북구", "b305": "광주 광산구", "b302": "광주 서구", "b301": "광주 동구", "b303": "광주 남구", "b205": "대구 북구", "b202": "대구 동구", "b203": "대구 서구", "b201": "대구 중구", "b206": "대구 수성구", "b208": "대구 달성군", "b207": "대구 달서구", "b204": "대구 남구", "b504": "울산 북구", "b501": "울산 중구", "b503": "울산 동구", "b505": "울산 울주군", "b502": "울산 남구", "c504": "나주", "c503": "순천", "c505": "광양", "c506": "무안", "c501": "목포", "c502": "여수", "c707": "밀양", "c709": "양산", "c70101": "창원 의창구", "c70102": "창원 성산구", "c706": "김해", "c70104": "창원 마산회원구", "c70103": "창원 마산합포구", "c702": "창원 진해구", "c703": "진주", "c705": "사천", "c704": "통영", "c708": "거제", "b10301": "부산 북구", "b10202": "부산 금정구", "b10204": "부산 기장군", "b10302": "부산 강서구", "b10303": "부산 사상구", "b10203": "부산 동래구", "b10201": "부산 해운대구", "b10304": "부산 사하구", "b10105": "부산 부산진구", "b10107": "부산 연제구", "b10108": "부산 수영구", "b10102": "부산 서구", "b10101": "부산 중구", "b10106": "부산 남구", "b10103": "부산 동구", "b10104": "부산 영도구", "c801": "제주", "c802": "서귀포", "a802031": "수원 장안구", "a802032": "수원 권선구", "a802033": "수원 팔달구", "a802034": "수원 영통구", "a801031": "성남 수정구", "a801032": "성남 중원구", "a801033": "성남 분당구", "a802021": "용인 처인구", "a802022": "용인 기흥구", "a802023": "용인 수지구", "a801021": "안양 만안구", "a801022": "안양 동안구", "a806021": "고양 덕양구", "a806022": "고양 일산동구", "a806023": "고양 일산서구", "a803011": "부천 원미구", "a803012": "부천 소사구", "a803013": "부천 오정구", "a803021": "안산 상록구", "a803022": "안산 단원구", "a803051": "화성 동탄구", "a803052": "화성 만세구", "a803053": "화성 병점구", "a803054": "화성 효행구"};
 /* 기준일 배너 — 지도 위 유일한 메타 표기(옛 map-lab 텍스트 줄은 중복이라 제거,
    사용자 선택으로 배너 쪽을 살림). sggOnly=시군구 지도만 이 주차일 때. */
 function mapDateChip(p,unit,sggOnly){
@@ -766,13 +796,14 @@ function rankTables(S,unit,k){
     return '<td class="'+cls.trim()+'">'+(v==null?'·':pv2(v)+'%')+'</td>';
   }
   const cols=hasWo?['ma','je','wo']:['ma','je'];
-  function tbl(title,items,base,dn){
+  function tbl(title,items,base,dn,empty){
     /* 정렬 머리는 열 머리(th)로 두고 안에 단추를 넣는다 — th 에 role="button" 을 달면 열 머리가 아니게 되어 정렬 상태(aria-sort)를
        알릴 수 없었다(백로그 36-8). 상승 표는 큰 값부터(descending), 하락 표는 작은 값부터(ascending)다. */
     const th=cols.map(m=>'<th class="rk-sort'+(m===met?' on':'')+'"'+(m===met?' aria-sort="'+(dn?'ascending':'descending')+'"':'')
       +' data-k="'+k+'" data-met="'+m+'"><button type="button" title="'+MLAB[m]+' 기준으로 정렬">'+MLAB[m]+'</button></th>').join('');
     const h=['<div class="rank-box"><div class="rank-h">'+title+'</div><div class="rank-wrap"><table class="rank-tbl'+(hasWo?' wide':'')+'">',
       '<thead><tr><th>순위</th><th>지역</th>'+th+'<th>'+unit+'</th></tr></thead><tbody>'];
+    if(!items.length)h.push('<tr><td colspan="'+(cols.length+3)+'" class="rk-none">'+empty+'</td></tr>');
     items.forEach(([c,v],i)=>{
       const rank=base+i;
       const medal=(!dn&&rank<=3)?'<span class="rk-medal">'+['🥇','🥈','🥉'][rank-1]+'</span>':'';   // 많이 내린 곳에는 메달을 달지 않는다
@@ -783,9 +814,14 @@ function rankTables(S,unit,k){
     return h.join('');
   }
   const basis='<span style="font-weight:600;color:var(--muted);font-size:13px">'+MLAB[met]+' 기준</span>';
+  /* 상승 표에는 오른 곳만, 하락 표에는 내린 곳만 싣는다(표시값 부호, 0.00 은 어느 표에도 없다) — /weekly/ TOP 3 와 같은 규칙
+     (파이썬 정본 weekly_moves.top_split, test_weekly_moves 가 node 로 대조). 예전엔 앞 10·뒤 10 을 부호 없이 실어, 한쪽으로 쏠린 달에
+     '상승 TOP 10'에 내린 곳이 메달까지 달고 섰다(2023-01 월간 매매 🥈김제 0.00% 등, 전수리뷰 H2-2). 거른 목록은 정렬의 앞·뒤 그대로라
+     순위 번호·순위 이동은 전체 순위 그대로 맞다. */
+  const per=k==='week'?'주':'달';
   return '<div class="map-rank">'+
-    tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.slice(0,10),1)+
-    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.slice(-10).reverse(),1,true)+
+    tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
+    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.filter(([,v])=>pvSign(v)<0).slice(-10).reverse(),1,true,'이번 '+per+' 내린 시군구가 없다')+
     '</div>';
 }
 /* 지도 '옆으로 밀어 전체 보기' 안내 — 상자가 지도보다 좁을 때만. 숨은 상태(폭 0)에서는 판정하지 않고, 보일 때
@@ -805,8 +841,8 @@ function drawNationMap(k){
   /* 월세는 월간 원천에만 있다 — 부동산원 주간조사는 매매·전세만(R-ONE 주간표 8종 전부).
      그래서 주간 지도는 2단, 월간 지도는 3단으로 자동 분기한다. */
   const hasWo=Array.isArray(row.wo);
-  // 시군구 지도(KOSIS 등)의 기준일이 시도·서울 지표(R-ONE 최신)보다 뒤처질 때가 있어
-  // (예: 주간 시군구는 시도보다 수일 늦음) 오해 없게 두 날짜를 함께 표기한다.
+  // 시군구 지도의 기준일이 시도 지표(R-ONE 최신)와 다를 때가 있어(예: 주간 시군구가 시도보다 늦음), 그때는 기준일 칩이
+  // 시군구 날짜임을 밝힌다(mapDateChip 의 '시군구 ' 머리말 — 날짜는 시군구 하나만 적는다).
   const natP=(D.rows&&D.rows.length)?D.rows[D.rows.length-1].p:row.p;
   const gap=natP!==row.p;
   const SER=hasWo?'매매·전세·월세':'매매·전세';
@@ -1049,8 +1085,7 @@ function areaGrad(color,topHex){
   };
 }
 function mkChart(id,cfg){ if(GCH[id])GCH[id].destroy(); return GCH[id]=new Chart(document.getElementById(id),cfg); }
-// 가로 스크롤 추이 차트의 y축을 왼쪽에 고정 복제 (스크롤해도 항상 보이게)
-const TRP={week:1,month:1};
+const TRP={week:1,month:1};   // 기간 단추 기본: 주간·월간 모두 '1년'(TREND.periods 의 1번 칸)
 /* 월간 다음 발표 — 이번 달 발표일(15일을 영업일로 민 날)을 먼저 구하고, 그날 12시(공표)가 지났을 때만 다음 달로 넘긴다.
    예전엔 달력상 15일로 '지났다'를 판정해, 15일이 주말·휴일로 밀린 달에는 16일~밀린 발표일 사이에 벌써 다음 달 날짜를
    보였다(2026-08-15 토·광복절 → 8/18, 전수리뷰 #55). */
@@ -1072,14 +1107,17 @@ function renderReleaseInfo(){
   if(w)w.textContent='한국부동산원 · 매주 목요일 발표'+(nx?' · '+nx:'');
   const m=document.getElementById('rel-month');
   if(m)m.textContent='한국부동산원 · 매월 15일 발표 · 다음 '+_fmtRel(_next15(new Date()));
-}   /* 기본: 주간 1년 · 월간 3년 */
+}
 function renderTrPeriods(k){
   const T=TREND[k], el=document.getElementById(k+'-period'); if(!el||!T.periods)return;
   const W=trendData(k), have=W&&W.rows?W.rows.length:0;
   const cur=T.periods[TRP[k]];
-  if(!cur||(cur[1]>0&&cur[1]>have))TRP[k]=T.periods.length-1;   // 감춰진 칸이 선택돼 있으면 '전체'로
+  /* 감춰진 칸이 선택돼 있으면 '전체'로 — 감추는 조건(행이 기간의 95% 미만)과 같은 조건으로 본다. 예전엔 '기간보다 적으면'이라,
+     행이 기간의 95~100% 일 때 보이는 '3년'을 눌러도 '전체'로 바뀌었다(전수리뷰 H2 overflow). */
+  const hid=p=>p[1]>0&&have<p[1]*0.95;
+  if(!cur||hid(cur))TRP[k]=T.periods.length-1;
   el.innerHTML=T.periods.map((p,i)=>
-    (p[1]>0&&have<p[1]*0.95)?'':
+    hid(p)?'':
     '<button type="button" class="'+(TRP[k]===i?'on':'')+'" onclick="trSetPeriod(&#39;'+k+'&#39;,'+i+')">'
     +p[0]+'</button>').join('');
 }
@@ -1088,7 +1126,7 @@ function trSetPeriod(k,i){
   track('stats_period',{section:k,period:TREND[k].periods[i][0]});
 }
 function drawTrendChart(k){
-  if(needChart(()=>drawTrendChart(k)))return;
+  /* 지역 상자·기간 단추·범위 줄은 차트 라이브러리와 무관하다 — 먼저 그리고 그래프만 라이브러리를 기다린다(전수리뷰 H2-4) */
   const T=TREND[k], W=trendData(k); if(!W)return;
   advSel(T.sel,W.regions);
   fillSggSel(k,(document.getElementById(T.sel2)||{}).value);
@@ -1105,6 +1143,7 @@ function drawTrendChart(k){
   /* '전체'가 실제로 어디부터인지 밝힌다 — 라벨만으로는 알 수 없다 */
   const uel=document.getElementById(k+'-unit');
   if(uel&&n)uel.textContent='변동률(%) · '+T.lab(rows[0].p)+' ~ '+T.lab(rows[n-1].p);
+  if(needChart(()=>drawTrendChart(k))){ chartFailNote(k); return; }
   /* 월세는 월간에만 있다. 면적 3겹은 서로를 가려 선만 그린다(fill 없음). */
   const dsets=[
     {label:'매매',data:rows.map(r=>r.ma[ri]),borderColor:'#e0564a',backgroundColor:areaGrad('#e0564a','1a'),fill:'origin',
@@ -1130,9 +1169,9 @@ function renderWeekSec(){ renderTrendTables('week'); drawTrendChart('week'); dra
 function renderMonthSec(){ renderTrendTables('month'); drawTrendChart('month'); drawTrendMap('month'); }
 /* --- 투자지표 차트 --- */
 function drawPermitChart(){
-  if(needChart(()=>drawPermitChart()))return;
   const P=ADV.permits, regs=P.regions;
   const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
+  if(needChart(()=>drawPermitChart())){ chartFailNote('permit'); return; }
   const vals=P.rows.map(r=>r.v[ri]);
   const cols=vals.map(v=>{const c=permitCls(reg,v);return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');});
   mkChart('permitChart',{type:'bar',
@@ -1157,9 +1196,9 @@ function drawPermitChart(){
     }}]});
 }
 function drawOccChart(){
-  if(needChart(()=>drawOccChart()))return;
   const O=ADV.occupancy, regs=O.regions;
   const reg=advSel('adv-occ-reg',regs), ri=regs.indexOf(reg), ref=O.ref[reg];
+  if(needChart(()=>drawOccChart())){ chartFailNote('occ'); return; }
   const vals=O.rows.map(r=>r.v[ri]);
   /* 추정 분기도 실적과 같은 판정 색으로 칠하고 옅게만 구분한다(백로그 36-10) — 예전엔 추정을 노랑 하나로 칠해 표에서 빨간
      '적음' 분기가 그래프에서는 보이지 않았다. 색은 범례(index.html #sec-occ .adv-legend)와 같다. */
@@ -1259,37 +1298,47 @@ function bbToggle(row){
 }
 function renderBubbleSec(){
   const sec=document.getElementById('sec-bubble');if(!sec)return;
-  const B=ADV.bubble,J=STATS['전세가율'];
-  if(!B||!B.conv||!J){sec.style.display='none';return;}
+  const B=ADV.bubble;
+  /* 전세가율 완비 달이 없으면(bubble_jeonse 가 jp=None·jr={}) 그 회차엔 숨는다 — 빈 jr({})도 참이라 jp 로 본다 */
+  if(!B||!B.conv||!B.jr||!B.jp){sec.style.display='none';return;}
   const loan=B.loan.v;
-  const prdEl=document.getElementById('bubble-prd');if(prdEl)prdEl.textContent=_ymT(B.prd)+' 기준';
-  const latest=r=>{const s=J.series[r];if(!s)return null;for(let i=s.length-1;i>=0;i--)if(s[i]!=null)return s[i];return null;};
+  /* 전세가율은 split_data 가 사이트 기준월 정본(make_indicator_pages.bubble_jeonse — /jeonse-ratio/ 과 같은 달)으로 골라 싣는다.
+     예전엔 지역마다 '마지막 비결측 값'을 읽어 부분 달 회차에 /jeonse-ratio/ 과 다른 값을 말했고, 배지는 전환율 달만 적었다
+     (전수리뷰 H2-6). 배지는 두 입력의 달을 함께 적는다(같으면 하나). 금리 달은 범례에 적는다. */
+  const prdEl=document.getElementById('bubble-prd');
+  if(prdEl)prdEl.textContent=(B.jp&&B.jp!==B.prd?'전세가율 '+_ymT(B.jp)+' · 전환율 '+_ymT(B.prd):_ymT(B.prd))+' 기준';
+  const jrOf=r=>{const v=B.jr[r];return v==null?null:v;};
   /* 축 상한을 9%로 못박아 두면 위험선(월세수익률×2)이 그 위인 지역들이 전부
      같은 자리(98%)에 찍혀 서로 구분이 안 된다 — 실측 7곳이 겹쳤다(2026-08-08 감사).
      실제 값에서 상한을 잡되 최소 9%는 유지한다. */
   const MAX=Math.max(9, Math.ceil(Math.max(loan,
-    ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=latest(rg);
+    ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=jrOf(rg);
       return (cv==null||jr==null)?0:jr/100*cv*2;}))*1.04));
   const px=v=>Math.min(98,Math.max(0,v/MAX*100));
-  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:13px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+_ymT(B.loan.p)+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
+  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:13px;font-weight:700;white-space:nowrap;line-height:1}</style>';
+  /* 범례는 막대 아래 한 줄(2026-10-06 '설명·범례는 콘텐츠 아래, 한 줄' — 전수리뷰 H2-7). 판정 풀이는 행 상세(bb-det)가 말한다. */
+  const legend='<div class="bb-legend"><b style="color:#1a5276">월세수익률</b> ~ <b style="color:#a93226">위험선(×2)</b> · 검은 선 <b>대출금리 '+loan.toFixed(2)+'%</b>('+_ymT(B.loan.p)+' 신규취급 평균)</div>';
   let nHi=0,nLo=0,nNear=0;
   (B.regions||Object.keys(B.conv)).forEach(rg=>{
-    const cv=B.conv[rg],jr=latest(rg);
+    const cv=B.conv[rg],jr=jrOf(rg);
     if(cv==null||jr==null)return;
     /* ⚠️ 소수 한 자리로 찍으면 판정과 표시가 어긋난다. 울산(4.351)과 경남(4.366)이
        둘 다 '4.4%'로 보이는데 대출금리 4.36% 기준으로 판정은 정반대였다
        (2026-08-08 감사). 금리를 두 자리로 쓰므로 밴드도 두 자리로 맞춘다. */
     const lo=jr/100*cv,hi=lo*2;
-    let cls='',txt='여유 '+(hi-loan).toFixed(1)+'%p';
+    /* 위험선까지 남은 폭은 한 번 반올림한 값(두 자리)을 칩·상세·근접 셈이 같이 쓴다 — 예전엔 칩은 한 자리, 근접 셈은 원값이라
+       0.97%p 가 칩 '여유 1.0%p'인데 요약은 '1%p 미만'에 셌다(전수리뷰 H2-13). */
+    const gap=Math.round((hi-loan)*100)/100, gapT=gap>0?gap.toFixed(2)+'%p':'0.01%p 미만';
+    let cls='',txt='여유 '+gapT;
     /* 요약 'N개 지역'은 시도만 센다 — 집계(전국·수도권·지방)는 시도의 합이라 같은 조건을 두 번 센다(전수리뷰 #56) */
     const one=REG_AGG.indexOf(rg)<0?1:0;
     if(loan>=hi){cls='hi';txt='상단 초과';nHi+=one;}
     else if(loan<=lo){cls='lo';txt='매수 신호권';nLo+=one;}
-    else if(hi-loan<1)nNear+=one;
+    else if(gap<1)nNear+=one;
     let pos;
     if(loan>=hi)pos='대출금리가 위험선(월세수익률 2배)을 넘었습니다 — 이자가 임대수익의 2배를 넘는 과열 구간입니다.';
     else if(loan<=lo)pos='대출금리가 월세수익률보다 낮습니다 — 이자가 임대수익보다 싼 매수 신호권입니다.';
-    else pos='대출금리는 밴드 안이고, 위험선까지 '+(hi-loan).toFixed(1)+'%p 남았습니다.';
+    else pos='대출금리는 밴드 안이고, 위험선까지 '+gapT+' 남았습니다.';
     const det='밴드: 전세가율 '+jr+'% × 전월세전환율 '+cv+'% = <b>월세수익률 '+lo.toFixed(2)+'%</b> · 그 2배 = <b>위험선 '+hi.toFixed(2)+'%</b>.<br>'
       +'<b>대출금리 '+loan.toFixed(2)+'%</b> — '+pos;
     // 숫자 위치 적응: 파랑=밴드 왼쪽(단 대출금리 검은선과 겹치면 그 선 왼쪽으로), 빨강=밴드 오른쪽(단 우측 공간 없거나 겹치면 밴드 안쪽 왼편). NW=숫자 폭 근사(%)
@@ -1309,9 +1358,9 @@ function renderBubbleSec(){
       +'<div class="bb-det">'+det+'</div>';
   });
   let sum;
-  if(nHi>0)sum='<b style="color:#a93226">'+nHi+'개 지역</b>에서 대출금리가 위험선(월세수익률 2배)을 넘었습니다. 과거 급락기(2008·2022)가 이 조건에서 나왔습니다.';
+  if(nHi>0)sum='<b style="color:#a93226">'+nHi+'개 지역</b>에서 대출금리가 위험선(월세수익률 2배)을 넘었습니다.';
   else if(nLo>0)sum='<b style="color:#1a5276">'+nLo+'개 지역</b>이 매수 신호권(대출금리 ≤ 월세수익률)입니다.';
   else if(nNear>0)sum=nNear+'개 지역이 위험선까지 1%p 미만으로 접근해 있습니다.';
   else sum='현재 대출금리가 위험선을 넘거나 월세수익률 아래인 지역은 없습니다.';
-  document.getElementById('bubble-wrap').innerHTML='<p class="adv-note" style="margin:10px 0 4px">'+sum+'</p>'+h;
+  document.getElementById('bubble-wrap').innerHTML='<p class="adv-note" style="margin:10px 0 4px">'+sum+'</p>'+h+legend;
 }

@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """data.js에서 홈 화면이 실제로 쓰는 조각만 뽑아 data-core.js를 만든다.
 
-배경: data.js 397KB를 모든 방문자가 매번 내려받는데, 홈이 실제로 쓰는 건
-그중 일부다. 통계 탭을 열지 않는 방문자에게 주간 155주·기본통계 11계열을
-보낼 이유가 없다.
+배경: data.js(약 2MB)는 생성기용 원본이라 브라우저는 받지 않는다. 홈이 실제로 쓰는 건 그중 일부다. 통계 탭을 열지 않는
+방문자에게 주간 155주·기본통계 계열을 보낼 이유가 없다.
 
-전략은 '쪼개서 나눠 보내기'가 아니라 '핵심만 먼저 보내기'다.
-  - data-core.js : 홈이 쓰는 것만. index.html이 즉시 로드.
-  - data.js      : 그대로 둔다. 통계 탭을 열 때 fetch로 받아 core에 병합.
-data.js를 손대지 않으므로 생활권 41장과 /cycle/은 아무 영향이 없다.
+전략은 '핵심만 먼저, 나머지는 필요할 때'다(받는 함수는 home-app.js).
+  - data-core.js    : 홈 첫 화면이 쓰는 것만. index.html 이 즉시 로드.
+  - data-trend.json : 통계 탭 그래프(주간·월간·투자지표·버블밴드) — loadFullData()가 받아 ADV 에 Object.assign.
+  - data-rest.json  : 기본통계 계열 — ensureBasicStats()가 받아 STATS 에 Object.assign.
+  - data-size.json  : 규모별 동향 — ensureSizeStats(). data-sgg.json : 시군구 전체 시계열 — ensureSggHist().
+data.js 는 손대지 않으므로 생성 페이지(시도 리포트·/cycle/ 등)에는 아무 영향이 없다.
 
 실행: python tools/split_data.py   (update_adv_data.py --update 뒤에)
 """
@@ -31,7 +32,7 @@ SIZE = os.path.join(ROOT, 'data-size.json')
 
 # '규모별 동향'은 지표4×규모6 피벗이라 STATS 14계열 중 혼자 186KB(rest의 39%)다.
 # 기본통계 세그먼트에서 그걸 실제로 누른 사람만 필요하므로 별도 지연 파일로 뺀다
-# (2026-08-01: rest 408KB → 250KB). index.html ensureSizeStats()가 받아 채운다.
+# (2026-08-01: rest 408KB → 250KB). home-app.js ensureSizeStats()가 받아 채운다.
 LAZY_STATS = ['규모별']
 # 파일 → 그 파일이 싣는 계열. 감시(check_freshness)가 이걸로 조회 목록을 만든다 —
 # 지연 파일이 늘면 여기만 늘리면 감시가 자동으로 따라온다(파일명 하드코딩 금지).
@@ -65,8 +66,10 @@ CORE_ADV = ['sido', 'holidays']
 
 # 통계 탭 파일(data-trend.json)이 싣는 ADV 키 — 이것도 **허용목록**이다. 예전엔 ADV 전체를 실어, 2026-08-06 시도 재편으로
 # 폐기된 생활권 지표 aged30(홈·통계 탭 어디서도 읽지 않는다)이 통계 탭을 여는 모든 방문자에게 계속 실려 나갔다(전수 리뷰
-# 묶음 T 제보). 통계 탭(home-stats.js)이 읽는 키만 둔다 — 새 지표를 통계 탭에 올리면 여기에 적는다.
-TREND_ADV = ('sido', 'holidays', 'weekly', 'monthly', 'occupancy', 'permits', 'bubble')
+# 묶음 T 제보). 통계 탭(home-stats.js)이 읽는 키만 둔다 — 새 지표를 통계 탭에 올리면 여기에 적는다. 코어(CORE_ADV)에 이미 있는
+# sido·holidays 는 싣지 않는다 — loadFullData 는 Object.assign 이라 trend 에 없는 키는 코어 값이 그대로 남는다(같은 값 24KB 중복이었다,
+# 전수리뷰 H2-17).
+TREND_ADV = ('weekly', 'monthly', 'occupancy', 'permits', 'bubble')
 # 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다(ADV.blog, B5 · ADV.fresh).
 CORE_ONLY_ADV = ('blog', 'fresh', 'zname')   # fresh: 모드 단추 N 배지(2026-10-08) · zname: 화면 이름(백로그 46)
 
@@ -278,6 +281,7 @@ def fresh_marks(periods, old, today, pub=None):
 
 
 def main():
+    import make_indicator_pages as _I   # 전세가율 정본(기준월·원천 표기) — 생성기와 같은 함수
     src = io.open(SRC, encoding='utf-8').read()
     adv = json.loads(re.search(
         r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
@@ -376,7 +380,7 @@ def main():
     body = (
         '/* 자동 생성 — tools/split_data.py. 직접 고치지 말 것.\n'
         '   홈 화면이 쓰는 조각만 담는다. 통계 탭을 열면 loadFullData()가\n'
-        '   data-rest.json을 받아 이 전역에 Object.assign으로 채운다. */\n'
+        '   data-trend.json을, ensureBasicStats()가 data-rest.json을 받아 이 전역에 Object.assign으로 채운다. */\n'
         'const ADV=%s;\n'
         'const STATS=%s;\n'
         'window.__DATA_CORE__=true;\n' % (dump(core_adv), dump(core_stats)))
@@ -397,7 +401,10 @@ def main():
             continue
         w = dict(w)
         keep = {}
-        for part in ('sgg', 'seoul'):
+        # 서울 구 블록(seoul)은 홈 어디서도 읽지 않는다 — 서울 구 값은 sgg 의 a7… 코드와 같다(전수리뷰 H2-17, 통계 탭 파일 12KB·
+        # data-sgg.json 129KB). 생성기(make_weekly_page·블로그)는 data.js 의 seoul 을 읽으므로 그대로다.
+        w.pop('seoul', None)
+        for part in ('sgg',):
             sec = w.get(part)
             if sec and sec.get('rows') and len(sec['rows']) > TREND_SGG_KEEP:
                 keep[part] = sec                      # 전체는 지연 로드 파일로
@@ -415,6 +422,9 @@ def main():
         if k == 'monthly':
             w['agg'] = price_agg(adv.get('monthly') or {})   # 통계 탭을 연 뒤(loadFullData 가 ADV.monthly 를 바꾼 뒤)에도 같은 합
         trend_adv[k] = w
+    if trend_adv.get('bubble'):
+        # 버블밴드 전세가율은 사이트 기준월 정본(jeonse_ref_index)으로 골라 싣는다 — 홈이 지역마다 최신 값을 고르지 않게(전수리뷰 H2-6)
+        trend_adv['bubble'] = _I.bubble_payload(trend_adv['bubble'], stats.get('전세가율'))
     if trend_adv.get('occupancy'):
         trend_adv['occupancy'] = dict(trend_adv['occupancy'], band=occ_band())   # 통계 탭 입주물량 표 문턱(③)
     io.open(TREND, 'w', encoding='utf-8', newline=NL).write(
@@ -424,6 +434,9 @@ def main():
     # rest는 기본통계 계열만 담는다 — ADV는 trend가 이미 실어 보냈다.
     lazy_stats = {k: stats[k] for k in LAZY_STATS if k in stats}
     rest_stats = {k: v for k, v in stats.items() if k not in lazy_stats}
+    if '전세가율' in rest_stats:
+        # 홈 기본통계의 출처 칸도 /jeonse-ratio/·/monthly/ 와 같은 정본 표기(기관명 포함) — 수집 계열 source 는 기관명이 빠진 옛 글자다
+        rest_stats['전세가율'] = dict(rest_stats['전세가율'], source=_I.JR_SOURCE)
     io.open(REST, 'w', encoding='utf-8', newline='\n').write(dump({'STATS': rest_stats}))
     io.open(SIZE, 'w', encoding='utf-8', newline=NL).write(dump({'STATS': lazy_stats}))
 
