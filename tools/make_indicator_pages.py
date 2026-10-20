@@ -195,7 +195,7 @@ __ROBOTS__
 <link rel="canonical" href="__URL__">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
-<meta name="theme-color" content="#16203a">
+<meta name="theme-color" content="__THEME__">
 <meta property="og:type" content="article">
 <meta property="og:title" content="__OGTITLE__">
 <meta property="og:description" content="__DESC__">
@@ -294,6 +294,7 @@ def type_tokens(css=None):
 
 def fill(shell, desk='wide', **kw):
     out = shell.replace('__TOKENS__', type_tokens()).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
+    out = out.replace('__THEME__', N.THEME_COLOR)   # 브라우저 머리 색 정본(site_nav.THEME_COLOR)
     out = out.replace('__GAINT__', GT.INTERNAL_SCRIPT).replace('__GACFG__', GT.config_call())   # GA 내부 트래픽 표식(백로그 48)
     # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)
     out = out.replace('__DESKLINK__', N.desk_link()).replace('__DESKBODY__', N.desk_body(desk))
