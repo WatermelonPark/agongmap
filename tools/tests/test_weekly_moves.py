@@ -443,3 +443,20 @@ def test_home_top10_lists_only_regions_moving_that_way():
         assert [c for c, _ in dn3] == [c for _, _, c in boxes[1][0]][:3]
     assert len(_home_rank_boxes({'codes': codes, 'rows': [{'p': '2031.02', 'ma': one_up}]}, Q)[0][0]) == 1
     assert checked == 1
+
+
+def test_bare_district_names_do_not_read_as_another_city():
+    """시군구 이름표(홈 SGG_QNAME — TOP 10·시군구 선택·/weekly/ 표·블로그가 같은 표)에서 공백 없는 이름이 다른 이름의 앞말(광역시
+    이름)과 같으면 그 광역시 값으로 읽힌다. 경기 광주시는 '경기 광주'로 적는다(전수리뷰 H2-21).
+    재현한 실제 상태: 2026-04-13 주간 하락 TOP 10 1위가 '광주 -0.26%'(경기 광주시)였고 같은 표에 '광주 동구'·'광주 남구'가 섰다.
+    /weekly/ 설명 메타는 '하락 1위 광주 -0.26%'였다. 픽스처: 저장소 홈 이름표 그대로, 그리고 /weekly/ 이름표 읽기(MW.load).
+
+    변이(실제로 확인): home-stats.js 의 a80404 를 옛 '광주'로 되돌리면 빨개진다.
+    """
+    Q = MW.load()[1]
+    heads = {n.split(' ')[0] for n in Q.values() if ' ' in n}
+    bare = {c: n for c, n in Q.items() if ' ' not in n}
+    assert heads and bare, '이름표를 읽지 못했다 — 이 시험이 헛돈다'
+    clash = sorted('%s=%s' % (c, n) for c, n in bare.items() if n in heads)
+    assert not clash, '공백 없는 이름이 다른 이름의 앞말과 같다: %s' % clash
+    assert Q.get('a80404') == '경기 광주', Q.get('a80404')

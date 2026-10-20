@@ -192,8 +192,10 @@ def build(kind='monthly', rows=None):
     # qn에 '<시> <구>' 형태로 등장하는 분구 도시 이름(시도별)
     split_cities = {}
     for c, n in qn.items():
-        if ' ' in n:
-            split_cities.setdefault(SIDO_PREFIX.get(c[:2]), set()).add(strip_sfx(n.split(' ')[0]))
+        sd = SIDO_PREFIX.get(c[:2])
+        # '경기 광주'처럼 앞말이 시도 이름인 이름표(동명 광역시와 가르려고 붙인 머리말)는 분구 도시가 아니다(전수리뷰 H2-21)
+        if ' ' in n and n.split(' ')[0] != sd:
+            split_cities.setdefault(sd, set()).add(strip_sfx(n.split(' ')[0]))
     for sido in {sd for _, sd in unnamed if sd}:
         codes = [c for c, sd in unnamed if sd == sido]
         cands = [(cid, nm) for (sd, nm), (cid, _d) in
