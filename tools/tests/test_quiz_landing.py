@@ -172,3 +172,30 @@ def test_landing_examples_with_options_are_real_quiz_items():
                 bad.append('%s: 풀에 같은 질문·보기 문항이 없다 — %s %s' % (rel, q, opts))
     assert checked >= len(LANDINGS), '보기를 내건 예시가 %d개뿐이다 — 대조가 헛돈다' % checked
     assert not bad, bad
+
+
+def _px(rule, prop):
+    m = re.search(r'(?:^|[;{\s])%s:(\d+)px' % prop, rule)
+    return int(m.group(1)) if m else None
+
+
+def test_landing_toast_sits_above_the_bottom_nav():
+    """퀴즈 랜딩의 안내 토스트(#toast — '링크가 복사됐어요!', '공유 링크: …')가 하단 탭바 위에 뜬다(전수리뷰 P-12).
+
+    재현한 상태(2026-10-18): #toast 는 bottom:34px·z-index:60, 탭바는 높이 62px·z-index:100 이라 토스트 아래 28px 가 늘 탭바 뒤였다.
+    375px 에서 두 줄로 접히면 둘째 줄이, 768~1023px 에서는 한 줄 전체가 탭바에 가려 읽히지 않았다(카카오 SDK·Web Share 가 없는
+    폴백 경로). 홈 .qtoast 는 bottom:80px 라 같은 문제가 없다.
+    변이(실제로 확인): 한 랜딩의 #toast 를 bottom:34px 로 되돌리면 빨개진다.
+    픽스처 없이 저장소의 실제 랜딩 3종의 <style> 규칙을 읽는다.
+    """
+    bad = []
+    for rel in LANDINGS:
+        s = _read(rel)
+        toast = re.search(r'#toast\{([^}]*)\}', s)
+        nav = re.search(r'\.bottomnav\{([^}]*)\}', s)
+        assert toast and nav, '%s: #toast 나 .bottomnav 규칙을 못 찾았다' % rel
+        b, h = _px(toast.group(1), 'bottom'), _px(nav.group(1), 'height')
+        assert b is not None and h, '%s: bottom·height 를 못 읽었다' % rel
+        if b <= h:
+            bad.append('%s: 토스트 bottom %dpx ≤ 탭바 높이 %dpx' % (rel, b, h))
+    assert not bad, bad
