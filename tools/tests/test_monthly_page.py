@@ -178,8 +178,9 @@ def test_unsold_source_is_the_canonical_agency_and_sources_escape_once():
     변이(각각 실제로 확인): 미분양 섹션의 원천을 옛 `esc(un.get('source') or '국토교통부')` 로 되돌리면 첫 단정이, 인허가
           호출부에 esc() 를 되살리면 둘째 단정이, llms SOURCES 의 한국부동산원 줄에 옛 '…동향과 미분양' 을 되살리면 셋째
           단정이 빨개진다.
-    픽스처: 저장소 data.js(수집 계열 STATS.미분양.source 가 배포 창구 '한국부동산원 R-ONE …'인 실제 상태)에 인허가 원천만
-          '&' 가 든 글자로 바꾼 것.
+    픽스처: 저장소 data.js 에서 미분양 source 를 옛 배포 창구 글자('한국부동산원 R-ONE …')로 **일부러** 덮어쓰고, 인허가 원천을
+          '&' 가 든 글자로 바꾼 것. 지금 실제 원천 칸('국토교통부 미분양주택현황(KOSIS)', 2026-10-07 KOSIS 전환)은 UN_SOURCE 로
+          시작해, 그대로 두면 원천 칸을 그대로 쓰는 회귀를 가르지 못한다.
     """
     import sys
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -198,3 +199,104 @@ def test_unsold_source_is_the_canonical_agency_and_sources_escape_once():
     assert basis('permits') == '국토교통부 &amp; KOSIS', basis('permits')
     with_un = [n for n, _, d in L.SOURCES if '미분양' in d]
     assert with_un == [SP.UN_SOURCE], with_un
+
+
+def _moveins_section():
+    import make_monthly_page as MP
+    adv, sts = MP.load()
+    occ = adv.get('occupancy') or {}
+    assert [r for r in occ.get('rows') or [] if r.get('e')], 'ADV.occupancy 에 추정 행(e=1)이 없다 — 픽스처 전제가 바뀌었다'
+    secs, _ = MP.build(adv, sts)
+    seg = [s for s in secs if '<section id="moveins"' in s]
+    assert len(seg) == 1, '입주물량 절이 없다'
+    return MP, seg[0]
+
+
+def test_moveins_estimate_column_says_estimate_not_scheduled():
+    """/monthly/ 입주물량 뒤 칸은 착공 실적 × 전환율로 셈한 우리 추정이다 — 열 머리·원천 줄·주석·요약 머리가 그렇게 말한다(전수리뷰 Z2-4).
+
+    실제 상태(픽스처): data.js 의 ADV.occupancy 는 마지막 준공 실적 분기 뒤를 sido_zones.supply_rows 가 착공을 LEAD_Q 분기 밀어
+    CONV 를 곱한 행(e=1)으로 채운다. 예전 화면은 그 칸을 '26Q3 예정'·'국토교통부 준공 실적'·'실제로 집이 들어온 물량'이라 적어
+    정부가 낸 예정 물량처럼 읽혔다(/moveins/ 는 같은 값을 MOVEINS_EST '착공 기준 추정'으로 밝힌다 — 2026-09-27 C9).
+    변이(실제로 확인): 열 머리를 '%s 예정' 으로 되돌리면, 또는 원천 줄을 '국토교통부 준공 실적' 으로 되돌리면 빨강.
+    """
+    import make_indicator_pages as I
+    MP, seg = _moveins_section()
+    heads = re.findall(r'<th scope="col">([^<]*)</th>', seg)
+    assert '예정' not in seg, '입주물량 절에 아직 "예정"이 있다: %s' % heads
+    est = [h for h in heads if re.search(r'^\d{2}Q[1-4] ', h) and h.endswith(' ' + MP.EST_HEAD)]
+    assert len(est) == 1, '추정 열 머리가 없다: %s' % heads
+    assert '기준 · %s</p>' % MP.MOVEINS_SOURCE in seg and '착공' in MP.MOVEINS_SOURCE, '원천 줄에 착공이 없다'
+    assert MP.moveins_est_note() in seg and I.MOVEINS_EST in seg, '주석에 추정 설명이 없다'
+    m = re.search(r'<p class="top3"><b>([^<]*)</b>', seg)
+    assert m and MP.EST_HEAD in m.group(1), '요약 머리가 추정이라 말하지 않는다: %s' % (m and m.group(1))
+
+
+def test_moveins_estimate_note_reads_model_constants(monkeypatch):
+    """추정 설명의 연수·전환율은 모델 상수(SZ.LEAD_Q·SZ.CONV)에서 읽는다 — 손으로 적은 '3년·0.958' 이 아니다.
+
+    픽스처: 상수를 가상의 값(LEAD_Q 8 = 2년, CONV 0.5)으로 바꾼 모델.
+    변이(실제로 확인): moveins_est_note 의 SZ.CONV 를 0.958 리터럴로 바꾸면 빨강.
+    """
+    import make_monthly_page as MP
+    import sido_zones as SZ
+    monkeypatch.setattr(SZ, 'LEAD_Q', 8)
+    monkeypatch.setattr(SZ, 'CONV', 0.5)
+    note = MP.moveins_est_note()
+    assert '2년' in note and '0.500' in note and '50%' in note, note
+
+
+def test_closing_note_names_the_moveins_estimate(html):
+    """페이지 끝 '없는 값을 추정해 채우지 않습니다' 문장이 입주물량 추정 칸을 예외로 밝힌다(전수리뷰 Z2-4).
+
+    변이(실제로 확인): main 의 끝 문장에서 예외 문장을 지우면 빨강.
+    """
+    import make_indicator_pages as I
+    m = re.search(r'추정해 채우지 않습니다\.([^<]*)</p>', html)
+    assert m and I.MOVEINS_EST in m.group(1), '끝 문장이 입주물량 추정을 밝히지 않는다: %s' % (m and m.group(1))
+
+
+def test_unsold_definition_is_the_one_canon():
+    """미분양 정의·순위에서 빼는 이유는 sido_zones 정본(UNSOLD_NATURE·UNSOLD_RANK_WHY) 하나다(전수리뷰 Z2-6).
+
+    실제 상태(픽스처): 수집 계열은 KOSIS DT_MLTM_2080 '국토교통부 미분양주택현황' 총합 행이라 공사 중 물량을 포함한 전체
+    미분양이다. 예전 /monthly/ 주석·시도 리포트 참고 안내·홈 거울·블로그 초안은 준공 후 미분양의 정의('다 짓고도 팔리지
+    않은 집·이미 지어진 재고')를 적었다. 홈 거울 TB_REFNOTE 는 test_refnote_copy_is_identical_on_home_and_zone 이 REFNOTE 와 묶는다.
+    변이(실제로 확인): /monthly/ 미분양 주석을 옛 '다 짓고도 팔리지 않아 남은 집. 이미 지어진 재고라' 로 되돌리면 빨강,
+          make_sido_pages.REFNOTE['un'] 을 옛 문구로 되돌리면 빨강.
+    """
+    import make_monthly_page as MP
+    import make_sido_pages as P
+    import sido_zones as SZ
+    adv, sts = MP.load()
+    assert sts.get('미분양'), '미분양 계열이 없다 — 픽스처 전제가 바뀌었다'
+    secs, _ = MP.build(adv, sts)
+    seg = [s for s in secs if '<section id="unsold"' in s]
+    assert len(seg) == 1
+    for where, text in (('/monthly/ 미분양 주석', seg[0]), ('시도 리포트 참고 안내', P.REFNOTE['un'])):
+        assert SZ.UNSOLD_NATURE in text and SZ.UNSOLD_RANK_WHY in text, '%s 가 정본 정의를 쓰지 않는다: %s' % (where, text)
+        assert '다 짓고' not in text and '이미 지어진 재고' not in text, '%s 에 준공 후 미분양 정의가 남았다' % where
+    blog = io.open(os.path.join(ROOT, 'tools', 'make_naver_post.py'), encoding='utf-8').read()
+    assert 'SZ.UNSOLD_NATURE' in blog and '다 짓고도' not in blog, '블로그 초안 미분양 정의가 정본과 다르다'
+
+
+def test_jeonse_source_names_the_agency_like_the_jeonse_ratio_page():
+    """/monthly/ 전세가율 절 원천 줄은 /jeonse-ratio/ 와 같은 정본(make_indicator_pages.JR_SOURCE)이고 작성 기관을 말한다(전수리뷰 Z2-12).
+
+    픽스처: 저장소 data.js 그대로 — 수집 계열 STATS.전세가율.source 는 기관명이 빠진 'KOSIS 매매가격 대비 전세가격비'인 실제 상태다
+    (그 칸을 일부러 그 글자로 덮어 상태가 바뀌어도 같은 것을 본다).
+    변이(실제로 확인): 전세가율 절 원천을 옛 jr.get('source') or '한국부동산원' 으로 되돌리면 빨강, /jeonse-ratio/ 주석을 손 글자로
+          되돌리면(jrsrc 대신) 둘째 단정이, 푸터 src 를 옛 'KOSIS 한국부동산원 …' 으로 되돌리면 셋째 단정이 빨강.
+    """
+    import html as _html
+    import make_monthly_page as MP
+    import make_indicator_pages as I
+    adv, sts = MP.load()
+    sts['전세가율'] = dict(sts['전세가율'], source='KOSIS 매매가격 대비 전세가격비')
+    h = ''.join(MP.build(adv, sts)[0])
+    seg = h.split('id="jeonse"', 1)[1].split('</section>', 1)[0]
+    got = re.search(r'<p class="basis"><b>[^<]+</b> 기준 · ([^<]+)</p>', seg).group(1)
+    assert _html.unescape(got) == I.JR_SOURCE and '한국부동산원' in got, got
+    page = I.build_jeonse(sts)[0]
+    assert '정렬. 자료: %s, 매월 갱신.' % I.JR_SOURCE in page, '/jeonse-ratio/ 표 주석이 정본 원천을 쓰지 않는다'
+    assert '· 자료: %s' % I.JR_SOURCE in page, '/jeonse-ratio/ 푸터가 정본 원천을 쓰지 않는다'

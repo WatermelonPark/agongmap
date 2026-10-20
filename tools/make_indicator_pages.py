@@ -385,6 +385,12 @@ def jeonse_delta(cur, ago):
     return round(shown1(cur) - shown1(ago), 1) + 0.0
 
 
+# 전세가율 원천 표기의 정본 — 작성 기관(한국부동산원)과 배포 창구(KOSIS)를 함께 적는다. /jeonse-ratio/ 의 주석·푸터와 /monthly/
+# 전세가율 절이 이것 하나를 쓴다(전수리뷰 Z2-12 — /monthly/ 는 수집 계열 source 칸 'KOSIS 매매가격 대비 전세가격비'를 그대로 써
+# 기관명이 빠졌다. 미분양의 UN_SOURCE 와 같은 이유로 수집 칸 대신 정본을 쓴다).
+JR_SOURCE = 'KOSIS·한국부동산원 「매매가격 대비 전세가격비」'
+
+
 def build_jeonse(sts, today=None):
     j = sts['전세가율']
     dates, ser = j['dates'], j['series']
@@ -479,7 +485,7 @@ def build_jeonse(sts, today=None):
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. 자료: KOSIS·한국부동산원 「매매가격 대비 전세가격비」, 매월 갱신.</div>
+  <div class="note">표두를 누르면 정렬. 자료: %(jrsrc)s, 매월 갱신.</div>
 </section>
 
 <section class="wrap">
@@ -499,12 +505,12 @@ def build_jeonse(sts, today=None):
   </div>
 </section>
 """ % dict(nat=nat, natd=natd_sub, prd=prd, trs='\n'.join(trs),
-           hi=hi_n, hiv=top, lo=lo_n, lov=bot, upm=upm_p)
+           hi=hi_n, hiv=top, lo=lo_n, lov=bot, upm=upm_p, jrsrc=JR_SOURCE)
 
     html = fill(SHELL, title=title, ogtitle='전세가율 — 전국 %.1f%%, 시도별 현황' % nat,
                 desc=desc, url=url, body=body,
                 ld=ld_pack('전세가율 — 전국·시도별 현황과 의미', desc, url, '전세가율', today),
-                src='KOSIS 한국부동산원 매매가격 대비 전세가격비',
+                src=JR_SOURCE,
                 nsido=str(len(SIDO17)))   # 본문을 넣은 뒤에 치환되도록 마지막에 둔다
     return html, not_before_pub(today)
 

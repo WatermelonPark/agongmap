@@ -35,10 +35,14 @@ LINE = (218, 213, 201)
 UP = (224, 86, 74)
 DN = (58, 123, 213)
 
+# 범례는 왼쪽부터 이 순서로 그린다 — 시세 가로축 정본 '왼쪽 하락 → 오른쪽 상승'(2026-10-06 대표 결정). 홈 주간 구역·
+# /weekly/ 머리 지도 범례와 같은 방향이다(전수리뷰 X2-9·Z2-7, test_share_cards).
+LEGEND = (('하락', DN), ('상승', UP))
+
 # ⚠️ 좌표는 지리 배치라 손으로 두지만, **담긴 지역 집합**은 모델과 같아야 한다.
 # 한 곳이 빠지면 그 지역만 그림에서 사라지는데 이미지는 정상으로 보인다.
-# index.html 의 TILE 과 같은 배치를 쓴다 — 두 곳이 어긋나면 같은 지도가 매체마다
-# 달라 보인다(2026-09-12 에 홈만 옛 배치로 남아 실제로 그랬다).
+# 이 시도 타일 배치는 주간·월간 공유 카드(make_monthly_share)가 함께 쓰는 카드 고유 배치다. 홈에는 시도 타일이
+# 없다(홈·/weekly/ 지도는 시군구 지도 NATION_TILE — 시도 타일은 2026-10-02 홈에서 걷혔다).
 TILE = [('전국', 0, 0), ('수도권', 1, 0), ('지방', 2, 0), ('제주', 3, 0),
         ('인천', 0, 1), ('서울', 1, 1), ('경기', 2, 1), ('강원', 3, 1),
         ('충남', 0, 2), ('세종', 1, 2), ('충북', 2, 2), ('경북', 3, 2),
@@ -60,9 +64,11 @@ def load_weekly():
     return adv['weekly']
 
 
-def cell_bg(v, ref=0.4):
+def cell_bg(v, ref):
     # 색도 **표시값**으로 정한다 — 표시가 0.00인데 원값 부호로 칠하면
     # 같은 '0.00'이 세 색으로 갈린다(사이트 pvSign과 같은 규칙).
+    # 만색 기준 ref 는 기본값 없이 받는다 — 두 카드 모두 홈 지도 정본(make_weekly_page.map_refs: WK_MAP_REF·MO_MAP_REF)을
+    # 넘긴다. 기본값을 두면 인자를 빠뜨려도 아무것도 실패하지 않아 홈과 카드 진하기가 조용히 갈린다(전수리뷰 Z2-11).
     v = pv2r(v)
     if v is None or v == 0:
         return (239, 234, 221)
@@ -125,13 +131,13 @@ def _week_back():
         raise SystemExit('--week 뒤에 숫자를 줄 것 (0=최신, 1=한 주 전)')
 
 
-def main():
-    W = load_weekly()
-    back = _week_back()
+def draw(W, back=0):
+    """N주 전(기본 최신) 회차 카드 그림 → (img, row, 발표일). 저장은 main 이 한다(시험이 그리는 글자·색 기준을 본다)."""
     if back >= len(W['rows']):
         raise SystemExit('주간 계열이 %d회차뿐이다 — --week %d 는 없다'
                          % (len(W['rows']), back))
     regs, row = W['regions'], W['rows'][-1 - back]
+    ref = _MW.map_refs()['week']   # 홈 지도·/weekly/ 머리 지도와 같은 만색 기준(WK_MAP_REF, 전수리뷰 Z2-11)
     val = {r: row['ma'][i] for i, r in enumerate(regs)}
     je = {r: row['je'][i] for i, r in enumerate(regs)}
 
@@ -151,11 +157,10 @@ def main():
     # 화면 글자는 읽는 꼴 '10/1'(날짜 두 단계, 백로그 36-1). 메타에는 기계가 읽는 ISO 날짜를 그대로 심는다.
     d.text((IW // 2, 122), '%s 발표 · 매매가격 전주 대비 변동률(%%)' % _SZ.day_text(pub),
            font=noto(24), fill=MUTED, anchor='mm')
-    # 범례
-    d.rounded_rectangle((IW // 2 - 190, 150, IW // 2 - 168, 172), 5, fill=UP)
-    d.text((IW // 2 - 158, 161), '상승', font=noto(21), fill=INK, anchor='lm')
-    d.rounded_rectangle((IW // 2 + 20, 150, IW // 2 + 42, 172), 5, fill=DN)
-    d.text((IW // 2 + 52, 161), '하락', font=noto(21), fill=INK, anchor='lm')
+    # 범례 — 왼쪽부터 LEGEND 순서(하락 → 상승)
+    for (word, col), lx in zip(LEGEND, (IW // 2 - 190, IW // 2 + 20)):
+        d.rounded_rectangle((lx, 150, lx + 22, 172), 5, fill=col)
+        d.text((lx + 32, 161), word, font=noto(21), fill=INK, anchor='lm')
 
     # 타일 지도 (4열)
     TW, TH, G = 196, 128, 14
@@ -164,7 +169,7 @@ def main():
     for name, x, y in TILE:
         px, py = ox + x * (TW + G), oy + y * (TH + G)
         v = val.get(name)
-        d.rounded_rectangle((px, py, px + TW, py + TH), 16, fill=cell_bg(v), outline=LINE, width=2)
+        d.rounded_rectangle((px, py, px + TW, py + TH), 16, fill=cell_bg(v, ref), outline=LINE, width=2)
         d.text((px + TW // 2, py + 34), _SZ.disp(name), font=noto(30), fill=INK, anchor='mm')   # 화면 이름(백로그 46)
         # 글자색도 표시값 기준(pv2r) — 원값으로 정하면 '0.00'이 빨강/파랑으로 갈린다
         rv = pv2r(v) or 0
@@ -189,6 +194,13 @@ def main():
     d.line((60, IH - 92, IW - 60, IH - 92), fill=LINE, width=2)
     d.text((IW // 2, IH - 62), 'agongmap.co.kr — 서울 구별·전국 시군구 상세 지도', font=noto(26), fill=INK, anchor='mm')
     d.text((IW // 2, IH - 30), '자료: 한국부동산원 R-ONE 전국주택가격동향조사 · 매주 목요일 자동 갱신', font=noto(18), fill=MUTED, anchor='mm')
+    return img, row, pub
+
+
+def main():
+    W = load_weekly()
+    back = _week_back()
+    img, row, pub = draw(W, back)
 
     # 과거 회차는 라이브 카드를 건드리지 않도록 drafts/로 뺀다(위 docstring 참고).
     # 라이브 카드의 경로는 /weekly/ og:image 주소와 같은 정본(make_weekly_page.SHARE_REL)을 쓴다 — 따로 적으면
@@ -199,6 +211,7 @@ def main():
     # 유일한 방법이다. 그림에서 날짜를 OCR할 수는 없고, 파일 해시로는 '배포가
     # 됐나'만 알지 '언제 주차인가'를 모른다. 2026-07-18 카드가 3주간 라이브에
     # 걸려 있었는데 아무 신호가 없던 이유가 이것이다(2026-08-06).
+    os.makedirs(os.path.dirname(out), exist_ok=True)   # drafts/ 는 gitignore 라 새 클론엔 없다
     meta = PngImagePlugin.PngInfo()
     meta.add_text('agongmap-basis', row['p'])
     # 카드 머리에 찍은 발표일. /weekly/ og:image 주소의 판(?v=)과 같아야 한다 — 시험이 그림을 읽을 수 없어 메타로 본다.
