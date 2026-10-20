@@ -106,6 +106,7 @@ def monthly_months(adv, stats):
         if d.get('metrics'):
             # 지표 여럿을 한 축에 담은 피벗(규모별) — 축(dates)은 네 표 시점의 합집합이라 끝 달이 한 지표에만 있을 수 있다.
             # 가장 뒤처진 지표의 '값이 있는 마지막 달'로 잰다(update_adv_data.size_last, 감시와 같은 함수 — 전수리뷰 A-2).
+            import update_adv_data as U   # noqa: E402 — 처음 쓸 때 불러온다(위 F-6 주석)
             yms = [y for y in (month_of(v) for v in U.size_last(d).values()) if y]
             ym = min(yms) if yms else None
         else:
