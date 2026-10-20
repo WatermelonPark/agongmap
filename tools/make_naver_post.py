@@ -598,9 +598,10 @@ MORE_ROTATION = [
     # 셋을 못 보여준다.
     dict(h='내 부동산 감각은 몇 점일까',
          desc='테스트는 세 가지인데요. 각 10문항, 5분이면 끝나요.',
-         links=[('/burini-test/', '부린이 테스트 — 내 감각은 몇 점인가'),
-                ('/investor-test/', '투자자 테스트 — 통념을 뒤집을 준비가 됐나'),
-                ('/redev-test/', '재건축·재개발 테스트 — 이 사업, 사업성이 있나')]),
+         # 링크 글자에 엠대시를 쓰지 않는다(화법 기준 v1, 전수리뷰 T1-6) — 쌍점으로 가른다.
+         links=[('/burini-test/', '부린이 테스트: 내 감각은 몇 점인가'),
+                ('/investor-test/', '투자자 테스트: 통념을 뒤집을 준비가 됐나'),
+                ('/redev-test/', '재건축·재개발 테스트: 이 사업, 사업성이 있나')]),
 ]
 
 
@@ -1547,6 +1548,15 @@ def _thumb_msg_arg(argv):
     return None
 
 
+def blog_limit_note(nm):
+    """모델 한계 공시(정본 M.MODEL_LIMIT_NOTE)의 블로그 문구. 사이트 문장의 엠대시(' — ')는 블로그에 쓰지 않으므로(화법 기준 v1)
+    문장을 끊어 옮긴다 — 숫자('2~6배')는 사이트 정본 그대로다(전수리뷰 T1-6). 없으면 None."""
+    t = (getattr(M, 'MODEL_LIMIT_NOTE', {}) or {}).get(nm)
+    if not t:
+        return None
+    return t.lstrip('⚠ ').replace(' — ', '. ').replace('—', ', ')
+
+
 def draft_zone(adv, sts, r, seq, total):
     nm = r['z']
     # 순부족은 사이트 카드·리포트가 찍는 정수(배치가 구운 dtot)를 쓴다. 'tot'는 반올림 전
@@ -1681,9 +1691,9 @@ def draft_zone(adv, sts, r, seq, total):
 
     # 모델이 그 지역과 구조적으로 안 맞는 경우의 공시 — 정본은 M.MODEL_LIMIT_NOTE.
     # 판정을 곧이곧대로 인용하면 안 되는 지역이 있다는 사실은 숨기지 않는다.
-    limit = (getattr(M, 'MODEL_LIMIT_NOTE', {}) or {}).get(nm)
+    limit = blog_limit_note(nm)
     if limit:
-        body.append('<p><b>덧붙임.</b> %s</p>' % esc(limit.lstrip('⚠ ')))   # 엠대시는 쓰지 않는다(화법 기준 v1)
+        body.append('<p><b>덧붙임.</b> %s</p>' % esc(limit))
 
     # ── 전망. 숫자는 기계가 깔고, 판단은 사람이 쓴다.
     #
