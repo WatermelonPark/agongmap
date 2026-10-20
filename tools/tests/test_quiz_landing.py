@@ -127,3 +127,55 @@ def test_pages_have_main_landmark_and_skip_link():
         if s.count('<main id="main"') != 1 or '</main>' not in s or 'class="skip" href="#main"' not in s:
             bad.append(rel)
     assert not bad, '<main id="main"> 하나와 #main 건너뛰기 링크가 없는 페이지: %s' % bad
+
+
+LANDINGS = ('burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')
+
+
+def _pool():
+    """홈 퀴즈 문항 풀 — 질문(태그 뗀 글)과 보기 목록. 읽기 식은 test_quiz_regulation_items 의 ITEM 하나를 쓴다."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import test_quiz_regulation_items as QRI
+    return [(re.sub(r'<[^>]+>', '', x['q']).replace("\\'", "'"), x['opts']) for x in QRI._items()]
+
+
+def _examples(rel):
+    """'이런 걸 물어본다' 예시 [(질문, 보기 줄)] — 보기 줄은 ①② 로 보기를 적은 것만 보기 목록, 아니면 None."""
+    s = _read(rel)
+    out = []
+    for qt, qo in re.findall(r'<div class="qt">Q\. (.*?)</div>\s*<div class="qo">(.*?)</div>', s, re.S):
+        opts = None
+        if '①' in qo:
+            body = qo.split(' — ')[0].replace('&nbsp;', ' ')
+            opts = [o.strip() for o in re.split(r'[①②③④]', body) if o.strip()]
+        out.append((re.sub(r'<[^>]+>', '', qt).strip(), opts))
+    return out
+
+
+def test_landing_examples_with_options_are_real_quiz_items():
+    """랜딩이 '①②' 보기까지 내건 예시는 홈 퀴즈 풀에 같은 질문·같은 보기 문항이 있어야 한다(전수리뷰 P-1).
+
+    2026-09-13 대표 판단으로 투자자 규제 문항을 '호재일까 악재일까?'에서 '시장에 남기는 효과로 가까운 것은?'으로
+    바꿨는데, 투자자 랜딩만 옛 질문·보기('① 공급 줄여 호재 ② 거래 막혀 악재 — 정답과 해설은 테스트에서')를 계속
+    내걸었다. 그 문항은 풀에 없어 '정답과 해설은 테스트에서'라는 약속이 어느 회차에서도 지켜지지 않았다.
+    보기 없이 주제만 소개하는 예시(요약문)는 풀 문구와 달라도 된다 — 보기를 적은 예시만 대조한다.
+    변이(실제로 확인): investor-test/index.html 의 첫 예시를 옛 질문·보기로 되돌리면 빨개진다(풀에 없음, 호재·악재 이분법
+    둘 다). 픽스처 없이 저장소의 실제 랜딩 3종과 home-quiz.js 문항 풀을 읽는다.
+    """
+    pool = _pool()
+    assert pool, '퀴즈 풀을 못 읽었다'
+    checked = 0
+    bad = []
+    for rel in LANDINGS:
+        ex = _examples(rel)
+        assert ex, '%s: 예시를 하나도 못 읽었다 — 구조가 바뀌었으면 이 시험도 고칠 것' % rel
+        for q, opts in ex:
+            if opts is None:
+                continue
+            checked += 1
+            if '호재' in ' '.join(opts) and '악재' in ' '.join(opts):
+                bad.append('%s: 호재·악재 이분법 예시 — %s' % (rel, q))
+            if not any(pq == q and po == opts for pq, po in pool):
+                bad.append('%s: 풀에 같은 질문·보기 문항이 없다 — %s %s' % (rel, q, opts))
+    assert checked >= len(LANDINGS), '보기를 내건 예시가 %d개뿐이다 — 대조가 헛돈다' % checked
+    assert not bad, bad
