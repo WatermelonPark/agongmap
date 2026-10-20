@@ -135,3 +135,29 @@ def test_province_tags_use_the_city_people_search(monkeypatch):
     d = _zone(monkeypatch, name='충북', seq=7, patch={'uwarn': False})
     assert '청주부동산전망' in d['tags'] and '청주아파트' in d['tags'] and '충북아파트공급물량' in d['tags']
     assert '충북' in d['title']
+
+
+def test_unsold_comparison_names_the_top_region_by_blog_name(monkeypatch):
+    """미분양이 가장 적은 지역 편의 '가장 높은 ○○(…)에 비하면 N분의 1' 비교는 최고 지역을 블로그 이름(SEARCH_NAME)으로 쓴다 —
+    키를 그대로 찍으면 광주·전남이 최고인 회차에 '가장 높은 전남광주'가 나간다(전수리뷰 X1-5).
+    픽스처: 저장소 ADV.sido 에서 광주·전남(키 '전남광주')의 미분양 배수(um)만 최고값보다 크게 올린 상태 — 초안은 um 이 가장 낮은
+    지역으로 굽는다. 변이(실제로 확인): draft_zone 의 cmp_txt 에서 SEARCH_NAME 을 빼고 top['z'] 를 그대로 쓰면 빨개진다."""
+    key = '전남광주'
+    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
+    monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
+    monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
+    adv, sts = M.load()
+    zs = [z for z in adv['sido']['zones'] if not z.get('agg') and z.get('um') is not None]
+    assert len(zs) > 2 and any(z['z'] == key for z in zs), [z['z'] for z in zs]
+    top = max(z['um'] for z in zs)
+    for z in zs:
+        if z['z'] == key:
+            z['um'] = top + 1.0
+    low = min((z for z in zs if z['z'] != key), key=lambda z: z['um'])
+    for z in zs:                      # 같은 값으로 묶인 지역이 있어도 이 지역이 맨 아래가 되게(데이터에 따라 동률이 생긴다)
+        if z is not low and z['um'] <= low['um']:
+            z['um'] = low['um'] + 0.01
+    body = P.draft_zone(adv, sts, dict(low), 3, 16)['body']
+    shown = re.sub(r'href="[^"]*"', '', body)
+    assert '가장 높은 %s(' % P.SEARCH_NAME[key] in shown, re.findall(r'가장 높은.{0,30}', shown)
+    assert key not in shown, re.findall(r'.{20}%s.{20}' % key, shown)
