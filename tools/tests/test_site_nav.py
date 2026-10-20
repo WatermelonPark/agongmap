@@ -241,3 +241,32 @@ def test_hand_pages_share_one_footer():
             if not px or float(px.group(1)) < N.FOOTER_PX:
                 bad.append('%s: footer 글자 %s' % (rel, px and px.group(1)))
     assert not bad, bad
+
+
+def test_theme_color_is_one_canon():
+    """모든 페이지의 <meta name="theme-color"> 와 manifest theme_color 가 정본 site_nav.THEME_COLOR(= app.css --ink, 탭바 배경)와 같다.
+
+    재현한 상태(2026-10-18 전수리뷰 overflow): 소개·FAQ·/weekly/ 는 #131e24(먹색), 홈·랜딩·방침·사이클·생성 페이지 29장과 manifest 는 옛 남색
+    #16203a 로 갈려, 같은 사이트가 페이지마다 주소창 색이 달랐다.
+    변이(실제로 확인): about/index.html 의 theme-color 를 #16203a 로 되돌리면, make_sido_pages 템플릿에 옛 색을 박으면(생성 뒤) 빨개진다.
+    픽스처: 저장소의 모든 HTML(생성 페이지는 CI·배치가 생성기를 먼저 돌린 판)과 manifest.webmanifest.
+    """
+    import glob
+    import json
+    root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+    ink = re.search(r'--ink:(#[0-9a-fA-F]{6})', io.open(os.path.join(root, 'app.css'), encoding='utf-8').read())
+    assert ink and ink.group(1).lower() == N.THEME_COLOR, 'THEME_COLOR 가 app.css --ink 와 다르다'
+    seen, bad = 0, []
+    for p in sorted(glob.glob(os.path.join(root, '**', '*.html'), recursive=True)):
+        rel = os.path.relpath(p, root).replace(os.sep, '/')
+        if rel.split('/')[0] in ('drafts', 'art_raw', 'tools', 'docs', 'logs', 'node_modules'):
+            continue
+        for c in re.findall(r'<meta name="theme-color" content="([^"]+)"', io.open(p, encoding='utf-8').read()):
+            seen += 1
+            if c.lower() != N.THEME_COLOR:
+                bad.append('%s: %s' % (rel, c))
+    assert seen >= 30, 'theme-color 를 거의 못 찾았다(%d)' % seen
+    man = json.load(io.open(os.path.join(root, 'manifest.webmanifest'), encoding='utf-8'))
+    if man.get('theme_color', '').lower() != N.THEME_COLOR:
+        bad.append('manifest.webmanifest: %s' % man.get('theme_color'))
+    assert not bad, '브라우저 머리 색이 정본(%s)과 다르다: %s' % (N.THEME_COLOR, bad)

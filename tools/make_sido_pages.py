@@ -499,7 +499,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 <link rel="canonical" href="%(url)s">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
-<meta name="theme-color" content="#16203a">
+<meta name="theme-color" content="%(theme)s">
 <meta property="og:type" content="article">
 <meta property="og:title" content="%(title)s">
 <meta property="og:description" content="%(desc)s">
@@ -512,7 +512,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 </head>
 %(desk_body)s
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-''' % {'ga': GA, 'ga_int': GT.INTERNAL_SCRIPT, 'ga_cfg': GT.config_call(), 'zjs': zone_js_src(), 'robots': RM.TAG,
+''' % {'ga': GA, 'theme': N.THEME_COLOR, 'ga_int': GT.INTERNAL_SCRIPT, 'ga_cfg': GT.config_call(), 'zjs': zone_js_src(), 'robots': RM.TAG,
        # 데스크톱 틀(desk.css): 리포트는 왼쪽 판정 요약·오른쪽 표, 허브는 글 단 그대로(site_nav.DESK_KINDS)
        'desk_link': N.desk_link(), 'desk_body': N.desk_body(desk),
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,
