@@ -9,8 +9,8 @@
 소개 '적정 물량과 견줘보고'. 36-2 용어 통일 뒤에도 막는 시험이 없어 남아 있었다.
 
 범위: 이 시험이 보는 것은 손 페이지(소개·FAQ·퀴즈 랜딩 3종)와 시도 리포트·지표 두 쪽·/llms.txt 의 생성 결과, 그 생성기들과 지역 카드 도구
-(make_zone_cards — 그림 글자는 test_zone_cards 가 본다)의 문자열(독스트링·주석 제외 — 옛 이름의 이력을 적는 자리다). 홈 표 보기 범례(index.html .tb-key — 대표 결정 2026-10-18 D4 로 따로 고친다)와 /weekly/ '더 둘러보기'
-(생성기가 맡게 바꾸는 별건)는 그 수정과 함께 이 목록에 더한다.
+(make_zone_cards — 그림 글자는 test_zone_cards 가 본다)의 문자열(독스트링·주석 제외 — 옛 이름의 이력을 적는 자리다). 홈(index.html — 표 보기 범례는 대표 결정 2026-10-18 D4 로 고쳤다, 변이: 옛 '하락 · 공급 과잉' 범례로 되돌리면 빨개진다)도 본다.
+/weekly/ '더 둘러보기'(생성기가 맡게 바꾸는 별건)는 그 수정과 함께 이 목록에 더한다.
 /llms.txt 입주물량 줄도 '적정물량과 견준 부족·과잉'이었다(검토 보강 — 입주물량은 판정이 아니라 신호등 낱말 적음·보통·많음으로 쓴다).
 변이(실제로 확인): make_llms_txt 의 입주물량 설명을 옛 '부족·과잉'으로 되돌리면 생성기 단정이 빨개진다. make_indicator_pages 의 /jeonse-ratio/ 링크를 '부족·과잉 등급으로'로 되돌리면 생성기 단정이, faq JSON-LD 를 옛 '적정 물량과
 비교해 공급 과잉·부족'으로 되돌리면 페이지 단정이 빨개진다.
@@ -24,7 +24,7 @@ import re
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 FORBIDDEN = ('과잉', '적정선', '적정 물량', '적정수요', '필요한 집', '필요량', '수요 기준선')
-HAND = ('about/index.html', 'faq/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')
+HAND = ('index.html', 'about/index.html', 'faq/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')
 GENERATED = ('jeonse-ratio/index.html', 'moveins/index.html', 'llms.txt')
 GENERATORS = ('tools/make_indicator_pages.py', 'tools/make_sido_pages.py', 'tools/make_zone_cards.py', 'tools/make_llms_txt.py')
 
