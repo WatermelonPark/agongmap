@@ -696,7 +696,8 @@ def summary_html(parts):
 # 반올림 뒤 셈 — 블로그 초안 표지와 같은 함수), 12주 누적 = cum_window·cum_change. 반올림 표기는 MW.pv2(사이트 pv2r).
 # 집계 3장(전국·수도권·지방)은 많이 오른 곳·많이 내린 곳 AGG_TOP 곳씩만 싣는다(요청서 D4).
 AGG_TOP = 5
-WK_CSS = ('.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'
+WK_CSS = ('.ztb th small.zbase{display:block;font-size:12px;font-weight:400;color:var(--muted);white-space:nowrap}'
+          '.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'
           '.zcell b span{color:var(--ink)}'
           '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
           # 가로로 넘치는 표(375px 에서 전세 칸)는 오른쪽 가장자리에 그림자가 진다 — 끝까지 밀면 사라진다(배경 local/scroll 겹침).
@@ -1172,8 +1173,11 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<p class="zsub">칸 색은 실적 구간에서는 가격 변동(매매·전세·월세), '
              '미래 구간에서는 적정물량 대비 모자란 정도입니다.</p>'
              '<div class="ztb-scroll"><table class="ztb" aria-label="%s의 분기별 공급">'
-             '<thead><tr><th>기간</th><th>공급</th><th>적정 대비</th>'
-             '<th>매매</th><th>전세</th><th>월세</th></tr></thead><tbody>' % (esc(SZ.disp(z)), esc(SZ.disp(z))))
+             # '적정 대비' 퍼센트의 바탕(분기 적정물량 세대수)을 열 머리에 적는다 — 퍼센트만으로는 몇 세대가 100% 인지
+             # 몰라 표를 읽기 어려웠다(2026-10-21 대표 지적). 값은 '숫자로 보면' 카드의 '분기 N세대'와 같은 d_ref.
+             '<thead><tr><th>기간</th><th>공급</th><th>적정 대비<small class="zbase">%s세대=100%%</small></th>'
+             '<th>매매</th><th>전세</th><th>월세</th></tr></thead><tbody>'
+             % (esc(SZ.disp(z)), esc(SZ.disp(z)), num(d_ref)))
     first_fut = True
     for i, v, isfut in rows:
         cls = ''
