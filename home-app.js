@@ -187,7 +187,7 @@ const vHome=document.getElementById('view-home'),vStats=document.getElementById(
 let statsInited=false,curView=null;
 let _fullData=null;
 function loadFullData(){
-  /* 홈은 core(48KB)만 받고, 주간 155주·기본통계 11계열은 통계 탭을 열 때 받는다.
+  /* 홈은 data-core.js 만 받고, 주간 155주·투자지표(data-trend.json)·기본통계(data-rest.json)는 통계 탭을 열 때 받는다.
      data.js를 런타임에 정규식으로 파싱하지 않는다 — 선언 형태가 조금만 바뀌어도
      조용히 깨지므로 분리기가 낸 JSON을 그대로 읽는다. */
   return loadData('/data-trend.json');
