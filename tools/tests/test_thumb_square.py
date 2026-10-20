@@ -70,10 +70,10 @@ def test_every_box_sits_in_the_safe_area(tmp_path, monkeypatch):
     kinds = set()
     for r in zones:
         nm = r['z']
-        bars = P._thumb_bars(adv, nm)
-        assert bars, nm
+        bars = P._thumb_bars(adv, nm)     # 입주 막대를 못 쓰는 지역(해가 6개 미만)은 곡선 갈래 — 그래도 틀은 같아야 한다
         marks = []
-        P._draw_thumb(P.THUMB_GROUP[nm], None, P.thumb_chip(nm, '2027'), P.thumb_message_bars(nm, r['grade']),
+        P._draw_thumb(P.THUMB_GROUP[nm], None if bars else P._thumb_curve(sts, nm), P.thumb_chip(nm, '2027'),
+                      P.thumb_message_bars(nm, r['grade']),
                       str(tmp_path / ('z-%s.png' % nm)), ['m'], bars=bars, _marks=marks)
         _assert_safe(marks)
         kinds |= {k for k, *_ in marks}
@@ -165,11 +165,13 @@ def test_bars_background_uses_the_supply_grade(monkeypatch):
     seen = set()
     for r in [z for z in adv['sido']['zones'] if not z.get('agg')]:
         P.thumb_zone(r, '2027', 3, sts, None, adv=adv)
-        assert got['bars']
+        if not got['bars']:      # 막대를 못 쓰는 지역은 곡선 문구 그대로(배경과 같은 계열)
+            assert got['lines'] == P.thumb_message(r['z'], P._thumb_curve(sts, r['z']))
+            continue
         assert not any('고점' in x or '최고가' in x for x in got['lines']), got['lines']
         assert got['lines'][1].strip('*') in P.SZ.GRADE_LABS[r['grade']]
         seen.add(r['grade'])
-    assert seen
+    assert seen, '막대 배경 지역이 하나도 없다 — 시험이 빈 채로 통과한다'
     P.thumb_zone(r, '2027', 3, sts, ['내 문구', '*둘째*'], adv=adv)
     assert got['lines'] == ['내 문구', '*둘째*']
 
