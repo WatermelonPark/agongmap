@@ -1681,7 +1681,7 @@ def draft_zone(adv, sts, r, seq, total):
         if mine == 0 and len(ums) > 1:
             top = ums[-1]
             cmp_txt = (' 가장 높은 %s(%s)에 비하면 <b>%d분의 1</b> 수준이거든요.'
-                       % (esc(top['z']), umx(top['um']),
+                       % (esc(SEARCH_NAME.get(top['z'], top['z'])), umx(top['um']),      # 화면 이름 정본(전수리뷰 X1-5)
                           round(top['um'] / max(r['um'], .01))))
         # 부족분 대비 비율이 가장 세게 읽힌다 — 서울은 31만 세대가 모자란데
         # 안 팔린 건 1천 호, 308분의 1이다. '역대 최저' 같은 시계열 주장과 달리
