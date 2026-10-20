@@ -207,7 +207,7 @@ def test_landing_map_link_uses_the_home_section_name():
     재현한 상태(2026-10-18): 랜딩 링크 묶음이 '📍 아공맵 스코어 — 시도별 누적 공급 과부족'이라는, 홈 어디에도 없는 옛 구역 이름을
     걸었다(목적지는 '전국 공급 지도'). 변이(실제로 확인): 한 랜딩의 링크 이름을 옛 '아공맵 스코어'로 되돌리면 빨개진다.
     픽스처 없이 실제 index.html 과 랜딩 3종을 읽는다."""
-    m = re.search(r'id="sec-score" aria-label="([^"]+)"', _read('index.html'))
+    m = re.search(r'id="sec-score" aria-label="([^"]+)"', HS.home_source())   # 홈은 home_src 입구로만 읽는다
     assert m, '홈에서 #sec-score 구역 이름을 못 찾았다'
     bad = []
     for rel in LANDINGS:
