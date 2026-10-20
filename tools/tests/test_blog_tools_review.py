@@ -91,7 +91,7 @@ def test_link3_stops_on_a_rebased_index():
 def test_theory4_data_break_is_not_blamed_on_the_text(monkeypatch):
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
 
-    def broken(adv, sts):
+    def broken(adv, sts, D=None):
         raise L3.Link3DataError('매매지수 기준 단절 — 매매지수 2026.01 (27개 지역, 예: 서울 189.83→94.62)')
     monkeypatch.setattr(L3, 'link3_numbers', broken)
     with pytest.raises(SystemExit) as e:
@@ -166,17 +166,20 @@ def test_link3_direction_claims_are_guarded(region, f, key):
 
 
 def test_link3_beyond_percent_is_the_site_integer():
-    """4편 '최근 2년 인허가를 착공으로 환산하면 적정물량의 N%'(sd_pbr·jb_pbr)는 시도 리포트 줄·'… 너머' 칸과 같은 정수다 — 정본
-    SZ.pbr_pct(원값에서 한 번 half_up, 전수리뷰 Z1-3). 재현한 실제 상태(2026-10-18): '%.0f' 는 짝수 쪽 반올림이라 저장값 0.965(수도권)를
-    '96%'로 써, 사이트 리포트의 97% 와 갈렸다(블로그와 사이트가 다른 숫자를 말하면 안 된다).
-    변이(실제로 확인): _sd_pbr·_jb_pbr 을 '%.0f%%' % (pbr*100) 로 되돌리면 빨개진다.
-    픽스처: 4편 고정 스냅숏(_link3_fixture)에서 수도권 pbr 0.965·지방 0.425 — 100배가 이진수로 정확히 x.5 인 값이라 두 반올림이 갈린다."""
+    """4편 '최근 2년 인허가를 착공으로 환산하면 적정물량의 N%'(sd_pbr·jb_pbr)는 시도 리포트 '3년 너머' 줄(판정 split ref 문장)이 찍은
+    정수를 그대로 읽는다 — 다시 세지 않는다(전수리뷰 Z1-3·X1-3, CLAUDE.md '블로그 도구는 배치가 구운 값을 읽고 재계산하지 않는다').
+    재현한 실제 상태(2026-10-18): '%.0f' 는 짝수 쪽 반올림이라 저장값 0.965(수도권)를 '96%'로 써 사이트 리포트의 97% 와 갈렸다. 저장
+    pbr 은 소수 셋째 자리로 줄인 값이라, 원값으로 구운 사이트 정수와 저장값을 다시 반올림한 정수도 경계에서 갈린다.
+    픽스처: 4편 고정 스냅숏(_link3_fixture)에서 판정 ref 문장은 97%·43% 인데 저장 pbr 은 0.9649·0.4249(다시 반올림하면 96·42)인 상태.
+    변이(실제로 확인): _sd_pbr·_jb_pbr 을 SZ.pbr_pct(pbr) 재계산이나 '%.0f%%' % (pbr*100) 로 되돌리면 빨개진다."""
     adv, sts = _link3_fixture()
     for x in adv['sido']['zones']:
         if x['z'] in ('수도권', '지방'):
-            x['pbr'] = {'수도권': 0.965, '지방': 0.425}[x['z']]
+            pct, x['pbr'] = {'수도권': (97, 0.9649), '지방': (43, 0.4249)}[x['z']]
+            x['split'] = dict(x['split'], ref=['3년 너머', '최근 2년 인허가를 착공으로 환산하면 적정물량의 %d%%입니다' % pct, '', False])
     v = L3.link3_numbers(adv, sts)
-    assert (v['sd_pbr'], v['jb_pbr']) == ('%d%%' % SZ.pbr_pct(0.965), '%d%%' % SZ.pbr_pct(0.425)) == ('97%', '43%'), v
+    assert (v['sd_pbr'], v['jb_pbr']) == ('97%', '43%'), v
+    assert SZ.pbr_pct(0.9649) != 97          # 픽스처가 재계산과 문장 읽기를 가르는 경계 값인지
 
 
 def test_link3_missing_half_year_is_a_claim_error_not_a_traceback():
@@ -340,6 +343,27 @@ def test_category_names_follow_the_closer(monkeypatch):
     assert '부산 적정 공급량' in NS.track_keywords(posts)
 
 
+def test_draft_tools_read_the_category_canon(monkeypatch, tmp_path):
+    """블로그 유사도 검사(blog_similarity.check_draft)와 이론 초안의 카테고리 안내도 정본(CP.KIND_TO_CATEGORY)을 읽는다 — 글자로
+    박으면 정본이 바뀌는 날 직전 글을 못 찾아 유사도 검사가 경고 없이 빠지고, 이론 초안은 옛 카테고리를 안내한다(전수리뷰 BL2-11).
+    픽스처: 카테고리 이름 셋을 새 이름으로 바꾼 상태 + 그 이름의 직전 지역 편 한 편과 지역 편 상자(b2)를 가진 초안. 이론 초안은 3편 틀을
+    가드 없이(guard_values 를 비운다) 렌더한다. 변이(실제로 확인): check_draft 의 cats 를 글자로 되돌리면, render 의 카테고리 안내를
+    '부동산 사이클' 글자로 되돌리면 빨개진다."""
+    import blog_similarity as BS
+    cats = {'주간 시세': '새 주간 이름', '지역 공급': '새 지역 이름', '사이클 이론': '새 사이클 이름'}
+    monkeypatch.setattr(CP, 'KIND_TO_CATEGORY', dict(CP.KIND_TO_CATEGORY, **cats))
+    line = '부산은 앞으로 3년 동안 들어올 물량이 적정물량의 66%에 그쳐 부족이 이어지는 곳입니다.'
+    draft = tmp_path / 'd.html'
+    draft.write_text('<div id="b2"><p>%s</p></div></div>' % line, encoding='utf-8')
+    posts = [dict(cat=cats['지역 공급'], title='2026년 부산 아파트 공급물량 전망, 모자랍니다', paras=[line])]
+    rows = BS.check_draft(str(draft), posts)
+    assert [(r[0], r[1], r[3]) for r in rows] == [('b2', cats['지역 공급'], posts[0]['title'])], rows     # 직전 글을 찾아 견줬다
+    monkeypatch.setattr(T, 'guard_values', lambda n, D=None, data=None: {})
+    monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
+    html = T.render(next(p for p in T.POSTS if p['n'] == 3))
+    assert '카테고리는 <b>%s</b>' % cats['사이클 이론'] in html
+
+
 # ── #80 두 바퀴째 ────────────────────────────────────────────────────────
 def test_second_lap_gets_new_campaign_arm_and_sentences():
     total = 16
@@ -475,3 +499,19 @@ def test_indicator_sections_use_the_reading_month_form(monkeypatch):
     assert all(outs), outs
     for h in outs:
         assert '2026년 8월 기준' in h and not re.search(r'\d{4}\.\d{2}', h), h
+
+
+def test_link3_gap_in_the_index_window_is_a_claim_stop_not_a_traceback():
+    """매매지수 30개월 창(_boom_n)에 빈 칸(None)이 끼면 날 TypeError 로 죽지 않고 Link3ClaimError(예외 이름을 남긴다)로 모이고, 초안
+    생성 가드(guard_values)는 SystemExit 로 4편만 멈춘다 — 데이터 상태는 게이트를 막지 않는다(대표 결정 2026-10-18 D1).
+    픽스처: 4편 고정 스냅숏에서 서울 2023.06 한 칸을 비운 상태(원천이 한 달을 늦게 주거나 merge 가 새 열을 None 으로 만든 꼴).
+    변이(실제로 확인): link3_numbers 의 except 에서 TypeError 를 빼면 TypeError 가 새어 빨개진다."""
+    adv, sts = _link3_fixture()
+    mm = sts['매매지수']
+    mm['series']['서울'][[d.split()[0] for d in mm['dates']].index('2023.06')] = None
+    with pytest.raises(L3.Link3ClaimError) as e:
+        L3.link3_numbers(adv, sts)
+    assert 'TypeError' in str(e.value), str(e.value)
+    with pytest.raises(SystemExit) as e:
+        T.guard_values(4, P.cycle_d(), (adv, sts))
+    assert str(e.value).startswith('4편을 만들 수 없다'), str(e.value)

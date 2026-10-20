@@ -111,8 +111,9 @@ def min_window(rows, start, n=4, col=0):
     return rs[i]['p'], rs[i + n - 1]['p'], v
 
 
-def link4_numbers(adv, sts):
-    """5편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link4ClaimError."""
+def link4_numbers(adv, sts, D=None):
+    """5편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link4ClaimError. D 는 /cycle/ 정본(없으면 cycle/index.html 에서 읽는다 —
+    시험은 고정 스냅숏의 D 를 넘긴다)."""
     ST, DN = sts['착공'], sts['준공']
 
     def MON(key, rg):                 # 'YYYY.MM' → 월 값(잠정 표시 'p)'는 뗀다)
@@ -146,8 +147,9 @@ def link4_numbers(adv, sts):
         m = MON(key, rg)
         return sum(m.get('%d.%02d' % (y, i), 0) for i in range(1, CUR_M + 1))
 
-    D = json.loads(re.search(r'const D\s*=\s*(\{.*?\});', io.open(
-        os.path.join(ROOT, 'cycle', 'index.html'), encoding='utf-8').read(), re.S).group(1))
+    if D is None:
+        D = json.loads(re.search(r'const D\s*=\s*(\{.*?\});', io.open(
+            os.path.join(ROOT, 'cycle', 'index.html'), encoding='utf-8').read(), re.S).group(1))
     PR = D['prose']
 
     try:
