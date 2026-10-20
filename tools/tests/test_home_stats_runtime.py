@@ -338,7 +338,7 @@ def test_region_select_follows_the_display_order_then_other_rows():
     목록은 '경북, 광역시, 대구, 대전, 도심권, …'처럼 시도와 권역 행이 섞였다.
     픽스처: 저장소 data-rest.json 매매지수의 지역 키 전부, ADV.sido.zones 는 DISPLAY_ORDER 순서, ADV.zname 은 DISPLAY_NAME.
 
-    변이(실제로 확인): regSort 의 기본 이름 함수를 옛 `x=>x` 로, 정렬 기준을 옛 '집계만 앞·나머지 가나다'로 되돌리면 빨개진다.
+    변이(실제로 확인): regSort 의 정렬 기준을 옛 '집계(REG_AGG)만 앞·나머지 키 가나다'로 되돌리면(ord=REG_AGG) 빨개진다.
     """
     keys = list(_load('data-rest.json')['STATS']['매매지수']['series'])
     model = [k for k in keys if k in SZ.DISPLAY_ORDER]
