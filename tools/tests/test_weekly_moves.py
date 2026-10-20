@@ -313,11 +313,13 @@ def test_blog_draft_says_the_same_moves():
 
     변이(각각 실제로 확인): weekly_moves_sentences 가 전환 지역을 따로 걸러 대구를 빠뜨리면, news 대신 연속 표지 전부를
     문장으로 옮기면(옛 '흐름이 가장 길게 이어진 곳') 빨개진다.
-    픽스처: 합성 네 주(시도 — 전환 셋, 새 3주 연속 둘, 4주 '이상' 연속 여럿) + 저장소 시군구 최신 두 주.
+    픽스처: 합성 네 주(시도 — 전환 셋, 새 3주 연속 둘, 4주 '이상' 연속 여럿) + 저장소 시군구 최신 두 주(조사일은 합성 시도 끝
+    두 주로 맞춘다 — 시군구가 시도보다 늦은 갈래는 test_weekly_draft_review 가 본다).
     """
     Wr, Q = MW.load()
     W = _fixture()
-    W['sgg'] = dict(Wr['sgg'], rows=Wr['sgg']['rows'][-2:])
+    # 시군구 두 주의 조사일을 합성 시도 주와 맞춘다 — 초안은 시군구가 시도와 같은 날일 때만 순위 문장을 쓴다(전수리뷰 BL1-9)
+    W['sgg'] = dict(Wr['sgg'], rows=[dict(r, p=w['p']) for r, w in zip(Wr['sgg']['rows'][-2:], W['rows'][-2:])])
     para, rank = P.weekly_moves_sentences(W)
     mv = WM.moves(W)
     nw = WM.news(mv)
