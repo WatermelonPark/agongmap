@@ -7,6 +7,7 @@
 (CLAUDE.md '같은 대상을 재는 코드가 둘 이상이면 같은 상수 + 일치 시험'). 픽스처 없이 실제 파일과 저장소 데이터를 읽는다.
 기대값은 모델 상수(sido_zones)나 데이터가 앞으로 가도 변하지 않는 사실(착공 계열의 첫 해)에서 유도한다.
 """
+import io
 import os
 import re
 import sys
@@ -86,3 +87,47 @@ def test_occupancy_legend_uses_the_canonical_thresholds():
     assert re.findall(r'많음\((\d+)% 초과\)', legs[0]) == [str(hi)], legs[0]
     assert re.findall(r'적음\((\d+)% 미만\)', legs[0]) == [str(lo)], legs[0]
     assert legs[0].index('적음') < legs[0].index('보통') < legs[0].index('많음'), '범례는 적음 → 많음 순서(가로 축 오른쪽 = 많음)'
+
+
+# 판정 창 햇수가 나오는 자리 — (정규식, 모델 상수). '1년 적정물량의 N배'(need_mult 의 고정 단위)는 모델 창이 아니라 넣지 않는다.
+YEAR_SPOTS = (
+    (r'지난 (\d+)년', 'BACKLOG_WINDOW'),
+    (r'(\d+)년 뒤로 (?:밀|민)', 'LEAD_Q'),
+    (r'(\d+)년 뒤 준공', 'LEAD_Q'),
+    (r'시도별 (\d+)년 공급', 'LEAD_Q'),
+    (r'공급은 (\d+)년', 'LEAD_Q'),
+    (r'앞으로 (\d+)년', 'LEAD_Q'),
+    (r'(\d+)년 적정물량 −', 'LEAD_Q'),
+)
+
+
+def _year_hits(text):
+    out = {}
+    for pat, const in YEAR_SPOTS:
+        want = '%g' % (getattr(SZ, const) / 4.0)
+        out[pat] = (want, re.findall(pat, text))
+    return out
+
+
+def test_window_years_sit_in_the_right_places():
+    """홈·소개·FAQ 손 문장의 판정 창 햇수가 자리마다 모델 상수와 같다 — '지난 N년'은 BACKLOG_WINDOW/4, '앞으로 N년'·'N년 뒤로 밀어'·
+    'N년 뒤 준공'·'시도별 N년 공급'·히어로 '공급은 N년'·식의 'N년 적정물량 −'은 LEAD_Q/4(전수리뷰 2차 T2-4).
+
+    예전 시험(test_home_first_screen)은 산출 방법 첫 항목의 햇수가 {3, 4} 집합 안인지만 봐서 '지난 4년'을 '지난 3년'으로, '3년 뒤로
+    밀어'를 '4년'으로 바꿔도 초록이었고(실제로 확인), 대표가 LEAD_Q·BACKLOG_WINDOW 를 바꾸면 굵은 식만 빨개지고 나머지 홈 문장은 옛
+    햇수로 남았다. 홈은 생성 구간(HOME_SUMMARY·설명 메타 — make_home_summary 가 모델에서 굽는다)을 빼고 본다. 홈에서는 자리마다 1건
+    이상이어야 한다(정규식이 아무것도 못 잡아 초록이 되지 않게).
+    변이(각각 실제로 확인): index.html 산출 방법 산문의 '지난 4년'을 '지난 3년'으로, '착공 실적을 3년 뒤로 밀어'를 '4년'으로,
+    투자지표 출처 줄의 '3년 뒤로 민 추정'을 '4년'으로 바꾸면 빨개진다.
+    픽스처: 저장소 홈 소스(home_source — index.html + 홈 스크립트)·about·faq.
+    """
+    home = re.sub(r'<!--HOME_SUMMARY_START-->.*?<!--HOME_SUMMARY_END-->', '', HS.home_source(), flags=re.S)
+    home = re.sub(r'<meta [^>]*description[^>]*>', '', home)
+    bad = []
+    for pat, (want, got) in _year_hits(home).items():
+        assert got, '홈에서 %s 자리를 못 찾았다 — 문구를 바꿨으면 이 목록도 고칠 것' % pat
+        bad += ['홈 %s: %s(모델 %s)' % (pat, g, want) for g in got if g != want]
+    for rel in ('about/index.html', 'faq/index.html'):
+        text = io.open(os.path.join(HS.ROOT, rel), encoding='utf-8').read()
+        bad += ['%s %s: %s(모델 %s)' % (rel, pat, g, want) for pat, (want, got) in _year_hits(text).items() for g in got if g != want]
+    assert not bad, '판정 창 햇수가 모델과 다른 자리: %s' % bad
