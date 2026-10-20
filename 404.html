@@ -22,6 +22,7 @@
   .cycle{font-size:14px;font-weight:600;color:var(--ink2);margin-bottom:20px}
   h1{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.3;margin-bottom:14px}
   p{font-size:15px;color:var(--ink2);line-height:1.6;margin-bottom:28px}
+  p a{color:var(--ink);font-weight:600}
   /* 그림자 없는 먹색 채움 — 주 CTA 어휘(홈 .home-cta·.tb-more)와 통일.
      장식 그림자는 원부 정리 때 걷은 것의 잔재였다(2026-08-14 검수). */
   a.home{display:inline-flex;align-items:center;min-height:48px;background:var(--ink);color:#fff;text-decoration:none;
@@ -45,17 +46,21 @@ body{padding-bottom:66px}
   text-decoration:none}
 .nav-btn svg{display:block}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+/* 건너뛰기 링크 — 다른 손 페이지(소개·FAQ·개인정보)와 같은 규칙 */
+.skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
+.skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
 <link rel="stylesheet" href="/desk.css?v=58ee63ad" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
-<div class="wrap"><div class="inner">
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<main id="main" class="wrap"><div class="inner">
   <div class="code">404</div>
   <div class="cycle">아공맵</div>
   <h1>찾으시는 페이지가 없네요</h1>
-  <p>주소가 바뀌었거나 사라진 페이지예요.<br>공급 사이클 리포트는 아래에서 다시 시작할 수 있습니다.</p>
+  <p>주소가 바뀌었거나 사라진 페이지예요.<br>홈에서 다시 시작하거나 <a href="/cycle/">공급 사이클 리포트</a>를 열어 보세요.</p>
   <a class="home" href="/">홈으로 가기 →</a>
-</div></div>
+</div></main>
 <footer class="sfoot"><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
   <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>

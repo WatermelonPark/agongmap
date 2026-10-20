@@ -8,7 +8,8 @@
    그림을 받았다. 투자자 랜딩은 LV4·LV3 이름을 줄여 적었다.
 ② 랜드마크(#71). 09-18 접근성 2차가 '전 페이지'에 <main>·건너뛰기 링크를 넣었는데 퀴즈 랜딩 3종이 빠졌다.
    저장소 맨 위와 한 단계 아래의 모든 index.html(손 페이지와 생성 페이지 허브)이 <main id="main"> 하나와
-   #main 건너뛰기 링크를 갖는지 본다. 404.html 은 index.html 이 아니라 대상 밖이다(아직 <main> 이 없다).
+   #main 건너뛰기 링크를 갖는지 본다. 404.html 도 대상이다(전수리뷰 P-11 — 예전엔 '아직 <main> 이 없다'며 뺐고, 본문
+   랜드마크·건너뛰기 링크 없이 '공급 사이클 리포트는 아래에서'라는 낡은 안내가 홈 단추 위에 있었다).
 
 무엇을 깨뜨리면 빨개지나(모두 실제로 확인):
   · burini-test/index.html 10점 행을 🐦‍🔥 로 되돌리면 test_burini_landing_levels_match_blv 가 실패한다.
@@ -16,7 +17,7 @@
   · investor-test/index.html LV4 행을 옛 줄임 이름('머릿속에선 이미 최소 다주택자')으로 되돌리면
     test_investor_redev_landing_levels_match_grade 가 실패한다.
   · burini-test/index.html 에서 <main id="main"> 을 빼거나 redev-test 건너뛰기 링크의 href 를 바꾸면
-    test_pages_have_main_landmark_and_skip_link 가 실패한다.
+    test_pages_have_main_landmark_and_skip_link 가 실패한다. 404.html 을 옛 <div class="wrap"> 본문으로 되돌려도 실패한다.
 픽스처 없이 저장소의 실제 파일을 읽는다. 날짜·데이터와 무관하다.
 """
 import glob
@@ -102,7 +103,7 @@ def test_investor_redev_landing_levels_match_grade():
 
 
 def _pages():
-    out = ['index.html']
+    out = ['index.html', '404.html']
     for p in sorted(glob.glob(os.path.join(ROOT, '*', 'index.html'))):
         out.append(os.path.relpath(p, ROOT).replace(os.sep, '/'))
     return out
@@ -111,7 +112,7 @@ def _pages():
 def test_pages_have_main_landmark_and_skip_link():
     pages = _pages()
     for must in ('burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html',
-                 'about/index.html', 'faq/index.html', 'privacy/index.html', 'cycle/index.html'):
+                 'about/index.html', 'faq/index.html', 'privacy/index.html', 'cycle/index.html', '404.html'):
         assert must in pages, '%s 가 대상에 없다' % must
     bad = []
     for rel in pages:
