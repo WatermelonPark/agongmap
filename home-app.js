@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v194';
+const HOME_BUILD='v195';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1681,11 +1681,11 @@ function renderWeeklyGrid(){
   if(!S||!S.codes||!row||!row.ma){box.style.display='none';return;}
   /* 주간 구역 = 전국 시군구 지도(매매 전주 대비). 예전엔 시도 20칸 격자(집계 3 + 16시도, 방향 표지)였는데 2026-10-02 대표
      요청으로 시도 칸을 모두 걷고 통계 탭과 같은 시군구 지도(sggMapSvg)를 그 자리에 둔다 — 시도 값은 지도의 진한 머리 칸
-     (서울·경기 …)이 말한다. 칸(이름·값)을 누르면 그 지역 주간 그래프(통계 시장동향, openTrendRegion). 전세 줄은 싣지 않는다
-     (2026-09-28 대표 결정 — 홈 주간 구역은 매매만). 색·값은 통계 지도와 같은 mapColor(…, WK_MAP_REF)·pv2 다.
+     (서울·경기 …)이 말한다. 칸(이름·값)을 누르면 그 지역 주간 그래프(통계 시장동향, openTrendRegion). 칸마다 매매·전세 두 줄이다
+     (2026-10-20 대표 요청 — 통계 시장동향 지도와 같은 2단. 09-28 '매매만'을 되돌림). 색·값은 통계 지도와 같은 mapColor(…, WK_MAP_REF)·pv2 다.
      요약·공유 주소인 /weekly/ 로 가는 길은 지도 아래 줄(.wg-foot) 오른쪽 링크다(home_cta 의 to 값 weekly_grid 는 GA 값이라 그대로 둔다). */
-  const v={}; S.codes.forEach((c,i)=>{v[c]=row.ma[i];});
-  const svg=sggMapSvg([v],{ref:WK_MAP_REF,names:['매매'],href:c=>'#stats-market-week~'+c});
+  const v={},vj={}; S.codes.forEach((c,i)=>{v[c]=row.ma[i];vj[c]=(row.je||[])[i];});
+  const svg=sggMapSvg(row.je?[v,vj]:[v],{ref:WK_MAP_REF,names:['매매','전세'],href:c=>'#stats-market-week~'+c});
   /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). */
   const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel,wkPs(ADV.weekly));
   if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
@@ -1699,12 +1699,12 @@ function renderWeeklyGrid(){
   /* 머리 = 무엇을 칠했나(· 발표일) + 범례. 발표일을 말하던 첫 화면 띠를 2026-10-05 대표 요청으로 빼서 여기 머리말에 붙인다(wkPubLead).
      늦은 주에는 h2 가 이미 '9/17 발표 기준 · …'로 시작하므로 되풀이하지 않는다. */
   box.innerHTML=lines
-    +'<div class="wg-head"><span class="wg-when">매매 전주 대비(%)'+(rel&&!rel.stale?' · '+wkPubLead(rel):'')+'</span>'
+    +'<div class="wg-head"><span class="wg-when">'+(row.je?'매매·전세':'매매')+' 전주 대비(%)'+(rel&&!rel.stale?' · '+wkPubLead(rel):'')+'</span>'
     +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
     +'<div class="map-scroll wg-map">'+svg+'</div>'
-    +'<div class="wg-foot"><span>지역을 누르면 주간 그래프<span class="wg-swipe"> · 옆으로 밀어 전체 보기</span></span>'
+    +'<div class="wg-foot"><span>'+(row.je?'위 = 매매 · 아래 = 전세 · ':'')+'지역을 누르면 주간 그래프<span class="wg-swipe"> · 옆으로 밀어 전체 보기</span></span>'
     /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
     +'<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">이번 주 요약 보기 →</a></div>'
     +share;
