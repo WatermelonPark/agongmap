@@ -1005,7 +1005,27 @@ def link6_values(D, adv):
                 moveins=link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle'))
 
 
-def link7_values(D):
+# 7편 금리 오버레이의 원천 계열(refresh_cycle_data.build_overlay 와 같은 계열·지역) — 분기가 석 달 다 찼는지 셀 때 쓴다
+OVERLAY_SRC = (('매매지수', '수도권'), ('전세지수', '수도권'), ('금리', 'CD(91일)'))
+
+
+def overlay_months(sts):
+    """오버레이 원천 계열마다 값이 있는 마지막 달('YYYY.MM') — link7_values 가 석 달이 다 찬 분기까지만 쓰게 한다."""
+    out = {}
+    for key, rg in OVERLAY_SRC:
+        b = sts[key]
+        ser = b['series'][rg]
+        out[key] = next(b['dates'][i].split()[0] for i in range(len(ser) - 1, -1, -1) if ser[i] is not None)
+    return out
+
+
+def _last_full_q(ym):
+    """'YYYY.MM'까지 값이 있으면 석 달이 다 찬 마지막 분기(2026.25 꼴 — 오버레이 t 와 같은 꼴)."""
+    y, m = int(ym[:4]), int(ym[5:7])
+    return y + (m // 3 - 1) * 0.25 if m >= 3 else y - 0.25
+
+
+def link7_values(D, months=None):
     """7편 숫자 — /cycle/ 정본 D.rate_overlay(수도권 분기 매매·전세 지수, CD금리)와 D.prose 에서 센다. 문장의 전제가 깨지면
     멈춘다. 전제: ① 금리 바닥 뒤 1년 매매 상승률이 전세의 3배 넘게 크다, ② 그 뒤 매매 정점이 전세 정점보다 먼저이고 낙폭도 크다,
     ③ 최근 금리 저점(최근 8분기) 이후 금리가 올랐는데 매매·전세가 모두 올랐다, ④ 금리–매매 상관이 음수다.
@@ -1014,9 +1034,13 @@ def link7_values(D):
     오버레이 끝 분기의 전세가 비어 있다(refresh_cycle_data.build_overlay 는 매매·금리가 있는 분기를 고르고 전세는 je.get — 차트는 그
     분기를 그대로 그린다). 예전엔 그 None 과 견주다 TypeError 로 죽어, 초안 가드를 SystemExit 로 거르는 게이트 시험이 매 분기 한 달쯤
     배치를 멈추게 돼 있었다(전수리뷰 BL2-1·C-1). 그래서 세 값이 다 찬 첫 분기~마지막 분기만 잘라 읽고, 그 사이에 빈 분기가 있으면
-    (분기 간격 'N분기 뒤'가 틀어진다) 문장 탓이 아닌 데이터 결함으로 멈춘다."""
+    (분기 간격 'N분기 뒤'가 틀어진다) 문장 탓이 아닌 데이터 결함으로 멈춘다.
+
+    months(overlay_months — 원천 계열마다 마지막 달)를 주면 석 달이 다 찬 분기까지만 쓴다. 오버레이 분기 값은 그 분기에 있는 달의
+    평균이라, 매매 두 달·전세 한 달 평균인 끝 분기를 '지금'이라는 한 분기로 불렀다(전수리뷰 overflow, 7편 '지금' 분기)."""
     r = D['rate_overlay']
-    full = [i for i in range(len(r['t'])) if None not in (r['maemae'][i], r['jeonse'][i], r['rate'][i])]
+    tmax = min(_last_full_q(v) for v in months.values()) if months else float('inf')
+    full = [i for i in range(len(r['t'])) if None not in (r['maemae'][i], r['jeonse'][i], r['rate'][i]) and r['t'][i] <= tmax]
     if not full:
         raise SystemExit('7편을 만들 수 없다 — 금리 오버레이에 매매·전세·금리가 모두 찬 분기가 없다. %s — '
                          '/cycle/ 데이터가 찬 뒤 다시 돌린다.' % NOT_THE_TEXT)
@@ -1033,7 +1057,9 @@ def link7_values(D):
     je_pk = max(range(lo, len(t)), key=lambda i: je[i] if t[i] < t[lo] + 3 else -1)
     mm_lo = min(range(mm_pk, len(t)), key=lambda i: mm[i] if t[i] < t[mm_pk] + 2 else 1e9)
     je_lo = min(range(je_pk, len(t)), key=lambda i: je[i] if t[i] < t[je_pk] + 2 else 1e9)
-    hi = max(range(lo, len(t)), key=lambda i: rt[i])
+    # 고금리 국면의 금리 정점 — '그사이'(매매 정점~매매·전세 바닥) 창 안에서만 찾는다. 창 없이 끝까지 찾으면 앞으로 더 높은 금리가
+    # 실린 분기를 2022~23 문단에 붙인다(전수리뷰 BL2-12).
+    hi = max(range(mm_pk, max(mm_lo, je_lo) + 1), key=lambda i: rt[i])
     rec = max(len(t) - 8, 0)
     nlo = min(range(rec, len(t)), key=lambda i: rt[i])                  # 최근 8분기 금리 저점
     end = len(t) - 1
@@ -1109,7 +1135,8 @@ def guard_values(n, D=None, data=None):
         adv, _ = load()
         return link6_values(D, adv)
     if n == 7:
-        return link7_values(D)
+        _, sts = load()
+        return link7_values(D, overlay_months(sts))
     return {}
 
 

@@ -45,7 +45,7 @@ def _reported(lines):
     return out
 
 
-def _stop7(D):
+def _stop7(D, months=None):
     raise SystemExit('7편을 만들 수 없다 — 최근 금리가 오르는 동안 매매·전세가 함께 오르지 않았다(합성). 문장을 먼저 고칠 것.')
 
 
@@ -143,11 +143,14 @@ def _data_stops(monkeypatch):
     adv6 = {'sido': {'H': 12, 'zones': [dict(z='가', fut=1000, need=0)]}}
     D6 = {'prose': {}, 'link6_regional': []}
 
+    # 7편 원천 계열은 오버레이 끝 분기(2026Q3)까지 석 달이 다 찬 상태 — 저장소 데이터의 마지막 달과 무관하게 같은 입력이 되게
+    sts7 = {key: {'dates': ['2026.09'], 'series': {rg: [1.0]}} for key, rg in T.OVERLAY_SRC}
+
     def D7(je):
         return {'rate_overlay': {'t': [2026.0, 2026.25, 2026.5], 'maemae': [100.0, 101.0, 102.0], 'jeonse': je,
                                  'rate': [3.0, 3.1, 3.2], 'jratio': [None] * 3}, 'prose': {'rate_r': '−0.5', 'rate_n': '3'}}
     return [grab(4, {}, ({}, {})), grab(5, {}, ({}, sts5)), grab(6, D6, (adv6, None)),
-            grab(7, D7([None, None, None]), None), grab(7, D7([100.0, None, 101.0]), None)]
+            grab(7, D7([None, None, None]), (None, sts7)), grab(7, D7([100.0, None, 101.0]), (None, sts7))]
 
 
 def test_data_state_stops_are_not_blamed_on_the_published_post(monkeypatch):
