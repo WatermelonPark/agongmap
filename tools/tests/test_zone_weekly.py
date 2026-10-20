@@ -608,3 +608,28 @@ def test_link_goes_to_the_weekly_table_anchor_and_it_opens():
     assert re.search(r'<details id="%s">' % MW.TABLE_ID, t) and MW.TABLE_OPEN_JS in t
     w = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8').read()
     assert '<details id="%s">' % MW.TABLE_ID in w and 'd.open=true' in w
+
+
+def test_quarter_table_header_says_the_quarter_baseline():
+    """분기별 공급 표의 '적정 대비' 열 머리가 100% 의 바탕인 분기 적정물량 세대수를 적고(2026-10-21 대표 지적 — 퍼센트만으로는
+    몇 세대가 기준인지 몰랐다), 그 수가 '숫자로 보면' 적정물량 카드 부제의 '분기 N세대'와 같으며, 실적 줄의 퍼센트가 그 수로
+    나눈 값과 맞는다(바탕은 반올림한 세대수라 ±1%p 를 허용한다).
+
+    변이(각각 실제로 확인): 열 머리의 <small class="zbase"> 를 빼면 첫 단정이, 바탕에 d_ref 대신 d_need(3년치)를 넣으면 카드
+    대조와 퍼센트 대조가 빨개진다.
+    픽스처: 배치가 방금 구운 zone/<지역>/index.html 19장.
+    """
+    _, names = _zones()
+    for z in names:
+        s = _page(z)
+        th = re.search(r'<th>적정 대비<small class="zbase">([\d,]+)세대=100%</small></th>', s)
+        assert th, '%s: 적정 대비 열 머리에 분기 적정물량이 없다' % z
+        base = int(th.group(1).replace(',', ''))
+        card = re.search(r'분기 ([\d,]+)세대 × \d+분기', s)
+        assert card and int(card.group(1).replace(',', '')) == base, '%s: 열 머리 %s ≠ 카드 %s' % (z, base, card and card.group(1))
+        body = s[th.end():s.index('</tbody>', th.end())]
+        rows = re.findall(r'<tr><td>\d\dQ\d</td><td>([\d,]+)</td><td>(\d+)%</td>', body)
+        assert rows, z
+        for sup, pct in rows:
+            want = int(sup.replace(',', '')) / base * 100
+            assert abs(int(pct) - want) <= 1, '%s: 공급 %s / %s = %.1f%% 인데 표는 %s%%' % (z, sup, base, want, pct)
