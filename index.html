@@ -14,6 +14,9 @@
      모바일 데이터는 CGNAT이라 불가능해서 기기 쪽에 스위치를 둔다.
      ⚠️ gtag 로더보다 반드시 먼저 실행돼야 한다 — 뒤에 두면 안 먹는다. -->
 <script>
+/* 함수로 감싸 전역에 이름(_h·_p 등)을 남기지 않는다 — 뒤 스크립트가 같은 이름을 최상위 let/const 로 두면 그 파일 전체가
+   SyntaxError 로 죽는다(전수리뷰 2차 overflow). */
+(function(){
 try{var _h=location.hash,_i=_h.indexOf('?');
 if(_i>=0){var _s=location.search.slice(1),_m=_h.slice(_i+1),_f=_h.slice(0,_i),_q=_s&&_m?_s+'&'+_m:(_s||_m);
 history.replaceState(null,'',location.pathname+(_q?'?'+_q:'')+(_f.length>1?_f:''));}
@@ -23,6 +26,7 @@ if(_p.has('ga_off')){if(_p.get('ga_off')==='0')localStorage.removeItem('ga_off')
 else localStorage.setItem('ga_off','1');}
 if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }catch(e){}
+})();
 </script>
 <!-- ③ GA 지연 로딩(C8, 09-23 결정을 09-26 대표 결정으로 바꿈). gtag.js(전송 약 194KB)가 홈 자사 파일 합계보다
      크고, 첫 화면 지도를 그리는 defer 스크립트와 대역을 다퉈 느린 4G 에서 지도 완성을 0.5~0.65초 늦췄다(MOB-10).
