@@ -337,7 +337,7 @@ def test_mode_toggle_markup_state_and_measurement():
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
     assert not re.search(r':not\(\.vm-map\) \.map-mode\{display:none\}', css), '모드 단추가 그래프·표 보기에서 숨는다'
 
-    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk', '_md'))
+    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk', '_md', '_ymP', '_ymT'))
     got = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"map"'})
     assert got['st'] == [['weekly', 'false,true+on,false', 1, 1, '', True],
                          ['weekly', 'false,true+on,false', 1, 1, '', True],
@@ -385,7 +385,8 @@ def test_price_mode_graph_and_table_open_the_stats_tab(mode, v, want):
 
 def test_monthly_mode_cards_legend_links_and_colors():
     """월간 모드(2026-10-04 대표 요청 — 홈에서 월간도 쉽게): 카드 셋은 최신 달 전국·수도권·지방 매매 변동률(→ /monthly/, '매매
-    전월 대비'), 카드 아래 기준 달 줄, 범례 뜻 한 줄 '아파트 매매가격 전월 대비 변동률(%) · 8월 기준', 지역은 그 시도 월간 그래프
+    전월 대비'), 카드 아래 기준 달 줄, 범례 뜻 한 줄 '아파트 매매가격 전월 대비 변동률(%) · 2026년 8월 기준'(날짜 두 단계 정본의 긴 꼴 — 예전 '8월 기준'은
+    연도가 없었다, 전수리뷰 2차 overflow. 변이: lead 를 옛 m+'월 기준' 으로 되돌리면 빨개진다 — 실제로 확인), 지역은 그 시도 월간 그래프
     ('#stats-market-month~코드'), 색은 통계 탭 시군구 월간 지도와 같은 MO_MAP_REF 만색 기준이다.
     변이(각각 실제로 확인): moMapModel 이 WK_MAP_REF 를 쓰면 색 단정, 카드 링크를 /weekly/ 로 두면 카드 단정, 월간 지도 링크를
           주간 주소로 두면 링크 단정이 빨개진다.
@@ -394,10 +395,10 @@ def test_monthly_mode_cards_legend_links_and_colors():
     src = _src()
     out = _render(src, '2026-09-07', _kst_ms(2026, 9, 11), 'monthly')
     h, MM = out['h'], out['MM']
-    assert MM['when'] == '2026년 8월 기준 · 한국부동산원' and MM['lead'] == '8월 기준', MM
+    assert MM['when'] == '2026년 8월 기준 · 한국부동산원' and MM['lead'] == '2026년 8월 기준', MM
     assert out['tw'] == MM['when'] and 'wk-when' not in h
     note = re.search(r'<span class="tk-n">([^<]*)</span>', h).group(1)
-    assert note == '아파트 매매가격 전월 대비 변동률(%) · 8월 기준', note
+    assert note == '아파트 매매가격 전월 대비 변동률(%) · 2026년 8월 기준', note
     cards = re.findall(r'<a class="agg-a" href="([^"]*)"[^>]*>.*?<i class="agg-n">([^<]*)<.*?<i class="agg-p">([^<]*)</i>', h)
     assert cards == [('/monthly/', _pct(VALS[n]), '매매 전월 대비') for n in SZ.AGG], cards
     heads = {t[1]: t[0] for t in MW.nation_tile(src)['t'] if t[4] and len(t[0]) == 2}
