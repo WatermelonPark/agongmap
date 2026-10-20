@@ -79,7 +79,7 @@ def test_real_data_passes_or_stops_with_a_named_premise():
     """저장소 실데이터: 전제가 서면 모든 자리를 채우고, 깨진 회차(금리 인하기 등)면 7편 문장의 전제를 대며 멈춘다(D1 — 게이트는
     막지 않는다). 그 밖의 예외(끝 분기 빈칸의 TypeError 등)는 코드 결함이라 그대로 빨갛다."""
     try:
-        v = T.link7_values(T.P.cycle_d())
+        v = T.link7_values(T.P.cycle_d(), T.overlay_months(T.M.load()[1]))      # 초안 가드(guard_values)와 같은 입력
     except SystemExit as e:
         msg = str(e)
         assert msg.startswith('7편을 만들 수 없다 — ') and len(msg) > len('7편을 만들 수 없다 — ') + 5, msg
@@ -141,3 +141,25 @@ def test_positive_rate_correlation_stops_the_draft():
     D = _snap()
     D['prose']['rate_r'] = '0.12'
     _stops(D, '상관이 음수가 아니다')
+
+
+def test_rate_peak_is_found_inside_the_high_rate_window():
+    """'그사이 CD금리는 …까지 올랐습니다'(2022~23 하락 문단)의 금리 정점은 매매 정점~매매·전세 바닥 창 안에서 찾는다 — 앞으로 3.90 을
+    넘는 분기가 실려도 미래 분기를 그 문단에 붙이지 않는다(전수리뷰 BL2-12). 픽스처: SNAP 끝에 금리 3.40·4.05·4.20, 매매·전세가
+    1% 남짓 오르는 세 분기를 덧붙인 상태(네 전제는 그대로 선다). 변이(실제로 확인): hi 를 range(lo, len(t)) 로 되돌리면 빨개진다."""
+    D = _snap()
+    for rt in (3.40, 4.05, 4.20):
+        _append(D, D['rate_overlay']['maemae'][-1] * 1.01, D['rate_overlay']['jeonse'][-1] * 1.01, rt)
+    v = T.link7_values(D)
+    assert (v['hi_q'], v['hi_r']) == ('2022년 4분기', '3.90'), v
+    assert v['now_to'] != v['hi_q'] and float(v['r_to']) > float(v['hi_r'])       # 미래 분기는 '지금' 문장에만 간다
+
+
+def test_partial_last_quarter_is_not_called_a_quarter():
+    """원천의 마지막 달로 보아 석 달이 다 차지 않은 끝 분기(매매 두 달·전세 한 달 평균)는 '지금' 분기로 부르지 않고, 다 찬 마지막
+    분기로 센다(전수리뷰 overflow). 픽스처: 2026-10-18 실제 상태 — 매매지수 2026.08(잠정)·전세지수 2026.07·CD금리 2026.09 까지.
+    변이(실제로 확인): link7_values 의 tmax 자르기를 지우면 빨개진다."""
+    part = {'매매지수': '2026.08', '전세지수': '2026.07', '금리': '2026.09'}
+    assert T.link7_values(_snap(), part)['now_to'] == '2026년 2분기'
+    assert T.link7_values(_snap(), dict.fromkeys(part, '2026.09'))['now_to'] == '2026년 3분기'
+    assert (T._last_full_q('2026.02'), T._last_full_q('2026.03'), T._last_full_q('2026.08')) == (2025.75, 2026.0, 2026.25)

@@ -131,7 +131,7 @@ def _grid_js(W, seen=None):
     wk_seen 을 돌려준다."""
     h = HS.home_source()
     names = ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg', 'onTrendLink', '_syncHolidays', 'weeklyReleaseNow',
-             'weeklyHead', 'applyWeeklyStatus', 'weeklyShare', 'wkSinceText', 'wkShouldRemember', 'wkSeen', 'wkRemember',
+             'weeklyHead', 'applyWeeklyStatus', 'weeklyShare', 'wkSinceText', 'wkPs', 'wkShouldRemember', 'wkSeen', 'wkRemember',
              'renderWeeklyGrid', 'track', 'loadKakao')
     key = re.search(r"^const WK_SEEN_KEY='[^']+';", h, re.M)
     assert key, 'home-app.js 에서 WK_SEEN_KEY 를 찾지 못했다'
@@ -192,6 +192,45 @@ def test_since_last_visit_line():
                     '.map(s=>wkSinceText(s,r))));'])
     assert _node(js) == [None, None, '지난 방문(1/24 발표) 이후 새 발표 1회',
                          '지난 방문(1/10 발표) 이후 새 발표 3회', None, None]
+
+
+def test_since_last_visit_skips_a_week_the_source_skipped():
+    """원천이 조사를 거른 주는 새 발표로 세지 않는다 — 실제 조사기준일 목록(ADV.weekly.ps)으로 센다(전수리뷰 2차 X2-8).
+
+    재현하는 실제 상태: data.js 주간 행의 2025-01-20 → 2025-02-03(설 연휴 주를 거름). 1/23 발표를 본 기기가 2/6 발표 뒤 오면 새 발표는
+    한 번인데 예전 셈(주 차이)은 '2회'였다. 목록의 모든 발표가 seen 뒤면 그 앞은 모르므로 'N회 이상'. 코어가 실제로 목록을 싣는지
+    (split_data, 저장소 data.js 사본)와 그 마지막이 최신 조사일인지도 본다.
+    변이(각각 실제로 확인): wkSinceText 가 ps 를 무시하고 주 차이로 세면 거름 단정이, '이상'을 붙이는 줄을 지우면 '이상' 단정이,
+    split_data 의 wk['ps'] 줄을 지우면 코어 단정이 빨개진다.
+    """
+    h = HS.home_source()
+    ps = ['2025-01-06', '2025-01-13', '2025-01-20', '2025-02-03']
+    js = '\n'.join([_wk_block(h), _js_func(h, 'wkSinceText'), _js_func(h, 'wkPs'),
+                    'const r=weeklyRelease("2025-02-03",new Date("2025-02-07T03:00:00Z"),9), W={ps:%s};' % json.dumps(ps),
+                    'process.stdout.write(JSON.stringify([r.pub].concat(["2025-01-23","2025-01-16","2025-01-02","2025-02-06"]'
+                    '.map(s=>wkSinceText(s,r,wkPs(W))))));'])
+    assert _node(js) == ['2025-02-06', '지난 방문(1/23 발표) 이후 새 발표 1회', '지난 방문(1/16 발표) 이후 새 발표 2회',
+                         '지난 방문(1/2 발표) 이후 새 발표 4회 이상', None]
+    import split_data as SD
+    import tempfile as _tf
+    import shutil as _sh
+    tmp = _tf.mkdtemp()
+    try:
+        src = os.path.join(tmp, 'data.js')
+        _sh.copyfile(os.path.join(ROOT, 'data.js'), src)
+        paths = {'SRC': src, 'OUT': os.path.join(tmp, 'data-core.js'), 'REST': os.path.join(tmp, 'r.json'),
+                 'TREND': os.path.join(tmp, 't.json'), 'SGG': os.path.join(tmp, 's.json'), 'SIZE': os.path.join(tmp, 'z.json')}
+        with pytest.MonkeyPatch.context() as mp:
+            for k, v in paths.items():
+                mp.setattr(SD, k, v)
+            SD.main()
+        core = io.open(paths['OUT'], encoding='utf-8').read()
+    finally:
+        _sh.rmtree(tmp)
+    adv = json.loads(re.search(r'const ADV=(\{.*?\});\nconst STATS', core, re.S).group(1))
+    W, _ = MW.load()
+    got = adv['weekly'].get('ps')
+    assert got == [r['p'] for r in W['rows'][-SD.WK_SEEN_N:]] and got[-1] == adv['weekly']['rows'][-1]['p'], got
 
 
 def test_sgg_rank_moves_match_the_home_top10():
@@ -274,11 +313,13 @@ def test_blog_draft_says_the_same_moves():
 
     변이(각각 실제로 확인): weekly_moves_sentences 가 전환 지역을 따로 걸러 대구를 빠뜨리면, news 대신 연속 표지 전부를
     문장으로 옮기면(옛 '흐름이 가장 길게 이어진 곳') 빨개진다.
-    픽스처: 합성 네 주(시도 — 전환 셋, 새 3주 연속 둘, 4주 '이상' 연속 여럿) + 저장소 시군구 최신 두 주.
+    픽스처: 합성 네 주(시도 — 전환 셋, 새 3주 연속 둘, 4주 '이상' 연속 여럿) + 저장소 시군구 최신 두 주(조사일은 합성 시도 끝
+    두 주로 맞춘다 — 시군구가 시도보다 늦은 갈래는 test_weekly_draft_review 가 본다).
     """
     Wr, Q = MW.load()
     W = _fixture()
-    W['sgg'] = dict(Wr['sgg'], rows=Wr['sgg']['rows'][-2:])
+    # 시군구 두 주의 조사일을 합성 시도 주와 맞춘다 — 초안은 시군구가 시도와 같은 날일 때만 순위 문장을 쓴다(전수리뷰 BL1-9)
+    W['sgg'] = dict(Wr['sgg'], rows=[dict(r, p=w['p']) for r, w in zip(Wr['sgg']['rows'][-2:], W['rows'][-2:])])
     para, rank = P.weekly_moves_sentences(W)
     mv = WM.moves(W)
     nw = WM.news(mv)
@@ -372,7 +413,10 @@ def test_home_top10_rank_moves_follow_each_tables_own_order():
     for bi, dn in ((0, False), (1, True)):
         rows = re.findall(r'<tr><td>(<span class="rk-medal">[^<]*</span>)?(\d+)</td><td><a class="rk-go" href="[^"]*~([^"]+)"'
                           r'.*?<td>(?:<span class="rk-(up|dn|same|new)">([^<]*)</span>)</td></tr>', boxes[bi], re.S)
-        assert len(rows) == 10, boxes[bi][:300]
+        # 그 방향으로 움직인 곳만(정본 weekly_moves.top_split) — 쏠린 주엔 10줄보다 적다(데이터가 앞으로 가도 같은 규칙)
+        want_codes = [c for c, _ in WM.top_split([(c, v) for c, v in zip(S['codes'], S['rows'][1]['ma'])
+                                                  if c in Q and v is not None], 10)[1 if dn else 0]]
+        assert [r[2] for r in rows] == want_codes, (bi, [r[2] for r in rows], want_codes)
         for medal, rank, c, cls, txt in rows:
             assert bool(medal) == (not dn and int(rank) <= 3), (bi, rank, medal)
             if c not in was:
@@ -384,3 +428,76 @@ def test_home_top10_rank_moves_follow_each_tables_own_order():
             d = w - nw
             want = ('up', '▲%d위' % d) if d > 0 else (('dn', '▼%d위' % -d) if d < 0 else ('same', '–'))
             assert (cls, txt) == want, (Q[c], dn, w, nw, cls, txt)
+
+
+def _home_rank_boxes(S, Q, k='month', met='ma'):
+    """홈 rankTables 를 node 로 돌려 두 표(상승·하락)의 [(메달 유무, 순위, 코드, 값 글자)] 와 빈 표 안내를 돌려준다."""
+    h = HS.home_source()
+    fns = '\n'.join(_js_func(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'sggRanks', 'rankTables'))
+    js = '\n'.join(['const SGG_QNAME=%s;' % json.dumps(Q, ensure_ascii=False), "const RANKMET={%s:'%s'};" % (k, met), fns,
+                    'const S=%s;' % json.dumps(S, ensure_ascii=False),
+                    'process.stdout.write(JSON.stringify(rankTables(S,"전월 대비","%s")));' % k])
+    out = _node(js)
+    boxes = re.findall(r'<div class="rank-box">(.*?)</table>', out, re.S)
+    assert len(boxes) == 2, out[:300]
+    res = []
+    for b in boxes:
+        rows = re.findall(r'<tr><td>(<span class="rk-medal">[^<]*</span>)?(\d+)</td><td><a class="rk-go" href="[^"]*~([^"]+)"', b)
+        none = re.findall(r'<td colspan="\d+" class="rk-none">([^<]*)</td>', b)
+        res.append(([(bool(m), int(r), c) for m, r, c in rows], none))
+    return res
+
+
+def test_home_top10_lists_only_regions_moving_that_way():
+    """홈 TOP 10 의 상승 표에는 오른 곳만, 하락 표에는 내린 곳만 — /weekly/ TOP 3 와 한 규칙(weekly_moves.top_split, 전수리뷰 H2-2·X2-4).
+    재현한 실제 상태: 2023-01 월간 매매는 오른 시군구가 1곳뿐이라 홈 '상승 TOP 10'이 🥇영주 +0.38% 뒤로 🥈김제 0.00%·🥉밀양 0.00%·
+    4~10위 내린 곳을 실었고, 2021-09 매매·2026-04 월세는 '하락 TOP 10' 뒤쪽에 오른 곳이 섞였다. 픽스처는 그 모양을 합성한다 —
+    한 달은 오른 곳 1·보합 2(0.004 는 표시 0.00)·내린 곳 다수(상승 표 1줄, 메달 하나), 다른 달은 모두 0 이상(하락 표가 비어 안내 한 줄).
+    기대값은 파이썬 정본 top_split(n=10)이고, /weekly/ top3 는 같은 함수의 n=3 이라 앞 세 곳이 홈 앞 세 곳과 같아야 한다.
+
+    변이(실제로 확인): rankTables 의 상승 표를 옛 `cr.order.slice(0,10)` 으로 되돌리면, 하락 표 거르기(pvSign(v)<0)를 빼면,
+    빈 표 안내 줄을 빼면 빨개진다. make_weekly_page.top3 를 옛 '하락만 거름'으로 되돌리면(상승 쪽 거르기 없음) 대조가 빨개진다.
+    """
+    codes = list(MW.load()[1].keys())[:14]
+    Q = {c: 'q%d' % i for i, c in enumerate(codes)}
+    one_up = [0.38, 0.004, -0.004] + [-0.03 * (i + 1) for i in range(len(codes) - 3)]
+    all_up = [0.02 * (i + 1) for i in range(len(codes) - 1)] + [0.0]
+    checked = 0
+    for vals, empty_side in ((one_up, None), (all_up, 1)):
+        S = {'codes': codes, 'rows': [{'p': '2031.01', 'ma': list(reversed(vals))}, {'p': '2031.02', 'ma': vals}]}
+        boxes = _home_rank_boxes(S, Q)
+        items = [(c, v) for c, v in zip(codes, vals)]
+        want = WM.top_split(items, 10)
+        for side in (0, 1):
+            rows, none = boxes[side]
+            assert [c for _, _, c in rows] == [c for c, _ in want[side]], (side, rows, want[side])
+            assert [r for _, r, _ in rows] == list(range(1, len(rows) + 1))
+            assert all(m == (side == 0 and r <= 3) for m, r, _ in rows), rows
+            if side == empty_side:
+                assert not rows and none and '내린 시군구가 없다' in none[0], (rows, none)
+                checked += 1
+            else:
+                assert rows and not none
+        # /weekly/ TOP 3 는 같은 규칙의 앞 세 곳
+        up3, dn3 = MW.top3(items)
+        assert [c for c, _ in up3] == [c for _, _, c in boxes[0][0]][:3]
+        assert [c for c, _ in dn3] == [c for _, _, c in boxes[1][0]][:3]
+    assert len(_home_rank_boxes({'codes': codes, 'rows': [{'p': '2031.02', 'ma': one_up}]}, Q)[0][0]) == 1
+    assert checked == 1
+
+
+def test_bare_district_names_do_not_read_as_another_city():
+    """시군구 이름표(홈 SGG_QNAME — TOP 10·시군구 선택·/weekly/ 표·블로그가 같은 표)에서 공백 없는 이름이 다른 이름의 앞말(광역시
+    이름)과 같으면 그 광역시 값으로 읽힌다. 경기 광주시는 '경기 광주'로 적는다(전수리뷰 H2-21).
+    재현한 실제 상태: 2026-04-13 주간 하락 TOP 10 1위가 '광주 -0.26%'(경기 광주시)였고 같은 표에 '광주 동구'·'광주 남구'가 섰다.
+    /weekly/ 설명 메타는 '하락 1위 광주 -0.26%'였다. 픽스처: 저장소 홈 이름표 그대로, 그리고 /weekly/ 이름표 읽기(MW.load).
+
+    변이(실제로 확인): home-stats.js 의 a80404 를 옛 '광주'로 되돌리면 빨개진다.
+    """
+    Q = MW.load()[1]
+    heads = {n.split(' ')[0] for n in Q.values() if ' ' in n}
+    bare = {c: n for c, n in Q.items() if ' ' not in n}
+    assert heads and bare, '이름표를 읽지 못했다 — 이 시험이 헛돈다'
+    clash = sorted('%s=%s' % (c, n) for c, n in bare.items() if n in heads)
+    assert not clash, '공백 없는 이름이 다른 이름의 앞말과 같다: %s' % clash
+    assert Q.get('a80404') == '경기 광주', Q.get('a80404')

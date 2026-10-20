@@ -34,10 +34,11 @@ import kst as KST                # noqa: E402  오늘(KST) — 생성기가 찍�
 import site_nav as N             # noqa: E402  하단 탭바 정본(홈 마케팅 검수 C2)
 import weekly_moves as WM        # noqa: E402  시군구 순위·방향·연속의 정본(/weekly/ 표·블로그 초안과 같은 함수, D4)
 import robots_meta as RM          # noqa: E402  검색 로봇 메타 정본(홈 마케팅 검수 D2)
+import ga_tag as GT               # noqa: E402  GA 내부 트래픽 표식 정본(백로그 48)
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
-GA = 'G-3FJNG6G1F3'
+GA = GT.GA_ID
 # 표 시작. 홈 통합표(split_data.TABLE_FROM, 홈 TB_FROM 거울)와 같은 지점이어야 한다 —
 # 두 화면이 같은 지역을 다른 구간으로 그리면 숫자를 맞춰보는 사람이 어긋난 걸 본다. 정본 SZ.TABLE_FROM_YEAR(전수리뷰 X1 overflow).
 TABLE_FROM = SZ.qidx(SZ.TABLE_FROM_YEAR, 1)
@@ -480,8 +481,9 @@ else localStorage.setItem('ga_off','1');}
 if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 }catch(e){}
 </script>
+%(ga_int)s
 <script async src="https://www.googletagmanager.com/gtag/js?id=%(ga)s"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','%(ga)s');</script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());%(ga_cfg)s</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 %(robots)s
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -497,7 +499,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 <link rel="canonical" href="%(url)s">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
-<meta name="theme-color" content="#16203a">
+<meta name="theme-color" content="%(theme)s">
 <meta property="og:type" content="article">
 <meta property="og:title" content="%(title)s">
 <meta property="og:description" content="%(desc)s">
@@ -510,7 +512,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-%(ga)s']=true;
 </head>
 %(desk_body)s
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-''' % {'ga': GA, 'zjs': zone_js_src(), 'robots': RM.TAG,
+''' % {'ga': GA, 'theme': N.THEME_COLOR, 'ga_int': GT.INTERNAL_SCRIPT, 'ga_cfg': GT.config_call(), 'zjs': zone_js_src(), 'robots': RM.TAG,
        # 데스크톱 틀(desk.css): 리포트는 왼쪽 판정 요약·오른쪽 표, 허브는 글 단 그대로(site_nav.DESK_KINDS)
        'desk_link': N.desk_link(), 'desk_body': N.desk_body(desk),
        'title': esc(title), 'desc': esc(desc), 'url': u, 'site': SITE,

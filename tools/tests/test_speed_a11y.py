@@ -124,6 +124,17 @@ async function run(path, mode) {
   store.clear(); store.set('/', resp('home'));
   NET = () => later(150).then(() => { throw new TypeError('Failed to fetch'); });
   out['/zone/ slow-fail'] = await run('/zone/', 'navigate').catch((e) => ({ handled: true, tag: 'REJECTED ' + e, ms: 0 }));
+  // 서버 오류(5xx): 캐시가 있으면 캐시, 없으면 그 오류 응답 그대로(홈으로 바꾸지 않는다). 404 는 그대로 준다(전수리뷰 2차 H1-7).
+  const err = (st) => ({ ok: false, status: st, type: 'basic', tag: 'net' + st, clone() { return this; } });
+  store.clear(); store.set('/data-core.js', resp('cache'));
+  NET = () => later(5, err(503));
+  out['/data-core.js 503+cache'] = await run('/data-core.js', 'no-cors');
+  store.clear(); store.set('/', resp('home'));
+  NET = () => later(5, err(503));
+  out['/zone/ 503+nocache'] = await run('/zone/', 'navigate');
+  store.clear(); store.set('/zone/', resp('cache'));
+  NET = () => later(5, err(404));
+  out['/zone/ 404+cache'] = await run('/zone/', 'navigate');
   process.stdout.write(JSON.stringify(out));
 })();
 """
@@ -157,6 +168,20 @@ def test_sw_serves_cache_when_network_hangs_and_network_when_fast():
     # `hit || net` 으로 되돌리면 respondWith 가 거부돼 빨개진다(실제로 확인). 픽스처: 홈만 캐시된 배포 직후, 150ms
     # 매달렸다가 끊기는 망(한도 60ms).
     assert o['/zone/ slow-fail']['tag'] == 'home', o['/zone/ slow-fail']
+
+
+def test_sw_serves_cache_on_server_errors():
+    """네트워크가 5xx 를 주면 캐시본이 있을 때 캐시를 준다 — 없으면 그 오류를 그대로 주고, 404 는 그대로 준다(전수리뷰 2차 H1-7).
+
+    재현하는 실제 상태: GitHub Pages 가 잠깐 /data-core.js 에 503 을 주는데 서비스워커 캐시에 멀쩡한 판이 있는 재방문자 —
+    예전엔 503 을 그대로 넘겨 홈이 판정 카드·지도 없이 떴다. 픽스처: 위 하네스(한도 60ms)에서 5ms 만에 오는 503·404 응답.
+    변이(실제로 확인): sw.js 의 5xx 갈래(`first.status >= 500` 이면 caches.match)를 지우면 '503+cache' 가 빨개지고,
+    그 갈래를 `hit || fallback()` 으로 바꾸면 '503+nocache' 가 홈이 되어 빨개진다.
+    """
+    o = _sw_run()
+    assert o['/data-core.js 503+cache']['tag'] == 'cache', o['/data-core.js 503+cache']
+    assert o['/zone/ 503+nocache']['tag'] == 'net503', o['/zone/ 503+nocache']
+    assert o['/zone/ 404+cache']['tag'] == 'net404', o['/zone/ 404+cache']
 
 
 def test_sw_caches_pages_by_path_not_query():

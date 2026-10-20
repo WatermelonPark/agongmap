@@ -28,6 +28,7 @@ import kst as KST  # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 �
 import site_nav as N  # noqa: E402  하단 탭바 정본(C2)
 import blog_feed as BF  # noqa: E402  블로그 도시 입주물량 편 목록(백로그 37) — RSS 는 배치 fetch 잡이 읽어 둔다
 import robots_meta as RM  # noqa: E402  검색 로봇 메타 정본(D2)
+import ga_tag as GT  # noqa: E402  GA 내부 트래픽 표식 정본(백로그 48)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://www.agongmap.co.kr'
@@ -181,8 +182,9 @@ else localStorage.setItem('ga_off','1');}
 if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }catch(e){}
 </script>
+__GAINT__
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3FJNG6G1F3"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-3FJNG6G1F3');</script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());__GACFG__</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 __ROBOTS__
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -193,7 +195,7 @@ __ROBOTS__
 <link rel="canonical" href="__URL__">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
-<meta name="theme-color" content="#16203a">
+<meta name="theme-color" content="__THEME__">
 <meta property="og:type" content="article">
 <meta property="og:title" content="__OGTITLE__">
 <meta property="og:description" content="__DESC__">
@@ -292,6 +294,8 @@ def type_tokens(css=None):
 
 def fill(shell, desk='wide', **kw):
     out = shell.replace('__TOKENS__', type_tokens()).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
+    out = out.replace('__THEME__', N.THEME_COLOR)   # 브라우저 머리 색 정본(site_nav.THEME_COLOR)
+    out = out.replace('__GAINT__', GT.INTERNAL_SCRIPT).replace('__GACFG__', GT.config_call())   # GA 내부 트래픽 표식(백로그 48)
     # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)
     out = out.replace('__DESKLINK__', N.desk_link()).replace('__DESKBODY__', N.desk_body(desk))
     for k, v in kw.items():
@@ -371,6 +375,34 @@ def jeonse_ref_index(j, need):
             return k
     raise RuntimeError('전세가율에 %s 이(가) 전부 채워진 달이 없다 — 원천 분류가 바뀌었는지 확인'
                        % ', '.join(need))
+
+
+def bubble_jeonse(j, regions):
+    """버블밴드(홈 통계 탭 renderBubbleSec)·블로그 월세수익률이 쓰는 전세가율 — (기준월 'YYYY.MM', {지역: 값}).
+
+    기준월은 /jeonse-ratio/·/monthly/·/cycle/ 과 같은 정본 jeonse_ref_index(JEONSE_NEED)다. 그 달에 빈 지역(집계 행 등)은
+    뺀다. 예전 홈은 지역마다 '마지막 비결측 값'을 읽어, 새 달이 일부 지역만 채워진 회차에 같은 날 /jeonse-ratio/ 과 다른
+    전세가율로 월세수익률을 냈다(전수리뷰 H2-6·#106). 완비 달이 없으면 (None, {}) — 버블밴드는 그 회차에 숨는다.
+    """
+    if not j or not j.get('dates') or not j.get('series'):
+        return None, {}
+    try:
+        k = jeonse_ref_index(j, JEONSE_NEED)
+    except RuntimeError:
+        return None, {}
+    out = {}
+    for r in regions:
+        s = j['series'].get(r) or []
+        if k < len(s) and s[k] is not None:
+            out[r] = s[k]
+    return j['dates'][k], out
+
+
+def bubble_payload(bubble, j):
+    """ADV.bubble 에 버블밴드용 전세가율(jp 기준월·jr 지역값)을 더한 사본 — split_data 가 통계 탭 파일에 싣는다."""
+    regions = bubble.get('regions') or list((bubble.get('conv') or {}).keys())
+    jp, jr = bubble_jeonse(j, regions)
+    return dict(bubble, jp=jp, jr=jr)
 
 
 def jeonse_delta(cur, ago):

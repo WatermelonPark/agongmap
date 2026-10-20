@@ -414,3 +414,16 @@ def test_dataset_url_rewrite_stays_inside_the_dataset_object():
               ' "creator": {"@type": "Organization", "url": "https://www.agongmap.co.kr/"}}')
     with pytest.raises(SystemExit):
         MW.put_dataset_url(broken)
+
+
+def test_js_fallback_holidays_are_the_python_default():
+    """ADV.holidays 가 없을 때(옛 캐시) 홈의 공휴일 대체값은 파이썬 정본 weekly_release.status 의 기본값과 같은 빈 목록이다.
+
+    재현한 실제 상태(전수리뷰 2차 overflow): 홈의 하드코딩 2026 목록은 5/1·5/24·6/3·7/17 이 빠진 채 낡아, ADV.holidays 가 비면
+    /weekly/(파이썬, 빈 목록)과 연휴 판정이 갈렸다. 정본은 배치가 채우는 ADV.holidays 하나다.
+    변이(실제로 확인): home-app.js 의 `let _HOLIDAYS=new Set();` 를 옛 2026 목록으로 되돌리면 빨개진다.
+    픽스처: 저장소 home-app.js 의 <wk-release> 구간(ADV 없음)과 파이썬 함수 기본값.
+    """
+    import inspect
+    assert inspect.signature(WR.status).parameters['holidays'].default == ()
+    assert _node(_js_block() + '\nprocess.stdout.write(JSON.stringify([..._HOLIDAYS]));') == []

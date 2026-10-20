@@ -47,6 +47,8 @@ _L6 = [('대전', -0.48, 0, '지방', True), ('인천', -0.45, 1, '수도권', T
        ('부산', -0.32, 1, '지방', True), ('경북', -0.29, 0, '지방', True), ('강원', -0.29, 0, '지방', True),
        ('전남광주', -0.28, 0, '지방', True), ('울산', -0.25, 1, '지방', True), ('경남', -0.24, 0, '지방', False),
        ('충북', -0.17, 0, '지방', False), ('서울', -0.10, 1, '수도권', False)]
+# 같은 날 보관 분석(tools/data/cycle_analysis.json) link6_regional 의 p(우연일 확률, 소수 셋째 자리) — 위 순서대로
+_P6 = [0.001, 0.001, 0.003, 0.004, 0.006, 0.014, 0.023, 0.044, 0.042, 0.053, 0.088, 0.103, 0.255, 0.481]
 _PROSE = {'l6_total': '14', 'l6_sig': '11', 'l6_metro': '−0.38', 'l6_prov': '−0.30', 'seoul_l6': '−0.10',
           'sudo_l6': '−0.40', 'rate_r': '−0.57'}
 # ADV.sido 판정 — (지역, 앞으로 3년 들어올 물량, 적정물량, 판정 문장의 퍼센트, 집계 여부) — 2026-10-18
@@ -178,7 +180,7 @@ def test_most_regions_not_short_stops_the_draft():
 
 def test_a_fifth_post_only_claim_does_not_stop_the_sixth(monkeypatch):
     """5편 단정이 깨진 회차(예: 2026년 착공 증가율·2027년 자료의 연도 가드)에도 6편은 제 전제만 보고 나온다(전수리뷰 BL2-4)."""
-    def boom(adv, sts):
+    def boom(adv, sts, D=None):
         raise L4.Link4ClaimError('st_ytd_up: 5편만의 단정이 깨졌다')
     monkeypatch.setattr(L4, 'link4_numbers', boom)
     D, adv = _snap()
@@ -212,3 +214,17 @@ def test_region_names_follow_the_blog_display_name():
     assert v['fut_high'].startswith('세종시 130%, 광주·전남 120%'), v
     shown = ' '.join(v[k] for k in ('fut_high', 'fut_high_names', 'fut_low', 'l6_top1', 'l6_top3'))
     assert '전남광주' not in shown, shown
+
+
+def test_significance_cut_in_the_text_follows_the_rebuild_canon(monkeypatch):
+    """6편 방법 문단의 '우연일 확률이 N%보다 낮은 곳'은 재산정 정본 RC.SIG_P 에서 읽는다 — 손으로 적은 '10%'는 문턱을 바꾼 재산정에서
+    곳 수(l6_sig)와 방법 문장을 가른다(전수리뷰 BL2-14). 픽스처: SNAP 과, 문턱을 0.05 로 바꾸고 그 문턱으로 다시 구운 듯한 고리⑥ 판정.
+    변이(실제로 확인): 본문을 '10%%' 글자로 되돌리거나 link6_values 가 sig_pct 를 고정 글자로 넘기면 빨개진다."""
+    import rebuild_cycle_analysis as RC
+    D, adv = _snap()
+    assert T.link6_values(D, adv)['sig_pct'] == '%d' % round(RC.SIG_P * 100)
+    assert '%(sig_pct)s%%보다 낮은 곳' in POST['body'] and not re.search(r'\d+%%보다 낮은 곳', POST['body'])
+    monkeypatch.setattr(RC, 'SIG_P', 0.05)
+    for x, p in zip(D['link6_regional'], _P6):
+        x['sig'] = p < 0.05 and x['r'] < 0
+    assert T.link6_values(D, adv)['sig_pct'] == '5'

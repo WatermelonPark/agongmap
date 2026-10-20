@@ -86,7 +86,8 @@ HIST = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'serp-history.js
 
 
 def hist_append(rec):
-    rec = dict(rec, d=datetime.date.today().isoformat())
+    import kst                       # 기록 날짜는 한국 날짜 — 러너 시간대(UTC)면 아침 실행이 전날로 찍힌다(전수리뷰 BL1 overflow)
+    rec = dict(rec, d=kst.today_iso())
     with io.open(HIST, 'a', encoding='utf-8', newline='\n') as f:
         f.write(json.dumps(rec, ensure_ascii=False) + '\n')
 
@@ -275,7 +276,41 @@ def rank_on(keyword, display=30, sort='sim'):
     return None, None
 
 
-def track_keywords(posts=None):
+# 지역 편 목록 캐시(gitignore, serp-history.jsonl 옆). RSS 는 최근 글 몇십 개만 주므로 RSS 만 보면 오래된 지역 편의 제목
+# 검색어가 예고 없이 추적에서 빠진다(전수리뷰 BL1-16). blog_feed.merge_city 와 같은 규칙으로 RSS 창보다 오래된 저장 글만
+# 이어 붙인다. 남의 제목은 담지 않는다 — 우리 지역 편 제목·날짜·주소뿐이다.
+ZONE_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'serp-zone-posts.json')
+
+# '{지역} 적정 공급량'은 지역 편 소제목과 같은 검색 표기(SEARCH_NAME — '광주·전남'·'세종시')로 잰다(전수리뷰 BL1-16,
+# 2026-09-29 소제목이 검색 표기로 바뀐 뒤 추적어만 판정 단위 키로 남았다). 이미 쌓인 키 표기('전남광주 적정 공급량')
+# 추이가 끊기지 않게 도입일(2026-10-19)부터 8주 동안은 키 표기도 같이 잰다 — 그 뒤엔 검색 표기만.
+LEGACY_KEY_KW_UNTIL = datetime.date(2026, 12, 14)
+
+
+def _iso(d):
+    return d.isoformat() if hasattr(d, 'isoformat') else str(d or '')
+
+
+def merge_zone_posts(posts, saved, zone_cat):
+    """이번 RSS 의 지역 공급 카테고리 글에 저장 목록 중 **RSS 창보다 오래된** 글을 이어 붙인다(blog_feed.merge_city 와 같은
+    규칙 — 창 안인데 RSS 에 없는 저장 글은 지워진 글이라 버린다). 돌려주는 글의 날짜는 'YYYY-MM-DD' 글자다."""
+    fresh = [dict(date=_iso(p['date']), cat=p['cat'], title=p['title'], url=p.get('url') or '')
+             for p in posts or () if p.get('cat') == zone_cat and p.get('date')]
+    floor = min((_iso(p['date']) for p in posts or () if p.get('date')), default='')
+    seen = {p['url'] or p['title'] for p in fresh}
+    old = [dict(x) for x in saved or () if isinstance(x, dict) and x.get('cat') == zone_cat and x.get('title')
+           and str(x.get('date') or '') < floor and (x.get('url') or x['title']) not in seen]
+    return sorted(fresh + old, key=lambda x: x['date'])
+
+
+def _read_zone_cache(path):
+    try:
+        return json.loads(io.open(path, encoding='utf-8').read()).get('posts') or []
+    except Exception:
+        return []
+
+
+def track_keywords(posts=None, today=None, cache=None):
     """발행된 지역 편에서 추적할 블로그 검색어를 뽑는다.
 
     ① 제목의 '전망' 앞부분("2026년 부산 아파트 공급물량") — 09-02부터 재 온 것이라 추이를 잇는다.
@@ -287,6 +322,9 @@ def track_keywords(posts=None):
 
     발행 목록(RSS)을 못 읽으면 None 이다 — '발행된 지역 편 없음'([])과 가른다(전수리뷰 #81). 가르지 않으면
     --track 이 지역 키워드를 통째로 뺀 채 전국 질의만 재고 종료 코드 0 으로 끝났다.
+
+    RSS 에서 읽을 때는 지역 편 목록을 캐시(ZONE_CACHE)에 이어 붙여 RSS 창 밖 지역 편도 계속 잰다(BL1-16). posts 를 직접
+    주면 cache 를 줄 때만 캐시를 쓴다(시험). today 는 키 표기 병행 기한(LEGACY_KEY_KW_UNTIL) 판정용 — 기본은 한국 날짜.
     """
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     if posts is None:
@@ -298,11 +336,23 @@ def track_keywords(posts=None):
             return None
         if posts is None:                 # fetch_posts 는 읽기 실패를 None 으로 알린다
             return None
-    if not posts:
-        return []
+        cache = cache or ZONE_CACHE
     import close_published_issues as CP
     import make_naver_post as P
     import sido_zones as SZ
+    if cache:
+        posts = merge_zone_posts(posts, _read_zone_cache(cache), P.ZONE_CAT)
+        try:
+            with io.open(cache, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(json.dumps({'posts': posts}, ensure_ascii=False, indent=1) + '\n')
+        except OSError as e:
+            print('  ⚠ 지역 편 목록 캐시를 못 썼다: %s' % e)
+    if not posts:
+        return []
+    if today is None:
+        import kst
+        today = kst.today()
+    legacy = today <= LEGACY_KEY_KW_UNTIL
     names = [z for z in SZ.ORDER if z not in SZ.AGG]
     out = []
     for p in sorted(posts, key=lambda x: x['date']):
@@ -313,7 +363,10 @@ def track_keywords(posts=None):
                else p['title'].split('전망')[0].strip(' ,')]
         nm = P._zone_of_title(p['title'], names)
         if nm:
-            kws += ['%s 적정 공급량' % nm, '%s 부동산 전망' % P.SEARCH_NAME.get(nm, nm)]
+            shown = P.SEARCH_NAME.get(nm, nm)
+            kws += ['%s 적정 공급량' % shown, '%s 부동산 전망' % shown]
+            if legacy and shown != nm:      # 옛 키 표기 추이를 8주 잇는다(BL1-16)
+                kws.append('%s 적정 공급량' % nm)
             if nm in P.TAG_NAME:            # 사람들이 실제로 치는 짧은 표기(전남광주 → '광주 부동산 전망')
                 kws.append('%s 부동산 전망' % P.TAG_NAME[nm])
             if nm in P.CITY_TAG:            # 도 단위는 대표 도시로 찾는다(경남 → '창원 부동산 전망')

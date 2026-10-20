@@ -14,6 +14,7 @@
 각 시험 독스트링에 ① 무엇을 깨뜨리면 빨개지는지(실제로 변이를 넣어 확인) ② 픽스처가 재현하는 상태를 적었다.
 """
 import inspect
+import io
 import json
 import os
 import re
@@ -199,7 +200,8 @@ def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer()
     sec = re.search(r'<section class="home-sec vm-map" id="sec-score".*?</section>', h, re.S).group(0)
     how = sec.index('<details class="sc-how">')
     # 끝 칸(#lt-key)은 신호등 범례 한 줄 — 부팅 때 채운다
-    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span> · <span>([^<]*)</span><span id="lt-key"></span></p>', sec)
+    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span><span class="ms-sep"> · </span><span>([^<]*)</span>'
+                    r'<span id="lt-key"></span></p>', sec)
     assert src, '출처·구간 줄이 없다'
     bar = sec[sec.index('<div class="tb-bar">'):sec.index('id="tb-view"')]
     assert src.group(0) in bar and sec.index('<div id="agg-wrap">') < sec.index('<div class="tb-bar">'), '출처·구간 줄이 카드 아래 단추 줄에 없다'
@@ -217,6 +219,27 @@ def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer()
     boot = _js_func(h, 'boot')
     for f in ('renderSupplySpan();', 'dropOldMyZone();', 'VISIT=countVisit();', 'watchSections();'):
         assert f in boot, f
+
+
+def test_source_line_keeps_its_line_count_through_boot():
+    """공급 기준 줄(.map-src)은 부팅 전후 줄 수가 같다 — 좁은 칸에서는 구간(#map-span)과 출처를 처음부터 제 줄로 나눈다(전수리뷰 2차 H1-1).
+
+    재현한 실제 상태: 10-17 에 줄을 카드 아래 단추 왼쪽으로 옮기며 '.map-src span{display:block}'을 지워, 정적 '앞으로 3년 공급'이 부팅 때
+    '앞으로 3년(2026년 3분기~2029년 2분기)'로 길어지면 칸이 그 한 줄보다 좁은 폭(320~445·561~620·1024~1140px)에서 둘째 줄로 꺾였고
+    지도/그래프/표 단추와 지도가 18~20px 밀렸다(375px CLS 약 0.0095). 고친 뒤 Playwright 로 320~1280px 를 15px 간격(66폭)으로
+    스크립트 끔 ↔ 부팅 뒤를 재어 단추·지도 위치 차가 모두 0 이었다(CI 에는 브라우저가 없어 이 시험은 그 장치를 글로 고정한다).
+    변이(실제로 확인): app.css 의 @container 규칙을 지우면, 또는 index.html 의 가운뎃점을 .ms-sep 밖으로 꺼내면 빨개진다.
+    픽스처: 저장소 index.html·app.css.
+    """
+    h = _home()
+    css = io.open(os.path.join(M.ROOT, 'app.css'), encoding='utf-8').read()
+    assert re.search(r'\.home-sec \.tb-bar p\.map-src\{[^}]*container-type:inline-size', css), '기준 줄이 컨테이너가 아니다'
+    m = re.search(r'@container \(max-width:(\d+)px\)\{([^{}]*\{[^}]*\}[^{}]*\{[^}]*\})\}', css)
+    assert m, '좁은 칸에서 구간을 제 줄로 나누는 @container 규칙이 없다'
+    assert '.map-src #map-span{display:block}' in m.group(2) and '.map-src .ms-sep{display:none}' in m.group(2), m.group(2)
+    # 문턱은 부팅 문구 한 줄(운영 글꼴 13px 약 400px)보다 넓어야 한다 — 그보다 좁으면 그 사이 폭에서 부팅 뒤에만 꺾인다
+    assert int(m.group(1)) >= 440, m.group(1)
+    assert '<span id="map-span">앞으로 3년 공급</span><span class="ms-sep"> · </span>' in h
 
 
 def test_footer_mail_links_take_the_footer_color():

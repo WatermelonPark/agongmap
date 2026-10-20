@@ -183,12 +183,18 @@ def test_batches_send_only_changed_urls():
 
 def test_every_site_constant_and_sitemap_loc_is_the_cname_domain():
     """sitemap 을 굽는 생성기들의 SITE 상수·피드·/llms.txt·IndexNow(CNAME)·감시가 한 도메인이다. 갈리면 IndexNow 는 host 불일치로
-    전부 거절하고, 피드와 페이지가 다른 주소를 가리킨다(D1 검토)."""
-    import make_sido_pages, make_indicator_pages, make_monthly_page, make_weekly_page, make_quiz_share_pages
-    import check_freshness, make_feed, make_llms_txt
+    전부 거절하고, 피드와 페이지가 다른 주소를 가리킨다(D1 검토).
+
+    SITE 상수를 둔 도구는 손 목록이 아니라 소스에서 찾는다 — 블로그 초안 도구(make_naver_post·make_theory_post)의 링크 도메인이
+    손 목록에서 빠져 있었다(전수리뷰 BL1 overflow). 변이(확인): make_naver_post.SITE 를 다른 도메인으로 바꾸면 빨개진다."""
+    import importlib
+    import re
+    tools = os.path.join(ROOT, 'tools')
+    mods = sorted(f[:-3] for f in os.listdir(tools)
+                  if f.endswith('.py') and re.search(r'(?m)^SITE = ', io.open(os.path.join(tools, f), encoding='utf-8').read()))
+    assert {'make_sido_pages', 'make_naver_post', 'check_freshness', 'make_feed'} <= set(mods), mods
     want = 'https://' + io.open(os.path.join(ROOT, 'CNAME'), encoding='utf-8').read().strip()
-    got = {m.__name__: m.SITE for m in (make_sido_pages, make_indicator_pages, make_monthly_page, make_weekly_page,
-                                        make_quiz_share_pages, check_freshness, make_feed, make_llms_txt)}
+    got = {m: importlib.import_module(m).SITE for m in mods}
     got['ping_indexnow'] = P.site()
     assert all(v == want for v in got.values()), '도메인이 CNAME(%s)과 다르다: %s' % (want, got)
     locs = [u for u, _ in P.sitemap_entries(io.open(os.path.join(ROOT, 'sitemap.xml'), encoding='utf-8').read())]
