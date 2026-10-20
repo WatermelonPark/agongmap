@@ -47,6 +47,8 @@ _L6 = [('대전', -0.48, 0, '지방', True), ('인천', -0.45, 1, '수도권', T
        ('부산', -0.32, 1, '지방', True), ('경북', -0.29, 0, '지방', True), ('강원', -0.29, 0, '지방', True),
        ('전남광주', -0.28, 0, '지방', True), ('울산', -0.25, 1, '지방', True), ('경남', -0.24, 0, '지방', False),
        ('충북', -0.17, 0, '지방', False), ('서울', -0.10, 1, '수도권', False)]
+# 같은 날 D.link6_regional 의 p(우연일 확률, 소수 셋째 자리) — 위 순서대로
+_P6 = [0.001, 0.001, 0.003, 0.004, 0.006, 0.014, 0.023, 0.044, 0.042, 0.053, 0.088, 0.103, 0.255, 0.481]
 _PROSE = {'l6_total': '14', 'l6_sig': '11', 'l6_metro': '−0.38', 'l6_prov': '−0.30', 'seoul_l6': '−0.10',
           'sudo_l6': '−0.40', 'rate_r': '−0.57'}
 # ADV.sido 판정 — (지역, 앞으로 3년 들어올 물량, 적정물량, 판정 문장의 퍼센트, 집계 여부) — 2026-10-18
@@ -62,7 +64,7 @@ _ZONES = [('전국', 714127, 1140000, 63, True), ('수도권', 408895, 600000, 6
 def _snap():
     """모든 전제가 서는 고정 스냅숏 (D, adv) — 시험마다 새 사본."""
     D = {'prose': dict(_PROSE),
-         'link6_regional': [dict(region=r, r=v, lag=lag, zone=zn, sig=s) for r, v, lag, zn, s in _L6]}
+         'link6_regional': [dict(region=r, r=v, lag=lag, zone=zn, sig=s, p=p) for (r, v, lag, zn, s), p in zip(_L6, _P6)]}
     zones = [dict(z=z, fut=f, need=n, agg=a, split=dict(rows=[['지난 4년', '적정물량보다 덜 지었습니다'],
                                                          ['앞으로 3년', '적정물량의 %d%%가 들어옵니다' % p]]))
              for z, f, n, p, a in _ZONES]
@@ -117,7 +119,7 @@ def test_real_data_passes_or_stops_with_a_named_premise():
 
 def test_seoul_turning_significant_stops_the_draft():
     D, adv = _snap()
-    next(x for x in D['link6_regional'] if x['region'] == '서울')['sig'] = True
+    next(x for x in D['link6_regional'] if x['region'] == '서울').update(sig=True, p=0.05)   # 재산정한 듯 p 도 문턱 아래로
     _stops(D, adv, '서울이 유의로 나온다')
 
 
@@ -202,7 +204,7 @@ def test_region_names_follow_the_blog_display_name():
     들어오는 상태로 바꾼 것."""
     D, adv = _snap()
     assert not any(x['region'] == '세종' for x in D['link6_regional'])
-    D['link6_regional'].append(dict(region='세종', r=-0.9, lag=0, zone='지방', sig=True))
+    D['link6_regional'].append(dict(region='세종', r=-0.9, lag=0, zone='지방', sig=True, p=0.001))
     for name, pct in (('세종', 130), ('전남광주', 120)):
         z = _zone(adv, name)
         z['fut'] = z['need'] * pct / 100
@@ -212,3 +214,21 @@ def test_region_names_follow_the_blog_display_name():
     assert v['fut_high'].startswith('세종시 130%, 광주·전남 120%'), v
     shown = ' '.join(v[k] for k in ('fut_high', 'fut_high_names', 'fut_low', 'l6_top1', 'l6_top3'))
     assert '전남광주' not in shown, shown
+
+
+def test_significance_cut_in_the_text_follows_the_rebuild_canon(monkeypatch):
+    """6편 방법 문단의 '우연일 확률이 N%보다 낮은 곳'은 재산정 정본 RC.SIG_P 에서 읽고, /cycle/ D 의 sig 가 그 문턱으로 구운 것이 아니면
+    (문턱만 바꾸고 재산정 전) 곳 수와 방법 문장이 갈리므로 데이터 상태로 멈춘다(전수리뷰 BL2-14).
+    픽스처: SNAP(2026-10-18 고리⑥ 14곳의 r·p·sig)과, 문턱을 0.05 로 바꾼 상태 — 0.053(광주·전남)·0.088(울산)이 유의로 남아 어긋난다.
+    변이(실제로 확인): 본문을 '10%%' 글자로 되돌리거나, sig 대조 멈춤을 지우면 빨개진다."""
+    import rebuild_cycle_analysis as RC
+    D, adv = _snap()
+    v = T.link6_values(D, adv)
+    assert v['sig_pct'] == '%d' % round(RC.SIG_P * 100)
+    assert '%(sig_pct)s%%보다 낮은 곳' in POST['body'] and not re.search(r'\d+%%보다 낮은 곳', POST['body'])
+    monkeypatch.setattr(RC, 'SIG_P', 0.05)
+    _stops(D, adv, T.NOT_THE_TEXT)
+    D2, _ = _snap()
+    for x in D2['link6_regional']:
+        x['sig'] = x['p'] < 0.05 and x['r'] < 0
+    assert T.link6_values(D2, adv)['sig_pct'] == '5'          # 재산정한 D 면 새 문턱으로 쓴다
