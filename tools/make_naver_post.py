@@ -820,11 +820,12 @@ def extra_section(adv, sts, rot):
 WEEKLY_TABLE = frozenset(('전국', '수도권', '서울', '경기', '인천', '부산', '대구', '대전', '전남광주', '울산'))
 
 
-def draft_weekly(adv, sts, shot=True):
+def draft_weekly(adv, sts, shot=True, why_no_shot='지난 회차라 사이트 캡처(지금 주 화면)를 건너뜀'):
     """shot=False 면 사이트 화면을 뜨지 않는다 — 지난 회차(--week N)는 운영 사이트가 지금 주 화면만 보여 주므로
-    그 캡처를 붙이면 과거 글에 이번 주 지도·TOP 10 이 실린다(전수리뷰 #74)."""
+    그 캡처를 붙이면 과거 글에 이번 주 지도·TOP 10 이 실린다(전수리뷰 #74). why_no_shot 은 그때 초안에 적는 까닭이다
+    (--zone 실행은 지난 회차가 아니다 — 전수리뷰 BL1 overflow)."""
     sgg = top10 = None
-    sggerr = '--no-shot 로 건너뜀' if shot else '지난 회차라 사이트 캡처(지금 주 화면)를 건너뜀'
+    sggerr = '--no-shot 로 건너뜀' if shot else why_no_shot
     if shot and '--no-shot' not in sys.argv:
         sgg, top10, sggerr = capture_weekly_map()
     # 손으로 뜰 주소는 캡처와 같은 주소다(WEEKLY_SHOT_HASH) — 시세 탭 시장동향은 순위·지도를 나눠 보여, 맨 '#stats-market'
@@ -2572,7 +2573,16 @@ def main():
 
     force = _list_arg(sys.argv, '--zone')
     pending = _list_arg(sys.argv, '--pending-zones')
-    d1 = draft_weekly(adv, sts, shot=not back and not force)
+    # --week N 은 지난 회차 시세 글만 만든다(지역 편 없음). --zone 과 함께 주면 지역 편 자리를 못 만들어 트레이스백으로
+    # 끝났다(전수리뷰 BL1-14) — 주간 썸네일을 굽기 전에 안내하고 멈춘다.
+    if back and (force or pending):
+        raise SystemExit('--week N 은 지난 회차 시세 글만 만든다 — --zone·--pending-zones 와 함께 쓸 수 없다. '
+                         '지역 편은 --week 없이 --zone 으로 만든다')
+    if len(force) > 1:
+        raise SystemExit('--zone 은 지역 하나만 받는다(받은 것: %s)' % ', '.join(force))
+    d1 = draft_weekly(adv, sts, shot=not back and not force,
+                      why_no_shot=('지난 회차라 사이트 캡처(지금 주 화면)를 건너뜀' if back
+                                   else '--zone 실행이라 주간 캡처를 건너뜀'))
     if back:
         # 과거 회차 채우기 — 시세 글만 만든다.
         d2 = None

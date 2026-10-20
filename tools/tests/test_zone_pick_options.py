@@ -75,3 +75,25 @@ def test_pending_placeholder_is_not_cached_after_commit():
         json.dump({'posts': {'경남': ['pending:경남'], '서울': ['u-서울']}}, f, ensure_ascii=False)
     pick, seq, total, _ = P.pick_zone(ROWS, published=_pub(*names))
     assert seq == total + 1
+
+
+@pytest.mark.parametrize('argv, says', [
+    (['--week', '1', '--zone', '부산'], '--week N'),
+    (['--week', '1', '--pending-zones', '경남'], '--week N'),
+    (['--zone', '부산,대구'], '하나만'),
+])
+def test_main_refuses_unsupported_flag_combos_before_drafting(monkeypatch, tmp_path, argv, says):
+    """--week N(지난 회차 시세 글만)과 --zone·--pending-zones 를 함께 주거나 --zone 에 여럿을 주면, 초안(주간 썸네일 포함)을
+    굽기 전에 안내하고 멈춘다(전수리뷰 BL1-14 — 예전엔 --week 1 --zone 부산 이 UnboundLocalError 트레이스백으로 끝나고 주간
+    썸네일만 남겼다, --zone a,b 는 첫 이름만 조용히 썼다).
+    변이(확인): main 의 `if back and (force or pending)` 가드를 지우면 --week 두 갈래가, `len(force) > 1` 가드를 지우면 여럿 갈래가
+    빨개진다(draft_weekly 가 불린다).
+    픽스처: 저장소의 실제 ADV(주간 계열이 두 회차 이상), draft_weekly 는 불리면 기록만 남기는 가짜.
+    """
+    called = []
+    monkeypatch.setattr(P, 'draft_weekly', lambda *a, **k: called.append(1) or {})
+    monkeypatch.setattr(P, 'OUT', str(tmp_path))
+    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py'] + argv + ['--no-shot', '--no-shortcut'])
+    with pytest.raises(SystemExit) as e:
+        P.main()
+    assert says in str(e.value) and not called, (e.value, called)
