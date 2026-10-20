@@ -456,9 +456,10 @@ function renderQ(){
   document.getElementById('qbar').style.width=((qIdx)/QUIZ.length*100)+'%';
   document.getElementById('qcount').textContent=`${QUIZSETS[curSet].title} · ${qIdx+1} / ${QUIZ.length}`;
   const card=document.getElementById('qcard');
+  const live=document.getElementById('qlive'); if(live)live.textContent='';
   card.innerHTML=`
     <button class="qback" onclick="backToPick()">← 테스트 선택</button>
-    <div class="qq">${item.q}</div>
+    <div class="qq" id="qq" tabindex="-1">${item.q}</div>
     <div class="qopts qopts-lr">${item.opts.map((o,i)=>
       `<button class="qopt" onclick="answerQ(${i})">${o}</button>`).join('')}</div>
     <div class="qexp" id="qexp"></div>
@@ -472,10 +473,12 @@ function answerQ(choice){
   if(choice===correct)qScore++;
   qResults.push(choice===correct);
   qChoices[qIdx]=choice;
+  /* 답한 뒤 보기는 누를 수 없음을 스크린리더에도 알리고(aria-disabled), ○·✕ 표시에는 읽을 글을 붙인다(전수리뷰 H2-22) */
   opts.forEach((o,i)=>{
     o.style.pointerEvents='none';
-    if(i===correct){o.classList.add('correct');o.innerHTML+='<span class="mark">○</span>';}
-    else if(i===choice){o.classList.add('wrong');o.innerHTML+='<span class="mark">✕</span>';}
+    if(o.setAttribute)o.setAttribute('aria-disabled','true');
+    if(i===correct){o.classList.add('correct');o.innerHTML+='<span class="mark" aria-hidden="true">○</span><span class="sr-only">'+(i===choice?'내 선택, 정답':'정답')+'</span>';}
+    else if(i===choice){o.classList.add('wrong');o.innerHTML+='<span class="mark" aria-hidden="true">✕</span><span class="sr-only">내 선택, 오답</span>';}
     else o.classList.add('dim');
   });
   const exp=document.getElementById('qexp');
@@ -485,7 +488,12 @@ function answerQ(choice){
   exp.classList.add('show');
   document.getElementById('qnext').classList.add('show');
   qSave();
-  if(qReplay)return;   // 이어 풀기 복원 중에는 측정·스크롤을 하지 않는다
+  if(qReplay)return;   // 이어 풀기 복원 중에는 측정·스크롤·안내를 하지 않는다
+  /* 정오·해설을 늘 렌더된 상태 영역(#qlive, #qcard 밖)에 넣어 스크린리더가 읽게 한다 — #qexp 는 문항마다 새로 만들어지고 답하기 전엔
+     숨어 있어 라이브 영역으로 읽히지 않았다(전수리뷰 H2-22). */
+  const live=document.getElementById('qlive');
+  if(live){ const plain=h=>String(h).replace(/<[^>]+>/g,'');
+    live.textContent=(ok?'정답입니다. ':'오답입니다. 정답은 '+plain(item.opts[correct])+'입니다. ')+plain(item.exp); }
   track('quiz_answer',{quiz_type:curSet,idx:qIdx+1,correct:ok});
   setTimeout(()=>{document.getElementById('qnext').scrollIntoView({behavior:scrollBehavior(),block:'center'});},150);
 }
@@ -495,6 +503,7 @@ function nextQ(){
   renderQ();
   qSave();
   window.scrollTo(0,0);
+  const q=document.getElementById('qq'); if(q&&q.focus)q.focus({preventScroll:true});   // 새 문항으로 초점(카드를 갈아 끼워 초점이 BODY 로 떨어졌다)
 }
 function gradeOf(s){return QUIZSETS[curSet].grade(s);}
 function nextStepHTML(){

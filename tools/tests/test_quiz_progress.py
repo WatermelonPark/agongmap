@@ -245,3 +245,33 @@ def test_time_copy_matches_real_duration():
         # 앞이 숫자면 다른 수('33분의 1' 같은 분수)라 시간 표기가 아니다(2026-09-29 make_naver_post 주석이 오탐으로 게이트를 막았다).
         bad += ['%s: %s' % (f, m.group(0)) for m in re.finditer(r'.{0,12}(?<![0-9])3분(?![기위의]).{0,6}', s)]
     assert not bad, "퀴즈 시간 표기에 '3분'이 남았다: %s" % bad
+
+
+def test_answer_is_announced_in_a_live_region_outside_the_card():
+    """답을 고르면 정오·정답·해설을 늘 렌더된 상태 영역(#qlive, role=status, #qcard 밖)에 넣어 스크린리더가 읽는다. 다음 문항으로
+    가면 비우고, 보기에는 ○·✕ 대신 읽을 글('내 선택, 오답'·'정답')을 붙인다(전수리뷰 H2-22).
+    재현한 실제 상태: #qexp 는 renderQ 마다 새로 만들어지고 답하기 전엔 숨어 있어, 라이브 영역이 없던 화면에서 스크린리더 사용자는
+    정오·해설을 안내받지 못했다(접근성 트리에 live 노드 0개). 픽스처: 실제 퀴즈 코드(investor 세트) — 첫 문항은 오답, 둘째는 정답.
+
+    변이(실제로 확인): answerQ 에서 #qlive 를 채우는 줄을 빼면, index.html 의 #qlive 를 #qcard 안(카드 갈아 끼울 때 사라지는 자리)으로
+    옮기면 빨개진다.
+    """
+    o = _run("""
+startQuiz('investor');
+const a0=QUIZ[0].answer; answerQ(a0===0?1:0);
+const first=els.qlive.textContent;
+nextQ(); const cleared=els.qlive.textContent;
+answerQ(QUIZ[1].answer);
+OUT={first, cleared, second:els.qlive.textContent, right:QUIZ[0].opts[a0].replace(/<[^>]+>/g,''),
+  exp:QUIZ[0].exp.replace(/<[^>]+>/g,'')};
+""")
+    assert o['first'].startswith('오답입니다. 정답은 %s입니다. ' % o['right']), o['first']
+    assert o['exp'] in o['first'] and '<' not in o['first']
+    assert o['cleared'] == '' and o['second'].startswith('정답입니다. '), o
+    html = dict(HS.home_files())['index.html']
+    play = html[html.index('id="quiz-play"'):html.index('id="quiz-result"')]
+    live = re.search(r'<p class="sr-only" id="qlive" role="status" aria-live="polite"></p>', play)
+    card = re.search(r'<div class="qcard" id="qcard"></div>', play)
+    assert live and card, '#qlive 가 #quiz-play 안, #qcard 밖에 없다'
+    src = _quiz_src()
+    assert '<span class="sr-only">내 선택, 오답</span>' in src and "setAttribute('aria-disabled','true')" in src
