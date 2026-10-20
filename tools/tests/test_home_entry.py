@@ -531,3 +531,36 @@ def test_deferred_boot_runs_the_visit_after_the_first_page_view():
     assert got['rec']['quiz'] == [['visit', 1]], got['rec']['quiz']
     boot = _js_func(HS.home_source(), 'boot')
     assert 'PV_AFTER=()=>{VISIT=countVisit();};' in boot and 'if(!PV_AFTER)VISIT=countVisit();' in boot
+
+
+def test_head_scripts_leave_no_globals():
+    """머리 인라인 스크립트(쿼리 옮기기·ga_off)는 전역에 이름을 남기지 않는다 — 뒤 스크립트가 같은 이름(_h·_p 등)을 최상위
+    let/const 로 두면 그 파일 전체가 SyntaxError 로 죽는다(전수리뷰 2차 overflow, 지금은 충돌 없음).
+
+    변이(실제로 확인): index.html 머리 스크립트의 (function(){ … })() 감싸기를 지우면 빨개진다.
+    픽스처: 저장소 홈 머리 스크립트를 해시 속 쿼리·ga_off 가 있는 주소로 node vm 에서 돌린다(두 갈래를 다 탄다).
+    """
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    _, head = _head_scripts()
+    assert head, '머리 인라인 스크립트를 못 찾았다'
+    js = r"""
+const vm = require('vm');
+const S = %s;
+const url = new URL('https://example.test/?a=1#stats?ga_off=1');
+const store = {};
+const ctx = {URLSearchParams, location: url,
+  history: {replaceState(_, __, u) { const n = new URL(u, url.href); url.search = n.search; url.hash = n.hash; }},
+  localStorage: {getItem: (k) => store[k] || null, setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; }},
+  setTimeout() {}, document: {readyState: 'loading', addEventListener() {}, createElement() { return {}; }, head: {appendChild() {}}}, addEventListener() {}};
+ctx.window = ctx;
+vm.createContext(ctx);
+const before = new Set(Object.keys(ctx));
+for (const s of S) vm.runInContext(s, ctx);
+process.stdout.write(JSON.stringify({leaked: Object.keys(ctx).filter((k) => !before.has(k) && /^_[a-z]$/.test(k)), ga: store.ga_off || null}));
+""" % json.dumps(head, ensure_ascii=False)
+    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
+    o = json.loads(p.stdout.decode('utf-8'))
+    assert o['ga'] == '1', '머리 스크립트가 돌지 않았다(헛통과 방지): %s' % o
+    assert o['leaked'] == [], '머리 스크립트가 전역 이름을 남긴다: %s' % o['leaked']

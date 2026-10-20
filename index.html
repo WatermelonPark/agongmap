@@ -14,6 +14,9 @@
      모바일 데이터는 CGNAT이라 불가능해서 기기 쪽에 스위치를 둔다.
      ⚠️ gtag 로더보다 반드시 먼저 실행돼야 한다 — 뒤에 두면 안 먹는다. -->
 <script>
+/* 함수로 감싸 전역에 이름(_h·_p 등)을 남기지 않는다 — 뒤 스크립트가 같은 이름을 최상위 let/const 로 두면 그 파일 전체가
+   SyntaxError 로 죽는다(전수리뷰 2차 overflow). */
+(function(){
 try{var _h=location.hash,_i=_h.indexOf('?');
 if(_i>=0){var _s=location.search.slice(1),_m=_h.slice(_i+1),_f=_h.slice(0,_i),_q=_s&&_m?_s+'&'+_m:(_s||_m);
 history.replaceState(null,'',location.pathname+(_q?'?'+_q:'')+(_f.length>1?_f:''));}
@@ -23,6 +26,7 @@ if(_p.has('ga_off')){if(_p.get('ga_off')==='0')localStorage.removeItem('ga_off')
 else localStorage.setItem('ga_off','1');}
 if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }catch(e){}
+})();
 </script>
 <!-- ③ GA 지연 로딩(C8, 09-23 결정을 09-26 대표 결정으로 바꿈). gtag.js(전송 약 194KB)가 홈 자사 파일 합계보다
      크고, 첫 화면 지도를 그리는 defer 스크립트와 대역을 다퉈 느린 4G 에서 지도 완성을 0.5~0.65초 늦췄다(MOB-10).
@@ -193,7 +197,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   #splash .mark-txt{opacity:1;transform:none;animation:none}
 }
 </style>
-<link rel="stylesheet" href="/desk.css?v=58ee63ad" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=67da7bb4" media="(min-width:1024px)">
 </head>
 <!-- home-app: 1024px 이상에서 하단 탭바를 상단 내비로 올리는 규칙(app.css, 홈 마케팅 검수 C7)의 범위 표지 — 홈에만 건다. -->
 <body class="home-app" data-desk="home">
@@ -279,7 +283,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
            부팅 때 ADV.sido.L·H 에서 계산해 채운다(supplySpan — 판정 모델 sido_zones.calc 의 미래 창 L+1…L+H 와 같은 셈, 손으로
            적지 않는다). 정적 문구는 스크립트가 못 돌 때만 보인다 — 분기를 약속하지 않는다. 끝 칸(#lt-key)은 카드 신호등 범례 한 줄
            (부팅 때 채운다). 시세 모드에서는 숨는다(#sec-score.mm-price .map-src — 시세 지도의 출처가 아니다). -->
-      <p class="map-src"><span id="map-span">앞으로 3년 공급</span> · <span>국토교통부 착공·준공 실적 기준</span><span id="lt-key"></span></p>
+      <p class="map-src"><span id="map-span">앞으로 3년 공급</span><span class="ms-sep"> · </span><span>국토교통부 착공·준공 실적 기준</span><span id="lt-key"></span></p>
       <!-- 시세 모드 기준 줄(2026-10-05 대표 요청 — 카드 아래에서 단추 왼쪽으로, 주간·월간 양식 통일). 공급 모드는 비어 숨는다. -->
       <p class="tb-when" id="tb-when"></p>
       <div class="tb-seg tb-view" id="tb-view" role="group" aria-label="보기 방식">
@@ -305,9 +309,10 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     </div>
     <div id="graph-wrap"></div>
     <div class="tb-key">
-      <span class="tk"><i class="tk-d"></i>하락 · 공급 과잉</span>
+      <span class="tk"><i class="tk-d"></i>하락</span>
       <span class="tk-ramp" aria-hidden="true"></span>
-      <span class="tk"><i class="tk-u"></i>상승 · 공급 부족</span>
+      <span class="tk"><i class="tk-u"></i>상승</span>
+      <span class="tk tk-fut">미래 칸은 붉을수록 공급 부족</span>
       <span class="tk"><span class="tk-tri" title="과거 칸은 왼쪽부터 매매·전세·월세 변동"
         aria-label="과거 칸은 왼쪽부터 매매·전세·월세 변동"><i>매매</i><i>전세</i><i>월세</i></span></span>
       <span class="tk-n" id="tb-note"></span>

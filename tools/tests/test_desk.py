@@ -137,3 +137,24 @@ def test_desk_text_is_at_least_13px():
     """화면 글자 하한 13px(2026-09-28·10-06 대표 결정)을 데스크톱 규칙도 지킨다."""
     sizes = [float(x) for x in re.findall(r'font-size:\s*([\d.]+)px', _css())]
     assert sizes and min(sizes) >= 13, sizes
+
+
+def test_sticky_heads_fit_the_window():
+    """붙박이(sticky) 왼쪽 머리는 화면에 들어갈 때만 붙는다(전수리뷰 2차 H1-2).
+
+    재현한 실제 상태(Playwright, 저장소 생성 페이지): /weekly/ 머리(결론+시군구 지도)는 1024px 폭 1165px·1280px 이상 1318px 라 예전 조건
+    min-height:900px 이 맞는 1280×900·1440×900·1920×1080 창에서 붙어, 지도 아래 줄(전남~제주)·범례·TOP 10 링크가 오른쪽 단을 끝까지
+    내릴 때까지 화면 밖에 남았다. 시도 리포트 머리는 지역마다 781~888px(대체 글꼴, 제주 최대)라 900px 창에서 아래가 5~40px 넘쳤다.
+    고친 뒤 1024×960·1280×960·1440×1000·1920×1080 에서 리포트 머리 19장 모두 붙되 안쪽 스크롤 0, /weekly/ 는 붙지 않는다.
+    CI 에는 브라우저가 없어 높이를 못 재므로 그 조건을 글로 고정한다: weekly 머리에는 sticky 가 없고, report 머리 sticky 는 min-height 가
+    가장 긴 머리(888px)+위 내비 52px 보다 높은 창에서만이며 화면보다 길어지면 머리 안에서 내려 읽는다(max-height·overflow-y).
+    변이(각각 실제로 확인): weekly 의 옛 `@media(min-height:900px){…weekly>header{position:sticky…}}` 를 되살리면, report 조건을 900px 로
+    되돌리면, report 의 max-height 를 지우면 빨개진다.
+    """
+    css = _css()
+    assert not re.search(r'body\[data-desk=weekly\]>header\{[^}]*position:sticky', css), '/weekly/ 머리가 다시 붙박이다'
+    rep = re.findall(r'@media\(min-height:(\d+)px\)\{body\[data-desk=report\]>header\{([^}]*)\}\}', css)
+    assert len(rep) == 1, rep
+    h, body = rep[0]
+    assert int(h) >= 888 + 52 + 20, h
+    assert 'position:sticky' in body and 'max-height:calc(100vh - 52px)' in body and 'overflow-y:auto' in body, body

@@ -45,7 +45,12 @@ function networkFirst(req, fallback) {
   });
   const timer = new Promise((resolve) => setTimeout(resolve, NET_TIMEOUT_MS, 'timeout'));
   return Promise.race([net.catch(() => 'error'), timer]).then((first) => {
-    if (first !== 'timeout' && first !== 'error') return first;
+    // 5xx(GitHub Pages 의 잠깐 장애)는 캐시본이 있으면 캐시를 준다 — 예전엔 Response 라서 그대로 넘겨, 캐시에 멀쩡한
+    // data-core.js 가 있어도 홈이 ADV 없이 떴다(전수리뷰 2차 H1-7). 캐시가 없으면 그 응답을 그대로 준다(홈으로 바꾸지 않는다).
+    if (first !== 'timeout' && first !== 'error') {
+      if (!(first && first.status >= 500)) return first;
+      return caches.match(key).then((hit) => hit || first);
+    }
     return caches.match(key)
       .then((hit) => hit || (first === 'error' && fallback ? fallback() : undefined))
       .then((hit) => hit || net.catch((err) => Promise.resolve(fallback ? fallback() : undefined)

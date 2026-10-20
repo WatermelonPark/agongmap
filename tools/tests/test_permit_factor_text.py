@@ -12,6 +12,10 @@ HUB 이야기로서의 1.29~1.68은 사실이라 주석·설계 문서에서는 
 import io
 import os
 import re
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import home_src as HS  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 PUBLIC_SOURCES = ('index.html', 'about/index.html', 'tools/make_sido_pages.py',
@@ -21,7 +25,9 @@ PUBLIC_SOURCES = ('index.html', 'about/index.html', 'tools/make_sido_pages.py',
 def test_public_text_does_not_carry_the_hub_factor_as_permit_inflation():
     bad = []
     for rel in PUBLIC_SOURCES:
-        src = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        # 홈은 마크업과 분할 스크립트를 이어 붙인 전체로 읽는다 — index.html 만 열면 home-app.js·home-quiz.js 의 인허가 설명을
+        # 못 봤다(전수리뷰 2차 T2-5. 변이: home-app.js 인허가 설명에 '착공보다 1.3~1.7배'를 넣으면 빨개진다 — 실제로 확인).
+        src = HS.home_source() if HS.is_home(rel) else io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
         for m in re.finditer(r'1\.3\s*[~–-]\s*1\.7\s*배', src):
             bad.append('%s: …%s…' % (rel, src[max(0, m.start() - 30):m.end() + 10].replace('\n', ' ')))
     assert not bad, '인허가 부풀림을 HUB 수치로 말한다:\n' + '\n'.join(bad)
