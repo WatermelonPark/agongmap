@@ -54,7 +54,7 @@ def test_home_banner_matches_the_canon():
     """홈 배너가 정본과 다르면, 배너를 눌러 들어간 리포트와 말이 갈린다."""
     n = _canon()
     s = HS.home_source()
-    m = re.search(r'<div class="hs-kicker">(\d+)개 시도 · 20년</div>', s)
+    m = re.search(r'<div class="hs-kicker">(\d+)개 시도 · \d+년</div>', s)   # 햇수는 test_hand_span_years_* 가 본다
     assert m, '홈 사이클 배너를 찾지 못했다 — 문구가 바뀌었으면 이 시험도 고칠 것'
     assert int(m.group(1)) == n, (
         '홈 배너 %s개 ≠ 정본 %d개' % (m.group(1), n))

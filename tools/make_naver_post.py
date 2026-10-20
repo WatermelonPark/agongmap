@@ -542,6 +542,15 @@ CYCLE_SYNC = _cycle_sync()
 CYCLE_SYNC_N = len(CYCLE_SYNC)
 
 
+def _cycle_span_years():
+    """`/cycle/` 자료 기간의 햇수 — 사이트 메타 '14개 시도 N년'과 같은 함수(RC.span_years)로 센다(전수리뷰 C overflow)."""
+    import rebuild_cycle_analysis as RC
+    return RC.span_years(cycle_d()['zones'])
+
+
+CYCLE_SPAN_N = _cycle_span_years()
+
+
 INTERP_PLACEHOLDER = (
     '[이번 주 데이터에서 눈에 띈 것을 3~5문장으로. 이 문단이 글의 첫 화면이다. 첫 문장은 독자가 "맞아" 할 상황이나 '
     '질문으로 열고 곧바로 결론을 못 박는다(예: 강남은 내렸다는데 우리 동네는 왜 오를까). 아래 표의 숫자를 다시 읊지 말고 '
@@ -565,7 +574,7 @@ MORE_ROTATION = [
          # 곳 수는 사이트의 고리 검증 대상과 같아야 한다(CYCLE_SYNC_N).
          # 통합으로 15 → 14가 됐는데 이 문장만 15로 남아 4주마다 발행됐다.
          desc='공급에서 전세로, 전세에서 매매로, 다시 공급으로 돌아오는 순환의 6개 고리를 '
-              '%d개 시도 20년 데이터로 검증해 봤어요.' % CYCLE_SYNC_N,
+              '%d개 시도 %d년 데이터로 검증해 봤어요.' % (CYCLE_SYNC_N, CYCLE_SPAN_N),
          path='/cycle/', label='「집값은 돌고 돈다」 읽기'),
     # 테스트가 셋인데 부린이 하나만 소개하고 있었다. "문항마다 국가 통계에
     # 근거한 해설"은 설명서 문구라 빼고, 종류를 보여준다(2026-09-07 사용자).
