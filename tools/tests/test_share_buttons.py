@@ -387,3 +387,27 @@ run(10000);process.stdout.write(JSON.stringify({mid,after:b.innerHTML}));})();
     out = _node(js.replace('BTN', json.dumps(btn0)))
     assert out['mid'] == '링크를 복사했어요', out
     assert out['after'] == btn0 and '<svg' in out['after'], '두 번 누른 뒤 버튼이 %r 로 굳었다' % out['after']
+
+
+def test_quiz_landings_use_the_home_kakao_key_and_sdk():
+    """퀴즈 랜딩 3종의 카카오 JS 키·SDK 주소가 홈 정본(home-app.js KAKAO_KEY·loadScript — page_share.kakao_consts)과 같다(전수리뷰 P-10).
+
+    재현한 상태(2026-10-18): 랜딩 3종은 같은 키와 'kakao_js_sdk/2.7.4' 를 손으로 적었고 아무 시험도 대조하지 않았다. 홈의 SDK 판을
+    올리거나 키를 바꾸면 홈·/weekly/·/monthly/ 는 따라가는데 랜딩만 옛 값을 싣는다(옛 SDK 주소가 내려지면 window.Kakao 가 없어
+    공유가 조용히 링크 복사로만 동작한다).
+    변이(실제로 확인): redev-test/index.html 의 SDK 주소를 2.6.0 으로 바꾸면, burini-test 의 키 한 글자를 바꾸면 빨개진다.
+    픽스처 없이 저장소의 실제 랜딩 3종과 홈 스크립트를 읽는다.
+    """
+    import page_share as PS
+    key, sdk = PS.kakao_consts()
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    bad = []
+    for rel in ('burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html'):
+        s = io.open(os.path.join(root, rel), encoding='utf-8').read()
+        keys = re.findall(r"KAKAO_KEY\s*=\s*'([0-9a-f]+)'", s)
+        sdks = re.findall(r'src="(https://t1\.kakaocdn\.net/kakao_js_sdk/[^"]+)"', s)
+        if keys != [key]:
+            bad.append('%s: 키 %s' % (rel, keys))
+        if sdks != [sdk]:
+            bad.append('%s: SDK %s (홈 %s)' % (rel, sdks, sdk))
+    assert not bad, '랜딩의 카카오 키·SDK 가 홈 정본과 다르다: %s' % bad
