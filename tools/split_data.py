@@ -278,6 +278,7 @@ def fresh_marks(periods, old, today, pub=None):
 
 
 def main():
+    import make_indicator_pages as _I   # 전세가율 정본(기준월·원천 표기) — 생성기와 같은 함수
     src = io.open(SRC, encoding='utf-8').read()
     adv = json.loads(re.search(
         r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
@@ -418,7 +419,6 @@ def main():
         trend_adv[k] = w
     if trend_adv.get('bubble'):
         # 버블밴드 전세가율은 사이트 기준월 정본(jeonse_ref_index)으로 골라 싣는다 — 홈이 지역마다 최신 값을 고르지 않게(전수리뷰 H2-6)
-        import make_indicator_pages as _I
         trend_adv['bubble'] = _I.bubble_payload(trend_adv['bubble'], stats.get('전세가율'))
     if trend_adv.get('occupancy'):
         trend_adv['occupancy'] = dict(trend_adv['occupancy'], band=occ_band())   # 통계 탭 입주물량 표 문턱(③)
@@ -429,6 +429,9 @@ def main():
     # rest는 기본통계 계열만 담는다 — ADV는 trend가 이미 실어 보냈다.
     lazy_stats = {k: stats[k] for k in LAZY_STATS if k in stats}
     rest_stats = {k: v for k, v in stats.items() if k not in lazy_stats}
+    if '전세가율' in rest_stats:
+        # 홈 기본통계의 출처 칸도 /jeonse-ratio/·/monthly/ 와 같은 정본 표기(기관명 포함) — 수집 계열 source 는 기관명이 빠진 옛 글자다
+        rest_stats['전세가율'] = dict(rest_stats['전세가율'], source=_I.JR_SOURCE)
     io.open(REST, 'w', encoding='utf-8', newline='\n').write(dump({'STATS': rest_stats}))
     io.open(SIZE, 'w', encoding='utf-8', newline=NL).write(dump({'STATS': lazy_stats}))
 

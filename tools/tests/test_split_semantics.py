@@ -190,3 +190,19 @@ def test_trend_keeps_the_newest_district_rows_and_sgg_keeps_all(split):
         # 시도 행은 자르지 않는다(그래프 3년 탭)
         assert trend[k]['rows'] == adv[k]['rows']
     assert checked == 2
+
+
+def test_rest_jeonse_source_and_trend_bubble_use_the_site_canon(split):
+    """홈 기본통계의 전세가율 출처는 /jeonse-ratio/·/monthly/ 와 같은 정본 표기(make_indicator_pages.JR_SOURCE — 기관명 포함)이고,
+    통계 탭 버블밴드는 정본 기준월(bubble_jeonse)의 전세가율(jp·jr)을 싣는다(전수리뷰 H2-6).
+    재현한 실제 상태: 수집 계열 source 칸 'KOSIS 매매가격 대비 전세가격비'를 그대로 실어 홈만 기관명(한국부동산원)이 빠졌고, 버블밴드는
+    지역마다 마지막 비결측 값을 읽었다. 픽스처: 실제 data.js 사본에 split 을 돌린 산출물.
+
+    변이(실제로 확인): split_data 의 rest 전세가율 source 덮기를 빼면, bubble_payload 줄을 빼면 빨개진다.
+    """
+    import make_indicator_pages as I
+    _, stats, out = split
+    assert out['rest']['STATS']['전세가율']['source'] == I.JR_SOURCE
+    B = out['trend']['ADV']['bubble']
+    jp, jr = I.bubble_jeonse(stats['전세가율'], B.get('regions') or list(B['conv']))
+    assert jp and jr and B.get('jp') == jp and B.get('jr') == jr, (B.get('jp'), jp)
