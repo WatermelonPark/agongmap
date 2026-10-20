@@ -38,14 +38,14 @@ def _get(url, params):
 
 
 def source_names(sido):
-    """사이트 시도 키 → 청약홈 지역 이름들. 판정 단위를 합친 '전남광주'는 원천이 '광주'·'전남' 두 이름으로 준다
+    """사이트 시도 키 → 청약홈 지역 이름들. 판정 단위를 합친 '전남광주'는 원천이 통합 전 두 이름(광주·전남)으로 준다
     (정본 merge_regions.SRC·DST — 손으로 적지 않는다, 전수리뷰 BL2-15)."""
     import merge_regions as MR
     return tuple(MR.SRC) if sido == MR.DST else (sido,)
 
 
 def site_key(name):
-    """원천 이름('광주'·'전남')을 사이트 시도 키('전남광주')로. 그 밖의 이름은 그대로."""
+    """원천 이름(통합 전 두 이름, merge_regions.SRC)을 사이트 시도 키('전남광주')로. 그 밖의 이름은 그대로."""
     import merge_regions as MR
     return MR.DST if name in MR.SRC else name
 
@@ -241,7 +241,7 @@ def merge(raw, city, start):
 
 def population(raw, name):
     """(인구, 기준 'YYYYMM'). KOSIS 행 이름은 '대구광역시'·'청주시'·'충청북도'처럼 붙는다. 같은 줄기의 이름이 여럿이면
-    정확한 이름 → 광역시·특별시 → '…시' 순으로 고른다 — '광주'가 경기 광주시('광주시')가 아니라 광주광역시가 되게(전수리뷰 BL2-15)."""
+    정확한 이름 → 광역시·특별시 → '…시' 순으로 고른다 — 도시 광주가 경기 광주시(KOSIS 행 광주시)가 아니라 광주광역시가 되게(전수리뷰 BL2-15)."""
     rows = {}
     for x in raw['pop']:
         rows.setdefault(x.get('C1_NM') or '', x)
@@ -254,7 +254,7 @@ def population(raw, name):
 def main(argv):
     args = [a for a in argv if not a.startswith('--')]
     city, start = args[0], args[1]
-    sido = site_key(args[2] if len(args) > 2 else city)      # '광주'·'전남' → '전남광주'(사이트 시도 키)
+    sido = site_key(args[2] if len(args) > 2 else city)      # 통합 전 원천 이름 → 사이트 시도 키
     raw = fetch(sido) if '--fetch' in argv else load(sido)
     m = merge(raw, city, start)
     from collections import Counter

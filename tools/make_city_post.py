@@ -679,7 +679,7 @@ def outlook_text(f):
 def main(argv):
     args = [a for a in argv if not a.startswith('--') and not (argv.index(a) > 0 and argv[argv.index(a) - 1] in ('--thumb-msg', '--title', '--title2'))]
     city, start = args[0], args[1]
-    sido = CM.site_key(args[2] if len(args) > 2 else city)     # '광주'·'전남' → 사이트 시도 키 '전남광주'(전수리뷰 BL2-15)
+    sido = CM.site_key(args[2] if len(args) > 2 else city)     # 통합 전 원천 이름 → 사이트 시도 키(전수리뷰 BL2-15)
     if sido not in P.THUMB_GROUP:
         raise SystemExit('%s: 사이트 시도 키가 아니다 — 셋째 인자로 시도(%s)를 줄 것' % (sido, '·'.join(P.THUMB_GROUP)))
     f = facts(city, start, sido)
