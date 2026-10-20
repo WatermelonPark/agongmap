@@ -1805,7 +1805,7 @@ function renderBlogLine(){
    예시 점수 3 = 🐥 솜털 병아리. 8(🏘️ 다주택자)로 걸었다가 사용자가 "병아리가
    더 귀엽다"고 해서 낮췄다(2026-08-17). 만점을 걸면 "쉽겠네"가 되고, 부린이
    테스트의 얼굴은 도달점보다 출발점 쪽이 맞다 — 상위 티어는 풀어야 보인다. */
-const SAMPLE_SCORE=3, SAMPLE_TOTAL=10;
+const SAMPLE_SCORE=3, SAMPLE_TOTAL=BLV.length-1;   // BLV 는 점수 0~QUIZ_LEN 한 칸씩이라 길이-1 이 문항 수다(전수리뷰 H1-5)
 function quizSample(){
   const box=document.getElementById('quiz-sample');
   /* ⚠️ window.BLV로 보면 안 된다 — 최상위 const는 window에 안 걸린다(2026-08-17
