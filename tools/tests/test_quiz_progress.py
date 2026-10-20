@@ -11,6 +11,7 @@
 """
 import io
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -77,9 +78,12 @@ process.stdout.write(JSON.stringify(OUT));
 
 
 def _chal_src():
-    """홈 본문(home-app.js)의 대결 쿼리 함수 chalInURL·chalSearch — startQuiz 가 부른다(전수리뷰 A4)."""
+    """홈 본문(home-app.js)의 대결 쿼리 함수 chalInURL·chalSearch — startQuiz 가 부른다(전수리뷰 A4). 퀴즈 해설의 제도 기준일이
+    쓰는 날짜 거울 _dL(한 줄 함수, 전수리뷰 H2-11)도 같이 가져온다 — 브라우저에서는 home-app.js 가 퀴즈 파일보다 먼저 실린다."""
     s = dict(HS.home_files())['home-app.js']
-    out = []
+    m = re.search(r'^function _dL\(.*$', s, re.M)
+    assert m, 'home-app.js 에서 _dL 을 찾지 못했다'
+    out = [m.group(0)]
     for name in ('chalInURL', 'chalSearch'):
         a = s.index('function %s(' % name)
         b = s.index('\n}', a) + 2 if name == 'chalSearch' else s.index('\n', a)
