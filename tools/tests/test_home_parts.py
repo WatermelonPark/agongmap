@@ -357,6 +357,95 @@ def test_stats_loading_box_belongs_to_the_gating_loads():
     assert not o['sizeOk']['shown'], o
 
 
+
+LOADER_DATA_RETRY = r"""
+const vm = require('vm');
+const CFG = %(cfg)s;
+const scripts = [], pend = {};
+const els = {};
+function el(id){ return els[id] || (els[id] = {id, style: {display: 'none'}, textContent: '', innerHTML: ''}); }
+const ctx = {console, Promise, Object, Array, JSON, setTimeout, __cfg: CFG};
+ctx.window = ctx;
+ctx.document = {createElement(t){ return {tag: t, remove(){}}; }, head: {appendChild(s){ scripts.push(s); }}, getElementById: el};
+ctx.fetch = (u) => new Promise((res) => { pend[u] = {ok: () => res({ok: true, json: () => ({ADV: {}, STATS: {}})}),
+  fail: () => res({ok: false, status: 503})}; });
+ctx.ADV = {}; ctx.STATS = {};
+vm.createContext(ctx);
+vm.runInContext(CFG.core + `
+var statsInited=false, curView='stats', HOME_BUILD=__cfg.build, INIT_N=0;
+function toast(){}
+`, ctx);
+process.on('unhandledRejection', () => {});
+const tick = async (n) => { for (let i = 0; i < (n || 3); i++) await new Promise((r) => setImmediate(r)); };
+const box = () => ({shown: el('stats-loading').style.display !== 'none', text: el('stats-loading').textContent});
+const st = () => vm.runInContext('({inited: statsInited, partFail: PART_FAIL, init: INIT_N})', ctx);
+(async () => {
+  const out = {};
+  // showView('stats') 와 같은 첫 진입: statsInited 를 세우고 대기 함수를 부른다
+  vm.runInContext('statsInited=true; statsOpen();', ctx); await tick();
+  // 통계 화면 파일은 온다 — 최상위 선언이 대기 함수를 덮어쓴다(진짜 home-stats.js 의 statsOpen)
+  vm.runInContext(CFG.stats, ctx); scripts[0].onload(); await tick();
+  // 그래프 데이터(data-trend.json)만 끊긴다
+  pend['/data-trend.json'].fail(); await tick();
+  out.dataFail = Object.assign(box(), st());
+  // 안내 칸의 '다시 시도'(onclick="statsOpen()") — 이제 진짜 함수다
+  vm.runInContext('statsOpen()', ctx); await tick();
+  pend['/data-trend.json'].ok(); await tick();
+  pend['/data-rest.json'].ok(); await tick();
+  out.retry = Object.assign(box(), st());
+  // 모드 탭(setStatsMode)의 '아직 안 열렸으면 연다' 줄 — statsInited 가 서 있으면 다시 열지 않는다
+  vm.runInContext('if(!statsInited){statsInited=true;statsOpen();}', ctx); await tick();
+  out.afterMode = st();
+  process.stdout.write(JSON.stringify(out));
+})().catch((e) => { console.error(e); process.exit(1); });
+"""
+
+
+def _top_fn(src, name):
+    m = re.search(r'^function %s\(' % name, src, re.M)
+    assert m, '%s 를 못 찾았다' % name
+    i, depth = src.index('{', m.end()), 0
+    for j in range(i, len(src)):
+        depth += {'{': 1, '}': -1}.get(src[j], 0)
+        if depth == 0:
+            return src[m.start():j + 1]
+
+
+def test_stats_data_only_failure_recovers_on_retry():
+    """통계 화면 파일은 왔는데 그래프 데이터(data-trend.json)만 실패한 뒤 '다시 시도'로 성공하면 안내 칸이 걷히고,
+    statsInited 가 서서 모드 탭이 통계 화면을 다시 열지 않는다(전수리뷰 2차 H1-3·H2-5).
+
+    재현하는 실제 상태: 휴대폰 망이 잠깐 끊긴 사이 '시세'를 누름 — sw.js 가 사전 캐시한 home-stats.js 는 오고 첫 진입 전엔
+    캐시가 없는 data-trend.json 만 끊긴다. 파일이 오면 최상위 `function statsOpen` 이 대기 함수를 덮어써, 안내 칸의
+    '다시 시도'와 재진입은 대기 함수(partBusy 'wait')를 거치지 않는다. 예전엔 대기열 실패가 PART_FAIL 을 세우고 'wait' 만
+    풀어, 다 그려진 화면 위에 '통계 데이터를 불러오는 중…'이 새로고침 전까지 남았고 initStats 가 두 번 돌았다.
+    픽스처: 로더 조각(_loader_src)에 home-stats.js 의 진짜 statsOpen 을 싣고, 그 안의 그리기 함수만 빈 함수로 둔다
+    (initStats 는 부른 횟수만 센다).
+    변이(각각 실제로 확인): loadPart 대신 partBusy 의 실패 갈래에서 PART_FAIL=true 를 세우던 옛 꼴로 되돌리면 retry.shown 이,
+    home-stats.js statsOpen 첫 줄의 statsInited=true 를 지우면 retry.inited 가, partBusy 실패 문구를 '통계 화면' 고정으로
+    되돌리면 dataFail.text 단정이 빨개진다.
+    """
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    stats = _files()['home-stats.js']
+    real = 'let TREND_P=null;\n' + _top_fn(stats, 'statsOpen') + '\n' + \
+        'function renderReleaseInfo(){} function renderWeekSec(){} function renderMonthSec(){} ' \
+        'function renderBubbleSec(){} function initStats(){ INIT_N++; }'
+    build = re.search(r"const HOME_BUILD='(v\d+)'", _core()).group(1)
+    cfg = {'core': _loader_src(), 'build': build, 'stats': real}
+    p = subprocess.run(['node', '-e', LOADER_DATA_RETRY % {'cfg': json.dumps(cfg, ensure_ascii=False)}],
+                       capture_output=True, timeout=60)
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
+    o = json.loads(p.stdout.decode('utf-8'))
+    d = o['dataFail']
+    assert d['shown'] and '통계 데이터를 불러오지 못했습니다' in d['text'] and not d['partFail'], o
+    assert not d['inited'], '실패 뒤 statsInited 가 풀리지 않았다(다음 진입이 다시 열지 못한다): %s' % o
+    r = o['retry']
+    assert not r['shown'], "다시 시도로 그래프 데이터가 온 뒤에도 안내 칸이 남았다: %s" % o
+    assert r['inited'] and r['init'] == 1, o
+    assert o['afterMode']['init'] == 1, '모드 탭이 통계 화면을 다시 열어 initStats 가 두 번 돌았다: %s' % o
+
+
 SW = r"""
 const SRC = %(src)s;
 const handlers = {};
