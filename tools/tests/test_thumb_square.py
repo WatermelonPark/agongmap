@@ -225,3 +225,20 @@ def test_red_is_never_on_numbers():
     assert P.thumb_line_fill('*경기 +0.26%*', ink, blue) == blue
     assert P.thumb_line_fill('서울 88주째 상승', ink, blue) == ink
     assert not any(P._is_red(p[3]) for g, p in P.THUMB_PALETTES.items() if g != '영남')
+
+
+def test_old_frame_thumbnail_is_redrawn(tmp_path):
+    """백로그 47 이전 틀(1200x900)로 그린 기존 썸네일은 문구 없이 다시 돌려도 지키지 않는다 — 지키면 옛 썸네일이 홈피드
+    정사각형 자르기에 그대로 나간다. 정사각형(THUMB_PX)으로 그린 것과 그림으로 안 열리는 파일은 예전처럼 지킨다.
+
+    변이: _keep_existing_thumb 의 크기 검사(size != (THUMB_PX, THUMB_PX) → False)를 지우면 빨개진다(실제로 확인).
+    픽스처: drafts/ 에 남아 있는 10-19 이전 초안 썸네일과 같은 1200x900 PNG, 새 틀 1080 정사각형 PNG, 깨진 파일."""
+    from PIL import Image
+    old, new, bad = (str(tmp_path / n) for n in ('old.png', 'new.png', 'bad.png'))
+    Image.new('RGB', (1200, 900)).save(old)
+    Image.new('RGB', (SPEC_PX, SPEC_PX)).save(new)
+    open(bad, 'wb').write(b'x')
+    assert not P._keep_existing_thumb(old, None, argv=['x'])
+    assert P._keep_existing_thumb(new, None, argv=['x'])
+    assert P._keep_existing_thumb(bad, None, argv=['x'])
+    assert not P._keep_existing_thumb(new, None, argv=['x', '--force-thumb'])
