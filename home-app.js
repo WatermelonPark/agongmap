@@ -95,14 +95,16 @@ function partURL(n){ return PARTS[n].src+'?v='+HOME_BUILD; }
 const PART_P={};
 let PART_WAIT=0;   // 받고 있는 분할 파일 수 — loadData 가 그 사이 '불러오는 중'을 걷지 않게
 /* 통계 화면 파일(home-stats.js)을 못 받았는가. 그 안내('통계 화면을 불러오지 못했습니다')를 나란히 받던 그래프 데이터의
-   성공이 걷으면 통계 화면이 안내 없이 빈 채로 남았다(전수리뷰 A1). 다시 누르면(partBusy 'wait') 푼다. */
+   성공이 걷으면 통계 화면이 안내 없이 빈 채로 남았다(전수리뷰 A1). 파일 자체의 성패로만 세우고 푼다 — 예전엔 대기열 실패
+   (partBusy 'fail')가 그래프 데이터만 실패해도 세웠고, 파일이 온 뒤엔 다시 시도·재진입이 대기 함수를 거치지 않아 풀리지 않아
+   다 그려진 화면 위에 '불러오는 중…'이 남았다(전수리뷰 2차 H1-3·H2-5). */
 let PART_FAIL=false;
 function loadPart(n){
   if(!PART_P[n]){
     PART_WAIT++;
-    PART_P[n]=loadScript(partURL(n)).then(()=>{ PART_WAIT--;
+    PART_P[n]=loadScript(partURL(n)).then(()=>{ PART_WAIT--; if(n==='stats')PART_FAIL=false;
       if(!partBuildOk(n))return new Promise(()=>{});   // 새로고침하는 중 — 대기열을 풀지 않는다(옛 홈 위에서 새 판 코드를 돌리지 않게)
-    },e=>{ PART_WAIT--; delete PART_P[n]; throw e; });
+    },e=>{ PART_WAIT--; delete PART_P[n]; if(n==='stats')PART_FAIL=true; throw e; });
   }
   return PART_P[n];
 }
@@ -125,11 +127,11 @@ function partReady(n){ return n==='stats'?Promise.all([loadPart(n),loadFullData(
 function partBusy(n,fn,state){
   if(n==='stats'){
     const box=document.getElementById('stats-loading'); if(!box)return;
-    if(state==='wait'){PART_FAIL=false;box.textContent='통계 화면을 불러오는 중…';box.style.display='';}
+    if(state==='wait'){box.textContent='통계 화면을 불러오는 중…';box.style.display='';}
     else if(state==='done'){box.style.display='none';}
     /* '다시 눌러 주세요'라고만 하면 누를 것이 없었다(백로그 36-6) — 같은 자리에 다시 시도 단추를 둔다(statsOpen 은 PARTS 입구라
        누르면 분할 파일을 다시 받는다. 실패한 주소는 loadPart 가 _loaded 에서 지워 둔다). */
-    else{PART_FAIL=true;box.textContent='통계 화면을 불러오지 못했습니다. 연결을 확인해 주세요. ';
+    else{box.textContent='통계 '+(PART_FAIL?'화면을':'데이터를')+' 불러오지 못했습니다. 연결을 확인해 주세요. ';
       if(box.insertAdjacentHTML)box.insertAdjacentHTML('beforeend','<button type="button" class="retry-btn" onclick="statsOpen()">다시 시도</button>');
       box.style.display='';}
     return;
