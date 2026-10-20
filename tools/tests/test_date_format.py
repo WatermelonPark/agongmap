@@ -28,7 +28,7 @@ DAYS = ['2026-09-28', '2026-10-01', '2006-01-02', '2025-12-31']
 QUARTERS = ['2026Q2', '2006Q4', '2026H1', '']
 UNITS = ['호 (월별)', '호 (연내 누계)', '호', '세대 (월별)', '%', '지수(2026.06=100)', '호수', '']
 PAIRS = (('_ymT', SZ.month_text, MONTHS), ('_ymS', SZ.month_short, MONTHS),
-         ('_md', SZ.day_text, DAYS), ('_dS', SZ.day_short, DAYS), ('_qT', SZ.quarter_text, QUARTERS),
+         ('_md', SZ.day_text, DAYS), ('_dS', SZ.day_short, DAYS), ('_dL', SZ.day_long, DAYS), ('_qT', SZ.quarter_text, QUARTERS),
          ('unitT', SZ.unit_text, UNITS))
 
 
@@ -47,7 +47,7 @@ def test_home_mirror_matches_the_python_canon():
         pytest.skip('node 없음')
     src = HS.home_source()
     fns = []
-    for name in ('_md', '_ymP', '_ymT', '_ymS', '_dS', '_qT', 'unitT'):
+    for name in ('_md', '_ymP', '_ymT', '_ymS', '_dS', '_dL', '_qT', 'unitT'):
         m = re.search(r'^function %s\(.*$' % name, src, re.M)
         assert m, '홈 스크립트에서 %s 를 찾지 못했다' % name
         fns.append(m.group(0))
@@ -59,3 +59,21 @@ def test_home_mirror_matches_the_python_canon():
     want = [fn(v) for _, fn, vals in PAIRS for v in vals]
     bad = [(c, g, w) for c, g, w in zip(calls, got, want) if g != w]
     assert not bad, '홈 거울이 파이썬 정본과 다르다: %s' % bad
+
+
+def test_quiz_asof_and_aux_labels_use_the_canon():
+    """퀴즈 '제도 기준일'은 읽는 꼴('2026년 9월 15일' — _dL, 정본 day_long), 기본통계 보조선 라벨은 그래프 눈금과 같은 좁은 꼴
+    ('21.10' — _ymCell)로 찍는다(전수리뷰 H2-11). 재현한 실제 상태: 퀴즈 해설 아래 '제도 기준일 2026.09.15', 매매지수 보조선
+    '정점 2021.10'(옛 꼴 'YYYY.MM'), 같은 그래프의 눈금은 '21.10'이었다. 픽스처: 저장소 홈 스크립트(퀴즈·통계 파일)와 퀴즈 문항의
+    asof 실제 값.
+
+    변이(실제로 확인): home-quiz.js 를 옛 `item.asof.replace(/-/g,'.')` 로, 보조선 라벨(auxText)을 옛 `labels[pos]` 로 되돌리면 빨개진다.
+    """
+    files = dict(HS.home_files())
+    quiz, stats = files['home-quiz.js'], files['home-stats.js']
+    line = re.search(r'class="qasof">([^<]*)<', quiz)
+    assert line and '${_dL(item.asof)}' in line.group(1), line and line.group(1)
+    asofs = sorted(set(re.findall(r"asof:'(\d{4}-\d{2}-\d{2})'", quiz)))
+    assert asofs and all(re.fullmatch(r'\d{4}년 \d{1,2}월 \d{1,2}일', SZ.day_long(a)) for a in asofs), asofs
+    assert "ctx.fillText(' '+auxText(l,labels[pos],vals[pos])" in stats
+    assert re.search(r"function auxText\(l,lb,v\)\{ return l\.fmt\?l\.fmt\(lb,v\):l\.t\+\(l\.find\?' '\+_ymCell\(lb\):''\); \}", stats)

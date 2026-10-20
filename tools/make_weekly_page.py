@@ -375,15 +375,10 @@ def count_text(total_label, vals):
 
 
 def top3(items):
-    """items [(이름, 값)] → (오른 곳 상위 3, 내린 곳 상위 3). 순서는 홈 TOP 10 과 같다.
-
-    홈은 값 내림차순 정렬 뒤 앞 10개·뒤 10개를 뒤집어 쓴다(안정 정렬). 여기서도 같은 정렬을 쓰되,
-    '하락'에는 실제로 내린 곳만 싣는다 — 모두 오른 주에 가장 덜 오른 곳을 '하락'이라 적지 않는다.
+    """items [(이름, 값)] → (오른 곳 상위 3, 내린 곳 상위 3). 홈 TOP 10 과 같은 규칙(weekly_moves.top_split 정본)이다 —
+    '상승'에는 오른 곳만, '하락'에는 실제로 내린 곳만 싣는다(모두 오른 주에 가장 덜 오른 곳을 '하락'이라 적지 않는다).
     """
-    arr = sorted(items, key=lambda x: -x[1])
-    up = [x for x in arr if pv2r(x[1]) > 0][:3]
-    dn = [x for x in reversed(arr) if pv2r(x[1]) < 0][:3]
-    return up, dn
+    return WM.top_split(items, 3)
 
 
 def rank_list(title, cls, items, empty):

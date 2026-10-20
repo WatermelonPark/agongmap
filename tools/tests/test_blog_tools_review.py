@@ -451,5 +451,8 @@ def test_aged_section_uses_one_complete_year():
 def test_loan_rate_carries_its_month():
     """변이: extra_section rot 2 에서 '(%s 기준)' 을 빼면 빨개진다. 픽스처: 2026-09-23 실값(전국 69.1 × 5.37, 대출 4.48 2026.07)."""
     adv = {'bubble': {'loan': {'v': 4.48, 'p': '2026.07'}, 'regions': ['전국'], 'conv': {'전국': 5.37}}}
-    sts = {'전세가율': {'dates': ['2026.06', '2026.07'], 'series': {'전국': [69.0, 69.1]}}}
+    # 전세가율 기준월은 사이트 정본(JEONSE_NEED 가 다 찬 달)이라 시도 행도 둔다(전수리뷰 H2-6)
+    import make_indicator_pages as I
+    sts = {'전세가율': {'dates': ['2026.06', '2026.07'],
+                       'series': dict({r: [60.0, 60.0] for r in I.JEONSE_NEED}, **{'전국': [69.0, 69.1]})}}
     assert '주택담보대출 금리는 <b>4.48%</b>(2026.07 기준)입니다' in P.extra_section(adv, sts, 2)

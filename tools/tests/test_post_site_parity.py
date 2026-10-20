@@ -25,6 +25,7 @@ import home_src as HS  # noqa: E402
 import make_naver_post as P  # noqa: E402
 import make_sido_pages as M  # noqa: E402
 import make_theory_post as T  # noqa: E402
+import make_indicator_pages as I  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 
 
@@ -50,27 +51,28 @@ def _js_func(src, name):
 
 
 def _home_bubble_js():
-    """홈 renderBubbleSec 의 '최신 전세가율' 함수, 월세수익률·위험선 식, 상단 초과·매수 신호권 판정 조건을 그대로 뽑는다.
+    """홈 renderBubbleSec 의 전세가율 읽기(jrOf — ADV.bubble.jr), 월세수익률·위험선 식, 상단 초과·매수 신호권 판정 조건을 그대로 뽑는다.
     판정 조건도 홈에서 뽑는다 — 시험 안에 `loan<=lo` 를 복사해 두면 홈 경계가 바뀌어도 옛 경계를 '홈 판정'으로 기대한다
     (전수리뷰 #96)."""
     f = _js_func(HS.home_source(), 'renderBubbleSec')
-    lat = re.search(r'const latest=(r=>\{.*?return null;\});', f)
+    lat = re.search(r'const jrOf=(r=>\{.*?\});', f)
     band = re.search(r'const lo=([^,;]+),hi=([^;]+);', f)
     hi_c = re.search(r"if\(([^)]*)\)\{cls='hi';", f)
     lo_c = re.search(r"else if\(([^)]*)\)\{cls='lo';txt='매수 신호권'", f)
-    assert lat and band and hi_c and lo_c, '버블밴드의 latest()·월세수익률 식·판정 조건을 찾지 못했다 — 홈 코드 모양이 바뀌었는지 볼 것'
+    assert lat and band and hi_c and lo_c, '버블밴드의 jrOf()·월세수익률 식·판정 조건을 찾지 못했다 — 홈 코드 모양이 바뀌었는지 볼 것'
     return lat.group(1), band.group(1), band.group(2), hi_c.group(1), lo_c.group(1)
 
 
 def _site_bubble(adv, sts):
-    """홈 코드로 계산한 {지역: [lo.toFixed(2), 매수 신호권인가]} — 판정은 홈의 if/else if 순서 그대로(상단 초과가 먼저)."""
-    latest, expr, hexpr, hcond, lcond = _home_bubble_js()
-    js = ('const J=%s,B=%s;const latest=%s;const out={};const loan=B.loan.v;'
-          'for(const rg of (B.regions||Object.keys(B.conv))){const cv=B.conv[rg],jr=latest(rg);'
+    """홈 코드로 계산한 {지역: [lo.toFixed(2), 매수 신호권인가]} — 판정은 홈의 if/else if 순서 그대로(상단 초과가 먼저).
+    홈이 읽는 ADV.bubble 은 split_data 와 같은 함수(I.bubble_payload)로 만든다 — 통계 탭 파일에 실리는 모양 그대로."""
+    jr_of, expr, hexpr, hcond, lcond = _home_bubble_js()
+    B = I.bubble_payload(adv['bubble'], sts['전세가율'])
+    js = ('const B=%s;const jrOf=%s;const out={};const loan=B.loan.v;'
+          'for(const rg of (B.regions||Object.keys(B.conv))){const cv=B.conv[rg],jr=jrOf(rg);'
           'if(cv==null||jr==null)continue;const lo=%s,hi=%s;out[rg]=[lo.toFixed(2),(%s)?false:!!(%s)];}'
           'process.stdout.write(JSON.stringify(out));'
-          % (json.dumps(sts['전세가율'], ensure_ascii=False), json.dumps(adv['bubble'], ensure_ascii=False),
-             latest, expr, hexpr, hcond, lcond))
+          % (json.dumps(B, ensure_ascii=False), jr_of, expr, hexpr, hcond, lcond))
     return _node(js)
 
 
@@ -81,8 +83,10 @@ def _site_bubble(adv, sts):
 # (make_naver_post._series_last 주석) 전국이 아직 안 온 달에 실제로 이 모양이 된다.
 FIX_ADV = {'bubble': {'prd': '2026.06', 'loan': {'v': 4.48, 'p': '2026.07'},
                       'regions': ['전국'], 'conv': {'전국': 5.37}}}
+# 기준월은 사이트 정본(jeonse_ref_index — JEONSE_NEED 가 다 찬 마지막 달)이라 시도 행도 둔다. 끝 달은 전국만 비어 보류된다.
 FIX_STS = {'전세가율': {'dates': ['2026.05', '2026.06', '2026.07', '2026.08'],
-                        'series': {'전국': [68.9, 69.0, 69.1, None]}}}
+                        'series': dict({r: [60.0, 60.0, 60.0, 60.0] for r in I.JEONSE_NEED},
+                                       **{'전국': [68.9, 69.0, 69.1, None]})}}
 
 
 def test_rent_yield_matches_the_home_formula_for_every_region():
@@ -130,7 +134,8 @@ def test_rent_yield_verdict_matches_the_home_at_the_boundaries(loan, buy):
     5.0 칸이 빨개진다(예전 하네스는 판정식을 시험 안에 복사해 둬서 둘 다 초록이었다).
     픽스처: 경계를 정확히 재도록 만든 합성 한 지역(전국) — 값의 모양은 FIX_ADV·FIX_STS 와 같다."""
     adv = {'bubble': {'prd': '2026.06', 'loan': {'v': loan, 'p': '2026.07'}, 'regions': ['전국'], 'conv': {'전국': 5.0}}}
-    sts = {'전세가율': {'dates': ['2026.06', '2026.07'], 'series': {'전국': [62.0, 62.5]}}}
+    sts = {'전세가율': {'dates': ['2026.06', '2026.07'],
+                       'series': dict({r: [60.0, 60.0] for r in I.JEONSE_NEED}, **{'전국': [62.0, 62.5]})}}
     site = _site_bubble(adv, sts)['전국']
     assert site == ['3.13', buy], (site, '홈 판정이 픽스처 기대와 다르다 — 홈 경계가 바뀌었다면 블로그와 함께 고칠 것')
     html = P.extra_section(adv, sts, 2)

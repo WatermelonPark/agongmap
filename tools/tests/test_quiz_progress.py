@@ -11,6 +11,7 @@
 """
 import io
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -77,9 +78,12 @@ process.stdout.write(JSON.stringify(OUT));
 
 
 def _chal_src():
-    """홈 본문(home-app.js)의 대결 쿼리 함수 chalInURL·chalSearch — startQuiz 가 부른다(전수리뷰 A4)."""
+    """홈 본문(home-app.js)의 대결 쿼리 함수 chalInURL·chalSearch — startQuiz 가 부른다(전수리뷰 A4). 퀴즈 해설의 제도 기준일이
+    쓰는 날짜 거울 _dL(한 줄 함수, 전수리뷰 H2-11)도 같이 가져온다 — 브라우저에서는 home-app.js 가 퀴즈 파일보다 먼저 실린다."""
     s = dict(HS.home_files())['home-app.js']
-    out = []
+    m = re.search(r'^function _dL\(.*$', s, re.M)
+    assert m, 'home-app.js 에서 _dL 을 찾지 못했다'
+    out = [m.group(0)]
     for name in ('chalInURL', 'chalSearch'):
         a = s.index('function %s(' % name)
         b = s.index('\n}', a) + 2 if name == 'chalSearch' else s.index('\n', a)
@@ -241,3 +245,33 @@ def test_time_copy_matches_real_duration():
         # 앞이 숫자면 다른 수('33분의 1' 같은 분수)라 시간 표기가 아니다(2026-09-29 make_naver_post 주석이 오탐으로 게이트를 막았다).
         bad += ['%s: %s' % (f, m.group(0)) for m in re.finditer(r'.{0,12}(?<![0-9])3분(?![기위의]).{0,6}', s)]
     assert not bad, "퀴즈 시간 표기에 '3분'이 남았다: %s" % bad
+
+
+def test_answer_is_announced_in_a_live_region_outside_the_card():
+    """답을 고르면 정오·정답·해설을 늘 렌더된 상태 영역(#qlive, role=status, #qcard 밖)에 넣어 스크린리더가 읽는다. 다음 문항으로
+    가면 비우고, 보기에는 ○·✕ 대신 읽을 글('내 선택, 오답'·'정답')을 붙인다(전수리뷰 H2-22).
+    재현한 실제 상태: #qexp 는 renderQ 마다 새로 만들어지고 답하기 전엔 숨어 있어, 라이브 영역이 없던 화면에서 스크린리더 사용자는
+    정오·해설을 안내받지 못했다(접근성 트리에 live 노드 0개). 픽스처: 실제 퀴즈 코드(investor 세트) — 첫 문항은 오답, 둘째는 정답.
+
+    변이(실제로 확인): answerQ 에서 #qlive 를 채우는 줄을 빼면, index.html 의 #qlive 를 #qcard 안(카드 갈아 끼울 때 사라지는 자리)으로
+    옮기면 빨개진다.
+    """
+    o = _run("""
+startQuiz('investor');
+const a0=QUIZ[0].answer; answerQ(a0===0?1:0);
+const first=els.qlive.textContent;
+nextQ(); const cleared=els.qlive.textContent;
+answerQ(QUIZ[1].answer);
+OUT={first, cleared, second:els.qlive.textContent, right:QUIZ[0].opts[a0].replace(/<[^>]+>/g,''),
+  exp:QUIZ[0].exp.replace(/<[^>]+>/g,'')};
+""")
+    assert o['first'].startswith('오답입니다. 정답은 %s입니다. ' % o['right']), o['first']
+    assert o['exp'] in o['first'] and '<' not in o['first']
+    assert o['cleared'] == '' and o['second'].startswith('정답입니다. '), o
+    html = dict(HS.home_files())['index.html']
+    play = html[html.index('id="quiz-play"'):html.index('id="quiz-result"')]
+    live = re.search(r'<p class="sr-only" id="qlive" role="status" aria-live="polite"></p>', play)
+    card = re.search(r'<div class="qcard" id="qcard"></div>', play)
+    assert live and card, '#qlive 가 #quiz-play 안, #qcard 밖에 없다'
+    src = _quiz_src()
+    assert '<span class="sr-only">내 선택, 오답</span>' in src and "setAttribute('aria-disabled','true')" in src

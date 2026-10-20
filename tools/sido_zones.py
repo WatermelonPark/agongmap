@@ -483,6 +483,12 @@ def day_text(iso):
     return '%d/%d' % (int(a[1]), int(a[2])) if len(a) == 3 else str(iso or '')
 
 
+def day_long(iso):
+    """'2026-09-15' → '2026년 9월 15일'. 해를 넘겨 보이는 읽는 자리의 날짜(퀴즈 제도 기준일 — 전수리뷰 H2-11)."""
+    a = str(iso or '').split('-')
+    return '%s년 %d월 %d일' % (a[0], int(a[1]), int(a[2])) if len(a) == 3 else str(iso or '')
+
+
 def day_short(iso):
     """'2026-09-28' → '26.9.28'. 표 칸·툴팁용."""
     a = str(iso or '').split('-')

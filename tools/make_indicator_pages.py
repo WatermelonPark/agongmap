@@ -373,6 +373,34 @@ def jeonse_ref_index(j, need):
                        % ', '.join(need))
 
 
+def bubble_jeonse(j, regions):
+    """버블밴드(홈 통계 탭 renderBubbleSec)·블로그 월세수익률이 쓰는 전세가율 — (기준월 'YYYY.MM', {지역: 값}).
+
+    기준월은 /jeonse-ratio/·/monthly/·/cycle/ 과 같은 정본 jeonse_ref_index(JEONSE_NEED)다. 그 달에 빈 지역(집계 행 등)은
+    뺀다. 예전 홈은 지역마다 '마지막 비결측 값'을 읽어, 새 달이 일부 지역만 채워진 회차에 같은 날 /jeonse-ratio/ 과 다른
+    전세가율로 월세수익률을 냈다(전수리뷰 H2-6·#106). 완비 달이 없으면 (None, {}) — 버블밴드는 그 회차에 숨는다.
+    """
+    if not j or not j.get('dates') or not j.get('series'):
+        return None, {}
+    try:
+        k = jeonse_ref_index(j, JEONSE_NEED)
+    except RuntimeError:
+        return None, {}
+    out = {}
+    for r in regions:
+        s = j['series'].get(r) or []
+        if k < len(s) and s[k] is not None:
+            out[r] = s[k]
+    return j['dates'][k], out
+
+
+def bubble_payload(bubble, j):
+    """ADV.bubble 에 버블밴드용 전세가율(jp 기준월·jr 지역값)을 더한 사본 — split_data 가 통계 탭 파일에 싣는다."""
+    regions = bubble.get('regions') or list((bubble.get('conv') or {}).keys())
+    jp, jr = bubble_jeonse(j, regions)
+    return dict(bubble, jp=jp, jr=jr)
+
+
 def jeonse_delta(cur, ago):
     """전세가율 '1년 전 대비' 변화(%p) — **표시값(소수 첫째 자리)끼리의 차**. 없으면 None.
 
