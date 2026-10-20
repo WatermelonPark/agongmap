@@ -19,7 +19,8 @@
   - emoji_font 를 EMOJI_FONTS 첫 경로만 여는 옛 코드로 되돌리면 test_emoji_font_names_candidates
     (OSError 이고 FileNotFoundError·후보 경로 안내가 아니다).
   - apply_design.rad 를 옛 코드(값 상관없이 0/3px)로 되돌리면, 또는 웜색 판정을 DATA_TINTS 예외 없는
-    is_warm 으로 되돌리면 test_apply_keeps_what_audit_allows.
+    is_warm 으로 되돌리면 test_apply_keeps_what_audit_allows. rad 의 보존 판정을 RADIUS_OK 대신 RADIUS_SHAPE(원형만)로
+    되돌려도 빨개진다 — 404 a.home·.skip 의 3px 가 0 이 된다(전수리뷰 P-6, 픽스처는 그 두 규칙을 그대로 옮겼다).
   - audit_design 의 radius 정규식에서 따옴표 제외를 빼면 test_audit_inline_style_stops_at_quote,
     violations 의 radius 문턱을 'nr > 2' 로 되돌리면 test_audit_flags_a_single_off_rule_radius.
   - cutout 에 `import numpy as np` 를 다시 넣으면 test_beginner_cutout_pillow_only(CI 는 numpy 가 없어
@@ -75,7 +76,9 @@ def test_apply_keeps_what_audit_allows(tmp_path):
     tint = sorted(audit_design.DATA_TINTS)[0]
     html = ('<!doctype html><html><head><meta name="viewport" content="width=device-width">'
             '<style>.dot{width:8px;border-radius:50%} .tag.g2{background:#' + tint + ';color:#131e24}'
-            ' .box{border-radius:6px} button{border-radius:8px}</style></head><body></body></html>')
+            ' .box{border-radius:6px} button{border-radius:8px}'
+            ' a.home{display:inline-flex;min-height:48px;border-radius:3px}'
+            ' .skip{position:absolute;left:8px;border-radius:3px}</style></head><body></body></html>')
     p = _write(tmp_path, 't.html', html)
     a = audit_design.audit(p)
     assert a['radii'] == ['6px', '8px'] and a['warm'] == []   # 감사: 50%·틴트는 준수, 6/8px 는 위반
@@ -84,6 +87,8 @@ def test_apply_keeps_what_audit_allows(tmp_path):
     assert '.dot{width:8px;border-radius:50%}' in out, '감사가 허용한 원형을 적용 도구가 깨뜨렸다'
     assert '#' + tint in out, '감사가 예외로 둔 데이터 틴트를 적용 도구가 바꿨다'
     assert '.box{border-radius:0}' in out and 'button{border-radius:3px}' in out
+    assert 'a.home{display:inline-flex;min-height:48px;border-radius:3px}' in out, '감사가 허용한 3px(404 홈 단추)를 적용 도구가 깎았다'
+    assert '.skip{position:absolute;left:8px;border-radius:3px}' in out, '감사가 허용한 3px(건너뛰기 링크)를 적용 도구가 깎았다'
     after = audit_design.audit(p)
     assert after['radii'] == [] and after['warm'] == []       # 적용 뒤에는 감사가 깨끗하다
     # 적용 도구가 남기거나 쓰는 radius 값은 전부 감사의 허용 값이다
