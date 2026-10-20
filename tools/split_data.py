@@ -65,8 +65,10 @@ CORE_ADV = ['sido', 'holidays']
 
 # 통계 탭 파일(data-trend.json)이 싣는 ADV 키 — 이것도 **허용목록**이다. 예전엔 ADV 전체를 실어, 2026-08-06 시도 재편으로
 # 폐기된 생활권 지표 aged30(홈·통계 탭 어디서도 읽지 않는다)이 통계 탭을 여는 모든 방문자에게 계속 실려 나갔다(전수 리뷰
-# 묶음 T 제보). 통계 탭(home-stats.js)이 읽는 키만 둔다 — 새 지표를 통계 탭에 올리면 여기에 적는다.
-TREND_ADV = ('sido', 'holidays', 'weekly', 'monthly', 'occupancy', 'permits', 'bubble')
+# 묶음 T 제보). 통계 탭(home-stats.js)이 읽는 키만 둔다 — 새 지표를 통계 탭에 올리면 여기에 적는다. 코어(CORE_ADV)에 이미 있는
+# sido·holidays 는 싣지 않는다 — loadFullData 는 Object.assign 이라 trend 에 없는 키는 코어 값이 그대로 남는다(같은 값 24KB 중복이었다,
+# 전수리뷰 H2-17).
+TREND_ADV = ('weekly', 'monthly', 'occupancy', 'permits', 'bubble')
 # 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다(ADV.blog, B5 · ADV.fresh).
 CORE_ONLY_ADV = ('blog', 'fresh', 'zname')   # fresh: 모드 단추 N 배지(2026-10-08) · zname: 화면 이름(백로그 46)
 
@@ -392,7 +394,10 @@ def main():
             continue
         w = dict(w)
         keep = {}
-        for part in ('sgg', 'seoul'):
+        # 서울 구 블록(seoul)은 홈 어디서도 읽지 않는다 — 서울 구 값은 sgg 의 a7… 코드와 같다(전수리뷰 H2-17, 통계 탭 파일 12KB·
+        # data-sgg.json 129KB). 생성기(make_weekly_page·블로그)는 data.js 의 seoul 을 읽으므로 그대로다.
+        w.pop('seoul', None)
+        for part in ('sgg',):
             sec = w.get(part)
             if sec and sec.get('rows') and len(sec['rows']) > TREND_SGG_KEEP:
                 keep[part] = sec                      # 전체는 지연 로드 파일로

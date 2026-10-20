@@ -76,5 +76,5 @@ def test_trend_file_ships_only_what_the_stats_tab_reads(tmp_path):
     assert set(trend) <= set(S.TREND_ADV), '허용목록 밖 키가 통계 탭 파일에 실렸다: %s' % sorted(set(trend) - set(S.TREND_ADV))
     assert 'aged30' not in trend
     read = set(re.findall(r'\bADV\.([A-Za-z_][A-Za-z0-9_]*)', ''.join(t for f, t in HS.home_files() if f.endswith('.js'))))
-    missing = read - set(S.TREND_ADV) - set(S.CORE_ONLY_ADV)
+    missing = read - set(S.TREND_ADV) - set(S.CORE_ONLY_ADV) - set(S.CORE_ADV)   # 코어 키는 Object.assign 뒤에도 남는다(H2-17)
     assert not missing, '홈 스크립트가 읽는데 통계 탭 파일에 없는 ADV 키: %s' % sorted(missing)

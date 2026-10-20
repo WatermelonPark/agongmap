@@ -167,7 +167,7 @@ def test_size_file_carries_the_lazy_series(split):
 
 
 def test_trend_keeps_the_newest_district_rows_and_sgg_keeps_all(split):
-    """통계 탭 그래프(trend)는 시군구·서울구의 **최근** TREND_SGG_KEEP행만, data-sgg.json은 전체를 싣는다.
+    """통계 탭 그래프(trend)는 시군구의 **최근** TREND_SGG_KEEP행만, data-sgg.json은 전체를 싣는다(서울 구 블록은 둘 다 없다).
 
     변이: trend 자르기를 `sec['rows'][:TREND_SGG_KEEP]` 로 바꾸면 가장 오래된 12행이 실려 빨개진다(확인).
     픽스처: 실제 data.js — weekly 156행·monthly 120행씩 쌓인 sgg·seoul 블록(모두 12행보다 길다).
@@ -177,7 +177,10 @@ def test_trend_keeps_the_newest_district_rows_and_sgg_keeps_all(split):
     n = S.TREND_SGG_KEEP
     checked = 0
     for k in ('weekly', 'monthly'):
-        for part in ('sgg', 'seoul'):
+        # 서울 구 블록은 홈이 읽지 않아 두 파일 어디에도 싣지 않는다(전수리뷰 H2-17 — 변이: split_data 의 w.pop('seoul') 을 빼면 빨강)
+        assert adv[k].get('seoul', {}).get('rows'), '픽스처 data.js 에 서울 구 블록이 있어야 뺀 것을 본다'
+        assert 'seoul' not in trend[k] and 'seoul' not in sgg.get(k, {}), '%s.seoul 이 통계 탭 파일에 실렸다' % k
+        for part in ('sgg',):
             rows = adv[k][part]['rows']
             assert len(rows) > n, '픽스처가 짧으면 자르기를 못 본다'
             assert trend[k][part]['rows'] == rows[-n:], '%s.%s trend가 최근 %d행이 아니다' % (k, part, n)
@@ -186,4 +189,4 @@ def test_trend_keeps_the_newest_district_rows_and_sgg_keeps_all(split):
             checked += 1
         # 시도 행은 자르지 않는다(그래프 3년 탭)
         assert trend[k]['rows'] == adv[k]['rows']
-    assert checked == 4
+    assert checked == 2
