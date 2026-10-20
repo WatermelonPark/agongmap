@@ -481,6 +481,36 @@ OUT.t=AUXLINES['아파트건설'].map(l=>{const p=auxPos(l,labels,vals);return p
     assert not re.search(r"t:'[^']*\d+만", src), '보조선 이름에 손으로 옮긴 수량이 있다'
 
 
+def test_aux_line_labels_stack_and_restore_the_canvas():
+    """기본통계 보조선 플러그인(vlines)은 라벨마다 캔버스 상태를 되돌리고(save 수 = restore 수), 가까운 라벨은 다음 줄로 내려
+    겹치지 않게 찍는다. 재현한 실제 상태(전수리뷰 2차 Hb 검토): H2-11 수정 때 fillText 줄 끝에 붙인 `//` 주석이 같은 줄의
+    `drawn.push(…);ctx.restore();` 를 삼켜, 아파트건설 보조선 셋(1988·1992·정점)이 한 줄에 겹쳐 찍히고 restore 없이 save 만 쌓였다
+    (node --check 는 문법만 보므로 통과했다).
+    픽스처: 저장소 data-rest.json 아파트건설(전국), 보조선 셋 모두 켬, 모형 Chart 가 받은 설정의 afterDraw 를 x 픽셀이 모두 같은
+    모형 축으로 부른다(세 라벨이 70px 안에 붙은 좁은 화면).
+
+    변이(실제로 확인): home-stats.js 의 그 줄을 옛 모양(주석 뒤에 `drawn.push({x:x,row:row});ctx.restore();`)으로 되돌리면
+    restore 0 회·같은 y 셋이라 빨개진다.
+    """
+    D = _load('data-rest.json')['STATS']['아파트건설']
+    got = _node(_stats_js(r"""
+ST.ds='아파트건설'; ST.reg='전국'; ST.years=0; STATS['아파트건설']=S_;
+ST.aux=new Set(AUXLINES['아파트건설'].map((_,i)=>String(i)));
+buildTable=()=>{}; buildMatrix=()=>{};
+let CFG=null; globalThis.Chart=class{constructor(el,cfg){CFG=cfg;} static getChart(){return null;}};
+drawStat();
+const C={save:0,restore:0,y:[]};
+const ctx={save(){C.save++},restore(){C.restore++},beginPath(){},moveTo(){},lineTo(){},stroke(){},setLineDash(){},
+  fillText(t,x,y){C.y.push(y)}};
+CFG.plugins.find(p=>p.id==='vlines').afterDraw({ctx,scales:{y:{top:0,bottom:100},x:{right:500,getPixelForValue(){return 100;}}}});
+OUT=C;
+""", pre='const S_=%s;const FONT="x",GRID="#ddd";function areaGrad(){return "#fff";}' % json.dumps(D, ensure_ascii=False)))
+    n = len(got['y'])
+    assert n >= 2, got
+    assert got['save'] == got['restore'] == n, got
+    assert len(set(got['y'])) == n, got
+
+
 # ── #54 밀기 안내 ────────────────────────────────────────────────────────────
 def test_swipe_hint_is_judged_when_visible():
     """지도 '옆으로 밀어 전체 보기' 안내는 숨은 상태(폭 0)에서 판정하지 않고, 월간 탭을 열 때 다시 판정한다.
