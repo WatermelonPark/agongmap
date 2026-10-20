@@ -67,7 +67,7 @@ def test_quiz_asof_and_aux_labels_use_the_canon():
     '정점 2021.10'(옛 꼴 'YYYY.MM'), 같은 그래프의 눈금은 '21.10'이었다. 픽스처: 저장소 홈 스크립트(퀴즈·통계 파일)와 퀴즈 문항의
     asof 실제 값.
 
-    변이(실제로 확인): home-quiz.js 를 옛 `item.asof.replace(/-/g,'.')` 로, 보조선 fillText 를 옛 `labels[pos]` 로 되돌리면 빨개진다.
+    변이(실제로 확인): home-quiz.js 를 옛 `item.asof.replace(/-/g,'.')` 로, 보조선 라벨(auxText)을 옛 `labels[pos]` 로 되돌리면 빨개진다.
     """
     files = dict(HS.home_files())
     quiz, stats = files['home-quiz.js'], files['home-stats.js']
@@ -75,5 +75,5 @@ def test_quiz_asof_and_aux_labels_use_the_canon():
     assert line and '${_dL(item.asof)}' in line.group(1), line and line.group(1)
     asofs = sorted(set(re.findall(r"asof:'(\d{4}-\d{2}-\d{2})'", quiz)))
     assert asofs and all(re.fullmatch(r'\d{4}년 \d{1,2}월 \d{1,2}일', SZ.day_long(a)) for a in asofs), asofs
-    fill = re.findall(r"ctx\.fillText\(' '\+l\.t\+\(l\.find\?' '\+([^:]*):''\)", stats)
-    assert fill == ['_ymCell(labels[pos])'], fill
+    assert "ctx.fillText(' '+auxText(l,labels[pos],vals[pos])" in stats
+    assert re.search(r"function auxText\(l,lb,v\)\{ return l\.fmt\?l\.fmt\(lb,v\):l\.t\+\(l\.find\?' '\+_ymCell\(lb\):''\); \}", stats)

@@ -390,6 +390,34 @@ for(const ds of ['매매지수','전세지수','금리']){
     assert '{y:2021,m:9,t:\'2021 정점\'' not in src
 
 
+def test_apartment_build_aux_labels_come_from_the_data():
+    """아파트건설 보조선 라벨의 수량·40년차 연도·정점 해는 그 칸의 원자료에서 만든다(전수리뷰 H2-14).
+    재현한 실제 상태: '38만 돌파 · 40년차 2032'·'정점 43만 · 40년차 2035'를 글자로 박아, 원천이 옛 해 값을 고치거나 다른 해가
+    1995년을 넘으면 선은 1995에 선 채 그래프와 다른 말을 했다. 픽스처: 저장소 data-rest.json 아파트건설(전국) 그대로 한 번,
+    1997년 값을 정점보다 크게 바꾼 사본 한 번(정점이 옮겨 가는 경우).
+
+    변이(실제로 확인): 정점 선을 옛 {y:1995,m:12,t:'정점 43만 · 40년차 2035'} 로 되돌리면 사본에서, fmt 의 +40 을 박은 연도로 바꾸면
+    빨개진다.
+    """
+    D = _load('data-rest.json')['STATS']['아파트건설']
+    reg = '전국'
+    moved = json.loads(json.dumps(D))
+    i97 = moved['dates'].index(next(d for d in moved['dates'] if d.startswith('1997')))
+    moved['series'][reg][i97] = max(v for v in moved['series'][reg] if v is not None) + 20000
+    for data in (D, moved):
+        got = _node(_stats_js(r"""
+const labels=S_.dates.map(d=>parseDate(d).label), vals=S_.series['전국'];
+OUT.t=AUXLINES['아파트건설'].map(l=>{const p=auxPos(l,labels,vals);return p<0?null:[labels[p],auxText(l,labels[p],vals[p])];});
+""", pre='const S_=%s;' % json.dumps(data, ensure_ascii=False)))
+        pts = [(d[:4], v) for d, v in zip(data['dates'], data['series'][reg]) if v is not None and '1980' <= d[:4] <= '2005']
+        py, pv = max(pts, key=lambda x: x[1])
+        assert got['t'][-1] == [py, '정점 %d만 · 40년차 %d' % (round(pv / 1e4), int(py) + 40)], got['t']
+        v92 = dict(pts)['1992']
+        assert got['t'][1] == ['1992', '%d만 돌파 · 40년차 %d' % (v92 // 10000, 1992 + 40)], got['t']
+    src = dict(HS.home_files())['home-stats.js']
+    assert not re.search(r"t:'[^']*\d+만", src), '보조선 이름에 손으로 옮긴 수량이 있다'
+
+
 # ── #54 밀기 안내 ────────────────────────────────────────────────────────────
 def test_swipe_hint_is_judged_when_visible():
     """지도 '옆으로 밀어 전체 보기' 안내는 숨은 상태(폭 0)에서 판정하지 않고, 월간 탭을 열 때 다시 판정한다.
