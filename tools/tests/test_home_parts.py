@@ -446,6 +446,42 @@ def test_stats_data_only_failure_recovers_on_retry():
     assert o['afterMode']['init'] == 1, '모드 탭이 통계 화면을 다시 열어 initStats 가 두 번 돌았다: %s' % o
 
 
+INIT_TWICE = r"""
+const L = {};
+function el(id){ return L[id] || (L[id] = {id, n: 0, innerHTML: '', style: {}, parentElement: {style: {}},
+  addEventListener(){ this.n++; }, querySelectorAll(){ return []; }}); }
+const btns = [el('p1'), el('p2')];
+const document = {getElementById: el, querySelectorAll(s){ return s === '#period-seg button' ? btns : []; }, querySelector(){ return null; }};
+const STATS = {}, DS_LABEL = {}, DS_ORDER = [];
+let ST = {ds: '매매지수', reg: null, years: 0, aux: new Set()}, DRAW = 0;
+function fillRegions(){} function renderAux(){} function drawStat(){ DRAW++; } function track(){}
+%(decl)s
+%(fn)s
+initStats(); initStats();
+process.stdout.write(JSON.stringify({period: btns.map((b) => b.n), reg: el('reg-sel').n, draw: DRAW}));
+"""
+
+
+def test_init_stats_binds_the_period_and_region_controls_once():
+    """initStats 가 두 번 돌아도(옛 결함: 그래프 데이터만 실패한 뒤 다시 시도 → 모드 탭) 기간 프리셋·지역 선택의 리스너는
+    한 번만 붙고, 두 번째 호출도 그래프는 다시 그린다(전수리뷰 2차 H2-5 — 두 번 붙으면 한 번 누름에 drawStat 이 두 번 돈다).
+
+    위 시험은 initStats 를 횟수만 세는 빈 함수로 바꿔 이 방어선(STATS_BOUND)을 보지 않는다. 픽스처: home-stats.js 의 진짜
+    initStats·STATS_BOUND 선언을 최소 DOM(기간 단추 둘·지역 선택) 위에서 두 번 부른다.
+    변이(실제로 확인): initStats 의 `if(STATS_BOUND){…return;}` 줄을 지우면 리스너가 두 번 붙어 빨개진다.
+    """
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    stats = _files()['home-stats.js']
+    decl = re.search(r'^let STATS_BOUND=false;$', stats, re.M)
+    assert decl, 'home-stats.js 에서 STATS_BOUND 선언을 못 찾았다'
+    js = INIT_TWICE % {'decl': decl.group(0), 'fn': _top_fn(stats, 'initStats')}
+    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
+    o = json.loads(p.stdout.decode('utf-8'))
+    assert o == {'period': [1, 1], 'reg': 1, 'draw': 2}, o
+
+
 SW = r"""
 const SRC = %(src)s;
 const handlers = {};
