@@ -29,6 +29,7 @@
 import ast
 import io
 import os
+import re
 import sys
 
 import pytest
@@ -129,3 +130,28 @@ def test_beginner_cutout_pillow_only(tmp_path):
     assert out.mode == 'RGBA' and out.size == (50, 40), out.size
     assert out.getpixel((0, 0)) == (30, 90, 160, 255)
     assert out.getchannel('A').getextrema() == (255, 255)
+
+
+def test_audit_reads_the_desktop_sheet(tmp_path, capsys, monkeypatch):
+    """감사가 데스크톱 틀 desk.css 를 시트 한 줄로 따로 읽는다(전수리뷰 P-7).
+
+    재현한 상태(2026-10-18): audit() 는 페이지 <style> 과 app.css 만 봐, 모든 탭바 페이지가 싣는 desk.css 의 이름표
+    `body[data-desk] .bottomnav::before{…font-weight:800}` 가 감사 표에 드러나지 않았다(전 페이지 800 칸 0).
+    픽스처: 그 규칙과 주석 속 'app.css' 글자(지금 desk.css 에 실제로 있다 — 공유 판정이 켜지면 app.css 그림자까지 합산된다)를
+    옮긴 시트. 실제 desk.css 는 위반이 없어야 한다.
+    변이(실제로 확인): main() 의 pages.append('desk.css') 를 지우면, audit 의 is_css 갈래를 지우면(공유 판정이 켜져
+    그림자를 합산) 빨개진다. desk.css 이름표를 font-weight:800 으로 되돌려도 빨개진다.
+    """
+    p = _write(tmp_path, 'desk.css', '/* 홈 app.css 와 같은 52px */\n'
+               "body[data-desk] .bottomnav::before{content:'x';font-weight:800}\n"
+               'body[data-desk] .bottomnav{box-shadow:0 2px 8px rgba(0,0,0,.2)}\n')
+    a = audit_design.audit(p)
+    assert a['shared'] is False and a['w800'] == 1 and a['shadow'] == 1, a
+    assert any(f.startswith('800') for f in audit_design.violations(a))
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    real = audit_design.audit(os.path.join(root, 'desk.css'))
+    assert audit_design.violations(real) == [], audit_design.violations(real)
+    monkeypatch.chdir(root)        # main() 이 작업 디렉터리를 바꾸므로 시험 뒤 되돌린다
+    audit_design.main()
+    out = capsys.readouterr().out
+    assert re.search(r'^desk\.css\s', out, re.M), 'audit_design.main() 표에 desk.css 줄이 없다'
