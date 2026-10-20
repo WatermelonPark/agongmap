@@ -147,10 +147,17 @@ def test_other_zone_posts_name_gwangju_jeonnam_by_its_search_form(monkeypatch):
     monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
     adv, sts = M.load()
     adv = copy.deepcopy(adv)
-    zs = [z for z in adv['sido']['zones'] if not z.get('agg') and z.get('um') is not None]
+    # 전남광주 미분양 배수가 빈 달(그 지역만 값이 없는 회차)에도 같은 경로를 타게 전남광주는 값 유무와 무관하게 고르고,
+    # 견줄 다른 지역 값이 하나도 없으면 한 곳을 합성 값으로 채운다 — 데이터가 앞으로 가도 StopIteration 으로 죽지 않는다.
+    zs = [z for z in adv['sido']['zones'] if not z.get('agg')]
     gj = next(z for z in zs if z['z'] == '전남광주')
-    gj['um'] = max(z['um'] for z in zs) + 5
-    low = min(zs, key=lambda z: z['um'])
+    others = [z for z in zs if z is not gj and z.get('um') is not None]
+    if not others:
+        others = [next(z for z in zs if z is not gj)]
+        others[0]['um'] = 0.1
+    gj['um'] = max(z['um'] for z in others) + 5
+    zs = others + [gj]
+    low = min(others, key=lambda z: z['um'])
     assert low['z'] != '전남광주'
     d = P.draft_zone(adv, sts, dict(low), 1, len(zs))
     shown = re.sub(r'href="[^"]*"', '', d['body'])
