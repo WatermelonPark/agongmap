@@ -161,7 +161,7 @@ def desktop_shortcut(path, name, run=None):
 SITE = 'https://www.agongmap.co.kr'
 
 
-def site_link(path, campaign):
+def site_link(path, campaign, content=None):
     """초안이 싣는 사이트 링크(href 값, & 는 &amp;) — 블로그 UTM 은 반드시 '#' **앞**(쿼리)에 둔다.
 
     2026-09-27 홈 마케팅 검수 A1: 주간 글의 '지도에서 직접 찾아보기'가 `/#stats-market?utm_…`로 나가,
@@ -171,9 +171,11 @@ def site_link(path, campaign):
     초안의 사이트 링크는 이 함수를 거친다. 이론 초안(make_theory_post)은 해시 없는 링크를 손으로 적는데,
     어느 쪽이든 '?'가 '#' 앞에 오는지는 test_home_entry 의 초안 링크 검사가 본다.
     """
+    # content: 한 글 안에 링크가 둘 이상일 때 어느 자리에서 눌렸는지(utm_content, 2026-10-20 도시 편 중간·끝 링크).
     base, hash_, frag = path.partition('#')
-    return ('%s%s?utm_source=naver_blog&amp;utm_medium=social&amp;utm_campaign=%s%s%s'
-            % (SITE, base, campaign, hash_, frag))
+    tail = '&amp;utm_content=%s' % content if content else ''
+    return ('%s%s?utm_source=naver_blog&amp;utm_medium=social&amp;utm_campaign=%s%s%s%s'
+            % (SITE, base, campaign, tail, hash_, frag))
 
 
 # 숫자·이스케이프는 사이트가 쓰는 정본을 그대로 가져다 쓴다. 여기 사본을 두면
