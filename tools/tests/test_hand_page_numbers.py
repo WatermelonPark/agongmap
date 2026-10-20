@@ -102,6 +102,16 @@ def _cycle_prose():
     return json.loads(m.group(1))['prose']
 
 
+def _faq_parts():
+    """FAQ 의 두 벌 — 검색용 FAQPage JSON-LD 와 사람이 읽는 <main> 본문. 같은 문턱 문장을 각각 정확히 한 번씩 대조한다(전수리뷰 P-4)."""
+    s = _read('faq/index.html')
+    m = re.search(r'<script type="application/ld\+json">\s*(\{.*?"FAQPage".*?\})\s*</script>', s, re.S)
+    assert m, 'FAQPage JSON-LD 를 못 찾았다'
+    i, j = s.find('<main'), s.find('</main>')
+    assert 0 <= i < j, 'FAQ <main> 을 못 찾았다'
+    return (('JSON-LD', m.group(1)), ('본문', s[i:j]))
+
+
 def test_faq_lead_months_follow_cycle_analysis():
     prose = _cycle_prose()
     want = (int(prose['lead_old']), int(prose['lead_new']))
@@ -114,15 +124,18 @@ def test_faq_lead_months_follow_cycle_analysis():
 def test_faq_grade_thresholds_follow_model_cuts():
     """FAQ 등급 문턱 문장의 배수·이름이 모델(GRADE_CUTS × 연수 = cut_mult, GRADE_LABS)과 같다.
     2026-10-05 안 A′로 단위가 '1년 적정물량의 N배'(1.5·3·4.5배)로 바뀌었다. 변이(실제로 확인): GRADE_CUTS 의 1.5 를 1.6 으로
-    바꾸면 빨개진다(4.5배 → 4.8배)."""
-    s = _read('faq/index.html')
-    m = re.search(r'모자람 없이 남으면 (\S+ \S+), ([\d.]+배) 미만은 (\S+), ([\d.]+배) 이상이면 (\S+), ([\d.]+배) 이상이면 (.+?), '
-                  r'([\d.]+배) 이상이면 (.+?)이다', s)
-    assert m, 'FAQ 등급 문턱 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것'
+    바꾸면 빨개진다(4.5배 → 4.8배). 화면 본문(q7)만 '2배 미만은 균형, 2배 이상이면 부족'으로 바꿔도 빨개진다(전수리뷰 P-4 —
+    예전엔 re.search 가 앞에 있는 JSON-LD 사본만 맞춰 보고 사람이 읽는 본문은 대조하지 않았다)."""
+    pat = re.compile(r'모자람 없이 남으면 (\S+ \S+), ([\d.]+배) 미만은 (\S+), ([\d.]+배) 이상이면 (\S+), ([\d.]+배) 이상이면 (.+?), '
+                     r'([\d.]+배) 이상이면 (.+?)이다')
     c4, c3, c2 = (SZ.cut_mult(x) for x in SZ.GRADE_CUTS[:3])
     L = SZ.GRADE_LABS
     want = (L['g0'], c2, L['g1'], c2, L['g2'], c3, L['g3'], c4, L['g4'])
-    assert m.groups() == want, 'FAQ 는 %s, 모델은 %s' % (m.groups(), want)
+    for part, text in _faq_parts():
+        got = [m.groups() for m in pat.finditer(text)]
+        assert len(got) == 1, 'FAQ %s 에서 등급 문턱 문장을 %d번 찾았다(정확히 한 번이어야 한다) — 문구가 바뀌었으면 이 시험도 고칠 것' % (
+            part, len(got))
+        assert got[0] == want, 'FAQ %s 는 %s, 모델은 %s' % (part, got[0], want)
 
 
 def test_faq_burini_quiz_counts_follow_quiz_code():
@@ -152,9 +165,12 @@ def test_faq_structured_data_asks_what_the_page_asks():
 
 def test_faq_light_thresholds_follow_the_move_in_band():
     """FAQ 의 신호등 문턱('70% 미만이면 적음, 70~130%는 보통, 130%를 넘으면 많음')이 정본 OCC_LO_PCT·OCC_HI_PCT·LIGHT 와 같다.
-    변이(실제로 확인): sido_zones.OCC_HI_PCT 를 140 으로 바꾸면 빨개진다."""
-    m = re.search(r'1년 적정물량의 (\d+)% 미만이면 (\S+), (\d+)~(\d+)%는 (\S+), (\d+)%를 넘으면 (\S+)이다', _read('faq/index.html'))
-    assert m, 'FAQ 신호등 문턱 문장을 못 찾았다'
+    변이(실제로 확인): sido_zones.OCC_HI_PCT 를 140 으로 바꾸면 빨개진다. 화면 본문(q7)만 '60% 미만이면 적음, 60~140%는 보통,
+    140%를 넘으면 많음'으로 바꿔도 빨개진다(전수리뷰 P-4 — 예전엔 JSON-LD 사본만 대조했다)."""
+    pat = re.compile(r'1년 적정물량의 (\d+)% 미만이면 (\S+), (\d+)~(\d+)%는 (\S+), (\d+)%를 넘으면 (\S+)이다')
     lo, hi = SZ.OCC_LO_PCT, SZ.OCC_HI_PCT
     want = (str(lo), SZ.LIGHT[-1][1], str(lo), str(hi), SZ.LIGHT[0][1], str(hi), SZ.LIGHT[1][1])
-    assert m.groups() == want, (m.groups(), want)
+    for part, text in _faq_parts():
+        got = [m.groups() for m in pat.finditer(text)]
+        assert len(got) == 1, 'FAQ %s 에서 신호등 문턱 문장을 %d번 찾았다(정확히 한 번)' % (part, len(got))
+        assert got[0] == want, (part, got[0], want)
