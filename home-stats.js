@@ -31,7 +31,9 @@ function ensureSggHist(){
     const src=(d&&d.ADV)||{};
     ['weekly','monthly'].forEach(k=>{
       const s2=src[k]; if(!s2||!ADV[k])return;
-      if(s2.sgg&&s2.sgg.rows)ADV[k].sgg=s2.sgg;
+      /* 받은 파일이 지금 것보다 옛 주(HTTP 캐시의 옛 파일)면 덮지 않는다 — 새 주 시군구 행을 옛 주로 되돌리지 않게(전수리뷰 H2 overflow) */
+      const cur=ADV[k].sgg, last=s=>s&&s.rows&&s.rows.length?s.rows[s.rows.length-1].p:'';
+      if(s2.sgg&&s2.sgg.rows&&last(s2.sgg)>=last(cur))ADV[k].sgg=s2.sgg;
     });
     SGG_HIST_READY=true;
   }).catch(e=>{ _sggReq=null; throw e; });
@@ -677,8 +679,9 @@ function occCls(region,v){
   return '';
 }
 function occFut(p){
+  /* '오늘'은 한국 시간이다(사이트 전체 규칙 — 기기 시계의 시간대가 아니다). 예전엔 기기 시간대로 분기를 셌다(전수리뷰 H2 overflow). */
   const y=+p.slice(0,4), q=+p.slice(5);
-  const now=new Date(), cy=now.getFullYear(), cq=Math.floor(now.getMonth()/3)+1;
+  const k=new Date(Date.now()+9*36e5), cy=k.getUTCFullYear(), cq=Math.floor(k.getUTCMonth()/3)+1;
   return y>cy || (y===cy && q>cq);
 }
 function occEst(row){ return row.e===1 || (row.e===undefined && occFut(row.p)); }
@@ -1102,9 +1105,12 @@ function renderTrPeriods(k){
   const T=TREND[k], el=document.getElementById(k+'-period'); if(!el||!T.periods)return;
   const W=trendData(k), have=W&&W.rows?W.rows.length:0;
   const cur=T.periods[TRP[k]];
-  if(!cur||(cur[1]>0&&cur[1]>have))TRP[k]=T.periods.length-1;   // 감춰진 칸이 선택돼 있으면 '전체'로
+  /* 감춰진 칸이 선택돼 있으면 '전체'로 — 감추는 조건(행이 기간의 95% 미만)과 같은 조건으로 본다. 예전엔 '기간보다 적으면'이라,
+     행이 기간의 95~100% 일 때 보이는 '3년'을 눌러도 '전체'로 바뀌었다(전수리뷰 H2 overflow). */
+  const hid=p=>p[1]>0&&have<p[1]*0.95;
+  if(!cur||hid(cur))TRP[k]=T.periods.length-1;
   el.innerHTML=T.periods.map((p,i)=>
-    (p[1]>0&&have<p[1]*0.95)?'':
+    hid(p)?'':
     '<button type="button" class="'+(TRP[k]===i?'on':'')+'" onclick="trSetPeriod(&#39;'+k+'&#39;,'+i+')">'
     +p[0]+'</button>').join('');
 }

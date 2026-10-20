@@ -393,6 +393,34 @@ btns['규모별'].click(); btns['착공'].click(); OUT.backT=view();
     assert got == {'inSize': 't', 'again': 't', 'back': 'g', 'gt': 0, 'backT': 't'}, got
 
 
+# ── H2 overflow: 기간 단추 95% 규칙·입주 추정 분기의 '오늘'·옛 시군구 파일 ─────────────────────
+def test_period_button_kst_quarter_and_stale_sgg_file():
+    """① 시장동향 기간 단추: 행이 기간의 95~100% 면 단추가 보이고, 그 단추를 고른 채 그려도 '전체'로 바뀌지 않는다.
+    ② 입주물량 추정 분기(occFut)는 한국 시간으로 센다 — UTC 12/31 15:30 은 한국 1/1 00:30 이라 새해 1분기는 '미래'가 아니다.
+    ③ data-sgg.json 이 지금 것보다 옛 주(HTTP 캐시)면 시군구 행을 덮지 않는다.
+    재현한 실제 상태(전수리뷰 H2 overflow 세 건): 보이는 '3년'을 눌러도 '전체'로 바뀜(have 150 < 156), 기기 시간대로 분기를 셈,
+    옛 파일이 새 주 행을 되돌림. 픽스처: 주간 150행, 고정 시각 2030-12-31T15:30Z, 최신 2031-01-13 대 옛 파일 2031-01-06.
+
+    변이(실제로 확인): renderTrPeriods 의 되돌림 조건을 옛 `cur[1]>have` 로, occFut 를 기기 시간대(getFullYear·getMonth)로,
+    ensureSggHist 의 날짜 비교를 빼면 빨개진다(③은 node 가 TZ=UTC 일 때 ②와 함께).
+    """
+    got = _node(_stats_js(r"""
+ADV.weekly={rows:Array.from({length:150},(_,i)=>({p:'w'+i}))};
+TRP.week=2; renderTrPeriods('week'); OUT.kept=TRP.week;
+OUT.has3y=document.getElementById('week-period').innerHTML.indexOf('3년')>=0;
+const RD=Date; Date.now=()=>RD.UTC(2030,11,31,15,30);
+OUT.fut=[occFut('2031Q1'), occFut('2031Q2'), occFut('2030Q4')];
+ADV.weekly.sgg={codes:['a'],rows:[{p:'2031-01-13'}]}; ADV.monthly={sgg:{codes:['a'],rows:[{p:'2030-12'}]}};
+globalThis.fetch=()=>Promise.resolve({ok:true,json:()=>({ADV:{weekly:{sgg:{codes:['a'],rows:[{p:'2031-01-06'}]}},
+  monthly:{sgg:{codes:['a'],rows:[{p:'2030-11'},{p:'2030-12'}]}}}})});
+await ensureSggHist();
+OUT.wk=ADV.weekly.sgg.rows.map(r=>r.p); OUT.mo=ADV.monthly.sgg.rows.length;
+"""))
+    assert got['kept'] == 2 and got['has3y'], got
+    assert got['fut'] == [False, True, False], got['fut']
+    assert got['wk'] == ['2031-01-13'] and got['mo'] == 2, got
+
+
 # ── #59 보조선 정점·바닥 ─────────────────────────────────────────────────────
 def test_aux_peak_lines_sit_on_the_data_peak():
     """'정점'·'바닥' 보조선은 그리는 계열·지역 원자료의 그 구간 최댓값·최솟값 달에 선다.
