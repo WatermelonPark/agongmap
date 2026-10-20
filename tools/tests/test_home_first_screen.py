@@ -263,7 +263,8 @@ def test_hero_is_the_title_block_only():
     assert '<a ' not in hero and 'myz' not in hero and 'hero-wk' not in hero, hero
     boot = _js_func(_home(), 'boot')
     assert not re.search(r'renderHeroBand|renderMyZone|initMyZonePick', boot), boot
-    assert re.search(r"wg-when\">매매 전주 대비\(%\)'\+\(rel&&!rel\.stale\?' · '\+wkPubLead\(rel\)", _js_func(_home(), 'renderWeeklyGrid'))
+    assert re.search(r"wg-when\">'\+\(row\.je\?'매매·전세':'매매'\)\+' 전주 대비\(%\)'\+\(rel&&!rel\.stale\?' · '\+wkPubLead\(rel\)",
+                     _js_func(_home(), 'renderWeeklyGrid'))
     assert 'dropOldMyZone();' in boot
     css = _src('app.css')
     assert not re.search(r'\.(hero-wk|hw-\d|myz)', css), '뺀 히어로 줄의 CSS 규칙이 남아 있다'
@@ -498,3 +499,14 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     assert '<button' not in old and '349,029세대 부족' in old
     how = _js_func(h, 'renderAggCards')   # 카드·ⓘ 식은 2026-10-04 에 지도 상자 밖(#agg-wrap)으로 나갔다
     assert "'<p class=\"agg-how\" id=\"agg-how-'+i+'\" hidden>" in how and 'z.ftxt' in how
+
+
+def test_home_weekly_map_shows_sales_and_jeonse_rows():
+    """홈 '이번 주 시군구 지도'는 칸마다 매매·전세 두 줄이다 — 통계 시장동향 주간 지도와 같은 2단(2026-10-20 대표 요청,
+    09-28 '홈 주간 구역은 매매만'을 되돌림). 전세 줄이 없는 옛 캐시(row.je 없음)는 매매 한 줄로 그린다.
+    변이(실제로 확인): sggMapSvg 에 [v] 만 넘기거나 vj 에 전세 대신 매매(row.ma)를 담으면 빨개진다.
+    픽스처: 저장소 홈 스크립트(home_src)의 renderWeeklyGrid 원문."""
+    f = _js_func(_home(), 'renderWeeklyGrid')
+    assert re.search(r"vj\[c\]=\(row\.je\|\|\[\]\)\[i\]", f), f
+    assert re.search(r"sggMapSvg\(row\.je\?\[v,vj\]:\[v\],\{ref:WK_MAP_REF,names:\['매매','전세'\]", f), f
+    assert '위 = 매매 · 아래 = 전세' in f
