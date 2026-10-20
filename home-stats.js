@@ -56,7 +56,10 @@ function onTrendSgg(k){
    곧바로 부른다. 예전엔 여기서 trend 를 부르지 않아 코어 4주치를 '전체'로 그렸고 투자지표에서 TypeError 가 났다.
    이미 받았으면 loadData 가 캐시한 약속이 곧바로 풀린다. */
 let TREND_P=null;   // 주간·월간 첫 그림이 끝나는 약속 — openTrendRegion 이 이 뒤에 고른 지역을 그린다(첫 그림이 덮지 않게)
+/* statsInited 를 여기서도 세운다 — 그래프 데이터만 실패한 뒤의 '다시 시도'(안내 칸 단추)는 showView 를 거치지 않고 이 함수를
+   바로 부른다. 세우지 않으면 다음 모드 탭(setStatsMode)이 이 함수를 또 불러 initStats 가 두 번 돌았다(전수리뷰 2차 H2-5). */
 function statsOpen(){
+  statsInited=true;
   TREND_P=loadFullData().then(()=>{
     renderReleaseInfo();
     renderWeekSec();
@@ -127,6 +130,7 @@ const DS_ORDER=['매매지수','전세지수','전세가율','규모별','인허
 let ST={ds:'매매지수',reg:null,years:0,aux:new Set()};
 let statChartObj=null;
 
+let STATS_BOUND=false;
 function initStats(){
   // 데이터셋 세그먼트 (+리드타임 특수항목)
   const seg=document.getElementById('ds-seg');
@@ -155,6 +159,9 @@ function initStats(){
     const go=()=>{ if(isLead){drawLeadtime();}else{fillRegions();renderAux();drawStat();} };
     if(!isLead&&!STATS[ST.ds]) ensureSizeStats().then(go).catch(()=>{}); else go();
   }));
+  /* 기간 프리셋·지역 선택은 늘 있는 마크업이라 리스너를 한 번만 단다 — 두 번 돌면 한 번 누름에 drawStat 이 두 번 돈다(H2-5) */
+  if(STATS_BOUND){fillRegions();renderAux();drawStat();return;}
+  STATS_BOUND=true;
   // 기간 프리셋
   document.querySelectorAll('#period-seg button').forEach(b=>b.addEventListener('click',()=>{
     ST.years=+b.dataset.y;

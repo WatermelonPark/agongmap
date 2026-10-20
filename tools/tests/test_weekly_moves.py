@@ -131,7 +131,7 @@ def _grid_js(W, seen=None):
     wk_seen 을 돌려준다."""
     h = HS.home_source()
     names = ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg', 'onTrendLink', '_syncHolidays', 'weeklyReleaseNow',
-             'weeklyHead', 'applyWeeklyStatus', 'weeklyShare', 'wkSinceText', 'wkShouldRemember', 'wkSeen', 'wkRemember',
+             'weeklyHead', 'applyWeeklyStatus', 'weeklyShare', 'wkSinceText', 'wkPs', 'wkShouldRemember', 'wkSeen', 'wkRemember',
              'renderWeeklyGrid', 'track', 'loadKakao')
     key = re.search(r"^const WK_SEEN_KEY='[^']+';", h, re.M)
     assert key, 'home-app.js 에서 WK_SEEN_KEY 를 찾지 못했다'
@@ -192,6 +192,45 @@ def test_since_last_visit_line():
                     '.map(s=>wkSinceText(s,r))));'])
     assert _node(js) == [None, None, '지난 방문(1/24 발표) 이후 새 발표 1회',
                          '지난 방문(1/10 발표) 이후 새 발표 3회', None, None]
+
+
+def test_since_last_visit_skips_a_week_the_source_skipped():
+    """원천이 조사를 거른 주는 새 발표로 세지 않는다 — 실제 조사기준일 목록(ADV.weekly.ps)으로 센다(전수리뷰 2차 X2-8).
+
+    재현하는 실제 상태: data.js 주간 행의 2025-01-20 → 2025-02-03(설 연휴 주를 거름). 1/23 발표를 본 기기가 2/6 발표 뒤 오면 새 발표는
+    한 번인데 예전 셈(주 차이)은 '2회'였다. 목록의 모든 발표가 seen 뒤면 그 앞은 모르므로 'N회 이상'. 코어가 실제로 목록을 싣는지
+    (split_data, 저장소 data.js 사본)와 그 마지막이 최신 조사일인지도 본다.
+    변이(각각 실제로 확인): wkSinceText 가 ps 를 무시하고 주 차이로 세면 거름 단정이, '이상'을 붙이는 줄을 지우면 '이상' 단정이,
+    split_data 의 wk['ps'] 줄을 지우면 코어 단정이 빨개진다.
+    """
+    h = HS.home_source()
+    ps = ['2025-01-06', '2025-01-13', '2025-01-20', '2025-02-03']
+    js = '\n'.join([_wk_block(h), _js_func(h, 'wkSinceText'), _js_func(h, 'wkPs'),
+                    'const r=weeklyRelease("2025-02-03",new Date("2025-02-07T03:00:00Z"),9), W={ps:%s};' % json.dumps(ps),
+                    'process.stdout.write(JSON.stringify([r.pub].concat(["2025-01-23","2025-01-16","2025-01-02","2025-02-06"]'
+                    '.map(s=>wkSinceText(s,r,wkPs(W))))));'])
+    assert _node(js) == ['2025-02-06', '지난 방문(1/23 발표) 이후 새 발표 1회', '지난 방문(1/16 발표) 이후 새 발표 2회',
+                         '지난 방문(1/2 발표) 이후 새 발표 4회 이상', None]
+    import split_data as SD
+    import tempfile as _tf
+    import shutil as _sh
+    tmp = _tf.mkdtemp()
+    try:
+        src = os.path.join(tmp, 'data.js')
+        _sh.copyfile(os.path.join(ROOT, 'data.js'), src)
+        paths = {'SRC': src, 'OUT': os.path.join(tmp, 'data-core.js'), 'REST': os.path.join(tmp, 'r.json'),
+                 'TREND': os.path.join(tmp, 't.json'), 'SGG': os.path.join(tmp, 's.json'), 'SIZE': os.path.join(tmp, 'z.json')}
+        with pytest.MonkeyPatch.context() as mp:
+            for k, v in paths.items():
+                mp.setattr(SD, k, v)
+            SD.main()
+        core = io.open(paths['OUT'], encoding='utf-8').read()
+    finally:
+        _sh.rmtree(tmp)
+    adv = json.loads(re.search(r'const ADV=(\{.*?\});\nconst STATS', core, re.S).group(1))
+    W, _ = MW.load()
+    got = adv['weekly'].get('ps')
+    assert got == [r['p'] for r in W['rows'][-SD.WK_SEEN_N:]] and got[-1] == adv['weekly']['rows'][-1]['p'], got
 
 
 def test_sgg_rank_moves_match_the_home_top10():

@@ -735,7 +735,7 @@
   .home-sec h2{font-size:clamp(21px,4.6vw,27px);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
   .home-sec h3{font-size:clamp(17px,3.6vw,20px);font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
   .home-sec p{font-size:var(--fs-read);line-height:1.75;color:var(--ink2);max-width:520px;margin:0 auto}
-  /* 주간 시세 = 전국 시군구 지도(renderWeeklyGrid, 매매만). 예전엔 시도 20칸 격자였다(2026-10-02 대표 요청으로 걷음).
+  /* 주간 시세 = 전국 시군구 지도(renderWeeklyGrid, 매매만). 예전엔 시도 격자였다(2026-10-02 대표 요청으로 걷음).
      지도는 통계 탭과 같은 sggMapSvg 라 글자 하한(11px)을 지키는 최소 폭이 있고, 좁은 화면에서는 상자 안에서 옆으로 민다
      (.map-scroll). 칸을 누르면 그 지역 주간 그래프. 글자는 13px 이상(test_home_min_font — SVG 지도 라벨은 제외). */
   .wgrid{max-width:560px;margin:18px auto 0}
@@ -805,7 +805,7 @@
   .sc-tier{flex:none;width:62px;text-align:center;font-size:11.5px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted);white-space:nowrap}
   .sc-tier.g4{background:#fdecea;color:#a93226}
   .sc-tier.g3{background:#fbeee9;color:#c0392b}
-  /* 3.34:1이라 10.5px 기준(4.5:1)에 미달했다 — 20곳 중 7곳이 다는 최다
+  /* 3.34:1이라 10.5px 기준(4.5:1)에 미달했다 — 여러 곳이 다는 최다
      배지다(2026-08-07 오딧). 배경 faf3e7은 audit_design DATA_TINTS 예외라
      그대로 두고 글자만 내렸다: #b9770e → #8f5806 = 5.34:1. */
   .sc-tier.g2{background:#faf3e7;color:#8f5806}
@@ -843,7 +843,7 @@ table.adv thead th:first-child{text-align:center}
 #sec-score .thead{margin-top:18px}
 
   /* ===== 공급·가격 통합표 (홈, 2026-08-06) =====================================
-     행=기간, 열=시도 20곳. 칸 배경은 과거=가격 변동 세로 3등분, 미래=적정물량 대비.
+     행=기간, 열=판정 단위(시도·집계) 전부. 칸 배경은 과거=가격 변동 세로 3등분, 미래=적정물량 대비.
      20열이라 가로 스크롤이 전제다 — 기간 열과 표두는 붙박이로 둔다. */
   .tb-bar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:16px 0 10px}
   /* ── 홈 3모드(지도/그래프/표) — 표시 여부는 섹션의 vm-* 클래스가 정한다.
@@ -954,7 +954,7 @@ table.adv thead th:first-child{text-align:center}
      (카드가 그려질 때 아래 단추·요약이 밀리지 않게). 지도 = 예전 예약 − (카드 + 8px).
      데스크톱 2단 1024~1047px 은 오른쪽 단(480px, #40) 때문에 왼쪽 단이 지도 상한 480px 보다 좁아(1024px 에서 456px) 지도가 폭을
      따라 줄어든다 — 그 구간만 폭을 따르는 식으로 잡는다(1024px 실측 643px, 예전 고정 762 예약은 32px 남았다). */
-  /* 카드 셋의 예약(2026-10-06 재측정 — 배지 줄·신호등 틀 줄·세대수 줄. 신호등 범례는 지도 아래 출처 줄로 옮겼다). 374px 이하는
+  /* 카드 셋의 예약(2026-10-06 재측정 — 배지 줄·신호등 틀 줄·세대수 줄. 신호등 범례는 출처 줄 끝으로 옮겼다 — 그 줄은 2026-10-17 에 지도 아래에서 카드 아래 단추 왼쪽으로 갔다). 374px 이하는
      배지가 이름 아래 줄로 내려가 561px 이상과 같은 높이다. 예약이 낡으면 지도가 밀린다(CLS — 10-06 리뷰 0.04~0.05). 값은 Chromium 실측. */
   #agg-wrap:empty{min-height:109px;margin-bottom:8px}
   @media(min-width:375px) and (max-width:560px){#agg-wrap:empty{min-height:90.4px}}
@@ -1218,7 +1218,7 @@ table.adv thead th:first-child{text-align:center}
   #tb-main .tb-zl{color:inherit;text-decoration:none;display:block;
     margin:-6px -9px;padding:9px}
   #tb-main .tb-zl:hover{text-decoration:underline}
-  /* 허브(/zone/) 진입점. 푸터에만 있어서 표를 보던 사람이 20곳을 나란히
+  /* 허브(/zone/) 진입점. 푸터에만 있어서 표를 보던 사람이 판정 단위 전부를 나란히
      견주는 화면으로 갈 길이 없었다(2026-08-07 오딧). 표 다음 동작 자리에 둔다. */
   /* 회색 테두리 상자는 어떤 기존 어휘에도 안 속해 따로 놀았다(2026-08-08
      사용자: "어색하고 눈에 안 띔") — 히어로 주 CTA(.home-cta: 먹색 채움·
@@ -1233,12 +1233,18 @@ table.adv thead th:first-child{text-align:center}
     border-radius:var(--r-touch);transition:.15s}
   .tb-more a:hover{background:#000}
   .tb-more a:active{transform:scale(.98)}
-  /* 지도 아래 줄들(홈 마케팅 검수 3차 묶음 S, 2026-09-27). 순서: 출처·구간(B9) → 시도별로 자세히 보기 → 이달의 통계(B6)(버튼 두 개).
-     내 지역 고르기(C5)는 2026-10-05 에 뺐다. 운영 주체 줄(B9·TRUST-6)은 뺐다(2026-09-28 대표 결정 — 제보 메일은 푸터 mailto). 구간 줄은 두 조각이
-     줄마다 따로라 부팅 뒤 글자가 바뀌어도 줄 수가 같다. 글자는 13px 이상(test_home_min_font). */
+  /* 지도 아래 줄들(홈 마케팅 검수 3차 묶음 S, 2026-09-27). 순서: 시도별로 자세히 보기 → 이달의 통계(B6)(버튼 두 개). 출처·구간 줄(B9)은
+     2026-10-17 에 카드 아래 단추 왼쪽으로 옮겼다(아래 공급 모드 기준 줄). 내 지역 고르기(C5)는 2026-10-05 에 뺐다. 운영 주체 줄(B9·TRUST-6)은
+     뺐다(2026-09-28 대표 결정 — 제보 메일은 푸터 mailto). 글자는 13px 이상(test_home_min_font). */
   /* 공급 모드 기준 줄 — 카드 바로 아래, 지도/그래프/표 단추 왼쪽(2026-10-17 대표 요청, 지도 아래에서 옮겼다). 첫 줄은 '앞으로 3년(…) ·
-     국토교통부 착공·준공 실적 기준', 둘째 줄은 신호등 범례(#lt-key). 560px 이하는 단추 옆이 좁아 제 줄을 통째로 쓰고 단추가 아래로 간다. */
-  .home-sec .tb-bar p.map-src{flex:1 1 0;min-width:0;margin:0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted);text-align:left;word-break:keep-all}
+     국토교통부 착공·준공 실적 기준', 둘째 줄은 신호등 범례(#lt-key). 560px 이하는 단추 옆이 좁아 제 줄을 통째로 쓰고 단추가 아래로 간다.
+     ⚠️ 부팅 때 '앞으로 3년 공급'이 '앞으로 3년(2026년 3분기~2029년 2분기)'로 길어진다(supplySpan). 줄 칸이 그 한 줄(운영 글꼴 약 400px)보다
+     좁으면 부팅 뒤에만 둘째 줄로 꺾여 단추·지도가 20px 밀렸다(전수리뷰 2차 H1-1, 10-17 이동이 옛 '조각마다 제 줄' 규칙을 지운 회귀). 그래서
+     칸이 470px 이하면 구간과 출처를 처음부터 제 줄로 나눠(가운뎃점은 숨김) 부팅 전후 줄 수를 같게 둔다 — 470 은 운영 글꼴 폭에 대체 글꼴
+     여유를 더한 값이다. 넓은 칸은 한 줄 그대로다. 문구 길이를 바꾸면 스크립트 끔 ↔ 부팅 뒤로 단추 위치를 다시 잰다. */
+  .home-sec .tb-bar p.map-src{flex:1 1 0;min-width:0;margin:0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted);text-align:left;word-break:keep-all;
+    container-type:inline-size}
+  @container (max-width:470px){.map-src #map-span{display:block}.map-src .ms-sep{display:none}}
   @media(max-width:560px){.home-sec .tb-bar p.map-src{flex-basis:100%}}
   .map-src #map-span{color:var(--ink2);font-weight:600}
   #sec-score.mm-price .map-src{display:none}   /* 공급 출처 줄 — 시세 모드(주간·월간)에서는 그 지도의 출처가 아니다(mapMode) */
@@ -1263,7 +1269,7 @@ table.adv thead th:first-child{text-align:center}
   .inst-go{background:var(--ink);color:#fff;border:0}
   .inst-x{margin-left:auto;background:#fff;color:var(--ink2);border:1px solid var(--line)}
   .zsort{margin-top:12px}
-  /* 허브: '17개 시도' 제목이 위 집계 박스에 붙어 있었다(2026-08-08 사용자) */
+  /* 허브: 'N개 시도' 제목이 위 집계 박스에 붙어 있었다(2026-08-08 사용자) */
   .z17{margin-top:36px}
 
   /* ===== 시도 상세 페이지 (2026-08-06) ======================================
@@ -1287,7 +1293,7 @@ table.adv thead th:first-child{text-align:center}
 
   /* 격자선을 컨테이너 배경(--line)으로 깔고 gap:1px로 뚫어 보이게 하던 방식이었는데,
      카드가 5개라 넓은 화면에서 4열이 잡히면 둘째 줄 빈 칸 3개에 그 배경이 그대로
-     드러났다(17개 시도 전부). 셀이 없는 자리는 --paper로 덮이지 않기 때문이다.
+     드러났다(시도 전부). 셀이 없는 자리는 --paper로 덮이지 않기 때문이다.
      그래서 선을 셀이 스스로 그리게 바꾼다 — 빈 자리에는 아무것도 안 그려진다.
      box-shadow는 바깥으로 1px 번지므로 gap:1px을 인접 셀끼리 나눠 채워 1px 선이
      되고, 레이아웃을 밀지 않아 열 계산에도 영향이 없다. auto-fit이라 열 수가

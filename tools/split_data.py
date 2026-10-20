@@ -91,6 +91,9 @@ from weekly_release import GRACE_WEEKLY  # noqa: E402
 import kst as _kst  # noqa: E402
 import sido_zones as _SZ  # noqa: E402
 TABLE_REGIONS = set(_SZ.ORDER)
+# 홈 '지난 방문 이후 새 발표 N회'가 세는 최근 조사기준일 수(ADV.weekly.ps). 이보다 오래 안 온 기기는 'N회 이상'으로 적는다.
+WK_SEEN_N = 12
+
 # 홈 통합표가 그리는 구간의 첫 달. 시도 리포트 분기 표(make_sido_pages.TABLE_FROM)·통계 탭 입주물량(supply_rows)과 같은 정본
 # sido_zones.TABLE_FROM_YEAR 에서 만든다(전수리뷰 X1 overflow — '2017'이 세 곳에 따로 박혀 있었다). 적정물량 기준표와 같은 시작점이다.
 TABLE_FROM = '%d.01' % _SZ.TABLE_FROM_YEAR
@@ -316,6 +319,8 @@ def main():
     share = _weekly_share(w)
     if w.get('rows'):
         wk['rows'] = w['rows'][-1:]   # 홈 띠·주간 구역 머리(발표 상태·결론)는 마지막 행만 읽는다
+        # 최근 조사기준일 — 홈 '지난 방문 이후 새 발표 N회'(wkSinceText)가 원천이 거른 주를 세지 않게 실제 조사일로 센다(전수리뷰 2차 X2-8)
+        wk['ps'] = [r['p'] for r in w['rows'][-WK_SEEN_N:]]
         if head:
             wk['head'] = head
         if share:
