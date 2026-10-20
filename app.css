@@ -657,6 +657,8 @@
   /* 리포트용 'section+section{padding-top:30px}'(아래 지역 리포트 규칙)가 시세 탭 구역에도 먹어 월간·인허가·입주 머리 위가 30px
      더 비었다(백로그 36-9) — 시세 탭 구역끼리는 위 margin-top 하나로 띄운다. */
   .adv-sec+.adv-sec{padding-top:0}
+  /* 그래프 상자 위 라이브러리 실패 안내(chartFailNote, 전수리뷰 H2-4) */
+  p.chart-fail{margin:6px 0;font-size:13px;font-weight:600;color:var(--ink2)}
   /* 불러오기 실패 안내의 다시 시도 단추(백로그 36-6) */
   .retry-btn{display:inline-flex;align-items:center;min-height:44px;margin:6px 0 0 6px;padding:0 16px;border:1px solid var(--ink);
     border-radius:var(--r-touch);background:#fff;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}

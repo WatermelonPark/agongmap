@@ -212,11 +212,22 @@ function renderAux(){
 }
 /* 기본통계 표·메타·출처는 차트 라이브러리와 무관하다 — 라이브러리를 못 받아도 표는 그리고, 그래프 자리에만 안내를
    단다(전수리뷰 #53). 예전엔 drawStat 첫 줄에서 라이브러리를 기다려, 못 받으면 표·피벗·출처까지 안내 없이 비었다. */
-function chartFailNote(){
+/* 그래프마다 안내를 다는 자리와 다시 그릴 함수. 기본통계·리드타임은 출처 줄 끝에, 시장동향·인허가·입주물량은 그 그래프 상자
+   바로 위에 단다 — 예전엔 기본통계 출처 줄에만 달아, 시장동향·투자지표 그래프는 숨은 화면의 안내 하나만 남기고 빈 상자였다
+   (전수리뷰 H2-4). */
+const CHART_FAIL={stat:['src-note',()=>drawStat()],lead:['src-note',()=>drawLeadtime()],
+  week:['weekChartBox',()=>drawTrendChart('week')],month:['monthChartBox',()=>drawTrendChart('month')],
+  permit:['permitChartBox',()=>drawPermitChart()],occ:['occChartBox',()=>drawOccChart()]};
+function chartRedo(key){ CHART_FAIL[key][1](); }
+function chartFailNote(key){
+  const host=CHART_FAIL[key][0];
   loadChart().catch(()=>{
-    const n=document.getElementById('src-note');
+    const n=document.getElementById(host); if(!n)return;
+    const inNote=host==='src-note', prev=n.previousElementSibling;
+    if(inNote?n.querySelector('.chart-fail'):(prev&&prev.classList.contains('chart-fail')))return;
+    const tag=inNote?'b':'p';
     // 다시 시도 단추(백로그 36-6) — 안내를 걷고 같은 그래프를 다시 그린다(loadChart 는 실패한 주소를 다시 받는다)
-    if(n&&!n.querySelector('.chart-fail'))n.insertAdjacentHTML('beforeend',' <b class="chart-fail">그래프를 불러오지 못했습니다. 연결을 확인해 주세요. <button type="button" class="retry-btn" onclick="this.closest(\'.chart-fail\').remove();drawStat()">다시 시도</button></b>');
+    n.insertAdjacentHTML(inNote?'beforeend':'beforebegin',(inNote?' ':'')+'<'+tag+' class="chart-fail">그래프를 불러오지 못했습니다. 연결을 확인해 주세요. <button type="button" class="retry-btn" onclick="this.closest(\'.chart-fail\').remove();chartRedo(\''+key+'\')">다시 시도</button></'+tag+'>');
   });
 }
 function drawStat(){
@@ -247,7 +258,7 @@ function drawStat(){
   buildMatrix(D,idx,parsed);
   document.getElementById('src-note').innerHTML=
     `※ ${D.note?D.note+'. ':''}가공 없는 원자료다.`;
-  if(needChart(()=>drawStat())){ chartFailNote(); return; }   // 그래프만 라이브러리를 기다린다(#53)
+  if(needChart(()=>drawStat())){ chartFailNote('stat'); return; }   // 그래프만 라이브러리를 기다린다(#53)
   /* statChartObj만 믿고 destroy하면 참조가 어긋났을 때(비동기 재진입 등) 캔버스에
      고아 차트가 남아 이후 모든 생성이 실패한다 — 실소유 차트를 찾아 파괴한다. */
   const _own=Chart.getChart('statChart'); if(_own)_own.destroy();
@@ -429,7 +440,7 @@ function drawLeadtime(){
   tbody.innerHTML=h;
   document.getElementById('src-note').innerHTML=
     `※ 착공량과 준공량의 12개월 이동평균을 시차를 두고 비교한 것. 곡선의 봉우리가 평균 공사기간을 뜻한다. 과거 약 ${pOld[0]}개월에서 최근 약 ${pNew[0]}개월로 길어졌다 — 공사비·인력·안전기준 변화 등이 원인으로 추정된다.`;
-  if(needChart(()=>drawLeadtime())){ chartFailNote(); return; }
+  if(needChart(()=>drawLeadtime())){ chartFailNote('lead'); return; }
   {const _o=Chart.getChart('statChart'); if(_o)_o.destroy();}
   statChartObj=new Chart(document.getElementById('statChart'),{
     type:'line',
@@ -1091,7 +1102,7 @@ function trSetPeriod(k,i){
   track('stats_period',{section:k,period:TREND[k].periods[i][0]});
 }
 function drawTrendChart(k){
-  if(needChart(()=>drawTrendChart(k)))return;
+  /* 지역 상자·기간 단추·범위 줄은 차트 라이브러리와 무관하다 — 먼저 그리고 그래프만 라이브러리를 기다린다(전수리뷰 H2-4) */
   const T=TREND[k], W=trendData(k); if(!W)return;
   advSel(T.sel,W.regions);
   fillSggSel(k,(document.getElementById(T.sel2)||{}).value);
@@ -1108,6 +1119,7 @@ function drawTrendChart(k){
   /* '전체'가 실제로 어디부터인지 밝힌다 — 라벨만으로는 알 수 없다 */
   const uel=document.getElementById(k+'-unit');
   if(uel&&n)uel.textContent='변동률(%) · '+T.lab(rows[0].p)+' ~ '+T.lab(rows[n-1].p);
+  if(needChart(()=>drawTrendChart(k))){ chartFailNote(k); return; }
   /* 월세는 월간에만 있다. 면적 3겹은 서로를 가려 선만 그린다(fill 없음). */
   const dsets=[
     {label:'매매',data:rows.map(r=>r.ma[ri]),borderColor:'#e0564a',backgroundColor:areaGrad('#e0564a','1a'),fill:'origin',
@@ -1133,9 +1145,9 @@ function renderWeekSec(){ renderTrendTables('week'); drawTrendChart('week'); dra
 function renderMonthSec(){ renderTrendTables('month'); drawTrendChart('month'); drawTrendMap('month'); }
 /* --- 투자지표 차트 --- */
 function drawPermitChart(){
-  if(needChart(()=>drawPermitChart()))return;
   const P=ADV.permits, regs=P.regions;
   const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
+  if(needChart(()=>drawPermitChart())){ chartFailNote('permit'); return; }
   const vals=P.rows.map(r=>r.v[ri]);
   const cols=vals.map(v=>{const c=permitCls(reg,v);return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');});
   mkChart('permitChart',{type:'bar',
@@ -1160,9 +1172,9 @@ function drawPermitChart(){
     }}]});
 }
 function drawOccChart(){
-  if(needChart(()=>drawOccChart()))return;
   const O=ADV.occupancy, regs=O.regions;
   const reg=advSel('adv-occ-reg',regs), ri=regs.indexOf(reg), ref=O.ref[reg];
+  if(needChart(()=>drawOccChart())){ chartFailNote('occ'); return; }
   const vals=O.rows.map(r=>r.v[ri]);
   /* 추정 분기도 실적과 같은 판정 색으로 칠하고 옅게만 구분한다(백로그 36-10) — 예전엔 추정을 노랑 하나로 칠해 표에서 빨간
      '적음' 분기가 그래프에서는 보이지 않았다. 색은 범례(index.html #sec-occ .adv-legend)와 같다. */
