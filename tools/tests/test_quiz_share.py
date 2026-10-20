@@ -175,3 +175,37 @@ def test_card_badges_and_names_follow_the_result_grade(tmp_path, monkeypatch):
     n_lv = len({lv for lv, _ in o['calc']})
     assert o['calc'][top][0] in drawn and '/ %d' % n_lv in drawn, ('재건축 만점 카드 배지가 %s / %d 가 아니다' % (o['calc'][top][0], n_lv), drawn)
     assert '/%d' % top in drawn and o['calc'][top][1] in drawn, drawn
+
+
+def _side_ink(img, band=(200, 483), side=50):
+    """숫자 띠(y band)에서 좌우 side 픽셀 안에 찍힌 흰색 아닌 칸 수."""
+    im = img.convert('RGB').crop((0, band[0], img.width, band[1]))
+    w, h = im.size
+    px = im.load()
+    return sum(1 for y in range(h) for x in list(range(side)) + list(range(w - side, w)) if px[x, y] != (255, 255, 255))
+
+
+def test_investor_score_row_stays_inside_the_card_margins(tmp_path):
+    """투자자 공유 카드의 숫자 줄(점수·'/N'·이모지)이 좌우 50px 여백 안에 든다 — 저장소의 카드 0~QUIZ_LEN점과 도구가 지금 굽는 만점 카드 둘 다.
+
+    재현한 실제 상태(2026-10-18): 두 자리 '10'은 줄 폭이 790px 라 그룹 왼쪽이 x=-14, 큰 숫자 잉크가 x=2 부터 찍혀 카드 왼쪽 끝에 붙었다
+    (share/investor-10.png, kakaoFeed·/investor-test/10/ og:image). 한 자리 점수 카드는 잉크가 82px 부터라 정상이었다.
+    변이(실제로 확인): make_investor_cards.make_card 의 '여백 안에 들게 줄이는' 갈래를 지우면 도구 갈래가, 저장소 share/investor-10.png 를
+    옛 그림으로 되돌리면 저장소 갈래가 빨개진다.
+    픽스처: 저장소 share/investor-*.png 와 실제 카드 도구(번들 글꼴)로 tmp 에 구운 만점 카드.
+    """
+    from PIL import Image
+    import make_investor_cards as MI
+    top = HS.quiz_len()
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    bad = []
+    for s in range(top + 1):
+        n = _side_ink(Image.open(os.path.join(root, 'share', 'investor-%d.png' % s)))
+        if n:
+            bad.append(('share/investor-%d.png' % s, n))
+    out = tmp_path / 'inv.png'
+    MI.make_card(top, str(out))
+    n = _side_ink(Image.open(str(out)))
+    if n:
+        bad.append(('make_card(%d)' % top, n))
+    assert not bad, '숫자 줄이 카드 좌우 여백을 침범한다(점 수): %s' % bad
