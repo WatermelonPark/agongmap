@@ -91,7 +91,7 @@ def test_link3_stops_on_a_rebased_index():
 def test_theory4_data_break_is_not_blamed_on_the_text(monkeypatch):
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
 
-    def broken(adv, sts):
+    def broken(adv, sts, D=None):
         raise L3.Link3DataError('매매지수 기준 단절 — 매매지수 2026.01 (27개 지역, 예: 서울 189.83→94.62)')
     monkeypatch.setattr(L3, 'link3_numbers', broken)
     with pytest.raises(SystemExit) as e:

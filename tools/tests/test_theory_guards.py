@@ -135,7 +135,7 @@ def _data_stops(monkeypatch):
             T.guard_values(n, D, data)
         return n, e.value
 
-    def rebased(adv, sts):
+    def rebased(adv, sts, D=None):
         raise L3.Link3DataError('매매지수 기준 단절 — 매매지수 2026.01 (27개 지역, 예: 서울 189.83→94.62)')
     monkeypatch.setattr(L3, 'link3_numbers', rebased)
     sts5 = {k: {'dates': ['2026.%02d' % m for m in range(1, last + 1)], 'series': {'전국': [1000] * last}}

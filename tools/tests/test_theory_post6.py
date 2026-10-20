@@ -180,7 +180,7 @@ def test_most_regions_not_short_stops_the_draft():
 
 def test_a_fifth_post_only_claim_does_not_stop_the_sixth(monkeypatch):
     """5편 단정이 깨진 회차(예: 2026년 착공 증가율·2027년 자료의 연도 가드)에도 6편은 제 전제만 보고 나온다(전수리뷰 BL2-4)."""
-    def boom(adv, sts):
+    def boom(adv, sts, D=None):
         raise L4.Link4ClaimError('st_ytd_up: 5편만의 단정이 깨졌다')
     monkeypatch.setattr(L4, 'link4_numbers', boom)
     D, adv = _snap()

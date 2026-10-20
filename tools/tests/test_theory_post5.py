@@ -44,7 +44,7 @@ def test_every_placeholder_has_a_counted_value():
 def test_claim_break_stops_the_draft(monkeypatch):
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
 
-    def broken(adv, sts):
+    def broken(adv, sts, D=None):
         raise L4.Link4ClaimError('dn25: 옛 시차 반례가 더는 성립하지 않는다')
     monkeypatch.setattr(L4, 'link4_numbers', broken)
     with pytest.raises(SystemExit) as e:
@@ -107,3 +107,29 @@ def test_no_hand_written_counts_in_body():
     # 연도(4자리)·편 번호·'1년' 같은 가정은 문장이다. 세대·호·퍼센트·배수는 전부 계산값이어야 한다.
     hand = re.findall(r'\d[\d,]*\s*(?:호|세대|%%|배)', text)
     assert not hand, hand
+
+
+def _snapshot():
+    """5편 고정 스냅숏(theory5_snapshot.json) — 2026-10-20 저장소의 ADV.occupancy·ADV.sido·STATS 준공·착공·인허가와 /cycle/ D 를
+    옮겨 둔 것. 모든 단정이 서는 상태라 데이터가 앞으로 가도(2027년 자료 — 본문의 2026년 전제가 깨지는 날) 같은 입력이다."""
+    import json
+    with io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'theory5_snapshot.json'), encoding='utf-8') as f:
+        s = json.load(f)
+    return s['adv'], s['sts'], s['D']
+
+
+def test_snapshot_passes_every_claim_and_fills_every_slot(monkeypatch):
+    """성공 경로: 고정 스냅숏에서 link4_numbers 의 단정이 모두 서고 5편 본문 자리 표시자가 하나도 남지 않는다. 단정 모음의 넓은 받기
+    (KeyError·TypeError → Link4ClaimError)는 단정 함수 안의 코드 회귀도 '데이터가 바뀌었다'로 삼켜 게이트에서 안 보이게 한다 — 이
+    시험은 그 회귀를 빨갛게 드러낸다(전수리뷰 overflow G1a, 대표 결정 2026-10-18 D1).
+    변이(실제로 확인): 단정 함수 하나(_fut_low)에 코드 오타(없는 키)를 넣으면, 값 함수 하나를 지우면 빨개진다."""
+    adv, sts, D = _snapshot()
+    v = L4.link4_numbers(adv, sts, D)
+    used = set(re.findall(r'%\((\w+)\)', POST['body'])) - RENDER_KEYS
+    assert used and used <= set(v), sorted(used - set(v))
+    assert all(isinstance(v[k], str) and v[k] for k in used), [k for k in used if not v[k]]
+    monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
+    monkeypatch.setattr(P, 'cycle_d', lambda: D)
+    monkeypatch.setattr(T.M, 'load', lambda: (adv, sts))      # 초안 가드도 저장소가 아니라 스냅숏을 읽는다
+    html = T.render(dict(POST))
+    assert '%(' not in html and '5편을 만들 수 없다' not in html
