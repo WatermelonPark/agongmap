@@ -809,7 +809,8 @@ def extra_section(adv, sts, rot):
             '<p>준공 30년이 지난 아파트가 가장 많은 곳은 %s입니다(%s년 기준). '
             '노후 재고는 재건축·재개발 압력이자 앞으로 헐릴 집이기도 해서, '
             '많이 쌓인 지역일수록 실제 공급이 통계보다 빠듯해질 수 있습니다.</p>'
-            % (' · '.join('<b>%s %s세대</b>' % (esc(k), num(v)) for k, v in tops), dates[i]))
+            # 보이는 지역 이름은 검색 표기(SEARCH_NAME) — 노후 계열 키는 판정 단위 키('전남광주')다(전수리뷰 BL1-7)
+            % (' · '.join('<b>%s %s세대</b>' % (esc(SEARCH_NAME.get(k, k)), num(v)) for k, v in tops), dates[i]))
 
 
 # ---------------------------------------------------------------- 초안 ①
@@ -1708,7 +1709,7 @@ def draft_zone(adv, sts, r, seq, total):
         if mine == 0 and len(ums) > 1:
             top = ums[-1]
             cmp_txt = (' 가장 높은 %s(%s)에 비하면 <b>%d분의 1</b> 수준이거든요.'
-                       % (esc(top['z']), umx(top['um']),
+                       % (esc(SEARCH_NAME.get(top['z'], top['z'])), umx(top['um']),   # 검색 표기(전수리뷰 BL1-7·T3-12)
                           round(top['um'] / max(r['um'], .01))))
         # 부족분 대비 비율이 가장 세게 읽힌다 — 서울은 31만 세대가 모자란데
         # 안 팔린 건 1천 호, 308분의 1이다. '역대 최저' 같은 시계열 주장과 달리
@@ -1795,7 +1796,7 @@ def draft_zone(adv, sts, r, seq, total):
         if thumb:
             note += '<br><b>%s</b> → [썸네일] (글 맨 위, 대표 이미지로 지정)' % thumb
     return dict(title=title, body='\n'.join(body), tags=tags, img=shot,
-                kw='%s 아파트 공급물량' % nm, imgnote=note,
+                kw='%s 아파트 공급물량' % SEARCH_NAME.get(nm, nm), imgnote=note,   # 사람이 치는 표기(BL1-7)
                 seq='%d / %d번째 지역%s · 제목 실험 %s안' % (
                     (seq - 1) % total + 1, total,
                     (' · %d바퀴째(누적 %d편째)' % ((seq - 1) // total + 1, seq)) if seq > total else '',

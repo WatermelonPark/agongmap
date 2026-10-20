@@ -129,6 +129,43 @@ def test_gwangju_jeonnam_uses_search_forms(monkeypatch, survey):
     assert re.search(r'<h3>광주·전남(은 지금 어떤 상태일까| 시세와 미분양|의 지금, 시세부터)</h3>', d['body'])
 
 
+
+def test_other_zone_posts_name_gwangju_jeonnam_by_its_search_form(monkeypatch):
+    """전남광주가 다른 지역 편·주간 지표에 이름으로 실릴 때도 검색 표기('광주·전남')다(전수리뷰 BL1-7·T3-12).
+
+    - 미분양 배수 최저 지역 편의 비교 문장('가장 높은 …의 N분의 1')
+    - 주간 '이번 주의 지표: 30년 넘은 아파트' 상위 3
+    - 경쟁 글 패널 검색어(kw)
+    변이(확인): draft_zone 의 cmp_txt 를 esc(top['z']) 로, extra_section 노후 절을 esc(k) 로, kw 를 nm 으로 되돌리면 각각 빨개진다.
+    픽스처: 실제 ADV.sido 사본에서 전남광주 um 을 모든 시도보다 크게(최저 지역은 데이터에서 고른다) 두고, 노후주택30년 계열은
+    전남광주가 1위인 합성 한 해(집계 제외 시도 전부 채움)로 둔다 — 지금 데이터(전남광주 미분양 배수 중위·노후 4위)와 무관하게
+    두 경로를 늘 탄다.
+    """
+    import copy
+    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
+    monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
+    monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
+    adv, sts = M.load()
+    adv = copy.deepcopy(adv)
+    zs = [z for z in adv['sido']['zones'] if not z.get('agg') and z.get('um') is not None]
+    gj = next(z for z in zs if z['z'] == '전남광주')
+    gj['um'] = max(z['um'] for z in zs) + 5
+    low = min(zs, key=lambda z: z['um'])
+    assert low['z'] != '전남광주'
+    d = P.draft_zone(adv, sts, dict(low), 1, len(zs))
+    shown = re.sub(r'href="[^"]*"', '', d['body'])
+    assert '가장 높은 광주·전남(' in shown, '비교 문장이 안 나왔다 — 시험이 헛돈다'
+    assert '전남광주' not in shown, re.findall(r'.{20}전남광주.{20}', shown)
+    assert '전남광주' not in d['kw']
+    assert P.draft_zone(adv, sts, dict(gj), 1, len(zs))['kw'] == '광주·전남 아파트 공급물량'
+    sts = copy.deepcopy(sts)
+    ser = {k: [1000 + i] for i, k in enumerate(k for k in SZ.ORDER if k not in SZ.AGG)}
+    ser['전남광주'] = [9999999]
+    sts['노후주택30년'] = {'dates': ['2025'], 'series': ser}
+    html = P.extra_section(adv, sts, 3)
+    assert '광주·전남 9,999,999세대' in html and '전남광주' not in html, html
+
+
 def test_province_tags_use_the_city_people_search(monkeypatch):
     """도 단위 편의 태그는 대표 도시(2026-09-29 키워드도구: 충북아파트 70 대 청주아파트 11,310/월). 제목은 도 이름 유지.
     변이: CITY_TAG 에서 충북을 빼면 빨개진다."""
