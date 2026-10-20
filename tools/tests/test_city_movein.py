@@ -356,3 +356,24 @@ def test_announcement_tally_uses_the_merge_classifier(monkeypatch):
     assert (f['ann_cnt'][y], f['ann_hh'][y]) == (2, 800), (f['ann_cnt'], f['ann_hh'])
     row = [r for r in f['rows'] if r['name'] == '대전 새 단지']
     assert len(row) == 1 and row[0]['n'] == f['ann_hh'][y], row
+
+
+def test_city_post_site_links_mid_and_end(monkeypatch):
+    """도시 편 사이트 링크는 둘이다: 단지 표 바로 아래(utm_content=mid, 시도 리포트의 시군구 시세 표 #weekly-sgg)와 글 끝
+    (utm_content=end, 분기별 공급 리포트). 캠페인은 도시별 city_<도시>, UTM 은 '#' 앞이다. 끝 문장은 댓글을 직접 청하지 않는다.
+    재현: 10-20 총괄 진단 직전 상태(링크가 글 끝 하나뿐, '댓글로 알려 주세요' 끝 문장). 픽스처는 대전 도시 편(_metro_raw).
+    변이(확인): 중간 링크 append 를 지우면, site_link 에서 utm_content 를 빼면, 끝 문장을 '댓글로 알려 주세요'로 되돌리면 각각 빨개진다."""
+    import re
+    from urllib.parse import quote
+    now_y = _now_y()
+    for k in range(5):                                  # 문장 변형(kk) 다섯 갈래를 모두 지난다
+        MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 1), '대전', '%d-10' % now_y, '대전')
+        html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', k, '')
+        hrefs = re.findall(r'href="([^"]*utm_source=naver_blog[^"]*)"', html)
+        zone = [h for h in hrefs if '/zone/' in h]
+        assert [re.search(r'utm_content=(\w+)', h).group(1) for h in zone] == ['mid', 'end'], hrefs
+        assert all('utm_campaign=city_%s' % quote('대전') in h for h in zone), zone
+        assert zone[0].endswith('#weekly-sgg') and '#' not in zone[1], zone
+        assert all(h.index('?') < h.index('#') for h in zone if '#' in h), zone
+        assert html.index(zone[0]) > html.index('</table>') > 0, '중간 링크가 단지 표 아래에 있지 않다'
+        assert '댓글' not in html, html[-600:]
