@@ -328,6 +328,8 @@ def test_permit_and_occupancy_notes_sit_below_the_chart():
         assert 0 <= chart < note, sec
         txt = re.search(r'class="adv-note">([^<]*)<', body).group(1)
         assert txt.count('니다.') == 1, (sec, txt)
+        if sec == 'sec-permit':
+            assert SZ.PERMIT_NATURE in txt, '인허가 성격 문구가 정본(sido_zones.PERMIT_NATURE)과 갈렸다'
 
 
 # ── H2-9 지역 선택 상자 순서 ─────────────────────────────────────────────────
