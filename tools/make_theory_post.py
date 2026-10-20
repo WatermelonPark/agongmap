@@ -872,7 +872,7 @@ POSTS = [
 
 <h3>숫자는 이렇게 셌습니다</h3>
 
-<p>시도마다 분기 아파트 준공 물량과 전세가격 변동률의 상관을 같은 분기와 한 분기 뒤, 두 시차로 재서 더 강한 쪽을 골랐어요. 우연일 확률이 10%%보다 낮은 곳을 효과가 확인된 곳으로 셌고요. 사이트 사이클 리포트와 같은 값입니다.</p>
+<p>시도마다 분기 아파트 준공 물량과 전세가격 변동률의 상관을 같은 분기와 한 분기 뒤, 두 시차로 재서 더 강한 쪽을 골랐어요. 우연일 확률이 %(sig_pct)s%%보다 낮은 곳을 효과가 확인된 곳으로 셌고요. 사이트 사이클 리포트와 같은 값입니다.</p>
 
 <h3>다음 편</h3>
 
@@ -949,6 +949,16 @@ POSTS = [
 ]
 
 
+def _sig_matches(x, cut):
+    """고리⑥ 한 시도의 sig 가 문턱 cut(p<cut 이고 r<0)으로 구운 값인가. D 의 p 는 소수 셋째, r 은 둘째 자리로 실려 경계에 여유를 둔다."""
+    p, r = x.get('p'), x.get('r')
+    if p is None or r is None:
+        return False
+    if x['sig']:
+        return p <= cut + 5e-4 and r <= 0
+    return not (p < cut - 5e-4 and r < -0.005)
+
+
 def link6_values(D, adv):
     """6편 숫자 — /cycle/ 정본(D.prose·D.link6_regional)과 앞으로 입주 목록(theory_link4.fut_lists — 5편과 같은 규칙)에서 읽는다.
     문장의 전제가 깨지면 멈춘다(3편 check_sync_claims 와 같은 원칙). 전제: ① 서울은 효과가 확인되지 않는다, ② 수도권으로 묶으면
@@ -972,6 +982,13 @@ def link6_values(D, adv):
         # (test_home_entry 의 _all_drafts)이 그날 배치를 멈춘다(대표 결정 2026-10-18 D1).
         raise SystemExit('6편을 만들 수 없다 — %s. %s — 판정 칸을 읽을 수 있는 데이터로 다시 돌린다.' % (e, NOT_THE_TEXT))
     high = F['hi']
+    import rebuild_cycle_analysis as RC
+    # 본문의 유의 문턱 '%(sig_pct)s%%'는 재산정 정본 RC.SIG_P 에서 읽는다(전수리뷰 BL2-14). /cycle/ D 의 sig 가 지금 문턱으로 구운 것이
+    # 아니면(문턱만 바꾸고 재산정 전) 곳 수와 방법 문장이 갈리므로 데이터 상태로 멈춘다. p·r 은 D 에 반올림해 실려 경계에 여유를 둔다.
+    off = [x['region'] for x in rg if not _sig_matches(x, RC.SIG_P)]
+    if off:
+        raise SystemExit('6편을 만들 수 없다 — /cycle/ 고리⑥ 유의 판정이 지금 문턱(p<%g)과 맞지 않는다(%s). %s — 사이클 재산정'
+                         '(rebuild_cycle_analysis --write)부터 돌린다.' % (RC.SIG_P, '·'.join(nm(z) for z in off), NOT_THE_TEXT))
     bad = []
     if any(x['region'] == '서울' and x['sig'] for x in rg):
         bad.append('서울이 유의로 나온다')
@@ -992,11 +1009,10 @@ def link6_values(D, adv):
     if bad:
         raise SystemExit('6편을 만들 수 없다 — %s. 6편 문장을 먼저 고칠 것.' % ' · '.join(bad))
     eunneun = lambda w: w + ('은' if (ord(w[-1]) - 0xAC00) % 28 else '는')
-    import rebuild_cycle_analysis as RC
     lag = RC.link6_lag_prose(rg)
     return dict(fut_high=F['fut_high'], fut_high_names=F['fut_high_names'], fut_low=F['fut_low'], win_y=F['win_y'],
                 l6_total=pr['l6_total'], l6_sig=pr['l6_sig'], l6_metro=pr['l6_metro'], l6_prov=pr['l6_prov'],
-                seoul_l6=pr['seoul_l6'], sudo_l6=pr['sudo_l6'], rate_r=pr['rate_r'],
+                seoul_l6=pr['seoul_l6'], sudo_l6=pr['sudo_l6'], rate_r=pr['rate_r'], sig_pct='%d' % round(RC.SIG_P * 100),
                 l6_top3='·'.join(nm(x['region']) for x in top[:3]), l6_top1=eunneun(nm(top[0]['region'])),
                 l6_sudo_sig=eunneun('·'.join(nm(x['region']) for x in sudo)),
                 # 지방 유의·즉시·한 분기 뒤 수는 /cycle/ 고리⑥ 캡션 칸(l6p_)과 같은 함수에서 센다(전수리뷰 C-3 — 사이트와 한 정본)
