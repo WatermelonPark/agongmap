@@ -69,3 +69,34 @@ def test_monthly_card_picks_by_raw_values_like_the_weekly_card():
     up, dn = MS.pick_top(val)
     assert [r for r, _ in up] == ['전북'], '반올림 동률에서 원값으로 덜 오른 곳을 실었다: %s' % up
     assert [r for r, _ in dn] == ['대구'], '반올림 동률에서 원값으로 덜 내린 곳을 실었다: %s' % dn
+
+
+def test_monthly_card_draws_display_names(monkeypatch):
+    """월간 공유 카드(make_monthly_share — 배치가 매달 굽는 share/monthly-card.png)는 타일 지도와 '가장 많이 오른·내린 곳'에 화면 이름
+    (SZ.disp, 백로그 46)을 그린다 — 주간 카드(make_weekly_share)는 이미 그랬는데 월간 카드만 키('전남광주')를 그렸다(전수리뷰 P-2 검토 보강).
+    변이(실제로 확인): 타일의 SZ.disp 를 빼고 name(키)을 그리면, 또는 '가장 많이 오른 곳' 줄의 SZ.disp 를 빼면 빨개진다.
+    픽스처: 저장소 ADV.monthly 의 마지막 달에서 화면 이름이 키와 다른 지역(DISPLAY_NAME 의 키)을 가장 많이 오른 곳으로 만든 사본 —
+    ImageDraw.text 를 가로채 그린 글자를 모은다."""
+    import copy
+    from PIL import ImageDraw
+    import make_monthly_share as MS
+    adv, _ = MS.load()
+    adv = copy.deepcopy(adv)
+    mo = adv['monthly']
+    keys = sorted(k for k in SZ.DISPLAY_NAME if k in mo['regions'] and k in MW.SIDO)
+    assert keys, '화면 이름이 키와 다른 시도가 월간 계열에 없다 — 시험이 헛돈다'
+    row = mo['rows'][-1]
+    i = mo['regions'].index(keys[0])
+    row['ma'][i] = max(v for v in row['ma'] if v is not None) + 1.0
+    drawn = []
+    real = ImageDraw.ImageDraw.text
+
+    def spy(self, xy, text, *a, **kw):
+        drawn.append(text)
+        return real(self, xy, text, *a, **kw)
+    monkeypatch.setattr(ImageDraw.ImageDraw, 'text', spy)
+    MS.draw(adv)
+    for k in keys:
+        assert SZ.disp(k) in drawn, (k, drawn)
+        assert not any(k in t for t in drawn), (k, drawn)
+    assert any(t.startswith(SZ.disp(keys[0]) + ' ') for t in drawn), drawn

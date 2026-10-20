@@ -78,6 +78,9 @@ def _live():
     for f in ('data-rest.json', 'data-size.json'):
         stats.update(json.load(open(os.path.join(ROOT, f), encoding='utf-8'))['STATS'])
     last = {k: C.digits((v.get('dates') or [''])[-1]) for k, v in stats.items()}
+    # 규모별은 표마다 그 지표에 값이 있는 마지막 달이 우리 최신이다(감시 size_checks — 전수리뷰 A-2)
+    for name, lab in U.size_last(stats.get('규모별') or {}).items():
+        last[C.SIZE_LABEL % name] = C.digits(lab)
     return adv, last
 
 
@@ -87,7 +90,8 @@ def _kosis_tables():
     out = {}
     for n, c in list(U.BASIC_CONF.items()) + list(U.ANNUAL_CONF.items()):
         out.setdefault(c['tbl'], []).append(n)
-    out.setdefault(U.SIZE_TBLS[0][1], []).append('규모별')
+    for name, tbl, _ in U.SIZE_TBLS:          # 규모별은 표 넷을 따로 본다(전수리뷰 A-2)
+        out.setdefault(tbl, []).append(C.SIZE_LABEL % name)
     return out
 
 
@@ -328,6 +332,25 @@ def test_supply_value_mismatch_fails_through_main(monkeypatch, capsys):
     assert par['rc'] == ser['rc'] == C.EXIT_DETERMINISTIC, par['out'][-800:]
     assert '분양 값(' in par['out']
     assert '미분양 값(' not in par['out'], '값이 같은 계열까지 실패로 올렸다'
+
+
+def test_supply_value_is_checked_after_a_retry_rescue(monkeypatch, capsys):
+    """1차 조회가 실패하고 재시도(75초 뒤)에서 살아난 공급 계열도 그날 값 대조를 받는다(전수리뷰 F-8). 예전엔 값 대조가
+    재시도 앞에서 한 번만 돌아, 원천이 순간 끊긴 날(1차 실패·재시도 성공) '시점은 같은데 값이 멈춘' 상태(2026-09-08~12
+    유형)를 놓치고 VERDICT=ok 였다.
+
+    변이(실제로 확인): main() 끝의 value_later 루프를 지우면 첫 단정(rc 2·'분양 값(')이 빨강.
+    픽스처: 실제 data.js·data-rest.json 과 가짜 원천 — 분양(R-ONE)·미분양(KOSIS)이 1차만 타임아웃('flaky')이고 그 달 시도 합이
+    라이브와 다르다(vbump). 대조군: 같은 끊김에 값이 같으면 초록(값 대조가 헛실패를 만들지 않는다).
+    """
+    r = _run(monkeypatch, capsys, 4, fault={'분양': 'flaky', '미분양': 'flaky'}, vbump={'분양': 500, '미분양': 300})
+    assert '[재시도' in r['out'], r['out'][-800:]          # 1차가 실제로 실패해 재시도 경로를 탔다
+    assert r['rc'] == C.EXIT_DETERMINISTIC, r['out'][-800:]
+    fails = [ln.strip() for ln in r['out'].splitlines() if ln.strip().startswith('- ')]
+    assert any(ln.startswith('- 분양 값(') for ln in fails), r['out'][-800:]
+    assert any(ln.startswith('- 미분양 값(') for ln in fails), r['out'][-800:]
+    ok = _run(monkeypatch, capsys, 4, fault={'분양': 'flaky', '미분양': 'flaky'})
+    assert '[재시도' in ok['out'] and ok['rc'] == 0 and '값(' not in ok['out'], ok['out'][-800:]
 
 
 def test_missing_share_card_is_a_deterministic_failure(monkeypatch, capsys):

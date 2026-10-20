@@ -53,6 +53,44 @@ def test_move_in_percents_round_half_up_like_moveins():
     assert SZ.pbr_pct(0.125) == 13 and SZ.half_up(12.5) == 13
 
 
+def _split_pct(row):
+    return int(re.search(r'적정물량의 (\d+)%입니다', row['split']['ref'][1]).group(1))
+
+
+def _ref_cell_pct(block):
+    return int(re.search(r'<span class="zo-p">(\d+)%</span><small>[^<]*너머', block).group(1))
+
+
+def test_beyond_cell_and_split_line_print_one_integer(monkeypatch):
+    """'… 너머' 회색 칸(outlook_block)과 바로 위 split 줄('…적정물량의 N%입니다'), 경고(pwarn)가 한 정수를 쓴다 — 화면 정수는 원값에서
+    한 번만 반올림한다(sido_zones.pbr_pct, 전수리뷰 Z1-3·X1-2).
+
+    재현한 실제 상태(2026-10-18): calc 가 pbr 을 셋째 자리로 굳혀 저장해(원값 0.424576 → 0.425) 경북 리포트가 줄에는 42%, 그 아래
+    회색 칸에는 43%(저장값 42.5 를 다시 반올림)를 찍었다. 100×원값의 소수부가 [0.45, 0.5) 인 지역마다(지역당 약 5%) 생긴다. 원값이
+    [0.9445, 0.945) 이면 pwarn(원값 94%)과 저장값 경고(0.945 → 95%)도 갈려 test_split_permit 의 경고 대조가 빨개진다.
+    변이(실제로 확인): calc 의 'pbr' 저장을 round(sig['pbr'], 3) 로 되돌리면 합성 갈래 둘(42·94)과 실데이터 경북이 빨개진다.
+    픽스처: ① 저장소 STATS 로 지금 코드의 SZ.calc 를 새로 돌린 행(배치가 다음 회차에 싣는 값 — 저장된 data.js 의 옛 행은 다음 배치 전까지
+    셋째 자리일 수 있다), ② permit_signal 을 원값 0.424576(경북 10-18 모양)·0.94475(문턱 경계)·1.240479(경고 없는 갈래, 경기 모양)로
+    바꾼 합성 행 — 실데이터가 그 창에 없어도 늘 돌고, 경고 있음·없음 두 갈래를 다 지난다.
+    """
+    adv, stats, s, _ = _ctx()
+    fresh = SZ.calc(stats)
+    Lq, H = SZ.qidx(int(fresh['L'][:4]), int(fresh['L'][-1])), fresh['H']
+    rows = [z for z in fresh['zones'] if z.get('pbr') is not None]
+    assert rows, '인허가 신호가 있는 지역이 없다 — 시험이 헛돈다'
+    for z in rows:
+        want = SZ.pbr_pct(z['pbr'])
+        block = M.outlook_block(SZ.yearly_supply(stats, z['z'], Lq, H), z['pbr'], H)
+        assert _split_pct(z) == want == _ref_cell_pct(block), (z['z'], z['pbr'], _split_pct(z), _ref_cell_pct(block))
+        assert z['pwarn'] == SZ.pbr_thin(z['pbr']) == z['split']['ref'][3], z['z']
+    for raw, pct in ((0.424576, 42), (0.94475, 94), (1.240479, 124)):
+        monkeypatch.setattr(SZ, 'permit_signal', lambda st, zz, ref, _r=raw: {'pbr': _r, 'pdec': 0.2, 'pconv': 0.8})
+        row = [z for z in SZ.calc(stats)['zones'] if z['z'] == '경북'][0]
+        block = M.outlook_block(SZ.yearly_supply(stats, '경북', Lq, H), row['pbr'], H)
+        assert _split_pct(row) == SZ.pbr_pct(row['pbr']) == _ref_cell_pct(block) == pct, (raw, row['pbr'])
+        assert row['pwarn'] == SZ.pbr_thin(row['pbr']) == row['split']['ref'][3] == (pct < SZ.PWARN_CUT * 100), raw
+
+
 def test_hub_and_report_show_the_years():
     adv, stats, s, Lq = _ctx()
     h = M.build_hub(s, stats)
@@ -67,3 +105,33 @@ def test_hub_and_report_show_the_years():
     others = s['zones']
     page = M.build_page('경기', calc, stats, pq, others)
     assert '<div class="zout">' in page and '3년 너머' in page
+
+
+def test_outlook_picture_reads_out_the_states_and_the_reference():
+    """해마다 입주 그림(role=img)의 읽어 줄 글(aria-label)이 그림 칸이 보이는 것을 다 말한다 — 해마다의 퍼센트와 막대 아래 상태 낱말
+    (적음·보통·많음), '… 너머' 참고 칸이 있으면 그 퍼센트(전수리뷰 Z1-11). img 의 자식 글자는 보조기술에 읽히지 않는다.
+    재현한 실제 상태(10-18 zone/전남광주): aria-label '적정 대비 입주 1년 차 96%, 2년 차 23%, 3년 차 48%' — 화면의 '1년 차 · 보통'·
+    '2년 차 · 적음'과 회색 '48% 3년 너머'가 이름에 없었다.
+    변이(실제로 확인): outlook_aria 를 옛 '적정 대비 입주 …'(상태·참고값 없음)로 되돌리면 빨개진다.
+    픽스처: 저장소 판정·착공으로 센 경기 해마다 칸에 참고값 1.26(126%)을 준 블록과 주지 않은 블록 — 신호등 세 낱말이 다 나오도록
+    합성 칸(61·96·140%)도 하나.
+    """
+    adv, stats, s, Lq = _ctx()
+    real = SZ.yearly_supply(stats, '경기', Lq, s['H'])
+    synth = [{'n': 1, 'from': '2026Q3', 'to': '2027Q2', 'pct': 61}, {'n': 2, 'from': '2027Q3', 'to': '2028Q2', 'pct': 96},
+             {'n': 3, 'from': '2028Q3', 'to': '2029Q2', 'pct': 140}]
+    for ys in ([real] if real else []) + [synth]:   # 실데이터 칸이 비는 회차(착공 결측)에도 합성 칸은 늘 돈다
+        for pbr in (1.26, None):
+            block = M.outlook_block(ys, pbr, s['H'])
+            aria = re.search(r'<div class="zo zo-lg" role="img" aria-label="([^"]*)">', block).group(1)
+            shown = re.findall(r'<span class="zo-p">(\d+)%</span><small>([^<]*)</small>', block)
+            assert len(shown) == len(ys) + (pbr is not None), shown
+            for (pct, lab), y in zip(shown, ys):
+                n, word = re.match(r'(\d+)년 차 · (\S+)', lab).groups()
+                assert '%s년 차 %s%% %s' % (n, pct, word) in aria, (aria, lab)
+            if pbr is not None:
+                pct, lab = shown[-1]
+                assert '%s(참고) %s%%' % (lab, pct) in aria, aria
+            else:
+                assert '참고' not in aria
+    assert {w for w in ('적음', '보통', '많음') if w in M.outlook_aria(synth)} == {'적음', '보통', '많음'}

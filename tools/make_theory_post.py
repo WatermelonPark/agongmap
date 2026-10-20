@@ -438,7 +438,7 @@ POSTS = [
 
 <p>[여기에 사이클 도식]</p>
 
-<p>지역별 입주물량과 적정선 대비 비율은 아공맵에서 %(nsido)d개 시도를 같은 기준으로
+<p>지역별 입주물량과 적정물량 대비 비율은 아공맵에서 %(nsido)d개 시도를 같은 기준으로
 볼 수 있습니다.<br>
 👉 %(zone)s</p>
 
@@ -963,7 +963,6 @@ def link6_values(D, adv):
     num = lambda s: float(s.replace('−', '-'))
     sig = [x for x in rg if x['sig']]
     sudo = [x for x in sig if x['zone'] == '수도권']
-    prov = [x for x in sig if x['zone'] != '수도권']
     top = sorted(rg, key=lambda x: x['r'])
     nm = lambda z: P.SEARCH_NAME.get(z, z)
     try:
@@ -993,13 +992,15 @@ def link6_values(D, adv):
     if bad:
         raise SystemExit('6편을 만들 수 없다 — %s. 6편 문장을 먼저 고칠 것.' % ' · '.join(bad))
     eunneun = lambda w: w + ('은' if (ord(w[-1]) - 0xAC00) % 28 else '는')
+    import rebuild_cycle_analysis as RC
+    lag = RC.link6_lag_prose(rg)
     return dict(fut_high=F['fut_high'], fut_high_names=F['fut_high_names'], fut_low=F['fut_low'], win_y=F['win_y'],
                 l6_total=pr['l6_total'], l6_sig=pr['l6_sig'], l6_metro=pr['l6_metro'], l6_prov=pr['l6_prov'],
                 seoul_l6=pr['seoul_l6'], sudo_l6=pr['sudo_l6'], rate_r=pr['rate_r'],
                 l6_top3='·'.join(nm(x['region']) for x in top[:3]), l6_top1=eunneun(nm(top[0]['region'])),
                 l6_sudo_sig=eunneun('·'.join(nm(x['region']) for x in sudo)),
-                l6_prov_sig=len(prov), l6_prov_now=sum(1 for x in prov if x['lag'] == 0),
-                l6_prov_late=sum(1 for x in prov if x['lag'] == 1),
+                # 지방 유의·즉시·한 분기 뒤 수는 /cycle/ 고리⑥ 캡션 칸(l6p_)과 같은 함수에서 센다(전수리뷰 C-3 — 사이트와 한 정본)
+                l6_prov_sig=lag['l6p_sig'], l6_prov_now=lag['l6p_now'], l6_prov_late=lag['l6p_late'],
                 cycle6=link('입주가 전세를 누르는 지역별 결과 보기', path='/cycle/#link6', camp='cycle'),
                 moveins=link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle'))
 

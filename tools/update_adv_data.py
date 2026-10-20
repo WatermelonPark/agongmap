@@ -5,7 +5,7 @@ data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이�
 (2026-07-19 분리: 데이터는 index.html이 아니라 data.js에 있다.)
 실운영 갱신은 클라우드 배치(.github/workflows/update-cloud.yml) 하나가 담당한다. KOSIS가 해외 IP를
 간헐 차단하므로 러너 3개의 IP 프리플라이트로 우회하고, 0/3이면 update-cloud-retry.yml이 재시도한다.
-로컬 러너(tools/run_weekly_update.bat)는 2026-07-23 이후 휴면이다(재가동은 대표 결정 대기, 백로그 22).
+로컬 러너(tools/run_weekly_update.bat)는 2026-07-23 이후 휴면이고, 2026-09-23 대표 결정으로 휴면 확정이다(백로그 22 — bat 은 비상용).
 
 사용:
   KOSIS_API_KEY=... python tools/update_adv_data.py --update      # 실제 갱신
@@ -14,7 +14,8 @@ data.js 안의 /*ADV_DATA_START*/ ... /*ADV_DATA_END*/ 블록을 최신 데이�
 데이터셋 구성:
   permits  — 국토교통부 「주택건설실적통계」 주택유형별 인허가실적(월별 누계, DT_MLTM_1948)의
              아파트 행: 6월 누계 = 상반기, 12월 누계 − 6월 누계 = 하반기
-  occupancy — 입주물량은 공공 API가 없어 자동 갱신 대상에서 제외(수동 시딩 유지)
+  occupancy — 입주물량 표. main()이 매 회차 sido_zones.supply_rows(준공 실적 + 착공 3년 시프트 — 홈 공급표와 같은 원천)로
+             다시 만든다(옛 odcloud 입주예정 수동 시딩은 2026-08-07 에 걷어냈다)
   monthly  — 월간 매매·전세·월세 동향(R-ONE 단일 소스): 시장동향 월간 지도·그래프에
              쓰이는 라이브 데이터로 매 실행 갱신한다(fetch_monthly, adv['monthly']).
 """
@@ -28,7 +29,6 @@ import sido_zones as SZ  # noqa: E402  지역 정본(판정 모델)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
-TOOLS_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')   # tools/data (lawd.json, rate_shock.json)
 API = 'https://kosis.kr/openapi/Param/statisticsParameterData.do'
 LIST_API = 'https://kosis.kr/openapi/statisticsList.do'
 KEY = os.environ.get('KOSIS_API_KEY', '')
@@ -134,11 +134,34 @@ SUPPLY_CONF = {
 SUPPLY_MONTHS = 8          # 최근 8개월(소급 정정 커버) — BASIC_MONTHS와 같은 기조
 SUPPLY_SIDO = [r for r in WEEKLY_REGIONS if r not in ('전국', '수도권', '지방')]
 
+# 원천 표의 지역 축이 판정 모델(시도)인 계열 — 모델 밖 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)을 싣지 않는다
+# (대표 결정 2026-10-18 D2, 전수리뷰 A-5). 원천은 2026.07 광주·전남 통합 때 같은 이름의 집계 행 구성을 바꿨는데(광역시 묶음에서 광주,
+# 도 묶음에서 전남이 빠졌다) 이름만 보고 이어 붙여, 홈 통계에 '8개도 전세가율 −5.8%p'·'기타광역시 인허가 전년 동월 대비 −41%' 같은
+# 없던 변화가 그려졌다. 이 행들을 읽는 곳은 홈 통계 지역 선택뿐이었다. 지역 키는 모델(sido_zones.ORDER)에서 유도한다.
+# KAB 실거래가격지수(매매·전세지수, mode 'flat')의 원천 권역 행(광역시·지방도·서울 권역)은 결정 밖이라 그대로 둔다.
+MODEL_REGION_SERIES = [n for n, c in BASIC_CONF.items() if c['mode'] != 'flat'] + list(SUPPLY_CONF)
+
+
+def drop_raw_aggregates(stats):
+    """MODEL_REGION_SERIES 계열에서 판정 모델(sido_zones.ORDER) 밖 지역 키를 뺀다 → {계열: [뺀 키]}. 한 번 빼면 merge_basic 은
+    저장된 키만 채우므로 다시 들어오지 않는다(배치가 매 회차 불러도 두 번째부터는 빈 결과)."""
+    keep = set(SZ.ORDER)
+    out = {}
+    for name in MODEL_REGION_SERIES:
+        ser = (stats.get(name) or {}).get('series')
+        gone = [r for r in (ser or {}) if r not in keep]
+        for r in gone:
+            ser.pop(r)
+        if gone:
+            out[name] = gone
+    return out
+
 
 def _supply_region(full):
-    """R-ONE CLS_FULLNM → STATS 지역명. 두 표의 계층이 서로 다르다.
+    """R-ONE CLS_FULLNM → STATS 지역명. 배치는 분양표(R-ONE)에, 감시(check_freshness.rone_latest_complete)도 같은 함수를 쓴다.
        분양표:  '전국' · '수도권' · '수도권>서울' · '기타지방>강원'
-       미분양표: '강원>계' (시도 소계가 '계')
+       옛 R-ONE 미분양표: '강원>계' (시도 소계가 '계') — 미분양은 2026-10-07 KOSIS(C1_NM, _fetch_supply_kosis)로 옮겼고
+       이 갈래는 그 모양을 다시 만나도 읽게 남긴다.
        '기타지방'·'5대광역시 및 세종특별자치시' 같은 중간 집계행은 STATS에
        대응 지역이 없어 버린다(전국/수도권/지방은 아래 _supply_rollup이 만든다)."""
     parts = [p.strip() for p in (full or '').split('>') if p.strip()]
@@ -158,11 +181,13 @@ def _supply_region(full):
 # 정본은 과거 시계열을 합친 merge_regions.py 다 — 사본을 두면 이력 병합과 수집 병합이 서로
 # 다른 이름·가중치를 보게 된다.
 from merge_regions import SRC as _GJ_OLD, DST as _GJ_NEW, W_GJ  # noqa: E402
-from merge_regions import WEIGHTED as _GJ_WEIGHTED  # noqa: E402
+from merge_regions import WEIGHTED as _GJ_WEIGHTED, UNFOLDABLE as _GJ_UNFOLDABLE  # noqa: E402
 
 
-def _fold_gj(vals, weighted=False):
+def _fold_gj(vals, weighted=False, synth=True):
     """한 시점의 {지역: 값}에서 통합 전 두 이름(광주·전남)을 통합 지역(전남광주)으로 접는다. vals를 고쳐 돌려준다.
+    synth=False 면(merge_regions.UNFOLDABLE — 주택보급률, 대표 결정 2026-10-18 D3) 두 조각으로 통합 값을 만들지 않는다 — 원천이
+    통합 행을 직접 줄 때만 남고 옛 두 이름은 빠진다.
 
     **수집 다섯 경로(아파트 인허가 표 · 기본통계 STATS · 분양·미분양 · 연간 계열 · 버블밴드 전월세전환율)가 이 함수
     하나를 쓴다**(연간·버블은 2026-09-30 전수리뷰 #1·#5에서 합류). 규칙이 경로마다
@@ -173,7 +198,8 @@ def _fold_gj(vals, weighted=False):
     광주나 전남을 소급 정정하면 시도합≠전국이 되어 pytest 게이트가 그 달이 창을 벗어날 때까지 매일 빨개지고,
     권하는 교정(--heal-basic)도 같은 경로라 못 고친다(2026-09-26 데이터 감사 #4).
 
-    규칙(merge_regions 의 이력 병합과 같은 정본 — 이름·가중치·반올림):
+    규칙(merge_regions 의 이력 병합과 같은 정본 — 이름·가중치·반올림. 한 조각 규칙만은 다르다 — 09-10 1회용 merge_series 는
+    한 조각 값을 쓰거나 0 으로 더했고, 여기서는 만들지 않는다):
       - 원천이 통합 행을 직접 주면 그 값을 쓴다(원천 숫자 우선).
       - 아니면 **두 조각이 다 있을 때만** 만든다. 물량(호·세대)은 합, 지수·비율(merge_regions.WEIGHTED)은
         W_GJ 가중평균(소수 2자리, merge_regions.merge_series 와 같다).
@@ -183,7 +209,7 @@ def _fold_gj(vals, weighted=False):
     옛 두 이름은 어느 경우에도 빠진다(저장 계열에는 통합 지역만 있다).
     """
     g, j = (vals.pop(k, None) for k in _GJ_OLD)
-    if _GJ_NEW not in vals and g is not None and j is not None:
+    if synth and _GJ_NEW not in vals and g is not None and j is not None:
         vals[_GJ_NEW] = round(W_GJ * g + (1 - W_GJ) * j, 2) if weighted else g + j
     return vals
 
@@ -191,8 +217,9 @@ def _fold_gj(vals, weighted=False):
 def _merge_gj(fetched):
     """공급(분양·미분양) {(y,m): {지역: 값}}의 광주·전남을 '전남광주'로 접는다(2026-09-10 통합).
 
-    R-ONE이 아직 두 지역을 따로 준다. 규칙은 _fold_gj(수집 경로 공통)다 — 호·세대라 합이고,
-    두 조각이 다 있을 때만 만든다. 한 조각만 온 달은 전남광주가 비어 _drop_incomplete 가 보류한다.
+    분양(R-ONE)은 아직 두 지역을 따로 주고, 미분양(KOSIS)은 통합 뒤 달을 통합 행 '전남광주'로 준다(통합 전 달은 두 이름).
+    규칙은 _fold_gj(수집 경로 공통)다 — 호·세대라 합이고, 원천 통합 행이 있으면 그것, 아니면 두 조각이 다 있을 때만 만든다.
+    한 조각만 온 달은 전남광주가 비어 _drop_incomplete 가 보류한다.
     """
     for vals in fetched.values():
         _fold_gj(vals)
@@ -248,8 +275,8 @@ def write_supply_stalled(root=None):
 
 
 def _supply_rollup(fetched, regions):
-    """미분양표는 시도만 주므로 전국/수도권/지방 합계를 직접 만든다.
-       분양표처럼 원천이 이미 주는 경우엔 덮어쓰지 않는다."""
+    """원천이 합계 행을 주지 않으면(옛 R-ONE 미분양표는 시도만 줬다) 전국/수도권/지방 합계를 직접 만든다.
+       분양표(R-ONE)·미분양(KOSIS, 전국·수도권 행이 있다)처럼 원천이 이미 주는 경우엔 덮어쓰지 않는다."""
     for vals in fetched.values():
         sido = {k: v for k, v in vals.items() if k in SUPPLY_SIDO}
         if len(sido) < len(SUPPLY_SIDO) - 2:     # 결측이 많으면 합계를 만들지 않는다
@@ -360,7 +387,7 @@ def update_supply(stats, months=None, failed=None):
                                'series': {r: [] for r in base}, 'source': cfg['source']}
             D = stats[name]
             regions = set(D['series'])
-            # ⚠️ 원천은 미분양·분양을 아직 광주·전남으로 따로 준다. 저장 계열에는
+            # ⚠️ 원천은 분양을 아직 광주·전남으로 따로 주고, 미분양도 통합 전 달은 두 이름이다. 저장 계열에는
             # '전남광주'만 있으므로, 조회 단계에서 지역 필터에 두 옛 이름을 함께
             # 넣어야 _merge_gj가 합칠 대상을 받는다. 이걸 빠뜨리면 두 지역이
             # 조회에서 버려져 전남광주가 비고, 롤업이 만든 '전국'이 그만큼
@@ -375,8 +402,8 @@ def update_supply(stats, months=None, failed=None):
                 continue
             _merge_gj(fetched)
             # ⚠️ 완비 기준은 regions가 아니라 SUPPLY_SIDO(실제 시도 16곳)다.
-            # regions는 저장 계열의 키라 '기타광역시'·'기타지방'까지 안고 있는데,
-            # 그 둘은 _supply_region()이 중간 집계행이라고 **일부러 버리는** 이름이라
+            # regions는 저장 계열의 키라 예전엔 '기타광역시'·'기타지방'까지 안고 있었는데(2026-10-18 D2 로 수집에서 뺐다 —
+            # drop_raw_aggregates), 그 둘은 _supply_region()이 중간 집계행이라고 **일부러 버리는** 이름이라
             # 원천 응답에 영영 나타나지 않는다. regions로 재면 missing이 절대 비지
             # 않아 **모든 달이 제외된다** — 2026-09-08~12 배치 로그에 'supply 분양:
             # 완비된 달이 없어 건너뜀'이 매 회차 찍혔고 미분양이 2026.06에 묶였다.
@@ -407,9 +434,12 @@ def update_supply(stats, months=None, failed=None):
 # 아파트건설 333,452·노후 2,517,244가 아래 표에서 그대로 재현됨).
 #   only: 그 컬럼이 해당 값인 행만 사용. region: 지역축이 없는 표의 고정 지역명.
 #   shortmap: 원천이 '서울특별시' 같은 전체명이라 BUBBLE_SHORT로 축약해 맞춘다.
+#   zero_missing: 원천의 0 은 값이 아니라 '없음'이다(0 이 될 수 없는 비율). 받을 때 버리고, 저장된 0 도 매 회차 칸 단위로 지운다.
 ANNUAL_CONF = {
+    # 보급률(주택 수 ÷ 가구 수 %)은 0 이 될 수 없다. 2026-08-08 '--heal-annual 보급률' 재조회가 새 지표가 없는 2005~2009(17곳)와
+    # 세종 2010~2014 에 원천이 준 0 을 그대로 실어, 홈 통계 '주택보급률'이 0% 에서 100% 대로 뛰는 선을 그렸다(전수리뷰 A-4).
     '보급률':      {'org': '116', 'tbl': 'DT_MLTM_2100', 'objn': 1, 'dec': 1,
-                    'itm': '보급률(다가구 구분거처 반영)'},
+                    'itm': '보급률(다가구 구분거처 반영)', 'zero_missing': True},
     '주택멸실':    {'org': '116', 'tbl': 'DT_MLTM_5416', 'objn': 1, 'dec': 0,
                     'itm': '계'},
     # 같은 표에서 유형만 '아파트'로 좁힌 계열. 러닝재고(준공−멸실−적정)가 쓰는 건
@@ -589,7 +619,8 @@ def fetch_permits():
 # KOSIS 지역 분류코드: 서울 25개 구 = ^a70\d{5}$ (주간 C1, 월간 C2 공통).
 # 이름만으로는 '중'·'강서' 등이 타 도시 구와 겹쳐 코드로 식별한다.
 # KOSIS SGG 코드 → R-ONE 주간표(T244183132827305) CLS_ID. 월간(A_2024_00045)과
-# CLS_ID 체계가 달라 별도. gen_map_wk.py로 재생성. (KOSIS 폴백은 2026-07-28 제거)
+# CLS_ID 체계가 달라 별도. 재생성: python tools/gen_sgg_rone_map.py --weekly (예전 주석의 gen_map_wk.py 는 저장소에
+# 없었다 — 전수리뷰 A-9). (KOSIS 폴백은 2026-07-28 제거)
 SGG_RONE_CLS_WK = {"a901": 50261, "a902": 50262, "a908": 50264, "a909": 50263, "a0": 50001, "a7": 50008, "a7010101": 50043, "a7010102": 50044, "a7010103": 50045, "a7010201": 50047, "a7010202": 50048, "a7010203": 50049, "a7010204": 50050, "a7010205": 50051, "a7010206": 50052, "a7010207": 50053, "a7010208": 50054, "a7010301": 50056, "a7010302": 50057, "a7010303": 50058, "a7020101": 50060, "a7020102": 50061, "a7020103": 50062, "a7020104": 50063, "a7020105": 50064, "a7020106": 50065, "a7020107": 50066, "a7020201": 50067, "a7020202": 50068, "a7020203": 50069, "a7020204": 50070, "a8": 50016, "a80101": 50071, "a80104": 50075, "a80105": 50076, "a80201": 50081, "a80303": 50103, "a80304": 50097, "a80306": 50102, "a80307": 50098, "a80401": 50107, "a80402": 50106, "a80403": 50108, "a80404": 50109, "a80501": 50111, "a80502": 50112, "a80601": 50118, "a80603": 50253, "a80701": 50123, "a80702": 50121, "a80703": 50122, "a80704": 50120, "a9": 50124, "a903": 50254, "a904": 50127, "a905": 50128, "a906": 50129, "a907": 50130, "b1": 50025, "b10101": 50132, "b10102": 50133, "b10103": 50134, "b10104": 50135, "b10105": 50137, "b10106": 50136, "b10107": 50138, "b10108": 50139, "b10201": 50142, "b10202": 50143, "b10203": 50141, "b10204": 50144, "b10301": 50146, "b10302": 50148, "b10303": 50149, "b10304": 50147, "b2": 50150, "b201": 50151, "b202": 50152, "b203": 50153, "b204": 50154, "b205": 50155, "b206": 50156, "b207": 50157, "b208": 50158, "b3": 50159, "b301": 50160, "b302": 50161, "b303": 50162, "b304": 50163, "b305": 50164, "b4": 50165, "b401": 50166, "b402": 50167, "b403": 50168, "b404": 50169, "b405": 50170, "b5": 50171, "b501": 50172, "b502": 50173, "b503": 50174, "b504": 50175, "b505": 50176, "b6": 50033, "c1": 50177, "c101": 50178, "c102": 50179, "c103": 50180, "c104": 50181, "c105": 50182, "c106": 50183, "c107": 50184, "c2": 50185, "c201": 50186, "c20101": 50187, "c20102": 50188, "c20103": 50189, "c20104": 50190, "c203": 50191, "c204": 50192, "c206": 50193, "c3": 50194, "c301": 50195, "c302": 50196, "c303": 50197, "c304": 50198, "c305": 50199, "c306": 50200, "c307": 50201, "c308": 50202, "c309": 50203, "c311": 50205, "c312": 50206, "c313": 50204, "c4": 50207, "c401": 50208, "c402": 50209, "c403": 50210, "c404": 50211, "c405": 50212, "c406": 50213, "c407": 50214, "c408": 50215, "c5": 50216, "c501": 50217, "c502": 50218, "c503": 50219, "c504": 50220, "c505": 50221, "c506": 50222, "c6": 50223, "c601": 50227, "c602": 50230, "c603": 50224, "c60301": 50225, "c60302": 50226, "c604": 50228, "c605": 50229, "c606": 50231, "c607": 50232, "c608": 50233, "c609": 50234, "c610": 50235, "c611": 50236, "c7": 50237, "c701": 50238, "c70101": 50239, "c70102": 50240, "c70103": 50241, "c70104": 50242, "c702": 50243, "c703": 50255, "c704": 50244, "c705": 50245, "c706": 50246, "c707": 50247, "c708": 50248, "c709": 50249, "c8": 50250, "c801": 50251, "c802": 50252, "a802031": 50084, "a802032": 50085, "a802033": 50086, "a802034": 50087, "a801031": 50078, "a801032": 50079, "a801033": 50080, "a802021": 50089, "a802022": 50090, "a802023": 50091, "a801021": 50073, "a801022": 50074, "a806021": 50115, "a806022": 50116, "a806023": 50117, "a803011": 50094, "a803012": 50095, "a803013": 50096, "a803021": 50100, "a803022": 50101, "a803051": 50259, "a803052": 50256, "a803053": 50258, "a803054": 50257, "a80203": 50083, "a80103": 50077, "a80202": 50088, "a80102": 50072, "a80602": 50114, "a80301": 50093, "a80302": 50099, "a80305": 50104}
 
 SEOUL_GU_RE = re.compile(r'^a70\d{5}$')
@@ -598,15 +629,16 @@ SEOUL_GU_RE = re.compile(r'^a70\d{5}$')
 SGG_CODES = ["a0", "a7", "a7010101", "a7010102", "a7010103", "a7010201", "a7010202", "a7010203", "a7010204", "a7010205", "a7010206", "a7010207", "a7010208", "a7010301", "a7010302", "a7010303", "a7020101", "a7020102", "a7020103", "a7020104", "a7020105", "a7020106", "a7020107", "a7020201", "a7020202", "a7020203", "a7020204", "a8", "a80101", "a80102", "a801021", "a801022", "a80103", "a801031", "a801032", "a801033", "a80104", "a80105", "a80201", "a80202", "a802021", "a802022", "a802023", "a80203", "a802031", "a802032", "a802033", "a802034", "a80301", "a803011", "a803012", "a803013", "a80302", "a803021", "a803022", "a80303", "a80304", "a80305", "a803051", "a803052", "a803053", "a803054", "a80306", "a80307", "a80401", "a80402", "a80403", "a80404", "a80501", "a80502", "a80601", "a80602", "a806021", "a806022", "a806023", "a80603", "a80701", "a80702", "a80703", "a80704", "a9", "a901", "a902", "a903", "a904", "a905", "a906", "a907", "a908", "a909", "b1", "b10101", "b10102", "b10103", "b10104", "b10105", "b10106", "b10107", "b10108", "b10201", "b10202", "b10203", "b10204", "b10301", "b10302", "b10303", "b10304", "b2", "b201", "b202", "b203", "b204", "b205", "b206", "b207", "b208", "b3", "b301", "b302", "b303", "b304", "b305", "b4", "b401", "b402", "b403", "b404", "b405", "b5", "b501", "b502", "b503", "b504", "b505", "b6", "c1", "c101", "c102", "c103", "c104", "c105", "c106", "c107", "c2", "c201", "c20101", "c20102", "c20103", "c20104", "c203", "c204", "c206", "c3", "c301", "c302", "c303", "c304", "c305", "c306", "c307", "c308", "c309", "c311", "c312", "c313", "c4", "c401", "c402", "c403", "c404", "c405", "c406", "c407", "c408", "c5", "c501", "c502", "c503", "c504", "c505", "c506", "c6", "c601", "c602", "c603", "c60301", "c60302", "c604", "c605", "c606", "c607", "c608", "c609", "c610", "c611", "c7", "c701", "c70101", "c70102", "c70103", "c70104", "c702", "c703", "c704", "c705", "c706", "c707", "c708", "c709", "c8", "c801", "c802"]
 SGG_SET = set(SGG_CODES)
 
-# KOSIS SGG 코드 → R-ONE CLS_ID (월간 시군구를 R-ONE로 받기 위한 매핑, 208개).
+# KOSIS SGG 코드 → R-ONE CLS_ID (월간 시군구를 R-ONE로 받기 위한 매핑).
 # 부동산원 통계표 재구조화·행정구역 개편 시 갱신 필요.
 #
 # 재생성:  python tools/gen_sgg_rone_map.py            # 현재 값과 대조만
-#          python tools/gen_sgg_rone_map.py --write    # tools/data/sgg_rone_cls.json 저장
-# 저장소 안의 자료(SGG_CODES + index.html SGG_QNAME)와 R-ONE 최신월 응답만으로
-# 208개 전부 재현된다(2026-08-01 확인: 일치 208 · 불일치 0). 스크립트가 못 붙인
-# 코드는 이유와 함께 출력하므로, 그 목록만 보고 수작업 여부를 판단하면 된다
-# (현재 미해결 4건은 인천 신설구 — R-ONE에 아직 없어 이 표에도 없는 게 정상).
+#          python tools/gen_sgg_rone_map.py --write    # tools/data/sgg_rone_cls.json 저장(현재에만 있는 코드가 있으면 거부)
+# 저장소 안의 자료(SGG_CODES + 홈 SGG_QNAME)와 R-ONE 최신월 응답만으로 다시 만든다(2026-08-01 평평한 계층에서 일치 208).
+# 시도 행은 배치와 같은 rone_sido_key 로 찾으므로 광주·전남이 '전남광주>' 밑으로 옮겨진 계층에서도 붙는다(전수리뷰 A-9).
+# ⚠️ 이 표는 손으로 옮기는 표다 — 원천이 새 시군구를 내기 시작해도 저절로 붙지 않는다. 인천 신설 4구(a901·a902·a908·a909,
+# 2026-07 개편)는 2026-08-01 재생성 때 월간 원천에 없어 빠졌고 그 뒤 다시 확인한 기록이 없다. 주간 매핑에는 있는데 이 표에
+# 없는 코드는 배치 기록 ℹ️ 줄(batch_notes.sgg_map_gap_lines)이 알린다 — 키가 있는 세션이 재생성해 '신규'를 옮긴다.
 SGG_RONE_CLS = {"a0": 500001, "a7": 500008, "a7010101": 530011, "a7010102": 530012, "a7010103": 530013, "a7010201": 530015, "a7010202": 530016, "a7010203": 530017, "a7010204": 530018, "a7010205": 530019, "a7010206": 530020, "a7010207": 530021, "a7010208": 530022, "a7010301": 530024, "a7010302": 530025, "a7010303": 530026, "a7020101": 530029, "a7020102": 530030, "a7020103": 530031, "a7020104": 530032, "a7020105": 530033, "a7020106": 530034, "a7020107": 530035, "a7020201": 530037, "a7020202": 530038, "a7020203": 530039, "a7020204": 530040, "a8": 500009, "a80101": 520018, "a80104": 520021, "a80105": 520022, "a80201": 520024, "a80303": 520030, "a80304": 520031, "a80306": 520033, "a80307": 520034, "a80401": 520036, "a80402": 520037, "a80403": 520038, "a80404": 520039, "a80501": 520041, "a80502": 520042, "a80601": 520044, "a80603": 520046, "a80701": 520048, "a80702": 520049, "a80703": 520050, "a80704": 520051, "a9": 500010, "a903": 510022, "a904": 510023, "a905": 510024, "a906": 510025, "a907": 510026, "b1": 500011, "b10101": 520063, "b10102": 520064, "b10103": 520065, "b10104": 520066, "b10105": 520067, "b10106": 520068, "b10107": 520069, "b10108": 520070, "b10201": 520072, "b10202": 520073, "b10203": 520074, "b10204": 520075, "b10301": 520077, "b10302": 520078, "b10303": 520079, "b10304": 520080, "b2": 500012, "b201": 510033, "b202": 510034, "b203": 510035, "b204": 510036, "b205": 510037, "b206": 510038, "b207": 510039, "b208": 510040, "b3": 500013, "b301": 510042, "b302": 510043, "b303": 510044, "b304": 510045, "b305": 510046, "b4": 500014, "b401": 510048, "b402": 510049, "b403": 510050, "b404": 510051, "b405": 510052, "b5": 500015, "b501": 510054, "b502": 510055, "b503": 510056, "b504": 510057, "b505": 510058, "b6": 500016, "c1": 500017, "c101": 510061, "c102": 510062, "c103": 510063, "c104": 510064, "c105": 510065, "c106": 510066, "c107": 510067, "c2": 500018, "c201": 510069, "c20101": 520119, "c20102": 520120, "c20103": 520121, "c20104": 520122, "c203": 510070, "c204": 510071, "c206": 510072, "c3": 500019, "c301": 510074, "c302": 520128, "c303": 520129, "c304": 510075, "c305": 510076, "c306": 510077, "c307": 510078, "c308": 510079, "c309": 510080, "c311": 510081, "c312": 510082, "c313": 510083, "c4": 500020, "c401": 510085, "c402": 520141, "c403": 520142, "c404": 510086, "c405": 510087, "c406": 510088, "c407": 510089, "c408": 510090, "c5": 500021, "c501": 510092, "c502": 510093, "c503": 510094, "c504": 510095, "c505": 510096, "c506": 510097, "c6": 500022, "c601": 510100, "c602": 510103, "c603": 510099, "c60301": 520157, "c60302": 520158, "c604": 510101, "c605": 510102, "c606": 510104, "c607": 510105, "c608": 510106, "c609": 510107, "c610": 510108, "c611": 510109, "c7": 500023, "c701": 510111, "c70101": 520171, "c70102": 520172, "c70103": 520173, "c70104": 520174, "c702": 520175, "c703": 510112, "c704": 510113, "c705": 510114, "c706": 510115, "c707": 510116, "c708": 510117, "c709": 510118, "c8": 500024, "c801": 510120, "c802": 510121, "a802031": 530060, "a802032": 530061, "a802033": 530062, "a802034": 530063, "a801031": 530048, "a801032": 530049, "a801033": 530050, "a802021": 530056, "a802022": 530057, "a802023": 530058, "a801021": 530045, "a801022": 530046, "a806021": 530085, "a806022": 530086, "a806023": 530087, "a803011": 530088, "a803012": 530089, "a803013": 530090, "a803021": 530067, "a803022": 530068, "a803051": 530094, "a803052": 530091, "a803053": 530093, "a803054": 530092, "a80203": 520026, "a80103": 520020, "a80202": 520025, "a80102": 520019, "a80602": 520045, "a80301": 520028, "a80302": 520029, "a80305": 520032}
 
 def _gu_name(nm):
@@ -678,6 +710,42 @@ def _rone_recent_rows(tbl, need_rows, cycle='WK', since=None):
     return rows
 
 
+# R-ONE 이 우리 지역 이름과 다르게 부르는 행. 평평한 이름으로 못 찾을 때만 쓰지 않고 **늘** 이 이름으로 찾는다.
+RONE_ALIAS = {'지방': '지방권'}
+
+
+def rone_sido_key(names, name):
+    """R-ONE 계층 이름(CLS_FULLNM) 모음에서 우리 지역 name 의 행 키. 못 찾으면 None. **계층 개편을 자동으로 따라간다.**
+
+    names 는 이름 목록이든 {이름: 값} 이든 된다(있는지 보고 훑기만 한다). 규칙: RONE_ALIAS 로 원천 이름을 고른 뒤, 평평한
+    이름이 있으면 그것, 없으면 '>이름'으로 끝나는 키 중 **가장 얕은 것**(시군구가 아니라 시도를 집는다).
+
+    ⚠️ 이 함수 하나를 주간·월간 시세 수집(fetch_weekly_rone·fetch_monthly_rone)과 감시(check_freshness.check_region_rows)가
+    함께 쓴다(전수리뷰 A-7). 예전엔 두 수집 함수 안의 클로저 둘과 감시의 거울 하나, 세 벌이었고 일치 시험은 원문에 규칙
+    문자열이 하나라도 있는지만 봐서 월간 쪽 별칭 하나만 바뀌어도(→ 월간 '지방' 열 통째 None) 관련 시험이 모두 초록이었다.
+    ⚠️ 예전엔 '전남광주>광주' 같은 전체 경로를 하드코딩했다. R-ONE 이 상위 묶음을 바꾸면(2026-07 에 '전남광주'가 새로 생겼다)
+    그 즉시 그 지역이 통째로 None 이 된다 — 시점은 최신이고 합계 검사 대상도 아니라 **아무 경보 없이 값만 빈다**(2026-08-26
+    리뷰). 이 프로젝트는 같은 함정에 강원·전북으로 두 번, 광주·전남으로 15개월 당했다(2026-08-07 감사 — 2025-05 부터
+    '광주'·'전남'이 '전남광주>광주'·'전남광주>전남'으로 옮겨 갔는데 평평한 이름만 찾았다).
+    """
+    key = RONE_ALIAS.get(name, name)
+    if key in names:
+        return key
+    cand = [k for k in names if k.endswith('>' + key)]
+    if not cand:
+        return None
+    return min(cand, key=lambda k: k.count('>'))
+
+
+def rone_seoul_gu(snap):
+    """{CLS_FULLNM: 값} 한 시점에서 서울 구 값 {구 이름: 값}(계층 마지막 조각을 이름으로). 주간·월간 수집이 같이 쓴다."""
+    out = {}
+    for full, v in snap.items():
+        if full.startswith('서울>') and full.endswith('구'):
+            out[full.rsplit('>', 1)[-1]] = v
+    return out
+
+
 def fetch_weekly_rone(weeks=None):
     weeks = weeks or RECENT_WEEKS   # 최근 구간만 — 3년 히스토리는 main() 병합이 보존
     need = (weeks + 2) * 240        # 주당 ~236행
@@ -703,31 +771,11 @@ def fetch_weekly_rone(weeks=None):
         raise RuntimeError('R-ONE 주간 데이터 부족')
 
     def sido(week, name):
-        """시도 이름 → 그 주의 값. **계층 개편을 자동으로 따라간다.**
+        """시도 이름 → 그 주의 값(계층 규칙은 rone_sido_key — 월간·감시와 같은 함수)."""
+        k = rone_sido_key(week, name)
+        return None if k is None else week[k]
 
-        ⚠️ 예전엔 '전남광주>광주' 같은 전체 경로를 하드코딩했다. 지금 계층에서는
-        맞지만, R-ONE이 상위 묶음을 한 번 더 바꾸면(2026-07에 실제로 '전남광주'가
-        새로 생겼다) 그 즉시 광주·전남이 통째로 None이 된다 — 시점은 최신이고
-        합계 검사 대상도 아니라 **아무 경보 없이 값만 빈다**(2026-08-26 리뷰).
-        월간 sido()가 이미 쓰던 방식으로 통일한다: 평평한 이름이 없으면
-        '>이름'으로 끝나는 키 중 **가장 얕은 것**을 쓴다(시군구가 아니라 시도를 집는다).
-        이 프로젝트는 같은 함정에 강원·전북으로 두 번, 광주·전남으로 15개월
-        당했다(2026-08-07 감사).
-        """
-        key = {'지방': '지방권'}.get(name, name)
-        if key in week:
-            return week[key]
-        cand = [k for k in week if k.endswith('>' + key)]
-        if not cand:
-            return None
-        return week[min(cand, key=lambda k: k.count('>'))]
-
-    def seoul_gu(week):
-        out = {}
-        for full, v in week.items():
-            if full.startswith('서울>') and full.endswith('구'):
-                out[full.rsplit('>', 1)[-1]] = v
-        return out
+    seoul_gu = rone_seoul_gu
 
     def chg(a, b):
         return None if (a in (None, 0) or b is None) else round((b / a - 1) * 100, 4)
@@ -990,7 +1038,10 @@ def fetch_holidays(prev=None, failed=None):
     if not DATAGO_KEY:
         return None
     yr = datetime.date.today().year
-    out = []
+    # 작년 공휴일은 저장분에서 이어 둔다(원천은 다시 묻지 않는다 — 호출 수 그대로). 예전엔 새해 첫 회차가 목록을 올해·내년으로
+    # 갈아 끼워, 1월 초에 아직 최신인 12월 조사 주의 발표 지연 판정(weekly_release.status 의 hedge — 성탄이 월요일인 해)을 잃었다.
+    # 홈 '반영 대기'와 감시 주간 나이 상한이 그 주에 헛경보를 낼 수 있었다(전수리뷰 A overflow). 목록은 늘 세 해까지다.
+    out = [d for d in (prev or []) if str(d).startswith('%d-' % (yr - 1))]
     for y in (yr, yr + 1):
         n0 = len(out)
         try:
@@ -1059,29 +1110,11 @@ def fetch_monthly_rone(months=None):
         raise RuntimeError('R-ONE 월간 데이터 부족')
 
     def sido(mon, name):
-        """시도 이름 → 그 달의 값. **계층 개편을 자동으로 따라간다.**
+        """시도 이름 → 그 달의 값(계층 규칙은 rone_sido_key — 주간·감시와 같은 함수)."""
+        k = rone_sido_key(mon, name)
+        return None if k is None else mon[k]
 
-        ⚠️ R-ONE은 시도를 상위 묶음 밑으로 옮기곤 한다. 2025-05부터 광주·전남이
-        '광주'·'전남'에서 '전남광주>광주'·'전남광주>전남'으로 바뀌었는데, 이 함수가
-        평평한 이름만 찾아서 두 지역이 **15개월째 전 항목 결측**이었다(2026-08-07 감사).
-        이 프로젝트는 같은 함정에 강원·전북으로 두 번 당했다 — 이름이 안 맞으면
-        '>이름'으로 끝나는 키 중 가장 얕은 것을 쓴다(시군구가 아니라 시도를 집는다).
-        """
-        key = {'지방': '지방권'}.get(name, name)
-        if key in mon:
-            return mon[key]
-        tail = '>' + key
-        cand = [k for k in mon if k.endswith(tail)]
-        if not cand:
-            return None
-        return mon[min(cand, key=lambda k: k.count('>'))]
-
-    def seoul_gu(mon):
-        out = {}
-        for full, v in mon.items():
-            if full.startswith('서울>') and full.endswith('구'):
-                out[full.rsplit('>', 1)[-1]] = v
-        return out
+    seoul_gu = rone_seoul_gu
 
     def chg(a, b):
         return None if (a in (None, 0) or b is None) else round((b / a - 1) * 100, 4)
@@ -1698,8 +1731,24 @@ def update_rate(stats):
 
 
 def _fetch_annual_one(name, years=None):
-    """{연도(str): {지역: 값}} 반환. 다년 요청이 40,000셀을 넘으면 연 단위로 쪼갠다
-       (노후주택30년은 지역×유형이 넓어 3년치가 한계다)."""
+    """{연도(str): {지역: 값}} 반환(광주·전남은 접은 뒤 — fold_annual). 원천 응답 그대로는 _fetch_annual_raw."""
+    return fold_annual(name, _fetch_annual_raw(name, years))
+
+
+def fold_annual(name, out):
+    """연간 응답 {연도: {지역: 값}}의 통합 전 두 이름(광주·전남)을 접는다(out 을 고쳐 돌려준다) — 기본통계·인허가 표·공급과 같은
+    함수(_fold_gj). 이게 없으면 merge_annual 의 지역 필터가 두 이름을 버려, 새 연도에 전남광주만 None 이 되고(멸실은
+    sido_zones.demol_of 가 직전 연도 값으로 조용히 대체한다) 3년 창 안의 원천 소급 정정도 전남광주에 실리지 않는다(전수리뷰 #1).
+    UNFOLDABLE 계열(주택보급률)은 조각으로 만들지 않는다(D3)."""
+    weighted, synth = name in _GJ_WEIGHTED, name not in _GJ_UNFOLDABLE
+    for vals in out.values():
+        _fold_gj(vals, weighted, synth)
+    return out
+
+
+def _fetch_annual_raw(name, years=None):
+    """원천 응답 {연도(str): {지역: 값}} — 옛 두 이름(광주·전남)이 있으면 그대로 둔다. 다년 요청이 40,000셀을 넘으면 연 단위로
+       쪼갠다(노후주택30년은 지역×유형이 넓어 3년치가 한계다)."""
     import datetime
     cfg = ANNUAL_CONF[name]
     n = years or ANNUAL_YEARS
@@ -1738,14 +1787,10 @@ def _fetch_annual_one(name, years=None):
             v = float(row['DT'])
         except (TypeError, ValueError, KeyError):
             continue
+        if cfg.get('zero_missing') and v == 0:
+            continue                       # 원천의 0 = 없음(ANNUAL_CONF 주석) — 값으로 싣지 않는다
         if len(y) == 4 and y.isdigit():
             out.setdefault(y, {})[reg] = v
-    # 통합 전 두 이름(광주·전남)을 접는다 — 기본통계·인허가 표·공급과 같은 함수(_fold_gj). 이게 없으면
-    # merge_annual 의 지역 필터가 두 이름을 버려, 새 연도에 전남광주만 None 이 되고(멸실은 sido_zones.demol_of 가
-    # 직전 연도 값으로 조용히 대체한다) 3년 창 안의 원천 소급 정정도 전남광주에 실리지 않는다(전수리뷰 #1).
-    weighted = name in _GJ_WEIGHTED
-    for vals in out.values():
-        _fold_gj(vals, weighted)
     return out
 
 
@@ -1775,23 +1820,135 @@ def merge_annual(D, fetched, dec):
     return changed
 
 
+def blank_zero_cells(name, D):
+    """zero_missing 계열(ANNUAL_CONF)의 저장된 0 을 칸 단위로 None 으로 바꾼다. 바꾼 칸 수.
+
+    받을 때 거르는 것만으로는 안 된다 — 평소 배치는 최근 ANNUAL_YEARS 해만 다시 받고, 해 단위 지우기(--heal-annual)는 원천이 그 해를
+    아예 안 준 경우만 지워 '다른 지역 값이 있는 해의 0'(세종 2010~2014)이 남는다. 매 회차 칸 단위로 지워 다음 배치가 스스로 고친다."""
+    if not ANNUAL_CONF.get(name, {}).get('zero_missing'):
+        return 0
+    n = 0
+    for arr in (D.get('series') or {}).values():
+        for i, v in enumerate(arr):
+            if v is not None and v == 0:
+                arr[i] = None
+                n += 1
+    return n
+
+
+def blank_unfoldable(name, D, raw):
+    """UNFOLDABLE 계열(주택보급률)의 저장된 통합 지역 값 가운데 **두 조각에서 만든 것**을 지운다. 지운 칸 수(대표 결정 2026-10-18 D3).
+
+    원천이 이번 응답에서 아직 옛 두 조각(광주·전남)으로 주는 가장 늦은 해 hi 까지는 통합 전 해다 — 그 해들의 저장 통합 값은 원천이
+    준 것이 아니라 merge_regions(09-10)·옛 접기가 W_GJ 가중평균으로 만든 것이므로 지운다. 원천이 통합 행을 직접 준 해는 남긴다.
+    조각이 응답에 없으면(통합 뒤 해만 받는 날) 아무것도 지우지 않는다 — 이미 지운 뒤이고, 그 뒤의 값은 원천 통합 행이다.
+    배치가 매 회차 부르므로 PR 에 data.js 를 싣지 않아도 다음 배치가 이력을 비운다."""
+    if name not in _GJ_UNFOLDABLE:
+        return 0
+    arr = (D.get('series') or {}).get(_GJ_NEW)
+    pieces = [y for y, vals in raw.items() if any(k in vals for k in _GJ_OLD)]
+    if not arr or not pieces:
+        return 0
+    hi = max(pieces)
+    direct = {y for y, vals in raw.items() if _GJ_NEW in vals}
+    n = 0
+    for i, y in enumerate(D['dates']):
+        if i < len(arr) and arr[i] is not None and y <= hi and y not in direct:
+            arr[i] = None
+            n += 1
+    return n
+
+
 def update_annual(stats, failed=None):
     changed = []
     for name in ANNUAL_CONF:
         if name not in stats:
             print('annual %s skip: STATS에 없음' % name)
             continue
+        n = blank_zero_cells(name, stats[name])      # 원천 조회와 무관한 저장분 정리 — 조회가 죽은 날도 돈다
         try:
-            fetched = _fetch_annual_one(name)
+            raw = _fetch_annual_raw(name)
             time.sleep(0.2)
-            n = merge_annual(stats[name], fetched, ANNUAL_CONF[name]['dec'])
-            if n:
-                changed.append('%s(%d)' % (name, n))
+            n += merge_annual(stats[name], fold_annual(name, copy.deepcopy(raw)), ANNUAL_CONF[name]['dec'])
+            n += blank_unfoldable(name, stats[name], raw)
         except Exception as e:
             if failed is not None:
                 failed.append(name)
             print('annual %s skip: %s' % (name, e))
+        if n:
+            changed.append('%s(%d)' % (name, n))
     return changed
+
+
+# ---- 창 밖 원천 소급 정정(전수리뷰 A-1·H2-1) -------------------------------------
+# 같은 원천 표(DT_MLTM_1948 아파트)를 두 경로가 읽는다 — 투자지표 인허가(fetch_permits)는 2007~올해 6·12월 누계를 매 회차 전부
+# 다시 받고, 기본통계 인허가(STATS)는 최근 BASIC_MONTHS 달만 다시 받는다. 원천이 2026-10-07 회차에 2025년을 고치자 ADV.permits 만
+# 따라가 두 화면이 다른 수를 냈다(전국 2025 하반기 232,955 대 224,469, 경북 +40%). 착공·준공(같은 국토교통부 실적 표 묶음)도 같은
+# 창이라 같은 회차의 정정을 놓쳤을 수 있다 — 대조할 두 번째 경로가 없어 인허가가 어긋난 해에 셋을 함께 다시 받는다.
+# 창을 넓히지 않는 까닭: mltm 은 달마다 한 번씩 부르는 표라 창을 전년 1월까지 넓히면 매일 호출이 세 배가 된다(KOSIS 차단 위험).
+# 어긋날 때만, 한 회차에 PERMIT_HEAL_YEARS 해씩 다시 받는다(해마다 세 표 × 12달 = 36호출). 게이트로 막지 않는다 — 원천이 고친 날
+# 커밋이 멈추면 안 된다. 다시 받은 회차는 변경 토큰에 REVISION_MARK 를 달아 배치 기록 ℹ️ 줄로 올리고(update-cloud.yml 커밋 잡),
+# 받지 못했거나 받아도 어긋나면 .fetch_failed(ℹ️ 원천 일부 실패 줄)에 남긴다.
+PERMIT_HEAL_SERIES = [n for n, c in BASIC_CONF.items() if c['mode'] == 'mltm']    # 인허가·착공·준공
+PERMIT_HEAL_YEARS = 1
+REVISION_MARK = '원천정정'
+
+
+def permit_half_mismatch(permits, stats):
+    """ADV.permits 반기 값과 STATS 인허가 누계(상반기 = 6월 누계, 하반기 = 12월 누계 − 6월 누계)가 다른 칸 →
+    [(반기 'YYYYH1|H2', 지역, ADV 값, STATS 값)]. 한쪽이라도 비어 있는 칸은 견주지 않는다(세종 2012 상반기처럼 출범 전)."""
+    D = (stats or {}).get('인허가') or {}
+    at = {}
+    for i, d in enumerate(D.get('dates') or []):
+        ym = _label_ym(d)
+        if ym and 'p' not in str(d):
+            at[ym] = i
+    ser = D.get('series') or {}
+    regions = (permits or {}).get('regions') or []
+    out = []
+    for row in (permits or {}).get('rows') or []:
+        p = str(row.get('p') or '')
+        if len(p) != 6 or p[4:] not in ('H1', 'H2'):
+            continue
+        y = int(p[:4])
+        for k, reg in enumerate(regions):
+            v = (row.get('v') or [])[k] if k < len(row.get('v') or []) else None
+            arr = ser.get(reg) or []
+            cum = [arr[at[(y, m)]] if (y, m) in at and at[(y, m)] < len(arr) else None for m in (6, 12)]
+            got = cum[0] if p.endswith('H1') else (None if None in cum else cum[1] - cum[0])
+            if v is not None and got is not None and int(round(got)) != int(round(v)):
+                out.append((p, reg, v, got))
+    return out
+
+
+def heal_permit_years(stats, permits, failed):
+    """permit_half_mismatch 가 어긋난 해를 가장 늦은 해부터 PERMIT_HEAL_YEARS 해만 인허가·착공·준공 12달씩 다시 받아 병합한다.
+    변경 토큰 목록(REVISION_MARK 포함)을 돌려준다. 받지 못했거나 받아도 어긋나면 failed 에 남긴다."""
+    # ⚠️ 다 찬 해(12월이 STATS 인허가에 있는 해)만, 이미 있는 달만 고친다 — 다시 받기가 새 달을 덧붙이면 _hold_horizon(이 함수보다
+    # 앞에서 돈다)을 비켜 준공·착공의 끝 분기가 갈라질 수 있다(올해 상반기 칸이 그날 기본통계 조회 실패로 어긋난 회차 등).
+    have = {name: {_label_ym(d) for d in (stats.get(name) or {}).get('dates') or []} for name in PERMIT_HEAL_SERIES}
+    years = sorted({int(h[:4]) for h, _, _, _ in permit_half_mismatch(permits, stats)
+                    if (int(h[:4]), 12) in have.get('인허가', ())}, reverse=True)
+    out = []
+    for y in years[:PERMIT_HEAL_YEARS]:
+        n = 0
+        try:
+            for name in PERMIT_HEAL_SERIES:
+                fetched, _ = _fetch_basic_one(name, 12, upto=(y, 12))
+                n += merge_basic(stats[name], {ym: v for ym, v in fetched.items() if ym in have[name]})
+                time.sleep(0.2)
+        except Exception as e:
+            print('basic 인허가: %d년 원천 정정 재수집 실패 — %s' % (y, e))
+            failed.append('인허가:원천 정정 재수집 실패(%d)' % y)
+            continue
+        left = [b for b in permit_half_mismatch(permits, stats) if b[0].startswith(str(y))]
+        print('basic 인허가: 투자지표 인허가와 %d년 누계가 갈려 %s 를 다시 받았다(%d칸 교정, 남은 어긋남 %d칸)'
+              % (y, '·'.join(PERMIT_HEAL_SERIES), n, len(left)))
+        if left:
+            failed.append('인허가:원천 정정 대조 어긋남(%d)' % y)
+        if n:
+            out.append('%s(%s %d년 %d칸)' % ('·'.join(PERMIT_HEAL_SERIES), REVISION_MARK, y, n))
+    return out
 
 
 # sido_zones.calc 가 미래 시야 H(= 착공 끝 분기 − 준공 끝 분기 + LEAD_Q)를 재는 두 계열.
@@ -1834,8 +1991,9 @@ def _hold_horizon(stats, before, failed):
     return True
 
 
-def update_basic(failed=None):
+def update_basic(failed=None, permits=None):
     """기본통계(STATS) 증분 갱신. 변경 토큰 목록을 돌려주고, 실패한 계열 이름은 failed에 넣는다.
+    permits(ADV.permits)를 주면 같은 원천 표의 STATS 인허가 누계와 맞춰 보고 어긋난 해를 다시 받는다(heal_permit_years, A-1).
 
     ⚠️ 예전엔 여기 예외가 print로만 끝나 .fetch_failed 에 닿지 않았다. 준공·착공·인허가가
     KOSIS 오류로 몇 회차째 죽어도 배치 기록은 ✅였고, 감시의 나이 검사(100일 유예)가 잡을
@@ -1845,6 +2003,10 @@ def update_basic(failed=None):
     failed = [] if failed is None else failed
     stats = read_current_stats()
     changed = []
+    gone = drop_raw_aggregates(stats)           # 모델 밖 원천 집계 행(D2) — 원천 조회와 무관한 저장분 정리
+    if gone:
+        print('basic: 모델 밖 집계 행을 뺀다 — %s' % ' · '.join('%s:%s' % (k, '·'.join(v)) for k, v in gone.items()))
+        changed.append('집계행정리(%d)' % sum(len(v) for v in gone.values()))
     try:
         changed += update_rate(stats)
     except Exception as e:
@@ -1880,8 +2042,11 @@ def update_basic(failed=None):
             failed.append(name); print('basic %s skip: %s' % (name, e))
     if _hold_horizon(stats, before, failed):
         changed[:] = [t for t in changed if t not in {tokens.get(k) for k in before}]
+    if permits:
+        # 시야 보류 뒤에 한다 — 보류가 병합 전으로 되돌리는 준공·착공에 창 밖 정정이 함께 지워지지 않게(지난 해만 고치므로 끝 분기는 그대로).
+        changed += heal_permit_years(stats, permits, failed)
     try:
-        changed += update_size(stats)
+        changed += update_size(stats, failed)
     except Exception as e:
         failed.append('규모별'); print('size skip:', e)
     try:
@@ -1907,6 +2072,24 @@ SIZE_TBLS = [('매매', 'DT_30404_B014', True), ('전세', 'DT_30404_B015', True
              ('월세', 'DT_30404_B005', True), ('전환율', 'DT_30404_N0009', False)]
 SIZE_LABELS = ['40㎡↓', '40~60㎡', '60~85㎡', '85~102㎡', '102~135㎡', '135㎡↑']
 SIZE_MONTHS = 62
+
+
+def size_last(D):
+    """규모별 페이로드(STATS['규모별']) → {지표: 그 지표에 값이 하나라도 있는 마지막 달 라벨}. 값이 하나도 없는 지표는 빠진다.
+
+    축(dates)은 네 표 시점의 **합집합**이라 끝 달이 한 지표에만 있을 수 있다 — 2026-09-28 전환율(N0009)이 2026.07 을 실어
+    축 끝이 2026.07 이 됐는데 매매·전세·월세는 2026.06 에서 석 달째 멈춰 있었다. 감시와 월간 뒤처짐 알림이 축 끝(dates[-1])을
+    읽어 그 정지가 가려졌다(전수리뷰 A-2). 감시(check_freshness)·month_lag 가 이 함수 하나로 지표별 최신을 읽는다.
+    """
+    dates = D.get('dates') or []
+    out = {}
+    for m, per in (D.get('series') or {}).items():
+        for i in range(len(dates) - 1, -1, -1):
+            if any(isinstance(a, list) and i < len(a) and isinstance(a[i], list) and any(v is not None for v in a[i])
+                   for a in (per or {}).values()):
+                out[m] = dates[i]
+                break
+    return out
 
 
 def _size_levels(rows):
@@ -1997,7 +2180,9 @@ def _size_series(rows, is_idx):
     return out
 
 
-def update_size(stats):
+def update_size(stats, failed=None):
+    """규모별 표 넷을 받아 STATS['규모별'] 을 다시 만든다(직전 값과 칸 단위로 병합 — build_size). failed 에는 build_size 가 남기는
+    부분 실패(응답에서 빠져 직전 값을 지킨 지역)가 붙는다."""
     metrics = {}
     for name, tbl, is_idx in SIZE_TBLS:
         rows = kosis({'orgId': '408', 'tblId': tbl, 'objL1': '01', 'objL2': 'ALL',
@@ -2006,7 +2191,7 @@ def update_size(stats):
         time.sleep(0.2)
         metrics[name] = _size_series(rows, is_idx)
     old = copy.deepcopy(stats.get('규모별'))
-    stats['규모별'] = build_size(metrics, stats.get('규모별') or {})
+    stats['규모별'] = build_size(metrics, stats.get('규모별') or {}, failed)
     # 값이 그대로면 토큰을 내지 않는다 — 매 회차 '규모별(N)'이 changed 를 채우면 rc=3 판정(`and not changed`)이
     # 무뎌지고 커밋 메시지도 헛 변경을 적는다(전수리뷰 #2).
     if json.dumps(old, sort_keys=True, ensure_ascii=False) == json.dumps(stats['규모별'], sort_keys=True, ensure_ascii=False):
@@ -2014,11 +2199,19 @@ def update_size(stats):
     return ['규모별(%d)' % len(stats['규모별']['dates'])]
 
 
-def build_size(metrics, prev):
+def build_size(metrics, prev, failed=None):
     """{지표: {지역: {PRD_DE: [6]}}} → STATS['규모별'] 페이로드. 가드에 걸리면 RuntimeError.
 
     예외로 올리는 이유: 예전엔 print 뒤 []를 돌려줘 '변경 없음'과 겉모습이 같았다. 지금은
     update_basic이 받아 .fetch_failed 에 남긴다(배치 알림의 ℹ️ 줄).
+
+    ⚠️ 직전 페이로드(prev)와 (지표·지역·달) 칸 단위로 **병합**한다(전수리뷰 A-3). 축은 이번 응답이 정하고(매 회차 SIZE_MONTHS
+    달을 다시 받는다 — 축이 끝없이 늘지 않는다), 이번 응답에 **없는** 칸(그 지역의 그 달 항목이 통째로 없다)만 직전 값을 지킨다.
+    예전엔 통째로 갈아 끼워, 원천이 광주·전남 옛 두 행을 빼고 통합 행을 새 달에만 내자(2026-09-28 전환율 N0009) 그 회차 응답 안의
+    조각만으로 만든 전남광주 이력이 61달 중 1달로 줄었다 — 가드는 지역 키가 있는지만 봤다. 지수 3종은 전월비라 직전 칸을 그대로
+    이어도 바탕이 섞이지 않는다(통합 첫 달은 같은 바탕의 전달 수준이 없어 비워 둔다 — _size_fold_old).
+    응답에서 지역이 통째로 빠졌는데 직전 값이 있으면 직전 값을 지키고 failed 에 '규모별:<지역> 응답 빠짐(직전 값 유지)'을 남긴다
+    (.fetch_failed → 배치 알림 ℹ️ 줄). 직전 값도 없으면 예전처럼 채택하지 않는다(가드).
     """
     dates = set()
     for per in metrics.values():
@@ -2027,15 +2220,25 @@ def build_size(metrics, prev):
     # 공통 시간축: 지수 변동률이 시작되는 달부터 (전환율의 2011~ 과거는 싣지 않음)
     base = min(min(s) for s in metrics['매매'].values())
     ds = sorted(d for d in dates if d >= base)
-    series = {}
-    for name, _, _ in SIZE_TBLS:
-        series[name] = {reg: [metrics[name].get(reg, {}).get(d) for d in ds]
-                        for reg in WEEKLY_REGIONS if reg in metrics[name]}
-    # ⚠️ 전면 대체가 아니라 **병합**이다. 예전엔 이 자리에서 통째로 갈아 끼워,
-    # KOSIS가 한 번만 부분 응답을 주면 20지역×60개월이 1지역×5개월로 조용히
-    # 쪼그라들었다(2026-08-07 감사). 기존 계열보다 얕으면 채택하지 않는다.
     _pd = prev.get('dates') or []
     _nd = ['%s.%s' % (d[:4], d[4:6]) for d in ds]
+    old = {}       # {지표: {지역: {달 라벨: 직전 칸}}}
+    for name, per in (prev.get('series') or {}).items():
+        for reg, arr in (per or {}).items():
+            old.setdefault(name, {})[reg] = {lab: v for lab, v in zip(_pd, arr or []) if v is not None}
+    series, kept = {}, []
+    for name, _, _ in SIZE_TBLS:
+        series[name] = {}
+        for reg in WEEKLY_REGIONS:
+            new, was = metrics[name].get(reg), (old.get(name) or {}).get(reg)
+            if new is None and not was:
+                continue                      # 응답에도 직전에도 없다 — 아래 lack 가드
+            if new is None:
+                kept.append(reg)
+            series[name][reg] = [(new or {}).get(d) if (new or {}).get(d) is not None else (was or {}).get(lab)
+                                 for d, lab in zip(ds, _nd)]
+    # 기존 계열보다 얕으면 채택하지 않는다 — KOSIS가 한 번만 부분 응답을 주면 20지역×60개월이 1지역×5개월로 조용히
+    # 쪼그라들었다(2026-08-07 감사). 칸 병합은 축이 아니라 칸을 지키므로 이 가드는 그대로 둔다.
     _nr = [r for r in WEEKLY_REGIONS if r in series['매매']]
     if _pd and len(_nd) < len(_pd) * 0.8:
         raise RuntimeError('규모별 GUARD: %d개월 -> %d개월로 급감해 채택하지 않음(KOSIS 부분 응답 의심)'
@@ -2048,6 +2251,10 @@ def build_size(metrics, prev):
     if lack:
         raise RuntimeError('규모별 GUARD: 모델 지역 %d곳 중 %s 빠짐 — 채택하지 않음(직전 값 유지)'
                            % (len(WEEKLY_REGIONS), ', '.join(lack)))
+    for reg in sorted(set(kept), key=WEEKLY_REGIONS.index):
+        print('size %s: 응답에서 빠진 지표가 있어 직전 값을 지킨다(이번 달 칸은 빈다)' % reg)
+        if failed is not None and '규모별:%s 응답 빠짐(직전 값 유지)' % reg not in failed:
+            failed.append('규모별:%s 응답 빠짐(직전 값 유지)' % reg)
     return {
         'dates': _nd,
         'sizes': SIZE_LABELS,
@@ -2062,10 +2269,11 @@ def build_size(metrics, prev):
         'regions': _nr,
         'unit': '전월 대비 % (전환율은 %)',
         'source': '한국부동산원 전국주택가격동향조사(월간) · 아파트',
-        # 계산법 공개: 통합 지역을 원천 통합값이 없는 달에 어떻게 잇는지 화면 각주(※)에 싣는다.
-        'note': ('지수 3종은 전월 대비 변동률, 전월세전환율은 수준(%%) · %s는 원천이 통합 값을 내지 않은 '
-                 '달을 %s·%s 값의 가중평균(%s 몫 %.3f)으로 잇는다'
-                 % (_GJ_NEW, _GJ_OLD[0], _GJ_OLD[1], _GJ_OLD[0], W_GJ)),
+        # 계산법 공개: 통합 지역을 원천 통합값이 없는 달에 어떻게 잇는지 화면 각주(※)에 싣는다. 지역은 화면 이름(SZ.disp — 백로그 46,
+        # 전수리뷰 H2-12)이고, 조사가 이름 받침에 기대지 않는 어순으로 쓴다.
+        'note': ('지수 3종은 전월 대비 변동률, 전월세전환율은 수준(%%) · %s 통합 값을 원천이 내지 않은 달은 '
+                 '옛 두 지역(%s·%s) 값의 가중평균(%s 몫 %.3f)으로 잇는다'
+                 % (SZ.disp(_GJ_NEW), _GJ_OLD[0], _GJ_OLD[1], _GJ_OLD[0], W_GJ)),
         'series': series}
 
 
@@ -2101,6 +2309,18 @@ MAIN_SOURCES = ('weekly', 'monthly', 'permits', 'holidays', 'bubble')
 
 class _SidoHeld(Exception):
     """시도 점수 가드(H ≠ lead)에 걸려 입주물량 갱신도 건너뛴다는 신호. 실패가 아니라 보류다."""
+
+
+def sido_guard(sd, n_old=0):
+    """시도 점수 sd 를 채택하면 안 되는 까닭 — 'shrink'(지역이 모델보다 적거나 직전 n_old 곳보다 줄었다) | 'h'(준공·착공 끝 분기가
+    갈라져 미래 시야 H ≠ lead) | None. --update(main)와 --seed-sido 가 같은 판정을 쓴다 — 예전 --seed-sido 는 가드 없이 ADV.sido·
+    occupancy 를 써서, 그 상태로 make_sido_pages 가 ABORT 하거나 /zone/ 이 지역을 잃을 수 있었다(전수리뷰 A overflow)."""
+    n_new = len(sd.get('zones') or [])
+    if n_new < len(SZ.ORDER) or (n_old and n_new < n_old):
+        return 'shrink'
+    if sd.get('H') != sd.get('lead'):
+        return 'h'
+    return None
 
 
 def main():
@@ -2172,9 +2392,11 @@ def main():
         assert name in ANNUAL_CONF, '계열: %s' % ', '.join(ANNUAL_CONF)
         assert KEY, 'KOSIS_API_KEY 환경변수 필요'
         st = read_current_stats()
-        fetched = _fetch_annual_one(name, years)
+        raw = _fetch_annual_raw(name, years)
+        fetched = fold_annual(name, copy.deepcopy(raw))
         D = st[name]
-        n = merge_annual(D, fetched, ANNUAL_CONF[name]['dec'])
+        n = (merge_annual(D, fetched, ANNUAL_CONF[name]['dec']) + blank_zero_cells(name, D)
+             + blank_unfoldable(name, D, raw))
         # ⚠️ 조회 범위 **안**에서만 지운다. 밖(더 옛 연도)은 '새 지표에 없다'가 아니라
         # '이번에 안 물어봤다'이다 — 이걸 구분하지 않아 아파트건설의 1970~1994년
         # 25셀을 한 번 날렸다(2026-08-08, 백업에서 복원).
@@ -2225,7 +2447,14 @@ def main():
         # 산식이나 적정물량 상수를 고친 뒤 데이터를 즉시 맞출 때 쓴다.
         import sido_zones
         st = read_current_stats()
-        adv['sido'] = sido_zones.calc(st)
+        sd = sido_zones.calc(st)
+        why = sido_guard(sd)       # 직전과의 비교(n_old)는 빼고 모델·시야만 본다 — 모델이 지역을 합칠 때(09-10) 다시 굽는 길이다
+        if why:
+            raise SystemExit('sido GUARD(--seed-sido): %s — 쓰지 않는다(지역 %d곳/모델 %d곳 · 미래 시야 %s분기/정상 %s, 준공 %s·착공 %s)'
+                             % ({'shrink': '지역이 빠졌다', 'h': '준공·착공의 끝 분기가 갈라졌다'}[why],
+                                len(sd.get('zones') or []), len(sido_zones.ORDER), sd.get('H'), sd.get('lead'),
+                                sd.get('L'), sd.get('S')))
+        adv['sido'] = sd
         adv.pop('livezone', None)   # 생활권 31곳 체제 잔재 (2026-08-06 폐기)
         # ⚠️ occupancy(통계 탭 입주물량·/moveins/)도 같은 함수에서 나온다. 여기서 같이
         # 갱신하지 않으면 산식을 고친 뒤 홈만 새 값, 통계 탭은 옛 값이 된다 —
@@ -2383,7 +2612,7 @@ def main():
         failed.append('bubble'); print('bubble skip:', e)
     if changed:
         write_adv(adv)
-    changed += update_basic(soft_failed)   # 기본통계(STATS) 증분 갱신
+    changed += update_basic(soft_failed, adv.get('permits'))   # 기본통계(STATS) 증분 갱신 + 인허가 두 경로 대조(A-1)
     # ── 시도 공급 지표 ───────────────────────────────────────────────────────
     # STATS의 준공·착공·아파트멸실에서 파생하므로 **update_basic 뒤**에 와야 한다.
     # 앞에 두면 이번 회차에 갱신된 통계가 아니라 지난 회차 값으로 점수가 나온다.
@@ -2400,14 +2629,15 @@ def main():
         # sido_zones.ORDER가 알고 있으므로 절대 기준으로도 본다.
         want = len(sido_zones.ORDER)
         gone = sorted(sd.get('missing') or [])
-        if n_new < want or (n_old and n_new < n_old):
+        why = sido_guard(sd, n_old)      # --seed-sido 와 같은 판정
+        if why == 'shrink':
             if not gone and n_old:
                 gone = sorted({z['z'] for z in adv['sido']['zones']} - {z['z'] for z in sd['zones']})
             print('sido GUARD: 지역이 %d곳뿐이라 채택하지 않음(%d곳이어야 함, 직전 %d곳). 빠진 곳: %s '
                   '(통계 부분 응답 의심. zone 페이지·sitemap 보존)'
                   % (n_new, want, n_old, ', '.join(gone) or '?'))
             failed.append('sido-shrink')
-        elif sd.get('H') != sd.get('lead'):
+        elif why == 'h':
             # 가드: 준공·착공의 끝 분기가 갈라진 점수(미래 시야 H ≠ lead)는 채택하지 않는다. 그런 점수는
             # 전 지역 비율이 함께 움직인 값이고 make_sido_pages 가 어차피 ABORT 한다. 옛 점수·입주물량을
             # 지키고 부분 실패('sido-h')로만 남긴다 — rc=3 판정(failed)에는 넣지 않는다(2026-09-26 데이터
@@ -2422,7 +2652,7 @@ def main():
             write_adv(adv)
         # ⚠️ 가드에 걸린 회차는 occupancy도 쓰지 않는다. 점수(ADV.sido)만 지키고
         # 여기서 쓰면 홈 표와 통계 탭이 다시 갈리고, write_adv가 성공해 '변경 있음'이
-        # 되면서 전량실패 회로차단기(len(failed)>=5 and not changed)까지 풀린다
+        # 되면서 전량실패 회로차단기(set(MAIN_SOURCES) <= set(failed) and not changed)까지 풀린다
         # (2026-08-07 감사).
         if 'sido-shrink' in failed:
             raise RuntimeError('sido 가드에 걸려 occupancy도 갱신하지 않는다')

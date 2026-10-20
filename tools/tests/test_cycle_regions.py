@@ -79,5 +79,6 @@ def test_headline_counts_match_the_model():
     panel = len(D['sync'])
     assert (D.get('prose') or {}).get('n_panel') == str(panel), 'n_panel이 sync 표본 수와 다르다'
     assert '<span data-d="n_panel">%d</span>개 시도' % panel in s, '머리글·본문이 분석 지역 수를 칸으로 말하지 않는다'
-    assert '%d개 시도 20년' % panel in s, '메타 설명의 지역 수가 분석 표본과 다르다'
+    import rebuild_cycle_analysis as RC
+    assert '%d개 시도 %d년' % (panel, RC.span_years(D['zones'])) in s, '메타 설명의 지역 수·햇수가 분석 표본·자료 기간과 다르다'
     assert '합치기 전' not in s, '통합 이전 표본이라는 낡은 단서가 남아 있다'

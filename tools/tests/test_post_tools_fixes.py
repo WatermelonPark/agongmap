@@ -142,11 +142,28 @@ class _Gh:
 
 
 def test_body_is_not_overwritten_when_view_fails(monkeypatch):
+    """본문을 못 읽으면 본문을 덮지 않고(점검 체크리스트 보존), 기록을 못 남겼으니 닫지도 않는다(전수리뷰 F overflow — 예전엔
+    제목만 바꿔 닫아, 글 주소 기록이 없는 닫힌 이슈가 생겼고 다음 날 같은 글이 다른 알림 이슈를 또 닫을 수 있었다).
+
+    변이(실제로 확인): main 의 `if not note_record(...): continue` 를 지우면(옛 '실패해도 닫는다') 둘째 단정(close 없음)이 빨강.
+    note_record 가 view 실패에도 --body 로 덮으면 첫 단정이 빨강.
+    픽스처: gh issue view 가 실패하는 가짜 gh, 열린 지역 공급 알림 이슈 하나와 그 창 안의 글 하나.
+    """
     gh = _Gh(fail_view=True)
     monkeypatch.setattr(C.subprocess, 'run', gh)
-    C.note_record(7, '기록', '제목')
-    edits = [a for a in gh.calls if a[2] == 'edit']
-    assert edits and '--body' not in edits[0] and '--title' in edits[0], edits
+    assert C.note_record(7, '기록', '제목') is False
+    assert not [a for a in gh.calls if a[2] == 'edit' and '--body' in a], gh.calls
+    gh = _Gh(fail_view=True)
+    monkeypatch.setattr(C.subprocess, 'run', gh)
+    iss = _iss(9, ZONE, D(2026, 9, 15))
+    monkeypatch.setattr(C, 'fetch_posts', lambda: [dict(date=D(2026, 9, 16), cat=ZONE, title='z', url='z')])
+    monkeypatch.setattr(C, 'open_issues', lambda: [iss])
+    C.main([])
+    assert any(a[2] == 'view' for a in gh.calls), gh.calls          # 닫으려고 했다
+    assert not [a for a in gh.calls if a[2] == 'close'], '기록을 못 남겼는데 닫았다: %s' % gh.calls
+    gh = _Gh()
+    monkeypatch.setattr(C.subprocess, 'run', gh)
+    assert C.note_record(7, '기록', '제목') is True     # 읽고 덧붙였으면 닫는다
 
 
 def test_title_is_restored_when_close_fails(monkeypatch):

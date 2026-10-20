@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v192';
+const HOME_BUILD='v193';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -552,7 +552,8 @@ function sggMapSvg(vals,o){
   const tb=Math.round(VH/2)+3;
   /* 값이 한 줄도 없는 칸은 세우지 않는다(시도 머리 칸은 늘 세운다) — 추세 그래프 지역 목록(sggOfSido)과 같은 규칙. 인천 신설
      4구(제물포·영종·검단·서해, 2026-07 개편)는 주간표에는 있고 월간표에는 아직 없어 월간 지도에 '·' 빈 칸 넷이 섰다(2026-10-07
-     대표 지적). 원천이 그 칸을 내기 시작하면 저절로 다시 선다. 경계선·점선 묶음도 세운 칸만으로 긋는다. */
+     대표 지적). 월간 매핑(update_adv_data.SGG_RONE_CLS)은 손으로 옮기는 표라 원천이 그 칸을 내기 시작해도 저절로 서지 않는다 —
+     배치 기록 ℹ️ 줄(batch_notes.sgg_map_gap_lines)이 알리면 매핑을 재생성한다. 경계선·점선 묶음도 세운 칸만으로 긋는다. */
   const T=N.t.filter(([c,,,,h])=>h||vals.some(m=>m[c]!=null));
   T.forEach(([c,nm,x,y,h])=>{
     const px=x*(TW+G), py=y*(rowH+G), href=o.href?o.href(c):null;
@@ -1080,7 +1081,7 @@ function tbRefSync(){
    홈은 정적 파일이라 생성기가 주입할 수 없다. 한쪽만 고치면 테스트가 깨진다
    (test_refnote_copy_is_identical_on_home_and_zone). */
 var TB_REFNOTE={
-  un:'미분양은 다 짓고도 팔리지 않아 남아 있는 집입니다(국토교통부 월간 집계). 이미 지어진 재고에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, 참고로만 보여줍니다.',
+  un:'미분양은 분양했지만 아직 팔리지 않은 집(공사 중 포함)입니다(국토교통부 월간 집계). 이미 착공·준공 물량에 들어 있어 순위 계산에 다시 넣으면 이중계산이라, 참고로만 보여줍니다.',
   pm:'인허가는 "짓겠다"고 허가받은 단계의 물량입니다. 착공과 같은 흐름으로 움직이지만 허가 뒤 착공하지 않는 물량이 섞여 있고 입주까지의 시차가 일정하지 않아 참고로만 봅니다. 월별 들쭉날쭉이 커서 최근 12개월 합으로 묶어 연간 적정물량과 견주고, 순위 계산에는 착공만 씁니다.'
 };
 /* 라벨 사다리 한 칸 올림(2026-08-15 PM 결정). 컷(GRADE_CUTS)은 그대로 —

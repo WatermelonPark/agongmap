@@ -157,19 +157,27 @@ def test_미분양은_점수에_안_들어간다():
 
 
 def test_모순_표시는_부족_판정에만_붙는다():
-    """공급 여유인데 미분양이 많은 건 모순이 아니라 일관이다(충남)."""
+    """공급 여유인데 미분양이 많은 건 모순이 아니라 일관이다(충남). 부족 판정의 경고(uwarn)는 **화면이 'N.N배'로 적는 값**부터 켠다 —
+    배수 표기(make_sido_pages.umx)와 경고가 한 함수(SZ.um_times)를 쓴다(전수리뷰 Z1-6).
+
+    재현한 상태: 예전 uwarn 은 반올림 전 원값 1.0 으로 갈라, 미분양이 분기 적정물량의 0.96·0.99995 배인 부족 지역은 카드·경고문
+    자리에 '1.0배'로 찍히는데 ⚠ 문단이 없고, 1.0 배인 곳은 같은 '1.0배'에 경고가 붙었다. 0.94 배는 '94%'로 찍히고 경고가 없다.
+    변이(실제로 확인): calc 의 uwarn 을 옛 `um >= 1.0`(반올림 전 원값)으로 되돌리면 0.96·ref−1 갈래가 빨개진다. umx 의 '배'/'%'
+    갈림을 원값 `v >= 1` 로 바꾸면 표기 대조가 빨개진다.
+    픽스처: 합성 서울(부족 판정)에 미분양 ref·ref−1(원값 0.99995 → 저장 1.0)·0.96 ref·0.94 ref 를 차례로 싣는다.
+    """
+    import make_sido_pages as P
     cut = (2026 - 2011) * 12 + 6
     z = [0] * cut
     s = _stats({'전국': list(z), '서울': list(z)},
                {'전국': list(z), '서울': list(z)}, y0=2011, m0=1)
     ref = M.REF_Q['서울']
-    s['미분양'] = {'dates': ['2026.06'], 'series': {'전국': [0], '서울': [ref]}}
-    row = [x for x in M.calc(s)['zones'] if x['z'] == '서울'][0]
-    assert row['grade'] in ('g4', 'g3', 'g2') and row['um'] == 1.0
-    assert row['uwarn'] is True, '부족 + 미분양 1배면 모순 표시'
-    s['미분양']['series']['서울'] = [ref - 1]
-    row2 = [x for x in M.calc(s)['zones'] if x['z'] == '서울'][0]
-    assert row2['uwarn'] is False, '1배 미만이면 표시하지 않는다'
+    for un, shown, warn in ((ref, '1.0배', True), (ref - 1, '1.0배', True), (0.96 * ref, '1.0배', True),
+                            (0.94 * ref, '94%', False)):
+        s['미분양'] = {'dates': ['2026.06'], 'series': {'전국': [0], '서울': [un]}}
+        row = [x for x in M.calc(s)['zones'] if x['z'] == '서울'][0]
+        assert row['grade'] in ('g4', 'g3', 'g2'), row['grade']
+        assert P.umx(row['um']) == shown and row['uwarn'] is warn and M.um_times(row['um']) is warn, (un, row['um'], row['uwarn'])
 
 
 def test_전_기간_None인_지역은_missing으로_빠진다():
@@ -679,6 +687,32 @@ def test_최신_미분양은_아직_안_나온_달을_건너뛴다():
     assert r['unsold_prd'] == '2026.06'
     assert M.unsold_latest({'미분양': {'dates': ['2026.06', '2026.07'],
                                        'series': {z: [8700, None]}}}, z) == (8700, '2026.06')
+
+
+def test_인허가_두_창은_계열_전체의_마지막_달에서_끝난다():
+    """'인허가 1년'(permit_trail12)과 '3년 너머'(permit_signal)는 같은 기준 달(permit_ref_month — 인허가 계열 전체에서 값이 있는
+    마지막 달)로 창을 잡는다. 한 지역의 최신 달이 비면 두 값 모두 None 이고 배치 기록(batch_notes.permit_gaps)이 ⚠️ 줄로 알린다(전수리뷰
+    Z1-4). 재현한 상태: permit_signal 만 그 지역 permit_monthly 의 마지막 달로 창을 잡아, '인허가 1년' 행이 접힌 지역도 리포트가 몇 달
+    물러난 창을 '최근 2년 인허가를 착공으로 환산하면 …'이라 말했고 permit_gaps 는 조용했다(경기 2026.06~08 을 비운 사본: 126%).
+    변이(실제로 확인): permit_signal 의 창 끝을 옛 `ks[-1]`(그 지역 마지막 달)로 되돌리면 비운 지역의 pbr·'… 너머' 줄이 살아나 빨개진다.
+    픽스처: _edge_stats 합성(2011.01~2026.06, 전국과 서울 두 계열) — 서울 인허가 누계의 마지막 한 달, 그리고 마지막 석 달을 비운다
+    (누계가 쌓인 뒤의 빈칸 = 원천이 그 지역 행만 비운 모양). 전국은 그대로라 기준 달은 2026.06 이다.
+    """
+    import batch_notes as N
+    for gap in (1, 3):
+        st = _edge_stats('서울', k=0.9)
+        ser = st['인허가']['series']['서울']
+        ser[-gap:] = [None] * gap
+        assert M.permit_ref_month(st) == '2026.06'
+        r = M.calc(st)
+        by = {x['z']: x for x in r['zones']}
+        assert r['permit_prd'] == '2026.06'
+        assert by['서울']['pbr'] is None and by['서울']['pm12'] is None and by['서울']['split']['ref'] is None, (gap, by['서울']['pbr'])
+        assert by['전국']['pbr'] is not None and by['전국']['split']['ref'] is not None, '비우지 않은 계열까지 접혔다'
+        assert N.permit_gaps({'sido': r}) == ['서울'], N.permit_gaps({'sido': r})
+    # 빈칸이 없으면 두 창 모두 같은 달에서 끝난다(전국·서울 모두 값이 있다)
+    r = M.calc(_edge_stats('서울', k=0.9))
+    assert all(x['pbr'] is not None and x['pm12'] is not None for x in r['zones']) and r['permit_prd'] == '2026.06'
 
 
 def test_인허가_1년은_연간_적정물량과_견준다():

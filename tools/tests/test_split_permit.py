@@ -161,3 +161,15 @@ def test_three_lines_state_numbers_only():
     assert '88%' in t2
     for word in ('충분', '넉넉', '크게 모자람'):
         assert word not in json.dumps(sp, ensure_ascii=False), '단계 말이 들어갔다'
+
+
+def test_split_percents_round_half_up():
+    """리포트 세 줄의 퍼센트(지난 4년·앞으로 3년·12월 몫)는 화면 정수 정본 half_up 으로 찍는다 — '… 너머' 줄(pbr_pct)·/moveins/ 와 같은
+    반올림(전수리뷰 X1 overflow). 파이썬 int(round()) 는 짝수 쪽 반올림이라 정확히 12.5 인 값이 12 가 된다(같은 화면의 다른 퍼센트는 13).
+    변이(실제로 확인): split_text 의 세 자리 가운데 하나를 int(round(...)) 로 되돌리면 그 자리가 빨개진다.
+    픽스처: 이진수로 정확한 12.5% 셋 — 지난 4년 재고 +500 ÷ (분기 250 × 16), 앞으로 3년 125 ÷ 1,000, 12월 몫 0.125.
+    """
+    sp = SZ.split_text(inow=500, fut=125, need=1000, ref=250, sig={'pbr': 1.2, 'pdec': 0.125}, est=False)
+    assert sp['rows'][0][1] == '적정물량보다 13% 더 지었습니다', sp['rows'][0]
+    assert sp['rows'][1][1] == '적정물량의 13%가 들어옵니다', sp['rows'][1]
+    assert sp['ref'][2].endswith('12월 한 달이 13%입니다'), sp['ref']

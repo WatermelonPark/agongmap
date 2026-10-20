@@ -98,3 +98,27 @@ def test_batch_and_watchdog_measure_the_same_thing(monkeypatch):
     monkeypatch.setattr(C, '_COMPLETE_CACHE', {})
     assert C.rone_latest_complete('T') == '202606', '배치가 보류하는 달(한 곳 빠짐)을 감시가 완비로 친다'
     assert C.rone_latest_complete('T', since='x', want_total=True) == ('202606', 100.0 * len(regs))
+
+
+def test_non_numeric_value_is_missing_for_both(monkeypatch):
+    """원천이 한 지역 값을 숫자가 아닌 표기('-')로 주는 달은 배치(_fetch_supply_one → _drop_incomplete)도 감시
+    (rone_latest_complete)도 완비가 아니다. 예전엔 감시만 비어 있지 않은 값을 '있음'으로 세어, 배치가 보류한 달을 감시가
+    완비로 읽고 뒤처짐 헛경보를 냈다.
+
+    변이(실제로 확인): 감시 쪽 float 검사를 예전처럼 '비어 있지 않으면 있음'으로 되돌리면 첫 단정이 빨강.
+    픽스처: R-ONE 미분양 표 모양의 행 — 앞 달은 SUPPLY_SIDO 가 다 숫자, 최신 달은 마지막 지역만 '-'. 배치 쪽은 같은 행을
+    _fetch_supply_one 에 가짜 _rone_recent_rows 로 먹여 대조한다.
+    """
+    import check_freshness as C
+    regs = list(U.SUPPLY_SIDO)
+    data = []
+    for t, have in (('202606', regs), ('202607', regs)):
+        data += [{'WRTTIME_IDTFR_ID': t, 'CLS_FULLNM': '%s>계' % r,
+                  'DTA_VAL': '-' if (t == '202607' and r == regs[-1]) else '100'} for r in have]
+    monkeypatch.setattr(C, '_rone_rows', lambda tbl, cycle, since=None: list(data))
+    monkeypatch.setattr(C, '_COMPLETE_CACHE', {})
+    assert C.rone_latest_complete('T') == '202606', '숫자가 아닌 값을 감시만 있음으로 셌다'
+    monkeypatch.setattr(U, '_rone_recent_rows', lambda tbl, need, cycle='WK', since=None: list(data))
+    got = U._fetch_supply_one({'tbl': 'T'}, set(regs), months=2)
+    U._drop_incomplete(got, U.SUPPLY_SIDO, '미분양')
+    assert max(got) == (2026, 6), sorted(got)

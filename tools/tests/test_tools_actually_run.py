@@ -48,7 +48,7 @@ def scripts():
     """`__main__` 가드가 있는 tools/*.py 전부. 손으로 적지 않는다 — 새 도구가 생기면 저절로 들어온다.
 
     가드가 없는 파일은 뺀다: 라이브러리(home_src·quiz_review)이거나, 최상단이 곧 본체인 일회성
-    분석 스크립트(rate_shock·study_grade_bands)라 최상단 실행이 실제 작업이 된다.
+    분석 스크립트(study_grade_bands)라 최상단 실행이 실제 작업이 된다.
     """
     return sorted(os.path.basename(p) for p in glob.glob(os.path.join(TOOLS, '*.py'))
                   if _has_main_guard(p))

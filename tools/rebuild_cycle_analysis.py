@@ -567,6 +567,38 @@ def cycle_strength(P):
 KEYS = ('sync', 'link1_new', 'link3_regional', 'link6_regional', 'cycle_strength',
         'prose')
 
+# 페이지 D 의 키마다 싣는 하위 필드(전수리뷰 C-11). 페이지 스크립트·본문 칸(page_prose)·블로그 이론편(make_theory_post)이 읽는
+# 것만 둔다 — 09-12 에 최상위 키 12개를 걷어 낸 뒤에도 rate_overlay.jratio(매일 47분기)·jratio_level[].sudo·link6_regional[].p·
+# link1_new.r·p·lag·super.need_annual·stock2030_2024 처럼 아무도 읽지 않는 하위 값이 남아 있었다. 틀려도 화면이 멀쩡해 아무도
+# 모른다. 재산정(splice)과 매일 배치(refresh_cycle_data)가 이 목록으로 D 를 깎고, 시험이 D 와 이 목록이 같은지 본다.
+# 분석 결과 전체(p·lag·n 등)는 보관 분석(tools/data/cycle_analysis.json)에 남는다.
+SHIP_FIELDS = {
+    'sync': ('region', 'corr', 'sudo'),                            # c6 막대·색
+    'link1_new': ('levels', 'jeonse_rise'),                        # cL1 · 1·2편 · drift
+    'link3_regional': ('region', 'r', 'sudo'),                     # cL3 막대·색·툴팁
+    'link6_regional': ('region', 'r', 'lag', 'zone', 'sig', 'lagtxt'),   # cL6 · link6_lag_prose · 6편
+    'cycle_strength': ('region', 'score'),                         # cStr · strength_prose
+    'jratio_level': ('region', 'val', 'type'),                     # c4 · jratio_prose
+    'zones': ('t', 'maemae', 'jeonse'),                            # c5 (지역마다)
+    'rate_overlay': ('t', 'maemae', 'jeonse', 'rate'),             # cRate · 7편
+    'flow_chain': ('t', 'permit', 'start', 'done'),                # cFlow
+    'super': ('timeline', 'peak_year', 'peak_units', 'acc_8895', 'reach_2845_total', 'reach_2845_avg',
+              'melt_scenarios', 'recent_melt', 'stock30'),         # cSuper·cMelt · super_prose
+}
+
+
+def ship(key, v):
+    """페이지 D 의 key 값을 SHIP_FIELDS 로 깎는다. 목록에 없는 키는 그대로."""
+    f = SHIP_FIELDS.get(key)
+    if f is None:
+        return v
+    if key == 'zones':
+        return {r: {k: z[k] for k in f if k in z} for r, z in v.items()}
+    if isinstance(v, list):
+        return [{k: x[k] for k in f if k in x} for x in v]
+    return {k: v[k] for k in f if k in v}
+
+
 # 계산은 하되 페이지에는 싣지 않는 값. 본문에 이미 글자로 적혀 있어 D에 두면
 # 같은 숫자를 두 곳에 보관하는 셈이고, 방문자는 읽지도 않을 5KB를 받게 된다.
 # 대신 ANALYSIS 파일에 남겨 다음 재산정 때 견주고 시험이 본문과 대조한다.
@@ -766,7 +798,7 @@ def build(st):
 # 재산정(--write)도 cycle_strength 를 바꾼 뒤 같은 함수로 다시 채운다. 보관 분석(cycle_analysis.json)의
 # prose 와 견주지 않는다 — 아래 접두사의 칸은 배치 몫이다. jr_ 는 전세가율 풀이(refresh_cycle_data.jratio_prose),
 # dm_ 는 참고 ④ 서울 멸실 칸(refresh_cycle_data.demol_prose, 전수리뷰 D3).
-BATCH_PROSE_PREFIX = ('jr_', 'str_', 'sup_', 'span_', 'dm_')
+BATCH_PROSE_PREFIX = ('jr_', 'str_', 'sup_', 'span_', 'dm_', 'l6p_')
 # 그 가운데 페이지 D 가 아니라 data.js 에서 나와 매일 배치만 채우는 칸 — 재산정(splice)이 지우지 않고 그대로 둔다.
 DAILY_PROSE_PREFIX = ('jr_', 'dm_')
 # 멸실 절이 '40년 연한 도달'을 세기 시작하는 해. 절 제목('2028년, 멸실의 시간이 온다')과 차트 색(cSuper)이
@@ -834,7 +866,12 @@ def super_prose(sp):
             'sup_fail_melt': str(fail['melt']),
             'sup_fail_done': str(fail['done']),
             'sup_ok_min': str(min(s['melt'] for s in ok)),
-            'sup_stock30': str(_man(sp['stock30_2024']))}
+            # 30년 이상 아파트 재고 — data.js 노후주택30년 전국의 첫 해·마지막 해(refresh_cycle_data.stock30, 전수리뷰 C-4)
+            'sup_s30_y0': str(sp['stock30']['from']),
+            'sup_s30_v0': str(_man(sp['stock30']['from_v'])),
+            'sup_s30_y': str(sp['stock30']['to']),
+            'sup_stock30': str(_man(sp['stock30']['to_v'])),
+            'sup_s30_x': str(SZ.half_up(float(sp['stock30']['to_v']) / sp['stock30']['from_v']))}
 
 
 def span_prose(zones):
@@ -845,12 +882,76 @@ def span_prose(zones):
     return {'span_y': '%d~%d' % (int(math.floor(min(ts))), int(math.floor(max(ts))))}   # 범위는 '~'(날짜 두 단계, 백로그 36-1)
 
 
+def link6_lag_prose(rows):
+    """고리⑥ 캡션·읽기 칸의 '유의한 지방 N곳 가운데 a곳은 즉시, b곳은 한 분기 뒤, 수도권(…)은 한 분기 뒤'(전수리뷰 C-3).
+
+    손 캡션 '유의한 지역만 보면 지방은 즉시'는 같은 막대 툴팁('지방 · 1분기 뒤' — 대구·전북·부산·울산)과 어긋났다. 수는 차트
+    데이터(D.link6_regional)에서 세고, 6편 블로그 초안(make_theory_post.link6_values)도 이 함수를 읽는다 — 사이트와 블로그가 한 정본.
+    수도권 이름은 화면 이름(SZ.disp)으로 지역 정본 순서(SZ.ORDER)대로 잇는다.
+    """
+    sig = [x for x in rows if x['sig']]
+    prov = [x for x in sig if x['zone'] != '수도권']
+    sudo = {x['region'] for x in sig if x['zone'] == '수도권'}
+    return {'l6p_sig': str(len(prov)),
+            'l6p_now': str(sum(1 for x in prov if x['lag'] == 0)),
+            'l6p_late': str(sum(1 for x in prov if x['lag'] == 1)),
+            'l6p_sudo': '·'.join(SZ.disp(r) for r in SZ.ORDER if r in sudo)}
+
+
+def span_years(zones):
+    """자료 기간의 햇수(span_y '2006~2026' → 20). 메타 설명·블로그의 '14개 시도 N년'이 이 값이다 — 손으로 적은 '20년'은 새해 자료가
+    들어와도 그대로였다(전수리뷰 C overflow)."""
+    a, b = span_prose(zones)['span_y'].split('~')
+    return int(b) - int(a)
+
+
 def page_prose(D):
     """페이지 D 에서 바로 나오는 본문 칸 전부."""
     out = strength_prose(D['cycle_strength'])
     out.update(super_prose(D['super']))
     out.update(span_prose(D['zones']))
+    out.update(link6_lag_prose(D['link6_regional']))
     return out
+
+
+# ---------- 재산정 값 바로 뒤 손 문장의 전제 (전수리뷰 C-10) ----------
+# 고리 절의 손 문장은 재산정 값의 방향·순서를 단정한다('소폭 하락으로 돌아선다', '지방 대도시(대구·부산)', '서울은 가장 느슨',
+# '광역시는 강하고 도는 약하다', '수도권으로 묶으면 살아난다', '서울은 예외', '수도권은 한 분기 뒤'). 값은 손으로 돌리는 재산정
+# (--write)에서만 바뀌므로 그 쓰기에서 전제를 보고, 깨지면 쓰지 않는다 — 블로그 이론편 가드(make_theory_post)와 같은 원칙이다.
+# 단정마다 그 문장이 있는 절을 적는다. 문장을 고치면 여기도 같이 고친다.
+
+def claim_breaks(D):
+    """페이지(또는 재산정 결과) D 에서 손 문장의 전제가 깨진 것을 사람이 읽을 줄로. 모두 서면 빈 목록."""
+    bad = []
+    rise = (D.get('link1_new') or {}).get('jeonse_rise') or []
+    if len(rise) != 3 or not (rise[0] > rise[1] > rise[2]):
+        bad.append('고리① 공급 수준별 전세 상승률이 계단처럼 낮아지지 않는다(%s) — 캡션 \'계단처럼 낮아지고\'' % rise)
+    elif not rise[2] < 0:
+        bad.append('고리① 공급 많은 분기 전세 상승률이 음이 아니다(%s) — 캡션·첫 문단 \'소폭 하락\'' % rise[2])
+    sync = sorted(D.get('sync') or [], key=lambda x: -x['corr'])
+    if sync:
+        top2 = [x['region'] for x in sync[:2]]
+        if not all(r in METRO and r not in SUDO for r in top2):
+            bad.append('고리② 동조성 상위 둘(%s)이 지방 대도시가 아니다 — \'지방 대도시(…)\'' % '·'.join(top2))
+        if sync[-1]['region'] != '서울':
+            bad.append('고리② 동조성 최하위가 서울이 아니다(%s) — \'서울은 가장 느슨\'·\'서울이 맨 아래\'' % sync[-1]['region'])
+    else:
+        bad.append('고리② 동조성 자료가 없다')
+    rows = D.get('link6_regional') or []
+    if any(x['region'] == '서울' and x['sig'] for x in rows):
+        bad.append('고리⑥ 서울이 유의로 나온다 — \'서울은 예외\'')
+    sudo = [x for x in rows if x['sig'] and x['zone'] == '수도권']
+    if not sudo or any(x['lag'] != 1 for x in sudo):
+        bad.append('고리⑥ 유의한 수도권 시도가 없거나 같은 분기에 반응한다 — \'수도권은 한 분기 뒤\'')
+    pr = D.get('prose') or {}
+    try:
+        if not _num(pr['l6_metro']) < _num(pr['l6_prov']):
+            bad.append('고리⑥ 광역시(%s)가 도(%s)보다 강하지 않다 — \'광역시는 강하고 도는 약하다\'' % (pr['l6_metro'], pr['l6_prov']))
+        if not _num(pr['sudo_l6']) < _num(pr['seoul_l6']):
+            bad.append('고리⑥ 수도권으로 묶어도(%s) 서울(%s)보다 강하지 않다 — \'살아난다\'' % (pr['sudo_l6'], pr['seoul_l6']))
+    except (KeyError, ValueError) as e:
+        bad.append('고리⑥ 본문 칸을 읽지 못했다: %s' % e)
+    return bad
 
 
 # ---------- 재산정 결과가 지금 페이지와 크게 다르면 멈춘다 (전수 리뷰 #73) ----------
@@ -919,6 +1020,13 @@ def splice(page, D):
     cur['prose'].update(page_prose(cur))
     for k in DROP:
         cur.pop(k, None)
+    for k in SHIP_FIELDS:
+        if k in cur:
+            cur[k] = ship(k, cur[k])
+    broken = claim_breaks(cur)
+    if broken:
+        raise SystemExit('쓰지 않았다 — /cycle/ 손 문장의 전제가 깨졌다: %s. cycle/index.html 문장(과 claim_breaks)을 먼저 고칠 것.'
+                         % ' · '.join(broken))
     dead = [k for k in cur if not re.search(r'D\.%s\b|D\[.%s.\]' % (k, k),
                                            txt[:m.start()] + txt[m.end():])]
     if dead:
@@ -942,7 +1050,8 @@ def splice(page, D):
     if unused:
         raise RuntimeError('어느 본문 칸도 쓰지 않는 prose 값: %s' % ', '.join(unused))
     # 메타 설명은 속성이라 칸을 둘 수 없다 — 같은 값으로 문구 속 숫자만 바꾼다
-    out = re.sub(r'\d+개 시도 20년', prose['n_panel'] + '개 시도 20년', out)
+    # 햇수는 매일 배치(refresh_cycle_data.fill_meta_span)가 자료 기간에서 채운다 — 여기서는 곳 수만 바꾼다
+    out = re.sub(r'\d+개 시도 (\d+)년', lambda mm: '%s개 시도 %s년' % (prose['n_panel'], mm.group(1)), out)
     open(page, 'w', encoding='utf-8', newline='\n').write(out)
     return len(cur)
 

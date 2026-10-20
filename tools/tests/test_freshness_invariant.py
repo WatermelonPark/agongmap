@@ -571,34 +571,22 @@ def test_lookup_failure_is_not_read_as_healthy(monkeypatch):
 
 
 def test_batch_and_watchdog_resolve_regions_identically():
-    """배치와 감시가 **같은 계층에서 같은 행**을 집어야 한다.
+    """배치와 감시가 **같은 계층에서 같은 행**을 집어야 한다 — 감시의 _sido_lookup 은 배치 규칙 함수 그 자체다(전수리뷰 A-7).
 
-    감시의 _sido_lookup은 배치 sido()의 거울이다. 한쪽만 고치면 감시는 통과하는데
-    배치는 못 집는(또는 그 반대) 상태가 되고, 그게 바로 이 검사가 막으려던 것이다.
-    거울이 맞는지 말로 두지 않고 두 함수를 같은 입력에 돌려 비교한다.
-
-    ⚠️ 배치 sido()는 fetch_weekly_rone/fetch_monthly_rone 안의 지역 클로저라
-    직접 부를 수 없다. 소스에서 규칙을 뽑아 비교하는 대신, **양쪽 소스에 같은
-    규칙 문장이 있는지**로 잠근다(얕은 것 우선 + '지방'→'지방권' 별칭).
+    예전 이 시험은 두 수집 클로저와 감시 거울의 원문에 규칙 문자열이 하나라도 있는지만 봐서, 월간 쪽 별칭만 바뀌어도 초록이었다.
+    지금은 한 함수(update_adv_data.rone_sido_key)를 셋이 부르고, 수집 행동(계층 픽스처로 fetch_weekly_rone·fetch_monthly_rone 을
+    돌려 지역마다 맞는 행의 값이 실리는지)은 test_rone_region_lookup 이 본다. 여기서는 감시가 쓰는 계층 모양 하나를 더 본다.
+    변이(실제로 확인): check_freshness 에 `_sido_lookup` 을 따로 적은 함수로 두면 동일성 단정이, rone_sido_key 의 min 을 max 로
+    바꾸면 '전남광주>광주' 미끼(통합 지역 밑 옛 조각) 단정이 빨개진다.
+    픽스처: 감시 시험의 _full() — 2026-07 R-ONE 계층(평평한 시도 + 통합 지역 밑 옛 두 조각).
     """
-    import io as _io, os, re
-    root = os.path.join(os.path.dirname(__file__), '..')
-    batch = _io.open(os.path.join(root, 'update_adv_data.py'), encoding='utf-8').read()
-    # 주간·월간 sido() 둘 다 자동추적이어야 한다(하드코딩 경로가 남아 있으면 안 됨).
-    assert batch.count("cand = [k for k in") >= 2, \
-        '배치 sido()가 자동추적이 아니다 — 상위 묶음이 바뀌면 그 지역이 통째로 빈다'
-    assert "min(cand, key=lambda k: k.count('>'))" in batch, '얕은 것 우선 규칙이 없다'
-    # ⚠️ 주석에도 '전남광주>광주'가 예시로 나온다 — 문자열 포함으로 보면 주석을
-    # 코드로 오인해 오탐이 난다(이 테스트를 만들며 실제로 걸렸다). 대입/조회로
-    # 쓰이는 줄만 본다.
-    hard = [ln.strip() for ln in batch.splitlines()
-            if "'전남광주>광주'" in ln and ('get(' in ln or '=' in ln.split('#')[0])]
-    assert not hard, '주간 sido()에 전체 경로 하드코딩이 남아 있다: %s' % hard
-    # 감시도 같은 규칙
-    wd = _io.open(os.path.join(root, 'check_freshness.py'), encoding='utf-8').read()
-    assert "min(cand, key=lambda k: k.count('>'))" in wd, '감시가 배치와 다른 규칙을 쓴다'
-    assert "{'지방': '지방권'}" in wd and "{'지방': '지방권'}" in batch, \
-        "'지방'→'지방권' 별칭이 한쪽에만 있다"
+    from merge_regions import SRC, DST
+    assert C._sido_lookup is U.rone_sido_key
+    piece = '%s>%s' % (DST, SRC[0])
+    names = _full() | {'%s>%s' % (DST, p) for p in SRC} | {'%s>%s' % (piece, SRC[0])}
+    for z in U.WEEKLY_REGIONS:
+        assert C._sido_lookup(names, z) == U.RONE_ALIAS.get(z, z), z
+    assert C._sido_lookup(names, SRC[0]) == piece, '얕은 행이 아니라 깊은 미끼를 집었다'
 
 
 def test_region_count_gate_follows_the_model():
@@ -632,15 +620,23 @@ def test_region_count_gate_passes_on_live_data():
         '데이터 지역 %d곳 vs 모델 %d곳 — 한쪽만 바뀌면 감시가 매일 빨개진다' % (n, len(SZ.REF_Q))
 
 
+def _kst_epoch(stamp):
+    """'2026-10-20 23:50' (KST) → UTC epoch 초."""
+    import datetime
+    kst = datetime.timezone(datetime.timedelta(hours=9))
+    return datetime.datetime.strptime(stamp, '%Y-%m-%d %H:%M').replace(tzinfo=kst).timestamp()
+
+
 def test_region_list_drop_is_retried_then_warned_then_failed_on_the_second_day(monkeypatch, tmp_path):
     """지역 목록 조회가 끊기면(2026-10-03·04 감시 실패 — R-ONE 이 응답 없이 끊음, 대조는 전부 일치) 간격을 두고 다시 부르고,
-    끝까지 끊기면 첫날은 경고, 이틀 연속이면 '못 봤다'(FETCH_FAIL → 재확인 → 실패)로 올린다(2026-10-06 대표 결정).
+    끝까지 끊기면 첫 회차는 경고, 이틀(이웃 예약 회차) 연속이면 '못 봤다'(FETCH_FAIL → 재확인 → 실패)로 올린다
+    (2026-10-06 대표 결정).
 
     재현한 실제 상태: 병렬로 받아 둔 지역 목록이 RemoteDisconnected 로 실패한 회차. 상태 폴더는 감시 워크플로가
-    actions/cache 로 실행 사이에 이어 주는 WATCH_STATE_DIR.
+    actions/cache 로 실행 사이에 이어 주는 WATCH_STATE_DIR. 시각은 실측 감시 시작 시각(예약 18:07 KST 에 +0~10시간)을 쓴다.
     변이(각각 실제로 확인): _region_names_retry 가 다시 부르지 않고 곧바로 던지면 첫 단정(되살아남)이 빨강.
-    region_fail_tolerated 가 어제 실패를 보지 않으면(escalate 를 늘 False) 둘째 날 단정이 빨강. 같은 날 결정을 따르지
-    않고 다시 계산하면(같은 날 두 번째 호출이 '어제'를 못 찾아 경고) 재확인 잡 단정이 빨강.
+    region_fail_tolerated 가 직전 실패를 보지 않으면(escalate 를 늘 False) 둘째 회차 단정이 빨강. 같은 실행의 결정을 따르지
+    않고 다시 계산하면(같은 실행 두 번째 호출이 '직전 회차'를 못 찾아 경고) 재확인 잡 단정이 빨강.
     """
     names = {'전국', '수도권', '지방', '서울', '서울>강남구'} | {'%s' % z for z in C.U.WEEKLY_REGIONS}
     calls = []
@@ -653,32 +649,105 @@ def test_region_list_drop_is_retried_then_warned_then_failed_on_the_second_day(m
 
     def dead_pre(tbl, cycle):
         raise OSError('Remote end closed connection without response')
+    t = _kst_epoch
     # ① 다시 부르면 살아난다 — 실패도 경고도 없다
     C.FETCH_FAIL[:] = []
     del C.WARN[:]
-    C.check_region_rows(fetch=dead_pre, today='2026-10-03', state_dir=str(tmp_path),
-                        retry=lambda f, t, c: C._region_names_retry(f, t, c, waits=(0, 0), direct=flaky_direct))
+    C.check_region_rows(fetch=dead_pre, now=t('2026-10-03 23:10'), state_dir=str(tmp_path), run_id='r1',
+                        retry=lambda f, t_, c: C._region_names_retry(f, t_, c, waits=(0, 0), direct=flaky_direct))
     assert not C.FETCH_FAIL and not C.WARN, (C.FETCH_FAIL, C.WARN)
 
-    def all_dead(f, t, c):
-        return C._region_names_retry(f, t, c, waits=(0,), direct=dead_pre)
-    # ② 끝까지 끊긴 첫날 — 경고만
-    C.check_region_rows(fetch=dead_pre, today='2026-10-03', state_dir=str(tmp_path), retry=all_dead)
-    assert not C.FETCH_FAIL and len(C.WARN) == 1 and '내일도' in C.WARN[0], (C.FETCH_FAIL, C.WARN)
-    # 같은 날 재확인 잡 — 같은 결정(경고)
+    def all_dead(f, t_, c):
+        return C._region_names_retry(f, t_, c, waits=(0,), direct=dead_pre)
+    # ② 끝까지 끊긴 첫 회차 — 경고만
+    C.check_region_rows(fetch=dead_pre, now=t('2026-10-03 23:10'), state_dir=str(tmp_path), retry=all_dead, run_id='r1')
+    assert not C.FETCH_FAIL and len(C.WARN) == 1 and '다음 회차' in C.WARN[0], (C.FETCH_FAIL, C.WARN)
+    # 같은 실행의 재확인 잡 — 같은 결정(경고)
     del C.WARN[:]
-    C.check_region_rows(fetch=dead_pre, today='2026-10-03', state_dir=str(tmp_path), retry=all_dead)
+    C.check_region_rows(fetch=dead_pre, now=t('2026-10-03 23:40'), state_dir=str(tmp_path), retry=all_dead, run_id='r1')
     assert not C.FETCH_FAIL and len(C.WARN) == 1
-    # ③ 다음 날도 끊김 — 실패로 올린다(재확인 잡도 같은 결정)
+    # ③ 다음 회차도 끊김 — 실패로 올린다(재확인 잡도 같은 결정)
     del C.WARN[:]
-    for _ in range(2):
+    for stamp in ('2026-10-04 23:15', '2026-10-04 23:50'):
         C.FETCH_FAIL[:] = []
-        C.check_region_rows(fetch=dead_pre, today='2026-10-04', state_dir=str(tmp_path), retry=all_dead)
+        C.check_region_rows(fetch=dead_pre, now=t(stamp), state_dir=str(tmp_path), retry=all_dead, run_id='r2')
         assert len(C.FETCH_FAIL) == len(C.REGION_TABLES) and not C.WARN, (C.FETCH_FAIL, C.WARN)
-    # ④ 셋째 날 받으면 기록을 지운다 — 그다음 끊김은 다시 첫날(경고)
+    # ④ 셋째 회차에 받으면 기록을 지운다 — 그다음 끊김은 다시 첫 회차(경고)
     C.FETCH_FAIL[:] = []
-    C.check_region_rows(fetch=lambda t, c: names, today='2026-10-05', state_dir=str(tmp_path))
+    C.check_region_rows(fetch=lambda t_, c: names, now=t('2026-10-05 22:00'), state_dir=str(tmp_path), run_id='r3')
     assert not (tmp_path / C.REGION_STATE_FILE).exists()
-    C.check_region_rows(fetch=dead_pre, today='2026-10-06', state_dir=str(tmp_path), retry=all_dead)
+    C.check_region_rows(fetch=dead_pre, now=t('2026-10-06 22:00'), state_dir=str(tmp_path), retry=all_dead, run_id='r4')
     assert not C.FETCH_FAIL and len(C.WARN) == 1
     del C.WARN[:]
+
+
+def test_region_fail_rounds_cross_midnight(tmp_path):
+    """같은 회차·이웃 회차를 KST 달력 날짜가 아니라 실행 id 와 경과 시간으로 가른다(전수리뷰 F-2).
+
+    재현한 실제 상태: 감시 예약 실행은 18:07 KST 예약에 +0~10시간 늦게 시작해 자정을 걸친다(2026-10 실측
+    10-03 23:17, 10-04 23:45, 10-06 03:21(10-05 예약분), 10-07 00:53, 10-14 01:54(10-13 예약분)→10-14 23:28).
+    (a) 한 실행의 1차 23:50·재확인 00:10 → 둘 다 경고(첫 회차). (b) 매일 끊긴 실측 시작 열 → 경고·실패·실패·실패.
+    (c) 같은 KST 날의 이웃 예약 회차(01:54 → 23:28) → 둘째는 실패. (d) 수동 재실행(실행 id 다름, 2시간 뒤)은 그 결정을 따른다
+    — 경고였으면 경고, (f) 이미 실패로 올린 회차 뒤의 수동 재실행이면 실패.
+    변이(실제로 확인): region_fail_tolerated 를 옛 달력 날짜 판정(prev 날짜 == 오늘이면 결정 따름, == 어제면 올림)으로
+    되돌리면 (a) 재확인과 (b)·(c) 단정이 빨강. REGION_NEXT_ROUND_H 를 24로 줄이면 (b) 의 10-06 03:21 단정이 빨강.
+    같은 회차 경과 시간 분기를 빼고 실행 id 만 보면(`if same_run:`) (f) 가 빨강(수동 재실행이 실패를 경고로 뒤집는다).
+    """
+    def run(d, seq):
+        out = []
+        for stamp, rid in seq:
+            out.append(C.region_fail_tolerated(_kst_epoch(stamp), str(d), rid))
+        return out
+    a = tmp_path / 'a'
+    assert run(a, [('2026-10-20 23:50', 'x'), ('2026-10-21 00:10', 'x')]) == [True, True]
+    b = tmp_path / 'b'
+    assert run(b, [('2026-10-03 23:17', 'r1'), ('2026-10-04 23:45', 'r2'),
+                   ('2026-10-06 03:21', 'r3'), ('2026-10-07 00:53', 'r4')]) == [True, False, False, False]
+    c = tmp_path / 'c'
+    assert run(c, [('2026-10-14 01:54', 'r1'), ('2026-10-14 23:28', 'r2')]) == [True, False]
+    d = tmp_path / 'd'
+    assert run(d, [('2026-10-20 22:00', 'r1'), ('2026-10-21 00:00', 'manual')]) == [True, True]
+    f = tmp_path / 'f'
+    assert run(f, [('2026-10-20 22:00', 'r1'), ('2026-10-21 22:30', 'r2'), ('2026-10-22 00:30', 'manual')]) == \
+        [True, False, False]
+    # 회차가 하루 넘게 비면(성공 회차는 기록을 지운다) 다시 첫 회차
+    e = tmp_path / 'e'
+    assert run(e, [('2026-10-20 22:00', 'r1'), ('2026-10-23 22:00', 'r2')]) == [True, True]
+
+
+def test_price_source_uses_period_window_and_page_retry(monkeypatch):
+    """감시 핵심 계열 '주간'·'월간' 원천 조회가 배치처럼 기간 창(START_WRTTIME)을 주고, 쪽마다 끊기면 다시 받는다(전수리뷰 F-4).
+    창이 없으면 주간 매매 표 170쪽 안팎의 깊은 쪽을 읽는데, R-ONE 은 그 요청을 간헐적으로 응답 없이 끊는다(2026-08-15 실측).
+
+    변이(실제로 확인): source_jobs 의 '주간' 람다에서 since 를 빼면(rone_latest(tbl, 'WK')) 첫 단정이 빨강. rone_latest 의
+    head 조회나 마지막 쪽 조회를 get_json 으로 되돌리면(재시도 없음) 둘째 단정(각 조회의 첫 호출 끊김 뒤 성공)이 빨강.
+    픽스처: 합성 ADV(주간 2026-01-05·월간 2026-01 — 연 넘김 창) 와 가짜 R-ONE(창 안 2,500행 = 3쪽, head·마지막 쪽의 첫 호출은 끊김).
+    """
+    seen = {}
+
+    def fake_latest(tbl, cycle, since=None):
+        seen[cycle] = since
+        return 'x'
+    monkeypatch.setattr(C, 'rone_latest', fake_latest)
+    adv = {'weekly': {'rows': [{'p': '2026-01-05'}]}, 'monthly': {'rows': [{'p': '2026-01'}]}}
+    jobs = C.source_jobs({}, adv)
+    jobs['주간']()
+    jobs['월간']()
+    assert seen == {'WK': '20251201', 'MM': '202512'}, seen
+    assert C._price_since(None, 'WK') is None       # 우리 시점을 못 읽으면 예전처럼 전량
+
+    monkeypatch.undo()
+    calls = []
+
+    def fake_get(url):
+        calls.append(url)
+        if len(calls) in (1, 3):
+            raise OSError('Remote end closed connection without response')
+        if 'pSize=1&' in url + '&':
+            return {'SttsApiTblData': [{'head': [{'list_total_count': 2500}]}]}
+        return {'SttsApiTblData': [{'row': [{'WRTTIME_DESC': '2026-01-12'}, {'WRTTIME_DESC': '2026-01-19'}]}]}
+    monkeypatch.setattr(C, 'get_json', fake_get)
+    monkeypatch.setattr(C.time, 'sleep', lambda s: None)
+    assert C.rone_latest('T', 'WK', '20251201') == '2026-01-19'
+    assert len(calls) == 4 and all('START_WRTTIME=20251201' in u for u in calls), calls
+    assert 'pIndex=3&' in calls[-1] + '&', calls[-1]

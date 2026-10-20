@@ -102,7 +102,9 @@ def test_jeonse_ratio_spans_follow_the_chart_on_the_same_page():
 def test_jratio_mid_band_is_only_a_decade_when_both_share_it():
     """'70%대'는 두 값의 십의 자리(반올림 전 값의 내림)가 같을 때만 쓴다. 정수는 half-up(전수 리뷰 #25).
 
-    변이(각각 실제로 확인, 2026-09-30): 십 단위 판정을 옛 `int(round(v))//10` 으로 되돌리면 (69.6, 71.8) 이
+    변이(각각 실제로 확인): 2026-10-19 '약 N%' 분기(`elif SZ.half_up(lo) == SZ.half_up(hi)`)를 지우면 (69.6, 70.3) 이 '70~70%'
+    가 되어 빨강(전수리뷰 C-9 — 대구 69.6·대전 70.3 같은 달이 오면 본문이 '대구·대전(70~70%)은'이 된다).
+    2026-09-30: 십 단위 판정을 옛 `int(round(v))//10` 으로 되돌리면 (69.6, 71.8) 이
     '70%대', (70.9, 79.6) 이 '71~80%' 가 되어 빨강. jr_seoul·jr_jnl 을 `int(round(v))` 로 되돌리면 52.5 → '52',
     78.5 → '78'(은행가 반올림)이 되어 빨강.
     픽스처: 2026.08 실측 대구 70.9·대전 71.8 근처의 경계값과, 소수 첫째 자리로 저장된 값에서 실제로 나오는 .5.
@@ -116,6 +118,10 @@ def test_jratio_mid_band_is_only_a_decade_when_both_share_it():
     assert mid(69.4, 71.8) == '69~72%'
     assert mid(69.6, 71.8) == '70~72%', '69.6 은 60%대다 — 반올림한 정수로 십 단위를 보면 70%대가 된다'
     assert mid(70.9, 79.6) == '70%대', '두 값 모두 70%대인데 범위로 적었다'
+    # 십의 자리는 갈리는데 반올림 정수가 같으면 범위가 '70~70%'로 무너진다 — '약 70%'(전수리뷰 C-9)
+    assert mid(69.6, 70.3) == '약 70%'
+    assert mid(59.5, 60.4) == '약 60%'
+    assert mid(69.4, 70.4) == '69~70%', '반올림 정수가 다르면 범위 그대로'
     half = RF.jratio_prose([{'region': '서울', 'val': 52.5}, {'region': '전남광주', 'val': 78.5},
                             {'region': '대구', 'val': 70.9}, {'region': '대전', 'val': 71.8}], '2026.07')
     assert (half['jr_seoul'], half['jr_jnl']) == ('53', '79'), '정수는 사이트 규칙(half-up)으로 만든다'
@@ -194,7 +200,7 @@ def test_jratio_types_and_capital_vs_rest_means():
     assert by['경기']['type'] == by['제주']['type'] == by['대구']['type'] == '중간'
     assert by['전남광주']['type'] == by['울산']['type'] == '실거주성'
     assert [x['val'] for x in lvl] == sorted(x['val'] for x in lvl), '낮은 순 정렬이 아니다'
-    assert by['서울']['sudo'] and not by['부산']['sudo']
+    assert set(by['서울']) == {'region', 'val', 'type'}, '페이지가 읽지 않는 하위 값(sudo 등)을 싣는다(전수리뷰 C-11)'
     cap = [v for r, v in _JR_2026_07.items() if r in ('서울', '경기', '인천')]
     rest = [v for r, v in _JR_2026_07.items() if r not in ('서울', '경기', '인천')]
     assert (sudo, jib) == (round(sum(cap) / len(cap), 1), round(sum(rest) / len(rest), 1)), (sudo, jib)

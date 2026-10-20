@@ -193,3 +193,35 @@ def test_jeonse_page_names_no_riser_when_nothing_rose():
     ser['경북'] = [round(ser['경북'][-1] - 0.5 * (n - 1 - k) / 12.0, 3) for k in range(n)]
     html, _ = I.build_jeonse(sts)
     assert '1년 새 가장 크게 오른 곳은 <strong>경북(+0.5%p)</strong>' in html
+
+
+def test_jeonse_page_lists_every_region_tied_on_the_shown_value():
+    """'가장 높은·낮은 곳'과 '1년 새 가장 크게 오른 곳'은 **표시값**(소수 첫째 자리)이 같은 지역을 모두 적는다 — 표 순서(전세가율
+    내림차순)로 '서울과 세종'처럼 잇고, 조사는 끝 이름에 붙는다(전수리뷰 Z1-10, 정본 결정: 동률이면 모두). 이름은 화면 이름이다.
+
+    재현한 실제 상태: 2026.08 서울·세종이 둘 다 52.3%인데 문장·설명 메타는 '가장 낮은 곳은 서울 52.3%'만 적었다(표 맨 아래는 세종).
+    2026.05 에는 전남광주 78.72·경북 78.7 이 둘 다 '78.7%'인데 원값 1위 한 곳만 '가장 높은 곳'이었다.
+    변이(실제로 확인): 표시값 동률 거름을 빼고 옛 원값 max·min(한 곳)으로 되돌리면 빨개진다.
+    픽스처: _jeonse_sts(2026.07 모양)에서 ① 서울·세종을 같은 최저값 52.3(정확히 같은 원값), ② 전남광주 78.92·경북 78.9(원값이 갈리는
+          표시값 동률 최고), ③ 1년 변화가 같은 두 시도(대구·강원 +3.0%p — 다른 곳보다 크다).
+    """
+    sts = _jeonse_sts()
+    ser = sts['전세가율']['series']
+    ser['서울'][-1] = ser['세종'][-1] = 52.3
+    ser['전남광주'][-1], ser['경북'][-1] = 78.92, 78.9
+    for r in ('대구', '강원'):
+        ser[r][-13] = round(ser[r][-1] - 3.0, 3)
+    ch = {r: _shown_delta(ser[r][-1], ser[r][-13]) for r in I.SIDO17}
+    assert sorted(r for r in ch if ch[r] == max(ch.values())) == ['강원', '대구'], ch
+    html, _ = I.build_jeonse(sts)
+    jn = I.SZ.disp('전남광주')
+    wa = '과' if (ord(jn[-1]) - 0xAC00) % 28 else '와'      # 받침 판정은 여기서 따로(생성기 함수로 기대값을 만들지 않는다)
+    assert '가장 높은 곳은 <strong>%s%s 경북 78.9%%</strong>' % (jn, wa) in html, html
+    assert '가장 낮은 곳은 <strong>서울과 세종 52.3%</strong>' in html
+    assert '%s 78.9%%로 가장 높고 서울과 세종은 52.3%%.' % I.ga(I.names_text([jn, '경북'])) in html
+    up = [I.SZ.disp(r) for r in sorted(I.SIDO17, key=lambda r: -ser[r][-1]) if ch[r] == max(ch.values())]
+    assert '1년 새 가장 크게 오른 곳은 <strong>%s(+3.0%%p)</strong>' % I.names_text(up) in html
+    # 동률이 없으면 한 곳만(기존 갈래)
+    html1, _ = I.build_jeonse(_jeonse_sts())
+    assert '가장 낮은 곳은 <strong>세종 52.1%</strong>' in html1 and '과 ' not in re.search(r'가장 높은 곳은 <strong>([^<]*)</strong>', html1).group(1)
+    assert I.names_text(['서울']) == '서울' and I.names_text(['서울', '세종', '제주']) == '서울, 세종과 제주'

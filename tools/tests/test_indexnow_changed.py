@@ -169,7 +169,8 @@ def test_batches_send_only_changed_urls():
     y = io.open(os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml'), encoding='utf-8').read()
     code = '\n'.join(l for l in y.splitlines() if not l.strip().startswith('#'))
     assert 'ping_indexnow.py --sitemap' not in code
-    push = code.index('if git pull --rebase origin main && git push; then')
+    # 푸시 루프는 pull --rebase 성공(PULLED=1) 뒤에 push 한다(전수리뷰 F-3 — '이미 반영' 분기를 사이에 둔다)
+    push = code.index('if [ "$PULLED" = 1 ] && git push; then', code.index('git pull --rebase origin main && PULLED=1'))
     ping = code.index('python3 tools/ping_indexnow.py --changed HEAD~1')
     assert push < ping < code.index('break', ping), 'IndexNow 는 푸시가 성공한 뒤, 그 회차 안에서 보낸다'
     assert 'rep "$IXN"' in code

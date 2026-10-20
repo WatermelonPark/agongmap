@@ -48,6 +48,10 @@ on:
 # 재시도가 생기면서 두 실행이 겹칠 수 있다(재시도 런이 도는 중에 정기 크론이
 # 도착하는 등). 커밋 잡 둘이 같은 파일에 push 경쟁하지 않게 직렬화한다.
 # cancel-in-progress는 끈다 — 도는 배치를 죽이면 그 회차 데이터가 유실된다.
+# ⚠️ 대기(pending)한 런의 github.sha 는 런이 생길 때의 main 이다. 체크아웃이 그 값을 받으면 앞 런의 데이터 커밋 전
+#    data.js 에서 수집·커밋해, 한 줄(ADV·STATS)을 앞 런과 다르게 고친 두 커밋이 rebase 에서 충돌한다(전수리뷰 F-3,
+#    2026-10-05 실측: 대기 런의 잡이 앞 런 커밋 뒤에 시작했는데 head 는 옛 main). 그래서 fetch·commit 두 잡 모두
+#    `ref: main` 으로 **잡이 실제로 시작할 때의** main 끝에서 출발한다(한쪽만 바꾸면 여전히 옛 기준 위 커밋이다).
 concurrency:
   group: update-cloud
   cancel-in-progress: false
@@ -70,6 +74,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: main                  # 대기한 런도 앞 런이 커밋한 data.js 위에서 수집한다(머리 concurrency 주석)
           persist-credentials: false
       - uses: actions/setup-python@v6
         with:
@@ -191,7 +196,12 @@ jobs:
 
   commit:
     needs: fetch
-    if: always()
+    # fetch 러너가 실패해도(0/3 → need_retry) 돌아야 하므로 상태 함수가 있어야 하고, 사람이 런을 취소했을 때는 돌지
+    # 않는다 — always() 이던 때는 취소된 런에서도 돌아 재시도가 걸리지 않는데 '35분 뒤 자동 재시도' 메일을 보내거나 취소한
+    # 회차 데이터를 커밋했다(전수리뷰 F-7). retry 잡·감시 recheck2 와 같은 조건이다. fetch 다리의 timeout-minutes 초과는
+    # 런 취소가 아니라 그 잡의 결과일 뿐이다(2026-07-23 실행 29972120661: 다리 둘이 시간 초과로 끝난 뒤 이 잡의 암묵
+    # success() 스텝까지 모두 돌았다 — 취소 요청 상태가 아니었다).
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write       # 데이터 커밋·푸시
@@ -202,6 +212,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: main                  # fetch 잡과 같은 이유(머리 concurrency 주석) — 커밋을 지금의 main 위에 만든다
           # ⚠️ 기본값(depth 1)이면 sw.js 버전 단조 증가 시험이 '이력을 못 읽었다'고 skip 한다 —
           #    게이트가 "366 passed, 1 skipped" 로 초록이었고 그 방어선은 한 번도 돈 적이 없었다
           #    (2026-09-18 리뷰). 시험은 최근 커밋의 sw.js diff 를 읽으므로 200이면 충분하다.
@@ -316,11 +327,13 @@ jobs:
             # 번호 순서로 1번이 이겼다. 파일이 없으면 0(실패 없음). awk 는 일치가 없어도 0으로 끝나 bash -e 에서 안전하다.
             nf=0; [ -f "$d/.fetch_failed" ] && nf=$(awk -F, '{for(i=1;i<=NF;i++) if($i ~ /[^[:space:]]/) n++} END{print n+0}' "$d/.fetch_failed")
             echo "후보 $d: weekly=${wk:--} monthly=${mo:--} sidoL=${sl:--} H=${sh:--}/${sld:--} 기준복구=${bok} 원천실패=${nf}"
+            # 시야 정합(hok)이 첫째 키다(전수리뷰 F overflow). 주간이 새것이어도 어긋난 산출물을 고르면 make_sido_pages 가 ABORT 해
+            # 그날 커밋 전체가 막힌다 — 정합한 러너가 한 주 묵은 주간을 가졌어도 그것을 커밋하고 다음 회차가 주간을 따라잡는 편이 낫다.
             newer=0
             if [ -n "$wk" ]; then
-              if [ -z "$BEST" ] || [ "$wk" \> "$BEST" ]; then newer=1
-              elif [ "$wk" = "$BEST" ] && [ -n "$mo" ] && [ "$mo" \> "$BESTMO" ]; then newer=1
-              elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" \> "$BESTHOK" ]; then newer=1
+              if [ -z "$BEST" ] || [ "$hok" \> "$BESTHOK" ]; then newer=1
+              elif [ "$hok" = "$BESTHOK" ] && [ "$wk" \> "$BEST" ]; then newer=1
+              elif [ "$hok" = "$BESTHOK" ] && [ "$wk" = "$BEST" ] && [ -n "$mo" ] && [ "$mo" \> "$BESTMO" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" \> "$BESTBOK" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" = "$BESTBOK" ] && [ "$nf" -lt "$BESTNF" ]; then newer=1
               elif [ "$wk" = "$BEST" ] && [ "$mo" = "$BESTMO" ] && [ "$hok" = "$BESTHOK" ] && [ "$bok" = "$BESTBOK" ] && [ "$nf" = "$BESTNF" ] && [ -n "$sl" ] && [ "$sl" \> "$BESTSL" ]; then newer=1
@@ -409,6 +422,13 @@ jobs:
           # 감시의 50일 유예를 지나서야 드러난다. ℹ️ 줄은 메일을 부르지 않고 월요일 회차·요약에만 실린다.
           if [ -s "$SRC/.fetch_failed" ]; then
             rep "ℹ️ 원천 일부 실패 — $(cat "$SRC/.fetch_failed") (그 계열만 직전 값 유지, 계속되면 키·주소 확인)"
+          fi
+          # 기본통계 창 밖 원천 소급 정정을 다시 받은 회차(전수리뷰 A-1). 같은 원천 표를 두 경로로 받는 인허가(투자지표 반기 ↔ 기본통계
+          # 누계)가 어긋난 해를 인허가·착공·준공 셋 다 다시 받으면 변경 토큰(.stats_changed)에 update_adv_data.REVISION_MARK 가 붙는다.
+          # 판정 입력(착공·준공)이 옛 해에서 바뀌었을 수 있으니 사람이 알게 ℹ️ 로 남긴다(메일 없음). grep 이 못 찾아도 스텝이 죽지 않게 || true.
+          if [ -s "$SRC/.stats_changed" ]; then
+            REV=$(tr ',' '\n' < "$SRC/.stats_changed" | grep '원천정정' || true)
+            if [ -n "$REV" ]; then rep "ℹ️ 원천 소급 정정 반영 — $(echo "$REV" | tr '\n' ' ')(투자지표 인허가와 기본통계 인허가 누계가 갈려 그 해를 다시 받았다)"; fi
           fi
           for f in data-sgg.json data-size.json; do
             [ -f "$SRC/$f" ] && cp "$SRC/$f" . || echo "::warning::$f 산출물 없음(구 러너?) — 기존 파일 유지"
@@ -592,9 +612,18 @@ jobs:
           #    데이터는 다음 회차가 다시 만들지만 사람의 수정은 아무도 못 만든다.
           # ⚠️ 루프 마지막 명령이 sleep이면 3회 모두 실패해도 스텝이 exit 0으로 끝나
           # 커밋 유실이 초록 체크로 은폐된다(2026-08-04 감사). pushed 플래그로 판정한다.
+          # pull --rebase 가 우리 커밋을 '이미 반영된 패치'로 버리면(겹친 앞 배치 런이 같은 내용을 먼저 커밋) HEAD 가 원격
+          # 끝과 같아진다. 그때 push 는 '최신'이라 성공하지만 커밋한 것은 없다 — ✅ 커밋·푸시로 적지 않는다(전수리뷰 F-3).
           pushed=0
           for i in 1 2 3; do
-            if git pull --rebase origin main && git push; then
+            PULLED=0
+            git pull --rebase origin main && PULLED=1
+            if [ "$PULLED" = 1 ] && [ "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)" ]; then
+              pushed=2
+              rep "➖ 커밋 없음 — 같은 내용을 앞 배치 런이 이미 커밋했다(정상)"
+              break
+            fi
+            if [ "$PULLED" = 1 ] && git push; then
               echo "푸시 완료"; pushed=1
               rep "✅ 커밋·푸시 (${NF}개 파일)"
               # 색인 요청. PC 배치(run_weekly_update.bat)에만 있던 스텝이라
@@ -614,10 +643,12 @@ jobs:
             git rebase --abort 2>/dev/null || true
             echo "push 재시도 $i"; sleep 5
           done
-          if [ "$pushed" -ne 1 ]; then
-            rep "❌ 푸시 3회 실패 — 이 회차 커밋 유실. 충돌이면 사람이 같은 줄을 고친 것"
+          if [ "$pushed" -eq 0 ]; then
+            # 충돌 상대는 원격 끝 커밋이다 — 작성자가 stats-bot 이면 겹친 배치 런, 아니면 사람의 수정이다.
+            WHO=$(git log -1 --format='%an' FETCH_HEAD 2>/dev/null || true)
+            rep "❌ 푸시 3회 실패 — 이 회차 커밋 유실. 충돌이면 겹친 배치 런 또는 사람이 같은 줄을 고친 것(원격 끝 작성자: ${WHO:-모름})"
             echo "::error::push 3회 모두 실패 — 이 회차 커밋이 러너와 함께 유실된다."
-            echo "::error::충돌이라면 사람이 같은 줄을 고쳤다는 뜻이다. 그 수정을 확인한 뒤 재실행할 것."
+            echo "::error::충돌 상대(원격 끝 커밋 작성자: ${WHO:-모름}) — stats-bot 이면 겹친 배치 런이 다른 data.js 를 먼저 커밋한 것(다음 회차가 흡수), 사람이면 그 수정을 확인한 뒤 재실행할 것."
             exit 1
           fi
 
@@ -678,8 +709,13 @@ jobs:
           #    그대로 두되 멘션을 붙여 사람이 이상을 알아채게 한다.
           if ! python3 tools/format_batch_report.py "$R" --kst "$KST"                  --run-url "$RUN" --owner "$OWNER" --weekday "$WD" --meta _report.meta > _report.md; then
             echo "::warning::알림 본문 생성 실패 — 옛 형식으로 보낸다"
-            # 본문을 못 만든 것 자체가 이상이다 — 메일을 보내고 제목에 그렇게 적는다.
-            printf '1\n🟡 알림 본문을 만들지 못함 · 세션이 확인 · 하실 일 없음\n' > _report.meta
+            # 본문을 못 만든 것 자체가 이상이다 — 메일을 보내고 제목에 그렇게 적는다. 기록에 ❌ 줄이 있으면 제목은 🔴 다
+            # (제목만 보고 판단하라는 설계 — 생성기 회귀가 형식기까지 죽인 회차가 🟡 로 나가면 안 된다, 전수리뷰 F-6).
+            if grep -q '^❌' "$R"; then
+              printf '1\n🔴 데이터 갱신 실패 · 알림 본문도 만들지 못함 · 하실 일 없음\n' > _report.meta
+            else
+              printf '1\n🟡 알림 본문을 만들지 못함 · 세션이 확인 · 하실 일 없음\n' > _report.meta
+            fi
             {
               echo "### 아공맵 배치 $KST KST"
               echo ""

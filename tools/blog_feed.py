@@ -260,15 +260,21 @@ def main(path=None, fetch=None):
     """RSS 를 읽어 최신 주간 글을 적는다. 언제나 0 — 못 읽으면 파일을 그대로 둔다(없으면 빈 값으로 만든다)."""
     path = path or FILE
     posts = _fetch_with_wall(fetch or CP.fetch_posts)
-    new = latest_weekly(posts) if posts else None
-    if new is None:
-        print('블로그 주간 글을 못 읽었다 — 지난 값을 그대로 둔다(칸은 오래되면 빠진다)')
+    if not posts:
+        print('블로그 RSS 를 못 읽었다 — 지난 값을 그대로 둔다(칸은 오래되면 빠진다)')
         if not os.path.exists(path):
             write(None, path)        # 배치 커밋 대상 목록(git add)이 없는 파일에 걸려 죽지 않게
         return 0
     # 도시 편 목록은 RSS 를 읽은 회차에만 새로 쓴다 — RSS 창 밖으로 밀린 지난 도시 편은 저장 목록에서 이어 둔다(merge_city).
     # 도시 편이 하나도 없으면 빈 목록(/moveins/ 칸을 굽지 않는다)
     city = merge_city(posts, read_city(path))
+    new = latest_weekly(posts)
+    if new is None:
+        # RSS 는 읽었는데 창 안에 주간 글이 없다(도시·지역 편이 연달아 올라와 주간 글이 창 밖으로 밀린 날). 예전엔 '못 읽었다'고
+        # 적고 도시 편 목록까지 그대로 뒀다(전수리뷰 F overflow) — 주간 칸만 지난 값으로 두고 도시 편은 새로 쓴다.
+        write(read(path), path, city)
+        print('블로그 RSS 에 주간 글이 없다 — 주간 칸은 지난 값 · 도시 입주물량 편 %d개' % len(city))
+        return 0
     changed = write(new, path, city)
     print('블로그 주간 글 %s: %s (%s) · 도시 입주물량 편 %d개'
           % ('갱신' if changed else '그대로', new['title'][:40], new['date'], len(city)))
