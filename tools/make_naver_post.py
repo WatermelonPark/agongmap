@@ -370,6 +370,9 @@ def pick_zone(rows, published=None, pending=(), force=None):
                 seen.setdefault(nm, set()).add('legacy:' + nm)
         except Exception:
             seen = {}
+    # 대기 자리표는 이번 실행에서만 센다 — 캐시에 남으면 발행 뒤 그 지역이 두 편으로 세어진다(전수리뷰 BL1-5).
+    # 10-17 묶음 실행이 이미 써 둔 'pending:' 도 여기서 버린다.
+    seen = {k: {u for u in v if not u.startswith('pending:')} for k, v in seen.items()}
     if published is None:
         published = _published_zone_posts(names)
     if published is None:
@@ -378,9 +381,12 @@ def pick_zone(rows, published=None, pending=(), force=None):
     for nm, urls in published.items():
         if urls:                       # 실제 주소를 알게 되면 옛 자리표는 버린다
             seen[nm] = {u for u in seen.get(nm, set()) if not u.startswith('legacy:')} | urls
-    for nm in pending:                 # 예약됐지만 아직 RSS 에 없는 지역(주간 묶음) — 이번 바퀴에 다룬 것으로 센다
-        seen.setdefault(_zone_name(nm, names), set()).add('pending:' + nm)
-    seen = {k: v for k, v in seen.items() if k in names}
+    # 예약됐지만 아직 RSS 에 없는 지역(주간 묶음) — 이번 바퀴에 다룬 것으로 센다. seen(캐시)에는 넣지 않는다.
+    pend = {_zone_name(nm, names) for nm in pending}
+    seen = {k: v for k, v in seen.items() if k in names and v}
+
+    def n_posts(z):
+        return len(seen.get(z, ())) + (1 if z in pend else 0)
 
     def rank(r):
         # PRIORITY에 있으면 그 순서대로 앞에, 없으면 순부족 큰 순으로 뒤에
@@ -389,8 +395,8 @@ def pick_zone(rows, published=None, pending=(), force=None):
         except ValueError:
             return (1, 0, -abs(r['tot']))
     pool = sorted(rows, key=rank)
-    lap = min(len(seen.get(r['z'], ())) for r in pool)
-    done = [r['z'] for r in pool if len(seen.get(r['z'], ())) > lap]
+    lap = min(n_posts(r['z']) for r in pool)
+    done = [r['z'] for r in pool if n_posts(r['z']) > lap]
     pick = next(r for r in pool if r['z'] not in done)
     if force:
         fz = _zone_name(force, names)
