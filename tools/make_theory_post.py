@@ -1136,7 +1136,7 @@ def guard_values(n, D=None, data=None):
         import theory_link3 as L3
         adv, sts = load()
         try:
-            v = L3.link3_numbers(adv, sts)
+            v = L3.link3_numbers(adv, sts, D or None)
         except L3.Link3DataError as e:
             # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
             raise SystemExit('4편을 만들 수 없다 — %s. %s — 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
@@ -1151,7 +1151,7 @@ def guard_values(n, D=None, data=None):
         import theory_link4 as L4
         adv, sts = load()
         try:
-            v = L4.link4_numbers(adv, sts)
+            v = L4.link4_numbers(adv, sts, D or None)
         except L4.Link4DataError as e:
             # 문장 탓이 아니다 — 착공·준공 두 표 가운데 한쪽만 새 달을 받은 회차(전수리뷰 T3-6·BL2-3·T1-2). 4편 Link3DataError 와 같은 갈래.
             raise SystemExit('5편을 만들 수 없다 — %s. %s — 다음 클라우드 배치가 두 계열을 같은 달까지 받으면 풀린다'

@@ -38,7 +38,7 @@ def test_every_placeholder_has_a_counted_value():
 def test_claim_break_stops_the_draft(monkeypatch):
     monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
 
-    def broken(adv, sts):
+    def broken(adv, sts, D=None):
         raise L3.Link3ClaimError('dg_24: 2024년이 더는 최저가 아니다')
     monkeypatch.setattr(L3, 'link3_numbers', broken)
     with pytest.raises(SystemExit) as e:

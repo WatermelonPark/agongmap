@@ -57,8 +57,9 @@ class Link3DataError(Link3ClaimError):
     """문장이 아니라 입력 계열이 깨졌다(지수 기준 단절 등) — 문장을 고칠 일이 아니라 원천 데이터를 복구할 일이다."""
 
 
-def link3_numbers(adv, sts):
-    """4편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link3ClaimError, 입력 계열이 끊겼으면 Link3DataError."""
+def link3_numbers(adv, sts, D=None):
+    """4편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link3ClaimError, 입력 계열이 끊겼으면 Link3DataError. D 는 /cycle/ 정본(없으면
+    cycle/index.html 에서 읽는다 — 초안 가드는 render 와 같은 D 를 넘긴다)."""
     # 계열 연속성부터 본다(전수리뷰 #73). 기준시점이 바뀐 매매지수로 세면 '서울은 지난 꼭대기를 넘어섰다'(사실)가
     # 거짓으로 판정돼 'se_pk: '(빈 메시지)로 멈추고, 글쓴이에게 맞는 문장을 고치라고 잘못 안내했다.
     # 판정은 사이클 도구와 한 정본(rebuild_cycle_analysis.index_breaks — 같은 문턱·같은 '여러 지역 동시' 규칙)이다.
@@ -89,8 +90,9 @@ def link3_numbers(adv, sts):
     def Q(rg):                        # 인허가 연평균 배수: 2018~19 → 2021~22(값에 1년 늦게 반응)
         return ((A(rg, 2021) + A(rg, 2022)) / 2) / ((A(rg, 2018) + A(rg, 2019)) / 2)
 
-    D = json.loads(re.search(r'const D\s*=\s*(\{.*?\});', io.open(
-        os.path.join(ROOT, 'cycle', 'index.html'), encoding='utf-8').read(), re.S).group(1))
+    if D is None:
+        D = json.loads(re.search(r'const D\s*=\s*(\{.*?\});', io.open(
+            os.path.join(ROOT, 'cycle', 'index.html'), encoding='utf-8').read(), re.S).group(1))
 
     def Z(z):
         return next(x for x in adv['sido']['zones'] if x['z'] == z)
