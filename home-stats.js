@@ -167,16 +167,18 @@ function initStats(){
 }
 /* 지역 목록 정렬은 사이트 전체가 하나여야 한다 — 예전엔 목록마다 데이터 적재 순서를
    그대로 써서 화면마다 순서가 달랐고, 내 지역을 찾으려면 매번 훑어야 했다(2026-08-01).
-   인구순도 후보였지만 통계 드롭다운엔 지역명만 있고 인구가 없다. 모든 목록에 적용할 수
-   있는 건 가나다순뿐이고, 찾는 목적에도 그게 낫다(위치가 이름으로 정해진다).
-   전국·수도권 같은 집계 항목은 시도의 동료가 아니므로 맨 앞에 원래 순서로 남긴다. */
+   판정 단위(집계 3·시도)는 사이트의 목록 표시 정본 sido_zones.DISPLAY_ORDER(관심 지역 고정 순서 — ADV.sido.zones 가 그 순서로
+   온다)를 따르고, 그 밖의 원천 권역 행(매매·전세지수의 광역시·지방도·서울 권역 등)은 그 뒤에 화면 이름 가나다순으로 모은다.
+   예전엔 키로 가나다순을 매겨 '광주·전남'(키 전남광주)이 '인천'과 '전북' 사이에, 권역 행이 시도 사이에 섰다(전수리뷰 H2-9).
+   시군구 목록처럼 label 을 넘기면 그 이름으로 가나다순이다. */
 const REG_AGG=['전국','수도권','지방'];   // 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)은 수집에서 뺐다(2026-10-18 D2)
+function regOrder(){ const z=(typeof ADV!=='undefined'&&ADV&&ADV.sido&&ADV.sido.zones)||[]; return z.length?z.map(x=>x.z):REG_AGG; }
 function regSort(list,label){
-  const nameOf=label||(x=>x);
-  const agg=list.filter(x=>REG_AGG.indexOf(nameOf(x))>=0);
-  const rest=list.filter(x=>REG_AGG.indexOf(nameOf(x))<0)
+  const nameOf=label||zn, ord=label?[]:regOrder();
+  const head=list.filter(x=>ord.indexOf(x)>=0).sort((a,b)=>ord.indexOf(a)-ord.indexOf(b));
+  const rest=list.filter(x=>ord.indexOf(x)<0)
                  .sort((a,b)=>String(nameOf(a)).localeCompare(String(nameOf(b)),'ko'));
-  return agg.concat(rest);
+  return head.concat(rest);
 }
 function fillRegions(){
   const sel=document.getElementById('reg-sel');
