@@ -139,10 +139,12 @@ def test_outlook_file_splits_into_lead_and_outlook(tmp_path, monkeypatch):
 # ---- 전수리뷰 BL2-5: 청약홈 단독 공고의 묶음·세대 규칙(순서 무관, 회차는 더하고 재공고는 더하지 않는다)
 def _round_raw(ym_ch, order):
     """부동산원 목록(끝 달 2028-06)에 없는 단지 하나의 본 공고 500 + '(2회차)' 300 + '(잔여세대)' 7. order 로 원천 순서를 바꾼다.
-    10-17 천안 원천의 꼴('천안 휴먼빌 퍼스트시티(2회차)', 잔여 7세대 공고)을 줄여 옮겼다."""
+    10-17 천안 원천의 꼴('천안 휴먼빌 퍼스트시티(2회차)', 잔여 7세대 공고)을 줄여 옮겼다. 회차 공고는 입주 예정월이 한 달 늦다
+    (같은 단지의 나중 동 — 묶음의 입주월은 공고일이 가장 이른 본 공고의 달이어야 순서와 무관하다)."""
     addr = '충청남도 천안시 서북구 성성동 100-1'
+    later = '%s-%02d' % (ym_ch[:4], int(ym_ch[5:]) + 1)
     ann = [ch(ym_ch, '테스트 센트럴', addr, 500, '2026-03-02'),
-           ch(ym_ch, '테스트 센트럴(2회차)', addr, 300, '2026-05-11'),
+           ch(later, '테스트 센트럴(2회차)', addr, 300, '2026-05-11'),
            ch(ym_ch, '테스트 센트럴(잔여세대)', addr, 7, '2026-07-20')]
     return {'occ': [occ('2027-03', '목록 단지', '충청남도 천안시 동남구 신부동 1-1', 400),
                     occ('2028-06', '끝 단지', '충청남도 천안시 동남구 청당동 1-1', 100)],
@@ -153,7 +155,8 @@ def test_announcement_only_complex_sums_rounds_in_any_order():
     """목록 기간(2027-09 ≤ 2028-06)과 목록 뒤(2028-10) 두 경우 모두, 원천 순서 여섯 가지가 같은 한 줄(800세대·출처 '청약홈')을 낸다.
     예전엔 목록 기간의 단독 행이 다음 공고의 짝이 되어 먼저 온 공고 값(500 또는 300)이 남고 출처가 '두 자료 모두'로 바뀌었다.
     변이(실제로 확인): 짝짓기 후보를 부동산원 행으로 한정한 것을 풀면(rows 에 단독 행을 바로 붙이면) 순서에 따라 n 이 갈려 빨개지고,
-    재공고(잔여) 세대를 더하면 807 이 되어 빨개진다."""
+    재공고(잔여) 세대를 더하면 807 이 되어 빨개지고, 공고일 정렬(sorted … RCRIT_PBLANC_DE)을 빼면 묶음 입주월이 순서에 따라 갈려
+    빨개진다."""
     import itertools
     for ym in ('2027-09', '2028-10'):
         seen = set()
@@ -161,9 +164,9 @@ def test_announcement_only_complex_sums_rounds_in_any_order():
             rows = C.merge(_round_raw(ym, order), '천안', '2026-10')['rows']
             t = [r for r in rows if '테스트' in r['name']]
             assert len(t) == 1, (ym, order, t)
-            seen.add((t[0]['n'], t[0]['src'], t[0]['ch_n'], t[0]['name']))
+            seen.add((t[0]['n'], t[0]['src'], t[0]['ch_n'], t[0]['name'], t[0]['ym']))
             assert sum(1 for r in rows if '+' in r['src']) == 0, rows     # 부동산원 행과 짝지어진 것이 없다
-        assert seen == {(800, '청약홈', 800, '테스트 센트럴')}, (ym, seen)
+        assert seen == {(800, '청약홈', 800, '테스트 센트럴', ym)}, (ym, seen)
 
 
 def test_resupply_after_the_list_does_not_add_households():
@@ -334,3 +337,22 @@ def test_zone_post_follows_the_category_canon(monkeypatch):
                   title='2026년 대구 아파트 공급물량 전망, 안 팔리는데 지어지지도 않습니다')]
     monkeypatch.setattr(CPI, 'fetch_posts', lambda *a, **k: posts)
     assert MC.zone_post('대구')['url'] == 'u-dg'
+
+
+def test_announcement_tally_uses_the_merge_classifier(monkeypatch):
+    """올해 공고 집계(facts 의 ann_cnt·ann_hh)는 병합과 같은 분류(CM.adds_households)로 센다 — 본 공고 600 + '(2회차)' 200 은 넣고
+    '(잔여세대)' 9 는 뺀다. 그래서 병합 줄의 세대(800)와 그해 공고 세대가 같다. 재현: 10-17 천안 원천처럼 회차 공고가 따로 나온
+    단지(전수리뷰 BL2-5 — 예전 거르기는 꼬리가 붙은 공고를 모두 빼 회차 세대가 병합에는 들고 집계에서는 빠졌다).
+    변이(확인): ann 거르기를 예전 'base_name(이름) == 이름'으로 되돌리면 ann_hh 가 600 이 되어 빨개진다."""
+    now_y = _now_y()
+    raw = _metro_raw(now_y, 1)
+    addr = '대전광역시 중구 선화동 1-1'
+    mv = '%d-09' % (now_y + 3)                 # 목록(끝 달 now_y+2 년 6월) 뒤 입주 — 청약홈 묶음으로 센다
+    raw['ch'] = raw['ch'] + [_ann(mv, '대전 새 단지', addr, 600, '%d-03-02' % now_y),
+                             _ann(mv, '대전 새 단지(2회차)', addr, 200, '%d-04-01' % now_y),
+                             _ann(mv, '대전 새 단지(잔여세대)', addr, 9, '%d-05-01' % now_y)]
+    MC, f = _city_facts(monkeypatch, raw, '대전', '%d-10' % now_y, '대전')
+    y = str(now_y)
+    assert (f['ann_cnt'][y], f['ann_hh'][y]) == (2, 800), (f['ann_cnt'], f['ann_hh'])
+    row = [r for r in f['rows'] if r['name'] == '대전 새 단지']
+    assert len(row) == 1 and row[0]['n'] == f['ann_hh'][y], row
