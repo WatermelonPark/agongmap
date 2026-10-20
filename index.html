@@ -553,7 +553,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   
       <p class="adv-note">착공 전 단계라 가장 이른 공급 신호입니다. 착공과 같은 흐름으로 움직이지만 허가 뒤 착공하지 않는 물량이 섞여 있고 입주까지의 시차가 일정하지 않아 참고로만 봅니다.</p>
       <div class="adv-regsel"><select id="adv-permit-reg" aria-label="인허가 지역 선택" onchange="renderPermitSec()"></select></div>
-      <div class="gt-g"><div class="chartwrap sm"><canvas id="permitChart"></canvas></div></div>
+      <div class="gt-g"><div class="chartwrap sm" id="permitChartBox"><canvas id="permitChart"></canvas></div></div>
       <div class="gt-t">
         <div class="tr-row"><button class="trbtn" onclick="trFlip('permit',this)">⇄ 행열 전환</button></div>
         <div class="adv-tblwrap matrix" id="adv-permit-matrix"></div>
@@ -569,7 +569,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="gt"><button class="on" aria-pressed="true" data-v="g" onclick="gtSet('occ','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('occ','t')">표</button></div></div>
       <p class="adv-note">준공 실적과 착공 기반 추정 물량을 지역별 분기 적정물량과 견줍니다.</p>
       <div class="adv-regsel"><select id="adv-occ-reg" aria-label="입주물량 지역 선택" onchange="renderOccSec()"></select></div>
-      <div class="gt-g"><div class="chartwrap sm"><canvas id="occChart"></canvas></div></div>
+      <div class="gt-g"><div class="chartwrap sm" id="occChartBox"><canvas id="occChart"></canvas></div></div>
       <div class="gt-t">
         <div class="tr-row"><button class="trbtn" onclick="trFlip('occ',this)">⇄ 행열 전환</button></div>
         <div class="adv-tblwrap matrix" id="adv-occ-matrix"></div>

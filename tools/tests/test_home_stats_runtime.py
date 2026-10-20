@@ -328,6 +328,38 @@ OUT={tbl, meta:document.getElementById('meta-bar').innerHTML.length>0,
     assert '그래프를 불러오지 못했습니다' in got['note'], got['note']
 
 
+# ── H2-4 시장동향·투자지표 그래프의 라이브러리 실패 ─────────────────────────────────
+def test_market_and_investor_charts_say_when_the_library_fails():
+    """차트 라이브러리를 못 받으면 시장동향(주간·월간)·인허가·입주물량 그래프도 그 그래프 상자 위에 안내와 '다시 시도'를 달고,
+    시장동향은 기간 단추·범위 줄을 그린다. 다시 시도는 그 그래프를 다시 그린다(chartRedo).
+    재현한 실제 상태(전수리뷰 H2-4, Playwright 로 /chart-4.4.1.umd.js 를 막음): '#stats-adv-occ' 는 빈 캔버스뿐, '#stats-market-week~a7' 은
+    기간 단추가 없고 범위 줄이 '변동률(%)'뿐이었고, 유일한 안내는 숨은 기본통계 출처 줄에 있었다.
+    픽스처: 저장소 data-trend.json(주간·월간·인허가·입주물량), needChart 는 늘 '기다림', loadChart 는 거부.
+
+    변이(실제로 확인): drawTrendChart 의 needChart 를 옛 자리(함수 첫 줄, 안내 없음)로 되돌리면, drawPermitChart·drawOccChart 에서
+    chartFailNote 를 빼면, CHART_FAIL 의 week 자리를 'src-note' 로 바꾸면 빨개진다.
+    """
+    trend = _load('data-trend.json')['ADV']
+    got = _node(_stats_js(r"""
+Object.assign(ADV, T_);
+['adv-week-reg','adv-week-sgg','adv-month-reg','adv-month-sgg','adv-permit-reg','adv-occ-reg'].forEach(id=>{document.getElementById(id).options=[];});
+let redo=[]; drawTrendChart=(k=>{const f=drawTrendChart; return k2=>{redo.push(k2); return f(k2);};})();
+drawTrendChart('week'); drawTrendChart('month'); drawPermitChart(); drawOccChart();
+await new Promise(r=>setTimeout(r,0));
+const g=id=>document.getElementById(id).innerHTML;
+OUT={box:['weekChartBox','monthChartBox','permitChartBox','occChartBox'].map(g), src:g('src-note'),
+  period:g('week-period'), unit:document.getElementById('week-unit').textContent};
+redo=[]; chartRedo('month'); OUT.redo=redo;
+""", pre='const T_=%s;' % json.dumps({k: trend[k] for k in ('weekly', 'monthly', 'permits', 'occupancy')}, ensure_ascii=False)
+    ).replace('function needChart(){return false;}', 'function needChart(){return true;}').replace(
+        'function loadChart(){return Promise.resolve();}', 'function loadChart(){return Promise.reject(new Error("x"));}'))
+    for i, b in enumerate(got['box']):
+        assert '그래프를 불러오지 못했습니다' in b and 'retry-btn' in b and 'chartRedo(' in b, (i, b)
+    assert got['src'] == '', got['src']
+    assert '<button' in got['period'] and '~' in got['unit'], got
+    assert got['redo'] == ['month'], got['redo']
+
+
 # ── #43 data-core 없이 부팅 ──────────────────────────────────────────────────
 def test_boot_renders_survive_a_missing_data_core():
     """data-core.js 가 오지 않아(ADV 없음) 지도 그리기 두 함수가 불려도 던지지 않는다 — 부팅의 라우팅(대결·해시)이 돈다.
