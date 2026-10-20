@@ -400,3 +400,81 @@ def test_og_description_drops_the_nation_part_when_it_is_missing():
     W2 = copy.deepcopy(W)
     W2['rows'][-1]['ma'][W2['regions'].index('전국')] = 0.07
     assert '전국 +0.07%' in MW.build(W2, Q)[3]
+
+
+# 2026-10-18 이전 뼈대의 손 값 — 생성기가 한 번 구운 뒤의 뼈대는 이미 고쳐진 값을 담고 있어, 그 뼈대만 render 에 통과시키면
+# put_more·put_coverage·범례 모서리 치환을 지워도 결과가 그대로라 시험이 초록이다(재검토에서 실제로 그랬다). 그래서 저장소
+# 뼈대의 세 자리를 옛 손 값으로 되돌린 뒤 render 한다 — 생성기가 매번 고쳐 쓰는지를 본다.
+_LEGACY_MORE = (
+    '\n    <a href="/zone/">시도별 공급 분석<span>16개 시도를 준공 실적과 착공으로 진단한 부족·과잉</span></a>'
+    '\n    <a href="/moveins/">아파트 입주물량<span>2026·2027 시도별 입주 예정, 적정수요 대비 부족·과잉</span></a>')
+
+
+def _legacy_skeleton():
+    s = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8', newline='').read()
+    s, n1 = re.subn(r'(<h2>더 둘러보기</h2>\s*<div class="links">).*?(\s*</div>)',
+                    lambda m: m.group(1) + _LEGACY_MORE + m.group(2), s, count=1, flags=re.S)
+    s, n2 = re.subn(r'("temporalCoverage":\s*")[^"]*(")', lambda m: m.group(1) + '2025/..' + m.group(2), s, count=1)
+    s, n3 = re.subn(r'(\.mm-cap i\{[^}]*border-radius:)[^;}]*', lambda m: m.group(1) + '2px', s, count=1)
+    assert (n1, n2, n3) == (1, 1, 1), '뼈대에서 옛 값을 되돌릴 자리를 찾지 못했다: %s' % ((n1, n2, n3),)
+    assert '적정수요' in s and '"2025/.."' in s and 'border-radius:2px' in s
+    return s
+
+
+def _rendered():
+    W, Q = MW.load()
+    return W, MW.render(_legacy_skeleton(), W, Q)
+
+
+def test_more_links_are_baked_from_the_canon():
+    """'더 둘러보기' 링크 설명은 생성기(put_more)가 정본 낱말로 굽는다(전수리뷰 Z2-8).
+
+    실제 상태(픽스처): 저장소 weekly/index.html 뼈대의 링크 묶음을 옛 손 문구('2026·2027 시도별 입주 예정, 적정수요 대비
+    부족·과잉'·'16개 시도를 … 진단한 부족·과잉' — 10-06 용어 통일에서 빠졌던 2026-10-18 이전 모양)로 되돌린 뒤 render 한 결과.
+    한 번 구운 뼈대를 그대로 쓰면 put_more 를 지워도 초록이었다(재검토).
+    변이(실제로 확인): render 에서 put_more 호출을 지우면(뼈대의 옛 문구가 남는다) 빨강, more_links 의 /moveins/ 설명을 옛
+          '적정수요 대비 부족·과잉'으로 되돌리면 빨강.
+    """
+    _, s = _rendered()
+    m = re.search(r'<h2>더 둘러보기</h2>\s*<div class="links">(.*?)</div>', s, re.S)
+    assert m, "'더 둘러보기' 묶음이 없다"
+    block = m.group(1)
+    assert block.strip() == MW.more_html().strip(), block
+    for bad in ('적정수요', '필요량', '수요 기준선', '과잉', '예정'):
+        assert bad not in block, "'더 둘러보기'에 정본 밖 낱말 %r 이 있다" % bad
+    assert not re.search(r'(?<!\d)20\d\d(?!\d)', block), '손으로 박은 연도가 있다: %s' % block
+    lights = [w for _, (_, w) in sorted(SZ.LIGHT.items())]
+    assert '·'.join(lights) in block and '%d개 시도' % len(MW.SIDO) in block and MW.JUDGE_WORDS in block, block
+
+
+def test_dataset_temporal_coverage_starts_at_the_first_data_month():
+    """구조화 데이터 Dataset 의 temporalCoverage 는 주간·월간 계열 가운데 이른 첫 달부터다(overflow — 손 값 '2025/..' 였다).
+
+    픽스처: 실제 data.js(주간 첫 조사일·월간 첫 달), 뼈대의 temporalCoverage 를 옛 손 값 '2025/..' 로 되돌린 것, 월간 없이
+    주간만 있는 합성 W.
+    변이(실제로 확인): render 에서 put_coverage 호출을 지우면 빨강(뼈대의 손 값이 남는다).
+    """
+    import json
+    W, s = _rendered()
+    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});',
+                               io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read(), re.S).group(1))
+    firsts = [adv['weekly']['rows'][0]['p'][:7]] + [str(r['p'])[:7].replace('.', '-') for r in adv['monthly']['rows'][:1]]
+    want = min(firsts) + '/..'
+    got = re.findall(r'"temporalCoverage":\s*"([^"]*)"', s)
+    assert got == [want], (got, want)
+    only_weekly = dict(W)
+    only_weekly.pop('mfirst', None)
+    assert MW.coverage_start(only_weekly) == adv['weekly']['rows'][0]['p'][:7]
+
+
+def test_weekly_skeleton_radius_follows_the_two_value_rule(tmp_path):
+    """구운 /weekly/ 의 border-radius 는 디자인 두 값 규칙(audit_design.RADIUS_OK) 안이다 — 뼈대의 범례 견본 2px 를 생성기가 고친다.
+
+    픽스처: 뼈대의 범례 견본 모서리를 옛 손 값 2px 로 되돌린 것.
+    변이(실제로 확인): render 에서 _CAP_RADIUS 치환을 지우면 빨강.
+    """
+    import audit_design
+    _, s = _rendered()
+    p = tmp_path / 'weekly.html'
+    p.write_text(s, encoding='utf-8')
+    assert audit_design.audit(str(p))['radii'] == [], audit_design.audit(str(p))['radii']
