@@ -455,7 +455,7 @@ def _tile_counts():
     타일은 182개(서울 25 + 그 외 157)였다. 사이트 어디에도 187이라는 수가 없어
     대조할 데가 없었고, 4주마다 한 번씩 그대로 발행됐다.
 
-    타일은 `SGG_QNAME`에 이름이 있는 코드만 그려진다(index.html의 그리기 조건이
+    타일은 `SGG_QNAME`에 이름이 있는 코드만 그려진다(홈 스크립트의 그리기 조건이
     `SGG_QNAME[c] && …`). 그래서 그 목록이 곧 타일 수다.
     """
     q = _sgg_names()
@@ -470,7 +470,7 @@ def _sgg_names():
     h = HS.home_source()
     m = re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S)
     if not m:
-        raise RuntimeError('index.html에서 SGG_QNAME을 찾지 못했다 — 타일 수를 못 맞춘다')
+        raise RuntimeError('홈 스크립트(home-stats.js, home_src 경유)에서 SGG_QNAME을 찾지 못했다 — 타일 수를 못 맞춘다')
     return json.loads(m.group(1))
 
 

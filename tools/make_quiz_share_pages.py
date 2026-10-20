@@ -5,7 +5,7 @@
 않아 랜딩의 일반 카드만 보였다. 점수마다 og:image(share/{세트}-{점수}.png)를 가진 정적 페이지를 두고
 대결 링크를 그리로 보낸다. 사람은 곧바로 홈의 대결 화면으로 넘어간다.
 
-⚠️ 세트·주소·문항 수를 여기 적지 않는다. index.html 의 QUIZ_SLUG·QUIZSETS·QUIZ_LEN 에서 읽는다.
+⚠️ 세트·주소·문항 수를 여기 적지 않는다. home-quiz.js 의 QUIZ_SLUG·QUIZSETS·QUIZ_LEN 에서(home_src 경유) 읽는다.
    canonical 은 랜딩으로 건다 — 점수 페이지 33장이 따로 색인되면 얇은 중복 문서가 된다.
 
 사용: python tools/make_quiz_share_pages.py   (퀴즈 세트나 공유 이미지를 바꿨을 때)
@@ -62,11 +62,11 @@ def load():
     s = HS.home_source()
     m = re.search(r'const QUIZ_SLUG=\{(.*?)\};', s)
     if not m:
-        raise SystemExit('index.html 에서 QUIZ_SLUG 를 찾지 못했다')
+        raise SystemExit('홈 스크립트(home-quiz.js, home_src 경유)에서 QUIZ_SLUG 를 찾지 못했다')
     slug = dict(re.findall(r"(\w+):'([a-z-]+)'", m.group(1)))
     qs = s[s.find('const QUIZSETS'):s.find('const QUIZ_LEN')]
     sets = re.findall(r"\n  (\w+):\{\s*title:'([^']+)', emoji:'([^']+)'", qs)
-    n = int(re.search(r'const QUIZ_LEN=(\d+);', s).group(1))
+    n = HS.quiz_len(s)        # 문항 수 정본 읽기는 home_src 한 곳(전수리뷰 P-9)
     if not sets or set(slug) != {k for k, _, _ in sets}:
         raise SystemExit('QUIZ_SLUG(%s) 와 QUIZSETS(%s) 의 세트가 다르다' % (sorted(slug), [k for k, _, _ in sets]))
     return slug, sets, n

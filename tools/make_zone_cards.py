@@ -62,8 +62,8 @@ def font(size, weight='Bold'):
 
 
 def fit_width(text, target, weight='Bold', hi=140, lo=40):
-    """target 픽셀 폭에 들어가는 가장 큰 폰트. 존 이름은 2~6자로 길이 편차가
-    커서(예: '서울권' vs '군산익산권') 고정 크기로는 균형이 안 맞는다."""
+    """target 픽셀 폭에 들어가는 가장 큰 폰트. 지역 이름은 길이 편차가
+    커서(예: '서울' vs '광주·전남') 고정 크기로는 균형이 안 맞는다."""
     pr = ImageDraw.Draw(Image.new('RGB', (4, 4)))
     best = lo
     while lo <= hi:
@@ -111,7 +111,7 @@ def make(name):
     # 우측 모래시계 — 브랜드 카드(og-brand)와 같은 아이콘을 써서 계열을 맞춘다.
     # draw_icon은 PAPER 배경의 RGB를 돌려주므로 alpha_composite가 아니라
     # paste로 붙인다(배경색이 같아 이음매가 안 보인다).
-    # 실패해도 카드 자체는 나와야 하지만, 조용히 삼키면 텅 빈 카드가 45장
+    # 실패해도 카드 자체는 나와야 하지만, 조용히 삼키면 텅 빈 카드가 지역 수만큼
     # 나오고도 모르므로 경고는 남긴다.
     icon_left = W - MX
     try:
@@ -171,7 +171,7 @@ def main():
         return 1
     for n in names:
         make(n)
-    print('생활권 OG 카드 %d장 생성 → share/zone-*.png' % len(names))
+    print('지역 OG 카드 %d장 생성 → share/zone-*.png' % len(names))
     return 0
 
 
