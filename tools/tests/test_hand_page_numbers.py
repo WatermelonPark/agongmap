@@ -212,3 +212,30 @@ def test_every_quiz_count_follows_quiz_len():
     for must in ('index.html', 'faq/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html'):
         assert seen[must], "%s 에서 'N문항'을 하나도 못 찾았다 — 대조가 헛돈다" % must
     assert not bad, 'QUIZ_LEN 은 %d인데 손으로 적은 문항 수가 다르다: %s' % (qlen, bad)
+
+
+# 판정 산식의 두 창을 손으로 적은 구절 — '지난 N년'은 과거 재고 창(BACKLOG_WINDOW 분기), 나머지는 착공→준공 시차(LEAD_Q 분기)다.
+WINDOW_PHRASES = ((r'지난 (\d+)년', 'BACKLOG_WINDOW'), (r'앞으로 (\d+)년', 'LEAD_Q'), (r'(\d+)년 뒤', 'LEAD_Q'),
+                  (r'(\d+)년 (?:동안 )?모자란', 'LEAD_Q'), (r'(\d+)년 너머', 'LEAD_Q'))
+
+
+def test_faq_about_window_years_follow_the_model():
+    """FAQ·소개의 '지난 4년'·'앞으로 3년'·'3년 뒤 입주'·'3년 너머'가 모델 창(BACKLOG_WINDOW·LEAD_Q 분기 ÷ 4)과 같다(전수리뷰 P 묶음 overflow).
+
+    재현한 상태(2026-10-18): 홈 산출 방법의 햇수는 test_home_first_screen 이 모델과 대조하는데, FAQ q7(본문·JSON-LD)과 소개의 같은
+    구절은 손 숫자인 채 아무 시험도 보지 않았다 — 창을 바꾸면 홈만 따라가고 두 페이지는 옛 햇수를 말한다.
+    변이(실제로 확인): faq 본문의 '지난 4년'을 '지난 5년'으로 바꾸면, sido_zones.LEAD_Q 를 16 으로 바꾸면 빨개진다.
+    픽스처 없이 실제 faq/about 을 읽는다(창은 대표 결정 상수라 데이터가 앞으로 가도 움직이지 않는다).
+    """
+    want = {'BACKLOG_WINDOW': SZ.BACKLOG_WINDOW / 4.0, 'LEAD_Q': SZ.LEAD_Q / 4.0}
+    seen = {k: 0 for k in want}
+    bad = []
+    for rel in ('faq/index.html', 'about/index.html'):
+        s = _read(rel)
+        for pat, key in WINDOW_PHRASES:
+            for m in re.finditer(pat, s):
+                seen[key] += 1
+                if float(m.group(1)) != want[key]:
+                    bad.append('%s: %r (모델 %g년)' % (rel, m.group(0), want[key]))
+    assert all(seen.values()), '창 구절을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것: %s' % seen
+    assert not bad, bad
