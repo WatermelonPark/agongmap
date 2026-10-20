@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import sido_zones as SZ  # noqa: E402
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import ga_tag as GT  # noqa: E402  (GA 내부 트래픽 표식 정본 — 백로그 48)
 import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
 import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
 import blog_feed as BF  # noqa: E402  (최신 주간 해설 글 — 홈 주간 구역과 같은 pick, 홈 마케팅 검수 B5)
@@ -668,7 +669,7 @@ def put_nav(s):
     s = _FOOTER_CSS.sub(lambda m: m.group(1) + '%gpx' % N.FOOTER_PX, s)
     for old in _NAV_NOTES_OLD:
         s = s.replace(old, _NAV_NOTE)
-    return put_desk(s)
+    return GT.put(put_desk(s))     # GA 내부 트래픽 표식(백로그 48) — 뼈대 머리는 배치 산출물이라 여기서 맞춘다
 
 
 _DESK_LINK = re.compile(r'<link rel="stylesheet" href="/desk\.css[^"]*"[^>]*>')
