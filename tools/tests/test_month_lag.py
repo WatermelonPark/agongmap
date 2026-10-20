@@ -74,7 +74,8 @@ def test_real_data_is_readable_and_agrees_with_the_stored_series():
     for name, ym in months.items():
         d = sts.get(name) or {}
         if d.get('metrics'):    # 규모별 피벗은 가장 뒤처진 지표의 값 있는 마지막 달(전수리뷰 A-2, test_size_latest)
-            want = min(L.month_of(v) for v in L.U.size_last(d).values())
+            import update_adv_data as U
+            want = min(L.month_of(v) for v in U.size_last(d).values())
         else:
             want = L.month_of(d.get('dates', [None])[-1] if name in sts else adv[name]['rows'][-1]['p'])
         assert ym == want, name
