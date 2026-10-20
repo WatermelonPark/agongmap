@@ -20,7 +20,7 @@ body[data-desk] .nav-btn svg{width:18px;height:18px}
 body[data-desk] .skip{z-index:101}
 /* 서비스 이름표 — 탭바 마크업(정본 site_nav.bottomnav)은 그대로 두고 넓은 화면에서만 그린다. 탭은 가운데 그대로다. */
 body[data-desk] .bottomnav::before{content:'아공맵';position:absolute;top:0;bottom:0;left:max(24px,calc(50% - 630px));
-  display:flex;align-items:center;color:#fff;font-size:17px;font-weight:800;letter-spacing:-.02em}
+  display:flex;align-items:center;color:#fff;font-size:17px;font-weight:700;letter-spacing:-.02em}
 /* 사이클 읽기 막대·'30초 요약' 단추는 위 내비 밑으로 */
 body[data-desk] .cy-progress{top:52px}
 body[data-desk] .cy-toc{bottom:24px}

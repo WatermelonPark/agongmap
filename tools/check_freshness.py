@@ -1577,6 +1577,9 @@ def check_quiz_review(today, src=None):
         print('  제도 문항 %d개 · 기한 지남 %d개' % (len(qi), len(qo)))
         if not qi:
             fails.append('퀴즈 제도 문항을 0개 찾았다 — 검토 기한 감시가 헛돈다(asof·review 형식이나 홈 스크립트 위치 확인)')
+        half = QR.half_tagged(src)
+        if half:
+            fails.append('퀴즈 문항 %d개가 asof·review 가운데 하나만 달아 검토 기한 감시에서 빠진다: %s' % (len(half), '; '.join(half)))
         warns.extend(qo)
     except HS.HomeSourceError as e:
         fails.append('홈 스크립트를 읽지 못해 퀴즈 검토 기한을 못 봤다: %s' % e)

@@ -28,6 +28,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }catch(e){}
 })();
 </script>
+<script>/* 내부 트래픽 표식(?internal=on|off) — 정본 tools/ga_tag.py */try{var _iq=new URLSearchParams(location.search).get('internal');if(_iq==='on')localStorage.setItem('ga_internal','1');else if(_iq==='off')localStorage.removeItem('ga_internal');}catch(e){}function gaCfg(o){o=o||{};try{if(localStorage.getItem('ga_internal'))o.traffic_type='internal';}catch(e){}return o;}</script>
 <!-- ③ GA 지연 로딩(C8, 09-23 결정을 09-26 대표 결정으로 바꿈). gtag.js(전송 약 194KB)가 홈 자사 파일 합계보다
      크고, 첫 화면 지도를 그리는 defer 스크립트와 대역을 다퉈 느린 4G 에서 지도 완성을 0.5~0.65초 늦췄다(MOB-10).
      큐(dataLayer·gtag·js·config)는 여기서 곧바로 쌓고 로더만 늦게 붙인다 — 쌓인 명령은 로더가 와서 순서대로
@@ -42,7 +43,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 window.dataLayer=window.dataLayer||[];
 function gtag(){dataLayer.push(arguments);}
 gtag('js',new Date());
-gtag('config','G-3FJNG6G1F3',{send_page_view:false});
+gtag('config','G-3FJNG6G1F3',gaCfg({send_page_view:false}));
 (function(){
   var ID='G-3FJNG6G1F3',at=location.href,on=false;
   function sent(){for(var i=0;i<dataLayer.length;i++){var a=dataLayer[i];
@@ -143,7 +144,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 <link rel="icon" type="image/png" href="/app_icon.png">
 <link rel="apple-touch-icon" href="/app_icon.png">
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#16203a">
+<meta name="theme-color" content="#131e24">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -197,7 +198,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   #splash .mark-txt{opacity:1;transform:none;animation:none}
 }
 </style>
-<link rel="stylesheet" href="/desk.css?v=67da7bb4" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
 <!-- home-app: 1024px 이상에서 하단 탭바를 상단 내비로 올리는 규칙(app.css, 홈 마케팅 검수 C7)의 범위 표지 — 홈에만 건다. -->
 <body class="home-app" data-desk="home">

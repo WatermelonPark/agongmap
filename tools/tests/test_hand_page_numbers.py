@@ -102,6 +102,16 @@ def _cycle_prose():
     return json.loads(m.group(1))['prose']
 
 
+def _faq_parts():
+    """FAQ 의 두 벌 — 검색용 FAQPage JSON-LD 와 사람이 읽는 <main> 본문. 같은 문턱 문장을 각각 정확히 한 번씩 대조한다(전수리뷰 P-4)."""
+    s = _read('faq/index.html')
+    m = re.search(r'<script type="application/ld\+json">\s*(\{.*?"FAQPage".*?\})\s*</script>', s, re.S)
+    assert m, 'FAQPage JSON-LD 를 못 찾았다'
+    i, j = s.find('<main'), s.find('</main>')
+    assert 0 <= i < j, 'FAQ <main> 을 못 찾았다'
+    return (('JSON-LD', m.group(1)), ('본문', s[i:j]))
+
+
 def test_faq_lead_months_follow_cycle_analysis():
     prose = _cycle_prose()
     want = (int(prose['lead_old']), int(prose['lead_new']))
@@ -114,15 +124,18 @@ def test_faq_lead_months_follow_cycle_analysis():
 def test_faq_grade_thresholds_follow_model_cuts():
     """FAQ 등급 문턱 문장의 배수·이름이 모델(GRADE_CUTS × 연수 = cut_mult, GRADE_LABS)과 같다.
     2026-10-05 안 A′로 단위가 '1년 적정물량의 N배'(1.5·3·4.5배)로 바뀌었다. 변이(실제로 확인): GRADE_CUTS 의 1.5 를 1.6 으로
-    바꾸면 빨개진다(4.5배 → 4.8배)."""
-    s = _read('faq/index.html')
-    m = re.search(r'모자람 없이 남으면 (\S+ \S+), ([\d.]+배) 미만은 (\S+), ([\d.]+배) 이상이면 (\S+), ([\d.]+배) 이상이면 (.+?), '
-                  r'([\d.]+배) 이상이면 (.+?)이다', s)
-    assert m, 'FAQ 등급 문턱 문장을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것'
+    바꾸면 빨개진다(4.5배 → 4.8배). 화면 본문(q7)만 '2배 미만은 균형, 2배 이상이면 부족'으로 바꿔도 빨개진다(전수리뷰 P-4 —
+    예전엔 re.search 가 앞에 있는 JSON-LD 사본만 맞춰 보고 사람이 읽는 본문은 대조하지 않았다)."""
+    pat = re.compile(r'모자람 없이 남으면 (\S+ \S+), ([\d.]+배) 미만은 (\S+), ([\d.]+배) 이상이면 (\S+), ([\d.]+배) 이상이면 (.+?), '
+                     r'([\d.]+배) 이상이면 (.+?)이다')
     c4, c3, c2 = (SZ.cut_mult(x) for x in SZ.GRADE_CUTS[:3])
     L = SZ.GRADE_LABS
     want = (L['g0'], c2, L['g1'], c2, L['g2'], c3, L['g3'], c4, L['g4'])
-    assert m.groups() == want, 'FAQ 는 %s, 모델은 %s' % (m.groups(), want)
+    for part, text in _faq_parts():
+        got = [m.groups() for m in pat.finditer(text)]
+        assert len(got) == 1, 'FAQ %s 에서 등급 문턱 문장을 %d번 찾았다(정확히 한 번이어야 한다) — 문구가 바뀌었으면 이 시험도 고칠 것' % (
+            part, len(got))
+        assert got[0] == want, 'FAQ %s 는 %s, 모델은 %s' % (part, got[0], want)
 
 
 def test_faq_burini_quiz_counts_follow_quiz_code():
@@ -152,9 +165,77 @@ def test_faq_structured_data_asks_what_the_page_asks():
 
 def test_faq_light_thresholds_follow_the_move_in_band():
     """FAQ 의 신호등 문턱('70% 미만이면 적음, 70~130%는 보통, 130%를 넘으면 많음')이 정본 OCC_LO_PCT·OCC_HI_PCT·LIGHT 와 같다.
-    변이(실제로 확인): sido_zones.OCC_HI_PCT 를 140 으로 바꾸면 빨개진다."""
-    m = re.search(r'1년 적정물량의 (\d+)% 미만이면 (\S+), (\d+)~(\d+)%는 (\S+), (\d+)%를 넘으면 (\S+)이다', _read('faq/index.html'))
-    assert m, 'FAQ 신호등 문턱 문장을 못 찾았다'
+    변이(실제로 확인): sido_zones.OCC_HI_PCT 를 140 으로 바꾸면 빨개진다. 화면 본문(q7)만 '60% 미만이면 적음, 60~140%는 보통,
+    140%를 넘으면 많음'으로 바꿔도 빨개진다(전수리뷰 P-4 — 예전엔 JSON-LD 사본만 대조했다)."""
+    pat = re.compile(r'1년 적정물량의 (\d+)% 미만이면 (\S+), (\d+)~(\d+)%는 (\S+), (\d+)%를 넘으면 (\S+)이다')
     lo, hi = SZ.OCC_LO_PCT, SZ.OCC_HI_PCT
     want = (str(lo), SZ.LIGHT[-1][1], str(lo), str(hi), SZ.LIGHT[0][1], str(hi), SZ.LIGHT[1][1])
-    assert m.groups() == want, (m.groups(), want)
+    for part, text in _faq_parts():
+        got = [m.groups() for m in pat.finditer(text)]
+        assert len(got) == 1, 'FAQ %s 에서 신호등 문턱 문장을 %d번 찾았다(정확히 한 번)' % (part, len(got))
+        assert got[0] == want, (part, got[0], want)
+
+
+# 'N문항'(한 회차 문항 수)을 손으로 적은 페이지 — 홈은 home_source(스크립트 포함), 나머지는 파일 그대로(전수리뷰 P-9·H1-5·X1-10).
+# /weekly/ '더 둘러보기'는 생성기(make_weekly_page)가 QUIZ_LEN 으로 굽는 칸이라 생성된 판을 그대로 읽는다.
+QUIZ_COUNT_PAGES = ('index.html', 'about/index.html', 'faq/index.html', 'burini-test/index.html', 'investor-test/index.html',
+                    'redev-test/index.html', 'cycle/index.html', 'weekly/index.html', '404.html')
+
+
+def _strip_comments(s):
+    """주석 속 'N문항'은 문항 풀 크기 같은 다른 수다('재건축 17문항 중 9') — /* */·<!-- --> 를 걷고 센다."""
+    return re.sub(r'/\*.*?\*/|<!--.*?-->', '', s, flags=re.S)
+
+
+def test_every_quiz_count_follows_quiz_len():
+    """홈·퀴즈 랜딩 3종·FAQ·/cycle/·/weekly/ 의 'N문항'과 홈 결과 예시 분모가 모두 home-quiz.js QUIZ_LEN 과 같다.
+
+    재현한 상태(2026-10-18 전수리뷰): FAQ 두 자리만 대조해, QUIZ_LEN 을 12로 바꾸고 FAQ 만 고치면 홈 퀴즈 머리('10문항 · 5분')·
+    공유 문구 셋·랜딩 3종(제목·설명·og·JSON-LD·리드·공유 설명)·/cycle/ 링크 칸·투자자 결과 '다음 단계'('10문항은…')가
+    '10문항'으로 남은 채 초록이었다. 결과 예시 카드(SAMPLE_TOTAL=10)도 손 숫자였다.
+    변이(실제로 확인): investor-test/index.html 의 '10문항' 하나를 '12문항'으로 바꾸면, home-quiz.js nextStepHTML 을 손 숫자
+    '12문항은'으로 바꾸면, home-app.js SAMPLE_TOTAL 을 숫자 10 으로 되돌리면 빨개진다.
+    픽스처 없이 실제 파일을 읽는다(weekly/index.html 은 배치·CI 가 생성기를 먼저 돌린 판).
+    """
+    src = HS.home_source()
+    qlen = HS.quiz_len(src)
+    blv = re.findall(r"\{lv:'LV\d+'", re.search(r'const BLV=\[(.*?)\n\];', src, re.S).group(1))
+    assert len(blv) == qlen + 1, 'BLV 는 0~QUIZ_LEN 점 한 칸씩이어야 한다(%d칸, QUIZ_LEN %d)' % (len(blv), qlen)
+    m = re.search(r'SAMPLE_TOTAL=([^;,\s]+)', src)
+    assert m and not m.group(1).isdigit(), '결과 예시 분모(SAMPLE_TOTAL)를 숫자로 박았다: %s' % (m and m.group(1))
+    seen, bad = {}, []
+    for rel in QUIZ_COUNT_PAGES:
+        text = _strip_comments(src if HS.is_home(rel) else _read(rel))
+        got = [int(x) for x in re.findall(r'(\d+)문항', text)]
+        seen[rel] = len(got)
+        bad += ['%s: %d문항' % (rel, n) for n in got if n != qlen]
+    for must in ('index.html', 'faq/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html'):
+        assert seen[must], "%s 에서 'N문항'을 하나도 못 찾았다 — 대조가 헛돈다" % must
+    assert not bad, 'QUIZ_LEN 은 %d인데 손으로 적은 문항 수가 다르다: %s' % (qlen, bad)
+
+
+# 판정 산식의 두 창을 손으로 적은 구절 — '지난 N년'은 과거 재고 창(BACKLOG_WINDOW 분기), 나머지는 착공→준공 시차(LEAD_Q 분기)다.
+WINDOW_PHRASES = ((r'지난 (\d+)년', 'BACKLOG_WINDOW'), (r'앞으로 (\d+)년', 'LEAD_Q'), (r'(\d+)년 뒤', 'LEAD_Q'),
+                  (r'(\d+)년 (?:동안 )?모자란', 'LEAD_Q'), (r'(\d+)년 너머', 'LEAD_Q'))
+
+
+def test_faq_about_window_years_follow_the_model():
+    """FAQ·소개의 '지난 4년'·'앞으로 3년'·'3년 뒤 입주'·'3년 너머'가 모델 창(BACKLOG_WINDOW·LEAD_Q 분기 ÷ 4)과 같다(전수리뷰 P 묶음 overflow).
+
+    재현한 상태(2026-10-18): 홈 산출 방법의 햇수는 test_home_first_screen 이 모델과 대조하는데, FAQ q7(본문·JSON-LD)과 소개의 같은
+    구절은 손 숫자인 채 아무 시험도 보지 않았다 — 창을 바꾸면 홈만 따라가고 두 페이지는 옛 햇수를 말한다.
+    변이(실제로 확인): faq 본문의 '지난 4년'을 '지난 5년'으로 바꾸면, sido_zones.LEAD_Q 를 16 으로 바꾸면 빨개진다.
+    픽스처 없이 실제 faq/about 을 읽는다(창은 대표 결정 상수라 데이터가 앞으로 가도 움직이지 않는다).
+    """
+    want = {'BACKLOG_WINDOW': SZ.BACKLOG_WINDOW / 4.0, 'LEAD_Q': SZ.LEAD_Q / 4.0}
+    seen = {k: 0 for k in want}
+    bad = []
+    for rel in ('faq/index.html', 'about/index.html'):
+        s = _read(rel)
+        for pat, key in WINDOW_PHRASES:
+            for m in re.finditer(pat, s):
+                seen[key] += 1
+                if float(m.group(1)) != want[key]:
+                    bad.append('%s: %r (모델 %g년)' % (rel, m.group(0), want[key]))
+    assert all(seen.values()), '창 구절을 못 찾았다 — 문구가 바뀌었으면 이 시험도 고칠 것: %s' % seen
+    assert not bad, bad
