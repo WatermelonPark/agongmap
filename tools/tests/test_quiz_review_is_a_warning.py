@@ -64,3 +64,25 @@ def test_warnings_reach_the_job_summary_and_annotations(tmp_path, monkeypatch, c
     out = capsys.readouterr().out
     assert '::warning title=감시 알림(실패 아님)::퀴즈 제도 문항 검토 기한 2026-12-15 지남: LTV 40%25 문항' in out
     assert '검토 기한 2026-12-15' in p.read_text(encoding='utf-8')
+
+
+def test_review_tags_are_read_in_any_order_and_half_tags_fail():
+    """제도 문항의 asof·review 는 자리·순서와 상관없이 읽힌다. 하나만 단 문항은 감시가 실패로 알린다(전수리뷰 P 묶음 overflow).
+
+    재현한 상태(2026-10-18): quiz_review.ITEM 이 asof 를 opts 바로 뒤, review 를 asof 바로 뒤에서만 찾아, review 를 먼저 쓰거나 answer 뒤에
+    단 제도 문항은 조용히 빠졌고 check_quiz_review 는 0개일 때만 실패했다.
+    픽스처: 실제 홈 스크립트의 제도 문항 수와, 세 꼴(정순·역순·answer 뒤)의 합성 문항 + review 를 빠뜨린 합성 문항.
+    변이(실제로 확인): items() 를 옛 정순 정규식으로 되돌리면, check_quiz_review 의 half_tagged 실패를 지우면 빨개진다.
+    """
+    src = C.HS.home_source()
+    assert len(QR.items(src)) == src.count("asof:'") > 0, '실제 홈의 제도 문항 가운데 못 읽은 것이 있다'
+    syn = ("{q:'정순', opts:['O','X'], asof:'2026-09-15', review:'2027-03-15', answer:0, exp:'a'},\n"
+           "{q:'역순', opts:['O','X'], review:'2027-03-15', asof:'2026-09-15', answer:0, exp:'b'},\n"
+           "{q:'뒤에', opts:['O','X'], answer:1, asof:'2026-09-15', review:'2026-12-15', exp:'c'},\n"
+           "{q:'제도 아님', opts:['O','X'], answer:1, exp:'d'},\n")
+    assert [q for q, _, _ in QR.items(syn)] == ['정순', '역순', '뒤에']
+    assert QR.half_tagged(syn) == [] and C.check_quiz_review(LATE, src=syn)[0] == []
+    half = syn + "{q:'반쪽', opts:['O','X'], asof:'2026-09-15', answer:0, exp:'e'},\n"
+    assert QR.half_tagged(half) == ['반쪽']
+    fails, _ = C.check_quiz_review(LATE, src=half)
+    assert fails and '반쪽' in fails[0], fails
