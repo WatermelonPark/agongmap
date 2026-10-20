@@ -83,17 +83,9 @@ def test_burini_landing_levels_match_blv():
 
 
 def _grades(key):
-    src = HS.home_source()
-    i = src.find('\n  %s:{' % key)
-    assert i >= 0, 'QUIZSETS 에서 %s 세트를 못 찾았다' % key
-    j = src.index('grade:s=>{', i)
-    body = src[j:src.index('\n    }', j)]
-    out = []
-    for lo, lv, g, e in re.findall(r"(?:if\(s>=(\d+)\))?return\{lv:'(LV\d+)',g:'([^']+)',d:'[^']*',emoji:'([^']+)'\}",
-                                   body):
-        out.append((int(lo) if lo else 0, lv, g, e.replace(VS, '')))
-    assert len(out) >= 2, '%s grade 함수를 못 읽었다' % key
-    return out
+    """정본 읽기는 home_src.quiz_grades 하나다(공유 카드 도구도 같은 함수를 읽는다 — 전수리뷰 P-14)."""
+    # 랜딩 표는 높은 점수부터 적으므로 내림차순으로 돌려준다
+    return [(lo, lv, g, e.replace(VS, '')) for lo, lv, g, e in reversed(HS.quiz_grades(key))]
 
 
 def test_investor_redev_landing_levels_match_grade():

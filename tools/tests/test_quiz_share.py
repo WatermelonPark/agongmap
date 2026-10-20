@@ -147,3 +147,31 @@ OUT={bar1,bar2,vs1,vs2,vs3,seed2,cr:EV.filter(e=>e[0]==='challenge_result').leng
     assert o['seed2'] != 71
     assert o['bar2'] == 'none' and not o['vs2'], '다른 시험지인데 대결로 판정했다'
     assert o['vs3'] and o['cr'] == 2, o   # 첫 판 + 같은 시드 재도전
+
+
+def test_card_badges_and_names_follow_the_result_grade(tmp_path, monkeypatch):
+    """공유 카드의 LV 배지·이름 = 결과 화면이 쓰는 QUIZSETS.<세트>.grade(s) 의 lv·g, 배지 분모 = 그 세트의 등급 수(전수리뷰 P-3·P-14).
+
+    재현한 실제 상태(2026-10-18): 재건축 카드 BADGES 가 손 사본이라 11칸 이름이 모두 결과 화면·랜딩 표와 달랐고
+    (9점 '사업성 스캐너', 10점 '재건축 계산 선수' — 결과는 둘 다 '사업성이 한눈에 보이는 선수'), 배지가 부린이 틀의
+    '/ 10'을 그대로 써 다섯 단계뿐인 재건축 최고 등급이 'LV5 / 10'으로 그려졌다.
+    변이(실제로 확인): make_calc_cards.badges() 를 옛 손 사본 목록으로 되돌리면, 배지 분모를 '/ 10' 으로 되돌리면 빨개진다.
+    부린이 카드 LEVELS 이름이 BLV g 와 한 칸이라도 다르면(예: 10점 '부동산 봉황' → '부동산 불사조') 빨개진다.
+    픽스처: 실제 home-quiz.js(QUIZ_LEN·grade)를 node 로 돌린 결과와 실제 카드 생성기. 카드는 tmp 에 한 장 굽는다.
+    """
+    import make_beginner_cards as MB
+    import make_calc_cards as MC
+    from PIL import ImageDraw
+    o = _run("OUT={};for(const k of ['beginner','calc']){OUT[k]=[...Array(QUIZ_LEN+1).keys()]"
+             ".map(s=>{const g=QUIZSETS[k].grade(s);return [g.lv,g.g];});}")
+    assert len(o['calc']) == HS.quiz_len() + 1 and len(o['beginner']) == HS.quiz_len() + 1
+    assert [list(x) for x in MC.badges()] == o['calc'], 'calc 카드 배지·이름이 결과 화면과 다르다'
+    assert [[lv, g] for lv, g, _ in MB.LEVELS] == o['beginner'], '부린이 카드 배지·이름이 BLV 와 다르다'
+    drawn = []
+    real = ImageDraw.ImageDraw.text
+    monkeypatch.setattr(ImageDraw.ImageDraw, 'text', lambda self, xy, text, *a, **k: (drawn.append(text), real(self, xy, text, *a, **k))[1])
+    top = HS.quiz_len()
+    MC.make_card(top, str(tmp_path / 'c.png'))
+    n_lv = len({lv for lv, _ in o['calc']})
+    assert o['calc'][top][0] in drawn and '/ %d' % n_lv in drawn, ('재건축 만점 카드 배지가 %s / %d 가 아니다' % (o['calc'][top][0], n_lv), drawn)
+    assert '/%d' % top in drawn and o['calc'][top][1] in drawn, drawn

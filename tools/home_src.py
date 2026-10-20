@@ -120,3 +120,43 @@ def require(text, *needles, **kw):
     if miss:
         raise AssertionError('%s 을(를) 읽지 못했다(%s 없음) — 이 "없어야 한다" 검사가 헛돈다'
                              % (what, ', '.join(miss)))
+
+
+# ── 퀴즈 정본 읽기(전수리뷰 P-9·P-14) ─────────────────────────────────────────────────────────────
+# 문항 수(QUIZ_LEN)와 등급 표(QUIZSETS.<세트>.grade)는 home-quiz.js 가 정본이다. 공유 카드 도구(make_*_cards)·점수 공유
+# 페이지(make_quiz_share_pages)·시험이 각자 정규식으로 읽으면 한쪽이 형식 변화에 조용히 어긋난다 — 여기 한 곳에서 읽는다.
+import re as _re
+
+
+def quiz_len(src=None):
+    """home-quiz.js 의 QUIZ_LEN(한 회차 문항 수). 못 찾으면 HomeSourceError."""
+    src = home_source() if src is None else src
+    m = _re.search(r'const QUIZ_LEN=(\d+);', src)
+    if not m:
+        raise HomeSourceError('홈 스크립트에서 const QUIZ_LEN 을 읽지 못했다')
+    return int(m.group(1))
+
+
+def quiz_grades(key, src=None):
+    """QUIZSETS.<key>.grade 의 등급 구간 [(하한 점수, 'LVn', 이름 g, 이모지)] — 하한이 낮은 것부터.
+    결과 화면(gradeOf(s).g)·랜딩 '점수별 레벨' 표·공유 카드가 같은 이름을 쓰게 하는 정본 읽기. 못 읽으면 HomeSourceError."""
+    src = home_source() if src is None else src
+    i = src.find('\n  %s:{' % key)
+    j = src.find('grade:s=>{', i) if i >= 0 else -1
+    if j < 0:
+        raise HomeSourceError('QUIZSETS 에서 %s.grade 를 찾지 못했다' % key)
+    body = src[j:src.index('\n    }', j)]
+    out = []
+    for lo, lv, g, e in _re.findall(r"(?:if\(s>=(\d+)\))?return\{lv:'(LV\d+)',g:'([^']+)',d:'[^']*',emoji:'([^']+)'\}", body):
+        out.append((int(lo) if lo else 0, lv, g, e))
+    if len(out) < 2:
+        raise HomeSourceError('%s.grade 등급을 %d개만 읽었다' % (key, len(out)))
+    return sorted(out)
+
+
+def quiz_grade_of(grades, score):
+    """quiz_grades() 표에서 점수 score 의 등급 — home-quiz.js grade(s) 와 같은 규칙(하한 이상인 가장 높은 구간)."""
+    hit = [g for g in grades if score >= g[0]]
+    if not hit:
+        raise ValueError(score)
+    return hit[-1]
