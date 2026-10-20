@@ -47,10 +47,9 @@ function onTrendSgg(k){
   if(sub&&sub.value&&!SGG_HIST_READY)ensureSggHist().then(render).catch(()=>{});
 }
 /* 통계 화면 첫 진입(home-app.js showView). 대기열이 이 파일과 그래프 데이터(data-trend.json)를 둘 다 받은 뒤에 부르므로
-   주간·월간 그래프는 곧바로 그린다. 기본통계 세그먼트와 버블밴드는 기본통계 데이터(data-rest.json)를 기다린다 — 버블밴드
-   입력(ADV.bubble·STATS 전세가율)은 B11 에 data-core 에서 빠져 trend·rest 로만 온다(예전엔 코어에 있어 기다리지 않았다).
-   ⚠️ renderBubbleSec 가 읽는 건 그 둘뿐이다(옛 주석이 주택멸실도 읽는다고 적어 소비자 없는 계열이 코어에 남았던 일,
-   2026-08-07 감사). 못 받으면 statsInited 를 되돌려 다음 진입에서 다시 받는다.
+   주간·월간 그래프는 곧바로 그린다. 기본통계 세그먼트는 기본통계 데이터(data-rest.json)를 기다린다. 버블밴드 입력은
+   ADV.bubble 하나다 — 전세가율(기준월 jp·지역값 jr)까지 split_data 가 trend 에 싣는다(전수리뷰 H2-6, 예전엔 STATS 전세가율을
+   읽었다). 순서는 그대로 rest 뒤에 그린다. 못 받으면 statsInited 를 되돌려 다음 진입에서 다시 받는다.
    ⚠️ 첫머리에서 그래프 데이터(loadFullData)를 **다시** 기다린다(전수리뷰 #42·#48). 이 파일은 받고 data-trend.json 만
    실패하면 대기열은 실패로 끝나지만 여기 최상위 선언이 이미 대기 함수를 덮어써서, 다시 들어올 때 showView 가 이 함수를
    곧바로 부른다. 예전엔 여기서 trend 를 부르지 않아 코어 4주치를 '전체'로 그렸고 투자지표에서 TypeError 가 났다.
@@ -1274,37 +1273,46 @@ function bbToggle(row){
 }
 function renderBubbleSec(){
   const sec=document.getElementById('sec-bubble');if(!sec)return;
-  const B=ADV.bubble,J=STATS['전세가율'];
-  if(!B||!B.conv||!J){sec.style.display='none';return;}
+  const B=ADV.bubble;
+  if(!B||!B.conv||!B.jr){sec.style.display='none';return;}
   const loan=B.loan.v;
-  const prdEl=document.getElementById('bubble-prd');if(prdEl)prdEl.textContent=_ymT(B.prd)+' 기준';
-  const latest=r=>{const s=J.series[r];if(!s)return null;for(let i=s.length-1;i>=0;i--)if(s[i]!=null)return s[i];return null;};
+  /* 전세가율은 split_data 가 사이트 기준월 정본(make_indicator_pages.bubble_jeonse — /jeonse-ratio/ 과 같은 달)으로 골라 싣는다.
+     예전엔 지역마다 '마지막 비결측 값'을 읽어 부분 달 회차에 /jeonse-ratio/ 과 다른 값을 말했고, 배지는 전환율 달만 적었다
+     (전수리뷰 H2-6). 배지는 두 입력의 달을 함께 적는다(같으면 하나). 금리 달은 범례에 적는다. */
+  const prdEl=document.getElementById('bubble-prd');
+  if(prdEl)prdEl.textContent=(B.jp&&B.jp!==B.prd?'전세가율 '+_ymT(B.jp)+' · 전환율 '+_ymT(B.prd):_ymT(B.prd))+' 기준';
+  const jrOf=r=>{const v=B.jr[r];return v==null?null:v;};
   /* 축 상한을 9%로 못박아 두면 위험선(월세수익률×2)이 그 위인 지역들이 전부
      같은 자리(98%)에 찍혀 서로 구분이 안 된다 — 실측 7곳이 겹쳤다(2026-08-08 감사).
      실제 값에서 상한을 잡되 최소 9%는 유지한다. */
   const MAX=Math.max(9, Math.ceil(Math.max(loan,
-    ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=latest(rg);
+    ...(B.regions||Object.keys(B.conv)).map(rg=>{const cv=B.conv[rg],jr=jrOf(rg);
       return (cv==null||jr==null)?0:jr/100*cv*2;}))*1.04));
   const px=v=>Math.min(98,Math.max(0,v/MAX*100));
-  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:13px;font-weight:700;white-space:nowrap;line-height:1}</style><div class="bb-legend">막대 왼쪽 <b style="color:#1a5276">월세수익률</b> ~ 오른쪽 <b style="color:#a93226">위험선(월세수익률 ×2)</b> · 검은 세로선 = <b>대출금리 '+loan.toFixed(2)+'%</b> ('+_ymT(B.loan.p)+' 신규취급 평균)<br>대출금리가 <b style="color:#1a5276">왼쪽</b>이면 매수신호, <b style="color:#a93226">오른쪽</b>이면 위험 · <b>지역을 누르면 상세</b></div>';
+  let h='<style>#bubble-wrap .bb-track{overflow:visible}#bubble-wrap .bb-v{position:absolute;top:50%;font-size:13px;font-weight:700;white-space:nowrap;line-height:1}</style>';
+  /* 범례는 막대 아래 한 줄(2026-10-06 '설명·범례는 콘텐츠 아래, 한 줄' — 전수리뷰 H2-7). 판정 풀이는 행 상세(bb-det)가 말한다. */
+  const legend='<div class="bb-legend"><b style="color:#1a5276">월세수익률</b> ~ <b style="color:#a93226">위험선(×2)</b> · 검은 선 <b>대출금리 '+loan.toFixed(2)+'%</b>('+_ymT(B.loan.p)+' 신규취급 평균)</div>';
   let nHi=0,nLo=0,nNear=0;
   (B.regions||Object.keys(B.conv)).forEach(rg=>{
-    const cv=B.conv[rg],jr=latest(rg);
+    const cv=B.conv[rg],jr=jrOf(rg);
     if(cv==null||jr==null)return;
     /* ⚠️ 소수 한 자리로 찍으면 판정과 표시가 어긋난다. 울산(4.351)과 경남(4.366)이
        둘 다 '4.4%'로 보이는데 대출금리 4.36% 기준으로 판정은 정반대였다
        (2026-08-08 감사). 금리를 두 자리로 쓰므로 밴드도 두 자리로 맞춘다. */
     const lo=jr/100*cv,hi=lo*2;
-    let cls='',txt='여유 '+(hi-loan).toFixed(1)+'%p';
+    /* 위험선까지 남은 폭은 한 번 반올림한 값(두 자리)을 칩·상세·근접 셈이 같이 쓴다 — 예전엔 칩은 한 자리, 근접 셈은 원값이라
+       0.97%p 가 칩 '여유 1.0%p'인데 요약은 '1%p 미만'에 셌다(전수리뷰 H2-13). */
+    const gap=Math.round((hi-loan)*100)/100, gapT=gap>0?gap.toFixed(2)+'%p':'0.01%p 미만';
+    let cls='',txt='여유 '+gapT;
     /* 요약 'N개 지역'은 시도만 센다 — 집계(전국·수도권·지방)는 시도의 합이라 같은 조건을 두 번 센다(전수리뷰 #56) */
     const one=REG_AGG.indexOf(rg)<0?1:0;
     if(loan>=hi){cls='hi';txt='상단 초과';nHi+=one;}
     else if(loan<=lo){cls='lo';txt='매수 신호권';nLo+=one;}
-    else if(hi-loan<1)nNear+=one;
+    else if(gap<1)nNear+=one;
     let pos;
     if(loan>=hi)pos='대출금리가 위험선(월세수익률 2배)을 넘었습니다 — 이자가 임대수익의 2배를 넘는 과열 구간입니다.';
     else if(loan<=lo)pos='대출금리가 월세수익률보다 낮습니다 — 이자가 임대수익보다 싼 매수 신호권입니다.';
-    else pos='대출금리는 밴드 안이고, 위험선까지 '+(hi-loan).toFixed(1)+'%p 남았습니다.';
+    else pos='대출금리는 밴드 안이고, 위험선까지 '+gapT+' 남았습니다.';
     const det='밴드: 전세가율 '+jr+'% × 전월세전환율 '+cv+'% = <b>월세수익률 '+lo.toFixed(2)+'%</b> · 그 2배 = <b>위험선 '+hi.toFixed(2)+'%</b>.<br>'
       +'<b>대출금리 '+loan.toFixed(2)+'%</b> — '+pos;
     // 숫자 위치 적응: 파랑=밴드 왼쪽(단 대출금리 검은선과 겹치면 그 선 왼쪽으로), 빨강=밴드 오른쪽(단 우측 공간 없거나 겹치면 밴드 안쪽 왼편). NW=숫자 폭 근사(%)
@@ -1324,9 +1332,9 @@ function renderBubbleSec(){
       +'<div class="bb-det">'+det+'</div>';
   });
   let sum;
-  if(nHi>0)sum='<b style="color:#a93226">'+nHi+'개 지역</b>에서 대출금리가 위험선(월세수익률 2배)을 넘었습니다. 과거 급락기(2008·2022)가 이 조건에서 나왔습니다.';
+  if(nHi>0)sum='<b style="color:#a93226">'+nHi+'개 지역</b>에서 대출금리가 위험선(월세수익률 2배)을 넘었습니다.';
   else if(nLo>0)sum='<b style="color:#1a5276">'+nLo+'개 지역</b>이 매수 신호권(대출금리 ≤ 월세수익률)입니다.';
   else if(nNear>0)sum=nNear+'개 지역이 위험선까지 1%p 미만으로 접근해 있습니다.';
   else sum='현재 대출금리가 위험선을 넘거나 월세수익률 아래인 지역은 없습니다.';
-  document.getElementById('bubble-wrap').innerHTML='<p class="adv-note" style="margin:10px 0 4px">'+sum+'</p>'+h;
+  document.getElementById('bubble-wrap').innerHTML='<p class="adv-note" style="margin:10px 0 4px">'+sum+'</p>'+h+legend;
 }

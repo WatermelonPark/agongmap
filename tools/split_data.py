@@ -410,6 +410,10 @@ def main():
         if k == 'monthly':
             w['agg'] = price_agg(adv.get('monthly') or {})   # 통계 탭을 연 뒤(loadFullData 가 ADV.monthly 를 바꾼 뒤)에도 같은 합
         trend_adv[k] = w
+    if trend_adv.get('bubble'):
+        # 버블밴드 전세가율은 사이트 기준월 정본(jeonse_ref_index)으로 골라 싣는다 — 홈이 지역마다 최신 값을 고르지 않게(전수리뷰 H2-6)
+        import make_indicator_pages as _I
+        trend_adv['bubble'] = _I.bubble_payload(trend_adv['bubble'], stats.get('전세가율'))
     if trend_adv.get('occupancy'):
         trend_adv['occupancy'] = dict(trend_adv['occupancy'], band=occ_band())   # 통계 탭 입주물량 표 문턱(③)
     io.open(TREND, 'w', encoding='utf-8', newline=NL).write(

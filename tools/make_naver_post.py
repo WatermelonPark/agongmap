@@ -206,7 +206,7 @@ def fixed2(v):
 
 
 def rent_yield(adv, sts, region='전국'):
-    """월세수익률 = 전세가율(최신 비결측) / 100 × 전월세전환율. 홈 버블밴드(renderBubbleSec)의
+    """월세수익률 = 전세가율(기준월 정본) / 100 × 전월세전환율. 홈 버블밴드(renderBubbleSec)의
     `lo=jr/100*cv` 와 같은 산식·같은 입력이다. 값이 없으면 None.
 
     예전 블로그는 문장에 '전세가율 × 전월세전환율'이라 써 놓고 전환율(5.37%)을 그대로 찍었다.
@@ -215,10 +215,9 @@ def rent_yield(adv, sts, region='전국'):
     """
     B = adv.get('bubble') or {}
     cv = (B.get('conv') or {}).get(region)
-    # ⚠️ 전세가율 달은 홈 버블밴드(renderBubbleSec 의 latest — 지역마다 최신 비결측)와 같게 둔다. 이 절의 정본 화면은
-    # 홈이다. 홈이 기준월 규칙(jeonse_ref_index)으로 바뀌면 여기도 _jeonse_at_ref 로 바꾼다(전수리뷰 #106, 홈 쪽 미결).
-    s = (((sts or {}).get('전세가율') or {}).get('series') or {}).get(region) or []
-    jr = next((v for v in reversed(s) if v is not None), None)
+    # 전세가율 달은 홈 버블밴드와 같은 정본 I.bubble_jeonse(기준월 jeonse_ref_index — /jeonse-ratio/ 과 같은 달)다.
+    # split_data 가 같은 함수로 ADV.bubble.jr 을 싣고 홈은 그 값만 읽는다(전수리뷰 #106·H2-6).
+    jr = I.bubble_jeonse((sts or {}).get('전세가율'), [region])[1].get(region)
     if cv is None or jr is None:
         return None
     return jr / 100 * cv
