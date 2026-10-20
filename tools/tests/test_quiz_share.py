@@ -114,13 +114,15 @@ def test_share_text_says_what_the_card_says_for_every_set():
 def test_share_denominator_follows_the_quiz_length():
     """공유 문구·카카오 제목의 점수 분모는 결과 카드와 같은 QUIZ.length 다(문항 수를 12로 바꾼 상태로 돈다).
 
-    변이: shareTxt 의 `/${QUIZ.length}` 를 옛 '/10' 으로 되돌리면 빨개진다(실제로 확인).
+    변이: shareTxt 의 `/${QUIZ.length}` 를 옛 '/10' 으로 되돌리면 빨개진다(실제로 확인). 투자자 결과 '다음 단계'(nextStepHTML)의
+    '${QUIZ_LEN}문항은' 을 손 숫자 '10문항은' 으로 되돌려도 빨개진다(전수리뷰 H2-8, 실제로 확인).
     픽스처: QUIZ_LEN 만 12로 바꾼 실제 home-quiz.js, 투자자 세트(문항 풀 20개라 12문항이 뽑힌다), 11점.
     """
-    o = _run("curSet='investor';QUIZ=drawQuiz('investor',123);qScore=11;OUT={n:QUIZ.length,txt:shareTxt()};",
+    o = _run("curSet='investor';QUIZ=drawQuiz('investor',123);qScore=11;OUT={n:QUIZ.length,txt:shareTxt(),ns:nextStepHTML()};",
              quiz_len=12)
     assert o['n'] == 12
     assert '11/12' in o['txt'] and '/10' not in o['txt'], o['txt']
+    assert '12문항은' in o['ns'] and '10문항' not in o['ns'], '다음 단계 문구가 문항 수 정본을 따르지 않는다'
     src = dict(HS.home_files())['home-quiz.js']
     assert not re.search(r'\$\{qScore\}/10', src), '공유 문구 어딘가에 분모 /10 이 남았다'
 

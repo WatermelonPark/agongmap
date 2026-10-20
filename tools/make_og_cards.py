@@ -14,7 +14,11 @@ Emoji)로 굽는다. 서체가 달라 이모지 모양이 바뀌므로 운영 �
 사용:  python tools/make_og_cards.py
 """
 import os
+import sys
 from PIL import Image, ImageDraw, ImageFont
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import home_src as HS  # noqa: E402  (퀴즈 문항 수 정본 QUIZ_LEN)
 
 W, H = 1200, 630
 
@@ -40,19 +44,22 @@ EMOJI_FONTS = (
     ('/System/Library/Fonts/Apple Color Emoji.ttc', 160),
 )
 
+# 부제의 문항 수는 home-quiz.js QUIZ_LEN 에서 읽는다(전수리뷰 P-9 — 손 숫자 '10문항'이었다).
+QUIZ_SUB = '%d문항 2지선다 · 5분 · 즉시 채점·해설' % HS.quiz_len()
+
 # (출력파일, 칩, h1 1줄(먹색), h1 2줄(빨강·훅), 부제, 푸터 좌측, 이모지)
 CARDS = [
     ('og-test.png', '부린이 테스트',
      '내 부동산 감각,', '몇 점일까?',
-     '10문항 2지선다 · 5분 · 즉시 채점·해설',
+     QUIZ_SUB,
      '내집마련 전 필수 체크 · 국가기관 데이터 기반', '🐣'),
     ('og-investor.png', '투자자 테스트',
      '통념을 뒤집을', '준비가 됐나?',
-     '10문항 2지선다 · 5분 · 즉시 채점·해설',
+     QUIZ_SUB,
      '규제·금리·수급의 진짜 게임 · 국가기관 데이터 기반', '🦅'),
     ('og-redev.png', '재건축·재개발 테스트',
      '이 재건축,', '사업성 있을까?',
-     '10문항 2지선다 · 5분 · 즉시 채점·해설',
+     QUIZ_SUB,
      '대지지분·용적률·조합원 수 · 국가기관 데이터 기반', '🏗️'),
 ]
 

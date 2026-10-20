@@ -117,7 +117,7 @@ const QUIZSETS={
    answer:0,
    exp:'정답은 <b>O</b>. 법과 조례는 거래 금액 구간별로 <b>상한 요율</b>을 정해 두고, 이를 초과해 받는 것은 불법이다. 다만 정해진 건 어디까지나 <b>상한</b>이라 그 한도 안에서는 중개사와 협의해 낮출 수 있다 — 상한이 곧 정찰가는 아니다.'},
     ],
-    grade:s=>BLV[Math.max(0,Math.min(10,s|0))]
+    grade:s=>BLV[Math.max(0,Math.min(BLV.length-1,s|0))]
   },
   investor:{
     title:'투자자 테스트', emoji:'🦅',
@@ -338,7 +338,7 @@ const QUIZSETS={
   }
 };
 
-/* 문항 풀에서 매 회차 10개를 뽑는다.
+/* 문항 풀에서 매 회차 QUIZ_LEN 개를 뽑는다.
    시드를 주면 같은 문항·같은 순서가 재현된다 → 친구 대결은 동일 시험지로 겨룬다.
    시드를 생략하면 새 시드를 뽑는다 → 재도전할 때마다 문제가 달라진다. */
 const QUIZ_LEN=10;
@@ -521,7 +521,7 @@ function nextStepHTML(){
   return `<div class="nextstep">
     <div class="ns-kicker">다음 단계</div>
     <div class="ns-title">이 문제들, 감으로 낸 게 아니다</div>
-    <p class="ns-desc">10문항은 <b>아파트 사이클</b>의 고리에서 나왔다. 전세가 왜 먼저 오르는지, 서울은 왜 집값이 올라도 공급이 안 늘어나는지 이어서 읽어 보자.</p>
+    <p class="ns-desc">${QUIZ_LEN}문항은 <b>아파트 사이클</b>의 고리에서 나왔다. 전세가 왜 먼저 오르는지, 서울은 왜 집값이 올라도 공급이 안 늘어나는지 이어서 읽어 보자.</p>
     <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'investor',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
     <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'investor',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
     <button class="ns-btn ghost" onclick="track('next_step',{from:'investor',to:'stats'});showView('stats')">📊 국가기관 원자료 직접 보기</button>

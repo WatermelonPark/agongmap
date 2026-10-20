@@ -174,3 +174,41 @@ def test_faq_light_thresholds_follow_the_move_in_band():
         got = [m.groups() for m in pat.finditer(text)]
         assert len(got) == 1, 'FAQ %s 에서 신호등 문턱 문장을 %d번 찾았다(정확히 한 번)' % (part, len(got))
         assert got[0] == want, (part, got[0], want)
+
+
+# 'N문항'(한 회차 문항 수)을 손으로 적은 페이지 — 홈은 home_source(스크립트 포함), 나머지는 파일 그대로(전수리뷰 P-9·H1-5·X1-10).
+# /weekly/ '더 둘러보기'는 생성기(make_weekly_page)가 QUIZ_LEN 으로 굽는 칸이라 생성된 판을 그대로 읽는다.
+QUIZ_COUNT_PAGES = ('index.html', 'about/index.html', 'faq/index.html', 'burini-test/index.html', 'investor-test/index.html',
+                    'redev-test/index.html', 'cycle/index.html', 'weekly/index.html', '404.html')
+
+
+def _strip_comments(s):
+    """주석 속 'N문항'은 문항 풀 크기 같은 다른 수다('재건축 17문항 중 9') — /* */·<!-- --> 를 걷고 센다."""
+    return re.sub(r'/\*.*?\*/|<!--.*?-->', '', s, flags=re.S)
+
+
+def test_every_quiz_count_follows_quiz_len():
+    """홈·퀴즈 랜딩 3종·FAQ·/cycle/·/weekly/ 의 'N문항'과 홈 결과 예시 분모가 모두 home-quiz.js QUIZ_LEN 과 같다.
+
+    재현한 상태(2026-10-18 전수리뷰): FAQ 두 자리만 대조해, QUIZ_LEN 을 12로 바꾸고 FAQ 만 고치면 홈 퀴즈 머리('10문항 · 5분')·
+    공유 문구 셋·랜딩 3종(제목·설명·og·JSON-LD·리드·공유 설명)·/cycle/ 링크 칸·투자자 결과 '다음 단계'('10문항은…')가
+    '10문항'으로 남은 채 초록이었다. 결과 예시 카드(SAMPLE_TOTAL=10)도 손 숫자였다.
+    변이(실제로 확인): investor-test/index.html 의 '10문항' 하나를 '12문항'으로 바꾸면, home-quiz.js nextStepHTML 을 손 숫자
+    '12문항은'으로 바꾸면, home-app.js SAMPLE_TOTAL 을 숫자 10 으로 되돌리면 빨개진다.
+    픽스처 없이 실제 파일을 읽는다(weekly/index.html 은 배치·CI 가 생성기를 먼저 돌린 판).
+    """
+    src = HS.home_source()
+    qlen = HS.quiz_len(src)
+    blv = re.findall(r"\{lv:'LV\d+'", re.search(r'const BLV=\[(.*?)\n\];', src, re.S).group(1))
+    assert len(blv) == qlen + 1, 'BLV 는 0~QUIZ_LEN 점 한 칸씩이어야 한다(%d칸, QUIZ_LEN %d)' % (len(blv), qlen)
+    m = re.search(r'SAMPLE_TOTAL=([^;,\s]+)', src)
+    assert m and not m.group(1).isdigit(), '결과 예시 분모(SAMPLE_TOTAL)를 숫자로 박았다: %s' % (m and m.group(1))
+    seen, bad = {}, []
+    for rel in QUIZ_COUNT_PAGES:
+        text = _strip_comments(src if HS.is_home(rel) else _read(rel))
+        got = [int(x) for x in re.findall(r'(\d+)문항', text)]
+        seen[rel] = len(got)
+        bad += ['%s: %d문항' % (rel, n) for n in got if n != qlen]
+    for must in ('index.html', 'faq/index.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html'):
+        assert seen[must], "%s 에서 'N문항'을 하나도 못 찾았다 — 대조가 헛돈다" % must
+    assert not bad, 'QUIZ_LEN 은 %d인데 손으로 적은 문항 수가 다르다: %s' % (qlen, bad)
