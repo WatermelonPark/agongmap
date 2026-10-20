@@ -425,7 +425,9 @@ def test_jeonse_section_uses_the_site_reference_month():
     if nat[k] is None:                         # 기준월 바로 전달의 전국 값이 빈 회차 — 사본에서 채운다
         nat[k] = round(nat[i] - 0.1, 1)
     html = P.extra_section(adv, sts, 0)
-    assert '(%s 기준' % j['dates'][i] in html and '2099.01' not in html and '99.9%' not in html
+    # 기준 달은 날짜 두 단계 정본의 읽는 꼴(SZ.month_text)로 찍힌다(전수리뷰 BL1-17) — 부분 달 감시도 같은 꼴로 본다
+    assert '(%s 기준' % SZ.month_text(j['dates'][i]) in html, html
+    assert SZ.month_text('2099.01') not in html and '2099.01' not in html and '99.9%' not in html
     assert '<b>%.1f%%</b>' % nat[i] in html
     nat[k] = None                              # 그 칸이 빈 갈래 — 절을 통째로 뺀다(도구의 규칙)
     assert P.extra_section(adv, sts, 0) == ''
@@ -449,7 +451,23 @@ def test_aged_section_uses_one_complete_year():
 
 # ── 월세수익률 절의 대출금리 기준월(묶음 F 제안) ──────────────────────────────
 def test_loan_rate_carries_its_month():
-    """변이: extra_section rot 2 에서 '(%s 기준)' 을 빼면 빨개진다. 픽스처: 2026-09-23 실값(전국 69.1 × 5.37, 대출 4.48 2026.07)."""
+    """변이: extra_section rot 2 에서 '(%s 기준)' 을 빼거나 SZ.month_text 를 빼(데이터 라벨 '2026.07' 그대로) 찍으면 빨개진다
+    (전수리뷰 BL1-17, 확인). 픽스처: 2026-09-23 실값(전국 69.1 × 5.37, 대출 4.48 2026.07)."""
     adv = {'bubble': {'loan': {'v': 4.48, 'p': '2026.07'}, 'regions': ['전국'], 'conv': {'전국': 5.37}}}
     sts = {'전세가율': {'dates': ['2026.06', '2026.07'], 'series': {'전국': [69.0, 69.1]}}}
-    assert '주택담보대출 금리는 <b>4.48%</b>(2026.07 기준)입니다' in P.extra_section(adv, sts, 2)
+    assert '주택담보대출 금리는 <b>4.48%</b>(2026년 7월 기준)입니다' in P.extra_section(adv, sts, 2)
+
+
+def test_indicator_sections_use_the_reading_month_form(monkeypatch):
+    """'이번 주의 지표' 문장(전세가율·미분양·대출금리)의 기준 달은 '2026년 8월' 꼴이고 데이터 라벨('2026.08')이 없다(전수리뷰 BL1-17,
+    날짜 두 단계 정본 — 읽는 자리는 SZ.month_text).
+    변이(확인): rot 0 이나 rot 1 의 SZ.month_text(when) 를 when 으로 되돌리면 빨개진다.
+    픽스처: 합성 두 달 계열(2026.07→2026.08) — 실데이터 기준 달과 무관하게 세 절이 늘 나온다."""
+    sts = {'전세가율': {'dates': ['2026.07', '2026.08'], 'series': {'전국': [69.0, 69.1]}},
+           '미분양': {'dates': ['2026.07', '2026.08'], 'series': {'전국': [68000, 69134]}}}
+    adv = {'bubble': {'loan': {'v': 4.66, 'p': '2026.08'}, 'regions': ['전국'], 'conv': {'전국': 5.37}}}
+    monkeypatch.setattr(I, 'jeonse_ref_index', lambda j, need: len(j['dates']) - 1)   # 합성 계열의 끝 달이 기준월
+    outs = [P.extra_section(adv, sts, r) for r in (0, 1, 2)]
+    assert all(outs), outs
+    for h in outs:
+        assert '2026년 8월 기준' in h and not re.search(r'\d{4}\.\d{2}', h), h
