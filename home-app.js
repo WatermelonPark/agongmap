@@ -959,7 +959,7 @@ function tbDraw(){
       }else{
         alt = '매매 '+tbPv(r.m?r.m[k]:null)+' · 전세 '+tbPv(r.j?r.j[k]:null)+' · 월세 '+tbPv(r.w?r.w[k]:null);
       }
-      h+='<td title="'+B.regs[k]+' '+lab+' — '+alt+'">'
+      h+='<td title="'+zn(B.regs[k])+' '+lab+' — '+alt+'">'
         +'<span class="tc">'+lay+'<b>'+txt+'</b></span></td>';
     }
     h+='</tr>';
