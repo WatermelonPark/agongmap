@@ -63,17 +63,23 @@ def _js_map(vals, names, ref, href):
 
 
 def test_weekly_head_map_is_the_home_map():
-    """/weekly/ 머리 지도 = 홈 주간 구역 지도(같은 값·같은 만색 기준 WK_MAP_REF·같은 링크 모양) — 주소 앞의 '/' 만 다르다."""
+    """/weekly/ 머리 지도 = 홈 주간 구역 지도(같은 값·같은 만색 기준 WK_MAP_REF·같은 링크 모양) — 주소 앞의 '/' 만 다르다.
+    두 지도 모두 칸마다 위 매매·아래 전세 두 줄이다(2026-10-20 대표 요청). 홈 renderWeeklyGrid 가 넘기는 값([v,vj])을 그대로 만들어
+    견준다. 변이(실제로 확인): week_map 이 매매 한 줄([v])만 넘기면 두 구현 차이로 빨개진다.
+    픽스처: 저장소 data.js 시군구 최신 주(je 가 있는 회차)."""
     W, _ = MW.load()
     py, _p = MW.week_map(W)
     S = W['sgg']
     row = S['rows'][-1]
     v = {c: row['ma'][i] for i, c in enumerate(S['codes']) if i < len(row['ma'])}
+    vals = [v]
+    if row.get('je'):
+        vals.append({c: (row['je'][i] if i < len(row['je']) else None) for i, c in enumerate(S['codes'])})
     ref = float(re.search(r'^var WK_MAP_REF=([\d.]+);', HS.home_source(), re.M).group(1))
-    js = _js_map([v], ['매매'], ref, '/#stats-market-week~')
+    js = _js_map(vals, ['매매', '전세'][:len(vals)], ref, '/#stats-market-week~')
     same = py == js   # 긴 한 줄 문자열이라 pytest 의 == 차이 풀이(difflib)가 몇 분 걸린다 — 첫 차이만 적는다
     assert same, _first_diff(py, js)
-    drawn = [t for t in MW.nation_tile()['t'] if t[4] or v.get(t[0]) is not None]   # 값 없는 칸은 세우지 않는다(아래 시험)
+    drawn = [t for t in MW.nation_tile()['t'] if t[4] or any(m.get(t[0]) is not None for m in vals)]   # 값 없는 칸은 세우지 않는다(아래 시험)
     assert py.count('<a href="/#stats-market-week~') == len(drawn)
 
 
