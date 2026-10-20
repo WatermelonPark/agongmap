@@ -512,6 +512,7 @@
     background:none;border:0;padding:0}
   .adv-badge+.adv-badge::before{content:"·";margin:0 5px;color:var(--line)}
   .adv-note{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+  #sec-permit .adv-note,#sec-occ .adv-note{margin:8px 0 4px}   /* 설명은 그래프·표 아래 한 문장(전수리뷰 H2-7) */
   .adv-tblwrap{overflow-x:auto;border-radius:0;background:#fff;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
   table.adv{border-collapse:collapse;font-size:13px;white-space:nowrap;width:100%}
   table.adv th,table.adv td{padding:6px 9px;border-bottom:1px solid var(--paper2);text-align:center;

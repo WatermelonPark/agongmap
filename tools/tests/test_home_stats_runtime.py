@@ -245,17 +245,89 @@ def test_bubble_summary_counts_provinces_only():
     """버블밴드 요약 'N개 지역'은 집계(전국·수도권·지방)를 빼고 센다 — 시도 수를 넘지 않는다.
 
     변이(실제로 확인): 루프의 `one`(집계면 0)을 1 로 되돌리면 금리를 아주 낮춘 사례가 시도 수보다 커져 빨개진다.
-    픽스처: 저장소 data-trend.json 의 ADV.bubble 과 data-rest.json 의 전세가율, 대출금리만 0.01%(모든 지역이 매수 신호권).
+    픽스처: 저장소 data-trend.json 의 ADV.bubble 에 data-rest.json 전세가율을 split_data 와 같은 함수(bubble_payload)로 실은 것,
+    대출금리만 0.01%(모든 지역이 매수 신호권).
     """
+    import make_indicator_pages as I
     trend, rest = _load('data-trend.json'), _load('data-rest.json')
-    B = trend['ADV']['bubble']
+    B = I.bubble_payload(trend['ADV']['bubble'], rest['STATS']['전세가율'])
     B['loan'] = dict(B['loan'], v=0.01)
-    got = _node(_stats_js('ADV.bubble=%s;STATS["전세가율"]=%s;renderBubbleSec();'
+    got = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
                           'OUT.sum=document.getElementById("bubble-wrap").innerHTML.split("</p>")[0];'
-                          % (json.dumps(B, ensure_ascii=False), json.dumps(rest['STATS']['전세가율'], ensure_ascii=False))))
+                          % json.dumps(B, ensure_ascii=False)))
     n = int(re.search(r'(\d+)개 지역', got['sum']).group(1))
     regs = [r for r in (B.get('regions') or list(B['conv'])) if r not in SZ.AGG]
-    assert n == len([r for r in regs if B['conv'].get(r) is not None]) and n <= len(SZ.ORDER), (n, got['sum'])
+    assert n == len([r for r in regs if B['conv'].get(r) is not None and B['jr'].get(r) is not None]) and n <= len(SZ.ORDER), (n, got['sum'])
+
+
+# ── H2-6·H2-7·H2-13 버블밴드: 정본 기준월·두 달 배지·범례 위치·여유 반올림 ──────────────────────
+def _bubble_fixture(jr_last_partial=True):
+    """시도 전부 + 집계 셋. 마지막 달(2026.09)은 서울·경기만 채워진 부분 달(merge_basic 이 새 달을 None 으로 만들고 받은 지역만
+    채운 모양 — 전수리뷰 H2-6 재현), 그 앞 달(2026.08)은 모두 찼다."""
+    import make_indicator_pages as I
+    regs = ['전국', '수도권', '지방'] + list(SZ.ORDER)
+    ser = {r: [60.0, 60.0] for r in regs}
+    ser['서울'] = [50.0, 52.6]
+    ser['경기'] = [60.0, 70.0]
+    if jr_last_partial:
+        for r in regs:
+            if r not in ('서울', '경기'):
+                ser[r][1] = None
+    J = {'dates': ['2026.08', '2026.09'], 'series': ser}
+    # 위험선까지 남은 폭: 서울 0.997(두 자리 1.00 → '1%p 미만' 아님), 경기 0.994(0.99 → 근접), 나머지는 넉넉
+    conv = {r: 7.0 for r in regs}            # 그 밖: 60 × 7 = 4.2 ~ 8.4, 대출금리 6.0 은 밴드 안·여유 2.4
+    conv['서울'] = (6.0 + 0.997) / 2 / 0.5      # 서울 jr 50.0(기준월) → lo=0.5*cv
+    conv['경기'] = (6.0 + 0.994) / 2 / 0.6
+    B = {'prd': '2026.07', 'loan': {'v': 6.0, 'p': '2026.08'}, 'regions': regs, 'conv': conv}
+    return I.bubble_payload(B, J), J
+
+
+def test_bubble_band_reads_the_site_reference_month_and_says_both_months():
+    """버블밴드 전세가율은 사이트 기준월 정본(jeonse_ref_index — /jeonse-ratio/ 과 같은 달)의 값이고, 배지는 전세가율·전환율 달을
+    함께 적는다. 범례는 막대 아래 한 줄, 위험선까지 남은 폭은 칩·상세·근접 셈이 같은 두 자리 값을 쓴다.
+    재현한 실제 상태: 새 달이 일부 지역만 채워진 회차(전수리뷰 H2-6·#106)에 홈은 서울 52.6%(부분 달)로, /jeonse-ratio/ 은
+    직전 완비 달 값으로 월세수익률을 말했고 배지는 '2026년 7월 기준'(전환율 달)만 적었다. 범례 네 줄이 막대 위에 섰다(H2-7).
+    위험선까지 0.97%p 인 지역이 칩 '여유 1.0%p'인데 요약은 '1%p 미만'에 셌다(H2-13).
+    픽스처: _bubble_fixture — 2026.09 는 서울·경기만 찬 부분 달, 대출금리 6.0, 서울 여유 0.997(→1.00)·경기 0.994(→0.99), 매수 신호권 0.
+
+    변이(실제로 확인): bubble_jeonse 를 지역마다 마지막 비결측 값으로 바꾸면, 배지를 옛 `_ymT(B.prd)+' 기준'` 으로 되돌리면,
+    범례를 막대 앞(h 머리)으로 되돌리면, 근접 셈을 원값 `hi-loan<1` 로 되돌리면 빨개진다.
+    """
+    B, J = _bubble_fixture()
+    assert B['jp'] == '2026.08' and B['jr']['서울'] == 50.0, B['jp']
+    got = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
+                          'OUT.html=document.getElementById("bubble-wrap").innerHTML;'
+                          'OUT.badge=document.getElementById("bubble-prd").textContent;' % json.dumps(B, ensure_ascii=False)))
+    assert got['badge'] == '전세가율 2026년 8월 · 전환율 2026년 7월 기준', got['badge']
+    h = got['html']
+    assert '전세가율 50% ×' in h and '52.6' not in h, '부분 달 값을 읽었다'
+    first_row, legend = h.find('class="bb-row"'), h.find('class="bb-legend"')
+    assert 0 <= first_row < legend, '범례가 막대 위에 있다'
+    assert '<br>' not in h[legend:], '범례가 한 줄이 아니다'
+    chips = dict(re.findall(r'data-r="([^"]+)".*?<span class="bb-chip[^"]*">([^<]*)</span>', h))
+    assert chips['서울'] == '여유 1.00%p' and chips['경기'] == '여유 0.99%p', (chips['서울'], chips['경기'])
+    assert '1개 지역이 위험선까지 1%p 미만' in h.split('</p>')[0], h.split('</p>')[0]
+    # 완비 달이 마지막이면 배지는 전환율 달과 다를 때만 둘 — 같으면 한 달만 적는다
+    B2, _ = _bubble_fixture(jr_last_partial=False)
+    B2['prd'] = B2['jp']
+    got2 = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();OUT.badge=document.getElementById("bubble-prd").textContent;'
+                           % json.dumps(B2, ensure_ascii=False)))
+    assert got2['badge'] == '2026년 9월 기준', got2
+
+
+def test_permit_and_occupancy_notes_sit_below_the_chart():
+    """인허가·입주물량 설명 문단은 그래프·표 아래 한 문장(2026-10-06 '설명·범례는 콘텐츠 아래' — 전수리뷰 H2-7).
+    재현한 실제 상태: 375px 에서 인허가 두 문장(62px)·입주물량 한 문장이 그래프 위에 있었다.
+    변이(실제로 확인): index.html 에서 #sec-permit 의 .adv-note 를 옛 자리(.adv-regsel 앞)로 옮기면 빨개진다.
+    픽스처: 저장소 index.html."""
+    html = dict(HS.home_files())['index.html']
+    for sec in ('sec-permit', 'sec-occ'):
+        a = html.index('id="%s"' % sec)
+        body = html[a:html.index('</section>', a)]
+        note, chart = body.find('class="adv-note"'), body.find('class="gt-g"')
+        assert 0 <= chart < note, sec
+        txt = re.search(r'class="adv-note">([^<]*)<', body).group(1)
+        assert txt.count('니다.') == 1, (sec, txt)
 
 
 # ── #59 보조선 정점·바닥 ─────────────────────────────────────────────────────

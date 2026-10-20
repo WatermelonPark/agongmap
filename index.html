@@ -551,7 +551,6 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="gt"><button class="on" aria-pressed="true" data-v="g" onclick="gtSet('permit','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('permit','t')">표</button></div></div>
 
   
-      <p class="adv-note">착공 전 단계라 가장 이른 공급 신호입니다. 착공과 같은 흐름으로 움직이지만 허가 뒤 착공하지 않는 물량이 섞여 있고 입주까지의 시차가 일정하지 않아 참고로만 봅니다.</p>
       <div class="adv-regsel"><select id="adv-permit-reg" aria-label="인허가 지역 선택" onchange="renderPermitSec()"></select></div>
       <div class="gt-g"><div class="chartwrap sm" id="permitChartBox"><canvas id="permitChart"></canvas></div></div>
       <div class="gt-t">
@@ -559,6 +558,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="adv-tblwrap matrix" id="adv-permit-matrix"></div>
         <div class="adv-tblwrap compact" id="adv-permit-compact"></div>
       </div>
+      <p class="adv-note">가장 이른 공급 신호지만 착공하지 않는 물량이 섞이고 입주까지 시차가 일정하지 않아 참고로만 봅니다.</p>
       <div class="adv-legend"><span><i style="background:#fdecea"></i>저점 이하</span><span><i style="background:#eaf3fb"></i>고점 이상</span><span>참조선: 지역별 과거 연간 저점·고점의 ½ (반기 환산)</span></div>
       <div class="src-note"><span id="permit-when"></span>자료: KOSIS 국토교통부 「주택건설실적통계」 주택규모별 인허가실적 · 6·12월 누계 기준</div>
     </section>
@@ -567,7 +567,6 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <section class="adv-sec gsec gm-g" id="sec-occ">
       <div class="adv-h"><h3>입주물량 (분기별)</h3><span class="adv-badge">미래 분기 포함</span>
         <div class="gt"><button class="on" aria-pressed="true" data-v="g" onclick="gtSet('occ','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('occ','t')">표</button></div></div>
-      <p class="adv-note">준공 실적과 착공 기반 추정 물량을 지역별 분기 적정물량과 견줍니다.</p>
       <div class="adv-regsel"><select id="adv-occ-reg" aria-label="입주물량 지역 선택" onchange="renderOccSec()"></select></div>
       <div class="gt-g"><div class="chartwrap sm" id="occChartBox"><canvas id="occChart"></canvas></div></div>
       <div class="gt-t">
@@ -575,6 +574,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="adv-tblwrap matrix" id="adv-occ-matrix"></div>
         <div class="adv-tblwrap compact" id="adv-occ-compact"></div>
       </div>
+      <p class="adv-note">준공 실적과 착공 기반 추정 물량을 지역별 분기 적정물량과 견줍니다.</p>
       <div class="adv-legend"><span><i style="background:#e0564a"></i>적음(70% 미만)</span><span><i style="background:#9aa8a1"></i>보통</span><span><i style="background:#3a7bd5"></i>많음(130% 초과)</span><span><i style="background:#e0564a73"></i>옅은 색 = 착공 기준 추정</span></div>
       <div class="src-note"><span id="occ-when"></span>자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.958) · 분기 합산 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
     </section>
