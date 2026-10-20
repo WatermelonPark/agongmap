@@ -195,8 +195,8 @@ def _fn(src, head):
     return src[a:b + 2]
 
 
-def _home_table(ds, dates, vals):
-    """홈 drawStat 이 buildTable 을 부르는 모양 그대로 돌려 {라벨: 증감 문자열} 을 받는다."""
+def _home_table(ds, dates, vals, keep=None):
+    """홈 drawStat 이 buildTable 을 부르는 모양 그대로 돌려 {라벨: 증감 문자열} 을 받는다. keep 은 기간 단추로 자른 칸(idx)."""
     if not shutil.which('node'):
         pytest.skip('node 없음')
     s = HS.home_source()
@@ -206,13 +206,13 @@ def _home_table(ds, dates, vals):
           'const document={querySelector:q=>q.endsWith("thead")?T.thead:T.tbody};'
           'const DS_LABEL=new Proxy({},{get:()=>"값"});function fmtN(v,d){return d==null?String(v):v.toFixed(d)}'
           '%s\n%s\nconst ST={ds:%s};\n%s\n%s\n'
-          'const D={dates:%s};const parsed=D.dates.map(parseDate);const idx=parsed.map((p,i)=>i);'
-          'buildTable(D,idx.map(i=>parsed[i].label),%s,idx,parsed);'
+          'const D={dates:%s};const parsed=D.dates.map(parseDate);const all=%s;const idx=%s||parsed.map((p,i)=>i);'
+          'buildTable(D,idx.map(i=>parsed[i].label),idx.map(i=>all[i]),idx,parsed,all);'
           'const out={},re=/<tr><td>([^<]*)<\\/td><td>[^<]*<\\/td><td>(.*?)<\\/td><\\/tr>/g;let m;'
           'while((m=re.exec(T.tbody.innerHTML)))out[m[1]]=m[2].replace(/<[^>]+>/g,"").split(" ")[0];'
           'process.stdout.write(JSON.stringify(out));'
           % (cum.group(0), _date_fns(s), json.dumps(ds, ensure_ascii=False), _fn(s, 'function parseDate('),
-             _fn(s, 'function buildTable('), json.dumps(dates), json.dumps(vals)))
+             _fn(s, 'function buildTable('), json.dumps(dates), json.dumps(vals), json.dumps(keep)))
     p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
     out = json.loads(p.stdout.decode('utf-8'))
@@ -248,3 +248,23 @@ def test_home_cumulative_table_compares_the_same_month_last_year():
     assert got['2026.07'] == '', '2025.07 이 없는데 다른 달과 전년 동월 대비를 냈다: %s' % got['2026.07']
     i8, j8 = dates.index('2026.08'), dates.index('2025.08')
     assert got['2026.08'] == '+%d' % (vals[i8] - vals[j8])
+
+
+def test_home_table_compares_with_months_outside_the_chosen_period():
+    """기간 단추(1·3·5·10년)로 표를 잘라도 비교 칸은 자르기 전 전체 계열에서 찾는다(전수리뷰 H2-3).
+    재현한 실제 상태: 기본통계 → 인허가 → '1년'에서 13줄 중 26.8 한 줄만 '전년 동월 대비'가 찼고 12줄이 비었다(비교 상대가
+    보이는 구간 밖이라). 착공(흐름 계열, '전기 대비')은 '1년' 보기 맨 아래 줄이 비었다. 픽스처: 2024.01~2026.08 월 자료를
+    drawStat 의 '1년' 자르기(마지막 달과 같은 달부터 13칸)로 넘긴다.
+
+    변이(실제로 확인): buildTable 의 at 을 옛 `new Map(idx.map((i,k)=>[ymk(parsed[i]),k]))`·prev 를 `vals[pk]` 로 되돌리면 빨개진다.
+    """
+    dates = _months('2024.01', '2026.08')
+    vals = [100 + 3 * i for i in range(len(dates))]
+    keep = list(range(dates.index('2025.08'), len(dates)))
+    assert len(keep) == 13
+    for ds, lag in (('인허가', 12), ('착공', 1)):
+        got = _home_table(ds, dates, vals, keep)
+        assert len(got) == 13
+        for d, txt in got.items():
+            j = dates.index(d)
+            assert txt == '+%d' % (vals[j] - vals[j - lag]), (ds, d, txt)
