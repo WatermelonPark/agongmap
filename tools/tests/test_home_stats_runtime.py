@@ -330,6 +330,34 @@ def test_permit_and_occupancy_notes_sit_below_the_chart():
         assert txt.count('니다.') == 1, (sec, txt)
 
 
+# ── H2-9 지역 선택 상자 순서 ─────────────────────────────────────────────────
+def test_region_select_follows_the_display_order_then_other_rows():
+    """통계 탭 지역 선택은 판정 단위를 목록 표시 정본(sido_zones.DISPLAY_ORDER — ADV.sido.zones 가 그 순서로 온다)으로 세우고,
+    그 밖의 원천 권역 행(매매지수의 광역시·지방도·서울 권역)은 뒤에 화면 이름 가나다순으로 모은다.
+    재현한 실제 상태(전수리뷰 H2-9): 키로 가나다순을 매겨 '광주·전남'(키 전남광주)이 '인천'과 '전북' 사이에 섰고, 매매지수
+    목록은 '경북, 광역시, 대구, 대전, 도심권, …'처럼 시도와 권역 행이 섞였다.
+    픽스처: 저장소 data-rest.json 매매지수의 지역 키 전부, ADV.sido.zones 는 DISPLAY_ORDER 순서, ADV.zname 은 DISPLAY_NAME.
+
+    변이(실제로 확인): regSort 의 기본 이름 함수를 옛 `x=>x` 로, 정렬 기준을 옛 '집계만 앞·나머지 가나다'로 되돌리면 빨개진다.
+    """
+    keys = list(_load('data-rest.json')['STATS']['매매지수']['series'])
+    model = [k for k in keys if k in SZ.DISPLAY_ORDER]
+    other = [k for k in keys if k not in SZ.DISPLAY_ORDER]
+    assert model and other, '매매지수에 판정 단위와 권역 행이 둘 다 있어야 이 시험이 뜻이 있다'
+    zones = [{'z': z} for z in SZ.DISPLAY_ORDER]
+    got = _node(_stats_js('ADV.sido={zones:%s};ADV.zname=%s;OUT.list=regSort(%s);'
+                          % (json.dumps(zones), json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False),
+                             json.dumps(list(reversed(keys)), ensure_ascii=False)),
+                          pre='function zn(r){return (ADV.zname||{})[r]||r;}'))
+    want_head = [z for z in SZ.DISPLAY_ORDER if z in keys]
+    assert got['list'][:len(want_head)] == want_head, got['list']
+    tail = got['list'][len(want_head):]
+    assert sorted(tail) == sorted(other) and len(tail) == len(other)
+    collator = _node('process.stdout.write(JSON.stringify(%s.sort((a,b)=>a.localeCompare(b,"ko"))));'
+                     % json.dumps(other, ensure_ascii=False))
+    assert tail == collator, tail
+
+
 # ── #59 보조선 정점·바닥 ─────────────────────────────────────────────────────
 def test_aux_peak_lines_sit_on_the_data_peak():
     """'정점'·'바닥' 보조선은 그리는 계열·지역 원자료의 그 구간 최댓값·최솟값 달에 선다.
