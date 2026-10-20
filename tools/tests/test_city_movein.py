@@ -249,3 +249,88 @@ def test_gwangju_city_post_runs_on_the_merged_sido(monkeypatch):
     assert MR.DST not in seen and MC.P.SEARCH_NAME[MR.DST] in seen
     with __import__('pytest').raises(SystemExit):
         MC.main(['광주', '2026-10', '경기광주'])        # 사이트 시도 키가 아니면 알아듣게 멈춘다
+
+
+# ---- 전수리뷰 BL2-6·7·8·9·11: 도시 편 본문 문장(합성 캐시 + 저장소 ADV — 연도는 데이터의 마지막 주에서 센다)
+def _metro_raw(now_y, n_next):
+    """광역시 하나(대전)의 캐시: 다음 해(now_y+1) 입주 n_next 세대 한 단지 + 목록 끝 단지 하나 + 지난 공고 하나. 인구는 KOSIS 꼴."""
+    y1 = now_y + 1
+    return {'sido': '대전',
+            'occ': [occ('%d-03' % y1, '대전 단지', '대전광역시 유성구 봉명동 1-1', n_next),
+                    occ('%d-06' % (y1 + 1), '대전 끝', '대전광역시 서구 둔산동 1-1', 100)],
+            'ch': [_ann('%d-05' % (now_y - 1), '대전 옛 단지', '대전광역시 서구 둔산동 2', 500, '%d-01-10' % (now_y - 3))],
+            'pop': [{'C1_NM': '대전광역시', 'DT': '1440000', 'PRD_DE': '%d09' % now_y}]}
+
+
+def _now_y():
+    import make_city_post as MC
+    return int(MC.P.M.load()[0]['weekly']['sgg']['rows'][-1]['p'][:4])
+
+
+def test_metro_paragraph_compares_only_when_move_ins_dry_up(monkeypatch):
+    """광역시 편의 준공 문단: 다음 해 입주가 최근 세 해 평균 준공의 절반(DONE_DROP) 아래일 때만 '수도꼭지가 거의 잠긴 셈'을 쓰고,
+    아니면 숫자만 둔다. 준공 실적 단위는 '세대'다. 기본 제목의 '…에 그쳐' 결론절도 입주 공백(gap)일 때만 나온다.
+    재현: 10-16 대구 틀이 대전(2027 입주가 최근 준공보다 많다)에서도 그대로 나가던 상태. 준공 실적은 저장소 ADV.occupancy.
+    변이(확인): dried() 가드를 지워 늘 비교 문장을 쓰면 많은 쪽에서, '%s년 %s세대'를 '%s호'로 되돌리면, titles 가 gap 을 안 보면
+    각각 빨개진다."""
+    import re
+    now_y = _now_y()
+    MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 1), '대전', '%d-10' % now_y, '대전')
+    assert f['done'], '대전 준공 실적(ADV.occupancy)이 비었다'
+    avg = sum(f['done'][y] for y in sorted(f['done'])[-3:]) / len(sorted(f['done'])[-3:])
+    seen = {}
+    for n_next in (1, int(avg * 2) + 1):          # 끊긴 해와 오히려 많은 해 — 두 갈래를 모두 지난다
+        MC, f = _city_facts(monkeypatch, _metro_raw(now_y, n_next), '대전', '%d-10' % now_y, '대전')
+        html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 3, '')
+        assert not re.search(r'\d호', html), html
+        seen[n_next] = ('수도꼭지' in html, MC.dried(f), MC.gap(f), MC.default_titles(f)[0])
+    (d1, dr1, g1, t1), (d2, dr2, g2, t2) = seen[1], seen[int(avg * 2) + 1]
+    assert d1 and dr1 and not d2 and not dr2, seen
+    assert g1 and '그쳐' in t1 and ('그쳐' in t2) == g2, seen
+
+
+def test_gun_particle_flat_week_and_tool_fonts(monkeypatch, tmp_path):
+    """① 연속 상승이 가장 긴 곳이 군이면 '달성군가'가 아니라 '달성군이'(ga → P.iga). ② 이번 주 매매·전세가 모두 0.00 이면 소제목이
+    '0주 연속 하락'이 아니라 '보합'이다(실제 156주 가운데 청주 2주·천안 1주가 그랬다). ③ 반기 차트는 저장소 글꼴(ZC.font)로 그려
+    Windows 밖에서도 돈다. 변이(확인): '%s가'로 되돌리면 ①이, stxt 를 '+'가 아니면 '하락'으로 되돌리고 소제목 분기를 지우면 ②가,
+    C:\\Windows 글꼴 경로로 되돌리면 ③이 빨개진다."""
+    now_y = _now_y()
+    MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 1), '대전', '%d-10' % now_y, '대전')
+    f['gu_w'] = {'달성군': dict(ma='+0.05', je='+0.01', sma=('+', 3), sje=('+', 1)),
+                 '중구': dict(ma='+0.02', je='+0.01', sma=('+', 1), sje=('+', 1))}
+    f['city_w'] = dict(ma='0.00', je='0.00', sma=('0', 0), sje=('0', 0))
+    html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 3, '')
+    assert '매매는 달성군이 +0.05%로 3주째' in html, html
+    assert '이번 주 매매·전세 보합' in html and '0주 연속' not in html
+    f['city_w'] = dict(ma='+0.02', je='0.00', sma=('+', 2), sje=('0', 0))
+    assert '매매 2주 연속 상승' in MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 3, '')
+    assert [MC.stxt(s) for s in (('+', 2), ('-', 4), ('0', 0), ('·', 0))] == ['2주 연속 상승', '4주 연속 하락', '보합', '보합']
+    MC.chart(f, str(tmp_path / 'c.png'), MC.P.THUMB_PALETTES[MC.P.THUMB_GROUP['대전']])
+    assert (tmp_path / 'c.png').stat().st_size > 0
+
+
+def test_full_year_sentence_never_breaks(monkeypatch):
+    """한 해를 다 센 해: 1월에 시작하면 그해도 든다. 다 센 해가 없으면(목록이 다음 해 중간에서 끝남) 비율 자리가 빈 '한 해 적정
+    입주량의 입니다' 대신 그 사실을 쓴다. 재현: 2027-01 초안·목록 끝 2028-06 꼴(연도는 데이터에서 센다).
+    변이(확인): full_years 를 '시작 연도 다음 해부터'로 되돌리면 1월 시작에서, fy 가 빈 갈래를 지우면 5월 시작에서 빨개진다."""
+    now_y = _now_y()
+    y = now_y + 1
+    for start, want_full in (('%d-01' % y, [str(y)]), ('%d-05' % y, [])):
+        MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 3000), '대전', start, '대전')
+        assert f['full_years'] == want_full, (start, f['full_years'], f['occ_max'])
+        html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 3, '')
+        assert '적정 입주량의 입니다' not in html and '적정 입주량의 예요' not in html
+        assert ('다 센 해는 아직 없어요' in html) == (not want_full), html
+
+
+def test_zone_post_follows_the_category_canon(monkeypatch):
+    """도시 편 끝 지역 편 링크는 카테고리 이름 정본(P.ZONE_CAT ← CP.KIND_TO_CATEGORY)을 읽는다 — 글자로 박으면 정본이 바뀌는 날
+    링크가 경고 없이 빠진다(make_naver_post.ZONE_CAT 리뷰 09-18 선례). 변이(확인): '지역별 아파트 공급' 글자로 되돌리면 빨개진다."""
+    import datetime
+    import close_published_issues as CPI
+    import make_city_post as MC
+    monkeypatch.setattr(MC.P, 'ZONE_CAT', '새 공급 카테고리')
+    posts = [dict(date=datetime.date(2026, 8, 30), cat='새 공급 카테고리', url='u-dg',
+                  title='2026년 대구 아파트 공급물량 전망, 안 팔리는데 지어지지도 않습니다')]
+    monkeypatch.setattr(CPI, 'fetch_posts', lambda *a, **k: posts)
+    assert MC.zone_post('대구')['url'] == 'u-dg'
