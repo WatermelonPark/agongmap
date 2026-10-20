@@ -135,3 +135,21 @@ def test_picker_prefers_the_runner_with_fewer_fetch_failures(tmp_path):
         '실패가 많은 러너가 실적 분기로 역전했다 — 실패 수가 sidoL 보다 먼저다')
     held = '매매지수:기준변경 보류'
     assert _pick(tmp_path / 'e', [same, same], [held, two]) == '2', '기준복구가 실패 수보다 먼저다'
+
+
+def test_picker_prefers_a_consistent_runner_over_a_newer_weekly(tmp_path):
+    """시야 정합이 주간보다 먼저다(전수리뷰 F overflow). 착공 호출만 죽은 러너가 새 주간까지 받아 오면 예전 고르기는 주간이
+    새것이라 그것을 골라 make_sido_pages ABORT 로 그날 커밋 전체(정합한 러너의 주간·월간·공급)를 막았다.
+
+    변이(실제로 확인): 고르기의 첫 조건을 예전처럼 `[ "$wk" \\> "$BEST" ]` 로 되돌리고 hok 를 셋째 키로 두면 첫 단정이 빨강.
+    픽스처: 저장소 data-core.js 사본 둘 — 어긋난 쪽(H = lead − 1)에는 더 새 주간 시점 하나를 덧붙이고, 정합한 쪽은 저장분 그대로.
+    둘 다 정합하면 예전처럼 주간이 새것인 쪽이다.
+    """
+    _, y, q, lead = _saved()
+    cur, nxt = _q(y, q, 0), _q(y, q, 1)
+    newer_wk = '\n/* "p":"2999-01-04" */\n'
+    bad_new_week = _core(nxt, cur, lead - 1) + newer_wk
+    good_old = _core(cur, cur, lead)
+    assert _pick(tmp_path / 'a', [bad_new_week, good_old]) == '2', '주간이 새것이라고 어긋난 산출물을 골랐다 — ABORT 로 커밋 전체가 막힌다'
+    assert _pick(tmp_path / 'b', [good_old, bad_new_week]) == '1'
+    assert _pick(tmp_path / 'c', [good_old, good_old + newer_wk]) == '2', '둘 다 정합하면 주간이 새것인 쪽이다'

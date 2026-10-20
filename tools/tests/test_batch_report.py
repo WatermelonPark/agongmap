@@ -131,7 +131,7 @@ def test_first_lines_are_conclusion_then_todo():
 
 def test_basis_is_written_in_human_dates():
     body, _ = _b(CLEAN)
-    assert '주간 시세 9월 7일' in body
+    assert '주간 시세 9/7' in body
     assert '월간 통계 2026년 7월' in body
     assert '공급 2026년 2분기' in body
     for raw_form in ('2026-09-07', '2026Q2', '2026-07'):
@@ -209,3 +209,100 @@ def test_lag_does_not_mask_a_real_failure():
     assert body.startswith('### ⚠️ 데이터 갱신 중단')
     assert mention is True
     assert '4개월 차이' in body
+
+
+def _workflow_alert_lines():
+    """update-cloud.yml 이 기록에 남기는 ❌·⚠️ 줄(rep "…", echo "…" >> "$R", ${IXN:-…} 기본값)을 모두 뽑는다.
+    셸 변수·명령 치환은 '1'로 바꾼다(동적 줄도 고정 부분으로 PLAIN 에 걸려야 한다)."""
+    import io
+    import re
+    wf = io.open(os.path.join(os.path.dirname(__file__), '..', '..', '.github', 'workflows', 'update-cloud.yml'),
+                 encoding='utf-8').read()
+    out = []
+    for m in re.finditer(r'(?:rep "|echo "|\$\{IXN:-)((?:❌|⚠️).*)', wf):
+        ln = re.sub(r'\$\([^)]*\)|\$\{[^}]*\}|\$[A-Za-z_]+', '1', m.group(1))
+        out.append(ln.split('"', 1)[0].rstrip('}').strip())
+    return out
+
+
+def test_every_workflow_alert_line_has_a_plain_sentence():
+    """워크플로가 기록에 남기는 ❌·⚠️ 줄마다 PLAIN 에 받는 사람의 문장이 있고, 그 문장에 내부 말(커밋·푸시·러너)이 없다
+    (전수리뷰 F-5). 대응이 없으면 plain() 이 원문을 그대로 써 '주간 시세 페이지 실패 — 커밋 안 함'이 메일 본문에 나갔다.
+
+    변이(실제로 확인): PLAIN 에서 '주간 시세 페이지 실패' 대응을 지우면 빨강. 워크플로에 대응 없는 rep "❌ 새 단계 실패"
+    줄을 더해도 빨강.
+    픽스처: 저장소의 실제 update-cloud.yml(생성기 여덟·게이트·공유카드·git·푸시·감시 되짚기 줄).
+    """
+    import re
+    lines = _workflow_alert_lines()
+    assert len(lines) >= 10, lines           # 뽑기가 깨져 빈 목록으로 통과하지 않게
+    assert any('주간 시세 페이지 실패' in ln for ln in lines), lines
+    for ln in lines:
+        body = ln.lstrip('❌⚠️').strip()
+        hit = [say for pat, say in F.PLAIN if re.search(pat, body)]
+        assert hit, 'PLAIN 에 대응이 없다 — 메일에 내부 기록 줄이 그대로 나간다: %s' % ln
+        said = F.plain(ln)
+        for w in ('커밋', '푸시', '러너'):
+            assert w not in said, '%r → %r 에 내부 말 %r' % (ln, said, w)
+
+
+def test_report_formatter_imports_no_generator():
+    """결과 보고 형식기는 생성기·감시·배치 모듈을 불러오지 않는다(전수리뷰 F-6). month_lag 가 check_freshness·update_adv_data
+    를 맨 위에서 불러오던 때는 형식기를 부르면 생성기 십여 개가 따라 올라와, 생성기 하나의 불러오기 회귀(모듈 맨 위 예외)가
+    '사람에게 닿는 마지막 1미터'까지 죽였다.
+
+    변이(실제로 확인): month_lag 맨 위에 `import check_freshness as CF` 를 되살리면 빨강.
+    픽스처: 새 프로세스에서 저장소의 tools/format_batch_report.py 를 불러온 뒤의 sys.modules.
+    """
+    import subprocess
+    tools = os.path.join(os.path.dirname(__file__), '..')
+    code = ('import sys, os; sys.path.insert(0, %r); import format_batch_report as F; '
+            'print("\\n".join(sorted(m for m in sys.modules if os.path.exists(os.path.join(%r, m + ".py")))))'
+            % (tools, tools))
+    out = subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, check=True).stdout.split()
+    assert 'format_batch_report' in out, out          # 목록을 제대로 읽었는가
+    heavy = [m for m in out if m.startswith('make_') or m in (
+        'check_freshness', 'update_adv_data', 'split_data', 'sido_zones', 'weekly_moves', 'weekly_release')]
+    assert not heavy, '형식기가 생성기·감시를 불러온다 — 그쪽 회귀가 결과 보고까지 죽인다: %s' % heavy
+    # 게으르게 부른 값이 예전과 같다
+    import month_lag as ML
+    assert ML.SLOW_ALLOWANCE >= 1 and '규모별' in ML.SLOW_SERIES and ML.allowance('규모별') == ML.SLOW_ALLOWANCE
+
+
+def test_fallback_title_is_red_when_the_record_has_a_failure(tmp_path):
+    """형식기가 죽었을 때의 폴백 제목: 기록에 ❌ 줄이 있으면 🔴, 없으면 🟡(전수리뷰 F-6). 제목만 보고 판단하라는
+    설계라 실패 회차가 🟡 로 나가면 안 된다.
+
+    변이(실제로 확인): 워크플로 폴백의 grep 분기를 지우고 🟡 printf 하나로 되돌리면 빨강(블록을 못 찾거나 🔴 이 없다).
+    픽스처: 저장소 update-cloud.yml 의 폴백 셸을 잘라, '❌ 주간 시세 페이지 실패' 기록과 ✅ 만 있는 기록으로 돌린다.
+    """
+    import io
+    import re
+    import subprocess
+    wf = io.open(os.path.join(os.path.dirname(__file__), '..', '..', '.github', 'workflows', 'update-cloud.yml'),
+                 encoding='utf-8').read()
+    m = re.search(r"^( +)if grep -q '\^❌' \"\$R\"; then\n.*?^\1fi\n", wf, re.S | re.M)
+    assert m, '폴백 제목 분기(grep ❌)를 찾지 못했다'
+    blk = '\n'.join(ln[len(m.group(1)):] for ln in m.group(0).splitlines())
+    for rec, want in (('✅ 러너 3/3 clean\n❌ 주간 시세 페이지 실패 — 커밋 안 함\n', '🔴'), ('✅ 러너 3/3 clean\n', '🟡')):
+        r = tmp_path / 'r.txt'
+        r.write_text(rec, encoding='utf-8')
+        subprocess.run(['bash', '-c', 'set -e\nR=%s\n%s' % (r, blk)], cwd=tmp_path, check=True)
+        meta = (tmp_path / '_report.meta').read_text(encoding='utf-8').splitlines()
+        assert meta[0] == '1' and meta[1].startswith(want), (rec, meta)
+
+
+def test_date_helpers_mirror_the_canon():
+    """결과 보고의 날짜 도우미가 sido_zones 날짜 정본(읽는 자리 표기)과 같은 답을 낸다(전수리뷰 F overflow — 예전엔 주간을
+    '9월 7일'로 적어 사이트의 '9/7'과 갈렸다).
+
+    변이(실제로 확인): _month_day 를 예전 '%d월 %d일' 로 되돌리면 빨강. _year_month 의 '%s년 %d월' 을 '%s.%02d' 로 바꿔도 빨강.
+    픽스처: 연 넘김·한 자리 달·10월 이상 달·네 분기를 고루 담은 합성 시점.
+    """
+    import sido_zones as SZ
+    for d in ('2026-09-07', '2026-01-01', '2025-12-29', '2026-10-13'):
+        assert F._month_day(d) == SZ.day_text(d), d
+    for m in ('2026-07', '2026.07', '2025.12', '2026-10'):
+        assert F._year_month(m) == SZ.month_text(m), m
+    for q in ('2026Q1', '2026Q2', '2025Q3', '2025Q4'):
+        assert F._quarter(q) == SZ.quarter_text(q), q
