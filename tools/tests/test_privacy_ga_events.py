@@ -21,6 +21,7 @@ home-*.js), 저장소 맨 위·한 단계 아래 HTML(퀴즈 랜딩·사이클·
 픽스처 없이 실제 파일을 읽는다. 날짜·데이터와 무관하다.
 """
 import glob
+import hashlib
 import io
 import os
 import re
@@ -133,5 +134,46 @@ def test_privacy_does_not_deny_quiz_transfer():
     assert '퀴즈 점수' in s and 'Google Analytics에 전송' in s
     # 방침을 고쳤으면 변경 이력에 날짜를 남긴다 — 머리의 '최근 개정'과 6항 이력의 마지막 날짜가 같아야 한다
     head = re.search(r'최근 개정 (\d{4}년 \d+월 \d+일)', s)
-    hist = re.findall(r'<li>(\d{4}년 \d+월 \d+일) — ', s)
+    hist = re.findall(r'<li(?: [^>]*)?>(\d{4}년 \d+월 \d+일) — ', s)
     assert head and hist and hist[-1] == head.group(1), '머리의 개정일과 변경 이력의 마지막 날짜가 다르다'
+
+
+def ga_table_digest(s):
+    """방침 1항 GA 전송 목록(<details id="ga-events"> 전체 — 표와 자동 수집 안내 문장)의 글자 지문 8자리. 빈칸 차이는 무시한다."""
+    i = s.find('<details class="ev" id="ga-events">')
+    assert i >= 0, '방침에 GA 전송 목록(details#ga-events)이 없다'
+    block = re.sub(r'\s+', ' ', s[i:s.index('</details>', i)]).strip()
+    return hashlib.sha1(block.encode('utf-8')).hexdigest()[:8]
+
+
+def test_privacy_history_follows_the_event_table():
+    """GA 전송 목록을 고치면 6항 변경 이력에 새 줄이 생겨야 한다 — 이력 마지막 줄의 data-ga 가 지금 목록의 지문과 같다(전수리뷰 P-8).
+
+    재현한 상태(2026-10-18): 62b0189(10-06, blog_link 를 입주물량 페이지에서도 보냄)와 c11049c(10-10, stats_gt 보기에 순위·지도)가
+    목록 표만 고치고 '최근 개정'과 6항 이력을 10월 5일 그대로 두었다. 옛 시험은 머리 날짜와 이력 마지막 날짜가 같은지만 봐 초록이었다.
+    변이(실제로 확인): 표의 한 행 설명을 바꾸면(이력 줄을 더하지 않고) 빨개진다. 마지막 이력 줄의 data-ga 를 지우면 빨개진다.
+    픽스처 없이 실제 privacy/index.html 을 읽는다.
+    """
+    s = _read('privacy/index.html')
+    lis = re.findall(r'<li( data-ga="([0-9a-f]{8})")?>(\d{4}년 \d+월 \d+일) — ', s)
+    assert lis, '6항 변경 이력을 못 읽었다'
+    want = ga_table_digest(s)
+    assert lis[-1][1] == want, ('1항 GA 전송 목록이 바뀌었는데 6항 이력 마지막 줄이 그대로다 — 무엇을 바꿨는지 새 줄(오늘 날짜)을 더하고 '
+                                '그 <li> 에 data-ga="%s" 를 단다(머리의 최근 개정도 같은 날짜로). 지금 마지막 줄: %s data-ga=%r'
+                                % (want, lis[-1][2], lis[-1][1]))
+
+
+def test_privacy_scopes_the_list_to_site_code_and_names_auto_events():
+    """목록은 '사이트 코드가 보내는 이벤트'다 — GA 가 스스로 모으는 기본 이벤트(first_visit·session_start·user_engagement)는 따로 한 줄로 밝힌다(전수리뷰 P-15).
+
+    재현한 상태(2026-10-18): 목록 제목이 'Google Analytics로 보내는 이용 이벤트 전체 목록'이라, gtag.js 가 늘 자동으로 보내는 세 이벤트가
+    빠진 목록을 '전체'라고 불렀다. 이 훑기(code_events)는 코드의 track/gtag 호출만 보므로 자동 이벤트를 원리상 볼 수 없다.
+    변이(실제로 확인): summary 를 옛 '…전체 목록'으로 되돌리면, 자동 이벤트 문장(#ga-auto)에서 session_start 를 지우면 빨개진다.
+    """
+    s = _read('privacy/index.html')
+    m = re.search(r'id="ga-events">\s*<summary>([^<]+)</summary>', s)
+    assert m and '전체' not in m.group(1) and '사이트 코드가' in m.group(1), m and m.group(1)
+    auto = re.search(r'<p id="ga-auto">(.*?)</p>', s, re.S)
+    assert auto, 'GA 자동 수집 이벤트 안내(#ga-auto)가 없다'
+    for ev in ('first_visit', 'session_start', 'user_engagement'):
+        assert '<code>%s</code>' % ev in auto.group(1), ev

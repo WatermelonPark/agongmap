@@ -28,6 +28,7 @@ import kst as KST  # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 �
 import site_nav as N  # noqa: E402  하단 탭바 정본(C2)
 import blog_feed as BF  # noqa: E402  블로그 도시 입주물량 편 목록(백로그 37) — RSS 는 배치 fetch 잡이 읽어 둔다
 import robots_meta as RM  # noqa: E402  검색 로봇 메타 정본(D2)
+import ga_tag as GT  # noqa: E402  GA 내부 트래픽 표식 정본(백로그 48)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://www.agongmap.co.kr'
@@ -181,8 +182,9 @@ else localStorage.setItem('ga_off','1');}
 if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }catch(e){}
 </script>
+__GAINT__
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3FJNG6G1F3"></script>
-<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-3FJNG6G1F3');</script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());__GACFG__</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 __ROBOTS__
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -292,6 +294,7 @@ def type_tokens(css=None):
 
 def fill(shell, desk='wide', **kw):
     out = shell.replace('__TOKENS__', type_tokens()).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
+    out = out.replace('__GAINT__', GT.INTERNAL_SCRIPT).replace('__GACFG__', GT.config_call())   # GA 내부 트래픽 표식(백로그 48)
     # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)
     out = out.replace('__DESKLINK__', N.desk_link()).replace('__DESKBODY__', N.desk_body(desk))
     for k, v in kw.items():

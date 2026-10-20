@@ -2042,7 +2042,7 @@ def _section_page(z, key):
     m = re.search(r'<head>(.*?)</head>', t, re.S)
     # GA 스크립트만 뺀다(캡처가 방문으로 잡히지 않게). 표 동작 스크립트는 남긴다 — 분기별 표는 스크롤 상자라,
     # 그 스크립트가 최근·미래 분기 쪽으로 스크롤해 둬야 사이트와 같은 화면이 찍힌다.
-    head = re.sub(r'<script\b[^>]*>(?:(?!</script>).)*?(?:gtag|googletagmanager|ga_off)(?:(?!</script>).)*</script>|<script[^>]*googletagmanager[^>]*></script>', '',
+    head = re.sub(r'<script\b[^>]*>(?:(?!</script>).)*?(?:gtag|googletagmanager|ga_off|ga_internal)(?:(?!</script>).)*</script>|<script[^>]*googletagmanager[^>]*></script>', '',
                   m.group(1) if m else '', flags=re.S)
     sec = next((s.group(0) for s in re.finditer(r'<section\b[^>]*>.*?</section>', t, re.S)
                 if re.search(r'<h2[^>]*>[^<]*%s' % re.escape(key), s.group(0))), None)
