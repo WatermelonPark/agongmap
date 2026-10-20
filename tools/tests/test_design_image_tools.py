@@ -19,7 +19,8 @@
   - emoji_font 를 EMOJI_FONTS 첫 경로만 여는 옛 코드로 되돌리면 test_emoji_font_names_candidates
     (OSError 이고 FileNotFoundError·후보 경로 안내가 아니다).
   - apply_design.rad 를 옛 코드(값 상관없이 0/3px)로 되돌리면, 또는 웜색 판정을 DATA_TINTS 예외 없는
-    is_warm 으로 되돌리면 test_apply_keeps_what_audit_allows.
+    is_warm 으로 되돌리면 test_apply_keeps_what_audit_allows. rad 의 보존 판정을 RADIUS_OK 대신 RADIUS_SHAPE(원형만)로
+    되돌려도 빨개진다 — 404 a.home·.skip 의 3px 가 0 이 된다(전수리뷰 P-6, 픽스처는 그 두 규칙을 그대로 옮겼다).
   - audit_design 의 radius 정규식에서 따옴표 제외를 빼면 test_audit_inline_style_stops_at_quote,
     violations 의 radius 문턱을 'nr > 2' 로 되돌리면 test_audit_flags_a_single_off_rule_radius.
   - cutout 에 `import numpy as np` 를 다시 넣으면 test_beginner_cutout_pillow_only(CI 는 numpy 가 없어
@@ -28,6 +29,7 @@
 import ast
 import io
 import os
+import re
 import sys
 
 import pytest
@@ -75,7 +77,9 @@ def test_apply_keeps_what_audit_allows(tmp_path):
     tint = sorted(audit_design.DATA_TINTS)[0]
     html = ('<!doctype html><html><head><meta name="viewport" content="width=device-width">'
             '<style>.dot{width:8px;border-radius:50%} .tag.g2{background:#' + tint + ';color:#131e24}'
-            ' .box{border-radius:6px} button{border-radius:8px}</style></head><body></body></html>')
+            ' .box{border-radius:6px} button{border-radius:8px}'
+            ' a.home{display:inline-flex;min-height:48px;border-radius:3px}'
+            ' .skip{position:absolute;left:8px;border-radius:3px}</style></head><body></body></html>')
     p = _write(tmp_path, 't.html', html)
     a = audit_design.audit(p)
     assert a['radii'] == ['6px', '8px'] and a['warm'] == []   # 감사: 50%·틴트는 준수, 6/8px 는 위반
@@ -84,6 +88,8 @@ def test_apply_keeps_what_audit_allows(tmp_path):
     assert '.dot{width:8px;border-radius:50%}' in out, '감사가 허용한 원형을 적용 도구가 깨뜨렸다'
     assert '#' + tint in out, '감사가 예외로 둔 데이터 틴트를 적용 도구가 바꿨다'
     assert '.box{border-radius:0}' in out and 'button{border-radius:3px}' in out
+    assert 'a.home{display:inline-flex;min-height:48px;border-radius:3px}' in out, '감사가 허용한 3px(404 홈 단추)를 적용 도구가 깎았다'
+    assert '.skip{position:absolute;left:8px;border-radius:3px}' in out, '감사가 허용한 3px(건너뛰기 링크)를 적용 도구가 깎았다'
     after = audit_design.audit(p)
     assert after['radii'] == [] and after['warm'] == []       # 적용 뒤에는 감사가 깨끗하다
     # 적용 도구가 남기거나 쓰는 radius 값은 전부 감사의 허용 값이다
@@ -124,3 +130,28 @@ def test_beginner_cutout_pillow_only(tmp_path):
     assert out.mode == 'RGBA' and out.size == (50, 40), out.size
     assert out.getpixel((0, 0)) == (30, 90, 160, 255)
     assert out.getchannel('A').getextrema() == (255, 255)
+
+
+def test_audit_reads_the_desktop_sheet(tmp_path, capsys, monkeypatch):
+    """감사가 데스크톱 틀 desk.css 를 시트 한 줄로 따로 읽는다(전수리뷰 P-7).
+
+    재현한 상태(2026-10-18): audit() 는 페이지 <style> 과 app.css 만 봐, 모든 탭바 페이지가 싣는 desk.css 의 이름표
+    `body[data-desk] .bottomnav::before{…font-weight:800}` 가 감사 표에 드러나지 않았다(전 페이지 800 칸 0).
+    픽스처: 그 규칙과 주석 속 'app.css' 글자(지금 desk.css 에 실제로 있다 — 공유 판정이 켜지면 app.css 그림자까지 합산된다)를
+    옮긴 시트. 실제 desk.css 는 위반이 없어야 한다.
+    변이(실제로 확인): main() 의 pages.append('desk.css') 를 지우면, audit 의 is_css 갈래를 지우면(공유 판정이 켜져
+    그림자를 합산) 빨개진다. desk.css 이름표를 font-weight:800 으로 되돌려도 빨개진다.
+    """
+    p = _write(tmp_path, 'desk.css', '/* 홈 app.css 와 같은 52px */\n'
+               "body[data-desk] .bottomnav::before{content:'x';font-weight:800}\n"
+               'body[data-desk] .bottomnav{box-shadow:0 2px 8px rgba(0,0,0,.2)}\n')
+    a = audit_design.audit(p)
+    assert a['shared'] is False and a['w800'] == 1 and a['shadow'] == 1, a
+    assert any(f.startswith('800') for f in audit_design.violations(a))
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    real = audit_design.audit(os.path.join(root, 'desk.css'))
+    assert audit_design.violations(real) == [], audit_design.violations(real)
+    monkeypatch.chdir(root)        # main() 이 작업 디렉터리를 바꾸므로 시험 뒤 되돌린다
+    audit_design.main()
+    out = capsys.readouterr().out
+    assert re.search(r'^desk\.css\s', out, re.M), 'audit_design.main() 표에 desk.css 줄이 없다'

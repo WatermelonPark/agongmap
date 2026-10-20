@@ -36,6 +36,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
 import sido_zones as SZ  # noqa: E402
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import ga_tag as GT  # noqa: E402  (GA 내부 트래픽 표식 정본 — 백로그 48)
 import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
 import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
 import blog_feed as BF  # noqa: E402  (최신 주간 해설 글 — 홈 주간 구역과 같은 pick, 홈 마케팅 검수 B5)
@@ -53,7 +54,7 @@ def load():
     h = HS.home_source()
     m = re.search(r'const SGG_QNAME=(\{.*?\});', h)
     if not m:
-        raise SystemExit('index.html 에서 SGG_QNAME 을 찾지 못했다 — 시군구 이름표 위치가 바뀌었는지 볼 것')
+        raise SystemExit('홈 스크립트(home-stats.js, home_src 경유)에서 SGG_QNAME 을 찾지 못했다 — 시군구 이름표 위치가 바뀌었는지 볼 것')
     # 다음 발표가 연휴에 걸리는지는 배치가 특일정보 API 로 채운 ADV.holidays 로 본다(홈 JS 와 같은 입력).
     # 반환 모양(W, Q)을 바꾸지 않으려고 W 사본에 얹는다 — 합성 픽스처처럼 없으면 공휴일 없음으로 본다.
     W = dict(adv['weekly'], holidays=adv.get('holidays') or [])
@@ -375,15 +376,10 @@ def count_text(total_label, vals):
 
 
 def top3(items):
-    """items [(이름, 값)] → (오른 곳 상위 3, 내린 곳 상위 3). 순서는 홈 TOP 10 과 같다.
-
-    홈은 값 내림차순 정렬 뒤 앞 10개·뒤 10개를 뒤집어 쓴다(안정 정렬). 여기서도 같은 정렬을 쓰되,
-    '하락'에는 실제로 내린 곳만 싣는다 — 모두 오른 주에 가장 덜 오른 곳을 '하락'이라 적지 않는다.
+    """items [(이름, 값)] → (오른 곳 상위 3, 내린 곳 상위 3). 홈 TOP 10 과 같은 규칙(weekly_moves.top_split 정본)이다 —
+    '상승'에는 오른 곳만, '하락'에는 실제로 내린 곳만 싣는다(모두 오른 주에 가장 덜 오른 곳을 '하락'이라 적지 않는다).
     """
-    arr = sorted(items, key=lambda x: -x[1])
-    up = [x for x in arr if pv2r(x[1]) > 0][:3]
-    dn = [x for x in reversed(arr) if pv2r(x[1]) < 0][:3]
-    return up, dn
+    return WM.top_split(items, 3)
 
 
 def rank_list(title, cls, items, empty):
@@ -668,7 +664,7 @@ def put_nav(s):
     s = _FOOTER_CSS.sub(lambda m: m.group(1) + '%gpx' % N.FOOTER_PX, s)
     for old in _NAV_NOTES_OLD:
         s = s.replace(old, _NAV_NOTE)
-    return put_desk(s)
+    return GT.put(put_desk(s))     # GA 내부 트래픽 표식(백로그 48) — 뼈대 머리는 배치 산출물이라 여기서 맞춘다
 
 
 _DESK_LINK = re.compile(r'<link rel="stylesheet" href="/desk\.css[^"]*"[^>]*>')
@@ -864,7 +860,7 @@ def more_links():
         ('/monthly/', '이달의 통계', '매달 발표되는 매매·인허가·입주물량·미분양·전세가율, 시도별 한 화면'),
         ('/jeonse-ratio/', '전세가율 현황', '매매가 대비 전세가 — 시도별 최신값과 1년 변화'),
         ('/cycle/', '아파트 사이클 리포트', '집값은 돌고 돈다 — 데이터로 검증한 6개 고리'),
-        ('/burini-test/', '부린이 테스트', '내 부동산 감각 5분 점검, 10문항'),
+        ('/burini-test/', '부린이 테스트', '내 부동산 감각 5분 점검, %d문항' % HS.quiz_len()),
     ]
 
 

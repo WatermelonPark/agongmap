@@ -8,7 +8,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_QUIZ_BUILD='v193';
+var HOME_QUIZ_BUILD='v194';
 const QUIZSETS={
   beginner:{
     title:'부린이 테스트', emoji:'🐣',
@@ -117,7 +117,7 @@ const QUIZSETS={
    answer:0,
    exp:'정답은 <b>O</b>. 법과 조례는 거래 금액 구간별로 <b>상한 요율</b>을 정해 두고, 이를 초과해 받는 것은 불법이다. 다만 정해진 건 어디까지나 <b>상한</b>이라 그 한도 안에서는 중개사와 협의해 낮출 수 있다 — 상한이 곧 정찰가는 아니다.'},
     ],
-    grade:s=>BLV[Math.max(0,Math.min(10,s|0))]
+    grade:s=>BLV[Math.max(0,Math.min(BLV.length-1,s|0))]
   },
   investor:{
     title:'투자자 테스트', emoji:'🦅',
@@ -338,7 +338,7 @@ const QUIZSETS={
   }
 };
 
-/* 문항 풀에서 매 회차 10개를 뽑는다.
+/* 문항 풀에서 매 회차 QUIZ_LEN 개를 뽑는다.
    시드를 주면 같은 문항·같은 순서가 재현된다 → 친구 대결은 동일 시험지로 겨룬다.
    시드를 생략하면 새 시드를 뽑는다 → 재도전할 때마다 문제가 달라진다. */
 const QUIZ_LEN=10;
@@ -456,9 +456,10 @@ function renderQ(){
   document.getElementById('qbar').style.width=((qIdx)/QUIZ.length*100)+'%';
   document.getElementById('qcount').textContent=`${QUIZSETS[curSet].title} · ${qIdx+1} / ${QUIZ.length}`;
   const card=document.getElementById('qcard');
+  const live=document.getElementById('qlive'); if(live)live.textContent='';
   card.innerHTML=`
     <button class="qback" onclick="backToPick()">← 테스트 선택</button>
-    <div class="qq">${item.q}</div>
+    <div class="qq" id="qq" tabindex="-1">${item.q}</div>
     <div class="qopts qopts-lr">${item.opts.map((o,i)=>
       `<button class="qopt" onclick="answerQ(${i})">${o}</button>`).join('')}</div>
     <div class="qexp" id="qexp"></div>
@@ -472,20 +473,27 @@ function answerQ(choice){
   if(choice===correct)qScore++;
   qResults.push(choice===correct);
   qChoices[qIdx]=choice;
+  /* 답한 뒤 보기는 누를 수 없음을 스크린리더에도 알리고(aria-disabled), ○·✕ 표시에는 읽을 글을 붙인다(전수리뷰 H2-22) */
   opts.forEach((o,i)=>{
     o.style.pointerEvents='none';
-    if(i===correct){o.classList.add('correct');o.innerHTML+='<span class="mark">○</span>';}
-    else if(i===choice){o.classList.add('wrong');o.innerHTML+='<span class="mark">✕</span>';}
+    if(o.setAttribute)o.setAttribute('aria-disabled','true');
+    if(i===correct){o.classList.add('correct');o.innerHTML+='<span class="mark" aria-hidden="true">○</span><span class="sr-only">'+(i===choice?'내 선택, 정답':'정답')+'</span>';}
+    else if(i===choice){o.classList.add('wrong');o.innerHTML+='<span class="mark" aria-hidden="true">✕</span><span class="sr-only">내 선택, 오답</span>';}
     else o.classList.add('dim');
   });
   const exp=document.getElementById('qexp');
   const ok=choice===correct;
   exp.innerHTML=`<div class="ehead ${ok?'o':'x'}">${ok?'○ 정답!':'✕ 아쉬워요'}</div><p>${item.exp}</p>`+
-    (item.asof?`<p class="qasof">제도 기준일 ${item.asof.replace(/-/g,'.')} · 이후 바뀌었을 수 있습니다</p>`:'');
+    (item.asof?`<p class="qasof">제도 기준일 ${_dL(item.asof)} · 이후 바뀌었을 수 있습니다</p>`:'');
   exp.classList.add('show');
   document.getElementById('qnext').classList.add('show');
   qSave();
-  if(qReplay)return;   // 이어 풀기 복원 중에는 측정·스크롤을 하지 않는다
+  if(qReplay)return;   // 이어 풀기 복원 중에는 측정·스크롤·안내를 하지 않는다
+  /* 정오·해설을 늘 렌더된 상태 영역(#qlive, #qcard 밖)에 넣어 스크린리더가 읽게 한다 — #qexp 는 문항마다 새로 만들어지고 답하기 전엔
+     숨어 있어 라이브 영역으로 읽히지 않았다(전수리뷰 H2-22). */
+  const live=document.getElementById('qlive');
+  if(live){ const plain=h=>String(h).replace(/<[^>]+>/g,'');
+    live.textContent=(ok?'정답입니다. ':'오답입니다. 정답은 '+plain(item.opts[correct])+'입니다. ')+plain(item.exp); }
   track('quiz_answer',{quiz_type:curSet,idx:qIdx+1,correct:ok});
   setTimeout(()=>{document.getElementById('qnext').scrollIntoView({behavior:scrollBehavior(),block:'center'});},150);
 }
@@ -495,6 +503,7 @@ function nextQ(){
   renderQ();
   qSave();
   window.scrollTo(0,0);
+  const q=document.getElementById('qq'); if(q&&q.focus)q.focus({preventScroll:true});   // 새 문항으로 초점(카드를 갈아 끼워 초점이 BODY 로 떨어졌다)
 }
 function gradeOf(s){return QUIZSETS[curSet].grade(s);}
 function nextStepHTML(){
@@ -521,7 +530,7 @@ function nextStepHTML(){
   return `<div class="nextstep">
     <div class="ns-kicker">다음 단계</div>
     <div class="ns-title">이 문제들, 감으로 낸 게 아니다</div>
-    <p class="ns-desc">10문항은 <b>아파트 사이클</b>의 고리에서 나왔다. 전세가 왜 먼저 오르는지, 서울은 왜 집값이 올라도 공급이 안 늘어나는지 이어서 읽어 보자.</p>
+    <p class="ns-desc">${QUIZ_LEN}문항은 <b>아파트 사이클</b>의 고리에서 나왔다. 전세가 왜 먼저 오르는지, 서울은 왜 집값이 올라도 공급이 안 늘어나는지 이어서 읽어 보자.</p>
     <a class="ns-btn" href="/#score" onclick="track('next_step',{from:'investor',to:'map'});tbView('map')">🗺️ 우리 지역 공급, 지도에서 확인하기 →</a>
     <a class="ns-btn ghost" href="/cycle/" onclick="track('next_step',{from:'investor',to:'report'})">📑 아파트 사이클 리포트 읽기</a>
     <button class="ns-btn ghost" onclick="track('next_step',{from:'investor',to:'stats'});showView('stats')">📊 국가기관 원자료 직접 보기</button>

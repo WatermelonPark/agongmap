@@ -6,6 +6,7 @@
 단정이, gauge_legend_html 이 GRADE_LABS 대신 손 이름을 쓰거나 cut_mult 대신 퍼센트를 쓰면 범례 단정이, build_hub 가 막대를 빼면 허브 단정이 빨개진다.
 픽스처: 실제 칸의 비율 모양(서울 1.389·경기 0.17·인천 −0.19·충남 −0.74·제주 1.79)과 축 밖 값(−1.5·2.6), 저장소 판정(허브).
 """
+import io
 import os
 import re
 import sys
@@ -61,3 +62,19 @@ def test_hub_cards_carry_the_gauge_and_the_multiple():
         t = SZ.ratio_text(z['ratio'], adv['sido']['H']) if z['agg'] else SZ.card_text(z['dtot'], z['ratio'], adv['sido']['H'])
         frag = t.split('(')[-1].rstrip(')') if '(' in t else t
         assert frag in h, (z['z'], frag)
+
+
+def test_home_table_legend_is_one_price_ramp():
+    """홈 표 보기 범례는 한 줄이고, 색 띠는 가격만(왼쪽 하락 → 오른쪽 상승) 말한 뒤 '미래 칸은 붉을수록 공급 부족'을 글로 붙인다
+    (2026-10-18 대표 결정 D4, 전수리뷰 2차 H1-6). 예전 범례 '하락 · 공급 과잉 [띠] 상승 · 공급 부족'은 한 띠가 가격과 공급을 함께
+    말해 공급 방향이 지도 범례(왼쪽 부족 → 오른쪽 여유)와 반대였고, 판정 이름 '공급 여유'와 다른 '과잉'을 썼다.
+    변이(실제로 확인): index.html .tb-key 를 옛 '하락 · 공급 과잉 … 상승 · 공급 부족'으로 되돌리면 빨개진다.
+    픽스처: 저장소 index.html(손으로 쓰는 홈 마크업)."""
+    html = io.open(os.path.join(M.ROOT, 'index.html'), encoding='utf-8').read()
+    m = re.search(r'<div class="tb-key">(.*?)</div>', html, re.S)
+    assert m, '홈 표 보기 범례(.tb-key)를 못 찾았다'
+    key = re.sub(r'<[^>]+>', '|', m.group(1))
+    words = [w.strip() for w in key.split('|') if w.strip()]
+    assert words[:3] == ['하락', '상승', '미래 칸은 붉을수록 공급 부족'], words
+    assert '과잉' not in m.group(1) and '여유' not in m.group(1), words
+    assert m.group(1).index('tk-d') < m.group(1).index('tk-ramp') < m.group(1).index('tk-u')

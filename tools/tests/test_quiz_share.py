@@ -114,13 +114,15 @@ def test_share_text_says_what_the_card_says_for_every_set():
 def test_share_denominator_follows_the_quiz_length():
     """공유 문구·카카오 제목의 점수 분모는 결과 카드와 같은 QUIZ.length 다(문항 수를 12로 바꾼 상태로 돈다).
 
-    변이: shareTxt 의 `/${QUIZ.length}` 를 옛 '/10' 으로 되돌리면 빨개진다(실제로 확인).
+    변이: shareTxt 의 `/${QUIZ.length}` 를 옛 '/10' 으로 되돌리면 빨개진다(실제로 확인). 투자자 결과 '다음 단계'(nextStepHTML)의
+    '${QUIZ_LEN}문항은' 을 손 숫자 '10문항은' 으로 되돌려도 빨개진다(전수리뷰 H2-8, 실제로 확인).
     픽스처: QUIZ_LEN 만 12로 바꾼 실제 home-quiz.js, 투자자 세트(문항 풀 20개라 12문항이 뽑힌다), 11점.
     """
-    o = _run("curSet='investor';QUIZ=drawQuiz('investor',123);qScore=11;OUT={n:QUIZ.length,txt:shareTxt()};",
+    o = _run("curSet='investor';QUIZ=drawQuiz('investor',123);qScore=11;OUT={n:QUIZ.length,txt:shareTxt(),ns:nextStepHTML()};",
              quiz_len=12)
     assert o['n'] == 12
     assert '11/12' in o['txt'] and '/10' not in o['txt'], o['txt']
+    assert '12문항은' in o['ns'] and '10문항' not in o['ns'], '다음 단계 문구가 문항 수 정본을 따르지 않는다'
     src = dict(HS.home_files())['home-quiz.js']
     assert not re.search(r'\$\{qScore\}/10', src), '공유 문구 어딘가에 분모 /10 이 남았다'
 
@@ -147,3 +149,65 @@ OUT={bar1,bar2,vs1,vs2,vs3,seed2,cr:EV.filter(e=>e[0]==='challenge_result').leng
     assert o['seed2'] != 71
     assert o['bar2'] == 'none' and not o['vs2'], '다른 시험지인데 대결로 판정했다'
     assert o['vs3'] and o['cr'] == 2, o   # 첫 판 + 같은 시드 재도전
+
+
+def test_card_badges_and_names_follow_the_result_grade(tmp_path, monkeypatch):
+    """공유 카드의 LV 배지·이름 = 결과 화면이 쓰는 QUIZSETS.<세트>.grade(s) 의 lv·g, 배지 분모 = 그 세트의 등급 수(전수리뷰 P-3·P-14).
+
+    재현한 실제 상태(2026-10-18): 재건축 카드 BADGES 가 손 사본이라 11칸 이름이 모두 결과 화면·랜딩 표와 달랐고
+    (9점 '사업성 스캐너', 10점 '재건축 계산 선수' — 결과는 둘 다 '사업성이 한눈에 보이는 선수'), 배지가 부린이 틀의
+    '/ 10'을 그대로 써 다섯 단계뿐인 재건축 최고 등급이 'LV5 / 10'으로 그려졌다.
+    변이(실제로 확인): make_calc_cards.badges() 를 옛 손 사본 목록으로 되돌리면, 배지 분모를 '/ 10' 으로 되돌리면 빨개진다.
+    부린이 카드 LEVELS 이름이 BLV g 와 한 칸이라도 다르면(예: 10점 '부동산 봉황' → '부동산 불사조') 빨개진다.
+    픽스처: 실제 home-quiz.js(QUIZ_LEN·grade)를 node 로 돌린 결과와 실제 카드 생성기. 카드는 tmp 에 한 장 굽는다.
+    """
+    import make_beginner_cards as MB
+    import make_calc_cards as MC
+    from PIL import ImageDraw
+    o = _run("OUT={};for(const k of ['beginner','calc']){OUT[k]=[...Array(QUIZ_LEN+1).keys()]"
+             ".map(s=>{const g=QUIZSETS[k].grade(s);return [g.lv,g.g];});}")
+    assert len(o['calc']) == HS.quiz_len() + 1 and len(o['beginner']) == HS.quiz_len() + 1
+    assert [list(x) for x in MC.badges()] == o['calc'], 'calc 카드 배지·이름이 결과 화면과 다르다'
+    assert [[lv, g] for lv, g, _ in MB.LEVELS] == o['beginner'], '부린이 카드 배지·이름이 BLV 와 다르다'
+    drawn = []
+    real = ImageDraw.ImageDraw.text
+    monkeypatch.setattr(ImageDraw.ImageDraw, 'text', lambda self, xy, text, *a, **k: (drawn.append(text), real(self, xy, text, *a, **k))[1])
+    top = HS.quiz_len()
+    MC.make_card(top, str(tmp_path / 'c.png'))
+    n_lv = len({lv for lv, _ in o['calc']})
+    assert o['calc'][top][0] in drawn and '/ %d' % n_lv in drawn, ('재건축 만점 카드 배지가 %s / %d 가 아니다' % (o['calc'][top][0], n_lv), drawn)
+    assert '/%d' % top in drawn and o['calc'][top][1] in drawn, drawn
+
+
+def _side_ink(img, band=(200, 483), side=50):
+    """숫자 띠(y band)에서 좌우 side 픽셀 안에 찍힌 흰색 아닌 칸 수."""
+    im = img.convert('RGB').crop((0, band[0], img.width, band[1]))
+    w, h = im.size
+    px = im.load()
+    return sum(1 for y in range(h) for x in list(range(side)) + list(range(w - side, w)) if px[x, y] != (255, 255, 255))
+
+
+def test_investor_score_row_stays_inside_the_card_margins(tmp_path):
+    """투자자 공유 카드의 숫자 줄(점수·'/N'·이모지)이 좌우 50px 여백 안에 든다 — 저장소의 카드 0~QUIZ_LEN점과 도구가 지금 굽는 만점 카드 둘 다.
+
+    재현한 실제 상태(2026-10-18): 두 자리 '10'은 줄 폭이 790px 라 그룹 왼쪽이 x=-14, 큰 숫자 잉크가 x=2 부터 찍혀 카드 왼쪽 끝에 붙었다
+    (share/investor-10.png, kakaoFeed·/investor-test/10/ og:image). 한 자리 점수 카드는 잉크가 82px 부터라 정상이었다.
+    변이(실제로 확인): make_investor_cards.make_card 의 '여백 안에 들게 줄이는' 갈래를 지우면 도구 갈래가, 저장소 share/investor-10.png 를
+    옛 그림으로 되돌리면 저장소 갈래가 빨개진다.
+    픽스처: 저장소 share/investor-*.png 와 실제 카드 도구(번들 글꼴)로 tmp 에 구운 만점 카드.
+    """
+    from PIL import Image
+    import make_investor_cards as MI
+    top = HS.quiz_len()
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    bad = []
+    for s in range(top + 1):
+        n = _side_ink(Image.open(os.path.join(root, 'share', 'investor-%d.png' % s)))
+        if n:
+            bad.append(('share/investor-%d.png' % s, n))
+    out = tmp_path / 'inv.png'
+    MI.make_card(top, str(out))
+    n = _side_ink(Image.open(str(out)))
+    if n:
+        bad.append(('make_card(%d)' % top, n))
+    assert not bad, '숫자 줄이 카드 좌우 여백을 침범한다(점 수): %s' % bad

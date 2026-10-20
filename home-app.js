@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v193';
+const HOME_BUILD='v194';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -35,8 +35,7 @@ let BUILD_RELOAD=false;
 
 
 const FONT="'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',sans-serif";
-const INK="#131e24",INK2="#4c5f66",GRID="#dde4e1",MUTED="#5e6f74";
-const MAEMAE="#c0392b",JEONSE="#6c4ab6",STOCK="#1f8a70",FLOW="#d99a00";
+const INK="#131e24",INK2="#4c5f66",GRID="#dde4e1";   // INK·GRID 는 home-stats.js 그래프 축이 쓴다
 /* Chart.js는 defer라 이 시점엔 아직 없다 — boot()에서 부른다. */
 function chartSetup(){
   Chart.defaults.font.family=FONT;Chart.defaults.font.size=12;Chart.defaults.color=INK2;
@@ -95,14 +94,16 @@ function partURL(n){ return PARTS[n].src+'?v='+HOME_BUILD; }
 const PART_P={};
 let PART_WAIT=0;   // 받고 있는 분할 파일 수 — loadData 가 그 사이 '불러오는 중'을 걷지 않게
 /* 통계 화면 파일(home-stats.js)을 못 받았는가. 그 안내('통계 화면을 불러오지 못했습니다')를 나란히 받던 그래프 데이터의
-   성공이 걷으면 통계 화면이 안내 없이 빈 채로 남았다(전수리뷰 A1). 다시 누르면(partBusy 'wait') 푼다. */
+   성공이 걷으면 통계 화면이 안내 없이 빈 채로 남았다(전수리뷰 A1). 파일 자체의 성패로만 세우고 푼다 — 예전엔 대기열 실패
+   (partBusy 'fail')가 그래프 데이터만 실패해도 세웠고, 파일이 온 뒤엔 다시 시도·재진입이 대기 함수를 거치지 않아 풀리지 않아
+   다 그려진 화면 위에 '불러오는 중…'이 남았다(전수리뷰 2차 H1-3·H2-5). */
 let PART_FAIL=false;
 function loadPart(n){
   if(!PART_P[n]){
     PART_WAIT++;
-    PART_P[n]=loadScript(partURL(n)).then(()=>{ PART_WAIT--;
+    PART_P[n]=loadScript(partURL(n)).then(()=>{ PART_WAIT--; if(n==='stats')PART_FAIL=false;
       if(!partBuildOk(n))return new Promise(()=>{});   // 새로고침하는 중 — 대기열을 풀지 않는다(옛 홈 위에서 새 판 코드를 돌리지 않게)
-    },e=>{ PART_WAIT--; delete PART_P[n]; throw e; });
+    },e=>{ PART_WAIT--; delete PART_P[n]; if(n==='stats')PART_FAIL=true; throw e; });
   }
   return PART_P[n];
 }
@@ -125,11 +126,11 @@ function partReady(n){ return n==='stats'?Promise.all([loadPart(n),loadFullData(
 function partBusy(n,fn,state){
   if(n==='stats'){
     const box=document.getElementById('stats-loading'); if(!box)return;
-    if(state==='wait'){PART_FAIL=false;box.textContent='통계 화면을 불러오는 중…';box.style.display='';}
+    if(state==='wait'){box.textContent='통계 화면을 불러오는 중…';box.style.display='';}
     else if(state==='done'){box.style.display='none';}
     /* '다시 눌러 주세요'라고만 하면 누를 것이 없었다(백로그 36-6) — 같은 자리에 다시 시도 단추를 둔다(statsOpen 은 PARTS 입구라
        누르면 분할 파일을 다시 받는다. 실패한 주소는 loadPart 가 _loaded 에서 지워 둔다). */
-    else{PART_FAIL=true;box.textContent='통계 화면을 불러오지 못했습니다. 연결을 확인해 주세요. ';
+    else{box.textContent='통계 '+(PART_FAIL?'화면을':'데이터를')+' 불러오지 못했습니다. 연결을 확인해 주세요. ';
       if(box.insertAdjacentHTML)box.insertAdjacentHTML('beforeend','<button type="button" class="retry-btn" onclick="statsOpen()">다시 시도</button>');
       box.style.display='';}
     return;
@@ -177,7 +178,6 @@ if(document.fonts&&document.fonts.ready){
     });
   }).catch(()=>{});
 }
-const fy=t=>Math.floor(t),SUDO=["서울","경기","인천"];
 
 
 
@@ -187,7 +187,7 @@ const vHome=document.getElementById('view-home'),vStats=document.getElementById(
 let statsInited=false,curView=null;
 let _fullData=null;
 function loadFullData(){
-  /* 홈은 core(48KB)만 받고, 주간 155주·기본통계 11계열은 통계 탭을 열 때 받는다.
+  /* 홈은 data-core.js 만 받고, 주간 155주·투자지표(data-trend.json)·기본통계(data-rest.json)는 통계 탭을 열 때 받는다.
      data.js를 런타임에 정규식으로 파싱하지 않는다 — 선언 형태가 조금만 바뀌어도
      조용히 깨지므로 분리기가 낸 JSON을 그대로 읽는다. */
   return loadData('/data-trend.json');
@@ -378,7 +378,7 @@ window.addEventListener('hashchange',applyHash);
 /* ============ 통계 대시보드 → home-stats.js(B11 코드 분할, 통계 화면을 열 때 받는다) ============ */
 
 /* ============ 부동산 테스트 (부린이 / 투자자) ============ */
-/* 부린이 테스트 레벨 10단계 (점수 0~10 → 태아부터 교수님까지).
+/* 부린이 테스트 레벨 표 (점수 0~10 → 무주택 달걀부터 부동산 봉황까지 — 칸 수·이름은 아래 표가 정본).
    share/beginner-{0..10}.png 카드의 스탬프·이모지·문구와 1:1로 대응한다. */
 const BLV=[
   {lv:'LV1',emoji:'\u{1F95A}',g:'무주택 달걀',
@@ -612,12 +612,10 @@ function onTrendLink(e,from){
    다음 발표일까지 계산해 보여준다 — 유저가 '언제 새로 나오나'를 알 수 있게. */
 // <wk-release> ── 이 구간은 test_weekly_release 가 통째로 node 에 올려 파이썬 정본(tools/weekly_release.py)과
 // 대조한다. 여기에는 DOM·ADV 를 만지지 않는 순수 함수만 둔다.
-/* 법정공휴일(대체공휴일 포함). 배치가 특일정보 API로 채운 ADV.holidays가 있으면 그걸(_syncHolidays),
-   없으면 이 하드코딩으로. const가 아니라 let인 이유는 데이터 도착 시 갈아끼우기 위함이다. */
-let _HOLIDAYS=new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18',
-  '2026-03-01','2026-03-02','2026-05-05','2026-05-25','2026-06-06','2026-08-15',
-  '2026-08-17','2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05',
-  '2026-10-09','2026-12-25']);
+/* 법정공휴일(대체공휴일 포함). 정본은 배치가 특일정보 API로 채운 ADV.holidays 하나다(_syncHolidays). 없으면(옛 캐시) 빈
+   목록 — 파이썬 weekly_release.status 의 기본값(holidays=())과 같다. 예전 하드코딩 2026 목록은 5/1·5/24·6/3·7/17 이 빠진 채
+   낡아 파이썬과 연휴 판정이 갈렸다(전수리뷰 2차 overflow). const가 아니라 let인 이유는 데이터 도착 시 갈아끼우기 위함이다. */
+let _HOLIDAYS=new Set();
 /* 날짜는 'UTC 자정 기준 일수'(정수)로만 다룬다. Date 의 지역 시간 메서드를 쓰면 방문자 기기의 시간대에
    따라 날짜가 하루 갈린다. '오늘'은 KST(+9, 일광 절약 없음) — tools/kst.py 와 같다. */
 const _DAY=864e5;
@@ -663,6 +661,7 @@ function _qT(k){const m=String(k).match(/^(\d{4})Q([1-4])$/);return m?m[1]+'년 
    sido_zones.DISPLAY_NAME 에서 ADV.zname 으로 싣는다. 데이터·주소·GA 값은 키 그대로 두고 글자만 이것으로 바꾼다(test_display_name). */
 function zn(r){const m=(typeof ADV!=='undefined'&&ADV&&ADV.zname)||{};return m[r]||r;}
 function _dS(iso){const a=String(iso).split('-');return a.length<3?String(iso):a[0].slice(2)+'.'+(+a[1])+'.'+(+a[2]);}
+function _dL(iso){const a=String(iso).split('-');return a.length<3?String(iso):a[0]+'년 '+(+a[1])+'월 '+(+a[2])+'일';}   // 해를 넘겨 보이는 날짜(sido_zones.day_long)
 /* 연휴 주(hedge)는 날짜를 단정하지 않되 안내 문구도 적지 않는다(빈 문자열 — 2026-10-05 대표 요청으로 '연휴로 발표 일정이
    바뀔 수 있습니다'를 뺐다). 그래서 이어 붙이는 쪽은 빈 조각을 거른다(wkWhenText·통계 탭 rel-week).
    wkWhenText 는 /weekly/ 머리줄(파이썬 weekly_release.when_text)의 JS 거울이다 — 홈 화면은 2026-10-05 부터 '9/28 기준 ·
@@ -957,7 +956,7 @@ function tbDraw(){
       }else{
         alt = '매매 '+tbPv(r.m?r.m[k]:null)+' · 전세 '+tbPv(r.j?r.j[k]:null)+' · 월세 '+tbPv(r.w?r.w[k]:null);
       }
-      h+='<td title="'+B.regs[k]+' '+lab+' — '+alt+'">'
+      h+='<td title="'+zn(B.regs[k])+' '+lab+' — '+alt+'">'
         +'<span class="tc">'+lay+'<b>'+txt+'</b></span></td>';
     }
     h+='</tr>';
@@ -1231,8 +1230,9 @@ function moMapModel(W){
   if(!row||!row.ma||!W.regions||!W.regions.length||!/^\d{4}-\d{2}$/.test(row.p||'')) return null;
   var v={};
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
-  var y=+row.p.slice(0,4), m=+row.p.slice(5,7), lead=m+'월 기준';
-  return {v:v,when:y+'년 '+m+'월 기준 · 한국부동산원',lead:lead,stale:false,
+  /* 읽는 자리(범례 뜻 줄·지도 이름·칸 설명)라 날짜 두 단계 정본의 긴 꼴 '2026년 8월'(_ymT) — 예전 '8월 기준'은 연도가 없었다(전수리뷰 2차 overflow) */
+  var lead=_ymT(row.p)+' 기준';
+  return {v:v,when:lead+' · 한국부동산원',lead:lead,stale:false,
     k:'month',ref:MO_MAP_REF,unit:'전월 대비',adj:'월간',href:'/monthly/',to:'monthly_map_card'};
 }
 /* 지금 모드의 시세 재료 — 공급 모드면 null. data-core 가 안 왔으면(ADV 없음) 시세 모드도 없다(2026-10-05 리뷰). */
@@ -1244,7 +1244,7 @@ function priceModel(mode){
 }
 /* 범례 한 덩어리 — M 이 없으면 공급, 있으면 그 시세(주간·월간). 끝말·가운데 칸을 모드마다 바꾸고, 주간은 뜻 한 줄(제목과 단위)을 단다.
    공급 범례 아래 뜻 한 줄('지난 4년 덜 지은 몫까지 더해 … · 2026년 2분기 기준')은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리.
-   식은 카드 ⓘ·산출 방법에, 3년 구간은 지도 아래 '앞으로 3년(…~…)' 줄에 있다).
+   식은 카드 ⓘ·산출 방법에, 3년 구간은 카드 아래 기준 줄 '앞으로 3년(…~…)'에 있다).
    주간 램프의 양끝·가운데 색은 지도 채움과 같은 wkFill 에서 뽑는다(범례와 지도가 다른 색을 말하지 않게). */
 function mapKeyHtml(M){
   /* 공급 범례는 왼쪽 부족 → 오른쪽 여유(2026-10-06 대표 결정 — 지역 칸 막대·신호등과 같은 방향, '오른쪽일수록 공급이 많다').
@@ -1292,7 +1292,7 @@ function mapMode(m){
   });
   var el=document.getElementById('map-wrap');
   if(el) el.dataset.done='';
-  /* 지도 아래 공급 출처 줄('앞으로 3년 공급 · 국토교통부 …')은 시세 지도의 출처가 아니다 — 시세 모드에서는 숨긴다(app.css .mm-price, 2026-10-05 리뷰) */
+  /* 카드 아래 공급 기준 줄('앞으로 3년 공급 · 국토교통부 …')은 시세 지도의 출처가 아니다 — 시세 모드에서는 숨긴다(app.css .mm-price, 2026-10-05 리뷰) */
   var sec=document.getElementById('sec-score');
   if(sec) sec.classList.toggle('mm-price',m!=='supply');
   /* 시세 모드의 그래프·표는 시세 탭이 맡는다(tbView) — 공급 그래프·표를 보던 중이면 지도로 돌린다 */
@@ -1385,7 +1385,8 @@ function renderSidoMap(){
     /* 지도는 기본 모드다 — sido-geo.js가 안 오면(404·차단) 조용히 빠지면
        홈 첫 화면이 빈 상자가 된다(2026-08-08 감사 세션 지적). 표로 폴백하고
        지도 버튼은 잠근다. 그래프·표는 이 파일 없이도 온전하다. */
-    if(TB_VIEW==='map'&&MAP_MODE==='supply') tbView('table');   // 시세 모드는 priceOk 가 막아 여기 오지 않는다
+    /* 사람이 고른 보기가 아니라 자동 폴백이라 supply_view GA 를 보내지 않는다(quiet, 전수리뷰 2차 overflow) */
+    if(TB_VIEW==='map'&&MAP_MODE==='supply') tbView('table',true);   // 시세 모드는 priceOk 가 막아 여기 오지 않는다
     var mb=document.querySelector('#tb-view [data-v="map"]');
     if(mb){ mb.disabled=true; mb.title='지도 데이터를 불러오지 못했습니다'; }
     return;
@@ -1682,11 +1683,11 @@ function renderWeeklyGrid(){
      요청으로 시도 칸을 모두 걷고 통계 탭과 같은 시군구 지도(sggMapSvg)를 그 자리에 둔다 — 시도 값은 지도의 진한 머리 칸
      (서울·경기 …)이 말한다. 칸(이름·값)을 누르면 그 지역 주간 그래프(통계 시장동향, openTrendRegion). 전세 줄은 싣지 않는다
      (2026-09-28 대표 결정 — 홈 주간 구역은 매매만). 색·값은 통계 지도와 같은 mapColor(…, WK_MAP_REF)·pv2 다.
-     요약·공유 주소인 /weekly/ 로 가는 길은 머리줄 오른쪽 링크다(home_cta 의 to 값 weekly_grid 는 GA 값이라 그대로 둔다). */
+     요약·공유 주소인 /weekly/ 로 가는 길은 지도 아래 줄(.wg-foot) 오른쪽 링크다(home_cta 의 to 값 weekly_grid 는 GA 값이라 그대로 둔다). */
   const v={}; S.codes.forEach((c,i)=>{v[c]=row.ma[i];});
   const svg=sggMapSvg([v],{ref:WK_MAP_REF,names:['매매'],href:c=>'#stats-market-week~'+c});
   /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). */
-  const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel);
+  const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel,wkPs(ADV.weekly));
   if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
   const lines=since?'<p class="wg-since">'+since+'</p>':'';
   const sh=weeklyShare(ADV.weekly);
@@ -1743,13 +1744,26 @@ function weeklyShare(W){
   return (s&&s.url&&row&&s.p===row.p)?s:null;
 }
 /* 지난 방문 이후 새 발표(RET-5). 마지막으로 본 발표일을 이 기기에만 둔다(개인정보처리방침 '브라우저에만 저장').
-   seen: 지난번에 본 발표일(YYYY-MM-DD), r: weeklyRelease. 새 발표가 없거나 처음 온 기기면 null. 발표는 매주 한 번이라
-   두 발표일의 주 차이가 곧 새 발표 수다. */
+   seen: 지난번에 본 발표일(YYYY-MM-DD), r: weeklyRelease, ps: 최근 조사기준일 목록(split_data 가 싣는 ADV.weekly.ps — wkPs).
+   새 발표가 없거나 처음 온 기기면 null. 새 발표 수는 seen 뒤에 나온 발표(조사일+3, weeklyRelease 의 pub)를 실제 조사일로 센다 —
+   예전엔 두 발표일의 주 차이를 셌는데 원천은 긴 연휴 주에 조사를 한 주 거른다(2025-01-20→02-03, 2025-09-29→10-13)라
+   그 사이를 지난 재방문자에게 한 번 더 셌다(전수리뷰 2차 X2-8). 목록의 모든 발표가 seen 뒤면 그 앞은 모르므로 'N회 이상'.
+   목록이 없는 옛 캐시만 주 차이로 센다. */
 const WK_SEEN_KEY='wk_seen';
-function wkSinceText(seen,r){
+function wkSinceText(seen,r,ps){
   if(!r||!seen||!/^\d{4}-\d{2}-\d{2}$/.test(seen)||!(seen<r.pub))return null;
-  const n=Math.round((_dn(r.pub)-_dn(seen))/7);
-  return n>=1?'지난 방문('+_md(seen)+' 발표) 이후 새 발표 '+n+'회':null;
+  let n, more='';
+  if(ps&&ps.length){
+    n=ps.map(p=>_iso(_dn(p)+3)).filter(d=>d>seen&&d<=r.pub).length;
+    if(n===ps.length)more=' 이상';
+  }else n=Math.round((_dn(r.pub)-_dn(seen))/7);
+  return n>=1?'지난 방문('+_md(seen)+' 발표) 이후 새 발표 '+n+'회'+more:null;
+}
+/* 조사기준일 목록 — 코어는 ps(최근 몇 주)를, 통계 탭 데이터가 ADV.weekly 를 바꾼 뒤에는 전체 rows 를 읽는다 */
+function wkPs(W){
+  if(!W)return null;
+  if(W.ps&&W.ps.length)return W.ps;
+  return (W.rows&&W.rows.length>1)?W.rows.map(r=>r.p):null;
 }
 /* 더 새 발표일만 적는다 — 서비스워커·브라우저 캐시의 옛 data-core 로 그린 화면이 이미 본 새 발표일을 옛 날짜로 덮으면
    다음 방문에 '새 발표'를 한 번 더 센다(3차 검토). */
@@ -1805,7 +1819,7 @@ function renderBlogLine(){
    예시 점수 3 = 🐥 솜털 병아리. 8(🏘️ 다주택자)로 걸었다가 사용자가 "병아리가
    더 귀엽다"고 해서 낮췄다(2026-08-17). 만점을 걸면 "쉽겠네"가 되고, 부린이
    테스트의 얼굴은 도달점보다 출발점 쪽이 맞다 — 상위 티어는 풀어야 보인다. */
-const SAMPLE_SCORE=3, SAMPLE_TOTAL=10;
+const SAMPLE_SCORE=3, SAMPLE_TOTAL=BLV.length-1;   // BLV 는 점수 0~QUIZ_LEN 한 칸씩이라 길이-1 이 문항 수다(전수리뷰 H1-5)
 function quizSample(){
   const box=document.getElementById('quiz-sample');
   /* ⚠️ window.BLV로 보면 안 된다 — 최상위 const는 window에 안 걸린다(2026-08-17
@@ -1993,7 +2007,7 @@ function boot(){
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
   renderBlogLine();   // 주간 구역 아래 이번 주 해석 글 한 줄(B5)
-  renderSupplySpan(); // 지도 아래 '앞으로 3년(…~…)' 구간(B9)
+  renderSupplySpan(); // 카드 아래 기준 줄의 '앞으로 3년(…~…)' 구간(B9)
   dropOldMyZone();    // 뺀 '내 지역'의 옛 저장값 정리
   /* ⚠️ 표(분기 1,000칸 HTML 조립)는 여기서 굽지 않는다. 기본 모드가 지도인데
      숨은 표를 먼저 구우면 그 비용(월 모드 실측 200ms+)이 기본 화면 페인트를 막고,

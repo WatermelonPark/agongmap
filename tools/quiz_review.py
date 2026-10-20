@@ -12,14 +12,34 @@ review(검토 기한)를 달고, 기한이 지난 문항을 감시(check_freshne
 import datetime
 import re
 
-# opts 문자열에는 ']' 가 없다 — [^\]]* 로 한 문항 안에 가둔다(.*? 는 다음 문항까지 넘어간다).
-ITEM = re.compile(r"\{q:'((?:[^'\\]|\\.)*)',\s*opts:\[[^\]]*\],\s*"
-                  r"asof:'(\d{4}-\d{2}-\d{2})',\s*review:'(\d{4}-\d{2}-\d{2})',")
+# 한 문항 = '{q:' 에서 다음 '{q:' 앞까지. 그 안에서 asof·review 를 **순서와 자리에 상관없이** 찾는다 — 예전 식은 asof 가 opts 바로
+# 뒤, review 가 asof 바로 뒤일 때만 읽어, 다른 순서로 단 제도 문항은 조용히 빠졌다(감시는 0개일 때만 실패했다 — 전수리뷰 P 묶음 overflow).
+Q = re.compile(r"\{q:'((?:[^'\\]|\\.)*)'")
+ASOF = re.compile(r"\basof:'(\d{4}-\d{2}-\d{2})'")
+REVIEW = re.compile(r"\breview:'(\d{4}-\d{2}-\d{2})'")
+
+
+def _chunks(src):
+    starts = [m for m in Q.finditer(src)]
+    for i, m in enumerate(starts):
+        end = starts[i + 1].start() if i + 1 < len(starts) else len(src)
+        yield m.group(1), src[m.end():end]
 
 
 def items(src):
-    """[(질문 텍스트, 기준일, 검토 기한)]"""
-    return [(re.sub(r'<[^>]+>', '', q), asof, review) for q, asof, review in ITEM.findall(src)]
+    """[(질문 텍스트, 기준일, 검토 기한)] — asof·review 를 둘 다 단 문항."""
+    out = []
+    for q, body in _chunks(src):
+        a, r = ASOF.search(body), REVIEW.search(body)
+        if a and r:
+            out.append((re.sub(r'<[^>]+>', '', q), a.group(1), r.group(1)))
+    return out
+
+
+def half_tagged(src):
+    """asof·review 가운데 하나만 단 문항의 질문 — 검토 기한 감시에서 빠지므로 감시가 실패로 알린다."""
+    return [re.sub(r'<[^>]+>', '', q)[:40] for q, body in _chunks(src)
+            if bool(ASOF.search(body)) != bool(REVIEW.search(body))]
 
 
 def overdue(src, today):

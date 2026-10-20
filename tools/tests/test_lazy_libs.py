@@ -36,8 +36,14 @@ def test_home_does_not_load_chart_or_kakao_upfront():
 
 def test_every_chart_drawer_waits_for_the_library():
     s = _read('index.html')
-    for fn in ('drawTrendChart\\(k\\)', 'drawPermitChart\\(\\)', 'drawOccChart\\(\\)'):
-        assert re.search(r'function %s\{\s*if\(needChart\(' % fn, s), '%s 가 차트 라이브러리를 기다리지 않는다' % fn
+    # 시장동향·인허가·입주물량도 지역 상자·기간 단추를 먼저 그리고 그래프만 기다리며, 못 받으면 그 그래프 자리에 안내를 단다
+    # (전수리뷰 H2-4). 변이: needChart 줄을 mkChart 뒤로 옮기거나 chartFailNote 를 빼면 빨개진다(실제로 확인).
+    for name, call, first in (('drawTrendChart', "drawTrendChart(k)", 'renderTrPeriods('),
+                              ('drawPermitChart', 'drawPermitChart()', 'advSel('), ('drawOccChart', 'drawOccChart()', 'advSel(')):
+        a = s.index('function %s(' % name)
+        body = s[a:s.index('\n}', a)]
+        wait = body.find('if(needChart(()=>%s)){ chartFailNote(' % call)
+        assert 0 <= body.find(first) < wait < body.find('mkChart('), '%s 가 차트 라이브러리를 기다리는 자리가 어긋났다' % name
     # drawStat·drawLeadtime 은 표·메타·출처를 먼저 그리고 그래프만 기다린다(전수리뷰 #53, drawLeadtime 은 통합 검토 —
     # 라이브러리를 못 받아도 표는 남는다). 변이: 옛 모양(첫 줄에서 needChart)으로 되돌리면 표보다 앞이라 빨개진다(실제로 확인).
     for name, table_mark in (('drawStat', 'buildTable('), ('drawLeadtime', 'tbody.innerHTML=')):

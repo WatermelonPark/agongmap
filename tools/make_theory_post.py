@@ -80,9 +80,9 @@ def sync_table(cols=3):
             k = c * rows_per + i
             if k < len(r):
                 nm, cv = r[k]['region'], r[k]['corr']
-                bold = nm == r[-1]['region']      # 본문이 따로 다루는 최저 지역
-                tds.append('<td>%s%s%s</td><td>%s%.2f%s</td>' % (
-                    '<b>' if bold else '', P.esc(nm), '</b>' if bold else '',
+                bold = nm == r[-1]['region']      # 본문이 따로 다루는 최저 지역(키로 견준다)
+                tds.append('<td>%s%s%s</td><td>%s%.2f%s</td>' % (      # 보이는 이름은 블로그 정본 SEARCH_NAME(전수리뷰 BL2-10)
+                    '<b>' if bold else '', P.esc(P.SEARCH_NAME.get(nm, nm)), '</b>' if bold else '',
                     '<b>' if bold else '', cv, '</b>' if bold else ''))
             else:
                 tds.append('<td></td><td></td>')
@@ -96,7 +96,7 @@ def sync_stats():
     r = CYCLE_SYNC
     avg = sum(x['corr'] for x in r) / len(r)
     return dict(n=len(r), avg=avg, top=r[0], low=r[-1],
-                top2='·'.join(x['region'] for x in r[:2]))
+                top2='·'.join(P.SEARCH_NAME.get(x['region'], x['region']) for x in r[:2]))
 
 
 SYNC_LOW_REGION = '서울'     # 3편 "서울은 왜 다른가" 절이 전제하는 최저 지역
@@ -146,6 +146,21 @@ L1_MID_2 = """<h3>가운데가 가장 높은 이유</h3>
 
 <p>'보통' 구간에는 이 상승 초입이 섞여 있어서 평균이 높게 나옵니다.</p>
 """
+
+
+def permit_over_x(sts):
+    """1편 '인허가는 같은 해 착공보다 N배쯤 많고'의 N — 시도 리포트가 같은 사실을 굽는 정본 SZ.permit_over_start_pct('N%쯤')를 배수로
+    쓴 것(15 → '1.15'). 손으로 적은 '1.15배'를 대신한다(전수리뷰 overflow). 잴 수 없으면 데이터 상태로 멈춘다."""
+    import sido_zones as SZ
+    pct = SZ.permit_over_start_pct(sts)
+    if pct is None:
+        raise SystemExit('1편을 만들 수 없다 — 전국 인허가·착공으로 인허가가 착공보다 얼마나 많은지 잴 수 없다. %s — 통계 계열이 찬 뒤 '
+                         '다시 돌린다.' % NOT_THE_TEXT)
+    if pct <= 0:
+        # '착공보다 N배쯤 많고'는 인허가가 착공보다 많을 때만 참이다 — 0·음수면 '1배'·'0.9배쯤 많고'가 나간다
+        raise SystemExit('1편을 만들 수 없다 — 전국 인허가가 착공보다 많지 않다(정본 %s%%) — 1편 문장의 전제가 깨졌다. %s'
+                         % (pct, NOT_THE_TEXT))
+    return ('%.2f' % (1 + pct / 100.0)).rstrip('0').rstrip('.')
 
 
 def link1_values(D=None):
@@ -288,7 +303,7 @@ POSTS = [
 
 <p>그래서 아공맵에서는 국가통계로 각 고리를 하나씩 대조했습니다.</p>
 
-<p>예를 들어 ①번 고리 — 공급이 정말 전세를 누르는지 봅시다.</p>
+<p>예를 들어 ①번 고리, 공급이 정말 전세를 누르는지 봅시다.</p>
 
 <p>[여기에 전세 상승률 차트]</p>
 
@@ -346,7 +361,7 @@ POSTS = [
 사는 값과 빌리는 값의 차이가 좁아져 매매 전환 압력이 커집니다.</p>
 
 <p><b>③④를 보려면 착공 실적.</b> 인허가가 아닙니다. 인허가는 삽을 안 뜬 계획이
-섞여 같은 해 착공보다 1.15배쯤 많고, 해마다 크게 흔들립니다. 착공한 현장이 3년 뒤 입주로 이어집니다.</p>
+섞여 같은 해 착공보다 %(permit_over)s배쯤 많고, 해마다 크게 흔들립니다. 착공한 현장이 3년 뒤 입주로 이어집니다.</p>
 
 <p><b>⑤⑥을 보려면 입주물량.</b> 절대량이 아니라 그 지역의 분기 적정물량과
 견줘야 많고 적음이 판단됩니다.</p>
@@ -397,7 +412,7 @@ POSTS = [
 
 <p>그래서 재봤습니다. 이번 글은 그 결과입니다.</p>
 
-<h3>공급이 전세를 누른다 — 얼마나</h3>
+<h3>공급이 전세를 누른다, 얼마나</h3>
 
 <p>수도권의 분기별 입주 물량을 셋으로 나눠, 각 구간에서 전세가 얼마나 올랐는지
 봤습니다.</p>
@@ -675,7 +690,7 @@ POSTS = [
 
 <p>서울은 반대편 끝에 있습니다. 서울 아파트값은 %(se_tr)s 바닥에서 %(se_pk)s까지 %(se_x)s가 됐습니다. 그런데 %(se_y0)s년부터 2025년까지 서울 인허가는 해마다 %(se_min)s세대에서 %(se_max)s세대 사이를 오르내렸을 뿐, 값의 흐름을 따라가지 않았습니다. 상승기가 끝난 뒤인 2022~2025년 연평균(%(se_2225)s세대)은 2007년 이후 연평균(%(se_avg)s세대)보다 적습니다. 그 사이 서울 아파트값은 지난 꼭대기를 이미 넘어섰습니다.</p>
 
-<p>서울에서는 허가받은 세대 수보다 실제로 늘어나는 집이 적습니다. 빈 땅이 없어 기존 집을 헐고 다시 짓는 몫이 허가에 섞이기 때문입니다. %(se_demol_y0)s~%(se_demol_y1)s년 서울 아파트 멸실은 같은 기간 인허가의 %(se_demol)s였습니다. 허가 100세대 가운데 %(se_demol_n)s호쯤은 헐린 집을 다시 채우는 몫입니다.</p>
+<p>서울에서는 허가받은 세대 수보다 실제로 늘어나는 집이 적습니다. 빈 땅이 없어 기존 집을 헐고 다시 짓는 몫이 허가에 섞이기 때문입니다. %(se_demol_y0)s~%(se_demol_y1)s년 서울 아파트 멸실은 같은 기간 인허가의 %(se_demol)s였습니다. 허가 100세대 가운데 %(se_demol_n)s세대쯤은 헐린 집을 다시 채우는 몫입니다.</p>
 
 <p>수도권 전체도 마찬가지입니다. 2025년 수도권 인허가는 %(sd_25)s세대로, 2007년 이후 연평균(%(sd_avg)s세대)과 비슷합니다. 지난 상승기를 지나고도 공급은 평소 수준에 머물러 있습니다. 부족이 쌓이는 동안 그 부족을 메울 물량은 늘지 않았습니다.</p>
 
@@ -872,7 +887,7 @@ POSTS = [
 
 <h3>숫자는 이렇게 셌습니다</h3>
 
-<p>시도마다 분기 아파트 준공 물량과 전세가격 변동률의 상관을 같은 분기와 한 분기 뒤, 두 시차로 재서 더 강한 쪽을 골랐어요. 우연일 확률이 10%%보다 낮은 곳을 효과가 확인된 곳으로 셌고요. 사이트 사이클 리포트와 같은 값입니다.</p>
+<p>시도마다 분기 아파트 준공 물량과 전세가격 변동률의 상관을 같은 분기와 한 분기 뒤, 두 시차로 재서 더 강한 쪽을 골랐어요. 우연일 확률이 %(sig_pct)s%%보다 낮은 곳을 효과가 확인된 곳으로 셌고요. 사이트 사이클 리포트와 같은 값입니다.</p>
 
 <h3>다음 편</h3>
 
@@ -972,6 +987,10 @@ def link6_values(D, adv):
         # (test_home_entry 의 _all_drafts)이 그날 배치를 멈춘다(대표 결정 2026-10-18 D1).
         raise SystemExit('6편을 만들 수 없다 — %s. %s — 판정 칸을 읽을 수 있는 데이터로 다시 돌린다.' % (e, NOT_THE_TEXT))
     high = F['hi']
+    # 본문의 유의 문턱 '%(sig_pct)s%%'는 재산정 정본 RC.SIG_P 에서 읽는다(전수리뷰 BL2-14 — 손으로 적은 '10%'를 대신한다). D 는
+    # p 를 싣지 않아(SHIP_FIELDS, 전수리뷰 C-11) sig 가 지금 문턱으로 구운 것인지는 여기서 대조하지 않는다 — SIG_P 를 바꾸면 재산정
+    # (rebuild_cycle_analysis --write)으로 D 를 함께 다시 굽는다.
+    import rebuild_cycle_analysis as RC
     bad = []
     if any(x['region'] == '서울' and x['sig'] for x in rg):
         bad.append('서울이 유의로 나온다')
@@ -992,11 +1011,10 @@ def link6_values(D, adv):
     if bad:
         raise SystemExit('6편을 만들 수 없다 — %s. 6편 문장을 먼저 고칠 것.' % ' · '.join(bad))
     eunneun = lambda w: w + ('은' if (ord(w[-1]) - 0xAC00) % 28 else '는')
-    import rebuild_cycle_analysis as RC
     lag = RC.link6_lag_prose(rg)
     return dict(fut_high=F['fut_high'], fut_high_names=F['fut_high_names'], fut_low=F['fut_low'], win_y=F['win_y'],
                 l6_total=pr['l6_total'], l6_sig=pr['l6_sig'], l6_metro=pr['l6_metro'], l6_prov=pr['l6_prov'],
-                seoul_l6=pr['seoul_l6'], sudo_l6=pr['sudo_l6'], rate_r=pr['rate_r'],
+                seoul_l6=pr['seoul_l6'], sudo_l6=pr['sudo_l6'], rate_r=pr['rate_r'], sig_pct='%d' % round(RC.SIG_P * 100),
                 l6_top3='·'.join(nm(x['region']) for x in top[:3]), l6_top1=eunneun(nm(top[0]['region'])),
                 l6_sudo_sig=eunneun('·'.join(nm(x['region']) for x in sudo)),
                 # 지방 유의·즉시·한 분기 뒤 수는 /cycle/ 고리⑥ 캡션 칸(l6p_)과 같은 함수에서 센다(전수리뷰 C-3 — 사이트와 한 정본)
@@ -1005,7 +1023,27 @@ def link6_values(D, adv):
                 moveins=link('시도별 입주물량 보기', path='/moveins/', camp='moveins_from_cycle'))
 
 
-def link7_values(D):
+# 7편 금리 오버레이의 원천 계열(refresh_cycle_data.build_overlay 와 같은 계열·지역) — 분기가 석 달 다 찼는지 셀 때 쓴다
+OVERLAY_SRC = (('매매지수', '수도권'), ('전세지수', '수도권'), ('금리', 'CD(91일)'))
+
+
+def overlay_months(sts):
+    """오버레이 원천 계열마다 값이 있는 마지막 달('YYYY.MM') — link7_values 가 석 달이 다 찬 분기까지만 쓰게 한다."""
+    out = {}
+    for key, rg in OVERLAY_SRC:
+        b = sts[key]
+        ser = b['series'][rg]
+        out[key] = next(b['dates'][i].split()[0] for i in range(len(ser) - 1, -1, -1) if ser[i] is not None)
+    return out
+
+
+def _last_full_q(ym):
+    """'YYYY.MM'까지 값이 있으면 석 달이 다 찬 마지막 분기(2026.25 꼴 — 오버레이 t 와 같은 꼴)."""
+    y, m = int(ym[:4]), int(ym[5:7])
+    return y + (m // 3 - 1) * 0.25 if m >= 3 else y - 0.25
+
+
+def link7_values(D, months=None):
     """7편 숫자 — /cycle/ 정본 D.rate_overlay(수도권 분기 매매·전세 지수, CD금리)와 D.prose 에서 센다. 문장의 전제가 깨지면
     멈춘다. 전제: ① 금리 바닥 뒤 1년 매매 상승률이 전세의 3배 넘게 크다, ② 그 뒤 매매 정점이 전세 정점보다 먼저이고 낙폭도 크다,
     ③ 최근 금리 저점(최근 8분기) 이후 금리가 올랐는데 매매·전세가 모두 올랐다, ④ 금리–매매 상관이 음수다.
@@ -1014,9 +1052,13 @@ def link7_values(D):
     오버레이 끝 분기의 전세가 비어 있다(refresh_cycle_data.build_overlay 는 매매·금리가 있는 분기를 고르고 전세는 je.get — 차트는 그
     분기를 그대로 그린다). 예전엔 그 None 과 견주다 TypeError 로 죽어, 초안 가드를 SystemExit 로 거르는 게이트 시험이 매 분기 한 달쯤
     배치를 멈추게 돼 있었다(전수리뷰 BL2-1·C-1). 그래서 세 값이 다 찬 첫 분기~마지막 분기만 잘라 읽고, 그 사이에 빈 분기가 있으면
-    (분기 간격 'N분기 뒤'가 틀어진다) 문장 탓이 아닌 데이터 결함으로 멈춘다."""
+    (분기 간격 'N분기 뒤'가 틀어진다) 문장 탓이 아닌 데이터 결함으로 멈춘다.
+
+    months(overlay_months — 원천 계열마다 마지막 달)를 주면 석 달이 다 찬 분기까지만 쓴다. 오버레이 분기 값은 그 분기에 있는 달의
+    평균이라, 매매 두 달·전세 한 달 평균인 끝 분기를 '지금'이라는 한 분기로 불렀다(전수리뷰 overflow, 7편 '지금' 분기)."""
     r = D['rate_overlay']
-    full = [i for i in range(len(r['t'])) if None not in (r['maemae'][i], r['jeonse'][i], r['rate'][i])]
+    tmax = min(_last_full_q(v) for v in months.values()) if months else float('inf')
+    full = [i for i in range(len(r['t'])) if None not in (r['maemae'][i], r['jeonse'][i], r['rate'][i]) and r['t'][i] <= tmax]
     if not full:
         raise SystemExit('7편을 만들 수 없다 — 금리 오버레이에 매매·전세·금리가 모두 찬 분기가 없다. %s — '
                          '/cycle/ 데이터가 찬 뒤 다시 돌린다.' % NOT_THE_TEXT)
@@ -1033,7 +1075,9 @@ def link7_values(D):
     je_pk = max(range(lo, len(t)), key=lambda i: je[i] if t[i] < t[lo] + 3 else -1)
     mm_lo = min(range(mm_pk, len(t)), key=lambda i: mm[i] if t[i] < t[mm_pk] + 2 else 1e9)
     je_lo = min(range(je_pk, len(t)), key=lambda i: je[i] if t[i] < t[je_pk] + 2 else 1e9)
-    hi = max(range(lo, len(t)), key=lambda i: rt[i])
+    # 고금리 국면의 금리 정점 — '그사이'(매매 정점~매매·전세 바닥) 창 안에서만 찾는다. 창 없이 끝까지 찾으면 앞으로 더 높은 금리가
+    # 실린 분기를 2022~23 문단에 붙인다(전수리뷰 BL2-12).
+    hi = max(range(mm_pk, max(mm_lo, je_lo) + 1), key=lambda i: rt[i])
     rec = max(len(t) - 8, 0)
     nlo = min(range(rec, len(t)), key=lambda i: rt[i])                  # 최근 8분기 금리 저점
     end = len(t) - 1
@@ -1072,7 +1116,9 @@ def guard_values(n, D=None, data=None):
     def load():
         return M.load() if data is None else data
     if n in (1, 2):
-        return link1_values(D)
+        v = link1_values(D)
+        v['permit_over'] = permit_over_x(load()[1])
+        return v
     if n == 3:
         check_sync_claims()
         return {}
@@ -1081,7 +1127,7 @@ def guard_values(n, D=None, data=None):
         import theory_link3 as L3
         adv, sts = load()
         try:
-            v = L3.link3_numbers(adv, sts)
+            v = L3.link3_numbers(adv, sts, D or None)
         except L3.Link3DataError as e:
             # 문장 탓이 아니다 — 입력 계열이 끊겼다(전수리뷰 #73). 글쓴이에게 맞는 문장을 고치라고 안내하지 않는다.
             raise SystemExit('4편을 만들 수 없다 — %s. %s — 다음 클라우드 배치가 전 기간을 새 기준으로 다시 받는다'
@@ -1096,7 +1142,7 @@ def guard_values(n, D=None, data=None):
         import theory_link4 as L4
         adv, sts = load()
         try:
-            v = L4.link4_numbers(adv, sts)
+            v = L4.link4_numbers(adv, sts, D or None)
         except L4.Link4DataError as e:
             # 문장 탓이 아니다 — 착공·준공 두 표 가운데 한쪽만 새 달을 받은 회차(전수리뷰 T3-6·BL2-3·T1-2). 4편 Link3DataError 와 같은 갈래.
             raise SystemExit('5편을 만들 수 없다 — %s. %s — 다음 클라우드 배치가 두 계열을 같은 달까지 받으면 풀린다'
@@ -1109,7 +1155,8 @@ def guard_values(n, D=None, data=None):
         adv, _ = load()
         return link6_values(D, adv)
     if n == 7:
-        return link7_values(D)
+        _, sts = load()
+        return link7_values(D, overlay_months(sts))
     return {}
 
 
@@ -1125,7 +1172,8 @@ def render(post):
     S.append('<style>%s</style>' % P.CSS)
     S.append('<h1>부동산 사이클 시리즈 %02d편</h1>' % post['n'])
     S.append('<p class="hint">[복사] → 스마트에디터에 붙여넣기 → 이미지 끌어놓기 → 발행. '
-             '카테고리는 <b>부동산 사이클</b>, 주제는 <b>비즈니스·경제</b>로 두세요(주제 목록에 부동산은 없다, 10-17 대표).</p>')
+             '카테고리는 <b>%s</b>, 주제는 <b>비즈니스·경제</b>로 두세요(주제 목록에 부동산은 없다, 10-17 대표).</p>'
+             % P.CP.KIND_TO_CATEGORY['사이클 이론'])      # 카테고리 이름 정본(전수리뷰 BL2-11). 아래 rival_panel 인자는 검색어라 그대로 둔다
     S.append('<section class="draft"><h2>%s</h2>' % post['title'])
     S.append(P.rival_panel('부동산 사이클'))
     S.append(P.field('제목', 't1', P.esc(post['title']), 't'))

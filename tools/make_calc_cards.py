@@ -3,7 +3,10 @@
 
 도발 문구 두 줄은 홈 QUIZSETS.calc.taunt(home-quiz.js)를 **읽는다** — 사이트 공유 문구(shareTaunt)와 한 표다
 (전수리뷰 #86: 예전엔 여기 따로 적어, 카드는 재건축 문구인데 공유 설명·본문은 투자자 문구로 나갔다).
-배지·이름은 QUIZSETS.calc.grade 구간과 톤을 맞춘다.
+배지·이름도 QUIZSETS.calc.grade 를 **읽는다**(home_src.quiz_grades) — 결과 화면(gradeOf(s).g)·랜딩 '점수별 레벨' 표와
+같은 이름이다(전수리뷰 P-14: 예전엔 '사업성 스캐너'·'재건축 계산 선수' 같은 손 사본이라 같은 LV5 가 세 이름이었다).
+배지 분모는 등급 수다 — 재건축 등급은 LV1~LV5 다섯 단계인데 부린이 카드 틀의 '/ 10'을 그대로 옮겨 최고 등급이
+'LV5 / 10'으로 읽혔다(전수리뷰 P-3). 점수 분모·미터 칸·장 수는 문항 수 QUIZ_LEN(home_src.quiz_len)에서 나온다(P-9).
 
 사용:  python tools/make_calc_cards.py
 """
@@ -43,24 +46,28 @@ def calc_taunts(src=None):
     if not m:
         raise SystemExit('home-quiz.js 에서 QUIZSETS.calc.taunt 를 찾지 못했다')
     t = json.loads(m.group(1))
-    if len(t) != 11 or not all(isinstance(x, list) and len(x) == 2 for x in t):
-        raise SystemExit('QUIZSETS.calc.taunt 는 11칸 × 두 줄이어야 한다')
+    n = HS.quiz_len(src) + 1
+    if len(t) != n or not all(isinstance(x, list) and len(x) == 2 for x in t):
+        raise SystemExit('QUIZSETS.calc.taunt 는 %d칸(0~QUIZ_LEN점) × 두 줄이어야 한다' % n)
     return t
 
 
-# (LV배지, 이름) — QUIZSETS.calc.grade 구간과 대응. 도발 문구 두 줄은 calc_taunts()
-BADGES = [
-    ('LV1', '묻지마 매수 직전'), ('LV1', '묻지마 매수 직전'), ('LV1', '묻지마 매수 직전'),
-    ('LV2', '분담금 주의보'), ('LV2', '분담금 주의보'),
-    ('LV3', '공식 암기 완료'), ('LV3', '공식 암기 완료'),
-    ('LV4', '눈대중 견적사'), ('LV4', '눈대중 견적사'),
-    ('LV5', '사업성 스캐너'), ('LV5', '재건축 계산 선수'),
-]
+def badges(src=None):
+    """점수(0~QUIZ_LEN)별 (LV배지, 이름) — QUIZSETS.calc.grade(home_src.quiz_grades)에서 읽는다."""
+    src = src if src is not None else HS.home_source()
+    grades = HS.quiz_grades('calc', src)
+    return [HS.quiz_grade_of(grades, s)[1:3] for s in range(HS.quiz_len(src) + 1)]
+
+
+def grade_count(src=None):
+    """배지 분모 — 재건축 등급 단계 수(LV1~LVn 의 n)."""
+    return len(HS.quiz_grades('calc', HS.home_source() if src is None else src))
 
 
 def levels():
-    """(LV배지, 이름, 도발 문구 2줄) 11칸."""
-    return [(lv, name, t) for (lv, name), t in zip(BADGES, calc_taunts())]
+    """(LV배지, 이름, 도발 문구 2줄) 0~QUIZ_LEN점."""
+    src = HS.home_source()
+    return [(lv, name, t) for (lv, name), t in zip(badges(src), calc_taunts(dict(HS.home_files())['home-quiz.js']))]
 
 
 
@@ -78,9 +85,13 @@ def fit_font(text, target, weight='Bold', axis='h', lo=10, hi=460):
     return noto(best, weight)
 
 
-def make_card(score, out_path, lv_table=None):
-    lv, name, taunt2 = (lv_table or levels())[score]
-    accent = RAMP[score]
+def make_card(score, out_path, lv_table=None, n=None, lv_den=None):
+    lv_table = lv_table or levels()
+    n = n if n is not None else len(lv_table) - 1          # 문항 수(QUIZ_LEN) — 0~n점
+    lv_den = lv_den if lv_den is not None else grade_count()
+    lv, name, taunt2 = lv_table[score]
+    accent = RAMP[round(score * (len(RAMP) - 1) / n)]
+    den, frac = '/ %d' % lv_den, '/%d' % n
 
     img = Image.new('RGBA', (W, H), PAPER)
     M, R = 26, 38
@@ -93,31 +104,31 @@ def make_card(score, out_path, lv_table=None):
     # 헤더: 이름 + 레벨 배지
     d.text((60, 86), '재건축·재개발 테스트', font=noto(27), fill=INK, anchor='lm')
     bf, sf = noto(30), noto(19, 'Medium')
-    bw = d.textbbox((0, 0), lv, font=bf)[2] + d.textbbox((0, 0), '/ 10', font=sf)[2] + 20
+    bw = d.textbbox((0, 0), lv, font=bf)[2] + d.textbbox((0, 0), den, font=sf)[2] + 20
     bx1 = W - M - 34
     d.rounded_rectangle([bx1 - bw - 28, 66, bx1, 108], 21, fill=accent)
     d.text((bx1 - bw - 14, 88), lv, font=bf, fill=CARD, anchor='lm')
-    d.text((bx1 - 14, 89), '/ 10', font=sf, fill=CARD, anchor='rm')
+    d.text((bx1 - 14, 89), den, font=sf, fill=CARD, anchor='rm')
 
     # 히어로: 큰 점수 숫자
     st = str(score)
     sfnt = fit_font(st, 200)
     sb = d.textbbox((0, 0), st, font=sfnt)
-    of = fit_font('/10', 108, axis='w')
-    ob = d.textbbox((0, 0), '/10', font=of)
+    of = fit_font(frac, 108, axis='w')
+    ob = d.textbbox((0, 0), frac, font=of)
     sw_, ow = sb[2] - sb[0], ob[2] - ob[0]
     gx = (W - (sw_ + 22 + ow)) / 2
     base = 400
     d.text((gx - sb[0], base - sb[3]), st, font=sfnt, fill=accent)
-    d.text((gx + sw_ + 22 - ob[0], base - 6 - ob[3]), '/10', font=of, fill=GRAY)
+    d.text((gx + sw_ + 22 - ob[0], base - 6 - ob[3]), frac, font=of, fill=GRAY)
 
-    # 레벨 미터 10칸
+    # 레벨 미터 n칸(문항 수)
     lvl = max(1, score)
     gap, bh = 9, 12
     x0 = M + 46
-    bw2 = ((W - 2 * x0) - gap * 9) / 10
+    bw2 = ((W - 2 * x0) - gap * (n - 1)) / n
     meter_y = 470
-    for i in range(10):
+    for i in range(n):
         x = x0 + i * (bw2 + gap)
         d.rounded_rectangle([x, meter_y, x + bw2, meter_y + bh], 6, fill=accent if i < lvl else METER_OFF)
 
@@ -148,6 +159,6 @@ if __name__ == '__main__':
     share = os.path.join(root, 'share')
     os.makedirs(share, exist_ok=True)
     table = levels()
-    for s in range(11):
+    for s in range(len(table)):
         make_card(s, os.path.join(share, 'calc-%d.png' % s), table)
-    print('11 cards written -> %s' % share)
+    print('%d cards written -> %s' % (len(table), share))

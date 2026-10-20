@@ -69,12 +69,14 @@ def test_trend_file_ships_only_what_the_stats_tab_reads(tmp_path):
     재현하는 실제 상태: split_data 가 trend 에 ADV 전체(strip_units(adv))를 실어, 2026-08-06 재편으로 폐기된 aged30(약 1.8KB)이
     통계 탭을 여는 모든 방문자에게 실려 나갔다.
     변이(실제로 확인): trend_adv 를 strip_units(adv) 로 되돌리면 aged30 단정이 빨개진다(시험이 사본에 split_data 를 돌린다). TREND_ADV 에서
-    'bubble' 을 빼면 홈 읽기 대조가 빨개진다.
+    'bubble' 을 빼면 홈 읽기 대조가 빨개진다. TREND_ADV 에 코어 키 'sido' 를 되돌려 넣으면(H2-17 이전, 같은 값 24KB 중복 전송)
+    코어 중복 단정이 빨개진다.
     """
     import home_src as HS
     _, trend = _split_to(tmp_path)
     assert set(trend) <= set(S.TREND_ADV), '허용목록 밖 키가 통계 탭 파일에 실렸다: %s' % sorted(set(trend) - set(S.TREND_ADV))
     assert 'aged30' not in trend
+    assert set(S.CORE_ADV) and not set(trend) & set(S.CORE_ADV), '코어에 있는 키가 통계 탭 파일에 또 실렸다(H2-17): %s' % sorted(set(trend) & set(S.CORE_ADV))
     read = set(re.findall(r'\bADV\.([A-Za-z_][A-Za-z0-9_]*)', ''.join(t for f, t in HS.home_files() if f.endswith('.js'))))
-    missing = read - set(S.TREND_ADV) - set(S.CORE_ONLY_ADV)
+    missing = read - set(S.TREND_ADV) - set(S.CORE_ONLY_ADV) - set(S.CORE_ADV)   # 코어 키는 Object.assign 뒤에도 남는다(H2-17)
     assert not missing, '홈 스크립트가 읽는데 통계 탭 파일에 없는 ADV 키: %s' % sorted(missing)

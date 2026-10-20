@@ -82,6 +82,9 @@ def record(path=LOG, now=None, get=None):
             'date': kst.today_iso(now)}
     line.update(parse_info(get(INFO_URL)))
     line['posts'] = parse_posts(get(POSTS_URL))
+    if line['day'] is None:
+        # 응답 꼴이 바뀌어 방문자 칸을 못 읽었다 — 빈 줄을 쌓고 성공으로 끝내면 기록이 끊긴 걸 아무도 모른다(전수리뷰 BL1 overflow)
+        raise RuntimeError('방문자 수(dayVisitorCount)를 못 읽었다 — 응답 꼴이 바뀌었는지 볼 것. 기록하지 않았다')
     d = os.path.dirname(path)
     if d and not os.path.isdir(d):
         os.makedirs(d)
@@ -177,7 +180,11 @@ def report(lines, today=None):
 def main(argv):
     cmd = argv[0] if argv else 'report'
     if cmd == 'record':
-        ln = record()
+        try:
+            ln = record()
+        except RuntimeError as e:
+            print('⚠ %s' % e)
+            return 1
         print('%s 방문자 %s · 누적 %s · 이웃 %s · 글 %d건 기록' % (
             ln['date'], ln['day'], ln['total'], ln['subs'], len(ln['posts'])))
         return 0

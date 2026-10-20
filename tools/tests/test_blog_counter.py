@@ -54,6 +54,21 @@ def test_record_appends_one_line(tmp_path):
     assert ln[0]['posts'][0]['date'] == '2026-09-27'
 
 
+def test_record_refuses_a_reply_without_visitors(tmp_path, monkeypatch):
+    """BlogInfo 응답 꼴이 바뀌어 방문자 칸(dayVisitorCount)이 없으면 줄을 쓰지 않고 record 명령이 종료 1 이다(전수리뷰 BL1 overflow —
+    예전엔 day=None 줄을 쌓고 0 으로 끝나 기록이 끊긴 걸 몰랐다).
+    변이(확인): record 의 `if line['day'] is None` 거름을 지우면 빨개진다.
+    픽스처: 2026-09-27 응답 모양에서 result 칸 이름만 바뀐 응답."""
+    bad = ")]}',\n" + json.dumps({'result': {'blogId': 'startupbd', 'visitorCountToday': 3}})
+    got = {B.INFO_URL: bad, B.POSTS_URL: _posts((224423460593, '주간', '2026-09-27', 0))}
+    p = tmp_path / 'c.jsonl'
+    monkeypatch.setattr(B, '_get', got.__getitem__)
+    monkeypatch.setattr(B, 'LOG', str(p))
+    monkeypatch.setattr(B.record, '__defaults__', (str(p), None, None))
+    assert B.main(['record']) == 1
+    assert not p.exists() or B.load(str(p)) == []
+
+
 def test_feed_spike_in_baseline_does_not_sink_next_post():
     """대구 편처럼 하루 100명대가 기준 기간에 섞여도 평소 값은 3 이어야 한다."""
     days = ['2026-09-%02d' % d for d in range(10, 21)]

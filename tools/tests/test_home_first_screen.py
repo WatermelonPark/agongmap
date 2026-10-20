@@ -310,7 +310,8 @@ def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
 
     변이(각각 확인): make_sido_pages 의 eq 를 옛 '= 적정 … − 공급 …'으로 되돌리면 리포트 단정이, draft_zone 이 식을 자기
           말('적정물량 − 공급')로 적으면 블로그 단정이, index.html 첫 항목의 식을 바꾸면 홈 단정이, formula_text 가 모자란
-          재고를 빼는 쪽(−)으로 적으면 검산 단정이 빨개진다. 산출 방법 첫 항목의 '4년'을 '3년'으로 적으면 햇수 단정.
+          재고를 빼는 쪽(−)으로 적으면 검산 단정이 빨개진다. 산출 방법 첫 항목 산문의 '지난 4년'을 '지난 3년'으로 적으면 햇수
+          단정(자리별 순서 목록 — 예전 집합 검사는 이 변이를 못 잡았다, 전수리뷰 2차 T2-4).
           draft_zone 이 식에 -abs(inow) 를 넘겨 '− 남은 재고' 갈래만 틀리게 하면 블로그 단정이 빨개진다(두 갈래를 늘 본다 — T2-6).
     픽스처: 저장소 실데이터 판정 20곳(숫자는 함수에서 유도) + 생성기가 구운 /zone/전국/(CI·배치는 생성기를 먼저 돌린다).
           블로그 대조는 시도 전부이고, 데이터에 식의 한 갈래가 없으면 실제 행의 재고 부호를 뒤집어 zone_texts 로 다시 구운 사본을 더한다.
@@ -320,8 +321,9 @@ def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
     li = re.search(r'<li class="how-formula">(.*?)</li>', _src('index.html'), re.S)
     assert li, '홈 산출 방법 첫 항목(식)이 없다'
     assert '<b>%s</b>' % gen in li.group(1) and 'href="/zone/전국/#calc"' in li.group(1)
-    years = {'%g' % (SZ.LEAD_Q / 4.0), '%g' % (SZ.BACKLOG_WINDOW / 4.0)}
-    assert set(re.findall(r'(\d+)년', li.group(1))) <= years, '산출 방법 첫 항목에 모델과 다른 햇수가 있다'
+    # 자리마다: 식(앞으로·지난) 다음 산문의 '지난 4년' 둘 — 순서 목록으로 본다(집합 포함 검사는 3↔4 바꿔치기를 못 잡았다, 전수리뷰 2차 T2-4)
+    ahead, past = '%g' % (SZ.LEAD_Q / 4.0), '%g' % (SZ.BACKLOG_WINDOW / 4.0)
+    assert re.findall(r'(\d+)년', li.group(1)) == [ahead, past, past, past], '산출 방법 첫 항목의 햇수가 자리마다 모델과 다르다'
     ul = re.search(r'<ul class="how-ls">\s*(<li[^>]*>)', _src('index.html'))
     assert ul and ul.group(1) == '<li class="how-formula">', '식 항목이 산출 방법의 첫 항목이 아니다'
 
