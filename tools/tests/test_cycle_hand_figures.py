@@ -446,7 +446,7 @@ def test_no_hand_counted_faq_size_or_data_span():
     for m in re.finditer(r'(\d+)\s*문답', s):
         assert int(m.group(1)) == n_faq, '/cycle/ 이 FAQ 를 %s문답이라 부르지만 실제 %d개다' % (m.group(1), n_faq)
     hero = s[s.find('<header class="hero">'):s.find('</header>')]
-    assert re.search(r'<span data-d="span_y">\d{4}[~–]\d{4}</span> 분기·연', hero), '자료 기간이 칸이 아니다'
+    assert re.search(r'<span data-d="span_y">\d{4}~\d{4}</span> 분기·연', hero), '자료 기간이 칸이 아니다'
     D, _ = _page()
     assert D['prose'].get('span_y') == RC.span_prose(D['zones'])['span_y']
 
@@ -492,3 +492,589 @@ def test_zone_captions_compare_growth_not_index_levels():
     a, b = ov['t'].index(2019.25), ov['t'].index(2021.75)
     ma, je = ov['maemae'][b] / ov['maemae'][a] - 1, ov['jeonse'][b] / ov['jeonse'][a] - 1
     assert '매매(빨강)가 전세(보라)보다 훨씬 가파르게' in page and ma > 1.5 * je, (ma, je)
+
+
+# ---------------------------------------------------------------- 마크업·범위 기호 (전수리뷰 C-12·C-14)
+
+_VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr',
+         'path', 'circle', 'rect', 'line', 'polyline', 'polygon', 'stop', 'use', 'ellipse'}
+
+
+def _tag_faults(html):
+    """짝 없는 닫는 태그(stray)와 닫히지 않은 여는 태그(unclosed)를 (종류, 태그, 행) 목록으로."""
+    from html.parser import HTMLParser
+
+    class _P(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.st, self.bad = [], []
+
+        def handle_starttag(self, t, a):
+            if t not in _VOID:
+                self.st.append((t, self.getpos()[0]))
+
+        def handle_endtag(self, t):
+            if t in _VOID:
+                return
+            if not any(x[0] == t for x in self.st):
+                self.bad.append(('stray', t, self.getpos()[0]))
+                return
+            while self.st:
+                x = self.st.pop()
+                if x[0] == t:
+                    break
+                self.bad.append(('unclosed', x[0], x[1]))
+    p = _P()
+    p.feed(html)
+    return p.bad + [('unclosed', t, ln) for t, ln in p.st]
+
+
+def test_cycle_markup_is_balanced_and_ranges_use_tilde():
+    """/cycle/ 손 서술은 태그 짝이 맞고, 연도·수 범위를 '~'로 쓴다(날짜 두 단계 결정 — 범위는 '~', 백로그 36-1).
+
+    고리⑥ '그리고 다시 처음으로.' 상자는 <p> 없이 </p> 로 닫혀 브라우저가 빈 문단(아래 여백 14px)을 만들었다(C-12).
+    '2020–23년'·'2020–22년' 두 곳만 en 대시로 남아 같은 페이지의 '2011~17'·'1988~95년'과 모양이 갈렸다(C-14).
+    변이(실제로 확인): 그 상자 끝에 '</p>' 를 되돌리면 첫 단정이, '2020~23년' 을 '2020–23년' 으로 되돌리면 둘째 단정이
+    빨개진다. 검사기 자체는 아래 합성 조각(짝 없는 </p>)으로 헛돌지 않음을 본다.
+    픽스처: 저장소 cycle/index.html(손 서술 — 배치는 const D·data-d 칸·const ZN·dateModified 만 다시 쓴다).
+    """
+    assert _tag_faults('<div class="note"><b>x</b> y.</p></div>') == [('stray', 'p', 1)]
+    _, s = _page()
+    assert _tag_faults(s) == [], '/cycle/ 태그 짝이 어긋난다: %s' % _tag_faults(s)[:5]
+    body = s[s.find('<body'):s.find('<script>', s.find('</footer>'))]
+    text = re.sub(r'<[^>]+>', '', body)
+    dash = re.findall(r'\d[–—]\d', text)
+    assert not dash, '/cycle/ 본문 범위에 en 대시가 남았다(정본은 ~): %s' % dash
+    assert re.search(r'\d~\d', text), '범위 검사가 헛돈다 — 본문에서 ~ 범위를 하나도 못 찾았다'
+
+
+# ---------------------------------------------------------------- 지역 이름 뒤 조사 (전수리뷰 C-8·X1-7)
+
+_PAIRS = {'은': ('은', '는'), '는': ('은', '는'), '이': ('이', '가'), '가': ('이', '가'),
+          '을': ('을', '를'), '를': ('을', '를'), '과': ('과', '와'), '와': ('과', '와')}
+
+
+def _particle_faults(text, names):
+    """화면 이름 뒤(괄호 칸 하나는 건너뛴다) 조사가 그 이름의 받침(RC._jong)과 맞지 않는 곳. '이다'(서술격)는 보지 않는다."""
+    pat = re.compile('(%s)(\\([^)]*\\))?(은|는|이|가|을|를|과|와)' % '|'.join(
+        map(re.escape, sorted(names, key=len, reverse=True))))
+    bad, seen = [], 0
+    for m in pat.finditer(text):
+        if m.group(3) == '이' and text[m.end():m.end() + 1] == '다':
+            continue
+        seen += 1
+        want = _PAIRS[m.group(3)][0 if RC._jong(m.group(1)) else 1]
+        if m.group(3) != want:
+            bad.append(m.group(0))
+    return bad, seen
+
+
+def test_cycle_particles_follow_the_display_name():
+    """/cycle/ 본문에서 지역 화면 이름 뒤 조사(은/는·이/가·을/를·과/와)는 그 이름의 받침을 따른다.
+
+    백로그 46(10-17)이 '전남광주(78%)는'의 이름만 '광주·전남'으로 바꿔 받침 있는 '남' 뒤에 '는'이 남았다(C-8·X1-7). 이제 그
+    자리의 이름·조사는 칸(jr_jnl_nm·jr_jnl_j — refresh_cycle_data.jratio_prose 가 SZ.disp·RC._jong 으로)이다.
+    변이(실제로 확인): jratio_prose 의 jr_jnl_j 를 '는' 고정으로 바꾸고 refresh 를 돌리면(아래 픽스처 경로) 첫 단정이, 본문 칸을
+    옛 손 글자 '광주·전남(…)는'으로 되돌리면 페이지 단정이 빨개진다.
+    픽스처: ① 저장소 STATS 로 굽는 jratio_prose(화면 이름이 바뀌어도 조사가 따라오는지 — 받침 없는 가상 이름 '전남광주'로도 본다),
+            ② 게이트 시점 cycle/index.html 의 보이는 글자(칸 값 포함).
+    """
+    lvl = [{'region': r, 'val': v} for r, v in (('서울', 52.3), ('전남광주', 78.1), ('대구', 70.9), ('대전', 71.8))]
+    got = RF.jratio_prose(lvl, '2026.08')
+    assert got['jr_jnl_nm'] == RF.SZ.disp('전남광주')
+    assert got['jr_jnl_j'] == ('은' if RC._jong(got['jr_jnl_nm']) else '는')
+    import unittest.mock as um
+    with um.patch.object(RF.SZ, 'disp', lambda k: '전남광주' if k == '전남광주' else k):
+        assert RF.jratio_prose(lvl, '2026.08')['jr_jnl_j'] == '는', '받침 없는 이름에 조사가 따라오지 않는다'
+    assert _particle_faults('광주·전남(78%)는 서울(52%)은', ['광주·전남', '서울']) == (['광주·전남(78%)는'], 2)
+    _, s = _page()
+    body = s[s.find('<body'):s.find('<script>', s.find('</footer>'))]
+    text = re.sub(r'<[^>]+>', '', body)
+    names = {RF.SZ.disp(k) for k in RF.SZ.ORDER}
+    bad, seen = _particle_faults(text, names)
+    assert seen >= 10, '조사 검사가 헛돈다(%d곳)' % seen
+    assert not bad, '/cycle/ 지역 이름 뒤 조사가 받침과 맞지 않는다: %s' % bad
+
+
+# ---------------------------------------------------------------- 고리⑥ 반응 시차 칸 (전수리뷰 C-3)
+
+def test_link6_caption_counts_come_from_the_chart_rows():
+    """고리⑥ 캡션·읽기 칸의 '유의한 지방 N곳 가운데 a곳은 즉시, b곳은 한 분기 뒤, 수도권(…)'은 같은 차트 데이터(D.link6_regional)
+    에서 센 칸(RC.link6_lag_prose — l6p_)이다. 6편 블로그 초안(make_theory_post.link6_values)도 같은 함수를 읽는다.
+
+    손 캡션 '유의한 지역만 보면 지방은 즉시'는 같은 막대 툴팁('지방 · 1분기 뒤' — 대구·전북·부산·울산)과 처음부터 어긋났다.
+    변이(실제로 확인): link6_lag_prose 의 l6p_late 를 `lag == 0` 으로 세면 합성 뒤집기 단정이, 캡션을 옛 손 문장으로 되돌리면
+    칸·옛 문장 단정이 빨개진다.
+    픽스처: 게이트 시점 페이지 D(생성기가 방금 구운 값)와, 그 행에서 유의한 지방 한 곳의 시차를 1→0(또는 0→1)으로 바꾼 합성 행.
+    """
+    D, s = _page()
+    rows = D['link6_regional']
+    want = RC.link6_lag_prose(rows)
+    assert {k: D['prose'].get(k) for k in want} == want, '고리⑥ 시차 칸이 차트 데이터와 다르다 — refresh_cycle_data 를 돌릴 것'
+    prov = [x for x in rows if x['sig'] and x['zone'] != '수도권']
+    assert prov and int(want['l6p_now']) + int(want['l6p_late']) == len(prov) == int(want['l6p_sig'])
+    flip = copy.deepcopy(rows)
+    x = next(r for r in flip if r['sig'] and r['zone'] != '수도권')
+    x['lag'] = 1 - x['lag']
+    got = RC.link6_lag_prose(flip)
+    d = 1 if x['lag'] == 0 else -1
+    assert (int(got['l6p_now']), int(got['l6p_late'])) == (int(want['l6p_now']) + d, int(want['l6p_late']) - d), got
+    sec = _para(s, 'id="link6"')
+    cap = re.search(r'<div class="cap">(.*?)</div>\s*<div class="cwrap tall"><canvas id="cL6"', sec, re.S).group(1)
+    for k in want:
+        assert '<span data-d="%s">' % k in cap, 'cL6 캡션에 %s 칸이 없다' % k
+    bare = re.sub(r'<span data-d="[a-z0-9_]+">[^<]*</span>', '', sec)
+    for old in ('지방은 즉시', '대체로 즉시'):
+        assert old not in bare, '고리⑥에 차트와 어긋나는 손 문장이 남았다: %s' % old
+
+
+# ---------------------------------------------------------------- 재산정 칸 뒤 손 문장 (전수리뷰 C-10)
+
+# 칸 값의 끝 글자가 바뀌어도 받침이 늘 같은 칸 — 뒤에 손 조사를 둬도 된다(_years 는 '…년'·'…남짓'으로만 끝난다).
+_FIXED_TAIL = {'lead_old_y', 'lead_new_y'}
+
+
+def test_hand_particles_and_claims_hold_for_any_recomputed_value():
+    """재산정 칸 바로 뒤에는 값에 기대는 손 조사를 두지 않고, 칸 값의 방향·순서를 단정하는 손 문장은 RC.claim_breaks 가 본다.
+
+    예전 본문은 '−0.30으로 약하다'·'−0.40으로 살아난다'·'0.55로 가장 느슨'처럼 지금 값의 끝 숫자에 맞춘 조사였고(−0.31 이면
+    '−0.31으로'), 공급 많은 분기 상승률이 +0.1 이 되면 같은 절이 '0.1%로 꺾였다'와 '소폭 하락으로 돌아선다'를 함께 말했다.
+    변이(실제로 확인): 본문 l6_prov 뒤를 옛 '으로 약하다'로 되돌리면 칸 뒤 조사 단정이, claim_breaks 의 공급 많은 분기 부호 검사를
+    지우면 그 뒤집기 단정이, RC.splice 의 claim_breaks 호출을 지우면 쓰기 거절 단정이 빨개진다.
+    픽스처: 게이트 시점 페이지 D·본문(그 칸은 손 재산정에서만 바뀐다 — 매일 배치는 건드리지 않는다)과, 그 D 에서 전제를 하나씩
+            뒤집은 합성 사본.
+    """
+    D, s = _page()
+    body = s[s.find('<body'):s.find('<script>', s.find('</footer>'))]
+    bad = []
+    for m in re.finditer(r'<span data-d="([a-z0-9_]+)">([^<]*)</span>((?:</(?:b|strong)>)*)(으로|로|은|는|이|가|을|를|과|와)', body):
+        if m.group(1) not in _FIXED_TAIL:
+            bad.append(m.group(0))
+    assert not bad, '재산정 칸 바로 뒤에 값에 기대는 손 조사가 있다(칸으로 만들거나 조사 없는 말로): %s' % bad
+    assert RC.claim_breaks(D) == [], RC.claim_breaks(D)
+
+    def broken(fn):
+        x = copy.deepcopy(D)
+        fn(x)
+        return RC.claim_breaks(x)
+
+    def seoul_top(x):
+        next(r for r in x['sync'] if r['region'] == '서울')['corr'] = 0.99
+    flips = {
+        '소폭 하락': lambda x: x['link1_new'].__setitem__('jeonse_rise', x['link1_new']['jeonse_rise'][:2] + [0.1]),
+        '계단처럼': lambda x: x['link1_new'].__setitem__('jeonse_rise', [1.0, 2.0, -0.4]),
+        '서울은 가장 느슨': seoul_top,
+        '지방 대도시': lambda x: [r.__setitem__('corr', 0.98) for r in x['sync'] if r['region'] not in RC.METRO][:1],
+        '광역시는 강하고': lambda x: x['prose'].update(l6_metro='−0.20'),
+        '살아난다': lambda x: x['prose'].update(sudo_l6='−0.05'),
+        '서울은 예외': lambda x: [r.__setitem__('sig', True) for r in x['link6_regional'] if r['region'] == '서울'],
+        '수도권은 한 분기 뒤': lambda x: [r.__setitem__('lag', 0) for r in x['link6_regional'] if r['zone'] == '수도권'],
+    }
+    for why, fn in flips.items():
+        got = broken(fn)
+        assert any(why in g for g in got), '%s 전제를 뒤집었는데 claim_breaks 가 못 봤다: %s' % (why, got)
+    # 쓰기(RC.splice)는 전제가 깨진 재산정을 쓰지 않는다 — 페이지 사본으로 본다
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        page = os.path.join(td, 'index.html')
+        io.open(page, 'w', encoding='utf-8', newline='').write(s)
+        x = copy.deepcopy(D)
+        x['link1_new']['jeonse_rise'][2] = 0.1
+        with pytest.raises(SystemExit) as e:
+            RC.splice(page, x)
+        assert '소폭 하락' in str(e.value)
+        assert io.open(page, encoding='utf-8').read() == s, '전제가 깨진 재산정으로 페이지를 고쳤다'
+        RC.splice(page, copy.deepcopy(D))      # 전제가 서면 쓴다
+
+
+# ---------------------------------------------------------------- 페이지 스크립트를 node 로 돌려 본다 (전수리뷰 C-2·C-6·C-13)
+
+# cycle/index.html 의 본문 스크립트(initReport 가 든 <script>)를 가짜 DOM·가짜 Chart 위에서 돌려, 차트마다 넘긴 설정(데이터셋 색·축)과
+# 지역 전환 단추의 상태를 JSON 으로 돌려준다. 차트 라이브러리를 늦게 싣는 부트 경로(load → setTimeout → script onload)도 그대로 탄다.
+# 인자: 페이지 경로, (선택) const D 를 갈아 끼울 JSON 경로.
+_PAGE_JS = r"""const fs=require('fs'),vm=require('vm');
+const A=process.argv.slice(2);const html=fs.readFileSync(A[0],"utf8"),over=A[1]?JSON.parse(fs.readFileSync(A[1],"utf8")):null;
+const scripts=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+let src=scripts.find(x=>x.includes('function initReport()'));
+if(over) src=src.replace(/const D=\{.*?\};\n/s,()=>'const D='+JSON.stringify(over)+';\n');
+function El(tag,id){this.tagName=tag.toUpperCase();this.id=id||'';this.attrs={};this.children=[];this.style={};this.textContent='';
+  const cl=new Set();this.classList={add:c=>cl.add(c),remove:c=>cl.delete(c),contains:c=>cl.has(c),toggle:()=>{}};this._cl=cl;}
+El.prototype.setAttribute=function(k,v){this.attrs[k]=String(v)};El.prototype.getAttribute=function(k){return k in this.attrs?this.attrs[k]:null};
+El.prototype.appendChild=function(c){this.children.push(c);c.parentElement=this;return c};El.prototype.remove=function(){};
+El.prototype.matches=function(){return false};El.prototype.querySelector=function(){return null};
+const ids=[...html.matchAll(/<canvas id="(\w+)"/g)].map(m=>m[1]);
+const canv={};ids.forEach(i=>canv[i]=new El('canvas',i));
+const ztog=new El('div','ztog');let scriptEl=null;const charts={};const loads=[];
+const document={fonts:undefined,readyState:'loading',head:{appendChild:e=>{scriptEl=e}},body:{classList:{toggle(){}}},documentElement:{scrollHeight:0},
+  getElementById:i=>i==='ztog'?ztog:(canv[i]||null),createElement:t=>new El(t),
+  querySelector:q=>q==='#ztog button'?ztog.children[0]:(q==='canvas'?canv[ids[0]]:null),
+  querySelectorAll:q=>q==='#ztog button'?ztog.children:(q==='canvas'?ids.map(i=>canv[i]):[])};
+function Chart(el,cfg){charts[el.id]=cfg;this.destroy=()=>{};this.update=()=>{};}
+Chart.getChart=()=>null;Chart.defaults={font:{},plugins:{legend:{}}};
+const ctx=Object.assign({document,Chart,console,JSON,Math,Object,Array,Number,String,isNaN,
+  window:{addEventListener:(e,f)=>{if(e==='load')loads.push(f)}},addEventListener(){},requestAnimationFrame(){},
+  setTimeout:f=>f(),navigator:{},location:{search:''},innerHeight:800,scrollY:0},canv);
+vm.createContext(ctx);vm.runInContext(src,ctx);
+loads.forEach(f=>f());
+if(!scriptEl)throw new Error('차트 스크립트를 싣지 않았다');
+scriptEl.onload();
+const btn=()=>ztog.children.map(b=>({text:b.textContent,type:b.type||null,pressed:b.getAttribute('aria-pressed')}));
+const out={charts:{},buttons0:btn(),c5_0:{role:canv.c5&&canv.c5.getAttribute('role'),label:canv.c5&&canv.c5.getAttribute('aria-label')}};
+if(ztog.children.length>1){ztog.children[1].onclick();out.buttons1=btn();out.c5_1={role:canv.c5.getAttribute('role'),label:canv.c5.getAttribute('aria-label')};}
+for(const [k,c] of Object.entries(charts)){out.charts[k]={datasets:c.data.datasets.map(d=>({label:d.label||null,bg:d.backgroundColor,border:typeof d.borderColor==='string'?d.borderColor:null,data:d.data})),labels:c.data.labels,scales:JSON.parse(JSON.stringify(c.options.scales||{}))};}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _run_page_js(tmp_path, D=None):
+    import shutil
+    import subprocess
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    h = tmp_path / 'harness.js'
+    h.write_text(_PAGE_JS, encoding='utf-8')
+    args = ['node', str(h), PAGE]
+    if D is not None:
+        d = tmp_path / 'D.json'
+        d.write_text(json.dumps(D, ensure_ascii=False), encoding='utf-8')
+        args.append(str(d))
+    proc = subprocess.run(args, capture_output=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr.decode('utf-8', 'replace')
+    return json.loads(proc.stdout.decode('utf-8'))
+
+
+def test_jratio_spectrum_axis_widens_for_values_outside_the_default_band(tmp_path):
+    """참고② 전세가율 스펙트럼(c4)의 가로축은 값이 50~82 밖이어도 막대를 담는다(전수리뷰 C-2).
+
+    축을 min:50·max:82 로 박아 두면 세종 49.9(2019.04~2025.12 내내 50 미만) 같은 막대가 그림 영역 밖에 그려져 이름표만 남고,
+    82 를 넘는 막대(전북 2019.12 82.7)는 82 에서 잘린다. 지금은 suggestedMin·suggestedMax 라 Chart.js 가 값에 맞춰 넓힌다.
+    변이(실제로 확인): c4 축을 옛 `min:50,max:82` 로 되돌리면 빨개진다.
+    픽스처: 저장소 페이지 D 에서 전세가율 가장 낮은 곳을 45.0, 가장 높은 곳을 85.0 으로 바꾼 사본(실제로 있었던 범위 밖 달의 모양).
+    """
+    D, _ = _page()
+    D = copy.deepcopy(D)
+    D['jratio_level'][0]['val'] = 45.0
+    D['jratio_level'][-1]['val'] = 85.0
+    out = _run_page_js(tmp_path, D)
+    x = out['charts']['c4']['scales']['x']
+    vals = out['charts']['c4']['datasets'][0]['data']
+    assert min(vals) == 45.0 and max(vals) == 85.0, vals
+    assert x.get('min', -1e9) <= min(vals) and x.get('max', 1e9) >= max(vals), '전세가율 축이 값을 담지 못한다: %s' % x
+
+
+def _cap_of(s, cid):
+    for body, c in re.findall(r'<div class="chartbox"[^>]*>(.*?)<canvas id="(\w+)"', s, re.S):
+        if c == cid:
+            return ' '.join(re.findall(r'<div class="cap"[^>]*>(.*?)</div>', body, re.S))
+    raise AssertionError('%s 캡션이 없다' % cid)
+
+
+def _word(w):
+    w = w.strip('(),.')
+    return w if w in COLOR_WORDS else w[:-1] if w.endswith('색') and w[:-1] in COLOR_WORDS else w
+
+
+def test_caption_colour_pairs_match_the_rows(tmp_path):
+    """캡션이 말하는 '색 = 대상' 짝이 막대·선의 실제 색과 맞는다 — 색 이름이 차트 어딘가에 있는지만 보던 시험(위)을 짝 단위로 좁힌다
+    (전수리뷰 C-6: c6·cL6 의 수도권·지방 색을 서로 바꿔도 초록이었다).
+
+    차트별 짝: c6·cL6 '청록=수도권, 황갈=지방'(cL6 은 '회색=효과 약함'), cL3 '살아있는 곳(r 0.3 이상)은 초록, … (0~0.3)은 호박색,
+    … 끊긴 곳은 회색', cRate '매매(빨강)·전세(보라)', '금리(노랑, …)'. 색 이름은 캡션에서 읽고, 대상 조건은 차트 스크립트의 조건과 같다.
+    변이(각각 실제로 확인): c6 `r.sudo?COL.sudo:COL.jib` 를 `r.sudo?COL.jib:COL.sudo` 로, cL6 의 수도권·지방 색을 서로, cL3 의
+    COL.cut·COL.live 를 서로, cRate 매매·전세 borderColor 를 서로 바꾸면 각각 빨개진다.
+    픽스처: 저장소 페이지 D 에 모든 갈래(수도권·지방 / 유의·비유의 / r≥0.3·0~0.3·음)가 반드시 있도록 합성 행을 더한 사본.
+    """
+    D, s = _page()
+    D = copy.deepcopy(D)
+    D['sync'] += [{'region': '합성수도권', 'corr': 0.5, 'sudo': True}, {'region': '합성지방', 'corr': 0.6, 'sudo': False}]
+    D['link3_regional'] += [{'region': '합성강', 'r': 0.45, 'sudo': False}, {'region': '합성중', 'r': 0.1, 'sudo': False},
+                            {'region': '합성끊김', 'r': -0.2, 'sudo': True}]
+    D['link6_regional'] += [dict(region='합성수도권', r=-0.4, lag=1, zone='수도권', sig=True, lagtxt='1분기 뒤'),
+                            dict(region='합성지방', r=-0.4, lag=0, zone='지방', sig=True, lagtxt='즉시'),
+                            dict(region='합성약함', r=-0.1, lag=0, zone='지방', sig=False, lagtxt='효과 약함')]
+    out = _run_page_js(tmp_path, D)['charts']
+    rules = {
+        'c6': ('sync', [(r'(\S+?)=수도권', lambda r: r['sudo']), (r'(\S+?)=지방', lambda r: not r['sudo'])]),
+        'cL6': ('link6_regional', [(r'(\S+?)=수도권', lambda r: r['sig'] and r['zone'] == '수도권'),
+                                   (r'(\S+?)=지방', lambda r: r['sig'] and r['zone'] != '수도권'),
+                                   (r'(\S+?)=효과 약함', lambda r: not r['sig'])]),
+        'cL3': ('link3_regional', [(r'살아있는 곳\([^)]*\)은 (\S+?),', lambda r: r['r'] >= 0.3),
+                                   (r'이어진 곳\([^)]*\)은 (\S+?),', lambda r: 0 <= r['r'] < 0.3),
+                                   (r'끊긴 곳은 (\S+?)이다', lambda r: r['r'] < 0)]),
+    }
+    checked = 0
+    for cid, (key, pairs) in rules.items():
+        cap = _cap_of(s, cid)
+        rows = D[key]
+        if cid == 'c6':
+            rows = sorted(rows, key=lambda r: -r['corr'])     # 페이지가 그리기 전에 동조성 내림차순으로 정렬한다
+        bg = out[cid]['datasets'][0]['bg']
+        assert len(bg) == len(rows), cid
+        for pat, pred in pairs:
+            m = re.search(pat, cap)
+            assert m, '%s 캡션에서 색 짝을 못 찾았다(%s) — 문구를 바꿨으면 이 시험도 고칠 것' % (cid, pat)
+            word = _word(m.group(1))
+            assert word in COLOR_WORDS, (cid, word)
+            hit = [(r['region'], c) for r, c in zip(rows, bg) if pred(r)]
+            assert hit, '%s 의 %s 갈래 행이 없다 — 픽스처가 헛돈다' % (cid, pat)
+            wrong = [(n, c) for n, c in hit if c.lower() not in COLOR_WORDS[word]]
+            assert not wrong, '%s 캡션은 %s 이라 하는데 다른 색으로 칠했다: %s' % (cid, word, wrong[:3])
+            checked += 1
+    cap = _cap_of(s, 'cRate')
+    ds = {d['label']: (d['border'] or '').lower() for d in out['cRate']['datasets']}
+    for pat, label in ((r'매매\((\S+?)\)', '매매'), (r'전세\((\S+?)\)', '전세'), (r'금리\((\S+?),', 'CD금리')):
+        m = re.search(pat, cap)
+        assert m and label in ds, (pat, sorted(ds))
+        assert ds[label] in COLOR_WORDS[_word(m.group(1))], 'cRate %s 선이 캡션 색(%s)이 아니다: %s' % (label, m.group(1), ds[label])
+        checked += 1
+    assert checked == 11, checked
+
+
+def test_region_toggle_reports_its_state_to_assistive_tech(tmp_path):
+    """참고① 지역별 매매·전세 추이의 지역 전환 단추는 묶음 이름(role=group·aria-label)과 눌림 상태(aria-pressed)를 갖고, 차트 이름에
+    고른 지역을 싣는다(전수리뷰 C-13 — 홈 map-mode·tb-view, zone.js zm-seg 와 같은 꼴).
+
+    변이(실제로 확인): onclick 에서 누른 단추의 aria-pressed 를 'true' 로 바꾸는 줄을 빼면 누른 뒤 단정이, dz() 의 role='img' 를 빼면
+    (아래 캔버스 이름 루프는 이름이 이미 있으면 건너뛴다) 역할 단정이, #ztog 의 role="group" 을 빼면 첫 단정이 빨개진다.
+    픽스처: 저장소 cycle/index.html(D.zones 의 지역 넷) — 둘째 단추를 누른 상태까지 본다.
+    """
+    _, s = _page()
+    assert re.search(r'<div class="toggle" id="ztog" role="group" aria-label="[^"]+">', s), '#ztog 에 묶음 역할·이름이 없다'
+    out = _run_page_js(tmp_path)
+    b0, b1 = out['buttons0'], out['buttons1']
+    assert len(b0) >= 2 and all(b['type'] == 'button' for b in b0), b0
+    assert [b['pressed'] for b in b0] == ['true'] + ['false'] * (len(b0) - 1), b0
+    assert [b['pressed'] for b in b1] == ['false', 'true'] + ['false'] * (len(b1) - 2), b1
+    for st, b in ((out['c5_0'], b0[0]), (out['c5_1'], b1[1])):
+        assert st['role'] == 'img' and st['label'] and st['label'].endswith(b['text']), (st, b)
+
+
+# ---------------------------------------------------------------- 공급 흐름·노후 재고 (전수리뷰 C-4)
+
+def _advance_flows(S):
+    """인허가(연내 누계)·착공·준공을 각자 마지막 달 뒤로 이어, 인허가의 그해(마지막 달이 12월이면 다음 해) 12월까지 채우고, 노후주택30년에
+    다음 해를 하나 더한 사본. 세 계열의 마지막 달은 다를 수 있다(다음 분기 전진 시험의 합성 데이터). 돌려주는 값:
+    (사본, 새로 다 찬 해, 노후 재고의 새 해)."""
+    S = copy.deepcopy(S)
+    last = S['인허가']['dates'][-1]
+    y = int(last[:4]) + (1 if last[5:7] == '12' else 0)
+    for key in ('인허가', '착공', '준공'):
+        blk = S[key]
+        ly, lm = int(blk['dates'][-1][:4]), int(blk['dates'][-1][5:7])
+        assert ly <= y, '%s 가 인허가보다 한 해 넘게 앞선다 — 픽스처를 고칠 것' % key
+        while (ly, lm) < (y, 12):
+            ly, lm = (ly + 1, 1) if lm == 12 else (ly, lm + 1)
+            blk['dates'].append('%d.%02d' % (ly, lm))
+            for r, ser in blk['series'].items():
+                prev = ser[-1] if (key == '인허가' and lm > 1 and ser[-1] is not None) else 0.0
+                ser.append(prev + 1000.0)
+    b = S['노후주택30년']
+    ny = int(str(b['dates'][-1])[:4]) + 1
+    b['dates'].append(str(ny))
+    for r, ser in b['series'].items():
+        ser.append(None if r != '전국' else (ser[-1] or 0) * 1.1)
+    return S, y, ny
+
+
+def test_flow_chain_and_old_stock_follow_data_js(monkeypatch, tmp_path):
+    """고리④⑤ 공급 흐름(D.flow_chain)과 참고④ '30년 이상 아파트 … N배'(D.super.stock30)는 매일 배치가 data.js 에서 다시 쓴다.
+
+    예전엔 둘 다 07-30 에 손으로 구운 값이라, 새해 실적·소급 정정이 와도 공급 흐름은 2025 에서, 본문은 '2024년 252만·5배'에서
+    멈췄다(data.js 에는 이미 2025 295만이 있었다).
+    변이(실제로 확인): main 의 flow_chain splice 를 지우면 전진 단정이, stock30 을 어제 판(prev)으로 두면 노후 재고 전진 단정이,
+    build_flow 의 연 합을 RC.y_sum 대신 열두 달을 따지지 않는 합으로 바꾸면 반쯤 찬 해 단정이 빨개진다.
+    픽스처: 저장소 STATS 를 마지막 달 뒤로 이어 그해를 다 채운 사본(새해 실적이 들어온 날)과, 그 직전(그해가 덜 찬) 상태.
+    """
+    S = RF.load_stats()
+    D, s = _page()
+    # 게이트 시점 페이지: 차트 데이터는 data.js 에서 다시 만든 값이다(생성기 뒤)
+    assert D['flow_chain'] == RF.build_flow(S, None), '공급 흐름 차트가 data.js 와 다르다 — refresh_cycle_data 를 돌릴 것'
+    assert D['super'].get('stock30') == RF.stock30(S, None) and 'stock30_2024' not in D['super']
+    last = S['인허가']['dates'][-1]
+    if last[5:7] != '12':
+        assert int(last[:4]) not in RF.build_flow(S, None)['t'], '덜 찬 해를 공급 흐름에 실었다'
+    S2, y, ny = _advance_flows(S)
+    (tmp_path / 'adv').mkdir()
+    D2 = _run_refresh(monkeypatch, tmp_path / 'adv', S2)
+    fc = D2['flow_chain']
+    assert fc['t'][-1] == y, '새로 다 찬 해(%d)를 공급 흐름에 싣지 않았다: %s' % (y, fc['t'][-3:])
+    pm = RC.m_y_sum(RF.SZ.permit_monthly(S2, '전국'))[str(y)]
+    assert fc['permit'][-1] == round(pm / 1000.0, 1) and fc['start'][-1] > 0 and fc['done'][-1] > 0, fc
+    st = D2['super']['stock30']
+    assert st['to'] == ny and st['from'] == int(str(S['노후주택30년']['dates'][0])[:4]), st
+    assert D2['prose']['sup_s30_y'] == str(ny) and D2['prose']['sup_stock30'] == str(RC._man(st['to_v']))
+    assert D2['prose']['sup_s30_x'] == str(RF.SZ.half_up(float(st['to_v']) / st['from_v']))
+    ref4 = _para(s, 'id="ref4"')
+    for k in ('sup_s30_y0', 'sup_s30_v0', 'sup_s30_y', 'sup_stock30', 'sup_s30_x'):
+        assert '<span data-d="%s">' % k in ref4, '참고 ④에 %s 칸이 없다' % k
+    bare = re.sub(r'<span data-d="[a-z0-9_]+">[^<]*</span>', '', ref4)
+    assert '2024년' not in bare and '5배' not in bare, '노후 재고 문장에 손으로 적은 해·배수가 남았다'
+
+
+# ---------------------------------------------------------------- 싣는 하위 필드 (전수리뷰 C-11)
+
+def _fields(k, v):
+    if k == 'zones':
+        return [set(z) for z in v.values()]
+    if isinstance(v, list):
+        return [set(x) for x in v]
+    return [set(v)]
+
+
+def _with_dead_fields(D):
+    """09-12 이후에도 남아 있던 '아무도 읽지 않는 하위 값'을 되살린 사본(2026-10-18 저장소 D 의 모양)."""
+    D = copy.deepcopy(D)
+    D['rate_overlay']['jratio'] = [60.0] * len(D['rate_overlay']['t'])
+    for x in D['jratio_level']:
+        x['sudo'] = x['region'] in ('서울', '경기', '인천')
+    for x in D['link6_regional']:
+        x['p'] = 0.01
+    D['link1_new'].update(r=-0.37, p=0.009, lag=1)
+    D['super'].update(need_annual=210000, stock2030_2024=3763170)
+    return D
+
+
+def test_payload_sub_fields_are_exactly_what_readers_use(monkeypatch, tmp_path):
+    """/cycle/ const D 의 키마다 하위 필드는 RC.SHIP_FIELDS(페이지 스크립트·본문 칸·블로그 이론편이 읽는 것)와 같다.
+
+    최상위 키 시험(test_cycle_payload.test_every_payload_key_is_read_by_the_page)은 하위 값을 못 봐, rate_overlay.jratio(매일 47분기)
+    ·jratio_level[].sudo·link6_regional[].p·link1_new.r·p·lag·super.need_annual·stock2030_2024 가 아무도 읽지 않는 채 실렸다.
+    변이(실제로 확인): refresh_cycle_data.main 의 SHIP_FIELDS 깎기 루프를 지우면 되살린 사본 단정이, RC.splice 의 깎기를 지우면
+    재산정 단정이, build_overlay 에 jratio 를 되살리면(루프가 깎지만) 함수 단정이 빨개진다.
+    픽스처: ① 게이트 시점 페이지 D, ② 그 D 에 옛 죽은 하위 값을 되살린 페이지 사본(2026-10-18 저장소의 모양)으로 돈 배치·재산정.
+    """
+    D, s = _page()
+    extra = sorted(set(D) - set(RC.SHIP_FIELDS) - {'prose'})
+    assert not extra, 'SHIP_FIELDS 에 없는 키가 D 에 있다(읽는 하위 필드를 등록할 것): %s' % extra
+
+    def check(D, where):
+        for k, f in RC.SHIP_FIELDS.items():
+            assert k in D, '%s: D 에 %s 가 없다' % (where, k)
+            rows = _fields(k, D[k])
+            assert rows, '%s: %s 가 비었다' % (where, k)
+            bad = [r for r in rows if r != set(f)]
+            assert not bad, '%s: %s 의 하위 필드가 SHIP_FIELDS 와 다르다: %s' % (where, k, sorted(bad[0] ^ set(f)))
+    check(D, '게이트 페이지')
+    assert 'jratio' not in RF.build_overlay(RF.load_stats())
+    assert all('sudo' not in x for x in RF.build_jratio(RF.load_stats())[0])
+    # 배치: 죽은 하위 값이 남은 옛 페이지에서 돌아도 깎아 낸다
+    dead = _with_dead_fields(D)
+    old = s.replace(re.search(r'const D=(\{.*?\});\n', s, re.S).group(1), json.dumps(dead, ensure_ascii=False), 1)
+    page = tmp_path / 'index.html'
+    page.write_text(old, encoding='utf-8')
+    monkeypatch.setattr(RF, 'PAGE', str(page))
+    monkeypatch.setattr(RF.I, 'bump_sitemap', lambda *a, **k: None)
+    RF.main()
+    check(json.loads(re.search(r'const D=(\{.*?\});\n', page.read_text(encoding='utf-8'), re.S).group(1)), '배치')
+    # 재산정 쓰기(RC.splice): 재산정 결과(보관 분석 모양 — p·lag 포함)를 받아도 페이지에는 깎아 싣는다
+    page.write_text(old, encoding='utf-8')
+    RC.splice(str(page), copy.deepcopy(dead))
+    got = json.loads(re.search(r'const D=(\{.*?\});\n', page.read_text(encoding='utf-8'), re.S).group(1))
+    for k in ('link1_new', 'link6_regional'):
+        bad = [r for r in _fields(k, got[k]) if r != set(RC.SHIP_FIELDS[k])]
+        assert not bad, '재산정: %s 에 읽지 않는 하위 값이 실렸다: %s' % (k, bad[0])
+
+
+# ---------------------------------------------------------------- 바뀐 날만 날짜를 올린다 (전수리뷰 C-5, 백로그 29)
+
+def test_cycle_date_moves_only_when_the_content_changes(monkeypatch, tmp_path):
+    """/cycle/ 의 JSON-LD dateModified 와 sitemap lastmod 는 데이터 칸이 실제로 바뀐 회차에만 오늘(KST)로 오른다.
+
+    조건이 풀리면 매일 배치가 /cycle/ 날짜·sitemap 을 오늘로 올려 매일 커밋·IndexNow 핑이 나가고 검색엔진에 '매일 갱신' 신호가
+    간다 — 게이트는 초록이었다(조건을 `if True:` 로 바꿔도 222 passed).
+    변이(실제로 확인): main 의 `if _strip_date(page) != _strip_date(RM.ensure(old)):` 를 `if True:` 로 바꾸면 같은 데이터 둘째
+    회차 단정이, `RM.ensure(old)` 를 `old` 로 바꾸면 로봇 메타 한 줄만 빠진 옛 판 단정이, 날짜 올리기·bump 를 지우면 값이 바뀐 회차
+    단정이 빨개진다.
+    픽스처: 저장소 페이지 사본과 저장소 STATS — ① 같은 데이터로 두 번, ② 전세가율 기준월의 서울 한 칸을 +0.7 바꾼 STATS,
+            ③ 로봇 메타 줄만 빠진 옛 판(D2 이전 페이지의 모양). 오늘은 가짜 날('1999-12-31')로 둔다.
+    """
+    import make_indicator_pages as I
+    fake = '1999-12-31'
+    bumps = []
+    page = tmp_path / 'index.html'
+    page.write_text(io.open(RF.PAGE, encoding='utf-8').read(), encoding='utf-8')
+    monkeypatch.setattr(RF, 'PAGE', str(page))
+    monkeypatch.setattr(RF, '_today_kst', lambda: fake)
+    monkeypatch.setattr(RF.I, 'bump_sitemap', lambda rows, *a, **k: bumps.append(list(rows)))
+    S = RF.load_stats()
+    monkeypatch.setattr(RF, 'load_stats', lambda: copy.deepcopy(S))
+
+    def date():
+        return re.search(r'"dateModified":\s*"([^"]*)"', page.read_text(encoding='utf-8')).group(1)
+    RF.main()                       # 첫 회차는 저장소 판이 이미 최신이면 그대로, 아니면 오늘로
+    d1, first = date(), bumps[:]
+    del bumps[:]
+    RF.main()                       # ① 같은 데이터 둘째 회차 — 날짜·sitemap 그대로
+    assert date() == d1 and bumps == [], '데이터가 그대로인데 날짜를 올렸다: %s %s' % (date(), bumps)
+    assert d1 == fake or not first, (d1, first)
+    # ③ 로봇 메타 한 줄만 빠진 옛 판 — 메타는 넣되 날짜는 그대로
+    txt = page.read_text(encoding='utf-8')
+    meta = re.search(r'<meta name="robots"[^>]*>\n', txt)
+    assert meta, '로봇 메타 줄이 없다 — 픽스처 전제가 깨졌다'
+    page.write_text(txt.replace(meta.group(0), '', 1), encoding='utf-8')
+    RF.main()
+    assert date() == d1 and bumps == [], '로봇 메타 한 줄 때문에 날짜를 올렸다'
+    assert '<meta name="robots"' in page.read_text(encoding='utf-8')
+    # ② 전세가율 한 칸이 바뀐 회차 — 오늘로, sitemap 도
+    page.write_text(page.read_text(encoding='utf-8').replace('"dateModified": "%s"' % d1, '"dateModified": "2000-01-01"'),
+                    encoding='utf-8')
+    S2 = copy.deepcopy(S)
+    k = I.jeonse_ref_index(S2['전세가율'], I.JEONSE_NEED)
+    S2['전세가율']['series']['서울'][k] += 0.7
+    monkeypatch.setattr(RF, 'load_stats', lambda: copy.deepcopy(S2))
+    RF.main()
+    assert date() == fake and bumps == [[('/cycle/', fake)]], (date(), bumps)
+
+
+# ---------------------------------------------------------------- '14개 시도 N년'의 햇수 (전수리뷰 C overflow)
+
+def test_span_years_come_from_the_data_span(monkeypatch, tmp_path):
+    """'14개 시도 20년'의 햇수는 자료 기간(D.zones → RC.span_years)에서 나온다. 생성기가 쓰는 자리(/cycle/ 메타 설명·og·JSON-LD,
+    블로그 초안 '더 보기')는 그 값이고, 손 페이지(홈 사이클 배너·FAQ)의 손 햇수는 그 값을 넘지 않는다(넘으면 과장 — 자료 기간은
+    해마다 늘기만 하므로 이 단정은 데이터가 앞으로 가도 초록이다).
+
+    변이(실제로 확인): refresh_cycle_data.main 에서 fill_meta_span 호출을 지우면 한 해 전진 단정이, make_naver_post '더 보기'의
+    햇수를 옛 손 글자 '20년'으로 되돌리면 블로그 원문 단정이, 홈 배너 햇수를 99 로 바꾸면 손 페이지 단정이 빨개진다.
+    픽스처: 게이트 시점 페이지 D·머리, 그 D 의 zones 한 지역에 한 해 뒤 분기를 더한 사본(새해 자료가 들어온 날), 홈·FAQ 원문.
+    """
+    import home_src as HS
+    import make_naver_post as P
+    D, s = _page()
+    n = RC.span_years(D['zones'])
+    a, b = D['prose']['span_y'].split('~')
+    assert n == int(b) - int(a) and n > 0
+    head = s[:s.find('</head>')]
+    metas = re.findall(r'\d+개 시도 (\d+)년', head)
+    assert len(metas) >= 3 and set(metas) == {str(n)}, '/cycle/ 머리의 햇수가 자료 기간과 다르다: %s vs %d' % (metas, n)
+    assert P.CYCLE_SPAN_N == n
+    assert any('%d개 시도 %d년 데이터' % (P.CYCLE_SYNC_N, n) in r['desc'] for r in P.MORE_ROTATION)
+    src = io.open(P.__file__, encoding='utf-8').read()
+    assert not re.search(r'개 시도 \d+년', src), '블로그 도구에 손으로 적은 햇수가 있다 — CYCLE_SPAN_N 을 쓸 것'
+    # 새해 자료가 들어온 날 — 햇수가 따라 오른다
+    adv = copy.deepcopy(D)
+    z0 = next(iter(adv['zones'].values()))
+    z0['t'].append(z0['t'][-1] + 1)
+    z0['maemae'].append(z0['maemae'][-1])
+    z0['jeonse'].append(z0['jeonse'][-1])
+    assert RC.span_years(adv['zones']) == n + 1
+    monkeypatch.setattr(RF, 'build_zones', lambda S: copy.deepcopy(adv['zones']))
+    monkeypatch.setattr(RF, 'index_bases_agree', lambda S: True)     # 지수 기준이 갈린 날에도 이 갈래를 돈다
+    page = tmp_path / 'index.html'
+    page.write_text(s, encoding='utf-8')
+    monkeypatch.setattr(RF, 'PAGE', str(page))
+    monkeypatch.setattr(RF.I, 'bump_sitemap', lambda *a, **k: None)
+    RF.main()
+    head2 = page.read_text(encoding='utf-8')
+    head2 = head2[:head2.find('</head>')]
+    assert set(re.findall(r'\d+개 시도 (\d+)년', head2)) == {str(n + 1)}, '새해 자료가 들어와도 메타 햇수가 그대로다'
+    monkeypatch.setattr(P, 'cycle_d', lambda: adv)
+    assert P._cycle_span_years() == n + 1
+    # 손 페이지 — 과장하지 않는다
+    home = HS.home_source()
+    faq = io.open(os.path.join(ROOT, 'faq', 'index.html'), encoding='utf-8').read()
+    hand = [('홈 배너', re.findall(r'<div class="hs-kicker">\d+개 시도 · (\d+)년</div>', home)),
+            ('홈 배너 설명', re.findall(r'(\d+)년 데이터로 검증한 순환', home)),
+            ('FAQ', re.findall(r'검증한 시도의 (\d+)년 데이터', faq))]
+    for where, got in hand:
+        assert got, '%s 의 햇수 자리를 못 찾았다 — 문구를 바꿨으면 이 시험도 고칠 것' % where
+        assert all(int(x) <= n for x in got), '%s 이 자료 기간(%d년)보다 긴 %s년을 말한다' % (where, n, got)
