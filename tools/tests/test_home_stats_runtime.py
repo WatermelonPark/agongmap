@@ -358,6 +358,39 @@ def test_region_select_follows_the_display_order_then_other_rows():
     assert tail == collator, tail
 
 
+# ── H2-15 규모별 진입·이탈의 보기 ───────────────────────────────────────────
+def test_size_dataset_switches_view_quietly_and_restores_it():
+    """기본통계에서 규모별(표 전용)을 고르면 표 보기로 **조용히** 바꾸고(stats_gt 를 보내지 않는다), 다른 계열로 나가면 들어오기 전
+    보기로 되돌린다. 재현한 실제 상태(전수리뷰 H2-15, Playwright): 그래프(gm-g)로 보던 중 규모별 → 매매지수로 돌아오면 'gsec gm-t'
+    (표)에 머물렀고, 규모별을 누를 때마다 stats_gt{section:basicmain, view:t} 가 사람 누름처럼 쌓였다.
+    픽스처: 계열 단추 셋(매매지수·규모별·착공)의 클릭 처리기를 실제 initStats 로 단다. 그리기 함수는 모형이다.
+
+    변이(실제로 확인): 규모별 진입을 옛 `gtSet('basicmain','t')`(silent 없음)로 되돌리면 stats_gt 가 쌓여, 이탈 때 되돌리기 줄을
+    빼면 표에 머물러 빨개진다.
+    """
+    got = _node(_stats_js(r"""
+STATS={'매매지수':{series:{}},'착공':{series:{}},'규모별':{series:{},regions:[]}};
+const btns={};
+const seg=document.getElementById('ds-seg');
+seg.querySelectorAll=()=>Object.keys(STATS).map(k=>{const b=btns[k]||(btns[k]=__mk('b-'+k));b.dataset.ds=k;
+  b.addEventListener=(e,f)=>{b.click=f;};return b;});
+document.getElementById('reg-sel').parentElement=__mk('p');
+fillRegions=()=>{};renderAux=()=>{};drawStat=()=>{};drawLeadtime=()=>{};
+const sec=document.getElementById('sec-basicmain'); sec.classList.add('gm-g'); sec.classList.add('gsec');
+initStats();
+const view=()=>sec.classList.contains('gm-t')?'t':(sec.classList.contains('gm-g')?'g':'?');
+__TR.length=0;
+btns['규모별'].click(); OUT.inSize=view();
+btns['규모별'].click(); OUT.again=view();
+btns['매매지수'].click(); OUT.back=view();
+OUT.gt=__TR.filter(t=>t[0]==='stats_gt').length;
+// 표로 보던 사람은 표로 돌아온다
+sec.classList.remove('gm-g'); sec.classList.add('gm-t');
+btns['규모별'].click(); btns['착공'].click(); OUT.backT=view();
+"""))
+    assert got == {'inSize': 't', 'again': 't', 'back': 'g', 'gt': 0, 'backT': 't'}, got
+
+
 # ── #59 보조선 정점·바닥 ─────────────────────────────────────────────────────
 def test_aux_peak_lines_sit_on_the_data_peak():
     """'정점'·'바닥' 보조선은 그리는 계열·지역 원자료의 그 구간 최댓값·최솟값 달에 선다.

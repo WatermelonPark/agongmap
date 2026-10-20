@@ -142,6 +142,7 @@ function initStats(){
   seg.innerHTML=keys.map(k=>
     `<button data-ds="${k}"${k===ST.ds?' class="on"':''}>${DS_LABEL[k]}</button>`).join('');
   seg.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    const wasSize=ST.ds==='규모별';
     ST.ds=b.dataset.ds;ST.aux.clear();ST.reg=null;
     track('stats_dataset',{dataset:ST.ds});
     seg.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
@@ -153,7 +154,10 @@ function initStats(){
     // 규모별은 표 전용(피벗) — 그래프/표 토글을 숨기고 표 모드로 고정
     const gth=document.querySelector('#sec-basicmain .gt-head');
     if(gth)gth.style.display=isSize?'none':'';
-    if(isSize)gtSet('basicmain','t');
+    /* 규모별 진입·이탈은 조용히 바꾼다(사람이 누른 보기 전환이 아니다 — stats_gt 를 보내지 않는다). 떠날 때는 들어오기 전 보기로
+       되돌린다 — 예전엔 그래프로 보던 사람이 규모별을 거쳐 돌아오면 표에 머물렀다(전수리뷰 H2-15). */
+    if(isSize&&!wasSize){ ST.gtPrev=document.getElementById('sec-basicmain').classList.contains('gm-t')?'t':'g'; gtSet('basicmain','t',true); }
+    else if(!isSize&&wasSize)gtSet('basicmain',ST.gtPrev||'g',true);
     // 지연 계열(규모별)은 fillRegions가 STATS[ST.ds]를 바로 읽으므로 여기서 먼저 받는다
     const go=()=>{ if(isLead){drawLeadtime();}else{fillRegions();renderAux();drawStat();} };
     if(!isLead&&!STATS[ST.ds]) ensureSizeStats().then(go).catch(()=>{}); else go();
