@@ -148,7 +148,10 @@ def test_rest_carries_every_basic_series_except_lazy_ones(split):
     assert set(rest) == set(want), '빠진 계열 %s · 더 실린 계열 %s' % (
         sorted(set(want) - set(rest)), sorted(set(rest) - set(want)))
     for k, v in want.items():
-        assert rest[k] == v, '%s 값이 원천과 다르다' % k
+        got = rest[k]
+        if k == '전세가율':   # 출처 칸만 정본 표기(JR_SOURCE)로 바뀐다 — 값·날짜는 원천 그대로(아래 시험이 출처를 본다)
+            got = dict(got, source=v.get('source'))
+        assert got == v, '%s 값이 원천과 다르다' % k
     assert set(rest) & set(S.LAZY_STATS) == set(), '지연 계열이 rest에도 실렸다(중복 전송)'
 
 
