@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """data.js에서 홈 화면이 실제로 쓰는 조각만 뽑아 data-core.js를 만든다.
 
-배경: data.js 397KB를 모든 방문자가 매번 내려받는데, 홈이 실제로 쓰는 건
-그중 일부다. 통계 탭을 열지 않는 방문자에게 주간 155주·기본통계 11계열을
-보낼 이유가 없다.
+배경: data.js(약 2MB)는 생성기용 원본이라 브라우저는 받지 않는다. 홈이 실제로 쓰는 건 그중 일부다. 통계 탭을 열지 않는
+방문자에게 주간 155주·기본통계 계열을 보낼 이유가 없다.
 
-전략은 '쪼개서 나눠 보내기'가 아니라 '핵심만 먼저 보내기'다.
-  - data-core.js : 홈이 쓰는 것만. index.html이 즉시 로드.
-  - data.js      : 그대로 둔다. 통계 탭을 열 때 fetch로 받아 core에 병합.
-data.js를 손대지 않으므로 생활권 41장과 /cycle/은 아무 영향이 없다.
+전략은 '핵심만 먼저, 나머지는 필요할 때'다(받는 함수는 home-app.js).
+  - data-core.js    : 홈 첫 화면이 쓰는 것만. index.html 이 즉시 로드.
+  - data-trend.json : 통계 탭 그래프(주간·월간·투자지표·버블밴드) — loadFullData()가 받아 ADV 에 Object.assign.
+  - data-rest.json  : 기본통계 계열 — ensureBasicStats()가 받아 STATS 에 Object.assign.
+  - data-size.json  : 규모별 동향 — ensureSizeStats(). data-sgg.json : 시군구 전체 시계열 — ensureSggHist().
+data.js 는 손대지 않으므로 생성 페이지(시도 리포트·/cycle/ 등)에는 아무 영향이 없다.
 
 실행: python tools/split_data.py   (update_adv_data.py --update 뒤에)
 """
@@ -31,7 +32,7 @@ SIZE = os.path.join(ROOT, 'data-size.json')
 
 # '규모별 동향'은 지표4×규모6 피벗이라 STATS 14계열 중 혼자 186KB(rest의 39%)다.
 # 기본통계 세그먼트에서 그걸 실제로 누른 사람만 필요하므로 별도 지연 파일로 뺀다
-# (2026-08-01: rest 408KB → 250KB). index.html ensureSizeStats()가 받아 채운다.
+# (2026-08-01: rest 408KB → 250KB). home-app.js ensureSizeStats()가 받아 채운다.
 LAZY_STATS = ['규모별']
 # 파일 → 그 파일이 싣는 계열. 감시(check_freshness)가 이걸로 조회 목록을 만든다 —
 # 지연 파일이 늘면 여기만 늘리면 감시가 자동으로 따라온다(파일명 하드코딩 금지).
@@ -373,7 +374,7 @@ def main():
     body = (
         '/* 자동 생성 — tools/split_data.py. 직접 고치지 말 것.\n'
         '   홈 화면이 쓰는 조각만 담는다. 통계 탭을 열면 loadFullData()가\n'
-        '   data-rest.json을 받아 이 전역에 Object.assign으로 채운다. */\n'
+        '   data-trend.json을, ensureBasicStats()가 data-rest.json을 받아 이 전역에 Object.assign으로 채운다. */\n'
         'const ADV=%s;\n'
         'const STATS=%s;\n'
         'window.__DATA_CORE__=true;\n' % (dump(core_adv), dump(core_stats)))

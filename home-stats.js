@@ -828,8 +828,8 @@ function drawNationMap(k){
   /* 월세는 월간 원천에만 있다 — 부동산원 주간조사는 매매·전세만(R-ONE 주간표 8종 전부).
      그래서 주간 지도는 2단, 월간 지도는 3단으로 자동 분기한다. */
   const hasWo=Array.isArray(row.wo);
-  // 시군구 지도(KOSIS 등)의 기준일이 시도·서울 지표(R-ONE 최신)보다 뒤처질 때가 있어
-  // (예: 주간 시군구는 시도보다 수일 늦음) 오해 없게 두 날짜를 함께 표기한다.
+  // 시군구 지도의 기준일이 시도 지표(R-ONE 최신)와 다를 때가 있어(예: 주간 시군구가 시도보다 늦음), 그때는 기준일 칩이
+  // 시군구 날짜임을 밝힌다(mapDateChip 의 '시군구 ' 머리말 — 날짜는 시군구 하나만 적는다).
   const natP=(D.rows&&D.rows.length)?D.rows[D.rows.length-1].p:row.p;
   const gap=natP!==row.p;
   const SER=hasWo?'매매·전세·월세':'매매·전세';
@@ -1072,8 +1072,7 @@ function areaGrad(color,topHex){
   };
 }
 function mkChart(id,cfg){ if(GCH[id])GCH[id].destroy(); return GCH[id]=new Chart(document.getElementById(id),cfg); }
-// 가로 스크롤 추이 차트의 y축을 왼쪽에 고정 복제 (스크롤해도 항상 보이게)
-const TRP={week:1,month:1};
+const TRP={week:1,month:1};   // 기간 단추 기본: 주간·월간 모두 '1년'(TREND.periods 의 1번 칸)
 /* 월간 다음 발표 — 이번 달 발표일(15일을 영업일로 민 날)을 먼저 구하고, 그날 12시(공표)가 지났을 때만 다음 달로 넘긴다.
    예전엔 달력상 15일로 '지났다'를 판정해, 15일이 주말·휴일로 밀린 달에는 16일~밀린 발표일 사이에 벌써 다음 달 날짜를
    보였다(2026-08-15 토·광복절 → 8/18, 전수리뷰 #55). */
@@ -1095,7 +1094,7 @@ function renderReleaseInfo(){
   if(w)w.textContent='한국부동산원 · 매주 목요일 발표'+(nx?' · '+nx:'');
   const m=document.getElementById('rel-month');
   if(m)m.textContent='한국부동산원 · 매월 15일 발표 · 다음 '+_fmtRel(_next15(new Date()));
-}   /* 기본: 주간 1년 · 월간 3년 */
+}
 function renderTrPeriods(k){
   const T=TREND[k], el=document.getElementById(k+'-period'); if(!el||!T.periods)return;
   const W=trendData(k), have=W&&W.rows?W.rows.length:0;
