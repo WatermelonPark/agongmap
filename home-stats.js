@@ -294,7 +294,7 @@ function drawStat(){
         while(drawn.some(d=>d.row===row&&Math.abs(d.x-x)<70))row++;
         const ty=ya.top+11+row*14;
         ctx.textAlign=x>xa.right-50?'right':'left';
-        ctx.fillText(' '+l.t+(l.find?' '+labels[pos]:''),x,ty);drawn.push({x:x,row:row});ctx.restore();
+        ctx.fillText(' '+l.t+(l.find?' '+_ymCell(labels[pos]):''),x,ty);   // 그래프 안 글자는 좁은 꼴('21.10', 눈금과 같다 — H2-11)drawn.push({x:x,row:row});ctx.restore();
       });
     }}]
   });

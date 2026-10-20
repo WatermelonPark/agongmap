@@ -481,7 +481,7 @@ function answerQ(choice){
   const exp=document.getElementById('qexp');
   const ok=choice===correct;
   exp.innerHTML=`<div class="ehead ${ok?'o':'x'}">${ok?'○ 정답!':'✕ 아쉬워요'}</div><p>${item.exp}</p>`+
-    (item.asof?`<p class="qasof">제도 기준일 ${item.asof.replace(/-/g,'.')} · 이후 바뀌었을 수 있습니다</p>`:'');
+    (item.asof?`<p class="qasof">제도 기준일 ${_dL(item.asof)} · 이후 바뀌었을 수 있습니다</p>`:'');
   exp.classList.add('show');
   document.getElementById('qnext').classList.add('show');
   qSave();
