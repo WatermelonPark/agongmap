@@ -56,12 +56,20 @@ def test_preload_and_font_face_point_to_the_same_existing_file():
     assert not left, '쓰지 않는 옛 서브셋이 남았다(도구가 지운다): %s' % left
 
 
+# 원본 글꼴(Pretendard)에 없는 글자 — 도구가 서브셋에서 빼고 CSS 글꼴 목록의 다음 글꼴(CDN·시스템 이모지)이 그린다.
+# 여기 없는 글자가 홈 마크업·스크립트 문자열에 있는데 서브셋에 없으면 빨개진다.
+NOT_IN_FONT = {'ⓘ', '\ufe0f'}                 # 원 안의 i(카드 도움말 단추), 이모지 표시 선택자
+EMOJI_BLOCK = (0x1F000, 0x1FAFF)              # 그림 문자(BLV 등급 이모지 등) — 원본 글꼴에 이 블록이 없다
+
+
 def test_home_static_text_is_inside_the_subset():
-    """홈 마크업의 한글 음절·ASCII 가 서브셋 unicode-range 안에 있다 — 문구를 고치고 도구를 안 돌리면 빨개진다.
+    """홈 마크업의 글자(공백 위 모든 글자 — 한글·ASCII·기호)가 서브셋 unicode-range 안에 있다 — 문구를 고치고 도구를 안 돌리면
+    빨개진다. 원본 글꼴에 없는 글자(NOT_IN_FONT·이모지 블록)만 뺀다(스크립트 문자열 시험과 같은 규칙). 예전엔 한글 음절·ASCII 만
+    봐서 '★'·'℃'·'⇢' 같은 기호를 넣고 도구를 안 돌려도 초록이었다(전수리뷰 H2-18).
 
     배치가 매 회차 고쳐 쓰는 요약 구간(HOME_SUMMARY)과 통계·퀴즈 화면은 보지 않는다(데이터 문구라 게이트가 데이터에
     막히면 안 되고, 두 화면은 열 때 CDN 조각을 받는다). 도구가 모으는 것과 같은 함수(static_home_text)로 센다.
-    무엇을 깨뜨리면 빨개지나(실제로 확인): 홈 마크업(view-home 안)에 서브셋에 없는 한글 '뷁' 을 넣으면.
+    무엇을 깨뜨리면 빨개지나(실제로 확인): 홈 마크업(view-home 안)에 서브셋에 없는 한글 '뷁' 을 넣으면, 제목 끝에 '★'(U+2605)를 넣으면.
     픽스처: 저장소 index.html 과 그 HOME_FONT 구간.
     """
     b = _block()
@@ -69,9 +77,10 @@ def test_home_static_text_is_inside_the_subset():
     assert ur, 'unicode-range 가 없다'
     have = F.parse_ranges(ur.group(1))
     text = F.static_home_text(_html())
-    need = {c for c in text if 0xAC00 <= ord(c) <= 0xD7A3 or 0x20 <= ord(c) <= 0x7E}
-    assert len([c for c in need if ord(c) >= 0xAC00]) > 100, '홈 마크업에서 한글을 거의 못 읽었다 — 이 시험이 헛돈다'
-    miss = sorted(c for c in need if ord(c) not in have)
+    assert len({c for c in text if 0xAC00 <= ord(c) <= 0xD7A3}) > 100, '홈 마크업에서 한글을 거의 못 읽었다 — 이 시험이 헛돈다'
+    assert any(ord(c) > 0x7E and not 0xAC00 <= ord(c) <= 0xD7A3 for c in text), '홈 마크업에서 기호를 못 읽었다 — 이 시험이 헛돈다'
+    miss = sorted(c for c in set(text) if ord(c) > 0x20 and ord(c) not in have and c not in NOT_IN_FONT
+                  and not EMOJI_BLOCK[0] <= ord(c) <= EMOJI_BLOCK[1])
     assert not miss, ('홈 문구에 서브셋에 없는 글자가 있다: %s — `pip install fonttools brotli` 뒤 '
                       '`python tools/make_home_font.py` 로 다시 구울 것' % ''.join(miss))
 
@@ -108,12 +117,6 @@ def test_subset_is_cut_from_the_same_pretendard_as_the_cdn():
     """
     vers = set(re.findall(r'orioncactus/pretendard@v([\d.]+)/', _html()))
     assert vers == {F.PRETENDARD}, 'CDN 판 %s 와 서브셋 원본 판 %s 가 다르다' % (sorted(vers), F.PRETENDARD)
-
-
-# 원본 글꼴(Pretendard)에 없는 글자 — 도구가 서브셋에서 빼고 CSS 글꼴 목록의 다음 글꼴(CDN·시스템 이모지)이 그린다.
-# 여기 없는 글자가 홈 스크립트 문자열에 있는데 서브셋에 없으면 빨개진다.
-NOT_IN_FONT = {'ⓘ', '\ufe0f'}                 # 원 안의 i(카드 도움말 단추), 이모지 표시 선택자
-EMOJI_BLOCK = (0x1F000, 0x1FAFF)              # 그림 문자(BLV 등급 이모지 등) — 원본 글꼴에 이 블록이 없다
 
 
 def test_home_script_strings_are_inside_the_subset():
