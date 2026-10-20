@@ -25,7 +25,7 @@ def test_judgment_grid_page_is_that_section_only():
     h = P._section_page('세종', P.ZONE_SECTIONS['판정표'])
     assert h and 'class="zl"' in h and '제주' in h      # 칸의 신호등(2026-10-05 — 판정 태그 대신)
     assert '이번 주 시세' not in h and 'zback' not in h            # 옆 칸·돌아가기 링크 없음
-    assert 'googletagmanager' not in h and "gtag('config'" not in h
+    assert 'googletagmanager' not in h and "gtag('config'" not in h and 'ga_internal' not in h   # 내부 트래픽 표식 조각도(백로그 48)
     assert 'href="app.css"' in h and 'href="/app.css"' not in h
 
 

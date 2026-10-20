@@ -454,7 +454,7 @@ def _tile_counts():
     타일은 182개(서울 25 + 그 외 157)였다. 사이트 어디에도 187이라는 수가 없어
     대조할 데가 없었고, 4주마다 한 번씩 그대로 발행됐다.
 
-    타일은 `SGG_QNAME`에 이름이 있는 코드만 그려진다(index.html의 그리기 조건이
+    타일은 `SGG_QNAME`에 이름이 있는 코드만 그려진다(홈 스크립트의 그리기 조건이
     `SGG_QNAME[c] && …`). 그래서 그 목록이 곧 타일 수다.
     """
     q = _sgg_names()
@@ -469,7 +469,7 @@ def _sgg_names():
     h = HS.home_source()
     m = re.search(r'SGG_QNAME\s*=\s*(\{.*?\})\s*;', h, re.S)
     if not m:
-        raise RuntimeError('index.html에서 SGG_QNAME을 찾지 못했다 — 타일 수를 못 맞춘다')
+        raise RuntimeError('홈 스크립트(home-stats.js, home_src 경유)에서 SGG_QNAME을 찾지 못했다 — 타일 수를 못 맞춘다')
     return json.loads(m.group(1))
 
 
@@ -582,7 +582,7 @@ MORE_ROTATION = [
     # links가 있으면 desc 뒤에 링크를 여러 줄로 단다 — path/label 한 쌍으로는
     # 셋을 못 보여준다.
     dict(h='내 부동산 감각은 몇 점일까',
-         desc='테스트는 세 가지인데요. 각 10문항, 5분이면 끝나요.',
+         desc='테스트는 세 가지인데요. 각 %d문항, 5분이면 끝나요.' % HS.quiz_len(),
          links=[('/burini-test/', '부린이 테스트 — 내 감각은 몇 점인가'),
                 ('/investor-test/', '투자자 테스트 — 통념을 뒤집을 준비가 됐나'),
                 ('/redev-test/', '재건축·재개발 테스트 — 이 사업, 사업성이 있나')]),
@@ -2043,7 +2043,7 @@ def _section_page(z, key):
     m = re.search(r'<head>(.*?)</head>', t, re.S)
     # GA 스크립트만 뺀다(캡처가 방문으로 잡히지 않게). 표 동작 스크립트는 남긴다 — 분기별 표는 스크롤 상자라,
     # 그 스크립트가 최근·미래 분기 쪽으로 스크롤해 둬야 사이트와 같은 화면이 찍힌다.
-    head = re.sub(r'<script\b[^>]*>(?:(?!</script>).)*?(?:gtag|googletagmanager|ga_off)(?:(?!</script>).)*</script>|<script[^>]*googletagmanager[^>]*></script>', '',
+    head = re.sub(r'<script\b[^>]*>(?:(?!</script>).)*?(?:gtag|googletagmanager|ga_off|ga_internal)(?:(?!</script>).)*</script>|<script[^>]*googletagmanager[^>]*></script>', '',
                   m.group(1) if m else '', flags=re.S)
     sec = next((s.group(0) for s in re.finditer(r'<section\b[^>]*>.*?</section>', t, re.S)
                 if re.search(r'<h2[^>]*>[^<]*%s' % re.escape(key), s.group(0))), None)

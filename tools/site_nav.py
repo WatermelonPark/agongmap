@@ -38,6 +38,10 @@ TABS = (
 # 공용이라 app.css·손 페이지 <style>·생성기(make_indicator_pages SHELL, make_weekly_page put_nav)가 이 값을 쓴다 —
 # test_site_nav 가 저장소의 모든 탭바 규칙과 대조한다. 320px 네 칸(80px)에 '사이클' 13px(약 40px)이 들고, 탭바 높이(62px)는
 # 고정이라 본문 아래 여백(padding-bottom 66px)은 그대로다.
+# 브라우저 머리(주소창) 색 — 모든 페이지의 <meta name="theme-color"> 와 manifest theme_color 의 정본. 탭바 배경과 같은 먹색 토큰
+# (app.css --ink)이다. 예전엔 소개·FAQ·/weekly/ 는 먹색, 나머지 29장과 manifest 는 옛 남색 #16203a 로 갈렸다(전수리뷰 P 묶음 overflow).
+THEME_COLOR = '#131e24'
+
 LABEL_PX = 13
 # 탭바 키보드 초점(백로그 36-8, 2026-10-06) — 손 페이지 탭바엔 초점 표시가 없어 Tab 으로 어디 있는지 보이지 않았다. 먹색 바탕 위라
 # 흰 테두리를 안쪽으로 그린다. app.css 와 각 페이지 <style> 이 이 글자를 그대로 싣고 test_site_nav 가 모든 탭바 페이지를 본다.

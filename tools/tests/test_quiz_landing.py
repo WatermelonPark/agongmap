@@ -8,7 +8,8 @@
    그림을 받았다. 투자자 랜딩은 LV4·LV3 이름을 줄여 적었다.
 ② 랜드마크(#71). 09-18 접근성 2차가 '전 페이지'에 <main>·건너뛰기 링크를 넣었는데 퀴즈 랜딩 3종이 빠졌다.
    저장소 맨 위와 한 단계 아래의 모든 index.html(손 페이지와 생성 페이지 허브)이 <main id="main"> 하나와
-   #main 건너뛰기 링크를 갖는지 본다. 404.html 은 index.html 이 아니라 대상 밖이다(아직 <main> 이 없다).
+   #main 건너뛰기 링크를 갖는지 본다. 404.html 도 대상이다(전수리뷰 P-11 — 예전엔 '아직 <main> 이 없다'며 뺐고, 본문
+   랜드마크·건너뛰기 링크 없이 '공급 사이클 리포트는 아래에서'라는 낡은 안내가 홈 단추 위에 있었다).
 
 무엇을 깨뜨리면 빨개지나(모두 실제로 확인):
   · burini-test/index.html 10점 행을 🐦‍🔥 로 되돌리면 test_burini_landing_levels_match_blv 가 실패한다.
@@ -16,7 +17,7 @@
   · investor-test/index.html LV4 행을 옛 줄임 이름('머릿속에선 이미 최소 다주택자')으로 되돌리면
     test_investor_redev_landing_levels_match_grade 가 실패한다.
   · burini-test/index.html 에서 <main id="main"> 을 빼거나 redev-test 건너뛰기 링크의 href 를 바꾸면
-    test_pages_have_main_landmark_and_skip_link 가 실패한다.
+    test_pages_have_main_landmark_and_skip_link 가 실패한다. 404.html 을 옛 <div class="wrap"> 본문으로 되돌려도 실패한다.
 픽스처 없이 저장소의 실제 파일을 읽는다. 날짜·데이터와 무관하다.
 """
 import glob
@@ -83,17 +84,9 @@ def test_burini_landing_levels_match_blv():
 
 
 def _grades(key):
-    src = HS.home_source()
-    i = src.find('\n  %s:{' % key)
-    assert i >= 0, 'QUIZSETS 에서 %s 세트를 못 찾았다' % key
-    j = src.index('grade:s=>{', i)
-    body = src[j:src.index('\n    }', j)]
-    out = []
-    for lo, lv, g, e in re.findall(r"(?:if\(s>=(\d+)\))?return\{lv:'(LV\d+)',g:'([^']+)',d:'[^']*',emoji:'([^']+)'\}",
-                                   body):
-        out.append((int(lo) if lo else 0, lv, g, e.replace(VS, '')))
-    assert len(out) >= 2, '%s grade 함수를 못 읽었다' % key
-    return out
+    """정본 읽기는 home_src.quiz_grades 하나다(공유 카드 도구도 같은 함수를 읽는다 — 전수리뷰 P-14)."""
+    # 랜딩 표는 높은 점수부터 적으므로 내림차순으로 돌려준다
+    return [(lo, lv, g, e.replace(VS, '')) for lo, lv, g, e in reversed(HS.quiz_grades(key))]
 
 
 def test_investor_redev_landing_levels_match_grade():
@@ -110,7 +103,7 @@ def test_investor_redev_landing_levels_match_grade():
 
 
 def _pages():
-    out = ['index.html']
+    out = ['index.html', '404.html']
     for p in sorted(glob.glob(os.path.join(ROOT, '*', 'index.html'))):
         out.append(os.path.relpath(p, ROOT).replace(os.sep, '/'))
     return out
@@ -119,7 +112,7 @@ def _pages():
 def test_pages_have_main_landmark_and_skip_link():
     pages = _pages()
     for must in ('burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html',
-                 'about/index.html', 'faq/index.html', 'privacy/index.html', 'cycle/index.html'):
+                 'about/index.html', 'faq/index.html', 'privacy/index.html', 'cycle/index.html', '404.html'):
         assert must in pages, '%s 가 대상에 없다' % must
     bad = []
     for rel in pages:
@@ -127,3 +120,98 @@ def test_pages_have_main_landmark_and_skip_link():
         if s.count('<main id="main"') != 1 or '</main>' not in s or 'class="skip" href="#main"' not in s:
             bad.append(rel)
     assert not bad, '<main id="main"> 하나와 #main 건너뛰기 링크가 없는 페이지: %s' % bad
+
+
+LANDINGS = ('burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')
+
+
+def _pool():
+    """홈 퀴즈 문항 풀 — 질문(태그 뗀 글)과 보기 목록. 읽기 식은 test_quiz_regulation_items 의 ITEM 하나를 쓴다."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import test_quiz_regulation_items as QRI
+    return [(re.sub(r'<[^>]+>', '', x['q']).replace("\\'", "'"), x['opts']) for x in QRI._items()]
+
+
+def _examples(rel):
+    """'이런 걸 물어본다' 예시 [(질문, 보기 줄)] — 보기 줄은 ①② 로 보기를 적은 것만 보기 목록, 아니면 None."""
+    s = _read(rel)
+    out = []
+    for qt, qo in re.findall(r'<div class="qt">Q\. (.*?)</div>\s*<div class="qo">(.*?)</div>', s, re.S):
+        opts = None
+        if '①' in qo:
+            body = qo.split(' — ')[0].replace('&nbsp;', ' ')
+            opts = [o.strip() for o in re.split(r'[①②③④]', body) if o.strip()]
+        out.append((re.sub(r'<[^>]+>', '', qt).strip(), opts))
+    return out
+
+
+def test_landing_examples_with_options_are_real_quiz_items():
+    """랜딩이 '①②' 보기까지 내건 예시는 홈 퀴즈 풀에 같은 질문·같은 보기 문항이 있어야 한다(전수리뷰 P-1).
+
+    2026-09-13 대표 판단으로 투자자 규제 문항을 '호재일까 악재일까?'에서 '시장에 남기는 효과로 가까운 것은?'으로
+    바꿨는데, 투자자 랜딩만 옛 질문·보기('① 공급 줄여 호재 ② 거래 막혀 악재 — 정답과 해설은 테스트에서')를 계속
+    내걸었다. 그 문항은 풀에 없어 '정답과 해설은 테스트에서'라는 약속이 어느 회차에서도 지켜지지 않았다.
+    보기 없이 주제만 소개하는 예시(요약문)는 풀 문구와 달라도 된다 — 보기를 적은 예시만 대조한다.
+    변이(실제로 확인): investor-test/index.html 의 첫 예시를 옛 질문·보기로 되돌리면 빨개진다(풀에 없음, 호재·악재 이분법
+    둘 다). 픽스처 없이 저장소의 실제 랜딩 3종과 home-quiz.js 문항 풀을 읽는다.
+    """
+    pool = _pool()
+    assert pool, '퀴즈 풀을 못 읽었다'
+    checked = 0
+    bad = []
+    for rel in LANDINGS:
+        ex = _examples(rel)
+        assert ex, '%s: 예시를 하나도 못 읽었다 — 구조가 바뀌었으면 이 시험도 고칠 것' % rel
+        for q, opts in ex:
+            if opts is None:
+                continue
+            checked += 1
+            if '호재' in ' '.join(opts) and '악재' in ' '.join(opts):
+                bad.append('%s: 호재·악재 이분법 예시 — %s' % (rel, q))
+            if not any(pq == q and po == opts for pq, po in pool):
+                bad.append('%s: 풀에 같은 질문·보기 문항이 없다 — %s %s' % (rel, q, opts))
+    assert checked >= len(LANDINGS), '보기를 내건 예시가 %d개뿐이다 — 대조가 헛돈다' % checked
+    assert not bad, bad
+
+
+def _px(rule, prop):
+    m = re.search(r'(?:^|[;{\s])%s:(\d+)px' % prop, rule)
+    return int(m.group(1)) if m else None
+
+
+def test_landing_toast_sits_above_the_bottom_nav():
+    """퀴즈 랜딩의 안내 토스트(#toast — '링크가 복사됐어요!', '공유 링크: …')가 하단 탭바 위에 뜬다(전수리뷰 P-12).
+
+    재현한 상태(2026-10-18): #toast 는 bottom:34px·z-index:60, 탭바는 높이 62px·z-index:100 이라 토스트 아래 28px 가 늘 탭바 뒤였다.
+    375px 에서 두 줄로 접히면 둘째 줄이, 768~1023px 에서는 한 줄 전체가 탭바에 가려 읽히지 않았다(카카오 SDK·Web Share 가 없는
+    폴백 경로). 홈 .qtoast 는 bottom:80px 라 같은 문제가 없다.
+    변이(실제로 확인): 한 랜딩의 #toast 를 bottom:34px 로 되돌리면 빨개진다.
+    픽스처 없이 저장소의 실제 랜딩 3종의 <style> 규칙을 읽는다.
+    """
+    bad = []
+    for rel in LANDINGS:
+        s = _read(rel)
+        toast = re.search(r'#toast\{([^}]*)\}', s)
+        nav = re.search(r'\.bottomnav\{([^}]*)\}', s)
+        assert toast and nav, '%s: #toast 나 .bottomnav 규칙을 못 찾았다' % rel
+        b, h = _px(toast.group(1), 'bottom'), _px(nav.group(1), 'height')
+        assert b is not None and h, '%s: bottom·height 를 못 읽었다' % rel
+        if b <= h:
+            bad.append('%s: 토스트 bottom %dpx ≤ 탭바 높이 %dpx' % (rel, b, h))
+    assert not bad, bad
+
+
+def test_landing_map_link_uses_the_home_section_name():
+    """퀴즈 랜딩 3종의 '/#score' 링크 이름이 홈 그 구역의 이름(index.html #sec-score 의 aria-label)과 같다(전수리뷰 P 묶음 overflow).
+
+    재현한 상태(2026-10-18): 랜딩 링크 묶음이 '📍 아공맵 스코어 — 시도별 누적 공급 과부족'이라는, 홈 어디에도 없는 옛 구역 이름을
+    걸었다(목적지는 '전국 공급 지도'). 변이(실제로 확인): 한 랜딩의 링크 이름을 옛 '아공맵 스코어'로 되돌리면 빨개진다.
+    픽스처 없이 실제 index.html 과 랜딩 3종을 읽는다."""
+    m = re.search(r'id="sec-score" aria-label="([^"]+)"', HS.home_source())   # 홈은 home_src 입구로만 읽는다
+    assert m, '홈에서 #sec-score 구역 이름을 못 찾았다'
+    bad = []
+    for rel in LANDINGS:
+        names = re.findall(r'<a href="/#score">\S+ ([^<]+)<span>', _read(rel))
+        if names != [m.group(1)]:
+            bad.append('%s: %s' % (rel, names))
+    assert not bad, '홈 구역 이름은 %r — %s' % (m.group(1), bad)

@@ -52,11 +52,18 @@ def warm_neutral(h):
 
 
 def audit(path):
+    """한 페이지(.html) 또는 공유 시트 하나(.css)를 감사한다.
+
+    .css 는 파일 전체가 규칙이라 그대로 본다 — 공유 판정('app.css' 글자)을 끄고, 폰트 칸은 대상이 아니다(페이지가 본다).
+    데스크톱 틀 desk.css 는 2026-10-06부터 모든 탭바 페이지가 싣는데 감사가 읽지 않아 이름표의 font-weight:800 이 드러나지
+    않았다(전수리뷰 P-7). 페이지 scope 에 합치지 않고 main() 이 한 줄로 따로 감사한다 — 합치면 같은 요소(.bottomnav)의
+    그림자 재정의가 페이지마다 두 번 세어져 헛경보가 난다."""
     s = io.open(path, encoding='utf-8').read()
-    uses_shared = 'app.css' in s
+    is_css = path.endswith('.css')
+    uses_shared = (not is_css) and 'app.css' in s
     css = SHARED + s if uses_shared else s          # 공유 CSS를 쓰면 함께 판정
     style = ''.join(re.findall(r'<style[^>]*>(.*?)</style>', s, re.S))
-    scope = css if uses_shared else (style or s)
+    scope = s if is_css else (css if uses_shared else (style or s))
 
     # 따옴표에서 멈춘다 — 세미콜론 없는 인라인 style="...border-radius:var(--r-touch)" 에서
     # 뒤따르는 마크업 꼬리를 값으로 읽던 오탐(전수리뷰 #89)
@@ -67,7 +74,7 @@ def audit(path):
 
     return {
         'shared': uses_shared,
-        'font': ('Pretendard Variable' in s) or (uses_shared and 'Pretendard Variable' in SHARED),
+        'font': is_css or ('Pretendard Variable' in s) or (uses_shared and 'Pretendard Variable' in SHARED),
         'fontlink': 'pretendardvariable' in s.lower(),
         'w800': len(re.findall(r'font-weight:\s*(?:800|900)\b', scope))
                 + len(re.findall(r'font-weight="(?:800|900)"', s)),
@@ -117,7 +124,8 @@ def main():
     pages += sorted(p for p in glob.glob('*/index.html') if top(p) not in SKIP)
     zones = sorted(glob.glob('zone/*/index.html'))
     if zones:
-        pages.append(zones[0])          # 생활권 45장은 템플릿 산출물이라 대표 1장
+        pages.append(zones[0])          # 시도 리포트는 템플릿(make_sido_pages) 산출물이라 대표 1장
+    pages.append('desk.css')            # 모든 탭바 페이지가 싣는 데스크톱 틀(1024px 이상) — 시트 한 줄로 따로 본다(전수리뷰 P-7)
 
     print('%-26s %-4s %-5s %-4s %-4s %-4s %-7s %-4s %-5s %s'
           % ('페이지', '공유', '폰트', '800', 'UP', '자간', 'radius', '금색', '웜색', '장식'))
@@ -143,7 +151,7 @@ def main():
         for p, f in bad:
             print('  %-26s %s' % (p[:26], ' · '.join(f)))
     if zones:
-        print('\n지역 %d장은 tools/make_sido_pages.py 산출물 — 템플릿을 고치면 일괄 반영된다.' % len(zones))
+        print('\n시도 리포트 %d장은 tools/make_sido_pages.py 산출물 — 템플릿을 고치면 일괄 반영된다.' % len(zones))
 
 
 if __name__ == '__main__':

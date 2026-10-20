@@ -226,3 +226,21 @@ def test_challenge_link_points_to_the_score_page():
     s = _read('index.html')
     assert 'https://www.agongmap.co.kr/${slug}/${qScore}/?c=' in s, '대결 링크가 점수 공유 페이지로 가지 않는다'
     assert 'const slug=QUIZ_SLUG[curSet]' in s
+
+
+def test_score_pages_use_a_card_shape_that_fits_the_square_image():
+    """점수 공유 페이지의 twitter:card 가 그림 모양에 맞는다 — 800x800 점수 카드는 'summary'(정사각형), 가로로 긴 그림만 큰 카드(전수리뷰 P 묶음 overflow).
+
+    재현한 상태(2026-10-18): 33장 모두 800x800 카드에 summary_large_image 를 달아, X 미리보기에서 2:1 로 잘린 가운데 띠만 보였다.
+    변이(실제로 확인): make_quiz_share_pages.twitter_card 가 늘 'summary_large_image' 를 돌려주면 빨개진다.
+    픽스처: 저장소의 실제 점수 페이지와 share/<세트>-N.png 크기.
+    """
+    got = {}
+    for path, body in MQ.pages():
+        m = re.search(r'<meta name="twitter:card" content="(\w+)">', io.open(path, encoding='utf-8').read())
+        w, h = (int(x) for x in re.search(r'og:image:width" content="(\d+)">\s*<meta property="og:image:height" content="(\d+)"', body).groups())
+        got[path] = (m and m.group(1), w, h)
+    assert got, '점수 페이지를 못 찾았다'
+    bad = [(p, v) for p, v in got.items() if v[0] != ('summary_large_image' if v[1] >= 1.5 * v[2] else 'summary')]
+    assert not bad, bad[:3]
+    assert MQ.twitter_card(1200, 630) == 'summary_large_image' and MQ.twitter_card(800, 800) == 'summary'

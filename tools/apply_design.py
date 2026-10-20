@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 감사 도구와 같은 기준을 쓴다 — 감사가 준수로 본 원형(50%)·데이터 틴트를 적용 도구가
 # 네모·회색으로 바꾸던 어긋남(전수리뷰 #88). 기준은 audit_design 한 곳에만 둔다.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from audit_design import RADIUS_SHAPE, warm_neutral   # noqa: E402
+from audit_design import RADIUS_OK, RADIUS_SHAPE, warm_neutral   # noqa: E402
 
 FONT_LINK = ('<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>\n'
              '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard'
@@ -88,14 +88,16 @@ def apply(path):
         s = re.sub(r'\s*text-transform:\s*uppercase;?', '', s)
         log.append('uppercase')
 
-    # 4) radius 두 값 — 누르는 것만 3px. 원형(RADIUS_SHAPE)은 모양 자체라 그대로 둔다
+    # 4) radius 두 값 — 규칙 밖 값만 고친다: 누르는 것(TOUCH)은 3px, 나머지는 0. 감사가 허용하는 값(RADIUS_OK — 0·3px·
+    #    var(--r-touch)·원형 50%)은 그대로 둔다. 예전엔 원형만 남기고 나머지를 TOUCH 손 목록으로 다시 판정해, 목록에 없는 터치
+    #    대상(404 a.home '홈으로 가기' 단추, 손 페이지 공통 .skip 건너뛰기 링크)의 3px 를 0 으로 깎았다(전수리뷰 P-6, #88 과 같은 원칙).
     def rad(mo):
         sel, body = mo.group(1), mo.group(2)
         key = re.sub(r'\s+', ' ', sel.strip())
         touch = any(t in key for t in TOUCH)
         new = 'border-radius:' + ('3px' if touch else '0')
         return sel + '{' + re.sub(r'border-radius:([^;}]+)',
-                                  lambda d: d.group(0) if d.group(1).strip() in RADIUS_SHAPE else new,
+                                  lambda d: d.group(0) if d.group(1).strip() in RADIUS_OK else new,
                                   body) + '}'
     s2 = re.sub(r'([^{};]+)\{([^{}]*border-radius:[^{}]*)\}', rad, s)
     if s2 != s: log.append('radius')

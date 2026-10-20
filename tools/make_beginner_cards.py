@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """부린이 테스트 점수별 공유 카드 11장 (800x800) — 부동산 여정 (달걀 → 봉황).
 
-문구는 index.html의 BLV[score]와 1:1로 대응한다. 둘 중 하나를 고치면 반드시 같이 고칠 것.
+문구는 home-app.js 의 BLV[score]와 1:1로 대응한다(test_quiz_share 가 이름·LV 를 대조한다). 둘 중 하나를 고치면 반드시 같이 고칠 것.
+점수 분모·미터 칸·장 수는 home-quiz.js QUIZ_LEN(home_src.quiz_len), 배지 분모는 LEVELS 의 단계 수에서 나온다(전수리뷰 P-9).
 
 아트 소스:
   art_raw/raw-<score>.{png,webp,jpg,jpeg} 가 있으면 그 그림을 배경 제거(단색 배경 flood-fill)
@@ -14,7 +15,11 @@
 사용:  python tools/make_beginner_cards.py
 """
 import os
+import sys
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import home_src as HS  # noqa: E402  (퀴즈 문항 수 정본 QUIZ_LEN)
 
 W = H = 800
 PAPER = (246, 244, 238)
@@ -43,7 +48,7 @@ FONT_FILES = {
 # 번들 폰트가 없을 때만 쓰는 시스템 가변폰트 폴백(개발 PC 호환용)
 FONT_FALLBACK = ['C:/Windows/Fonts/NotoSansKR-VF.ttf']
 
-# (LV배지, 이름, 도발 문구 2줄) — index.html BLV[score]의 lv/g/taunt와 대응
+# (LV배지, 이름, 도발 문구 2줄) — home-app.js BLV[score]의 lv/g/taunt와 대응
 LEVELS = [
     ('LV1', '무주택 달걀', ['아직 껍데기 속', '무주택입니다']),
     ('LV1', '부화 임박', ['곧 세상 밖으로', '나올 참입니다']),
@@ -168,9 +173,11 @@ def place_art(card, art, box):
     card.alpha_composite(art2, (bx0 + (bw - nw) // 2, by0 + (bh - nh) // 2))
 
 
-def make_card(score, art_dir, out_path):
+def make_card(score, art_dir, out_path, n=None):
+    n = n if n is not None else HS.quiz_len()            # 문항 수 — 0~n점
     lv, name, taunt2 = LEVELS[score]
     accent = RAMP[score]
+    den, frac = '/ %d' % len({x[0] for x in LEVELS}), '/%d' % n
 
     img = Image.new('RGBA', (W, H), PAPER)
     M, R = 26, 38
@@ -183,11 +190,11 @@ def make_card(score, art_dir, out_path):
     # 헤더: 이름 + 레벨 배지
     d.text((60, 86), '부린이 테스트', font=noto(27), fill=INK, anchor='lm')
     bf, sf = noto(30), noto(19, 'Medium')
-    bw = d.textbbox((0, 0), lv, font=bf)[2] + d.textbbox((0, 0), '/ 10', font=sf)[2] + 20
+    bw = d.textbbox((0, 0), lv, font=bf)[2] + d.textbbox((0, 0), den, font=sf)[2] + 20
     bx1 = W - M - 34
     d.rounded_rectangle([bx1 - bw - 28, 66, bx1, 108], 21, fill=accent)
     d.text((bx1 - bw - 14, 88), lv, font=bf, fill=CARD, anchor='lm')
-    d.text((bx1 - 14, 89), '/ 10', font=sf, fill=CARD, anchor='rm')
+    d.text((bx1 - 14, 89), den, font=sf, fill=CARD, anchor='rm')
 
     art_path = find_art(art_dir, score)
     if art_path:
@@ -198,25 +205,25 @@ def make_card(score, art_dir, out_path):
         st = str(score)
         sfnt = fit_font(st, 200)
         sb = d.textbbox((0, 0), st, font=sfnt)
-        of = fit_font('/10', 108, axis='w')
-        ob = d.textbbox((0, 0), '/10', font=of)
+        of = fit_font(frac, 108, axis='w')
+        ob = d.textbbox((0, 0), frac, font=of)
         sw_, ow = sb[2] - sb[0], ob[2] - ob[0]
         gx = (W - (sw_ + 22 + ow)) / 2
         base = 400
         d.text((gx - sb[0], base - sb[3]), st, font=sfnt, fill=accent)
-        d.text((gx + sw_ + 22 - ob[0], base - 6 - ob[3]), '/10', font=of, fill=GRAY)
+        d.text((gx + sw_ + 22 - ob[0], base - 6 - ob[3]), frac, font=of, fill=GRAY)
         score_y = None
 
     if score_y:
-        d.text((W // 2, score_y), '점수 %d/10' % score, font=noto(23, 'Medium'), fill=MUTED, anchor='mm')
+        d.text((W // 2, score_y), '점수 %d%s' % (score, frac), font=noto(23, 'Medium'), fill=MUTED, anchor='mm')
 
-    # 레벨 미터 10칸
+    # 레벨 미터 n칸(문항 수)
     lvl = max(1, score)
     gap, bh = 9, 12
     x0 = M + 46
-    bw2 = ((W - 2 * x0) - gap * 9) / 10
+    bw2 = ((W - 2 * x0) - gap * (n - 1)) / n
     meter_y = 522 if art_path else 470
-    for i in range(10):
+    for i in range(n):
         x = x0 + i * (bw2 + gap)
         d.rounded_rectangle([x, meter_y, x + bw2, meter_y + bh], 6, fill=accent if i < lvl else METER_OFF)
 
@@ -247,7 +254,7 @@ if __name__ == '__main__':
     share = os.path.join(root, 'share')
     os.makedirs(share, exist_ok=True)
     real = []
-    for s in range(11):
+    for s in range(len(LEVELS)):
         if make_card(s, art_dir, os.path.join(share, 'beginner-%d.png' % s)):
             real.append(s)
-    print('11 cards written -> %s (real art: %s)' % (share, real))
+    print('%d cards written -> %s (real art: %s)' % (len(LEVELS), share, real))

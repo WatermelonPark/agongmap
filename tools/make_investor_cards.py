@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """투자자 테스트 점수별 공유 카드 11장 (800x800).
 
-문구는 index.html QUIZSETS.investor와 톤을 맞춘다. 둘 중 하나를 고치면 같이 볼 것.
+문구는 home-quiz.js QUIZSETS.investor(home_src 로 읽는다)와 톤을 맞춘다. 둘 중 하나를 고치면 같이 볼 것.
+티어 구간(점수 하한)은 QUIZSETS.investor.grade 에서, 점수 분모·미터 칸·장 수·꼬리말 'N문항'은 QUIZ_LEN 에서 읽는다(전수리뷰 P-9).
+숫자 줄(점수 + '/N' + 이모지)이 카드 좌우 여백(SIDE) 안에 들지 않으면 숫자를 폭에 맞춰 줄이고 줄 전체를 가운데 둔다 —
+예전엔 두 자리 '10'의 줄 폭이 790px 라 큰 숫자가 x=2 부터 찍혀 카드 왼쪽 끝에 붙었다(전수리뷰 P-5).
 이모지는 폰트(OS)에 의존하지 않도록 art_raw/emoji/ 에 PNG로 번들해 합성한다.
 
 사용:  python tools/make_investor_cards.py
@@ -11,6 +14,7 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_beginner_cards import noto  # noqa: E402  (번들 폰트 로더 공유)
+import home_src as HS  # noqa: E402  (퀴즈 정본 — QUIZ_LEN·grade)
 
 W = H = 800
 BG = (255, 255, 255)
@@ -28,14 +32,30 @@ SCORE_COLORS = [
     (184, 134, 47),
 ]
 
-# 티어별 (도장 문구, 도장 색, 문구 2줄, 이모지 파일)
-TIERS = [
-    (range(0, 3),  '거꾸로 독법', (197, 73, 60),   ['호재를 악재로', '읽고 계시네요'],       'compass'),
-    (range(3, 5),  '재도전 요망', (197, 73, 60),   ['부동산 뉴스,', '헤드라인만 보셨죠?'],   'sweat'),
-    (range(5, 7),  '반쯤 고수',   (220, 162, 20),  ['감은 있어요.', '계약은 아직 이르지만'], 'moon'),
-    (range(7, 9),  '고수 인정',   (49, 146, 122),  ['머릿속엔 이미', '다주택자시네요'],      'cool'),
-    (range(9, 11), '업자 의심',   (197, 73, 60),   ['이걸 다 맞히네...', '혹시 업자세요?'],   'trophy'),
+SIDE = 50                      # 숫자 줄의 좌우 여백(다른 요소 — 독수리 x=49 — 와 같은 선)
+
+# 티어별 (도장 문구, 도장 색, 문구 2줄, 이모지 파일) — 낮은 등급부터. 구간은 QUIZSETS.investor.grade 의 하한에서 나온다(tiers()).
+TIER_ART = [
+    ('거꾸로 독법', (197, 73, 60),   ['호재를 악재로', '읽고 계시네요'],       'compass'),
+    ('재도전 요망', (197, 73, 60),   ['부동산 뉴스,', '헤드라인만 보셨죠?'],   'sweat'),
+    ('반쯤 고수',   (220, 162, 20),  ['감은 있어요.', '계약은 아직 이르지만'], 'moon'),
+    ('고수 인정',   (49, 146, 122),  ['머릿속엔 이미', '다주택자시네요'],      'cool'),
+    ('업자 의심',   (197, 73, 60),   ['이걸 다 맞히네...', '혹시 업자세요?'],   'trophy'),
 ]
+
+
+def tiers(src=None):
+    """[(점수 구간 range, 도장, 색, 두 줄, 이모지)] — 구간은 QUIZSETS.investor.grade 하한, 끝은 QUIZ_LEN."""
+    src = HS.home_source() if src is None else src
+    los = [g[0] for g in HS.quiz_grades('investor', src)]
+    if len(los) != len(TIER_ART):
+        raise SystemExit('투자자 등급 %d개, 카드 티어 %d개 — TIER_ART 를 등급 수에 맞출 것' % (len(los), len(TIER_ART)))
+    ends = los[1:] + [HS.quiz_len(src) + 1]
+    return [(range(a, b),) + art for a, b, art in zip(los, ends, TIER_ART)]
+
+
+TIERS = tiers()
+QUIZ_N = HS.quiz_len()
 
 ART = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'art_raw', 'emoji')
 
@@ -103,29 +123,42 @@ def make_card(score, out):
     st = stamp_img(stamp, scol)
     im.paste(st, (int(608 - st.width / 2), int(104 - st.height / 2)), st)
 
-    # 숫자 + /10  (아래 정렬, 그룹 중심 x≈265)
-    num = str(score)
+    # 숫자 + /N  (아래 정렬, 그룹 중심 x≈265)
+    num, frac = str(score), '/%d' % QUIZ_N
     fnum = fit_h(num, 256, 'Bold')
-    fsl = fit_h('/10', 73, 'Bold')
+    fsl = fit_h(frac, 73, 'Bold')
     bn = d.textbbox((0, 0), num, font=fnum)
-    bs = d.textbbox((0, 0), '/10', font=fsl)
+    bs = d.textbbox((0, 0), frac, font=fsl)
     nw, sw = bn[2] - bn[0], bs[2] - bs[0]
-    gap = 32
+    gap, egap = 32, 70
+    p = os.path.join(ART, '%s.png' % emo)
+    e = Image.open(p).convert('RGBA') if os.path.exists(p) else None
+    ew = e.width if e is not None else 0
     gx = 265 - (nw + gap + sw) / 2            # 그룹 왼쪽
+    if gx < SIDE or gx + nw + gap + sw + egap + ew > W - SIDE:
+        # 두 자리 점수: 줄(숫자·분모·이모지)이 여백 안에 들게 숫자를 폭으로 맞추고 줄 전체를 가운데 둔다
+        room = W - 2 * SIDE - (gap + sw + egap + ew)
+        lo, hi = 8, fnum.size
+        while lo < hi:
+            mid = (lo + hi + 1) // 2
+            b = d.textbbox((0, 0), num, font=noto(mid, 'Bold'))
+            lo, hi = (mid, hi) if b[2] - b[0] <= room else (lo, mid - 1)
+        fnum = noto(lo, 'Bold')
+        bn = d.textbbox((0, 0), num, font=fnum)
+        nw = bn[2] - bn[0]
+        gx = (W - (nw + gap + sw + egap + ew)) / 2
     d.text((gx - bn[0], 479 - bn[3]), num, font=fnum, fill=SCORE_COLORS[score])
-    d.text((gx + nw + gap - bs[0], 448 - bs[3]), '/10', font=fsl, fill=SLASH)
+    d.text((gx + nw + gap - bs[0], 448 - bs[3]), frac, font=fsl, fill=SLASH)
 
     # 이모지 (숫자 오른쪽)
-    p = os.path.join(ART, '%s.png' % emo)
-    if os.path.exists(p):
-        e = Image.open(p).convert('RGBA')
-        ex = int(gx + nw + gap + sw + 70)
+    if e is not None:
+        ex = int(gx + nw + gap + sw + egap)
         im.paste(e, (ex, int(310 - e.height / 2)), e)
 
-    # 점 미터 (10개)
+    # 점 미터 (QUIZ_N 개)
     r, sp = 11, 40
-    x0 = 400 - (9 * sp) / 2
-    for i in range(10):
+    x0 = 400 - ((QUIZ_N - 1) * sp) / 2
+    for i in range(QUIZ_N):
         cx = x0 + i * sp
         d.ellipse([cx - r, 525 - r, cx + r, 525 + r], fill=METER_ON if i < score else METER_OFF)
 
@@ -140,9 +173,8 @@ def make_card(score, out):
     draw_centered(d, 400, 680, lines[1], f2, INK)
 
     # 푸터
-    full = '10문항 2지선다 · 5분 · agongmap.co.kr'
-    ffoot = fit_h(full, 25, 'Medium')
-    left, right = '10문항 2지선다 · 5분 · ', 'agongmap.co.kr'
+    left, right = '%d문항 2지선다 · 5분 · ' % QUIZ_N, 'agongmap.co.kr'
+    ffoot = fit_h(left + right, 25, 'Medium')
     fb = noto(ffoot.size, 'Bold')
     lw = d.textbbox((0, 0), left, font=ffoot)[2] - d.textbbox((0, 0), left, font=ffoot)[0]
     rw = d.textbbox((0, 0), right, font=fb)[2] - d.textbbox((0, 0), right, font=fb)[0]
@@ -160,6 +192,6 @@ if __name__ == '__main__':
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     share = os.path.join(root, 'share')
     os.makedirs(share, exist_ok=True)
-    for s in range(11):
+    for s in range(QUIZ_N + 1):
         make_card(s, os.path.join(share, 'investor-%d.png' % s))
-    print('11 cards written -> %s' % share)
+    print('%d cards written -> %s' % (QUIZ_N + 1, share))
