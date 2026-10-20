@@ -362,7 +362,7 @@ def test_city_post_site_links_mid_and_end(monkeypatch):
     """도시 편 사이트 링크는 둘이다: 단지 표 바로 아래(utm_content=mid, 시도 리포트의 시군구 시세 표 #weekly-sgg)와 글 끝
     (utm_content=end, 분기별 공급 리포트). 캠페인은 도시별 city_<도시>, UTM 은 '#' 앞이다. 끝 문장은 댓글을 직접 청하지 않는다.
     재현: 10-20 총괄 진단 직전 상태(링크가 글 끝 하나뿐, '댓글로 알려 주세요' 끝 문장). 픽스처는 대전 도시 편(_metro_raw).
-    변이(확인): 중간 링크 append 를 지우면, site_link 에서 utm_content 를 빼면, 끝 문장을 '댓글로 알려 주세요'로 되돌리면, 광역시 갈래(one)를 지우면 각각 빨개진다."""
+    변이(확인): 중간 링크 append 를 지우면, site_link 에서 utm_content 를 빼면, 끝 문장을 '댓글로 알려 주세요'로 되돌리면, 광역시 갈래(one)를 지우면, 링크 문장을 '사이트 리포트'로 되돌리면 각각 빨개진다."""
     import re
     from urllib.parse import quote
     now_y = _now_y()
@@ -377,4 +377,6 @@ def test_city_post_site_links_mid_and_end(monkeypatch):
         assert all(h.index('?') < h.index('#') for h in zone if '#' in h), zone
         assert html.index(zone[0]) > html.index('</table>') > 0, '중간 링크가 단지 표 아래에 있지 않다'
         assert '댓글' not in html, html[-600:]
+        links = [p for p in re.findall(r'<p>(.*?)</p>', html) if '/zone/' in p and 'utm_content' in p]
+        assert len(links) == 2 and all('아공맵' in p and '사이트' not in p for p in links), links   # 독자는 '사이트'가 어디인지 모른다(10-20 총괄)
         assert '대전 바깥' not in html and '대전 전체' not in html, '광역시 편에서 도시와 시도 이름이 겹친다'
