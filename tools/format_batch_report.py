@@ -35,7 +35,7 @@ import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import month_lag as ML  # noqa: E402  (뒤처짐 표시와 기준 개월을 한 곳에서 가져온다)
+import month_lag as ML  # noqa: E402  (뒤처짐 표시와 기준 개월을 한 곳에서 가져온다 — 생성기·감시는 끌어오지 않는다, F-6)
 
 # 상태 표시 → 심각도. 기록의 각 줄은 이 중 하나로 시작한다(rep() 호출부 참조).
 BAD = '❌'
@@ -44,20 +44,22 @@ OK = '✅'
 SKIP = '➖'
 
 
+# 아래 세 날짜 도우미는 sido_zones 날짜 정본(day_text·month_text·quarter_text — 읽는 자리의 두 단계 표기)의 거울이다.
+# 이 도구는 설치 없이 도는 결과 보고라 정본 모듈을 불러오지 않는다(F-6). 일치는 test_batch_report.test_date_helpers_mirror_the_canon 이 본다.
 def _month_day(s):
-    """'2026-09-07' → '9월 7일'. 못 읽으면 원문 그대로."""
+    """'2026-09-07' → '9/7'(sido_zones.day_text). 못 읽으면 원문 그대로."""
     m = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', s.strip())
-    return '%d월 %d일' % (int(m.group(2)), int(m.group(3))) if m else s.strip()
+    return '%d/%d' % (int(m.group(2)), int(m.group(3))) if m else s.strip()
 
 
 def _year_month(s):
-    """'2026-07' / '2026.07' → '2026년 7월'."""
+    """'2026-07' / '2026.07' → '2026년 7월'(sido_zones.month_text)."""
     m = re.match(r'^(\d{4})[-.](\d{2})$', s.strip())
     return '%s년 %d월' % (m.group(1), int(m.group(2))) if m else s.strip()
 
 
 def _quarter(s):
-    """'2026Q2' → '2026년 2분기'."""
+    """'2026Q2' → '2026년 2분기'(sido_zones.quarter_text)."""
     m = re.match(r'^(\d{4})Q([1-4])$', s.strip())
     return '%s년 %s분기' % (m.group(1), m.group(2)) if m else s.strip()
 
@@ -112,6 +114,7 @@ PLAIN = (
     (r'지역페이지 실패', '시도별 공급 페이지를 다시 만들지 못했습니다.'),
     (r'지표페이지 실패', '입주물량·전세가율 페이지를 다시 만들지 못했습니다.'),
     (r'이달의 통계 실패', '이달의 통계 페이지를 다시 만들지 못했습니다.'),
+    (r'주간 시세 페이지 실패', '주간 시세 페이지를 다시 만들지 못했습니다.'),
     (r'사이클 리포트 실패', '사이클 리포트를 다시 만들지 못했습니다.'),
     (r'홈 요약 실패', '홈 첫 화면 요약(검색 결과·링크 미리보기에 보이는 숫자)을 다시 만들지 못했습니다.'),
     (r'RSS 피드 실패', '새 소식 피드(검색엔진에 새 글을 알리는 목록)를 다시 만들지 못했습니다.'),
@@ -128,7 +131,7 @@ PLAIN = (
     (r'git add 실패|git commit 실패', '사이트에 반영하는 단계에서 실패했습니다.'),
     (r'푸시 3회 실패',
      '사이트 반영을 3번 시도했으나 실패해 이번 회차 결과가 유실됐습니다. '
-     '누군가 같은 줄을 고쳤을 수 있습니다.'),
+     '겹쳐 돈 앞 회차가 다른 데이터를 먼저 반영했거나 누군가 같은 줄을 고쳤을 수 있습니다. 다음 회차가 다시 받습니다.'),
     (r'IndexNow 실패',
      '검색엔진에 새 내용을 알리지 못했습니다. 데이터는 정상이고 검색 반영만 늦어집니다.'),
     (r'감시가 \d+시간째 안 돌았|감시 실행 이력을 읽지 못',

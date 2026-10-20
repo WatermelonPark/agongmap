@@ -225,23 +225,31 @@ def match(posts, issues, used=()):
 
 
 def note_record(n, record, title):
-    """발행 기록을 이슈 본문 끝에 덧붙이고 제목을 바꾼다. 실패해도 닫기는 계속한다."""
+    """발행 기록을 이슈 본문 끝에 덧붙이고 제목을 바꾼다. 기록을 남겼으면 True — 그때만 닫는다.
+
+    기록(글 주소)이 곧 '이 글은 이미 이슈 하나를 닫았다'는 표지다(closed_post_urls 가 닫힌 이슈 본문에서 읽는다). 기록 없이
+    닫으면 다음 날 같은 글이 다른 알림 이슈를 또 닫을 수 있어(전수리뷰 F overflow), 본문을 못 읽었거나 수정이 실패하면 닫지 않고
+    다음 실행에 다시 본다.
+    """
     try:
         r = subprocess.run(['gh', 'issue', 'view', str(n), '--repo', REPO, '--json', 'body'],
                            capture_output=True, text=True, timeout=60, encoding='utf-8')
         if r.returncode != 0:
             # 본문을 못 읽었으면 본문은 건드리지 않는다 — 빈 값 위에 기록을 쓰면 점검 체크리스트가
-            # 지워진다(리뷰 09-18 23번). 제목만 바꾼다.
-            args = ['gh', 'issue', 'edit', str(n), '--repo', REPO, '--title', title]
-        else:
-            old = json.loads(r.stdout or '{}').get('body') or ''
-            new = (old.rstrip() + '\n\n---\n' + record) if old else record
-            args = ['gh', 'issue', 'edit', str(n), '--repo', REPO, '--title', title, '--body', new]
+            # 지워진다(리뷰 09-18 23번). 기록을 못 남기니 이번에는 닫지도 않는다.
+            print('   ! 본문을 못 읽어 기록을 남기지 못했다 — 다음 실행에 다시 본다: %s' % (r.stderr or '').strip()[:160])
+            return False
+        old = json.loads(r.stdout or '{}').get('body') or ''
+        new = (old.rstrip() + '\n\n---\n' + record) if old else record
+        args = ['gh', 'issue', 'edit', str(n), '--repo', REPO, '--title', title, '--body', new]
         r = subprocess.run(args, capture_output=True, text=True, timeout=60, encoding='utf-8')
         if r.returncode != 0:
-            print('   ! 기록·제목 수정 실패: %s' % (r.stderr or '').strip()[:160])
+            print('   ! 기록·제목 수정 실패 — 다음 실행에 다시 본다: %s' % (r.stderr or '').strip()[:160])
+            return False
+        return True
     except Exception as e:
-        print('   ! 기록·제목 수정 실패: %s' % e)
+        print('   ! 기록·제목 수정 실패 — 다음 실행에 다시 본다: %s' % e)
+        return False
 
 
 def main(argv):
@@ -278,7 +286,8 @@ def main(argv):
         # ⚠️ 코멘트를 달고 닫으면 메일이 두 통 간다(코멘트 + 닫힘). 기록은 본문 끝에
         #    덧붙이고(본문·제목 수정은 알림을 만들지 않는다) 닫기만 한다 — 메일은 '닫힘'
         #    한 통이고, 그 제목이 '발행 확인됨'이 되도록 제목을 먼저 바꾼다.
-        note_record(iss['n'], body, done_title(iss['kind'], iss['due']))
+        if not note_record(iss['n'], body, done_title(iss['kind'], iss['due'])):
+            continue
         r = subprocess.run(['gh', 'issue', 'close', str(iss['n']), '--repo', REPO],
                            capture_output=True, text=True, timeout=60, encoding='utf-8')
         if r.returncode != 0:
