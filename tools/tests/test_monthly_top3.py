@@ -118,35 +118,39 @@ def test_summaries_match_the_tables_they_sit_on():
 def test_moveins_estimate_on_a_half_rounds_like_the_site_and_the_summary_follows_the_table():
     """입주물량 추정치가 x.5 에 걸린 분기 — 표 칸은 사이트 규칙(half-up)으로, 요약 증감은 표의 두 정수 차로.
 
-    추정치는 착공 × 0.958 을 소수 셋째 자리로 싣는다. 착공이 500 으로 나눠 250 이 남는 분기(250·750세대
-    단지 하나로도 된다)면 x.5 가 되는데, 예전엔 표가 round()(은행가)로, 요약이 '원값 차의 반올림'으로 따로
+    추정치는 착공 × CONV 를 소수 셋째 자리로 싣는다. 착공 × CONV 가 x.5 에 떨어지는 분기(CONV 0.958 이면 250·750세대,
+    0.947 이면 500·1500세대 단지 하나로도 된다)면, 예전엔 표가 round()(은행가)로, 요약이 '원값 차의 반올림'으로 따로
     반올림해 '대구 -3,042세대' 위에 표가 3,281 → 240(차 -3,041)을 보였다. 그 분기 내내 요약 대조 시험이
     빨개져 게이트가 데이터 커밋 전체를 막는다(2026-09-26 데이터 감사 #18). 홈(occFmt, Math.round)과 지역
-    페이지(make_sido_pages.rnd)는 718.5 를 719 로 보이는데 이 표만 718 이었다.
+    페이지(make_sido_pages.rnd)는 x.5 를 올리는데 이 표만 내렸다.
 
     변이: top3_lines 의 증감을 원값 차(`nv[i] - lv[i]`)로 되돌리고 _signed 를 `int(round(v))` 로 되돌리면
-          대구 요약이 -3,042 가 되어 빨개진다(실제로 바꿔 확인). num() 을 `int(round(v))` 로 되돌리면
-          서울 718.5 칸이 718 이 되어 빨개진다(확인).
-    픽스처: 감사가 재현한 모양 — 2026Q2 실적 대구 3,281(홀수)·2026Q3 추정 239.5(= 250 × 0.958),
-            서울 실적 5,001·추정 718.5(= 750 × 0.958). 다른 지역은 실적과 추정이 같아(변화 0) 요약에 오르지 않는다.
+          대구 요약이 한 세대 어긋나 빨개진다(실제로 바꿔 확인). num() 을 `int(round(v))` 로 되돌리면
+          서울 x.5 칸이 내려가 빨개진다(확인).
+    픽스처: 감사가 재현한 모양 — 2026Q2 실적 대구 3,281(홀수)·2026Q3 추정 x.5, 서울 실적 5,001·추정 x.5. 착공 수는 지금의
+            CONV 에서 x.5 가 되는 가장 작은 두 값을 찾는다(전환율을 바꾸는 날 픽스처 전제가 깨지지 않게 — 2026-10-21 0.958 → 0.947).
+            다른 지역은 실적과 추정이 같아(변화 0) 요약에 오르지 않는다.
     """
     import make_sido_pages as SP
+    halves = [n for n in range(1, 20001) if round(n * SZ.CONV * 1000) % 1000 == 500][:2]
+    assert len(halves) == 2, '픽스처 전제: 착공 × CONV 가 x.5 가 되는 착공 수가 둘은 있어야 한다'
     regs = list(SZ.ORDER)
     act = {r: 1000.0 for r in regs}
     est = {r: 1000.0 for r in regs}
-    act['대구'], est['대구'] = 3281.0, round(250 * SZ.CONV, 3)
-    act['서울'], est['서울'] = 5001.0, round(750 * SZ.CONV, 3)
-    assert (est['대구'], est['서울']) == (239.5, 718.5), '픽스처 전제(착공 250·750 → x.5)가 깨졌다'
+    act['대구'], est['대구'] = 3281.0, round(halves[0] * SZ.CONV, 3)
+    act['서울'], est['서울'] = 5001.0, round(halves[1] * SZ.CONV, 3)
+    assert est['대구'] % 1 == 0.5 and est['서울'] % 1 == 0.5, '픽스처 전제(착공 → x.5)가 깨졌다'
+    dg, se = est['대구'] + 0.5, est['서울'] + 0.5   # 사이트 규칙(half-up)으로 올린 정수
     adv = {'occupancy': {'regions': regs, 'rows': [
         {'p': '2026Q2', 'v': [act[r] for r in regs]},
         {'p': '2026Q3', 'v': [est[r] for r in regs], 'e': 1}]}}
     secs, _ = MP.build(adv, {})
     sec = _section(''.join(secs), 'moveins')
     rows = _rows(sec)
-    assert rows['서울'] == [5001.0, float(SP.rnd(718.5))] == [5001.0, 719.0], '표 반올림이 사이트와 다르다: %s' % rows['서울']
-    assert rows['대구'] == [3281.0, 240.0], rows['대구']
+    assert rows['서울'] == [5001.0, float(SP.rnd(est['서울']))] == [5001.0, se], '표 반올림이 사이트와 다르다: %s' % rows['서울']
+    assert rows['대구'] == [3281.0, dg], rows['대구']
     _assert_summary_matches_table('moveins', sec)
-    assert {n: v for _, n, v in _top(sec)} == {'서울': 719.0 - 5001.0, '대구': 240.0 - 3281.0}
+    assert {n: v for _, n, v in _top(sec)} == {'서울': se - 5001.0, '대구': dg - 3281.0}
 
 
 def _no_rank_fixture(kind):
