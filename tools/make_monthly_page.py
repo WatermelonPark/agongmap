@@ -211,7 +211,7 @@ def cls(v):
 def num(v):
     """표의 정수 칸. 사이트 반올림 정본(half-up, JS Math.round·make_sido_pages.rnd 와 같다)을 쓴다.
 
-    ⚠️ round() 는 은행가 반올림이라 입주물량 추정치(착공 × 0.958, 소수 셋째 자리)가 x.5 에 걸리면 홈·지역
+    ⚠️ round() 는 은행가 반올림이라 입주물량 추정치(착공 × CONV, 소수 셋째 자리)가 x.5 에 걸리면 홈·지역
        페이지(719)와 이 표(718)가 갈렸다(2026-09-26 데이터 감사 #18).
     """
     return '·' if v is None else format(SZ.half_up(v), ',')
