@@ -8,7 +8,8 @@
 
 무엇을 깨뜨리면 빨개지나: index.html 의 '96%'를 '95%'로 바꾸거나 sido_zones.CONV 를 0.94 로
 바꾸면 실패한다(앞의 것은 실제로 확인). 생성기 쪽은 문장에 숫자가 다시 박히면 두 번째 시험이
-실패한다. 픽스처 없이 실제 파일을 읽는다.
+실패한다. 픽스처 없이 실제 파일을 읽는다. CONV 를 데이터로 다시 잰 값과의 대조는 게이트가 아니라 배치 기록 ℹ️ 줄이다
+(batch_notes.conv_model_lines — 원천 소급 정정이 그날 커밋을 막지 않게, 2026-10-21 대표 결정).
 """
 import io
 import os
@@ -38,18 +39,41 @@ def test_zone_generator_does_not_hardcode_conversion():
     assert "'conv_from': SZ.CONV_START_FROM" in s, '시도 리포트의 측정 연도가 CONV 를 잰 첫 착공 연도가 아니다'
 
 
-def test_conversion_start_year_is_where_conv_was_measured():
-    """'착공한 것의 96%가 … 2011년 이후 실측'의 연도(CONV_START_FROM)부터 CONV_YEARS 쌍을 데이터로 다시 재면 CONV 다(전수 리뷰 #111).
+def _conv_stats(done_per_month, last_year=None):
+    """합성 STATS: 착공은 해마다 달 100, 준공은 달 done_per_month — 연도별 비(준공 ÷ 착공)가 모두 done_per_month/100 이다."""
+    last_year = last_year or SZ.CONV_START_FROM + SZ.CONV_YEARS - 1 + SZ.LEAD_Q // 4
+    dates = ['%d.%02d' % (y, m) for y in range(SZ.CONV_START_FROM, last_year + 1) for m in range(1, 13)]
+    return {'착공': {'dates': dates, 'series': {'전국': [100.0] * len(dates)}},
+            '준공': {'dates': dates, 'series': {'전국': [float(done_per_month)] * len(dates)}}}
 
-    재현하는 실제 상태: 2026-09-23 점검이 문장의 연도를 CONV_FROM(2012 — 착공÷인허가를 재는 첫 해)에 묶어, 시도 리포트 19장이
-    96% 의 측정 구간을 '2012년 이후'로 공개했다. 2012년부터 재면 94%다(착공 2012~2022, 11쌍).
-    변이(실제로 확인): CONV_START_FROM 을 2012 로 바꾸면 재측정이 94% 라 빨개진다.
-    픽스처: 저장소의 data-rest.json STATS(전국 착공·준공). 쌍 수를 CONV_YEARS 로 묶어 두어 새 완비 연도가 들어와도 값이 안 움직인다.
+
+def test_conversion_drift_is_a_batch_note_not_a_gate():
+    """모델 전환율 CONV 를 그 구간(착공 CONV_START_FROM 년부터 CONV_YEARS 쌍)의 데이터로 다시 잰 값이 화면 정수로 다르면 배치 기록에
+    ℹ️ 한 줄(batch_notes.conv_model_lines)이 남고, 게이트는 막지 않는다(2026-10-21 대표 결정).
+
+    재현하는 실제 상태: 2026-10-21 배치에서 원천이 2025년 착공·준공 240칸을 소급 정정해(투자지표 인허가와 기본통계 누계가 갈린 해를 다시
+    받음) 같은 구간의 재측정이 95.8% → 94.7% 가 되었다. 예전 시험(test_conversion_start_year_is_where_conv_was_measured)이 이것을 게이트에서
+    단정해 그날 데이터 커밋이 막혔다 — 상수를 바꾸는 일은 판정·문구가 함께 움직이는 사람의 결정이라 게이트가 아니라 알림으로 올린다.
+    측정 연도 문구(CONV_START_FROM)가 모델과 같은지는 위 두 시험과 아래 시도 리포트 시험이 계속 게이트로 본다.
+    변이(각각 실제로 확인): conv_model_lines 가 늘 [] 를 돌려주면 합성 95% 갈래가, 비교를 ±1%p 허용으로 바꾸면 같은 갈래가, None 갈래를
+          [] 로 바꾸면 '재측정 불가' 갈래가 빨개진다.
+    픽스처: 합성 STATS 세 벌(재측정 96%·95%·구간 미달)과 저장소 data-rest.json(두 갈래 모두 의미 있게 본다 — 같으면 줄 없음, 다르면 그 값).
     """
+    import batch_notes as N
+    want = round(SZ.CONV * 100)
+    assert N.conv_model_lines(_conv_stats(want)) == []
+    line = N.conv_model_lines(_conv_stats(want - 1))
+    assert len(line) == 1 and line[0].startswith(N.ML.MARK) and '%d%%' % (want - 1) in line[0] and '%d%%' % want in line[0], line
+    short = N.conv_model_lines(_conv_stats(want, last_year=SZ.CONV_START_FROM + 3))
+    assert len(short) == 1 and '재측정 불가' in short[0], short
+    assert N.conv_model_lines({}) == [], '착공·준공 계열이 통째로 없는 데이터(축소 픽스처)에는 줄이 없다'
     st = SZ._load_stats(os.path.join(ROOT, 'data-rest.json'))
     got = SZ.conv_measured(st)
-    assert got is not None, '착공 %d년부터 %d쌍을 채우지 못했다' % (SZ.CONV_START_FROM, SZ.CONV_YEARS)
-    assert round(got * 100) == round(SZ.CONV * 100), (got, SZ.CONV)
+    real = N.conv_model_lines(st)
+    if got is not None and round(got * 100) == want:
+        assert real == [], real
+    else:
+        assert len(real) == 1, real
 
 
 def test_zone_page_says_the_measured_start_year():

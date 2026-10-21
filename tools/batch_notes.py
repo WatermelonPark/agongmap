@@ -15,7 +15,8 @@
   · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋나거나 데이터 상태로 초안이 멈춘 편
     (theory_claim_lines — 초안 도구만 멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한
     경과(quiz_review_lines), 주간에는 값이 있는데 월간 시군구 매핑에 코드가 없는 곳(sgg_map_gap_lines, 전수리뷰 A-6),
-    손 페이지 '인허가는 착공보다 N%쯤 많다'가 시도 리포트 값과 다른 날(hand_permit_lines, 전수리뷰 X1-11).
+    손 페이지 '인허가는 착공보다 N%쯤 많다'가 시도 리포트 값과 다른 날(hand_permit_lines, 전수리뷰 X1-11), 모델 전환율 CONV 를 그
+    구간의 데이터로 다시 잰 값이 화면 정수로 달라진 날(conv_model_lines — 원천 소급 정정, 2026-10-21).
 
 사용:  python tools/batch_notes.py [--data data.js]     # 알릴 것이 없으면 아무것도 안 찍는다
 """
@@ -176,6 +177,30 @@ def hand_permit_lines(stats, texts=None):
             % (ML.MARK, want, ', '.join(bad))]
 
 
+def conv_model_lines(stats):
+    """모델 전환율 CONV('착공한 것의 N%가 3년 뒤 준공 … CONV_START_FROM 년 이후 실측')를 그 구간의 데이터로 다시 재서, 화면 정수(%)가
+    다르면 ℹ️ 한 줄로 알린다. 원천이 지난 해 착공·준공을 소급 정정하면 같은 구간을 재도 값이 움직인다 — 2026-10-21 배치에서 2025년
+    준공 정정으로 96% → 95% 가 되어 게이트 시험이 그날 데이터 커밋을 막았다. 상수를 바꿀지는 사람이 정하므로(산식·문구·판정이 함께
+    움직인다) 게이트가 아니라 이 줄로 알린다(2026-10-21 대표 결정). 잴 수 없으면(구간을 다 채우지 못함) 그것도 알린다.
+    ⚠️ lines(adv) 에 넣지 않는다 — hand_permit_lines 와 같은 까닭."""
+    stats = stats or {}
+    if not all(((stats.get(k) or {}).get('series') or {}).get('전국') for k in ('착공', '준공')):
+        return []   # 계열이 통째로 없다(축소 픽스처·다른 원천 결측) — 그 결측은 감시·수집 쪽이 알린다
+    try:
+        import sido_zones as SZ
+        got = SZ.conv_measured(stats)
+    except Exception as e:   # 알림 곁가지라 배치를 멈추지 않는다 — 못 본 것도 알린다
+        return ['%s 전환율 재측정 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
+    if got is None:
+        return ['%s 전환율 재측정 불가 — 착공 %d년부터 %d쌍(착공·준공 12개월 완비)을 채우지 못했다'
+                % (ML.MARK, SZ.CONV_START_FROM, SZ.CONV_YEARS)]
+    want, now = round(SZ.CONV * 100), round(got * 100)
+    if now == want:
+        return []
+    return ["%s 전환율 재측정 %d%%(착공 %d년부터 %d쌍) — 모델 CONV 는 %d%%. 원천 소급 정정이면 상수·문구를 바꿀지 정할 것"
+            % (ML.MARK, now, SZ.CONV_START_FROM, SZ.CONV_YEARS, want)]
+
+
 def lines(adv):
     """인자 adv 만 보고 찍을 줄. 저장소 파일·오늘 날짜를 읽는 곁가지(theory_claim_lines·quiz_review_lines)는 main() 이 붙인다."""
     out = []
@@ -197,7 +222,8 @@ def main(argv=None):
         sys.stderr.write('batch_notes: 데이터를 읽지 못했다 (%s)\n' % e)
         return 0
     import kst
-    for ln in lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()) + sgg_map_gap_lines(adv) + hand_permit_lines(sts):
+    for ln in (lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()) + sgg_map_gap_lines(adv) + hand_permit_lines(sts)
+               + conv_model_lines(sts)):
         sys.stdout.write(ln + '\n')
     return 0
 
