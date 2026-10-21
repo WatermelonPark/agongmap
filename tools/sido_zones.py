@@ -94,8 +94,9 @@ REGION.update({'전국': '전국', '수도권': '수도권', '지방': '지방'}
 LEAD_Q = 12          # 착공 → 준공 12분기(3년). 실측 최적값.
 CONV = 0.958         # 착공 대비 준공 전환율. 전국 연간 12개월 완비 연도 평균.
 # CONV 를 잰 구간: 착공 CONV_START_FROM 년부터 CONV_YEARS 개 완비 연도(착공 y ↔ 준공 y+3, 연도별 비의 평균).
-# 착공 계열이 2011.01 부터라 2011~2022 착공 12쌍이다. 문장('착공한 것의 96%가 … 2011년 이후 실측')과 시험
-# (test_conv_text_follows_model 이 data-rest 로 다시 잰다)이 이 두 값을 읽는다(전수 리뷰 #111).
+# 착공 계열이 2011.01 부터라 2011~2022 착공 12쌍이다. 문장('착공한 것의 96%가 … 2011년 이후 실측')이 이 두 값을 읽는다(전수 리뷰 #111).
+# 데이터로 다시 잰 값과의 대조는 배치 기록 ℹ️ 줄(batch_notes.conv_model_lines)이다 — 원천이 지난 해를 소급 정정하면 같은 구간도
+# 움직여(2026-10-21: 2025년 준공 정정으로 94.7%) 게이트로 두면 그날 데이터 커밋이 막힌다(2026-10-21 대표 결정).
 CONV_START_FROM = 2011
 CONV_YEARS = 12
 BACKLOG_WINDOW = 16  # 과거 재고 창 4년 (2026-08-02 사용자 결정, 앵커·상한 없음)
@@ -780,7 +781,8 @@ def conv_measured(stats, region='전국', start=None, years=None):
     """착공 → LEAD_Q 분기 뒤 준공 전환율을 데이터로 다시 잰다 — CONV 가 그 구간(start 부터 years 쌍)의 값인지 대조용.
 
     착공 y 년과 준공 y+LEAD_Q/4 년이 둘 다 12개월 찬 쌍을 start 부터 years 개 모아 연도별 비(준공 ÷ 착공)의 평균을 낸다.
-    쌍이 years 개가 안 되면 None. 창을 years 개로 묶어 두므로 데이터가 앞으로 가도(새 완비 연도) 값이 움직이지 않는다.
+    쌍이 years 개가 안 되면 None. 창을 years 개로 묶어 두므로 새 완비 연도가 들어와도 값이 움직이지 않는다 — 원천이 창 안의 해를
+    소급 정정하면 움직인다(그때는 batch_notes.conv_model_lines 가 알린다).
     """
     start = CONV_START_FROM if start is None else start
     years = CONV_YEARS if years is None else years
