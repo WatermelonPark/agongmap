@@ -138,12 +138,13 @@ def facts(city, start, sido):
     def lag(c):
         y, d = c['MVN_PREARNGE_YM'], c['RCRIT_PBLANC_DE']
         return (int(y[:4]) * 12 + int(y[4:6])) - (int(d[:4]) * 12 + int(d[5:7]))
-    f['ann_med'] = int(statistics.median(lag(c) for c in ann))
+    # 2020년 이후 공고가 하나도 없는 도시도 있다(10-23 구미: 입주 예정 2곳, 공고 0) — 중간값은 비워 두고 본문이 따로 쓴다
+    f['ann_med'] = int(statistics.median(lag(c) for c in ann)) if ann else None
     f['ann_cnt'], f['ann_hh'] = Counter(), Counter()
     for c in ann:
         f['ann_cnt'][c['RCRIT_PBLANC_DE'][:4]] += 1
         f['ann_hh'][c['RCRIT_PBLANC_DE'][:4]] += int(c['TOT_SUPLY_HSHLDCO'] or 0)
-    f['ann_last'] = max(c.get('RCRIT_PBLANC_DE') or '' for c in raw['ch'])
+    f['ann_last'] = max((c.get('RCRIT_PBLANC_DE') or '' for c in raw['ch']), default='')
     # 시세 — 발표 반올림(pv2) 기준으로 센다
     sg = adv['weekly']['sgg']
     code, gus = city_codes(city, sg['codes'])
@@ -536,25 +537,32 @@ def body(f, sheets, xlsx_name, outlook, k=0, lead=''):
     ac, ah = f['ann_cnt'], f['ann_hh']
     ny = str(f['now_y'])
     prev = [str(f['now_y'] - k) for k in (3, 2, 1)]
-    peak_y = max((y for y in ac if y < ny), key=lambda y: ac[y])
-    few = ac[ny] * 4 <= ac[peak_y]                 # 가장 많던 해의 4분의 1 이하
-    upto = int(f['start'][5:7])                    # 청약홈을 받은 달(=초안을 만드는 달)까지 셌다
-    land = f['now_y'] * 12 + int(f['last_p'][5:7]) - 1 + f['ann_med']
-    B.append(('<h3>%s 분양 공고, 올해는 아직 없습니다</h3>' % city) if not ac[ny] else
-             (('<h3>%s 분양 공고, 올해는 %d건뿐입니다</h3>' if few else '<h3>%s 분양 공고, 올해 %d건</h3>') % (city, ac[ny])))
-    B.append((('<p>%s 분양 단지는 청약 공고부터 입주까지 보통 <b>%d개월</b> 걸렸어요(2020년 이후 중간값). 그러니까 지금 공고가 '
-               '나와도 입주는 %d년 %d월 무렵이고, 그 전까지 들어올 새 아파트는 위 표가 사실상 전부라는 거죠. ',
-               '<p>%s에서 분양 공고가 나고 입주하기까지는 보통 <b>%d개월</b>이 걸렸는데요(2020년 이후 중간값). 분양 공고는 입주의 '
-               '예고편이라, 오늘 공고가 나도 %d년 %d월 무렵에야 들어옵니다. 그때까지의 새 아파트는 위 표에 거의 다 있다고 보시면 돼요. ',
-               '<p>공고부터 입주까지 %s는 중간값으로 <b>%d개월</b>이 걸려요(2020년 이후 분양). 그래서 %d년 %d월 무렵 전에 입주할 '
-               '아파트는 지금 표에서 크게 늘지 않거든요. ',
-               '<p>%s 분양 단지가 공고에서 입주까지 걸린 기간은 중간값 <b>%d개월</b>이에요(2020년 이후). 지금 공고가 나와도 입주는 '
-               '%d년 %d월 무렵이니, 그 전 입주는 이 표 안에서 거의 정해져 있다고 봐야죠. ')[kk % 4]
-              + '%s 분양 공고는 %s년 %d건(%s세대)으로 가장 많았고, %s이었다가 올해는 %d월까지 %s.%s</p>')
-             % (city, f['ann_med'], land // 12, land % 12 + 1, city, peak_y, ac[peak_y], num(ah[peak_y]),
-                ', '.join('%s년 %d건(%s세대)' % (y, ac[y], num(ah[y])) for y in prev if y != peak_y),
-                upto, ('%d건(%s세대)입니다' % (ac[ny], num(ah[ny]))) if ac[ny] else '한 건도 없습니다',
-                ' <b>입주 공백을 메울 공고가 안 나오고 있다는 뜻이에요.</b>' if few else ''))
+    past = [y for y in ac if y < ny and ac[y]]
+    if f['ann_med'] is None or not past:
+        # 견줄 지난 공고가 없다 — '가장 많던 해' 문장을 쓸 수 없으니 짧게 쓴다(10-23 구미)
+        B.append('<h3>%s 분양 공고, %s</h3>' % (city, '2020년 이후 한 건도 없습니다' if not ac[ny] else '올해 %d건' % ac[ny]))
+        B.append('<p>청약홈에 2020년 이후 올라온 %s 아파트 분양 공고는 %s. 지금 공고가 나와도 입주는 몇 해 뒤라, 그 전까지 들어올 '
+                 '새 아파트는 위 표가 사실상 전부입니다.</p>' % (city, '한 건도 없어요' if not ac[ny] else '올해 %d건(%s세대)뿐이에요' % (ac[ny], num(ah[ny]))))
+    else:
+        peak_y = max(past, key=lambda y: ac[y])
+        few = ac[ny] * 4 <= ac[peak_y]                 # 가장 많던 해의 4분의 1 이하
+        upto = int(f['start'][5:7])                    # 청약홈을 받은 달(=초안을 만드는 달)까지 셌다
+        land = f['now_y'] * 12 + int(f['last_p'][5:7]) - 1 + f['ann_med']
+        B.append(('<h3>%s 분양 공고, 올해는 아직 없습니다</h3>' % city) if not ac[ny] else
+                 (('<h3>%s 분양 공고, 올해는 %d건뿐입니다</h3>' if few else '<h3>%s 분양 공고, 올해 %d건</h3>') % (city, ac[ny])))
+        B.append((('<p>%s 분양 단지는 청약 공고부터 입주까지 보통 <b>%d개월</b> 걸렸어요(2020년 이후 중간값). 그러니까 지금 공고가 '
+                   '나와도 입주는 %d년 %d월 무렵이고, 그 전까지 들어올 새 아파트는 위 표가 사실상 전부라는 거죠. ',
+                   '<p>%s에서 분양 공고가 나고 입주하기까지는 보통 <b>%d개월</b>이 걸렸는데요(2020년 이후 중간값). 분양 공고는 입주의 '
+                   '예고편이라, 오늘 공고가 나도 %d년 %d월 무렵에야 들어옵니다. 그때까지의 새 아파트는 위 표에 거의 다 있다고 보시면 돼요. ',
+                   '<p>공고부터 입주까지 %s는 중간값으로 <b>%d개월</b>이 걸려요(2020년 이후 분양). 그래서 %d년 %d월 무렵 전에 입주할 '
+                   '아파트는 지금 표에서 크게 늘지 않거든요. ',
+                   '<p>%s 분양 단지가 공고에서 입주까지 걸린 기간은 중간값 <b>%d개월</b>이에요(2020년 이후). 지금 공고가 나와도 입주는 '
+                   '%d년 %d월 무렵이니, 그 전 입주는 이 표 안에서 거의 정해져 있다고 봐야죠. ')[kk % 4]
+                  + '%s 분양 공고는 %s년 %d건(%s세대)으로 가장 많았고, %s이었다가 올해는 %d월까지 %s.%s</p>')
+                 % (city, f['ann_med'], land // 12, land % 12 + 1, city, peak_y, ac[peak_y], num(ah[peak_y]),
+                    ', '.join('%s년 %d건(%s세대)' % (y, ac[y], num(ah[y])) for y in prev if y != peak_y),
+                    upto, ('%d건(%s세대)입니다' % (ac[ny], num(ah[ny]))) if ac[ny] else '한 건도 없습니다',
+                    ' <b>입주 공백을 메울 공고가 안 나오고 있다는 뜻이에요.</b>' if few else ''))
 
     cw, gw = f['city_w'], f['gu_w']
     lead = cw['sje'] if cw['sje'][1] >= cw['sma'][1] else cw['sma']

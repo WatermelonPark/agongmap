@@ -405,3 +405,22 @@ def test_copula_after_vowel_ending(monkeypatch):
             MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 3000), '대전', start, '대전')
             html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', k, '')
             assert not re.search(r'(세대|%)이에요', html), (k, start)
+
+
+def test_city_without_announcements(monkeypatch):
+    """2020년 이후 청약홈 분양 공고가 하나도 없는 도시도 초안이 나온다(공고 절은 '한 건도 없습니다'로 짧게).
+    재현: 10-23 구미(입주 예정 2곳, 공고 0)에서 statistics.median 빈 목록으로 멈췄다. 픽스처는 대전 목록에서 청약홈 행을 모두 뺀 것.
+    변이(확인): facts 의 'if ann else None' 을 지우면(StatisticsError), body 의 past 갈래를 지우면(max 빈 목록) 각각 빨개진다."""
+    now_y = _now_y()
+    raw = _metro_raw(now_y, 1)
+    raw['ch'] = []
+    MC, f = _city_facts(monkeypatch, raw, '대전', '%d-10' % now_y, '대전')
+    assert f['ann_med'] is None
+    html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 0, '')
+    assert '2020년 이후 한 건도 없습니다' in html and '분양 공고는 한 건도 없어요' in html
+    # 올해 처음 공고가 난 도시(견줄 지난 해가 없음)도 같은 짧은 문단으로 쓴다
+    raw['ch'] = [_ann('%d-05' % (now_y + 3), '대전 첫 공고', '대전광역시 서구 둔산동 9', 400, '%d-02-10' % now_y)]
+    MC, f = _city_facts(monkeypatch, raw, '대전', '%d-10' % now_y, '대전')
+    assert f['ann_med'] is not None
+    html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 0, '')
+    assert '올해 1건(400세대)뿐이에요' in html, html[:300]
