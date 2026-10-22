@@ -507,6 +507,8 @@ def body(f, sheets, xlsx_name, outlook, k=0, lead=''):
         extra = '' if '임대' in r['name'] or '행복' in r['name'] else {'임대': '(임대)', '분양임대': '(분양·임대)'}.get(r['kind'], '')
         tr.append('<tr><td>%s.%s</td><td>%s%s · %s</td><td style="text-align:right">%s%s</td></tr>'
                   % (r['ym'][:4], r['ym'][5:7], esc(shown(r['name'])), extra, r['gu'], num(r['n']), mark))
+        if r['ym'][5:7] == '00':      # 원천이 달 없이 연도만 준 단지(10-22 서울 두산위브더프레스티지 '2027-00') — '2027.00' 대신
+            tr[-1] = tr[-1].replace('<td>%s.00</td>' % r['ym'][:4], '<td>%s년 중</td>' % r['ym'][:4], 1)
     B.append('<table border="1" cellspacing="0" cellpadding="6"><thead><tr><th>입주</th><th>단지 · 구</th><th>세대수</th></tr></thead>'
              '<tbody>%s<tr><th colspan="2">합계</th><th style="text-align:right">%s</th></tr></tbody></table>'
              % (''.join(tr), num(f['total'])))
