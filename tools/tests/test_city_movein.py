@@ -392,3 +392,16 @@ def test_month_less_row_shows_year_only(monkeypatch):
     MC, f = _city_facts(monkeypatch, raw, '대전', '%d-10' % now_y, '대전')
     html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 0, '')
     assert '.00</td>' not in html and '<td>%d년 중</td>' % (now_y + 1) in html, html[:400]
+
+
+def test_copula_after_vowel_ending(monkeypatch):
+    """'…세대'·'…%' 뒤 서술격 조사는 '예요'다('1,088세대이에요' 금지). 자리에 들어가는 값이 늘 세대수·퍼센트로 끝나 받침이 없다.
+    재현: 10-23 진주·서울 초안의 '해마다 나누면 …세대이에요', '…%이에요'. 픽스처는 대전 목록(_metro_raw), 회차 0~4 모든 틀.
+    변이(확인): 틀 세 곳 가운데 하나를 '%s이에요'로 되돌리면 빨개진다."""
+    import re
+    now_y = _now_y()
+    for k in range(5):
+        for start in ('%d-10' % now_y, '%d-05' % (now_y + 1)):
+            MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 3000), '대전', start, '대전')
+            html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', k, '')
+            assert not re.search(r'(세대|%)이에요', html), (k, start)
