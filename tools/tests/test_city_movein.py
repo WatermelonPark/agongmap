@@ -380,3 +380,15 @@ def test_city_post_site_links_mid_and_end(monkeypatch):
         links = [p for p in re.findall(r'<p>(.*?)</p>', html) if '/zone/' in p and 'utm_content' in p]
         assert len(links) == 2 and all('아공맵' in p and '사이트' not in p for p in links), links   # 독자는 '사이트'가 어디인지 모른다(10-20 총괄)
         assert '대전 바깥' not in html and '대전 전체' not in html, '광역시 편에서 도시와 시도 이름이 겹친다'
+
+
+def test_month_less_row_shows_year_only(monkeypatch):
+    """원천(입주예정물량정보)이 달 없이 연도만 준 단지는 표에 '2027.00'이 아니라 '2027년 중'으로 쓴다.
+    재현: 10-22 서울 편 두산위브더프레스티지(구로구, '2027-00', 302세대)가 '2027.00'으로 찍혔다. 픽스처는 대전 목록에 그런 한 줄을 더한 것.
+    변이(확인): body 의 '-00' 갈래를 지우면 빨개진다."""
+    now_y = _now_y()
+    raw = _metro_raw(now_y, 1)
+    raw['occ'].append(occ('%d-00' % (now_y + 1), '대전 달없음', '대전광역시 서구 둔산동 3-3', 302))
+    MC, f = _city_facts(monkeypatch, raw, '대전', '%d-10' % now_y, '대전')
+    html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 0, '')
+    assert '.00</td>' not in html and '<td>%d년 중</td>' % (now_y + 1) in html, html[:400]
