@@ -157,7 +157,7 @@ out.none=freshModes(null,_dn("2026-10-08"),{});
 /* DOM: 단추 셋, 월간은 잠김 */
 function btn(m,dis){ var kids=[]; return {m:m,disabled:dis,kids:kids,
   querySelector:function(){ return kids[0]||null; },
-  insertAdjacentHTML:function(p,h){ var me=this; kids.push({h:h,remove:function(){ me.kids.splice(0,1); }}); }}; }
+  insertAdjacentHTML:function(p,h){ var me=this; kids.push({p:p,h:h,remove:function(){ me.kids.splice(0,1); }}); }}; }
 var B={supply:btn("supply",false),weekly:btn("weekly",false),monthly:btn("monthly",false)};
 var document={querySelector:function(q){ var m=/data-m="(\w+)"\](\s*\.nb)?/.exec(q); var b=B[m[1]]; return m[2]?b.querySelector():b; },
   getElementById:function(){ return null; }};
@@ -169,6 +169,7 @@ var _kst=function(){ return {day:_dn("2026-10-08"),hour:12}; };
 markFresh();
 out.badges=Object.keys(B).filter(function(k){ return B[k].kids.length; });
 out.html=B.weekly.kids[0]&&B.weekly.kids[0].h;
+out.pos=B.weekly.kids[0]&&B.weekly.kids[0].p;
 mapMode('supply');               // 켜져 있는 공급 단추를 다시 누른다
 out.afterSupply=Object.keys(B).filter(function(k){ return B[k].kids.length; });
 out.ls=JSON.parse(LS[MODE_SEEN_KEY]||'{}');
@@ -201,6 +202,7 @@ def test_badge_window_seen_and_tap():
     assert got['empty'] == [] and got['future'] == [] and got['none'] == []
     assert got['badges'] == ['supply', 'weekly'], got['badges']  # 열 수 없는 모드(월간, priceOk 거짓)엔 달지 않는다
     assert 'aria-hidden="true">N<' in got['html'] and 'sr-only' in got['html']
+    assert got['pos'] == 'afterbegin', got['pos']   # 글자 바로 왼쪽(2026-10-22 대표 요청) — 'beforeend' 로 되돌리면 빨강
     assert got['afterSupply'] == ['weekly'] and got['ls'] == {'supply': '2026Q2'}, (got['afterSupply'], got['ls'])
     assert got['again'] == ['weekly'], got['again']                # 공급은 4일째(10/5) — 누르면 다시 안 단다
     assert got['afterWeekly'] == [] and got['forced'] == ['weekly'], (got['afterWeekly'], got['forced'])
@@ -212,5 +214,7 @@ def test_badges_are_drawn_at_boot_and_the_style_is_plan_b():
     assert "Object.keys(F.days)" in _fn(src, 'freshModes'), '모드 목록을 손으로 적었다 — 데이터(F.days)가 정본'
     css = io.open(os.path.join(HS.ROOT, 'app.css'), encoding='utf-8').read()
     rule = re.search(r'#sec-score \.map-mode \.nb\{([^}]*)\}', css).group(1)
-    assert 'font-size:13px' in rule and 'top:-' in rule and 'left:-' in rule, rule   # B안: 테두리 위 좌상단
+    # 단추 안 글자 바로 왼쪽(2026-10-22 대표 요청 — 테두리 위 좌상단에 걸치면 두 단추 사이 경계라 어느 칸 배지인지 몰랐다).
+    # 변이(실제로 확인): 옛 규칙(position:absolute;top:-8px;left:-6px)으로 되돌리면 빨강.
+    assert 'font-size:13px' in rule and 'position:absolute' not in rule and 'top:-' not in rule and 'margin-right' in rule, rule
     assert '#sec-score .map-mode{overflow:visible}' in css
