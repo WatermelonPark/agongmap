@@ -78,6 +78,8 @@ def test_ask_rotates_by_seq():
 def test_ask_never_says_free_consulting():
     # 면책과 부딪히고 광고 문구로 읽힌다 — 사용자와 합의한 선.
     assert not any('무료' in t or '상담' in t for t in P.ASK_CTA)
+    # 2026-10-19 대표: 댓글을 직접 청하지 않는다(간접 질문만). 변이: 옛 '댓글로 알려 주세요' 문장을 되돌리면 빨개진다.
+    assert not any('댓글' in t or '주세요' in t for t in P.ASK_CTA)
 
 
 
