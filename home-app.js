@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v196';
+const HOME_BUILD='v197';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1325,7 +1325,8 @@ function markFresh(){
     var b=document.querySelector('#map-mode [data-m="'+m+'"]');
     /* 열 수 없는 모드(시세 재료·좌표 없음 — mapMode 가 priceOk 에서 돌아간다)에는 달지 않는다. 지울 길이 없는 배지가 되기 때문이다 */
     if(b&&(m==='supply'||priceOk(m))&&!b.querySelector('.nb'))
-      b.insertAdjacentHTML('beforeend','<span class="nb"><span aria-hidden="true">N</span><span class="sr-only"> 새 데이터</span></span>');
+      /* 글자 바로 왼쪽에 단다(2026-10-22 대표 요청) — 칸 경계에 걸치면 어느 단추 배지인지 몰랐다 */
+      b.insertAdjacentHTML('afterbegin','<span class="nb"><span aria-hidden="true">N</span><span class="sr-only"> 새 데이터</span></span>');
   });
 }
 function seeFresh(m){
