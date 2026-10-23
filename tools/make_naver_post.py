@@ -201,6 +201,17 @@ def pct(v):
         return '—'
     return MW.pv2(v) + '%'
 
+def move_txt(v, polite=False):
+    """지역 편 시세 서술: 발표 기준 반올림(pct) 부호로 '0.02% 올랐습니다 / 0.12% 내렸습니다 / 보합(0.00%)이었습니다'.
+    예전 '+0.02% 움직였습니다'는 오름과 내림을 가리지 않는 말이라 업계 글에서 쓰지 않는다(2026-10-23 대표 지적, 업계 용어집 A-4 44번)."""
+    t = pct(v)
+    if t.startswith('+'):
+        return '<b>%s</b> %s' % (t[1:], '올랐어요' if polite else '올랐습니다')
+    if t.startswith('-'):
+        return '<b>%s</b> %s' % (t[1:], '내렸어요' if polite else '내렸습니다')
+    return '<b>보합(%s)</b>%s' % (t, '이었어요' if polite else '이었습니다')
+
+
 
 def fixed2(v):
     """JS Number.prototype.toFixed(2) 와 같은 문자열. 홈이 toFixed(2)로 찍는 값을 블로그에 옮길 때 쓴다.
@@ -1803,10 +1814,10 @@ def draft_zone(adv, sts, r, seq, total):
             was = ('(전주 %s)' % pct(pma)) if pma is not None else ''
             # 예전 '먼저 시세입니다. … 매매 +0.04%, 전세 +0.06%.'는 서술어 없이 끝났다(10-15 점검).
             # 숫자는 한 문장에 하나(화법 기준 v1) — 매매와 전세를 문장 둘로 나눈다. 출처는 뒤나 괄호로.
-            body.append(('<p>시세부터 볼까요. %s 기준 %s 아파트 매매는 <b>%s</b>%s 움직였습니다. 전세는 <b>%s</b>였고요.</p>'
-                         % (kdate(cur['p']), esc(shown), pct(ma), was, pct(je)),
-                         '<p>먼저 시세인데요, %s 조사에서 매매가 <b>%s</b>%s 움직였어요. 전세는 <b>%s</b>입니다.</p>'
-                         % (kdate(cur['p']), pct(ma), was, pct(je)),
+            body.append(('<p>시세부터 볼까요. %s 기준 %s 아파트 매매는 %s%s. 전세는 <b>%s</b>였고요.</p>'
+                         % (kdate(cur['p']), esc(shown), move_txt(ma), was, pct(je)),
+                         '<p>먼저 시세인데요, %s 조사에서 매매가 %s%s. 전세는 <b>%s</b>입니다.</p>'
+                         % (kdate(cur['p']), move_txt(ma, True), was, pct(je)),
                          '<p>%s 조사 기준으로 매매는 <b>%s</b>%s였거든요. 전세는 <b>%s</b>였습니다(한국부동산원 주간).</p>'
                          % (kdate(cur['p']), pct(ma), was, pct(je)))[k3])
     except (ValueError, IndexError, KeyError):
