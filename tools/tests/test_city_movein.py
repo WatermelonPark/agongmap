@@ -436,3 +436,17 @@ def test_need_is_two_percent_of_households(monkeypatch):
         MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 3000), '대전', '%d-10' % now_y, '대전')
         html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', k, '')
         assert '가구 수의 2%' in html and not re.search(r'약 [\d,]+세대', html), k
+
+
+def test_body_uses_industry_terms(monkeypatch):
+    """도시 편 본문 고정 문장은 업계 용어를 쓴다(10-23 대표 지적 '큰 단지 > 대단지', 총괄 용어집 F절): '들어올 아파트·새 아파트 입주·
+    들어올까·지어졌·움직였·매주 어떻게'를 쓰지 않는다. 픽스처는 대전 목록(준공 실적 문단이 나오는 광역시), 회차 0~4 모든 틀.
+    변이(확인): 문장 틀 하나를 '들어올 아파트를 다 모으면'으로 되돌리면 빨개진다."""
+    now_y = _now_y()
+    bad = ('들어올 아파트', '새 아파트 입주는', '들어올까', '지어졌', '움직였', '매주 어떻게', '몇 세대가 들어올지')
+    for k in range(5):
+        for n in (1, 3000):
+            MC, f = _city_facts(monkeypatch, _metro_raw(now_y, n), '대전', '%d-10' % now_y, '대전')
+            html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', k, '')
+            hit = [b for b in bad if b in html]
+            assert not hit, (k, n, hit)
