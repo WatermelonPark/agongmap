@@ -96,7 +96,7 @@ def KDAL(n):
 
 
 def trend_text(ser):
-    """서울 매매 최근 달들 → '두 달째 오름폭이 줄었어요' 같은 한 문장(표시값 기준, 마지막 달부터 거꾸로 센다)."""
+    """서울 매매 최근 달들 → '두 달째 상승폭이 줄었어요' 같은 한 문장(표시값 기준, 마지막 달부터 거꾸로 센다)."""
     vals = [v for _, v in ser if v is not None]
     if len(vals) < 2:
         return ''
@@ -107,9 +107,9 @@ def trend_text(ser):
             break
         sign = s; n += 1
     if not n:
-        return '오름폭은 지난달과 같았어요.'
+        return '상승폭은 지난달과 같았어요.'
     word = {1: ''}.get(n, KDAL(n) + ' ')
-    return '%s%s.' % (word, '오름폭이 줄었어요' if sign < 0 else '오름폭이 커졌어요')
+    return '%s%s.' % (word, '상승폭이 줄었어요' if sign < 0 else '상승폭이 커졌어요')
 
 
 def local_streak(local):
@@ -133,7 +133,7 @@ def default_title(f):
     return '%s | %s' % (head, tail)
 
 
-V_OPEN = ('%d월 서울 아파트값, 한 도시 안에서 방향이 갈렸습니다.', '%d월 서울은 구마다 다른 달을 보냈습니다.',
+V_OPEN = ('%d월 서울 아파트값, 같은 서울 안에서 상승과 하락이 엇갈렸습니다.', '%d월 서울 아파트값은 구마다 등락이 갈렸습니다.',
           '%d월 서울 아파트값을 구별로 세워 보면 모양이 둘로 나뉩니다.')
 V_Q = ('사시는 구는 %d월에 어느 쪽이었나요.', '%d월 숫자에서 우리 동네는 몇 번째쯤이던가요.',
        '%d월 표에서 먼저 찾아보신 구가 어디였나요.')
@@ -163,7 +163,7 @@ def body(f, title, k=None):
         B.append('<p>오른 %d개 구 가운데 %d곳은 1%%를 넘게 올랐고요.</p>' % (len(f['up']), len(f['over1'])))
 
     wo = f['seoul_wo']
-    B.append('<h3>집값과 월세는 같이 움직였을까요</h3>')
+    B.append('<h3>매매와 월세는 같은 방향이었을까요</h3>')
     B.append('<p>서울 월세는 %d월 %s, 전세는 %s.<br>%d월 월세는 %s였어요.</p>'
              % (f['mon'], pct(wo[-1][1]), pct(f['seoul_je']), int(wo[0][0][5:7]), pct(wo[0][1])))
     B.append('<p>[여기에 이번 달 해석을 2~3문장으로. 매매와 월세·전세가 같은 방향인지 갈리는지, 그래서 무엇을 시사하는지 쓰고 '
@@ -180,7 +180,7 @@ def body(f, title, k=None):
         B.append('<p>%s은 내렸습니다.</p>' % ', '.join('%s(%s)' % (n, pct(v)) for n, v in f['fall'][:3]))
 
     if f['occ'] or f['perm']:
-        B.append('<h3>앞으로 서울에 들어올 집은</h3>')
+        B.append('<h3>앞으로 서울 입주 물량은</h3>')
         if f['occ']:
             o = f['occ']
             B.append('<p>%s 서울 입주는 착공으로 추정하면 %s세대.<br>한 분기 적정물량의 %d%%예요.</p>'
@@ -214,7 +214,7 @@ def images(f, out):
     top, bot = f['gu'][0], f['gu'][-1]
     t = Image.new('RGB', (P(1080), P(1080)), BG); d = ImageDraw.Draw(t)
     d.text((P(60), P(80)), '%d월 서울 아파트값' % f['mon'], font=F(84), fill=INK)
-    d.text((P(60), P(200)), '한 도시 안에서 갈렸습니다' if f['down'] else '25개 구가 모두 올랐습니다', font=F(64), fill=INK)
+    d.text((P(60), P(200)), '상승·하락 엇갈렸습니다' if f['down'] else '25개 구가 모두 올랐습니다', font=F(64), fill=INK)
     d.text((P(60), P(350)), top[0], font=F(60), fill=MUTE)
     d.text((P(60), P(600)), pct(top[1]), font=F(170), fill=RED if top[1] >= 0 else BLUE, anchor='ls')
     d.text((P(60), P(640)), bot[0], font=F(60), fill=MUTE)
