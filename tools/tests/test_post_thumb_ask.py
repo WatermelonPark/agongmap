@@ -12,6 +12,7 @@
 픽스처: 지수 계열은 sts['매매지수']의 모양(dates에 잠정 표시 'p)'가 붙는 것 포함)을,
 r은 ADV.sido.zones 한 줄에서 썸네일이 읽는 키(z)만 있으면 된다.
 """
+import io
 import os
 import sys
 
@@ -89,3 +90,38 @@ def test_thumb_chip_names_the_region_and_year():
     assert P.thumb_chip('전남광주', '2027') == '2027년 광주·전남 아파트 공급 전망'
     assert P.thumb_chip('대구', '2027') == '2027년 대구 아파트 공급 전망'
     assert P.thumb_chip('세종', '') == '세종시 아파트 공급 전망'
+
+
+def test_zone_price_sentence_uses_direction_verbs():
+    """지역 편 시세 문장은 '움직였다' 대신 부호에 맞는 동사를 쓴다(2026-10-23 대표: 업계에서 쓰는 말로).
+    픽스처: 10/19 조사 울산 +0.0246·대구 -0.0022(반올림 0.00)·울산 동구 -0.12 꼴의 값.
+    변이(확인): move_txt 가 부호를 보지 않고 '올랐습니다'만 쓰면 빨개진다. 보합 표기는 주간 편 moved 와 같다."""
+    assert P.move_txt(0.0246) == '<b>0.02%</b> 올랐습니다'
+    assert P.move_txt(-0.12, True) == '<b>0.12%</b> 내렸어요'
+    assert P.move_txt(-0.0022) == '<b>0.00%</b>로 보합이었습니다'
+    # 주간 편과 같은 판단(moved)을 쓴다 — 변이: move_txt 가 moved 를 거치지 않고 따로 부호를 가르면 아래가 빨개질 수 있다
+    assert P.move_txt(0.0246) == P.moved(0.0246, '올랐습니다', '내렸습니다', '보합이었습니다')
+    src = io.open(P.__file__, encoding='utf-8').read()
+    assert '움직였습니다. 전세는' not in src and '움직였어요. 전세는' not in src, "지역 편 시세 문장에 옛 '움직였다'가 돌아왔다"
+
+
+def test_zone_fixed_sentences_use_industry_terms():
+    """지역 편 고정 문장은 업계 용어를 쓴다(2026-10-23 대표 "용어 학습한 거 각 세션에 전파", 용어집 F절).
+    draft_zone·ZONE_CTA 소스에 F절 '원래 표현'(들어올 집·새로 짓기·팔리지 않은 새 집·얼마나 들어오는지/들어올지·부족해질 집)이 없다.
+    픽스처: 10-23 울산·대구 지역 편 초안에 실제로 찍혔던 문장들. 변이(확인): ZONE_CTA 의 '얼마나 들어올지' 문장을 되돌리면 빨개진다."""
+    import inspect
+    src = inspect.getsource(P.draft_zone) + ' '.join(P.ZONE_CTA)
+    for bad in ('들어올 집', '새로 짓기', '팔리지 않은 새 집', '얼마나 들어오는지', '얼마나 들어올지', '부족해질 집', '부족한 집(', '안 팔린 집'):
+        assert bad not in src, bad
+
+
+def test_zone_lead_uses_supply_gap_term():
+    """지역 편 첫 문단은 사이트 판정 문장(SZ.ratio_text)의 '모자란 집은·남는 집이'를 '공급 부족분은·공급 초과분이'로 바꿔 싣는다
+    (10-23 용어집 F절). 픽스처: 울산 3년 비율(부족)과 여유 비율 — 문장 꼴은 ratio_text 가 정한다.
+    변이(확인): draft_zone 의 '모자란 집은' 치환 줄을 지우면 빨개진다."""
+    import inspect
+    src = inspect.getsource(P.draft_zone)
+    assert ".replace('모자란 집은', '공급 부족분은')" in src and ".replace('남는 집이', '공급 초과분이')" in src
+    import sido_zones as SZ
+    lack = SZ.ratio_text(0.8, 12, full=True)
+    assert '모자란 집은' in lack, lack   # 사이트 문장 꼴이 바뀌면 치환이 헛돈다 — 그때 이 시험이 알린다
