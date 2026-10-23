@@ -424,3 +424,15 @@ def test_city_without_announcements(monkeypatch):
     assert f['ann_med'] is not None
     html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', 0, '')
     assert '올해 1건(400세대)뿐이에요' in html, html[:300]
+
+
+def test_need_is_two_percent_of_households(monkeypatch):
+    """적정 입주량 셈 문장은 '인구 ÷ 2.5 = 약 N가구, 가구 수의 2% = 연 M세대'다. 2.5로 나눈 값은 가구 수라 '약 N세대'로 쓰지 않는다
+    (10-23 대표 지적, 총괄 전달: '가구당 2.5명으로 나눈 세대의 2%'는 가구와 세대를 섞어 쓴 잘못). 픽스처는 대전 목록, 회차 0~4 모든 틀.
+    변이(확인): 틀 하나를 '약 %s세대'로 되돌리면 빨개진다."""
+    import re
+    now_y = _now_y()
+    for k in range(5):
+        MC, f = _city_facts(monkeypatch, _metro_raw(now_y, 3000), '대전', '%d-10' % now_y, '대전')
+        html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', k, '')
+        assert '가구 수의 2%' in html and not re.search(r'약 [\d,]+세대', html), k
