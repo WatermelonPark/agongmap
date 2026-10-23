@@ -95,9 +95,11 @@ def test_thumb_chip_names_the_region_and_year():
 def test_zone_price_sentence_uses_direction_verbs():
     """지역 편 시세 문장은 '움직였다' 대신 부호에 맞는 동사를 쓴다(2026-10-23 대표: 업계에서 쓰는 말로).
     픽스처: 10/19 조사 울산 +0.0246·대구 -0.0022(반올림 0.00)·울산 동구 -0.12 꼴의 값.
-    변이(확인): move_txt 가 부호를 보지 않고 '올랐습니다'만 쓰면, 0.00 을 '보합'으로 가르지 않으면 빨개진다."""
+    변이(확인): move_txt 가 부호를 보지 않고 '올랐습니다'만 쓰면 빨개진다. 보합 표기는 주간 편 moved 와 같다."""
     assert P.move_txt(0.0246) == '<b>0.02%</b> 올랐습니다'
     assert P.move_txt(-0.12, True) == '<b>0.12%</b> 내렸어요'
-    assert P.move_txt(-0.0022) == '<b>보합(0.00%)</b>이었습니다'
+    assert P.move_txt(-0.0022) == '<b>0.00%</b>로 보합이었습니다'
+    # 주간 편과 같은 판단(moved)을 쓴다 — 변이: move_txt 가 moved 를 거치지 않고 따로 부호를 가르면 아래가 빨개질 수 있다
+    assert P.move_txt(0.0246) == P.moved(0.0246, '올랐습니다', '내렸습니다', '보합이었습니다')
     src = io.open(P.__file__, encoding='utf-8').read()
     assert '움직였습니다. 전세는' not in src and '움직였어요. 전세는' not in src, "지역 편 시세 문장에 옛 '움직였다'가 돌아왔다"
