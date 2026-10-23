@@ -103,3 +103,13 @@ def test_zone_price_sentence_uses_direction_verbs():
     assert P.move_txt(0.0246) == P.moved(0.0246, '올랐습니다', '내렸습니다', '보합이었습니다')
     src = io.open(P.__file__, encoding='utf-8').read()
     assert '움직였습니다. 전세는' not in src and '움직였어요. 전세는' not in src, "지역 편 시세 문장에 옛 '움직였다'가 돌아왔다"
+
+
+def test_zone_fixed_sentences_use_industry_terms():
+    """지역 편 고정 문장은 업계 용어를 쓴다(2026-10-23 대표 "용어 학습한 거 각 세션에 전파", 용어집 F절).
+    draft_zone·ZONE_CTA 소스에 F절 '원래 표현'(들어올 집·새로 짓기·팔리지 않은 새 집·얼마나 들어오는지/들어올지·부족해질 집)이 없다.
+    픽스처: 10-23 울산·대구 지역 편 초안에 실제로 찍혔던 문장들. 변이(확인): ZONE_CTA 의 '얼마나 들어올지' 문장을 되돌리면 빨개진다."""
+    import inspect
+    src = inspect.getsource(P.draft_zone) + ' '.join(P.ZONE_CTA)
+    for bad in ('들어올 집', '새로 짓기', '팔리지 않은 새 집', '얼마나 들어오는지', '얼마나 들어올지', '부족해질 집', '부족한 집(', '안 팔린 집'):
+        assert bad not in src, bad
