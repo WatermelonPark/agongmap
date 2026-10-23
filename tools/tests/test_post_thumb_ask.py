@@ -113,3 +113,15 @@ def test_zone_fixed_sentences_use_industry_terms():
     src = inspect.getsource(P.draft_zone) + ' '.join(P.ZONE_CTA)
     for bad in ('들어올 집', '새로 짓기', '팔리지 않은 새 집', '얼마나 들어오는지', '얼마나 들어올지', '부족해질 집', '부족한 집(', '안 팔린 집'):
         assert bad not in src, bad
+
+
+def test_zone_lead_uses_supply_gap_term():
+    """지역 편 첫 문단은 사이트 판정 문장(SZ.ratio_text)의 '모자란 집은·남는 집이'를 '공급 부족분은·공급 초과분이'로 바꿔 싣는다
+    (10-23 용어집 F절). 픽스처: 울산 3년 비율(부족)과 여유 비율 — 문장 꼴은 ratio_text 가 정한다.
+    변이(확인): draft_zone 의 '모자란 집은' 치환 줄을 지우면 빨개진다."""
+    import inspect
+    src = inspect.getsource(P.draft_zone)
+    assert ".replace('모자란 집은', '공급 부족분은')" in src and ".replace('남는 집이', '공급 초과분이')" in src
+    import sido_zones as SZ
+    lack = SZ.ratio_text(0.8, 12, full=True)
+    assert '모자란 집은' in lack, lack   # 사이트 문장 꼴이 바뀌면 치환이 헛돈다 — 그때 이 시험이 알린다
