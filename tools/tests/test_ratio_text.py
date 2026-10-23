@@ -160,7 +160,7 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
 
 def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypatch):
     """여유 지역(입주 추정 < 적정물량, 남은 재고 > 0)의 시도 리포트 판정 문장과 블로그 지역 편 판정 문단은 '지난 4년 남은 재고까지
-    더하면 앞으로 3년 남는 집이 1년 적정물량의 0.6배입니다'이고(2026-10-05 안 A′ — 주어와 기준을 밝힌다), 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
+    더하면 앞으로 3년 남는 집이 1년 적정물량의 0.6배입니다'이고(블로그는 주어만 '공급 초과분이', 10-23)(2026-10-05 안 A′ — 주어와 기준을 밝힌다), 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
 
     변이(각각 실제로 확인): verdict_line 이 inow 를 넘기지 않으면(갈래 없는 '재고까지 셈하면') 리포트 단정이, draft_zone 이
           inow 를 넘기지 않으면 블로그 단정이, ratio_text 를 옛 여유 문장으로 되돌리면 둘 다 빨개진다.
@@ -181,7 +181,8 @@ def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypat
     body = N.draft_zone(adv, sts, r, 1, 16)['body']
     m = re.search(r'판정은 <b>[^<]+</b>입니다\. ([^<]+)\.</p>\s*<p>셈은 <b>([^<]+)</b>입니다\.</p>', body)
     assert m, body[:600]
-    assert m.group(1) == want, m.group(1)
+    # 블로그는 사이트 문장의 주어만 업계 말로 바꿔 싣는다('남는 집이'→'공급 초과분이', 10-23 용어집 F절, draft_zone). 숫자·갈래는 같아야 한다.
+    assert m.group(1) == want.replace('남는 집이', '공급 초과분이'), m.group(1)
     assert m.group(2) == SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 69600, 66579, 16258)
     assert '더 들어옵니다' not in body
 
