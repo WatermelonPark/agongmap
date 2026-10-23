@@ -1785,6 +1785,8 @@ def draft_zone(adv, sts, r, seq, total):
                     SZ.GRADE_LABS[r['grade']],
                     # 블로그는 '모자라다'를 쓰지 않는다(블덱스 '#모자' 오분석, 09-28) — 사이트 정본 문장의 그 말만 바꾼다.
                     esc(SZ.ratio_text(r['ratio'], int(round(yrs * 4)), full=True, inow=inow)
+                        # 주어 '모자란 집·남는 집'은 업계 말로 '공급 부족분·공급 초과분'(10-23 용어집 F절). 사이트 문장은 사이트 몫이라 그대로 둔다.
+                        .replace('모자란 집은', '공급 부족분은').replace('남는 집이', '공급 초과분이')
                         .replace('모자란', '부족한').replace('모자라', '부족하'))))
     body.append(('<p>셈은 <b>%s</b>입니다.</p>', '<p>어떻게 나온 숫자냐면요, <b>%s</b>입니다.</p>', '<p>식 한 줄로 쓰면 <b>%s</b>, 이렇게 셌어요.</p>')[_rot(seq, 3, total)]
                 % esc(SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, need, fut, inow)))
