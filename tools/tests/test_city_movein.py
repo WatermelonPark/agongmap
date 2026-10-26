@@ -450,3 +450,16 @@ def test_body_uses_industry_terms(monkeypatch):
             html = MC.body(f, ('a', 'b'), 'x.xlsx', '전망', k, '')
             hit = [b for b in bad if b in html]
             assert not hit, (k, n, hit)
+
+
+def test_public_and_private_announcements_pair_with_the_listed_complex():
+    """10-26 평택 원천: 부동산원 '고덕자연&하우스디(A4)' 517세대와 청약홈 '고덕 자연앤 하우스디(A4BL)(국민)' 328·'(민영)' 189 는
+    한 단지다. 주소가 서로 다르게 적히고 입주 월도 석 달 밀려(청약 공고 뒤 일정 변경) 이름이 똑같아야만 짝지어진다. norm 에서 '(국민)/(민영)' 꼬리 떼기나 '&'→'앤'을 지우면
+    세 행(517·328·189)이 되어 빨개진다(확인)."""
+    raw = {'occ': [occ('2028-02', '고덕자연&하우스디(A4)', '경기도 평택시 고덕동 A4블록', 517),
+                   occ('2028-06', '끝 단지', '경기도 평택시 비전동 1-1', 100)],
+           'ch': [ch('2028-05', '고덕 자연앤 하우스디(A4BL)(국민)', '경기도 평택시 고덕국제화계획지구 A4BL', 328),
+                  ch('2028-05', '고덕 자연앤 하우스디(A4BL)(민영)', '경기도 평택시 고덕국제화계획지구 A4BL', 189)]}
+    rows = C.merge(raw, '평택', '2026-10')['rows']
+    assert sorted(r['n'] for r in rows) == [100, 517], rows
+    assert [r['ch_n'] for r in rows if r['n'] == 517] == [517]
