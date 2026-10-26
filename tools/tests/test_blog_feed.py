@@ -392,3 +392,18 @@ def test_feed_without_a_weekly_post_still_refreshes_city_posts(tmp_path):
     assert BF.main(path=f, fetch=lambda: CP.parse_posts(rss2)) == 0
     assert BF.read(f)['date'] == '2026-09-25', '주간 글이 없는 회차에 지난 주간 값을 지웠다'
     assert [c['title'] for c in BF.read_city(f)] == [title], '도시 편 목록을 새로 쓰지 않았다'
+
+
+def test_monthly_post_in_the_weekly_category_is_not_the_weekly_commentary():
+    """월간 시세 글은 같은 '주간 아파트 시세' 카테고리에 올라가도 주간 해설로 뽑지 않는다.
+    재현: 2026-10-23 03:33 주간 10월 셋째 주 글 뒤, 같은 날 12:10 '[한국부동산원] 9월 월간 아파트가격 동향 | …'이 같은
+    카테고리로 올라가 tools/data/blog_latest.json 의 weekly 가 월간 글이 됐고 /weekly/ 해설 칸에 '이번 주 해설'로 걸렸다.
+    변이(확인): latest_weekly 에서 MONTHLY_WORD 조건을 지우면 월간 글이 뽑혀 빨개진다."""
+    rss = ('<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>블로그</title>'
+           + _item(WEEKLY_CAT, '[한국부동산원] 9월 월간 아파트가격 동향 | 강남 3구만 내리고 서울 22개 구는 올랐습니다',
+                   BF.BLOG_HOME + '/224450798896', 'Fri, 23 Oct 2026 12:10:00 +0900')
+           + _item(WEEKLY_CAT, '[한국부동산원] 주간 아파트가격 동향 10월 셋째 주 (강남 11주 내려도 서울 89주째 상승)',
+                   BF.BLOG_HOME + '/224450793757', 'Fri, 23 Oct 2026 03:33:00 +0900')
+           + '</channel></rss>')
+    got = BF.latest_weekly(CP.parse_posts(rss))
+    assert got and got['url'] == BF.BLOG_HOME + '/224450793757', got
