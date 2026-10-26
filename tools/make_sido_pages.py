@@ -1210,10 +1210,11 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
     foot = []
     if row.get('unsold') is not None:
         foot.append('<tr class="zref" data-ref="un"><td>%s</td><td>%s</td><td>%s</td>'
-                    '<td colspan="3" class="zfut">%s 기준 · 지금 안 팔리고 남은 재고</td></tr>'
+                    '<td colspan="3" class="zfut">%s 기준 · %s</td></tr>'
                     % (refbtn('미분양'), num(row['unsold']),
                        umx(row['um']) if row.get('um') is not None else '–',
-                       SZ.month_text(calc.get('unsold_prd') or '')))
+                       SZ.month_text(calc.get('unsold_prd') or ''),
+                       SZ.UNSOLD_NATURE))   # 정의는 sido_zones 정본(10-24 업계 표현)
     if row.get('pm12') is not None:
         # 기준 달(창의 끝)은 미분양 행처럼 적는다 — 판정(calc)이 실은 permit_prd. 다음 배치 전의 옛 판정에는 없어 그때는 뺀다.
         # 퍼센트는 화면 정수 정본 rnd(half_up) — '%.0f' 는 짝수 쪽 반올림이라 x.5 에서 홈(Math.round)과 갈렸다(전수리뷰 X2 overflow).
@@ -1256,7 +1257,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              # 실측하니 **–가 20페이지 전체에서 0번** 나온다 — 대비 대상이 화면에
              # 없는 채로 없는 오해를 만들어놓고 푸는 문장이었다. 0은 그냥 0으로
              # 읽힌다. '경계선 위는 준공, 아래는 착공'도 이 절 첫 문단이 이미 말한다.
-             '<p><b>미분양</b>은 지금 안 팔리고 남은 집입니다(%(un_src)s). '
+             '<p><b>미분양</b>은 %(un_nat)s입니다(%(un_src)s). '
              '순위 계산에는 넣지 않습니다 — 결과값이라 공급에서 빼면 이중으로 세고 부호도 반대가 됩니다. '
              '판정을 읽는 맥락으로만 씁니다.</p>'
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
@@ -1265,7 +1266,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              # 첫 착공 연도(CONV_START_FROM)다 — 착공÷인허가를 재는 CONV_FROM(2012)이 아니다(전수 리뷰 #111).
              % {'lead': lead_y, 'convp': round(calc['conv'] * 100), 'conv_from': SZ.CONV_START_FROM,
                 'pover': pover_txt, 'ahead': ahead_y, 'formula': esc(SZ.formula_text(calc['H'])),
-                'win': win_y, 'un_src': UN_SOURCE, 'pwin': SZ.win_years(SZ.PERMIT_WIN)})
+                'win': win_y, 'un_src': UN_SOURCE, 'un_nat': SZ.UNSOLD_NATURE, 'pwin': SZ.win_years(SZ.PERMIT_WIN)})
 
     h.append(next_links(z, weekly, stats))
     h.append(weekly_section(z, weekly, names, monthly, maps))

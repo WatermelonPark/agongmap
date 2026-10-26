@@ -175,6 +175,12 @@ def cut_mult(c, H=None):
     return '%g배' % (half_up(c * H / 4.0 * 10) / 10.0)
 
 
+# 판정 문장(ratio_text full=True)의 주어 — 업계 표현(2026-10-24, 10-23 대표 용어 지시·용어집 F절). 예전 '모자란 집·남는 집'.
+# 시도 리포트 판정 문장과 블로그 지역 편 첫 문단(draft_zone 이 이 문장을 그대로 싣는다)이 함께 바뀐다.
+GAP_LACK = '공급 부족분'
+GAP_SURPLUS = '공급 초과분'
+
+
 def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     """순부족비를 사람 말로 옮긴다. 판정 배지 옆에 붙는다(2026-09-13 PM 요청 ①).
 
@@ -200,7 +206,7 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
     W = BACKLOG_WINDOW if W is None else W
     yrs = '%g년' % (H / 4.0)
     # 2026-10-05 대표 결정(안 A′): 쌓인 부족·여유를 '1년 적정물량의 N배'로 적는다(need_mult). 부족률 퍼센트는 100% 를 넘고 음수가
-    # 되며 해마다 입주 신호등의 퍼센트와 뜻이 반대라 읽기 어려웠다. 주어(모자란 집·남는 집)와 기준(1년 적정물량)을 함께 밝힌다.
+    # 되며 해마다 입주 신호등의 퍼센트와 뜻이 반대라 읽기 어려웠다. 주어(공급 부족분·공급 초과분 — GAP_LACK·GAP_SURPLUS)와 기준(1년 적정물량)을 함께 밝힌다.
     m = need_mult(ratio, H)
     sign = 1 if ratio > 0 else (-1 if ratio < 0 else 0)   # 방향은 비율 부호 그대로(작으면 '0.1배 미만' — mult_str)
     if not full:
@@ -214,12 +220,12 @@ def ratio_text(ratio, H=None, full=False, inow=None, W=None):
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫까지 더하면' % past if inow < 0 else
                 '%s 남은 재고를 빼고도' % past)
-        return '%s 앞으로 %s 모자란 집은 1년 적정물량의 %s입니다' % (lead, yrs, mult_str(m))
+        return '%s 앞으로 %s %s은 1년 적정물량의 %s입니다' % (lead, yrs, GAP_LACK, mult_str(m))
     if sign < 0:
         lead = ('%s 재고까지 셈하면' % past if inow is None else
                 '%s 덜 지은 몫을 채우고도' % past if inow < 0 else
                 '%s 남은 재고까지 더하면' % past)
-        return '%s 앞으로 %s 남는 집이 1년 적정물량의 %s입니다' % (lead, yrs, mult_str(m))
+        return '%s 앞으로 %s %s이 1년 적정물량의 %s입니다' % (lead, yrs, GAP_SURPLUS, mult_str(m))
     return '%s 재고까지 셈하면 앞으로 %s 적정물량과 거의 같습니다' % (past, yrs)
 
 
@@ -444,7 +450,9 @@ PERMIT_NATURE = '착공과 같은 흐름으로 움직이지만 허가 뒤 착공
 # 미분양주택현황'의 부문·규모 총합 행이라 공사 중 물량을 포함한 **전체** 미분양이다(준공 후 미분양은 시도·월 원천이 없어
 # 받지 않는다 — update_adv_data 의 미분양 설정). 예전 문구 '다 짓고도 팔리지 않은 집·이미 지어진 재고'는 준공 후 미분양의
 # 정의라 값과 맞지 않았다. /monthly/ 주석·시도 리포트 참고 안내(make_sido_pages.REFNOTE)·홈 거울(TB_REFNOTE)·블로그 초안이 쓴다.
-UNSOLD_NATURE = '분양했지만 아직 팔리지 않은 집(공사 중 포함)'
+# 2026-10-24 업계 표현으로('분양했지만 아직 팔리지 않은 집' → '분양 후 아직 계약되지 않은 물량', 10-23 대표 용어 지시).
+# 홈 산출 방법(index.html)과 홈 거울은 JS·HTML 이라 손으로 옮기고 시험이 이 값과 묶는다.
+UNSOLD_NATURE = '분양 후 아직 계약되지 않은 물량(공사 중 포함)'
 UNSOLD_RANK_WHY = '이미 착공·준공 물량에 들어 있어'
 
 

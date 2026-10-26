@@ -48,7 +48,7 @@ def test_multiple_is_the_ratio_times_the_years():
 
 
 def test_direction_is_a_word_not_a_sign():
-    """방향은 말(부족·여유 / 모자란 집·남는 집)로 쓰고 부호는 쓰지 않는다. 0.1배에 못 미치는 비율도 방향은 말하고 크기만
+    """방향은 말(부족·여유 / 공급 부족분·공급 초과분)로 쓰고 부호는 쓰지 않는다. 0.1배에 못 미치는 비율도 방향은 말하고 크기만
     '0.1배 미만'으로 적는다(2026-10-06 리뷰 — 충북 0.0087 이 '281세대 부족(적정물량과 거의 같음)'으로 한 줄에 두 말을 했다).
     '거의 같음'은 비율이 정확히 0일 때뿐이다.
     변이(실제로 확인): ratio_text 의 여유 갈래를 '부족'으로 쓰면, mult_str 이 0.1배 미만을 '0.0배'로 쓰면 빨개진다."""
@@ -151,7 +151,7 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
             assert '더 들어옵니다' not in t and '누적 순부족' not in t, t
             assert t.startswith(past), '판정 설명이 지난 창 재고를 말하지 않는다: %s' % t
             assert '1년 적정물량의 %s입니다' % SZ.mult_str(m) in t and '만큼' not in t, t
-            assert ('남는 집' in t) == (r < 0), t
+            assert (SZ.GAP_SURPLUS + '이 ' in t) == (r < 0) and (SZ.GAP_LACK + '은 ' in t) == (r > 0), t
             if inow is not None:
                 tail = SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, 1, 1, inow)
                 assert ('덜 지은 몫' in t) == ('쌓인 부족' in tail) and ('남은 재고' in t) == ('남은 재고' in tail), \
@@ -160,14 +160,14 @@ def test_full_sentence_counts_the_past_window_on_the_formula_branch():
 
 def test_surplus_report_and_blog_do_not_say_more_is_coming_than_needed(monkeypatch):
     """여유 지역(입주 추정 < 적정물량, 남은 재고 > 0)의 시도 리포트 판정 문장과 블로그 지역 편 판정 문단은 '지난 4년 남은 재고까지
-    더하면 앞으로 3년 남는 집이 1년 적정물량의 0.6배입니다'이고(2026-10-05 안 A′ — 주어와 기준을 밝힌다), 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
+    더하면 앞으로 3년 공급 초과분이 1년 적정물량의 0.6배입니다'이고(2026-10-05 안 A′ — 주어와 기준을 밝힌다), 바로 다음 식 한 줄과 숫자·갈래가 맞는다(TRUST-2④).
 
     변이(각각 실제로 확인): verdict_line 이 inow 를 넘기지 않으면(갈래 없는 '재고까지 셈하면') 리포트 단정이, draft_zone 이
           inow 를 넘기지 않으면 블로그 단정이, ratio_text 를 옛 여유 문장으로 되돌리면 둘 다 빨개진다.
     픽스처: 인천 실측 모양의 합성 행(INCHEON). 블로그는 저장소 판정 행을 복사해 숫자만 이 모양으로 덮는다(데이터가 앞으로
             가도 같은 숫자).
     """
-    want = '지난 4년 남은 재고까지 더하면 앞으로 3년 남는 집이 1년 적정물량의 0.6배입니다'
+    want = '지난 4년 남은 재고까지 더하면 앞으로 3년 공급 초과분이 1년 적정물량의 0.6배입니다'   # 10-24 업계 표현(GAP_SURPLUS)
     line = P.verdict_line(INCHEON, SZ.LEAD_Q)
     assert line.startswith(want + '. '), line
     assert '더 들어옵니다' not in line

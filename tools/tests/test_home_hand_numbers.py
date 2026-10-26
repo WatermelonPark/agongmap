@@ -72,6 +72,24 @@ def test_unsold_source_on_home_agrees_with_the_reference_note():
     assert '(%s)' % M.UN_SOURCE in li.group(0), (M.UN_SOURCE, li.group(0))
 
 
+def test_unsold_definition_on_home_is_the_canonical_one():
+    """홈 산출 방법의 미분양 줄과 시도 리포트 '어떻게 계산했나'·참고 행 설명 칸이 미분양을 정본 정의(SZ.UNSOLD_NATURE)
+    그대로 말하고, 옛 손글씨 정의('안 팔리고 남은')를 다시 적지 않는다(2026-10-24 업계 표현 — 10-23 대표 용어 지시).
+    예전엔 정본이 '분양했지만 아직 팔리지 않은 집(공사 중 포함)'인데 홈 줄과 시도 리포트 두 곳은 '지금 안 팔리고 남은 집·재고'로
+    손으로 따로 적혀 있어, 정본을 바꿔도 따라오지 않았다.
+
+    변이(실제로 확인): index.html 미분양 줄을 옛 '지금 안 팔리고 남은 집'으로 되돌리면, 또는 make_sido_pages 의 설명 칸을
+          옛 '지금 안 팔리고 남은 재고' 손글씨로 되돌리면 빨개진다. SZ.UNSOLD_NATURE 만 바꾸고 홈 줄을 그대로 두어도 빨개진다.
+    픽스처: 실제 index.html 과 make_sido_pages 소스(생성기를 돌리지 않고 문구가 정본에서 오는지 본다).
+    """
+    li = re.search(r'<li><b>미분양</b>[^<]*', _html())
+    assert li and SZ.UNSOLD_NATURE in li.group(0), (SZ.UNSOLD_NATURE, li and li.group(0))
+    import make_sido_pages as M
+    src = io.open(M.__file__, encoding='utf-8').read()
+    assert '안 팔리고 남은' not in src, '시도 리포트에 미분양 손글씨 정의가 남았다'
+    assert src.count('SZ.UNSOLD_NATURE') >= 3, '시도 리포트 미분양 정의가 정본 상수를 쓰지 않는다'
+
+
 def test_occupancy_legend_uses_the_canonical_thresholds():
     """투자지표 입주물량 범례의 문턱(적정물량의 N% 초과 / M% 미만)은 대표 결정 ③ 정본(/moveins/ 와 한 값, 70%·130%)이다.
     예전 범례는 '분기 적정물량 이상'·'적정물량의 60% 미만'으로 /moveins/ 와 달랐다(전수리뷰 #60·#113 홈 쪽 문구).
