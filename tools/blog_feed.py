@@ -56,10 +56,11 @@ def blog_home(rss):
     return ('https://blog.naver.com/' + m.group(1)) if m else None
 
 
-BLOG_HOME = blog_home(CP.RSS)   # 푸터·/weekly/ 의 '매주 해설 글' 링크도 이 값이다(None 이면 링크를 굽지 않는다)
+BLOG_HOME = blog_home(CP.RSS)   # 푸터('네이버 블로그')·/weekly/('블로그 글 더 보기') 링크도 이 값이다(None 이면 링크를 굽지 않는다)
 LABEL = '네이버 블로그'                                   # 대표 확인(09-27): 블로그 이름 없이 이 말만
 FRESH_DAYS = 7          # 이번 주 발표일보다 이만큼 앞선 글까지 보여 준다(= 지난주 글). 그보다 오래되면 칸을 뺀다
 LEAD_NOW, LEAD_PREV = '이번 주 해설', '지난주 해설'
+MONTHLY_WORD = '월간'   # 월간 시세 글 제목 표지(make_monthly_post 제목 '[한국부동산원] N월 월간 아파트가격 동향 | …')
 HOME_TEXT = '블로그 글 더 보기'   # 블로그 첫 화면 링크 이름(/weekly/ 해설 칸). 주기를 약속하지 않는다 — 2026-10-26 대표 결정으로
 #   블로그에 주간 해설을 더 올리지 않아 옛 '매주 해설 글'은 지킬 수 없는 말이 됐다(홈 푸터는 '네이버 블로그')
 # 해석 글 칸 옆 이웃 안내 줄(RET-4 A안)은 홈(2026-09-28)·/weekly/(2026-10-03) 모두에서 뺐다 — 대표 결정, 군더더기.
@@ -73,8 +74,10 @@ def ours(url):
 def latest_weekly(posts):
     """[{date, cat, title, url}] → 주간 카테고리의 가장 새 글 {'date': 'YYYY-MM-DD', 'title', 'url'}. 없으면 None."""
     cat = CP.norm(CATEGORY)
+    # 월간 시세 글도 같은 '주간 아파트 시세' 카테고리에 올라간다 — 10/23 '[한국부동산원] 9월 월간 아파트가격 동향' 이
+    # '이번 주 해설'로 뽑혀 /weekly/·홈 주간 구역에 걸렸다(2026-10-26 콘텐츠-시세 점검). 제목에 '월간'이 든 글은 주간 해설이 아니다.
     cand = [p for p in posts or () if CP.norm(p.get('cat')) == cat and ours(p.get('url'))
-            and (p.get('title') or '').strip() and p.get('date')]
+            and (p.get('title') or '').strip() and p.get('date') and MONTHLY_WORD not in p['title']]
     if not cand:
         return None
     p = max(cand, key=lambda x: x['date'])
