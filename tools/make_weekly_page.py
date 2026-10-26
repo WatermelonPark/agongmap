@@ -957,6 +957,11 @@ def _track(to):
     return ' onclick="try{gtag(\'event\',\'blog_link\',{to:\'%s\'})}catch(e){}"' % to
 
 
+# 칸 이름 — 블로그에 주간 해설을 더 올리지 않아 '해설 글'을 중립 문구로(2026-10-26 요청서 50 덧붙임). 콘텐츠 섹션이 생기면
+# 이 칸이 /column/ 최신 글을 보이도록 바꾼다(백로그 50).
+BLOG_H2 = '아공맵 블로그 최근 글'
+
+
 def blog_html(b):
     rows = []
     if b:
@@ -968,7 +973,7 @@ def blog_html(b):
                     % (BF.BLOG_HOME, _track('weekly_home'), BF.HOME_TEXT, BF.LABEL))
     if not rows:
         return ''
-    return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>해설 글</h2>', '  <div class="links">']
+    return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>%s</h2>' % BLOG_H2, '  <div class="links">']
                      + rows + ['  </div>', '</div></section>'])
 
 

@@ -1,4 +1,36 @@
 User-agent: *
 Allow: /
 
+# AI 검색·답변 크롤러를 이름으로 밝혀 허용한다(2026-10-26 요청서 50 — 사이트 글이 AI 검색에 인용되는 것이 목표).
+# 학습 전용 CCBot 도 막지 않는다(대표 결정 10-26: 기본은 전부 허용).
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Yeti
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
 Sitemap: https://www.agongmap.co.kr/sitemap.xml
