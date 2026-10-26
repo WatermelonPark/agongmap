@@ -62,7 +62,7 @@ def test_page_years_follow_window_and_lead(monkeypatch):
 def test_unsold_source_is_one_agency():
     html, _, _ = _page()
     assert P.UN_SOURCE in P.REFNOTE['un']
-    m = re.search(r'<b>미분양</b>은 지금 안 팔리고 남은 집입니다\(([^)]+)\)', html)
+    m = re.search(r'<b>미분양</b>은 ' + re.escape(SZ.UNSOLD_NATURE) + r'입니다\(([^)]+)\)', html)   # 정의도 정본 그대로
     assert m and m.group(1) == P.UN_SOURCE, m and m.group(1)
     other = {'국토교통부', '한국부동산원'} - {P.UN_SOURCE}
     assert not any('(%s' % o in P.REFNOTE['un'] for o in other)
