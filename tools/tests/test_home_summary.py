@@ -239,7 +239,7 @@ def test_three_footers_are_the_same_grouped_by_cadence_with_the_blog_link():
     assert re.findall(r'<span class="fg"><b>([^<]+)</b>', f) == ['매주', '매달', '분기', '읽을거리']
     blog = re.search(r'<a href="([^"]+)"([^>]*)>([^<]+)</a>', f[f.index(BF.BLOG_HOME) - 9:])
     assert blog.group(1) == BF.BLOG_HOME and 'target="_blank"' in blog.group(2) and 'rel="noopener"' in blog.group(2)
-    assert blog.group(3) == '%s(%s)' % (BF.HOME_TEXT, BF.LABEL)
+    assert blog.group(3) == BF.LABEL   # 2026-10-26: 주기를 약속하던 '매주 해설 글(네이버 블로그)'을 뺐다
     for href in ('/weekly/', '/monthly/', '/jeonse-ratio/', '/zone/', '/moveins/', '/cycle/', '/faq/',
                  '/burini-test/', '/investor-test/', '/redev-test/'):
         assert f.count('href="%s"' % href) == 1, href
