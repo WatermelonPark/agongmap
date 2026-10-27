@@ -7,7 +7,7 @@
 
 무엇을 담나(도시마다)
   sido·start·occ_max   어느 시도에서 뽑았나, 어느 달부터 세나, 부동산원 목록의 끝 달
-  pop·pop_prd·need     인구와 그 기준월, 한 해 적정 입주량(인구 ÷ 2.5 × 2% — make_city_post 와 같은 상수)
+  pop·pop_prd·need     인구와 그 기준월, 한 해 적정 입주량(인구 ÷ 2.5 × 2% — 산식의 정본은 movein_need)
   by_year·by_year_gu   연도별 세대, 연도별 구별 세대
   rows                 단지 목록(입주월·이름·구·세대·자료 출처)
 
@@ -31,7 +31,7 @@ except Exception:
 
 import content_md as CM        # noqa: E402  (원고의 region)
 import city_movein as CMV      # noqa: E402  (원천 수집·병합의 정본)
-import make_city_post as MCP   # noqa: E402  (적정 입주량 상수 PER_HH·RATE)
+import movein_need as MN       # noqa: E402  (적정 입주량 산식의 정본 — 도시 글 생성기도 같은 파일을 읽는다)
 import sido_zones as SZ        # noqa: E402  (시도 목록)
 import weekly_moves as WM      # noqa: E402  (시군구 코드 접두 → 시도 정본 SGG_PREFIX)
 import home_src as HS          # noqa: E402  (시군구 이름표 SGG_QNAME)
@@ -109,8 +109,8 @@ def city_facts(city, sido, start):
     return {
         'sido': sido, 'start': start, 'occ_max': m['occ_max'],
         'pop': pop, 'pop_prd': prd,
-        'need': int(round(pop / MCP.PER_HH * MCP.RATE)),
-        'need_note': '인구 ÷ %s × %d%%' % (MCP.PER_HH, int(MCP.RATE * 100)),
+        'need': MN.need(pop),
+        'need_note': MN.note(),
         'by_year': by_year, 'by_year_gu': by_year_gu,
         'rows': [{'ym': r['ym'], 'name': r['name'], 'gu': r.get('gu') or '', 'n': r['n'],
                   'kind': r.get('kind') or '', 'src': r.get('src') or ''} for r in m['rows']],
