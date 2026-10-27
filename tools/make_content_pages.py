@@ -60,6 +60,109 @@ def _inline(t):
     return t
 
 
+# ── 그림(인라인 SVG) ────────────────────────────────────────────────────────
+# 이미지 파일이 아니라 인라인 SVG 다(요청 ①, 총괄 10-27). 그래야 배치가 페이지를 다시 구울 때 숫자가 따라
+# 오고, 다크 모드도 CSS 변수로 따라온다. 색만으로 계열을 가르지 않는다 — 매매는 실선, 전세는 점선이다.
+CH_W, CH_BAR_H, CH_LINE_H = 640, 210, 150       # viewBox 크기(폭은 CSS 로 100% 가 된다)
+
+
+def _svg_open(spec, h):
+    # preserveAspectRatio 를 건드리지 않는다 — 'none' 으로 늘리면 좁은 화면에서 글자와 선 굵기가 함께
+    # 늘어나 뭉갠다. 폭은 CSS(width:100%)가 맞추고 높이는 비율대로 따라온다.
+    return ('<svg viewBox="0 0 %d %d" role="img" aria-label="%s" class="cchart-svg">'
+            % (CH_W, h, html.escape(spec['alt'])))
+
+
+def _bars_svg(spec):
+    pts = spec['series'][0]['points']
+    rule = spec.get('rule')
+    top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
+    pad_l, pad_b, pad_t = 8, 26, 16
+    plot_h = CH_BAR_H - pad_b - pad_t
+    gap = 10
+    # 막대가 두세 개뿐인 해(구미는 2027·2029 둘)에 폭을 다 나눠 가지면 화면을 꽉 메운 덩어리가 된다.
+    # 폭에 상한을 두고 남는 자리는 가운데로 모은다.
+    bw = min(72.0, max(14.0, (CH_W - pad_l * 2 - gap * (len(pts) - 1)) / float(len(pts))))
+    used = bw * len(pts) + gap * (len(pts) - 1)
+    pad_l = max(pad_l, (CH_W - used) / 2.0)
+    # 막대가 많으면 값을 다 적을 자리가 없다(경기 13개에서 숫자가 서로 겹쳤다). 좁아지면 가장 큰 해와
+    # 마지막 해만 적는다 — 나머지 숫자는 바로 아래 표와 대체 텍스트에 있다.
+    tight = bw < 34
+    keep = {max(range(len(pts)), key=lambda i: pts[i][1]), len(pts) - 1}
+    out = [_svg_open(spec, CH_BAR_H)]
+    for i, (lab, v) in enumerate(pts):
+        x = pad_l + i * (bw + gap)
+        hh = max(1.0, v / float(top) * plot_h)
+        y = pad_t + plot_h - hh
+        over = rule and rule[0] and v >= rule[0]
+        out.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" class="cb%s"/>'
+                   % (x, y, bw, hh, ' cb-over' if over else ''))
+        if not tight or i in keep:
+            out.append('<text x="%.1f" y="%.1f" class="cb-v">%s</text>'
+                       % (x + bw / 2, y - 4, html.escape(CT.num(v))))
+        out.append('<text x="%.1f" y="%d" class="cb-x">%s</text>'
+                   % (x + bw / 2, CH_BAR_H - 8, html.escape(str(lab))))
+    if rule and rule[0]:
+        ry = pad_t + plot_h - rule[0] / float(top) * plot_h
+        out.append('<line x1="%d" y1="%.1f" x2="%d" y2="%.1f" class="cb-rule"/>'
+                   % (6, ry, CH_W - 6, ry))
+        out.append('<text x="%d" y="%.1f" class="cb-rl cx-e">%s</text>'
+                   % (CH_W - 8, max(10, ry - 5), html.escape(rule[1])))
+    out.append('</svg>')
+    return ''.join(out)
+
+
+def _lines_svg(spec):
+    ser = spec['series']
+    vals = [v for s in ser for _, v in s['points']]
+    hi, lo = max(vals + [0.0]), min(vals + [0.0])
+    span = (hi - lo) or 1.0
+    pad_l, pad_t, pad_b = 8, 14, 24
+    plot_h = CH_LINE_H - pad_t - pad_b
+    n = max(len(s['points']) for s in ser)
+
+    def xy(i, v, cnt):
+        x = pad_l + (CH_W - pad_l * 2) * (i / float(max(1, cnt - 1)))
+        return x, pad_t + plot_h - (v - lo) / span * plot_h
+    out = [_svg_open(spec, CH_LINE_H)]
+    zx, zy = xy(0, 0.0, n)
+    out.append('<line x1="%d" y1="%.1f" x2="%d" y2="%.1f" class="cl-zero"/>'
+               % (pad_l, zy, CH_W - pad_l, zy))      # 0선 척추
+    for s in ser:
+        d = ' '.join('%s%.1f %.1f' % ('M' if i == 0 else 'L', *xy(i, v, len(s['points'])))
+                     for i, (_, v) in enumerate(s['points']))
+        out.append('<path d="%s" class="cl cl-%s"/>' % (d, 'je' if s['name'] == '전세' else 'ma'))
+        lx, ly = xy(len(s['points']) - 1, s['points'][-1][1], len(s['points']))
+        out.append('<circle cx="%.1f" cy="%.1f" r="2.5" class="cl-dot"/>' % (lx, ly))
+    # 양 끝 날짜는 '월-일' 로만 적는다(연도는 각주에 있다). 가장자리에 붙이면 잘려 보여 안쪽으로 넣는다.
+    ends = (ser[0]['points'][0][0], ser[0]['points'][-1][0])
+    # 맞춤은 클래스로 준다 — CSS 의 text-anchor 가 SVG 속성을 이겨서, 속성으로 적으면 가운데로 그려지고
+    # 양 끝 글자가 그림 밖으로 밀려 잘린다(2026-10-27 브라우저에서 getBBox 로 확인했다).
+    out.append('<text x="%d" y="%d" class="cb-x cx-s">%s</text>'
+               % (pad_l + 2, CH_LINE_H - 7, html.escape(ends[0][5:])))
+    out.append('<text x="%d" y="%d" class="cb-x cx-e">%s</text>'
+               % (CH_W - pad_l - 2, CH_LINE_H - 7, html.escape(ends[1][5:])))
+    out.append('</svg>')
+    return ''.join(out)
+
+
+def _chart_html(spec):
+    """그림 한 덩이 — 숫자 카드(있으면) + SVG + 범례 + 각주."""
+    out = ['<figure class="cchart">']
+    if spec.get('cards'):
+        out.append('<div class="ccards">')
+        out += ['<div class="ccard"><b>%s</b><span>%s</span></div>'
+                % (html.escape(v), html.escape(k)) for k, v in spec['cards']]
+        out.append('</div>')
+    out.append(_bars_svg(spec) if spec['kind'] == 'bars' else _lines_svg(spec))
+    if spec['kind'] == 'lines' and len(spec['series']) > 1:
+        out.append('<p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p>')
+    out.append('<figcaption>%s%s</figcaption>' % (
+        html.escape(spec['title']), ' · ' + html.escape(spec['note']) if spec.get('note') else ''))
+    out.append('</figure>')
+    return ''.join(out)
+
+
 def _table_html(head, body, note=''):
     h = ['<div class="ctab"><table><thead><tr>']
     h += ['<th scope="col">%s</th>' % html.escape(c) for c in head]
@@ -133,7 +236,7 @@ def markdown(body):
     return '\n'.join(out)
 
 
-PLACEHOLDER = re.compile(r'\{\{(table|v):([^}]+)\}\}')
+PLACEHOLDER = CT.PH      # 정규식은 content_tables 가 정본이다 — 종류가 늘면 한 곳만 고친다
 
 
 def fill_placeholders(body, data):
@@ -147,8 +250,10 @@ def fill_placeholders(body, data):
             raise CT.TableError('자리표가 비었다: %s' % m.group(0))
         if kind == 'v':
             return CT.value(data, parts[0], parts[1:])
-        head, rows, note = CT.table(data, parts[0], parts[1:])
-        blocks.append(_table_html(head, rows, note))
+        if kind == 'chart':
+            blocks.append(_chart_html(CT.chart(data, parts[0], parts[1:])))
+        else:
+            blocks.append(_table_html(*CT.table(data, parts[0], parts[1:])))
         return '\n\n\x00TABLE%d\x00\n\n' % (len(blocks) - 1)
 
     return PLACEHOLDER.sub(sub, body), blocks
@@ -162,6 +267,30 @@ def restore_tables(html_text, blocks):
 
 # ── 페이지 ──────────────────────────────────────────────────────────────────
 EXTRA_CSS = """
+.cchart{margin:0 0 20px;padding:0}
+.cchart-svg{display:block;width:100%;height:auto;margin:2px 0 0}
+.ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
+.ccard{flex:1 1 30%;min-width:96px;background:var(--paper2);border:1px solid var(--line);
+ border-radius:3px;padding:8px 10px}
+.ccard b{display:block;font-size:18px;font-weight:600;line-height:1.25;letter-spacing:-.01em}
+.ccard span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.cchart figcaption,.clegend{font-size:13px;color:var(--muted);margin:6px 0 0;line-height:1.55}
+.clegend{display:flex;gap:14px}
+.clegend span{display:inline-flex;align-items:center;gap:5px}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
+.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
+.cb{fill:var(--ink);opacity:.45}
+.cb-over{opacity:.78}
+.cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
+.cx-s{text-anchor:start}
+.cx-e{text-anchor:end}
+.cb-rule{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3;opacity:.65}
+.cb-rl{fill:var(--muted);font-size:11px}
+.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
+.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl-zero{stroke:var(--line);stroke-width:1}
+.cl-dot{fill:var(--ink)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .csum{font-size:16px;line-height:1.75;color:var(--ink);background:var(--paper2);
  border-left:3px solid var(--ink);padding:14px 16px;margin:0 0 20px}
@@ -351,6 +480,73 @@ def write_home_recent(metas, root=ROOT):
     return True
 
 
+ZONE_START, ZONE_END = '<!--ZONE_POSTS_START-->', '<!--ZONE_POSTS_END-->'
+_ZONE_RE = re.compile(re.escape(ZONE_START) + r'(.*?)' + re.escape(ZONE_END), re.S)
+
+
+def zone_of(meta):
+    """글의 region → 시도 키. 시군구면 홈 이름표와 시군구 코드 접두에서 읽는다(손 표를 두지 않는다).
+
+    region 이 비었거나 어느 시도인지 알 수 없으면 None — 그 글은 지역 묶음에 싣지 않는다.
+    """
+    import sido_zones as SZ
+    name = (meta.get('region') or '').strip()
+    if not name:
+        return None
+    if name in SZ.ORDER:
+        return name
+    if SZ.key_of(name) in SZ.ORDER:
+        return SZ.key_of(name)
+    try:
+        import make_city_moveins as MCM
+        return MCM.sido_of(name)
+    except Exception:
+        return None
+
+
+def zone_posts_html(metas):
+    """시도 리포트 아래에 붙는 '이 지역 글' 묶음. 갱신일 최신 순."""
+    if not metas:
+        return ''
+    newest = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    items = ''.join(
+        '<li><a href="/%s/%s/"><b>%s</b><i>%s · %s 갱신</i></a></li>'
+        % (m['section'], m['slug'], html.escape(m['title']),
+           html.escape(SECTION_META[m['section']][0]), m['updated'])
+        for m in newest)
+    return '<section class="crecent zposts"><h2>이 지역 글</h2><ul>%s</ul></section>' % items
+
+
+def write_zone_posts(metas, root=ROOT):
+    """시도 리포트(zone/<시도>/index.html)의 표식 구간만 고쳐 쓴다 — 홈 묶음과 같은 규칙이다.
+
+    ⚠️ 구간 밖은 건드리지 않는다. 글이 없는 시도는 구간을 비운다(지난 회차의 글이 남지 않게).
+       표식이 없는 페이지는 건너뛴다 — make_sido_pages 가 아직 그 판을 굽지 않은 회차다.
+    """
+    import sido_zones as SZ
+    by = {}
+    for m in metas:
+        z = zone_of(m)
+        if z:
+            by.setdefault(z, []).append(m)
+    done = 0
+    for z in SZ.ORDER:
+        p = os.path.join(root, 'zone', z, 'index.html')
+        if not os.path.exists(p):
+            continue
+        s = io.open(p, encoding='utf-8', newline='').read()
+        if len(_ZONE_RE.findall(s)) != 1:
+            continue
+        nl = '\r\n' if '\r\n' in s else '\n'
+        body = zone_posts_html(by.get(z) or [])
+        out = _ZONE_RE.sub(lambda m: ZONE_START + nl + ((body + nl) if body else '') + ZONE_END, s)
+        if out != s:
+            io.open(p, 'w', encoding='utf-8', newline='').write(out)
+        if body:
+            done += 1                 # 글이 실린 시도만 센다(빈 구간을 비운 것도 변경이라 따로 센다)
+    return done
+
+
 def collect(root=ROOT, strict=False):
     """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다.
 
@@ -447,9 +643,11 @@ def main(strict=False):
     all_metas = [m for items in by_sec.values() for m, _ in items
                  if os.path.exists(os.path.join(ROOT, m['section'], m['slug'], 'index.html'))]
     home = write_home_recent(all_metas)
-    print('content pages: %d편%s · 섹션 %s%s' % (
+    zones = write_zone_posts(all_metas)
+    print('content pages: %d편%s · 섹션 %s%s%s' % (
         wrote, (' · 건너뜀 %d편' % len(skipped)) if skipped else '',
-        ', '.join(sorted(by_sec)), ' · 홈 최근 리포트 갱신' if home else ''))
+        ', '.join(sorted(by_sec)), ' · 홈 최근 리포트 갱신' if home else '',
+        ' · 지역 리포트 %d곳에 글 묶음' % zones if zones else ''))
     return 0
 
 

@@ -578,7 +578,11 @@ def share_section(z):
         % (e, json.dumps(SZ.disp(z), ensure_ascii=False), json.dumps(z, ensure_ascii=False)))
 
 
-FOOT = '''</main>
+# 그 지역을 다룬 콘텐츠 글 묶음이 들어오는 자리(백로그 50). 이 생성기는 **빈 표식만** 굽고, 안쪽은
+# make_content_pages 가 원고의 region 을 읽어 채운다 — 홈 '최근 리포트' 와 같은 방식이다. 두 생성기의
+# 순서에 기대지 않으려고 이렇게 나눴다(시도 페이지가 먼저 구워져도 다음 단계에서 채워진다).
+FOOT = '''<!--ZONE_POSTS_START--><!--ZONE_POSTS_END-->
+</main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
   <a href="/">agongmap.co.kr</a> · <a href="/about/">아공맵 소개</a> · 자료: 국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트

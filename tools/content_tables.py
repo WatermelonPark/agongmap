@@ -348,7 +348,8 @@ def _weekly_series(data, name, kind='ma'):
         return [(r.get('p'), (r.get(kind) or [None] * len(regs))[i]) for r in (W.get('rows') or [])]
     got = sgg_codes(data, name)
     if len(got) != 1:
-        raise TableError('연속 주수는 한 지역만 받는다 — %r 는 %d곳이다(구 이름까지 적을 것)' % (name, len(got)))
+        raise TableError('주간 계열은 한 지역만 받는다 — %r 는 %d곳이다. 구 이름까지 적을 것(예: %s)'
+                         % (name, len(got), got[0][1]))
     S = data.get('sgg') or {}
     codes = S.get('codes') or []
     c = got[0][0]
@@ -509,12 +510,84 @@ def value(data, kind, args):
     raise TableError('값으로 쓸 수 없는 자리표다: %r' % kind)
 
 
+# ── 그림 ────────────────────────────────────────────────────────────────────
+# 숫자만 여기서 모으고 그림(인라인 SVG)은 make_content_pages 가 그린다 — 표와 같은 나눔이다. 그래야
+# llms-full.txt 처럼 글자로만 나가는 곳이 같은 함수에서 대체 텍스트를 받아 쓸 수 있다(요청 ①, 총괄 10-27).
+CHART_WEEKS = 26          # 주간 꺾은선이 담는 주 수
+
+
+def _chart_moveins(data, name, year=None):
+    f = city(data, name)
+    if f:
+        by = {y: v for y, v in (f.get('by_year') or {}).items()}
+        need, note = f['need'], _city_note(f)
+    else:                                   # 시도는 사이트 데이터의 입주물량(연도별 실적+예정)
+        head, rows, note = moveins(data, region_key(data, name))
+        by = {r[0]: int(r[1].replace(',', '')) for r in rows if r[0] != '합계'}
+        need = None
+    if not by:
+        raise TableError('%r 의 연도별 입주물량이 없다' % name)
+    year = str(year or (int((data.get('cities') or {}).get('start', '2026-01')[:4]) + 1))
+    pts = [(y, by[y]) for y in sorted(by)]
+    cards = []
+    if year in by:
+        cards.append(('%s년 입주' % year, num(by[year]) + '세대'))
+        if need:
+            cards.append(('적정 대비', '%d%%' % int(round(by[year] / float(need) * 100))))
+    for what in ('전세', '매매'):           # 전세 계열이 없는 도시는 매매로 대신한다
+        try:
+            # 카드에는 짧은 형태만 — '(10월 19일 조사)' 까지 넣으면 좁은 화면에서 카드가 세 줄이 된다.
+            cards.append(('%s 흐름' % what, streak(data, name, what).split('(')[0]))
+            break
+        except TableError:
+            continue
+    alt = '%s 연도별 입주 물량 막대그래프. %s.' % (
+        name, ', '.join('%s년 %s세대' % (y, num(v)) for y, v in pts))
+    if need:
+        alt += ' 한 해 적정 입주량은 %s세대.' % num(need)
+    return {'kind': 'bars', 'title': '%s 해마다 입주 물량' % name, 'alt': alt, 'note': note,
+            'series': [{'name': '입주 세대', 'points': pts}],
+            'rule': (need, '적정 %s세대' % num(need)) if need else None,
+            'cards': cards[:3]}
+
+
+def _chart_weekly(data, name):
+    out, got = [], False
+    for what, kind in (('매매', 'ma'), ('전세', 'je')):     # 계열 키는 streak 과 같은 것을 쓴다
+        pts = [(p, v) for p, v in _weekly_series(data, name, kind)[-CHART_WEEKS:] if v is not None]
+        if pts:
+            out.append({'name': what, 'points': pts})
+            got = True
+    if not got:
+        raise TableError('%r 의 주간 시세 계열에 값이 없다' % name)
+    last = {s['name']: s['points'][-1] for s in out}
+    alt = '%s 최근 %d주 주간 변동률 꺾은선. %s.' % (name, CHART_WEEKS, ', '.join(
+        '%s 최신 %s%%' % (k, pct(v)) for k, (_, v) in sorted(last.items())))
+    return {'kind': 'lines', 'title': '%s 최근 %d주 변동률' % (name, CHART_WEEKS), 'alt': alt,
+            'note': '한국부동산원 주간 아파트가격동향 · %s 조사 · 전주 대비 변동률'
+                    % sorted(last.values())[-1][0],
+            'series': out, 'rule': (0.0, None), 'cards': []}
+
+
+def chart(data, kind, args):
+    """그림에 쓸 숫자 묶음. 그리는 일은 부르는 쪽이 한다(make_content_pages·llms)."""
+    if kind == 'moveins':
+        if not 1 <= len(args) <= 2:
+            raise TableError('chart:moveins 는 지역[:연도] 꼴이다')
+        return _chart_moveins(data, args[0], args[1] if len(args) > 1 else None)
+    if kind == 'weekly':
+        if len(args) != 1:
+            raise TableError('chart:weekly 는 지역 하나를 받는다')
+        return _chart_weekly(data, args[0])
+    raise TableError('그림으로 그릴 수 없는 자리표다: %r (쓸 수 있는 것: moveins, weekly)' % kind)
+
+
 # ── 자리표 치환의 한 입구 ───────────────────────────────────────────────────
 # 왜 여기에 모았나. 요약과 FAQ 는 페이지에만 실리지 않는다 — OG·JSON-LD·섹션 목록·feed.xml·llms.txt 가
 # 같은 글을 가져다 쓴다. 생성기마다 따로 치환하면 어느 한 곳이 빠진 채 '{{v:...}}' 가 그대로 발행된다.
 # 2026-10-27 첫 19편에서 실제로 그랬다(페이지 7곳·feed 19건·llms 9건). 그래서 원고를 읽는 생성기는
 # 모두 fill_meta 를 통과시키고, 본문을 글자로 내보내는 쪽은 fill_markdown 을 쓴다.
-PH = re.compile(r'\{\{(table|v):([^}]+)\}\}')
+PH = re.compile(r'\{\{(table|v|chart):([^}]+)\}\}')
 
 
 def _args(m):
@@ -528,8 +601,9 @@ def fill_inline(text, data):
     """한 줄 글(제목·요약·FAQ)의 자리표를 채운다. 표 자리표는 한 줄에 들어갈 수 없으므로 거부한다."""
     def sub(m):
         kind, args = _args(m)
-        if m.group(1) == 'table':
-            raise TableError('표 자리표는 본문에만 쓴다(제목·요약·FAQ 는 한 줄이다): %s' % m.group(0))
+        if m.group(1) != 'v':
+            raise TableError('%s 자리표는 본문에만 쓴다(제목·요약·FAQ 는 한 줄이다): %s'
+                             % (m.group(1), m.group(0)))
         return value(data, kind, args)
     return PH.sub(sub, text or '')
 
@@ -563,5 +637,8 @@ def fill_markdown(body, data):
         kind, args = _args(m)
         if m.group(1) == 'v':
             return value(data, kind, args)
+        if m.group(1) == 'chart':
+            # 글자로만 나가는 곳(llms-full.txt)에서는 그림을 대체 텍스트 한 문장으로 싣는다.
+            return '\n' + chart(data, kind, args)['alt'] + '\n'
         return '\n' + md_table(*table(data, kind, args)) + '\n'
     return PH.sub(sub, body or '')

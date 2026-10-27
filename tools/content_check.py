@@ -25,7 +25,7 @@ except Exception:
 import content_md as CM        # noqa: E402
 import content_tables as CT    # noqa: E402
 
-PLACEHOLDER = re.compile(r'\{\{(table|v):([^}]+)\}\}')
+PLACEHOLDER = CT.PH      # 정규식은 content_tables 가 정본이다 — 종류가 늘면 한 곳만 고친다
 
 
 def _line_of(text, pos):
@@ -36,6 +36,16 @@ def _front_line(text, key):
     """프런트매터에서 그 키가 적힌 줄. 없으면 1(파일 첫 줄)."""
     m = re.search(r'^%s\s*:' % re.escape(key), text, re.M)
     return _line_of(text, m.start()) if m else 1
+
+
+def _probe(data, m):
+    """자리표 하나를 실제로 만들어 본다 — 종류마다 맞는 함수로. 오류는 그대로 올린다.
+
+    생성기가 쓰는 함수를 그대로 부른다. 검사기가 따로 흉내내면 '검사는 통과했는데 생성기에서 걸리는'
+    원고가 생긴다.
+    """
+    parts = [p.strip() for p in m.group(2).split(':')]
+    return {'v': CT.value, 'table': CT.table, 'chart': CT.chart}[m.group(1)](data, parts[0], parts[1:])
 
 
 def check_post(path, data, root=ROOT):
@@ -52,30 +62,22 @@ def check_post(path, data, root=ROOT):
     # 본문은 프런트매터 뒤에서 시작한다 — 줄 번호를 파일 기준으로 되돌린다.
     offset = text.count('\n', 0, text.index(body)) if body and body in text else 0
     for m in PLACEHOLDER.finditer(body):
-        kind, rest = m.group(1), m.group(2)
-        parts = [p.strip() for p in rest.split(':')]
         try:
-            if kind == 'v':
-                CT.value(data, parts[0], parts[1:])
-            else:
-                CT.table(data, parts[0], parts[1:])
+            _probe(data, m)
         except CT.TableError as e:
             out.append((offset + _line_of(body, m.start()), '%s — %s' % (m.group(0), e)))
-    # 요약·FAQ 의 자리표도 같은 눈으로 본다(그 둘은 본문 밖이라 위 루프가 보지 못한다).
-    for key in ('summary',):
-        for m in PLACEHOLDER.finditer(meta.get(key) or ''):
-            parts = [p.strip() for p in m.group(2).split(':')]
-            try:
-                (CT.value if m.group(1) == 'v' else CT.table)(data, parts[0], parts[1:])
-            except CT.TableError as e:
-                out.append((_front_line(text, key), '%s(%s) — %s' % (m.group(0), key, e)))
+    # 요약·FAQ 는 생성기와 **같은 함수**(fill_inline)로 본다. 한 줄 글에 못 들어가는 종류(표·그림)까지
+    # 같은 눈으로 걸러야, 검사를 통과한 원고가 생성기에서 건너뛰어지는 일이 없다.
+    for key in ('summary', 'title'):
+        try:
+            CT.fill_inline(meta.get(key) or '', data)
+        except CT.TableError as e:
+            out.append((_front_line(text, key), '%s: %s' % (key, e)))
     for i, f in enumerate(meta.get('faq') or []):
-        for m in PLACEHOLDER.finditer((f.get('q') or '') + ' ' + (f.get('a') or '')):
-            parts = [p.strip() for p in m.group(2).split(':')]
-            try:
-                (CT.value if m.group(1) == 'v' else CT.table)(data, parts[0], parts[1:])
-            except CT.TableError as e:
-                out.append((_front_line(text, 'faq'), '%s(faq %d번) — %s' % (m.group(0), i + 1, e)))
+        try:
+            CT.fill_inline((f.get('q') or '') + ' ' + (f.get('a') or ''), data)
+        except CT.TableError as e:
+            out.append((_front_line(text, 'faq'), 'faq %d번: %s' % (i + 1, e)))
     return [(ln, '%s' % why) for ln, why in out], rel
 
 
