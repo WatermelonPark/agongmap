@@ -1091,9 +1091,12 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
              '<h1>%s 아파트 공급</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
-             '<span class="zbasis">%s 기준 · %s</span></p>'
+             '<span class="zbasis">%s 기준 · %s</span>'
+             # 화면에도 페이지 수정일을 적는다(백로그 50 요청 2.4) — JSON-LD dateModified 와 같은 값이다.
+             # keep_dates 가 날짜를 가려 비교하므로, 이 줄 때문에 매일 새 판이 되지는 않는다.
+             '<span class="zbasis">페이지 수정 %s</span></p>'
              % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
-                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC)))
+                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC), esc(_today())))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의
