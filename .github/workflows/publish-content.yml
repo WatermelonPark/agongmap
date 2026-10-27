@@ -1,0 +1,95 @@
+name: 원고 발행 · content/ 가 바뀌면 글 페이지를 굽는다
+
+# 왜 매일 배치와 따로 있나. update-cloud.yml 은 데이터 수집용이라 하루 한 번 돈다. 원고는 세션들이 수시로
+# 올리는데, 다음 배치까지 기다리면 글이 몇 시간 동안 주소 없이 저장소에만 있다(대표 결정 2026-10-26 ①
+# '원고는 올리면 바로 발행'). 이 워크플로는 content/ 가 바뀐 푸시에만 돌고 **숫자를 수집하지 않는다** —
+# 자리표는 저장소에 커밋된 data-*.js·tools/data/*.json 을 읽으므로 API 키가 필요 없다. 숫자를 새 데이터로
+# 다시 채우는 일은 매일 배치가 한다(같은 생성기를 그쪽에서도 돌린다).
+#
+# ⚠️ 이 워크플로가 커밋하는 것은 /city/·/gtx/·/danji/·/column/·feed.xml·llms*.txt·sitemap.xml·index.html 이고
+#    content/ 아래는 건드리지 않는다. 그래서 자기 커밋이 자기를 다시 부르지 않는다. 생성기가 원고를 고치게
+#    되는 날이 오면 이 가정이 깨진다 — 그때는 paths-ignore 가 아니라 생성기를 고칠 일이다.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'content/**'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-content
+  # 취소하지 않는다. 연달아 올라온 원고를 앞 런이 굽는 중에 취소해 버리면, 그 사이 글이 어느 런에서도
+  # 구워지지 않고 끝날 수 있다(각 런은 자기 체크아웃 시점의 원고만 본다).
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0        # 푸시 루프가 rebase 한다
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: 원고 검사
+        run: |
+          # 깨진 원고는 여기서 멈춘다(파일과 줄 번호로 알려 준다). 매일 배치는 깨진 글만 건너뛰고 계속
+          # 가지만, 발행 워크플로는 올린 사람이 바로 고칠 수 있는 자리라 전수로 막는다.
+          python tools/content_check.py
+
+      - name: 페이지·피드·llms 생성
+        run: |
+          set -e
+          python tools/make_content_pages.py
+          python tools/make_feed.py
+          python tools/make_llms_txt.py
+
+      - name: 검증 게이트
+        run: |
+          # 커밋 앞에 둔다 — 깨진 산출물을 발행하지 않는다(매일 배치와 같은 순서).
+          python -m pip install --quiet pytest
+          python -m pytest tools/tests/ -q
+
+      - name: 변경 있으면 커밋·푸시
+        run: |
+          set -e
+          TARGETS="city gtx danji column feed.xml llms.txt llms-full.txt sitemap.xml index.html"
+          # 있는 경로만 센다 — 섹션 폴더는 그 섹션에 글이 생긴 날에 처음 나타난다.
+          HAVE=""
+          for p in $TARGETS; do [ -e "$p" ] && HAVE="$HAVE $p"; done
+          if git diff --quiet -- $HAVE && git diff --cached --quiet -- $HAVE; then
+            echo "바뀐 것이 없다 — 원고만 올렸고 페이지는 이미 같은 내용이다"
+            exit 0
+          fi
+          git config user.name  "stats-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -- $HAVE
+          git commit -m "원고 발행: 콘텐츠 페이지 재생성"
+          # 매일 배치와 같은 푸시 루프. rebase 가 우리 커밋을 '이미 반영된 패치'로 버리면 HEAD 가 원격
+          # 끝과 같아진다 — 그때 push 는 성공하지만 실은 커밋한 것이 없으므로 그렇게 적는다.
+          pushed=0
+          for i in 1 2 3; do
+            PULLED=0
+            git pull --rebase origin main && PULLED=1
+            if [ "$PULLED" = 1 ] && [ "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)" ]; then
+              echo "커밋 없음 — 같은 내용을 다른 런이 이미 발행했다(정상)"; pushed=2; break
+            fi
+            if [ "$PULLED" = 1 ] && git push; then
+              echo "발행 완료"; pushed=1; break
+            fi
+            git rebase --abort 2>/dev/null || true
+            echo "push 재시도 $i"; sleep 5
+          done
+          if [ "$pushed" -eq 0 ]; then
+            WHO=$(git log -1 --format='%an' FETCH_HEAD 2>/dev/null || true)
+            echo "::error::push 3회 모두 실패 — 이 발행이 유실된다(원격 끝 작성자: ${WHO:-모름}). 원고를 다시 올리거나 이 워크플로를 수동 실행할 것."
+            exit 1
+          fi
