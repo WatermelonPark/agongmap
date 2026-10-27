@@ -361,3 +361,37 @@ def test_inline_placeholder_rejects_a_table():
     data = CT.load()
     with pytest.raises(CT.TableError):
         CT.fill_inline('요약 {{table:moveins:경기}} 끝', data)
+
+
+def test_city_values_agree_with_the_city_tables():
+    """도시 값 자리표(need·pop·peak·share)가 같은 도시의 표와 어긋나지 않는다.
+
+    무엇을 바꾸면 빨개지나: need 가 moveins 표 각주의 적정 입주량과 다른 값을 내면, peak 가 단지 목록에서
+    가장 많은 달이 아닌 달을 가리키면, share 가 moveins 표의 '적정 대비' 칸과 다르면. 값과 표가 한 글 안에
+    나란히 실리므로, 둘이 갈리면 읽는 사람이 바로 본다.
+    픽스처: tools/data/city_moveins.json 의 실제 도시 전부. 그 파일이 없으면 검사할 것이 없으니 건너뛴다.
+    """
+    data = CT.load()
+    cities = sorted((data.get('cities') or {}).get('cities') or {})
+    if not cities:
+        pytest.skip('도시 자료가 없다')
+    for name in cities:
+        f = CT.city(data, name)
+        # need: 연도별 표의 각주에 적힌 적정 입주량과 같은 수인가
+        _, rows, note = CT.table(data, 'moveins', [name])
+        assert CT.value(data, 'need', [name]).replace('세대', '') in note, \
+            '%s: need 가 moveins 표 각주와 다르다 (%s / %s)' % (name, CT.value(data, 'need', [name]), note)
+        # share: 그 해 행의 '적정 대비' 칸과 같은가
+        year = rows[1][0] if len(rows) > 1 else rows[0][0]
+        want = dict((r[0], r[2]) for r in rows)[year]
+        assert CT.value(data, 'share', [name, year]) == want, \
+            '%s %s: share(%s) 가 표의 적정 대비(%s)와 다르다' % (
+                name, year, CT.value(data, 'share', [name, year]), want)
+        # peak: 단지 목록에서 달마다 더해 가장 많은 달과 같은가
+        agg = {}
+        for r in f['rows']:
+            agg[r['ym']] = agg.get(r['ym'], 0) + r['n']
+        ym, n = max(sorted(agg.items()), key=lambda x: x[1])
+        got = CT.value(data, 'peak', [name])
+        assert got == '%s년 %d월 %s세대' % (ym[:4], int(ym[5:7]), CT.num(n)), \
+            '%s: peak(%s) 가 단지 목록의 최다 달(%s %d)과 다르다' % (name, got, ym, n)

@@ -103,6 +103,33 @@ def city_share(data, f, year):
     return '%d%%' % int(round(v / float(f['need']) * 100))
 
 
+def city_need(data, f):
+    """한 해 적정 입주량. 원고가 '6,030세대' 를 손으로 적지 않게 연다 — 인구가 바뀌면 그 값도 바뀐다."""
+    return num(f['need']) + '세대'
+
+
+def city_pop(data, f):
+    """인구와 그 기준월 — 적정 입주량을 설명하는 자리에 쓴다."""
+    return '%s명(%s년 %d월 주민등록)' % (num(f['pop']), f['pop_prd'][:4], int(f['pop_prd'][4:]))
+
+
+def city_peak(data, f, year=None):
+    """입주가 가장 몰리는 달과 그 세대 수. 연도를 주면 그 해 안에서 고른다.
+
+    단지 이름은 담지 않는다 — 데이터의 이름은 '…외가로주택정비사업' 처럼 길어 문장에 그대로 넣기 어렵다.
+    글이 단지를 말할 때는 원고가 쓰고 숫자만 이 자리표로 받는다.
+    """
+    agg = {}
+    for r in (f.get('rows') or []):
+        if year and not r['ym'].startswith(str(year)):
+            continue
+        agg[r['ym']] = agg.get(r['ym'], 0) + r['n']
+    if not agg:
+        raise TableError('입주 예정 목록이 비었다%s' % (' (%s년)' % year if year else ''))
+    ym, n = max(sorted(agg.items()), key=lambda x: x[1])
+    return '%s년 %d월 %s세대' % (ym[:4], int(ym[5:7]), num(n))
+
+
 def city_complexes(data, f, year=None):
     """단지 목록 표(입주월·단지·구·세대). 연도를 주면 그 해만."""
     rows = [r for r in (f.get('rows') or []) if not year or r['ym'].startswith(str(year))]
@@ -337,8 +364,8 @@ def table(data, kind, args):
         if f:
             return city_moveins(data, f, args[0], args[1] if len(args) > 1 else None)
         return moveins(data, region_key(data, args[0]), args[1] if len(args) > 1 else None)
-    if kind == 'share':
-        raise TableError('share 는 표가 아니라 값이다 — {{v:share:도시:연도}} 로 쓸 것')
+    if kind in ('share', 'need', 'pop', 'peak'):
+        raise TableError('%s 는 표가 아니라 값이다 — {{v:%s:…}} 로 쓸 것' % (kind, kind))
     if kind == 'complexes':
         if not 1 <= len(args) <= 2:
             raise TableError('complexes 자리표는 도시[:연도] 꼴이다')
@@ -368,7 +395,7 @@ def table(data, kind, args):
         if sgg_codes(data, args[0]):
             return weekly_sgg(data, args[0])
         return weekly(data, region_key(data, args[0]))
-    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak)' % kind)
+    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak, v:need, v:pop, v:peak)' % kind)
 
 
 def value(data, kind, args):
@@ -377,6 +404,17 @@ def value(data, kind, args):
         if not 1 <= len(args) <= 2:
             raise TableError('streak 자리표는 지역[:매매|전세] 꼴이다')
         return streak(data, args[0], args[1] if len(args) > 1 else '매매')
+    if kind in ('need', 'pop', 'peak'):
+        if not 1 <= len(args) <= (2 if kind == 'peak' else 1):
+            raise TableError('%s 자리표는 도시%s 꼴이다' % (kind, '[:연도]' if kind == 'peak' else ''))
+        f = city(data, args[0])
+        if not f:
+            raise TableError('%r 는 도시 자료(tools/data/city_moveins.json)에 없다' % args[0])
+        if kind == 'need':
+            return city_need(data, f)
+        if kind == 'pop':
+            return city_pop(data, f)
+        return city_peak(data, f, args[1] if len(args) > 1 else None)
     if kind == 'share':
         if len(args) != 2:
             raise TableError('share 자리표는 도시:연도 꼴이다')
