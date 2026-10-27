@@ -103,6 +103,21 @@ def city_share(data, f, year):
     return '%d%%' % int(round(v / float(f['need']) * 100))
 
 
+def city_ratio(data, f, year, base):
+    """두 해 물량의 비 — `{{v:ratio:의정부:2028:2027}}` → '19%'(2028년이 2027년의 몇 %인가).
+
+    왜 여는가. '그다음 해에는 5분의 1로 줄어든다'·'두 배로 늘어난다' 같은 문장을 쓰려면 두 해를 견주어야
+    하는데, 그러면 글이 두 숫자를 손으로 적게 된다(콘텐츠-도시 세션 요청 2026-10-27). 비만 자리표로
+    받으면 글은 '5분의 1' 이라는 말만 쓰고 수치는 데이터가 채운다.
+    """
+    # 자료에 없는 해는 _city_years 가 먼저 막는다(어느 해가 없는지 말해 준다). 여기서 볼 것은 0 뿐이다.
+    a = list(_city_years(f, year).values())[0]
+    b = list(_city_years(f, base).values())[0]
+    if not b:
+        raise TableError('%s년 물량이 0이라 견줄 수 없다' % base)
+    return '%d%%' % int(round(a / float(b) * 100))
+
+
 def city_need(data, f):
     """한 해 적정 입주량. 원고가 '6,030세대' 를 손으로 적지 않게 연다 — 인구가 바뀌면 그 값도 바뀐다."""
     return num(f['need']) + '세대'
@@ -364,7 +379,7 @@ def table(data, kind, args):
         if f:
             return city_moveins(data, f, args[0], args[1] if len(args) > 1 else None)
         return moveins(data, region_key(data, args[0]), args[1] if len(args) > 1 else None)
-    if kind in ('share', 'need', 'pop', 'peak'):
+    if kind in ('share', 'need', 'pop', 'peak', 'ratio'):
         raise TableError('%s 는 표가 아니라 값이다 — {{v:%s:…}} 로 쓸 것' % (kind, kind))
     if kind == 'complexes':
         if not 1 <= len(args) <= 2:
@@ -395,7 +410,7 @@ def table(data, kind, args):
         if sgg_codes(data, args[0]):
             return weekly_sgg(data, args[0])
         return weekly(data, region_key(data, args[0]))
-    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak, v:need, v:pop, v:peak)' % kind)
+    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak, v:need, v:pop, v:peak, v:ratio)' % kind)
 
 
 def value(data, kind, args):
@@ -404,9 +419,10 @@ def value(data, kind, args):
         if not 1 <= len(args) <= 2:
             raise TableError('streak 자리표는 지역[:매매|전세] 꼴이다')
         return streak(data, args[0], args[1] if len(args) > 1 else '매매')
-    if kind in ('need', 'pop', 'peak'):
-        if not 1 <= len(args) <= (2 if kind == 'peak' else 1):
-            raise TableError('%s 자리표는 도시%s 꼴이다' % (kind, '[:연도]' if kind == 'peak' else ''))
+    if kind in ('need', 'pop', 'peak', 'ratio'):
+        want = {'need': (1, 1), 'pop': (1, 1), 'peak': (1, 2), 'ratio': (3, 3)}[kind]
+        if not want[0] <= len(args) <= want[1]:
+            raise TableError('%s 자리표는 도시%s 꼴이다' % (kind, {'peak': '[:연도]', 'ratio': ':연도:견줄 연도'}.get(kind, '')))
         f = city(data, args[0])
         if not f:
             raise TableError('%r 는 도시 자료(tools/data/city_moveins.json)에 없다' % args[0])
@@ -414,6 +430,8 @@ def value(data, kind, args):
             return city_need(data, f)
         if kind == 'pop':
             return city_pop(data, f)
+        if kind == 'ratio':
+            return city_ratio(data, f, args[1], args[2])
         return city_peak(data, f, args[1] if len(args) > 1 else None)
     if kind == 'share':
         if len(args) != 2:
