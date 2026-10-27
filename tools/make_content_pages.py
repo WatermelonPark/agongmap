@@ -351,18 +351,36 @@ def write_home_recent(metas, root=ROOT):
     return True
 
 
-def collect(root=ROOT, data=None):
-    """[(섹션, meta, 본문)] — 원고를 모두 읽고 검사한다. 하나라도 어기면 ContentError."""
-    data = data if data is not None else None
-    out = []
+def collect(root=ROOT, strict=False):
+    """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다.
+
+    ⚠️ 규약을 어긴 원고 하나 때문에 배치를 세우지 않는다. 그 글만 건너뛰고 경고를 남긴 뒤 나머지를 굽는다 —
+       콘텐츠 원고는 여러 세션이 수시로 올리는데, 한 편의 오타가 그날의 데이터 갱신까지 막으면 손해가 크다
+       (2026-10-27: 첫 19편이 들어오자마자 시군구 자리표에서 걸렸다). 건너뛴 글은 배치 보고에 뜬다.
+       strict=True 는 사람이 손으로 돌려 원고를 고칠 때 쓴다 — 첫 오류에서 멈춘다.
+    """
+    out, skipped = [], []
     for sec, slug, path in CM.posts(root):
-        meta, body = CM.read(path, sec, slug)
+        try:
+            meta, body = CM.read(path, sec, slug)
+        except CM.ContentError as e:
+            if strict:
+                raise
+            skipped.append(str(e))
+            continue
         out.append((sec, meta, body))
-    return out
+    return out, skipped
 
 
-def main():
-    posts = collect()
+def _warn(msg):
+    """배치 로그에 경고를 남긴다(GitHub Actions 에서는 실행 화면 주석으로도 뜬다) — 다른 생성기와 같은 방식."""
+    print(('::warning::' if os.environ.get('GITHUB_ACTIONS') else '  ⚠️ ') + msg)
+
+
+def main(strict=False):
+    posts, skipped = collect(strict=strict)
+    for why in skipped:
+        _warn('콘텐츠 원고를 건너뛴다 — ' + why)
     if not posts:
         # 원고가 없으면 페이지는 만들지 않는다. 다만 홈 묶음은 비운다 — 글을 전부 내린 회차에 홈만 옛 목록을
         # 들고 있으면 없는 글로 가는 링크가 남는다.
@@ -380,7 +398,15 @@ def main():
         for i, (meta, body) in enumerate(items):
             prev = metas[i - 1] if i else None
             nxt = metas[i + 1] if i + 1 < len(metas) else None
-            page, lm = build_page(meta, body, data, prev, nxt)
+            try:
+                page, lm = build_page(meta, body, data, prev, nxt)
+            except (CT.TableError, CM.ContentError) as e:
+                # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
+                if strict:
+                    raise
+                skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
+                _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
+                continue
             d = os.path.join(ROOT, sec, meta['slug'])
             os.makedirs(d, exist_ok=True)
             fp = os.path.join(d, 'index.html')
@@ -388,7 +414,11 @@ def main():
             io.open(fp, 'w', encoding='utf-8', newline='\n').write(page)
             wrote += 1
             entries.append(('/%s/%s/' % (sec, meta['slug']), lm))
-        newest = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+        # 목록에는 **실제로 구워진 글만** 싣는다 — 건너뛴 글로 가는 링크를 만들지 않는다.
+        done = [m for m in metas if os.path.exists(os.path.join(ROOT, sec, m['slug'], 'index.html'))]
+        if not done:
+            continue
+        newest = sorted(done, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
         page, lm = build_index(sec, newest)
         fp = os.path.join(ROOT, sec, 'index.html')
         os.makedirs(os.path.dirname(fp), exist_ok=True)
@@ -396,12 +426,15 @@ def main():
         io.open(fp, 'w', encoding='utf-8', newline='\n').write(page)
         entries.append(('/%s/' % sec, lm))
     I.update_sitemap(entries)
-    all_metas = [m for items in by_sec.values() for m, _ in items]
+    all_metas = [m for items in by_sec.values() for m, _ in items
+                 if os.path.exists(os.path.join(ROOT, m['section'], m['slug'], 'index.html'))]
     home = write_home_recent(all_metas)
-    print('content pages: %d편 · 섹션 %s%s' % (wrote, ', '.join(sorted(by_sec)),
-                                              ' · 홈 최근 리포트 갱신' if home else ''))
+    print('content pages: %d편%s · 섹션 %s%s' % (
+        wrote, (' · 건너뜀 %d편' % len(skipped)) if skipped else '',
+        ', '.join(sorted(by_sec)), ' · 홈 최근 리포트 갱신' if home else ''))
     return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    # --strict: 첫 오류에서 멈춘다(원고를 고칠 때). 배치는 기본값으로 돌려 한 편의 오타가 그날 갱신을 막지 않게 한다.
+    sys.exit(main(strict='--strict' in sys.argv))

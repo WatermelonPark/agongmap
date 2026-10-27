@@ -132,7 +132,7 @@ def content_posts(root=ROOT):
     except ImportError:
         return []
     by = {}
-    for sec, slug, path in CM.posts(root):
+    for sec, slug, path in CM.built(root):
         try:
             meta, body = CM.read(path, sec, slug)
         except Exception as e:
@@ -258,11 +258,14 @@ def build_full(root=ROOT):
     out = ['# %s — 글 전문' % F.TITLE, '',
            '> 아공맵이 발행한 리포트·해설의 전문입니다. 표의 숫자는 사이트 데이터에서 매 갱신 때 다시 채웁니다.', '']
     for sec, meta, body in posts:
-        filled, blocks = MC.fill_placeholders(body, data)
-        md_blocks = []
-        for i, _ in enumerate(blocks):
-            pass
-        # 표는 fill_placeholders 가 HTML 로 만들어 두므로, 여기서는 자리표를 마크다운 표로 다시 채운다.
+        # 자리표를 못 채우는 글은 전문 모음에서 건너뛴다 — 여기서 멈추면 llms.txt 까지 못 굽는다
+        # (make_content_pages 가 같은 글을 이미 건너뛰고 경고했다).
+        try:
+            MC.fill_placeholders(body, data)
+        except Exception as e:
+            sys.stderr.write('⚠️ 전문 모음에서 건너뛴다(%s/%s): %s\n' % (sec, meta['slug'], e))
+            continue
+        # 표는 마크다운 표로 채운다(페이지 쪽은 HTML 표).
         def sub(m, _d=data):
             kind, rest = m.group(1), m.group(2)
             parts = [p.strip() for p in rest.split(':')]

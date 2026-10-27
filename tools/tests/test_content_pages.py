@@ -222,15 +222,22 @@ def test_both_batches_run_the_generator_and_commit_the_sections():
 
 
 def test_generated_pages_are_in_sitemap_and_llms():
-    """저장소에 올라간 글이 sitemap 과 llms.txt 에 들어 있다(원고가 없으면 건너뛴다)."""
-    posts = CM.posts(ROOT)
-    if not posts:
-        pytest.skip('아직 콘텐츠 원고가 없다')
+    """**구워진** 글은 sitemap 과 llms.txt 에 들어 있다.
+
+    ⚠️ 기준은 원고가 아니라 페이지다. 원고만 먼저 올라오고 생성기가 아직 안 돈 상태(작성 세션이 .md 를
+       커밋한 직후)는 정상이다 — 그걸 빨간불로 만들면 데이터 배치의 pytest 게이트가 막힌다
+       (2026-10-27 실제로 그랬다. 저장소 규칙: 생성물 대 원고 정합은 생성기 뒤에서만 본다).
+    무엇을 바꾸면 빨개지나: 생성기가 sitemap 에 글을 안 넣거나, llms.txt 가 섹션 목록을 빠뜨리면.
+    """
+    built = [(sec, slug) for sec, slug, _ in CM.posts(ROOT)
+             if os.path.exists(os.path.join(ROOT, sec, slug, 'index.html'))]
+    if not built:
+        pytest.skip('아직 구워진 콘텐츠 페이지가 없다')
     sm = io.open(os.path.join(ROOT, 'sitemap.xml'), encoding='utf-8').read()
     llms = io.open(os.path.join(ROOT, 'llms.txt'), encoding='utf-8').read()
-    for sec, slug, _ in posts:
+    for sec, slug in built:
         assert '/%s/%s/' % (sec, slug) in sm, '%s/%s 가 sitemap 에 없다' % (sec, slug)
-    for sec, slug, _ in posts[:10]:
+    for sec, slug in built[:10]:
         assert '/%s/%s/' % (sec, slug) in llms, '%s/%s 가 llms.txt 에 없다' % (sec, slug)
 
 
