@@ -120,9 +120,14 @@ def test_publish_workflow_runs_on_content_and_gates_before_commit():
     """
     t = _pub_text()
     assert re.search(r'paths:\s*\n\s*-\s*[\'"]?content/\*\*', t), 'content/** 푸시에 반응하지 않는다'
+    for gen in ('tools/make_content_pages.py', 'tools/content_tables.py', 'tools/data/city_moveins.json'):
+        assert gen in t, '%s 를 고쳐도 페이지를 다시 굽지 않는다 — 옛 페이지가 라이브에 남는다' % gen
+    # 순서는 **스텝 구간**에서만 센다. 트리거(paths)에도 생성기 파일 이름이 적혀 있어, 파일 전체에서
+    # 처음 나오는 자리로 세면 트리거 줄이 먼저 걸려 순서를 오판한다(2026-10-27 이 시험이 그렇게 틀렸다).
+    steps = t[t.index('    steps:'):]
     order = ['tools/content_check.py', 'tools/make_content_pages.py', 'tools/make_feed.py',
              'tools/make_llms_txt.py', '-m pytest', 'git commit']
-    at = [t.find(s) for s in order]
+    at = [steps.find(s) for s in order]
     for s, i in zip(order, at):
         assert i >= 0, '발행 워크플로에 %r 가 없다' % s
     assert at == sorted(at), '발행 순서가 어긋났다 — 검사·생성·게이트가 모두 커밋 앞이어야 한다: %s' % (
