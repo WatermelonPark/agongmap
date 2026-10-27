@@ -40,6 +40,7 @@ sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import sido_zones as SZ  # noqa: E402  (등급 말 GRADE_LABS — 홈 배지 TB_GRADE 와 같은 값)
 import weekly_release as WR  # noqa: E402  (발표일 — 홈 띠·/weekly/ 와 같은 규칙)
 import make_weekly_page as MW  # noqa: E402  (변동률 반올림 pv2 — 사이트 pv2 와 같다)
+import kst as KST  # noqa: E402  (KST 오늘 — 배치가 UTC 러너에서 돌아도 같은 날)
 import home_src as HS  # noqa: E402  (홈 파일 위치의 정본 — 이 도구는 스크립트가 아니라 마크업 파일을 쓴다)
 
 PAGE = os.path.join(HS.ROOT, HS.HOME)
@@ -164,6 +165,42 @@ def outside(s):
     return s
 
 
+DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
+
+
+def region_modified(s):
+    """표식 구간에 이미 적혀 있는 페이지 수정일. 없으면 None."""
+    m = _REGION.search(s)
+    if not m:
+        return None
+    d = DATE_RE.search(m.group(1))
+    return d.group(0) if d else None
+
+
+def modified_date(s, body, today):
+    """이 회차의 페이지 수정일.
+
+    홈은 손으로 관리하는 파일이고, 배치가 고쳐 쓰는 곳은 이 표식 구간 하나다(대표 확인 09-27). 그래서
+    수정일도 구간 **안**에 둔다 — JSON-LD 와 화면 글자가 같은 값을 쓴다(백로그 50 요청 2.4).
+    ⚠️ 날짜만 다른 재생성은 옛 날짜를 그대로 쓴다. 안 그러면 데이터가 그대로인 날에도 홈이 '오늘 수정'이라고
+       말해 검색엔진에 틀린 신호가 간다(/zone/ 의 keep_dates 와 같은 규칙).
+    """
+    old = _REGION.search(s)
+    prev = region_modified(s)
+    if prev and old and DATE_RE.sub('@', old.group(1)).strip() == DATE_RE.sub('@', body).strip():
+        return prev
+    return today
+
+
+def modified_block(date):
+    """화면 한 줄 + 같은 값의 구조화 데이터(WebPage.dateModified)."""
+    ld = json.dumps({"@context": "https://schema.org", "@type": "WebPage",
+                     "url": "https://www.agongmap.co.kr/", "dateModified": date,
+                     "inLanguage": "ko-KR"}, ensure_ascii=False)
+    return ('<p class="hsum-u">페이지 수정 %s</p>\n<script type="application/ld+json">%s</script>'
+            % (date, ld))
+
+
 def render(s, adv):
     nl = '\r\n' if '\r\n' in s else '\n'
     if s.count(START) != 1 or s.count(END) != 1 or len(_REGION.findall(s)) != 1:
@@ -175,6 +212,8 @@ def render(s, adv):
     f = facts(adv)
     body = region_html(f)
     # 표식은 제 줄에 있다 — 두 표식 줄 사이에 줄을 끼우기만 한다(비었으면 줄바꿈 하나). 앞뒤 줄은 건드리지 않는다.
+    if body:
+        body = body + '\n' + modified_block(modified_date(s, body, KST.today_iso()))
     inner = nl + ((body.replace('\n', nl) + nl) if body else '')
     out = _REGION.sub(lambda m: START + inner + END, s)
     mt = meta_texts(f)

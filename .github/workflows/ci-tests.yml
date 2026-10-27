@@ -70,6 +70,7 @@ jobs:
           if ! python3 tools/make_weekly_page.py; then echo "::error::make_weekly_page 실패"; exit 1; fi
           if ! python3 tools/make_home_summary.py; then echo "::error::make_home_summary 실패"; exit 1; fi
           if ! python3 tools/refresh_cycle_data.py; then echo "::error::refresh_cycle_data 실패"; exit 1; fi
+          if ! python3 tools/make_content_pages.py; then echo "::error::make_content_pages 실패"; exit 1; fi
           if ! python3 tools/make_feed.py; then echo "::error::make_feed 실패"; exit 1; fi
           if ! python3 tools/make_llms_txt.py; then echo "::error::make_llms_txt 실패"; exit 1; fi
 
@@ -111,6 +112,7 @@ jobs:
           python3 tools/make_weekly_page.py
           python3 tools/make_home_summary.py
           python3 tools/refresh_cycle_data.py
+          python3 tools/make_content_pages.py
           python3 tools/make_feed.py
           python3 tools/make_llms_txt.py
 

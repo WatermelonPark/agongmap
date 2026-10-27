@@ -67,7 +67,7 @@ SITE = 'https://' + host()
 TITLE = '아공맵 — 아파트 공급 지도'
 DESC = ('국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, '
         '이달의 공급 통계를 알립니다.')
-KINDS = ('weekly', 'zone', 'monthly')   # 같은 날짜일 때의 순서
+KINDS = ('weekly', 'zone', 'monthly', 'content')   # 같은 날짜일 때의 순서
 
 _DAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
 _MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
@@ -154,12 +154,36 @@ def monthly_item(adv, sts, prev=None):
             'link': SITE + '/monthly/', 'guid': guid, 'date': date, 'desc': MP.DESC}
 
 
+def content_items():
+    """콘텐츠 섹션 글(백로그 50). 발행일은 원고의 date — 이전 피드를 보지 않는다(원고가 정본).
+
+    ⚠️ 원고를 읽다 실패하면 피드를 통째로 멈추지 않고 비워 돌려준다. 원고 검사는 make_content_pages 가
+       먼저 하고 거기서 배치를 세운다 — 같은 실패를 두 번 보고하지 않는다.
+    """
+    try:
+        import content_md as CM
+    except ImportError:
+        return []
+    out = []
+    for sec, slug, path in CM.posts(ROOT):
+        try:
+            meta, _ = CM.read(path, sec, slug)
+        except Exception:
+            continue
+        out.append({'kind': 'content', 'title': meta['title'],
+                    'link': '%s/%s/%s/' % (SITE, sec, slug),
+                    'guid': 'agongmap-content-%s-%s' % (sec, slug),   # guid 둘째 조각이 kind 다(test_feed 가 KINDS 와 대조)
+                    'date': meta['date'], 'desc': meta['summary']})
+    return out
+
+
 def items(prev_path=None):
     """저장소의 데이터(data.js·data-core.js)·방금 구운 페이지·이전 feed.xml 에서 항목을 만든다. 오늘 날짜를 읽지 않는다."""
     prev = first_dates(prev_path)
     W, Q = MW.load()
     adv, sts = MP.load()
     out = [weekly_item(W, Q), zone_item(MHS.load_core(), prev), monthly_item(adv, sts, prev)]
+    out += content_items()
     return [x for x in out if x]
 
 
