@@ -367,7 +367,7 @@ def test_inline_placeholder_rejects_a_table():
 def test_city_values_agree_with_the_city_tables():
     """도시 값 자리표(need·pop·peak·share)가 같은 도시의 표와 어긋나지 않는다.
 
-    무엇을 바꾸면 빨개지나: need 가 moveins 표 각주의 적정 입주량과 다른 값을 내면, peak 가 단지 목록에서
+    무엇을 바꾸면 빨개지나: need 가 moveins 표 각주의 적정 입주량과 다른 값을 내면, ratio 가 표의 두 행 비와 어긋나면, peak 가 단지 목록에서
     가장 많은 달이 아닌 달을 가리키면, share 가 moveins 표의 '적정 대비' 칸과 다르면. 값과 표가 한 글 안에
     나란히 실리므로, 둘이 갈리면 읽는 사람이 바로 본다.
     픽스처: tools/data/city_moveins.json 의 실제 도시 전부. 그 파일이 없으면 검사할 것이 없으니 건너뛴다.
@@ -393,6 +393,29 @@ def test_city_values_agree_with_the_city_tables():
         for r in f['rows']:
             agg[r['ym']] = agg.get(r['ym'], 0) + r['n']
         ym, n = max(sorted(agg.items()), key=lambda x: x[1])
+        # ratio: 두 해 행의 세대 수 비와 같은가(콘텐츠-도시 요청으로 연 자리표)
+        ys = [r[0] for r in rows]
+        if len(ys) > 1:
+            a, b = ys[-1], ys[-2]
+            n_a = int(dict((r[0], r[1]) for r in rows)[a].replace(',', ''))
+            n_b = int(dict((r[0], r[1]) for r in rows)[b].replace(',', ''))
+            if n_b:
+                assert CT.value(data, 'ratio', [name, a, b]) == '%d%%' % int(round(n_a / float(n_b) * 100)),                     '%s: ratio(%s÷%s) 가 표의 두 행과 다르다' % (name, a, b)
         got = CT.value(data, 'peak', [name])
         assert got == '%s년 %d월 %s세대' % (ym[:4], int(ym[5:7]), CT.num(n)), \
             '%s: peak(%s) 가 단지 목록의 최다 달(%s %d)과 다르다' % (name, got, ym, n)
+
+
+def test_ratio_refuses_to_divide_by_a_zero_year():
+    """견줄 해의 물량이 0이면 비를 내지 않고 거부한다.
+
+    무엇을 바꾸면 빨개지나: city_ratio 의 0 검사를 지우면(ZeroDivisionError 가 나면서 생성기가 죽고,
+    그 글만 건너뛰어지는 대신 메시지 없이 멈춘다).
+    픽스처: 입주 예정이 0인 해를 가진 합성 도시 묶음 — 실데이터에는 아직 그런 해가 없어서 이 가드는
+    저장소 데이터만으로는 영영 돌지 않는다.
+    """
+    f = {'by_year': {'2027': 0, '2028': 1200}, 'need': 1000, 'occ_max': '2028-06',
+         'pop': 300000, 'pop_prd': '202609', 'rows': []}
+    with pytest.raises(CT.TableError):
+        CT.city_ratio({}, f, '2028', '2027')
+    assert CT.city_ratio({}, f, '2028', '2028') == '100%', '같은 해끼리는 100% 여야 한다'
