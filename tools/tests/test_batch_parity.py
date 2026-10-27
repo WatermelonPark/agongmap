@@ -120,13 +120,13 @@ def test_publish_workflow_runs_on_content_and_gates_before_commit():
     """
     t = _pub_text()
     assert re.search(r'paths:\s*\n\s*-\s*[\'"]?content/\*\*', t), 'content/** 푸시에 반응하지 않는다'
-    for gen in ('tools/make_content_pages.py', 'tools/content_tables.py', 'tools/data/city_moveins.json'):
+    for gen in ('tools/make_content_pages.py', 'tools/content_tables.py', 'tools/content_md.py'):
         assert gen in t, '%s 를 고쳐도 페이지를 다시 굽지 않는다 — 옛 페이지가 라이브에 남는다' % gen
     # 순서는 **스텝 구간**에서만 센다. 트리거(paths)에도 생성기 파일 이름이 적혀 있어, 파일 전체에서
     # 처음 나오는 자리로 세면 트리거 줄이 먼저 걸려 순서를 오판한다(2026-10-27 이 시험이 그렇게 틀렸다).
     steps = t[t.index('    steps:'):]
-    order = ['tools/content_check.py', 'tools/make_content_pages.py', 'tools/make_feed.py',
-             'tools/make_llms_txt.py', '-m pytest', 'git commit']
+    order = ['tools/make_city_moveins.py', 'tools/content_check.py', 'tools/make_content_pages.py',
+             'tools/make_feed.py', 'tools/make_llms_txt.py', '-m pytest', 'git commit']
     at = [steps.find(s) for s in order]
     for s, i in zip(order, at):
         assert i >= 0, '발행 워크플로에 %r 가 없다' % s
@@ -153,3 +153,24 @@ def test_publish_workflow_does_not_commit_the_manuscripts():
     # 한쪽이 커밋한 파일이 다른 쪽에서 미커밋으로 남는다(백로그 11 과 같은 사고).
     assert targets <= _cloud_targets(), '발행 대상이 매일 배치 TARGETS 밖이다: %s' % sorted(
         targets - _cloud_targets())
+
+
+def test_publish_workflow_commits_nothing_that_triggers_itself():
+    """발행이 커밋하는 파일은 발행을 부르는 경로에 없다 — 런이 자기를 영원히 다시 부르지 않게.
+
+    무엇을 바꾸면 빨개지나: 커밋 대상과 트리거 경로가 겹치게 하면. 2026-10-27 새 도시를 받아 넣는 스텝을
+    더하면서 tools/data/city_moveins.json 이 양쪽에 들어갈 참이었다 — 그러면 발행이 그 파일을 커밋하고,
+    그 커밋이 다시 발행을 불러 런이 끝없이 돈다(GitHub 은 봇 커밋도 push 로 센다).
+    픽스처: 저장소의 발행 워크플로. 트리거 목록과 TARGETS 를 글자로 읽어 맞댄다.
+    """
+    t = _pub_text()
+    on = t[t.index('on:'):t.index('concurrency:')]
+    paths = re.findall(r"^\s*-\s*'([^']+)'", on, re.M)
+    assert paths, '트리거 경로를 읽지 못했다'
+    m = re.search(r'^\s*TARGETS="([^"]+)"', t, re.M)
+    assert m, '커밋 대상을 읽지 못했다'
+    for tgt in m.group(1).split():
+        for p in paths:
+            pre = p[:-3] if p.endswith('/**') else p
+            assert not (tgt == pre or tgt.startswith(pre + '/') or pre.startswith(tgt + '/') or pre == tgt), \
+                '커밋 대상 %r 이 트리거 경로 %r 과 겹친다 — 발행이 자기를 다시 부른다' % (tgt, p)

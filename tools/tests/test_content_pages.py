@@ -453,3 +453,31 @@ def test_year_table_splits_by_district_or_by_quarter():
             else:
                 assert labels[-1] != '합계', '%s %s: 한 줄짜리 표에 합계를 더하면 같은 수를 두 번 적는다' % (name, year)
     assert saw_gu and saw_q, '구별·분기별 두 길을 다 밟지 못했다(자료에 한쪽만 있다): 구별 %s · 분기별 %s' % (saw_gu, saw_q)
+
+
+def test_city_tables_drop_empty_columns_and_say_what_the_list_covers():
+    """도시 표가 빈 열을 싣지 않고, 각주가 '어디까지 공개된 목록인지'와 받은 날을 말한다.
+
+    무엇을 바꾸면 빨개지나: 구가 갈리지 않는 도시의 단지 목록에 '구' 열을 그대로 두면(구미 글이 '·' 로만
+    찬 열을 싣고 있었다 — 총괄 제보 2026-10-27), 또는 각주를 '2028-06 목록 기준' 으로 되돌리면(읽는 사람이
+    '2028년 6월에 만든 목록' 으로 오해한다).
+    픽스처: 실제 도시 자료. 구가 갈리는 도시와 갈리지 않는 도시를 둘 다 밟는지 단정한다.
+    """
+    data = CT.load()
+    cities = (data.get('cities') or {}).get('cities') or {}
+    if not cities:
+        pytest.skip('도시 자료가 없다')
+    saw_gu = saw_flat = False
+    for name, f in sorted(cities.items()):
+        head, rows, note = CT.table(data, 'complexes', [name])
+        gus = {(r.get('gu') or '') for r in f['rows']}
+        if len(gus) < 2:
+            saw_flat = True
+            assert '구' not in head, '%s: 구가 갈리지 않는데 구 열을 싣는다 — %s' % (name, head)
+            assert len(head) == len(rows[0]), '%s: 머리와 행의 칸 수가 다르다' % name
+        else:
+            saw_gu = True
+            assert '구' in head, '%s: 구가 갈리는데 구 열이 없다 — %s' % (name, head)
+        assert '입주분까지 공개된 목록' in note, '%s: 각주가 목록 범위를 말하지 않는다 — %s' % (name, note)
+        assert re.search(r'\(\d{4}-\d{2}-\d{2} 조사\)', note), '%s: 각주에 조사일이 없다 — %s' % (name, note)
+    assert saw_gu and saw_flat, '구가 갈리는 도시와 갈리지 않는 도시를 둘 다 밟지 못했다'

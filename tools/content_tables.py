@@ -75,9 +75,27 @@ def _city_years(f, year=None):
     by = {y: n for y, n in (f.get('by_year') or {}).items()}
     if year:
         if str(year) not in by:
-            raise TableError('그 도시의 %s년 입주 예정이 자료에 없다(%s 목록 기준)' % (year, f.get('occ_max')))
+            raise TableError('그 도시의 %s년 입주 예정이 자료에 없다(%s)' % (year, _upto(f)))
         return {str(year): by[str(year)]}
     return by
+
+
+SRC_CITY = '한국부동산원 입주예정물량정보 · 청약홈 분양정보'
+
+
+def _upto(f):
+    """'2028년 6월 입주분까지 공개된 목록(2026-10-27 조사)' — 목록이 어디까지 담고 있고 언제 받았는지.
+
+    예전에는 '2028-06 목록 기준' 이라고만 적었는데, 읽는 사람이 '2028년 6월에 만든 목록' 으로 오해한다
+    (총괄 제보 2026-10-27). 그 달은 **목록에 실린 마지막 입주월**이고, 목록을 받은 날은 따로 있다.
+    """
+    ym = f.get('occ_max') or ''
+    out = ('%s년 %d월 입주분까지 공개된 목록' % (ym[:4], int(ym[5:7]))) if len(ym) >= 7 else '공개된 목록'
+    return out + ('(%s 조사)' % f['as_of'] if f.get('as_of') else '')
+
+
+def _city_note(f, tail=None):
+    return ' · '.join([SRC_CITY, _upto(f)] + ([tail] if tail else []))
 
 
 def _eun(word):
@@ -104,13 +122,11 @@ def city_moveins(data, f, name, year=None):
             if len(rows) > 1:                     # 한 분기뿐이면 합계가 같은 수를 두 번 적는 것이 된다
                 rows.append(['합계', num(sum(q.values()))])
             return (['분기', '세대'], rows,
-                    '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · %s 목록 기준(%s 자치구가 없어 분기로 나눴다)'
-                    % (f.get('occ_max'), _eun(name)))
+                    _city_note(f, '%s 자치구가 없어 분기로 나눴다' % _eun(name)))
         rows = [[g or '구 미상', num(v)] for g, v in sorted(gu.items(), key=lambda x: -x[1])]
         tot = sum(gu.values())
         rows.append(['합계', num(tot)])
-        return (['지역', '세대'], rows,
-                '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · %s 목록 기준' % f.get('occ_max'))
+        return (['지역', '세대'], rows, _city_note(f))
     by = _city_years(f)
     rows = [[y, num(v), '%d%%' % int(round(v / float(f['need']) * 100))] for y, v in sorted(by.items())]
     return (['연도', '세대', '적정 대비'], rows,
@@ -172,9 +188,11 @@ def city_complexes(data, f, year=None):
     rows = [r for r in (f.get('rows') or []) if not year or r['ym'].startswith(str(year))]
     if not rows:
         raise TableError('단지 목록이 비었다(%s년)' % year if year else '단지 목록이 비었다')
-    body = [[r['ym'], r['name'], r.get('gu') or '·', num(r['n'])] for r in rows]
-    return (['입주 예정', '단지', '구', '세대'], body,
-            '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · %s 목록 기준' % f.get('occ_max'))
+    if len({(r.get('gu') or '') for r in rows}) < 2:   # 구가 갈리지 않으면 그 열은 전부 같은 값이다
+        return (['입주 예정', '단지', '세대'],
+                [[r['ym'], r['name'], num(r['n'])] for r in rows], _city_note(f))
+    body = [[r['ym'], r['name'], r.get('gu') or '구 미상', num(r['n'])] for r in rows]
+    return (['입주 예정', '단지', '구', '세대'], body, _city_note(f))
 
 
 def region_key(data, name):
