@@ -44,7 +44,13 @@ def load(root=None):
     weekly_long = trend.get('weekly') or adv.get('weekly') or {}
     return {'sido': adv.get('sido') or {}, 'weekly': weekly_long,
             'occupancy': trend.get('occupancy') or {}, 'stats': rest,
-            'sgg': sgg, 'sgg_names': _sgg_names(root)}
+            'sgg': sgg, 'sgg_names': _sgg_names(root), 'cities': _city_moveins(root)}
+
+
+def _city_moveins(root):
+    """도시(시군구) 입주물량 — tools/data/city_moveins.json. 없으면 빈 묶음(시도 자리표는 그대로 돈다)."""
+    p = os.path.join(root, 'tools', 'data', 'city_moveins.json')
+    return _read_json(p) if os.path.exists(p) else {}
 
 
 def _sgg_names(root):
@@ -58,6 +64,53 @@ def _sgg_names(root):
 
 def _zones(data):
     return {z['z']: z for z in (data['sido'].get('zones') or [])}
+
+
+def city(data, name):
+    """도시(시군구) 입주물량 묶음 — tools/data/city_moveins.json. 없으면 None."""
+    return ((data.get('cities') or {}).get('cities') or {}).get(name)
+
+
+def _city_years(f, year=None):
+    by = {y: n for y, n in (f.get('by_year') or {}).items()}
+    if year:
+        if str(year) not in by:
+            raise TableError('그 도시의 %s년 입주 예정이 자료에 없다(%s 목록 기준)' % (year, f.get('occ_max')))
+        return {str(year): by[str(year)]}
+    return by
+
+
+def city_moveins(data, f, name, year=None):
+    """도시 입주물량. 연도를 주면 그 해 구별, 없으면 연도별."""
+    if year:
+        gu = (f.get('by_year_gu') or {}).get(str(year)) or {}
+        rows = [[g or '(구 없음)', num(v)] for g, v in sorted(gu.items(), key=lambda x: -x[1])]
+        tot = sum(gu.values())
+        rows.append(['합계', num(tot)])
+        return (['지역', '세대'], rows,
+                '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · %s 목록 기준' % f.get('occ_max'))
+    by = _city_years(f)
+    rows = [[y, num(v), '%d%%' % int(round(v / float(f['need']) * 100))] for y, v in sorted(by.items())]
+    return (['연도', '세대', '적정 대비'], rows,
+            '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정 입주량 %s세대(%s, 인구 %s년 %d월)'
+            % (num(f['need']), f.get('need_note') or '', f['pop_prd'][:4], int(f['pop_prd'][4:])))
+
+
+def city_share(data, f, year):
+    """그 해 입주 물량 ÷ 한 해 적정 입주량(%)."""
+    by = _city_years(f, year)
+    v = list(by.values())[0]
+    return '%d%%' % int(round(v / float(f['need']) * 100))
+
+
+def city_complexes(data, f, year=None):
+    """단지 목록 표(입주월·단지·구·세대). 연도를 주면 그 해만."""
+    rows = [r for r in (f.get('rows') or []) if not year or r['ym'].startswith(str(year))]
+    if not rows:
+        raise TableError('단지 목록이 비었다(%s년)' % year if year else '단지 목록이 비었다')
+    body = [[r['ym'], r['name'], r.get('gu') or '·', num(r['n'])] for r in rows]
+    return (['입주 예정', '단지', '구', '세대'], body,
+            '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · %s 목록 기준' % f.get('occ_max'))
 
 
 def region_key(data, name):
@@ -159,7 +212,11 @@ def stats(data, name, key):
 
 
 def sgg_codes(data, name):
-    """도시·구 이름 → [(코드, 이름표)]. '부천' 처럼 구가 여럿이면 그 구를 모두 돌려준다(이름표 순서).
+    """도시·구 이름 → [(코드, 이름표)]. 받는 꼴은 셋이다(이름표는 홈 시군구 지도와 같은 SGG_QNAME).
+
+      '고양 덕양구'  정확한 이름표 → 그 구 하나
+      '덕양구'       구 이름만 → 그 구 하나(여러 시에 같은 구 이름이 있으면 모두)
+      '고양'         시 이름 → 그 시의 구를 모두(이름표 순서)
 
     ⚠️ 도시 한 줄 값을 만들지 않는다. 주간 시세는 지수 변동률이라 구를 평균 내면 원천이 발표하지 않은 수가
        된다(저장소 데이터 원칙). 도시 글에는 구별 표를 싣는다.
@@ -168,6 +225,9 @@ def sgg_codes(data, name):
     exact = [(c, n) for c, n in q.items() if n == name]
     if exact:
         return exact
+    tail = [(c, n) for c, n in q.items() if n.rsplit(' ', 1)[-1] == name]   # '분당구' → '성남 분당구'
+    if tail:
+        return sorted(tail, key=lambda x: x[1])
     pre = [(c, n) for c, n in q.items() if n.startswith(name + ' ')]
     return sorted(pre, key=lambda x: x[1])
 
@@ -193,6 +253,58 @@ def weekly_sgg(data, name):
         raise TableError('주간 시세 %s 에 값이 하나도 없다' % name)
     return (['지역', '매매', '전세'], body,
             '한국부동산원 주간 아파트가격동향 · %s 조사 · 전주 대비 변동률' % last.get('p'))
+
+
+def _weekly_series(data, name, kind='ma'):
+    """[(조사일, 값)] — 시도면 ADV.weekly, 시군구면 sgg 계열. 연속 주수·구별 표가 같은 원천을 쓴다."""
+    import sido_zones as SZ
+    if name in SZ.ORDER or SZ.key_of(name) in SZ.ORDER:
+        key = region_key(data, name)
+        W = data['weekly']
+        regs = W.get('regions') or []
+        i = regs.index(key)
+        return [(r.get('p'), (r.get(kind) or [None] * len(regs))[i]) for r in (W.get('rows') or [])]
+    got = sgg_codes(data, name)
+    if len(got) != 1:
+        raise TableError('연속 주수는 한 지역만 받는다 — %r 는 %d곳이다(구 이름까지 적을 것)' % (name, len(got)))
+    S = data.get('sgg') or {}
+    codes = S.get('codes') or []
+    c = got[0][0]
+    if c not in codes:
+        raise TableError('주간 시세에 %r 자료가 없다' % got[0][1])
+    i = codes.index(c)
+    return [(r.get('p'), (r.get(kind) or [None] * len(codes))[i]) for r in (S.get('rows') or [])]
+
+
+def streak(data, name, what='매매'):
+    """'42주 연속 상승(10월 19일 조사)' — 최신 주와 같은 방향이 이어진 주 수.
+
+    ⚠️ 방향은 **표시값**(소수 둘째 자리 반올림) 기준이다. 화면의 '+0.00%' 를 상승으로 세면 글자와 뜻이 어긋난다.
+       0.00 이 나오는 주에서 연속이 끊긴다 — 원천이 '보합'이라고 말한 주다.
+    """
+    kinds = {'매매': 'ma', '전세': 'je'}
+    if what not in kinds:
+        raise TableError('streak 은 매매 또는 전세다: %r' % what)
+    import make_weekly_page as MW
+    ser = [(p, v) for p, v in _weekly_series(data, name, kinds[what]) if v is not None]
+    if not ser:
+        raise TableError('%s %s 주간 값이 없다' % (name, what))
+    last_p, last_v = ser[-1]
+    sign = (1 if MW.pv2r(last_v) > 0 else (-1 if MW.pv2r(last_v) < 0 else 0))
+    if sign == 0:
+        return '보합(%s 조사)' % _kdate(last_p)
+    n = 0
+    for _, v in reversed(ser):
+        r = MW.pv2r(v)
+        if (r > 0) != (sign > 0) or r == 0:
+            break
+        n += 1
+    return '%d주 연속 %s(%s 조사)' % (n, '상승' if sign > 0 else '하락', _kdate(last_p))
+
+
+def _kdate(iso):
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', str(iso) or '')
+    return '%d월 %d일' % (int(m.group(2)), int(m.group(3))) if m else str(iso)
 
 
 def weekly(data, key):
@@ -221,7 +333,19 @@ def table(data, kind, args):
     if kind == 'moveins':
         if not 1 <= len(args) <= 2:
             raise TableError('moveins 자리표는 지역[:연도] 꼴이다')
+        f = city(data, args[0])
+        if f:
+            return city_moveins(data, f, args[0], args[1] if len(args) > 1 else None)
         return moveins(data, region_key(data, args[0]), args[1] if len(args) > 1 else None)
+    if kind == 'share':
+        raise TableError('share 는 표가 아니라 값이다 — {{v:share:도시:연도}} 로 쓸 것')
+    if kind == 'complexes':
+        if not 1 <= len(args) <= 2:
+            raise TableError('complexes 자리표는 도시[:연도] 꼴이다')
+        f = city(data, args[0])
+        if not f:
+            raise TableError('%r 의 단지 목록이 없다 — 도시 자료(tools/data/city_moveins.json)에 없는 도시다' % args[0])
+        return city_complexes(data, f, args[1] if len(args) > 1 else None)
     if kind == 'supply':
         if len(args) != 1:
             raise TableError('supply 자리표는 지역 하나를 받는다')
@@ -230,6 +354,10 @@ def table(data, kind, args):
         if len(args) != 2:
             raise TableError('stats 자리표는 계열:지역 꼴이다')
         return stats(data, args[0], region_key(data, args[1]))
+    if kind == 'streak':
+        if not 1 <= len(args) <= 2:
+            raise TableError('streak 자리표는 지역[:매매|전세] 꼴이다')
+        raise TableError('streak 은 표가 아니라 값이다 — {{v:streak:...}} 로 쓸 것')
     if kind == 'weekly':
         if len(args) != 1:
             raise TableError('weekly 자리표는 지역 하나를 받는다')
@@ -240,11 +368,37 @@ def table(data, kind, args):
         if sgg_codes(data, args[0]):
             return weekly_sgg(data, args[0])
         return weekly(data, region_key(data, args[0]))
-    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly)' % kind)
+    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak)' % kind)
 
 
 def value(data, kind, args):
     """문장 안에 넣는 한 값. 표의 '대표 값'과 같은 수를 쓴다."""
+    if kind == 'streak':
+        if not 1 <= len(args) <= 2:
+            raise TableError('streak 자리표는 지역[:매매|전세] 꼴이다')
+        return streak(data, args[0], args[1] if len(args) > 1 else '매매')
+    if kind == 'share':
+        if len(args) != 2:
+            raise TableError('share 자리표는 도시:연도 꼴이다')
+        f = city(data, args[0])
+        if not f:
+            raise TableError('%r 의 적정 대비 비율을 낼 자료가 없다(도시 자료에 없는 도시다)' % args[0])
+        return city_share(data, f, args[1])
+    if kind == 'moveins' and args and city(data, args[0]):
+        f = city(data, args[0])
+        by = _city_years(f, args[1]) if len(args) > 1 else _city_years(f)
+        return num(sum(by.values())) + '세대'
+    if kind == 'weekly' and args and sgg_codes(data, args[0]):
+        import sido_zones as SZ
+        if not (args[0] in SZ.ORDER or SZ.key_of(args[0]) in SZ.ORDER):
+            # 시군구 한 곳이면 최신 주 매매 변동률. 구가 여럿이면 어느 구인지 알 수 없다.
+            got = sgg_codes(data, args[0])
+            if len(got) != 1:
+                raise TableError('%r 는 %d곳이다 — 구 이름까지 적을 것(예: 고양 덕양구)' % (args[0], len(got)))
+            ser = [v for _, v in _weekly_series(data, args[0], 'ma') if v is not None]
+            if not ser:
+                raise TableError('주간 시세 %s 에 값이 없다' % args[0])
+            return pct(ser[-1]) + '%'
     head, body, _ = table(data, kind, args)
     if kind == 'moveins':
         row = body[-1]                      # 연도 표는 합계, 연도별 표는 마지막 해
@@ -257,3 +411,61 @@ def value(data, kind, args):
     if kind == 'weekly':
         return body[-1][1]                  # 최신 주 매매 변동률
     raise TableError('값으로 쓸 수 없는 자리표다: %r' % kind)
+
+
+# ── 자리표 치환의 한 입구 ───────────────────────────────────────────────────
+# 왜 여기에 모았나. 요약과 FAQ 는 페이지에만 실리지 않는다 — OG·JSON-LD·섹션 목록·feed.xml·llms.txt 가
+# 같은 글을 가져다 쓴다. 생성기마다 따로 치환하면 어느 한 곳이 빠진 채 '{{v:...}}' 가 그대로 발행된다.
+# 2026-10-27 첫 19편에서 실제로 그랬다(페이지 7곳·feed 19건·llms 9건). 그래서 원고를 읽는 생성기는
+# 모두 fill_meta 를 통과시키고, 본문을 글자로 내보내는 쪽은 fill_markdown 을 쓴다.
+PH = re.compile(r'\{\{(table|v):([^}]+)\}\}')
+
+
+def _args(m):
+    parts = [p.strip() for p in m.group(2).split(':')]
+    if not parts or not parts[0]:
+        raise TableError('자리표가 비었다: %s' % m.group(0))
+    return parts[0], parts[1:]
+
+
+def fill_inline(text, data):
+    """한 줄 글(제목·요약·FAQ)의 자리표를 채운다. 표 자리표는 한 줄에 들어갈 수 없으므로 거부한다."""
+    def sub(m):
+        kind, args = _args(m)
+        if m.group(1) == 'table':
+            raise TableError('표 자리표는 본문에만 쓴다(제목·요약·FAQ 는 한 줄이다): %s' % m.group(0))
+        return value(data, kind, args)
+    return PH.sub(sub, text or '')
+
+
+def fill_meta(meta, data):
+    """프런트매터의 글에 자리표를 채워 **새 dict** 로 돌려준다. 실패하면 TableError 를 올린다."""
+    out = dict(meta)
+    for k in ('title', 'summary'):
+        if isinstance(out.get(k), str):
+            out[k] = fill_inline(out[k], data)
+    faq = out.get('faq')
+    if isinstance(faq, list):
+        out['faq'] = [dict((kk, fill_inline(vv, data) if isinstance(vv, str) else vv)
+                           for kk, vv in f.items()) if isinstance(f, dict) else f for f in faq]
+    return out
+
+
+def md_table(head, rows, note=None):
+    """표를 마크다운 파이프 표로. llms-full.txt 처럼 HTML 이 아닌 글자로 내보내는 곳이 쓴다."""
+    out = ['| %s |' % ' | '.join(head), '| %s |' % ' | '.join('---' for _ in head)]
+    out += ['| %s |' % ' | '.join(r) for r in rows]
+    if note:
+        out.append('')
+        out.append(note)
+    return '\n'.join(out)
+
+
+def fill_markdown(body, data):
+    """본문 마크다운의 자리표를 채운다 — 값은 그대로, 표는 마크다운 표로 바꾼다."""
+    def sub(m):
+        kind, args = _args(m)
+        if m.group(1) == 'v':
+            return value(data, kind, args)
+        return '\n' + md_table(*table(data, kind, args)) + '\n'
+    return PH.sub(sub, body or '')

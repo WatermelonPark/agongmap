@@ -129,12 +129,17 @@ def content_posts(root=ROOT):
     """
     try:
         import content_md as CM
-    except ImportError:
+        import content_tables as CT
+        data = CT.load()
+    except Exception as e:
+        sys.stderr.write('⚠️ 콘텐츠 원고를 싣지 못했다: %s\n' % e)
         return []
     by = {}
     for sec, slug, path in CM.built(root):
         try:
             meta, body = CM.read(path, sec, slug)
+            # 제목·요약은 값으로, 본문의 표는 마크다운 표로 채운다 — llms-full.txt 는 글자로만 나간다.
+            meta, body = CT.fill_meta(meta, data), CT.fill_markdown(body, data)
         except Exception as e:
             sys.stderr.write('⚠️ 원고를 건너뛴다(%s/%s): %s\n' % (sec, slug, e))
             continue
