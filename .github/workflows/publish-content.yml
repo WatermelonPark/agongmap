@@ -15,6 +15,13 @@ on:
     branches: [main]
     paths:
       - 'content/**'
+      # 생성기와 자리표를 고쳐도 페이지를 다시 굽는다. 그러지 않으면 생성기만 바뀐 회차에 옛 페이지가
+      # 남고, 그 뒤 누가 산출물을 손으로 커밋하면 그 사이 올라온 원고를 덮는다(2026-10-27 실제로 그랬다).
+      - 'tools/make_content_pages.py'
+      - 'tools/content_tables.py'
+      - 'tools/content_md.py'
+      - 'tools/make_city_moveins.py'
+      - 'tools/data/city_moveins.json'
   workflow_dispatch:
 
 concurrency:
