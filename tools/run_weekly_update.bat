@@ -46,7 +46,7 @@ rem SHARED worktree, which blocks other sessions' merges (review 2026-09-18, bac
 rem Put the batch targets back to HEAD. rc 10/11/19 never touched them; after a failed push
 rem (rc 16) the commit exists so this is a no-op. The list must equal TARGETS in update-cloud.yml.
 if not "%RC%"=="0" if not "%RC%"=="10" if not "%RC%"=="11" if not "%RC%"=="19" (
-  git restore --staged --worktree -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json feed.xml llms.txt llms-full.txt city gtx danji column >> "%LOG%" 2>&1
+  git restore --staged --worktree -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column >> "%LOG%" 2>&1
 )
 if not "%RC%"=="0" (
   echo [%date% %time%] FAILED rc=%RC% - see %LOG%
@@ -125,6 +125,13 @@ rem and make_weekly_page. Always exits 0; on RSS failure the previous value is k
 rem cmd has no command timeout: the tool caps its own RSS read at WALL_SECONDS (60 s); the cloud adds `timeout 90`.
 python tools\blog_feed.py
 if errorlevel 1 echo WARN: blog_feed failed - blog line keeps the previous value
+
+rem City (sigungu) move-in volumes -> tools\data\city_moveins.json, read by the content
+rem placeholders moveins/share/complexes (backlog 50). Needs DATA_GO_KR_KEY and KOSIS_API_KEY,
+rem so it sits with the other collectors. On failure the old file is kept and only those
+rem numbers lag one run.
+python tools\make_city_moveins.py --fetch
+if errorlevel 1 echo WARN: make_city_moveins failed - city numbers keep the previous values
 
 rem split data.js -> data-core.js / data-trend.json / data-rest.json.
 rem home reads data-core.js, so skipping this step leaves home stale.
@@ -230,16 +237,16 @@ rem data-sgg.json and data-size.json were absent from every list).
 rem index.html is hand-written: the batch rewrites only its HOME_SUMMARY block and description metas (B3),
 rem but the add / restore commands take the whole file. Do not leave uncommitted index.html edits in this
 rem worktree while the runner is switched on - they would be committed or wiped with the batch.
-git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json feed.xml llms.txt llms-full.txt city gtx danji column
+git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column
 if errorlevel 1 (
-  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json feed.xml llms.txt llms-full.txt city gtx danji column
+  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column
   if errorlevel 1 (
     echo ERROR: git add failed
     exit /b 14
   )
   rem Commit ONLY the batch targets. A bare `git commit` sweeps whatever another session left
   rem staged in the shared index (it happened on 2026-09-16, commit 930b4534).
-  git commit -m "stats: weekly auto-update (KOSIS, local)" -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json feed.xml llms.txt llms-full.txt city gtx danji column
+  git commit -m "stats: weekly auto-update (KOSIS, local)" -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column
   if errorlevel 1 (
     echo ERROR: git commit failed
     exit /b 15
