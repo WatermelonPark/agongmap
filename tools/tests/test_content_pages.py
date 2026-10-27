@@ -266,7 +266,7 @@ def test_home_recent_block_is_scoped_to_its_markers(tmp_path):
 def test_robots_names_the_ai_crawlers_and_stays_open():
     """robots.txt 가 AI 검색·검색엔진 크롤러를 이름으로 허용하고, 전체 허용과 사이트맵 줄을 지킨다.
 
-    무엇을 바꾸면 빨개지나: 크롤러 줄을 지우거나 Disallow 로 바꾸면(대표 결정 없이 막는 것을 막는다).
+    무엇을 바꾸면 빨개지나: 크롤러 줄을 지우거나 Disallow 로 바꾸면(대표 결정 없이 막는 것을 막는다).
     CCBot(학습 말뭉치)도 목록에 있다 — 2026-10-27 대표가 전부 허용으로 결정했다.
     """
     r = io.open(os.path.join(ROOT, 'robots.txt'), encoding='utf-8').read()
@@ -438,7 +438,7 @@ def test_year_table_splits_by_district_or_by_quarter():
         for year in sorted(f.get('by_year') or {}):
             head, rows, _ = CT.table(data, 'moveins', [name, year])
             labels = [r[0] for r in rows]
-            gu_rows = [x for x in labels if x != '합계']
+            gu_rows = [x for x in labels if x != '합계']
             assert gu_rows != ['구 미상'], '%s %s: 구를 모르는 한 줄만 싣는다 — 분기로 나눠야 한다' % (name, year)
             if head[0] == '분기':
                 saw_q = True
@@ -481,3 +481,130 @@ def test_city_tables_drop_empty_columns_and_say_what_the_list_covers():
         assert '입주분까지 공개된 목록' in note, '%s: 각주가 목록 범위를 말하지 않는다 — %s' % (name, note)
         assert re.search(r'\(\d{4}-\d{2}-\d{2} 조사\)', note), '%s: 각주에 조사일이 없다 — %s' % (name, note)
     assert saw_gu and saw_flat, '구가 갈리는 도시와 갈리지 않는 도시를 둘 다 밟지 못했다'
+
+
+def test_chart_numbers_come_from_the_data_files():
+    """그림의 숫자가 city_moveins.json·data-sgg.json 의 값과 **같은 수**다 — 그림만 옛 숫자를 들고 있지 않게.
+
+    무엇을 바꾸면 빨개지나: chart 가 값을 깎거나 반올림하거나 다른 해를 집으면, 주간 꺾은선이 최신 주가
+    아닌 곳에서 끝나면, 대체 텍스트가 그림과 다른 수를 말하면.
+    픽스처: 저장소의 실제 자료. 도시 자료가 없으면 검사할 것이 없으니 건너뛴다.
+    """
+    data = CT.load()
+    cities = (data.get('cities') or {}).get('cities') or {}
+    if not cities:
+        pytest.skip('도시 자료가 없다')
+    for name, f in sorted(cities.items()):
+        spec = CT.chart(data, 'moveins', [name])
+        pts = dict(spec['series'][0]['points'])
+        assert pts == {y: v for y, v in f['by_year'].items()}, '%s: 막대가 by_year 와 다르다' % name
+        assert spec['rule'][0] == f['need'], '%s: 기준선이 적정 입주량과 다르다' % name
+        for y, v in pts.items():
+            assert CT.num(v) in spec['alt'], '%s: 대체 텍스트에 %s년 값이 없다' % (name, y)
+    # 주간 꺾은선은 그 지역 계열의 마지막 주에서 끝난다(표의 최신 주와 같은 날).
+    for name in ('서울', '분당구'):
+        spec = CT.chart(data, 'weekly', [name])
+        last = [s['points'][-1] for s in spec['series']]
+        ser = [(p, v) for p, v in CT._weekly_series(data, name, 'ma') if v is not None]
+        assert last[0] == ser[-1], '%s: 꺾은선이 최신 주에서 끝나지 않는다' % name
+        assert len(spec['series'][0]['points']) <= CT.CHART_WEEKS, '%s: 26주보다 많다' % name
+
+
+def test_chart_svg_is_accessible_and_scales():
+    """구운 그림이 대체 텍스트를 달고, 색을 박지 않고, 폭에 맞춰 늘어난다.
+
+    무엇을 바꾸면 빨개지나: aria-label 을 빼면(읽는 장치와 AI 가 그림을 못 읽는다), 색을 #rrggbb 로 박으면
+    (나중에 다크 모드가 들어와도 그림만 밝은 색으로 남는다), viewBox 를 지우면(좁은 화면에서 잘린다).
+    픽스처: 실제 자료로 구운 막대·꺾은선 한 장씩.
+    """
+    data = CT.load()
+    if not ((data.get('cities') or {}).get('cities') or {}):
+        pytest.skip('도시 자료가 없다')
+    name = sorted((data['cities'])['cities'])[0]
+    for kind, args in (('moveins', [name]), ('weekly', ['서울'])):
+        spec = CT.chart(data, kind, args)
+        svg = MC._chart_html(spec)
+        assert 'role="img"' in svg and 'aria-label="' in svg, '%s: 대체 텍스트가 없다' % kind
+        assert 'viewBox="0 0 ' in svg, '%s: viewBox 가 없다' % kind
+        assert not re.search(r'(fill|stroke)="#', svg), '%s: 색을 박았다 — CSS 변수로 둘 것' % kind
+        assert 'preserveAspectRatio' not in svg, '%s: 비율을 깨면 좁은 화면에서 글자가 뭉갠다' % kind
+    # CSS 는 SVG 속성을 이긴다 — 맞춤을 속성으로 주면 가운데로 그려져 양 끝 글자가 잘린다(실제로 그랬다).
+    assert 'text-anchor="' not in MC._chart_html(CT.chart(data, 'weekly', ['서울'])), \
+        '맞춤을 속성으로 주었다 — .cx-s/.cx-e 클래스를 쓸 것'
+    # 색은 스타일시트 쪽에도 박으면 안 된다. 마크업만 보면 CSS 에 박은 색을 놓친다.
+    hard = re.findall(r'(?:fill|stroke|color|background)\s*:\s*(#[0-9a-fA-F]{3,8})', MC.EXTRA_CSS)
+    assert not hard, '콘텐츠 CSS 가 색을 박았다 — var(--…) 로 둘 것: %s' % hard
+
+
+def test_zone_posts_generator_sorts_posts_by_region(tmp_path):
+    """글 묶음을 **만드는 쪽**을 돌려 본다 — 시군구 글이 그 시도로 가고, 남의 시도에는 안 간다(요청 ②).
+
+    무엇을 바꾸면 빨개지나: zone_of 의 매핑을 끊거나(모두 한 시도로 묶는 등), 표식 구간을 못 찾게 하거나,
+    글이 없는 시도의 구간을 비우지 않으면. 아래 '발행물' 시험과 달리 이쪽은 생성기를 실제로 돌리므로,
+    페이지를 다시 굽지 않은 회차에도 회귀를 잡는다.
+    픽스처: 표식만 담은 빈 zone 페이지 셋(서울·경기·경북)과 손으로 만든 글 메타 셋.
+    """
+    for z in ('서울', '경기', '경북'):
+        d = tmp_path / 'zone' / z
+        d.mkdir(parents=True)
+        (d / 'index.html').write_text('<main>본문</main>%s%s<footer>' % (MC.ZONE_START, MC.ZONE_END),
+                                      encoding='utf-8')
+    metas = [{'section': 'city', 'slug': 'gumi-x', 'title': '구미 글', 'region': '구미',
+              'date': '2026-10-01', 'updated': '2026-10-02'},
+             {'section': 'danji', 'slug': 'bucheon-x', 'title': '부천 글', 'region': '부천',
+              'date': '2026-10-01', 'updated': '2026-10-03'},
+             {'section': 'gtx', 'slug': 'gg-x', 'title': '경기 글', 'region': '경기',
+              'date': '2026-10-01', 'updated': '2026-10-04'}]
+    assert MC.write_zone_posts(metas, root=str(tmp_path)) == 2, '글이 실린 시도는 경기·경북 둘이어야 한다'
+    got = {}
+    for z in ('서울', '경기', '경북'):
+        s = (tmp_path / 'zone' / z / 'index.html').read_text(encoding='utf-8')
+        got[z] = set(re.findall(r'href="(/[^"]+/)"', s))
+    assert got['경북'] == {'/city/gumi-x/'}, '구미 글이 경북으로 가지 않았다: %s' % got['경북']
+    assert got['경기'] == {'/danji/bucheon-x/', '/gtx/gg-x/'}, '경기 묶음이 다르다: %s' % got['경기']
+    assert got['서울'] == set(), '글이 없는 시도에 묶음이 생겼다: %s' % got['서울']
+    # 글이 빠지면 그 구간도 비워야 한다 — 지난 회차의 링크가 남으면 없는 글을 가리킨다.
+    assert MC.write_zone_posts([], root=str(tmp_path)) == 0
+    assert '/city/gumi-x/' not in (tmp_path / 'zone' / '경북' / 'index.html').read_text(encoding='utf-8'), \
+        '글을 내렸는데 묶음이 그대로다'
+
+
+def test_sido_generator_bakes_the_marker():
+    """시도 생성기가 글 묶음 표식을 굽는다 — 표식이 없으면 채울 자리가 없다.
+
+    무엇을 바꾸면 빨개지나: make_sido_pages 의 FOOT 에서 표식을 지우면.
+    """
+    import make_sido_pages as SP
+    assert MC.ZONE_START in SP.FOOT and MC.ZONE_END in SP.FOOT, \
+        '시도 페이지 바닥글에 글 묶음 표식이 없다'
+
+
+def test_zone_reports_link_the_posts_about_that_region():
+    """발행된 시도 리포트에 그 지역 글 묶음이 실제로 들어 있다(요청 ②).
+
+    무엇을 바꾸면 빨개지나: 생성기를 고치고 페이지를 다시 굽지 않은 채 커밋하면. 위 생성기 시험과 짝이다.
+    픽스처: 저장소에 구워져 있는 zone 페이지와 실제 원고.
+    """
+    import sido_zones as SZ
+    posts, _ = MC.collect()
+    if not posts:
+        pytest.skip('원고가 없다')
+    want = {}
+    for sec, meta, _ in posts:
+        z = MC.zone_of(meta)
+        if z and os.path.exists(os.path.join(ROOT, sec, meta['slug'], 'index.html')):
+            want.setdefault(z, set()).add('/%s/%s/' % (sec, meta['slug']))
+    assert want, '어느 글도 시도에 묶이지 않았다 — region 매핑이 끊겼다'
+    seen = 0
+    for z in SZ.ORDER:
+        p = os.path.join(ROOT, 'zone', z, 'index.html')
+        if not os.path.exists(p):
+            continue
+        s = io.open(p, encoding='utf-8').read()
+        m = re.search(re.escape(MC.ZONE_START) + r'(.*?)' + re.escape(MC.ZONE_END), s, re.S)
+        assert m, '%s 리포트에 글 묶음 표식이 없다' % z
+        hrefs = set(re.findall(r'href="(/(?:city|gtx|danji|column)/[^"]+/)"', m.group(1)))
+        assert hrefs == want.get(z, set()), '%s 리포트의 글 묶음이 그 지역 글과 다르다 — 빠짐 %s, 더함 %s' % (
+            z, sorted(want.get(z, set()) - hrefs), sorted(hrefs - want.get(z, set())))
+        seen += 1
+    assert seen >= 10, '시도 리포트를 %d곳밖에 못 읽었다' % seen

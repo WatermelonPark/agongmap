@@ -1022,6 +1022,8 @@ table.adv thead th:first-child{text-align:center}
   .crecent a{color:var(--ink);text-decoration:none;font-size:14px;line-height:1.5}
   .crecent a b{font-weight:600}
   .crecent a i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:2px}
+  /* 시도 리포트 하단의 '이 지역 글'(백로그 50 요청 ②) — 본문과 가르는 선을 하나 둔다. */
+  .zposts{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}
   /* 주간 구역의 해석 글 한 줄(B5·RET-4). 링크는 새 창(블로그)이라 밑줄로 링크임을 드러낸다. */
   /* 해설 글 카드(renderBlogLine) — 작은 머리줄 + 굵은 결론 한 줄, 카드 전체가 링크 */
   .home-sec p.wk-blog{margin:16px auto 0;max-width:520px;line-height:1.45}   /* .home-sec p(0,1,1)를 이긴다 */
