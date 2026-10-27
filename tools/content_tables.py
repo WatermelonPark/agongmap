@@ -80,11 +80,33 @@ def _city_years(f, year=None):
     return by
 
 
+def _eun(word):
+    """'은/는' 을 붙인다 — 받침이 있으면 '은'(의정부는·춘천은). 표 각주가 도시 이름을 말할 때 쓴다."""
+    c = word[-1]
+    return word + ('은' if '가' <= c <= '힣' and (ord(c) - 0xAC00) % 28 else '는')
+
+
 def city_moveins(data, f, name, year=None):
-    """도시 입주물량. 연도를 주면 그 해 구별, 없으면 연도별."""
+    """도시 입주물량. 연도를 주면 그 해를 쪼개 보여 주고(구별, 구가 없는 시는 분기별), 없으면 연도별."""
     if year:
         gu = (f.get('by_year_gu') or {}).get(str(year)) or {}
-        rows = [[g or '(구 없음)', num(v)] for g, v in sorted(gu.items(), key=lambda x: -x[1])]
+        # 구가 갈리지 않는 시(의정부·김포처럼 자치구가 없는 곳)는 '(구 없음)' 한 줄 + 합계가 되어 읽을 것이
+        # 없다(2026-10-27 라이브에서 그랬다). 그 해를 분기로 쪼개 같은 자리에 쓸모 있는 표를 낸다.
+        if len([g for g in gu if g]) < 2:
+            q = {}
+            for r in (f.get('rows') or []):
+                if r['ym'].startswith(str(year)):
+                    q['%sQ%d' % (year, (int(r['ym'][5:7]) - 1) // 3 + 1)] = \
+                        q.get('%sQ%d' % (year, (int(r['ym'][5:7]) - 1) // 3 + 1), 0) + r['n']
+            if not q:
+                raise TableError('%s년 %s 입주 예정이 자료에 없다' % (year, name))
+            rows = [[k, num(v)] for k, v in sorted(q.items())]
+            if len(rows) > 1:                     # 한 분기뿐이면 합계가 같은 수를 두 번 적는 것이 된다
+                rows.append(['합계', num(sum(q.values()))])
+            return (['분기', '세대'], rows,
+                    '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · %s 목록 기준(%s 자치구가 없어 분기로 나눴다)'
+                    % (f.get('occ_max'), _eun(name)))
+        rows = [[g or '구 미상', num(v)] for g, v in sorted(gu.items(), key=lambda x: -x[1])]
         tot = sum(gu.values())
         rows.append(['합계', num(tot)])
         return (['지역', '세대'], rows,

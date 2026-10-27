@@ -419,3 +419,37 @@ def test_ratio_refuses_to_divide_by_a_zero_year():
     with pytest.raises(CT.TableError):
         CT.city_ratio({}, f, '2028', '2027')
     assert CT.city_ratio({}, f, '2028', '2028') == '100%', '같은 해끼리는 100% 여야 한다'
+
+
+def test_year_table_splits_by_district_or_by_quarter():
+    """그 해 표는 자치구가 있는 시는 구별로, 없는 시는 분기별로 나눈다 — '(구 없음)' 한 줄은 내지 않는다.
+
+    구를 모르는 물량('구 미상')은 실제 구와 함께 실린다 — 합계가 맞아야 하므로 지우지 않는다(화성이 그렇다).
+    무엇을 바꾸면 빨개지나: 자치구가 없는 시에 구별 표를 그대로 내면(2026-10-27 라이브에서 의정부 글이
+    '(구 없음) 2,809 / 합계 2,809' 두 줄을 싣고 있었다), 구가 있는 시를 분기로 바꾸면, 한 줄짜리 표에 합계를 더하면.
+    픽스처: tools/data/city_moveins.json 의 실제 도시들. 둘 중 한 쪽이 없으면 그 단정만 건너뛴다.
+    """
+    data = CT.load()
+    cities = (data.get('cities') or {}).get('cities') or {}
+    if not cities:
+        pytest.skip('도시 자료가 없다')
+    saw_gu = saw_q = False
+    for name, f in sorted(cities.items()):
+        for year in sorted(f.get('by_year') or {}):
+            head, rows, _ = CT.table(data, 'moveins', [name, year])
+            labels = [r[0] for r in rows]
+            gu_rows = [x for x in labels if x != '합계']
+            assert gu_rows != ['구 미상'], '%s %s: 구를 모르는 한 줄만 싣는다 — 분기로 나눠야 한다' % (name, year)
+            if head[0] == '분기':
+                saw_q = True
+                assert all(re.match(r'^\d{4}Q[1-4]$', x) for x in labels if x != '합계'), \
+                    '%s %s: 분기 이름이 아니다 — %s' % (name, year, labels)
+            else:
+                saw_gu = True
+                assert head[0] == '지역' and any(x.endswith('구') for x in labels), \
+                    '%s %s: 구별 표인데 구 이름이 없다 — %s' % (name, year, labels)
+            if len(rows) > 1:
+                assert labels[-1] == '합계', '%s %s: 두 줄 이상이면 합계가 있어야 한다' % (name, year)
+            else:
+                assert labels[-1] != '합계', '%s %s: 한 줄짜리 표에 합계를 더하면 같은 수를 두 번 적는다' % (name, year)
+    assert saw_gu and saw_q, '구별·분기별 두 길을 다 밟지 못했다(자료에 한쪽만 있다): 구별 %s · 분기별 %s' % (saw_gu, saw_q)
