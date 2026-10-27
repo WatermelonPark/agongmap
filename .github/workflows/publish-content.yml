@@ -21,7 +21,6 @@ on:
       - 'tools/content_tables.py'
       - 'tools/content_md.py'
       - 'tools/make_city_moveins.py'
-      - 'tools/data/city_moveins.json'
   workflow_dispatch:
 
 concurrency:
@@ -45,6 +44,18 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
+      - name: 원고가 말하는 새 도시 받아 넣기
+        env:
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY || secrets.DATAGOKR }}
+          KOSIS_API_KEY:  ${{ secrets.KOSIS_API_KEY || secrets.KOSIS }}
+        run: |
+          # 글이 말하는 도시가 tools/data/city_moveins.json 에 없으면 그 도시만 받는다. 이미 있는 도시의
+          # 값은 건드리지 않는다 — 그 갱신은 매일 배치의 몫이다(원고 한 편 때문에 열세 도시를 다시 받지
+          # 않고, 글이 올라온 날에 다른 글의 숫자가 따라 바뀌지도 않는다).
+          # 검사보다 앞이다. 자료에 없는 도시를 자리표가 가리키면 검사가 먼저 걸려 발행이 멈춘다.
+          # 키가 없거나 원천이 죽으면 그 글만 건너뛰어지고 나머지는 그대로 발행된다.
+          timeout 600 python tools/make_city_moveins.py --fetch --new-only             || echo "::warning::새 도시 수집 실패 — 그 도시를 말하는 글은 이번 발행에서 건너뛴다"
 
       - name: 원고 검사
         run: |
@@ -70,7 +81,7 @@ jobs:
       - name: 변경 있으면 커밋·푸시
         run: |
           set -e
-          TARGETS="city gtx danji column feed.xml llms.txt llms-full.txt sitemap.xml index.html"
+          TARGETS="city gtx danji column feed.xml llms.txt llms-full.txt sitemap.xml index.html tools/data/city_moveins.json"
           # 있는 경로만 센다 — 섹션 폴더는 그 섹션에 글이 생긴 날에 처음 나타난다.
           HAVE=""
           for p in $TARGETS; do [ -e "$p" ] && HAVE="$HAVE $p"; done

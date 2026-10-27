@@ -7,13 +7,15 @@
 
 무엇을 담나(도시마다)
   sido·start·occ_max   어느 시도에서 뽑았나, 어느 달부터 세나, 부동산원 목록의 끝 달
+  as_of                그 도시의 목록을 받은 날(표 각주가 '조사' 로 적는다)
   pop·pop_prd·need     인구와 그 기준월, 한 해 적정 입주량(인구 ÷ 2.5 × 2% — 산식의 정본은 movein_need)
   by_year·by_year_gu   연도별 세대, 연도별 구별 세대
   rows                 단지 목록(입주월·이름·구·세대·자료 출처)
 
 갱신
-    python tools/make_city_moveins.py --fetch     원천을 새로 받아 갱신(DATA_GO_KR_KEY·KOSIS_API_KEY 필요)
-    python tools/make_city_moveins.py             캐시(tools/cache/city)만으로 다시 만든다
+    python tools/make_city_moveins.py --fetch              원천을 새로 받아 전부 갱신(매일 배치 — 키 필요)
+    python tools/make_city_moveins.py --fetch --new-only   파일에 없는 도시만 받는다(원고 발행 — 키 필요)
+    python tools/make_city_moveins.py                      캐시(tools/cache/city)만으로 다시 만든다
 도시 목록은 `content/` 원고의 `region` 에서 읽는다 — 글이 늘면 그 도시가 자동으로 들어온다(손 목록 없음).
 """
 import io
@@ -38,6 +40,14 @@ import home_src as HS          # noqa: E402  (시군구 이름표 SGG_QNAME)
 import kst as KST              # noqa: E402
 
 OUT = os.path.join(ROOT, 'tools', 'data', 'city_moveins.json')
+
+
+def _read(path):
+    """있으면 읽고, 없거나 깨졌으면 None. 기존 값을 살릴지 판단하는 데만 쓴다."""
+    try:
+        return json.loads(io.open(path, encoding='utf-8').read())
+    except (IOError, OSError, ValueError):
+        return None
 
 
 def sgg_names(root=ROOT):
@@ -107,7 +117,7 @@ def city_facts(city, sido, start):
         gu = r.get('gu') or ''
         by_year_gu[y][gu] = by_year_gu[y].get(gu, 0) + r['n']
     return {
-        'sido': sido, 'start': start, 'occ_max': m['occ_max'],
+        'sido': sido, 'start': start, 'occ_max': m['occ_max'], 'as_of': KST.today_iso(),
         'pop': pop, 'pop_prd': prd,
         'need': MN.need(pop),
         'need_note': MN.note(),
@@ -117,9 +127,19 @@ def city_facts(city, sido, start):
     }
 
 
-def build(cities, start, fetch=False):
+def build(cities, start, fetch=False, keep=None):
+    """도시마다 숫자를 모아 한 묶음으로. keep 에 있는 도시는 그 값을 그대로 쓴다(받지 않는다).
+
+    keep 은 '새 도시만 받는' 길에 쓴다 — 원고가 올라오는 길(발행 워크플로)은 글이 말하는 도시가 파일에
+    없을 때 그 도시만 받아 넣고, 이미 있는 도시의 값은 매일 배치의 주기를 따르게 둔다. 그래야 원고 한 편
+    때문에 열세 도시를 다시 받지 않고, 글이 올라온 날에 다른 글의 숫자가 따라 바뀌지도 않는다.
+    """
+    keep = keep or {}
     out, done = {}, set()
     for city, sido in sorted(cities.items()):
+        if city in keep:
+            out[city] = keep[city]
+            continue
         if fetch and sido not in done:
             CMV.fetch(sido)          # 시도 하나당 한 번만 받는다(원천은 시도 단위 캐시)
             done.add(sido)
@@ -136,11 +156,23 @@ def main(argv=None):
         return 0
     start = KST.today_iso()[:7]
     fetch = '--fetch' in argv
+    new_only = '--new-only' in argv
     if fetch and not os.environ.get('DATA_GO_KR_KEY'):
         print('city moveins: DATA_GO_KR_KEY 가 없어 수집을 건너뛴다(캐시로 다시 만든다)')
         fetch = False
+    keep = {}
+    if new_only:
+        # 이미 파일에 있는 도시는 그 값을 그대로 둔다. 새 region 이 들어온 글만 받아 넣는 길이다.
+        have = (_read(OUT) or {}).get('cities') or {}
+        keep = {c: v for c, v in have.items() if c in cities}
+        fresh = [c for c in cities if c not in keep]
+        if not fresh:
+            print('city moveins: 새 도시가 없다 (%d개 그대로)' % len(keep))
+            return 0
+        print('city moveins: 새 도시 %s 만 받는다(나머지 %d개는 그대로)' % (', '.join(sorted(fresh)), len(keep)))
+        start = (_read(OUT) or {}).get('start') or start   # 기준월도 기존 파일을 따른다(섞이지 않게)
     try:
-        body = build(cities, start, fetch=fetch)
+        body = build(cities, start, fetch=fetch, keep=keep)
     except (IOError, OSError) as e:
         # 캐시가 없으면 그 도시는 못 만든다. 기존 파일을 지우지 않고 그대로 둔다 — 옛 값이라도 있는 쪽이 낫다.
         print('city moveins: 원천 캐시를 읽지 못했다(%s) — 파일을 그대로 둔다' % e)
