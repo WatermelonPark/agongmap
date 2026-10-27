@@ -28,10 +28,11 @@ import city_movein as CM  # noqa: E402
 import make_naver_post as P  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import make_zone_cards as ZC  # noqa: E402
+import movein_need as MN  # noqa: E402  (적정 입주량 산식의 정본 — 수집기도 같은 파일을 읽는다)
 
 REPO = os.path.dirname(HERE)
 OUT = os.path.join(REPO, 'drafts')
-PER_HH, RATE = 2.5, 0.02          # 적정 입주량 = 인구 ÷ 2.5 × 2% (09-30 대표)
+PER_HH, RATE = MN.PER_HH, MN.RATE   # 적정 입주량 = 인구 ÷ 2.5 × 2% (09-30 대표). 값은 movein_need 가 정본이다.
 BIG = 1000                        # '큰 단지'로 따로 부르는 세대수
 GAP_PCT = 70                      # 다음 해 입주가 적정 입주량의 이 % 아래일 때만 '입주 공백'이라 부른다(10-17 천안 94%) — 소제목·기본 제목이 같이 쓴다
 DONE_DROP = 0.5                   # 광역시 편: 다음 해 입주가 최근 세 해 평균 준공의 이 배 아래일 때만 '그때와 견주면 잠긴 셈'이라 쓴다(전수리뷰 BL2-6)
@@ -103,7 +104,7 @@ def facts(city, start, sido):
     f['full_years'] = [y for y in f['years'] if start <= y + '-01' and y + '-12' <= occ_max]
     f['part_years'] = [y for y in f['years'] if y not in f['full_years']]
     pop, prd = CM.population(raw, city)
-    f.update(pop=pop, pop_txt='%s년 %d월' % (prd[:4], int(prd[4:])), need=int(round(pop / PER_HH * RATE)),
+    f.update(pop=pop, pop_txt='%s년 %d월' % (prd[:4], int(prd[4:])), need=MN.need(pop),
              hh_est=pop / PER_HH)
     f['share'] = lambda v: int(round(v / f['need'] * 100))
     # 시도 안 몫(도시 ≠ 시도일 때만). 시도 전체 이름은 정본(CM.full_names)에서 센다 — 판정 단위를 합친 광주·전남은
