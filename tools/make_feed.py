@@ -162,12 +162,15 @@ def content_items():
     """
     try:
         import content_md as CM
-    except ImportError:
+        import content_tables as CT
+        data = CT.load()
+    except Exception:
         return []
     out = []
     for sec, slug, path in CM.built(ROOT):
         try:
             meta, _ = CM.read(path, sec, slug)
+            meta = CT.fill_meta(meta, data)   # 제목·요약의 자리표를 채운다 — 페이지와 같은 문장을 싣는다
         except Exception:
             continue
         out.append({'kind': 'content', 'title': meta['title'],

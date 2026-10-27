@@ -388,6 +388,24 @@ def main(strict=False):
         print('content pages: 원고 없음 — 페이지를 만들지 않는다%s' % (' · 홈 묶음 비움' if emptied else ''))
         return 0
     data = CT.load()
+    # 프런트매터의 글(제목·요약·FAQ)도 자리표를 쓴다. 본문보다 먼저, 여기서 한 번만 채운다 — 페이지와
+    # OG·JSON-LD·섹션 목록·홈 묶음·feed·llms 가 모두 이 결과를 돌려쓴다(CT.fill_meta 의 주석 참조).
+    filled, dropped = [], []
+    for sec, meta, body in posts:
+        try:
+            filled.append((sec, CT.fill_meta(meta, data), body))
+        except CT.TableError as e:
+            if strict:
+                raise
+            dropped.append('%s/%s.md 프런트매터: %s' % (sec, meta['slug'], e))
+    for why in dropped:
+        _warn('콘텐츠 원고를 건너뛴다 — ' + why)
+    posts = filled
+    if not posts:
+        emptied = write_home_recent([])
+        print('content pages: 쓸 수 있는 원고가 없다 — 페이지를 만들지 않는다%s'
+              % (' · 홈 묶음 비움' if emptied else ''))
+        return 0
     by_sec = {}
     for sec, meta, body in posts:
         by_sec.setdefault(sec, []).append((meta, body))

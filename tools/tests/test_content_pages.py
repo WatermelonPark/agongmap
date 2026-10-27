@@ -300,3 +300,64 @@ def test_home_and_zone_show_the_modified_date_on_screen_and_in_json_ld():
     art = [x for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', page, re.S)
            for x in (lambda d: d if isinstance(d, list) else [d])(json.loads(b)) if x.get('@type') == 'Article']
     assert art and art[0]['dateModified'] == mz.group(1), '%s 화면 수정일이 JSON-LD 와 다르다' % z
+
+
+def _posts_with_front_placeholder():
+    """요약·FAQ 에 자리표를 쓰는 실제 원고 [(섹션, slug, meta)]."""
+    out = []
+    for sec, slug, path in CM.posts(ROOT):
+        try:
+            meta, _ = CM.read(path, sec, slug)
+        except CM.ContentError:
+            continue
+        glued = (meta.get('summary') or '') + ' '.join(
+            (f.get('q') or '') + (f.get('a') or '') for f in (meta.get('faq') or []))
+        if CT.PH.search(glued):
+            out.append((sec, slug, meta))
+    return out
+
+
+def test_front_matter_placeholders_are_filled_in_feed_and_llms():
+    """요약·FAQ 의 자리표는 페이지뿐 아니라 feed·llms 에서도 채워진다.
+
+    무엇을 바꾸면 빨개지나: make_feed.content_items 나 make_llms_txt.content_posts 에서 CT.fill_meta 를
+    빼면. 2026-10-27 실제로 빠져 있어서 '{{v:moveins:…}}' 가 feed 19건·llms 9건에 그대로 실려 나갔다
+    (구운 페이지에도 OG·JSON-LD·FAQ 까지 7곳씩 남았다).
+    픽스처: 저장소의 실제 원고. 요약·FAQ 에 자리표를 쓰는 글이 없으면 검사할 것이 없으니 건너뛴다.
+    """
+    if not _posts_with_front_placeholder():
+        pytest.skip('요약·FAQ 에 자리표를 쓰는 원고가 없다')
+    import make_feed as MF
+    import make_llms_txt as ML
+    for it in MF.content_items():
+        assert not CT.PH.search(it['title'] + it['desc']), 'feed 에 자리표가 남았다: %s' % it['guid']
+    for sec, meta, body in ML.content_posts(ROOT):
+        glued = meta['title'] + meta['summary'] + body
+        assert not CT.PH.search(glued), 'llms 에 자리표가 남았다: %s/%s' % (sec, meta['slug'])
+
+
+def test_published_files_carry_no_placeholder():
+    """발행된 파일에 자리표가 하나도 남지 않는다 — 구운 콘텐츠 페이지·feed·llms 전부.
+
+    무엇을 바꾸면 빨개지나: 자리표가 남은 산출물을 커밋하면. 위 시험이 생성기를 보는 것과 달리 이쪽은
+    **저장소에 실제로 들어 있는 파일**을 본다(생성기를 고치고 다시 굽는 일을 잊은 회차를 잡는다).
+    픽스처: 저장소의 구워진 파일. 아직 구운 글이 없으면 검사할 것이 없으니 건너뛴다.
+    """
+    files = [os.path.join(ROOT, sec, slug, 'index.html') for sec, slug, _ in CM.built(ROOT)]
+    files += [os.path.join(ROOT, f) for f in ('feed.xml', 'llms.txt', 'llms-full.txt')]
+    files = [f for f in files if os.path.exists(f)]
+    if not files:
+        pytest.skip('구워진 콘텐츠가 없다')
+    for f in files:
+        got = CT.PH.findall(io.open(f, encoding='utf-8').read())
+        assert not got, '%s 에 자리표가 남았다: %s' % (os.path.relpath(f, ROOT), got[:3])
+
+
+def test_inline_placeholder_rejects_a_table():
+    """한 줄 글에 표 자리표를 쓰면 거부한다 — 요약 한가운데 표가 끼어드는 꼴을 막는다.
+
+    무엇을 바꾸면 빨개지나: CT.fill_inline 이 table 자리표를 그냥 채우게 되면.
+    """
+    data = CT.load()
+    with pytest.raises(CT.TableError):
+        CT.fill_inline('요약 {{table:moveins:경기}} 끝', data)
