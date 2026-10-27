@@ -14,7 +14,9 @@ import re
 
 SECTIONS = ('city', 'gtx', 'danji', 'column')
 REQUIRED = ('title', 'summary', 'date', 'updated', 'section')
-SUMMARY_MIN, SUMMARY_MAX = 40, 120   # 요약은 AI 답변 블록의 첫 문단 — 한 문단을 넘기지 않는다
+# 요약은 AI 답변 블록의 첫 문단이다. 요청서는 40~60자였는데 실제 원고는 숫자와 출처를 담아 100자를 넘는다
+# (2026-10-27 첫 19편 가운데 gtx-a-changneung 이 121자). 한 문단을 넘기지만 않으면 되므로 상한을 180자로 둔다.
+SUMMARY_MIN, SUMMARY_MAX = 40, 180
 SLUG_RE = re.compile(r'^[a-z0-9][a-z0-9-]*$')
 DATE_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
@@ -116,10 +118,24 @@ def read(path, section=None, slug=None):
     """원고 한 편 → (meta, 본문 마크다운). 경로에서 섹션·slug 를 읽어 프런트매터와 대조한다."""
     section = section or os.path.basename(os.path.dirname(path))
     slug = slug or os.path.splitext(os.path.basename(path))[0]
-    front, body = split_front(io.open(path, encoding='utf-8').read())
-    meta = validate(parse_front(front), slug, section)
+    try:
+        front, body = split_front(io.open(path, encoding='utf-8').read())
+        meta = validate(parse_front(front), slug, section)
+    except ContentError as e:
+        # 어느 원고인지 먼저 말한다 — 여러 편을 한꺼번에 굽다 멈추면 파일 이름 없이는 찾는 데만 시간이 든다.
+        raise ContentError('%s/%s.md: %s' % (section, slug, e))
     meta['slug'] = slug
     return meta, body
+
+
+def built(root, section=None):
+    """[(섹션, slug, 경로)] — **페이지가 구워져 있는** 원고만. 피드·llms 가 쓰는 기준이다.
+
+    ⚠️ 원고만 올라오고 생성기가 아직 안 돈 상태(작성 세션이 .md 를 먼저 커밋)는 정상이다. 그 글을 피드나
+       llms.txt 에 실으면 없는 주소를 광고하게 된다 — 구워진 뒤부터 싣는다.
+    """
+    return [(sec, slug, path) for sec, slug, path in posts(root, section)
+            if os.path.exists(os.path.join(root, sec, slug, 'index.html'))]
 
 
 def posts(root, section=None):

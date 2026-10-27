@@ -165,7 +165,7 @@ def content_items():
     except ImportError:
         return []
     out = []
-    for sec, slug, path in CM.posts(ROOT):
+    for sec, slug, path in CM.built(ROOT):
         try:
             meta, _ = CM.read(path, sec, slug)
         except Exception:

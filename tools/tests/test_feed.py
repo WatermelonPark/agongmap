@@ -81,7 +81,7 @@ def test_rss20_shape_and_unique_guids():
     its = ch.findall('item')
     # 고정 항목 셋(주간·시도·월간) + 콘텐츠 글 하나씩(백로그 50). 글 수는 원고에서 센다 — 숫자를 박지 않는다.
     import content_md as CM
-    want = 3 + len(CM.posts(ROOT))
+    want = 3 + len(CM.built(ROOT))   # 구워진 글만 피드에 실린다(원고만 올라온 글은 아직 주소가 없다)
     assert len(its) == want, '항목은 주간·시도·월간 셋에 콘텐츠 글 %d편이다: %d개' % (want - 3, len(its))
     guids = []
     for it in its:
@@ -94,7 +94,7 @@ def test_rss20_shape_and_unique_guids():
         guids.append(it.findtext('guid'))
     assert len(set(guids)) == len(guids), 'guid 가 겹친다: %s' % guids
     # 콘텐츠 글이 없는 회차에는 'content' 종류가 없다 — 고정 셋은 늘 있고, 콘텐츠는 원고가 있을 때만.
-    want = {'weekly', 'zone', 'monthly'} | ({'content'} if CM.posts(ROOT) else set())
+    want = {'weekly', 'zone', 'monthly'} | ({'content'} if CM.built(ROOT) else set())
     assert {g.split('-')[1] for g in guids} == want
     assert want <= set(F.KINDS), 'KINDS 에 없는 종류가 피드에 있다'
     dates = [email.utils.parsedate_to_datetime(it.findtext('pubDate')) for it in its]

@@ -38,8 +38,22 @@ def load(root=None):
     adv = json.loads(re.search(r'const ADV=(\{.*?\});', core, re.S).group(1))
     trend = _read_json(os.path.join(root, 'data-trend.json'))['ADV']
     rest = _read_json(os.path.join(root, 'data-rest.json'))['STATS']
-    return {'sido': adv.get('sido') or {}, 'weekly': adv.get('weekly') or {},
-            'occupancy': trend.get('occupancy') or {}, 'stats': rest}
+    sgg = (_read_json(os.path.join(root, 'data-sgg.json'))['ADV'].get('weekly') or {}).get('sgg') or {}
+    # 주간은 **trend** 쪽을 쓴다. data-core.js 에는 홈이 쓰는 최신 1주만 실려 있어, core 로는 '최근 8주' 표가
+    # 한 줄짜리가 된다(2026-10-27 확인). 같은 원천의 같은 값이고 길이만 다르다.
+    weekly_long = trend.get('weekly') or adv.get('weekly') or {}
+    return {'sido': adv.get('sido') or {}, 'weekly': weekly_long,
+            'occupancy': trend.get('occupancy') or {}, 'stats': rest,
+            'sgg': sgg, 'sgg_names': _sgg_names(root)}
+
+
+def _sgg_names(root):
+    """시군구 코드 → 이름표(SGG_QNAME). 홈이 TOP 10·지도에 쓰는 그 표를 그대로 쓴다 — 이름이 갈리지 않게."""
+    import home_src as HS
+    m = re.search(r'const SGG_QNAME=(\{.*?\});', HS.home_source(root))
+    if not m:
+        raise TableError('홈에서 시군구 이름표(SGG_QNAME)를 찾지 못했다')
+    return json.loads(m.group(1))
 
 
 def _zones(data):
@@ -64,9 +78,17 @@ def num(v):
 
 
 def pct(v, digits=2):
+    """변동률 표기. 소수 둘째 자리는 사이트 정본(make_weekly_page.pv2 = 홈 JS pv2r)을 그대로 쓴다.
+
+    ⚠️ 부호는 **표시값** 으로 정한다. 원값 부호를 쓰면 -0.0012 가 '-0.00%' 로 나가 글자와 뜻이 어긋난다
+       (사이트가 같은 이유로 pv2r 를 쓴다).
+    """
     if v is None:
         raise TableError('값이 비었다')
-    r = round(v, digits)
+    if digits == 2:
+        import make_weekly_page as MW
+        return MW.pv2(v)
+    r = round(v, digits) + 0.0
     return ('+' if r > 0 else '') + ('%%.%df' % digits) % r
 
 
@@ -136,6 +158,43 @@ def stats(data, name, key):
     return ['기간', '%s(%s)' % (name, unit) if unit else name], body, d.get('source') or ''
 
 
+def sgg_codes(data, name):
+    """도시·구 이름 → [(코드, 이름표)]. '부천' 처럼 구가 여럿이면 그 구를 모두 돌려준다(이름표 순서).
+
+    ⚠️ 도시 한 줄 값을 만들지 않는다. 주간 시세는 지수 변동률이라 구를 평균 내면 원천이 발표하지 않은 수가
+       된다(저장소 데이터 원칙). 도시 글에는 구별 표를 싣는다.
+    """
+    q = data.get('sgg_names') or {}
+    exact = [(c, n) for c, n in q.items() if n == name]
+    if exact:
+        return exact
+    pre = [(c, n) for c, n in q.items() if n.startswith(name + ' ')]
+    return sorted(pre, key=lambda x: x[1])
+
+
+def weekly_sgg(data, name):
+    """시군구 주간 변동률. 구가 여럿인 도시는 **구별 최신 주** 한 줄씩."""
+    S = data.get('sgg') or {}
+    codes, rows = S.get('codes') or [], S.get('rows') or []
+    got = [(c, n) for c, n in sgg_codes(data, name) if c in codes]
+    if not got or not rows:
+        raise TableError('주간 시세에 시군구 %r 이 없다' % name)
+    last = rows[-1]
+    body = []
+    for c, n in got:
+        i = codes.index(c)
+        ma = (last.get('ma') or [None] * len(codes))[i]
+        je = (last.get('je') or [None] * len(codes))[i]
+        if ma is None and je is None:
+            continue
+        body.append([n, pct(ma) + '%' if ma is not None else '·',
+                     pct(je) + '%' if je is not None else '·'])
+    if not body:
+        raise TableError('주간 시세 %s 에 값이 하나도 없다' % name)
+    return (['지역', '매매', '전세'], body,
+            '한국부동산원 주간 아파트가격동향 · %s 조사 · 전주 대비 변동률' % last.get('p'))
+
+
 def weekly(data, key):
     W = data['weekly']
     regs = W.get('regions') or []
@@ -174,6 +233,12 @@ def table(data, kind, args):
     if kind == 'weekly':
         if len(args) != 1:
             raise TableError('weekly 자리표는 지역 하나를 받는다')
+        # 시도가 먼저다 — '서울'은 시도이고 '서울 강남구'는 시군구다. 시도가 아닐 때만 시군구로 본다.
+        import sido_zones as SZ
+        if args[0] in SZ.ORDER or SZ.key_of(args[0]) in SZ.ORDER:
+            return weekly(data, region_key(data, args[0]))
+        if sgg_codes(data, args[0]):
+            return weekly_sgg(data, args[0])
         return weekly(data, region_key(data, args[0]))
     raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly)' % kind)
 
