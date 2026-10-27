@@ -266,12 +266,13 @@ def test_home_recent_block_is_scoped_to_its_markers(tmp_path):
 def test_robots_names_the_ai_crawlers_and_stays_open():
     """robots.txt 가 AI 검색·검색엔진 크롤러를 이름으로 허용하고, 전체 허용과 사이트맵 줄을 지킨다.
 
-    무엇을 바꾸면 빨개지나: 크롤러 줄을 지우거나 Disallow 로 바꾸면(대표 결정 없이 막는 것을 막는다).
+    무엇을 바꾸면 빨개지나: 크롤러 줄을 지우거나 Disallow 로 바꾸면(대표 결정 없이 막는 것을 막는다).
+    CCBot(학습 말뭉치)도 목록에 있다 — 2026-10-27 대표가 전부 허용으로 결정했다.
     """
     r = io.open(os.path.join(ROOT, 'robots.txt'), encoding='utf-8').read()
     assert re.search(r'User-agent:\s*\*\s*\nAllow:\s*/', r), '전체 허용 줄이 없다'
     for bot in ('GPTBot', 'ChatGPT-User', 'OAI-SearchBot', 'PerplexityBot', 'ClaudeBot',
-                'Google-Extended', 'Googlebot', 'Bingbot', 'Yeti'):
+                'Google-Extended', 'CCBot', 'Googlebot', 'Bingbot', 'Yeti', 'Daum'):
         m = re.search(r'User-agent:\s*%s\s*\n(Allow|Disallow):\s*(\S+)' % re.escape(bot), r)
         assert m, '%s 줄이 없다' % bot
         assert m.group(1) == 'Allow' and m.group(2) == '/', '%s 를 막고 있다(대표 결정 사항)' % bot
