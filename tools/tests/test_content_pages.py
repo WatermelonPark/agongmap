@@ -954,3 +954,36 @@ def test_collector_reads_every_city_placeholder_kind():
     # 실제 원고에서도 읽힌다 — 자리표에만 도시가 있는 글(region 은 시도)이 섞여 있다.
     cities = MCM.cities_from_content(ROOT)
     assert len(cities) >= 10, '원고에서 도시를 %d곳밖에 못 읽었다' % len(cities)
+
+
+def test_thumbnail_is_a_picture_not_the_title_card():
+    """목록 썸네일은 **그림**이다 — OG 카드(제목 글자)를 줄인 판이 아니다(총괄 요청 2026-10-30).
+
+    무엇을 바꾸면 빨개지나: 썸네일을 다시 카드 축소판으로 되돌리면. 그러면 목록에서 제목이 두 번 보인다
+    (그림 속 제목과 바로 옆 제목). 반박 글은 발언 인용을 뽑아 쓴다.
+    픽스처: 저장소의 카드·썸네일 한 쌍과 손으로 지은 제목들.
+    """
+    import make_content_cards as CC
+    from PIL import Image
+    built = CM.built(ROOT)
+    if not built:
+        pytest.skip('구워진 글이 없다')
+    checked = 0
+    for sec, slug, _ in built[:4]:
+        cp = os.path.join(ROOT, MC.card_rel(sec, slug))
+        tp = os.path.join(ROOT, CC.thumb_rel(sec, slug))
+        if not (os.path.exists(cp) and os.path.exists(tp)):
+            continue
+        shrunk = Image.open(cp).convert('RGB').resize((CC.THUMB_W, CC.THUMB_H), Image.LANCZOS)
+        actual = Image.open(tp).convert('RGB')
+        # 카드를 그대로 줄인 것이면 두 그림이 거의 같다. 그림형이면 눈에 띄게 다르다.
+        diff = sum(abs(a - b) for a, b in zip(shrunk.resize((48, 26)).tobytes(),
+                                              actual.resize((48, 26)).tobytes()))
+        assert diff > 20000, '%s/%s: 썸네일이 카드 축소판으로 보인다(차이 %d)' % (sec, slug, diff)
+        checked += 1
+    assert checked >= 2, '카드·썸네일 쌍을 %d개밖에 못 봤다' % checked
+    # 반박 글의 인용 뽑기 — 작은따옴표·큰따옴표·둥근 따옴표를 모두 읽는다.
+    for title, want in (("이성훈 LH 사장 '집값 급락할 가능성', 입주 물량은", '집값 급락할 가능성'),
+                        ('그는 "공급 폭탄" 이라고 했다', '공급 폭탄'),
+                        ('따옴표가 없는 제목입니다', None)):
+        assert CC._quote(title) == want, '인용 뽑기가 틀렸다: %r → %r' % (title, CC._quote(title))

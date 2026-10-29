@@ -306,15 +306,16 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
 .rchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none}
 /* 카테고리 카드(허브 첫 화면) — 썸네일 없이 글자만. 모바일 2열, 768px 이상 3열(요청 ②). */
-.hgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 26px}
-.hcard{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px solid var(--line);
+.hgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0 0 22px}
+.hcard{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid var(--line);
  border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
 .hcard h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
 .hcard h3 em{font-style:normal;font-size:13px;font-weight:600;color:var(--paper);background:var(--ink2);
  border-radius:2px;padding:2px 6px}
-.hcard p{margin:0;font-size:13px;line-height:1.55;color:var(--ink2)}
-.hc-m{font-size:13px;color:var(--muted)}
-.hc-l{margin:0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
+.hcard p{margin:0;font-size:13px;line-height:1.5;color:var(--ink2);
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hc-m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hc-l{display:none}   /* 모바일에서는 최신 글 둘을 숨긴다 — 2열 카드 여섯 장이 한 화면에 들어오게(총괄 10-30) */
 .hc-go{margin-top:auto;font-size:13px;font-weight:600;color:var(--ink)}
 /* 글 목록 — 모바일은 왼쪽 썸네일 리스트, PC 는 앨범형(요청 ②③). 마크업은 하나다. */
 .plist{display:grid;gap:10px}
@@ -329,7 +330,9 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
 .pcard i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:4px}
 .rh2{font-size:16px;font-weight:600;margin:0 0 12px}
 @media (min-width:768px){
+  .hc-l{display:block;margin:0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
   .hgrid{grid-template-columns:repeat(3,1fr);gap:14px}
+  .hcard p{-webkit-line-clamp:3}
   .plist{grid-template-columns:repeat(3,1fr)}
   .pcard{grid-template-columns:1fr;gap:0;padding:0;overflow:hidden}
   .pcard img{width:100%;height:auto;aspect-ratio:480/252;border-radius:0}
@@ -592,7 +595,7 @@ def hub_cards(all_metas, data):
             meta_line = cnt.get(key, '')
             latest = ''
         else:
-            meta_line = ('글 %d편 · %s 갱신' % (len(posts), posts[0]['updated'])) if posts else '준비 중'
+            meta_line = ('글 %d편 · %s 갱신' % (len(posts), posts[0]['updated'][5:])) if posts else '준비 중'
             latest = ''.join('<li>%s</li>' % html.escape(m['title']) for m in posts[:2])
         out.append(
             '<a class="hcard" href="%s"><h3>%s<em>%s</em></h3><p>%s</p>'
