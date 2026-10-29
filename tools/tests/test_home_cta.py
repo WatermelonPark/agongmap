@@ -27,9 +27,8 @@ WANT = {
     ('/redev-test/', '재건축·재개발 테스트 · 난이도'): 'quiz_redev',
     ('/cycle/', '사이클 리포트 읽기'): 'cycle',
     ('/weekly/', '이번 주 시세 지도'): 'weekly_footer',
-    # 푸터 '매주' 묶음의 블로그 링크(홈 마케팅 검수 B5·IA-9, 2026-09-27). 주간 구역의 해석 글 한 줄(blog_weekly)은 스크립트가
-    # 그린다 — test_home_summary 가 본다.
-    (BF.BLOG_HOME, '네이버 블로그'): 'blog_footer',   # 10-26 '매주 해설 글' 약속 문구를 뺐다
+    # 푸터 블로그 링크(blog_footer)는 2026-10-29 콘텐츠 입구 개편에서 뺐다(블로그 발행 종료 — 푸터는 '읽을거리' 섹션 링크).
+    # 다시 생기지 않는지는 test_home_summary.test_three_footers_are_the_same_grouped_by_cadence 가 본다.
     # 3차(2026-09-27): 이달의 통계 입구(B6·IA-8 — 푸터 '이달의 통계'와 가르려고 입구 이름 전체로 찾는다).
     # 첫 화면 '이번 주' 띠(weekly_hero)·'내 지역' 줄(my_zone)은 2026-10-05 대표 요청으로 뺐다.
     ('/monthly/', '이달의 통계 한 화면으로 보기'): 'monthly',

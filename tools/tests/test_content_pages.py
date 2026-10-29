@@ -868,7 +868,7 @@ def test_publish_commits_everything_the_generator_touches():
     m = re.search(r'^\s*TARGETS="([^"]+)"', t, re.M)
     assert m, '커밋 대상을 읽지 못했다'
     targets = set(m.group(1).split())
-    must = set(CM.SECTIONS) | {MC.REPORTS_DIR, 'zone', 'share', 'index.html',
+    must = set(CM.SECTIONS) | {MC.REPORTS_DIR, 'zone', 'share', HS.HOME,   # 홈(최근 리포트 표식)
                                'feed.xml', 'llms.txt', 'llms-full.txt', 'sitemap.xml'}
     assert must <= targets, '발행이 생성기 산출물을 빠뜨린다: %s' % sorted(must - targets)
     assert 'git checkout -- .' in t, '커밋 대상 밖 변경을 되돌리는 안전장치가 없다'
