@@ -39,7 +39,6 @@ import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로�
 import ga_tag as GT  # noqa: E402  (GA 내부 트래픽 표식 정본 — 백로그 48)
 import weekly_release as WR  # noqa: E402  (조사일·발표일·다음 발표 — 홈 주간 격자와 같은 규칙)
 import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검수 C2)
-import blog_feed as BF  # noqa: E402  (최신 주간 해설 글 — 홈 주간 구역과 같은 pick, 홈 마케팅 검수 B5)
 import page_share as PS  # noqa: E402  (공유 버튼 — 홈 마케팅 검수 B8)
 import weekly_moves as WM  # noqa: E402  (시군구 순위 이동 정본 rank_moves·move_text — 홈 마케팅 검수 B7)
 import robots_meta as RM  # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
@@ -944,49 +943,48 @@ def put_ld_dates(s, pub_iso):
     return s
 
 
-# ── 해설 글(네이버 블로그) 칸(홈 마케팅 검수 B5·RET-4·SEO-8, 2026-09-27) ──────────────────────────────────
-# 최신 주간 글(blog_feed.pick — 홈 주간 구역과 같은 선택·같은 말)과 블로그 첫 화면 링크를 '더 둘러보기' 앞에 굽는다.
-# 뼈대에 표식이 없으면 이 생성기가 넣는다(뼈대는 배치 산출물이라 손으로 커밋하지 않는다). 글을 못 골랐으면 글 줄만 빠진다.
-_BLOG_ANCHOR = re.compile(r'(<section><div class="wrap">\s*<h2>더 둘러보기</h2>)')
-_BLOG_MARK = re.compile(r'(<!--WK:BLOG-->)(.*?)(<!--/WK:BLOG-->)', re.S)
+# ── 해설 글 칸의 **자리**(총괄 결정 2026-10-30) ───────────────────────────────────────────────────────────
+# 이 칸은 2026-09-27부터 네이버 블로그 최신 주간 글을 가리켰다(홈 마케팅 검수 B5·RET-4·SEO-8). 2026-10-26 대표
+# 결정으로 블로그에 주간 해설을 더 올리지 않게 되자 그 줄은 묵은 글만 가리켰고, 사이트에 같은 일을 하는 글
+# (/column/ 반박 편 — 공직자 발언을 주간 시세와 입주 물량으로 따지는 글)이 생겼다. 그래서 칸의 내용은
+# make_content_pages 가 채운다(`WEEKLY_COLUMN`). 여기서는 **자리만** 낸다.
+#
+# ⚠️ 왜 내용을 여기서 채우지 않나: column 글은 발행 워크플로로 아무 날에나 올라오고, 이 생성기는 주 1회 돈다.
+#    여기서 채우면 글이 올라온 날부터 다음 목요일까지 묵은 글이 걸린다. 배치 순서도 이 생성기가 먼저다
+#    (run_weekly_update.bat·update-cloud.yml 모두 make_weekly_page → make_content_pages). 그 덕에 아래
+#    'N개 시도' 치환이 글 제목을 고쳐 인용하는 일도 구조적으로 생기지 않는다(전수리뷰 #26과 같은 결함).
+_COL_ANCHOR = re.compile(r'(<section><div class="wrap">\s*<h2>더 둘러보기</h2>)')
+_COL_MARK = re.compile(r'(<!--WK:COLUMN-->.*?<!--/WK:COLUMN-->)', re.S)
+_BLOG_MARK = re.compile(r'(<!--WK:BLOG-->)(.*?)(<!--/WK:BLOG-->)\s*', re.S)
 
 
-# 클릭 측정: 이 페이지에는 홈의 track() 이 없어, 다른 생성 페이지(시도 리포트 공유·월간 view)처럼 gtag 이벤트를 직접
-# 보낸다. 이벤트 이름 blog_link, to = weekly_post(최신 글)·weekly_home(블로그 첫 화면). GA 차단·제외 기기에서는 조용히 넘어간다.
-def _track(to):
-    return ' onclick="try{gtag(\'event\',\'blog_link\',{to:\'%s\'})}catch(e){}"' % to
+def put_sido_count(s):
+    """뼈대 문구의 'N개 시도'를 모델 수로 맞춘다(CLAUDE.md 데이터 원칙) — '전국 16개 시도'가 통합 뒤에도 남는 결함.
+
+    ⚠️ 해설 칸(WK:COLUMN) 안은 건드리지 않는다. 그 안은 글 제목이라, 치환이 닿으면 '5개 시도만 올랐습니다'를
+       '16개 시도만'으로 고쳐 인용한다(전수리뷰 #26에서 옛 블로그 칸이 그랬다). 칸을 채우는 쪽은
+       make_content_pages 이고, 이 생성기는 그 구간을 읽지도 쓰지도 않는다.
+    """
+    parts = _COL_MARK.split(s)   # 홀수 조각이 표식 구간이다(split 이 잡은 묶음)
+    return ''.join(p if i % 2 else re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), p)
+                   for i, p in enumerate(parts))
 
 
-def blog_html(b):
-    rows = []
-    if b:
-        # 홈 해설 카드와 같은 두 말 — 결론(head)을 이름으로, '지난주 해설 · 네이버 블로그 9/27'(meta)을 곁말로(2026-10-03)
-        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s</span></a>'
-                    % (html.escape(b['url']), _track('weekly_post'), html.escape(b['head']), html.escape(b['meta'])))
-    if BF.BLOG_HOME:
-        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s</span></a>'
-                    % (BF.BLOG_HOME, _track('weekly_home'), BF.HOME_TEXT, BF.LABEL))
-    if not rows:
-        return ''
-    return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>아공맵 블로그 최근 글</h2>', '  <div class="links">']
-                     + rows + ['  </div>', '</div></section>'])
+def put_column_slot(s):
+    """옛 블로그 칸을 걷고, 콘텐츠 생성기가 채울 빈 자리를 '더 둘러보기' 앞에 낸다.
 
-
-def put_blog(s, W):
+    이미 자리가 있으면 **안을 들여다보지 않는다** — 그 안은 make_content_pages 의 것이다.
+    """
     nl = '\r\n' if '\r\n' in s else '\n'
-    if '<!--WK:BLOG-->' not in s:
-        m = _BLOG_ANCHOR.findall(s)
-        if len(m) == 1:
-            s = _BLOG_ANCHOR.sub(lambda x: '<!--WK:BLOG-->' + nl + '<!--/WK:BLOG-->' + nl + nl + x.group(1), s, 1)
-        elif s.count('</main>') == 1:
-            s = s.replace('</main>', '<!--WK:BLOG-->' + nl + '<!--/WK:BLOG-->' + nl + '</main>', 1)
-        else:
-            raise SystemExit('weekly/index.html 에서 해설 글 칸을 넣을 자리를 찾지 못했다')
-    b = BF.pick(BF.read(), pub(W['rows'][-1]['p']))
-    body = blog_html(b)
-    if not body:   # 블로그 주소를 못 만든 경우(blog_feed.BLOG_HOME None) — 칸을 비운다
-        return _BLOG_MARK.sub(lambda m: m.group(1) + nl + m.group(3), s, 1)
-    return put(s, 'BLOG', body, nl)
+    s = _BLOG_MARK.sub('', s, 1)        # 옛 칸(표식째) 철거. 없으면 아무 일도 없다
+    if '<!--WK:COLUMN-->' in s:
+        return s
+    mark = '<!--WK:COLUMN-->' + nl + '<!--/WK:COLUMN-->' + nl + nl
+    if len(_COL_ANCHOR.findall(s)) == 1:
+        return _COL_ANCHOR.sub(lambda x: mark + x.group(1), s, 1)
+    if s.count('</main>') == 1:
+        return s.replace('</main>', mark + '</main>', 1)
+    raise SystemExit('weekly/index.html 에서 해설 글 칸을 넣을 자리를 찾지 못했다')
 
 
 def render(s, W, Q, root=None):
@@ -1008,12 +1006,8 @@ def render(s, W, Q, root=None):
     p = W['rows'][-1]['p']
     s = put_titles(s, p)               # title·og:title·twitter:title·WebPage name 에 연도·주차(B4)
     s = put_ld_dates(s, pub(p))        # JSON-LD 발표일(B4)
-    # 시도 수는 모델에서 센다(CLAUDE.md 데이터 원칙). '전국 16개 시도'가 통합 뒤에도 남는 종류의 결함.
-    # ⚠️ put_blog **앞에서** 한다 — 해설 칸은 RSS 에서 온 남의 글 제목이라, 뒤에서 치환하면 '5개 시도만 올랐습니다' 같은
-    #    제목을 '16개 시도만'으로 고쳐 인용했다(전수리뷰 #26). BLOG 구간은 put_blog 가 매번 통째로 다시 쓰므로 여기서
-    #    지난 회차 제목이 치환돼 있어도 남지 않는다.
-    s = re.sub(r'(?<!\d)\d+개 시도', '%d개 시도' % len(SIDO), s)
-    s = put_blog(s, W)                 # 해설 글(네이버 블로그) 칸(B5)
+    s = put_sido_count(s)              # 뼈대의 'N개 시도'(해설 칸 안은 건드리지 않는다)
+    s = put_column_slot(s)             # 해설 글 칸의 자리(내용은 make_content_pages)
     s = put_share_image(s, W, root)   # og:image·twitter:image 에 카드가 그린 판(A7·전수리뷰 #85)
     s = put_nav(s)              # 하단 탭바 정본·'시세' 탭 켜기(A5·C2)
     s = RM.ensure(s)            # 검색 로봇 메타 max-image-preview:large(D2) — 뼈대에 없으면 viewport 뒤에 넣는다
