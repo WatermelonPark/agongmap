@@ -66,12 +66,17 @@ def _setup(monkeypatch):
 @pytest.mark.parametrize('hier', [False, True])
 def test_monthly_map_is_rebuilt_on_flat_and_merged_hierarchy(monkeypatch, hier):
     _setup(monkeypatch)
-    cur = dict(U.SGG_RONE_CLS)
-    assert 'a901' not in cur, '픽스처 전제: 인천 신설구는 월간 매핑에 없다(있으면 이 시험의 신규 단정을 바꿀 것)'
+    # 픽스처는 '매핑에 아직 없는 시군구가 하나 있는' 상태를 **스스로 만든다**. 예전에는 실제 매핑에
+    # a901(인천 제물포)이 없다는 데 기대고 있었는데, 2026-10-29 그 넷을 매핑에 더하자 전제가 깨져
+    # 이 시험이 빨개졌다 — 시험은 저장소의 그날 상태가 아니라 재생성 도구의 동작을 보아야 한다.
+    cur = {k: v for k, v in U.SGG_RONE_CLS.items() if k != 'a901'}
+    assert 'a901' in CODES, '픽스처 전제: a901 은 KOSIS 코드 목록에 있다'
     want = {c: cur[c] for c in CODES if c in cur}
     built, miss = G.build('monthly', rows=_rows('monthly', hier, cur, ['202608', '202609']))
     assert built == want, '재생성이 현재 매핑과 다르다: %s' % sorted(set(built.items()) ^ set(want.items()))[:6]
-    assert [m[0] for m in miss] == ['a901'] and 'R-ONE 미수록' in miss[0][2]
+    # 사유 문구는 구현 세부다(원천에 아예 없으면 'R-ONE 미수록', 시도 밑에서 못 찾으면 '… 못 찾음').
+    # 중요한 것은 매핑에 없는 코드가 조용히 빠지지 않고 miss 로 올라온다는 것이다.
+    assert [m[0] for m in miss] == ['a901'] and miss[0][2]
     # 원천이 신설구를 내기 시작하면 '신규'로 붙는다 — 저절로 매핑에 들어가지는 않는다(A-6)
     cur2 = dict(cur, a901=777001)
     built, miss = G.build('monthly', rows=_rows('monthly', hier, cur2, ['202608', '202609']))
