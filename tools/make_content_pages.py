@@ -38,7 +38,32 @@ import home_src as HS             # noqa: E402  (홈 파일 위치의 정본 —
 SITE = I.SITE
 AUTHOR = '아공맵 운영팀'
 DISCLAIMER = '공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.'
-OG_IMAGE = '/og-brand.png'   # 글별 카드는 후속(요청서 덧붙임) — 그때까지 공용 카드
+OG_IMAGE = '/og-brand.png'   # 어느 카드도 없을 때 떨어지는 자리
+
+
+def card_rel(section, slug):
+    """글별 공유 카드의 저장소 상대 경로. 카드를 굽는 쪽(make_content_cards)도 이 함수를 쓴다 —
+    경로 규칙이 두 벌이면 한쪽만 고쳐져 og:image 가 없는 파일을 가리킨다."""
+    return 'share/post-%s-%s.png' % (section, slug)
+
+
+def section_card_rel(section):
+    """섹션 공통 카드 — 글별 카드가 없을 때."""
+    return 'share/section-%s.png' % section
+
+
+def og_image(meta, root=ROOT):
+    """글의 og:image 주소. 글별 카드 → 섹션 공통 카드 → 브랜드 카드 순으로 떨어진다.
+
+    판(?v=)은 원고의 updated 다. 카드는 제목·분류·지역만 그리므로 **원고가 바뀔 때만** 달라진다 — 그래서
+    카드 파일의 해시를 읽지 않아도 되고, 카드(게이트 뒤)와 페이지(게이트 앞)의 생성 순서가 서로 묶이지
+    않는다. 숫자를 담은 카드였다면 데이터가 바뀐 날마다 둘을 같은 순서로 다시 구워야 했다.
+    카드가 아직 없는 회차(새 글이 올라온 날)에도 미리보기가 비지 않게 두 단계로 떨어진다.
+    """
+    for rel in (card_rel(meta['section'], meta['slug']), section_card_rel(meta['section'])):
+        if os.path.exists(os.path.join(root, rel)):
+            return '%s/%s?v=%s' % (SITE, rel, meta['updated'])
+    return SITE + OG_IMAGE
 
 SECTION_META = {
     'city': ('도시 입주물량', '도시별 입주물량과 공급 흐름을 국가 통계로 읽습니다.'),
@@ -413,8 +438,8 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
                   ld=_ld(meta, url, body_html), src=' · '.join(srcs) if srcs else '아공맵',
                   nsido=str(len(I.SIDO17)))
     page = page.replace('</style>', EXTRA_CSS + '</style>', 1)
-    page = page.replace('<meta property="og:image" content="%s' % SITE,
-                        '<meta property="og:image" content="%s' % SITE)   # 공용 카드 유지(후속에서 글별 카드)
+    page = re.sub(r'<meta property="og:image" content="[^"]*">',
+                  '<meta property="og:image" content="%s">' % html.escape(og_image(meta)), page, count=1)
     return page, meta['updated']
 
 
