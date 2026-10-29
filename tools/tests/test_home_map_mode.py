@@ -122,7 +122,7 @@ def _base_js(src):
         _var(src, 'WK_MAP_REF'), _var(src, 'MO_MAP_REF'), _var(src, 'MAP_MODE'),
         re.search(r'^const NATION_TILE=.*$', src, re.M).group(0),
         _fns(src, ('pv2r', 'pv2', 'pvSign', 'mapColor', 'tintA', 'mapFill', 'supplyFill', 'opaqueOnPaper', 'wkFill',
-                   'wkPct', 'wkMapModel', 'moMapModel', 'priceModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggLights', 'aggLightKey', 'aggCard',
+                   'wkPct', 'sggLastRow', 'sggMapSvg', 'priceTilesHtml', 'wkMapModel', 'moMapModel', 'priceModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggLights', 'aggLightKey', 'aggCard',
                    'tbSigned', 'sidoCode', 'priceOk', 'renderAggCards', 'renderSidoMap')),
     ])
 
@@ -337,7 +337,7 @@ def test_mode_toggle_markup_state_and_measurement():
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
     assert not re.search(r':not\(\.vm-map\) \.map-mode\{display:none\}', css), '모드 단추가 그래프·표 보기에서 숨는다'
 
-    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk', '_md', '_ymP', '_ymT'))
+    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'sggLastRow', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk', '_md', '_ymP', '_ymT'))
     got = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"map"'})
     assert got['st'] == [['weekly', 'false,true+on,false', 1, 1, '', True],
                          ['weekly', 'false,true+on,false', 1, 1, '', True],
@@ -499,3 +499,67 @@ def test_open_trend_region_opens_the_table_for_the_t_route():
     assert decl, 'TR_BACK 선언이 없다'
     got = _node(OPEN_HARNESS % {'decl': decl.group(0), 'fn': _js_func(src, 'openTrendRegion')})
     assert got == [['week', 't', True], ['week', 'g', True]], got
+
+
+TILES_HARNESS = r'''
+var ADV=%(adv)s; %(geo)s
+%(base)s
+function weeklyReleaseNow(){ _HOLIDAYS=new Set(ADV.holidays); return weeklyRelease(ADV.weekly.rows[0].p,new Date(%(ms)d),ADV.weekly.grace); }
+var BT={weekly:{disabled:false},monthly:{disabled:false},map:{disabled:false}}, AG={innerHTML:""}, TW={textContent:""}, picked=[];
+var EL={dataset:{},innerHTML:"",ls:[],addEventListener:function(t,f){ this.ls.push([t,f]); }};
+function onTrendLink(e,from){ picked.push(from); }
+var document={getElementById:function(id){return id==="map-wrap"?EL:(id==="agg-wrap"?AG:(id==="tb-when"?TW:null))},
+  querySelector:function(s){ var m=/data-[mv]="([a-z]+)"/.exec(s); return m?BT[m[1]]:null; }};
+var out={};
+["weekly","monthly"].forEach(function(m){ MAP_MODE=m; EL.dataset.done=""; renderAggCards(); renderSidoMap(); out[m]=EL.innerHTML; });
+EL.ls.forEach(function(x){ if(x[0]==="click") x[1]({}); });
+out.locks=[BT.weekly.disabled,BT.monthly.disabled]; out.picked=picked;
+process.stdout.write(JSON.stringify(out));
+'''
+
+
+@pytest.mark.parametrize('geo', [True, False], ids=['geo', 'no_geo'])
+def test_price_buttons_draw_the_nationwide_district_map_in_the_card(geo):
+    """단추 하나에 지도 하나(2026-10-29 대표 결정): 공급 현황은 시도 지도, 주간·월간 시세는 같은 카드(#map-wrap) 안에 전국 시군구
+    타일 지도(sggMapSvg)를 그린다. 주간은 매매·전세 두 줄, 월간은 매매·전세·월세 세 줄이고(부동산원 주간조사에는 월세가 없다),
+    칸을 누르면 그 지역 주간·월간 그래프('#stats-market-<week|month>~코드'), 머리 줄은 '매매·전세 전주 대비(%) · 발표'·
+    '매매·전세·월세 전월 대비(%) · 2026년 8월 기준'(시군구 행의 달). 시군구 지도는 시도 좌표(sido-geo.js)가 없어도 그린다 —
+    그때도 시세 단추를 잠그지 않는다. 지도 누름 처리(onTrendLink, from 'score_map')는 한 번만 붙는다.
+    줄 수는 그린 SVG 의 viewBox 높이로 센다 — 기대 높이는 타일 배치(NATION_TILE 행 수)와 칸 치수(이름 15·값 13/12·틈 2)로
+    여기서 따로 계산한다(JS 함수를 그대로 다시 부르지 않는다).
+    변이(각각 실제로 넣어 빨간 것을 확인): sggLastRow 가 월세(wo)를 빼면 월간 세 줄 단정, renderSidoMap 의 시군구 갈래를
+          지우면(시세 모드도 시도 지도) 지도 단정, priceTilesHtml 의 링크 주기를 'week' 로 박으면 월간 링크 단정, priceOk 를
+          SIDO_GEO 필수로 되돌리면 no_geo 의 잠금 단정이 빨개진다.
+    픽스처: 합성 주(2026-09-07)·달(2026-08), 시군구 코드는 저장소 NATION_TILE 의 모든 칸(값은 코드마다 다른 합성 값),
+          sido-geo.js 좌표가 있는 경우와 없는 경우.
+    """
+    src = _src()
+    tile = MW.nation_tile(src)
+    codes = [t[0] for t in tile['t']]
+    vals = lambda k: [round((i % 9 - 4) * 0.07 + k, 4) for i in range(len(codes))]
+    wk, mo = _week('2026-09-07'), _month()
+    wk['sgg'] = {'codes': codes, 'rows': [{'p': '2026-09-07', 'ma': vals(0), 'je': vals(0.01)}]}
+    mo['sgg'] = {'codes': codes, 'rows': [{'p': MONTH, 'ma': vals(0), 'je': vals(0.01), 'wo': vals(0.02)}]}
+    ADV = {'sido': {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'zones': _zones()}, 'weekly': wk, 'monthly': mo, 'holidays': H2026}
+    g = 'var SIDO_GEO=%s;' % json.dumps(_geo(), ensure_ascii=False) if geo else ''
+    got = _node(TILES_HARNESS % {'adv': json.dumps(ADV, ensure_ascii=False), 'geo': g, 'base': _base_js(src),
+                                 'ms': _kst_ms(2026, 9, 11)})
+    st = WR.status('2026-09-07', today=datetime.date(2026, 9, 11), holidays=H2026)
+
+    def height(n):
+        vh = 12 if n > 2 else 13
+        return tile['rows'] * (15 + n * (vh + 1) + 2) - 2 + 4
+
+    for mode, k, n, head in (('weekly', 'week', 2, '매매·전세 전주 대비(%%) · %s' % WR.pub_lead(st)),
+                             ('monthly', 'month', 3, '매매·전세·월세 전월 대비(%) · 2026년 8월 기준')):
+        h = got[mode]
+        assert '<div class="map-tiles">' in h and 'class="tap"' not in h and 'class="ml' not in h, '%s 모드가 시군구 지도가 아니다' % mode
+        vb = re.search(r'<svg viewBox="-2 -2 ([\d.]+) ([\d.]+)"', h)
+        assert vb and abs(float(vb.group(2)) - height(n)) < 0.01, (mode, vb and vb.groups(), height(n))
+        links = re.findall(r'href="(#stats-market-[a-z]+~[a-c0-9]+)"', h)
+        assert links and all(x.startswith('#stats-market-%s~' % k) for x in links), (mode, links[:3])
+        assert len(set(links)) == len(codes), (mode, len(set(links)), len(codes))
+        assert '<span class="wg-when">%s</span>' % head in h, (mode, re.search(r'wg-when">([^<]*)<', h).group(1))
+        assert ('가운데 = 전세 · 아래 = 월세' in h) == (n == 3)
+    assert got['locks'] == [False, False], got['locks']
+    assert got['picked'] == ['score_map'], got['picked']

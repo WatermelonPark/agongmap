@@ -127,7 +127,7 @@ def test_tag_rule_on_every_branch():
 
 
 def _grid_js(W, seen=None):
-    """홈 주간 구역(renderWeeklyGrid — 시군구 지도)을 가짜 DOM·localStorage 에서 돌려 머리 줄(지난 방문 이후)과 렌더 뒤 저장된
+    """홈 주간 구역(renderWeeklyGrid — 2026-10-29 부터 지도 없는 주간 줄. 지도는 지도 구역 카드의 주간 시세 단추)을 가짜 DOM·localStorage 에서 돌려 머리 줄(지난 방문 이후)과 렌더 뒤 저장된
     wk_seen 을 돌려준다."""
     h = HS.home_source()
     names = ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg', 'onTrendLink', '_syncHolidays', 'weeklyReleaseNow',
@@ -148,7 +148,8 @@ def _grid_js(W, seen=None):
         'renderWeeklyGrid();',
         'const since=(box.innerHTML.match(/<p class="wg-since">([^<]*)<\\/p>/)||[])[1]||null;',
         'const tiles=(box.innerHTML.match(/<a href="#stats-market-week~/g)||[]).length;',
-        'process.stdout.write(JSON.stringify({since,tiles,seen:LS.wk_seen||null}));'])
+        'const drawn=box.innerHTML.indexOf(\'href="/weekly/"\')>=0;',
+        'process.stdout.write(JSON.stringify({since,tiles,drawn,seen:LS.wk_seen||null}));'])
 
 
 def _sgg_fixture():
@@ -165,12 +166,13 @@ def test_seen_release_is_only_moved_forward():
 
     변이(각각 실제로 확인): renderWeeklyGrid 가 조건 없이 wkRemember(rel.pub) 를 부르면 첫 단정, wkShouldRemember 가
     `seen<pub` 대신 `seen!==pub` 를 보면 첫 단정, 처음 온 기기(seen 없음)에 적지 않으면 셋째 단정이 빨개진다.
-    픽스처: 합성 네 주(최신 조사 2030-01-28 → 발표 01-31)를 그리는 홈 주간 구역(시군구 지도 — data.js 최신 시군구 한 주)과
+    픽스처: 합성 네 주(최신 조사 2030-01-28 → 발표 01-31)를 그리는 홈 주간 구역(코어 모양 — data.js 최신 시군구 한 주도 싣는다)과
     가짜 localStorage.
     """
     WJ = _sgg_fixture()
     later = _node(_grid_js(WJ, seen='2030-02-07'))          # 더 새 발표를 이미 본 기기에 옛 판 화면
-    assert later['tiles'] > 200, '지도가 그려지지 않았다 — 머리 줄만 보고 초록이 되지 않게'
+    assert later['drawn'], '주간 구역이 그려지지 않았다 — 머리 줄만 보고 초록이 되지 않게'
+    assert later['tiles'] == 0, '주간 구역에 지도가 남았다 — 홈 지도는 지도 구역 카드 하나다(2026-10-29)'
     assert later['seen'] == '2030-02-07' and later['since'] is None
     older = _node(_grid_js(WJ, seen='2030-01-24'))
     assert older['seen'] == '2030-01-31' and older['since'] == '지난 방문(1/24 발표) 이후 새 발표 1회'

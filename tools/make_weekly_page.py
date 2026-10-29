@@ -354,8 +354,8 @@ def map_refs(src=None):
 
 
 def week_map(W, src=None):
-    """머리 지도: 시군구 최신 회차 매매·전세 값 → (SVG, 조사일). 칸마다 위 매매·아래 전세 두 줄이다 — 홈 주간 구역
-    (renderWeeklyGrid)과 같은 값·같은 규칙이고 전세(je)가 없는 회차는 매매 한 줄이다(2026-10-20 대표 요청). 만색 기준은 홈
+    """머리 지도: 시군구 최신 회차 매매·전세 값 → (SVG, 조사일). 칸마다 위 매매·아래 전세 두 줄이다 — 홈 지도 구역의
+    주간 시세 지도(priceTilesHtml — 2026-10-29 부터 주간 구역이 아니라 지도 구역 카드가 그린다)와 같은 값·같은 규칙이고 전세(je)가 없는 회차는 매매 한 줄이다(2026-10-20 대표 요청). 만색 기준은 홈
     WK_MAP_REF 를 읽는다(한 상수)."""
     src = src or HS.home_source()
     S = W['sgg']
@@ -718,7 +718,7 @@ def build(W, Q):
     # 규칙(MAP_CSS)은 HEAD 표식 안에 싣는다(배치가 매주 다시 쓴다).
     svg, sp = week_map(W)
     cap_when = '' if sp == p else ' · %s 조사 기준' % md(sp)
-    # 홈 주간 구역 범례와 같은 말: 두 줄이면 '위 = 매매 · 아래 = 전세'(2026-10-20)
+    # 홈 주간 시세 지도 범례와 같은 말: 두 줄이면 '위 = 매매 · 아래 = 전세'(2026-10-20)
     two = bool(W['sgg']['rows'][-1].get('je'))
     map_what = ('매매·전세가격 전주 대비%s</span><span>위 = 매매 · 아래 = 전세' if two else '매매가격 전주 대비%s') % cap_when
     head = '\n'.join([
@@ -728,7 +728,7 @@ def build(W, Q):
         '  ' + stale_js,
         '  <div class="minimap">',
         '    <div class="mm-scroll">%s</div>' % svg,
-        # 범례는 왼쪽 하락 → 오른쪽 상승(시세 가로축 정본, 2026-10-06) — 홈 주간 구역 wg-key 와 같은 방향(전수리뷰 X2-9·Z2-7)
+        # 범례는 왼쪽 하락 → 오른쪽 상승(시세 가로축 정본, 2026-10-06) — 홈 시세 지도 wg-key 와 같은 방향(전수리뷰 X2-9·Z2-7)
         '    <div class="mm-cap"><span><i style="background:#3a7bd5"></i>하락</span>'
         '<span><i style="background:#e0564a"></i>상승</span><span>시군구 %s</span>'
         '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'

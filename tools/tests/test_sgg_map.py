@@ -63,8 +63,9 @@ def _js_map(vals, names, ref, href):
 
 
 def test_weekly_head_map_is_the_home_map():
-    """/weekly/ 머리 지도 = 홈 주간 구역 지도(같은 값·같은 만색 기준 WK_MAP_REF·같은 링크 모양) — 주소 앞의 '/' 만 다르다.
-    두 지도 모두 칸마다 위 매매·아래 전세 두 줄이다(2026-10-20 대표 요청). 홈 renderWeeklyGrid 가 넘기는 값([v,vj])을 그대로 만들어
+    """/weekly/ 머리 지도 = 홈 주간 시세 지도(지도 구역 카드의 '주간 시세' 단추 — priceTilesHtml, 2026-10-29 단추 하나에 지도 하나.
+    같은 값·같은 만색 기준 WK_MAP_REF·같은 링크 모양) — 주소 앞의 '/' 만 다르다.
+    두 지도 모두 칸마다 위 매매·아래 전세 두 줄이다(2026-10-20 대표 요청). 홈 sggLastRow 가 만드는 값([매매, 전세])을 그대로 만들어
     견준다. 변이(실제로 확인): week_map 이 매매 한 줄([v])만 넘기면 두 구현 차이로 빨개진다.
     픽스처: 저장소 data.js 시군구 최신 주(je 가 있는 회차)."""
     W, _ = MW.load()
@@ -176,11 +177,12 @@ def test_tile_opens_the_right_region():
 def test_every_map_and_rank_link_is_wired_to_the_graph():
     """지도 칸·TOP 10 지역명의 링크가 그래프로 이어지는 길이 끊기지 않았는지 — 링크 모양(sggMapSvg data-code·rankTables rk-go),
     누름 처리(onTrendLink — 같은 주소를 다시 누를 때), 대기열 입구(PARTS.stats.api 의 openTrendRegion)가 함께 있어야 한다.
-    변이(각각 실제로 확인): PARTS 에서 openTrendRegion 을 빼면, rankTables 의 지역명 링크를 옛 맨 글자로 되돌리면, 홈 주간 구역이
-    onTrendLink 를 붙이지 않으면 빨개진다."""
+    변이(각각 실제로 확인): PARTS 에서 openTrendRegion 을 빼면, rankTables 의 지역명 링크를 옛 맨 글자로 되돌리면, 홈 지도 구역(renderSidoMap —
+    시세 단추의 시군구 지도)이 onTrendLink 를 붙이지 않으면 빨개진다."""
     h = HS.home_source()
     assert re.search(r"stats:\{src:'/home-stats\.js',api:\[[^\]]*'openTrendRegion'", h), 'PARTS.stats.api 에 openTrendRegion 이 없다'
     assert '<a class="rk-go" href="#stats-market-\'+k+\'~\'+c+\'" data-code="\'+c+\'">' in _func(h, 'rankTables')
-    assert "onTrendLink(e,'home_map')" in _func(h, 'renderWeeklyGrid')
+    # 홈 시군구 지도는 지도 구역 카드의 시세 단추가 그린다(2026-10-29 단추 하나에 지도 하나) — 그 상자의 누름 처리
+    assert "onTrendLink(e,'score_map')" in _func(h, 'renderSidoMap') and 'priceTilesHtml(MT)' in _func(h, 'renderSidoMap')
     assert "onTrendLink(e," in _func(h, 'drawNationMap')
     assert 'openTrendRegion(m[1],m[2])' in _func(h, 'onTrendLink')
