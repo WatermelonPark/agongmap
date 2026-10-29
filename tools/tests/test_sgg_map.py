@@ -161,7 +161,7 @@ def test_tile_opens_the_right_region():
     h = HS.home_source()
     js = '\n'.join([re.search(r'^const SGG_QNAME=.*$', h, re.M).group(0),
                     re.search(r'^const SIDO_PREFIX=\{.*?\};', h, re.M | re.S).group(0)]
-                   + [_func(h, n) for n in ('sidoOf', 'sggZoneOf', 'sggOfSido', 'trendTarget')] + [
+                   + [_func(h, n) for n in ('sidoOf', 'sggZoneOf', 'sggHas', 'sggOfSido', 'sggCityName', 'sggPickOf', 'trendTarget')] + [
         'const codes=["a0","a7","a7020202","b3","b304","c5","c503","c3","c302","c301","b6"];',
         'const W={regions:["전국","수도권","지방","서울","전남광주","충남","세종"],',
         ' sgg:{codes:codes,rows:[{ma:codes.map((c,i)=>c==="c301"?null:0.01*i),je:codes.map(()=>null)}]}};',

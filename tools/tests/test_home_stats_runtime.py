@@ -809,3 +809,40 @@ OUT.html=document.getElementById('stat-matrix').innerHTML;
 """, pre='const D_=%s;' % json.dumps(D, ensure_ascii=False)))
     assert '<th>서울</th>' in got['html'], got['html'][:300]
     assert DST not in got['html'], '값이 없는 지역 열이 섰다'
+
+
+# ── 시 전체(구를 가진 시) 지역 선택 ─────────────────────────────────────────────
+def test_city_totals_are_pickable_but_not_ranked():
+    """구를 가진 시(성남·수원·청주 등)의 시 전체 행을 시세 탭 그래프·표 지역 선택에서 고를 수 있고('성남 전체', 그 구들 바로 앞),
+    지도의 진한 시 칸(성남)을 누르면 그 시 전체 그래프가 열리며, TOP 10 순위(sggRanks)에는 오르지 않는다(2026-10-29 대표 지적
+    '성남시 전체가 없다' → 대표 결정: 그래프·표 지역 선택에만).
+
+    재현하는 실제 상태: 한국부동산원 주간·월간 시군구 표는 구를 가진 시 13곳의 시 전체 값도 내고 data-trend.json 에도 있는데,
+    공용 이름표 SGG_QNAME 에 없어 지역 선택·순위·표 어디에도 나오지 않았다. 픽스처: 저장소 data-trend.json 주간·월간과
+    home-app.js 의 NATION_TILE(시 칸 이름).
+    변이(각각 실제로 확인): sggPickOf 가 sggOfSido 만 돌려주면 첫 단정이, fillSggSel 의 정렬 이름에서 ' 전체' 떼기를 빼면 순서 단정이,
+    trendTarget 이 sggOfSido 로 되돌아가면 지도 칸 단정이 빨개진다.
+    """
+    trend = _load('data-trend.json')['ADV']
+    app = dict(HS.home_files())['home-app.js']
+    tile = re.search(r'^const NATION_TILE=.*$', app, re.M).group(0)
+    body = ('for(const k of ["weekly","monthly"]){const W=ADV_T[k];const S=W.sgg;'
+            'const pick=sggPickOf(W,"경기");'
+            'const row=S.rows[S.rows.length-1];'
+            'trendData=()=>W; document.getElementById(TREND.week.sel).value="경기"; fillSggSel("week","");'
+            'const opts=[...document.getElementById(TREND.week.sel2).innerHTML.matchAll(/<option value="([^"]*)">([^<]*)</g)].map(m=>[m[1],m[2]]);'
+            'OUT[k]={pick:pick,names:pick.map(c=>sggName(S,c)),opts:opts,'
+            'ranked:sggRanks(S,row,"ma").order.map(x=>x[0]),target:trendTarget(W,"a80103")};}')
+    got = _node(_stats_js(body, pre=tile + '\nconst ADV_T=%s;' % json.dumps(
+        {k: trend[k] for k in ('weekly', 'monthly')}, ensure_ascii=False)))
+    for k in ('weekly', 'monthly'):
+        g = got[k]
+        assert 'a80103' in g['pick'] and '성남 전체' in g['names'], (k, g['names'][:12])
+        vals = [v for v, _ in g['opts']]
+        i = vals.index('a80103')
+        gu = [j for j, v in enumerate(vals) if v.startswith('a80103') and v != 'a80103']
+        assert dict(g['opts'])['a80103'] == '성남 전체' and gu and gu == list(range(i + 1, i + 1 + len(gu))), \
+            '%s 성남 전체가 성남 구들 바로 앞에 서지 않는다: %s' % (k, g['opts'][max(0, i - 2):i + 4])
+        assert 'a80103' not in g['ranked'] and any(c.startswith('a80103') for c in g['ranked']), \
+            '%s 시 전체가 TOP 10 순위 후보에 들어갔다' % k
+        assert g['target'] == {'zone': '경기', 'sgg': 'a80103'}, (k, g['target'])
