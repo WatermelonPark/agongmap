@@ -199,6 +199,7 @@ def test_main_appends_quiz_lines_from_the_real_home(tmp_path, monkeypatch, capsy
                  % json.dumps(_adv(('가', 0.8)), ensure_ascii=False), encoding='utf-8')
     monkeypatch.setattr(kst, 'today', lambda now=None: __import__('datetime').date(2099, 1, 1))
     monkeypatch.setattr(N, 'theory_claim_lines', lambda: [])   # 이론편 점검(실데이터)은 test_theory_guards 가 따로 본다
+    monkeypatch.setattr(N, 'content_card_lines', lambda root=None: [])   # 글 카드 줄은 test_content_pages 가 본다
     assert N.main(['--data', str(p)]) == 0
     out = capsys.readouterr().out.splitlines()
     assert out and all(ln.startswith(N.ML.MARK) and '검토 기한' in ln for ln in out), out
@@ -215,6 +216,7 @@ def test_lines_does_not_read_the_repo_sync_data(monkeypatch):
     def boom():
         raise AssertionError('lines() 가 실데이터 점검(theory_claim_lines)을 불렀다')
     monkeypatch.setattr(N, 'theory_claim_lines', boom)
+    monkeypatch.setattr(N, 'content_card_lines', lambda root=None: [])   # 글 카드 줄은 test_content_pages 가 본다
     assert N.lines(_adv(('가', 0.8))) == []
 
 
@@ -233,6 +235,7 @@ def test_main_appends_theory_claim_lines(tmp_path, monkeypatch, capsys):
                  % json.dumps(_adv(('가', 0.8)), ensure_ascii=False), encoding='utf-8')
     line = '%s 사이클 7편 전제가 지금 데이터와 어긋남 — 가상 (초안 생성만 멈춤, 발행본 재검토)' % N.ML.MARK
     monkeypatch.setattr(N, 'theory_claim_lines', lambda: [line])
+    monkeypatch.setattr(N, 'content_card_lines', lambda root=None: [])   # 글 카드 줄은 test_content_pages 가 본다
     monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
     assert N.main(['--data', str(p)]) == 0
     assert capsys.readouterr().out.splitlines() == [line]
@@ -288,6 +291,7 @@ def test_main_appends_the_sgg_map_gap_line(tmp_path, monkeypatch, capsys):
     p.write_text('/*ADV_DATA_START*/ const ADV=%s; /*ADV_DATA_END*/\nconst STATS={};\n'
                  % json.dumps(adv, ensure_ascii=False), encoding='utf-8')
     monkeypatch.setattr(N, 'theory_claim_lines', lambda: [])
+    monkeypatch.setattr(N, 'content_card_lines', lambda root=None: [])   # 글 카드 줄은 test_content_pages 가 본다
     monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
     assert N.main(['--data', str(p)]) == 0
     out = capsys.readouterr().out.splitlines()
