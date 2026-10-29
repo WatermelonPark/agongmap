@@ -47,6 +47,13 @@ def card_rel(section, slug):
     return 'share/post-%s-%s.png' % (section, slug)
 
 
+def thumb_rel(section, slug):
+    """목록용 썸네일의 저장소 상대 경로. 굽는 쪽(make_content_cards)도 이 함수를 쓴다. 여기 두는 까닭: 이 생성기는 배치에서
+    pillow 를 깔기 전에 돈다 — 경로 하나를 얻으려고 카드 생성기(모듈 맨 위에서 PIL 을 들인다)를 불러오면 그 단계가
+    ModuleNotFoundError 로 멈춘다(test_test_deps_are_installed)."""
+    return 'share/thumb-%s-%s.jpg' % (section, slug)
+
+
 def section_card_rel(section):
     """섹션 공통 카드 — 글별 카드가 없을 때."""
     return 'share/section-%s.png' % section
@@ -311,7 +318,7 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
  border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
 .hcard h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
 .hcard h3 em{font-style:normal;font-size:13px;font-weight:600;color:var(--paper);background:var(--ink2);
- border-radius:2px;padding:2px 6px}
+ border-radius:3px;padding:2px 6px}
 .hcard p{margin:0;font-size:13px;line-height:1.5;color:var(--ink2);
  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .hc-m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -322,7 +329,7 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
 .pcard{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:start;padding:10px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
 .pcard.pc-noimg{grid-template-columns:1fr}
-.pcard img{width:112px;height:63px;object-fit:cover;border-radius:2px;display:block;background:var(--paper2)}
+.pcard img{width:112px;height:63px;object-fit:cover;border-radius:3px;display:block;background:var(--paper2)}
 .pc-b{min-width:0}
 .pcard b{display:block;font-size:14px;font-weight:600;line-height:1.45;
  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -550,8 +557,7 @@ def _counts(data):
 
 def _thumb(meta):
     """그 글의 목록용 썸네일 주소. 아직 안 구워졌으면 None — 그 자리는 글자만 보인다."""
-    import make_content_cards as CC
-    rel = CC.thumb_rel(meta['section'], meta['slug'])
+    rel = thumb_rel(meta['section'], meta['slug'])
     return ('/%s?v=%s' % (rel, meta['updated'])) if os.path.exists(os.path.join(ROOT, rel)) else None
 
 

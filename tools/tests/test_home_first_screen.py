@@ -256,15 +256,16 @@ def test_hero_is_the_title_block_only():
     부팅이 지운다(dropOldMyZone).
 
     변이(각각 실제로 확인): 히어로에 /weekly/ 띠 링크나 myz 줄을 되살리면 첫 단정이, boot 에서 renderHeroBand()·renderMyZone()
-          을 다시 부르면 둘째 단정이, 주간 구역 머리말에서 wkPubLead 를 빼면 셋째, boot 에서 dropOldMyZone() 을 지우면 넷째
+          을 다시 부르면 둘째 단정이, 주간 지도 머리말(wkMapModel 의 lead·priceTilesHtml)에서 wkPubLead 를 빼면 셋째, boot 에서 dropOldMyZone() 을 지우면 넷째
           단정이 빨개진다.
     """
     hero = _hero()
     assert '<a ' not in hero and 'myz' not in hero and 'hero-wk' not in hero, hero
     boot = _js_func(_home(), 'boot')
     assert not re.search(r'renderHeroBand|renderMyZone|initMyZonePick', boot), boot
-    assert re.search(r"wg-when\">'\+\(row\.je\?'매매·전세':'매매'\)\+' 전주 대비\(%\)'\+\(rel&&!rel\.stale\?' · '\+wkPubLead\(rel\)",
-                     _js_func(_home(), 'renderWeeklyGrid'))
+    # 2026-10-29 주간 시군구 지도는 지도 구역 카드의 '주간 시세' 단추로 옮겼다 — 머리말 발표일은 그 지도 머리(priceTilesHtml)가 잇는다
+    assert 'lead=wkPubLead(r)' in _js_func(_home(), 'wkMapModel') and 'if(sg) sg.lead=lead;' in _js_func(_home(), 'wkMapModel')
+    assert "' '+M.unit+'(%) · '+s.lead+'</span>'" in _js_func(_home(), 'priceTilesHtml')
     assert 'dropOldMyZone();' in boot
     css = _src('app.css')
     assert not re.search(r'\.(hero-wk|hw-\d|myz)', css), '뺀 히어로 줄의 CSS 규칙이 남아 있다'
@@ -502,11 +503,14 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
 
 
 def test_home_weekly_map_shows_sales_and_jeonse_rows():
-    """홈 '이번 주 시군구 지도'는 칸마다 매매·전세 두 줄이다 — 통계 시장동향 주간 지도와 같은 2단(2026-10-20 대표 요청,
-    09-28 '홈 주간 구역은 매매만'을 되돌림). 전세 줄이 없는 옛 캐시(row.je 없음)는 매매 한 줄로 그린다.
-    변이(실제로 확인): sggMapSvg 에 [v] 만 넘기거나 vj 에 전세 대신 매매(row.ma)를 담으면 빨개진다.
-    픽스처: 저장소 홈 스크립트(home_src)의 renderWeeklyGrid 원문."""
-    f = _js_func(_home(), 'renderWeeklyGrid')
-    assert re.search(r"vj\[c\]=\(row\.je\|\|\[\]\)\[i\]", f), f
-    assert re.search(r"sggMapSvg\(row\.je\?\[v,vj\]:\[v\],\{ref:WK_MAP_REF,names:\['매매','전세'\]", f), f
-    assert '위 = 매매 · 아래 = 전세' in f
+    """홈 주간 시군구 지도는 칸마다 매매·전세 두 줄이다 — 통계 시장동향 주간 지도와 같은 2단(2026-10-20 대표 요청,
+    09-28 '홈 주간 구역은 매매만'을 되돌림). 2026-10-29 '단추 하나에 지도 하나'로 그 지도는 주간 구역이 아니라 지도 구역 카드의
+    '주간 시세' 단추가 그린다(priceTilesHtml) — 값 줄은 시군구 행에 있는 계열(sggLastRow: 매매·전세·월세 순)이고, 주간 구역
+    (renderWeeklyGrid)은 지도를 그리지 않는다. 그린 결과(주간 2줄·월간 3줄)는 test_home_map_mode 가 node 로 본다.
+    변이(실제로 확인): sggLastRow 의 계열 목록에서 je 를 빼면, renderWeeklyGrid 에 sggMapSvg 를 되살리면 빨개진다.
+    픽스처: 저장소 홈 스크립트(home_src)의 sggLastRow·priceTilesHtml·renderWeeklyGrid 원문."""
+    h = _home()
+    assert "['ma','je','wo'].filter(function(k){ return Array.isArray(r[k]); })" in _js_func(h, 'sggLastRow')
+    t = _js_func(h, 'priceTilesHtml')
+    assert 'sggMapSvg(s.vals,' in t and "'위 = 매매 · 아래 = 전세'" in t
+    assert 'sggMapSvg' not in _js_func(h, 'renderWeeklyGrid'), '주간 구역에 지도가 남았다 — 홈 지도는 하나다'

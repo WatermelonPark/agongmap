@@ -97,6 +97,14 @@ def test_home_monthly_fields_map_to_their_own_series(split):
     for r in mo['rows']:
         for f in ('ma', 'je', 'wo'):
             assert r[f] == S._r4(src[r['p']].get(f)), '%s %s가 원천 %s와 다르다' % (r['p'], f, f)
+    # 홈 지도 '월간 시세' 단추의 시군구 지도(2026-10-29 단추 하나에 지도 하나)는 가장 최근 달 한 행만, 같은 계열 이름으로 받는다.
+    # 변이(실제로 확인): split_data 의 `msgg['rows'][-1]` 를 `[0]` 으로 바꾸면(10년 전 달) 빨개진다.
+    src_sgg = adv['monthly']['sgg']
+    newest = max(src_sgg['rows'], key=lambda r: r['p'])
+    assert src_sgg['rows'][0]['p'] != newest['p'], '픽스처가 짧으면 변이를 못 가린다'
+    assert mo['sgg']['codes'] == src_sgg['codes']
+    assert mo['sgg']['rows'] == [{'p': newest['p'], 'ma': S._r4(newest['ma']), 'je': S._r4(newest['je']),
+                                  'wo': S._r4(newest['wo'])}]
 
 
 def test_home_monthly_values_display_like_the_monthly_page(split):

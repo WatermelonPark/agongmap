@@ -150,8 +150,9 @@ def test_core_carries_price_rows_for_the_table(out):
         % (sorted(set(S.TABLE_REGIONS) - set(regions)), sorted(set(regions) - set(S.TABLE_REGIONS))))
     for f in ('ma', 'je', 'wo'):
         assert f in mo['rows'][0], 'monthly.rows에 %s가 없다' % f
-    for heavy in ('seoul', 'sgg'):
-        assert heavy not in mo, 'monthly.%s는 홈이 안 쓴다(합쳐 694KB)' % heavy
+    assert 'seoul' not in mo, 'monthly.seoul은 홈이 안 쓴다(76.8KB)'
+    # 시군구(sgg)는 홈 지도 '월간 시세' 단추가 그리는 마지막 달 한 행만(2026-10-29 단추 하나에 지도 하나). 전체(617KB)가 실리면 빨개진다.
+    assert len((mo.get('sgg') or {}).get('rows') or []) == 1, 'monthly.sgg 는 마지막 달 한 행만 싣는다'
     # ⚠️ monthly는 '2017-01', STATS는 '2017.01'로 구분자가 다르다. 그대로 비교하면
     # '-'(0x2D) < '.'(0x2E)라 2017년이 통째로 잘린다(2026-08-06 실제로 그랬다).
     assert mo['rows'][0]['p'].replace('-', '.') >= S.TABLE_FROM
