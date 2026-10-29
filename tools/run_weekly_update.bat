@@ -37,12 +37,6 @@ if not exist logs mkdir logs
 set LOG=logs\weekly-%TODAY%.log
 set LOCK=%~dp0..\.batch.lock
 
-rem Commit targets, in ONE place (test_batch_parity compares this line with TARGETS in
-rem update-cloud.yml). A section with no posts yet has no directory, and handing a missing path to
-rem git add kills the whole commit - that is how the cloud batch lost two runs on 2026-10-29
-rem (column). :targets keeps only the paths that exist, so the list may name future sections.
-set TARGETS=data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column
-call :targets
 call :main >> "%LOG%" 2>&1
 set RC=%ERRORLEVEL%
 rem Release the lock unless we aborted *because* someone else held it (rc=19).
@@ -52,7 +46,7 @@ rem SHARED worktree, which blocks other sessions' merges (review 2026-09-18, bac
 rem Put the batch targets back to HEAD. rc 10/11/19 never touched them; after a failed push
 rem (rc 16) the commit exists so this is a no-op. The list must equal TARGETS in update-cloud.yml.
 if not "%RC%"=="0" if not "%RC%"=="10" if not "%RC%"=="11" if not "%RC%"=="19" (
-  git restore --staged --worktree -- %HAVE% >> "%LOG%" 2>&1
+  git restore --staged --worktree -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column >> "%LOG%" 2>&1
 )
 if not "%RC%"=="0" (
   echo [%date% %time%] FAILED rc=%RC% - see %LOG%
@@ -243,19 +237,16 @@ rem data-sgg.json and data-size.json were absent from every list).
 rem index.html is hand-written: the batch rewrites only its HOME_SUMMARY block and description metas (B3),
 rem but the add / restore commands take the whole file. Do not leave uncommitted index.html edits in this
 rem worktree while the runner is switched on - they would be committed or wiped with the batch.
-rem Recount right before the commit: a generator may have just created a section directory
-rem (the first post of a section). The list built at start-up would not know about it.
-call :targets
-git diff --quiet %HAVE%
+git diff --quiet data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column
 if errorlevel 1 (
-  git add %HAVE%
+  git add data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column
   if errorlevel 1 (
     echo ERROR: git add failed
     exit /b 14
   )
   rem Commit ONLY the batch targets. A bare `git commit` sweeps whatever another session left
   rem staged in the shared index (it happened on 2026-09-16, commit 930b4534).
-  git commit -m "stats: weekly auto-update (KOSIS, local)" -- %HAVE%
+  git commit -m "stats: weekly auto-update (KOSIS, local)" -- data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools\data\.home_stamp index.html tools\data\blog_latest.json tools\data\city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column
   if errorlevel 1 (
     echo ERROR: git commit failed
     exit /b 15
@@ -276,14 +267,3 @@ if errorlevel 1 (
 
 echo ===== update end %date% %time% =====
 exit /b 0
-
-rem --- commit targets that actually exist -------------------------------------------------
-:targets
-set "HAVE="
-for %%p in (%TARGETS%) do call :addif "%%p"
-if "%HAVE%"=="" echo WARN: no commit target exists - check TARGETS
-goto :eof
-
-:addif
-if exist %1 set "HAVE=%HAVE% %~1"
-goto :eof

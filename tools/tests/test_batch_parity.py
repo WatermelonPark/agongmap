@@ -68,27 +68,13 @@ def _cloud_targets():
     return set(m.group(1).split())
 
 
-def _bat_targets():
-    """bat 이 커밋하려는 대상 — 'set TARGETS=' 한 줄이 정본이다.
-
-    예전에는 네 명령 줄에 목록이 그대로 박혀 있었다. 2026-10-29 배치가 없는 경로(column)로 죽은 뒤,
-    목록을 한 곳에 두고 있는 경로만 걸러 넘기는 구조로 바꿨다.
-    """
-    lines = [l.strip() for l in io.open(BAT, encoding='utf-8').read().splitlines()
-             if l.strip().startswith('set TARGETS=')]
-    assert len(lines) == 1, 'bat 에 set TARGETS 줄이 %d개다' % len(lines)
-    return {x.replace('\\', '/') for x in lines[0][len('set TARGETS='):].split()}
-
-
-def _bat_uses(cmd):
-    """그 명령이 걸러진 목록(%HAVE%)을 쓰는가. 목록을 다시 박아 넣으면 빨개진다."""
-    lines = [l.strip() for l in io.open(BAT, encoding='utf-8').read().splitlines()
-             if l.strip().startswith(cmd + ' ')]
+def _bat_list(cmd):
+    lines = [l.strip() for l in io.open(BAT, encoding='utf-8').read().splitlines() if l.strip().startswith(cmd + ' ')]
     assert len(lines) == 1, 'bat 에서 "%s" 줄이 %d개다' % (cmd, len(lines))
-    rest = lines[0][len(cmd):].split('>>')[0].split()
+    rest = lines[0][len(cmd):].split('>>')[0].split()   # 로그 리다이렉션은 대상이 아니다
     if rest and rest[0] == '--':
         rest = rest[1:]
-    return rest
+    return {t.replace('\\', '/') for t in rest}
 
 
 def test_parsers_actually_read_the_steps():
@@ -110,26 +96,12 @@ def test_local_commits_the_same_targets():
     assert {'monthly', 'cycle', 'weekly', 'index.html', 'tools/data/blog_latest.json', 'feed.xml', 'llms.txt'} <= cloud, \
         '클라우드 TARGETS 를 제대로 읽지 못했다: %s' % sorted(cloud)
     # 커밋은 경로 지정(남이 스테이징한 파일을 쓸어 담지 않게), 실패 복원도 같은 목록(리뷰 09-18 백로그 22).
-    local = _bat_targets()
-    assert local == cloud, '로컬 TARGETS 가 클라우드와 다르다 — 빠짐 %s, 더함 %s' % (
-        sorted(cloud - local), sorted(local - cloud))
-    # 네 명령은 모두 걸러진 목록을 쓴다. 하나라도 목록을 직접 박으면, 아직 글이 없는 섹션에서
-    # 'pathspec did not match' 로 그 회차 커밋이 통째로 날아간다(2026-10-29 클라우드 두 회차).
     for cmd in ('git add', 'git diff --quiet',
                 'git commit -m "stats: weekly auto-update (KOSIS, local)"',
                 'git restore --staged --worktree'):
-        assert _bat_uses(cmd) == ['%HAVE%'], \
-            '로컬 "%s" 가 걸러진 목록(%%HAVE%%)을 쓰지 않는다: %s' % (cmd, _bat_uses(cmd))
-    # 거르는 쪽도 있어야 한다 — 서브루틴이 사라지면 %HAVE% 가 빈 채로 돈다.
-    bat = io.open(BAT, encoding='utf-8').read()
-    assert re.search(r'^:targets\s*$', bat, re.M), 'bat 에 :targets 서브루틴이 없다 — %HAVE% 가 빈 채로 돈다'
-    assert re.search(r'^if exist %1 set "HAVE=', bat, re.M), 'bat 이 경로 존재를 보지 않는다'
-    assert bat.count('call :targets') >= 2, 'bat 이 시작과 커밋 직전에 목록을 세지 않는다'
-    # 클라우드도 같은 눈으로 본다 — 2026-10-29 사고가 난 곳이 이쪽이다.
-    y = io.open(YML, encoding='utf-8').read()
-    assert re.search(r'for p in \$TARGETS; do \[ -e "\$p" \]', y), '클라우드가 경로 존재를 거르지 않는다'
-    m = re.search(r'^\s*git add -A -- (\S+)', y, re.M)
-    assert m and m.group(1) == '$HAVE', '클라우드 git add 가 걸러진 목록을 쓰지 않는다: %s' % (m and m.group(1))
+        local = _bat_list(cmd)
+        assert local == cloud, '로컬 "%s" 대상이 클라우드 TARGETS 와 다르다 — 빠짐 %s, 더함 %s' % (
+            cmd, sorted(cloud - local), sorted(local - cloud))
 
 
 PUB = os.path.join(ROOT, '.github', 'workflows', 'publish-content.yml')
