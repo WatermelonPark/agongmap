@@ -72,25 +72,36 @@ def sido_of(city, names=None):
     return None
 
 
+def placeholder_cities(text):
+    """글자에서 **도시 자료가 필요한 자리표**의 첫 인자를 뽑는다.
+
+    도시 이름이 첫 인자로 오는 종류를 모두 본다(table·v·chart 세 접두 다). 종류의 정본은
+    content_tables.CITY_KINDS 다 — 2026-10-29 여기에 chart·need 를 빠뜨려, 그 둘만 쓰는 글의 도시는
+    영영 수집되지 않을 뻔했다(율곡 원고가 moveins 도 써서 가려져 있었다).
+    """
+    import re
+    import content_tables as _CT
+    pat = re.compile(r'\{\{(?:table|v|chart):(?:%s):([^:}]+)' % '|'.join(_CT.CITY_KINDS))
+    return [m.strip() for m in pat.findall(text or '')]
+
+
 def cities_from_content(root=ROOT):
     """원고가 말하는 도시 → {도시: 시도}. 시도를 모르는 도시는 경고하고 건너뛴다.
 
     두 곳에서 모은다: 프런트매터 `region`(도시 편)과 본문 자리표의 첫 인자(GTX·단지 편은 region 이 시도이고
     자리표만 도시를 쓴다 — 2026-10-27 첫 19편이 그랬다).
     """
-    import re
     names = sgg_names(root)
     out, unknown = {}, []
-    want = re.compile(r'\{\{(?:table|v):(?:moveins|share|complexes):([^:}]+)')
     for sec, slug, path in CM.posts(root):
         try:
             meta, body = CM.read(path, sec, slug)
         except CM.ContentError:
             continue
         cands = [(meta.get('region') or '').strip()]
-        cands += [m.strip() for m in want.findall(body + ' ' + (meta.get('summary') or ''))]
+        cands += placeholder_cities(body + ' ' + (meta.get('summary') or ''))
         for f in meta.get('faq') or []:
-            cands += [m.strip() for m in want.findall((f.get('q') or '') + ' ' + (f.get('a') or ''))]
+            cands += placeholder_cities((f.get('q') or '') + ' ' + (f.get('a') or ''))
         for city in cands:
             if not city or city in out or city in SZ.ORDER or SZ.key_of(city) in SZ.ORDER:
                 continue

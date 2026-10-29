@@ -102,6 +102,12 @@ def _city_years(f, year=None):
     return by
 
 
+# 첫 인자로 **도시 이름**이 올 수 있는 자리표 종류. 수집기(make_city_moveins)가 원고에서 도시를
+# 찾을 때 이 목록을 쓴다 — 종류를 늘리면 여기도 늘려야 그 도시가 수집된다(시험이 대조한다).
+CITY_KINDS = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio')
+# streak·weekly 는 뺀다 — 주간 시세는 data-sgg 에서 오고 도시 자료가 필요 없다. 게다가 그 인자는
+# '부천 소사구' 처럼 구 이름이라 수집 대상에 넣으면 시도를 못 찾는 경고만 쏟아진다(2026-10-30 확인).
+
 SRC_CITY = '한국부동산원 입주예정물량정보 · 청약홈 분양정보'
 
 

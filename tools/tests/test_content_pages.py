@@ -927,3 +927,30 @@ def test_list_css_is_one_canon_in_both_places():
     norm = lambda s: re.sub(r'^\s+', '', s.strip(), flags=re.M).replace('\r\n', '\n')
     assert norm(m.group(1)) == norm(MC.LIST_CSS), 'app.css 의 목록 부품이 생성기 정본과 다르다'
     assert '.pcard' in MC.EXTRA_CSS, '콘텐츠 페이지가 목록 부품을 싣지 않는다'
+
+
+def test_collector_reads_every_city_placeholder_kind():
+    """수집기가 **도시 자료가 필요한 모든 자리표 종류**에서 도시를 읽는다(table·v·chart 세 접두 다).
+
+    무엇을 바꾸면 빨개지나: CITY_KINDS 에서 종류를 빼거나, 수집기가 그 목록을 쓰지 않고 제 목록을 들면.
+    2026-10-29 chart·need 가 빠져 있었다 — 그 둘만 쓰는 글의 도시는 영영 수집되지 않는다(율곡 원고가
+    moveins 도 써서 가려져 있었고, 단지 세션이 묻지 않았으면 몰랐다).
+    주간 계열(streak·weekly)은 일부러 뺀다: 도시 자료가 필요 없고 인자가 '부천 소사구' 같은 구 이름이라
+    수집 대상에 넣으면 시도를 못 찾는 경고만 쏟아진다.
+    픽스처: 종류마다 자리표 한 줄씩을 지어 넣는다.
+    """
+    import make_city_moveins as MCM
+    # 기대 종류를 **여기 적는다**. CT.CITY_KINDS 로 돌면 목록을 줄일 때 시험도 같이 줄어 아무것도
+    # 지키지 못한다(2026-10-30 변이로 확인 — 허브 카드 순서에서 똑같은 실수를 했다).
+    want = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio')
+    assert tuple(CT.CITY_KINDS) == want, '도시 자리표 종류가 바뀌었다: %s' % (CT.CITY_KINDS,)
+    for kind in want:
+        for pre in ('v', 'table', 'chart'):
+            got = MCM.placeholder_cities('{{%s:%s:테스트시:2027}}' % (pre, kind))
+            assert got == ['테스트시'], '%s:%s 에서 도시를 못 읽는다: %s' % (pre, kind, got)
+    for kind in ('streak', 'weekly'):
+        assert MCM.placeholder_cities('{{v:%s:분당구}}' % kind) == [], \
+            '%s 는 도시 자료가 필요 없어 수집 대상이 아니다' % kind
+    # 실제 원고에서도 읽힌다 — 자리표에만 도시가 있는 글(region 은 시도)이 섞여 있다.
+    cities = MCM.cities_from_content(ROOT)
+    assert len(cities) >= 10, '원고에서 도시를 %d곳밖에 못 읽었다' % len(cities)
