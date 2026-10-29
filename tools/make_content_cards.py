@@ -45,8 +45,8 @@ THUMB_W, THUMB_H = 480, 252      # 16:9에 가까운 목록용 판(원본 1200×
 
 
 def thumb_rel(section, slug):
-    """목록용 썸네일. 원본은 그 글의 OG 카드이고 여기서 줄이기만 한다 — 두 그림이 어긋나지 않는다."""
-    return 'share/thumb-%s-%s.jpg' % (section, slug)
+    """목록용 썸네일 경로 — 정본은 페이지 생성기(MC.thumb_rel, pillow 없이 도는 쪽)다."""
+    return MC.thumb_rel(section, slug)
 
 
 QUOTE_MAX = 16           # 인용 한 줄의 글자 수 상한(총괄: 10자 안팎)
