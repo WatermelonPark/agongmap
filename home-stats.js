@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v200';
+var HOME_STATS_BUILD='v201';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -905,9 +905,27 @@ function sggOfSido(W,sido){
      주간표에는 있고 **월간표에는 아직 없어**, 고르면 영원히 빈 그래프가 나오는
      죽은 선택지였다(2026-08-08 감사). 월간 매핑(SGG_RONE_CLS)에 코드가 들어가야 다시 나타난다 — 원천이 내기 시작해도
      저절로 붙지 않는다(배치 기록 ℹ️ 줄 batch_notes.sgg_map_gap_lines 가 알린다). */
-  const has=c=>{const i=S.codes.indexOf(c);
-    return i>=0&&(S.rows||[]).some(r=>['ma','je','wo'].some(f=>(r[f]||[])[i]!=null));};
-  return S.codes.filter(c=>SGG_QNAME[c]&&sggZoneOf(W,c)===sido&&has(c));
+  return S.codes.filter(c=>SGG_QNAME[c]&&sggZoneOf(W,c)===sido&&sggHas(S,c));
+}
+function sggHas(S,c){
+  const i=S.codes.indexOf(c);
+  return i>=0&&(S.rows||[]).some(r=>['ma','je','wo'].some(f=>(r[f]||[])[i]!=null));
+}
+/* 구를 가진 시의 '시 전체' 행(수원·성남·용인·안양·고양·부천·안산·화성·청주·천안·전주·포항·창원) — 한국부동산원이 시 전체 값도
+   내는데, 공용 이름표(SGG_QNAME)에 없어 지역 선택에서 고를 수 없었다(2026-10-29 대표 지적 '성남시 전체가 없다'). 그래프·표의
+   지역 선택에서만 고를 수 있게 한다(대표 결정 10-29) — TOP 10·/weekly/ 전체 표·시도 리포트 표는 시와 그 구가 함께 순위에 오르지
+   않게 넣지 않으므로 SGG_QNAME 에 올리지 않고 여기서 따로 찾는다. 어느 코드가 시 전체인지는 손으로 적지 않는다: 자기 코드로
+   시작하는 이름 있는 구가 있으면 시 전체다. 이름은 지도 칸 이름(NATION_TILE)에 ' 전체'. */
+function sggCityName(S,c){
+  if(SGG_QNAME[c]||c.length<=2||!S.codes.some(x=>x!==c&&x.indexOf(c)===0&&SGG_QNAME[x]))return null;
+  const t=(typeof NATION_TILE!=='undefined'?NATION_TILE.t:[]).find(r=>r[0]===c);
+  return t?t[1]+' 전체':null;
+}
+function sggName(S,c){ return SGG_QNAME[c]||sggCityName(S,c); }
+/* 그래프·표 지역 선택 목록 = 시 전체 행 + 시군구(sggOfSido). 시 전체는 그 구들 바로 앞에 선다(fillSggSel 의 정렬 이름). */
+function sggPickOf(W,sido){
+  const S=W.sgg; if(!S)return [];
+  return S.codes.filter(c=>sggCityName(S,c)&&sggZoneOf(W,c)===sido&&sggHas(S,c)).concat(sggOfSido(W,sido));
 }
 /* 시군구 코드 → 이 목록(W.regions, 판정 단위)의 지역 이름. 원천 이름(sidoOf)이 목록에 없으면 그 이름을 품은 판정 단위로
    접는다(홈 지도 zoneOf 와 같은 규칙 — 통합 이름을 박지 않는다). 광주·전남 시군구는 '전남광주'로 간다 — 예전엔 원천
@@ -931,11 +949,12 @@ function fillSggSel(k,keep){
   const T=TREND[k], W=trendData(k);
   const sub=document.getElementById(T.sel2); if(!sub||!W)return;
   const sido=document.getElementById(T.sel).value;
-  const list=sggOfSido(W,sido);
+  const list=sggPickOf(W,sido);
   if(!list.length){ sub.hidden=true; sub.innerHTML=''; return; }
   sub.hidden=false;
+  /* 정렬 이름에서 ' 전체'를 떼면 '성남'이 '성남 분당구'보다 앞선다 — 시 전체가 그 구들 바로 앞에 선다 */
   sub.innerHTML='<option value="">'+zn(sido)+' 전체</option>'+
-    regSort(list,c=>SGG_QNAME[c]||c).map(c=>'<option value="'+c+'">'+SGG_QNAME[c]+'</option>').join('');
+    regSort(list,c=>SGG_QNAME[c]||(sggCityName(W.sgg,c)||c).replace(/ 전체$/,'')).map(c=>'<option value="'+c+'">'+sggName(W.sgg,c)+'</option>').join('');
   if(keep&&list.indexOf(keep)>=0)sub.value=keep;
 }
 /* 표·그래프가 함께 쓰는 '현재 선택' — 시도면 W.rows, 시군구면 W.sgg.rows */
@@ -956,7 +975,7 @@ function trendPick(k){
   const sub=document.getElementById(T.sel2);
   if(sub&&!sub.hidden&&sub.value&&W.sgg){
     const ci=W.sgg.codes.indexOf(sub.value);
-    if(ci>=0)return {name:SGG_QNAME[sub.value]||sub.value,rows:W.sgg.rows,idx:ci,isSgg:true};
+    if(ci>=0)return {name:sggName(W.sgg,sub.value)||sub.value,rows:W.sgg.rows,idx:ci,isSgg:true};
   }
   return {name:reg,rows:W.rows,idx:W.regions.indexOf(reg),isSgg:false};
 }
@@ -970,8 +989,9 @@ function trendTarget(W,code){
   const s=sidoOf(code);
   if(!s)return {zone:'',sgg:''};   // 전국(a0)·모르는 코드 → 전체
   const z=sggZoneOf(W,code), zone=(W.regions||[]).indexOf(z)>=0?z:'';
-  /* 시군구 목록(sggOfSido — 값이 있는 곳만)에 없는 칸(구를 가진 시의 머리 칸 천안·청주 등, 값 없는 신설 구)은 그 시도로 */
-  return {zone:zone,sgg:(code.length>2&&zone&&sggOfSido(W,zone).indexOf(code)>=0)?code:''};
+  /* 지역 선택 목록(sggPickOf — 값이 있는 시군구와 구를 가진 시의 시 전체)에 없는 칸(값 없는 신설 구 등)은 그 시도로.
+     구를 가진 시의 진한 칸(성남·천안 등)은 그 시 전체 그래프를 연다(2026-10-29) */
+  return {zone:zone,sgg:(code.length>2&&zone&&sggPickOf(W,zone).indexOf(code)>=0)?code:''};
 }
 /* 그래프를 열기 직전의 보기 — 순위(TOP 10)에서 연 그래프는 뒤로 가기로 닫으면 순위로, 그 밖은 지도로 돌아간다(2026-10-10
    순위·지도 나눔). 그래프가 열린 채 다른 지역으로 가면 처음 연 곳을 그대로 둔다. */
