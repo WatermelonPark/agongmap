@@ -21,6 +21,8 @@ faq:
 
 창원 성산구 아파트 매매가는 {{v:streak:성산구}}이고, 진해구는 {{v:streak:진해구}}입니다. 2027년 창원 입주 물량은 {{v:moveins:창원:2027}}, 한 해 적정 입주량의 {{v:share:창원:2027}}뿐입니다.
 
+{{chart:moveins:창원}}
+
 {{table:moveins:창원}}
 
 적정 입주량은 인구로 잡은 연 {{v:need:창원}}입니다. 입주가 가장 몰리는 달은 {{v:peak:창원}}입니다.
@@ -38,6 +40,8 @@ faq:
 {{table:complexes:창원:2028}}
 
 ## 창원 아파트값은 오르고 있나요
+
+{{chart:weekly:창원 성산구}}
 
 {{table:weekly:창원}}
 
