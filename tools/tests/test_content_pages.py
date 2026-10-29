@@ -191,22 +191,27 @@ def test_markdown_subset_renders(tmp_path):
 
 
 def test_section_index_lists_posts_newest_first(tmp_path):
-    """섹션 목록이 최신순으로 글을 싣는다."""
-    older = FRONT.replace('updated: 2026-10-27', 'updated: 2026-10-21').replace('시험용 글 제목', '오래된 글')
-    metas = []
-    for body, slug in ((FRONT, 'new-post'), (older, 'old-post')):
-        p = _write(tmp_path, body, slug=slug)
-        metas.append(CM.read(p)[0])
-    newest = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
-    page, lm = MC.build_index('city', newest)
-    assert lm == max(m['updated'] for m in metas)
-    lst = re.search(r'<div class="clist">(.*?)</div></div>', page, re.S)
-    assert lst, '목록 묶음을 찾지 못했다'
-    titles = re.findall(r'<b>([^<]+)</b>', lst.group(1))
-    assert titles[:2] == [newest[0]['title'], newest[1]['title']], '목록이 최신순이 아니다: %s' % titles
+    """섹션 목록이 최신순이고, 맨 위에 카테고리 칩이 있으며, 글마다 썸네일을 단다(대표 결정 10-29).
+
+    무엇을 바꾸면 빨개지나: 정렬을 뒤집거나, 칩을 빼거나(섹션 사이를 못 건너뛴다), 목록 부품에서
+    썸네일을 떼면. 빵부스러기는 '아공맵 › 콘텐츠 › <섹션>' 이어야 한다.
+    픽스처: 갱신일이 다른 글 셋.
+    """
+    metas = [{'section': 'city', 'slug': 'a', 'title': 'A', 'summary': '가' * 50,
+              'date': '2026-10-01', 'updated': '2026-10-03'},
+             {'section': 'city', 'slug': 'b', 'title': 'B', 'summary': '나' * 50,
+              'date': '2026-10-02', 'updated': '2026-10-05'},
+             {'section': 'city', 'slug': 'c', 'title': 'C', 'summary': '다' * 50,
+              'date': '2026-10-03', 'updated': '2026-10-04'}]
+    order = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    page, lastmod = MC.build_index('city', order)
+    slugs = re.findall(r'<a class="pcard[^"]*" href="/city/([^/]+)/"', page)
+    assert slugs == [m['slug'] for m in order], '최신순이 아니다: %s' % slugs
+    assert lastmod == '2026-10-05'
+    assert 'class="rchips"' in page and 'href="/%s/"' % MC.REPORTS_DIR in page, '카테고리 칩이 없다'
+    assert '› <a href="/%s/">콘텐츠</a> ›' % MC.REPORTS_DIR in page, '빵부스러기에 콘텐츠가 없다'
 
 
-# ── ④ 배치·사이트맵·llms ────────────────────────────────────────────────────
 def test_both_batches_run_the_generator_and_commit_the_sections():
     """두 배치가 생성기를 부르고 섹션 폴더를 커밋한다 — 구워도 배포되지 않는 일을 막는다.
 
@@ -709,27 +714,80 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
         assert CT.value(data, 'need', ['서울']).endswith('호'), '시도 need 의 단위가 바뀌었다'
 
 
-def test_reports_page_lists_every_built_post_with_filters():
-    """/reports/ 가 구워진 글을 **하나도 빠짐없이** 싣고, 섹션 거르개가 실제 섹션과 맞는다(대표 요청 10-29).
+def test_hub_shows_six_category_cards_and_recent_posts():
+    """허브 첫 화면이 카테고리 카드 6장이고, 그 아래 '최근 글' 이 최신순 %d편이다(대표 결정 10-29).
 
-    무엇을 바꾸면 빨개지나: 글이 늘었는데 /reports/ 를 다시 굽지 않으면, 거르개가 글 없는 섹션을 내거나
-    글 있는 섹션을 빠뜨리면, 목록이 섹션 표시를 잃으면.
-    픽스처: 저장소에 구워져 있는 /reports/ 와 글 페이지들.
-    """
+    무엇을 바꾸면 빨개지나: 카드를 빼거나 순서를 바꾸거나(발행 주기 순이다), 카드의 글 수가 실제와
+    어긋나거나, 최근 글이 최신순이 아니거나 편수가 넘치면.
+    픽스처: 저장소에 구워져 있는 /reports/ 와 실제 원고.
+    """ % MC.RECENT_N
     p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
     if not os.path.exists(p):
         pytest.skip('/reports/ 가 아직 없다')
     page = io.open(p, encoding='utf-8').read()
-    built = CM.built(ROOT)
-    want = {'/%s/%s/' % (sec, slug) for sec, slug, _ in built}
-    got = set(re.findall(r'<a href="(/(?:city|gtx|danji|column)/[^"]+/)" data-sec=', page))
-    assert got == want, '/reports/ 목록이 구워진 글과 다르다 — 빠짐 %s, 더함 %s' % (
-        sorted(want - got), sorted(got - want))
-    secs = {sec for sec, _, _ in built}
-    chips = set(re.findall(r'<button type="button" class="rchip[^"]*" data-sec="([a-z]*)"', page))
-    assert chips == secs | {''}, '거르개(%s)가 실제 섹션(%s)과 다르다' % (sorted(chips), sorted(secs))
-    # 자바스크립트가 없어도 전부 보여야 한다 — 서버에서 완성된 목록이라 수집기도 전부 읽는다.
-    assert ' hidden' not in page.split('id="rlist"')[1][:4000], '처음부터 숨겨진 글이 있다'
+    hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', page)
+    # 기대 순서를 **여기 적는다**. HUB_CARDS 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀌어
+    # 아무것도 지키지 못한다(2026-10-29 변이로 확인). 이 순서는 대표가 정한 발행 주기 순이다.
+    want = ['/column/', '/weekly/', '/city/', '/gtx/', '/danji/', '/zone/']
+    assert hrefs == want, '카드 순서·링크가 다르다(발행 주기 순이어야 한다): %s' % hrefs
+    cads = re.findall(r'<a class="hcard"[^>]*>.*?<em>([^<]+)</em>', page, re.S)
+    assert cads == ['당일', '매주', '연재', '연재', '연재', '분기'], '발행 주기 표시가 다르다: %s' % cads
+    # 섹션 카드의 글 수는 실제 구워진 글과 같아야 한다.
+    built = {}
+    for sec, slug, _ in CM.built(ROOT):
+        built[sec] = built.get(sec, 0) + 1
+    for key, name, _d, _c in MC.HUB_CARDS:
+        if key.startswith('/'):
+            continue
+        m = re.search(r'<a class="hcard" href="/%s/".*?<div class="hc-m">([^<]*)</div>' % key, page, re.S)
+        assert m, '%s 카드를 못 찾았다' % key
+        n = built.get(key, 0)
+        assert ('글 %d편' % n) in m.group(1) or (n == 0 and '준비' in m.group(1)), \
+            '%s 카드의 글 수(%s)가 실제(%d편)와 다르다' % (key, m.group(1), n)
+    # 최근 글 — 편수와 정렬.
+    # 최근 글 — 구워진 주소를 뽑아 **원고의 갱신일**과 맞댄다. 페이지에서 날짜를 긁으면 정규식이
+    # 어긋났을 때 빈 목록이 되어 '정렬이 맞다' 로 통과한다(2026-10-29 변이로 확인).
+    links = re.findall(r'<a class="pcard[^"]*" href="/([^/]+)/([^/]+)/"', page.split('최근 글')[1])
+    assert 0 < len(links) <= MC.RECENT_N, '최근 글이 %d편이다' % len(links)
+    upd = {}
+    for sec, slug, path in CM.built(ROOT):
+        meta, _ = CM.read(path, sec, slug)
+        upd[(sec, slug)] = (meta['updated'], meta['date'], slug)
+    keys = [upd[(s, g)] for s, g in links if (s, g) in upd]
+    assert len(keys) == len(links), '목록에 자료에 없는 글이 있다'
+    assert keys == sorted(keys, reverse=True), '최근 글이 최신순이 아니다: %s' % [k[0] for k in keys]
+    assert keys[0] == max(upd.values()), '가장 최신 글이 맨 위가 아니다'
+
+
+def test_every_listed_post_has_a_real_thumbnail():
+    """목록의 글마다 썸네일 주소가 **실재하는 파일**을 가리키고, 공통 카드로 떨어진 글이 없다(요청 ⑤).
+
+    무엇을 바꾸면 빨개지나: 썸네일을 굽지 않고 목록만 고치거나, 카드 생성이 조용히 실패해 그 글이
+    섹션 공통 카드로 떨어지면(2026-10-29 fontTools 가 없어 그런 일이 있었다).
+    픽스처: 저장소의 허브·섹션 목록·홈과 share/ 의 그림들.
+    """
+    import make_content_cards as CC
+    import urllib.parse
+    pages = [os.path.join(ROOT, MC.REPORTS_DIR, 'index.html'), os.path.join(ROOT, HS.HOME)]
+    pages += [os.path.join(ROOT, s, 'index.html') for s in CM.SECTIONS
+              if os.path.exists(os.path.join(ROOT, s, 'index.html'))]
+    seen = 0
+    for p in pages:
+        if not os.path.exists(p):
+            continue
+        page = io.open(p, encoding='utf-8').read()
+        for src in re.findall(r'<img src="(/share/thumb-[^"]+)"', page):
+            rel = urllib.parse.unquote(src.split('?')[0].lstrip('/'))
+            assert os.path.exists(os.path.join(ROOT, rel)), '%s: 없는 썸네일 %s' % (os.path.basename(p), rel)
+            seen += 1
+    assert seen >= 5, '썸네일을 %d개밖에 못 봤다' % seen
+    # 모든 글이 제 카드를 가진다 — 섹션 공통 카드로 떨어진 글이 없어야 한다.
+    fallback = [(s, g) for s, g, _ in CM.built(ROOT)
+                if not os.path.exists(os.path.join(ROOT, MC.card_rel(s, g)))]
+    assert not fallback, '제 카드가 없어 공통 카드로 떨어지는 글: %s' % fallback
+    missing = [(s, g) for s, g, _ in CM.built(ROOT)
+               if not os.path.exists(os.path.join(ROOT, CC.thumb_rel(s, g)))]
+    assert not missing, '썸네일이 없는 글: %s' % missing
 
 
 def test_content_has_an_entrance_in_tab_footer_and_home():
@@ -854,3 +912,18 @@ def test_a_city_not_collected_yet_is_a_wait_not_an_error(tmp_path):
         '입주 물량은 {{v:moveins:%s:2027}} 입니다.\n' % (pend, pend, pend, pend), encoding='utf-8')
     problems, waits, _ = CC.check_post(str(d / 'wait-x.md'), data, root=str(tmp_path))
     assert not problems and len(waits) == 1, '기다림이 고칠 곳으로 잡혔다: %s' % (problems,)
+
+
+def test_list_css_is_one_canon_in_both_places():
+    """목록 부품 스타일이 app.css 와 생성기에서 같은 글자다 — 한쪽만 고치면 홈과 콘텐츠가 달라진다.
+
+    콘텐츠 페이지는 app.css 를 링크하지 않고 뼈대의 인라인 style 을 쓰고, 홈은 app.css 를 읽는다.
+    그래서 같은 글자가 두 곳에 있어야 한다(site_nav.NAV_FOCUS_CSS 와 같은 방식).
+    무엇을 바꾸면 빨개지나: 둘 중 하나만 고치거나 app.css 의 표식 구간을 지우면.
+    """
+    css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    m = re.search(r'/\*LIST_CSS_START\*/(.*?)/\*LIST_CSS_END\*/', css, re.S)
+    assert m, 'app.css 에 LIST_CSS 표식 구간이 없다'
+    norm = lambda s: re.sub(r'^\s+', '', s.strip(), flags=re.M).replace('\r\n', '\n')
+    assert norm(m.group(1)) == norm(MC.LIST_CSS), 'app.css 의 목록 부품이 생성기 정본과 다르다'
+    assert '.pcard' in MC.EXTRA_CSS, '콘텐츠 페이지가 목록 부품을 싣지 않는다'

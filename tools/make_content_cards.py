@@ -41,6 +41,27 @@ def card_rel(section, slug):
     return 'share/post-%s-%s.png' % (section, slug)
 
 
+THUMB_W, THUMB_H = 480, 252      # 16:9에 가까운 목록용 판(원본 1200×630의 0.4배)
+
+
+def thumb_rel(section, slug):
+    """목록용 썸네일. 원본은 그 글의 OG 카드이고 여기서 줄이기만 한다 — 두 그림이 어긋나지 않는다."""
+    return 'share/thumb-%s-%s.jpg' % (section, slug)
+
+
+def save_thumb(card_img, rel):
+    """카드를 줄여 JPEG 로. webp 가 아니라 jpg 인 까닭: 오래된 카톡 미리보기·메일 클라이언트까지 연다."""
+    out = os.path.join(ROOT, rel)
+    im = card_img.convert('RGB').resize((THUMB_W, THUMB_H), Image.LANCZOS)
+    body = io.BytesIO()
+    im.save(body, 'JPEG', quality=82, optimize=True, progressive=True)
+    data = body.getvalue()
+    if os.path.exists(out) and io.open(out, 'rb').read() == data:
+        return False
+    io.open(out, 'wb').write(data)
+    return True
+
+
 def section_rel(section):
     """섹션 공통 카드 — 글별 카드가 없을 때 떨어지는 자리."""
     return 'share/section-%s.png' % section
@@ -185,6 +206,8 @@ def main(argv=None):
         chip = MC.SECTION_META[sec][0]
         img, lines = draw_card(title, chip, (meta.get('region') or '').strip())
         if save(img, card_rel(sec, slug), {'title': title, 'chip': chip, 'lines': '\n'.join(lines)}):
+            wrote += 1
+        if save_thumb(img, thumb_rel(sec, slug)):
             wrote += 1
         secs.add(sec)
     for sec in sorted(secs):
