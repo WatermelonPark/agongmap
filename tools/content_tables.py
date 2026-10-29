@@ -156,6 +156,37 @@ def city_ratio(data, f, year, base):
     return '%d%%' % int(round(a / float(b) * 100))
 
 
+def sido_need(data, key):
+    """시도의 **한 해** 적정물량. 기준표의 분기 적정물량(zone.ref)에 4를 곱한다.
+
+    ⚠️ 도시(시군구)의 v:need 와 산식이 다르다. 도시는 인구 ÷ 2.5 × 2%(movein_need)이고, 시도는 국토교통부
+    자료로 만든 기준표 값이다(sido_zones, 상수 고정 — 재계산하지 않는다). 단위도 시도는 '호', 도시는
+    '세대'로 원천의 말을 따른다. 한 글에서 시도와 도시를 나란히 견주면 두 수의 성격이 다르다는 것을
+    글이 밝혀야 한다.
+    """
+    z = _zones(data).get(key)
+    if not z or not z.get('ref'):
+        raise TableError('%r 의 적정물량이 없다' % key)
+    return num(int(round(z['ref'] * 4))) + '호'
+
+
+def sido_share(data, key, year):
+    """그 해 입주물량 ÷ 한 해 적정물량(%). 분자는 시도 입주물량 표의 그 해 값이다.
+
+    ⚠️ 시도의 입주물량은 준공 실적과 착공에서 민 추정이고(moveins 표의 '구분' 칸), 도시는 청약홈·
+    부동산원의 입주 예정 목록이다. 같은 '적정 대비'라도 분자의 출처가 다르다.
+    """
+    head, rows, _ = moveins(data, key)
+    by = {r[0]: r[1] for r in rows if r[0] != '합계'}
+    if str(year) not in by:
+        raise TableError('%r 의 %s년 입주물량이 자료에 없다' % (key, year))
+    v = int(by[str(year)].replace(',', ''))
+    z = _zones(data).get(key)
+    if not z or not z.get('ref'):
+        raise TableError('%r 의 적정물량이 없다' % key)
+    return '%d%%' % int(round(v / float(z['ref'] * 4) * 100))
+
+
 def city_need(data, f):
     """한 해 적정 입주량. 원고가 '6,030세대' 를 손으로 적지 않게 연다 — 인구가 바뀌면 그 값도 바뀐다."""
     return num(f['need']) + '세대'
@@ -466,7 +497,11 @@ def value(data, kind, args):
             raise TableError('%s 자리표는 도시%s 꼴이다' % (kind, {'peak': '[:연도]', 'ratio': ':연도:견줄 연도'}.get(kind, '')))
         f = city(data, args[0])
         if not f:
-            raise TableError('%r 는 도시 자료(tools/data/city_moveins.json)에 없다' % args[0])
+            # 시도는 기준표(sido_zones)로 낸다 — need·share 만. 인구(pop)와 단지 목록(peak)은 도시 자료에만 있다.
+            if kind == 'need' and region_key(data, args[0]) in _zones(data):
+                return sido_need(data, region_key(data, args[0]))
+            raise TableError('%r 는 도시 자료(tools/data/city_moveins.json)에 없다%s'
+                             % (args[0], ' — 시도는 need·share 만 쓸 수 있다' if kind in ('pop', 'peak') else ''))
         if kind == 'need':
             return city_need(data, f)
         if kind == 'pop':
@@ -476,11 +511,13 @@ def value(data, kind, args):
         return city_peak(data, f, args[1] if len(args) > 1 else None)
     if kind == 'share':
         if len(args) != 2:
-            raise TableError('share 자리표는 도시:연도 꼴이다')
+            raise TableError('share 자리표는 지역:연도 꼴이다')
         f = city(data, args[0])
-        if not f:
-            raise TableError('%r 의 적정 대비 비율을 낼 자료가 없다(도시 자료에 없는 도시다)' % args[0])
-        return city_share(data, f, args[1])
+        if f:
+            return city_share(data, f, args[1])
+        if region_key(data, args[0]) in _zones(data):
+            return sido_share(data, region_key(data, args[0]), args[1])
+        raise TableError('%r 의 적정 대비 비율을 낼 자료가 없다(도시 자료에도 시도에도 없다)' % args[0])
     if kind == 'moveins' and args and city(data, args[0]):
         f = city(data, args[0])
         by = _city_years(f, args[1]) if len(args) > 1 else _city_years(f)

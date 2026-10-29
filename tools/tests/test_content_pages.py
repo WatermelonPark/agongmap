@@ -668,3 +668,42 @@ def test_card_text_matches_the_manuscript_title():
             sec, slug, got.get('title'), want)
         seen += 1
     assert seen >= 1, '카드가 하나도 없다 — make_content_cards 를 돌릴 것'
+
+
+def test_sido_share_uses_the_zone_reference_not_the_city_formula():
+    """시도의 need·share 는 기준표(sido_zones)에서 나오고, 그 해 입주물량 표와 맞는다(총괄 요청 10-29).
+
+    무엇을 바꾸면 빨개지나: 분기 적정물량에 4를 곱하는 자리를 고치거나(한 해가 아닌 수가 된다), share 의
+    분자를 그 해 입주물량 표가 아닌 값으로 바꾸거나, 도시 산식(인구 ÷ 2.5 × 2%)을 시도에 쓰면.
+    픽스처: 저장소의 실제 시도 자료. 도시와 산식이 다르다는 것도 함께 단정한다 — 두 수가 같아지면
+    어느 한쪽이 상대의 산식을 쓰고 있다는 뜻이다.
+    """
+    import sido_zones as SZ
+    data = CT.load()
+    zones = CT._zones(data)
+    seen = 0
+    for key in SZ.ORDER:
+        z = zones.get(key)
+        if not z or not z.get('ref'):
+            continue
+        want = CT.num(int(round(z['ref'] * 4))) + '호'
+        assert CT.value(data, 'need', [key]) == want, '%s: need 가 기준표(ref×4)와 다르다' % key
+        head, rows, _ = CT.moveins(data, key)
+        by = {r[0]: r[1] for r in rows if r[0] != '합계'}
+        year = sorted(by)[-2] if len(by) > 1 else sorted(by)[-1]
+        v = int(by[year].replace(',', ''))
+        got = CT.value(data, 'share', [key, year])
+        assert got == '%d%%' % int(round(v / float(z['ref'] * 4) * 100)), \
+            '%s %s: share 가 입주물량 표와 어긋난다 — %s' % (key, year, got)
+        seen += 1
+    assert seen >= 10, '시도를 %d곳밖에 못 봤다' % seen
+    # 도시 전용 자리표는 시도에서 거부한다(인구·단지 목록은 도시 자료에만 있다).
+    for kind in ('pop', 'peak'):
+        with pytest.raises(CT.TableError):
+            CT.value(data, kind, ['서울'])
+    # 산식이 다르다 — 도시 need 는 '세대', 시도 need 는 '호'로 끝난다.
+    cities = (data.get('cities') or {}).get('cities') or {}
+    if cities:
+        one = sorted(cities)[0]
+        assert CT.value(data, 'need', [one]).endswith('세대'), '도시 need 의 단위가 바뀌었다'
+        assert CT.value(data, 'need', ['서울']).endswith('호'), '시도 need 의 단위가 바뀌었다'
