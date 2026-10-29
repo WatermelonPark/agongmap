@@ -188,6 +188,15 @@ def _chart_html(spec):
     return ''.join(out)
 
 
+def _own_tab(page):
+    """뼈대(make_indicator_pages.SHELL)는 '시세' 탭을 켜 둔다 — 콘텐츠 페이지는 제 탭('콘텐츠')을 켠다.
+
+    탭바 마크업은 site_nav 가 정본이라 그 함수가 만든 두 덩어리를 맞바꾼다(문자열을 손으로 적지 않는다).
+    """
+    import site_nav as N
+    return page.replace(N.bottomnav('stats'), N.bottomnav('reports'), 1)
+
+
 def _table_html(head, body, note=''):
     h = ['<div class="ctab"><table><thead><tr>']
     h += ['<th scope="col">%s</th>' % html.escape(c) for c in head]
@@ -292,6 +301,12 @@ def restore_tables(html_text, blocks):
 
 # ── 페이지 ──────────────────────────────────────────────────────────────────
 EXTRA_CSS = """
+.rchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.rchip{font:inherit;font-size:13px;line-height:1;padding:8px 12px;border:1px solid var(--line);
+ border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
+.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.clist a[hidden]{display:none}
 .cchart{margin:0 0 20px;padding:0}
 .cchart-svg{display:block;width:100%;height:auto;margin:2px 0 0}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
@@ -437,7 +452,7 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
                   ogtitle=meta['title'], desc=meta['summary'], url=url, body=body,
                   ld=_ld(meta, url, body_html), src=' · '.join(srcs) if srcs else '아공맵',
                   nsido=str(len(I.SIDO17)))
-    page = page.replace('</style>', EXTRA_CSS + '</style>', 1)
+    page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     page = re.sub(r'<meta property="og:image" content="[^"]*">',
                   '<meta property="og:image" content="%s">' % html.escape(og_image(meta)), page, count=1)
     return page, meta['updated']
@@ -462,7 +477,55 @@ def build_index(sec, posts_meta):
     page = I.fill(I.SHELL, title='%s | 아공맵' % name, ogtitle=name, desc=desc, url=url, body=body,
                   ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED),
                   src='아공맵', nsido=str(len(I.SIDO17)))
-    page = page.replace('</style>', EXTRA_CSS + '</style>', 1)
+    page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
+    return page, lastmod
+
+
+REPORTS_DIR = 'reports'
+REPORTS_TITLE = '콘텐츠'
+REPORTS_DESC = '도시 입주물량·GTX 역세권·단지 분석·해설을 한자리에서 봅니다. 숫자는 국가 통계에서 옵니다.'
+
+
+def build_reports(all_metas):
+    """네 섹션 글을 최신순 한 목록으로. 위에 섹션 거르개를 둔다(탭 '콘텐츠'가 여기로 온다).
+
+    거르개는 자바스크립트 없이도 **전부 보이는** 상태가 기본이다(점진적 향상). 스크립트가 돌면 누른 섹션만
+    남긴다 — 목록이 서버에서 이미 완성돼 있으므로 검색·AI 수집기는 거르개와 무관하게 전부 읽는다.
+    """
+    newest = sorted(all_metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    secs = [s for s in CM.SECTIONS if any(m['section'] == s for m in newest)]
+    chips = ['<button type="button" class="rchip on" data-sec="">전체</button>']
+    chips += ['<button type="button" class="rchip" data-sec="%s">%s</button>' % (s, html.escape(SECTION_META[s][0]))
+              for s in secs]
+    items = ''.join(
+        '<a href="/%s/%s/" data-sec="%s"><b>%s</b><span>%s</span><i>%s · %s 갱신</i></a>'
+        % (m['section'], m['slug'], m['section'], html.escape(m['title']), html.escape(m['summary']),
+           html.escape(SECTION_META[m['section']][0]), m['updated'])
+        for m in newest)
+    if not items:
+        items = '<p>아직 글이 없습니다.</p>'
+    body = ('<header><div class="wrap">'
+            '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
+            '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
+            '<section><div class="wrap">'
+            '<div class="rchips" role="group" aria-label="섹션 거르개">%s</div>'
+            '<div class="clist" id="rlist">%s</div>'
+            '</div></section>'
+            '<script>(function(){var w=document.querySelector(".rchips");if(!w)return;'
+            'w.addEventListener("click",function(e){var b=e.target.closest(".rchip");if(!b)return;'
+            '[].forEach.call(w.querySelectorAll(".rchip"),function(x){x.classList.toggle("on",x===b);});'
+            'var s=b.getAttribute("data-sec");'
+            '[].forEach.call(document.querySelectorAll("#rlist a"),function(a){'
+            'a.hidden=!!s&&a.getAttribute("data-sec")!==s;});});})();</script>'
+            % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
+               ''.join(chips), items))
+    url = '%s/%s/' % (SITE, REPORTS_DIR)
+    lastmod = max([m['updated'] for m in newest], default=None)
+    page = I.fill(I.SHELL, title='%s | 아공맵' % REPORTS_TITLE, ogtitle=REPORTS_TITLE, desc=REPORTS_DESC,
+                  url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
+                                                   lastmod or I.PUBLISHED),
+                  src='아공맵', nsido=str(len(I.SIDO17)))
+    page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
 
 
@@ -481,7 +544,9 @@ def home_recent_html(metas):
         % (m['section'], m['slug'], html.escape(m['title']),
            html.escape(SECTION_META[m['section']][0]), m['updated'])
         for m in newest)
-    return '<div class="crecent"><h2>최근 리포트</h2><ul>%s</ul></div>' % items
+    # '전체 보기'는 탭 '콘텐츠'와 같은 자리로 보낸다 — 홈에서 여섯 편만 보고 더 읽고 싶은 사람의 길이다.
+    return ('<div class="crecent"><h2>최근 리포트</h2><ul>%s</ul>'
+            '<p class="crecent-all"><a href="/%s/">콘텐츠 전체 보기 →</a></p></div>' % (items, REPORTS_DIR))
 
 
 def write_home_recent(metas, root=ROOT):
@@ -667,6 +732,15 @@ def main(strict=False):
     I.update_sitemap(entries)
     all_metas = [m for items in by_sec.values() for m, _ in items
                  if os.path.exists(os.path.join(ROOT, m['section'], m['slug'], 'index.html'))]
+    # 네 섹션을 한자리에 모은 /reports/ — 상단·하단 탭 '콘텐츠'가 여기로 온다.
+    rp, rlm = build_reports(all_metas)
+    rpath = os.path.join(ROOT, REPORTS_DIR, 'index.html')
+    rp, rlm, _ = SP.keep_dates(rp, SP.read_old(rpath), rlm or I.PUBLISHED)
+    if not os.path.isdir(os.path.dirname(rpath)):
+        os.makedirs(os.path.dirname(rpath))
+    io.open(rpath, 'w', encoding='utf-8', newline='\n').write(rp)
+    entries.append(('/%s/' % REPORTS_DIR, rlm))
+    I.update_sitemap(entries)
     home = write_home_recent(all_metas)
     zones = write_zone_posts(all_metas)
     print('content pages: %d편%s · 섹션 %s%s%s' % (

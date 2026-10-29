@@ -226,6 +226,13 @@
   </url>
 
   <url>
+    <loc>https://www.agongmap.co.kr/reports/</loc>
+    <lastmod>2026-10-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
     <loc>https://www.agongmap.co.kr/zone/</loc>
     <lastmod>2026-10-27</lastmod>
     <changefreq>weekly</changefreq>

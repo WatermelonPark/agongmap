@@ -707,3 +707,72 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
         one = sorted(cities)[0]
         assert CT.value(data, 'need', [one]).endswith('세대'), '도시 need 의 단위가 바뀌었다'
         assert CT.value(data, 'need', ['서울']).endswith('호'), '시도 need 의 단위가 바뀌었다'
+
+
+def test_reports_page_lists_every_built_post_with_filters():
+    """/reports/ 가 구워진 글을 **하나도 빠짐없이** 싣고, 섹션 거르개가 실제 섹션과 맞는다(대표 요청 10-29).
+
+    무엇을 바꾸면 빨개지나: 글이 늘었는데 /reports/ 를 다시 굽지 않으면, 거르개가 글 없는 섹션을 내거나
+    글 있는 섹션을 빠뜨리면, 목록이 섹션 표시를 잃으면.
+    픽스처: 저장소에 구워져 있는 /reports/ 와 글 페이지들.
+    """
+    p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
+    if not os.path.exists(p):
+        pytest.skip('/reports/ 가 아직 없다')
+    page = io.open(p, encoding='utf-8').read()
+    built = CM.built(ROOT)
+    want = {'/%s/%s/' % (sec, slug) for sec, slug, _ in built}
+    got = set(re.findall(r'<a href="(/(?:city|gtx|danji|column)/[^"]+/)" data-sec=', page))
+    assert got == want, '/reports/ 목록이 구워진 글과 다르다 — 빠짐 %s, 더함 %s' % (
+        sorted(want - got), sorted(got - want))
+    secs = {sec for sec, _, _ in built}
+    chips = set(re.findall(r'<button type="button" class="rchip[^"]*" data-sec="([a-z]*)"', page))
+    assert chips == secs | {''}, '거르개(%s)가 실제 섹션(%s)과 다르다' % (sorted(chips), sorted(secs))
+    # 자바스크립트가 없어도 전부 보여야 한다 — 서버에서 완성된 목록이라 수집기도 전부 읽는다.
+    assert ' hidden' not in page.split('id="rlist"')[1][:4000], '처음부터 숨겨진 글이 있다'
+
+
+def test_content_has_an_entrance_in_tab_footer_and_home():
+    """콘텐츠 글로 가는 입구가 탭·푸터·홈 세 곳에 있다(대표 요청 10-29 '네비에 메뉴 하나 추가되는거야?').
+
+    무엇을 바꾸면 빨개지나: 탭에서 콘텐츠를 빼거나, 푸터의 섹션 링크를 지우거나, 홈 묶음의 '전체 보기'를
+    없애면. 글이 늘어도 입구가 그대로인지는 위 시험이 본다.
+    픽스처: 저장소의 탭바 정본과 구워진 홈.
+    """
+    import site_nav as N
+    assert ('reports', '/%s/' % MC.REPORTS_DIR, '콘텐츠') in [(i, h, l) for i, h, l, _ in N.TABS], \
+        '탭 정본에 콘텐츠가 없다: %s' % [(i, l) for i, _, l, _ in N.TABS]
+    home = io.open(os.path.join(ROOT, HS.HOME), encoding='utf-8').read()
+    assert 'href="/%s/"' % MC.REPORTS_DIR in home, '홈에 /reports/ 링크가 없다'
+    assert '콘텐츠 전체 보기' in home, "홈 묶음에 '전체 보기' 가 없다"
+    # 푸터는 세 벌(홈·통계·퀴즈)이다 — 한 벌에만 넣으면 어떤 화면에서는 입구가 없다.
+    foots = re.findall(r'<nav class="ft-nav ft-grp".*?</nav>', home, re.S)
+    assert len(foots) == 3, '홈 푸터가 %d벌이다' % len(foots)
+    for i, f in enumerate(foots):
+        for href in ('/reports/', '/city/', '/gtx/', '/danji/', '/column/'):
+            assert 'href="%s"' % href in f, '%d번째 푸터에 %s 링크가 없다' % (i + 1, href)
+
+
+def test_content_pages_light_their_own_tab():
+    """콘텐츠 페이지는 '콘텐츠' 탭을 켠다 — 뼈대가 켜 두는 '시세' 를 그대로 두지 않는다.
+
+    무엇을 바꾸면 빨개지나: _own_tab 을 빼면(모든 글에서 '시세' 탭이 켜진 채로 나간다).
+    픽스처: 구워진 /reports/·섹션 목록·글 한 편.
+    """
+    import site_nav as N
+    # 먼저 생성기를 직접 밟는다 — 구워진 페이지만 보면 생성기를 고치고 다시 굽기 전까지 초록이다.
+    assert MC._own_tab(N.bottomnav('stats')) == N.bottomnav('reports'), '_own_tab 이 탭을 바꾸지 않는다'
+    rel = [os.path.join(MC.REPORTS_DIR, 'index.html')]
+    rel += [os.path.join(sec, 'index.html') for sec in CM.SECTIONS
+            if os.path.exists(os.path.join(ROOT, sec, 'index.html'))]
+    rel += [os.path.join(sec, slug, 'index.html') for sec, slug, _ in CM.built(ROOT)[:3]]
+    seen = 0
+    for r in rel:
+        p = os.path.join(ROOT, r)
+        if not os.path.exists(p):
+            continue
+        page = io.open(p, encoding='utf-8').read()
+        on = re.search(r'class="nav-btn on"[^>]*href="([^"]+)"', page)
+        assert on and on.group(1) == N.HREF['reports'], '%s: 켜진 탭이 %s 다' % (r, on and on.group(1))
+        seen += 1
+    assert seen >= 2, '검사한 페이지가 %d개뿐이다' % seen

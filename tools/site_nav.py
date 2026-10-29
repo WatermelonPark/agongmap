@@ -27,12 +27,23 @@ _I_CYCLE = ('<path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentCol
             'stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" '
             'stroke-linecap="round" stroke-linejoin="round"/>')
 
-# (식별자, 주소, 라벨, 아이콘). 네 칸 — 칸 수를 바꾸면 375px 칸 폭(약 94px)이 바뀌므로 대표 결정 사항이다(IA-6 2단계).
+_I_CONTENT = ('<path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="2" '
+             'stroke-linejoin="round"/><path d="M15 3v4h4M9.5 12h6M9.5 16h6" fill="none" '
+             'stroke="currentColor" stroke-width="2" stroke-linecap="round"/>')
+
+# (식별자, 주소, 라벨, 아이콘). 칸 수를 바꾸면 칸 폭이 바뀌므로 대표 결정 사항이다(IA-6 2단계).
+# 2026-10-29 대표 결정으로 다섯 칸이 됐다 — 콘텐츠 글(도시 입주물량·GTX·단지·해설)이 홈의 '최근 리포트'와
+# 섹션 목록으로만 닿아 상단·하단 어디에도 입구가 없었다. 320px 에서 칸 폭은 80px→64px 이 되고, 라벨은
+# 세 글자(13px, 약 39px)까지 든다. 그래서 '읽을거리'(다섯 글자)가 아니라 '콘텐츠'다.
+# 주소가 /content/ 가 아닌 까닭: 저장소 루트의 content/ 는 원고 소스라 같은 이름이면 서빙이 겹친다.
 TABS = (
     ('home', '/', '홈', _I_HOME),
     ('zone', '/zone/', '지역', _I_ZONE),
     ('stats', '/#stats', '시세', _I_STATS),
     ('cycle', '/cycle/', '사이클', _I_CYCLE),
+    # 식별자는 주소의 영문 경로와 같게 둔다 — 홈의 탭 클릭 측정이 링크 탭의 주소에서 식별자를 뽑는다
+    # (home-app.js: dataset.view || href 의 영문자). 라벨만 '콘텐츠' 다.
+    ('reports', '/reports/', '콘텐츠', _I_CONTENT),
 )
 # 탭 라벨 글자 크기(px) — 홈 화면 글자 하한 13px(2026-09-28 대표 결정 — 홈 작은 글씨 정리, 예전 11.5px). 탭바는 모든 페이지
 # 공용이라 app.css·손 페이지 <style>·생성기(make_indicator_pages SHELL, make_weekly_page put_nav)가 이 값을 쓴다 —
