@@ -75,7 +75,7 @@ jobs:
           # 커밋 앞에 둔다 — 깨진 산출물을 발행하지 않는다(매일 배치와 같은 순서).
           # pillow 도 깐다. 시험 네 묶음(공유 카드·썸네일·그림 도구·반올림)이 PIL 을 모듈 수준에서 들여오므로
           # 없으면 수집 단계에서 4 errors 로 끊긴다 — 첫 실행(40429921901)이 그래서 멈췄다.
-          python -m pip install --quiet pytest pillow
+          python -m pip install --quiet pytest pillow fonttools
           python -m pytest tools/tests/ -q
 
       - name: 글 공유 카드
@@ -87,13 +87,22 @@ jobs:
       - name: 변경 있으면 커밋·푸시
         run: |
           set -e
-          TARGETS="city gtx danji column feed.xml llms.txt llms-full.txt sitemap.xml index.html tools/data/city_moveins.json"
+          # zone(지역 묶음)·share(글 카드)가 빠져 있었다. 생성기가 고친 파일이 커밋 대상 밖에 남으면
+          # pull --rebase 가 "You have unstaged changes" 로 거부해 발행이 통째로 유실된다(2026-10-29, 반박 4편).
+          TARGETS="city gtx danji column reports zone share feed.xml llms.txt llms-full.txt sitemap.xml index.html tools/data/city_moveins.json"
           # 있는 경로만 센다 — 섹션 폴더는 그 섹션에 글이 생긴 날에 처음 나타난다.
           HAVE=""
           for p in $TARGETS; do [ -e "$p" ] && HAVE="$HAVE $p"; done
           if git diff --quiet -- $HAVE && git diff --cached --quiet -- $HAVE; then
             echo "바뀐 것이 없다 — 원고만 올렸고 페이지는 이미 같은 내용이다"
             exit 0
+          fi
+          # 그래도 대상 밖에 남은 것이 있으면 되돌린다 — 모두 생성기 산출물이라 다음 회차에 다시 나온다.
+          # (남겨 두면 rebase 가 거부하고 이 회차 발행이 사라진다.)
+          LEFT=$(git status --porcelain | grep -v '^??' || true)
+          if [ -n "$LEFT" ]; then
+            echo "::warning::커밋 대상 밖 변경을 되돌린다 — TARGETS 를 확인할 것:"; echo "$LEFT"
+            git checkout -- . || true
           fi
           git config user.name  "stats-bot"
           git config user.email "actions@users.noreply.github.com"

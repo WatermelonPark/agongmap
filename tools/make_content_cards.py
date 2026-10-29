@@ -47,8 +47,17 @@ def section_rel(section):
 
 
 def _font_misses(text):
-    """카드 글꼴에 없는 글자. 두부(□)가 박힌 카드를 퍼뜨리지 않으려고 먼저 본다."""
-    from fontTools.ttLib import TTFont
+    """카드 글꼴에 없는 글자. 두부(□)가 박힌 카드를 퍼뜨리지 않으려고 먼저 본다.
+
+    fontTools 가 없으면 **검사를 건너뛴다**(빈 목록). 그 묶음은 배치에 깔려 있지 않을 수 있는데, 글자 검사
+    하나 때문에 카드 전체가 안 그려지면 손해가 더 크다 — 2026-10-29 발행이 그렇게 죽어 반박 4편이 묶였다.
+    워크플로에는 fonttools 를 함께 깔아 두었으므로 평소에는 검사가 돈다.
+    """
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        sys.stderr.write('⚠️ fontTools 가 없어 글꼴 글자 검사를 건너뛴다(카드는 그린다)\n')
+        return []
     cmap = set(TTFont(os.path.join(ZC.FONT_DIR, ZC.FONT_FILES['Bold'])).getBestCmap())
     return sorted({c for c in text if ord(c) > 0x20 and ord(c) not in cmap})
 
