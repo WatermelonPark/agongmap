@@ -612,7 +612,14 @@ jobs:
             done <<< "$NOTES"
           fi
           TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp index.html tools/data/blog_latest.json tools/data/city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column"
-          git add -A -- $TARGETS || { rep "❌ git add 실패 — TARGETS 경로 확인"; exit 1; }
+          # 디스크에 있거나 git 이 추적 중인 경로만 넣는다 — 콘텐츠 섹션 폴더(column 등)는 그 섹션 첫 글이 생긴 날에 처음
+          # 나타나는데, 없는 경로를 `git add -A --` 에 주면 pathspec 오류로 그날 커밋 전체가 멈춘다(2026-10-27~29 사흘 정지).
+          # 추적 중인 경로는 디스크에서 사라져도 넣어 삭제를 커밋한다. publish-content.yml 의 HAVE 와 같은 거름이다.
+          HAVE=""
+          for p in $TARGETS; do
+            if [ -e "$p" ] || [ -n "$(git ls-files -- "$p" | head -n 1)" ]; then HAVE="$HAVE $p"; fi
+          done
+          git add -A -- $HAVE || { rep "❌ git add 실패 — TARGETS 경로 확인"; exit 1; }
           if git diff --cached --quiet; then
             rep "➖ 커밋 없음 — 원천이 그대로라 바뀐 파일이 없다(정상)"
             echo "변경 없음"

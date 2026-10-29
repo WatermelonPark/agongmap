@@ -76,7 +76,7 @@ def test_workflow_records_what_the_two_clis_print():
     code = _code()
     assert re.search(r'LAG=\$\(python3 tools/month_lag\.py', code) and 'rep "$LAG"' in code, 'month_lag 출력이 기록에 안 실린다'
     assert re.search(r'NOTES=\$\(python3 tools/batch_notes\.py', code) and 'rep "$LN"' in code, 'batch_notes 출력이 기록에 안 실린다'
-    assert code.find('rep "$LAG"') < code.find('git add -A -- $TARGETS'), '기록이 커밋 판단 뒤에 온다'
+    assert code.find('rep "$LAG"') < code.find('git add -A -- $'), '기록이 커밋 판단 뒤에 온다'
 
 
 def test_non_core_fetch_failures_reach_the_record():

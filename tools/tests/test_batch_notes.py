@@ -87,7 +87,7 @@ def test_gap_line_reaches_the_mail():
     i = code.find('NOTES=$(python3 tools/batch_notes.py')
     assert i >= 0, '워크플로가 batch_notes 를 부르지 않는다'
     assert re.search(r'rep "\$LN"', code[i:i + 400]), '읽은 줄을 배치 기록에 올리지 않는다'
-    assert i < code.find('git add -A -- $TARGETS'), '커밋 뒤에 부르면 그 회차 기록에 못 실린다'
+    assert i < code.find('git add -A -- $'), '커밋 뒤에 부르면 그 회차 기록에 못 실린다'
     raw = ('✅ 러너 3/3 clean · 채택 주간 2026-09-14 / 월간 2026-08 / 공급 2026Q2\n'
            + N.lines(_adv(('가', None)))[0] + '\n')
     body, mail = F.build(raw, '2026-09-17 18:33', 'u', 'O', 2)

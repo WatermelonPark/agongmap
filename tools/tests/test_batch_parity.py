@@ -174,3 +174,46 @@ def test_publish_workflow_commits_nothing_that_triggers_itself():
             pre = p[:-3] if p.endswith('/**') else p
             assert not (tgt == pre or tgt.startswith(pre + '/') or pre.startswith(tgt + '/') or pre == tgt), \
                 '커밋 대상 %r 이 트리거 경로 %r 과 겹친다 — 발행이 자기를 다시 부른다' % (tgt, p)
+
+
+def test_commit_step_skips_missing_targets_but_stages_deletions(tmp_path):
+    """매일 배치의 커밋 단계가 TARGETS 가운데 아직 없는 경로(첫 글이 안 생긴 콘텐츠 섹션 column 등)를 건너뛰고, git 이 추적하던
+    경로가 통째로 지워진 날에는 그 삭제를 커밋에 싣는다.
+
+    재현하는 실제 상태: 2026-10-27~29 배치 세 번(4회차)이 시험 1606개를 모두 통과하고도 `git add -A -- $TARGETS` 의
+    `fatal: pathspec 'column' did not match any files` 로 데이터 커밋을 못 했다 — TARGETS 에 /column/ 섹션 폴더가 있는데
+    그 섹션 글이 아직 없었다. 픽스처는 임시 git 저장소: 추적 중인 data.js·gtx/(이번 회차에 통째로 지움)와 새로 생긴 city/,
+    아예 없는 column 을 두고, update-cloud.yml 의 TARGETS 줄부터 `git add` 줄까지를 글자 그대로 잘라 bash 로 돌린다.
+    변이(각각 실제로 확인): 거름(HAVE)을 빼고 `git add -A -- $TARGETS` 로 되돌리면 첫 단정이, 추적 중인 경로 조건
+    (`git ls-files`)을 빼면 gtx/ 삭제가 빠져 마지막 단정이 빨개진다.
+    """
+    import shutil
+    import subprocess
+    import pytest
+    if not shutil.which('bash') or not shutil.which('git'):
+        pytest.skip('bash·git 없음')
+    yml = io.open(YML, encoding='utf-8').read()
+    m = re.search(r'^( *)TARGETS="[^"]+"\n(.*?\n)\1git add -A -- [^\n]*\n', yml, re.S | re.M)
+    assert m, 'update-cloud.yml 에서 TARGETS 줄부터 git add 줄까지를 찾지 못했다'
+    lines = m.group(0).splitlines()
+    ind = len(m.group(1))
+    snippet = '\n'.join(ln[ind:] if ln[:ind].strip() == '' else ln for ln in lines)
+    snippet = 'set -e\nrep(){ echo "REP $*"; }\n' + snippet + '\n'
+    run = lambda *a: subprocess.run(list(a), cwd=str(tmp_path), capture_output=True, text=True)
+    run('git', 'init', '-q')
+    run('git', 'config', 'user.email', 't@example.invalid')
+    run('git', 'config', 'user.name', 't')
+    (tmp_path / 'data.js').write_text('a', encoding='utf-8')
+    (tmp_path / 'gtx').mkdir()
+    (tmp_path / 'gtx' / 'index.html').write_text('g', encoding='utf-8')
+    run('git', 'add', '-A')
+    run('git', 'commit', '-q', '-m', 'base')
+    (tmp_path / 'data.js').write_text('b', encoding='utf-8')
+    shutil.rmtree(str(tmp_path / 'gtx'))
+    (tmp_path / 'city').mkdir()
+    (tmp_path / 'city' / 'index.html').write_text('c', encoding='utf-8')
+    r = subprocess.run(['bash', '-c', snippet], cwd=str(tmp_path), capture_output=True, text=True)
+    assert r.returncode == 0 and 'pathspec' not in r.stderr, '없는 경로가 git add 를 멈췄다: %s %s' % (r.stdout, r.stderr)
+    staged = run('git', 'diff', '--cached', '--name-status').stdout.split('\n')
+    assert 'M\tdata.js' in staged and 'A\tcity/index.html' in staged, staged
+    assert 'D\tgtx/index.html' in staged, '통째로 지운 추적 경로의 삭제가 커밋에 빠졌다: %s' % staged
