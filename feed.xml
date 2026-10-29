@@ -6,7 +6,14 @@
   <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 공급 통계를 알립니다.</description>
   <language>ko</language>
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
-  <lastBuildDate>Tue, 27 Oct 2026 00:00:00 +0900</lastBuildDate>
+  <lastBuildDate>Thu, 29 Oct 2026 00:00:00 +0900</lastBuildDate>
+  <item>
+    <title>주간 아파트가격 동향 2026년 10월 넷째 주 · 전국·서울 아파트 시세 지도</title>
+    <link>https://www.agongmap.co.kr/weekly/</link>
+    <guid isPermaLink="false">agongmap-weekly-2026-10-29</guid>
+    <pubDate>Thu, 29 Oct 2026 00:00:00 +0900</pubDate>
+    <description>10/26 조사 · 10/29 발표 기준 이번 주 아파트 매매가격은 전국 +0.07%, 경기 +0.20%로 가장 크게 올랐다. 시군구 상승 1위 군포 +0.58%, 하락 1위 서울 강남구 -0.38%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
+  </item>
   <item>
     <title>2027년 부천 아파트 입주물량, 입주는 소사·오정에 몰리고 원미는 거의 없습니다</title>
     <link>https://www.agongmap.co.kr/city/bucheon-2027-moveins/</link>
@@ -139,13 +146,6 @@
     <guid isPermaLink="false">agongmap-content-danji-byeokjeokgol8-yeongtong</guid>
     <pubDate>Mon, 26 Oct 2026 00:00:00 +0900</pubDate>
     <description>벽적골8단지 두산·우성·한신은 2026년 8월 이주를 시작했고 9월 매매 96건으로 영통구 거래의 19%였다.</description>
-  </item>
-  <item>
-    <title>주간 아파트가격 동향 2026년 10월 셋째 주 · 전국·서울 아파트 시세 지도</title>
-    <link>https://www.agongmap.co.kr/weekly/</link>
-    <guid isPermaLink="false">agongmap-weekly-2026-10-22</guid>
-    <pubDate>Thu, 22 Oct 2026 00:00:00 +0900</pubDate>
-    <description>10/19 조사 · 10/22 발표 기준 이번 주 아파트 매매가격은 전국 +0.08%, 경기 +0.21%로 가장 크게 올랐다. 시군구 상승 1위 화성 병점구 +0.65%, 하락 1위 서울 서초구 -0.32%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
   </item>
   <item>
     <title>이달의 공급 통계 — 2026년 9월 기준</title>

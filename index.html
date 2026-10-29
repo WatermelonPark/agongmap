@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v200">
+<html lang="ko" data-build="v201">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -137,7 +137,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 }
 </script>
 <!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
-<meta name="description" content="2026년 2분기 기준 전국 아파트 공급은 737,502세대 부족(1년 적정물량의 1.9배)입니다. 10/22 발표 주간 아파트 매매가격은 전국 +0.08% · 경기 +0.21%로 가장 크게 올랐습니다. 국토교통부 착공·준공 실적으로 16개 시도의 3년 공급을 판정하고, 한국부동산원 주간 시세를 지도로 봅니다.">
+<meta name="description" content="2026년 2분기 기준 전국 아파트 공급은 737,502세대 부족(1년 적정물량의 1.9배)입니다. 10/29 발표 주간 아파트 매매가격은 전국 +0.07% · 경기 +0.20%로 가장 크게 올랐습니다. 국토교통부 착공·준공 실적으로 16개 시도의 3년 공급을 판정하고, 한국부동산원 주간 시세를 지도로 봅니다.">
 <!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <meta name="keywords" content="아파트 공급, 입주물량, 아파트 입주물량, 시도별 아파트 공급, 아파트 공급 지도, 주간 아파트 시세, 아파트 착공, 부동산 데이터, 집값 전망, 부동산 통계">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -152,7 +152,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 <meta property="og:type" content="website">
 <meta property="og:title" content="아공맵 — 공급을 보면 집값이 보인다">
 <!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
-<meta property="og:description" content="2026년 2분기 기준 전국 아파트 공급 737,502세대 부족(1년 적정물량의 1.9배). 10/22 발표 주간 매매 전국 +0.08%. 16개 시도 3년 공급 판정과 주간 시세 지도, 국가 통계 기반.">
+<meta property="og:description" content="2026년 2분기 기준 전국 아파트 공급 737,502세대 부족(1년 적정물량의 1.9배). 10/29 발표 주간 매매 전국 +0.07%. 16개 시도 3년 공급 판정과 주간 시세 지도, 국가 통계 기반.">
 <!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <meta property="og:url" content="https://www.agongmap.co.kr/">
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
@@ -162,7 +162,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 <meta name="twitter:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta name="twitter:title" content="아공맵 — 공급을 보면 집값이 보인다">
 <!-- ↓ 다음 한 줄의 content 는 배치(tools/make_home_summary.py)가 매 회차 고쳐 쓴다 — 손으로 고치지 말 것 -->
-<meta name="twitter:description" content="2026년 2분기 기준 전국 아파트 공급 737,502세대 부족(1년 적정물량의 1.9배). 10/22 발표 주간 매매 전국 +0.08%. 16개 시도 3년 공급 판정과 주간 시세 지도, 국가 통계 기반.">
+<meta name="twitter:description" content="2026년 2분기 기준 전국 아파트 공급 737,502세대 부족(1년 적정물량의 1.9배). 10/29 발표 주간 매매 전국 +0.07%. 16개 시도 3년 공급 판정과 주간 시세 지도, 국가 통계 기반.">
 <!-- ↑ 배치가 고쳐 쓰는 줄 끝. 앞뒤 줄을 떼어 두어 사람의 수정과 봇의 커밋이 같은 덩어리로 부딪히지 않게 한다 -->
 <title>아공맵 | 전국 아파트 공급 지도·이번 주 시세</title>
 <link rel="stylesheet" href="/app.css">
@@ -304,7 +304,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 <!--HOME_SUMMARY_START-->
 <div class="home-sum">
   <p class="hsum-s"><a href="/zone/전국/"><b>전국 아파트 공급 부족</b> · 737,502세대 부족(1년 적정물량의 1.9배) · 2026년 2분기 기준 →</a></p>
-  <p class="hsum-w"><a href="/weekly/"><b>10/22 발표 주간 아파트 매매가격</b> 전국 +0.08% · 경기 +0.21%, 가장 크게 올랐습니다 →</a></p>
+  <p class="hsum-w"><a href="/weekly/"><b>10/29 발표 주간 아파트 매매가격</b> 전국 +0.07% · 경기 +0.20%, 가장 크게 올랐습니다 →</a></p>
 </div>
 <p class="hsum-u">페이지 수정 2026-10-29</p>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebPage", "url": "https://www.agongmap.co.kr/", "dateModified": "2026-10-29", "inLanguage": "ko-KR"}</script>
@@ -440,7 +440,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
        같은 푸터가 이 파일에 세 벌(홈·통계·퀴즈) 있다 — 셋을 같이 고친다(test_home_summary 가 같은지 본다). -->
   <div class="home-foot">
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a><i class="ft-dot"> · </i><a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener" onclick="track('home_cta',{to:'blog_footer'})">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a><i class="ft-dot"> · </i><a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener" onclick="track('home_cta',{to:'blog_footer'})">네이버 블로그</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div></div>
@@ -615,7 +615,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 
   <div class="minifooter">
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a><i class="ft-dot"> · </i><a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a><i class="ft-dot"> · </i><a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">네이버 블로그</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
@@ -677,7 +677,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   </div>
   <div class="minifooter">
     <div class="ft-brand"><b>아공맵</b> — 아파트 · 공급량 · 투자지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a><i class="ft-dot"> · </i><a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">매주 해설 글(네이버 블로그)</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a><i class="ft-dot"> · </i><a href="https://blog.naver.com/startupbd" target="_blank" rel="noopener">네이버 블로그</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
