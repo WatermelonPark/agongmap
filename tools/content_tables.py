@@ -27,6 +27,28 @@ class TableError(Exception):
     """자리표를 채우지 못했다 — 생성기가 배치를 세운다."""
 
 
+class PendingCity(TableError):
+    """아직 수집되지 않은 시군구다 — 오타가 아니라 '배치가 다음에 받아 올' 도시.
+
+    이름표(홈 SGG_QNAME)로 시도를 찾을 수 있으면 실재하는 시군구이고, 수집기가 원고의 region 을 읽어
+    다음 회차에 넣는다. 그래서 원고 검사는 이것을 **경고**로 넘기고(올릴 수 있게) 생성기는 그 글만
+    건너뛴다. 모르는 이름이면 그냥 TableError 다 — 오타를 통과시키지 않는다.
+    """
+
+
+def _pending_or_error(name, msg):
+    """도시 자료에 없을 때: 실재하는 시군구면 PendingCity, 아니면 TableError."""
+    try:
+        import make_city_moveins as MCM
+        if MCM.sido_of(name):
+            raise PendingCity('%r 는 아직 도시 자료에 없다 — 배치가 다음 회차에 받는다(원고의 region 으로)' % name)
+    except PendingCity:
+        raise
+    except Exception:
+        pass
+    raise TableError(msg)
+
+
 def _read_json(path):
     return json.load(io.open(path, encoding='utf-8'))
 
@@ -234,7 +256,9 @@ def region_key(data, name):
     key = SZ.key_of(name)
     if key in SZ.ORDER:
         return key
-    raise TableError('모르는 지역이다: %r' % name)
+    # 시도도 도시 자료도 아닌 이름이다. 실재하는 시군구면 '아직 안 받은 도시'이고(PendingCity),
+    # 아니면 오타다. 도시 자리표는 여기로 모이므로 한 곳에서 가른다.
+    _pending_or_error(name, '모르는 지역이다: %r' % name)
 
 
 def num(v):
@@ -458,7 +482,7 @@ def table(data, kind, args):
             raise TableError('complexes 자리표는 도시[:연도] 꼴이다')
         f = city(data, args[0])
         if not f:
-            raise TableError('%r 의 단지 목록이 없다 — 도시 자료(tools/data/city_moveins.json)에 없는 도시다' % args[0])
+            _pending_or_error(args[0], '%r 의 단지 목록이 없다 — 도시 자료에 없는 도시다' % args[0])
         return city_complexes(data, f, args[1] if len(args) > 1 else None)
     if kind == 'supply':
         if len(args) != 1:
@@ -500,8 +524,8 @@ def value(data, kind, args):
             # 시도는 기준표(sido_zones)로 낸다 — need·share 만. 인구(pop)와 단지 목록(peak)은 도시 자료에만 있다.
             if kind == 'need' and region_key(data, args[0]) in _zones(data):
                 return sido_need(data, region_key(data, args[0]))
-            raise TableError('%r 는 도시 자료(tools/data/city_moveins.json)에 없다%s'
-                             % (args[0], ' — 시도는 need·share 만 쓸 수 있다' if kind in ('pop', 'peak') else ''))
+            _pending_or_error(args[0], '%r 는 도시 자료에 없다%s'
+                              % (args[0], ' — 시도는 need·share 만 쓸 수 있다' if kind in ('pop', 'peak') else ''))
         if kind == 'need':
             return city_need(data, f)
         if kind == 'pop':
@@ -517,7 +541,7 @@ def value(data, kind, args):
             return city_share(data, f, args[1])
         if region_key(data, args[0]) in _zones(data):
             return sido_share(data, region_key(data, args[0]), args[1])
-        raise TableError('%r 의 적정 대비 비율을 낼 자료가 없다(도시 자료에도 시도에도 없다)' % args[0])
+        _pending_or_error(args[0], '%r 의 적정 대비 비율을 낼 자료가 없다(도시 자료에도 시도에도 없다)' % args[0])
     if kind == 'moveins' and args and city(data, args[0]):
         f = city(data, args[0])
         by = _city_years(f, args[1]) if len(args) > 1 else _city_years(f)

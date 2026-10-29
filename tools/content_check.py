@@ -52,18 +52,20 @@ def check_post(path, data, root=ROOT):
     """한 편 → [(줄, 문제)]"""
     rel = os.path.relpath(path, root).replace(os.sep, '/')
     text = io.open(path, encoding='utf-8').read()
-    out = []
+    out, waits = [], []
     try:
         meta, body = CM.read(path)
     except CM.ContentError as e:
         msg = str(e).split(': ', 1)[-1]
         key = next((k for k in CM.REQUIRED + ('faq', 'sources', 'region') if k in msg), None)
-        return [(_front_line(text, key) if key else 1, msg)]
+        return ([(_front_line(text, key) if key else 1, msg)], [], rel)
     # 본문은 프런트매터 뒤에서 시작한다 — 줄 번호를 파일 기준으로 되돌린다.
     offset = text.count('\n', 0, text.index(body)) if body and body in text else 0
     for m in PLACEHOLDER.finditer(body):
         try:
             _probe(data, m)
+        except CT.PendingCity as e:
+            waits.append((offset + _line_of(body, m.start()), '%s — %s' % (m.group(0), e)))
         except CT.TableError as e:
             out.append((offset + _line_of(body, m.start()), '%s — %s' % (m.group(0), e)))
     # 요약·FAQ 는 생성기와 **같은 함수**(fill_inline)로 본다. 한 줄 글에 못 들어가는 종류(표·그림)까지
@@ -78,7 +80,7 @@ def check_post(path, data, root=ROOT):
             CT.fill_inline((f.get('q') or '') + ' ' + (f.get('a') or ''), data)
         except CT.TableError as e:
             out.append((_front_line(text, 'faq'), 'faq %d번: %s' % (i + 1, e)))
-    return [(ln, '%s' % why) for ln, why in out], rel
+    return [(ln, '%s' % why) for ln, why in out], waits, rel
 
 
 def main(argv=None):
@@ -89,16 +91,24 @@ def main(argv=None):
     if not posts:
         print('검사할 원고가 없다')
         return 0
-    bad = 0
+    bad, waiting = 0, 0
     for sec, slug, path in posts:
-        problems, rel = check_post(path, data)
+        problems, waits, rel = check_post(path, data)
+        for ln, why in sorted(waits):
+            # 아직 수집되지 않은 시군구는 고칠 곳이 아니다 — 올리면 배치가 받아 넣고 다음 구움에서 나온다.
+            print('  …    %s:%d  %s' % (rel, ln, why))
+        if waits and not problems:
+            waiting += 1
         if not problems:
-            print('  OK   %s' % rel)
+            if not waits:
+                print('  OK   %s' % rel)
             continue
         bad += 1
         for ln, why in sorted(problems):
             print('  ✗    %s:%d  %s' % (rel, ln, why))
-    print('\n원고 %d편 중 %d편에 고칠 곳이 있다.' % (len(posts), bad))
+    print('\n원고 %d편 중 %d편에 고칠 곳이 있다.%s' % (
+        len(posts), bad,
+        ' %d편은 아직 안 받은 도시를 기다린다(올려도 된다).' % waiting if waiting else ''))
     if bad:
         print('쓸 수 있는 자리표는 content/README.md 에 있다.')
     return 1 if bad else 0
