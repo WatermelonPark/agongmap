@@ -7,9 +7,11 @@
 머리줄의 id(wk-kicker)는 쓰지 않는다 — test_weekly_release 가 그 머리줄이 되살아나지 않는지 따로 본다. 고정 문구라 applyWeeklyStatus 가
 바꾸지 않고(늦은 주 발표일 접두는 h2 에), 문구는 모드 단추 이름('주간 시세')을 그대로 쓰고 단위('시군구')를 붙인다 — 요청서 예시
 '이번 주 시군구 시세'보다 단추와 같은 말이라야 위아래가 이어져 읽힌다(요청서도 그렇게 권한다).
+2026-10-29 대표 결정 '단추 하나에 지도 하나'로 이 구역의 주간 시군구 지도는 지도 구역 카드의 '주간 시세' 단추로 옮겼다 — 구역에
+지도가 없어져 단위('시군구')를 떼고 단추 이름만 쓴다(지도가 하나라 월간 결과로 잘못 읽을 아래 지도가 없다).
 픽스처: 저장소 index.html·home-app.js(home_src)·make_naver_post.WEEKLY_SHOTS.
 
-변이(각각 실제로 확인): 머리말을 지우거나 h2 아래로 옮기면, 문구를 모드 단추 이름과 다르게('이번 주 시군구 시세') 쓰면, applyWeeklyStatus 가 머리말을
+변이(각각 실제로 확인): 머리말을 지우거나 h2 아래로 옮기면, 문구를 모드 단추 이름과 다르게('이번 주 시군구 시세'·옛 '주간 시세 · 시군구') 쓰면, applyWeeklyStatus 가 머리말을
 건드리면, 블로그 캡처 상자를 홈 주간 구역으로 바꾸면 빨개진다.
 """
 import os
@@ -20,7 +22,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 import home_src as HS  # noqa: E402
 import make_naver_post as P  # noqa: E402
 
-KICKER = '주간 시세 · 시군구'        # 머리말 문구 — 시험은 이 상수를 마크업에서 찾는다(문구를 여러 곳에 박지 않는다)
+KICKER = '주간 시세'        # 머리말 문구 — 시험은 이 상수를 마크업에서 찾는다(문구를 여러 곳에 박지 않는다)
 
 
 def _files():
@@ -35,11 +37,13 @@ def _weekly_section(html):
 def test_kicker_sits_right_above_the_weekly_conclusion():
     sec = _weekly_section(_files()[HS.HOME])
     m = re.search(r'<div class="hs-kicker" id="wk-label">([^<]+)</div>\s*<h2 id="wk-h2">', sec)
-    assert m, '주간 시군구 구역 h2 바로 위에 머리말이 없다'
+    assert m, '주간 구역 h2 바로 위에 머리말이 없다'
     assert m.group(1) == KICKER
     assert sec.index('id="wk-label"') < sec.index('id="home-weekly-grid"')
     btn = re.search(r'<button[^>]*data-m="weekly"[^>]*>([^<]+)</button>', _files()[HS.HOME])   # 모드 단추 '주간 시세'
-    assert btn and KICKER.startswith(btn.group(1).strip()) and '시군구' in KICKER, '머리말이 모드 단추 이름과 단위(시군구)를 말하지 않는다'
+    assert btn and KICKER == btn.group(1).strip(), '머리말이 모드 단추 이름과 다르다'
+    assert '시군구' not in KICKER and 'sggMapSvg' not in _files()['home-app.js'].split('function renderWeeklyGrid(){')[1].split('\n}\n')[0], \
+        '주간 구역에 지도가 없는데 머리말이 시군구 지도를 말한다'
     assert not re.search(r'\d', KICKER), '머리말에 날짜를 싣지 않는다(10-03 대표 요청 — 날짜는 h2 접두가 말한다)'
 
 

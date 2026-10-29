@@ -352,6 +352,14 @@ def main():
             'note': mo.get('note', ''),
             'agg': price_agg(mo),      # 분기·연 합(원값으로 한 번, #110) — 홈 tbAgg 가 읽는다
         }
+        # 홈 지도 '월간 시세' 단추는 전국 시군구 지도를 그린다(단추 하나에 지도 하나, 2026-10-29 대표 결정) — 주간 sgg 처럼
+        # 마지막 달 한 행만 싣는다(전체 sgg 는 617KB). 통계 탭이 열리면 loadFullData 가 trend 의 sgg 로 덮는다.
+        msgg = mo.get('sgg') or {}
+        if msgg.get('rows'):
+            last = msgg['rows'][-1]
+            core_adv['monthly']['sgg'] = {'codes': msgg.get('codes', []),
+                                          'rows': [{'p': last['p'], 'ma': _r4(last.get('ma')),
+                                                    'je': _r4(last.get('je')), 'wo': _r4(last.get('wo'))}]}
 
     # 판정 단위 키 → 화면 이름(정본 sido_zones.DISPLAY_NAME, 백로그 46). 홈은 키로 데이터를 찾고 글자는 zn() 으로 이 표에서 읽는다.
     core_adv['zname'] = dict(_SZ.DISPLAY_NAME)
