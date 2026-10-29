@@ -76,7 +76,11 @@ def test_workflow_records_what_the_two_clis_print():
     code = _code()
     assert re.search(r'LAG=\$\(python3 tools/month_lag\.py', code) and 'rep "$LAG"' in code, 'month_lag 출력이 기록에 안 실린다'
     assert re.search(r'NOTES=\$\(python3 tools/batch_notes\.py', code) and 'rep "$LN"' in code, 'batch_notes 출력이 기록에 안 실린다'
-    assert code.find('rep "$LAG"') < code.find('git add -A -- $TARGETS'), '기록이 커밋 판단 뒤에 온다'
+    # 커밋 지점은 명령으로 찾는다 — 넘기는 목록의 변수 이름에 기대면 그 이름을 바꾼 날 '못 찾음(-1)'을
+    # 커밋 지점으로 보고 엉뚱하게 빨개진다(2026-10-29 배치가 이 시험 때문에 게이트에서 멈췄다).
+    j = code.find('git add -A --')
+    assert j >= 0, '워크플로에서 커밋 지점을 찾지 못했다'
+    assert code.find('rep "$LAG"') < j, '기록이 커밋 판단 뒤에 온다'
 
 
 def test_non_core_fetch_failures_reach_the_record():
