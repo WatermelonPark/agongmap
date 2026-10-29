@@ -591,6 +591,15 @@ jobs:
               rep "⚠️ 월간 공유카드 실패 — /monthly/ og:image가 옛 달에 고정된다"
               echo "::error::make_monthly_share 실패 — 월간 공유 카드가 옛 달에 고정된다"
             fi
+            # 글별 공유 카드(백로그 50, 대표 결정 ②). 카드에는 숫자가 없어 원고가 바뀔 때만 다시 그려지고,
+            # 페이지는 ?v=<updated> 로 판을 붙이므로 이 스텝과 페이지 생성의 순서가 서로 묶이지 않는다.
+            # 실패해도 글은 섹션 공통 카드·브랜드 카드로 떨어져 미리보기가 비지 않는다.
+            if python3 tools/make_content_cards.py; then
+              rep "✅ 글 공유카드"
+            else
+              rep "⚠️ 글 공유카드 실패 — 새 글은 섹션 공통 카드로 나간다"
+              echo "::warning::make_content_cards 실패 — 글별 og:image 가 섹션 공통 카드로 떨어진다"
+            fi
           else
             rep "⚠️ 공유카드 건너뜀 — pillow 미설치(인프라)"
             echo "::warning::pillow 미설치로 공유 카드 생성을 건너뛴다(인프라 문제)"

@@ -608,3 +608,63 @@ def test_zone_reports_link_the_posts_about_that_region():
             z, sorted(want.get(z, set()) - hrefs), sorted(hrefs - want.get(z, set())))
         seen += 1
     assert seen >= 10, '시도 리포트를 %d곳밖에 못 읽었다' % seen
+
+
+def test_og_image_falls_back_in_three_steps(tmp_path):
+    """글의 og:image 는 글별 카드 → 섹션 공통 카드 → 브랜드 카드 순으로 떨어진다.
+
+    무엇을 바꾸면 빨개지나: 폴백 한 단계를 지우거나, 카드가 없는데도 그 주소를 가리키게 하면(미리보기가
+    깨진 그림으로 뜬다), 판(?v=)을 updated 가 아닌 것으로 바꾸면.
+    픽스처: 카드가 둘 다 없는 빈 뿌리, 섹션 카드만 있는 뿌리, 글별 카드까지 있는 뿌리 — 세 상태를 만든다.
+    """
+    meta = {'section': 'city', 'slug': 'x-2027', 'updated': '2026-10-27'}
+    assert MC.og_image(meta, root=str(tmp_path)).endswith('/og-brand.png'), '카드가 없으면 브랜드 카드다'
+    (tmp_path / 'share').mkdir()
+    (tmp_path / MC.section_card_rel('city')).write_bytes(b'x')
+    got = MC.og_image(meta, root=str(tmp_path))
+    assert got.endswith('/share/section-city.png?v=2026-10-27'), '섹션 카드로 떨어지지 않는다: %s' % got
+    (tmp_path / MC.card_rel('city', 'x-2027')).write_bytes(b'x')
+    got = MC.og_image(meta, root=str(tmp_path))
+    assert got.endswith('/share/post-city-x-2027.png?v=2026-10-27'), '글별 카드를 쓰지 않는다: %s' % got
+
+
+def test_baked_pages_point_at_a_card_that_exists():
+    """구운 글의 og:image 가 **저장소에 있는** 파일을 가리킨다.
+
+    무엇을 바꾸면 빨개지나: 카드를 지우고 페이지를 다시 굽지 않거나, 카드 경로 규칙을 한쪽만 고치면.
+    픽스처: 저장소에 구워져 있는 글 페이지 전부.
+    """
+    import urllib.parse
+    built = CM.built(ROOT)
+    if not built:
+        pytest.skip('구워진 글이 없다')
+    for sec, slug, _ in built:
+        page = io.open(os.path.join(ROOT, sec, slug, 'index.html'), encoding='utf-8').read()
+        m = re.search(r'<meta property="og:image" content="([^"]+)"', page)
+        assert m, '%s/%s: og:image 가 없다' % (sec, slug)
+        rel = urllib.parse.unquote(m.group(1).split('?')[0].split('/', 3)[-1])
+        assert os.path.exists(os.path.join(ROOT, rel)), '%s/%s: 없는 카드를 가리킨다 — %s' % (sec, slug, rel)
+
+
+def test_card_text_matches_the_manuscript_title():
+    """커밋된 카드에 그려진 글자가 지금 원고의 제목과 같다(그림은 못 읽으므로 PNG 글 칸을 읽는다).
+
+    무엇을 바꾸면 빨개지나: 제목을 고치고 카드를 다시 굽지 않으면. 지역 카드(test_zone_cards)와 같은 방법이다.
+    픽스처: 저장소의 카드 파일과 원고. 카드가 아직 없는 글은 섹션 공통 카드로 떨어지므로 건너뛴다.
+    """
+
+    data = CT.load()
+    seen = 0
+    for sec, slug, path in CM.posts(ROOT):
+        p = os.path.join(ROOT, MC.card_rel(sec, slug))
+        if not os.path.exists(p):
+            continue
+        meta, _ = CM.read(path, sec, slug)
+        want = CT.fill_inline(meta['title'], data)
+        from PIL import Image
+        # 글 칸은 iTXt 로 저장된다(한글이라 UTF-8). 직접 청크를 훑으면 tEXt 만 보다 놓친다.
+        got = dict(Image.open(p).text)
+        assert got.get('title') == want, '%s/%s: 카드 글자(%r)가 원고 제목(%r)과 다르다' % (
+            sec, slug, got.get('title'), want)
+        seen += 1
+    assert seen >= 1, '카드가 하나도 없다 — make_content_cards 를 돌릴 것'
