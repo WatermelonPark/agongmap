@@ -1,4 +1,43 @@
+# 전부 허용이 기본이다. 아래는 AI 검색·검색엔진 크롤러를 이름으로 적어 둔 것으로,
+# 규칙이 아니라 의도의 표시다 — 뒤에 누가 전체 차단을 넣더라도 이 줄들이 먼저 눈에 띄게 한다.
+# CCBot(학습 말뭉치 수집)도 허용한다 — 대표 결정 2026-10-27.
 User-agent: *
+Allow: /
+
+# AI 검색(답변에 인용)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# 학습 말뭉치 수집(검색 노출과는 별개 — 대표 결정 2026-10-27)
+User-agent: CCBot
+Allow: /
+
+# 검색엔진
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Yeti
+Allow: /
+
+User-agent: Daum
 Allow: /
 
 Sitemap: https://www.agongmap.co.kr/sitemap.xml
