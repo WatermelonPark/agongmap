@@ -60,16 +60,34 @@ def _quote(title):
     return None
 
 
-def _thumb_source(meta, body, data):
-    """썸네일에 그릴 (지역, 큰 숫자, 인용). 지역은 글이 말하는 도시, 없으면 region(시도)."""
-    import make_city_moveins as MCM
+def thumb_args(meta, body):
+    """그 글의 썸네일에 그릴 moveins 자리표 인자를 **글이 쓴 순서대로**.
+
+    `chart:moveins` 를 먼저 본다 — 글쓴이가 '이 글의 그림'으로 고른 자리표라, 글이 말하는 지역과 해가 거기
+    들어 있다. 그다음이 table·v 의 moveins, 마지막이 프런트매터 region 이다.
+
+    ⚠️ region 을 먼저 보면 안 된다. 단지·GTX·반박 편의 region 은 시도('경기')라, 수원 단지 글과 서울을
+       따지는 반박 글이 **똑같은 경기 막대**를 달고 나갔다(총괄 지적 2026-10-30). 글이 가리키는 가장 좁은
+       지역은 자리표에 있다.
+    """
     import content_tables as CT
-    cities = MCM.placeholder_cities(body + ' ' + (meta.get('summary') or ''))
+    text = (body or '') + ' ' + (meta.get('summary') or '')
+    first, rest = [], []
+    for pre, inner in CT.PH.findall(text):
+        parts = [p.strip() for p in inner.split(':') if p.strip()]
+        if len(parts) < 2 or parts[0] != 'moveins':
+            continue
+        (first if pre == 'chart' else rest).append(parts[1:])
     region = (meta.get('region') or '').strip()
-    want = [region] + cities if region else cities
-    for name in want:
+    return first + rest + ([[region]] if region else [])
+
+
+def _thumb_source(meta, body, data):
+    """썸네일에 그릴 (막대 묶음, 큰 숫자). 어느 지역인지는 thumb_args 가 고른다."""
+    import content_tables as CT
+    for args in thumb_args(meta, body):
         try:
-            spec = CT.chart(data, 'moveins', [name])
+            spec = CT.chart(data, 'moveins', args[:2])
         except CT.TableError:
             continue
         big = None

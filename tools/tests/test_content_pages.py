@@ -765,6 +765,10 @@ def test_every_listed_post_has_a_real_thumbnail():
     무엇을 바꾸면 빨개지나: 썸네일을 굽지 않고 목록만 고치거나, 카드 생성이 조용히 실패해 그 글이
     섹션 공통 카드로 떨어지면(2026-10-29 fontTools 가 없어 그런 일이 있었다).
     픽스처: 저장소의 허브·섹션 목록·홈과 share/ 의 그림들.
+
+    ⚠️ 이 시험은 **발행을 멈춘다**(배치·발행 게이트가 pytest 전체다). 그래서 카드를 굽는 단계는 게이트
+       앞에 와야 한다 — 뒤에 두었더니 새 글이 올라온 회차마다 아직 없는 카드를 보고 빨개져 발행이
+       세 런 연속 멈췄다(2026-10-29). 순서는 test_publish_workflow_runs_on_content_and_gates_before_commit 이 지킨다.
     """
     import urllib.parse
     pages = [os.path.join(ROOT, MC.REPORTS_DIR, 'index.html'), os.path.join(ROOT, HS.HOME)]
@@ -1011,3 +1015,168 @@ def test_thumbnail_is_a_picture_not_the_title_card():
                         ('그는 "공급 폭탄" 이라고 했다', '공급 폭탄'),
                         ('따옴표가 없는 제목입니다', None)):
         assert CC._quote(title) == want, '인용 뽑기가 틀렸다: %r → %r' % (title, CC._quote(title))
+
+
+# ── /weekly/ 해설 칸(총괄 요청 2026-10-30) ──────────────────────────────────────────────────────────────
+def _weekly_week():
+    """주간 생성기에 넘길 최소한의 주 하나. 값은 쓰지 않는다 — 이 시험이 보는 것은 칸의 처리다."""
+    import sido_zones as SZ
+    regs = list(SZ.DISPLAY_ORDER)
+    codes = ['C%02d' % i for i in range(12)]
+    W = {'regions': regs, 'rows': [{'p': '2026-09-21', 'ma': [0.02] * len(regs)}], 'holidays': [],
+         'sgg': {'codes': codes, 'rows': [{'p': '2026-09-21', 'ma': [0.01 * i - 0.05 for i in range(12)]}]},
+         'seoul': {'regions': ['강남구', '서초구', '마포구'], 'rows': [{'p': '2026-09-21', 'ma': [0.1, -0.1, 0.0]}]}}
+    return W, {c: '시군구%d' % i for i, c in enumerate(codes)}
+
+
+def test_weekly_commentary_slot_points_to_the_latest_column_post(tmp_path):
+    """/weekly/ 하단 해설 칸 = /column/ 최신 글 + 콘텐츠 허브. 네이버 블로그 링크는 더 굽지 않는다.
+
+    왜: 2026-10-26·10-29 대표 결정으로 네이버 발행을 멈췄는데, 이 칸은 블로그 최신 주간 글을 가리켰다.
+    발행이 끊긴 뒤로는 묵은 글만 걸렸다. 같은 일을 하는 글(/column/ 반박 편)이 사이트에 생겨 그쪽으로 돌렸다.
+
+    무엇을 바꾸면 빨개지나: 칸에 블로그 링크를 되살리면, 최신 글 대신 옛 글을 고르면, 콘텐츠 허브 줄을
+      빼면, 글이 없는데 칸을 채우면.
+    픽스처: 저장소의 실제 weekly/index.html(표식이 붙은 지금 모양)과 손으로 지은 반박 글 메타 셋.
+    """
+    src = os.path.join(ROOT, 'weekly', 'index.html')
+    d = tmp_path / 'weekly'
+    d.mkdir(parents=True)
+    shutil.copyfile(src, str(d / 'index.html'))
+
+    def meta(slug, updated, title):
+        return {'section': 'column', 'slug': slug, 'updated': updated, 'date': updated, 'title': title}
+
+    metas = [meta('old-one', '2026-10-20', '옛 반박 글'),
+             meta('new-one', '2026-10-29', '새 반박 글 "집값 급락" 을 따진다'),
+             {'section': 'city', 'slug': 'x', 'updated': '2026-10-30', 'date': '2026-10-30', 'title': '도시 글'}]
+    assert MC.write_weekly_column(metas, root=str(tmp_path)) is True
+    s = io.open(str(d / 'index.html'), encoding='utf-8').read()
+    blk = re.search(re.escape(MC.WEEKLY_START) + r'(.*?)' + re.escape(MC.WEEKLY_END), s, re.S).group(1)
+    assert 'blog.naver' not in s, '/weekly/ 에 네이버 블로그 링크가 되살아났다'
+    assert 'href="/column/new-one/"' in blk and 'old-one' not in blk, blk
+    assert '도시 글' not in blk, '해설 칸은 반박 편만 싣는다'
+    assert 'href="/%s/"' % MC.REPORTS_DIR in blk, '콘텐츠 허브 줄이 빠졌다'
+    assert '&quot;' in blk or '&#x27;' in blk or '"' not in blk.split('<span>')[0], '제목을 그대로 넣었다'
+    # 글이 없으면 허브 줄만 남는다(칸이 빈 글을 가리키지 않는다).
+    assert MC.write_weekly_column([{'section': 'city', 'slug': 'x', 'updated': '2026-10-30',
+                                    'date': '2026-10-30', 'title': '도시 글'}], root=str(tmp_path)) is True
+    blk2 = re.search(re.escape(MC.WEEKLY_START) + r'(.*?)' + re.escape(MC.WEEKLY_END),
+                     io.open(str(d / 'index.html'), encoding='utf-8').read(), re.S).group(1)
+    assert '/column/' not in blk2 and 'href="/%s/"' % MC.REPORTS_DIR in blk2, blk2
+    # 표식이 없는 페이지는 건너뛴다(주간 생성기가 아직 자리를 안 낸 회차).
+    (d / 'index.html').write_text('<html></html>', encoding='utf-8')
+    assert MC.write_weekly_column(metas, root=str(tmp_path)) is False
+
+
+def test_weekly_generator_leaves_the_commentary_slot_alone():
+    """주간 생성기는 해설 칸의 **자리만** 낸다 — 안은 콘텐츠 생성기의 것이라 다시 구워도 그대로다.
+
+    왜 이게 중요한가: 주간 생성기는 뼈대의 'N개 시도'를 모델 수로 맞추는 치환을 한다. 옛 블로그 칸은 그
+    치환에 제목이 걸려 '5개 시도만 올랐습니다'를 '16개 시도만'으로 고쳐 인용한 적이 있다(전수리뷰 #26).
+    이제는 콘텐츠 생성기가 **뒤에** 쓰므로 구조적으로 안 생기는데, 그 순서를 이 시험이 지킨다.
+
+    무엇을 바꾸면 빨개지나: put_column_slot 이 구간을 비우게 하면, 자리를 '더 둘러보기' 뒤로 옮기면,
+      옛 블로그 표식을 걷지 않으면, render 에서 put_column_slot 호출을 지우면.
+    픽스처: 저장소 weekly/index.html 에 ① 콘텐츠가 채운 것처럼 꾸민 칸(제목에 모델과 다른 시도 수가 든 글)
+      ② 표식을 떼어 낸 판 ③ 옛 블로그 칸을 되살린 판.
+    """
+    import make_weekly_page as MW
+    W, Q = _weekly_week()
+    base = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8', newline='').read()
+    n = len(MW.SIDO) - 11
+    mine = '<a href="/column/x/">%d개 시도만 올랐습니다</a>' % n
+    filled = re.sub(re.escape(MC.WEEKLY_START) + r'.*?' + re.escape(MC.WEEKLY_END),
+                    MC.WEEKLY_START + mine + MC.WEEKLY_END, base, flags=re.S)
+    out = MW.render(filled, W, Q)
+    assert mine in out, '주간 생성기가 해설 칸의 내용을 고쳤다'
+    assert out.count(MC.WEEKLY_START) == 1
+    rest = out.replace(mine, '')
+    assert not [x for x in re.findall(r'(?<!\d)(\d+)개 시도', rest) if int(x) != len(MW.SIDO)], \
+        '뼈대 시도 수 치환이 빠졌다'
+    # 표식이 없으면 '더 둘러보기' 앞에 빈 자리를 낸다. 다시 구워도 자리가 늘지 않는다.
+    stripped = re.sub(re.escape(MC.WEEKLY_START) + r'.*?' + re.escape(MC.WEEKLY_END) + r'\s*', '',
+                      base, flags=re.S)
+    o2 = MW.render(stripped, W, Q)
+    assert o2.count(MC.WEEKLY_START) == 1 and MW.render(o2, W, Q) == o2
+    assert o2.index(MC.WEEKLY_START) < o2.index('<h2>더 둘러보기</h2>'), '자리가 더 둘러보기 뒤로 갔다'
+    assert re.search(re.escape(MC.WEEKLY_START) + r'\s*' + re.escape(MC.WEEKLY_END), o2), '자리가 비어 있지 않다'
+    # 옛 블로그 칸(표식·내용)은 걷는다 — 묵은 글 링크가 남지 않게.
+    old = stripped.replace('<h2>더 둘러보기</h2>',
+                           '<!--WK:BLOG--><a href="https://blog.naver.com/x/1">옛 글</a><!--/WK:BLOG-->'
+                           '<h2>더 둘러보기</h2>', 1)
+    o3 = MW.render(old, W, Q)
+    assert 'WK:BLOG' not in o3 and 'blog.naver' not in o3, '옛 블로그 칸이 남았다'
+
+
+def _chart_region(meta, body):
+    """그 글이 `chart:moveins` 로 고른 지역과 인자. 없으면 None — 썸네일 지역의 기대값이다."""
+    for pre, inner in CT.PH.findall((body or '') + ' ' + (meta.get('summary') or '')):
+        parts = [p.strip() for p in inner.split(':') if p.strip()]
+        if pre == 'chart' and len(parts) >= 2 and parts[0] == 'moveins':
+            return parts[1], parts[1:3]
+    return None, None
+
+
+def test_thumbnail_draws_the_region_the_post_itself_chose():
+    """썸네일 막대는 **그 글이 `chart:moveins` 로 고른 지역**이다 — 프런트매터 region 이 아니다.
+
+    왜: region 을 먼저 보던 판은 단지·GTX·반박 편에 모두 같은 막대를 달았다. 그 세 섹션의 region 은
+    시도('경기')라, 수원 단지 글과 서울을 따지는 반박 글이 똑같은 숫자를 보였다(총괄 지적 2026-10-30).
+    글이 가리키는 가장 좁은 지역은 글쓴이가 고른 chart 자리표에 있다.
+
+    무엇을 바꾸면 빨개지나(둘 다 확인): thumb_args 가 region 을 먼저 보게 되돌리면, 자리표를 보지 않고
+      region 만 쓰게 하면.
+    ⚠️ 'chart 를 table·v 뒤로 미루기'와 'chart 의 해 인자 버리기'는 **지금 원고에서는 구분되지 않는다** —
+       한 글의 chart 와 table·v 가 같은 지역을 쓰고, 그 해가 기본 연도와 같기 때문이다(변이로 확인).
+       그래도 chart 를 먼저 보는 것이 옳다: 글이 여러 지역을 말할 때 대표 그림을 고른 자리표가 chart 다.
+    픽스처: 저장소의 실제 원고와 데이터. 기대 지역은 자리표를 **따로 읽어** 만든다(썸네일 코드를 쓰지 않는다).
+    """
+    import make_content_cards as CC
+    data = CT.load()
+    checked = 0
+    for sec, slug, path in CM.posts(ROOT):
+        meta, body = CM.read(path, sec, slug)
+        want, args = _chart_region(meta, body)
+        if not want:
+            continue
+        try:
+            CT.chart(data, 'moveins', args)     # 그 지역 자료가 아직 없는 글은 건너뛴다(군포 같은 새 도시)
+        except CT.TableError:
+            continue
+        spec, _big = CC._thumb_source(meta, body, data)
+        assert spec and spec['title'].split()[0] == want, \
+            '%s/%s: 썸네일이 %r 를 그린다 — 글은 %r 를 고랐다' % (
+                sec, slug, (spec or {}).get('title', '없음').split()[0], want)
+        checked += 1
+    assert checked >= 10, 'chart 자리표를 쓴 글을 %d편밖에 못 봤다' % checked
+
+
+def test_thumbnail_number_is_that_regions_own_moveins_value():
+    """썸네일의 큰 숫자는 그 지역·그 해의 `v:moveins` 와 **글자 그대로 같다**.
+
+    무엇을 바꾸면 빨개지나(둘 다 확인): 큰 숫자를 입주 세대가 아닌 다른 카드에서 읽으면, 다른 해의
+      값을 쓰면. 지역이 틀리는 경우는 윗 시험이 잡는다.
+    픽스처: 저장소의 실제 원고와 데이터. 기대값은 자리표를 따로 채워 만든다.
+    """
+    import re as _re
+    import make_content_cards as CC
+    data = CT.load()
+    seen, by_region = 0, {}
+    for sec, slug, path in CM.posts(ROOT):
+        meta, body = CM.read(path, sec, slug)
+        spec, big = CC._thumb_source(meta, body, data)
+        if not (spec and big):
+            continue
+        name = spec['title'].split()[0]
+        year = _re.search(r'(\d{4})', big[1])
+        assert year, '%s/%s: 큰 숫자 꼬리표에 연도가 없다 — %r' % (sec, slug, big)
+        ph = '{{v:moveins:%s:%s}}' % (name, year.group(1))
+        assert big[0] == CT.fill_inline(ph, data), \
+            '%s/%s: 썸네일 숫자 %r 가 %s(%r) 와 다르다' % (sec, slug, big[0], ph, CT.fill_inline(ph, data))
+        by_region.setdefault(big[0], set()).add(name)
+        seen += 1
+    assert seen >= 10, '썸네일 숫자를 %d개밖에 못 봤다' % seen
+    # 같은 숫자를 서로 다른 지역이 나눠 쓰면 한쪽이 남의 값을 들고 있는 것이다.
+    shared = {v: sorted(r) for v, r in by_region.items() if len(r) > 1}
+    assert not shared, '한 숫자를 여러 지역이 쓴다 — 지역이 섞였다: %s' % shared

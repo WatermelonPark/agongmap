@@ -160,52 +160,7 @@ def test_repo_file_exists_and_is_readable():
     assert raw['weekly'] is None or BF.read() is not None
 
 
-# ── /weekly/ 하단 칸 ─────────────────────────────────────────────────────────────────────────────────
-def _week():
-    regs = list(__import__('sido_zones').DISPLAY_ORDER)
-    ma = [0.02] * len(regs)
-    codes = ['C%02d' % i for i in range(12)]
-    W = {'regions': regs, 'rows': [{'p': '2026-09-21', 'ma': ma}], 'holidays': [],
-         'sgg': {'codes': codes, 'rows': [{'p': '2026-09-21', 'ma': [0.01 * i - 0.05 for i in range(12)]}]},
-         'seoul': {'regions': ['강남구', '서초구', '마포구'], 'rows': [{'p': '2026-09-21', 'ma': [0.1, -0.1, 0.0]}]}}
-    return W, {c: '시군구%d' % i for i, c in enumerate(codes)}
-
-
-def _skeleton():
-    return io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8', newline='').read()
-
-
-def test_weekly_page_bakes_the_same_post_once_before_more_links(tmp_path, monkeypatch):
-    """/weekly/ 하단 칸 = 홈과 같은 pick 결과 + 블로그 첫 화면 링크. 표식은 '더 둘러보기' 앞에 하나만 생기고, 다시 구워도 같다.
-    글이 없으면 글 줄만 빠진다.
-
-    픽스처: 9/21 조사(9/24 발표) 주, 저장 파일에 9/25 주간 글. 뼈대는 저장소 weekly/index.html 에서 표식을 뗀 것(표식 이전
-    모양)과 붙은 것 둘 다.
-    변이: put_blog 의 표식 삽입을 '</main>' 앞으로만 하게 바꾸면 순서 단정이, blog_html 에서 글 줄·이웃 안내 줄·onclick 을
-          지우면 각 단정이 빨개진다(넷 다 확인).
-    """
-    f = tmp_path / 'blog.json'
-    f.write_text(json.dumps({'weekly': {'date': '2026-09-25', 'title': '제목 <b>&', 'url': BF.BLOG_HOME + '/9'}},
-                            ensure_ascii=False), encoding='utf-8')
-    monkeypatch.setattr(BF, 'FILE', str(f))
-    W, Q = _week()
-    base = re.sub(r'<!--WK:BLOG-->.*?<!--/WK:BLOG-->\s*', '', _skeleton(), flags=re.S)
-    out = MW.render(base, W, Q)
-    assert out.count('<!--WK:BLOG-->') == 1 and MW.render(out, W, Q) == out
-    blk = re.search(r'<!--WK:BLOG-->(.*?)<!--/WK:BLOG-->', out, re.S).group(1)
-    assert out.index('<!--WK:BLOG-->') < out.index('<h2>더 둘러보기</h2>')
-    b = BF.pick(BF.read(), WR.status('2026-09-21')['pub'])
-    assert b['lead'] == BF.LEAD_NOW
-    assert '>제목 &lt;b&gt;&amp;<span>%s</span></a>' % b['meta'] in blk, blk
-    assert 'href="%s"' % BF.BLOG_HOME in blk and '금요일' not in blk and '알림' not in blk
-    # 이웃 안내 줄(RET-4 A안)은 뺐다(2026-10-03 대표 요청 — 군더더기). 클릭은 gtag blog_link 이벤트(이 페이지엔 홈 track 이 없다)
-    assert 'blog-note' not in blk and '이웃' not in blk, '해설 글 칸에 이웃 안내 줄이 되살아났다'
-    assert "gtag('event','blog_link',{to:'weekly_post'})" in blk and "gtag('event','blog_link',{to:'weekly_home'})" in blk
-    f.write_text(json.dumps({'weekly': None}), encoding='utf-8')
-    blk2 = re.search(r'<!--WK:BLOG-->(.*?)<!--/WK:BLOG-->', MW.render(out, W, Q), re.S).group(1)
-    assert BF.LEAD_NOW not in blk2 and 'href="%s"' % BF.BLOG_HOME in blk2
-
-
+# ── 주간 해설 글 골라내기(홈 주간 구역·/moveins/ 도시 칸이 이 pick 을 쓴다) ───────────────
 def test_pick_labels_by_the_week_in_the_title_not_the_post_date():
     """제목에 주차 라벨이 있으면 '이번 주/지난주'를 그 라벨로 정한다(전수리뷰 #27). 게시일로만 정하면 지난 회차 글이
     이번 발표일 뒤에 올라왔을 때 '이번 주 해설: …(8월 셋째 주)'가 '8월 넷째 주' 페이지에 붙는다.
@@ -235,29 +190,6 @@ def test_pick_labels_by_the_week_in_the_title_not_the_post_date():
     plain = {'date': after, 'url': BF.BLOG_HOME + '/9', 'title': '주간 시세 해설'}
     assert BF.pick(plain, pub)['lead'] == BF.LEAD_NOW
     assert BF.title_week('동향(8월  셋째 주)') == '8월 셋째 주'
-
-
-def test_weekly_page_keeps_the_blog_title_as_written(tmp_path, monkeypatch):
-    """/weekly/ 의 해설 글 칸은 RSS 제목을 그대로 인용한다 — 뼈대의 'N개 시도'를 모델 수로 맞추는 치환이 남의 글 제목까지
-    고치면 안 된다(전수리뷰 #26: '5개 시도만 올랐습니다' → '16개 시도만'). 뼈대 문구의 치환은 그대로 된다.
-
-    픽스처: 9/21 조사 주(_week), 저장 파일에 이번 주 라벨·발표일 뒤 게시의 주간 글, 제목 결론절에 시도 수(모델 수와 다른
-    수 — 모델에서 유도)가 든 실제 제목 모양.
-    변이(실제로 확인): render 에서 시도 수 치환을 put_blog 뒤로 되돌리면 빨개진다.
-    """
-    W, Q = _week()
-    n = len(MW.SIDO) - 11
-    title = '[한국부동산원] 주간 아파트가격 동향(%s) | %d개 시도만 올랐습니다' % (WR.week_label(W['rows'][-1]['p']), n)
-    f = tmp_path / 'blog.json'
-    f.write_text(json.dumps({'weekly': {'date': WR.status(W['rows'][-1]['p'])['pub'], 'title': title,
-                                        'url': BF.BLOG_HOME + '/7'}}, ensure_ascii=False), encoding='utf-8')
-    monkeypatch.setattr(BF, 'FILE', str(f))
-    out = MW.render(_skeleton(), W, Q)
-    blk = re.search(r'<!--WK:BLOG-->(.*?)<!--/WK:BLOG-->', out, re.S).group(1)
-    assert '%d개 시도만 올랐습니다' % n in blk, '해설 글 제목을 고쳐 인용했다: %s' % blk
-    assert '%d개 시도만' % len(MW.SIDO) not in blk
-    rest = out.replace(blk, '')
-    assert not [x for x in re.findall(r'(?<!\d)(\d+)개 시도', rest) if int(x) != len(MW.SIDO)], '뼈대 시도 수 치환이 빠졌다'
 
 
 # ── 홈 쪽(ADV.blog) ──────────────────────────────────────────────────────────────────────────────────
@@ -330,19 +262,18 @@ def test_batch_reads_the_feed_before_split_and_ships_the_file():
 
 
 def test_a_malformed_rss_address_empties_the_line_instead_of_killing_split(tmp_path, monkeypatch):
-    """RSS 정본 주소 모양이 바뀌어도 blog_feed 를 불러오는 split_data·make_weekly_page 가 죽지 않는다 — 칸만 빈다.
+    """RSS 정본 주소 모양이 바뀌어도 blog_feed 를 불러오는 split_data 가 죽지 않는다 — 칸만 빈다.
     예전 판은 모듈 맨 위에서 SystemExit(BaseException)을 던져 split 의 `except Exception` 을 뚫고 수집 잡을 죽일 수 있었다.
+    (/weekly/ 해설 칸은 2026-10-30부터 블로그를 가리키지 않아 make_weekly_page 는 이 모듈을 쓰지 않는다.)
 
     변이: blog_home 을 옛 `raise SystemExit(...)` 로 되돌리면 reload 에서 빨개진다(확인).
     픽스처: close_published_issues.RSS 가 다른 모양('https://example.com/feed')인 상태.
     """
-    import make_weekly_page as MWP
     try:
         monkeypatch.setattr(CP, 'RSS', 'https://example.com/feed')
         importlib.reload(BF)
         assert BF.BLOG_HOME is None and not BF.ours('https://blog.naver.com/x/1')
         assert BF.latest_weekly(CP.parse_posts(RSS)) is None
-        assert MWP.blog_html(None) == ''
         f = str(tmp_path / 'b.json')
         assert BF.main(path=f, fetch=lambda: CP.parse_posts(RSS)) == 0 and BF.read(f) is None
     finally:

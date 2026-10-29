@@ -737,6 +737,62 @@ def write_zone_posts(metas, root=ROOT):
     return done
 
 
+#  ── /weekly/ 아래 '이 수치로 따져 본 글' 칸(총괄 요청 2026-10-30) ─────────────────────────────────────────
+# 주간 시세 페이지를 끝까지 읽은 사람에게 다음에 읽을 글을 준다. 2026-10-26까지는 네이버 블로그의 주간 해설
+# 글을 가리켰는데, 그 발행을 멈추기로 하면서(10-26·10-29 대표 결정) 묵은 글만 걸렸다. 같은 일을 하는 글이
+# 사이트에 생겼으니(/column/ 반박 편 — 공직자 발언을 주간 시세와 입주 물량으로 따진다) 그 최신 글을 싣는다.
+#
+# ⚠️ 자리(표식)는 make_weekly_page.put_column_slot 이 내고, 내용은 여기서 채운다. 주간 생성기는 그 구간을
+#    읽지도 쓰지도 않는다(제 'N개 시도' 치환조차 구간을 비껴간다). 발행 워크플로는 이 생성기만 돌리므로,
+#    column 글이 올라온 날 바로 이 칸이 바뀐다 — 주간 배치(주 1회)를 기다리지 않는다.
+WEEKLY_PAGE = os.path.join('weekly', 'index.html')
+WEEKLY_START, WEEKLY_END = '<!--WK:COLUMN-->', '<!--/WK:COLUMN-->'
+WEEKLY_H2 = '이 수치로 따져 본 글'
+WEEKLY_SEC = 'column'          # 이 칸에 싣는 섹션. 주간 시세를 근거로 쓰는 글이 반박 편이다
+_WEEKLY_RE = re.compile(re.escape(WEEKLY_START) + r'(.*?)' + re.escape(WEEKLY_END), re.S)
+
+
+def weekly_column_html(metas):
+    """/weekly/ 칸의 안쪽. 최신 반박 글 한 편과 콘텐츠 허브 링크. 글이 없으면 허브 링크만 남는다.
+
+    뼈대의 `.links` 스타일(주간 페이지 '더 둘러보기'와 같은 부품)을 그대로 쓴다 — 이 칸만의 CSS 가 없다.
+    """
+    rows = []
+    posts = sorted([m for m in metas if m['section'] == WEEKLY_SEC],
+                   key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    if posts:
+        m = posts[0]
+        rows.append('    <a href="/%s/%s/">%s<span>%s · %s 갱신</span></a>'
+                    % (m['section'], m['slug'], html.escape(m['title']),
+                       html.escape(SECTION_META[m['section']][0]), m['updated']))
+    # 섹션 이름은 SECTION_META 에서 읽는다 — 섹션이 늘거나 이름이 바뀌면 이 곁말도 따라온다.
+    names = ' · '.join(SECTION_META[k][0] for k, _n, _d, _c in HUB_CARDS if not k.startswith('/'))
+    rows.append('    <a href="/%s/">%s<span>%s</span></a>'
+                % (REPORTS_DIR, html.escape('%s 전체 보기' % REPORTS_TITLE), html.escape(names)))
+    return '\n'.join(['<section><div class="wrap">', '  <h2>%s</h2>' % html.escape(WEEKLY_H2),
+                      '  <div class="links">'] + rows + ['  </div>', '</div></section>'])
+
+
+def write_weekly_column(metas, root=ROOT):
+    """/weekly/index.html 의 표식 구간만 고쳐 쓴다 — 홈·지역 묶음과 같은 규칙이다.
+
+    표식이 없으면 건너뛴다(주간 생성기가 아직 자리를 안 낸 회차). 구간 밖은 건드리지 않는다.
+    """
+    p = os.path.join(root, WEEKLY_PAGE)
+    if not os.path.exists(p):
+        return False
+    s = io.open(p, encoding='utf-8', newline='').read()
+    if len(_WEEKLY_RE.findall(s)) != 1:
+        return False
+    nl = '\r\n' if '\r\n' in s else '\n'
+    body = weekly_column_html(metas)
+    out = _WEEKLY_RE.sub(lambda m: WEEKLY_START + nl + body.replace('\n', nl) + nl + WEEKLY_END, s)
+    if out == s:
+        return False
+    io.open(p, 'w', encoding='utf-8', newline='').write(out)
+    return True
+
+
 def collect(root=ROOT, strict=False):
     """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다.
 
@@ -843,10 +899,12 @@ def main(strict=False):
     I.update_sitemap(entries)
     home = write_home_recent(all_metas)
     zones = write_zone_posts(all_metas)
-    print('content pages: %d편%s · 섹션 %s%s%s' % (
+    wk = write_weekly_column(all_metas)
+    print('content pages: %d편%s · 섹션 %s%s%s%s' % (
         wrote, (' · 건너뜀 %d편' % len(skipped)) if skipped else '',
         ', '.join(sorted(by_sec)), ' · 홈 최근 리포트 갱신' if home else '',
-        ' · 지역 리포트 %d곳에 글 묶음' % zones if zones else ''))
+        ' · 지역 리포트 %d곳에 글 묶음' % zones if zones else '',
+        ' · 주간 리포트 해설 칸 갱신' if wk else ''))
     return 0
 
 

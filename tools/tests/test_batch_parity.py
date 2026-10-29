@@ -115,8 +115,13 @@ def test_publish_workflow_runs_on_content_and_gates_before_commit():
     """원고 발행 워크플로(대표 결정 10-26 ①)가 검사 → 생성 → 게이트 → 커밋 순서를 지킨다.
 
     무엇을 바꾸면 빨개지나: pytest 게이트를 커밋 뒤로 옮기거나 지우면, 생성기 하나를 빼면,
-    content/** 트리거를 바꾸면. 발행은 사람 손을 거치지 않고 라이브로 가므로 게이트가 유일한 방어선이다.
+    카드 생성을 게이트 뒤로 되돌리면, content/** 트리거를 바꾸면. 발행은 사람 손을 거치지 않고 라이브로
+    가므로 게이트가 유일한 방어선이다.
     픽스처: 저장소의 실제 워크플로 파일.
+
+    ⚠️ 카드 생성(make_content_cards)이 게이트 **앞**이어야 하는 이유: 게이트의 시험 하나가 '모든 글이 제
+       카드를 가진다'를 본다. 카드를 뒤에 구우면 새 글이 올라온 회차마다 그 시험이 아직 없는 카드를 보고
+       빨개져 발행이 멈춘다(2026-10-29 세 런 연속). 산출물을 재는 시험은 그 산출물을 만드는 단계 뒤에 온다.
     """
     t = _pub_text()
     assert re.search(r'paths:\s*\n\s*-\s*[\'"]?content/\*\*', t), 'content/** 푸시에 반응하지 않는다'
@@ -126,7 +131,8 @@ def test_publish_workflow_runs_on_content_and_gates_before_commit():
     # 처음 나오는 자리로 세면 트리거 줄이 먼저 걸려 순서를 오판한다(2026-10-27 이 시험이 그렇게 틀렸다).
     steps = t[t.index('    steps:'):]
     order = ['tools/make_city_moveins.py', 'tools/content_check.py', 'tools/make_content_pages.py',
-             'tools/make_feed.py', 'tools/make_llms_txt.py', '-m pytest', 'git commit']
+             'tools/make_feed.py', 'tools/make_llms_txt.py', 'tools/make_content_cards.py',
+             '-m pytest', 'git commit']
     at = [steps.find(s) for s in order]
     for s, i in zip(order, at):
         assert i >= 0, '발행 워크플로에 %r 가 없다' % s
