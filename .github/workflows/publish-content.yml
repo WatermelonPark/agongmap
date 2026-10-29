@@ -78,6 +78,12 @@ jobs:
           python -m pip install --quiet pytest pillow
           python -m pytest tools/tests/ -q
 
+      - name: 글 공유 카드
+        run: |
+          # 게이트 뒤라 pillow 가 있다. 새 글의 카드를 굽고 같은 커밋에 싣는다 — 글이 올라온 그 회차부터
+          # 카카오·트위터 미리보기에 제목 카드가 뜬다. 실패하면 섹션 공통 카드로 떨어지므로 멈추지 않는다.
+          python tools/make_content_cards.py || echo "::warning::글 카드 생성 실패 — 섹션 공통 카드로 떨어진다"
+
       - name: 변경 있으면 커밋·푸시
         run: |
           set -e

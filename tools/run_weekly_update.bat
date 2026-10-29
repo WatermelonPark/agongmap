@@ -225,6 +225,11 @@ if errorlevel 1 (
   exit /b 13
 )
 
+rem Per-post share cards (backlog 50). Same place as the cloud batch: after the gate, where pillow is.
+rem A failure only means new posts fall back to the section card, so it does not stop the run.
+python tools\make_content_cards.py
+if errorlevel 1 echo WARN: make_content_cards failed - new posts fall back to the section card
+
 rem 이중 구현 정합성 검사(check_dual_calc)는 2026-08-06에 폐지했다.
 rem 점수를 tools\sido_zones.py가 빌드 시점에 계산해 ADV.sido로 싣고 홈·지역
 rem 페이지가 그걸 읽기만 하므로, 갈릴 구현 자체가 없다.
