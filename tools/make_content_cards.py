@@ -49,6 +49,87 @@ def thumb_rel(section, slug):
     return 'share/thumb-%s-%s.jpg' % (section, slug)
 
 
+QUOTE_MAX = 16           # 인용 한 줄의 글자 수 상한(총괄: 10자 안팎)
+
+
+def _quote(title):
+    """제목에서 따옴표 안 발언을 뽑는다. 없으면 None — 그 글은 막대만 그린다."""
+    import re
+    for m in re.finditer(r"['\u2018\u2019\"\u201c\u201d]([^'\u2018\u2019\"\u201c\u201d]{3,%d})['\u2018\u2019\"\u201c\u201d]" % QUOTE_MAX, title):
+        return m.group(1).strip()
+    return None
+
+
+def _thumb_source(meta, body, data):
+    """썸네일에 그릴 (지역, 큰 숫자, 인용). 지역은 글이 말하는 도시, 없으면 region(시도)."""
+    import make_city_moveins as MCM
+    import content_tables as CT
+    cities = MCM.placeholder_cities(body + ' ' + (meta.get('summary') or ''))
+    region = (meta.get('region') or '').strip()
+    want = [region] + cities if region else cities
+    for name in want:
+        try:
+            spec = CT.chart(data, 'moveins', [name])
+        except CT.TableError:
+            continue
+        big = None
+        for lab, val in spec.get('cards') or []:
+            if '입주' in lab or '적정' in lab:
+                big = (val, lab)
+                break
+        return spec, big
+    return None, None
+
+
+def draw_thumb(spec, big=None, quote=None):
+    """목록 그림 한 장(480×252). 제목은 넣지 않는다 — 목록에서 바로 옆에 있다.
+
+    위쪽에 큰 숫자 하나(또는 발언 인용), 아래쪽에 연도별 입주 막대와 적정 기준선. 막대는 OG 카드·본문
+    그림과 같은 데이터(content_tables.chart)라 세 곳이 어긋나지 않는다.
+    """
+    W, H = THUMB_W, THUMB_H
+    img = Image.new('RGB', (W, H), ZC.PAPER)
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, W, 6], fill=ZC.INK)
+    pad = 18
+    top_h = 86
+    if quote:
+        f = ZC.fit_width('\u201c%s\u201d' % quote, W - pad * 2, hi=40, lo=20)
+        bb = d.textbbox((0, 0), '\u201c%s\u201d' % quote, font=f)
+        d.text((pad - bb[0], 30 - bb[1]), '\u201c%s\u201d' % quote, font=f, fill=ZC.INK)
+    elif big:
+        val, lab = big
+        f = ZC.fit_width(val, W - pad * 2, hi=52, lo=24)
+        bb = d.textbbox((0, 0), val, font=f)
+        d.text((pad - bb[0], 24 - bb[1]), val, font=f, fill=ZC.INK)
+        lf = ZC.font(18, 'Medium')
+        d.text((pad, 24 + (bb[3] - bb[1]) + 8), lab, font=lf, fill=ZC.MUTED)
+    if not spec:
+        return img
+    pts = spec['series'][0]['points']
+    rule = spec.get('rule')
+    top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
+    plot_t, plot_b = top_h + 18, H - 26
+    plot_h = plot_b - plot_t
+    gap = 6
+    bw = min(46.0, max(8.0, (W - pad * 2 - gap * (len(pts) - 1)) / float(len(pts))))
+    x0 = max(pad, W - pad - (bw * len(pts) + gap * (len(pts) - 1)))
+    for i, (lab, v) in enumerate(pts):
+        x = x0 + i * (bw + gap)
+        hh = max(2.0, v / float(top) * plot_h)
+        over = rule and rule[0] and v >= rule[0]
+        d.rectangle([x, plot_b - hh, x + bw, plot_b], fill=ZC.INK if over else ZC.LINE)
+        if bw >= 22:
+            yf = ZC.font(13, 'Medium')
+            yb = d.textbbox((0, 0), str(lab)[2:], font=yf)
+            d.text((x + bw / 2 - (yb[2] - yb[0]) / 2, plot_b + 5), str(lab)[2:], font=yf, fill=ZC.MUTED)
+    if rule and rule[0]:
+        ry = plot_b - rule[0] / float(top) * plot_h
+        for sx in range(int(pad), W - pad, 8):
+            d.line([sx, ry, sx + 4, ry], fill=ZC.MUTED, width=1)
+    return img
+
+
 def save_thumb(card_img, rel):
     """카드를 줄여 JPEG 로. webp 가 아니라 jpg 인 까닭: 오래된 카톡 미리보기·메일 클라이언트까지 연다."""
     out = os.path.join(ROOT, rel)
@@ -186,16 +267,17 @@ def main(argv=None):
     if not posts:
         print('content cards: 원고가 없다 — 아무것도 바꾸지 않는다')
         return 0
+    import content_tables as CT
+    data = CT.load()          # 썸네일 막대가 쓰는 자료 — 글마다 다시 읽지 않는다
     wrote, skipped, secs = 0, [], set()
     for sec, slug, path in posts:
         try:
-            meta, _ = CM.read(path, sec, slug)
+            meta, body = CM.read(path, sec, slug)
         except CM.ContentError as e:
             skipped.append(str(e))
             continue
-        import content_tables as CT
         try:
-            title = CT.fill_inline(meta['title'], CT.load())
+            title = CT.fill_inline(meta['title'], data)
         except Exception:
             title = meta['title']
         miss = _font_misses(title)
@@ -207,7 +289,9 @@ def main(argv=None):
         img, lines = draw_card(title, chip, (meta.get('region') or '').strip())
         if save(img, card_rel(sec, slug), {'title': title, 'chip': chip, 'lines': '\n'.join(lines)}):
             wrote += 1
-        if save_thumb(img, thumb_rel(sec, slug)):
+        spec, big = _thumb_source(meta, body, data)
+        th = draw_thumb(spec, big, _quote(title) if sec == 'column' else None)
+        if save_thumb(th, thumb_rel(sec, slug)):
             wrote += 1
         secs.add(sec)
     for sec in sorted(secs):
