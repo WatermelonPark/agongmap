@@ -815,3 +815,42 @@ def test_publish_commits_everything_the_generator_touches():
     assert must <= targets, '발행이 생성기 산출물을 빠뜨린다: %s' % sorted(must - targets)
     assert 'git checkout -- .' in t, '커밋 대상 밖 변경을 되돌리는 안전장치가 없다'
     assert 'fonttools' in t, '카드 글꼴 검사에 쓰는 fonttools 를 깔지 않는다'
+
+
+def test_a_city_not_collected_yet_is_a_wait_not_an_error(tmp_path):
+    """자료에 아직 없는 **실재 시군구**는 오류가 아니라 '기다림'이다 — 그래야 원고를 올릴 수 있다.
+
+    순환이 있었다: 수집기는 content/ 원고의 region 에서 도시를 읽는데, 원고는 그 도시 자리표가 검사에서
+    실패해 올릴 수 없었다(2026-10-29 군포, 단지 4편). 이름표로 시도를 찾을 수 있으면 오타가 아니므로
+    검사는 경고로 넘기고(종료 코드 0) 생성기는 그 글만 건너뛴다.
+    무엇을 바꾸면 빨개지나: PendingCity 를 다시 TableError 로 되돌리거나, 모르는 이름까지 기다림으로
+    넘기면(오타가 통과한다), 검사기가 기다림을 고칠 곳으로 세면.
+    픽스처: 도시 자료에 없는 실재 시군구(군포)와 아예 없는 이름을 각각 자리표로 쓴다.
+    """
+    import make_city_moveins as MCM
+    # 기다림은 TableError 의 하위여야 한다 — 생성기는 그것으로 '그 글만 건너뛰기' 를 한다.
+    # 밖으로 빼면 배치가 그 글에서 죽는다(한 편 때문에 그날 발행 전체가 멈춘다).
+    assert issubclass(CT.PendingCity, CT.TableError), 'PendingCity 가 TableError 의 하위가 아니다'
+    data = CT.load()
+    have = set((data.get('cities') or {}).get('cities') or {})
+    pend = next((n for n in ('군포', '시흥', '광명', '구리') if n not in have and MCM.sido_of(n)), None)
+    if not pend:
+        pytest.skip('자료에 없는 실재 시군구를 찾지 못했다')
+    for kind, args in (('moveins', [pend, '2027']), ('share', [pend, '2027']), ('need', [pend])):
+        with pytest.raises(CT.PendingCity):
+            CT.value(data, kind, args)
+    # 모르는 이름은 그대로 오류다 — 오타를 통과시키지 않는다.
+    with pytest.raises(CT.TableError) as e:
+        CT.value(data, 'moveins', ['없는동네', '2027'])
+    assert not isinstance(e.value, CT.PendingCity), '모르는 이름을 기다림으로 넘겼다'
+    # 검사기는 그 글을 '고칠 곳'으로 세지 않는다(종료 코드 0).
+    import content_check as CC
+    d = tmp_path / 'content' / 'danji'
+    d.mkdir(parents=True)
+    (d / 'wait-x.md').write_text(
+        '---\ntitle: "%s 모의 글"\n'
+        'summary: "%s 의 사업 단계와 대지지분을 공급 데이터와 함께 봅니다. 숫자는 국가 통계에서 옵니다."\n'
+        'date: "2026-10-29"\nupdated: "2026-10-29"\nsection: "danji"\nregion: "%s"\n---\n\n'
+        '입주 물량은 {{v:moveins:%s:2027}} 입니다.\n' % (pend, pend, pend, pend), encoding='utf-8')
+    problems, waits, _ = CC.check_post(str(d / 'wait-x.md'), data, root=str(tmp_path))
+    assert not problems and len(waits) == 1, '기다림이 고칠 곳으로 잡혔다: %s' % (problems,)
