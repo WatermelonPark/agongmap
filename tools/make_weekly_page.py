@@ -968,7 +968,7 @@ def blog_html(b):
                     % (BF.BLOG_HOME, _track('weekly_home'), BF.HOME_TEXT, BF.LABEL))
     if not rows:
         return ''
-    return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>해설 글</h2>', '  <div class="links">']
+    return '\n'.join(['<section class="blog"><div class="wrap">', '  <h2>아공맵 블로그 최근 글</h2>', '  <div class="links">']
                      + rows + ['  </div>', '</div></section>'])
 
 
