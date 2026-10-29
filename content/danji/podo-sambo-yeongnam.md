@@ -25,6 +25,8 @@ faq:
 
 ![포도마을 삼보영남 요약](img/podo-sambo-yeongnam-thumb.png)
 
+{{chart:moveins:부천}}
+
 ## 핵심 숫자
 
 | 항목 | 값 | 기준 |
@@ -113,6 +115,8 @@ faq:
 {{table:moveins:부천}}
 
 부천의 2027년 입주 물량은 {{v:moveins:부천:2027}}로 한 해 적정 입주량 {{v:need:부천}}의 {{v:share:부천:2027}}다. 적정 입주량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 원미구 매매가는 {{v:streak:부천 원미구}}이다.
+
+{{chart:weekly:부천 원미구}}
 
 {{table:weekly:부천}}
 
