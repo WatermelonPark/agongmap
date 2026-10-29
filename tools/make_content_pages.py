@@ -69,7 +69,7 @@ SECTION_META = {
     'city': ('도시 입주물량', '도시별 입주물량과 공급 흐름을 국가 통계로 읽습니다.'),
     'gtx': ('GTX 역세권', 'GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.'),
     'danji': ('단지 분석', '재건축·리모델링 단지를 공급 데이터와 함께 봅니다.'),
-    'column': ('해설', '부동산 뉴스와 통념을 공개 데이터로 따져봅니다.'),
+    'column': ('반박', '공직자·정치인 발언을 입주 물량과 시세로 따집니다.'),
 }
 assert set(SECTION_META) == set(CM.SECTIONS), '섹션 목록이 content_md 와 다르다'
 
@@ -300,13 +300,53 @@ def restore_tables(html_text, blocks):
 
 
 # ── 페이지 ──────────────────────────────────────────────────────────────────
-EXTRA_CSS = """
+LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠 페이지와 홈 "최근 리포트" 가 같은 마크업을 쓴다.
+   모바일은 왼쪽 썸네일 리스트, 768px 이상은 앨범형 3열. 썸네일은 그 글의 OG 카드를 줄인 것이다. */
+/* 카테고리 칩 — 섹션 목록 맨 위에서 서로 건너뛴다. 허브에서 옮겨 왔다(대표 결정 10-29). */
 .rchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.rchip{display:inline-block;text-decoration:none}
+/* 카테고리 카드(허브 첫 화면) — 썸네일 없이 글자만. 모바일 2열, 768px 이상 3열(요청 ②). */
+.hgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:0 0 26px}
+.hcard{display:flex;flex-direction:column;gap:6px;padding:14px;border:1px solid var(--line);
+ border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
+.hcard h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.hcard h3 em{font-style:normal;font-size:13px;font-weight:600;color:var(--paper);background:var(--ink2);
+ border-radius:2px;padding:2px 6px}
+.hcard p{margin:0;font-size:13px;line-height:1.55;color:var(--ink2)}
+.hc-m{font-size:13px;color:var(--muted)}
+.hc-l{margin:0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
+.hc-go{margin-top:auto;font-size:13px;font-weight:600;color:var(--ink)}
+/* 글 목록 — 모바일은 왼쪽 썸네일 리스트, PC 는 앨범형(요청 ②③). 마크업은 하나다. */
+.plist{display:grid;gap:10px}
+.pcard{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:start;padding:10px;
+ border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
+.pcard.pc-noimg{grid-template-columns:1fr}
+.pcard img{width:112px;height:63px;object-fit:cover;border-radius:2px;display:block;background:var(--paper2)}
+.pc-b{min-width:0}
+.pcard b{display:block;font-size:14px;font-weight:600;line-height:1.45;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcard span{display:none}
+.pcard i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:4px}
+.rh2{font-size:16px;font-weight:600;margin:0 0 12px}
+@media (min-width:768px){
+  .hgrid{grid-template-columns:repeat(3,1fr);gap:14px}
+  .plist{grid-template-columns:repeat(3,1fr)}
+  .pcard{grid-template-columns:1fr;gap:0;padding:0;overflow:hidden}
+  .pcard img{width:100%;height:auto;aspect-ratio:480/252;border-radius:0}
+  .pc-b{padding:12px 14px}
+  .pcard b{font-size:15px}
+  .pcard span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+   font-size:13px;line-height:1.55;color:var(--ink2);margin-top:5px}
+}
 .rchip{font:inherit;font-size:13px;line-height:1;padding:8px 12px;border:1px solid var(--line);
  border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.clist a[hidden]{display:none}
+.clist a[hidden]{display:none}"""
+# 콘텐츠 페이지는 app.css 를 링크하지 않고 뼈대의 인라인 style 을 쓴다. 홈은 app.css 를 읽는다.
+# 그래서 같은 글자가 두 곳에 있고, test_content_pages 가 app.css 의 LIST_CSS 구간과 대조한다.
+
+EXTRA_CSS = LIST_CSS + """
 .cchart{margin:0 0 20px;padding:0}
 .cchart-svg{display:block;width:100%;height:auto;margin:2px 0 0}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
@@ -461,20 +501,16 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
 
 
 def build_index(sec, posts_meta):
-    """섹션 목록 페이지. 최신순(updated 내림차순, 같으면 date·slug)."""
+    """섹션 목록 페이지. 맨 위에 카테고리 칩(섹션 사이 건너뛰기), 목록은 허브와 같은 부품이다."""
     name, desc = SECTION_META[sec]
     url = '%s/%s/' % (SITE, sec)
-    items = ''.join(
-        '<a href="/%s/%s/"><b>%s</b><span>%s</span><i>%s 갱신</i></a>'
-        % (sec, m['slug'], html.escape(m['title']), html.escape(m['summary']), m['updated'])
-        for m in posts_meta)
-    if not items:
-        items = '<p>아직 글이 없습니다.</p>'
+    items = ''.join(post_item(m) for m in posts_meta) or '<p>아직 글이 없습니다.</p>'
     body = ('<header><div class="wrap">'
-            '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
+            '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">콘텐츠</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
-            '<section><div class="wrap"><div class="clist">%s</div></div></section>'
-            % (html.escape(name), html.escape(name), html.escape(desc), items))
+            '<section><div class="wrap">%s<div class="plist">%s</div></div></section>'
+            % (REPORTS_DIR, html.escape(name), html.escape(name), html.escape(desc),
+               section_chips(sec), items))
     lastmod = max([m['updated'] for m in posts_meta], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
                   desc=html.escape(desc), url=url, body=body,
@@ -486,44 +522,100 @@ def build_index(sec, posts_meta):
 
 REPORTS_DIR = 'reports'
 REPORTS_TITLE = '콘텐츠'
-REPORTS_DESC = '도시 입주물량·GTX 역세권·단지 분석·해설을 한자리에서 봅니다. 숫자는 국가 통계에서 옵니다.'
+REPORTS_DESC = '발언을 따지는 반박부터 매주 시세, 도시·역세권·단지 분석까지. 숫자는 국가 통계에서 옵니다.'
+RECENT_N = 10
+
+# 카테고리 카드. 순서는 **발행 주기**다 — 시의성 있는 것을 위로(대표 지시 2026-10-29).
+# (섹션 또는 지표 주소, 이름, 설명 한 줄, 주기 표시). 섹션이 아닌 둘(zone·weekly)은 글 수 대신 대상 수를 센다.
+HUB_CARDS = (
+    ('column', '반박', '공직자·정치인 발언을 입주 물량과 시세로 따집니다.', '당일'),
+    ('/weekly/', '주간·월간 시세', '매주 목요일 갱신되는 시군구 시세와 월간 통계.', '매주'),
+    ('city', '도시 입주물량', '2027~2028년 도시별 입주 물량과 적정 입주량을 견줍니다.', '연재'),
+    ('gtx', 'GTX 역세권', '역 도보 15분 안 단지를 전수로, 호가·갭·필요 현금까지.', '연재'),
+    ('danji', '재건축·리모델링 단지', '1,000세대 이상 단지의 사업 단계·대지지분·실거래.', '연재'),
+    ('/zone/', '시도 리포트', '시도별 공급 판정과 시군구 시세를 한 장에.', '분기'),
+)
 
 
-def build_reports(all_metas):
-    """네 섹션 글을 최신순 한 목록으로. 위에 섹션 거르개를 둔다(탭 '콘텐츠'가 여기로 온다).
+def _counts(data):
+    """카드에 적을 '대상 수' — 손으로 세지 않고 모델에서 읽는다."""
+    import sido_zones as SZ
+    agg = set(getattr(SZ, 'AGG', ()) or ())
+    return {'/zone/': '%d개 시도' % len([z for z in SZ.ORDER if z not in agg]),
+            '/weekly/': '%d개 시군구' % len(data['sgg_names'])}
 
-    거르개는 자바스크립트 없이도 **전부 보이는** 상태가 기본이다(점진적 향상). 스크립트가 돌면 누른 섹션만
-    남긴다 — 목록이 서버에서 이미 완성돼 있으므로 검색·AI 수집기는 거르개와 무관하게 전부 읽는다.
+
+def _thumb(meta):
+    """그 글의 목록용 썸네일 주소. 아직 안 구워졌으면 None — 그 자리는 글자만 보인다."""
+    import make_content_cards as CC
+    rel = CC.thumb_rel(meta['section'], meta['slug'])
+    return ('/%s?v=%s' % (rel, meta['updated'])) if os.path.exists(os.path.join(ROOT, rel)) else None
+
+
+def post_item(meta, summary=True):
+    """목록 한 줄(=앨범형 카드 하나). PC 는 앨범형 3열, 모바일은 왼쪽 썸네일 리스트 — 같은 마크업을 CSS 가 가른다.
+
+    썸네일은 그 글의 OG 카드를 줄인 것이라 따로 관리할 그림이 없다. 없으면 글자만 나온다(목록이 비지 않는다).
     """
-    newest = sorted(all_metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
-    secs = [s for s in CM.SECTIONS if any(m['section'] == s for m in newest)]
-    chips = ['<button type="button" class="rchip on" data-sec="">전체</button>']
-    chips += ['<button type="button" class="rchip" data-sec="%s">%s</button>' % (s, html.escape(SECTION_META[s][0]))
-              for s in secs]
-    items = ''.join(
-        '<a href="/%s/%s/" data-sec="%s"><b>%s</b><span>%s</span><i>%s · %s 갱신</i></a>'
-        % (m['section'], m['slug'], m['section'], html.escape(m['title']), html.escape(m['summary']),
-           html.escape(SECTION_META[m['section']][0]), m['updated'])
-        for m in newest)
-    if not items:
-        items = '<p>아직 글이 없습니다.</p>'
+    th = _thumb(meta)
+    img = ('<img src="%s" alt="" width="480" height="252" loading="lazy" decoding="async">' % th) if th else ''
+    body = '<b>%s</b>' % html.escape(meta['title'])
+    if summary:
+        body += '<span>%s</span>' % html.escape(meta['summary'])
+    body += '<i>%s · %s 갱신</i>' % (html.escape(SECTION_META[meta['section']][0]), meta['updated'])
+    return ('<a class="pcard%s" href="/%s/%s/" data-sec="%s">%s<div class="pc-b">%s</div></a>'
+            % ('' if th else ' pc-noimg', meta['section'], meta['slug'], meta['section'], img, body))
+
+
+def section_chips(cur=None):
+    """섹션 사이를 건너뛰는 칩. 목록 페이지 맨 위에 둔다(허브에서 옮겨 왔다 — 대표 결정 10-29)."""
+    out = ['<a class="rchip%s" href="/%s/">콘텐츠</a>' % ('', REPORTS_DIR)]
+    for key, name, _desc, _cad in HUB_CARDS:
+        if key.startswith('/'):
+            continue
+        out.append('<a class="rchip%s" href="/%s/">%s</a>'
+                   % (' on' if key == cur else '', key, html.escape(SECTION_META[key][0])))
+    return '<nav class="rchips" aria-label="카테고리">%s</nav>' % ''.join(out)
+
+
+def hub_cards(all_metas, data):
+    """카테고리 카드 6장. 글 수·최근 갱신일·최신 글 둘은 데이터에서 센다."""
+    cnt = _counts(data)
+    by = {}
+    for m in all_metas:
+        by.setdefault(m['section'], []).append(m)
+    out = []
+    for key, name, desc, cad in HUB_CARDS:
+        href = key if key.startswith('/') else '/%s/' % key
+        posts = sorted(by.get(key, []), key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+        if key.startswith('/'):
+            meta_line = cnt.get(key, '')
+            latest = ''
+        else:
+            meta_line = ('글 %d편 · %s 갱신' % (len(posts), posts[0]['updated'])) if posts else '준비 중'
+            latest = ''.join('<li>%s</li>' % html.escape(m['title']) for m in posts[:2])
+        out.append(
+            '<a class="hcard" href="%s"><h3>%s<em>%s</em></h3><p>%s</p>'
+            '<div class="hc-m">%s</div>%s<span class="hc-go">전체 보기 →</span></a>'
+            % (href, html.escape(name), html.escape(cad), html.escape(desc), html.escape(meta_line),
+               ('<ul class="hc-l">%s</ul>' % latest) if latest else ''))
+    return '<div class="hgrid">%s</div>' % ''.join(out)
+
+
+def build_reports(all_metas, data=None):
+    """콘텐츠 허브 — 카테고리 카드 6장이 먼저고, 그 아래 네 섹션 통합 '최근 글' %d편이다.""" % RECENT_N
+    data = data if data is not None else CT.load()
+    newest = sorted(all_metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)[:RECENT_N]
+    items = ''.join(post_item(m) for m in newest) or '<p>아직 글이 없습니다.</p>'
     body = ('<header><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
-            '<section><div class="wrap">'
-            '<div class="rchips" role="group" aria-label="섹션 거르개">%s</div>'
-            '<div class="clist" id="rlist">%s</div>'
-            '</div></section>'
-            '<script>(function(){var w=document.querySelector(".rchips");if(!w)return;'
-            'w.addEventListener("click",function(e){var b=e.target.closest(".rchip");if(!b)return;'
-            '[].forEach.call(w.querySelectorAll(".rchip"),function(x){x.classList.toggle("on",x===b);});'
-            'var s=b.getAttribute("data-sec");'
-            '[].forEach.call(document.querySelectorAll("#rlist a"),function(a){'
-            'a.hidden=!!s&&a.getAttribute("data-sec")!==s;});});})();</script>'
+            '<section><div class="wrap">%s</div></section>'
+            '<section><div class="wrap"><h2 class="rh2">최근 글</h2><div class="plist">%s</div></div></section>'
             % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
-               ''.join(chips), items))
+               hub_cards(all_metas, data), items))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
-    lastmod = max([m['updated'] for m in newest], default=None)
+    lastmod = max([m['updated'] for m in all_metas], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),
                   ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
                   url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
@@ -539,17 +631,12 @@ _HOME_RE = re.compile(re.escape(HOME_START) + r'(.*?)' + re.escape(HOME_END), re
 
 
 def home_recent_html(metas):
-    """홈 '최근 리포트' 묶음. 섹션을 가리지 않고 갱신일 최신 HOME_RECENT 편."""
+    """홈 '최근 리포트' 묶음. 콘텐츠 목록과 **같은 부품**을 쓴다(요청 ④) — 썸네일·꼬리표가 한 벌로 간다."""
     if not metas:
         return ''
     newest = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)[:HOME_RECENT]
-    items = ''.join(
-        '<li><a href="/%s/%s/"><b>%s</b><i>%s · %s 갱신</i></a></li>'
-        % (m['section'], m['slug'], html.escape(m['title']),
-           html.escape(SECTION_META[m['section']][0]), m['updated'])
-        for m in newest)
-    # '전체 보기'는 탭 '콘텐츠'와 같은 자리로 보낸다 — 홈에서 여섯 편만 보고 더 읽고 싶은 사람의 길이다.
-    return ('<div class="crecent"><h2>최근 리포트</h2><ul>%s</ul>'
+    items = ''.join(post_item(m, summary=False) for m in newest)
+    return ('<div class="crecent"><h2>최근 리포트</h2><div class="plist">%s</div>'
             '<p class="crecent-all"><a href="/%s/">콘텐츠 전체 보기 →</a></p></div>' % (items, REPORTS_DIR))
 
 
@@ -737,7 +824,7 @@ def main(strict=False):
     all_metas = [m for items in by_sec.values() for m, _ in items
                  if os.path.exists(os.path.join(ROOT, m['section'], m['slug'], 'index.html'))]
     # 네 섹션을 한자리에 모은 /reports/ — 상단·하단 탭 '콘텐츠'가 여기로 온다.
-    rp, rlm = build_reports(all_metas)
+    rp, rlm = build_reports(all_metas, data)
     rpath = os.path.join(ROOT, REPORTS_DIR, 'index.html')
     rp, rlm, _ = SP.keep_dates(rp, SP.read_old(rpath), rlm or I.PUBLISHED)
     if not os.path.isdir(os.path.dirname(rpath)):
