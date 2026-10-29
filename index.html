@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v204">
+<html lang="ko" data-build="v205">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -253,10 +253,6 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <p class="hero-sub">국토교통부 착공·준공 실적으로 시도별 3년 공급을 판정하고, 한국부동산원 주간 시세를 매주 싣습니다.</p>
   </div></header>
 
-  <!-- 데스크톱 2단 뼈대(홈 마케팅 검수 C7·HERO-9, 2026-09-27). 1024px 이상에서만 왼쪽 = 공급 지도 구역, 오른쪽 = 이번 주
-       격자와 다음 발표일(주간 구역)로 나란히 놓는다. 1023px 이하는 이 상자가 없는 것과 같다(블록 하나 — 두 구역이 예전처럼
-       위아래로 쌓인다). 규칙은 app.css '.home-duo'. -->
-  <div class="home-duo">
   <!-- 제목 텍스트는 히어로가 대신한다(2026-08-08 사용자: "텍스트 합치고 심플하게").
        보이는 h2 없이도 이름은 남긴다 — 스크린리더·#score 목적지. -->
   <section class="home-sec vm-map" id="sec-score" aria-label="전국 공급 지도"><div class="wrap">
@@ -345,14 +341,14 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   <section class="home-sec"><div class="wrap">
     <!-- 머리줄('9/28 조사 · 10/1 발표 · … · 한국부동산원')은 뺐다(2026-10-03 대표 요청 — 군더더기). 발표일은 첫 화면 띠가
          말하고, 발표가 늦은 주에는 아래 h2 결론 앞에 '9/17 발표 기준'이 붙는다(applyWeeklyStatus).
-         대신 날짜 없는 구역 이름 한 줄을 둔다(백로그 45, 2026-10-16 대표 승인) — 모드 단추 '월간 시세'를 고른 뒤 내려온 사람이
-         이 주간 시군구 지도를 월간 결과로 읽었다. 고정 문구라 applyWeeklyStatus 가 건드리지 않는다. -->
-    <div class="hs-kicker" id="wk-label">주간 시세 · 시군구</div>
+         대신 날짜 없는 구역 이름 한 줄을 둔다(백로그 45, 2026-10-16 대표 승인). 고정 문구라 applyWeeklyStatus 가 건드리지 않는다.
+         2026-10-29 대표 결정 '단추 하나에 지도 하나'로 이 구역의 주간 시군구 지도는 위 지도 구역의 '주간 시세' 단추로 옮겼다 —
+         이 구역은 이번 주 결론과 입구만 남은 글줄이라 이름에서 '시군구'를 뺐다. -->
+    <div class="hs-kicker" id="wk-label">주간 시세</div>
     <h2 id="wk-h2">이번 주, 어디가 오르고 내렸을까?</h2>
-    <!-- 아래는 전국 **시군구** 지도다(매매 전주 대비, renderWeeklyGrid). 칸을 누르면 그 지역 주간 그래프가 열린다.
-         소개 문장('빨강·파랑을 한눈에 …')은 범례·지도 아래 안내와 같은 말이라 뺐다(2026-10-03 대표 요청). -->
+    <!-- 지난 방문 이후 줄·'지도에서 보기'(카드를 주간 시세로)·/weekly/ 요약 링크·공유 버튼(renderWeeklyGrid). 지도는 없다. -->
     <div id="home-weekly-grid" class="wgrid"></div>
-    <!-- 입구 둘은 목적지가 다르다: 지도 아래 '이번 주 요약 보기'는 /weekly/(요약·공유 주소), 이 링크는 통계 탭 시군구
+    <!-- 입구 둘은 목적지가 다르다: 위 '이번 주 요약 보기'는 /weekly/(요약·공유 주소), 이 링크는 통계 탭 시군구
          TOP 10(시장동향 순위 보기 — '-rank', 2026-10-10). 버튼이 아니라 링크라 길게 눌러 새 탭·주소 복사가 된다. 이름은 목적지를 말한다. -->
     <div class="hs-cta"><a class="home-cta" href="#stats-market-week-rank" onclick="track('home_cta',{to:'weekly_map'})">시군구 상승·하락 TOP 10 보기</a></div>
     <!-- 이번 주 해석 글(홈 마케팅 검수 B5·RET-4, 2026-09-27). 배치가 블로그 RSS 에서 읽어 data-core 에 실은 ADV.blog 를
@@ -360,7 +356,6 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
          알림·요일을 약속하지 않는다. -->
     <p class="wk-blog" id="wk-blog" hidden></p>
   </div></section>
-  </div><!-- /.home-duo -->
 
   <section class="home-sec hs-alt"><div class="wrap">
     <div class="hs-kicker">10문항 · 5분</div>

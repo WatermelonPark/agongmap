@@ -740,10 +740,13 @@
   .home-sec h2{font-size:clamp(21px,4.6vw,27px);font-weight:700;letter-spacing:-.02em;margin-bottom:12px}
   .home-sec h3{font-size:clamp(17px,3.6vw,20px);font-weight:700;letter-spacing:-.01em;margin-bottom:10px}
   .home-sec p{font-size:var(--fs-read);line-height:1.75;color:var(--ink2);max-width:520px;margin:0 auto}
-  /* 주간 시세 = 전국 시군구 지도(renderWeeklyGrid, 매매만). 예전엔 시도 격자였다(2026-10-02 대표 요청으로 걷음).
+  /* 주간 구역(renderWeeklyGrid) — 2026-10-29 부터 지도 없는 글줄(지난 방문 줄·'지도에서 보기'·요약 링크·공유). 아래 .wg-head·.wg-map·
+     .wg-foot 은 지도 구역 시세 모드의 시군구 지도(priceTilesHtml)가 쓴다. 예전엔 이 구역에 전국 시군구 지도가 있었다(2026-10-02~10-29).
      지도는 통계 탭과 같은 sggMapSvg 라 글자 하한(11px)을 지키는 최소 폭이 있고, 좁은 화면에서는 상자 안에서 옆으로 민다
      (.map-scroll). 칸을 누르면 그 지역 주간 그래프. 글자는 13px 이상(test_home_min_font — SVG 지도 라벨은 제외). */
   .wgrid{max-width:560px;margin:18px auto 0}
+  /* 지도 구역 시세 모드의 시군구 지도(priceTilesHtml, 2026-10-29 단추 하나에 지도 하나) — 머리·지도·아랫줄은 .wg-* 어휘다 */
+  .map-tiles{max-width:640px;margin:0 auto}
   /* 머리줄 = 칠한 값(매매 전주 대비) + 범례. 범례는 홈 지도와 같은 .tb-key 어휘를 빌린다. */
   .wg-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
     flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:8px;letter-spacing:.01em}
@@ -856,7 +859,7 @@ table.adv thead th:first-child{text-align:center}
   .tb-view{margin-left:auto}
   #sec-score:not(.vm-table) #tb-per,
   #sec-score:not(.vm-table) .tb-chk,
-  #sec-score:not(.vm-table) .tb-key:not(.map-key),
+  #sec-score:not(.vm-table) .tb-key:not(.map-key):not(.wg-key),
   #sec-score:not(.vm-table) #tb-refnote,
   #sec-score:not(.vm-table) .tb-scroll{display:none}
   #sec-score:not(.vm-map) #map-wrap{display:none}
@@ -957,8 +960,7 @@ table.adv thead th:first-child{text-align:center}
      스크립트 차단 ↔ 부팅 뒤, 320~1280px). 카드 줄은 배지가 둘째 줄로 내려가는 374px 이하와 셋째 줄('3년 필요량의 …')이 보이는
      561px 이상이 79px, 그 사이가 60.4px 이고 아래 여백 8px 이 붙는다 — 그만큼을 #agg-wrap 예약으로 옮기고 지도 예약에서 뺐다
      (카드가 그려질 때 아래 단추·요약이 밀리지 않게). 지도 = 예전 예약 − (카드 + 8px).
-     데스크톱 2단 1024~1047px 은 오른쪽 단(480px, #40) 때문에 왼쪽 단이 지도 상한 480px 보다 좁아(1024px 에서 456px) 지도가 폭을
-     따라 줄어든다 — 그 구간만 폭을 따르는 식으로 잡는다(1024px 실측 643px, 예전 고정 762 예약은 32px 남았다). */
+     (데스크톱 2단 1024~1047px 구간 예약은 2단을 걷으며 함께 걷었다 — 2026-10-29.) */
   /* 카드 셋의 예약(2026-10-06 재측정 — 배지 줄·신호등 틀 줄·세대수 줄. 신호등 범례는 출처 줄 끝으로 옮겼다 — 그 줄은 2026-10-17 에 지도 아래에서 카드 아래 단추 왼쪽으로 갔다). 374px 이하는
      배지가 이름 아래 줄로 내려가 561px 이상과 같은 높이다. 예약이 낡으면 지도가 밀린다(CLS — 10-06 리뷰 0.04~0.05). 값은 Chromium 실측. */
   #agg-wrap:empty{min-height:109px;margin-bottom:8px}
@@ -967,7 +969,6 @@ table.adv thead th:first-child{text-align:center}
   @media(max-width:560px){#map-wrap:not([data-done]){min-height:706px}}
   @media(max-width:528px){#map-wrap:not([data-done]){min-height:calc(134.5vw - 4.2px)}}
   @media(max-width:374px){#map-wrap:not([data-done]){min-height:calc(134.5vw - 4px)}}
-  @media(min-width:1024px) and (max-width:1047px){#map-wrap:not([data-done]){min-height:calc(134.5vw - 734.3px)}}
   .map-box{max-width:480px;margin:0 auto;position:relative}
   .map-box svg{display:block;width:100%;height:auto}
   .map-box path{stroke:var(--paper);stroke-width:1.2;transition:filter .12s}
@@ -1173,46 +1174,9 @@ table.adv thead th:first-child{text-align:center}
      1260 = 표 1198 + 테두리 2 + .wrap 좌우 패딩 48 + 여유 12.
      1240으로 잡았다가 패딩을 안 세어 20/21열에서 멈췄다(실측). */
   @media(min-width:1340px){ #sec-score>.wrap{max-width:1260px} }
-  /* ===== 데스크톱 배치(홈 마케팅 검수 C7·HERO-9, 2026-09-27) — 1024px 이상에서만 ======================================
-     히어로 아래를 2단으로: 왼쪽 = 공급 지도 구역(#sec-score), 오른쪽 = 이번 주 격자와 다음 발표일(주간 구역 — 머리줄이
-     '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)'). 예전엔 820px 단 하나라 1366px 에서 좌우가 비었고 주간 시세는 두 화면
-     아래였다. 표 보기는 1,198px 표라 두 단을 다 쓰고 주간 구역은
-     그 아래로 내려간다(1340px 이상 1260px 단 — 아래 표 규칙과 같은 폭). 1023px 이하는 이 블록이 전부 꺼져 예전과 같다.
-     폭: 1260 = 표 1198 + 여유(위 표 규칙과 같은 값). 오른쪽 단 480px 는 주간 시군구 지도의 최소 폭 472px(지도 글자가 11px
-     아래로 내려가지 않는 폭 — sggMapSvg)이 옆으로 밀지 않고 들어가는 폭이다(2026-10-02 시도 격자 → 시군구 지도. 예전 360px 는
-     시도 격자 4열이 칸마다 85px 이상이 되는 폭이었는데, 그대로 두면 데스크톱에서도 지도가 상자 안에서 잘려 밀렸다 — 실측). */
-  @media(min-width:1024px){
-    .home-duo{display:grid;grid-template-columns:minmax(0,1fr) 480px;column-gap:40px;align-items:start;
-      max-width:1260px;margin:0 auto;padding:0 24px}
-    .home-duo>.home-sec>.wrap{max-width:none;padding:0}
-    .home-duo>.home-sec{padding-top:22px}
-    .home-duo>#sec-score~.home-sec{grid-column:2;grid-row:1}
-    .home-duo>#sec-score{grid-column:1;grid-row:1}
-    .home-duo>#sec-score.vm-table{grid-column:1/-1}
-    .home-duo>#sec-score.vm-table~.home-sec{grid-column:1/-1;grid-row:2}
-    /* 주간 구역이 첫 화면에 올라왔으므로 부팅 때 채워지는 두 곳의 높이를 미리 잡는다(CLS). 격자는 스크립트가 그리는데
-       빈 상자면 아래 버튼이 490px 밀렸다(실측 CLS 0.014 — 1024·1280·1440px 모두 360px 단이라 높이가 같다). h2 는 정적
-       질문 → 이번 주 결론(ADV.weekly.head)으로 바뀌는데 결론 길이에 따라 1~2줄이라 두 줄을 잡는다(27px·줄 높이 1.75).
-       머리줄(정적 '주간 발표 기준' → '9/21 조사 · 9/24 발표 · 다음 발표 10/1(목)')도 연휴 주 문구('… · 연휴로 발표 일정이
-       바뀔 수 있습니다 · 한국부동산원')가 360px 단에서 두 줄이라(운영 글꼴 367px·대체 글꼴 415px 실측) 두 줄을 잡는다.
-       2026-09-27 3차 네 묶음을 합친 뒤 다시 쟀다(playwright, 부팅 전 스크립트 차단 ↔ 부팅 뒤, 운영 글꼴·대체 글꼴 같음):
-       격자는 방향 표지(B7 '매매 3주 연속 상승' — 칸마다 한 줄)·'지난주와 방향이 바뀐 곳' 줄·공유 버튼(B8)이 붙어
-       490 → 718.3px 이 됐다. 지난 104주 표지·결론을 넣어 보니 첫 방문 718.3px 이 77주(74%), 바뀐 곳 줄이 두 줄인 주
-       739.1px·725.5px(대체 글꼴 759.9px), 재방문('지난 방문 이후 새 발표 n회' 한 줄)은 +24.8px 이다 — 가장 흔한 첫 방문에
-       맞춘다. h2 결론은 104주 모두 두 줄(94.5px)이라 3.5em 이 그린 뒤 높이와 같다. 머리줄은 2026~2027 모든 주 가운데
-       운영 글꼴 1주·대체 글꼴 18주(연휴 주)만 두 줄이다 — 이 예약은 그린 뒤에도 남는 높이라 크면 빈 줄일 뿐 이동이 없고,
-       작으면 부팅 때와 글꼴이 도착할 때 두 번 밀리므로 두 줄을 그대로 둔다.
-       셋 다 두 단일 때만 건다(:not(.vm-table)) — 표 보기에서는 주간 구역이 전폭(976~1212px)이라 결론·머리줄이 한 줄인데
-       두 줄 예약 때문에 제목 아래 47px·머리줄 아래 21px 가 비었다(묶음 M 검토 5).
-       2026-09-28 작은 글씨 정리 뒤 다시 쟀다(같은 104주, 운영 글꼴·대체 글꼴 같음): 격자 칸의 전세 값 줄과 '방향이 바뀐 곳'
-       줄이 빠지고 표지(13px)가 칸 폭 90px 에서 두 줄로 접히는데 줄 높이를 1fr 로 맞춰, 첫 방문은 104주 모두 629.5px 다
-       (재방문 '새 발표 n회' 한 줄이 붙으면 660.3px). 머리줄·h2 예약은 em 이라 13px 머리줄에 맞춰 따라간다(두 줄 45.5px).
-       2026-10-02 시도 격자를 시군구 지도로 바꾸고(오른쪽 단 480px) 다시 쟀다: 지도는 데이터와 무관한 고정 배치라 높이가
-       주마다 같고 1024·1280·1440px 모두 903px 다(머리줄 + 지도 + 아랫줄 + 공유 버튼, 첫 방문). 2026-10-05 다시 재니 그린 뒤
-       908.97px 라(세 폭 같음, playwright·스크립트 차단 ↔ 부팅 뒤) 903px 예약이 6px 모자랐다 — 909px 로 맞춘다(전수리뷰 A6). */
-    .home-duo>#sec-score:not(.vm-table)~.home-sec #home-weekly-grid:empty{min-height:909px}
-    .home-duo>#sec-score:not(.vm-table)~.home-sec #wk-h2{min-height:3.5em}
-  }
+  /* 데스크톱 2단(.home-duo — 왼쪽 공급 지도 구역 · 오른쪽 주간 시군구 지도 구역, 2026-09-27 C7)은 2026-10-29 대표 결정 '단추 하나에
+     지도 하나'로 걷었다. 주간 구역에 지도가 없어져 오른쪽 단이 짧은 글줄만 남기 때문이다 — 홈은 모든 폭에서 한 단(.wrap)으로
+     쌓이고, 시세 지도는 지도 구역의 주간·월간 단추가 그린다. 그 단에 걸던 첫 화면 예약(주간 격자 909px·h2 두 줄)도 함께 걷었다. */
   /* 하단 탭바 → 상단 내비(C7, 1024px 이상·홈만 — body.home-app). 탭바 마크업은 하나다: 같은 <nav class="bottomnav"> 를
      자리만 위로 옮기므로 라벨·순서·주소가 정본(tools/site_nav.py TABS)과 저절로 같다(test_site_nav·test_home_desktop).
      아이콘과 글자를 한 줄로 눕히고 높이를 줄인다. 본문은 내비 높이만큼 위를 비우고(처음부터 CSS 라 밀림 없음), 해시

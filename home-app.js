@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v204';
+const HOME_BUILD='v205';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -513,7 +513,7 @@ function mapColor(v,ref){
   const a=Math.min(Math.abs(v)/(ref||0.4),1);
   return v>0?`rgba(224,86,74,${(0.14+0.72*a).toFixed(3)})`:`rgba(58,123,213,${(0.14+0.72*a).toFixed(3)})`;
 }
-/* 전국 시군구 타일 지도 SVG — 통계 시장동향 지도(drawNationMap)와 홈 주간 구역(renderWeeklyGrid)이 같이 그린다. /weekly/ 머리
+/* 전국 시군구 타일 지도 SVG — 통계 시장동향 지도(drawNationMap)와 홈 지도 구역의 주간·월간 시세 지도(priceTilesHtml)가 같이 그린다. /weekly/ 머리
    지도는 파이썬 거울(tools/make_weekly_page.sgg_map_svg)이 같은 마크업을 굽는다 — 둘이 같은지는 test_sgg_map 이 node 로 대조한다.
    vals: 값 줄마다 {코드: 값}(1~3줄, 위부터 o.names 순서 — 매매·전세·월세). o.ref: 만색 기준(mapColor). o.href(코드): 칸이 갈
    주소 — 있으면 칸 전체(이름·값)가 링크다(그 지역 주간·월간 그래프, applyHash 의 '~코드'). 링크가 있으면 role="img" 를 달지
@@ -599,7 +599,7 @@ function sggMapSvg(vals,o){
   sv.push('</svg>');
   return sv.join('');
 }
-/* 지도·TOP 10 의 지역 링크를 누를 때(홈 주간 구역·통계 시장동향). 주소는 '#stats-market-week~코드'라 hashchange →
+/* 지도·TOP 10 의 지역 링크를 누를 때(홈 지도 구역의 시세 지도·통계 시장동향). 주소는 '#stats-market-week~코드'라 hashchange →
    applyHash → openTrendRegion 이 그 지역 그래프를 연다. 이미 같은 주소면 hashchange 가 오지 않으므로 여기서 바로 연다
    (그래프를 본 뒤 '지도' 버튼으로 돌아와 같은 곳을 다시 누를 때). from: 어디서 눌렀나(home_map·stats_map·rank). */
 function onTrendLink(e,from){
@@ -1220,8 +1220,20 @@ function wkMapModel(W,r){
   if(!r||!row||!row.ma||!W.regions||!W.regions.length) return null;
   var v={};
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
-  return {v:v,when:_md(r.survey)+' 기준 · 한국부동산원',lead:wkPubLead(r),stale:!!r.stale,
+  var lead=wkPubLead(r), sg=sggLastRow(W.sgg);
+  if(sg) sg.lead=lead;
+  return {v:v,when:_md(r.survey)+' 기준 · 한국부동산원',lead:lead,stale:!!r.stale,sgg:sg,
     k:'week',ref:WK_MAP_REF,unit:'전주 대비',adj:'주간',href:'/weekly/',to:'weekly_map_card'};
+}
+/* 시세 모드 지도의 재료 — 전국 시군구 마지막 행(ADV.weekly.sgg·ADV.monthly.sgg, 코어에 한 행씩 실린다). 단추 하나에 지도
+   하나(2026-10-29 대표 결정): 공급은 시도 지도, 주간·월간은 전국 시군구 타일 지도(sggMapSvg)다. 값 줄은 원천에 있는 계열만
+   매매·전세·월세 순서로(주간 2줄, 월간 3줄 — 부동산원 주간조사에는 월세가 없다). 시군구가 없으면 null(시도 지도로 그린다). */
+function sggLastRow(S){
+  var r=S&&S.codes&&S.rows&&S.rows[S.rows.length-1];
+  if(!r||!Array.isArray(r.ma)) return null;
+  var f=['ma','je','wo'].filter(function(k){ return Array.isArray(r[k]); });
+  return {p:r.p,ser:f.map(function(k){ return {ma:'매매',je:'전세',wo:'월세'}[k]; }),
+    vals:f.map(function(k){ var o={}; S.codes.forEach(function(c,i){ o[c]=r[k][i]; }); return o; })};
 }
 /* 월간 모드 재료(2026-10-04 대표 요청 — 홈에서 월간도 쉽게). 최신 달 시도 매매 변동률(ADV.monthly, 코어에 실린다).
    색 만색 기준은 통계 탭 시군구 월간 지도와 같은 MO_MAP_REF. 데이터가 없으면 null(월간 버튼을 잠근다). */
@@ -1231,8 +1243,10 @@ function moMapModel(W){
   var v={};
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
   /* 읽는 자리(범례 뜻 줄·지도 이름·칸 설명)라 날짜 두 단계 정본의 긴 꼴 '2026년 8월'(_ymT) — 예전 '8월 기준'은 연도가 없었다(전수리뷰 2차 overflow) */
-  var lead=_ymT(row.p)+' 기준';
-  return {v:v,when:lead+' · 한국부동산원',lead:lead,stale:false,
+  var lead=_ymT(row.p)+' 기준', sg=sggLastRow(W.sgg);
+  /* 시군구 지도의 달은 시군구 행의 달로 적는다(시도 행보다 늦을 수 있다 — 통계 탭 mapDateChip 과 같은 뜻) */
+  if(sg) sg.lead=/^\d{4}-\d{2}$/.test(sg.p||'')?_ymT(sg.p)+' 기준':lead;
+  return {v:v,when:lead+' · 한국부동산원',lead:lead,stale:false,sgg:sg,
     k:'month',ref:MO_MAP_REF,unit:'전월 대비',adj:'월간',href:'/monthly/',to:'monthly_map_card'};
 }
 /* 지금 모드의 시세 재료 — 공급 모드면 null. data-core 가 안 왔으면(ADV 없음) 시세 모드도 없다(2026-10-05 리뷰). */
@@ -1276,7 +1290,7 @@ function wkAggCard(n,v,M){
 }
 /* 시세 모드를 켤 수 있나 — 시세 재료가 있고 지도 좌표(sido-geo.js)가 왔을 때만. 시세 모드는 지도 전용이라(그래프·표는 시세 탭)
    좌표가 없으면 지도 폴백(표)과 시세 갈래가 서로 부르며 시세 탭으로 튄다(2026-10-05 리뷰) — 그때는 단추를 잠근다. */
-function priceOk(m){ return typeof SIDO_GEO!=='undefined'&&!!priceModel(m); }
+function priceOk(m){ var M=priceModel(m); return !!M&&(!!M.sgg||typeof SIDO_GEO!=='undefined'); }
 /* 모드 전환 — 버튼 상태(aria-pressed)를 맞추고 지도를 다시 그린다. 값 이름은 snake_case(supply·weekly·monthly), 측정은 map_mode. */
 function mapMode(m){
   if(m!=='weekly'&&m!=='monthly') m='supply';
@@ -1373,6 +1387,22 @@ function sidoCode(n){
   for(var i=0;i<NATION_TILE.t.length;i++){ var t=NATION_TILE.t[i]; if(t[4]&&t[0].length===2&&t[1]===n) return t[0]; }
   return null;
 }
+/* 시세 모드 지도 = 전국 시군구 타일 지도(sggMapSvg — 통계 탭 시장동향 지도·/weekly/ 머리 지도와 같은 그림). 2026-10-29 대표 결정
+   '단추 하나에 지도 하나': 예전엔 시세 모드도 시도 지도였고 그 옆(데스크톱)·아래(모바일) 주간 구역에 주간 시군구 지도가 따로
+   있어 지도가 둘이었다 — 주간 구역의 지도를 걷고 여기로 옮겼다. 머리 = 칠한 값(계열·주기 · 발표/기준) + 범례(왼쪽 하락 →
+   오른쪽 상승), 지도 아래 한 줄 = 값 줄의 뜻. 칸을 누르면 그 지역 주간·월간 그래프(시세 탭, onTrendLink). */
+function priceTilesHtml(M){
+  var s=M.sgg, n=s.vals.length;
+  var svg=sggMapSvg(s.vals,{ref:M.ref,names:['매매','전세','월세'],href:function(c){ return '#stats-market-'+M.k+'~'+c; }});
+  var rows=n>2?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':n>1?'위 = 매매 · 아래 = 전세':'';
+  return '<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p>'
+    +'<div class="map-tiles"><div class="wg-head"><span class="wg-when">'+s.ser.join('·')+' '+M.unit+'(%) · '+s.lead+'</span>'
+    +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
+    +'<span class="tk-ramp" aria-hidden="true"></span>'
+    +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
+    +'<div class="map-scroll wg-map">'+svg+'</div>'
+    +'<div class="wg-foot"><span>'+rows+'<span class="wg-swipe">'+(rows?' · ':'')+'옆으로 밀어 전체 보기</span></span></div></div>';
+}
 function renderSidoMap(){
   var el=document.getElementById('map-wrap');
   if(!el||el.dataset.done) return;
@@ -1380,6 +1410,14 @@ function renderSidoMap(){
   if(typeof ADV==='undefined'){
     var mb0=document.querySelector('#tb-view [data-v="map"]');
     if(mb0){ mb0.disabled=true; mb0.title='지도 데이터를 불러오지 못했습니다'; }
+    return;
+  }
+  /* 시세 모드(주간·월간)는 전국 시군구 타일 지도 — 시도 좌표(SIDO_GEO)가 필요 없다(단추 하나에 지도 하나, 2026-10-29) */
+  var MT=priceModel(MAP_MODE);
+  if(MT&&MT.sgg){
+    el.innerHTML=priceTilesHtml(MT);
+    el.dataset.done='1';
+    if(!el.dataset.trLink){ el.dataset.trLink='1'; el.addEventListener('click',function(e){ onTrendLink(e,'score_map'); }); }
     return;
   }
   if(typeof SIDO_GEO==='undefined'||!ADV.sido||!ADV.sido.zones){
@@ -1677,17 +1715,15 @@ function renderHeroMap(){
 function renderWeeklyGrid(){
   const box=document.getElementById('home-weekly-grid');
   if(!box)return;
-  let S,row;
-  try{S=ADV.weekly&&ADV.weekly.sgg;row=S&&S.rows&&S.rows[S.rows.length-1];}catch(e){}
-  if(!S||!S.codes||!row||!row.ma){box.style.display='none';return;}
-  /* 주간 구역 = 전국 시군구 지도(매매 전주 대비). 예전엔 시도 20칸 격자(집계 3 + 16시도, 방향 표지)였는데 2026-10-02 대표
-     요청으로 시도 칸을 모두 걷고 통계 탭과 같은 시군구 지도(sggMapSvg)를 그 자리에 둔다 — 시도 값은 지도의 진한 머리 칸
-     (서울·경기 …)이 말한다. 칸(이름·값)을 누르면 그 지역 주간 그래프(통계 시장동향, openTrendRegion). 칸마다 매매·전세 두 줄이다
-     (2026-10-20 대표 요청 — 통계 시장동향 지도와 같은 2단. 09-28 '매매만'을 되돌림). 색·값은 통계 지도와 같은 mapColor(…, WK_MAP_REF)·pv2 다.
-     요약·공유 주소인 /weekly/ 로 가는 길은 지도 아래 줄(.wg-foot) 오른쪽 링크다(home_cta 의 to 값 weekly_grid 는 GA 값이라 그대로 둔다). */
-  const v={},vj={}; S.codes.forEach((c,i)=>{v[c]=row.ma[i];vj[c]=(row.je||[])[i];});
-  const svg=sggMapSvg(row.je?[v,vj]:[v],{ref:WK_MAP_REF,names:['매매','전세'],href:c=>'#stats-market-week~'+c});
-  /* 격자 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). */
+  let W;
+  try{W=ADV.weekly;}catch(e){}
+  if(!W||!W.rows||!W.rows.length){box.style.display='none';return;}   // 결론·발표 상태가 읽는 시도 주간 행이 없으면 숨긴다
+  /* 주간 구역 = 이번 주 결론(h2)·지난 방문 이후 줄·요약 링크·공유 버튼. 지도는 없다 — 2026-10-29 대표 결정 '단추 하나에 지도
+     하나'로 주간 시군구 지도는 위 카드의 '주간 시세' 단추가 그린다(priceTilesHtml). 예전엔 여기 따로 주간 시군구 지도가 있어
+     홈에 지도가 둘이었고(데스크톱은 나란히), 월간 시세 단추를 고른 사람이 이 지도를 월간으로 읽었다(백로그 45).
+     '지도에서 보기'는 카드를 주간 시세로 돌리고 그 카드로 올라간다(showWeeklyMap). /weekly/ 링크의 home_cta to 값 weekly_grid 는
+     GA 값이라 그대로 둔다. */
+  /* 머리 한 줄(B7·RET-5): 지난 방문 이후 새 발표 수(이 기기에만 저장 — 재방문에만 보인다). */
   const rel=weeklyReleaseNow(), since=wkSinceText(wkSeen(),rel,wkPs(ADV.weekly));
   if(rel&&wkShouldRemember(wkSeen(),rel.pub))wkRemember(rel.pub);
   const lines=since?'<p class="wg-since">'+since+'</p>':'';
@@ -1697,20 +1733,11 @@ function renderWeeklyGrid(){
     +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
     +'<button type="button" class="wg-sh" onclick="shareWeekly(\'link\')">'
     +'<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>링크 공유</button></div>':'';
-  /* 머리 = 무엇을 칠했나(· 발표일) + 범례. 발표일을 말하던 첫 화면 띠를 2026-10-05 대표 요청으로 빼서 여기 머리말에 붙인다(wkPubLead).
-     늦은 주에는 h2 가 이미 '9/17 발표 기준 · …'로 시작하므로 되풀이하지 않는다. */
   box.innerHTML=lines
-    +'<div class="wg-head"><span class="wg-when">'+(row.je?'매매·전세':'매매')+' 전주 대비(%)'+(rel&&!rel.stale?' · '+wkPubLead(rel):'')+'</span>'
-    +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
-    +'<span class="tk-ramp" aria-hidden="true"></span>'
-    +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
-    +'<div class="map-scroll wg-map">'+svg+'</div>'
-    +'<div class="wg-foot"><span>'+(row.je?'위 = 매매 · 아래 = 전세 · ':'')+'지역을 누르면 주간 그래프<span class="wg-swipe"> · 옆으로 밀어 전체 보기</span></span>'
+    +'<div class="wg-foot"><a class="wg-link" href="#score" onclick="return showWeeklyMap()">지도에서 보기 ↑</a>'
     /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
     +'<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">이번 주 요약 보기 →</a></div>'
     +share;
-  /* 지도 칸 → 그 지역 주간 그래프. 상자는 그대로 두고 안만 갈아 끼우므로 한 번만 붙인다. */
-  if(!box.dataset.trLink){ box.dataset.trLink='1'; box.addEventListener('click',e=>onTrendLink(e,'home_map')); }
   /* 카카오 SDK 는 누르려는 순간 받기 시작한다(퀴즈 결과 화면의 선로딩과 같은 뜻 — 첫 로딩에는 받지 않는다). */
   const kb=box.querySelector('.wg-sh-k');
   if(kb)['pointerenter','touchstart','focus'].forEach(t=>kb.addEventListener(t,()=>{loadKakao().catch(()=>{});},{once:true,passive:true}));
@@ -1718,6 +1745,12 @@ function renderWeeklyGrid(){
      멈춘 동안 9일 묵은 값을 그 아래 보였다. 발표가 늦은 주에는 스스로 '반영 대기'라 적고, 제목도 '이번 주'를
      약속하지 않는다. 판정은 통계 탭 rel-week 와 같은 weeklyRelease 하나다. */
   applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly));
+}
+/* 주간 구역 '지도에서 보기' — 카드를 주간 시세 모드로 돌리고(map_mode 측정은 mapMode 가 한다) 카드로 올라간다. 링크 기본 동작(#score)은 막는다. */
+function showWeeklyMap(){
+  mapMode('weekly');   // 주간 재료가 없으면 mapMode 가 그대로 둔다(priceOk) — 그때는 카드로 올라가기만 한다
+  const s=document.getElementById('sec-score'); if(s&&s.scrollIntoView)s.scrollIntoView();
+  return false;
 }
 /* 주간 구역 h2 에 발표 상태를 적는다(구역 머리줄은 2026-10-03 대표 요청으로 뺐다). 따로 떼어 둔 것은 시험이 직접 돌려 보게 하려는 것이다
    (test_weekly_release·test_home_first_screen).
@@ -1855,7 +1888,7 @@ function lsOk(){try{localStorage.setItem('agongmap-ls','1');localStorage.removeI
       올린다(HOME_BUILD 는 모든 배포에서 오르므로 쓰지 않는다). 동시 A/B 는 하지 않는다 — 배포 전후 비교의 구분값이다.
       이 줄은 부팅(showView 의 첫 page_view)보다 먼저 돈다 — 큐(dataLayer)에서 'set' 이 이벤트 앞에 있어야 속성이 붙는다.
       GA 로더는 늦게 붙어도(C8) 큐를 순서대로 보낸다. */
-const HOME_VARIANT='home7';   // home7: 데스크톱 전체 개편 — 전 페이지 상단 내비·이름표(desk.css, 2026-10-06). home6: 첫 화면 '내 지역'·'이번 주' 띠 삭제(2026-10-05)
+const HOME_VARIANT='home8';   // home8: 홈 지도 하나 — 시세 단추가 카드 안에 시군구 지도, 주간 구역 지도·데스크톱 2단 삭제(2026-10-29). home7: 데스크톱 전체 개편 — 전 페이지 상단 내비·이름표(desk.css, 2026-10-06). home6: 첫 화면 '내 지역'·'이번 주' 띠 삭제(2026-10-05)
 try{if(typeof gtag==='function')gtag('set','user_properties',{home_variant:HOME_VARIANT});}catch(e){}
 /* ② 코호트 재방문 신호 — 기기에 '방문한 날 수(n)·첫 방문일(f)·마지막 방문일(l)'만 센다(KST 날짜 수, 개인 식별 정보 없음, 밖으로
       나가는 것은 GA 이벤트 매개변수뿐). 그날 첫 홈 부팅에 home_visit 을 한 번 보낸다: visit_n(방문한 날 수), gap_days(직전 방문과의

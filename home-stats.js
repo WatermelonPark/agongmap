@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v204';
+var HOME_STATS_BUILD='v205';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -847,7 +847,7 @@ function drawNationMap(k){
   const gap=natP!==row.p;
   const SER=hasWo?'매매·전세·월세':'매매·전세';
   const ref=k==='week'?WK_MAP_REF:MO_MAP_REF;   // 만색 기준은 홈 지도 시세 모드(주간·월간)·히어로 배경과 한 값
-  /* 그림은 홈 주간 구역과 같은 sggMapSvg(home-app.js). 칸을 누르면 그 지역 그래프(openTrendRegion). */
+  /* 그림은 홈 지도 구역 시세 지도(priceTilesHtml)와 같은 sggMapSvg(home-app.js). 칸을 누르면 그 지역 그래프(openTrendRegion). */
   const svg=sggMapSvg(hasWo?[vma,vje,vwo]:[vma,vje],{ref:ref,names:['매매','전세','월세'],href:c=>'#stats-market-'+k+'~'+c});
   const box=document.getElementById(T.map);
   box.innerHTML=
@@ -979,7 +979,7 @@ function trendPick(k){
   }
   return {name:reg,rows:W.rows,idx:W.regions.indexOf(reg),isSgg:false};
 }
-/* 지도 칸·TOP 10 지역명에서 고른 지역의 그래프(홈 주간 구역·통계 지도·/weekly/ 머리 지도 → '#stats-market-week~코드',
+/* 지도 칸·TOP 10 지역명에서 고른 지역의 그래프(홈 시세 지도·통계 지도·/weekly/ 머리 지도 → '#stats-market-week~코드',
    applyHash). 새 화면을 만들지 않고 이 구역의 지역 선택·그래프 보기를 그대로 맞춘다 — 시도 칸(서울·경기 등 진한 칸)은 그
    시도, 시군구 칸은 그 시군구, 전국 칸은 전국. 코드가 없으면(뒤로 가기로 '~코드' 없는 주소에 왔을 때) 이 함수가 연 그래프만
    열기 전 보기(순위·지도, TR_BACK)로 되돌린다. 사람이 지역을 바꾸거나 '지도'를 누르면 주소의 '~코드'를 걷는다(trOpenDrop — 주소와 화면이 다른 말을
