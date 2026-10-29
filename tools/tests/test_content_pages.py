@@ -776,3 +776,42 @@ def test_content_pages_light_their_own_tab():
         assert on and on.group(1) == N.HREF['reports'], '%s: 켜진 탭이 %s 다' % (r, on and on.group(1))
         seen += 1
     assert seen >= 2, '검사한 페이지가 %d개뿐이다' % seen
+
+
+def test_quotes_in_a_title_do_not_break_the_meta_attributes():
+    """제목·요약의 큰따옴표가 <title>·og 속성을 끊지 않는다(반박 글은 발언을 그대로 옮긴다).
+
+    무엇을 바꾸면 빨개지나: build_page 가 meta 값을 이스케이프하지 않으면. 2026-10-29 그 상태로 구운
+    column 글이 게이트(test_no_glued_attributes)에 걸려 네 편이 발행되지 못했다.
+    픽스처: 제목과 요약에 큰따옴표가 든 글 하나를 손으로 만들어 굽는다.
+    """
+    data = CT.load()
+    meta = {'section': 'column', 'slug': 'quote-x', 'title': '그가 "급락" 이라 말했다',
+            'summary': '"급락" 이라는 말이 무엇을 뜻하는지 입주 물량으로 따져 봅니다. 숫자는 국가 통계에서 옵니다.',
+            'date': '2026-10-29', 'updated': '2026-10-29'}
+    page, _ = MC.build_page(meta, '본문입니다.', data)
+    for prop in ('og:title', 'og:description'):
+        m = re.search(r'<meta property="%s" content="([^"]*)"\s*/?>' % prop, page)
+        assert m, '%s 를 못 찾았다(속성이 끊겼을 수 있다)' % prop
+        assert '"' not in m.group(1), '%s 안에 날것의 큰따옴표가 있다' % prop
+    m = re.search(r'<title>([^<]*)</title>', page)
+    assert m and '"' not in m.group(1), '<title> 에 날것의 큰따옴표가 있다'
+
+
+def test_publish_commits_everything_the_generator_touches():
+    """발행 워크플로의 커밋 대상이 콘텐츠 생성기가 고치는 곳을 모두 덮는다.
+
+    무엇을 바꾸면 빨개지나: zone(지역 묶음)·share(글 카드) 같은 경로를 TARGETS 에서 빼면. 생성기가 고친
+    파일이 대상 밖에 남으면 pull --rebase 가 "You have unstaged changes" 로 거부해 **그 회차 발행이 통째로
+    사라진다**(2026-10-29 반박 4편). 되돌리는 안전장치도 함께 있어야 한다.
+    픽스처: 저장소의 발행 워크플로.
+    """
+    t = io.open(os.path.join(ROOT, '.github', 'workflows', 'publish-content.yml'), encoding='utf-8').read()
+    m = re.search(r'^\s*TARGETS="([^"]+)"', t, re.M)
+    assert m, '커밋 대상을 읽지 못했다'
+    targets = set(m.group(1).split())
+    must = set(CM.SECTIONS) | {MC.REPORTS_DIR, 'zone', 'share', 'index.html',
+                               'feed.xml', 'llms.txt', 'llms-full.txt', 'sitemap.xml'}
+    assert must <= targets, '발행이 생성기 산출물을 빠뜨린다: %s' % sorted(must - targets)
+    assert 'git checkout -- .' in t, '커밋 대상 밖 변경을 되돌리는 안전장치가 없다'
+    assert 'fonttools' in t, '카드 글꼴 검사에 쓰는 fonttools 를 깔지 않는다'

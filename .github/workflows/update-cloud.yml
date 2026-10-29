@@ -620,7 +620,7 @@ jobs:
               if [ -n "$LN" ]; then rep "$LN"; fi
             done <<< "$NOTES"
           fi
-          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp index.html tools/data/blog_latest.json tools/data/city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column"
+          TARGETS="data.js data-core.js data-rest.json data-trend.json data-sgg.json data-size.json zone sitemap.xml jeonse-ratio moveins monthly weekly cycle share tools/data/.home_stamp index.html tools/data/blog_latest.json tools/data/city_moveins.json feed.xml llms.txt llms-full.txt city gtx danji column reports"
           # 아직 글이 없는 섹션은 디렉터리가 없다. 없는 경로를 그대로 넘기면 git add 가 pathspec 오류로
           # 죽고 그 회차 커밋 전체가 날아간다 — 2026-10-29 배치 두 회차(01:28·10:49)가 column 때문에 그렇게
           # 멈춰 10-26 조사 주간 시세가 하루 넘게 사이트에 못 올라갔다. 목록은 그대로 두고 있는 것만 넘긴다.

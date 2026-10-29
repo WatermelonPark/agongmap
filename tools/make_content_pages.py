@@ -448,8 +448,10 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
            meta['date'], meta['updated'], AUTHOR,
            html.escape(meta['summary']), body_html, src_html, faq_html,
            ''.join(nav), DISCLAIMER))
-    page = I.fill(I.SHELL, title='%s | 아공맵' % meta['title'],
-                  ogtitle=meta['title'], desc=meta['summary'], url=url, body=body,
+    # 제목·요약은 <title> 과 og 속성 값에 들어간다. 반박 글 제목에는 발언을 그대로 옮긴 큰따옴표가 있어
+    # 이스케이프하지 않으면 속성이 그 자리에서 끊긴다(2026-10-29 게이트가 잡았다).
+    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % meta['title']),
+                  ogtitle=html.escape(meta['title']), desc=html.escape(meta['summary']), url=url, body=body,
                   ld=_ld(meta, url, body_html), src=' · '.join(srcs) if srcs else '아공맵',
                   nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
@@ -474,7 +476,8 @@ def build_index(sec, posts_meta):
             '<section><div class="wrap"><div class="clist">%s</div></div></section>'
             % (html.escape(name), html.escape(name), html.escape(desc), items))
     lastmod = max([m['updated'] for m in posts_meta], default=None)
-    page = I.fill(I.SHELL, title='%s | 아공맵' % name, ogtitle=name, desc=desc, url=url, body=body,
+    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
+                  desc=html.escape(desc), url=url, body=body,
                   ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED),
                   src='아공맵', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
@@ -521,7 +524,8 @@ def build_reports(all_metas):
                ''.join(chips), items))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in newest], default=None)
-    page = I.fill(I.SHELL, title='%s | 아공맵' % REPORTS_TITLE, ogtitle=REPORTS_TITLE, desc=REPORTS_DESC,
+    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),
+                  ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
                   url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
                                                    lastmod or I.PUBLISHED),
                   src='아공맵', nsido=str(len(I.SIDO17)))
