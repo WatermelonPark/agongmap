@@ -27,6 +27,8 @@ faq:
 
 ![벽적골8단지 요약](img/byeokjeokgol8-yeongtong-thumb.png)
 
+{{chart:moveins:수원}}
+
 ## 핵심 숫자
 
 | 항목 | 값 | 기준 |
@@ -111,6 +113,8 @@ faq:
 {{table:moveins:수원}}
 
 수원의 2027년 입주 물량은 {{v:moveins:수원:2027}}, 2028년은 {{v:moveins:수원:2028}}로 한 해 적정 입주량 {{v:need:수원}}의 {{v:share:수원:2027}}, {{v:share:수원:2028}}다. 적정 입주량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 영통구 매매가는 {{v:streak:영통구}}이고, 주간 시세 흐름은 아래와 같다.
+
+{{chart:weekly:수원 영통구}}
 
 {{table:weekly:수원}}
 
