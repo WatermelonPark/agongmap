@@ -102,3 +102,75 @@ def test_local_commits_the_same_targets():
         local = _bat_list(cmd)
         assert local == cloud, '로컬 "%s" 대상이 클라우드 TARGETS 와 다르다 — 빠짐 %s, 더함 %s' % (
             cmd, sorted(cloud - local), sorted(local - cloud))
+
+
+PUB = os.path.join(ROOT, '.github', 'workflows', 'publish-content.yml')
+
+
+def _pub_text():
+    return io.open(PUB, encoding='utf-8').read()
+
+
+def test_publish_workflow_runs_on_content_and_gates_before_commit():
+    """원고 발행 워크플로(대표 결정 10-26 ①)가 검사 → 생성 → 게이트 → 커밋 순서를 지킨다.
+
+    무엇을 바꾸면 빨개지나: pytest 게이트를 커밋 뒤로 옮기거나 지우면, 생성기 하나를 빼면,
+    content/** 트리거를 바꾸면. 발행은 사람 손을 거치지 않고 라이브로 가므로 게이트가 유일한 방어선이다.
+    픽스처: 저장소의 실제 워크플로 파일.
+    """
+    t = _pub_text()
+    assert re.search(r'paths:\s*\n\s*-\s*[\'"]?content/\*\*', t), 'content/** 푸시에 반응하지 않는다'
+    for gen in ('tools/make_content_pages.py', 'tools/content_tables.py', 'tools/content_md.py'):
+        assert gen in t, '%s 를 고쳐도 페이지를 다시 굽지 않는다 — 옛 페이지가 라이브에 남는다' % gen
+    # 순서는 **스텝 구간**에서만 센다. 트리거(paths)에도 생성기 파일 이름이 적혀 있어, 파일 전체에서
+    # 처음 나오는 자리로 세면 트리거 줄이 먼저 걸려 순서를 오판한다(2026-10-27 이 시험이 그렇게 틀렸다).
+    steps = t[t.index('    steps:'):]
+    order = ['tools/make_city_moveins.py', 'tools/content_check.py', 'tools/make_content_pages.py',
+             'tools/make_feed.py', 'tools/make_llms_txt.py', '-m pytest', 'git commit']
+    at = [steps.find(s) for s in order]
+    for s, i in zip(order, at):
+        assert i >= 0, '발행 워크플로에 %r 가 없다' % s
+    assert at == sorted(at), '발행 순서가 어긋났다 — 검사·생성·게이트가 모두 커밋 앞이어야 한다: %s' % (
+        [s for _, s in sorted(zip(at, order))])
+
+
+def test_publish_workflow_does_not_commit_the_manuscripts():
+    """발행 워크플로는 content/ 를 커밋하지 않는다 — 자기 커밋이 자기를 다시 부르지 않게.
+
+    무엇을 바꾸면 빨개지나: 커밋 대상 목록에 content 를 넣으면(푸시 → 발행 → 푸시로 런이 계속 돈다).
+    """
+    t = _pub_text()
+    m = re.search(r'^\s*TARGETS="([^"]+)"', t, re.M)
+    assert m, '발행 워크플로에서 커밋 대상 목록을 읽지 못했다'
+    targets = set(m.group(1).split())
+    assert 'content' not in targets and not any(x.startswith('content/') for x in targets), \
+        '발행 워크플로가 원고를 커밋한다 — 런이 스스로를 다시 부른다: %s' % sorted(targets)
+    # 글 페이지와 그 글을 가리키는 목록·피드·색인은 함께 나가야 한다. 하나라도 빠지면 발행된 글이
+    # 사이트맵이나 피드에 없는 상태로 라이브가 된다.
+    assert {'city', 'gtx', 'danji', 'column', 'feed.xml', 'llms.txt', 'llms-full.txt',
+            'sitemap.xml', 'index.html'} <= targets, '발행 대상이 빠졌다: %s' % sorted(targets)
+    # 그 대상은 매일 배치도 같은 이름으로 커밋한다 — 두 배치가 다른 경로에 같은 산출물을 두면
+    # 한쪽이 커밋한 파일이 다른 쪽에서 미커밋으로 남는다(백로그 11 과 같은 사고).
+    assert targets <= _cloud_targets(), '발행 대상이 매일 배치 TARGETS 밖이다: %s' % sorted(
+        targets - _cloud_targets())
+
+
+def test_publish_workflow_commits_nothing_that_triggers_itself():
+    """발행이 커밋하는 파일은 발행을 부르는 경로에 없다 — 런이 자기를 영원히 다시 부르지 않게.
+
+    무엇을 바꾸면 빨개지나: 커밋 대상과 트리거 경로가 겹치게 하면. 2026-10-27 새 도시를 받아 넣는 스텝을
+    더하면서 tools/data/city_moveins.json 이 양쪽에 들어갈 참이었다 — 그러면 발행이 그 파일을 커밋하고,
+    그 커밋이 다시 발행을 불러 런이 끝없이 돈다(GitHub 은 봇 커밋도 push 로 센다).
+    픽스처: 저장소의 발행 워크플로. 트리거 목록과 TARGETS 를 글자로 읽어 맞댄다.
+    """
+    t = _pub_text()
+    on = t[t.index('on:'):t.index('concurrency:')]
+    paths = re.findall(r"^\s*-\s*'([^']+)'", on, re.M)
+    assert paths, '트리거 경로를 읽지 못했다'
+    m = re.search(r'^\s*TARGETS="([^"]+)"', t, re.M)
+    assert m, '커밋 대상을 읽지 못했다'
+    for tgt in m.group(1).split():
+        for p in paths:
+            pre = p[:-3] if p.endswith('/**') else p
+            assert not (tgt == pre or tgt.startswith(pre + '/') or pre.startswith(tgt + '/') or pre == tgt), \
+                '커밋 대상 %r 이 트리거 경로 %r 과 겹친다 — 발행이 자기를 다시 부른다' % (tgt, p)

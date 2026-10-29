@@ -132,9 +132,24 @@ KINDS = (('날짜', r'\d{4}-\d{2}(-\d{2})?|\d{1,2}/\d{1,2}|\d{4}\.\d{2}'), ('분
          ('쉼표 숫자', r'\d{1,3}(,\d{3})+'), ('세대·호', r'\d\s*(세대|호)'), ('%', r'\d\s*%p?|%'))
 
 
+# 콘텐츠 섹션(백로그 50) 목록은 숫자 금지에서 뺀다. 이유가 다르다 — 아래 '숫자 금지'는 배치가 갈아끼우는
+# 데이터 값(세대수·%·기준월)이 이 파일에 묵는 것을 막는 규칙인데, 글 제목·요약의 연도는 글 자체의 주제이고
+# 원고가 정본이라 배치가 바꾸지 않는다('2027년 인천 입주물량'에서 연도를 뺄 수 없다). 구역 **밖**은 그대로 막는다.
+CONTENT_HEAD = '## 리포트와 해설'
+
+
+def strip_content_section(text):
+    """'## 리포트와 해설' 구역만 덜어낸 나머지(그 뒤 구역은 그대로 둔다)."""
+    i = text.find(CONTENT_HEAD)
+    if i < 0:
+        return text
+    j = text.find('\n## ', i + len(CONTENT_HEAD))
+    return text[:i] + (text[j:] if j >= 0 else '')
+
+
 def number_problems(text):
     """링크 주소를 뺀 본문에서 허용되지 않은 숫자·% 조각 목록. 비어 있으면 통과."""
-    body = LINK.sub(lambda m: '[' + m.group(1) + ']', text)
+    body = LINK.sub(lambda m: '[' + m.group(1) + ']', strip_content_section(text))
     bad = []
     for m in re.finditer(r'\d[\d,.]*\s*(년)?', body):
         tok = m.group(0).replace(' ', '')
@@ -150,6 +165,20 @@ def number_problems(text):
 def test_no_numbers_outside_window_lengths():
     bad = number_problems(_llms())
     assert not bad, 'llms.txt 에 숫자가 있다(배치마다 묵는다): %s' % bad
+
+
+def test_content_section_is_the_only_place_numbers_are_allowed():
+    """콘텐츠 목록 밖에 숫자가 들어오면 여전히 잡는다 — 예외가 파일 전체로 번지지 않게.
+
+    무엇을 바꾸면 빨개지나: strip_content_section 이 구역 뒤까지 잘라내면(그 뒤 '## 데이터 출처'에 숫자를
+    넣어도 통과하게 된다). 픽스처: 방금 구운 llms.txt 에 세대수 한 줄을 덧붙인 판.
+    """
+    t = _llms()
+    if CONTENT_HEAD not in t:
+        import pytest
+        pytest.skip('아직 콘텐츠 글이 없다')
+    assert number_problems(t + '\n686,396세대\n'), '구역 밖 숫자를 놓친다'
+    assert not number_problems(t), '콘텐츠 목록의 글 제목·요약이 숫자로 잡힌다'
 
 
 def test_number_checker_catches_each_kind():

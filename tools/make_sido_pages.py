@@ -578,7 +578,11 @@ def share_section(z):
         % (e, json.dumps(SZ.disp(z), ensure_ascii=False), json.dumps(z, ensure_ascii=False)))
 
 
-FOOT = '''</main>
+# 그 지역을 다룬 콘텐츠 글 묶음이 들어오는 자리(백로그 50). 이 생성기는 **빈 표식만** 굽고, 안쪽은
+# make_content_pages 가 원고의 region 을 읽어 채운다 — 홈 '최근 리포트' 와 같은 방식이다. 두 생성기의
+# 순서에 기대지 않으려고 이렇게 나눴다(시도 페이지가 먼저 구워져도 다음 단계에서 채워진다).
+FOOT = '''<!--ZONE_POSTS_START--><!--ZONE_POSTS_END-->
+</main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
   <a href="/">agongmap.co.kr</a> · <a href="/about/">아공맵 소개</a> · 자료: 국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트
@@ -1091,9 +1095,12 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
              '<h1>%s 아파트 공급</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
-             '<span class="zbasis">%s 기준 · %s</span></p>'
+             '<span class="zbasis">%s 기준 · %s</span>'
+             # 화면에도 페이지 수정일을 적는다(백로그 50 요청 2.4) — JSON-LD dateModified 와 같은 값이다.
+             # keep_dates 가 날짜를 가려 비교하므로, 이 줄 때문에 매일 새 판이 되지는 않는다.
+             '<span class="zbasis">페이지 수정 %s</span></p>'
              % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
-                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC)))
+                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC), esc(_today())))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의
@@ -1210,10 +1217,11 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
     foot = []
     if row.get('unsold') is not None:
         foot.append('<tr class="zref" data-ref="un"><td>%s</td><td>%s</td><td>%s</td>'
-                    '<td colspan="3" class="zfut">%s 기준 · 지금 안 팔리고 남은 재고</td></tr>'
+                    '<td colspan="3" class="zfut">%s 기준 · %s</td></tr>'
                     % (refbtn('미분양'), num(row['unsold']),
                        umx(row['um']) if row.get('um') is not None else '–',
-                       SZ.month_text(calc.get('unsold_prd') or '')))
+                       SZ.month_text(calc.get('unsold_prd') or ''),
+                       SZ.UNSOLD_NATURE))   # 정의는 sido_zones 정본(10-24 업계 표현)
     if row.get('pm12') is not None:
         # 기준 달(창의 끝)은 미분양 행처럼 적는다 — 판정(calc)이 실은 permit_prd. 다음 배치 전의 옛 판정에는 없어 그때는 뺀다.
         # 퍼센트는 화면 정수 정본 rnd(half_up) — '%.0f' 는 짝수 쪽 반올림이라 x.5 에서 홈(Math.round)과 갈렸다(전수리뷰 X2 overflow).
@@ -1256,7 +1264,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              # 실측하니 **–가 20페이지 전체에서 0번** 나온다 — 대비 대상이 화면에
              # 없는 채로 없는 오해를 만들어놓고 푸는 문장이었다. 0은 그냥 0으로
              # 읽힌다. '경계선 위는 준공, 아래는 착공'도 이 절 첫 문단이 이미 말한다.
-             '<p><b>미분양</b>은 지금 안 팔리고 남은 집입니다(%(un_src)s). '
+             '<p><b>미분양</b>은 %(un_nat)s입니다(%(un_src)s). '
              '순위 계산에는 넣지 않습니다 — 결과값이라 공급에서 빼면 이중으로 세고 부호도 반대가 됩니다. '
              '판정을 읽는 맥락으로만 씁니다.</p>'
              '<p>공급 기준이며 가격 예측이 아닙니다. 금리가 크게 움직이면 공급 신호는 가격에 묻힙니다.</p>'
@@ -1265,7 +1273,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              # 첫 착공 연도(CONV_START_FROM)다 — 착공÷인허가를 재는 CONV_FROM(2012)이 아니다(전수 리뷰 #111).
              % {'lead': lead_y, 'convp': round(calc['conv'] * 100), 'conv_from': SZ.CONV_START_FROM,
                 'pover': pover_txt, 'ahead': ahead_y, 'formula': esc(SZ.formula_text(calc['H'])),
-                'win': win_y, 'un_src': UN_SOURCE, 'pwin': SZ.win_years(SZ.PERMIT_WIN)})
+                'win': win_y, 'un_src': UN_SOURCE, 'un_nat': SZ.UNSOLD_NATURE, 'pwin': SZ.win_years(SZ.PERMIT_WIN)})
 
     h.append(next_links(z, weekly, stats))
     h.append(weekly_section(z, weekly, names, monthly, maps))

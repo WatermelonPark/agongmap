@@ -46,6 +46,9 @@ import make_sido_pages as SP  # noqa: E402  (미분양 출처 기관 정본 UN_S
 import ping_indexnow as P  # noqa: E402  (sitemap 읽기 — IndexNow 와 같은 눈)
 
 OUT = os.path.join(ROOT, 'llms.txt')
+FULL_OUT = os.path.join(ROOT, 'llms-full.txt')
+FULL_PATH = '/llms-full.txt'
+CONTENT_PER_SECTION = 10   # 섹션마다 최신 몇 편까지 싣나(요청서 2026-10-26)
 SITEMAP = os.path.join(ROOT, 'sitemap.xml')
 PATH = '/llms.txt'
 ZONE_RE = re.compile(r'^/zone/([^/]+)/$')
@@ -118,6 +121,36 @@ def moveins_desc():
     return '시도별 연간 입주물량 — 준공 실적과 %s, 연간 적정물량과 견준 %s' % (I.MOVEINS_EST, light)
 
 
+def content_posts(root=ROOT):
+    """[(섹션, meta, 본문 마크다운)] — 섹션마다 최신(updated) 순으로 CONTENT_PER_SECTION 편까지.
+
+    ⚠️ 원고를 읽다 실패하면 그 글만 빼고 표준 오류에 남긴다. 검사와 중단은 make_content_pages 가 한다
+       (생성기 순서상 이 파일보다 먼저 돈다) — 같은 실패로 배치를 두 번 세우지 않는다.
+    """
+    try:
+        import content_md as CM
+        import content_tables as CT
+        data = CT.load()
+    except Exception as e:
+        sys.stderr.write('⚠️ 콘텐츠 원고를 싣지 못했다: %s\n' % e)
+        return []
+    by = {}
+    for sec, slug, path in CM.built(root):
+        try:
+            meta, body = CM.read(path, sec, slug)
+            # 제목·요약은 값으로, 본문의 표는 마크다운 표로 채운다 — llms-full.txt 는 글자로만 나간다.
+            meta, body = CT.fill_meta(meta, data), CT.fill_markdown(body, data)
+        except Exception as e:
+            sys.stderr.write('⚠️ 원고를 건너뛴다(%s/%s): %s\n' % (sec, slug, e))
+            continue
+        by.setdefault(sec, []).append((meta, body))
+    out = []
+    for sec in CM.SECTIONS:
+        items = sorted(by.get(sec, []), key=lambda x: (x[0]['updated'], x[0]['date'], x[0]['slug']), reverse=True)
+        out += [(sec, m, b) for m, b in items[:CONTENT_PER_SECTION]]
+    return out
+
+
 def build(root=ROOT, sitemap_xml=None):
     """llms.txt 문자열. sitemap_xml 을 주지 않으면 저장소의 sitemap.xml 을 읽는다. 오늘 날짜를 읽지 않는다."""
     base = site(root)
@@ -165,6 +198,21 @@ def build(root=ROOT, sitemap_xml=None):
         else:
             note = '리포트'
         out.append(item('%s 아파트 공급' % SZ.disp(name), loc, note))   # 화면 이름(백로그 46) — 주소는 키 그대로
+    posts = content_posts(root)
+    if posts:
+        import make_content_pages as MC
+        secs = []
+        for sec, meta, _ in posts:
+            if sec not in secs:
+                secs.append(sec)
+        out += ['', '## 리포트와 해설', '']
+        for sec in secs:
+            name = MC.SECTION_META[sec][0]
+            out.append(item(name, '%s/%s/' % (base, sec), MC.SECTION_META[sec][1]))
+            for s2, meta, _ in posts:
+                if s2 == sec:
+                    out.append(item(meta['title'], '%s/%s/%s/' % (base, sec, meta['slug']), meta['summary']))
+
     out += ['',
             '## 시세와 통계', '',
             # 지금 화면 그대로(전수리뷰 Z2-9): 머리의 시도 타일·방향 표지는 2026-10-02·03 에 걷혔다.
@@ -178,14 +226,78 @@ def build(root=ROOT, sitemap_xml=None):
             '## 사이트 안내', '',
             item('자주 묻는 질문', base + '/faq/', meta_description(os.path.join('faq', 'index.html'), root)),
             item('소개', base + '/about/', meta_description(os.path.join('about', 'index.html'), root)),
-            item('새 소식 피드(RSS)', base + F.PATH, F.DESC),
+            item('새 소식 피드(RSS)', base + F.PATH, F.DESC)]
+    # 전문 모음은 글이 있을 때만 링크한다 — 없는 파일로 보내지 않는다(llms-full.txt 는 글이 있어야 구워진다).
+    if posts:
+        out.append(item('글 전문 모음', base + FULL_PATH, '리포트·해설 글의 전문을 마크다운으로 모은 파일입니다.'))
+    out += [
             '',
             '## 데이터 출처', '']
     out += [item(n, u, d) for n, u, d in SOURCES]
     return '\n'.join(out) + '\n'
 
 
+def _md_table(head, rows, note):
+    out = ['| ' + ' | '.join(str(c) for c in head) + ' |',
+           '|' + '|'.join([' --- '] * len(head)) + '|']
+    out += ['| ' + ' | '.join(str(c) for c in r) + ' |' for r in rows]
+    if note:
+        out.append('')
+        out.append('출처: %s' % note)
+    return '\n'.join(out)
+
+
+def build_full(root=ROOT):
+    """llms-full.txt — 리포트·해설 글의 전문(마크다운). 자리표는 사이트 데이터로 채워 싣는다.
+
+    AI 검색이 페이지를 하나씩 긁지 않고 한 파일에서 본문·숫자·출처·날짜를 읽게 한다. 숫자는 자리표를 채운
+    값이라 배치마다 새로 구워진다. 글이 없으면 None — 그때는 파일을 만들지 않는다.
+    """
+    posts = content_posts(root)
+    if not posts:
+        return None
+    import content_tables as CT
+    import make_content_pages as MC
+    data = CT.load(root)
+    base = site(root)
+    out = ['# %s — 글 전문' % F.TITLE, '',
+           '> 아공맵이 발행한 리포트·해설의 전문입니다. 표의 숫자는 사이트 데이터에서 매 갱신 때 다시 채웁니다.', '']
+    for sec, meta, body in posts:
+        # 자리표를 못 채우는 글은 전문 모음에서 건너뛴다 — 여기서 멈추면 llms.txt 까지 못 굽는다
+        # (make_content_pages 가 같은 글을 이미 건너뛰고 경고했다).
+        try:
+            MC.fill_placeholders(body, data)
+        except Exception as e:
+            sys.stderr.write('⚠️ 전문 모음에서 건너뛴다(%s/%s): %s\n' % (sec, meta['slug'], e))
+            continue
+        # 표는 마크다운 표로 채운다(페이지 쪽은 HTML 표).
+        def sub(m, _d=data):
+            kind, rest = m.group(1), m.group(2)
+            parts = [p.strip() for p in rest.split(':')]
+            if kind == 'v':
+                return CT.value(_d, parts[0], parts[1:])
+            head, rows, note = CT.table(_d, parts[0], parts[1:])
+            return '\n' + _md_table(head, rows, note) + '\n'
+        text = MC.PLACEHOLDER.sub(sub, body).strip()
+        out += ['## %s' % meta['title'], '',
+                '- 주소: %s/%s/%s/' % (base, sec, meta['slug']),
+                '- 섹션: %s' % MC.SECTION_META[sec][0],
+                '- 작성 %s · 갱신 %s · %s' % (meta['date'], meta['updated'], MC.AUTHOR),
+                '- 요약: %s' % meta['summary']]
+        if meta.get('sources'):
+            out.append('- 출처: %s' % ' · '.join(meta['sources']))
+        out += ['', text, '']
+        for f in meta.get('faq') or []:
+            out += ['**%s**' % f['q'], '', f['a'], '']
+        out.append('---')
+        out.append('')
+    return '\n'.join(out).rstrip() + '\n'
+
+
 def main():
+    # ⚠️ llms-full.txt 를 먼저 굽는다. llms.txt 가 그대로인 회차(글은 그대로고 숫자만 바뀐 날)에도
+    #    전문 파일의 표는 새 숫자로 다시 구워져야 한다 — 아래 '변경 없음' 반환보다 앞에 둔다.
+    write_full()
     body = build()
     old = io.open(OUT, encoding='utf-8').read() if os.path.exists(OUT) else None
     if old == body:
@@ -194,6 +306,20 @@ def main():
     io.open(OUT, 'w', encoding='utf-8', newline='\n').write(body)
     print('wrote llms.txt')
     return 0
+
+
+def write_full():
+    """llms-full.txt 를 굽는다. 글이 없으면 건드리지 않는다(없던 파일을 만들지 않는다)."""
+    body = build_full()
+    if body is None:
+        print('llms-full.txt 건너뜀 — 콘텐츠 원고 없음')
+        return
+    old = io.open(FULL_OUT, encoding='utf-8').read() if os.path.exists(FULL_OUT) else None
+    if old == body:
+        print('llms-full.txt 변경 없음')
+        return
+    io.open(FULL_OUT, 'w', encoding='utf-8', newline='\n').write(body)
+    print('llms-full.txt 갱신 (%.1fKB)' % (len(body.encode('utf-8')) / 1024.0))
 
 
 if __name__ == '__main__':

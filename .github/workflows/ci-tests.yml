@@ -63,6 +63,7 @@ jobs:
 
       - name: split_data + 생성기 (배치와 같은 순서, 패키지 설치 전)
         run: |
+          if ! python3 tools/make_city_moveins.py; then echo "::error::make_city_moveins 실패"; exit 1; fi
           if ! python3 tools/split_data.py; then echo "::error::split_data 실패"; exit 1; fi
           if ! python3 tools/make_sido_pages.py; then echo "::error::make_sido_pages 실패"; exit 1; fi
           if ! python3 tools/make_indicator_pages.py; then echo "::error::make_indicator_pages 실패"; exit 1; fi
@@ -70,6 +71,7 @@ jobs:
           if ! python3 tools/make_weekly_page.py; then echo "::error::make_weekly_page 실패"; exit 1; fi
           if ! python3 tools/make_home_summary.py; then echo "::error::make_home_summary 실패"; exit 1; fi
           if ! python3 tools/refresh_cycle_data.py; then echo "::error::refresh_cycle_data 실패"; exit 1; fi
+          if ! python3 tools/make_content_pages.py; then echo "::error::make_content_pages 실패"; exit 1; fi
           if ! python3 tools/make_feed.py; then echo "::error::make_feed 실패"; exit 1; fi
           if ! python3 tools/make_llms_txt.py; then echo "::error::make_llms_txt 실패"; exit 1; fi
 
@@ -104,6 +106,7 @@ jobs:
 
       - name: split_data + 생성기 여덟 (설치 없이)
         run: |
+          python3 tools/make_city_moveins.py
           python3 tools/split_data.py
           python3 tools/make_sido_pages.py
           python3 tools/make_indicator_pages.py
@@ -111,6 +114,7 @@ jobs:
           python3 tools/make_weekly_page.py
           python3 tools/make_home_summary.py
           python3 tools/refresh_cycle_data.py
+          python3 tools/make_content_pages.py
           python3 tools/make_feed.py
           python3 tools/make_llms_txt.py
 

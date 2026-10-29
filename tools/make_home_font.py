@@ -62,6 +62,10 @@ WEIGHT = '45 920'
 # (make_home_summary — 데이터 문구라 data-core 글자로 덮는다).
 SKIP_IDS = ('view-stats', 'view-test')
 SUMMARY = re.compile(r'<!--HOME_SUMMARY_START-->.*?<!--HOME_SUMMARY_END-->', re.S)
+# '최근 리포트' 묶음도 같은 성격이다 — 원고가 올라오면 글 제목이 그대로 들어오므로(make_content_pages) 서브셋으로
+# 고정할 수 없다. 2026-10-27 첫 19편에서 네 글자(갱·듭·몰·석)가 늘어 발행 게이트가 막혔다. 그 구간 글자는 요약 구간처럼
+# CDN 조각이 그린다(묶음은 첫 화면 아래에 있다).
+RECENT = re.compile(r'<!--CONTENT_RECENT_START-->.*?<!--CONTENT_RECENT_END-->', re.S)
 
 
 class _Text(html.parser.HTMLParser):
@@ -99,9 +103,9 @@ class _Text(html.parser.HTMLParser):
 
 
 def static_home_text(html_text):
-    """홈 마크업에서 첫 로딩에 그려질 수 있는 글자(요약 구간·통계/퀴즈 화면 제외)."""
+    """홈 마크업에서 첫 로딩에 그려질 수 있는 글자(요약·최근 리포트 구간·통계/퀴즈 화면 제외)."""
     p = _Text()
-    p.feed(SUMMARY.sub('', html_text))
+    p.feed(RECENT.sub('', SUMMARY.sub('', html_text)))
     return ''.join(p.out)
 
 
