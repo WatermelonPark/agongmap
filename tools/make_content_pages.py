@@ -776,7 +776,10 @@ def zone_posts_html(metas):
         % (m['section'], m['slug'], html.escape(m['title']),
            html.escape(SECTION_META[m['section']][0]), _day_short(m['updated']))
         for m in newest)
-    return '<section class="crecent zposts"><h2>이 지역 글</h2><ul>%s</ul></section>' % items
+    # 리포트의 다른 절과 같은 본문 틀(.wrap) 안에 둔다 — 예전엔 틀 밖이라 375px 에서 좌우 여백이 0, 1280px 에서는
+    # 오른쪽 본문 단과 어긋났다(2026-10-30 디자인 리뷰).
+    return ('<section class="zposts"><div class="wrap"><div class="crecent"><h2>이 지역 글</h2><ul>%s</ul></div></div></section>'
+            % items)
 
 
 def write_zone_posts(metas, root=ROOT):
