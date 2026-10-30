@@ -126,7 +126,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -251,12 +251,14 @@ footer a{color:var(--ink)}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
+@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
-.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--muted)}
-.cnote{font-size:12px;color:var(--muted);margin:6px 0 0}
+.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
+.cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
@@ -265,21 +267,21 @@ footer a{color:var(--ink)}
 .cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
  text-decoration:none;color:var(--ink);font-size:14px}
-.cnav a span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
-.clist i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.6}
+.clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
+.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/danji/">단지 분석</a></nav><h1>산본 솔거마을 대림 재건축, 7구역 2,056가구 계획안·대지지분·실거래(2026)</h1><p class="cmeta">2026-10-30 작성 · 2026-10-30 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/danji/">단지 분석</a></nav><h1>산본 솔거마을 대림 재건축, 7구역 2,056가구 계획안·대지지분·실거래(2026)</h1><p class="cmeta">2026년 10월 30일 작성 · 2026년 10월 30일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">솔거마을 대림 1,158세대는 산본 7구역 단독으로 2,056가구 재건축안을 냈고, 군포시가 2026-10-26 지정 제안을 수용해 10-27부터 11-13까지 공람 중이다.</p><div class="cbody"><p><img src="/content/danji/img/solgeo-daelim-sanbon-thumb.png" alt="솔거마을 대림 요약" loading="lazy"></p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>640세대</b><span>2027년 입주</span></div><div class="ccard"><b>32%</b><span>적정 대비</span></div><div class="ccard"><b>73주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="군포 연도별 입주 물량 막대그래프. 2027년 640세대, 2028년 1,574세대, 2029년 1,380세대. 한 해 적정 입주량은 1,992세대." class="cchart-svg"><rect x="202.0" y="130.0" width="72.0" height="54.0" class="cb"/><text x="238.0" y="126.0" class="cb-v">640</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="51.3" width="72.0" height="132.7" class="cb"/><text x="320.0" y="47.3" class="cb-v">1,574</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="67.6" width="72.0" height="116.4" class="cb"/><text x="402.0" y="63.6" class="cb-v">1,380</text><text x="402.0" y="202" class="cb-x">2029</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 1,992세대</text></svg><figcaption>군포 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>640세대</b><span>2027년 입주</span></div><div class="ccard"><b>32%</b><span>적정물량 대비</span></div><div class="ccard"><b>73주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="군포 연도별 입주 물량 막대그래프. 2027년 640세대, 2028년 1,574세대, 2029년 1,380세대. 한 해 적정물량은 1,992세대." class="cchart-svg"><rect x="202.0" y="130.0" width="72.0" height="54.0" class="cb"/><text x="238.0" y="126.0" class="cb-v">640</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="51.3" width="72.0" height="132.7" class="cb"/><text x="320.0" y="47.3" class="cb-v">1,574</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="67.6" width="72.0" height="116.4" class="cb"/><text x="402.0" y="63.6" class="cb-v">1,380</text><text x="402.0" y="202" class="cb-x">2029</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 1,992세대</text></svg><figcaption>군포 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <h2>핵심 숫자</h2>
 <div class="ctab"><table><thead><tr><th scope="col">항목</th><th scope="col">값</th><th scope="col">기준</th></tr></thead><tbody><tr><th scope="row">세대수</th><td>1,158세대(16개 동, 최고 25층)</td><td>1993년 9월 입주, 산본동 1146</td></tr><tr><th scope="row">평형</th><td>34평형 392, 37평형 400, 46평형 320, 60평형 46세대</td><td>전용 90.15·101.91·127.02·164.7㎡, 모두 중대형</td></tr><tr><th scope="row">용적률·건폐율</th><td>221%·15%</td><td>건축물대장 용적률 220.54%</td></tr><tr><th scope="row">대지면적</th><td>67,000㎡</td><td>세대당 평균 57.9㎡(17.5평)</td></tr><tr><th scope="row">세대당 주차대수</th><td>1.02대</td><td></td></tr><tr><th scope="row">가까운 역</th><td>4호선 산본역 도보 11~14분</td><td>후문 11분</td></tr><tr><th scope="row">배정초</th><td>둔전초</td><td>단지 바로 옆, 정문 도보 6분</td></tr></tbody></table></div>
 <h2>정비 구역과 사업 단계</h2>
@@ -303,7 +305,7 @@ footer a{color:var(--ink)}
 <div class="ctab"><table><thead><tr><th scope="col">항목</th><th scope="col">이름</th><th scope="col">거리</th></tr></thead><tbody><tr><th scope="row">배정초</th><td>둔전초</td><td>단지 바로 옆, 초품아</td></tr><tr><th scope="row">가까운 학원가</th><td>정문 앞 산본동 학원가(6개), 한숲사거리 학원가</td><td>도보 0~5분</td></tr><tr><th scope="row">산본 최대 학원가</th><td>산본역~중심상가 산본동 학원가(65개, 군포 최대)</td><td>후문 도보 8분, 정문 11분</td></tr><tr><th scope="row">쇼핑몰</th><td>롯데피트인 산본점, 뉴코아아울렛 산본점</td><td>도보 7~14분</td></tr><tr><th scope="row">대형마트</th><td>이마트 산본점</td><td>후문 도보 6분</td></tr><tr><th scope="row">대형 병원</th><td>원광대학교 산본병원</td><td>도보 12~15분</td></tr><tr><th scope="row">공원·도서관</th><td>산본 중앙공원, 산본도서관</td><td>도보 6~7분, 1분</td></tr></tbody></table></div>
 <p>산본 중심상가와 군포 최대 학원가가 걸어서 10분 안팎이고, 둔전초가 단지 옆에 붙어 있다. 입주민 후기에서는 이 입지와 우륵7단지 사이의 차 없는 산책로가 장점으로, 재건축 분담금과 이자 부담이 걱정거리로 꼽힌다.</p>
 <h2>군포 입주 물량</h2>
-<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정 대비</th></tr></thead><tbody><tr><th scope="row">2027</th><td>640</td><td>32%</td></tr><tr><th scope="row">2028</th><td>1,574</td><td>79%</td></tr><tr><th scope="row">2029</th><td>1,380</td><td>69%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정 입주량 1,992세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2027</th><td>640</td><td>32%</td></tr><tr><th scope="row">2028</th><td>1,574</td><td>79%</td></tr><tr><th scope="row">2029</th><td>1,380</td><td>69%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 1,992세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
 <p>군포의 2027년 입주 물량은 640세대로 한 해 적정 입주량 1,992세대의 32%다. 적정 입주량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 군포 매매가는 57주 연속 상승(10월 26일 조사)이고, 주간 시세 흐름은 아래와 같다.</p>
 <figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="군포 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.58%, 전세 최신 +0.19%." class="cchart-svg"><line x1="8" y1="126.0" x2="632" y2="126.0" class="cl-zero"/><path d="M8.0 109.6 L33.0 104.7 L57.9 100.4 L82.9 96.1 L107.8 95.3 L132.8 97.9 L157.8 93.5 L182.7 89.7 L207.7 87.2 L232.6 85.6 L257.6 82.4 L282.6 89.3 L307.5 83.5 L332.5 80.6 L357.4 83.6 L382.4 59.9 L407.4 55.8 L432.3 65.5 L457.3 72.3 L482.2 69.3 L507.2 67.7 L532.2 80.1 L557.1 83.8 L582.1 14.0 L607.0 43.4 L632.0 35.0" class="cl cl-ma"/><circle cx="632.0" cy="35.0" r="2.5" class="cl-dot"/><path d="M8.0 107.9 L33.0 93.1 L57.9 97.7 L82.9 106.9 L107.8 97.8 L132.8 87.7 L157.8 80.3 L182.7 95.0 L207.7 90.3 L232.6 100.1 L257.6 97.4 L282.6 108.1 L307.5 104.3 L332.5 95.1 L357.4 99.3 L382.4 96.1 L407.4 105.2 L432.3 88.9 L457.3 95.6 L482.2 99.2 L507.2 97.2 L532.2 104.6 L557.1 105.1 L582.1 81.1 L607.0 87.2 L632.0 96.3" class="cl cl-je"/><circle cx="632.0" cy="96.3" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>군포 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">군포</th><td>+0.58%</td><td>+0.19%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
@@ -312,7 +314,7 @@ footer a{color:var(--ink)}
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 자료: 국토교통부 아파트 매매·전월세 실거래가(2025년 1월~2026년 10월, 2026-10-30 조회) · 국토교통부 건축물대장(표제부 대지면적·용적률) · 네이버 부동산 매물 호가(2026-10-30 조회, 세 낀 매물·실거주 매물 구분) · 군포시 산본신도시 4개 구역 특별정비구역 지정 제안 수용·주민공람(공고 제2026-1579호, 머니투데이 2026-10-26 보도) · 한국토지신탁 산본7구역 예비사업시행자 승인·고시(위클리한국주택경제신문 2026-10-26 보도) · 한국부동산원 입주예정물량, 청약홈 분양 공고 · 한국부동산원 주간 아파트가격동향
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 

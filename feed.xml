@@ -3,7 +3,7 @@
 <channel>
   <title>아공맵 — 아파트 공급 지도</title>
   <link>https://www.agongmap.co.kr/</link>
-  <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 공급 통계를 알립니다.</description>
+  <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 통계를 알립니다.</description>
   <language>ko</language>
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
   <lastBuildDate>Fri, 30 Oct 2026 00:00:00 +0900</lastBuildDate>
@@ -218,7 +218,7 @@
     <description>벽적골8단지 두산·우성·한신은 2026년 8월 이주를 시작했고 9월 매매 96건으로 영통구 거래의 19%였다.</description>
   </item>
   <item>
-    <title>이달의 공급 통계 — 2026년 9월 기준</title>
+    <title>이달의 통계 — 2026년 9월 기준</title>
     <link>https://www.agongmap.co.kr/monthly/</link>
     <guid isPermaLink="false">agongmap-monthly-2026-09</guid>
     <pubDate>Thu, 15 Oct 2026 00:00:00 +0900</pubDate>

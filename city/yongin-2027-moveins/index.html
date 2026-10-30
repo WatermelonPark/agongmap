@@ -118,7 +118,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -243,12 +243,14 @@ footer a{color:var(--ink)}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
+@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
-.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--muted)}
-.cnote{font-size:12px;color:var(--muted);margin:6px 0 0}
+.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
+.cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
@@ -257,29 +259,29 @@ footer a{color:var(--ink)}
 .cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
  text-decoration:none;color:var(--ink);font-size:14px}
-.cnav a span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
-.clist i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.6}
+.clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
+.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다</h1><p class="cmeta">2026-10-27 작성 · 2026-10-27 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 27일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정 입주량의 60%입니다.</p><div class="cbody"><p>용인 수지구 아파트 매매가는 91주 연속 상승(10월 26일 조사), 기흥구는 59주 연속 상승(10월 26일 조사)입니다. 2027년 용인 입주 물량은 5,229세대로, 한 해 적정 입주량의 60%입니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>5,229세대</b><span>2027년 입주</span></div><div class="ccard"><b>60%</b><span>적정 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="용인 연도별 입주 물량 막대그래프. 2026년 892세대, 2027년 5,229세대, 2028년 5,252세대, 2029년 1,069세대, 2030년 595세대. 한 해 적정 입주량은 8,721세대." class="cchart-svg"><rect x="120.0" y="166.8" width="72.0" height="17.2" class="cb"/><text x="156.0" y="162.8" class="cb-v">892</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="83.3" width="72.0" height="100.7" class="cb"/><text x="238.0" y="79.3" class="cb-v">5,229</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="82.8" width="72.0" height="101.2" class="cb"/><text x="320.0" y="78.8" class="cb-v">5,252</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="163.4" width="72.0" height="20.6" class="cb"/><text x="402.0" y="159.4" class="cb-v">1,069</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="172.5" width="72.0" height="11.5" class="cb"/><text x="484.0" y="168.5" class="cb-v">595</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,721세대</text></svg><figcaption>용인 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-29 조사)</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>892</td><td>10%</td></tr><tr><th scope="row">2027</th><td>5,229</td><td>60%</td></tr><tr><th scope="row">2028</th><td>5,252</td><td>60%</td></tr><tr><th scope="row">2029</th><td>1,069</td><td>12%</td></tr><tr><th scope="row">2030</th><td>595</td><td>7%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정 입주량 8,721세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>5,229세대</b><span>2027년 입주</span></div><div class="ccard"><b>60%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="용인 연도별 입주 물량 막대그래프. 2026년 892세대, 2027년 5,229세대, 2028년 5,252세대, 2029년 1,069세대, 2030년 595세대. 한 해 적정물량은 8,721세대." class="cchart-svg"><rect x="120.0" y="166.8" width="72.0" height="17.2" class="cb"/><text x="156.0" y="162.8" class="cb-v">892</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="83.3" width="72.0" height="100.7" class="cb"/><text x="238.0" y="79.3" class="cb-v">5,229</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="82.8" width="72.0" height="101.2" class="cb"/><text x="320.0" y="78.8" class="cb-v">5,252</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="163.4" width="72.0" height="20.6" class="cb"/><text x="402.0" y="159.4" class="cb-v">1,069</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="172.5" width="72.0" height="11.5" class="cb"/><text x="484.0" y="168.5" class="cb-v">595</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,721세대</text></svg><figcaption>용인 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>892</td><td>10%</td></tr><tr><th scope="row">2027</th><td>5,229</td><td>60%</td></tr><tr><th scope="row">2028</th><td>5,252</td><td>60%</td></tr><tr><th scope="row">2029</th><td>1,069</td><td>12%</td></tr><tr><th scope="row">2030</th><td>595</td><td>7%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 8,721세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
 <p>적정 입주량은 인구로 잡은 연 8,721세대입니다. 입주가 가장 몰리는 달은 2028년 12월 2,491세대입니다.</p>
 <h2>용인 2027년에는 어느 구에 입주하나요</h2>
-<div class="ctab"><table><thead><tr><th scope="col">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">처인구</th><td>5,164</td></tr><tr><th scope="row">수지구</th><td>65</td></tr><tr><th scope="row">합계</th><td>5,229</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-29 조사)</p></div>
-<div class="ctab"><table><thead><tr><th scope="col">입주 예정</th><th scope="col">단지</th><th scope="col">구</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2027-03</th><td>두산위브더제니스 센트럴 용인</td><td>처인구</td><td>568</td></tr><tr><th scope="row">2027-03</th><td>역북 서희스타힐스 프라임시티</td><td>처인구</td><td>912</td></tr><tr><th scope="row">2027-07</th><td>용인 둔전역 에피트</td><td>처인구</td><td>1,275</td></tr><tr><th scope="row">2027-08</th><td>마평동 734-1번지 일원 공동주택{LH매입임대]</td><td>처인구</td><td>68</td></tr><tr><th scope="row">2027-08</th><td>용인 푸르지오 원클러스터 1단지</td><td>처인구</td><td>1,681</td></tr><tr><th scope="row">2027-12</th><td>동천동 462-4번지 공동주택 신축공사[LH매입임대]</td><td>수지구</td><td>65</td></tr><tr><th scope="row">2027-12</th><td>힐스테이트 용인마크밸리</td><td>처인구</td><td>660</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-29 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">처인구</th><td>5,164</td></tr><tr><th scope="row">수지구</th><td>65</td></tr><tr><th scope="row">합계</th><td>5,229</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col">입주 예정</th><th scope="col">단지</th><th scope="col">구</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2027-03</th><td>두산위브더제니스 센트럴 용인</td><td>처인구</td><td>568</td></tr><tr><th scope="row">2027-03</th><td>역북 서희스타힐스 프라임시티</td><td>처인구</td><td>912</td></tr><tr><th scope="row">2027-07</th><td>용인 둔전역 에피트</td><td>처인구</td><td>1,275</td></tr><tr><th scope="row">2027-08</th><td>마평동 734-1번지 일원 공동주택{LH매입임대]</td><td>처인구</td><td>68</td></tr><tr><th scope="row">2027-08</th><td>용인 푸르지오 원클러스터 1단지</td><td>처인구</td><td>1,681</td></tr><tr><th scope="row">2027-12</th><td>동천동 462-4번지 공동주택 신축공사[LH매입임대]</td><td>수지구</td><td>65</td></tr><tr><th scope="row">2027-12</th><td>힐스테이트 용인마크밸리</td><td>처인구</td><td>660</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
 <p>청약 공고로 채운 단지는 일반·특별공급 세대만 셉니다.</p>
 <h2>용인 2028년에는 어느 단지가 입주하나요</h2>
-<div class="ctab"><table><thead><tr><th scope="col">입주 예정</th><th scope="col">단지</th><th scope="col">구</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2028-02</th><td>용인 푸르지오 원클러스터 2단지</td><td>처인구</td><td>1,804</td></tr><tr><th scope="row">2028-02</th><td>용인 푸르지오 원클러스터 3단지</td><td>처인구</td><td>239</td></tr><tr><th scope="row">2028-03</th><td>용인 플랫폼시티 라온프라이빗 아르디에</td><td>기흥구</td><td>238</td></tr><tr><th scope="row">2028-06</th><td>중앙하이츠구성플랫폼시티</td><td>기흥구</td><td>130</td></tr><tr><th scope="row">2028-10</th><td>용인 고림 동문 디 이스트</td><td>처인구</td><td>350</td></tr><tr><th scope="row">2028-12</th><td>용인 푸르지오 원클러스터파크</td><td>처인구</td><td>710</td></tr><tr><th scope="row">2028-12</th><td>용인 푸르지오 클루센트</td><td>처인구</td><td>784</td></tr><tr><th scope="row">2028-12</th><td>클러스터용인 경남아너스빌</td><td>처인구</td><td>997</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-29 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col">입주 예정</th><th scope="col">단지</th><th scope="col">구</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2028-02</th><td>용인 푸르지오 원클러스터 2단지</td><td>처인구</td><td>1,804</td></tr><tr><th scope="row">2028-02</th><td>용인 푸르지오 원클러스터 3단지</td><td>처인구</td><td>239</td></tr><tr><th scope="row">2028-03</th><td>용인 플랫폼시티 라온프라이빗 아르디에</td><td>기흥구</td><td>238</td></tr><tr><th scope="row">2028-06</th><td>중앙하이츠구성플랫폼시티</td><td>기흥구</td><td>130</td></tr><tr><th scope="row">2028-10</th><td>용인 고림 동문 디 이스트</td><td>처인구</td><td>350</td></tr><tr><th scope="row">2028-12</th><td>용인 푸르지오 원클러스터파크</td><td>처인구</td><td>710</td></tr><tr><th scope="row">2028-12</th><td>용인 푸르지오 클루센트</td><td>처인구</td><td>784</td></tr><tr><th scope="row">2028-12</th><td>클러스터용인 경남아너스빌</td><td>처인구</td><td>997</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
 <h2>지금 청약 받는 용인 아파트가 있나요</h2>
 <p>청약홈에 공고된 단지 기준으로, 지금 청약 접수를 받는 용인 아파트는 없습니다. 계약이 남은 곳이 한 곳 있습니다.</p>
 <ul><li><b>용인 양지 서희스타힐스 하이뷰(조합원 취소분)</b> · 처인구 · 48세대</li><li>1순위 10월 13일 · 당첨자 발표 10월 20일 · 정당계약 11월 2일 · 입주 2030년 9월</li></ul>
@@ -296,7 +298,7 @@ footer a{color:var(--ink)}
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 자료: 한국부동산원 입주예정물량정보 · 청약홈 분양정보(입주자 모집 공고) · KOSIS 주민등록인구 · 한국부동산원 주간 아파트가격동향
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
