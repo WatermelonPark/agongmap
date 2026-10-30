@@ -319,6 +319,17 @@ def save(img, rel, texts):
     return True
 
 
+LOCAL_WARN = ('⚠️ 이 카드는 커밋하지 않는다 — share/ 는 CI(발행 워크플로)만 그린다.\n'
+              '   같은 데이터·같은 코드라도 환경에 따라 그림이 달라져, 로컬 커밋과 CI 커밋이 서로를 되돌린다\n'
+              '   (CLAUDE.md 데이터 원칙, 2026-10-30). 되돌리려면: git checkout -- share/')
+
+
+def warn_local_cards(wrote):
+    """로컬에서 카드를 그렸을 때의 안내. CI 에서는 부르지 않는다(거기서는 커밋하는 것이 맞다)."""
+    sys.stderr.write(LOCAL_WARN + '\n')
+    return LOCAL_WARN
+
+
 def main(argv=None):
     posts = CM.posts(ROOT)
     if not posts:
@@ -362,6 +373,8 @@ def main(argv=None):
     print('content cards: %d장 새로 그림 · 글 %d편 · 섹션 %d개%s'
           % (wrote, len(posts) - len(skipped), len(secs),
              (' · 건너뜀 %d' % len(skipped)) if skipped else ''))
+    if wrote and not os.environ.get('GITHUB_ACTIONS'):
+        warn_local_cards(wrote)
     return 0
 
 

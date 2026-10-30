@@ -1281,3 +1281,45 @@ def test_column_thumbnails_are_always_words_never_numbers():
     # 따옴표가 있으면 그 발언을 따옴표째 쓴다.
     assert CC.thumb_caption("오세훈 시장의 '주택의 삭제', 서울은") == ('주택의 삭제', True)
     assert CC.thumb_caption('') == (None, False)
+
+
+def test_local_card_run_warns_not_to_commit(capsys, monkeypatch):
+    """로컬에서 카드를 그리면 '커밋하지 말라'고 알린다. CI 에서는 알리지 않는다(거기서는 커밋이 맞다).
+
+    왜: 같은 데이터·같은 코드인데도 환경에 따라 카드 그림이 달라진다. 2026-10-30 로컬 Windows 와 발행
+    워크플로 Linux 가 쉰아홉 장을 서로 다르게 그려, 두 커밋이 서로를 되돌리는 핑퐁이 생겼다. 규칙은
+    CLAUDE.md 데이터 원칙에 있고(share/ 는 CI 만 그린다), 생성기를 돌린 사람이 그 자리에서 보게 한다.
+
+    무엇을 바꾸면 빨개지나(둘 다 확인): 경고를 지우면, GITHUB_ACTIONS 가름을 뒤집어 CI 에서도 찍게 하면.
+    픽스처: 환경 변수만 바꾼다 — 그림을 그리지 않고 경고 함수와 가름만 밟는다.
+    """
+    import make_content_cards as CC
+    monkeypatch.delenv('GITHUB_ACTIONS', raising=False)
+    CC.warn_local_cards(3)
+    err = capsys.readouterr().err
+    assert 'share/' in err and '커밋' in err, '로컬 경고가 나오지 않는다: %r' % err
+    assert 'git checkout -- share/' in err, '되돌리는 방법을 알려 주지 않는다'
+    # CI 에서는 부르지 않는다 — main 의 가름을 글자로 확인한다(그림을 그려 보지 않고).
+    src = io.open(os.path.join(ROOT, 'tools', 'make_content_cards.py'), encoding='utf-8').read()
+    assert re.search(r"if wrote and not os\.environ\.get\('GITHUB_ACTIONS'\):\s*\n\s*warn_local_cards", src), \
+        'CI 가름이 사라졌다 — 발행 워크플로가 제 카드를 커밋하지 말라는 경고를 받는다'
+
+
+def test_claude_md_says_cards_are_ci_only():
+    """CLAUDE.md 가 'share/ 는 CI 만 그린다'를 데이터 원칙에 적어 둔다 — 세션마다 읽는 자리다.
+
+    무엇을 바꾸면 빨개지나: 그 줄을 지우면. 규칙이 사람 기억에만 남으면 다음 세션이 또 커밋한다.
+    픽스처: 저장소의 실제 CLAUDE.md.
+    """
+    p = os.path.join(ROOT, 'CLAUDE.md')
+    if not os.path.exists(p):
+        pytest.skip('CLAUDE.md 가 없다')
+    s = io.open(p, encoding='utf-8').read()
+    i = s.find('## 데이터 원칙')
+    assert i >= 0, 'CLAUDE.md 에 데이터 원칙 절이 없다'
+    # 그 절만 잘라 본다 — 문서 끝까지 보면 다른 절에 있는 'share/' 가 걸려 줄을 지워도 통과한다
+    # (2026-10-30 변이로 확인).
+    j = s.find('\n## ', i + 1)
+    sec = s[i:j if j > 0 else len(s)]
+    assert 'share/' in sec and 'CI' in sec, "데이터 원칙에 share/ 카드 규칙이 없다"
+    assert 'make_content_cards' in sec, '어느 생성기를 말하는지 적혀 있지 않다'
