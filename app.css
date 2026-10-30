@@ -1104,6 +1104,7 @@ table.adv thead th:first-child{text-align:center}
 
   /* 시도 리포트 하단의 '이 지역 글'(백로그 50 요청 ②) — 본문과 가르는 선을 하나 둔다. */
   .zposts{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}
+  .zposts .crecent{max-width:none;margin:0;padding:0 0 18px}
   .crecent-all{margin:10px 0 0}
   .crecent-all a{font-size:13px;color:var(--ink2);text-decoration:none;font-weight:600}
   /* 주간 구역의 해설 글 카드 규칙은 2026-10-30에 걷었다 — 네이버 발행 종료(홈 마크업·스크립트도 함께). */

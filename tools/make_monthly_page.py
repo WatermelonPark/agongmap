@@ -344,10 +344,13 @@ def table(head, rows, note=''):
             continue
         body.append('<tr%s><th scope="row">%s</th>%s</tr>'
                     % (' class="agg"' if r in AGG else '', esc(SZ.disp(r)), tds))   # 화면 이름(백로그 46) — 원천 표의 이름은 '전남광주'
-    return ('<div class="tbl-wrap"><table><thead><tr>'
+    # 열이 적은 표(지역 + 숫자 3~4열)는 넓은 화면에서 폭을 묶는다 — 836px 로 늘면 지역명과 숫자 사이가 400px 넘게 벌어져 행을
+    # 따라 읽기 어려웠다(2026-10-30 디자인 리뷰). 열이 많은 매매·전세·월세 표는 그대로 넓게 쓴다. 규칙은 SHELL(.tbl-narrow).
+    narrow = ' tbl-narrow' if len(head) <= 5 else ''
+    return ('<div class="tbl-wrap%s"><table><thead><tr>'
             '<th scope="col">%s</th>%s'
             '</tr></thead><tbody>%s</tbody></table></div>%s'
-            % (esc(head[0]), th, ''.join(body),
+            % (narrow, esc(head[0]), th, ''.join(body),
                ('<p class="note">%s</p>' % note) if note else ''))
 
 
