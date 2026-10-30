@@ -63,6 +63,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   .scroll{overflow-x:auto;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
   /* ↑ 넘침 표시(2026-10-30 디자인 리뷰). 첫 열은 한 글자씩 세로로 쌓이지 않게 최소 폭을 둔다. */
   .scroll td:first-child{min-width:6.5em}
+  .scroll table{min-width:560px}   /* 좁은 화면에서 네 열이 한 글자 폭으로 짓눌리지 않게 — 넘치면 상자 안에서 밀고 그림자가 알린다 */
   @media (max-width:600px){.scroll td:first-child{position:sticky;left:0;background:var(--paper);z-index:1}}
   th,td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
   td{text-align:left}
