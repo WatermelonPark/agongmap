@@ -1404,6 +1404,8 @@ def test_post_layout_reads_as_an_article():
     assert MC._text_cols(rows) == {2}
     html_t = MC._table_html(['업무지구', '시간', '경로'], rows)
     assert '<th scope="col" class="tx">업무지구</th><th scope="col">시간</th><th scope="col" class="tx">경로</th>' in html_t
+    # 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤 원본 폭(1,900~2,500px) 그대로 그려져 페이지가 옆으로 넘쳤다.
+    assert re.search(r'\.cbody img\{[^}]*max-width:100%', MC.EXTRA_CSS), '본문 그림에 최대 폭이 없다'
     chips = MC.section_chips('city')
     assert re.findall(r'class="rchip[^"]*" href="[^"]*">([^<]+)<', chips)[0] == '전체'
     assert re.findall(r'>([^<]+)</a>', chips)[1:] == [n for _, n, _d, _c in MC.HUB_CARDS]

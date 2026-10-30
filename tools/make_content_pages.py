@@ -397,6 +397,9 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
 # 그래서 같은 글자가 두 곳에 있고, test_content_pages 가 app.css 의 LIST_CSS 구간과 대조한다.
 
 EXTRA_CSS = LIST_CSS + """
+/* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
+   375px·1280px 모두 페이지가 옆으로 넘쳤다. */
+.cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
 .cchart{margin:0 0 20px;padding:0}
 .cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
