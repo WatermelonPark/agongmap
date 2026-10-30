@@ -15,6 +15,10 @@ cycle 이 없었다. 그래서 로컬 배치가 고친 cycle/index.html 이 공�
 import io
 import os
 import re
+import shutil
+import subprocess
+
+import pytest
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 YML = os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml')
@@ -180,3 +184,76 @@ def test_publish_workflow_commits_nothing_that_triggers_itself():
             pre = p[:-3] if p.endswith('/**') else p
             assert not (tgt == pre or tgt.startswith(pre + '/') or pre.startswith(tgt + '/') or pre == tgt), \
                 '커밋 대상 %r 이 트리거 경로 %r 과 겹친다 — 발행이 자기를 다시 부른다' % (tgt, p)
+
+
+def _publish_commit_script():
+    """발행 워크플로의 '변경 있으면 커밋·푸시' 스텝에서 `git commit` 까지의 셸 조각을 그대로 떼어 온다.
+
+    글자로 베끼지 않고 **워크플로 파일에서 읽는다** — 그래야 워크플로를 고치면 시험도 같이 움직인다.
+    push 루프는 네트워크를 타므로 커밋 줄에서 자른다.
+    """
+    t = _pub_text()
+    i = t.index('- name: 변경 있으면 커밋·푸시')
+    run = t.index('run: |', i) + len('run: |')
+    lines = []
+    for ln in t[run:].splitlines()[1:]:
+        if ln.strip() and not ln.startswith('          '):
+            break                                  # 스텝 밖으로 나갔다
+        lines.append(ln[10:] if len(ln) > 10 else '')
+        if ln.strip().startswith('git commit'):
+            break
+    assert any(l.strip().startswith('git commit') for l in lines), '커밋 줄을 찾지 못했다'
+    return '\n'.join(lines) + '\n'
+
+
+def test_publish_commit_keeps_the_lists_feed_and_sitemap(tmp_path):
+    """원고가 하나 늘면 **목록·허브·피드·사이트맵까지** 한 커밋에 들어간다 — 새 글 파일만 가지 않는다.
+
+    왜: 되돌리기(`git checkout -- .`)가 `git add` 보다 앞에 있던 판은, TARGETS 안팎을 가리지 않고 추적
+    파일의 모든 변경을 되돌렸다. 그래서 새 글이 올라온 회차에 untracked 인 글 페이지·카드만 커밋되고
+    /danji/ 목록과 /reports/ 허브에는 그 글이 없었다(2026-10-30 런 320be1e3, 총괄 지적). 주소로 직접
+    가면 200 이라 더 늦게 드러난다.
+
+    무엇을 바꾸면 빨개지나(둘 다 확인): `git add -- $HAVE` 를 다시 되돌리기 뒤로 옮기면, TARGETS 에서
+      목록·피드·사이트맵을 빼면.
+    ⚠️ LEFT 검사를 다시 넓혀도(`grep -v '^??'`) 이 시험은 통과한다 — add 가 앞서는 한 `git checkout` 은
+       인덱스 기준 복원이라 스테이징된 변경을 지우지 못한다. 그 변이는 경고 문구만 틀리게 만든다.
+    픽스처: 임시 git 저장소에 추적 파일(목록·허브·피드·사이트맵·홈)과 대상 밖 파일 하나를 커밋해 두고,
+      그 전부를 고친 뒤 새 글 디렉터리를 untracked 로 둔다 — 발행 생성기가 한 회차에 만드는 상태 그대로다.
+    """
+    bash = shutil.which('bash')
+    if not bash:
+        pytest.skip('bash 가 없다 — 워크플로 조각을 돌려 볼 수 없다(CI 러너에는 있다)')
+    d = tmp_path / 'repo'
+    (d / 'danji' / 'new-post').mkdir(parents=True)
+    (d / 'reports').mkdir()
+    tracked = {'danji/index.html': '목록 옛 판', 'reports/index.html': '허브 옛 판',
+               'feed.xml': '피드 옛 판', 'sitemap.xml': '사이트맵 옛 판', 'index.html': '홈 옛 판',
+               'tools/keep_me.txt': '대상 밖 옛 판'}
+    (d / 'tools').mkdir()
+    for rel, text in tracked.items():
+        (d / rel).write_text(text, encoding='utf-8')
+
+    def git(*a):
+        return subprocess.run(['git'] + list(a), cwd=str(d), capture_output=True, text=True,
+                              encoding='utf-8', errors='replace')
+
+    git('init', '-q', '-b', 'main')
+    git('config', 'user.email', 't@t'), git('config', 'user.name', 't')
+    git('add', '-A'), git('commit', '-qm', 'base')
+    # 발행 생성기가 한 회차에 만드는 상태: 목록·허브·피드·사이트맵·홈이 바뀌고, 새 글은 untracked 다.
+    for rel in tracked:
+        (d / rel).write_text('새 판', encoding='utf-8')
+    (d / 'danji' / 'new-post' / 'index.html').write_text('새 글', encoding='utf-8')
+
+    p = subprocess.run([bash, '-c', _publish_commit_script()], cwd=str(d), capture_output=True,
+                       text=True, encoding='utf-8', errors='replace', timeout=120)
+    assert p.returncode == 0, p.stdout + p.stderr
+    files = set(git('show', '--name-only', '--format=', 'HEAD').stdout.split())
+    for rel in ('danji/index.html', 'reports/index.html', 'feed.xml', 'sitemap.xml', 'index.html'):
+        assert rel in files, '%s 가 발행 커밋에 없다 — 새 글이 목록·피드에 나타나지 않는다: %s' % (rel, sorted(files))
+    assert 'danji/new-post/index.html' in files, '새 글 페이지가 커밋되지 않았다'
+    # 대상 밖은 커밋하지도, 작업 트리에 남기지도 않는다(rebase 가 거부하지 않게).
+    assert 'tools/keep_me.txt' not in files, '커밋 대상 밖 파일이 실렸다'
+    assert (d / 'tools' / 'keep_me.txt').read_text(encoding='utf-8') == '대상 밖 옛 판', \
+        '대상 밖 변경이 되돌려지지 않았다'
