@@ -127,7 +127,7 @@ def test_faq_grade_thresholds_follow_model_cuts():
     바꾸면 빨개진다(4.5배 → 4.8배). 화면 본문(q7)만 '2배 미만은 균형, 2배 이상이면 부족'으로 바꿔도 빨개진다(전수리뷰 P-4 —
     예전엔 re.search 가 앞에 있는 JSON-LD 사본만 맞춰 보고 사람이 읽는 본문은 대조하지 않았다)."""
     pat = re.compile(r'모자람 없이 남으면 (\S+ \S+), ([\d.]+배) 미만은 (\S+), ([\d.]+배) 이상이면 (\S+), ([\d.]+배) 이상이면 (.+?), '
-                     r'([\d.]+배) 이상이면 (.+?)이다')
+                     r'([\d.]+배) 이상이면 (.+?)입니다')
     c4, c3, c2 = (SZ.cut_mult(x) for x in SZ.GRADE_CUTS[:3])
     L = SZ.GRADE_LABS
     want = (L['g0'], c2, L['g1'], c2, L['g2'], c3, L['g3'], c4, L['g4'])
@@ -167,7 +167,7 @@ def test_faq_light_thresholds_follow_the_move_in_band():
     """FAQ 의 신호등 문턱('70% 미만이면 적음, 70~130%는 보통, 130%를 넘으면 많음')이 정본 OCC_LO_PCT·OCC_HI_PCT·LIGHT 와 같다.
     변이(실제로 확인): sido_zones.OCC_HI_PCT 를 140 으로 바꾸면 빨개진다. 화면 본문(q7)만 '60% 미만이면 적음, 60~140%는 보통,
     140%를 넘으면 많음'으로 바꿔도 빨개진다(전수리뷰 P-4 — 예전엔 JSON-LD 사본만 대조했다)."""
-    pat = re.compile(r'1년 적정물량의 (\d+)% 미만이면 (\S+), (\d+)~(\d+)%는 (\S+), (\d+)%를 넘으면 (\S+)이다')
+    pat = re.compile(r'1년 적정물량의 (\d+)% 미만이면 (\S+), (\d+)~(\d+)%는 (\S+), (\d+)%를 넘으면 (\S+)입니다')
     lo, hi = SZ.OCC_LO_PCT, SZ.OCC_HI_PCT
     want = (str(lo), SZ.LIGHT[-1][1], str(lo), str(hi), SZ.LIGHT[0][1], str(hi), SZ.LIGHT[1][1])
     for part, text in _faq_parts():
