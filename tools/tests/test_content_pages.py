@@ -766,7 +766,6 @@ def test_every_listed_post_has_a_real_thumbnail():
     섹션 공통 카드로 떨어지면(2026-10-29 fontTools 가 없어 그런 일이 있었다).
     픽스처: 저장소의 허브·섹션 목록·홈과 share/ 의 그림들.
     """
-    import make_content_cards as CC
     import urllib.parse
     pages = [os.path.join(ROOT, MC.REPORTS_DIR, 'index.html'), os.path.join(ROOT, HS.HOME)]
     pages += [os.path.join(ROOT, s, 'index.html') for s in CM.SECTIONS
@@ -781,13 +780,38 @@ def test_every_listed_post_has_a_real_thumbnail():
             assert os.path.exists(os.path.join(ROOT, rel)), '%s: 없는 썸네일 %s' % (os.path.basename(p), rel)
             seen += 1
     assert seen >= 5, '썸네일을 %d개밖에 못 봤다' % seen
-    # 모든 글이 제 카드를 가진다 — 섹션 공통 카드로 떨어진 글이 없어야 한다.
-    fallback = [(s, g) for s, g, _ in CM.built(ROOT)
-                if not os.path.exists(os.path.join(ROOT, MC.card_rel(s, g)))]
-    assert not fallback, '제 카드가 없어 공통 카드로 떨어지는 글: %s' % fallback
-    missing = [(s, g) for s, g, _ in CM.built(ROOT)
-               if not os.path.exists(os.path.join(ROOT, CC.thumb_rel(s, g)))]
-    assert not missing, '썸네일이 없는 글: %s' % missing
+    # '모든 글이 제 카드를 가진다'는 게이트가 보지 않는다. 카드는 발행·배치 모두 게이트 **뒤**에서 굽기 때문에, 새 글이
+    # 올라온 회차의 게이트에는 그 글 카드가 아직 없다(2026-10-30 단지 6·7편 발행이 이 단정에 막혔고, 그 상태로는 매일
+    # 배치 게이트도 데이터 커밋을 막는다). 카드가 빠진 글은 batch_notes.content_card_lines 가 ℹ️ 줄로 알린다.
+
+
+def test_missing_post_cards_are_a_batch_note_not_a_gate(tmp_path):
+    """제 카드·썸네일이 없는 구워진 글은 배치 기록 ℹ️ 줄이다 — 게이트가 아니다.
+
+    무엇을 바꾸면 빨개지나: content_card_lines 가 카드만 보고 썸네일을 안 보거나(둘째 단정), 구워지지 않은 원고까지
+    세거나(셋째 단정), 다 갖춘 글에도 줄을 쓰면(넷째 단정). 실제로 각각 깨뜨려 확인했다.
+    픽스처: 원고 둘이 구워진 임시 저장소 — 하나는 카드·썸네일이 다 있고, 하나는 썸네일만 없다(단지 7편처럼 카드
+    단계가 아직 돌지 않은 상태), 그리고 페이지가 아직 없는 원고 하나.
+    """
+    import batch_notes as BN
+    root = tmp_path
+    for sec, slug, page in (('danji', 'a', True), ('danji', 'b', True), ('danji', 'c', False)):
+        d = root / 'content' / sec
+        d.mkdir(parents=True, exist_ok=True)
+        (d / (slug + '.md')).write_text('x', encoding='utf-8')
+        if page:
+            (root / sec / slug).mkdir(parents=True)
+            (root / sec / slug / 'index.html').write_text('<html></html>', encoding='utf-8')
+    (root / 'share').mkdir()
+    for rel in (MC.card_rel('danji', 'a'), MC.thumb_rel('danji', 'a'), MC.card_rel('danji', 'b')):
+        (root / rel).write_bytes(b'x')
+    got = BN.content_card_lines(str(root))
+    assert len(got) == 1 and got[0].startswith('ℹ️'), got
+    assert 'danji/b' in got[0] and 'danji/a' not in got[0]
+    assert 'danji/c' not in got[0]
+    for rel in (MC.thumb_rel('danji', 'b'),):
+        (root / rel).write_bytes(b'x')
+    assert BN.content_card_lines(str(root)) == []
 
 
 def test_content_has_an_entrance_in_tab_footer_and_home():
