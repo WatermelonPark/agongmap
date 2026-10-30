@@ -135,13 +135,13 @@ def _sp(thin, est=True, dec=True):
 
 
 def test_reference_line_looks_like_a_reference_not_an_alarm():
-    html = P.split_block(_sp(thin=True))
+    html = P.split_ref_block(_sp(thin=True))
     assert '<em class="zchip">참고</em>' in html
     assert '참고로만 봅니다' in html and '판정에는 넣지 않습니다' in html
     assert '12월 한 달' in html
     assert 'zwarn' not in html and '⚠' not in html, '인허가를 경보처럼 보여준다'
     assert '<strong>' in html, '적정물량에 못 미칠 때 참고 줄 안에서 강조하지 않는다'
-    assert '<strong>' not in P.split_block(_sp(thin=False))
+    assert '<strong>' not in P.split_ref_block(_sp(thin=False))
 
 
 def test_old_red_permit_box_is_gone():
@@ -150,8 +150,8 @@ def test_old_red_permit_box_is_gone():
 
 
 def test_estimate_note_only_where_estimated():
-    assert '<em class="zchip">추정</em>' in P.split_block(_sp(thin=False, est=True))
-    assert '추정' not in P.split_block(_sp(thin=False, est=False))
+    assert '<em class="zchip">추정</em>' in P.split_ref_block(_sp(thin=False, est=True))
+    assert '추정' not in P.split_ref_block(_sp(thin=False, est=False))
 
 
 def test_three_lines_state_numbers_only():

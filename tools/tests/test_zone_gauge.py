@@ -58,10 +58,12 @@ def test_hub_cards_carry_the_gauge_and_the_multiple():
     with_gauge = [c for c in cards if 'class="zg"' in c]
     assert len(with_gauge) == len(zones), (len(with_gauge), len(zones))
     assert '<p class="zg-note">' in h and '<p class="zg-legend">' in h
+    # 전국·수도권·지방 칸도 시도 칸과 같은 정본 ctxt(세대수 + 괄호 배수)다(2026-10-30 디자인 리뷰 3차 — 같은 허브 안 칸 양식 통일).
     for z in zones:
-        t = SZ.ratio_text(z['ratio'], adv['sido']['H']) if z['agg'] else SZ.card_text(z['dtot'], z['ratio'], adv['sido']['H'])
+        t = SZ.card_text(z['dtot'], z['ratio'], adv['sido']['H'])
         frag = t.split('(')[-1].rstrip(')') if '(' in t else t
         assert frag in h, (z['z'], frag)
+        assert ('<i>%s' % t.split('(')[0]) in h, (z['z'], t)
 
 
 def test_home_table_legend_is_one_price_ramp():
