@@ -157,8 +157,8 @@ def city_moveins(data, f, name, year=None):
         return (['지역', '세대'], rows, _city_note(f))
     by = _city_years(f)
     rows = [[y, num(v), '%d%%' % int(round(v / float(f['need']) * 100))] for y, v in sorted(by.items())]
-    return (['연도', '세대', '적정 대비'], rows,
-            '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정 입주량 %s세대(%s, 인구 %s년 %d월)'
+    return (['연도', '세대', '적정물량 대비'], rows,
+            '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 %s세대(%s, 인구 %s년 %d월)'
             % (num(f['need']), f.get('need_note') or '', f['pop_prd'][:4], int(f['pop_prd'][4:])))
 
 
@@ -202,7 +202,7 @@ def sido_share(data, key, year):
     """그 해 입주물량 ÷ 한 해 적정물량(%). 분자는 시도 입주물량 표의 그 해 값이다.
 
     ⚠️ 시도의 입주물량은 준공 실적과 착공에서 민 추정이고(moveins 표의 '구분' 칸), 도시는 청약홈·
-    부동산원의 입주 예정 목록이다. 같은 '적정 대비'라도 분자의 출처가 다르다.
+    부동산원의 입주 예정 목록이다. 같은 '적정물량 대비'라도 분자의 출처가 다르다.
     """
     head, rows, _ = moveins(data, key)
     by = {r[0]: r[1] for r in rows if r[0] != '합계'}
@@ -332,7 +332,7 @@ def supply(data, key):
     H = data['sido'].get('H')
     body = [['분기 적정물량', num(z.get('ref')) + '호'],
             ['앞으로 %d분기 지어질 물량' % H, num(z.get('fut')) + '세대'],
-            ['지난 재고(적정 대비)', num(z.get('inow')) + '세대'],
+            ['지난 재고(적정물량 대비)', num(z.get('inow')) + '세대'],
             ['누적 과부족', z.get('ctxt') or (num(z.get('dtot')) + '세대')],
             ['판정', SZ.GRADE_LABS[z['grade']] if hasattr(SZ, 'GRADE_LABS') else z['grade']]]
     return ['항목', '값'], body, '기준 %s · 국토교통부 준공·착공 실적' % (data['sido'].get('Ltxt') or data['sido'].get('L'))
@@ -600,7 +600,7 @@ def _chart_moveins(data, name, year=None):
     if year in by:
         cards.append(('%s년 입주' % year, num(by[year]) + '세대'))
         if need:
-            cards.append(('적정 대비', '%d%%' % int(round(by[year] / float(need) * 100))))
+            cards.append(('적정물량 대비', '%d%%' % int(round(by[year] / float(need) * 100))))
     for what in ('전세', '매매'):           # 전세 계열이 없는 도시는 매매로 대신한다
         try:
             # 카드에는 짧은 형태만 — '(10월 19일 조사)' 까지 넣으면 좁은 화면에서 카드가 세 줄이 된다.
@@ -611,7 +611,7 @@ def _chart_moveins(data, name, year=None):
     alt = '%s 연도별 입주 물량 막대그래프. %s.' % (
         name, ', '.join('%s년 %s세대' % (y, num(v)) for y, v in pts))
     if need:
-        alt += ' 한 해 적정 입주량은 %s세대.' % num(need)
+        alt += ' 한 해 적정물량은 %s세대.' % num(need)
     return {'kind': 'bars', 'title': '%s 해마다 입주 물량' % name, 'alt': alt, 'note': note,
             'series': [{'name': '입주 세대', 'points': pts}],
             'rule': (need, '적정 %s세대' % num(need)) if need else None,

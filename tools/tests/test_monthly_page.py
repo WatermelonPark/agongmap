@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""/monthly/ — '이달의 공급 통계' 화면의 계약을 못 박는다.
+"""/monthly/ — '이달의 통계' 화면의 계약을 못 박는다.
 
 이 화면의 값어치는 **순서와 기준월 표시**에 있다(PM 요청서 2026-08-26).
 순서는 제품 그 자체라 재량으로 바꾸면 안 되고, 기준월이 없으면 "지금 보는 게
@@ -299,4 +299,4 @@ def test_jeonse_source_names_the_agency_like_the_jeonse_ratio_page():
     assert _html.unescape(got) == I.JR_SOURCE and '한국부동산원' in got, got
     page = I.build_jeonse(sts)[0]
     assert '정렬. 자료: %s, 매월 갱신.' % I.JR_SOURCE in page, '/jeonse-ratio/ 표 주석이 정본 원천을 쓰지 않는다'
-    assert '· 자료: %s' % I.JR_SOURCE in page, '/jeonse-ratio/ 푸터가 정본 원천을 쓰지 않는다'
+    assert '  자료: %s\n' % I.JR_SOURCE in page, '/jeonse-ratio/ 푸터가 정본 원천을 쓰지 않는다'

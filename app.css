@@ -169,6 +169,7 @@
   footer{padding:44px 0 80px;font-size:13px;color:var(--muted)}
   footer .src{margin-top:10px;line-height:1.8}
   footer b{color:var(--ink2)}
+  footer a{color:var(--ink2)}   /* 생성 페이지 공용 푸터 링크(2026-10-30 디자인 리뷰 — zone 푸터가 브라우저 기본 파랑이었다) */
   /* 푸터 '만든이' 메일(mailto, 2026-09-28 작은 글씨 정리 — 홈 운영 주체 줄을 빼며 제보 경로를 푸터 메일 링크로 남겼다)은 둘레
      글자색을 따른다. /cycle/ 푸터처럼 링크 색을 따로 두지 않은 곳에서 브라우저 기본 파랑으로 튀지 않게. */
   footer a[href^="mailto:"]{color:inherit}
@@ -810,7 +811,7 @@
   .sc-how .how-ls{list-style:none;margin:0;padding:0}
   .sc-how .how-ls li{margin:9px 0;padding:2px 0 2px 13px;border-left:2px solid var(--line);line-height:1.75}
   .sc-how .how-ls li>b:first-child{color:var(--ink)}
-  .sc-tier{flex:none;width:62px;text-align:center;font-size:11.5px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted);white-space:nowrap}
+  .sc-tier{flex:none;min-width:62px;text-align:center;font-size:13px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted);white-space:nowrap}
   .sc-tier.g4{background:#fdecea;color:#a93226}
   .sc-tier.g3{background:#fbeee9;color:#c0392b}
   /* 3.34:1이라 10.5px 기준(4.5:1)에 미달했다 — 여러 곳이 다는 최다
@@ -826,7 +827,7 @@
   /* 좁은 화면: 고정폭 합이 커서 ▸(sc-go)가 화면 밖으로 밀려 가로 스크롤이 생겼다.
      반드시 .sc-val/.sc-tier 정의 '뒤'에 와야 덮어쓴다(같은 특이도라 순서가 승패를 가름). */
   @media(max-width:400px){
-    .sc-tier{width:52px}
+    .sc-tier{min-width:52px}
   }
   /* --- 접근성 기본선 --- */
   a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,
@@ -1305,17 +1306,17 @@ table.adv thead th:first-child{text-align:center}
      생활권 31곳 시절의 .zsec/.ztab 계열을 대체한다. 페이지가 6섹션에서
      4섹션으로 줄어 규칙도 그만큼 적다. */
   .zhead{padding:34px 0 26px;border-bottom:1px solid var(--line)}
-  .crumb{font-size:12px;color:var(--muted);margin-bottom:14px}
+  .crumb{font-size:13px;color:var(--muted);margin-bottom:14px}
   .crumb a{color:var(--muted);text-decoration:none;
     display:inline-block;padding:9px 0}   /* 31×14 → 32px+ 표적(2026-08-14 검수) */
   .crumb a:hover{text-decoration:underline}
   .zhead h1{font-size:var(--h1-report);line-height:1.15;font-weight:700;letter-spacing:-.01em}
   .zlead{margin-top:14px;font-size:var(--fs-read);color:var(--ink2);display:flex;align-items:center;
     gap:9px;flex-wrap:wrap}
-  .znote{margin-top:10px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .znote{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
   .zhead+section,section+section{padding-top:30px}
   section h2{font-size:19px;font-weight:700;margin-bottom:4px}
-  .zsub{font-size:12.5px;color:var(--muted);line-height:1.7;margin:2px 0 12px}
+  .zsub{font-size:13px;color:var(--muted);line-height:1.7;margin:2px 0 12px}
   /* 리포트 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
   .zsub a:not([class]),.znote a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
   .zback{display:inline-flex;align-items:center;min-height:40px;padding:0 6px 0 2px;font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none}   /* 132x15 링크였다(2026-09-18 오딧 12번) */
@@ -1330,33 +1331,37 @@ table.adv thead th:first-child{text-align:center}
   .zgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
     gap:1px;margin-top:14px}
   .zcell{background:var(--paper);padding:13px 14px;box-shadow:0 0 0 1px var(--line)}
-  .zcell b{display:block;font-size:11.5px;font-weight:500;color:var(--muted)}
+  .zcell b{display:block;font-size:13px;font-weight:500;color:var(--muted)}
   .zcell span{display:block;font-size:21px;font-weight:700;letter-spacing:-.01em;
     margin:3px 0 5px;font-variant-numeric:tabular-nums}
-  .zcell i{display:block;font-style:normal;font-size:11px;color:var(--muted);line-height:1.55}
+  .zcell i{display:block;font-style:normal;font-size:13px;color:var(--muted);line-height:1.55}
 
-  .ztb-scroll{overflow:auto;max-height:min(66vh,560px);border:1px solid var(--line)}
+  .ztb-scroll{overflow:auto;max-height:min(66vh,560px);border:1px solid var(--line);
+    background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+  /* 휴대폰에서는 상자 안 세로 스크롤을 풀어 페이지 스크롤만 남긴다 — 가로·세로 이중 스크롤에 갇혔다(2026-10-30 디자인 리뷰).
+     가로로 밀 것이 남으면 가장자리 그림자가 알린다. */
+  @media (max-width:600px){.ztb-scroll{max-height:none}}
   .ztb{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
   .ztb th,.ztb td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);
-    padding:5px 9px;text-align:right;white-space:nowrap;font-size:12.5px}
+    padding:5px 9px;text-align:right;white-space:nowrap;font-size:13px}
   .ztb th{background:var(--paper);position:sticky;top:0;z-index:2;font-weight:600;
-    font-size:11.5px;color:var(--muted);border-bottom:2px solid var(--ink2)}
-  .ztb th:first-child,.ztb td:first-child{text-align:left;color:var(--muted);font-size:11.5px}
+    font-size:13px;color:var(--muted);border-bottom:2px solid var(--ink2)}
+  .ztb th:first-child,.ztb td:first-child{text-align:left;color:var(--muted);font-size:13px}
   /* 실적/추정 경계 — 홈 표와 같은 말하는 밴드(2026-08-14 검수). 3px 먹선이
      지고 그 아래 흰 띠에 유색 설명. 문구는 sticky. */
   .ztb tr.ztb-nowrow td{background:var(--paper);text-align:left;padding:0;
     border-top:3px solid var(--ink)}
   .ztb tr.ztb-nowrow span{position:sticky;left:0;display:inline-block;
-    font-size:11.5px;font-weight:600;color:var(--ink2);line-height:1;
+    font-size:13px;font-weight:600;color:var(--ink2);line-height:1;
     padding:5px 12px;white-space:nowrap}
   .ztb tr.znow td:first-child{font-weight:700;color:var(--ink)}
-  .ztb .zfut{text-align:center;color:var(--muted);font-size:11px}
+  .ztb .zfut{text-align:center;color:var(--muted);font-size:13px}
   /* 참고 2행(미분양·인허가) — 본문과 2px 선으로만 가른다. 색·표식 금지(2026-08-08).
      ⓘ와 커서는 '누르면 설명이 열린다'는 안내 장치(2026-08-11 사용자) — 경고 기호가
      아니라 정보 진입점이므로 참고 행 무표식 원칙과 충돌하지 않는다. */
   .ztb tfoot tr:first-child td{border-top:2px solid var(--line)}
   .ztb tr.zref,#tb-main tr.tb-un{cursor:pointer}
-  .ri{font-style:normal;color:var(--muted);font-size:11px;margin-left:3px;vertical-align:1px}
+  .ri{font-style:normal;color:var(--muted);font-size:13px;margin-left:3px;vertical-align:1px}
   /* 참고 행 라벨은 <button> — 겉모습은 그대로 두고(칸의 글자처럼 보여야 한다)
      키보드 초점 테두리만 되살린다. font:inherit이 line-height까지 물려받아
      붙박이 첫 칸의 25px 줄높이가 유지된다. */
@@ -1369,7 +1374,7 @@ table.adv thead th:first-child{text-align:center}
      버튼도 26px 로 WCAG 2.5.8 의 24px 를 넘는다. */
   .ztb tfoot td:first-child{padding:0}
   .ztb tfoot .rbtn{display:flex;align-items:center;width:100%;min-height:40px;padding:0 9px}
-  .tb-refnote{margin:6px 0 0;font-size:12px;line-height:1.55;color:var(--muted)}
+  .tb-refnote{margin:6px 0 0;font-size:13px;line-height:1.55;color:var(--muted)}
 
   /* .zgrid와 같은 이유로 셀이 선을 그린다(2026-08-16). 컨테이너 배경을 선 색으로
      깔면 항목이 열 수로 안 떨어질 때 마지막 줄 빈 칸에 그 색이 드러난다 —
@@ -1392,11 +1397,11 @@ table.adv thead th:first-child{text-align:center}
      달라(상대 휘도 0.29·0.47) 색을 가르기 어려운 눈에도 갈린다. 상태 이름은 범례·읽어 줄 글·리포트 막대 글자가 말한다. */
   .zl{display:inline-flex;gap:3px;padding:3px;background:#263238;border-radius:var(--r-touch);margin-left:auto;flex:none}
   .zl-d{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;
-    font-size:11px;font-weight:700;line-height:1;color:#1a1f22;font-style:normal;font-variant-numeric:tabular-nums}
+    font-size:13px;font-weight:700;line-height:1;color:#1a1f22;font-style:normal;font-variant-numeric:tabular-nums}
   .zl-d.lo{background:#ff5a4f}
   .zl-d.ok{background:#ffc233}
   .zl-d.hi{background:#3ecf7a}
-  .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:12px;color:var(--ink2)}
+  .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:13px;color:var(--ink2)}
   .zl-legend .zl-cap{flex:0 0 100%}
   .zl-legend .zl-d{width:12px;height:12px;margin:0 2px 0 2px;box-shadow:0 0 0 2px #263238}   /* 범례 등도 틀 색 테두리 — 밝은 바탕에서 등이 보이게 */
   /* 시도 리포트 '어떻게 계산했나'는 접어 둔다(make_sido_pages, 2026-10-06) — 제목 줄 전체가 누름 면(44px). */
@@ -1413,9 +1418,9 @@ table.adv thead th:first-child{text-align:center}
   /* 해마다 입주 전망(make_sido_pages.outlook_cells, 2026-10-05) — 세 칸(+ 리포트는 '3년 너머' 참고 칸). 막대 높이는 적정의 1.5배까지,
      가로선이 100%(적정). 색은 신호등(.zl-d)과 같은 세 단계(lo·ok·hi, 70·130%). */
   .zo{display:flex;gap:10px;flex:0 0 100%;margin-top:6px}
-  .zo-i{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;font-size:11px;color:var(--ink2);line-height:1.3}
+  .zo-i{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;font-size:13px;color:var(--ink2);line-height:1.3}
   .zo-i .zo-p{font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
-  .zo-i small{font-size:10.5px;color:var(--muted)}
+  .zo-i small{font-size:13px;color:var(--muted)}
   .zo-c{position:relative;width:100%;max-width:34px;height:26px;background:var(--paper2);margin-bottom:3px}
   .zo-b{position:absolute;left:0;right:0;bottom:0}
   .zo-b.lo{background:#ff5a4f}
@@ -1429,17 +1434,17 @@ table.adv thead th:first-child{text-align:center}
   .zout h3{font-size:15px;margin:0 0 8px}
   .zo-lg{max-width:360px}
   .zo-lg .zo-i{font-size:13px}
-  .zo-lg .zo-i small{font-size:12px}
+  .zo-lg .zo-i small{font-size:13px}
   .zo-lg .zo-c{max-width:52px;height:64px}
-  .zo-note{font-size:12.5px;color:var(--muted);line-height:1.6;margin:8px 0 0}
+  .zo-note{font-size:13px;color:var(--muted);line-height:1.6;margin:8px 0 0}
   .zg-note{font-size:13px;line-height:1.55;color:var(--ink2);margin:6px 0 0;max-width:640px}
-  .zg-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:12px;color:var(--ink2)}
+  .zg-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:13px;color:var(--ink2)}
   .zg-l{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .zg-l i{display:inline-block;width:12px;height:8px}
   /* 막대가 있는 칸은 글을 칸 폭 전체로 왼쪽에 — 짧은 글만 오른쪽에 붙어 칸마다 자리가 달랐다. 괄호 덩어리는 다음 줄로. */
   .zlinks a:is(:has(.zg),:has(.zl)) i{flex:0 0 100%;margin-left:0}
   .zlinks a:has(.zg) i .zk{display:block}
-  .zlinks a i{font-style:normal;font-size:11px;color:var(--muted);
+  .zlinks a i{font-style:normal;font-size:13px;color:var(--muted);
     margin-left:auto;font-variant-numeric:tabular-nums}
 
   /* 참고 2행(미분양·인허가 1년) — 표 맨 아래 붙박이. 위 칸들을 읽는 맥락이지
@@ -1460,18 +1465,18 @@ table.adv thead th:first-child{text-align:center}
   /* 리포트 머리 세 줄(2026-09-13 대표 결정). 앞 두 줄은 실적·착공 기반이라 본문
      무게로, 세 번째 줄(인허가)은 참고 칩과 옅은 글씨로 신뢰 수준이 다르게 보이게 한다.
      필요량에 못 미쳐도 경보 색을 쓰지 않는다 — 참고 신호 안에서 굵기로만 강조한다. */
-  .zbasis{font-size:12px;color:var(--muted);margin-left:2px}
+  .zbasis{font-size:13px;color:var(--muted);margin-left:2px}
   .zsplit{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}
   .zs-row{display:grid;grid-template-columns:7.5em 1fr;gap:10px;font-size:14px;
     color:var(--ink2);line-height:1.6;margin:3px 0}
   .zs-row b{font-weight:600;color:var(--ink)}
   .zs-ref{color:var(--muted);font-size:13px;margin-top:8px}
   .zs-ref b{font-weight:500;color:var(--muted)}
-  .zs-ref small{display:block;font-size:12px}
+  .zs-ref small{display:block;font-size:13px}
   .zs-thin strong{font-weight:600;color:var(--ink2)}
-  .zs-note,.zs-est{font-size:12px;color:var(--muted);line-height:1.6;margin:2px 0 0 calc(7.5em + 10px)}
+  .zs-note,.zs-est{font-size:13px;color:var(--muted);line-height:1.6;margin:2px 0 0 calc(7.5em + 10px)}
   .zs-est{margin-left:0;margin-top:8px}
-  .zchip{font-style:normal;font-size:11.5px;font-weight:500;color:var(--muted);
+  .zchip{font-style:normal;font-size:13px;font-weight:500;color:var(--muted);
     border:1px solid var(--line);padding:0 4px;margin-right:5px;vertical-align:1px}
   @media (max-width:520px){.zs-row{grid-template-columns:1fr;gap:0}.zs-note{margin-left:0}}
   .zwarn{margin-top:10px;font-size:13px;color:#a93226;line-height:1.65;
