@@ -1242,3 +1242,42 @@ def test_cycle_page_lights_the_content_tab():
     assert nav, '사이클 페이지에 탭바가 없다'
     on = re.findall(r'<a class="nav-btn on"[^>]*href="([^"]+)"', nav.group(0))
     assert on == [N.HREF['reports']], '사이클 페이지가 켠 탭이 콘텐츠가 아니다: %s' % on
+
+
+def test_column_thumbnails_are_always_words_never_numbers():
+    """반박 편 썸네일은 **늘 글자**다 — 따옴표 안 발언, 없으면 제목 앞 구절(총괄 결정 2026-10-30).
+
+    왜: 한 섹션 안에서 어떤 글은 '20,664세대' 숫자형이고 어떤 글은 인용구형이면 목록이 들쭉날쭉해진다.
+    실제로 반박 4편 중 반도체 글만 제목에 따옴표가 없어 숫자로 떨어졌다. 따지는 글이라 발언이 먼저
+    보여야 하므로 숫자는 쓰지 않는다. 따옴표가 없는 제목은 쉼표 앞을 어절 경계에서 끊어 따옴표 없이 쓴다.
+
+    무엇을 바꾸면 빨개지나(셋 다 확인): 따옴표 없는 글을 다시 숫자로 떨어뜨리면, 앞 구절을 글자 수로
+      잘라 낱말이 토막 나면, 인용에서 따옴표를 떼면.
+    픽스처: 저장소의 실제 반박 원고 제목과, 어절 경계를 재려고 손으로 지은 긴 제목.
+    """
+    import make_content_cards as CC
+    seen = 0
+    for sec, slug, path in CM.posts(ROOT):
+        if sec != 'column':
+            continue
+        meta, _ = CM.read(path, sec, slug)
+        text, quoted = CC.thumb_caption(meta['title'])
+        assert text, '%s: 썸네일에 넣을 글자가 없다' % slug
+        assert len(text) <= max(CC.QUOTE_MAX, CC.LEAD_MAX), '%s: 캡션이 너무 길다(%r)' % (slug, text)
+        if quoted:
+            assert text in meta['title'], '%s: 인용이 제목에 없는 말이다' % slug
+        else:
+            assert meta['title'].startswith(text), '%s: 앞 구절이 제목 머리와 다르다(%r)' % (slug, text)
+        seen += 1
+    assert seen >= 3, '반박 글을 %d편밖에 못 봤다' % seen
+
+    # 앞 구절은 어절 경계에서 끊는다 — 글자 수로 자르면 낱말이 토막 난다.
+    long_title = '2029년 이후 집값은 삼성·하이닉스가 정할까, 공급이 먼저 정합니다'
+    text, quoted = CC.thumb_caption(long_title)
+    assert not quoted and long_title.startswith(text)
+    assert ' '.join(text.split()) == text and not text.endswith(' ')
+    assert all(w in long_title.split(',')[0].split() for w in text.split()), \
+        '낱말이 토막 났다: %r' % text
+    # 따옴표가 있으면 그 발언을 따옴표째 쓴다.
+    assert CC.thumb_caption("오세훈 시장의 '주택의 삭제', 서울은") == ('주택의 삭제', True)
+    assert CC.thumb_caption('') == (None, False)

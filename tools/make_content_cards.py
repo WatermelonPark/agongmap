@@ -50,6 +50,7 @@ def thumb_rel(section, slug):
 
 
 QUOTE_MAX = 16           # 인용 한 줄의 글자 수 상한(총괄: 10자 안팎)
+LEAD_MAX = 14            # 따옴표가 없는 제목에서 뽑는 앞 구절의 상한(총괄: 12자 안팎)
 
 
 def _quote(title):
@@ -58,6 +59,39 @@ def _quote(title):
     for m in re.finditer(r"['\u2018\u2019\"\u201c\u201d]([^'\u2018\u2019\"\u201c\u201d]{3,%d})['\u2018\u2019\"\u201c\u201d]" % QUOTE_MAX, title):
         return m.group(1).strip()
     return None
+
+
+def _lead(title):
+    """따옴표가 없는 제목의 앞 구절. 쉼표 앞을 쓰되, 길면 **어절 경계**에서 끊는다.
+
+    글자 수로만 자르면 '삼성·하이닉' 처럼 낱말이 토막 난다. 어절을 모으다 상한을 넘기면 멈춘다.
+    """
+    head = (title or '').split(',')[0].strip()
+    if not head:
+        return None
+    if len(head) <= LEAD_MAX:
+        return head
+    out = []
+    for w in head.split():
+        if out and len(' '.join(out + [w])) > LEAD_MAX:
+            break
+        out.append(w)
+    return ' '.join(out) if out else head[:LEAD_MAX]
+
+
+def thumb_caption(title):
+    """반박 편 썸네일의 한 줄 → (글자, 따옴표를 두를지). 제목이 없으면 (None, False).
+
+    ⚠️ 반박 편은 **늘 글자**다 — 숫자는 쓰지 않는다(총괄 결정 2026-10-30). 따지는 글이라 발언이 먼저
+       보여야 하고, 한 섹션 안에서 어떤 글은 숫자·어떤 글은 인용이면 목록이 들쭉날쭉해진다. 제목에
+       따옴표가 있으면 그 발언을 따옴표째, 없으면 제목 앞 구절을 따옴표 없이 같은 모양으로 넣는다.
+    """
+    if not title:
+        return None, False
+    q = _quote(title)
+    if q:
+        return q, True
+    return _lead(title), False
 
 
 def thumb_args(meta, body):
@@ -99,7 +133,7 @@ def _thumb_source(meta, body, data):
     return None, None
 
 
-def draw_thumb(spec, big=None, quote=None):
+def draw_thumb(spec, big=None, cap=None):
     """목록 그림 한 장(480×252). 제목은 넣지 않는다 — 목록에서 바로 옆에 있다.
 
     위쪽에 큰 숫자 하나(또는 발언 인용), 아래쪽에 연도별 입주 막대와 적정 기준선. 막대는 OG 카드·본문
@@ -111,10 +145,15 @@ def draw_thumb(spec, big=None, quote=None):
     d.rectangle([0, 0, W, 6], fill=ZC.INK)
     pad = 18
     top_h = 86
-    if quote:
-        f = ZC.fit_width('\u201c%s\u201d' % quote, W - pad * 2, hi=40, lo=20)
-        bb = d.textbbox((0, 0), '\u201c%s\u201d' % quote, font=f)
-        d.text((pad - bb[0], 30 - bb[1]), '\u201c%s\u201d' % quote, font=f, fill=ZC.INK)
+    # cap = (글자, 따옴표를 두를지). 반박 편이 쓴다(thumb_caption) — 그 섹션은 늘 글자이고 숫자를
+    # 그리지 않는다. 한 섹션 안에서 글자와 숫자가 섞이면 목록이 들쭉날쭉해진다(총괄 결정 2026-10-30).
+    text = None
+    if cap and cap[0]:
+        text = '\u201c%s\u201d' % cap[0] if cap[1] else cap[0]
+    if text:
+        f = ZC.fit_width(text, W - pad * 2, hi=40, lo=20)
+        bb = d.textbbox((0, 0), text, font=f)
+        d.text((pad - bb[0], 30 - bb[1]), text, font=f, fill=ZC.INK)
     elif big:
         val, lab = big
         f = ZC.fit_width(val, W - pad * 2, hi=52, lo=24)
@@ -308,7 +347,8 @@ def main(argv=None):
         if save(img, card_rel(sec, slug), {'title': title, 'chip': chip, 'lines': '\n'.join(lines)}):
             wrote += 1
         spec, big = _thumb_source(meta, body, data)
-        th = draw_thumb(spec, big, _quote(title) if sec == 'column' else None)
+        cap = thumb_caption(title) if sec == 'column' else None
+        th = draw_thumb(spec, None if cap else big, cap)
         if save_thumb(th, thumb_rel(sec, slug)):
             wrote += 1
         secs.add(sec)
