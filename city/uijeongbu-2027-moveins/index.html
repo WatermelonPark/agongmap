@@ -178,6 +178,10 @@ footer a{color:var(--ink)}
 .hc-m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hc-l{display:none}   /* 모바일에서는 최신 글 둘을 숨긴다 — 2열 카드 여섯 장이 한 화면에 들어오게(총괄 10-30) */
 .hc-go{margin-top:auto;font-size:13px;font-weight:600;color:var(--ink)}
+/* '기본 개념' 줄 — 카테고리 카드와 같은 부품이되 주기 표지(em)·글 수(hc-m)가 없다. 상시 글이라 셀 것이
+   없고, 모바일에서도 접지 않는다(총괄 10-30: 탭을 뺐으니 허브 안에서 눈에 띄어야 한다). */
+.hgrid-basic{margin-top:-10px}
+.hgrid-basic .hcard p{-webkit-line-clamp:2}
 /* 글 목록 — 모바일은 왼쪽 썸네일 리스트, PC 는 앨범형(요청 ②③). 마크업은 하나다. */
 .plist{display:grid;gap:10px}
 .pcard{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:start;padding:10px;
@@ -297,7 +301,6 @@ footer a{color:var(--ink)}
   <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>
   <a class="nav-btn" href="/zone/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>지역</span></a>
   <a class="nav-btn" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>시세</span></a>
-  <a class="nav-btn" href="/cycle/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>사이클</span></a>
   <a class="nav-btn on" aria-current="page" href="/reports/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 3v4h4M9.5 12h6M9.5 16h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>콘텐츠</span></a>
 </nav>
 

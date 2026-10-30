@@ -725,7 +725,10 @@ def test_hub_shows_six_category_cards_and_recent_posts():
     if not os.path.exists(p):
         pytest.skip('/reports/ 가 아직 없다')
     page = io.open(p, encoding='utf-8').read()
-    hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', page)
+    # 카테고리 격자만 본다 — 그 아래 '기본 개념' 줄(.hgrid-basic)도 같은 .hcard 부품을 쓴다(2026-10-30).
+    cat = re.search(r'<div class="hgrid">(.*?)</div>\s*<h2', page, re.S)
+    assert cat, '카테고리 카드 격자를 못 찾았다'
+    hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', cat.group(1))
     # 기대 순서를 **여기 적는다**. HUB_CARDS 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀌어
     # 아무것도 지키지 못한다(2026-10-29 변이로 확인). 이 순서는 대표가 정한 발행 주기 순이다.
     want = ['/column/', '/weekly/', '/city/', '/gtx/', '/danji/', '/zone/']
@@ -1180,3 +1183,62 @@ def test_thumbnail_number_is_that_regions_own_moveins_value():
     # 같은 숫자를 서로 다른 지역이 나눠 쓰면 한쪽이 남의 값을 들고 있는 것이다.
     shared = {v: sorted(r) for v, r in by_region.items() if len(r) > 1}
     assert not shared, '한 숫자를 여러 지역이 쓴다 — 지역이 섞였다: %s' % shared
+
+
+def test_basic_concepts_row_carries_the_pages_that_left_the_tabbar():
+    """허브의 '기본 개념' 줄이 사이클·FAQ·테스트 3종을 **카테고리 카드 아래**에 싣는다(대표 승인 2026-10-30).
+
+    왜: 상단 탭에서 '사이클'을 빼면서 그 입구를 여기로 옮겼다. 탭이 주된 통로였으니 허브에서 눈에 띄어야
+    한다(GA 10/2~10/29: /cycle/ 세션 26 중 19가 사이트 안 이동, 검색 랜딩 7). 발행 주기가 없는 상시 글이라
+    주기 순으로 늘어선 카테고리 카드 **아래**다. 사이클이 첫째다.
+
+    무엇을 바꾸면 빨개지나: 줄에서 한 장을 빼거나, 사이클을 첫째가 아닌 자리로 옮기거나, 카테고리 카드
+      **위**로 올리거나, 모바일에서 접으면(display:none).
+    픽스처: 저장소에 구워져 있는 /reports/ 와 손 페이지들의 실제 <title>.
+    """
+    p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
+    if not os.path.exists(p):
+        pytest.skip('/reports/ 가 아직 없다')
+    page = io.open(p, encoding='utf-8').read()
+    row = re.search(r'<h2 class="rh2">%s</h2><div class="hgrid hgrid-basic">(.*?)</div>'
+                    % re.escape(MC.BASIC_H2), page, re.S)
+    assert row, "'기본 개념' 줄을 찾지 못했다"
+    hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', row.group(1))
+    # 기대 목록을 **여기 적는다**. MC.BASIC_PAGES 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀌어
+    # 한 장을 빼도 통과한다(2026-10-30 변이로 확인 — 처음 쓴 판이 그랬다). 이 다섯은 대표가 정했다.
+    want = ['/cycle/', '/faq/', '/burini-test/', '/investor-test/', '/redev-test/']
+    assert hrefs == want, '기본 개념 줄의 순서·링크가 다르다: %s' % hrefs
+    # 카테고리 카드 아래다 — 위로 올라가면 주기 순 카드가 밀린다. (본문 위치로 잰다. CSS 에도
+    # 'hgrid-basic' 이 있어 그 글자만 찾으면 <style> 안이 먼저 걸린다.)
+    assert page.index('<div class="hgrid">') < page.index('<div class="hgrid hgrid-basic">'), \
+        '기본 개념 줄이 카테고리 카드 위에 있다'
+    # 이름·곁말은 각 페이지의 <title> 에서 온다(손으로 적지 않는다).
+    import html as _h
+    for slug in MC.BASIC_PAGES:
+        name, sub = MC._page_title(slug, ROOT)
+        assert name, '%s 의 제목을 읽지 못했다' % slug
+        assert ('<h3>%s</h3>' % _h.escape(name)) in row.group(1), \
+            '%s 카드 이름이 페이지 제목과 다르다(%r)' % (slug, name)
+    # 모바일에서 접지 않는다 — hc-l 처럼 숨기는 규칙이 이 줄에 붙으면 안 된다.
+    assert 'hgrid-basic' in MC.LIST_CSS or 'hgrid-basic' in MC.EXTRA_CSS
+    assert not re.search(r'\.hgrid-basic[^{]*\{[^}]*display:\s*none', MC.EXTRA_CSS), \
+        '기본 개념 줄이 숨겨진다'
+
+
+def test_cycle_page_lights_the_content_tab():
+    """사이클 페이지는 탭바에서 '콘텐츠'를 켠다 — 제 탭이 없어졌다고 아무 탭도 안 켜면 길을 잃는다.
+
+    무엇을 바꾸면 빨개지나: /cycle/ 탭바에서 켠 탭을 지우거나 다른 탭을 켜면, 탭바에 '사이클' 칸을
+      되살리면(TABS 에 없으므로 test_site_nav 도 함께 빨개진다).
+    픽스처: 저장소의 실제 /cycle/index.html.
+    """
+    import site_nav as N
+    p = os.path.join(ROOT, 'cycle', 'index.html')
+    if not os.path.exists(p):
+        pytest.skip('/cycle/ 이 없다')
+    s = io.open(p, encoding='utf-8').read()
+    assert 'cycle' not in N.IDS, '탭 정본에 사이클이 되살아났다'
+    nav = re.search(r'<nav class="bottomnav">.*?</nav>', s, re.S)
+    assert nav, '사이클 페이지에 탭바가 없다'
+    on = re.findall(r'<a class="nav-btn on"[^>]*href="([^"]+)"', nav.group(0))
+    assert on == [N.HREF['reports']], '사이클 페이지가 켠 탭이 콘텐츠가 아니다: %s' % on
