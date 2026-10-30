@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v209';
+var HOME_STATS_BUILD='v210';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -747,12 +747,12 @@ const TREND={
    (광역시 이름)과 같으면 그 광역시로 읽힌다 — 경기 광주시는 '광주'가 아니라 '경기 광주'다(광주광역시 구는 '광주 북구' 꼴, 전수리뷰
    H2-21, test_weekly_moves 가 막는다). */
 const SGG_QNAME={"a80703": "양주", "a80702": "동두천", "a80701": "포천", "a80603": "파주", "a80704": "의정부", "a80402": "구리", "a80401": "남양주", "a7010301": "서울 은평구", "a7010206": "서울 강북구", "a7010207": "서울 도봉구", "a7010208": "서울 노원구", "a7010302": "서울 서대문구", "a7010101": "서울 종로구", "a7010205": "서울 성북구", "a7010203": "서울 동대문구", "a7010204": "서울 중랑구", "a7010303": "서울 마포구", "a7010102": "서울 중구", "a7010103": "서울 용산구", "a7010201": "서울 성동구", "a7010202": "서울 광진구", "a7020102": "서울 강서구", "a7020101": "서울 양천구", "a7020105": "서울 영등포구", "a7020106": "서울 동작구", "a7020202": "서울 강남구", "a7020203": "서울 송파구", "a7020204": "서울 강동구", "a7020103": "서울 구로구", "a7020104": "서울 금천구", "a7020107": "서울 관악구", "a7020201": "서울 서초구", "a80403": "하남", "a80404": "경기 광주", "a80601": "김포", "a908": "인천 검단구", "a909": "인천 서해구", "a907": "인천 계양구", "a902": "인천 영종구", "a906": "인천 부평구", "a901": "인천 제물포구", "a903": "인천 미추홀구", "a905": "인천 남동구", "a904": "인천 연수구", "a80303": "시흥", "a80304": "광명", "a80101": "과천", "a80105": "의왕", "a80104": "군포", "a80501": "이천", "a80502": "여주", "a80306": "오산", "a80201": "안성", "a80307": "평택", "c106": "속초", "c101": "춘천", "c103": "강릉", "c102": "원주", "c104": "동해", "c105": "태백", "c107": "삼척", "c313": "당진", "c306": "아산", "c206": "음성", "c203": "충주", "c204": "제천", "c307": "서산", "c312": "예산", "c302": "천안 동남구", "c303": "천안 서북구", "c20103": "청주 흥덕구", "c20104": "청주 청원구", "c311": "홍성", "c304": "공주", "b6": "세종", "c20101": "청주 상당구", "c20102": "청주 서원구", "c305": "보령", "c309": "계룡", "b404": "대전 유성구", "b405": "대전 대덕구", "c308": "논산", "b403": "대전 서구", "b402": "대전 중구", "b401": "대전 동구", "c404": "군산", "c405": "익산", "c402": "전주 완산구", "c403": "전주 덕진구", "c408": "김제", "c406": "정읍", "c407": "남원", "c606": "영주", "c609": "문경", "c605": "안동", "c60302": "포항 북구", "c608": "상주", "c602": "구미", "c611": "칠곡", "c60301": "포항 남구", "c604": "김천", "c610": "경산", "c607": "영천", "c601": "경주", "b304": "광주 북구", "b305": "광주 광산구", "b302": "광주 서구", "b301": "광주 동구", "b303": "광주 남구", "b205": "대구 북구", "b202": "대구 동구", "b203": "대구 서구", "b201": "대구 중구", "b206": "대구 수성구", "b208": "대구 달성군", "b207": "대구 달서구", "b204": "대구 남구", "b504": "울산 북구", "b501": "울산 중구", "b503": "울산 동구", "b505": "울산 울주군", "b502": "울산 남구", "c504": "나주", "c503": "순천", "c505": "광양", "c506": "무안", "c501": "목포", "c502": "여수", "c707": "밀양", "c709": "양산", "c70101": "창원 의창구", "c70102": "창원 성산구", "c706": "김해", "c70104": "창원 마산회원구", "c70103": "창원 마산합포구", "c702": "창원 진해구", "c703": "진주", "c705": "사천", "c704": "통영", "c708": "거제", "b10301": "부산 북구", "b10202": "부산 금정구", "b10204": "부산 기장군", "b10302": "부산 강서구", "b10303": "부산 사상구", "b10203": "부산 동래구", "b10201": "부산 해운대구", "b10304": "부산 사하구", "b10105": "부산 부산진구", "b10107": "부산 연제구", "b10108": "부산 수영구", "b10102": "부산 서구", "b10101": "부산 중구", "b10106": "부산 남구", "b10103": "부산 동구", "b10104": "부산 영도구", "c801": "제주", "c802": "서귀포", "a802031": "수원 장안구", "a802032": "수원 권선구", "a802033": "수원 팔달구", "a802034": "수원 영통구", "a801031": "성남 수정구", "a801032": "성남 중원구", "a801033": "성남 분당구", "a802021": "용인 처인구", "a802022": "용인 기흥구", "a802023": "용인 수지구", "a801021": "안양 만안구", "a801022": "안양 동안구", "a806021": "고양 덕양구", "a806022": "고양 일산동구", "a806023": "고양 일산서구", "a803011": "부천 원미구", "a803012": "부천 소사구", "a803013": "부천 오정구", "a803021": "안산 상록구", "a803022": "안산 단원구", "a803051": "화성 동탄구", "a803052": "화성 만세구", "a803053": "화성 병점구", "a803054": "화성 효행구"};
-/* 기준일 배너 — 지도 위 유일한 메타 표기(옛 map-lab 텍스트 줄은 중복이라 제거,
-   사용자 선택으로 배너 쪽을 살림). sggOnly=시군구 지도만 이 주차일 때. */
+/* 기준 줄 — 지도·순위 위의 '시점 기준 · 출처' 한 줄. sggOnly=시군구 지도만 이 주차일 때.
+   2026-10-30 디자인 리뷰 2차: 검은 띠('10/26 기준 · 한국부동산원 · 매매·전세 · 전주 대비')를 홈 기준 줄(#tb-when)과 같은 옅은
+   글줄로 바꾸고, 계열·단위는 지도 아래 범례 줄(map-suplegend)로 옮겼다 — 띠·머리줄·자료 줄에 출처가 세 번 나왔다. */
 function mapDateChip(p,unit,sggOnly){
-  /* 기준 줄 양식은 홈 지도 시세 모드(#tb-when)와 하나 — '9/28 기준 · 한국부동산원'·'2026년 8월 기준 · 한국부동산원'(2026-10-06). */
   const when=/^\d{4}-\d{2}-\d{2}$/.test(p)?_md(p):_ymT(p);
-  return '<div class="map-datechip"><span>'+(sggOnly?'시군구 ':'')+when+' 기준 · 한국부동산원 · '+unit+'</span></div>';
+  return '<p class="map-datechip">'+(sggOnly?'시군구 ':'')+when+' 기준 · 한국부동산원</p>';
 }
 function sggRanks(S,row,met){
   const arr=[];
@@ -802,7 +802,7 @@ function rankTables(S,unit,k){
     const th=cols.map(m=>'<th class="rk-sort'+(m===met?' on':'')+'"'+(m===met?' aria-sort="'+(dn?'ascending':'descending')+'"':'')
       +' data-k="'+k+'" data-met="'+m+'"><button type="button" title="'+MLAB[m]+' 기준으로 정렬">'+MLAB[m]+'</button></th>').join('');
     const h=['<div class="rank-box"><div class="rank-h">'+title+'</div><div class="rank-wrap"><table class="rank-tbl'+(hasWo?' wide':'')+'">',
-      '<thead><tr><th>순위</th><th>지역</th>'+th+'<th>'+unit+'</th></tr></thead><tbody>'];
+      '<thead><tr><th>순위</th><th>지역</th>'+th+'<th>순위 변화</th></tr></thead><tbody>'];   // 옛 머리 '전주 대비'는 옆 값 열과 같은 말이었다(2026-10-30)
     if(!items.length)h.push('<tr><td colspan="'+(cols.length+3)+'" class="rk-none">'+empty+'</td></tr>');
     items.forEach(([c,v],i)=>{
       const rank=base+i;
@@ -832,6 +832,7 @@ function syncSwipe(k){
   const box=m.querySelector('.map-scroll'), sw=m.querySelector('.map-swipe');
   if(!box||!sw||!box.clientWidth)return;
   sw.hidden=!(box.scrollWidth>box.clientWidth+1);
+  if(typeof scrollCue==='function')scrollCue(box);   // 가장자리 흐림(home-app.js) — 보일 때 다시 잰다
 }
 function drawNationMap(k){
   const T=TREND[k], D=trendData(k), S=D.sgg; if(!S||!S.rows.length)return;
@@ -853,9 +854,13 @@ function drawNationMap(k){
   box.innerHTML=
     mapDateChip(row.p,SER+' · '+T.unit,gap)+
     rankTables(S,T.unit,k)+
-    '<div class="map-scroll">'+svg+'</div>'+
-    '<div class="map-suplegend">타일 값: '+(hasWo?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':'위 = 매매 · 아래 = 전세')+
-    ' · 지역을 누르면 그래프<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></div>';
+    '<div class="cue"><div class="map-scroll">'+svg+'</div></div>'+
+    /* 범례 한 줄(왼쪽 하락 → 오른쪽 상승)은 홈 시세 지도(priceTilesHtml)와 같은 .tb-key 어휘다(2026-10-30 디자인 리뷰 2차) */
+    '<div class="map-suplegend"><span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'+
+    '<span class="tk-ramp" aria-hidden="true"></span><span class="tk"><i class="tk-u"></i>상승</span></span>'+
+    '<span>'+SER+' '+T.unit+'(%)</span>'+
+    '<span>'+(hasWo?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':'위 = 매매 · 아래 = 전세')+
+    ' · 지역을 누르면 그래프<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></span></div>';
   /* 상자가 지도보다 좁을 때만 민다는 안내를 켠다(데스크톱에서는 안 넘친다). */
   syncSwipe(k);
   /* TOP10 헤더 정렬 — innerHTML 이후에 붙인다(인라인 onclick은 따옴표 중첩이 깨진다) */
@@ -1222,7 +1227,9 @@ function drawOccChart(){
   const vals=O.rows.map(r=>r.v[ri]);
   /* 추정 분기도 실적과 같은 판정 색으로 칠하고 옅게만 구분한다(백로그 36-10) — 예전엔 추정을 노랑 하나로 칠해 표에서 빨간
      '적음' 분기가 그래프에서는 보이지 않았다. 색은 범례(index.html #sec-occ .adv-legend)와 같다. */
-  const OCC_COL={lo:'#e0564a',hi:'#3a7bd5','':'#9aa8a1'};
+  /* 색은 홈 판정 카드 신호등(app.css .zl-d.lo·ok·hi)과 하나 — 같은 낱말 '적음·보통·많음'에 두 팔레트(빨강·회색·파랑 ↔ 빨강·노랑·초록)가
+     붙어 있었다(2026-10-30 디자인 리뷰 2차, test_occ_colors 가 대조). */
+  const OCC_COL={lo:'#ff5a4f',hi:'#3ecf7a','':'#ffc233'};
   const cols=O.rows.map((r,i)=>{
     const c=OCC_COL[occCls(reg,vals[i])]||OCC_COL[''];
     return occEst(r)?c+'73':c;   // 추정 = 같은 색 45%
@@ -1238,7 +1245,7 @@ function drawOccChart(){
       const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
       /* 적정물량 선 + 적음·많음 문턱선(70·130% — split_data 가 싣는 ADV.occupancy.band, 표·/moveins/ 와 같은 정본) */
       const band=O.band;
-      const lines=ref?[[ref,'#5e6f74','적정물량',1.5]].concat(band?[[ref*band.lo/100,'#e0564a',band.lo+'%',1],[ref*band.hi/100,'#3a7bd5',band.hi+'%',1]]:[]):[];
+      const lines=ref?[[ref,'#5e6f74','적정물량',1.5]].concat(band?[[ref*band.lo/100,OCC_COL.lo,band.lo+'%',1],[ref*band.hi/100,OCC_COL.hi,band.hi+'%',1]]:[]):[];
       lines.forEach(([v,c,t,w])=>{
         if(v<ya.min||v>ya.max)return;
         const y=ya.getPixelForValue(v);

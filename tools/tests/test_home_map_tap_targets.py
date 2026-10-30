@@ -45,7 +45,7 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 def _loop_src():
     s = HS.home_source()
     a = s.find('var SMALL=')
-    b = s.find("h+='</svg></div>';", a)
+    b = s.find("h+='</svg>'+mapKeyHtml(M)+act+'</div>';", a)   # 2026-10-30: 범례·안내가 지도 뒤로 갔다
     assert a >= 0 and b > a, '홈 지도 루프를 찾지 못했다 — 구조가 바뀌었으면 이 시험도 고칠 것'
     return s[a:b]
 

@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v209';
+const HOME_BUILD='v210';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -523,6 +523,25 @@ function mapColor(v,ref){
    이름·값이 들어갈 수 없다. 값을 숨기면 TOP 10 밖 200여 곳의 숫자를 볼 길이 없고(title 은 터치에서 안 뜬다), 부호·소수를
    줄이면 값이 달라진다. 그래서 지도가 MAP_FS 가 MAP_MIN_PX 로 그려질 최소 폭을 갖고, 좁은 화면에서는 표처럼
    상자(.map-scroll) 안에서 옆으로 민다(test_stats_map_labels). */
+/* 가로로 미는 지도 상자의 가장자리 흐림(2026-10-30 디자인 리뷰 2차) — 375px 에서 시군구 지도가 오른쪽에서 잘려 보이는데 밀 수 있다는
+   단서가 맨 아래 문장뿐이었다. 상자(.map-scroll)를 감싼 .cue 에 밀 것이 남은 쪽을 표시한다(cue-r 오른쪽·cue-l 왼쪽, 흐림은 CSS).
+   지도 칸이 불투명이라 표처럼 배경 그림자(background-attachment local)로는 안 보여 덮개(::after)를 쓴다. 숨은 상자(폭 0)는 판정하지
+   않는다 — 보일 때 다시 부른다(syncSwipe·renderSidoMap). 같은 상자에 두 번 붙지 않는다. */
+function scrollCue(box){
+  var w=box&&box.parentNode;
+  if(!w||!w.classList||!w.classList.contains('cue')) return;
+  if(!box._cue){
+    box._cue=function(){
+      if(!box.clientWidth) return;
+      var r=box.scrollWidth-box.clientWidth-box.scrollLeft;
+      w.classList.toggle('cue-r',r>2);
+      w.classList.toggle('cue-l',box.scrollLeft>2);
+    };
+    box.addEventListener('scroll',box._cue,{passive:true});
+    if(typeof window!=='undefined'&&window.addEventListener) window.addEventListener('resize',box._cue);
+  }
+  box._cue();
+}
 function sggMapSvg(vals,o){
   const N=NATION_TILE, ref=o.ref, names=o.names, n=vals.length, TW=30, NH=15, G=2;
   /* 3단(월간)은 값 칸을 1px 낮춰 세로가 길어지는 걸 억제한다. 9px 숫자에 12px 칸이면 충분하고, 1·2단은 13px 그대로 둔다. */
@@ -1222,7 +1241,7 @@ function wkMapModel(W,r){
   W.regions.forEach(function(n,i){ v[n]=row.ma[i]; });
   var lead=wkPubLead(r), sg=sggLastRow(W.sgg);
   if(sg) sg.lead=lead;
-  return {v:v,when:_md(r.survey)+' 기준 · 한국부동산원',lead:lead,stale:!!r.stale,sgg:sg,
+  return {v:v,when:_md(r.survey)+' 기준('+_md(r.pub)+' 발표) · 한국부동산원',lead:lead,stale:!!r.stale,sgg:sg,
     k:'week',ref:WK_MAP_REF,unit:'전주 대비',adj:'주간',href:'/weekly/',to:'weekly_map_card'};
 }
 /* 시세 모드 지도의 재료 — 전국 시군구 마지막 행(ADV.weekly.sgg·ADV.monthly.sgg, 코어에 한 행씩 실린다). 단추 하나에 지도
@@ -1283,7 +1302,7 @@ function mapAria(M){
    주간은 /weekly/, 월간은 /monthly/(이달의 통계)로 간다. */
 function wkAggCard(n,v,M){
   var s=pvSign(v), k=v==null?'':(s>0?'wk-u':s<0?'wk-d':'wk-0'), w=v==null?'자료 없음':(s>0?'상승':s<0?'하락':'보합');
-  return '<div class="agg-c"><a class="agg-a" href="'+M.href+'" onclick="track(\'home_cta\',{to:\''+M.to+'\'})">'
+  return '<div class="agg-c agg-wk"><a class="agg-a" href="'+M.href+'" onclick="track(\'home_cta\',{to:\''+M.to+'\'})">'
     +'<span class="agg-l1"><b>'+n+'</b><span class="sc-tier '+k+'">'+w+'</span></span>'
     +'<span class="agg-l2"><i class="agg-n">'+wkPct(v)+'<span class="agg-go" aria-hidden="true"> →</span></i>'
     +'<i class="agg-p">매매 '+M.unit+'</i></span></a></div>';
@@ -1395,13 +1414,15 @@ function priceTilesHtml(M){
   var s=M.sgg, n=s.vals.length;
   var svg=sggMapSvg(s.vals,{ref:M.ref,names:['매매','전세','월세'],href:function(c){ return '#stats-market-'+M.k+'~'+c; }});
   var rows=n>2?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':n>1?'위 = 매매 · 아래 = 전세':'';
-  return '<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p>'
-    +'<div class="map-tiles"><div class="wg-head"><span class="wg-when">'+s.ser.join('·')+' '+M.unit+'(%) · '+s.lead+'</span>'
-    +'<span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
+  /* 2026-10-30 디자인 리뷰 2차: 머리(칠한 값·날짜·범례)를 지도 아래 한 줄로 내리고 날짜는 지도 위 기준 줄(#tb-when, M.when —
+     '10/26 기준(10/29 발표) · 한국부동산원') 하나만 말한다. 예전엔 기준 줄과 머리에 날짜가 두 번 나왔다. */
+  return '<div class="map-tiles"><div class="cue"><div class="map-scroll wg-map">'+svg+'</div></div>'
+    +'<div class="wg-head wg-low"><span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
-    +'<span class="tk"><i class="tk-u"></i>상승</span></span></div>'
-    +'<div class="map-scroll wg-map">'+svg+'</div>'
-    +'<div class="wg-foot"><span>'+rows+'<span class="wg-swipe">'+(rows?' · ':'')+'옆으로 밀어 전체 보기</span></span></div></div>';
+    +'<span class="tk"><i class="tk-u"></i>상승</span></span>'
+    +'<span class="wg-when">'+s.ser.join('·')+' '+M.unit+'(%)</span></div>'
+    +'<div class="wg-foot"><span>'+rows+'<span class="wg-swipe">'+(rows?' · ':'')+'옆으로 밀어 전체 보기</span></span></div>'
+    +'<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p></div>';
 }
 function renderSidoMap(){
   var el=document.getElementById('map-wrap');
@@ -1417,6 +1438,7 @@ function renderSidoMap(){
   if(MT&&MT.sgg){
     el.innerHTML=priceTilesHtml(MT);
     el.dataset.done='1';
+    if(typeof scrollCue==='function'&&el.querySelector) scrollCue(el.querySelector('.map-scroll'));   // 시험 하네스는 함수만 떼어 돌린다
     if(!el.dataset.trLink){ el.dataset.trLink='1'; el.addEventListener('click',function(e){ onTrendLink(e,'score_map'); }); }
     return;
   }
@@ -1437,7 +1459,9 @@ function renderSidoMap(){
   /* 행동 안내는 범례 속 11.5px 회색 각주였다('지역을 누르면 상세 리포트') — 첫 화면의 유일한 행동 안내인데
      읽히지 않았다(홈 마케팅 검수 A6·HERO-5①). 본문색 13.5px 한 줄로 키워 지도 바로 위에 둔다. 범례
      오버레이(데스크톱) 안에 넣으면 폭이 늘어 경기·서울 도형을 덮는다. */
-  h+=M?'<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p>'
+  /* 2026-10-30 디자인 리뷰 2차: 지도 위에는 기준 줄·보기 단추만 두고, 안내 문장·색 범례·신호등 범례는 지도 아래로 내린다
+     ('설명은 콘텐츠 아래' — 375px 첫 화면에서 지도가 설명 다섯 줄 밑에서 시작했다). 높이는 같아 예약(#map-wrap)은 그대로다. */
+  var act=M?'<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p>'
     :'<p class="map-act">지도에서 지역을 누르면 공급 리포트가 열립니다</p>';
   /* 라벨: 도 9곳은 도형 안에 들어가고, 광역시·세종 8곳은 도형이 작아 흰 테두리
      글자(halo)로 위에 얹는다. 탭 표적도 그 8곳만 투명 표적으로 넓힌다(아래 TAP_ 설명). */
@@ -1474,7 +1498,7 @@ function renderSidoMap(){
      밑의 경기 북부 탭을 막지 않는다. */
   /* 범례: 램프 가운데 '균형' 칸(B2·TRUST-3②, C4② 중립색과 같은 --bal). 주간 모드(M)는 끝말·가운데 칸이 바뀌고 뜻 한 줄이
      붙는다(mapKeyHtml, C3). */
-  h+='<div class="map-box">'+mapKeyHtml(M)
+  h+='<div class="map-box">'
     +'<svg viewBox="0 0 '+SIDO_GEO.w+' '+SIDO_GEO.h
     +'" role="group" aria-label="'+mapAria(M)+'">';   /* 안에 링크가 있어 img 가 아니다 — img 는 자식을 읽지 않는다(백로그 36-8) */
   /* 광주·전남은 2026-09-10 판정 단위가 하나로 합쳐졌다(국토부가 공급 통계를
@@ -1513,7 +1537,8 @@ function renderSidoMap(){
       +(labelAt[key]===a?'<text x="'+a.x+'" y="'+a.y+'" class="'+(small?'ml-s':'ml')+'">'+zn(key)+'</text>':'')
       +'<title>'+lab+'</title></a>';
   });
-  h+='</svg></div>';
+  /* 범례: 561px 이상은 지도 좌상단 오버레이(높이 0), 560px 이하는 지도 아래 정적 줄 — 마크업 자리는 지도 뒤다 */
+  h+='</svg>'+mapKeyHtml(M)+act+'</div>';
   el.innerHTML=h;
   el.dataset.done='1';
   /* 시세 모드의 지역 → 그 시도 그래프(같은 주소를 다시 누를 때 포함). 상자는 그대로 두고 안만 갈아 끼우므로 한 번만 붙인다. */

@@ -170,13 +170,14 @@ def _pct(v):
 def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, today):
     """주간 모드의 발표 줄·범례·카드·지도 이름은 데이터와 공용 함수에서 온다(모드마다 범례 제목·단위가 바뀐다).
 
-    - 기준 줄(지도/그래프/표 단추 왼쪽 #tb-when) = '9/7 기준 · 한국부동산원'(조사일 — 월간 '2026년 8월 기준 · 한국부동산원'과 한
-      양식, 2026-10-05 대표 요청. 늦은 주·연휴 주도 같은 양식), 범례 뜻 한 줄 끝 = WR.pub_lead
+    - 기준 줄(지도/그래프/표 단추 왼쪽 #tb-when) = '9/7 기준(9/10 발표) · 한국부동산원'(조사일 — 월간 '2026년 8월 기준 · 한국부동산원'과 한
+      양식, 2026-10-05 대표 요청. 2026-10-30 디자인 리뷰 2차로 지도 머리에 따로 있던 발표일을 이 한 줄로 합쳤다. 늦은 주·연휴 주도
+      같은 양식), 범례 뜻 한 줄 끝 = WR.pub_lead
       (늦은 주 '9/10 발표 기준'), 범례 끝말은 하락·보합·상승, 단위 '(%)'. 공급 범례의 말(공급 여유·균형·부족)은 없다.
     - 카드 셋(전국·수도권·지방)의 값은 pv2 표시값(MW.pv2 와 같다) + '%', 배지는 표시값의 부호로 상승·보합·하락.
     - 공급 모드는 범례 끝말(공급 여유·균형·공급 부족)과 판정 카드(→ /zone/)뿐이다 — 발표 줄 없음, 범례 뜻 한 줄('… · 2026년
       2분기 기준')과 카드 아래 분포 한 줄은 없다(2026-09-28 대표 결정 — 작은 글씨 정리. 옛 data.js 의 ktxt·dist 가 있어도 안 그린다).
-    변이(각각 실제로 넣어 빨간 것을 확인): wkMapModel 의 when 을 발표일(_md(r.pub))로 바꾸면 기준 줄 단정, renderAggCards 가
+    변이(각각 실제로 넣어 빨간 것을 확인): wkMapModel 의 when 에서 조사일이나 '(…발표)'를 빼면 기준 줄 단정, renderAggCards 가
           공급 모드에서 #tb-when 을 비우지 않으면 공급 단정, mapKeyHtml 주간
           갈래의 '(%)' 를 빼면 단위 단정, 주간 범례가 공급 끝말('공급 여유')을 쓰면 끝말 단정, wkPct 가 pv2 대신 toFixed(2)
           (−0.085 → '−0.08', −0.0012 → '−0.00')를 쓰면 카드·지역 이름표 값 단정,
@@ -188,7 +189,8 @@ def test_weekly_mode_texts_come_from_data_and_the_release_functions(name, p, tod
     ms = _kst_ms(*today)
     wk = _render(src, p, ms, 'weekly')
     M, h = wk['M'], wk['h']
-    basis = '%s 기준 · 한국부동산원' % WR.md(st['survey'])   # 조사일 기준(2026-10-05 대표 요청 — 주간·월간 양식 통일)
+    # 조사일 기준(2026-10-05 대표 요청 — 주간·월간 양식 통일) + 발표일 괄호(2026-10-30 — 지도 머리의 둘째 날짜를 합쳤다)
+    basis = '%s 기준(%s 발표) · 한국부동산원' % (WR.md(st['survey']), WR.md(st['pub']))
     assert M['when'] == basis and M['lead'] == WR.pub_lead(st), (M, st)
     assert M['stale'] == st['stale'] and (name == 'stale') == st['stale'] and (name == 'hedge') == st['hedge']
     assert wk['tw'] == basis and 'wk-when' not in h, '단추 왼쪽 기준 줄(#tb-when)이 아니다'
@@ -529,7 +531,8 @@ def test_price_buttons_draw_the_nationwide_district_map_in_the_card(geo):
     여기서 따로 계산한다(JS 함수를 그대로 다시 부르지 않는다).
     변이(각각 실제로 넣어 빨간 것을 확인): sggLastRow 가 월세(wo)를 빼면 월간 세 줄 단정, renderSidoMap 의 시군구 갈래를
           지우면(시세 모드도 시도 지도) 지도 단정, priceTilesHtml 의 링크 주기를 'week' 로 박으면 월간 링크 단정, priceOk 를
-          SIDO_GEO 필수로 되돌리면 no_geo 의 잠금 단정이 빨개진다.
+          SIDO_GEO 필수로 되돌리면 no_geo 의 잠금 단정이, priceTilesHtml 에서 범례·안내를 지도 위로 되돌리면 순서 단정이, .cue 덮개를
+          빼면 흐림 단정이 빨개진다.
     픽스처: 합성 주(2026-09-07)·달(2026-08), 시군구 코드는 저장소 NATION_TILE 의 모든 칸(값은 코드마다 다른 합성 값),
           sido-geo.js 좌표가 있는 경우와 없는 경우.
     """
@@ -550,8 +553,9 @@ def test_price_buttons_draw_the_nationwide_district_map_in_the_card(geo):
         vh = 12 if n > 2 else 13
         return tile['rows'] * (15 + n * (vh + 1) + 2) - 2 + 4
 
-    for mode, k, n, head in (('weekly', 'week', 2, '매매·전세 전주 대비(%%) · %s' % WR.pub_lead(st)),
-                             ('monthly', 'month', 3, '매매·전세·월세 전월 대비(%) · 2026년 8월 기준')):
+    # 지도 아랫줄의 계열·단위에는 날짜가 없다 — 날짜는 지도 위 기준 줄(#tb-when) 하나가 말한다(2026-10-30 디자인 리뷰 2차)
+    for mode, k, n, head in (('weekly', 'week', 2, '매매·전세 전주 대비(%)'),
+                             ('monthly', 'month', 3, '매매·전세·월세 전월 대비(%)')):
         h = got[mode]
         assert '<div class="map-tiles">' in h and 'class="tap"' not in h and 'class="ml' not in h, '%s 모드가 시군구 지도가 아니다' % mode
         vb = re.search(r'<svg viewBox="-2 -2 ([\d.]+) ([\d.]+)"', h)
@@ -560,6 +564,9 @@ def test_price_buttons_draw_the_nationwide_district_map_in_the_card(geo):
         assert links and all(x.startswith('#stats-market-%s~' % k) for x in links), (mode, links[:3])
         assert len(set(links)) == len(codes), (mode, len(set(links)), len(codes))
         assert '<span class="wg-when">%s</span>' % head in h, (mode, re.search(r'wg-when">([^<]*)<', h).group(1))
+        # 지도가 먼저, 범례·계열 줄과 안내 문장은 지도 아래(2026-10-30 '설명은 콘텐츠 아래'), 지도 상자는 가장자리 흐림(.cue) 안
+        assert h.index('class="map-scroll') < h.index('class="wg-when"') < h.index('class="map-act"'), mode
+        assert '<div class="cue"><div class="map-scroll wg-map">' in h, mode
         assert ('가운데 = 전세 · 아래 = 월세' in h) == (n == 3)
     assert got['locks'] == [False, False], got['locks']
     assert got['picked'] == ['score_map'], got['picked']
