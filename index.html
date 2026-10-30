@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v209">
+<html lang="ko" data-build="v210">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -280,7 +280,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
            부팅 때 ADV.sido.L·H 에서 계산해 채운다(supplySpan — 판정 모델 sido_zones.calc 의 미래 창 L+1…L+H 와 같은 셈, 손으로
            적지 않는다). 정적 문구는 스크립트가 못 돌 때만 보인다 — 분기를 약속하지 않는다. 끝 칸(#lt-key)은 카드 신호등 범례 한 줄
            (부팅 때 채운다). 시세 모드에서는 숨는다(#sec-score.mm-price .map-src — 시세 지도의 출처가 아니다). -->
-      <p class="map-src"><span id="map-span">앞으로 3년 공급</span><span class="ms-sep"> · </span><span>국토교통부 착공·준공 실적 기준</span><span id="lt-key"></span></p>
+      <p class="map-src"><span id="map-span">앞으로 3년 공급</span><span class="ms-sep"> · </span><span>국토교통부 착공·준공 실적 기준</span></p>
       <!-- 시세 모드 기준 줄(2026-10-05 대표 요청 — 카드 아래에서 단추 왼쪽으로, 주간·월간 양식 통일). 공급 모드는 비어 숨는다. -->
       <p class="tb-when" id="tb-when"></p>
       <div class="tb-seg tb-view" id="tb-view" role="group" aria-label="보기 방식">
@@ -307,6 +307,9 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 <!--HOME_SUMMARY_END-->
     </div>
     <div id="graph-wrap"></div>
+    <!-- 카드 신호등 범례 한 줄(부팅 때 채운다) — 2026-10-30 디자인 리뷰 2차로 공급 기준 줄 끝에서 지도(그래프) 아래로 내렸다('설명은
+         콘텐츠 아래'). 지도 상자(#map-wrap) 밖에 두어 그 예약 높이는 그대로고, 비어 있는 동안 제 줄 자리를 잡는다. 시세 모드에서는 숨는다. -->
+    <p class="map-lk" id="lt-key"></p>
     <div class="tb-key">
       <span class="tk"><i class="tk-d"></i>하락</span>
       <span class="tk-ramp" aria-hidden="true"></span>
@@ -583,7 +586,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="adv-tblwrap compact" id="adv-occ-compact"></div>
       </div>
       <p class="adv-note">준공 실적과 착공 기반 추정 물량을 지역별 분기 적정물량과 견줍니다.</p>
-      <div class="adv-legend"><span><i style="background:#e0564a"></i>적음(70% 미만)</span><span><i style="background:#9aa8a1"></i>보통</span><span><i style="background:#3a7bd5"></i>많음(130% 초과)</span><span><i style="background:#e0564a73"></i>옅은 색 = 착공 기준 추정</span></div>
+      <div class="adv-legend"><span><i style="background:#ff5a4f"></i>적음(70% 미만)</span><span><i style="background:#ffc233"></i>보통</span><span><i style="background:#3ecf7a"></i>많음(130% 초과)</span><span><i style="background:#ff5a4f73"></i>옅은 색 = 착공 기준 추정</span></div>
       <div class="src-note"><span id="occ-when"></span>자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.947) · 분기 합산 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
     </section>
 
