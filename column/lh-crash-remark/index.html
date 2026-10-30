@@ -118,7 +118,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -243,12 +243,14 @@ footer a{color:var(--ink)}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
+@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
-.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--muted)}
-.cnote{font-size:12px;color:var(--muted);margin:6px 0 0}
+.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
+.cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
@@ -257,19 +259,19 @@ footer a{color:var(--ink)}
 .cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
  text-decoration:none;color:var(--ink);font-size:14px}
-.cnav a span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
-.clist i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.6}
+.clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
+.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/column/">반박</a></nav><h1>이성훈 LH 사장 &#x27;집값 급락할 가능성&#x27;, 입주 물량은 급락을 말하지 않습니다</h1><p class="cmeta">2026-10-29 작성 · 2026-10-29 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/column/">반박</a></nav><h1>이성훈 LH 사장 &#x27;집값 급락할 가능성&#x27;, 입주 물량은 급락을 말하지 않습니다</h1><p class="cmeta">2026년 10월 29일 작성 · 2026년 10월 29일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">이성훈 LH 사장이 국정감사에서 집값 급락 가능성을 말한 뒤에도 서울 아파트값은 상승을 이어 갔다. 같은 날 지적된 LH 신속착공은 착공신고필증만으로 실적을 잡아 실제 공사보다 착공 숫자를 앞당겨 부풀린다.</p><div class="cbody"><p>10월 12일 국회 국토교통위원회의 LH 국정감사에서 이성훈 사장은 이렇게 답했습니다. "앞으로 집값이 급락할 가능성이 좀 많다". 이어서 "안정이 되면 지금 바로 집을 사지 않아도 손해를 보지 않는다"고 덧붙였습니다(뉴스핌). 그렇게 보는 이유로 든 것은 공급 증가와 금리 상승 두 가지였습니다.</p>
 <h2>그 뒤 서울 아파트값은</h2>
 <p>서울 아파트 매매가는 90주 연속 상승(10월 26일 조사)이고, 전세가는 90주 연속 상승(10월 26일 조사)입니다. 발언 앞뒤 8주를 표로 보면 다음과 같습니다.</p>
@@ -287,7 +289,7 @@ footer a{color:var(--ink)}
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 자료: 한국부동산원 주간 아파트가격동향 · 국토교통부 준공 실적, 아공맵 입주 추정(2026년 하반기부터 착공을 3년 뒤로 밀어 셈) · 국회 국토교통위원회 LH 국정감사(2026-10-12) 발언, 뉴스핌·SBS Biz(2026-10-12~13)·폴리뉴스(2026-10-22) 보도 인용
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 

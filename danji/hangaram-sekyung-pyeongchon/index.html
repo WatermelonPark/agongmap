@@ -126,7 +126,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -251,12 +251,14 @@ footer a{color:var(--ink)}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
+@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
-.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--muted)}
-.cnote{font-size:12px;color:var(--muted);margin:6px 0 0}
+.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
+.cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
@@ -265,21 +267,21 @@ footer a{color:var(--ink)}
 .cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
  text-decoration:none;color:var(--ink);font-size:14px}
-.cnav a span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
-.clist i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.6}
+.clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
+.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/danji/">단지 분석</a></nav><h1>평촌 한가람세경 리모델링, 건축심의 소위원회 단계·1,439세대 계획·실거래(2026)</h1><p class="cmeta">2026-10-30 작성 · 2026-10-30 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/danji/">단지 분석</a></nav><h1>평촌 한가람세경 리모델링, 건축심의 소위원회 단계·1,439세대 계획·실거래(2026)</h1><p class="cmeta">2026년 10월 30일 작성 · 2026년 10월 30일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">한가람세경 1,292세대는 1,439세대 리모델링을 추진하며 2026-02-27 안양시 도시계획위원회 조건부수용, 2026-09-22 건축위원회 소위원회 수권위임을 받았다. 19평형 실거래 중위값은 1년 반 만에 60% 올랐다.</p><div class="cbody"><p><img src="/content/danji/img/hangaram-sekyung-pyeongchon-thumb.png" alt="한가람세경 요약" loading="lazy"></p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>2,883세대</b><span>2027년 입주</span></div><div class="ccard"><b>64%</b><span>적정 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="안양 연도별 입주 물량 막대그래프. 2026년 458세대, 2027년 2,883세대, 2028년 1,146세대, 2029년 1,046세대. 한 해 적정 입주량은 4,497세대." class="cchart-svg"><rect x="161.0" y="166.9" width="72.0" height="17.1" class="cb"/><text x="197.0" y="162.9" class="cb-v">458</text><text x="197.0" y="202" class="cb-x">2026</text><rect x="243.0" y="76.3" width="72.0" height="107.7" class="cb"/><text x="279.0" y="72.3" class="cb-v">2,883</text><text x="279.0" y="202" class="cb-x">2027</text><rect x="325.0" y="141.2" width="72.0" height="42.8" class="cb"/><text x="361.0" y="137.2" class="cb-v">1,146</text><text x="361.0" y="202" class="cb-x">2028</text><rect x="407.0" y="144.9" width="72.0" height="39.1" class="cb"/><text x="443.0" y="140.9" class="cb-v">1,046</text><text x="443.0" y="202" class="cb-x">2029</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 4,497세대</text></svg><figcaption>안양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>2,883세대</b><span>2027년 입주</span></div><div class="ccard"><b>64%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="안양 연도별 입주 물량 막대그래프. 2026년 458세대, 2027년 2,883세대, 2028년 1,146세대, 2029년 1,046세대. 한 해 적정물량은 4,497세대." class="cchart-svg"><rect x="161.0" y="166.9" width="72.0" height="17.1" class="cb"/><text x="197.0" y="162.9" class="cb-v">458</text><text x="197.0" y="202" class="cb-x">2026</text><rect x="243.0" y="76.3" width="72.0" height="107.7" class="cb"/><text x="279.0" y="72.3" class="cb-v">2,883</text><text x="279.0" y="202" class="cb-x">2027</text><rect x="325.0" y="141.2" width="72.0" height="42.8" class="cb"/><text x="361.0" y="137.2" class="cb-v">1,146</text><text x="361.0" y="202" class="cb-x">2028</text><rect x="407.0" y="144.9" width="72.0" height="39.1" class="cb"/><text x="443.0" y="140.9" class="cb-v">1,046</text><text x="443.0" y="202" class="cb-x">2029</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 4,497세대</text></svg><figcaption>안양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <h2>핵심 숫자</h2>
 <div class="ctab"><table><thead><tr><th scope="col">항목</th><th scope="col">값</th><th scope="col">기준</th></tr></thead><tbody><tr><th scope="row">세대수</th><td>1,292세대(11개 동, 최고 23층)</td><td>1996년 11월 입주, 관양동 1589</td></tr><tr><th scope="row">평형</th><td>19평형 660, 20평형 632세대</td><td>전용 49.68·51.75㎡, 복도식</td></tr><tr><th scope="row">용적률·건폐율</th><td>197%·16%</td><td>건축물대장 용적률 196.74%</td></tr><tr><th scope="row">대지면적</th><td>40,655㎡</td><td>세대당 평균 31.5㎡(9.5평)</td></tr><tr><th scope="row">세대당 주차대수</th><td>0.59대</td><td></td></tr><tr><th scope="row">가까운 역</th><td>4호선 범계역 도보 14~18분</td><td>평촌역 19~20분</td></tr><tr><th scope="row">배정초</th><td>부안초</td><td>정문 도보 4분, 초품아</td></tr></tbody></table></div>
 <h2>리모델링 사업 단계</h2>
@@ -304,7 +306,7 @@ footer a{color:var(--ink)}
 <div class="ctab"><table><thead><tr><th scope="col">항목</th><th scope="col">이름</th><th scope="col">거리</th></tr></thead><tbody><tr><th scope="row">배정초</th><td>부안초</td><td>정문 도보 4분, 초품아</td></tr><tr><th scope="row">가까운 학원가</th><td>관양동 학원가(16개)</td><td>도보 22~26분</td></tr><tr><th scope="row">평촌 최대 학원가</th><td>범계~평촌 학원가(평촌동 317개, 경기 1위)</td><td>도보 25~30분</td></tr><tr><th scope="row">백화점·쇼핑몰</th><td>롯데백화점 평촌점, 뉴코아아울렛 평촌점</td><td>도보 15~21분</td></tr><tr><th scope="row">대형마트</th><td>홈플러스 평촌점</td><td>도보 9~13분</td></tr><tr><th scope="row">대형 병원</th><td>한림대학교성심병원</td><td>도보 19~20분</td></tr><tr><th scope="row">공원·관공서</th><td>평촌공원(단지 바로 남쪽), 안양시청</td><td>도보 4~6분, 5~6분</td></tr></tbody></table></div>
 <p>평촌공원과 시청이 단지 바로 앞이고 범계 상권은 걸어서 15분 안팎이다. 경기 1위 학원가인 범계~평촌 학원가까지는 걸어서 25분이 넘어 학원가 단지라고 하기는 어렵다. 입주민 후기에서는 공원 앞 남향 조망과 부안초가 장점으로, 단지 안 상권이 약한 점과 분담금이 걱정거리로 꼽힌다.</p>
 <h2>안양 입주 물량</h2>
-<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>458</td><td>10%</td></tr><tr><th scope="row">2027</th><td>2,883</td><td>64%</td></tr><tr><th scope="row">2028</th><td>1,146</td><td>25%</td></tr><tr><th scope="row">2029</th><td>1,046</td><td>23%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정 입주량 4,497세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>458</td><td>10%</td></tr><tr><th scope="row">2027</th><td>2,883</td><td>64%</td></tr><tr><th scope="row">2028</th><td>1,146</td><td>25%</td></tr><tr><th scope="row">2029</th><td>1,046</td><td>23%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 4,497세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
 <p>안양의 2027년 입주 물량은 2,883세대로 한 해 적정 입주량 4,497세대의 64%다. 적정 입주량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 동안구 매매가는 86주 연속 상승(10월 26일 조사)이고, 주간 시세 흐름은 아래와 같다.</p>
 <figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="안양 동안구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.38%, 전세 최신 +0.01%." class="cchart-svg"><line x1="8" y1="126.0" x2="632" y2="126.0" class="cl-zero"/><path d="M8.0 98.9 L33.0 14.0 L57.9 48.3 L82.9 80.1 L107.8 69.1 L132.8 60.7 L157.8 52.5 L182.7 47.4 L207.7 62.1 L232.6 64.1 L257.6 72.3 L282.6 82.0 L307.5 86.4 L332.5 94.7 L357.4 85.9 L382.4 98.1 L407.4 80.9 L432.3 85.7 L457.3 56.5 L482.2 53.9 L507.2 64.5 L532.2 70.3 L557.1 59.0 L582.1 39.4 L607.0 35.6 L632.0 64.3" class="cl cl-ma"/><circle cx="632.0" cy="64.3" r="2.5" class="cl-dot"/><path d="M8.0 106.4 L33.0 61.7 L57.9 64.3 L82.9 76.3 L107.8 90.9 L132.8 90.8 L157.8 88.0 L182.7 91.0 L207.7 107.3 L232.6 90.1 L257.6 114.0 L282.6 122.0 L307.5 123.1 L332.5 118.8 L357.4 123.3 L382.4 113.0 L407.4 124.9 L432.3 120.7 L457.3 122.4 L482.2 120.4 L507.2 122.5 L532.2 112.3 L557.1 109.7 L582.1 96.3 L607.0 109.3 L632.0 124.0" class="cl cl-je"/><circle cx="632.0" cy="124.0" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>안양 동안구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">안양 동안구</th><td>+0.38%</td><td>+0.01%</td></tr><tr><th scope="row">안양 만안구</th><td>+0.01%</td><td>-0.05%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
@@ -313,7 +315,7 @@ footer a{color:var(--ink)}
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 자료: 국토교통부 아파트 매매·전월세 실거래가(2025년 1월~2026년 10월, 2026-10-30 조회) · 국토교통부 건축물대장(총괄표제부 대지면적·용적률) · 네이버 부동산 매물 호가(2026-10-30 조회, 세 낀 매물·실거주 매물 구분) · 안양시 2026년 제1회 도시계획위원회 개최결과(2026-02-27) · 안양시 2026년 제8차 건축위원회 심의 결과(2026-09-22) · 리모델링 시공자 선정·계획 세대수(위클리한국주택경제신문 2023-12 보도) · 한국부동산원 입주예정물량, 청약홈 분양 공고 · 한국부동산원 주간 아파트가격동향
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 

@@ -118,7 +118,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -243,12 +243,14 @@ footer a{color:var(--ink)}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
+@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
-.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--muted)}
-.cnote{font-size:12px;color:var(--muted);margin:6px 0 0}
+.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
+.cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
@@ -257,21 +259,21 @@ footer a{color:var(--ink)}
 .cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
  text-decoration:none;color:var(--ink);font-size:14px}
-.cnav a span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
-.clist i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.6}
+.clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
+.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/gtx/">GTX 역세권</a></nav><h1>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</h1><p class="cmeta">2026-10-26 작성 · 2026-10-27 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/gtx/">GTX 역세권</a></nav><h1>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</h1><p class="cmeta">2026년 10월 26일 작성 · 2026년 10월 27일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.</p><div class="cbody"><p>킨텍스역 도보 15분 이내에 있는 아파트는 6곳이 전부입니다. 역 둘레의 땅 대부분이 전시장과 업무시설 용지라서 주거 단지가 적어요.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정 입주량은 8,452세대." class="cchart-svg"><rect x="120.0" y="160.5" width="72.0" height="23.5" class="cb"/><text x="156.0" y="156.5" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="123.2" width="72.0" height="60.8" class="cb"/><text x="238.0" y="119.2" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="39.3" width="72.0" height="144.7" class="cb"/><text x="320.0" y="35.3" class="cb-v">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="174.2" width="72.0" height="9.8" class="cb"/><text x="402.0" y="170.2" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="138.2" width="72.0" height="45.8" class="cb"/><text x="484.0" y="134.2" class="cb-v">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,452세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정물량은 8,452세대." class="cchart-svg"><rect x="120.0" y="160.5" width="72.0" height="23.5" class="cb"/><text x="156.0" y="156.5" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="123.2" width="72.0" height="60.8" class="cb"/><text x="238.0" y="119.2" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="39.3" width="72.0" height="144.7" class="cb"/><text x="320.0" y="35.3" class="cb-v">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="174.2" width="72.0" height="9.8" class="cb"/><text x="402.0" y="170.2" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="138.2" width="72.0" height="45.8" class="cb"/><text x="484.0" y="134.2" class="cb-v">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,452세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <p>6곳 가운데 24평형이 있는 단지는 문촌마을19단지신우 하나입니다. 1994년에 입주했고, 2026년 5~10월 실거래 네 건의 중위값이 5억 5,000만 원이에요.</p>
 <p><b>역 바로 앞 신축 국평은 11억 원대부터 시작합니다. 5억대 예산으로 킨텍스역 도보권을 고른다면 선택지는 문촌마을19단지 한 곳으로 좁혀집니다.</b></p>
 <h2>고른 기준</h2>
@@ -309,14 +311,14 @@ footer a{color:var(--ink)}
 <figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="고양 일산동구 최근 26주 주간 변동률 꺾은선. 매매 최신 -0.06%, 전세 최신 +0.13%." class="cchart-svg"><line x1="8" y1="75.5" x2="632" y2="75.5" class="cl-zero"/><path d="M8.0 94.4 L33.0 126.0 L57.9 101.2 L82.9 80.7 L107.8 91.3 L132.8 79.1 L157.8 99.4 L182.7 78.6 L207.7 77.0 L232.6 77.9 L257.6 99.5 L282.6 79.2 L307.5 86.3 L332.5 112.5 L357.4 88.8 L382.4 111.8 L407.4 116.7 L432.3 111.6 L457.3 94.6 L482.2 77.8 L507.2 84.8 L532.2 89.4 L557.1 79.4 L582.1 79.7 L607.0 97.8 L632.0 90.9" class="cl cl-ma"/><circle cx="632.0" cy="90.9" r="2.5" class="cl-dot"/><path d="M8.0 67.1 L33.0 57.7 L57.9 51.9 L82.9 54.6 L107.8 52.9 L132.8 48.2 L157.8 43.8 L182.7 54.7 L207.7 41.8 L232.6 36.9 L257.6 41.9 L282.6 46.6 L307.5 65.7 L332.5 63.7 L357.4 48.6 L382.4 46.2 L407.4 14.0 L432.3 37.9 L457.3 28.8 L482.2 33.0 L507.2 66.7 L532.2 60.1 L557.1 64.6 L582.1 25.3 L607.0 43.9 L632.0 42.8" class="cl cl-je"/><circle cx="632.0" cy="42.8" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>고양 일산동구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">고양 덕양구</th><td>+0.10%</td><td>+0.11%</td></tr><tr><th scope="row">고양 일산동구</th><td>-0.06%</td><td>+0.13%</td></tr><tr><th scope="row">고양 일산서구</th><td>+0.02%</td><td>+0.01%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
 <p>공급 일정은 이렇습니다. 고양의 2027년 입주 물량은 3,061세대로 한 해 적정 입주량(8,452세대)의 36%에 그치고, 2028년에는 7,281세대(적정의 86%)가 잡혀 있어 상반기에 입주가 몰립니다.</p>
-<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,184</td><td>14%</td></tr><tr><th scope="row">2027</th><td>3,061</td><td>36%</td></tr><tr><th scope="row">2028</th><td>7,281</td><td>86%</td></tr><tr><th scope="row">2029</th><td>494</td><td>6%</td></tr><tr><th scope="row">2030</th><td>2,306</td><td>27%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정 입주량 8,452세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,184</td><td>14%</td></tr><tr><th scope="row">2027</th><td>3,061</td><td>36%</td></tr><tr><th scope="row">2028</th><td>7,281</td><td>86%</td></tr><tr><th scope="row">2029</th><td>494</td><td>6%</td></tr><tr><th scope="row">2030</th><td>2,306</td><td>27%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 8,452세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
 <p><b>제 판단으로는 2027년까지는 입주 물량이 적어 전셋값이 버티고, 2028년 상반기 입주장이 서면 전셋값부터 조정받습니다.</b> GTX는 출퇴근 시간을 줄였지만 일산 시세의 방향은 결국 그해 입주 물량이 정합니다.</p>
 <p>시군구별 주간·월간 시세는 <a href="/zone/%EA%B2%BD%EA%B8%B0/#weekly-sgg">경기 리포트 표</a>에서 볼 수 있습니다.</p>
 <p>적정 입주량은 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡았습니다. 매매는 대표 평형의 2026년 5~10월 실거래에서 해제·직거래와 같은 평형 거래 달 앞뒤 3개월 중위값의 80% 미만 거래를 뺀 값이고, 전세는 8~10월 월세 없는 전세 실거래의 중위값입니다.</p></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2026년 5~10월)</li><li>네이버 부동산 매물 호가(2026-10-27 조회, 세 낀 매물·실거주 매물 구분, 중복 등록은 하나로 셈, 보증금이 호가의 25% 미만인 세 낀 매물은 오기로 보고 갭에서 뺌)</li><li>네이버 지도 도보·대중교통 길찾기(평일 오전 8시 출발)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>행정안전부 주민등록 인구통계(2026년 9월)</li><li>한국부동산원 주간 아파트가격동향(2026-10-19 조사)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>킨텍스역 도보권에서 가장 싼 24평형은 얼마인가요</dt><dd>문촌마을19단지신우 24평형이 2026년 5~10월 실거래 4건(해제 1건 제외) 중위값 5억 5,000만 원입니다. 도보권 24평형 단지는 이곳뿐입니다.</dd><dt>킨텍스역에서 광화문·삼성까지 얼마나 걸리나요</dt><dd>평일 오전 8시 기준 광화문 35분, 여의도 43분, 삼성 61분, 판교 68분입니다.</dd><dt>킨텍스역 앞 신축 국평 시세는 얼마인가요</dt><dd>2019년 입주한 한화포레나킨텍스가 11억 7,000만 원, 킨텍스원시티 1·2·3블럭이 12억 7,800만~12억 9,000만 원입니다(2026년 5~10월 실거래 중위값).</dd></dl></section><div class="cnav"><a href="/gtx/gtx-a-guseong/"><span>이전 글</span>GTX-A 구성역 아파트 15곳, 30대 10억 아래 첫 집은 2곳뿐입니다</a><a href="/gtx/gtx-a-seongnam/"><span>다음 글</span>GTX-A 성남역 아파트 20곳, 30대 현금 10억으로 살 곳은 0곳입니다</a><a href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 자료: 국토교통부 아파트 매매·전월세 실거래가(2026년 5~10월) · 네이버 부동산 매물 호가(2026-10-27 조회, 세 낀 매물·실거주 매물 구분, 중복 등록은 하나로 셈, 보증금이 호가의 25% 미만인 세 낀 매물은 오기로 보고 갭에서 뺌) · 네이버 지도 도보·대중교통 길찾기(평일 오전 8시 출발) · 한국부동산원 입주예정물량, 청약홈 분양 공고 · 행정안전부 주민등록 인구통계(2026년 9월) · 한국부동산원 주간 아파트가격동향(2026-10-19 조사)
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 

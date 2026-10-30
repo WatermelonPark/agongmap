@@ -81,7 +81,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -206,12 +206,14 @@ footer a{color:var(--ink)}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
+@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
-.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--muted)}
-.cnote{font-size:12px;color:var(--muted);margin:6px 0 0}
+.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
+.cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
@@ -220,24 +222,24 @@ footer a{color:var(--ink)}
 .cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
  text-decoration:none;color:var(--ink);font-size:14px}
-.cnav a span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
-.clist i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.6}
+.clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
+.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/reports/">콘텐츠</a> › <b>GTX 역세권</b></nav><h1>GTX 역세권</h1><p class="cmeta">GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.</p></div></header>
-<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="카테고리"><a class="rchip" href="/reports/">콘텐츠</a><a class="rchip" href="/column/">반박</a><a class="rchip" href="/city/">도시 입주물량</a><a class="rchip on" href="/gtx/">GTX 역세권</a><a class="rchip" href="/danji/">단지 분석</a></nav><div class="plist"><a class="pcard" href="/gtx/gtx-a-unjeong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-unjeong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 운정중앙역 아파트 9곳, 30대 5억대 첫 집은 2곳뿐입니다</b><span>운정중앙역 도보 15분 이내 매매 가능 단지는 9곳이고, 2026년 5~10월 실거래 중위값이 5억대인 곳은 중흥S클래스 24평형(5억 4,000만 원)과 운정자이시그니처 국평(5억 5,200만 원) 두 곳이다.</span><i>GTX 역세권 · 2026-10-27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-seongnam/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-seongnam.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 성남역 아파트 20곳, 30대 현금 10억으로 살 곳은 0곳입니다</b><span>성남역 도보 15분 이내 아파트 20곳 가운데 가장 싼 24평형도 호가 16억 3,000만 원이라, 토지거래허가구역 대출 한도 4억을 빼면 현금 12억 3,000만 원이 든다.</span><i>GTX 역세권 · 2026-10-27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-kintex/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-kintex.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</b><span>킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.</span><i>GTX 역세권 · 2026-10-27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-guseong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-guseong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 구성역 아파트 15곳, 30대 10억 아래 첫 집은 2곳뿐입니다</b><span>구성역 도보 15분 이내 아파트는 15곳이고, 500세대 넘고 10억 아래인 곳은 블루밍구성더센트럴 24평형과 상떼빌 국평 두 곳이다.</span><i>GTX 역세권 · 2026-10-27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-dongtan/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-dongtan.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 동탄역 아파트 14곳, 30대 24평형은 현금 8억부터입니다</b><span>동탄역 도보 15분 이내 아파트 14곳 가운데 24평형은 세 곳이고, 가장 싼 반도유보라아이비파크5.0도 2026년 5~10월 실거래 중위값이 10억 6,000만 원이다. 토지거래허가구역이라 바로 들어가 살 수 있는 매물로 사면 현금이 8억 원 가까이 든다.</span><i>GTX 역세권 · 2026-10-27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-daegok/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-daegok.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 대곡역 아파트 2곳, 30대 4억대 첫 집은 1곳뿐입니다</b><span>대곡역 도보 15분 이내 아파트는 대림2차와 대곡역두산위브 두 곳이고, 24평형 실거래 중위값은 4억 2,000만 원과 6억 9,000만 원이다.</span><i>GTX 역세권 · 2026-10-27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-changneung/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-changneung.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 창릉역 아파트 1곳, 2030년 개통 전 국평은 10억 안팎입니다</b><span>2030년 개통 예정인 GTX-A 창릉역 도보 15분 이내 기존 아파트는 원흥동일스위트 1곳이고, 국평 실거래는 2026년 5~10월 28건 8억 5,000만~10억 8,000만 원, 중위값 9억 9,500만 원이다.</span><i>GTX 역세권 · 2026-10-27 갱신</i></div></a></div></div></section>
+<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="카테고리"><a class="rchip" href="/reports/">콘텐츠</a><a class="rchip" href="/column/">반박</a><a class="rchip" href="/city/">도시 입주물량</a><a class="rchip on" href="/gtx/">GTX 역세권</a><a class="rchip" href="/danji/">단지 분석</a></nav><div class="plist"><a class="pcard" href="/gtx/gtx-a-unjeong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-unjeong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 운정중앙역 아파트 9곳, 30대 5억대 첫 집은 2곳뿐입니다</b><span>운정중앙역 도보 15분 이내 매매 가능 단지는 9곳이고, 2026년 5~10월 실거래 중위값이 5억대인 곳은 중흥S클래스 24평형(5억 4,000만 원)과 운정자이시그니처 국평(5억 5,200만 원) 두 곳이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-seongnam/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-seongnam.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 성남역 아파트 20곳, 30대 현금 10억으로 살 곳은 0곳입니다</b><span>성남역 도보 15분 이내 아파트 20곳 가운데 가장 싼 24평형도 호가 16억 3,000만 원이라, 토지거래허가구역 대출 한도 4억을 빼면 현금 12억 3,000만 원이 든다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-kintex/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-kintex.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</b><span>킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-guseong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-guseong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 구성역 아파트 15곳, 30대 10억 아래 첫 집은 2곳뿐입니다</b><span>구성역 도보 15분 이내 아파트는 15곳이고, 500세대 넘고 10억 아래인 곳은 블루밍구성더센트럴 24평형과 상떼빌 국평 두 곳이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-dongtan/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-dongtan.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 동탄역 아파트 14곳, 30대 24평형은 현금 8억부터입니다</b><span>동탄역 도보 15분 이내 아파트 14곳 가운데 24평형은 세 곳이고, 가장 싼 반도유보라아이비파크5.0도 2026년 5~10월 실거래 중위값이 10억 6,000만 원이다. 토지거래허가구역이라 바로 들어가 살 수 있는 매물로 사면 현금이 8억 원 가까이 든다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-daegok/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-daegok.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 대곡역 아파트 2곳, 30대 4억대 첫 집은 1곳뿐입니다</b><span>대곡역 도보 15분 이내 아파트는 대림2차와 대곡역두산위브 두 곳이고, 24평형 실거래 중위값은 4억 2,000만 원과 6억 9,000만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-changneung/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-changneung.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 창릉역 아파트 1곳, 2030년 개통 전 국평은 10억 안팎입니다</b><span>2030년 개통 예정인 GTX-A 창릉역 도보 15분 이내 기존 아파트는 원흥동일스위트 1곳이고, 국평 실거래는 2026년 5~10월 28건 8억 5,000만~10억 8,000만 원, 중위값 9억 9,500만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a></div></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 자료: 아공맵
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
