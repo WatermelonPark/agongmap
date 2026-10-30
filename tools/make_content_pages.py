@@ -324,6 +324,10 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
 .hc-m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hc-l{display:none}   /* 모바일에서는 최신 글 둘을 숨긴다 — 2열 카드 여섯 장이 한 화면에 들어오게(총괄 10-30) */
 .hc-go{margin-top:auto;font-size:13px;font-weight:600;color:var(--ink)}
+/* '기본 개념' 줄 — 카테고리 카드와 같은 부품이되 주기 표지(em)·글 수(hc-m)가 없다. 상시 글이라 셀 것이
+   없고, 모바일에서도 접지 않는다(총괄 10-30: 탭을 뺐으니 허브 안에서 눈에 띄어야 한다). */
+.hgrid-basic{margin-top:-10px}
+.hgrid-basic .hcard p{-webkit-line-clamp:2}
 /* 글 목록 — 모바일은 왼쪽 썸네일 리스트, PC 는 앨범형(요청 ②③). 마크업은 하나다. */
 .plist{display:grid;gap:10px}
 .pcard{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:start;padding:10px;
@@ -611,18 +615,61 @@ def hub_cards(all_metas, data):
     return '<div class="hgrid">%s</div>' % ''.join(out)
 
 
+# ── '기본 개념' 줄(대표 승인 2026-10-30) ──────────────────────────────────────────────────────────────
+# 상단 탭에서 '사이클'을 빼면서(site_nav.TABS) 그 입구를 여기로 옮겼다. 발행 주기가 없는 상시 글이라
+# 카테고리 카드(발행 주기 순) **아래**에 둔다. 사이클이 첫째다 — 탭이 주된 통로였으니 허브에서 눈에
+# 띄어야 한다(GA 10/2~10/29: /cycle/ 세션 26 중 19가 사이트 안 이동).
+#
+# ⚠️ 이름과 곁말을 여기에 손으로 적지 않는다. 각 페이지의 <title> 에서 읽는다('이름 — 곁말 | 아공맵').
+#    손 페이지의 제목을 고치면 이 줄도 따라 바뀐다. 파일이 없으면 그 카드만 빠진다.
+BASIC_H2 = '기본 개념'
+BASIC_PAGES = ('cycle', 'faq', 'burini-test', 'investor-test', 'redev-test')
+_TITLE_RE = re.compile(r'<title>([^<]*)</title>')
+
+
+def _page_title(slug, root=ROOT):
+    """손 페이지 <title> → (이름, 곁말). 못 읽으면 (None, None) — 그 카드는 싣지 않는다."""
+    p = os.path.join(root, slug, 'index.html')
+    try:
+        m = _TITLE_RE.search(io.open(p, encoding='utf-8').read())
+    except (IOError, OSError):
+        return None, None
+    if not m:
+        return None, None
+    head = m.group(1).split('|')[0].strip()          # '… | 아공맵' 의 앞부분
+    name, _, sub = head.partition('—')               # 엠대시 앞이 이름, 뒤가 곁말
+    return (name.strip() or None), sub.strip()
+
+
+def basic_cards(root=ROOT):
+    """'기본 개념' 카드 묶음. 카테고리 카드와 같은 부품(.hcard)을 써서 한 벌로 보이게 한다."""
+    out = []
+    for slug in BASIC_PAGES:
+        name, sub = _page_title(slug, root)
+        if not name:
+            continue
+        out.append('<a class="hcard" href="/%s/"><h3>%s</h3><p>%s</p>'
+                   '<span class="hc-go">열기 →</span></a>'
+                   % (slug, html.escape(name), html.escape(sub or '')))
+    if not out:
+        return ''
+    return ('<h2 class="rh2">%s</h2><div class="hgrid hgrid-basic">%s</div>'
+            % (html.escape(BASIC_H2), ''.join(out)))
+
+
 def build_reports(all_metas, data=None):
-    """콘텐츠 허브 — 카테고리 카드 6장이 먼저고, 그 아래 네 섹션 통합 '최근 글' %d편이다.""" % RECENT_N
+    """콘텐츠 허브 — 카테고리 카드 6장, 그 아래 '기본 개념' 줄, 그 아래 네 섹션 통합 '최근 글' %d편.""" % RECENT_N
     data = data if data is not None else CT.load()
     newest = sorted(all_metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)[:RECENT_N]
     items = ''.join(post_item(m) for m in newest) or '<p>아직 글이 없습니다.</p>'
+    basic = basic_cards()
     body = ('<header><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
-            '<section><div class="wrap">%s</div></section>'
+            '<section><div class="wrap">%s%s</div></section>'
             '<section><div class="wrap"><h2 class="rh2">최근 글</h2><div class="plist">%s</div></div></section>'
             % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
-               hub_cards(all_metas, data), items))
+               hub_cards(all_metas, data), basic, items))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in all_metas], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),

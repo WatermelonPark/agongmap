@@ -204,7 +204,8 @@ def test_home_lastmod_ignores_a_share_card_restamp(site, monkeypatch):
     def _write(p, s):
         io.open(str(p), 'w', encoding='utf-8', newline='').write(s)
 
-    src = _read(core)
+    # 읽을 때도 줄바꿈을 보존한다 — 기본 읽기는 \r\n 을 \n 으로 바꿔 놓아, 되쓰면 파일이 달라진다.
+    src = io.open(str(core), encoding='utf-8', newline='').read()
     assert re.search(r'share/weekly-map\.png\?v=', src), '픽스처: data-core.js 에 주간 카드 주소가 없다'
     assert P._home_lastmod('2026-09-30') == '2026-09-30'
     _write(core, re.sub(r'(share/weekly-map\.png\?v=)[0-9A-Za-z-]+', r'\g<1>2099-01-01', src))
