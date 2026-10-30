@@ -47,7 +47,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   :root{--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--body);
-    font-family:'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',system-ui,sans-serif;line-height:1.75;font-size:var(--fs-read)}
+    font-family:'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',system-ui,sans-serif;line-height:1.75;font-size:var(--fs-read);word-break:keep-all;overflow-wrap:break-word}
   .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
   header{padding:44px 0 26px;border-bottom:1px solid var(--line)}
   .chip{display:inline-block;font-size:12.5px;font-weight:600;color:var(--muted);
@@ -60,7 +60,10 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   ul{margin:.4em 0;padding-left:1.2em}
   li{margin:.35em 0}
   table{width:100%;border-collapse:collapse;font-size:.92rem;margin:.6em 0}
-  .scroll{overflow-x:auto}
+  .scroll{overflow-x:auto;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+  /* ↑ 넘침 표시(2026-10-30 디자인 리뷰). 첫 열은 한 글자씩 세로로 쌓이지 않게 최소 폭을 둔다. */
+  .scroll td:first-child{min-width:6.5em}
+  @media (max-width:600px){.scroll td:first-child{position:sticky;left:0;background:var(--paper);z-index:1}}
   th,td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
   td{text-align:left}
   th{font-size:.78rem;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--panel);text-align:center}

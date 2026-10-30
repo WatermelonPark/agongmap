@@ -1336,7 +1336,11 @@ table.adv thead th:first-child{text-align:center}
     margin:3px 0 5px;font-variant-numeric:tabular-nums}
   .zcell i{display:block;font-style:normal;font-size:11px;color:var(--muted);line-height:1.55}
 
-  .ztb-scroll{overflow:auto;max-height:min(66vh,560px);border:1px solid var(--line)}
+  .ztb-scroll{overflow:auto;max-height:min(66vh,560px);border:1px solid var(--line);
+    background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+  /* 휴대폰에서는 상자 안 세로 스크롤을 풀어 페이지 스크롤만 남긴다 — 가로·세로 이중 스크롤에 갇혔다(2026-10-30 디자인 리뷰).
+     가로로 밀 것이 남으면 가장자리 그림자가 알린다. */
+  @media (max-width:600px){.ztb-scroll{max-height:none}}
   .ztb{border-collapse:separate;border-spacing:0;width:100%;font-variant-numeric:tabular-nums}
   .ztb th,.ztb td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);
     padding:5px 9px;text-align:right;white-space:nowrap;font-size:12.5px}
