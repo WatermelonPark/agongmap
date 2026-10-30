@@ -55,11 +55,32 @@ def test_only_city_posts_newest_first():
     assert len(BF.city_posts(many)) == BF.CITY_MAX
 
 
-def test_section_is_baked_only_when_there_are_posts():
-    html = I.city_html(BF.city_posts(_posts()))
-    assert html.count('<a href=') == 2 and I.CITY_H2 in html and "to:'city_post'" in html
-    assert '네이버 블로그 26.10.7' in html and '2027년 청주 아파트 입주물량<span>' in html
-    assert I.city_html([]) == ''                                                      # ② 빈 약속 금지
+def test_the_section_points_at_our_own_city_posts_not_the_blog():
+    """/moveins/ 도시 칸은 **사이트의 /city/ 글**을 가리킨다 — 네이버 글이 아니다(총괄 결정 2026-10-30).
+
+    왜: 네이버 발행이 끝나(10-26·10-29 대표 결정) 그 칸은 묵은 글만 가리켰다. 같은 주제의 글이 사이트에
+    생겨(/city/ 도시 입주물량 편) 그쪽으로 돌렸다. 자리는 지표 생성기가 내고 내용은 콘텐츠 생성기가 채운다.
+
+    무엇을 바꾸면 빨개지나: city_html 이 다시 블로그 링크를 구우면, 콘텐츠 생성기가 /city/ 아닌 섹션을
+      싣거나 최신 글이 아닌 것을 고르면, 글이 없는데도 칸을 채우면.
+    픽스처: 손으로 지은 글 메타 셋(도시 편 둘·다른 섹션 하나)과 지표 생성기가 낸 빈 자리.
+    """
+    import make_content_pages as MC
+    slot = I.city_html()
+    assert MC.MOVEINS_START in slot and MC.MOVEINS_END in slot, '지표 생성기가 낸 자리에 표식이 없다'
+    assert 'blog.naver' not in slot and '<a href=' not in slot, '자리에 내용이 들어 있다 — 안쪽은 콘텐츠 생성기 몫이다'
+
+    def meta(slug, updated, sec='city'):
+        return {'section': sec, 'slug': slug, 'updated': updated, 'date': updated,
+                'title': '%s 입주물량' % slug}
+
+    body = MC.moveins_cities_html([meta('old-city', '2026-10-01'), meta('new-city', '2026-10-29'),
+                                   meta('danji-one', '2026-10-30', sec='danji')])
+    assert 'blog.naver' not in body, '칸에 네이버 링크가 되살아났다'
+    assert body.index('/city/new-city/') < body.index('/city/old-city/'), '최신 글이 위가 아니다'
+    assert '/danji/' not in body, '도시 칸에 다른 섹션 글이 실렸다'
+    assert MC.MOVEINS_H2 in body
+    assert MC.moveins_cities_html([meta('danji-one', '2026-10-30', sec='danji')]) == ''   # 빈 약속 금지
 
 
 def test_batch_writes_the_city_list_and_pages_read_it_back(tmp_path):

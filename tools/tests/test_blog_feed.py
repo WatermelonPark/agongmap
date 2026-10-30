@@ -193,17 +193,18 @@ def test_pick_labels_by_the_week_in_the_title_not_the_post_date():
 
 
 # ── 홈 쪽(ADV.blog) ──────────────────────────────────────────────────────────────────────────────────
-def test_split_carries_the_picked_post_as_a_top_level_key(tmp_path, monkeypatch):
-    """split_data 가 /weekly/ 와 같은 pick 결과를 data-core 최상위 ADV.blog 로 싣는다. 최상위 키라 통계 탭을 열어도
-    (loadFullData 의 Object.assign 은 trend 에 있는 키만 바꾼다) 남는다. 고를 글이 없으면 키를 싣지 않는다.
+def test_split_no_longer_carries_a_blog_key(tmp_path, monkeypatch):
+    """split_data 는 data-core 에 ADV.blog 를 싣지 않는다 — 홈 주간 구역의 해설 카드를 걷었다(총괄 결정 2026-10-30).
 
-    변이: split_data 에서 `core_adv['blog'] = blog` 줄을 지우거나, 발표일 대신 조사일(p, 발표 3일 전)을 pick 에 넘기면
-          발표 8일 전 글이 살아나 빨개진다(둘 다 확인).
-    픽스처: 저장소 data.js 사본 + 그 최신 주 발표일 다음 날 글 / 발표 8일 전 글(블로그가 한 주 건너뛴 상태).
+    왜: 2026-09-27부터 그 키로 네이버 최신 주간 글을 홈에 띄웠다. 네이버 발행이 끝나(10-26·10-29 대표 결정)
+    묵은 글만 가리켰고, 홈의 '최근 리포트' 묶음이 사이트 글로 같은 일을 한다.
+
+    무엇을 바꾸면 빨개지나: split_data 에 `core_adv['blog']` 를 되살리거나, CORE_ONLY_ADV 에 'blog' 를
+      다시 넣으면(그러면 저장 파일이 있는 회차에 키가 실린다).
+    픽스처: 저장소 data.js 사본과, 고를 수 있는 글이 **있는** 저장 파일(그래도 실리지 않아야 한다).
     """
     d = tmp_path
-    src = d / 'data.js'
-    shutil.copyfile(os.path.join(ROOT, 'data.js'), str(src))
+    shutil.copyfile(os.path.join(ROOT, 'data.js'), str(d / 'data.js'))
     for k, name in (('SRC', 'data.js'), ('OUT', 'data-core.js'), ('REST', 'r.json'), ('TREND', 't.json'),
                     ('SGG', 's.json'), ('SIZE', 'z.json')):
         monkeypatch.setattr(S, k, str(d / name))
@@ -212,21 +213,15 @@ def test_split_carries_the_picked_post_as_a_top_level_key(tmp_path, monkeypatch)
     y, m, dd = (int(x) for x in pub.split('-'))
     f = d / 'blog.json'
     monkeypatch.setattr(BF, 'FILE', str(f))
-
-    def core(post_date):
-        f.write_text(json.dumps({'weekly': {'date': post_date, 'title': '글', 'url': BF.BLOG_HOME + '/5'}}), encoding='utf-8')
-        S.main()
-        s = (d / 'data-core.js').read_text(encoding='utf-8')
-        adv = json.loads(re.search(r'const ADV=(\{.*?\});\nconst STATS', s, re.S).group(1))
-        trend = json.loads((d / 't.json').read_text(encoding='utf-8'))['ADV']
-        return adv, trend
     nxt = (datetime.date(y, m, dd) + datetime.timedelta(days=1)).isoformat()
-    adv, trend = core(nxt)
-    assert adv['blog'] == BF.pick(BF.read(), pub) and adv['blog']['lead'] == BF.LEAD_NOW
-    assert 'blog' not in trend, 'trend 에 blog 키가 있으면 통계 탭을 열 때 덮어쓸 수 있다'
-    old = (datetime.date(y, m, dd) - datetime.timedelta(days=BF.FRESH_DAYS + 1)).isoformat()
-    adv, _ = core(old)
-    assert 'blog' not in adv
+    f.write_text(json.dumps({'weekly': {'date': nxt, 'title': '글', 'url': BF.BLOG_HOME + '/5'}}), encoding='utf-8')
+    assert BF.pick(BF.read(), pub), '픽스처가 고를 수 있는 글을 두지 않았다 — 이 시험이 헛돌게 된다'
+    S.main()
+    s = (d / 'data-core.js').read_text(encoding='utf-8')
+    adv = json.loads(re.search(r'const ADV=(\{.*?\});\nconst STATS', s, re.S).group(1))
+    assert 'blog' not in adv, 'data-core 에 ADV.blog 가 되살아났다'
+    assert 'blog' not in S.CORE_ONLY_ADV
+    assert 'blog.naver' not in s, 'data-core 에 네이버 주소가 실렸다'
 
 
 # ── 배치 배선 ──────────────────────────────────────────────────────────────────────────────────────────

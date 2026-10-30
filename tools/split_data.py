@@ -70,8 +70,9 @@ CORE_ADV = ['sido', 'holidays']
 # sido·holidays 는 싣지 않는다 — loadFullData 는 Object.assign 이라 trend 에 없는 키는 코어 값이 그대로 남는다(같은 값 24KB 중복이었다,
 # 전수리뷰 H2-17).
 TREND_ADV = ('weekly', 'monthly', 'occupancy', 'permits', 'bubble')
-# 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다(ADV.blog, B5 · ADV.fresh).
-CORE_ONLY_ADV = ('blog', 'fresh', 'zname')   # fresh: 모드 단추 N 배지(2026-10-08) · zname: 화면 이름(백로그 46)
+# 코어(data-core.js)에만 싣는 최상위 키 — 통계 탭 파일에 없으므로 loadFullData 가 바꾸지 않는다.
+# ('blog' 는 2026-10-30에 뺐다 — 홈 주간 구역의 네이버 해설 카드를 걷었다.)
+CORE_ONLY_ADV = ('fresh', 'zname')   # fresh: 모드 단추 N 배지(2026-10-08) · zname: 화면 이름(백로그 46)
 
 # ⚠️ 거부목록이 아니라 **허용목록**이다. 예전엔 뺄 키를 나열했더니 새로 생긴 키가
 # 아무도 안 막아준 채 홈 페이로드로 새어 나갔다 — permits.city(150KB)로 data-core가
@@ -110,26 +111,9 @@ except Exception as _e:               # noqa: BLE001 — 결론 한 줄 때문�
     print('⚠️ split_data: make_weekly_page 를 못 불러와 ADV.weekly.head 를 싣지 않는다 — %s' % _e, file=sys.stderr)
 
 
-# 최신 주간 해설 글(ADV.blog, 홈 마케팅 검수 B5). 배치 fetch 잡이 이 스크립트 앞에서 blog_feed 로 RSS 를 읽어 둔 것을
-# /weekly/ 와 같은 규칙(blog_feed.pick)으로 골라 싣는다. 홈 주간 구역이 읽기만 한다. 최상위 키라 통계 탭을 열어도
-# (loadFullData 는 trend 에 있는 키만 바꾼다) 사라지지 않는다. 못 불러오거나 고를 글이 없으면 싣지 않는다 — 칸이 빠지기만.
-try:
-    import blog_feed as _BF
-    import weekly_release as _WR
-except Exception as _e:               # noqa: BLE001 — 블로그 칸 때문에 데이터 스플릿을 멈추지 않는다
-    _BF = None
-    print('⚠️ split_data: blog_feed 를 못 불러와 ADV.blog 를 싣지 않는다 — %s' % _e, file=sys.stderr)
-
-
-def _blog(w):
-    rows = (w or {}).get('rows') or []
-    if _BF is None or not rows:
-        return None
-    try:
-        return _BF.pick(_BF.read(), fresh_pub({'weekly': rows[-1]['p']})['weekly'])   # 발표일 셈은 fresh_pub 한 곳
-    except Exception as e:            # noqa: BLE001
-        print('⚠️ split_data: 블로그 칸을 만들지 못했다 — %s' % e, file=sys.stderr)
-        return None
+# 2026-09-27~2026-10-30 에는 여기서 최신 주간 해설 글(ADV.blog)을 실었다. 네이버 발행이 끝나(10-26·10-29 대표
+# 결정) 홈 주간 구역의 그 카드를 걷으면서 데이터도 함께 뺐다 — 되살리지 말 것. 발표일 셈(weekly_release)은
+# 그 블록이 아니라 fresh_pub 안에서 따로 들여온다.
 
 
 def _weekly_head(w):
@@ -251,7 +235,7 @@ def fresh_pub(periods):
     import weekly_release as _WR
     try:
         return {'weekly': _WR.status(p)['pub']}
-    except (ValueError, TypeError, KeyError) as e:    # 조사일 모양이 이상하면 배지만 비운다 — 배치(데이터 커밋)는 멈추지 않는다(_blog 와 같다)
+    except (ValueError, TypeError, KeyError) as e:    # 조사일 모양이 이상하면 배지만 비운다 — 배치(데이터 커밋)는 멈추지 않는다
         print('  fresh_pub: 주간 발표일을 못 셈(%r) — 주간 배지 날짜를 비운다: %s' % (p, e))
         return {}
 
@@ -333,9 +317,6 @@ def main():
         wk['sgg'] = {'codes': sgg.get('codes', []), 'rows': sgg['rows'][-1:]}
     if wk.get('rows') or wk.get('sgg'):
         core_adv['weekly'] = wk
-    blog = _blog(w)
-    if blog:
-        core_adv['blog'] = blog
 
     # 홈 통합표가 쓰는 가격 변동률 — 매매·전세·월세만, 시도 20곳만.
     # 전체 monthly는 753.9KB(대부분 seoul 76.8 + sgg 617.1)라 통째로는 못 싣는다.

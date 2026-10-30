@@ -26,7 +26,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ  # noqa: E402
 import kst as KST  # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 단일 출처
 import site_nav as N  # noqa: E402  하단 탭바 정본(C2)
-import blog_feed as BF  # noqa: E402  블로그 도시 입주물량 편 목록(백로그 37) — RSS 는 배치 fetch 잡이 읽어 둔다
 import robots_meta as RM  # noqa: E402  검색 로봇 메타 정본(D2)
 import ga_tag as GT  # noqa: E402  GA 내부 트래픽 표식 정본(백로그 48)
 
@@ -572,24 +571,20 @@ def est_regions_text():
     return '·'.join(est)
 
 
-CITY_H2 = '도시별 입주 예정 단지'
-CITY_SUB = '단지 이름·입주 월·세대수, 엑셀 목록 첨부 · ' + BF.LABEL
+# ── '도시별 입주 예정 단지' 칸의 **자리**(총괄 결정 2026-10-30) ───────────────────────────────────────────
+# 이 칸은 2026-10-07부터 네이버 블로그의 도시 입주물량 편을 가리켰다(백로그 37). 네이버 발행이 끝나
+# (10-26·10-29 대표 결정) 묵은 글만 남았고, 같은 주제의 글이 사이트에 생겼다(/city/ 도시 입주물량 편).
+# 그래서 내용은 make_content_pages 가 채운다(`write_moveins_cities`). 여기서는 자리만 낸다.
+#
+# ⚠️ 왜 여기서 채우지 않나: 배치가 이 생성기를 **먼저** 돌리고 콘텐츠 생성기를 뒤에 돌린다
+#    (update-cloud.yml·run_weekly_update.bat 모두). 여기서 글 목록을 읽으면 '구워진 글만' 셀 수밖에 없어,
+#    그 회차에 처음 구워지는 새 도시 글이 하루 늦게 뜬다. /weekly/ 해설 칸과 같은 나눔이다.
+CITY_START, CITY_END = '<!--MV:CITY-->', '<!--/MV:CITY-->'
 
 
-def city_html(posts=None):
-    """/moveins/ 의 '도시별 입주 예정 단지' 칸(백로그 37, 2026-10-07). 블로그 도시 입주물량 편(blog_feed.read_city — 판정은
-    close_published_issues.is_city_post 하나)을 새 글부터 싣는다. 글이 없거나 못 읽었으면 칸 전체를 굽지 않는다(빈 약속 금지).
-    클릭은 /weekly/ 해설 칸과 같은 이벤트(blog_link, to=city_post)로 잰다. 날짜는 해를 넘는 목록이라 연도 있는 좁은 꼴('26.10.7')."""
-    posts = BF.read_city() if posts is None else posts
-    if not posts:
-        return ''
-    track = ' onclick="try{gtag(\'event\',\'blog_link\',{to:\'city_post\'})}catch(e){}"'
-    rows = []
-    for p in posts:
-        rows.append('    <a href="%s" target="_blank" rel="noopener"%s>%s<span>%s %s</span></a>'
-                    % (_html.escape(p['url']), track, _html.escape(BF.city_head(p['title'])), BF.LABEL, SZ.day_short(p['date'])))
-    return ('<section class="wrap">\n  <h2>%s</h2>\n  <div class="links">\n%s\n  </div>\n'
-            '  <div class="note">%s</div>\n</section>\n\n' % (CITY_H2, '\n'.join(rows), CITY_SUB))
+def city_html():
+    """칸의 자리(빈 표식 쌍). 안쪽은 make_content_pages 가 채우고, 이 생성기는 들여다보지 않는다."""
+    return '%s\n%s\n\n' % (CITY_START, CITY_END)
 
 
 def build_moveins(adv, today=None):
