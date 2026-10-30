@@ -88,6 +88,12 @@ h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.2
 .bigsub{font-size:13.5px;color:var(--muted)}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+/* 절 경계가 보이게 제목 위 여백(2026-10-30 디자인 리뷰 — 앞 문단·주석 밑에 붙어 있었다). 첫 절은 머리 바로 아래라 빼지 않는다. */
+section+section h2{margin-top:12px}
+@media(min-width:1024px){.tbl-wrap.tbl-narrow{max-width:560px}}
+.note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
+/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
+@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
@@ -138,12 +144,6 @@ footer a{color:var(--ink)}
 <main id="main">
 
 <section class="wrap">
-  <h2>전세가율이란</h2>
-  <p><strong>전세가율 = 전세가 ÷ 매매가 × 100.</strong> 매매가 10억 아파트의 전세가 6억이면 전세가율 60%다.</p>
-  <p>전세가에는 시세차익 기대가 없다 — 세입자는 오를 것 같다고 전세금을 더 내지 않는다. 그래서 전세가는 <strong>거주 가치의 순수한 값</strong>이고, 전세가율은 매매가에 낀 기대(프리미엄)가 얼마나 되는지를 보여준다. 전세가율이 낮을수록 매매가에 미래 기대가 많이 반영된 것이고, 높을수록 가격이 실거주 가치에 붙어 있는 것이다.</p>
-</section>
-
-<section class="wrap">
   <h2>시도별 현황 (2026년 9월)</h2>
   <div class="tbl-wrap"><table id="utable" aria-label="시도별 전세가율 현황">
     <thead><tr><th>지역</th><th data-num>전세가율</th><th data-num>1년 전</th><th data-num>변화</th></tr></thead>
@@ -179,6 +179,12 @@ footer a{color:var(--ink)}
 </section>
 
 <section class="wrap">
+  <h2>전세가율이란</h2>
+  <p><strong>전세가율 = 전세가 ÷ 매매가 × 100.</strong> 매매가 10억 아파트의 전세가 6억이면 전세가율 60%다.</p>
+  <p>전세가에는 시세차익 기대가 없다 — 세입자는 오를 것 같다고 전세금을 더 내지 않는다. 그래서 전세가는 <strong>거주 가치의 순수한 값</strong>이고, 전세가율은 매매가에 낀 기대(프리미엄)가 얼마나 되는지를 보여준다. 전세가율이 낮을수록 매매가에 미래 기대가 많이 반영된 것이고, 높을수록 가격이 실거주 가치에 붙어 있는 것이다.</p>
+</section>
+
+<section class="wrap">
   <h2>더 보기</h2>
   <div class="links">
     <a href="/#stats-adv-bubble">버블밴드<span>전세가율로 계산한 지역별 고평가·저평가 밴드</span></a>
@@ -191,7 +197,7 @@ footer a{color:var(--ink)}
 
 </main>
 <footer><div class="wrap">
-  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
+  <b>아공맵</b> — 아파트 공급 지도<br>
   <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   자료: KOSIS·한국부동산원 「매매가격 대비 전세가격비」
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>

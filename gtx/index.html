@@ -88,6 +88,12 @@ h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.2
 .bigsub{font-size:13.5px;color:var(--muted)}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+/* 절 경계가 보이게 제목 위 여백(2026-10-30 디자인 리뷰 — 앞 문단·주석 밑에 붙어 있었다). 첫 절은 머리 바로 아래라 빼지 않는다. */
+section+section h2{margin-top:12px}
+@media(min-width:1024px){.tbl-wrap.tbl-narrow{max-width:560px}}
+.note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
+/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
+@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
@@ -174,8 +180,11 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
+   375px·1280px 모두 페이지가 옆으로 넘쳤다. */
+.cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
 .cchart{margin:0 0 20px;padding:0}
-.cchart-svg{display:block;width:100%;height:auto;margin:2px 0 0}
+.cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .ccard{flex:1 1 30%;min-width:96px;background:var(--paper2);border:1px solid var(--line);
  border-radius:3px;padding:8px 10px}
@@ -212,6 +221,7 @@ footer a{color:var(--ink)}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
+.ctab .tx{text-align:left;white-space:normal;min-width:6em}
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
@@ -235,10 +245,10 @@ footer a{color:var(--ink)}
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/reports/">콘텐츠</a> › <b>GTX 역세권</b></nav><h1>GTX 역세권</h1><p class="cmeta">GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.</p></div></header>
-<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="카테고리"><a class="rchip" href="/reports/">콘텐츠</a><a class="rchip" href="/column/">반박</a><a class="rchip" href="/city/">도시 입주물량</a><a class="rchip on" href="/gtx/">GTX 역세권</a><a class="rchip" href="/danji/">단지 분석</a></nav><div class="plist"><a class="pcard" href="/gtx/gtx-a-unjeong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-unjeong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 운정중앙역 아파트 9곳, 30대 5억대 첫 집은 2곳뿐입니다</b><span>운정중앙역 도보 15분 이내 매매 가능 단지는 9곳이고, 2026년 5~10월 실거래 중위값이 5억대인 곳은 중흥S클래스 24평형(5억 4,000만 원)과 운정자이시그니처 국평(5억 5,200만 원) 두 곳이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-seongnam/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-seongnam.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 성남역 아파트 20곳, 30대 현금 10억으로 살 곳은 0곳입니다</b><span>성남역 도보 15분 이내 아파트 20곳 가운데 가장 싼 24평형도 호가 16억 3,000만 원이라, 토지거래허가구역 대출 한도 4억을 빼면 현금 12억 3,000만 원이 든다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-kintex/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-kintex.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</b><span>킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-guseong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-guseong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 구성역 아파트 15곳, 30대 10억 아래 첫 집은 2곳뿐입니다</b><span>구성역 도보 15분 이내 아파트는 15곳이고, 500세대 넘고 10억 아래인 곳은 블루밍구성더센트럴 24평형과 상떼빌 국평 두 곳이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-dongtan/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-dongtan.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 동탄역 아파트 14곳, 30대 24평형은 현금 8억부터입니다</b><span>동탄역 도보 15분 이내 아파트 14곳 가운데 24평형은 세 곳이고, 가장 싼 반도유보라아이비파크5.0도 2026년 5~10월 실거래 중위값이 10억 6,000만 원이다. 토지거래허가구역이라 바로 들어가 살 수 있는 매물로 사면 현금이 8억 원 가까이 든다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-daegok/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-daegok.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 대곡역 아파트 2곳, 30대 4억대 첫 집은 1곳뿐입니다</b><span>대곡역 도보 15분 이내 아파트는 대림2차와 대곡역두산위브 두 곳이고, 24평형 실거래 중위값은 4억 2,000만 원과 6억 9,000만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-changneung/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-changneung.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 창릉역 아파트 1곳, 2030년 개통 전 국평은 10억 안팎입니다</b><span>2030년 개통 예정인 GTX-A 창릉역 도보 15분 이내 기존 아파트는 원흥동일스위트 1곳이고, 국평 실거래는 2026년 5~10월 28건 8억 5,000만~10억 8,000만 원, 중위값 9억 9,500만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a></div></div></section>
+<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="카테고리"><a class="rchip" href="/reports/">전체</a><a class="rchip" href="/column/">반박</a><a class="rchip" href="/weekly/">주간·월간 시세</a><a class="rchip" href="/city/">도시 입주물량</a><a class="rchip on" href="/gtx/">GTX 역세권</a><a class="rchip" href="/danji/">재건축·리모델링 단지</a><a class="rchip" href="/zone/">시도 리포트</a></nav><div class="plist"><a class="pcard" href="/gtx/gtx-a-unjeong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-unjeong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 운정중앙역 아파트 9곳, 30대 5억대 첫 집은 2곳뿐입니다</b><span>운정중앙역 도보 15분 이내 매매 가능 단지는 9곳이고, 2026년 5~10월 실거래 중위값이 5억대인 곳은 중흥S클래스 24평형(5억 4,000만 원)과 운정자이시그니처 국평(5억 5,200만 원) 두 곳이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-seongnam/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-seongnam.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 성남역 아파트 20곳, 30대 현금 10억으로 살 곳은 0곳입니다</b><span>성남역 도보 15분 이내 아파트 20곳 가운데 가장 싼 24평형도 호가 16억 3,000만 원이라, 토지거래허가구역 대출 한도 4억을 빼면 현금 12억 3,000만 원이 든다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-kintex/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-kintex.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</b><span>킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-guseong/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-guseong.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 구성역 아파트 15곳, 30대 10억 아래 첫 집은 2곳뿐입니다</b><span>구성역 도보 15분 이내 아파트는 15곳이고, 500세대 넘고 10억 아래인 곳은 블루밍구성더센트럴 24평형과 상떼빌 국평 두 곳이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-dongtan/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-dongtan.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 동탄역 아파트 14곳, 30대 24평형은 현금 8억부터입니다</b><span>동탄역 도보 15분 이내 아파트 14곳 가운데 24평형은 세 곳이고, 가장 싼 반도유보라아이비파크5.0도 2026년 5~10월 실거래 중위값이 10억 6,000만 원이다. 토지거래허가구역이라 바로 들어가 살 수 있는 매물로 사면 현금이 8억 원 가까이 든다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-daegok/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-daegok.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 대곡역 아파트 2곳, 30대 4억대 첫 집은 1곳뿐입니다</b><span>대곡역 도보 15분 이내 아파트는 대림2차와 대곡역두산위브 두 곳이고, 24평형 실거래 중위값은 4억 2,000만 원과 6억 9,000만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a><a class="pcard" href="/gtx/gtx-a-changneung/" data-sec="gtx"><img src="/share/thumb-gtx-gtx-a-changneung.jpg?v=2026-10-27" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>GTX-A 창릉역 아파트 1곳, 2030년 개통 전 국평은 10억 안팎입니다</b><span>2030년 개통 예정인 GTX-A 창릉역 도보 15분 이내 기존 아파트는 원흥동일스위트 1곳이고, 국평 실거래는 2026년 5~10월 28건 8억 5,000만~10억 8,000만 원, 중위값 9억 9,500만 원이다.</span><i>GTX 역세권 · 26.10.27 갱신</i></div></a></div></div></section>
 </main>
 <footer><div class="wrap">
-  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
+  <b>아공맵</b> — 아파트 공급 지도<br>
   <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>

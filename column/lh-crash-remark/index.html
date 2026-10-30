@@ -125,6 +125,12 @@ h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.2
 .bigsub{font-size:13.5px;color:var(--muted)}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+/* 절 경계가 보이게 제목 위 여백(2026-10-30 디자인 리뷰 — 앞 문단·주석 밑에 붙어 있었다). 첫 절은 머리 바로 아래라 빼지 않는다. */
+section+section h2{margin-top:12px}
+@media(min-width:1024px){.tbl-wrap.tbl-narrow{max-width:560px}}
+.note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
+/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
+@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
@@ -211,8 +217,11 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
+   375px·1280px 모두 페이지가 옆으로 넘쳤다. */
+.cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
 .cchart{margin:0 0 20px;padding:0}
-.cchart-svg{display:block;width:100%;height:auto;margin:2px 0 0}
+.cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .ccard{flex:1 1 30%;min-width:96px;background:var(--paper2);border:1px solid var(--line);
  border-radius:3px;padding:8px 10px}
@@ -249,6 +258,7 @@ footer a{color:var(--ink)}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
+.ctab .tx{text-align:left;white-space:normal;min-width:6em}
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
@@ -269,16 +279,16 @@ footer a{color:var(--ink)}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
-<body data-desk="wide">
+<body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/column/">반박</a></nav><h1>이성훈 LH 사장 &#x27;집값 급락할 가능성&#x27;, 입주 물량은 급락을 말하지 않습니다</h1><p class="cmeta">2026년 10월 29일 작성 · 2026년 10월 29일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">이성훈 LH 사장이 국정감사에서 집값 급락 가능성을 말한 뒤에도 서울 아파트값은 상승을 이어 갔다. 같은 날 지적된 LH 신속착공은 착공신고필증만으로 실적을 잡아 실제 공사보다 착공 숫자를 앞당겨 부풀린다.</p><div class="cbody"><p>10월 12일 국회 국토교통위원회의 LH 국정감사에서 이성훈 사장은 이렇게 답했습니다. "앞으로 집값이 급락할 가능성이 좀 많다". 이어서 "안정이 되면 지금 바로 집을 사지 않아도 손해를 보지 않는다"고 덧붙였습니다(뉴스핌). 그렇게 보는 이유로 든 것은 공급 증가와 금리 상승 두 가지였습니다.</p>
 <h2>그 뒤 서울 아파트값은</h2>
 <p>서울 아파트 매매가는 90주 연속 상승(10월 26일 조사)이고, 전세가는 90주 연속 상승(10월 26일 조사)입니다. 발언 앞뒤 8주를 표로 보면 다음과 같습니다.</p>
-<div class="ctab"><table><thead><tr><th scope="col">조사 기준일</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">2026-09-07</th><td>+0.20%</td><td>+0.19%</td></tr><tr><th scope="row">2026-09-14</th><td>+0.16%</td><td>+0.17%</td></tr><tr><th scope="row">2026-09-21</th><td>+0.13%</td><td>+0.19%</td></tr><tr><th scope="row">2026-09-28</th><td>+0.09%</td><td>+0.16%</td></tr><tr><th scope="row">2026-10-05</th><td>+0.12%</td><td>+0.16%</td></tr><tr><th scope="row">2026-10-12</th><td>+0.16%</td><td>+0.18%</td></tr><tr><th scope="row">2026-10-19</th><td>+0.13%</td><td>+0.16%</td></tr><tr><th scope="row">2026-10-26</th><td>+0.09%</td><td>+0.17%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 전주 대비 변동률</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">조사 기준일</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">2026-09-07</th><td>+0.20%</td><td>+0.19%</td></tr><tr><th scope="row">2026-09-14</th><td>+0.16%</td><td>+0.17%</td></tr><tr><th scope="row">2026-09-21</th><td>+0.13%</td><td>+0.19%</td></tr><tr><th scope="row">2026-09-28</th><td>+0.09%</td><td>+0.16%</td></tr><tr><th scope="row">2026-10-05</th><td>+0.12%</td><td>+0.16%</td></tr><tr><th scope="row">2026-10-12</th><td>+0.16%</td><td>+0.18%</td></tr><tr><th scope="row">2026-10-19</th><td>+0.13%</td><td>+0.16%</td></tr><tr><th scope="row">2026-10-26</th><td>+0.09%</td><td>+0.17%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 전주 대비 변동률</p></div>
 <h2>'공급 증가'가 집값에 닿는 시점</h2>
 <p>시장에 매물로 풀리는 것은 공사를 시작한 집이 아니라 다 지어 입주하는 집입니다. 착공에서 입주까지는 대략 3년이 걸리므로, 올해 늘어난 착공은 2029년 무렵에야 전세·매매 물량이 됩니다. 그 전까지의 서울 입주 물량은 이미 그려져 있습니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>20,664세대</b><span>2027년 입주</span></div><div class="ccard"><b>90주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="서울 연도별 입주 물량 막대그래프. 2017년 29,201세대, 2018년 38,853세대, 2019년 45,860세대, 2020년 54,355세대, 2021년 43,729세대, 2022년 31,836세대, 2023년 38,028세대, 2024년 32,988세대, 2025년 41,893세대, 2026년 28,919세대, 2027년 20,664세대, 2028년 25,707세대, 2029년 8,922세대." class="cchart-svg"><rect x="8.0" y="93.7" width="38.8" height="90.3" class="cb"/><text x="27.4" y="89.7" class="cb-v">29,201</text><text x="27.4" y="202" class="cb-x">2017</text><rect x="56.8" y="63.9" width="38.8" height="120.1" class="cb"/><text x="76.2" y="59.9" class="cb-v">38,853</text><text x="76.2" y="202" class="cb-x">2018</text><rect x="105.5" y="42.3" width="38.8" height="141.7" class="cb"/><text x="124.9" y="38.3" class="cb-v">45,860</text><text x="124.9" y="202" class="cb-x">2019</text><rect x="154.3" y="16.0" width="38.8" height="168.0" class="cb"/><text x="173.7" y="12.0" class="cb-v">54,355</text><text x="173.7" y="202" class="cb-x">2020</text><rect x="203.1" y="48.8" width="38.8" height="135.2" class="cb"/><text x="222.5" y="44.8" class="cb-v">43,729</text><text x="222.5" y="202" class="cb-x">2021</text><rect x="251.8" y="85.6" width="38.8" height="98.4" class="cb"/><text x="271.2" y="81.6" class="cb-v">31,836</text><text x="271.2" y="202" class="cb-x">2022</text><rect x="300.6" y="66.5" width="38.8" height="117.5" class="cb"/><text x="320.0" y="62.5" class="cb-v">38,028</text><text x="320.0" y="202" class="cb-x">2023</text><rect x="349.4" y="82.0" width="38.8" height="102.0" class="cb"/><text x="368.8" y="78.0" class="cb-v">32,988</text><text x="368.8" y="202" class="cb-x">2024</text><rect x="398.2" y="54.5" width="38.8" height="129.5" class="cb"/><text x="417.5" y="50.5" class="cb-v">41,893</text><text x="417.5" y="202" class="cb-x">2025</text><rect x="446.9" y="94.6" width="38.8" height="89.4" class="cb"/><text x="466.3" y="90.6" class="cb-v">28,919</text><text x="466.3" y="202" class="cb-x">2026</text><rect x="495.7" y="120.1" width="38.8" height="63.9" class="cb"/><text x="515.1" y="116.1" class="cb-v">20,664</text><text x="515.1" y="202" class="cb-x">2027</text><rect x="544.5" y="104.5" width="38.8" height="79.5" class="cb"/><text x="563.8" y="100.5" class="cb-v">25,707</text><text x="563.8" y="202" class="cb-x">2028</text><rect x="593.2" y="156.4" width="38.8" height="27.6" class="cb"/><text x="612.6" y="152.4" class="cb-v">8,922</text><text x="612.6" y="202" class="cb-x">2029</text></svg><figcaption>서울 해마다 입주 물량 · 국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정</figcaption></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>20,664세대</b><span>서울 2027년 입주</span></div><div class="ccard"><b>90주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="서울 연도별 입주 물량 막대그래프. 2017년 29,201세대, 2018년 38,853세대, 2019년 45,860세대, 2020년 54,355세대, 2021년 43,729세대, 2022년 31,836세대, 2023년 38,028세대, 2024년 32,988세대, 2025년 41,893세대, 2026년 28,919세대, 2027년 20,664세대, 2028년 25,707세대, 2029년 8,922세대." class="cchart-svg"><rect x="8.0" y="93.7" width="38.8" height="90.3" class="cb"/><text x="27.4" y="89.7" class="cb-v">29,201</text><text x="27.4" y="202" class="cb-x">2017</text><rect x="56.8" y="63.9" width="38.8" height="120.1" class="cb"/><text x="76.2" y="59.9" class="cb-v">38,853</text><text x="76.2" y="202" class="cb-x">2018</text><rect x="105.5" y="42.3" width="38.8" height="141.7" class="cb"/><text x="124.9" y="38.3" class="cb-v">45,860</text><text x="124.9" y="202" class="cb-x">2019</text><rect x="154.3" y="16.0" width="38.8" height="168.0" class="cb"/><text x="173.7" y="12.0" class="cb-v">54,355</text><text x="173.7" y="202" class="cb-x">2020</text><rect x="203.1" y="48.8" width="38.8" height="135.2" class="cb"/><text x="222.5" y="44.8" class="cb-v">43,729</text><text x="222.5" y="202" class="cb-x">2021</text><rect x="251.8" y="85.6" width="38.8" height="98.4" class="cb"/><text x="271.2" y="81.6" class="cb-v">31,836</text><text x="271.2" y="202" class="cb-x">2022</text><rect x="300.6" y="66.5" width="38.8" height="117.5" class="cb"/><text x="320.0" y="62.5" class="cb-v">38,028</text><text x="320.0" y="202" class="cb-x">2023</text><rect x="349.4" y="82.0" width="38.8" height="102.0" class="cb"/><text x="368.8" y="78.0" class="cb-v">32,988</text><text x="368.8" y="202" class="cb-x">2024</text><rect x="398.2" y="54.5" width="38.8" height="129.5" class="cb"/><text x="417.5" y="50.5" class="cb-v">41,893</text><text x="417.5" y="202" class="cb-x">2025</text><rect x="446.9" y="94.6" width="38.8" height="89.4" class="cb"/><text x="466.3" y="90.6" class="cb-v">28,919</text><text x="466.3" y="202" class="cb-x">2026</text><rect x="495.7" y="120.1" width="38.8" height="63.9" class="cb"/><text x="515.1" y="116.1" class="cb-v">20,664</text><text x="515.1" y="202" class="cb-x">2027</text><rect x="544.5" y="104.5" width="38.8" height="79.5" class="cb"/><text x="563.8" y="100.5" class="cb-v">25,707</text><text x="563.8" y="202" class="cb-x">2028</text><rect x="593.2" y="156.4" width="38.8" height="27.6" class="cb"/><text x="612.6" y="152.4" class="cb-v">8,922</text><text x="612.6" y="202" class="cb-x">2029</text></svg><figcaption>서울 해마다 입주 물량 · 국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정</figcaption></figure>
 <p>2027년 서울 입주 물량은 적정물량의 28%에 그칩니다.</p>
 <h2>착공 집계를 둘러싼 지적</h2>
 <p>LH의 '신속착공'은 같은 날 김정재 의원의 질의에서 도마에 올랐습니다. "내년에 할 착공 숫자를 올해 당겨 가지고 실적 부풀리기를 하고 있는 겁니다". 서류상 착공신고만 마치면 그해 실적으로 잡히고, 실제 공사는 해를 넘겨 시작될 수 있다는 비판이었습니다. 10월 22일 폴리뉴스 기사에 따르면 LH의 4분기 착공 계획 가운데 70%가 넘는 약 2만 1천 호가 이렇게 잡힌 물량이었습니다.</p>
@@ -288,7 +298,7 @@ footer a{color:var(--ink)}
 <p>금리 상승은 오름폭을 줄이거나 시기를 늦출 수는 있습니다. 입주 물량이 적정에 못 미치는 동안 방향까지 뒤집기는 어렵습니다. 제 판단으로는 이 발언을 매수를 미룰 근거로 삼기에는 숫자가 받쳐 주지 않습니다.</p></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 주간 아파트가격동향</li><li>국토교통부 준공 실적, 아공맵 입주 추정(2026년 하반기부터 착공을 3년 뒤로 밀어 셈)</li><li>국회 국토교통위원회 LH 국정감사(2026-10-12) 발언, 뉴스핌·SBS Biz(2026-10-12~13)·폴리뉴스(2026-10-22) 보도 인용</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>이성훈 LH 사장은 무엇이라고 말했나요</dt><dd>10월 12일 LH 국정감사 답변에서 &quot;앞으로 집값이 급락할 가능성이 좀 많다&quot;고 했습니다. 그렇게 보는 까닭으로는 공급이 늘고 금리가 오른다는 점을 꼽았습니다.</dd><dt>LH 신속착공이란 무엇인가요</dt><dd>착공신고필증이 나오면 실제 터파기 전이라도 그해 착공 실적에 넣는 집계 방식입니다. 국감에서는 공사가 해를 넘겨 시작될 수 있다는 비판이 나왔고, 대상은 수도권 신축 매입임대입니다.</dd><dt>발언 뒤 서울 아파트값은 내렸나요</dt><dd>본문의 주간 시세 표처럼 서울 매매가는 오름세를 멈추지 않았습니다.</dd></dl></section><div class="cnav"><a href="/column/hong-rent-supply/"><span>이전 글</span>홍지선 장관 &#x27;전월세 해법은 공급&#x27; 맞습니다, 서울 입주 물량은 2027년에 더 줄어듭니다</a><a href="/column/oh-sehoon-permits-19y/"><span>다음 글</span>오세훈 시장의 &#x27;주택의 삭제&#x27;, 서울 아파트 인허가는 19년 동안 적정의 절반이었습니다</a><a href="/zone/%EC%84%9C%EC%9A%B8/"><span>지역 공급 리포트</span>서울 아파트 공급 분석</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">
-  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
+  <b>아공맵</b> — 아파트 공급 지도<br>
   <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
