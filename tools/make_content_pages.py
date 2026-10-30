@@ -461,10 +461,20 @@ def _zone_link(region):
             % (urllib.parse.quote(key), html.escape(SZ.DISPLAY_NAME.get(key, key))))
 
 
+def content_img_src(body_html, sec):
+    """원고의 상대 그림 주소(img/x.png)를 원고 폴더의 절대 주소(/content/<섹션>/img/x.png)로.
+
+    원고는 content/<섹션>/ 옆에 그림을 두고 상대 경로로 쓰는데, 페이지는 /<섹션>/<글>/ 에 구워져
+    상대 경로가 /<섹션>/<글>/img/… 를 가리켰다 — 그런 파일은 없어 단지 글 그림이 모두 깨졌다(2026-10-30
+    디자인 리뷰). 그림은 복사하지 않고 원고 폴더 한 곳에 둔다(content/ 는 Pages 배포에 포함된다)."""
+    return re.sub(r'(<img src=")(?![a-z]+:|/|#)([^"]+)"',
+                  lambda m: '%s/content/%s/%s"' % (m.group(1), sec, m.group(2)), body_html)
+
+
 def build_page(meta, body_md, data, prev=None, nxt=None):
     filled, blocks = fill_placeholders(body_md, data)
-    body_html = restore_tables(markdown(filled), blocks)
     sec = meta['section']
+    body_html = content_img_src(restore_tables(markdown(filled), blocks), sec)
     url = '%s/%s/%s/' % (SITE, sec, meta['slug'])
     srcs = meta.get('sources') or []
     nav = []
