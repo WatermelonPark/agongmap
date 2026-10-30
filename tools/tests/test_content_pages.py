@@ -1388,3 +1388,51 @@ def test_content_check_notes_off_canon_words_without_failing():
     src = io.open(os.path.join(ROOT, 'tools', 'content_tables.py'), encoding='utf-8').read()
     assert "'적정 대비'" not in src and '적정 입주량 %s' not in src, '생성기가 옛 낱말을 굽는다'
     assert CT is not None
+
+
+def test_post_layout_reads_as_an_article():
+    """글 페이지 배치(2026-10-30 디자인 리뷰 3차) — 읽는 단·표 정렬·칩·도시 이름 붙은 입주 카드.
+
+    재현한 실제 상태: 글이 넓은 단(wide)이라 1280px 에서 한 줄이 70자를 넘었고, 표의 글자 열('경로')이 오른쪽 정렬, 칩 첫 칸
+    '콘텐츠'가 섹션처럼 읽혔으며 허브 카드(주간·월간 시세·시도 리포트)와 칩 목록이 달랐다. 단지·GTX 글의 입주 카드
+    '2027년 입주 640세대'는 단지 세대수로 읽혔다.
+    변이(각각 실제로 확인): build_page 의 desk='read' 를 빼면, _text_cols 가 빈 집합을 내면, 첫 칩을 '콘텐츠'로 되돌리면,
+    content_tables 카드 이름에서 도시 이름을 빼면 빨개진다.
+    픽스처: 숫자·글자 열이 섞인 합성 표와 저장소의 구워진 글·실제 자료.
+    """
+    rows = [['판교', '22분', '신분당선 환승'], ['삼성', '49분', 'GTX-A 직결'], ['서울역', '1시간 2분', '경부선']]
+    assert MC._text_cols(rows) == {2}
+    html_t = MC._table_html(['업무지구', '시간', '경로'], rows)
+    assert '<th scope="col" class="tx">업무지구</th><th scope="col">시간</th><th scope="col" class="tx">경로</th>' in html_t
+    chips = MC.section_chips('city')
+    assert re.findall(r'class="rchip[^"]*" href="[^"]*">([^<]+)<', chips)[0] == '전체'
+    assert re.findall(r'>([^<]+)</a>', chips)[1:] == [n for _, n, _d, _c in MC.HUB_CARDS]
+    for sec, slug, _ in CM.built(ROOT)[:3]:
+        page = io.open(os.path.join(ROOT, sec, slug, 'index.html'), encoding='utf-8').read()
+        assert 'data-desk="read"' in page, '%s/%s 가 읽는 단이 아니다' % (sec, slug)
+    data = CT.load()
+    city = sorted((data.get('cities') or {}).get('by_city') or {}) if isinstance(data.get('cities'), dict) else []
+    for name in city[:1] or ['수원']:
+        try:
+            spec = CT.chart(data, 'moveins', [name])
+        except CT.TableError:
+            continue
+        labs = [k for k, _ in spec['cards'] if '입주' in k]
+        assert labs and all(k.startswith(name) for k in labs), labs
+
+
+def test_content_check_notes_post_layout_without_failing():
+    """원고 배치 알림(content_check.layout_notes) — 결론 상자와 같은 첫 문단, 첫 소제목 앞 도시 입주 그림(단지·GTX),
+    본문 앞쪽 방법론 절. 원고 구조는 작성 세션의 몫이라 알림만 하고 종료 코드에 세지 않는다.
+    변이(실제로 확인): OFF_TOPIC_CITY_CHART 에 'city' 를 넣으면 도시 편 원고에도 알림이 떠 셋째 단정이 빨개진다.
+    픽스처: 합성 원고 셋.
+    """
+    import content_check as CC
+    front = '---\ntitle: t\n---\n'
+    body = ('동탄역 도보 15분 이내 아파트 14곳 가운데 24평형은 세 곳입니다.\n\n{{chart:moveins:화성}}\n\n'
+            '## 고른 기준\n\n- 범위\n\n## 출퇴근\n\n' + '본문 문단입니다. ' * 20 + '\n\n## 학군\n\n' + '본문 문단입니다. ' * 20 + '\n')
+    got = [w for _, w in CC.layout_notes(front + body, '동탄역 도보 15분 이내 아파트 14곳 가운데 24평형은 세 곳입니다', 'gtx')]
+    assert any('결론 상자' in w for w in got) and any('도시 입주' in w for w in got) and any('방법론' in w for w in got), got
+    assert not CC.layout_notes(front + body, '전혀 다른 요약 문장', 'city') or \
+        not any('도시 입주' in w for _, w in CC.layout_notes(front + body, '전혀 다른 요약', 'city'))
+    assert CC.layout_notes(front + '## 출퇴근\n\n본문\n', '', 'danji') == []
