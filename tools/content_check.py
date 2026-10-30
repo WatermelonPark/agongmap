@@ -101,6 +101,41 @@ def term_notes(text):
     return out
 
 
+# 글 배치 알림(2026-10-30 디자인 리뷰 3차) — 원고 구조는 작성 세션의 몫이라 고칠 곳에 세지 않고 알림만 한다.
+OFF_TOPIC_CITY_CHART = ('gtx', 'danji')   # 도시 편은 도시 입주가 곧 주제라 앞에 와도 된다
+METHOD_HEADS = ('고른 기준', '산식', '방법', '계산 방법', '이 글의 기준')
+DUP_LIMIT = 0.5             # 결론 상자(summary)와 첫 문단 글자 2-gram 겹침이 이보다 크면 같은 말 두 번
+
+
+def _bigrams(t):
+    t = re.sub(r'\s+|\{\{[^}]*\}\}|[*`#>\[\]()]', '', t)
+    return {t[i:i + 2] for i in range(len(t) - 1)}
+
+
+def layout_notes(text, summary='', section=''):
+    """원고 → [(줄, 알림)]. ① 결론 상자와 첫 문단이 거의 같은 말이면, ② 단지·GTX 글에서 도시 입주 그림({{chart:moveins:…}})이
+    첫 소제목 앞에 와 글 주제를 끊으면, ③ 방법론 절(고른 기준·산식)이 본문 앞쪽 절반에 오면 알린다."""
+    out = []
+    try:
+        _, body = CM.split_front(text)
+    except Exception:
+        return out
+    off = text.find(body) if body else 0
+    first_h = re.search(r'^## ', body, re.M)
+    paras = [m for m in re.finditer(r'^(?![#{|!>\-*\d])(\S.+)$', body, re.M)]
+    if summary and paras:
+        a, b = _bigrams(summary), _bigrams(paras[0].group(1))
+        if a and b and len(a & b) / float(len(a | b)) > DUP_LIMIT:
+            out.append((_line_of(text, off + paras[0].start()), '첫 문단이 결론 상자(summary)와 거의 같은 말 — 첫 문단은 다음 이야기로'))
+    m = re.search(r'\{\{chart:moveins:[^}]*\}\}', body)
+    if m and first_h and m.start() < first_h.start() and section in OFF_TOPIC_CITY_CHART:
+        out.append((_line_of(text, off + m.start()), "도시 입주 물량 그림이 첫 소제목 앞 — 글 끝 '○○ 공급' 절로 옮기면 글 주제가 끊기지 않는다"))
+    for h in re.finditer(r'^## (.+)$', body, re.M):
+        if any(k in h.group(1) for k in METHOD_HEADS) and h.start() < len(body) / 2:
+            out.append((_line_of(text, off + h.start()), "방법론 절('%s')이 본문 앞쪽 — 글 끝으로 보내면 결론·근거가 먼저 읽힌다" % h.group(1).strip()))
+    return out
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     only = argv[0].replace('\\', '/').rstrip('/').split('/')[-1] if argv else None
@@ -112,7 +147,12 @@ def main(argv=None):
     bad, waiting = 0, 0
     for sec, slug, path in posts:
         problems, waits, rel = check_post(path, data)
-        for ln, why in term_notes(io.open(path, encoding='utf-8').read()):
+        text = io.open(path, encoding='utf-8').read()
+        try:
+            summary = CM.read(path, sec, slug)[0].get('summary') or ''
+        except Exception:
+            summary = ''
+        for ln, why in sorted(term_notes(text) + layout_notes(text, summary, sec)):
             print('  ※    %s:%d  %s' % (rel, ln, why))
         for ln, why in sorted(waits):
             # 아직 수집되지 않은 시군구는 고칠 곳이 아니다 — 올리면 배치가 받아 넣고 다음 구움에서 나온다.
