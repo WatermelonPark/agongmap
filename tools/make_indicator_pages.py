@@ -260,11 +260,7 @@ __DESKLINK__
 __DESKBODY__
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 __BODY__
-<footer><div class="wrap">
-  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>
-  <a href="/">agongmap.co.kr</a> · 자료: __SRC__
-  <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
-</div></footer>
+__FOOTER__
 
 """ + N.bottomnav('stats') + """
 
@@ -297,6 +293,9 @@ def fill(shell, desk='wide', **kw):
     out = out.replace('__GAINT__', GT.INTERNAL_SCRIPT).replace('__GACFG__', GT.config_call())   # GA 내부 트래픽 표식(백로그 48)
     # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)
     out = out.replace('__DESKLINK__', N.desk_link()).replace('__DESKBODY__', N.desk_body(desk))
+    # 푸터는 사이트 공용 정본(site_nav.site_footer — 링크 줄에 개인정보처리방침, 2026-10-30 디자인 리뷰). src 는 그 페이지의
+    # 자료 기관이고, 빈 값이면 자료 줄을 뺀다(콘텐츠 허브·글은 본문에 출처가 있다).
+    out = out.replace('__FOOTER__', N.site_footer(kw.pop('src', '')))
     for k, v in kw.items():
         out = out.replace('__' + k.upper() + '__', v)
     # 랜드마크: 머리글 뒤부터 바닥글 앞까지가 본문이다(2026-09-18 접근성 점검 — 어느 페이지에도 <main> 이 없었다).
