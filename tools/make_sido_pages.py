@@ -696,7 +696,7 @@ def summary_html(parts):
 # 반올림 뒤 셈 — 블로그 초안 표지와 같은 함수), 12주 누적 = cum_window·cum_change. 반올림 표기는 MW.pv2(사이트 pv2r).
 # 집계 3장(전국·수도권·지방)은 많이 오른 곳·많이 내린 곳 AGG_TOP 곳씩만 싣는다(요청서 D4).
 AGG_TOP = 5
-WK_CSS = ('.ztb th small.zbase{display:block;font-size:12px;font-weight:400;color:var(--muted);white-space:nowrap}'
+WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}'
           '.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'
           '.zcell b span{color:var(--ink)}'
           '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
@@ -706,7 +706,7 @@ WK_CSS = ('.ztb th small.zbase{display:block;font-size:12px;font-weight:400;colo
           'radial-gradient(farthest-side at 100% 50%,rgba(19,30,36,.22),rgba(19,30,36,0)) right/12px 100% no-repeat scroll}'
           # 시군구 칸은 머리·몸 모두 붙박이(가로로 밀어도 이름이 남고, 둘째 머리줄이 그 위로 걸치지 않는다)
           '.zwk .ztb td:first-child,.zwk .ztb thead tr:first-child th:first-child{position:sticky;left:0;background:var(--paper);z-index:1}'
-          '.zwk .ztb td:first-child{color:var(--ink);font-size:12.5px}'
+          '.zwk .ztb td:first-child{color:var(--ink);font-size:13px}'
           '.zwk .ztb thead tr:first-child th:first-child{z-index:2}'
           '.zwk .ztb th:not(:first-child),.zwk .ztb thead tr+tr th{position:static}.zwk .ztb th,.zwk .ztb td{padding:5px 6px}'
           '.zwk-none{font-size:13px;color:var(--muted);margin:0 0 6px}'
