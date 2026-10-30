@@ -1076,14 +1076,7 @@ table.adv thead th:first-child{text-align:center}
   .zposts{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}
   .crecent-all{margin:10px 0 0}
   .crecent-all a{font-size:13px;color:var(--ink2);text-decoration:none;font-weight:600}
-  /* 주간 구역의 해석 글 한 줄(B5·RET-4). 링크는 새 창(블로그)이라 밑줄로 링크임을 드러낸다. */
-  /* 해설 글 카드(renderBlogLine) — 작은 머리줄 + 굵은 결론 한 줄, 카드 전체가 링크 */
-  .home-sec p.wk-blog{margin:16px auto 0;max-width:520px;line-height:1.45}   /* .home-sec p(0,1,1)를 이긴다 */
-  .wk-blog a.blog-card{display:block;text-align:left;background:#fff;border:1.5px solid var(--ink);border-radius:3px;
-    padding:12px 14px;color:var(--ink);text-decoration:none}
-  .wk-blog a.blog-card:hover .bc-head{text-decoration:underline;text-underline-offset:3px}
-  .wk-blog .bc-meta{display:block;font-size:13px;color:var(--ink2);margin-bottom:3px}
-  .wk-blog .bc-head{display:block;font-size:15px;font-weight:600;word-break:keep-all}
+  /* 주간 구역의 해설 글 카드 규칙은 2026-10-30에 걷었다 — 네이버 발행 종료(홈 마크업·스크립트도 함께). */
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:0 0 10px;max-width:none}
   /* 지도 모드 '공급 현황 · 주간 시세 · 월간 시세'(홈 마케팅 검수 C3 → 2026-10-04 월간 추가 → 2026-10-05 이름 바꿈). 판정 카드 위
      한 줄을 셋이 같은 폭으로 나눈다 — 지도/그래프/표 단추는 카드 아래 줄(.tb-bar)이다. 보기와 무관하게 늘 보인다. */

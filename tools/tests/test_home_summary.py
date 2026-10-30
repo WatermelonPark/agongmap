@@ -276,34 +276,28 @@ def _js_func(src, name):
     raise AssertionError(name)
 
 
-def test_home_blog_line_says_what_the_weekly_page_says():
-    """홈 blogLine 이 ADV.blog 로 만드는 해설 카드 = blog_feed.pick 의 meta·head(같은 글·같은 말 — /weekly/ 해설 칸도 같은 두 말).
-    남의 주소·빈 값은 칸을 안 연다. 부팅이 부르고,
-    자리(#wk-blog)는 주간 구역에 숨은 채 있으며, 누르면 home_cta blog_weekly 로 잡힌다.
+def test_home_has_no_blog_commentary_card():
+    """홈 주간 구역에 네이버 해설 카드가 없다 — 마크업·스크립트·스타일·데이터 넷 다(총괄 결정 2026-10-30).
 
-    둘째 줄 이웃 안내(RET-4 A안 — '블로그 이웃이 되면 …')는 홈(2026-09-28)·/weekly/(2026-10-03)에서 모두 뺐다(대표 결정).
-    배치도 ADV.blog 에 note 를 싣지 않는다.
-    변이: blogLine 에서 meta 를 빼거나 주소 검사를 지우거나, boot 에서 renderBlogLine() 줄을 지우면, renderBlogLine 에 이웃 안내
-          (wk-note)를 되살리면 빨개진다(넷 다 확인).
+    왜: 2026-09-27부터 홈 주간 구역이 네이버 최신 주간 글을 카드로 띄웠다(B5·RET-4). 네이버 발행이 끝나
+    (10-26·10-29 대표 결정) 묵은 글만 가리켰고, 바로 아래 '최근 리포트' 묶음이 사이트 글로 같은 일을 한다.
+    그래서 카드를 걷었다. 되살리면 같은 글이 홈 한 화면에 두 번 나온다.
+
+    무엇을 바꾸면 빨개지나: #wk-blog 자리나 renderBlogLine/blogLine 을 되살리면, boot 에서 다시 부르면,
+      .wk-blog 스타일을 되돌리면, split_data 가 ADV.blog 를 다시 실으면(그 키는 test_blog_feed 가 따로 본다).
+    픽스처: 저장소의 실제 홈 스크립트·마크업·app.css. node 가 필요 없다 — 글자만 본다.
     """
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
     js = HS.home_source()
-    b = BF.pick({'date': '2026-09-25', 'title': '주간 <글>', 'url': BF.BLOG_HOME + '/7'}, '2026-09-24')
-    prog = (_js_func(js, 'blogLine') + ';const B=%s;const L=blogLine(B);'
-            'console.log(JSON.stringify([[L.meta,L.head],Object.keys(L).sort(),blogLine(Object.assign({},B,{url:"https://evil.test/x"})),'
-            'blogLine(null),blogLine({})]));' % json.dumps(b, ensure_ascii=False))
-    p = subprocess.run([node, '-e', prog], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    got = json.loads(p.stdout.decode('utf-8'))
-    assert got == [[b['meta'], b['head']], ['head', 'href', 'meta'], None, None, None], got
-    assert 'note' not in b and 'wk-note' not in js and '블로그 이웃이 되면' not in js, "홈에 블로그 이웃 안내가 남았다"
-    boot = _js_func(js, 'boot')
-    assert re.search(r'^\s*renderBlogLine\(\);', boot, re.M), '부팅이 renderBlogLine 을 부르지 않는다'
-    assert "track('home_cta',{to:'blog_weekly'})" in _js_func(js, 'renderBlogLine')
+    # 정의와 호출 꼴로 본다 — 걷었다는 주석에 이름이 남아 있어도 걸리지 않게.
+    for pat in (r'function\s+blogLine\b', r'function\s+renderBlogLine\b', r'renderBlogLine\s*\('):
+        assert not re.search(pat, js), '홈 스크립트에 해설 카드 코드가 되살아났다(%s)' % pat
     s = _index()
-    sec = s[s.index('id="wk-h2"'):s.index('<!-- ===== 통계보기 대시보드 ===== -->')]
-    assert re.search(r'<p class="wk-blog" id="wk-blog" hidden></p>', sec[:sec.index('</section>')])
+    assert 'wk-blog' not in s, '홈 마크업에 해설 카드 자리가 되살아났다'
+    assert "to:'blog_weekly'" not in js and 'blog_weekly' not in s, '해설 카드 클릭 이벤트가 남았다'
+    css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    assert '.wk-blog' not in css and '.blog-card' not in css, 'app.css 에 해설 카드 스타일이 남았다'
+    # 홈이 가리키는 블로그 링크 자체도 없다(푸터는 2026-10-29에 뺐다).
+    assert 'blog.naver' not in s, '홈 마크업에 네이버 블로그 링크가 남았다'
 
 
 # ── ⑦ 3-저장소 병합 완충 ────────────────────────────────────────────────────────────────────────────────

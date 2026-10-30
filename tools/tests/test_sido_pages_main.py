@@ -198,10 +198,16 @@ def test_home_lastmod_ignores_a_share_card_restamp(site, monkeypatch):
     픽스처: 저장소 data-core.js 사본. 판만 바꾼 경우와 다른 글자를 바꾼 경우.
     """
     core = site / 'data-core.js'
+    # ⚠️ 쓸 때 줄바꿈을 바꾸지 않는다. Path.write_text 는 Windows 에서 \n 을 \r\n 으로 바꾸는데, 그러면 판만
+    #    고쳤는데도 해시가 달라져 이 시험이 **플랫폼 때문에** 빨개진다(2026-10-30: 로컬에서 split_data 를 돌려
+    #    data-core.js 가 LF 가 된 뒤 드러났다 — 체크아웃본은 autocrlf 로 CRLF 라 그동안 가려져 있었다).
+    def _write(p, s):
+        io.open(str(p), 'w', encoding='utf-8', newline='').write(s)
+
     src = _read(core)
     assert re.search(r'share/weekly-map\.png\?v=', src), '픽스처: data-core.js 에 주간 카드 주소가 없다'
     assert P._home_lastmod('2026-09-30') == '2026-09-30'
-    core.write_text(re.sub(r'(share/weekly-map\.png\?v=)[0-9A-Za-z-]+', r'\g<1>2099-01-01', src), encoding='utf-8')
+    _write(core, re.sub(r'(share/weekly-map\.png\?v=)[0-9A-Za-z-]+', r'\g<1>2099-01-01', src))
     assert P._home_lastmod('2026-10-01') == '2026-09-30', '카드 판만 바뀌었는데 홈 lastmod 가 올랐다'
-    core.write_text(src.replace('"ADV', '"ADV ', 1) if '"ADV' in src else src + '\n// 바뀜\n', encoding='utf-8')
+    _write(core, src.replace('"ADV', '"ADV ', 1) if '"ADV' in src else src + '\n// 바뀜\n')
     assert P._home_lastmod('2026-10-02') == '2026-10-02', '내용이 바뀌었는데 lastmod 를 그대로 뒀다'

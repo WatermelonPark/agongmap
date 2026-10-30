@@ -793,6 +793,56 @@ def write_weekly_column(metas, root=ROOT):
     return True
 
 
+#  ── /moveins/ 의 '도시별 입주 예정 단지' 칸(총괄 결정 2026-10-30) ─────────────────────────────────────────
+# 2026-10-07부터 네이버 블로그의 도시 입주물량 편을 가리켰다(백로그 37). 네이버 발행이 끝나 묵은 글만
+# 남았고, 같은 주제의 글이 사이트에 생겼다(/city/ 도시 입주물량 편). 자리(표식)는 make_indicator_pages 가
+# 내고 내용은 여기서 채운다 — /weekly/ 해설 칸과 같은 나눔이고, 이유도 같다(그쪽 주석 참조).
+MOVEINS_PAGE = os.path.join('moveins', 'index.html')
+MOVEINS_START, MOVEINS_END = '<!--MV:CITY-->', '<!--/MV:CITY-->'
+MOVEINS_H2 = '도시별 입주 예정 단지'
+MOVEINS_SEC = 'city'
+MOVEINS_MAX = 6                 # 칸에 싣는 글 수. 더 많아지면 '전체 보기'로 보낸다
+_MOVEINS_RE = re.compile(re.escape(MOVEINS_START) + r'(.*?)' + re.escape(MOVEINS_END), re.S)
+
+
+def moveins_cities_html(metas):
+    """/moveins/ 칸의 안쪽. 도시 입주물량 편 최신 몇 편과 섹션 전체 링크. 글이 없으면 칸을 비운다.
+
+    /moveins/ 뼈대의 `.links` 스타일을 그대로 쓴다(옛 블로그 칸과 같은 부품) — 이 칸만의 CSS 가 없다.
+    """
+    posts = sorted([m for m in metas if m['section'] == MOVEINS_SEC],
+                   key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    if not posts:
+        return ''                      # 빈 약속을 굽지 않는다 — 칸째 사라진다
+    rows = ['    <a href="/%s/%s/">%s<span>%s 갱신</span></a>'
+            % (m['section'], m['slug'], html.escape(m['title']), m['updated'])
+            for m in posts[:MOVEINS_MAX]]
+    note = '도시마다 입주 예정 단지를 이름·입주 월·세대수까지 적고, 한 해 적정 입주량과 견줍니다.'
+    if len(posts) > MOVEINS_MAX:
+        note += ' 글 %d편 전체는 <a href="/%s/">%s</a> 에 있습니다.' % (
+            len(posts), MOVEINS_SEC, html.escape(SECTION_META[MOVEINS_SEC][0]))
+    return ('<section class="wrap">\n  <h2>%s</h2>\n  <div class="links">\n%s\n  </div>\n'
+            '  <div class="note">%s</div>\n</section>' % (html.escape(MOVEINS_H2), '\n'.join(rows), note))
+
+
+def write_moveins_cities(metas, root=ROOT):
+    """/moveins/index.html 의 표식 구간만 고쳐 쓴다. 표식이 없으면 건너뛴다(지표 생성기가 아직 안 돈 회차)."""
+    p = os.path.join(root, MOVEINS_PAGE)
+    if not os.path.exists(p):
+        return False
+    s = io.open(p, encoding='utf-8', newline='').read()
+    if len(_MOVEINS_RE.findall(s)) != 1:
+        return False
+    nl = '\r\n' if '\r\n' in s else '\n'
+    body = moveins_cities_html(metas)
+    inner = nl + ((body.replace('\n', nl) + nl) if body else '')
+    out = _MOVEINS_RE.sub(lambda m: MOVEINS_START + inner + MOVEINS_END, s)
+    if out == s:
+        return False
+    io.open(p, 'w', encoding='utf-8', newline='').write(out)
+    return True
+
+
 def collect(root=ROOT, strict=False):
     """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다.
 
@@ -900,11 +950,13 @@ def main(strict=False):
     home = write_home_recent(all_metas)
     zones = write_zone_posts(all_metas)
     wk = write_weekly_column(all_metas)
-    print('content pages: %d편%s · 섹션 %s%s%s%s' % (
+    mv = write_moveins_cities(all_metas)
+    print('content pages: %d편%s · 섹션 %s%s%s%s%s' % (
         wrote, (' · 건너뜀 %d편' % len(skipped)) if skipped else '',
         ', '.join(sorted(by_sec)), ' · 홈 최근 리포트 갱신' if home else '',
         ' · 지역 리포트 %d곳에 글 묶음' % zones if zones else '',
-        ' · 주간 리포트 해설 칸 갱신' if wk else ''))
+        ' · 주간 리포트 해설 칸 갱신' if wk else '',
+        ' · 입주물량 도시 칸 갱신' if mv else ''))
     return 0
 
 

@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v206';
+const HOME_BUILD='v207';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1826,28 +1826,9 @@ function shareWeekly(m){
     navigator.share({title:d.title,text:d.text,url:d.url}).catch(e=>{if(e&&e.name!=='AbortError')copyText(txt);});
   }else{copyText(txt);}
 }
-/* 주간 구역의 해설 글 카드(홈 마케팅 검수 B5·RET-4, 2026-09-27 → 2026-10-03 카드로). 말(meta·head)은 배치가 blog_feed.pick 으로
-   골라 data-core 의 ADV.blog 로 구운 것이다 — /weekly/ 하단과 같은 글·같은 말. 여기서 날짜를 다시 셈하지 않는다. 글이 없거나
-   (RSS 를 못 읽었거나 오래됨) 옛 캐시면 칸은 숨은 채로 남는다. 제목은 RSS 에서 온 글자라 textContent 로만 넣고, 주소는 네이버
-   블로그 주소만 받는다. 이웃 안내 줄은 홈(2026-09-28)·/weekly/(2026-10-03) 모두 뺐다. */
-/* 카드 = 작은 머리줄(meta '지난주 해설 · 네이버 블로그 9/27') + 굵은 결론(head — 제목의 '|' 뒤, blog_feed.headline). 매주 같은
-   제목 앞부분('[한국부동산원] 주간 아파트가격 동향(…)')과 밑줄 긴 세 줄을 걷었다(2026-10-03 대표 요청). 카드 전체가 링크다. */
-function blogLine(B){
-  if(!B||!B.url||!B.head||!B.meta||!/^https:\/\/blog\.naver\.com\//.test(B.url))return null;
-  return {href:B.url,meta:B.meta,head:B.head};
-}
-function renderBlogLine(){
-  const el=document.getElementById('wk-blog');
-  let L;try{L=blogLine(ADV.blog);}catch(e){return;}
-  if(!el||!L)return;
-  const a=document.createElement('a'), m=document.createElement('span'), h=document.createElement('span');
-  a.href=L.href;a.target='_blank';a.rel='noopener';a.className='blog-card';
-  m.className='bc-meta';m.textContent=L.meta;h.className='bc-head';h.textContent=L.head+' →';
-  a.appendChild(m);a.appendChild(h);
-  a.addEventListener('click',()=>track('home_cta',{to:'blog_weekly'}));
-  el.textContent='';el.appendChild(a);
-  el.hidden=false;
-}
+/* 주간 구역의 해설 글 카드(blogLine·renderBlogLine, 2026-09-27~)는 2026-10-30에 걷었다. 네이버 발행이 끝나
+   (10-26·10-29 대표 결정) 그 카드는 묵은 글만 가리켰고, 아래 '최근 리포트' 묶음이 사이트 글로 같은 일을 한다.
+   데이터 쪽(split_data 의 ADV 의 blog 키)·마크업(#wk-blog)·스타일(.wk-blog)도 같이 걷었다 — 되살리지 말 것. */
 /* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.
    티어 문구는 BLV 정본에서 읽는다. 가짜 데이터로 오해되지 않게 라벨을 붙인다.
    예시 점수 3 = 🐥 솜털 병아리. 8(🏘️ 다주택자)로 걸었다가 사용자가 "병아리가
@@ -2040,7 +2021,6 @@ function boot(){
   renderWeeklyGrid();
   quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
-  renderBlogLine();   // 주간 구역 아래 이번 주 해석 글 한 줄(B5)
   renderSupplySpan(); // 카드 아래 기준 줄의 '앞으로 3년(…~…)' 구간(B9)
   dropOldMyZone();    // 뺀 '내 지역'의 옛 저장값 정리
   /* ⚠️ 표(분기 1,000칸 HTML 조립)는 여기서 굽지 않는다. 기본 모드가 지도인데
