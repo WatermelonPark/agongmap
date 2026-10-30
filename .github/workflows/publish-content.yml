@@ -108,16 +108,21 @@ jobs:
             echo "바뀐 것이 없다 — 원고만 올렸고 페이지는 이미 같은 내용이다"
             exit 0
           fi
-          # 그래도 대상 밖에 남은 것이 있으면 되돌린다 — 모두 생성기 산출물이라 다음 회차에 다시 나온다.
+          git config user.name  "stats-bot"
+          git config user.email "actions@users.noreply.github.com"
+          # ⚠️ 되돌리기 **앞에서** 커밋 대상을 인덱스에 올린다. 순서가 반대였을 때, 아래 LEFT 검사가
+          #    TARGETS 안팎을 가리지 않고 추적 파일의 모든 변경을 잡아 `git checkout -- .` 가 목록·허브·
+          #    피드·사이트맵까지 전부 되돌렸다. 그래서 새 글이 올라온 회차에 **새 파일(untracked)만** 커밋되고
+          #    /danji/ 목록과 /reports/ 허브에는 그 글이 없었다(2026-10-30 런 320be1e3, 총괄 지적).
+          #    git checkout 은 인덱스 기준으로 작업 트리를 복원하므로, 먼저 add 해 두면 대상은 보존된다.
+          git add -- $HAVE
+          # 그래도 남은 것(= 대상 밖)은 되돌린다 — 모두 생성기 산출물이라 다음 회차에 다시 나온다.
           # (남겨 두면 rebase 가 거부하고 이 회차 발행이 사라진다.)
-          LEFT=$(git status --porcelain | grep -v '^??' || true)
+          LEFT=$(git status --porcelain | grep -E '^.[MD]' || true)
           if [ -n "$LEFT" ]; then
             echo "::warning::커밋 대상 밖 변경을 되돌린다 — TARGETS 를 확인할 것:"; echo "$LEFT"
             git checkout -- . || true
           fi
-          git config user.name  "stats-bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add -- $HAVE
           git commit -m "원고 발행: 콘텐츠 페이지 재생성"
           # 매일 배치와 같은 푸시 루프. rebase 가 우리 커밋을 '이미 반영된 패치'로 버리면 HEAD 가 원격
           # 끝과 같아진다 — 그때 push 는 성공하지만 실은 커밋한 것이 없으므로 그렇게 적는다.
