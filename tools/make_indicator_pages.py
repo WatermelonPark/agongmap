@@ -211,7 +211,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:12.5px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
