@@ -1348,3 +1348,27 @@ def test_every_built_post_image_points_at_a_real_file():
             if not os.path.exists(f):
                 bad.append('%s/%s: %s' % (sec, slug, src))
     assert not bad, '없는 파일을 가리키는 그림: %s' % bad[:10]
+
+
+def test_post_dates_on_screen_use_the_two_step_format():
+    """글 머리의 작성·갱신일은 '2026년 10월 30일'(day_long), 목록·카드·홈 '최근 리포트'·시도 '이 지역 글'의 갱신일은
+    '26.10.30'(day_short)이다 — ISO 꼴 '2026-10-30' 이 화면에 나오지 않는다(CLAUDE.md 날짜 두 단계, 2026-10-30 디자인 리뷰).
+
+    무엇을 바꾸면 빨개지나(실제로 확인): post_item 의 _day_short 를 meta['updated'] 로 되돌리면.
+    픽스처: 생성기를 돌린 저장소의 콘텐츠 허브·글·홈·시도 리포트(게이트와 같은 순서). JSON-LD·RSS 는 ISO 그대로라 보지 않는다.
+    """
+    pages = [HS.HOME, os.path.join(MC.REPORTS_DIR, 'index.html')]
+    pages += [os.path.join(s, g, 'index.html') for s, g, _ in CM.built(ROOT)]
+    pages += [os.path.join('zone', z, 'index.html') for z in os.listdir(os.path.join(ROOT, 'zone'))
+              if os.path.exists(os.path.join(ROOT, 'zone', z, 'index.html'))]
+    iso = re.compile(r'\d{4}-\d{2}-\d{2}')
+    bad = []
+    for rel in pages:
+        p = os.path.join(ROOT, rel)
+        if not os.path.exists(p):
+            continue
+        s = io.open(p, encoding='utf-8').read()
+        spots = re.findall(r'class="cmeta">(.*?)</p>', s) + re.findall(r'<(?:i|span)>([^<]*갱신)</(?:i|span)>', s) \
+            + re.findall(r'class="hc-m">([^<]*)<', s)
+        bad += ['%s: %s' % (rel, x) for x in spots if iso.search(x)]
+    assert not bad, '화면 날짜가 ISO 꼴이다: %s' % bad[:8]

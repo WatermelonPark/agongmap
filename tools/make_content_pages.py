@@ -81,6 +81,19 @@ SECTION_META = {
 assert set(SECTION_META) == set(CM.SECTIONS), '섹션 목록이 content_md 와 다르다'
 
 
+# 화면 날짜는 두 단계 정본(sido_zones.day_long·day_short — CLAUDE.md '날짜는 두 단계로 쓴다'). 글 머리의 작성·갱신일은 해를
+# 넘겨 읽히는 자리라 '2026년 10월 30일', 목록·카드 메타는 좁은 자리라 '26.10.30'. JSON-LD·RSS·sitemap 은 ISO 그대로다.
+# (2026-10-30 디자인 리뷰 — 목록·머리가 '2026-10-30 갱신' ISO 꼴이었다)
+def _day_long(iso):
+    import sido_zones as SZ
+    return SZ.day_long(iso)
+
+
+def _day_short(iso):
+    import sido_zones as SZ
+    return SZ.day_short(iso)
+
+
 # ── 마크다운 (우리가 쓰는 부분집합) ─────────────────────────────────────────
 def _inline(t):
     """인라인 서식. 먼저 이스케이프하고, 그 위에 굵게·코드·링크만 되살린다."""
@@ -511,7 +524,7 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
         '<p class="cdisc">%s</p>'
         '</div></section>'
         % (sec, html.escape(SECTION_META[sec][0]), html.escape(meta['title']),
-           meta['date'], meta['updated'], AUTHOR,
+           _day_long(meta['date']), _day_long(meta['updated']), AUTHOR,
            html.escape(meta['summary']), body_html, src_html, faq_html,
            ''.join(nav), DISCLAIMER))
     # 제목·요약은 <title> 과 og 속성 값에 들어간다. 반박 글 제목에는 발언을 그대로 옮긴 큰따옴표가 있어
@@ -587,7 +600,7 @@ def post_item(meta, summary=True):
     body = '<b>%s</b>' % html.escape(meta['title'])
     if summary:
         body += '<span>%s</span>' % html.escape(meta['summary'])
-    body += '<i>%s · %s 갱신</i>' % (html.escape(SECTION_META[meta['section']][0]), meta['updated'])
+    body += '<i>%s · %s 갱신</i>' % (html.escape(SECTION_META[meta['section']][0]), _day_short(meta['updated']))
     return ('<a class="pcard%s" href="/%s/%s/" data-sec="%s">%s<div class="pc-b">%s</div></a>'
             % ('' if th else ' pc-noimg', meta['section'], meta['slug'], meta['section'], img, body))
 
@@ -617,7 +630,7 @@ def hub_cards(all_metas, data):
             meta_line = cnt.get(key, '')
             latest = ''
         else:
-            meta_line = ('글 %d편 · %s 갱신' % (len(posts), posts[0]['updated'][5:])) if posts else '준비 중'
+            meta_line = ('글 %d편 · %s 갱신' % (len(posts), _day_short(posts[0]['updated']))) if posts else '준비 중'
             latest = ''.join('<li>%s</li>' % html.escape(m['title']) for m in posts[:2])
         out.append(
             '<a class="hcard" href="%s"><h3>%s<em>%s</em></h3><p>%s</p>'
@@ -761,7 +774,7 @@ def zone_posts_html(metas):
     items = ''.join(
         '<li><a href="/%s/%s/"><b>%s</b><i>%s · %s 갱신</i></a></li>'
         % (m['section'], m['slug'], html.escape(m['title']),
-           html.escape(SECTION_META[m['section']][0]), m['updated'])
+           html.escape(SECTION_META[m['section']][0]), _day_short(m['updated']))
         for m in newest)
     return '<section class="crecent zposts"><h2>이 지역 글</h2><ul>%s</ul></section>' % items
 
@@ -823,7 +836,7 @@ def weekly_column_html(metas):
         m = posts[0]
         rows.append('    <a href="/%s/%s/">%s<span>%s · %s 갱신</span></a>'
                     % (m['section'], m['slug'], html.escape(m['title']),
-                       html.escape(SECTION_META[m['section']][0]), m['updated']))
+                       html.escape(SECTION_META[m['section']][0]), _day_short(m['updated'])))
     # 섹션 이름은 SECTION_META 에서 읽는다 — 섹션이 늘거나 이름이 바뀌면 이 곁말도 따라온다.
     names = ' · '.join(SECTION_META[k][0] for k, _n, _d, _c in HUB_CARDS if not k.startswith('/'))
     rows.append('    <a href="/%s/">%s<span>%s</span></a>'
@@ -874,7 +887,7 @@ def moveins_cities_html(metas):
     if not posts:
         return ''                      # 빈 약속을 굽지 않는다 — 칸째 사라진다
     rows = ['    <a href="/%s/%s/">%s<span>%s 갱신</span></a>'
-            % (m['section'], m['slug'], html.escape(m['title']), m['updated'])
+            % (m['section'], m['slug'], html.escape(m['title']), _day_short(m['updated']))
             for m in posts[:MOVEINS_MAX]]
     note = '도시마다 입주 예정 단지를 이름·입주 월·세대수까지 적고, 한 해 적정 입주량과 견줍니다.'
     if len(posts) > MOVEINS_MAX:
