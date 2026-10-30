@@ -81,6 +81,19 @@ SECTION_META = {
 assert set(SECTION_META) == set(CM.SECTIONS), '섹션 목록이 content_md 와 다르다'
 
 
+# 화면 날짜는 두 단계 정본(sido_zones.day_long·day_short — CLAUDE.md '날짜는 두 단계로 쓴다'). 글 머리의 작성·갱신일은 해를
+# 넘겨 읽히는 자리라 '2026년 10월 30일', 목록·카드 메타는 좁은 자리라 '26.10.30'. JSON-LD·RSS·sitemap 은 ISO 그대로다.
+# (2026-10-30 디자인 리뷰 — 목록·머리가 '2026-10-30 갱신' ISO 꼴이었다)
+def _day_long(iso):
+    import sido_zones as SZ
+    return SZ.day_long(iso)
+
+
+def _day_short(iso):
+    import sido_zones as SZ
+    return SZ.day_short(iso)
+
+
 # ── 마크다운 (우리가 쓰는 부분집합) ─────────────────────────────────────────
 def _inline(t):
     """인라인 서식. 먼저 이스케이프하고, 그 위에 굵게·코드·링크만 되살린다."""
@@ -393,12 +406,14 @@ EXTRA_CSS = LIST_CSS + """
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
+@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
-.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:12.5px;color:var(--muted)}
-.cnote{font-size:12px;color:var(--muted);margin:6px 0 0}
+.ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
+.cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
@@ -407,13 +422,13 @@ EXTRA_CSS = LIST_CSS + """
 .cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
 .cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
  text-decoration:none;color:var(--ink);font-size:14px}
-.cnav a span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
-.clist i{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:12px;color:var(--muted);margin-top:22px;line-height:1.6}
+.clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
+.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 """
 
 
@@ -509,14 +524,14 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
         '<p class="cdisc">%s</p>'
         '</div></section>'
         % (sec, html.escape(SECTION_META[sec][0]), html.escape(meta['title']),
-           meta['date'], meta['updated'], AUTHOR,
+           _day_long(meta['date']), _day_long(meta['updated']), AUTHOR,
            html.escape(meta['summary']), body_html, src_html, faq_html,
            ''.join(nav), DISCLAIMER))
     # 제목·요약은 <title> 과 og 속성 값에 들어간다. 반박 글 제목에는 발언을 그대로 옮긴 큰따옴표가 있어
     # 이스케이프하지 않으면 속성이 그 자리에서 끊긴다(2026-10-29 게이트가 잡았다).
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % meta['title']),
                   ogtitle=html.escape(meta['title']), desc=html.escape(meta['summary']), url=url, body=body,
-                  ld=_ld(meta, url, body_html), src=' · '.join(srcs) if srcs else '아공맵',
+                  ld=_ld(meta, url, body_html), src='',   # 출처는 본문 '숫자의 출처'(src_html)에 있다 — 푸터에 되풀이하지 않는다
                   nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     page = re.sub(r'<meta property="og:image" content="[^"]*">',
@@ -539,7 +554,7 @@ def build_index(sec, posts_meta):
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
                   desc=html.escape(desc), url=url, body=body,
                   ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED),
-                  src='아공맵', nsido=str(len(I.SIDO17)))
+                  src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
 
@@ -585,7 +600,7 @@ def post_item(meta, summary=True):
     body = '<b>%s</b>' % html.escape(meta['title'])
     if summary:
         body += '<span>%s</span>' % html.escape(meta['summary'])
-    body += '<i>%s · %s 갱신</i>' % (html.escape(SECTION_META[meta['section']][0]), meta['updated'])
+    body += '<i>%s · %s 갱신</i>' % (html.escape(SECTION_META[meta['section']][0]), _day_short(meta['updated']))
     return ('<a class="pcard%s" href="/%s/%s/" data-sec="%s">%s<div class="pc-b">%s</div></a>'
             % ('' if th else ' pc-noimg', meta['section'], meta['slug'], meta['section'], img, body))
 
@@ -615,7 +630,7 @@ def hub_cards(all_metas, data):
             meta_line = cnt.get(key, '')
             latest = ''
         else:
-            meta_line = ('글 %d편 · %s 갱신' % (len(posts), posts[0]['updated'][5:])) if posts else '준비 중'
+            meta_line = ('글 %d편 · %s 갱신' % (len(posts), _day_short(posts[0]['updated']))) if posts else '준비 중'
             latest = ''.join('<li>%s</li>' % html.escape(m['title']) for m in posts[:2])
         out.append(
             '<a class="hcard" href="%s"><h3>%s<em>%s</em></h3><p>%s</p>'
@@ -686,7 +701,7 @@ def build_reports(all_metas, data=None):
                   ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
                   url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
                                                    lastmod or I.PUBLISHED),
-                  src='아공맵', nsido=str(len(I.SIDO17)))
+                  src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
 
@@ -759,7 +774,7 @@ def zone_posts_html(metas):
     items = ''.join(
         '<li><a href="/%s/%s/"><b>%s</b><i>%s · %s 갱신</i></a></li>'
         % (m['section'], m['slug'], html.escape(m['title']),
-           html.escape(SECTION_META[m['section']][0]), m['updated'])
+           html.escape(SECTION_META[m['section']][0]), _day_short(m['updated']))
         for m in newest)
     return '<section class="crecent zposts"><h2>이 지역 글</h2><ul>%s</ul></section>' % items
 
@@ -821,7 +836,7 @@ def weekly_column_html(metas):
         m = posts[0]
         rows.append('    <a href="/%s/%s/">%s<span>%s · %s 갱신</span></a>'
                     % (m['section'], m['slug'], html.escape(m['title']),
-                       html.escape(SECTION_META[m['section']][0]), m['updated']))
+                       html.escape(SECTION_META[m['section']][0]), _day_short(m['updated'])))
     # 섹션 이름은 SECTION_META 에서 읽는다 — 섹션이 늘거나 이름이 바뀌면 이 곁말도 따라온다.
     names = ' · '.join(SECTION_META[k][0] for k, _n, _d, _c in HUB_CARDS if not k.startswith('/'))
     rows.append('    <a href="/%s/">%s<span>%s</span></a>'
@@ -872,7 +887,7 @@ def moveins_cities_html(metas):
     if not posts:
         return ''                      # 빈 약속을 굽지 않는다 — 칸째 사라진다
     rows = ['    <a href="/%s/%s/">%s<span>%s 갱신</span></a>'
-            % (m['section'], m['slug'], html.escape(m['title']), m['updated'])
+            % (m['section'], m['slug'], html.escape(m['title']), _day_short(m['updated']))
             for m in posts[:MOVEINS_MAX]]
     note = '도시마다 입주 예정 단지를 이름·입주 월·세대수까지 적고, 한 해 적정 입주량과 견줍니다.'
     if len(posts) > MOVEINS_MAX:

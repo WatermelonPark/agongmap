@@ -66,7 +66,7 @@ def host(root=ROOT):
 SITE = 'https://' + host()
 TITLE = '아공맵 — 아파트 공급 지도'
 DESC = ('국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, '
-        '이달의 공급 통계를 알립니다.')
+        '이달의 통계를 알립니다.')
 KINDS = ('weekly', 'zone', 'monthly', 'content')   # 같은 날짜일 때의 순서
 
 _DAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
@@ -150,7 +150,7 @@ def monthly_item(adv, sts, prev=None):
     date = published(guid, MONTHLY_PAGE, prev or {})
     if not date:
         return None
-    return {'kind': 'monthly', 'title': '이달의 공급 통계 — %s 기준' % MP.month_label(raw),
+    return {'kind': 'monthly', 'title': '이달의 통계 — %s 기준' % MP.month_label(raw),
             'link': SITE + '/monthly/', 'guid': guid, 'date': date, 'desc': MP.DESC}
 
 

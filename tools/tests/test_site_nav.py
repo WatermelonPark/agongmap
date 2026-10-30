@@ -243,6 +243,31 @@ def test_hand_pages_share_one_footer():
     assert not bad, bad
 
 
+def test_every_footer_carries_the_canonical_links():
+    """저장소의 모든 <footer> 가 공용 링크 줄(site_nav.FOOTER_LINKS — 홈·소개·FAQ·개인정보처리방침·연락처)을 싣는다.
+
+    재현한 실제 상태(2026-10-30 디자인 리뷰): /weekly/·/monthly/·/moveins/·/jeonse-ratio/·/zone/·콘텐츠 허브와 글의
+    푸터에 개인정보처리방침 링크가 없었고, 콘텐츠 푸터는 '자료: 아공맵'(기관명 규칙 위반)이었다.
+    변이(실제로 확인): make_indicator_pages.SHELL 의 __FOOTER__ 를 옛 한 줄 푸터로 되돌리거나, make_weekly_page 에서
+    put_footer 를 빼면(배치가 뼈대 푸터를 그대로 두면) 빨개진다.
+    픽스처: 생성기를 먼저 돌린 저장소의 모든 HTML(게이트와 같은 순서) — 홈 세 벌은 <footer> 가 아니라 사이트맵 푸터라
+    test_home_summary 가 본다. 생성기 셋은 함수로도 직접 굽는다(생성기를 안 돌린 사본에서도 본다).
+    """
+    bad = [rel for rel in _html_pages()
+           if '<footer' in io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+           and N.FOOTER_LINKS not in io.open(os.path.join(ROOT, rel), encoding='utf-8').read()]
+    assert not bad, '공용 링크 줄이 없는 푸터: %s' % bad
+    assert N.FOOTER_LINKS in I.fill(I.SHELL, src='국토교통부')
+    assert N.FOOTER_LINKS in M.FOOT
+    w = MW.put_footer('<footer><div class="wrap">옛 푸터</div></footer>')
+    assert N.FOOTER_LINKS in w and '옛 푸터' not in w
+    for rel in _html_pages():
+        s = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        if '자료: 아공맵' in s:
+            bad.append(rel)
+    assert not bad, "'자료: 아공맵' 푸터(출처는 기관명): %s" % bad
+
+
 def test_theme_color_is_one_canon():
     """모든 페이지의 <meta name="theme-color"> 와 manifest theme_color 가 정본 site_nav.THEME_COLOR(= app.css --ink, 탭바 배경)와 같다.
 

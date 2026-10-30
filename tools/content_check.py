@@ -83,6 +83,24 @@ def check_post(path, data, root=ROOT):
     return [(ln, '%s' % why) for ln, why in out], waits, rel
 
 
+# 사이트 정본 낱말(CLAUDE.md '같은 개념은 한 이름, 물량은 한 단위' — 적정물량·세대). 원고 문장은 작성 세션의 몫이라
+# 막지 않고 알림만 한다(2026-10-30 디자인 리뷰 — 콘텐츠 글에 '적정 입주량'·'적정 대비'·'2,056가구'가 섞였다).
+TERM_NOTES = (
+    (re.compile(r'적정\s+입주량'), "'적정 입주량' → '적정물량'"),
+    (re.compile(r'적정\s+대비'), "'적정 대비' → '적정물량 대비'"),
+    (re.compile(r'\d[\d,]*\s*가구'), "물량 단위 '가구' → '세대'"),
+)
+
+
+def term_notes(text):
+    """원고 글 → [(줄, 알림)]. 고칠 곳(종료 코드)에 세지 않는다."""
+    out = []
+    for pat, why in TERM_NOTES:
+        for m in pat.finditer(text):
+            out.append((_line_of(text, m.start()), '%s (%s)' % (why, m.group(0))))
+    return out
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     only = argv[0].replace('\\', '/').rstrip('/').split('/')[-1] if argv else None
@@ -94,6 +112,8 @@ def main(argv=None):
     bad, waiting = 0, 0
     for sec, slug, path in posts:
         problems, waits, rel = check_post(path, data)
+        for ln, why in term_notes(io.open(path, encoding='utf-8').read()):
+            print('  ※    %s:%d  %s' % (rel, ln, why))
         for ln, why in sorted(waits):
             # 아직 수집되지 않은 시군구는 고칠 곳이 아니다 — 올리면 배치가 받아 넣고 다음 구움에서 나온다.
             print('  …    %s:%d  %s' % (rel, ln, why))

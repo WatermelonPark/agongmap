@@ -47,10 +47,10 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   :root{--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--body);
-    font-family:'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',system-ui,sans-serif;line-height:1.75;font-size:var(--fs-read)}
+    font-family:'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',system-ui,sans-serif;line-height:1.75;font-size:var(--fs-read);word-break:keep-all;overflow-wrap:break-word}
   .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
   header{padding:44px 0 26px;border-bottom:1px solid var(--line)}
-  .chip{display:inline-block;font-size:12.5px;font-weight:600;color:var(--muted);
+  .chip{display:inline-block;font-size:13px;font-weight:600;color:var(--muted);
     border:1px solid var(--line);border-radius:0;padding:3px 12px;background:var(--panel)}
   h1{font-size:var(--h1-doc);line-height:1.3;color:var(--ink);margin:.45em 0 .2em;letter-spacing:-.02em}
   .lead{color:var(--muted);font-size:.95rem;margin:0}
@@ -60,10 +60,14 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   ul{margin:.4em 0;padding-left:1.2em}
   li{margin:.35em 0}
   table{width:100%;border-collapse:collapse;font-size:.92rem;margin:.6em 0}
-  .scroll{overflow-x:auto}
+  .scroll{overflow-x:auto;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
+  /* ↑ 넘침 표시(2026-10-30 디자인 리뷰). 첫 열은 한 글자씩 세로로 쌓이지 않게 최소 폭을 둔다. */
+  .scroll td:first-child{min-width:6.5em}
+  .scroll table{min-width:560px}   /* 좁은 화면에서 네 열이 한 글자 폭으로 짓눌리지 않게 — 넘치면 상자 안에서 밀고 그림자가 알린다 */
+  @media (max-width:600px){.scroll td:first-child{position:sticky;left:0;background:var(--paper);z-index:1}}
   th,td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
   td{text-align:left}
-  th{font-size:.78rem;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--panel);text-align:center}
+  th{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--panel);text-align:center}
   .note{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:14px 16px;font-size:.92rem}
   a{color:var(--ink)}
   .cta{display:inline-block;margin-top:22px;padding:11px 20px;border:1px solid var(--line);
@@ -90,7 +94,7 @@ body{padding-bottom:66px}
 /* 이용 이벤트 목록(1항) — 접어 두고 펼쳐 본다 */
 details.ev{margin:.8em 0}
 details.ev summary{cursor:pointer;font-weight:600}
-details.ev code{font-size:.88em;white-space:nowrap}
+details.ev code{font-size:13px;white-space:nowrap}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>

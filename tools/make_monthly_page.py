@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""'이달의 공급 통계' 한 화면(/monthly/) — 매달 공개 통계를 훑는 순서 그대로.
+"""'이달의 통계' 한 화면(/monthly/) — 매달 공개 통계를 훑는 순서 그대로.
 
 왜 이 화면이 있나:
   같은 통계를 매달 보는 사람들이 정부 사이트 4~5군데를 돌며 확인한다. 값이
@@ -153,7 +153,7 @@ def share_payload(adv, sts, root=None):
     text = ('%s: %s' % (top[0], ' · '.join('%s %s' % (SZ.disp(r), v) for r, v in top[1]))) if top and top[1] else \
         '시도별 매매·전세·월세, 인허가, 입주물량, 미분양, 전세가율을 한 화면에'
     return {'p': v, 'ct': 'monthly', 'url': PS.link(URL, SHARE_SOURCE, 'month_' + v.replace('-', '')),
-            'title': '이달의 공급 통계 · %s 기준' % month_label(v), 'text': text,
+            'title': '이달의 통계 · %s 기준' % month_label(v), 'text': text,
             'img': img, 'w': w, 'h': h, 'btn': '이달의 통계 보기'}
 
 
@@ -365,7 +365,7 @@ def ld_pack_here(headline, desc, url, modified):
         "@context": "https://schema.org", "@type": "BreadcrumbList",
         "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "아공맵", "item": SITE + '/'},
-            {"@type": "ListItem", "position": 2, "name": "이달의 공급 통계"},
+            {"@type": "ListItem", "position": 2, "name": "이달의 통계"},
         ],
     }], ensure_ascii=False, indent=2)
 
@@ -698,11 +698,11 @@ def main():
     share = share_payload(adv, sts)
     share_block = PS.block(share, SHARE_LEAD) if share else ''
 
-    title = '이달의 공급 통계 — 시도별 매매·전세·인허가·입주물량·미분양 | 아공맵'
+    title = '이달의 통계 — 시도별 매매·전세·인허가·입주물량·미분양 | 아공맵'
     desc = DESC
     body = (N.dtoc(TOC_ITEMS)
-            + '<header><div class="wrap"><div class="chip">이달의 공급 통계</div>'
-            '<h1>이번 달 통계, 한 화면에서</h1>'
+            + '<header><div class="wrap"><div class="chip">이달의 통계</div>'
+            '<h1>이달의 통계, 한 화면에서</h1>'
             '<p class="lead">매달 흩어져 발표되는 공개 통계를 보는 순서 그대로 모았습니다. '
             '지표마다 <b>기준월과 발표 원천</b>을 함께 적었습니다.</p></div></header>'
             + toc + ''.join(secs)
@@ -715,9 +715,9 @@ def main():
 
     html = I.fill(
         I.SHELL, desk='doc',
-        title=esc(title), ogtitle=esc('이달의 공급 통계 — 한 화면 정리'),
+        title=esc(title), ogtitle=esc('이달의 통계 — 한 화면 정리'),
         desc=esc(desc), url=URL,
-        ld=ld_pack_here('이달의 공급 통계', desc, URL, today),
+        ld=ld_pack_here('이달의 통계', desc, URL, today),
         src='한국부동산원 · 국토교통부 · KOSIS',
         body=body)
     # 이 페이지 전용 CSS를 SHELL 스타일 끝에 얹는다(SHELL을 건드리지 않는다).
