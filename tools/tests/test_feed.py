@@ -185,7 +185,7 @@ def test_monthly_page_date_is_the_day_its_content_changed(tmp_path, monkeypatch)
     for day in ('2031-03-03', '2031-03-04', '2031-03-05'):
         monkeypatch.setattr(MP.KST, 'today_iso', lambda now=None, d=day: d)
         if day == '2031-03-05':   # 내용이 바뀐 날 — 표 제목 한 곳을 옛 판에서 바꿔 둔다
-            page.write_text(page.read_text(encoding='utf-8').replace('이번 달 통계, 한 화면에서', '옛 제목', 1),
+            page.write_text(page.read_text(encoding='utf-8').replace('이달의 통계, 한 화면에서', '옛 제목', 1),
                             encoding='utf-8')
         assert MP.main() == 0
         h = page.read_text(encoding='utf-8')

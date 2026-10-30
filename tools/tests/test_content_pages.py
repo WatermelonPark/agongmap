@@ -1372,3 +1372,19 @@ def test_post_dates_on_screen_use_the_two_step_format():
             + re.findall(r'class="hc-m">([^<]*)<', s)
         bad += ['%s: %s' % (rel, x) for x in spots if iso.search(x)]
     assert not bad, '화면 날짜가 ISO 꼴이다: %s' % bad[:8]
+
+
+def test_content_check_notes_off_canon_words_without_failing():
+    """원고 검사(content_check)가 '적정 입주량'·'적정 대비'·'N가구'를 알림(※)으로 짚되 고칠 곳(종료 코드)에 세지 않는다.
+    생성기가 굽는 표 머리·카드·설명은 정본 낱말(적정물량)을 쓴다(2026-10-30 디자인 리뷰).
+
+    무엇을 바꾸면 빨개지나(실제로 확인): TERM_NOTES 에서 '가구' 규칙을 지우면, content_tables 표 머리를 '적정 대비'로 되돌리면.
+    픽스처: 세 낱말이 든 합성 원고 글과 content_tables 의 입주 표 머리.
+    """
+    import content_check as CC
+    notes = CC.term_notes('첫 줄\n적정 입주량 600세대, 적정 대비 34%\n계획 2,056가구\n적정물량 대비 50%')
+    assert [ln for ln, _ in notes] == [2, 2, 3], notes
+    import content_tables as CT
+    src = io.open(os.path.join(ROOT, 'tools', 'content_tables.py'), encoding='utf-8').read()
+    assert "'적정 대비'" not in src and '적정 입주량 %s' not in src, '생성기가 옛 낱말을 굽는다'
+    assert CT is not None
