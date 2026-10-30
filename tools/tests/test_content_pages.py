@@ -1323,3 +1323,28 @@ def test_claude_md_says_cards_are_ci_only():
     sec = s[i:j if j > 0 else len(s)]
     assert 'share/' in sec and 'CI' in sec, "데이터 원칙에 share/ 카드 규칙이 없다"
     assert 'make_content_cards' in sec, '어느 생성기를 말하는지 적혀 있지 않다'
+
+
+def test_every_built_post_image_points_at_a_real_file():
+    """구워진 글 본문의 그림 주소가 저장소의 실제 파일을 가리킨다 — 상대 주소 그림이 깨지지 않는다.
+
+    재현하는 실제 상태(2026-10-30 디자인 리뷰): 단지 글 원고가 `![…](img/x.png)` 를 쓰고 그림은 content/danji/img/
+    에만 있는데, 페이지는 /danji/<글>/ 에 구워져 상대 주소가 없는 /danji/<글>/img/x.png 를 가리켰다(15곳 깨짐).
+    무엇을 바꾸면 빨개지나: build_page 에서 content_img_src 를 빼면(실제로 확인), 또는 원고가 없는 그림을 가리키면.
+    픽스처: 저장소의 구워진 콘텐츠 페이지 전부와, 상대·절대·외부 주소가 섞인 합성 본문.
+    """
+    import urllib.parse
+    assert MC.content_img_src('<img src="img/a.png"><img src="/share/b.png"><img src="https://x/c.png">', 'danji') == \
+        '<img src="/content/danji/img/a.png"><img src="/share/b.png"><img src="https://x/c.png">'
+    bad, seen = [], 0
+    for sec, slug, _ in CM.built(ROOT):
+        page = io.open(os.path.join(ROOT, sec, slug, 'index.html'), encoding='utf-8').read()
+        for src in re.findall(r'<img src="([^"]+)"', page):
+            if re.match(r'[a-z]+:', src):
+                continue
+            seen += 1
+            rel = urllib.parse.unquote(src.split('?')[0])
+            f = os.path.join(ROOT, rel.lstrip('/')) if rel.startswith('/') else os.path.join(ROOT, sec, slug, rel)
+            if not os.path.exists(f):
+                bad.append('%s/%s: %s' % (sec, slug, src))
+    assert not bad, '없는 파일을 가리키는 그림: %s' % bad[:10]
