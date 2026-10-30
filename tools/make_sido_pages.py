@@ -265,8 +265,20 @@ def split_block(sp):
     for lab, txt in sp['rows']:
         if txt:
             out.append('<p class="zs-row"><b>%s</b><span>%s</span></p>' % (esc(lab), esc(txt)))
+    out.append('</div>')
+    return ''.join(out)
+
+
+def split_ref_block(sp):
+    """3년 너머(인허가 참고)·적정물량 추정 표기 — 해마다 입주 막대 **아래** 접는 칸(2026-10-30 디자인 리뷰: 375px 첫 화면에서
+    판정 막대보다 참고 줄·허수 안내·추정 주석이 먼저 보였다. 설명은 콘텐츠 아래). 접은 칸의 제목에 무엇이 들었는지 적어
+    두므로 참고값이 사라지지는 않는다. 막대의 '3년 너머' 칸(회색)이 같은 값을 그림으로 보인다."""
+    if not sp or not (sp.get('ref') or sp.get('est_note')):
+        return ''
+    out, heads = [], []
     if sp.get('ref'):
         lab, txt, dec, thin = sp['ref']
+        heads.append(lab)
         body = esc(txt)
         if thin:
             body += ' <strong>적정물량에 못 미칩니다.</strong>'
@@ -276,9 +288,10 @@ def split_block(sp):
                    % (' zs-thin' if thin else '', esc(lab), body))
         out.append('<p class="zs-note">%s</p>' % esc(sp['ref_note']))
     if sp.get('est_note'):
+        heads.append('적정물량 추정')
         out.append('<p class="zs-est"><em class="zchip">추정</em>%s</p>' % esc(sp['est_note']))
-    out.append('</div>')
-    return ''.join(out)
+    return ('<details class="zmore"><summary>참고 · %s</summary><div class="zsplit">%s</div></details>'
+            % (esc('·'.join(heads)), ''.join(out)))
 
 
 # 시도 안의 편차는 이 지표로 볼 수 없다(2026-09-13 PM 요청 ④ 조사 결론).
@@ -699,6 +712,10 @@ AGG_TOP = 5
 WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}'
           '.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'
           '.zcell b span{color:var(--ink)}'
+          # 막대 아래 접는 칸(3년 너머·추정, split_ref_block) — 제목 한 줄만 보이고 펼치면 참고 줄이 나온다.
+          '.zmore{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}'
+          '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer}'
+          '.zmore .zsplit{margin-top:6px;border-top:0;padding-top:0}'
           '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
           # 가로로 넘치는 표(375px 에서 전세 칸)는 오른쪽 가장자리에 그림자가 진다 — 끝까지 밀면 사라진다(배경 local/scroll 겹침).
           '.zwk-scroll{overflow-x:auto;border:1px solid var(--line);margin-bottom:6px;'
@@ -708,7 +725,13 @@ WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;colo
           '.zwk .ztb td:first-child,.zwk .ztb thead tr:first-child th:first-child{position:sticky;left:0;background:var(--paper);z-index:1}'
           '.zwk .ztb td:first-child{color:var(--ink);font-size:13px}'
           '.zwk .ztb thead tr:first-child th:first-child{z-index:2}'
-          '.zwk .ztb th:not(:first-child),.zwk .ztb thead tr+tr th{position:static}.zwk .ztb th,.zwk .ztb td{padding:5px 6px}'
+          '.zwk .ztb th:not(:first-child),.zwk .ztb thead tr+tr th{position:static}.zwk .ztb th,.zwk .ztb td{padding:5px 2px 5px 3px;font-size:13px}'
+          # 375px 에서 표가 칸 하나만큼(약 70px) 넘쳐 전세 '연속' 칸이 잘렸다(2026-10-30 디자인 리뷰) — 칸 여백을 줄이고
+          # 지역 이름·'연속(주)' 머리는 두 줄로 접히게 둔다. 그래도 넘치는 긴 이름 지역은 오른쪽 그림자가 알린다.
+          '.zwk .ztb td:first-child{white-space:normal;min-width:3.6em;max-width:5.6em;word-break:keep-all}'
+          '.zwk .ztb thead tr+tr th{white-space:normal;word-break:keep-all;min-width:2.6em}'
+          # 연속 칸의 '▲156 이상'(계열 첫 값까지 닿은 연속)은 두 줄로 접는다 — 한 줄이면 그 칸만 77px 로 벌어졌다.
+          '.zwk .ztb td:nth-child(4),.zwk .ztb td:nth-child(7){white-space:normal;word-break:keep-all}'
           '.zwk-none{font-size:13px;color:var(--muted);margin:0 0 6px}'
           '.zwk .ztb thead tr:first-child th{text-align:center}.zwk .ztb thead tr:first-child th:first-child{text-align:left}'
           '.zwk .ztb thead tr+tr th:first-child{text-align:right}'
@@ -1104,6 +1127,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
     # 인허가는 허수가 많아 경보로 보여주면 '참고로만'과 부딪친다. split_block() 참조.
     h.append(split_block(row.get('split')))
     h.append(outlook_block(yrs_z, row.get('pbr'), calc['H']))
+    h.append(split_ref_block(row.get('split')))
     if row.get('uwarn'):
         h.append('<p class="zwarn">⚠ %s</p>' % unsold_warn(row))
     # est(적정물량 추정 지역)는 이제 표기한다 — 2026-09-13 대표 결정으로 2026-08-08의
@@ -1283,7 +1307,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
         h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i></a>'
                  % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])),
                     lights_html(SZ.yearly_supply(stats, o['z'], Lq, calc['H']) if stats else []),
-                    esc(o['rtxt'])))
+                    card_html(o) if o.get('ctxt') else esc(o['rtxt'])))
     h.append('</div><p class="zsub" style="margin-top:14px">'
              '<a class="zback" href="/">← 전국 공급 표로 돌아가기</a></p></div></section>')
     h.append(share_section(z))
@@ -1292,7 +1316,8 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
 
 
 def card_html(o):
-    """허브 시도 칸의 문구 — 글자는 정본 ctxt('311,689세대 부족(1년 적정물량의 4.2배)') 그대로이고, 괄호 덩어리만 줄 안에서
+    """허브·리포트 '다른 지역' 칸의 문구(2026-10-30 디자인 리뷰 — 전국·수도권·지방 칸과 '다른 지역' 칸만 세대수 없이 비율 한 줄
+    이라 같은 허브 안에서 칸 양식이 둘이었다. 모든 칸이 정본 ctxt 하나를 쓴다). 허브 시도 칸의 문구 — 글자는 정본 ctxt('311,689세대 부족(1년 적정물량의 4.2배)') 그대로이고, 괄호 덩어리만 줄 안에서
     끊기지 않게 묶는다(2026-10-05 대표 요청 — 좁은 두 칸 격자에서 말이 중간에 끊겼다)."""
     t = o['ctxt']
     i = t.find('(')
@@ -1463,7 +1488,7 @@ def build_hub(calc, stats=None):
     for o in agg:
         h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
                  % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
-                    esc(o['rtxt']), gauge_html(o)))
+                    card_html(o) if o.get('ctxt') else esc(o['rtxt']), gauge_html(o)))
     h.append('</div><h2 class="z17">%d개 시도</h2>' % len(sido) +
              ''
              '<div class="zlinks" id="sido-list">')

@@ -218,6 +218,12 @@ h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.2
 .bigsub{font-size:13.5px;color:var(--muted)}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
+/* 절 경계가 보이게 제목 위 여백(2026-10-30 디자인 리뷰 — 앞 문단·주석 밑에 붙어 있었다). 첫 절은 머리 바로 아래라 빼지 않는다. */
+section+section h2{margin-top:12px}
+@media(min-width:1024px){.tbl-wrap.tbl-narrow{max-width:560px}}
+.note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
+/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
+@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
@@ -502,12 +508,6 @@ def build_jeonse(sts, today=None):
 </header>
 
 <section class="wrap">
-  <h2>전세가율이란</h2>
-  <p><strong>전세가율 = 전세가 ÷ 매매가 × 100.</strong> 매매가 10억 아파트의 전세가 6억이면 전세가율 60%%다.</p>
-  <p>전세가에는 시세차익 기대가 없다 — 세입자는 오를 것 같다고 전세금을 더 내지 않는다. 그래서 전세가는 <strong>거주 가치의 순수한 값</strong>이고, 전세가율은 매매가에 낀 기대(프리미엄)가 얼마나 되는지를 보여준다. 전세가율이 낮을수록 매매가에 미래 기대가 많이 반영된 것이고, 높을수록 가격이 실거주 가치에 붙어 있는 것이다.</p>
-</section>
-
-<section class="wrap">
   <h2>시도별 현황 (%(prd)s)</h2>
   <div class="tbl-wrap"><table id="utable" aria-label="시도별 전세가율 현황">
     <thead><tr><th>지역</th><th data-num>전세가율</th><th data-num>1년 전</th><th data-num>변화</th></tr></thead>
@@ -522,6 +522,12 @@ def build_jeonse(sts, today=None):
   <h2>지금 표에서 읽히는 것</h2>
   <p>가장 높은 곳은 <strong>%(hi)s %(hiv).1f%%</strong>, 가장 낮은 곳은 <strong>%(lo)s %(lov).1f%%</strong>다. 서울처럼 전세가율이 낮은 시장은 매매가가 거주 가치보다 기대에 기대어 있다는 뜻이고(투자성 시장), 전세가율이 높은 지방 시장은 가격이 실수요에 붙어 있어 갭이 작다(실거주성 시장).</p>
   <p>%(upm)s전세가율 상승은 사이클에서 중요한 신호다 — <strong>공급이 부족하면 전세가 먼저 오르고, 전세가율이 차오르면 매매를 밀어 올린다.</strong> 갭투자 비용이 줄어드는 지점이기도 하다. 이 연결고리는 20년 국가 통계로 검증해 리포트에 정리해 뒀다.</p>
+</section>
+
+<section class="wrap">
+  <h2>전세가율이란</h2>
+  <p><strong>전세가율 = 전세가 ÷ 매매가 × 100.</strong> 매매가 10억 아파트의 전세가 6억이면 전세가율 60%%다.</p>
+  <p>전세가에는 시세차익 기대가 없다 — 세입자는 오를 것 같다고 전세금을 더 내지 않는다. 그래서 전세가는 <strong>거주 가치의 순수한 값</strong>이고, 전세가율은 매매가에 낀 기대(프리미엄)가 얼마나 되는지를 보여준다. 전세가율이 낮을수록 매매가에 미래 기대가 많이 반영된 것이고, 높을수록 가격이 실거주 가치에 붙어 있는 것이다.</p>
 </section>
 
 <section class="wrap">
@@ -672,26 +678,27 @@ def build_moveins(adv, today=None):
 </header>
 
 <section class="wrap">
-  <h2>입주물량이란</h2>
-  <p><strong>준공(사용승인)을 마치고 실제 입주가 시작되는 아파트 물량</strong>이다. 인허가·착공이 '공급 예고'라면 입주는 <strong>공급의 도착</strong>이다 — 열쇠를 받은 집주인과 세입자가 시장에 실물로 등장한다.</p>
-  <p>입주가 몰리면 가장 먼저 눌리는 건 매매가 아니라 <strong>전세</strong>다. 잔금을 치르려는 집주인들이 전세를 한꺼번에 내놓기 때문이다. 반대로 입주 절벽이 오면 전세부터 마르고, 전세가율이 차오르며 매매를 민다. 그래서 입주물량은 아파트 사이클의 타이밍을 읽는 핵심 지표다.</p>
-</section>
-
-<section class="wrap">
   <h2>시도별 연간 입주물량 (세대)</h2>
-  <div class="tbl-wrap"><table id="utable" aria-label="시도별 연간 입주물량">
+  <div class="tbl-wrap"><table id="utable" class="mv" aria-label="시도별 연간 입주물량">
     <thead><tr><th>지역</th><th data-num>%(Y)s 적정물량 대비</th><th data-num>%(Y0)s</th><th data-num>%(Y)s</th><th data-num>%(Y1)s</th><th data-num>적정물량/년</th></tr></thead>
     <tbody>
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">표두를 누르면 정렬. %(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 연도는 달력 연도(1~12월)입니다. 지역 리포트의 해마다 신호등은 판정 기준 분기 다음 4분기씩 세어 같은 해라도 값이 다를 수 있습니다. 적정물량은 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 값을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div>
+  <div class="note">%(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정 · 표두를 누르면 정렬</div>
+  <details class="note-more"><summary>추정 방법·연도 기준 자세히</summary><div class="note">이후 분기는 착공 실적을 %(lead_y)s 뒤로 밀어 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 연도는 달력 연도(1~12월)입니다. 지역 리포트의 해마다 신호등은 판정 기준 분기 다음 4분기씩 세어 같은 해라도 값이 다를 수 있습니다. 적정물량은 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 값을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신. 좁은 화면에서는 %(Y0)s년·연 적정물량 열을 숨깁니다.</div></details>
 </section>
 
 %(city)s<section class="wrap">
   <h2>지금 표에서 읽히는 것</h2>
   <p>%(Y)s년 입주가 %(lo_head)s <strong>%(lo1)s(적정물량의 %(lo1p)d%%)</strong>, 가장 많은 곳은 <strong>%(hi1)s(적정물량의 %(hi1p)d%%)</strong>다. 공급이 적정물량의 %(occ_lo)d%%를 밑돌면 전세부터 조여드는 구간, %(occ_hi)d%%를 넘으면 입주장이 전세를 누르는 구간으로 본다. 이 비율은 한 해(1~12월)의 입주만 보므로, 지난 %(back_y)s 쌓인 부족과 앞으로 %(lead_y)s을 함께 보는 <a href="/zone/">지역 판정</a>과 다를 수 있다.</p>
   <p>수도권은 %(Y)s년 %(sudo26)s세대에서 %(Y1)s년 %(sudo27)s세대로 %(sudodir)s. 시도 안에서도 시군구별로 사정이 갈리므로, 이 수치는 시장의 방향을 보는 값이지 개별 단지의 사정을 말해 주지 않는다.</p>
+</section>
+
+<section class="wrap">
+  <h2>입주물량이란</h2>
+  <p><strong>준공(사용승인)을 마치고 실제 입주가 시작되는 아파트 물량</strong>이다. 인허가·착공이 '공급 예고'라면 입주는 <strong>공급의 도착</strong>이다 — 열쇠를 받은 집주인과 세입자가 시장에 실물로 등장한다.</p>
+  <p>입주가 몰리면 가장 먼저 눌리는 건 매매가 아니라 <strong>전세</strong>다. 잔금을 치르려는 집주인들이 전세를 한꺼번에 내놓기 때문이다. 반대로 입주 절벽이 오면 전세부터 마르고, 전세가율이 차오르며 매매를 민다. 그래서 입주물량은 아파트 사이클의 타이밍을 읽는 핵심 지표다.</p>
 </section>
 
 <section class="wrap">

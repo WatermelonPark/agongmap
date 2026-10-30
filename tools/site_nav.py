@@ -49,6 +49,12 @@ TABS = (
     # (home-app.js: dataset.view || href 의 영문자). 라벨만 '콘텐츠' 다.
     ('reports', '/reports/', '콘텐츠', _I_CONTENT),
 )
+# 손 페이지가 켜는 탭(2026-10-30 디자인 리뷰 — 퀴즈 3종은 '홈', FAQ 는 아무것도 켜지 않았는데 푸터 사이트맵에서는 둘 다
+# '읽을거리'였다). 읽을거리는 콘텐츠 탭('reports')이 맡으므로 그 탭을 켠다. 소개·개인정보·404 는 어느 탭에도 속하지 않아
+# 켜지 않는다. test_site_nav 가 각 손 페이지 탭바의 켜진 탭을 이 표와 대조한다.
+HAND_TAB_ON = {'faq/index.html': 'reports', 'burini-test/index.html': 'reports',
+               'investor-test/index.html': 'reports', 'redev-test/index.html': 'reports',
+               'about/index.html': None, 'privacy/index.html': None, '404.html': None}
 # 탭 라벨 글자 크기(px) — 홈 화면 글자 하한 13px(2026-09-28 대표 결정 — 홈 작은 글씨 정리, 예전 11.5px). 탭바는 모든 페이지
 # 공용이라 app.css·손 페이지 <style>·생성기(make_indicator_pages SHELL, make_weekly_page put_nav)가 이 값을 쓴다 —
 # test_site_nav 가 저장소의 모든 탭바 규칙과 대조한다. 320px 네 칸(80px)에 '사이클' 13px(약 40px)이 들고, 탭바 높이(62px)는
@@ -90,7 +96,7 @@ HAND_FOOTER_PAGES = ('about/index.html', 'faq/index.html', 'privacy/index.html',
 # 이 줄이 있는지 본다(홈 세 벌은 갱신 주기로 묶은 사이트맵 푸터라 test_home_summary 가 따로 본다).
 FOOTER_LINKS = ('<a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · '
                 '<a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a>')
-FOOTER_BRAND = '<b>아공맵</b> — 아파트 · 공급량 · 투자지도'
+FOOTER_BRAND = '<b>아공맵</b> — 아파트 공급 지도'
 DISCLAIMER = '공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.'
 HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
                '  ' + FOOTER_BRAND + '<br>\n'

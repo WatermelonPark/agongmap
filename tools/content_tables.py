@@ -598,7 +598,8 @@ def _chart_moveins(data, name, year=None):
     pts = [(y, by[y]) for y in sorted(by)]
     cards = []
     if year in by:
-        cards.append(('%s년 입주' % year, num(by[year]) + '세대'))
+        # 카드 이름에 도시를 적는다 — 단지·GTX 글에서 '2027년 입주 640세대'가 그 단지 세대수로 읽혔다(2026-10-30 디자인 리뷰).
+        cards.append(('%s %s년 입주' % (name, year), num(by[year]) + '세대'))
         if need:
             cards.append(('적정물량 대비', '%d%%' % int(round(by[year] / float(need) * 100))))
     for what in ('전세', '매매'):           # 전세 계열이 없는 도시는 매매로 대신한다

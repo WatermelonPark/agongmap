@@ -217,13 +217,34 @@ def _own_tab(page):
     return page.replace(N.bottomnav('stats'), N.bottomnav('reports'), 1)
 
 
+_NUMLIKE = re.compile(r'^[+\-\u2212\u25b2\u25bc~(]?\s*\d')
+
+
+def _text_cols(rows):
+    """글자 열(첫 열 말고) — 칸 대부분이 숫자로 시작하지 않는 열. 글자 열은 머리·칸 모두 왼쪽, 숫자 열만 오른쪽에 붙인다
+    (2026-10-30 디자인 리뷰 — GTX '출퇴근' 표의 '경로'처럼 글자 열이 오른쪽 정렬이고 머리는 가운데였다)."""
+    out = set()
+    n = max([len(r) for r in rows] or [0])
+    for j in range(1, n):
+        cells = [re.sub(r'<[^>]+>', '', str(r[j])).strip() for r in rows if j < len(r)]
+        cells = [c for c in cells if c and c not in ('·', '-', '—')]
+        if cells and sum(1 for c in cells if _NUMLIKE.match(c)) * 2 < len(cells):
+            out.add(j)
+    return out
+
+
+def _cls(j, tx):
+    return ' class="tx"' if j in tx else ''
+
+
 def _table_html(head, body, note=''):
+    tx = _text_cols(body)
     h = ['<div class="ctab"><table><thead><tr>']
-    h += ['<th scope="col">%s</th>' % html.escape(c) for c in head]
+    h += ['<th scope="col"%s>%s</th>' % (_cls(j, tx | {0}), html.escape(c)) for j, c in enumerate(head)]
     h.append('</tr></thead><tbody>')
     for row in body:
         cells = ['<th scope="row">%s</th>' % html.escape(str(row[0]))]
-        cells += ['<td>%s</td>' % html.escape(str(c)) for c in row[1:]]
+        cells += ['<td%s>%s</td>' % (_cls(j, tx), html.escape(str(c))) for j, c in enumerate(row[1:], 1)]
         h.append('<tr>%s</tr>' % ''.join(cells))
     h.append('</tbody></table>')
     if note:
@@ -255,11 +276,13 @@ def markdown(body):
             while i < len(lines) and lines[i].strip().startswith('|'):
                 rows.append([c.strip() for c in lines[i].strip().strip('|').split('|')])
                 i += 1
+            tx = _text_cols(rows)
             h = ['<div class="ctab"><table><thead><tr>']
-            h += ['<th scope="col">%s</th>' % _inline(c) for c in head]
+            h += ['<th scope="col"%s>%s</th>' % (_cls(j, tx | {0}), _inline(c)) for j, c in enumerate(head)]
             h.append('</tr></thead><tbody>')
             for r in rows:
-                cells = ['<th scope="row">%s</th>' % _inline(r[0])] + ['<td>%s</td>' % _inline(c) for c in r[1:]]
+                cells = (['<th scope="row">%s</th>' % _inline(r[0])]
+                         + ['<td%s>%s</td>' % (_cls(j, tx), _inline(c)) for j, c in enumerate(r[1:], 1)])
                 h.append('<tr>%s</tr>' % ''.join(cells))
             h.append('</tbody></table></div>')
             out.append(''.join(h))
@@ -374,8 +397,11 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
 # 그래서 같은 글자가 두 곳에 있고, test_content_pages 가 app.css 의 LIST_CSS 구간과 대조한다.
 
 EXTRA_CSS = LIST_CSS + """
+/* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
+   375px·1280px 모두 페이지가 옆으로 넘쳤다. */
+.cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
 .cchart{margin:0 0 20px;padding:0}
-.cchart-svg{display:block;width:100%;height:auto;margin:2px 0 0}
+.cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .ccard{flex:1 1 30%;min-width:96px;background:var(--paper2);border:1px solid var(--line);
  border-radius:3px;padding:8px 10px}
@@ -412,6 +438,7 @@ EXTRA_CSS = LIST_CSS + """
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
+.ctab .tx{text-align:left;white-space:normal;min-width:6em}
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
@@ -529,7 +556,9 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
            ''.join(nav), DISCLAIMER))
     # 제목·요약은 <title> 과 og 속성 값에 들어간다. 반박 글 제목에는 발언을 그대로 옮긴 큰따옴표가 있어
     # 이스케이프하지 않으면 속성이 그 자리에서 끊긴다(2026-10-29 게이트가 잡았다).
-    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % meta['title']),
+    # 글은 읽는 단(desk 'read') — 넓은 단(wide)이면 1280px 에서 본문 한 줄이 70자를 넘고 결론 상자와 본문 폭이 달랐다
+    # (2026-10-30 디자인 리뷰). 넓은 표는 .ctab 상자 안에서 옆으로 민다.
+    page = I.fill(I.SHELL, desk='read', title=html.escape('%s | 아공맵' % meta['title']),
                   ogtitle=html.escape(meta['title']), desc=html.escape(meta['summary']), url=url, body=body,
                   ld=_ld(meta, url, body_html), src='',   # 출처는 본문 '숫자의 출처'(src_html)에 있다 — 푸터에 되풀이하지 않는다
                   nsido=str(len(I.SIDO17)))
@@ -607,12 +636,13 @@ def post_item(meta, summary=True):
 
 def section_chips(cur=None):
     """섹션 사이를 건너뛰는 칩. 목록 페이지 맨 위에 둔다(허브에서 옮겨 왔다 — 대표 결정 10-29)."""
-    out = ['<a class="rchip%s" href="/%s/">콘텐츠</a>' % ('', REPORTS_DIR)]
+    # 첫 칩은 '전체'(콘텐츠 허브) — '콘텐츠'로 적으면 섹션 하나처럼 읽혔다. 칩 목록은 허브 카드(HUB_CARDS)와 같은 순서·같은
+    # 이름이다(주간·월간 시세·시도 리포트 포함) — 두 탐색 체계가 서로 달랐다(2026-10-30 디자인 리뷰).
+    out = ['<a class="rchip" href="/%s/">전체</a>' % REPORTS_DIR]
     for key, name, _desc, _cad in HUB_CARDS:
-        if key.startswith('/'):
-            continue
-        out.append('<a class="rchip%s" href="/%s/">%s</a>'
-                   % (' on' if key == cur else '', key, html.escape(SECTION_META[key][0])))
+        href = key if key.startswith('/') else '/%s/' % key
+        out.append('<a class="rchip%s" href="%s">%s</a>'
+                   % (' on' if key == cur else '', href, html.escape(name)))
     return '<nav class="rchips" aria-label="카테고리">%s</nav>' % ''.join(out)
 
 
@@ -776,7 +806,10 @@ def zone_posts_html(metas):
         % (m['section'], m['slug'], html.escape(m['title']),
            html.escape(SECTION_META[m['section']][0]), _day_short(m['updated']))
         for m in newest)
-    return '<section class="crecent zposts"><h2>이 지역 글</h2><ul>%s</ul></section>' % items
+    # 리포트의 다른 절과 같은 본문 틀(.wrap) 안에 둔다 — 예전엔 틀 밖이라 375px 에서 좌우 여백이 0, 1280px 에서는
+    # 오른쪽 본문 단과 어긋났다(2026-10-30 디자인 리뷰).
+    return ('<section class="zposts"><div class="wrap"><div class="crecent"><h2>이 지역 글</h2><ul>%s</ul></div></div></section>'
+            % items)
 
 
 def write_zone_posts(metas, root=ROOT):

@@ -295,3 +295,21 @@ def test_theme_color_is_one_canon():
     if man.get('theme_color', '').lower() != N.THEME_COLOR:
         bad.append('manifest.webmanifest: %s' % man.get('theme_color'))
     assert not bad, '브라우저 머리 색이 정본(%s)과 다르다: %s' % (N.THEME_COLOR, bad)
+
+
+def test_hand_pages_light_the_tab_they_belong_to():
+    """손 페이지 탭바가 켜는 탭이 site_nav.HAND_TAB_ON 과 같다 — 퀴즈·FAQ 는 '콘텐츠'(읽을거리), 소개·개인정보·404 는 없음.
+
+    재현하는 실제 상태(2026-10-30 디자인 리뷰): 퀴즈 3종은 '홈'이 켜지고 FAQ 는 아무것도 켜지지 않았는데, 푸터 사이트맵은
+    둘 다 '읽을거리'로 분류했다. 무엇을 바꾸면 빨개지나: 퀴즈 하나의 탭바를 옛 '홈' 켜짐으로 되돌리면(실제로 확인).
+    픽스처: 저장소의 손 페이지 HTML.
+    """
+    assert set(N.HAND_TAB_ON) == set(N.HAND_FOOTER_PAGES)
+    bad = {}
+    for rel, want in N.HAND_TAB_ON.items():
+        html = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        tabs = _tabs(NAV.findall(html)[0])
+        on = [t for t, _, o in tabs if o]
+        if on != ([want] if want else []):
+            bad[rel] = on
+    assert not bad, '손 페이지가 켠 탭이 정본과 다르다: %s' % bad
