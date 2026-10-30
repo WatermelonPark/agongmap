@@ -169,6 +169,7 @@
   footer{padding:44px 0 80px;font-size:13px;color:var(--muted)}
   footer .src{margin-top:10px;line-height:1.8}
   footer b{color:var(--ink2)}
+  footer a{color:var(--ink2)}   /* 생성 페이지 공용 푸터 링크(2026-10-30 디자인 리뷰 — zone 푸터가 브라우저 기본 파랑이었다) */
   /* 푸터 '만든이' 메일(mailto, 2026-09-28 작은 글씨 정리 — 홈 운영 주체 줄을 빼며 제보 경로를 푸터 메일 링크로 남겼다)은 둘레
      글자색을 따른다. /cycle/ 푸터처럼 링크 색을 따로 두지 않은 곳에서 브라우저 기본 파랑으로 튀지 않게. */
   footer a[href^="mailto:"]{color:inherit}

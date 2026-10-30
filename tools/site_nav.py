@@ -85,13 +85,30 @@ def bottomnav(on=None):
 # 연락처 agongmap@gmail.com 은 서비스 대표 주소(공개 연락처, 2026-09-18 대표 결정)다.
 HAND_FOOTER_PAGES = ('about/index.html', 'faq/index.html', 'privacy/index.html', 'burini-test/index.html',
                      'investor-test/index.html', 'redev-test/index.html', '404.html')
+# 모든 페이지 푸터가 싣는 링크 줄의 정본(2026-10-30 디자인 리뷰 — 생성 페이지·콘텐츠 페이지 대부분에 개인정보처리방침 링크가
+# 없었다). 손 페이지 HAND_FOOTER 와 생성기 푸터(site_footer)가 같은 글자를 쓰고, test_site_nav 가 저장소의 모든 <footer> 에
+# 이 줄이 있는지 본다(홈 세 벌은 갱신 주기로 묶은 사이트맵 푸터라 test_home_summary 가 따로 본다).
+FOOTER_LINKS = ('<a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · '
+                '<a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a>')
+FOOTER_BRAND = '<b>아공맵</b> — 아파트 · 공급량 · 투자지도'
+DISCLAIMER = '공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.'
 HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
-               '  <b>아공맵</b> — 아파트 · 공급량 · 투자지도<br>\n'
-               '  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · '
-               '<a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>\n'
-               '  자료: KOSIS·한국부동산원·국토교통부·한국은행 · 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. '
-               '투자 판단과 책임은 이용자에게 있습니다.\n'
+               '  ' + FOOTER_BRAND + '<br>\n'
+               '  ' + FOOTER_LINKS + '<br>\n'
+               '  자료: KOSIS·한국부동산원·국토교통부·한국은행 · ' + DISCLAIMER + '\n'
                '</div></footer>')
+
+
+def site_footer(src):
+    """생성 페이지·콘텐츠 페이지 푸터 — 브랜드 · 링크 줄(FOOTER_LINKS) · 그 페이지의 자료 기관 · 면책.
+    src 는 기관명이다(공개 저장소 규칙 — '자료: 아공맵' 처럼 우리 이름을 출처로 쓰지 않는다). 없으면 자료 줄을 뺀다."""
+    srcl = ('  자료: %s\n' % src) if src else ''
+    return ('<footer><div class="wrap">\n'
+            '  ' + FOOTER_BRAND + '<br>\n'
+            '  ' + FOOTER_LINKS + '<br>\n'
+            + srcl +
+            '  <div class="disc">' + DISCLAIMER + '</div>\n'
+            '</div></footer>')
 FOOTER_PX = 13
 
 

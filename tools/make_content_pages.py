@@ -516,7 +516,7 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
     # 이스케이프하지 않으면 속성이 그 자리에서 끊긴다(2026-10-29 게이트가 잡았다).
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % meta['title']),
                   ogtitle=html.escape(meta['title']), desc=html.escape(meta['summary']), url=url, body=body,
-                  ld=_ld(meta, url, body_html), src=' · '.join(srcs) if srcs else '아공맵',
+                  ld=_ld(meta, url, body_html), src='',   # 출처는 본문 '숫자의 출처'(src_html)에 있다 — 푸터에 되풀이하지 않는다
                   nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     page = re.sub(r'<meta property="og:image" content="[^"]*">',
@@ -539,7 +539,7 @@ def build_index(sec, posts_meta):
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
                   desc=html.escape(desc), url=url, body=body,
                   ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED),
-                  src='아공맵', nsido=str(len(I.SIDO17)))
+                  src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
 
@@ -686,7 +686,7 @@ def build_reports(all_metas, data=None):
                   ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
                   url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
                                                    lastmod or I.PUBLISHED),
-                  src='아공맵', nsido=str(len(I.SIDO17)))
+                  src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
 

@@ -889,6 +889,19 @@ def put_more(s):
 _CAP_RADIUS = re.compile(r'(\.mm-cap i\{[^}]*border-radius:)\s*2px')
 
 
+FOOTER_SRC = '한국부동산원 R-ONE 전국주택가격동향조사'
+
+
+def put_footer(s):
+    """푸터를 사이트 공용 정본(site_nav.site_footer)으로 — 뼈대의 옛 한 줄 푸터에는 개인정보처리방침·면책이 없었다
+    (2026-10-30 디자인 리뷰). 뼈대를 손으로 고치지 않고 매 회차 이 함수가 굽는다."""
+    pat = re.compile(r'<footer>.*?</footer>', re.S)
+    if len(pat.findall(s)) != 1:
+        raise SystemExit('weekly/index.html 에서 <footer> 를 하나 찾지 못했다')
+    nl = '\r\n' if '\r\n' in s else '\n'
+    return pat.sub(lambda m: N.site_footer(FOOTER_SRC).replace('\n', nl), s, 1)
+
+
 def put_source(s):
     pat = re.compile(r'(<h2>숫자의 출처</h2>\s*<p>)(.*?)(</p>)', re.S)
     if len(pat.findall(s)) != 1:
@@ -1001,6 +1014,7 @@ def render(s, W, Q, root=None):
     s = put_dataset_url(s)
     s = put_coverage(s, W)             # Dataset 기간 시작을 데이터에서(overflow)
     s = put_source(s)
+    s = put_footer(s)                  # 공용 푸터(2026-10-30 디자인 리뷰)
     s = put_more(s)                    # '더 둘러보기' 링크·설명(전수리뷰 Z2-8)
     s = _CAP_RADIUS.sub(lambda m: m.group(1) + 'var(--r-touch)', s)
     p = W['rows'][-1]['p']
