@@ -256,16 +256,19 @@ def test_hero_is_the_title_block_only():
     부팅이 지운다(dropOldMyZone).
 
     변이(각각 실제로 확인): 히어로에 /weekly/ 띠 링크나 myz 줄을 되살리면 첫 단정이, boot 에서 renderHeroBand()·renderMyZone()
-          을 다시 부르면 둘째 단정이, 주간 지도 머리말(wkMapModel 의 lead·priceTilesHtml)에서 wkPubLead 를 빼면 셋째, boot 에서 dropOldMyZone() 을 지우면 넷째
+          을 다시 부르면 둘째 단정이, 주간 지도 기준 줄(wkMapModel 의 when — '10/26 기준(10/29 발표) · 한국부동산원')에서 발표일을
+          빼면 셋째, 시군구 지도 아랫줄(priceTilesHtml)에 날짜(s.lead)를 되살리면 넷째, boot 에서 dropOldMyZone() 을 지우면 다섯째
           단정이 빨개진다.
     """
     hero = _hero()
     assert '<a ' not in hero and 'myz' not in hero and 'hero-wk' not in hero, hero
     boot = _js_func(_home(), 'boot')
     assert not re.search(r'renderHeroBand|renderMyZone|initMyZonePick', boot), boot
-    # 2026-10-29 주간 시군구 지도는 지도 구역 카드의 '주간 시세' 단추로 옮겼다 — 머리말 발표일은 그 지도 머리(priceTilesHtml)가 잇는다
-    assert 'lead=wkPubLead(r)' in _js_func(_home(), 'wkMapModel') and 'if(sg) sg.lead=lead;' in _js_func(_home(), 'wkMapModel')
-    assert "' '+M.unit+'(%) · '+s.lead+'</span>'" in _js_func(_home(), 'priceTilesHtml')
+    # 2026-10-29 주간 시군구 지도는 지도 구역 카드의 '주간 시세' 단추로 옮겼다. 발표일은 2026-10-30 디자인 리뷰 2차부터 그 지도 위
+    # 기준 줄(#tb-when = M.when) 하나가 말한다 — 지도 머리에도 날짜가 있어 두 번 나왔다.
+    assert "when:_md(r.survey)+' 기준('+_md(r.pub)+' 발표) · 한국부동산원'" in _js_func(_home(), 'wkMapModel')
+    tiles = _js_func(_home(), 'priceTilesHtml')
+    assert "' '+M.unit+'(%)</span></div>'" in tiles and 's.lead' not in tiles, '시군구 지도 아랫줄에 날짜가 다시 붙었다(기준 줄과 두 번)'
     assert 'dropOldMyZone();' in boot
     css = _src('app.css')
     assert not re.search(r'\.(hero-wk|hw-\d|myz)', css), '뺀 히어로 줄의 CSS 규칙이 남아 있다'

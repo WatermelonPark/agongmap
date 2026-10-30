@@ -191,7 +191,7 @@ def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer()
     지도 아래 운영 주체 줄(B9·TRUST-6)과 '산출 방법' 옆 출처 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 제보 경로는 홈
     푸터 '만든이' 메일이 mailto 링크로 남기고(같은 푸터 세 벌 모두), 출처 기관은 산출 방법을 펼치면 항목마다 있다.
 
-    변이(각각 실제로 확인): 출처 줄을 지도 아래(산출 방법 앞)로 되돌리면, 문구에 '분기마다 갱신'을 되살리면,
+    변이(각각 실제로 확인): 출처 줄을 지도 아래(산출 방법 앞)로 되돌리면, 신호등 범례(#lt-key)를 출처 줄 끝(지도 위)으로 되돌리면, 문구에 '분기마다 갱신'을 되살리면,
           푸터 메일을 일반 텍스트로 되돌리면, 운영 주체 줄(map-who)이나 산출 방법 옆 출처(.src)를 되살리면,
           정적 구간 문구에 '2026년 3분기'를 적으면, boot 에서 renderSupplySpan() 을 지우면, 이달의 통계 줄을 산출 방법 뒤로
           옮기면 빨개진다.
@@ -199,10 +199,11 @@ def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer()
     h = _home()
     sec = re.search(r'<section class="home-sec vm-map" id="sec-score".*?</section>', h, re.S).group(0)
     how = sec.index('<details class="sc-how">')
-    # 끝 칸(#lt-key)은 신호등 범례 한 줄 — 부팅 때 채운다
-    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span><span class="ms-sep"> · </span><span>([^<]*)</span>'
-                    r'<span id="lt-key"></span></p>', sec)
+    src = re.search(r'<p class="map-src"><span id="map-span">([^<]*)</span><span class="ms-sep"> · </span><span>([^<]*)</span></p>', sec)
     assert src, '출처·구간 줄이 없다'
+    # 신호등 범례 한 줄(#lt-key, 부팅 때 채운다)은 2026-10-30 디자인 리뷰 2차로 출처 줄 끝에서 지도·그래프 아래로 내렸다('설명은 콘텐츠 아래')
+    lk = sec.index('<p class="map-lk" id="lt-key"></p>')
+    assert sec.index('<div id="map-wrap">') < sec.index('<div id="graph-wrap">') < lk < how, '신호등 범례가 지도·그래프 아래에 없다'
     bar = sec[sec.index('<div class="tb-bar">'):sec.index('id="tb-view"')]
     assert src.group(0) in bar and sec.index('<div id="agg-wrap">') < sec.index('<div class="tb-bar">'), '출처·구간 줄이 카드 아래 단추 줄에 없다'
     assert not re.search(r'\d{4}|분기~', src.group(1)) and '국토교통부' in src.group(2), src.groups()
