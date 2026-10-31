@@ -43,7 +43,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "headline": "반박",
     "description": "공직자·정치인 발언을 입주 물량과 시세로 따집니다.",
     "datePublished": "2026-07-29",
-    "dateModified": "2026-10-29",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -180,6 +180,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -245,7 +257,7 @@ footer a{color:var(--ink)}
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/reports/">콘텐츠</a> › <b>반박</b></nav><h1>반박</h1><p class="cmeta">공직자·정치인 발언을 입주 물량과 시세로 따집니다.</p></div></header>
-<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="카테고리"><a class="rchip" href="/reports/">전체</a><a class="rchip on" href="/column/">반박</a><a class="rchip" href="/weekly/">주간·월간 시세</a><a class="rchip" href="/city/">도시 입주물량</a><a class="rchip" href="/gtx/">GTX 역세권</a><a class="rchip" href="/danji/">재건축·리모델링 단지</a><a class="rchip" href="/zone/">시도 리포트</a></nav><div class="plist"><a class="pcard" href="/column/semiconductor-2029-supply/" data-sec="column"><img src="/share/thumb-column-semiconductor-2029-supply.jpg?v=2026-10-29" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>2029년 이후 집값은 삼성·하이닉스가 정할까, 공급이 먼저 정합니다</b><span>반도체 호황이 2029년 이후 수도권 집값을 정한다는 주장을 입주 물량·착공·주간 시세로 따져 봤다. 반도체는 경기 남부의 수요를 키우지만, 오를 방향은 착공에서 이미 정해진 입주 물량이 먼저 정한다.</span><i>반박 · 26.10.29 갱신</i></div></a><a class="pcard" href="/column/oh-sehoon-permits-19y/" data-sec="column"><img src="/share/thumb-column-oh-sehoon-permits-19y.jpg?v=2026-10-29" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>오세훈 시장의 &#x27;주택의 삭제&#x27;, 서울 아파트 인허가는 19년 동안 적정의 절반이었습니다</b><span>서울 공급 절벽이 박원순 시정의 정비구역 해제 탓이라는 오세훈 서울시장의 주장을 서울 아파트 인허가 19년 치로 따졌다. 세 시기 모두 한 해 적정물량의 52~56%로, 시장과 상관없이 절반에 그쳤다.</span><i>반박 · 26.10.29 갱신</i></div></a><a class="pcard" href="/column/lh-crash-remark/" data-sec="column"><img src="/share/thumb-column-lh-crash-remark.jpg?v=2026-10-29" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>이성훈 LH 사장 &#x27;집값 급락할 가능성&#x27;, 입주 물량은 급락을 말하지 않습니다</b><span>이성훈 LH 사장이 국정감사에서 집값 급락 가능성을 말한 뒤에도 서울 아파트값은 상승을 이어 갔다. 같은 날 지적된 LH 신속착공은 착공신고필증만으로 실적을 잡아 실제 공사보다 착공 숫자를 앞당겨 부풀린다.</span><i>반박 · 26.10.29 갱신</i></div></a><a class="pcard" href="/column/hong-rent-supply/" data-sec="column"><img src="/share/thumb-column-hong-rent-supply.jpg?v=2026-10-29" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>홍지선 장관 &#x27;전월세 해법은 공급&#x27; 맞습니다, 서울 입주 물량은 2027년에 더 줄어듭니다</b><span>전월세 상승의 원인을 입주 물량 감소로 본 홍지선 국토교통부 장관의 진단을 서울 월세·전세 흐름과 입주 물량으로 확인했다. 진단은 맞고, 그 기준으로 보면 서울 입주 물량은 2027년에 더 줄어든다.</span><i>반박 · 26.10.29 갱신</i></div></a></div></div></section>
+<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="카테고리"><a class="rchip" href="/reports/">전체</a><a class="rchip on" href="/column/">반박</a><a class="rchip" href="/weekly/">주간·월간 시세</a><a class="rchip" href="/city/">도시 입주물량</a><a class="rchip" href="/gtx/">GTX 역세권</a><a class="rchip" href="/danji/">재건축·리모델링 단지</a><a class="rchip" href="/zone/">시도 리포트</a></nav><div class="plist"><a class="pcard" href="/column/oh-sehoon-permits-19y/" data-sec="column"><img src="/share/thumb-column-oh-sehoon-permits-19y.jpg?v=2026-10-31" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>오세훈 시장의 &#x27;주택의 삭제&#x27;, 서울 아파트 인허가는 19년 동안 적정의 절반이었습니다</b><span>서울 공급 절벽이 박원순 시정의 정비구역 해제 탓이라는 오세훈 서울시장의 주장을 서울 아파트 인허가 19년 치로 따졌다. 세 시기 모두 한 해 적정물량의 52~56%로, 시장과 상관없이 절반에 그쳤다.</span><i>반박 · 26.10.31 갱신</i></div></a><a class="pcard" href="/column/semiconductor-2029-supply/" data-sec="column"><img src="/share/thumb-column-semiconductor-2029-supply.jpg?v=2026-10-29" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>2029년 이후 집값은 삼성·하이닉스가 정할까, 공급이 먼저 정합니다</b><span>반도체 호황이 2029년 이후 수도권 집값을 정한다는 주장을 입주 물량·착공·주간 시세로 따져 봤다. 반도체는 경기 남부의 수요를 키우지만, 오를 방향은 착공에서 이미 정해진 입주 물량이 먼저 정한다.</span><i>반박 · 26.10.29 갱신</i></div></a><a class="pcard" href="/column/lh-crash-remark/" data-sec="column"><img src="/share/thumb-column-lh-crash-remark.jpg?v=2026-10-29" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>이성훈 LH 사장 &#x27;집값 급락할 가능성&#x27;, 입주 물량은 급락을 말하지 않습니다</b><span>이성훈 LH 사장이 국정감사에서 집값 급락 가능성을 말한 뒤에도 서울 아파트값은 상승을 이어 갔다. 같은 날 지적된 LH 신속착공은 착공신고필증만으로 실적을 잡아 실제 공사보다 착공 숫자를 앞당겨 부풀린다.</span><i>반박 · 26.10.29 갱신</i></div></a><a class="pcard" href="/column/hong-rent-supply/" data-sec="column"><img src="/share/thumb-column-hong-rent-supply.jpg?v=2026-10-29" alt="" width="480" height="252" loading="lazy" decoding="async"><div class="pc-b"><b>홍지선 장관 &#x27;전월세 해법은 공급&#x27; 맞습니다, 서울 입주 물량은 2027년에 더 줄어듭니다</b><span>전월세 상승의 원인을 입주 물량 감소로 본 홍지선 국토교통부 장관의 진단을 서울 월세·전세 흐름과 입주 물량으로 확인했다. 진단은 맞고, 그 기준으로 보면 서울 입주 물량은 2027년에 더 줄어든다.</span><i>반박 · 26.10.29 갱신</i></div></a></div></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
