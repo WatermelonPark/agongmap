@@ -25,25 +25,25 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
 <title>2027년 김포 아파트 분양·입주물량, 2028년 입주는 적정의 236%입니다 | 아공맵</title>
-<meta name="description" content="김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정 입주량의 31%입니다.">
+<meta name="description" content="김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정물량의 31%입니다.">
 <link rel="canonical" href="https://www.agongmap.co.kr/city/gimpo-2027-moveins/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
 <meta name="theme-color" content="#131e24">
 <meta property="og:type" content="article">
 <meta property="og:title" content="2027년 김포 아파트 분양·입주물량, 2028년 입주는 적정의 236%입니다">
-<meta property="og:description" content="김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정 입주량의 31%입니다.">
+<meta property="og:description" content="김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정물량의 31%입니다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/city/gimpo-2027-moveins/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-gimpo-2027-moveins.png?v=2026-10-27">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-gimpo-2027-moveins.png?v=2026-10-31">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">[
   {
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "2027년 김포 아파트 분양·입주물량, 2028년 입주는 적정의 236%입니다",
-    "description": "김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정 입주량의 31%입니다.",
+    "description": "김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정물량의 31%입니다.",
     "datePublished": "2026-10-27",
-    "dateModified": "2026-10-27",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -64,7 +64,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         "name": "2027년 김포 아파트 입주 물량은 얼마나 되나요",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "1,200세대로, 김포 인구로 잡은 한 해 적정 입주량(3,869세대)의 31%입니다."
+          "text": "1,200세대로, 김포 인구로 잡은 한 해 적정물량(3,869세대)의 31%입니다."
         }
       },
       {
@@ -217,6 +217,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -281,11 +293,11 @@ footer a{color:var(--ink)}
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 김포 아파트 분양·입주물량, 2028년 입주는 적정의 236%입니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 27일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
-<main id="main"><section><div class="wrap"><p class="csum">김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정 입주량의 31%입니다.</p><div class="cbody"><p>김포 전세가는 56주 연속 상승(10월 26일 조사)입니다. 2028년 김포 입주 물량은 9,122세대로, 한 해 적정 입주량의 236%입니다.</p>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 김포 아파트 분양·입주물량, 2028년 입주는 적정의 236%입니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<main id="main"><section><div class="wrap"><p class="csum">김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정물량의 31%입니다.</p><div class="cbody"><p>김포 전세가는 56주 연속 상승(10월 26일 조사)입니다. 2028년 김포 입주 물량은 9,122세대로, 한 해 적정물량의 236%입니다.</p>
 <figure class="cchart"><div class="ccards"><div class="ccard"><b>1,200세대</b><span>김포 2027년 입주</span></div><div class="ccard"><b>31%</b><span>적정물량 대비</span></div><div class="ccard"><b>56주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="김포 연도별 입주 물량 막대그래프. 2027년 1,200세대, 2028년 9,122세대, 2029년 3,367세대, 2030년 961세대, 2031년 2,432세대. 한 해 적정물량은 3,869세대." class="cchart-svg"><rect x="120.0" y="161.9" width="72.0" height="22.1" class="cb"/><text x="156.0" y="157.9" class="cb-v">1,200</text><text x="156.0" y="202" class="cb-x">2027</text><rect x="202.0" y="16.0" width="72.0" height="168.0" class="cb cb-over"/><text x="238.0" y="12.0" class="cb-v">9,122</text><text x="238.0" y="202" class="cb-x">2028</text><rect x="284.0" y="122.0" width="72.0" height="62.0" class="cb"/><text x="320.0" y="118.0" class="cb-v">3,367</text><text x="320.0" y="202" class="cb-x">2029</text><rect x="366.0" y="166.3" width="72.0" height="17.7" class="cb"/><text x="402.0" y="162.3" class="cb-v">961</text><text x="402.0" y="202" class="cb-x">2030</text><rect x="448.0" y="139.2" width="72.0" height="44.8" class="cb"/><text x="484.0" y="135.2" class="cb-v">2,432</text><text x="484.0" y="202" class="cb-x">2031</text><line x1="6" y1="112.7" x2="634" y2="112.7" class="cb-rule"/><text x="632" y="107.7" class="cb-rl cx-e">적정 3,869세대</text></svg><figcaption>김포 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2027</th><td>1,200</td><td>31%</td></tr><tr><th scope="row">2028</th><td>9,122</td><td>236%</td></tr><tr><th scope="row">2029</th><td>3,367</td><td>87%</td></tr><tr><th scope="row">2030</th><td>961</td><td>25%</td></tr><tr><th scope="row">2031</th><td>2,432</td><td>63%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 3,869세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
-<p>적정 입주량은 인구로 잡은 연 3,869세대입니다. 입주가 가장 몰리는 달은 2028년 2월 3,058세대입니다.</p>
+<p>적정물량은 인구로 잡은 연 3,869세대입니다. 입주가 가장 몰리는 달은 2028년 2월 3,058세대입니다.</p>
 <h2>김포 2027년에는 어느 단지가 입주하나요</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2027-12</th><td class="tx">김포 북변 우미 린 파크리브</td><td>1,200</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
 <p>청약 공고로 채운 단지는 일반·특별공급 세대만 셉니다.</p>
@@ -301,7 +313,7 @@ footer a{color:var(--ink)}
 <h2>김포 집값은 앞으로 어떻게 될까요</h2>
 <p>제 판단으로는 김포는 2027년까지 빠듯하다가 2028년에 입주장이 크게 서는 도시입니다. 2027년 입주는 1,200세대로 적정의 31%인데, 그다음 해에는 한강수자인오브센트 한 단지만 3천 세대가 넘기 때문입니다. 2028년에 들어서면 전세 매물이 쌓이면서 전셋값이 조정받을 수 있습니다. 그 뒤로 공고된 입주는 다시 적정 아래로 내려옵니다. 김포 공급은 2028년에 한 번 넘쳤다가 다시 부족해지는 방향입니다.</p>
 <h2>더 보기</h2>
-<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 김포 아파트 입주 물량은 얼마나 되나요</dt><dd>1,200세대로, 김포 인구로 잡은 한 해 적정 입주량(3,869세대)의 31%입니다.</dd><dt>김포에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2028년 2월 3,058세대입니다.</dd><dt>김포 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/chuncheon-2027-moveins/"><span>이전 글</span>2027년 춘천 아파트 분양·입주물량, 입주 물량은 적정의 21%뿐입니다</a><a href="/city/gumi-2027-moveins/"><span>다음 글</span>2027년 구미 아파트 입주물량, 2028년 입주는 한 곳도 없습니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
+<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 김포 아파트 입주 물량은 얼마나 되나요</dt><dd>1,200세대로, 김포 인구로 잡은 한 해 적정물량(3,869세대)의 31%입니다.</dd><dt>김포에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2028년 2월 3,058세대입니다.</dd><dt>김포 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/chuncheon-2027-moveins/"><span>이전 글</span>2027년 춘천 아파트 분양·입주물량, 입주 물량은 적정의 21%뿐입니다</a><a href="/city/gumi-2027-moveins/"><span>다음 글</span>2027년 구미 아파트 입주물량, 2028년 입주는 한 곳도 없습니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

@@ -34,7 +34,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta property="og:title" content="부천 중동 포도마을 삼보영남 재건축, 3,000세대 계획안·대지지분·실거래(2026)">
 <meta property="og:description" content="포도마을 삼보영남은 2,146세대 구역을 3,000세대로 짓는 계획안이 공람됐고 2027년 1분기 지정이 목표다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/danji/podo-sambo-yeongnam/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/post-danji-podo-sambo-yeongnam.png?v=2026-10-30">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/post-danji-podo-sambo-yeongnam.png?v=2026-10-31">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">[
   {
@@ -43,7 +43,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "headline": "부천 중동 포도마을 삼보영남 재건축, 3,000세대 계획안·대지지분·실거래(2026)",
     "description": "포도마을 삼보영남은 2,146세대 구역을 3,000세대로 짓는 계획안이 공람됐고 2027년 1분기 지정이 목표다.",
     "datePublished": "2026-10-27",
-    "dateModified": "2026-10-30",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -225,6 +225,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -289,9 +301,8 @@ footer a{color:var(--ink)}
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/danji/">단지 분석</a></nav><h1>부천 중동 포도마을 삼보영남 재건축, 3,000세대 계획안·대지지분·실거래(2026)</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 30일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/danji/">단지 분석</a></nav><h1>부천 중동 포도마을 삼보영남 재건축, 3,000세대 계획안·대지지분·실거래(2026)</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">포도마을 삼보영남은 2,146세대 구역을 3,000세대로 짓는 계획안이 공람됐고 2027년 1분기 지정이 목표다.</p><div class="cbody"><p><img src="/content/danji/img/podo-sambo-yeongnam-thumb.png" alt="포도마을 삼보영남 요약" loading="lazy"></p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,962세대</b><span>부천 2027년 입주</span></div><div class="ccard"><b>66%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="부천 연도별 입주 물량 막대그래프. 2026년 1,859세대, 2027년 3,962세대, 2028년 1,911세대, 2029년 1,873세대, 2032년 3,017세대. 한 해 적정물량은 6,030세대." class="cchart-svg"><rect x="120.0" y="132.2" width="72.0" height="51.8" class="cb"/><text x="156.0" y="128.2" class="cb-v">1,859</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="73.6" width="72.0" height="110.4" class="cb"/><text x="238.0" y="69.6" class="cb-v">3,962</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="130.8" width="72.0" height="53.2" class="cb"/><text x="320.0" y="126.8" class="cb-v">1,911</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="131.8" width="72.0" height="52.2" class="cb"/><text x="402.0" y="127.8" class="cb-v">1,873</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="99.9" width="72.0" height="84.1" class="cb"/><text x="484.0" y="95.9" class="cb-v">3,017</text><text x="484.0" y="202" class="cb-x">2032</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 6,030세대</text></svg><figcaption>부천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <h2>핵심 숫자</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">항목</th><th scope="col">값</th><th scope="col" class="tx">기준</th></tr></thead><tbody><tr><th scope="row">세대수</th><td>1,836세대(24개 동, 최고 26층)</td><td class="tx">1994년 10월 입주</td></tr><tr><th scope="row">평형</th><td>23평형 416세대, 28평형 860세대, 31평형 560세대</td><td class="tx">전용 59.95·75.19·84.85㎡</td></tr><tr><th scope="row">용적률·건폐율</th><td>212%·18.5%</td><td class="tx">건축물대장</td></tr><tr><th scope="row">대지면적</th><td>77,690㎡</td><td class="tx">세대당 평균 42.3㎡(12.8평)</td></tr><tr><th scope="row">세대당 주차대수</th><td>1.09대</td><td class="tx"></td></tr><tr><th scope="row">가까운 역</th><td>7호선 부천시청역 도보 6~11분</td><td class="tx">단지 출입구별</td></tr><tr><th scope="row">배정초</th><td>신도초</td><td class="tx">도보 9분</td></tr></tbody></table></div>
 <h2>정비 구역과 계획안</h2>
@@ -314,11 +325,12 @@ footer a{color:var(--ink)}
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">항목</th><th scope="col" class="tx">이름</th><th scope="col" class="tx">거리</th></tr></thead><tbody><tr><th scope="row">가까운 학원가</th><td class="tx">부천시청역 남쪽 중동 학원가(22개)</td><td class="tx">도보 6~10분</td></tr><tr><th scope="row">부천 최대 학원가</th><td class="tx">상동역 일대 상동 학원가(104개)</td><td class="tx">도보 18~23분</td></tr><tr><th scope="row">백화점</th><td class="tx">현대백화점 중동점</td><td class="tx">도보 5~10분</td></tr><tr><th scope="row">대형마트</th><td class="tx">이마트 중동점, 뉴코아아울렛 부천점</td><td class="tx">도보 6~13분</td></tr><tr><th scope="row">공원</th><td class="tx">부천중앙공원</td><td class="tx">도보 9~13분</td></tr><tr><th scope="row">대형 병원</th><td class="tx">순천향대학교 부천병원</td><td class="tx">도보 7~11분</td></tr></tbody></table></div>
 <p>백화점·마트·대형 병원·중앙공원이 모두 도보권이다. 입주민 후기에서는 평지라는 점과 생활 인프라가 장점으로, 주차 부족과 녹물·배관 동파 같은 구축 노후가 단점으로 꼽힌다.</p>
 <h2>부천 입주 물량</h2>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,962세대</b><span>부천 2027년 입주</span></div><div class="ccard"><b>66%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="부천 연도별 입주 물량 막대그래프. 2026년 1,859세대, 2027년 3,962세대, 2028년 1,911세대, 2029년 1,873세대, 2032년 3,017세대. 한 해 적정물량은 6,030세대." class="cchart-svg"><rect x="120.0" y="132.2" width="72.0" height="51.8" class="cb"/><text x="156.0" y="128.2" class="cb-v">1,859</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="73.6" width="72.0" height="110.4" class="cb"/><text x="238.0" y="69.6" class="cb-v">3,962</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="130.8" width="72.0" height="53.2" class="cb"/><text x="320.0" y="126.8" class="cb-v">1,911</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="131.8" width="72.0" height="52.2" class="cb"/><text x="402.0" y="127.8" class="cb-v">1,873</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="99.9" width="72.0" height="84.1" class="cb"/><text x="484.0" y="95.9" class="cb-v">3,017</text><text x="484.0" y="202" class="cb-x">2032</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 6,030세대</text></svg><figcaption>부천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,859</td><td>31%</td></tr><tr><th scope="row">2027</th><td>3,962</td><td>66%</td></tr><tr><th scope="row">2028</th><td>1,911</td><td>32%</td></tr><tr><th scope="row">2029</th><td>1,873</td><td>31%</td></tr><tr><th scope="row">2032</th><td>3,017</td><td>50%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 6,030세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
-<p>부천의 2027년 입주 물량은 3,962세대로 한 해 적정 입주량 6,030세대의 66%다. 적정 입주량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 원미구 매매가는 41주 연속 상승(10월 26일 조사)이다.</p>
+<p>부천의 2027년 입주 물량은 3,962세대로 한 해 적정물량 6,030세대의 66%다. 적정물량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 원미구 매매가는 41주 연속 상승(10월 26일 조사)이다.</p>
 <figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="부천 원미구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.34%, 전세 최신 +0.17%." class="cchart-svg"><line x1="8" y1="126.0" x2="632" y2="126.0" class="cl-zero"/><path d="M8.0 117.9 L33.0 97.4 L57.9 95.4 L82.9 84.8 L107.8 74.6 L132.8 79.4 L157.8 98.0 L182.7 94.8 L207.7 86.9 L232.6 86.1 L257.6 83.7 L282.6 84.2 L307.5 105.4 L332.5 97.7 L357.4 94.6 L382.4 82.1 L407.4 57.6 L432.3 52.1 L457.3 47.5 L482.2 73.6 L507.2 46.7 L532.2 57.2 L557.1 55.4 L582.1 14.0 L607.0 25.0 L632.0 52.2" class="cl cl-ma"/><circle cx="632.0" cy="52.2" r="2.5" class="cl-dot"/><path d="M8.0 93.7 L33.0 112.4 L57.9 110.4 L82.9 92.8 L107.8 94.8 L132.8 103.7 L157.8 96.6 L182.7 94.2 L207.7 90.0 L232.6 99.2 L257.6 89.5 L282.6 86.1 L307.5 108.2 L332.5 103.2 L357.4 112.9 L382.4 103.8 L407.4 78.2 L432.3 106.3 L457.3 108.2 L482.2 70.2 L507.2 88.4 L532.2 84.1 L557.1 95.2 L582.1 58.4 L607.0 84.1 L632.0 88.8" class="cl cl-je"/><circle cx="632.0" cy="88.8" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>부천 원미구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">부천 소사구</th><td>+0.03%</td><td>+0.17%</td></tr><tr><th scope="row">부천 오정구</th><td>+0.11%</td><td>+0.13%</td></tr><tr><th scope="row">부천 원미구</th><td>+0.34%</td><td>+0.17%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
-<p>부천은 2027년 이후 입주 물량이 적정 입주량에 못 미치는 해가 이어진다. 포도마을 이주는 계획안 기준 2030년 2분기로, 중동에서 함께 정비계획을 낸 반달A·금강·중흥·사랑꿈동산 구역의 이주와 시기가 겹칠 수 있다. 아공맵은 중동 정비구역 이주가 본격화하는 시기에 부천 전세 수요가 늘어날 것으로 본다. 이 단지의 다음 변수는 12월 도시계획위원회 심의와 2027년 사업시행자 선정 뒤 나올 추정 분담금이다.</p>
+<p>부천은 2027년 이후 입주 물량이 적정물량에 못 미치는 해가 이어진다. 포도마을 이주는 계획안 기준 2030년 2분기로, 중동에서 함께 정비계획을 낸 반달A·금강·중흥·사랑꿈동산 구역의 이주와 시기가 겹칠 수 있다. 아공맵은 중동 정비구역 이주가 본격화하는 시기에 부천 전세 수요가 늘어날 것으로 본다. 이 단지의 다음 변수는 12월 도시계획위원회 심의와 2027년 사업시행자 선정 뒤 나올 추정 분담금이다.</p>
 <p>관련 리포트: <a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세</a></p></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2025년 1월~2026년 10월, 2026-10-26 조회)</li><li>국토교통부 건축물대장(총괄표제부 대지면적·용적률)</li><li>네이버 부동산 매물 호가(2026-10-27 조회, 세 낀 매물·실거주 매물 구분)</li><li>부천시 중동 1기 신도시 특별정비계획(안) 주민공람(2026-10, 위클리한국주택경제신문·머니투데이 보도)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>포도마을 재건축은 몇 세대로 바뀌나요</dt><dd>특별정비계획(안) 기준으로 삼보영남과 뉴서울 2,146세대가 최고 49층, 3,000세대로 바뀝니다. 세대수는 주민 의견과 심의로 달라질 수 있습니다.</dd><dt>포도마을 특별정비구역 지정은 언제인가요</dt><dd>2026년 11월 시의회 의견청취, 12월 도시계획위원회 심의를 거쳐 2027년 1분기 지정이 목표입니다. 사업시행예정자는 한국토지신탁입니다.</dd><dt>포도마을 삼보영남 대지지분은 얼마인가요</dt><dd>건축물대장 대지면적 77,690㎡를 공급면적 비율로 나누면 23평형 10.6평, 28평형 12.9평, 31평형 14.3평으로 추정됩니다.</dd><dt>포도마을 삼보영남 국평 시세는 얼마인가요</dt><dd>2026년 7~10월 실거래 8건의 중위값이 7억 9,900만 원이고, 전세 중위값은 4억 8,000만 원으로 전세가율은 60%입니다.</dd></dl></section><div class="cnav"><a href="/danji/byeokjeokgol8-yeongtong/"><span>이전 글</span>영통 벽적골8단지 두산·우성·한신 리모델링, 1,842세대 이주 시작과 거래 급증(2026)</a><a href="/danji/yeongtong-forest-parkone/"><span>다음 글</span>수원 영통포레파크원(황골마을주공1단지) 재건축, 대지지분·실거래·세 낀 매물(2026)</a><a href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">

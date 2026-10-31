@@ -25,25 +25,25 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
 <title>2027년 춘천 아파트 분양·입주물량, 입주 물량은 적정의 21%뿐입니다 | 아공맵</title>
-<meta name="description" content="춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정 입주량의 21%입니다.">
+<meta name="description" content="춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정물량의 21%입니다.">
 <link rel="canonical" href="https://www.agongmap.co.kr/city/chuncheon-2027-moveins/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
 <meta name="theme-color" content="#131e24">
 <meta property="og:type" content="article">
 <meta property="og:title" content="2027년 춘천 아파트 분양·입주물량, 입주 물량은 적정의 21%뿐입니다">
-<meta property="og:description" content="춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정 입주량의 21%입니다.">
+<meta property="og:description" content="춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정물량의 21%입니다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/city/chuncheon-2027-moveins/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-chuncheon-2027-moveins.png?v=2026-10-27">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-chuncheon-2027-moveins.png?v=2026-10-31">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">[
   {
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "2027년 춘천 아파트 분양·입주물량, 입주 물량은 적정의 21%뿐입니다",
-    "description": "춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정 입주량의 21%입니다.",
+    "description": "춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정물량의 21%입니다.",
     "datePublished": "2026-10-27",
-    "dateModified": "2026-10-27",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -64,7 +64,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         "name": "2027년 춘천 아파트 입주 물량은 얼마나 되나요",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "477세대로, 춘천 인구로 잡은 한 해 적정 입주량(2,278세대)의 21%입니다."
+          "text": "477세대로, 춘천 인구로 잡은 한 해 적정물량(2,278세대)의 21%입니다."
         }
       },
       {
@@ -217,6 +217,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -281,11 +293,11 @@ footer a{color:var(--ink)}
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 춘천 아파트 분양·입주물량, 입주 물량은 적정의 21%뿐입니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 27일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
-<main id="main"><section><div class="wrap"><p class="csum">춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정 입주량의 21%입니다.</p><div class="cbody"><p>춘천 아파트 매매가는 4주 연속 하락(10월 26일 조사)입니다. 2027년 춘천 입주 물량은 477세대, 한 해 적정 입주량의 21%뿐입니다.</p>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 춘천 아파트 분양·입주물량, 입주 물량은 적정의 21%뿐입니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<main id="main"><section><div class="wrap"><p class="csum">춘천 2027년 입주 물량은 477세대로, 인구로 잡은 한 해 적정물량의 21%입니다.</p><div class="cbody"><p>춘천 아파트 매매가는 4주 연속 하락(10월 26일 조사)입니다. 2027년 춘천 입주 물량은 477세대, 한 해 적정물량의 21%뿐입니다.</p>
 <figure class="cchart"><div class="ccards"><div class="ccard"><b>477세대</b><span>춘천 2027년 입주</span></div><div class="ccard"><b>21%</b><span>적정물량 대비</span></div><div class="ccard"><b>2주 연속 하락</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="춘천 연도별 입주 물량 막대그래프. 2027년 477세대, 2028년 1,015세대, 2029년 440세대. 한 해 적정물량은 2,278세대." class="cchart-svg"><rect x="202.0" y="148.8" width="72.0" height="35.2" class="cb"/><text x="238.0" y="144.8" class="cb-v">477</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="109.1" width="72.0" height="74.9" class="cb"/><text x="320.0" y="105.1" class="cb-v">1,015</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="151.6" width="72.0" height="32.4" class="cb"/><text x="402.0" y="147.6" class="cb-v">440</text><text x="402.0" y="202" class="cb-x">2029</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 2,278세대</text></svg><figcaption>춘천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2027</th><td>477</td><td>21%</td></tr><tr><th scope="row">2028</th><td>1,015</td><td>45%</td></tr><tr><th scope="row">2029</th><td>440</td><td>19%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 2,278세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
-<p>적정 입주량은 인구로 잡은 연 2,278세대입니다. 입주가 가장 몰리는 달은 2028년 10월 569세대입니다.</p>
+<p>적정물량은 인구로 잡은 연 2,278세대입니다. 입주가 가장 몰리는 달은 2028년 10월 569세대입니다.</p>
 <h2>춘천 2027년에는 어느 단지가 입주하나요</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2027-06</th><td class="tx">춘천 아테라 에듀파크</td><td>477</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
 <p>청약 공고로 채운 단지는 일반·특별공급 세대만 셉니다.</p>
@@ -294,14 +306,14 @@ footer a{color:var(--ink)}
 <h2>지금 청약 받는 춘천 아파트가 있나요</h2>
 <p>청약홈에 공고된 단지 기준으로, 지금 청약 접수를 받는 춘천 아파트는 없습니다. 올해 청약이 끝난 단지는 두 곳입니다.</p>
 <ul><li><b>춘천 리버뷰 아이파크</b> · 262세대 · 1순위 7월 21일 · 입주 2029년 3월</li><li><b>더 리치먼드 리버센트 소양</b> · 178세대 · 1순위 6월 2일 · 입주 2029년 6월</li></ul>
-<p>두 곳을 합친 2029년 춘천 입주는 440세대로, 한 해 적정 입주량의 19%입니다.</p>
+<p>두 곳을 합친 2029년 춘천 입주는 440세대로, 한 해 적정물량의 19%입니다.</p>
 <h2>춘천 아파트값은 오르고 있나요</h2>
 <figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="춘천 최근 26주 주간 변동률 꺾은선. 매매 최신 -0.02%, 전세 최신 -0.03%." class="cchart-svg"><line x1="8" y1="55.2" x2="632" y2="55.2" class="cl-zero"/><path d="M8.0 30.3 L33.0 16.1 L57.9 47.8 L82.9 23.9 L107.8 28.3 L132.8 45.8 L157.8 49.1 L182.7 72.7 L207.7 35.5 L232.6 42.0 L257.6 91.1 L282.6 31.5 L307.5 58.7 L332.5 51.2 L357.4 23.0 L382.4 44.9 L407.4 55.2 L432.3 37.0 L457.3 46.7 L482.2 34.6 L507.2 79.9 L532.2 46.0 L557.1 70.7 L582.1 73.8 L607.0 78.1 L632.0 68.5" class="cl cl-ma"/><circle cx="632.0" cy="68.5" r="2.5" class="cl-dot"/><path d="M8.0 14.0 L33.0 43.5 L57.9 55.2 L82.9 41.6 L107.8 20.8 L132.8 49.4 L157.8 54.8 L182.7 73.9 L207.7 57.8 L232.6 47.0 L257.6 35.6 L282.6 28.1 L307.5 60.3 L332.5 44.8 L357.4 36.3 L382.4 16.0 L407.4 33.1 L432.3 25.8 L457.3 48.4 L482.2 50.1 L507.2 101.6 L532.2 93.8 L557.1 77.9 L582.1 37.8 L607.0 126.0 L632.0 71.9" class="cl cl-je"/><circle cx="632.0" cy="71.9" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>춘천 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">춘천</th><td>-0.02%</td><td>-0.03%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
 <h2>춘천 집값은 앞으로 어떻게 될까요</h2>
 <p>제 판단으로는 춘천의 내림세는 오래가기 어렵습니다. 2027년 입주가 적정의 21%이고, 2028년에도 적정의 45%에 그치기 때문입니다. 입주 물량이 넘쳐서 내리는 게 아니라는 점은 분명합니다. 공급이 이만큼 빠듯한 동안에는 값이 내려도 받쳐 줄 수요가 남아 있습니다. 춘천 공급은 2029년까지 부족한 방향입니다.</p>
 <h2>더 보기</h2>
-<ul><li><a href="/zone/강원/">강원 분기별 공급 리포트</a></li><li><a href="/zone/강원/#weekly-sgg">강원 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 춘천 아파트 입주 물량은 얼마나 되나요</dt><dd>477세대로, 춘천 인구로 잡은 한 해 적정 입주량(2,278세대)의 21%입니다.</dd><dt>춘천에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2028년 10월 569세대입니다.</dd><dt>춘천 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 강원 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/changwon-2027-moveins/"><span>이전 글</span>2027년 창원 아파트 입주물량, 적정의 11%뿐입니다</a><a href="/city/gimpo-2027-moveins/"><span>다음 글</span>2027년 김포 아파트 분양·입주물량, 2028년 입주는 적정의 236%입니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
+<ul><li><a href="/zone/강원/">강원 분기별 공급 리포트</a></li><li><a href="/zone/강원/#weekly-sgg">강원 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 춘천 아파트 입주 물량은 얼마나 되나요</dt><dd>477세대로, 춘천 인구로 잡은 한 해 적정물량(2,278세대)의 21%입니다.</dd><dt>춘천에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2028년 10월 569세대입니다.</dd><dt>춘천 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 강원 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/changwon-2027-moveins/"><span>이전 글</span>2027년 창원 아파트 입주물량, 적정의 11%뿐입니다</a><a href="/city/gimpo-2027-moveins/"><span>다음 글</span>2027년 김포 아파트 분양·입주물량, 2028년 입주는 적정의 236%입니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

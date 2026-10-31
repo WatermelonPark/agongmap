@@ -25,25 +25,25 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
 <title>2027년 부천 아파트 입주물량, 입주는 소사·오정에 몰리고 원미는 거의 없습니다 | 아공맵</title>
-<meta name="description" content="부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정 입주량의 66%입니다.">
+<meta name="description" content="부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정물량의 66%입니다.">
 <link rel="canonical" href="https://www.agongmap.co.kr/city/bucheon-2027-moveins/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
 <meta name="theme-color" content="#131e24">
 <meta property="og:type" content="article">
 <meta property="og:title" content="2027년 부천 아파트 입주물량, 입주는 소사·오정에 몰리고 원미는 거의 없습니다">
-<meta property="og:description" content="부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정 입주량의 66%입니다.">
+<meta property="og:description" content="부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정물량의 66%입니다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/city/bucheon-2027-moveins/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-bucheon-2027-moveins.png?v=2026-10-27">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-bucheon-2027-moveins.png?v=2026-10-31">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">[
   {
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "2027년 부천 아파트 입주물량, 입주는 소사·오정에 몰리고 원미는 거의 없습니다",
-    "description": "부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정 입주량의 66%입니다.",
+    "description": "부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정물량의 66%입니다.",
     "datePublished": "2026-10-27",
-    "dateModified": "2026-10-27",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -64,7 +64,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         "name": "2027년 부천 아파트 입주 물량은 얼마나 되나요",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "3,962세대로, 부천 인구로 잡은 한 해 적정 입주량(6,030세대)의 66%입니다."
+          "text": "3,962세대로, 부천 인구로 잡은 한 해 적정물량(6,030세대)의 66%입니다."
         }
       },
       {
@@ -217,6 +217,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -281,11 +293,11 @@ footer a{color:var(--ink)}
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 부천 아파트 입주물량, 입주는 소사·오정에 몰리고 원미는 거의 없습니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 27일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
-<main id="main"><section><div class="wrap"><p class="csum">부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정 입주량의 66%입니다.</p><div class="cbody"><p>부천에서 오름세를 이끄는 원미구 아파트 매매가는 41주 연속 상승(10월 26일 조사)입니다. 2027년 부천 입주 물량은 3,962세대로, 한 해 적정 입주량의 66%입니다.</p>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 부천 아파트 입주물량, 입주는 소사·오정에 몰리고 원미는 거의 없습니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<main id="main"><section><div class="wrap"><p class="csum">부천 2027년 입주 물량은 3,962세대로, 인구로 잡은 한 해 적정물량의 66%입니다.</p><div class="cbody"><p>부천에서 오름세를 이끄는 원미구 아파트 매매가는 41주 연속 상승(10월 26일 조사)입니다. 2027년 부천 입주 물량은 3,962세대로, 한 해 적정물량의 66%입니다.</p>
 <figure class="cchart"><div class="ccards"><div class="ccard"><b>3,962세대</b><span>부천 2027년 입주</span></div><div class="ccard"><b>66%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="부천 연도별 입주 물량 막대그래프. 2026년 1,859세대, 2027년 3,962세대, 2028년 1,911세대, 2029년 1,873세대, 2032년 3,017세대. 한 해 적정물량은 6,030세대." class="cchart-svg"><rect x="120.0" y="132.2" width="72.0" height="51.8" class="cb"/><text x="156.0" y="128.2" class="cb-v">1,859</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="73.6" width="72.0" height="110.4" class="cb"/><text x="238.0" y="69.6" class="cb-v">3,962</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="130.8" width="72.0" height="53.2" class="cb"/><text x="320.0" y="126.8" class="cb-v">1,911</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="131.8" width="72.0" height="52.2" class="cb"/><text x="402.0" y="127.8" class="cb-v">1,873</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="99.9" width="72.0" height="84.1" class="cb"/><text x="484.0" y="95.9" class="cb-v">3,017</text><text x="484.0" y="202" class="cb-x">2032</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 6,030세대</text></svg><figcaption>부천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,859</td><td>31%</td></tr><tr><th scope="row">2027</th><td>3,962</td><td>66%</td></tr><tr><th scope="row">2028</th><td>1,911</td><td>32%</td></tr><tr><th scope="row">2029</th><td>1,873</td><td>31%</td></tr><tr><th scope="row">2032</th><td>3,017</td><td>50%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 6,030세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
-<p>적정 입주량은 인구로 잡은 연 6,030세대입니다. 입주가 가장 몰리는 달은 2032년 3월 1,859세대입니다.</p>
+<p>적정물량은 인구로 잡은 연 6,030세대입니다. 입주가 가장 몰리는 달은 2032년 3월 1,859세대입니다.</p>
 <h2>부천 2027년에는 어느 구에 입주하나요</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">오정구</th><td>2,268</td></tr><tr><th scope="row">소사구</th><td>1,587</td></tr><tr><th scope="row">원미구</th><td>107</td></tr><tr><th scope="row">합계</th><td>3,962</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col" class="tx">구</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2027-01</th><td class="tx">부천아테라자이(부천괴안지구 B-2)</td><td class="tx">소사구</td><td>200</td></tr><tr><th scope="row">2027-01</th><td class="tx">성산주택가로주택사업</td><td class="tx">오정구</td><td>33</td></tr><tr><th scope="row">2027-01</th><td class="tx">소사본동 아파트(LH매입임대)</td><td class="tx">소사구</td><td>109</td></tr><tr><th scope="row">2027-02</th><td class="tx">J팰리스(LH매입임대)</td><td class="tx">소사구</td><td>43</td></tr><tr><th scope="row">2027-05</th><td class="tx">우진아파트가로주택정비사업</td><td class="tx">오정구</td><td>48</td></tr><tr><th scope="row">2027-05</th><td class="tx">원종 휴먼빌 클라츠</td><td class="tx">오정구</td><td>255</td></tr><tr><th scope="row">2027-07</th><td class="tx">상동팰리스(LH매입임대)</td><td class="tx">원미구</td><td>30</td></tr><tr><th scope="row">2027-07</th><td class="tx">오정 해모로 스마트시티</td><td class="tx">오정구</td><td>200</td></tr><tr><th scope="row">2027-08</th><td class="tx">소사역 롯데캐슬 더 뉴엘</td><td class="tx">소사구</td><td>983</td></tr><tr><th scope="row">2027-08</th><td class="tx">엘리프 역곡</td><td class="tx">소사구</td><td>252</td></tr><tr><th scope="row">2027-09</th><td class="tx">고강동한일빌라외가로주택정비사업</td><td class="tx">오정구</td><td>92</td></tr><tr><th scope="row">2027-11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-5BL) 신혼희망타운 공공분양</td><td class="tx">오정구</td><td>638</td></tr><tr><th scope="row">2027-11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-5BL) 행복주택</td><td class="tx">오정구</td><td>314</td></tr><tr><th scope="row">2027-11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-6BL) 행복주택</td><td class="tx">오정구</td><td>227</td></tr><tr><th scope="row">2027-11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-6BL)신혼희망타운 공공분양</td><td class="tx">오정구</td><td>461</td></tr><tr><th scope="row">2027-12</th><td class="tx">중동 공동주택 아파트(LH매입임대)</td><td class="tx">원미구</td><td>77</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
@@ -298,7 +310,7 @@ footer a{color:var(--ink)}
 <h2>부천 집값은 앞으로 어떻게 될까요</h2>
 <p>제 판단으로는 부천은 오름세가 더 이어지는 구간입니다. 2027년 입주가 적정에 못 미치고, 2028년 입주는 적정의 32%로 더 줄어들기 때문입니다. 오르는 힘은 원미구에 몰려 있는데, 원미구는 2028년까지 입주 물량이 거의 없는 동네입니다. 입주장이 이어지는 소사구·오정구는 아직 제자리입니다. 부천 공급은 2029년까지 부족한 방향입니다.</p>
 <h2>더 보기</h2>
-<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 부천 아파트 입주 물량은 얼마나 되나요</dt><dd>3,962세대로, 부천 인구로 잡은 한 해 적정 입주량(6,030세대)의 66%입니다.</dd><dt>부천에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2032년 3월 1,859세대입니다.</dd><dt>부천 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/changwon-2027-moveins/"><span>다음 글</span>2027년 창원 아파트 입주물량, 적정의 11%뿐입니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
+<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 부천 아파트 입주 물량은 얼마나 되나요</dt><dd>3,962세대로, 부천 인구로 잡은 한 해 적정물량(6,030세대)의 66%입니다.</dd><dt>부천에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2032년 3월 1,859세대입니다.</dd><dt>부천 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/changwon-2027-moveins/"><span>다음 글</span>2027년 창원 아파트 입주물량, 적정의 11%뿐입니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

@@ -25,25 +25,25 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
 <title>2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다 | 아공맵</title>
-<meta name="description" content="용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정 입주량의 60%입니다.">
+<meta name="description" content="용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정물량의 60%입니다.">
 <link rel="canonical" href="https://www.agongmap.co.kr/city/yongin-2027-moveins/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
 <meta name="theme-color" content="#131e24">
 <meta property="og:type" content="article">
 <meta property="og:title" content="2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다">
-<meta property="og:description" content="용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정 입주량의 60%입니다.">
+<meta property="og:description" content="용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정물량의 60%입니다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/city/yongin-2027-moveins/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-yongin-2027-moveins.png?v=2026-10-27">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/post-city-yongin-2027-moveins.png?v=2026-10-31">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">[
   {
     "@context": "https://schema.org",
     "@type": "Article",
     "headline": "2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다",
-    "description": "용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정 입주량의 60%입니다.",
+    "description": "용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정물량의 60%입니다.",
     "datePublished": "2026-10-27",
-    "dateModified": "2026-10-27",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -64,7 +64,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         "name": "2027년 용인 아파트 입주 물량은 얼마나 되나요",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "5,229세대로, 용인 인구로 잡은 한 해 적정 입주량(8,721세대)의 60%입니다."
+          "text": "5,229세대로, 용인 인구로 잡은 한 해 적정물량(8,721세대)의 60%입니다."
         }
       },
       {
@@ -217,6 +217,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -281,11 +293,11 @@ footer a{color:var(--ink)}
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 27일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
-<main id="main"><section><div class="wrap"><p class="csum">용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정 입주량의 60%입니다.</p><div class="cbody"><p>용인 수지구 아파트 매매가는 91주 연속 상승(10월 26일 조사), 기흥구는 59주 연속 상승(10월 26일 조사)입니다. 2027년 용인 입주 물량은 5,229세대로, 한 해 적정 입주량의 60%입니다.</p>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<main id="main"><section><div class="wrap"><p class="csum">용인 2027년 입주 물량은 5,229세대로, 인구로 잡은 한 해 적정물량의 60%입니다.</p><div class="cbody"><p>용인 수지구 아파트 매매가는 91주 연속 상승(10월 26일 조사), 기흥구는 59주 연속 상승(10월 26일 조사)입니다. 2027년 용인 입주 물량은 5,229세대로, 한 해 적정물량의 60%입니다.</p>
 <figure class="cchart"><div class="ccards"><div class="ccard"><b>5,229세대</b><span>용인 2027년 입주</span></div><div class="ccard"><b>60%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="용인 연도별 입주 물량 막대그래프. 2026년 892세대, 2027년 5,229세대, 2028년 5,252세대, 2029년 1,069세대, 2030년 595세대. 한 해 적정물량은 8,721세대." class="cchart-svg"><rect x="120.0" y="166.8" width="72.0" height="17.2" class="cb"/><text x="156.0" y="162.8" class="cb-v">892</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="83.3" width="72.0" height="100.7" class="cb"/><text x="238.0" y="79.3" class="cb-v">5,229</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="82.8" width="72.0" height="101.2" class="cb"/><text x="320.0" y="78.8" class="cb-v">5,252</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="163.4" width="72.0" height="20.6" class="cb"/><text x="402.0" y="159.4" class="cb-v">1,069</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="172.5" width="72.0" height="11.5" class="cb"/><text x="484.0" y="168.5" class="cb-v">595</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,721세대</text></svg><figcaption>용인 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>892</td><td>10%</td></tr><tr><th scope="row">2027</th><td>5,229</td><td>60%</td></tr><tr><th scope="row">2028</th><td>5,252</td><td>60%</td></tr><tr><th scope="row">2029</th><td>1,069</td><td>12%</td></tr><tr><th scope="row">2030</th><td>595</td><td>7%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 8,721세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
-<p>적정 입주량은 인구로 잡은 연 8,721세대입니다. 입주가 가장 몰리는 달은 2028년 12월 2,491세대입니다.</p>
+<p>적정물량은 인구로 잡은 연 8,721세대입니다. 입주가 가장 몰리는 달은 2028년 12월 2,491세대입니다.</p>
 <h2>용인 2027년에는 어느 구에 입주하나요</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">처인구</th><td>5,164</td></tr><tr><th scope="row">수지구</th><td>65</td></tr><tr><th scope="row">합계</th><td>5,229</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col" class="tx">구</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2027-03</th><td class="tx">두산위브더제니스 센트럴 용인</td><td class="tx">처인구</td><td>568</td></tr><tr><th scope="row">2027-03</th><td class="tx">역북 서희스타힐스 프라임시티</td><td class="tx">처인구</td><td>912</td></tr><tr><th scope="row">2027-07</th><td class="tx">용인 둔전역 에피트</td><td class="tx">처인구</td><td>1,275</td></tr><tr><th scope="row">2027-08</th><td class="tx">마평동 734-1번지 일원 공동주택{LH매입임대]</td><td class="tx">처인구</td><td>68</td></tr><tr><th scope="row">2027-08</th><td class="tx">용인 푸르지오 원클러스터 1단지</td><td class="tx">처인구</td><td>1,681</td></tr><tr><th scope="row">2027-12</th><td class="tx">동천동 462-4번지 공동주택 신축공사[LH매입임대]</td><td class="tx">수지구</td><td>65</td></tr><tr><th scope="row">2027-12</th><td class="tx">힐스테이트 용인마크밸리</td><td class="tx">처인구</td><td>660</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</p></div>
@@ -304,7 +316,7 @@ footer a{color:var(--ink)}
 <h2>용인 집값은 앞으로 어떻게 될까요</h2>
 <p>제 판단으로는 용인은 오름세가 더 이어지는 구간입니다. 2027년과 그다음 해 입주가 모두 적정에 못 미치고, 지금까지 공고된 2029년 입주는 그보다 훨씬 적기 때문입니다. 2028년에 반도체 클러스터 이름을 단 단지들이 들어오지만 모두 처인구라서, 수지·기흥 쪽 신축 부족을 메우기에는 거리가 있습니다. 수지구 전세가가 60주 연속 상승(10월 26일 조사)인 것도 같은 이유입니다. 용인 공급은 2029년까지 부족한 방향입니다.</p>
 <h2>더 보기</h2>
-<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 용인 아파트 입주 물량은 얼마나 되나요</dt><dd>5,229세대로, 용인 인구로 잡은 한 해 적정 입주량(8,721세대)의 60%입니다.</dd><dt>용인에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2028년 12월 2,491세대입니다.</dd><dt>용인 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/uijeongbu-2027-moveins/"><span>이전 글</span>2027년 의정부 아파트 분양·입주물량, 2028년 입주는 적정의 15%로 줄어듭니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
+<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 용인 아파트 입주 물량은 얼마나 되나요</dt><dd>5,229세대로, 용인 인구로 잡은 한 해 적정물량(8,721세대)의 60%입니다.</dd><dt>용인에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2028년 12월 2,491세대입니다.</dd><dt>용인 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/uijeongbu-2027-moveins/"><span>이전 글</span>2027년 의정부 아파트 분양·입주물량, 2028년 입주는 적정의 15%로 줄어듭니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

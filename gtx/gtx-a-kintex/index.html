@@ -34,7 +34,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta property="og:title" content="GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다">
 <meta property="og:description" content="킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/gtx/gtx-a-kintex/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/post-gtx-gtx-a-kintex.png?v=2026-10-27">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/post-gtx-gtx-a-kintex.png?v=2026-10-31">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">[
   {
@@ -43,7 +43,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "headline": "GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다",
     "description": "킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.",
     "datePublished": "2026-10-26",
-    "dateModified": "2026-10-27",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -217,6 +217,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -281,50 +293,50 @@ footer a{color:var(--ink)}
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/gtx/">GTX 역세권</a></nav><h1>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</h1><p class="cmeta">2026년 10월 26일 작성 · 2026년 10월 27일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
-<main id="main"><section><div class="wrap"><p class="csum">킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.</p><div class="cbody"><p>킨텍스역 도보 15분 이내에 있는 아파트는 6곳이 전부입니다. 역 둘레의 땅 대부분이 전시장과 업무시설 용지라서 주거 단지가 적어요.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>고양 2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정물량은 8,452세대." class="cchart-svg"><rect x="120.0" y="160.5" width="72.0" height="23.5" class="cb"/><text x="156.0" y="156.5" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="123.2" width="72.0" height="60.8" class="cb"/><text x="238.0" y="119.2" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="39.3" width="72.0" height="144.7" class="cb"/><text x="320.0" y="35.3" class="cb-v">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="174.2" width="72.0" height="9.8" class="cb"/><text x="402.0" y="170.2" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="138.2" width="72.0" height="45.8" class="cb"/><text x="484.0" y="134.2" class="cb-v">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,452세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
-<p>6곳 가운데 24평형이 있는 단지는 문촌마을19단지신우 하나입니다. 1994년에 입주했고, 2026년 5~10월 실거래 네 건의 중위값이 5억 5,000만 원이에요.</p>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/gtx/">GTX 역세권</a></nav><h1>GTX-A 킨텍스역 아파트 6곳, 30대 5억대 24평형은 1곳뿐입니다</h1><p class="cmeta">2026년 10월 26일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<main id="main"><section><div class="wrap"><p class="csum">킨텍스역 도보 15분 이내 아파트는 6곳이고, 24평형이 있는 곳은 1994년 입주한 문촌마을19단지신우 하나로 2026년 5~10월 실거래 중위값 5억 5,000만 원이다.</p><div class="cbody"><p>킨텍스역 도보 15분 이내에 있는 아파트는 6곳이 전부입니다. 역 둘레의 땅 대부분이 전시장과 업무시설 용지라서 주거 단지가 적습니다.</p>
+<p>6곳 가운데 24평형이 있는 단지는 문촌마을19단지신우 하나입니다. 1994년에 입주했고, 2026년 5~10월 실거래 네 건의 중위값이 5억 5,000만 원입니다.</p>
 <p><b>역 바로 앞 신축 국평은 11억 원대부터 시작합니다. 5억대 예산으로 킨텍스역 도보권을 고른다면 선택지는 문촌마을19단지 한 곳으로 좁혀집니다.</b></p>
-<h2>고른 기준</h2>
-<ul><li>범위: 네이버 지도 도보 길찾기로 단지 출입구에서 역 출입구까지 15분 이내인 아파트 전부입니다.</li><li>평형: 24평형(전용 59㎡)이 있으면 24평형, 없으면 국평(전용 84㎡), 둘 다 없으면 가장 작은 평형을 대표로 씁니다.</li><li>세대수 등급: 1,000세대 이상 대단지는 훌륭, 700세대 이상은 안정, 500세대 이상은 최소선입니다. 500세대 미만 소규모 단지는 역과 가까워도 권하지 않습니다.</li><li>출퇴근 등급: 주요 업무지구 네 곳(광화문·여의도·삼성·판교)까지 30분 이내는 매우 우수, 1시간 이내는 우수, 1시간 30분 이내는 양호입니다.</li></ul>
 <h2>출퇴근 시간: 광화문 35분, 삼성 61분</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">업무지구</th><th scope="col">소요 시간</th><th scope="col">환승</th><th scope="col" class="tx">경로</th></tr></thead><tbody><tr><th scope="row">광화문</th><td>35분</td><td>1회</td><td class="tx">GTX-A 서울역 → 1호선 시청역</td></tr><tr><th scope="row">여의도</th><td>43분</td><td>2회</td><td class="tx">GTX-A 서울역 → 1호선 노량진 → 9호선 여의도</td></tr><tr><th scope="row">삼성(강남)</th><td>61분</td><td>2회</td><td class="tx">GTX-A 서울역 → 4호선 사당 → 2호선 삼성</td></tr><tr><th scope="row">판교</th><td>68분</td><td>1회</td><td class="tx">GTX-A 서울역 → 9000번 버스 판교</td></tr></tbody></table></div>
-<p>서울 도심 쪽은 강합니다. 서울역에서 한 번만 환승하면 광화문 35분, 여의도 43분으로 둘 다 우수 등급이에요.</p>
+<p>서울 도심 쪽은 강합니다. 서울역에서 한 번만 환승하면 광화문 35분, 여의도 43분으로 둘 다 우수 등급입니다.</p>
 <p>강남 쪽은 약합니다. GTX-A 서울역~삼성 구간이 아직 이어지지 않아서 삼성 61분, 판교 68분은 양호 등급에 머뭅니다.</p>
-<p>1편 운정중앙역과 출퇴근 조건이 거의 같아요. 광화문은 운정이 36분, 킨텍스가 35분입니다.</p>
+<p>1편 운정중앙역과 출퇴근 조건이 거의 같습니다. 광화문은 운정이 36분, 킨텍스가 35분입니다.</p>
 <h2>도보 15분 이내 아파트 6곳</h2>
 <p><img src="/content/gtx/img/gtx-a-kintex-map.png" alt="역 반경 1km와 도보 15분 이내 단지 위치" loading="lazy"></p>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">단지</th><th scope="col" class="tx">평형</th><th scope="col">역 도보</th><th scope="col">세대수(등급)</th><th scope="col">입주</th><th scope="col">용적률</th><th scope="col">매매 실거래(5~10월)</th><th scope="col">세 낀 매물 호가</th><th scope="col">실거주 매물 호가</th><th scope="col" class="tx">전세(8~10월)</th><th scope="col">갭(세 낀 매물)</th></tr></thead><tbody><tr><th scope="row">문촌마을19단지신우</th><td class="tx">24평형</td><td>14분</td><td>658(최소선)</td><td>1994</td><td>175%</td><td>4건(제외 1건) 5.39억~5.8억, 중위 5억 5,000</td><td>-</td><td>1건 5.9억</td><td class="tx">중위 3억 (1건)</td><td>-</td></tr><tr><th scope="row">한화포레나킨텍스</th><td class="tx">국평</td><td>3분</td><td>1,100(훌륭)</td><td>2019</td><td>689%</td><td>17건 10.5억~12억, 중위 11억 7,000</td><td>9건 11.8억~14억</td><td>20건 11.5억~15억</td><td class="tx">중위 6억 5,000 (8건)</td><td>6억 2,000</td></tr><tr><th scope="row">킨텍스원시티2블럭</th><td class="tx">국평</td><td>3분</td><td>959(안정)</td><td>2019</td><td>359%</td><td>20건(제외 3건) 11.9억~14.18억, 중위 12억 8,000</td><td>15건 12.5억~15억</td><td>43건 12억~16억</td><td class="tx">중위 6억 6,200 (11건)</td><td>6.8억~9억</td></tr><tr><th scope="row">킨텍스원시티3블럭</th><td class="tx">국평</td><td>6분</td><td>782(안정)</td><td>2019</td><td>359%</td><td>17건(제외 1건) 11.65억~14억, 중위 12억 9,000</td><td>14건 12.5억~15.5억</td><td>31건 12.5억~16.5억</td><td class="tx">중위 7억 (6건)</td><td>6.5억~8.2억</td></tr><tr><th scope="row">킨텍스원시티1블럭</th><td class="tx">국평</td><td>4분</td><td>297(비추)</td><td>2019</td><td>358%</td><td>8건(제외 1건) 12억~13.6억, 중위 12억 7,800</td><td>10건 12억~14.5억</td><td>13건 12.6억~15억</td><td class="tx">중위 6억 6,200 (3건)</td><td>6억~8.7억</td></tr><tr><th scope="row">문촌마을18단지대원</th><td class="tx">전용 101㎡</td><td>14분</td><td>378(비추)</td><td>1995</td><td>184%</td><td>2건 7.57억~7.7억, 중위 7억 6,400</td><td>3건 7.5억~8.2억</td><td>5건 7.7억~8.2억</td><td class="tx">중위 4억 5,000 (2건)</td><td>3억 5,100</td></tr></tbody></table></div>
 <p>실거래는 2026년 5~10월 대표 평형 신고분이고, 해제·직거래와 시세보다 크게 낮은 거래(같은 평형, 거래 달 앞뒤 3개월 거래 중위값의 80% 미만)는 뺐습니다. 호가는 같은 집이 여러 중개사로 올라온 것을 하나로 셌고, 세입자가 있어 전세를 안고 사는 세 낀 매물과 바로 들어가 살 수 있는 실거주 매물(즉시·협의 입주)로 나눴습니다. 갭은 세 낀 매물의 호가에서 그 집의 전세 보증금을 뺀 값입니다(월세 낀 매물은 뺐습니다). 실거주 매물 수에는 설명 없이 입주가능일만 즉시입주로 적힌 매물이 들어 있습니다.</p>
-<p>단지는 두 무리로 나뉩니다. 역에서 도보 3~6분 거리에는 2019년 입주한 초역세권 신축 네 곳(한화포레나킨텍스, 킨텍스원시티 1·2·3블럭)이 있고, 도보 14분 거리 문촌마을에는 1990년대 중반 입주한 구축 두 곳이 있어요.</p>
+<p>단지는 두 무리로 나뉩니다. 역에서 도보 3~6분 거리에는 2019년 입주한 초역세권 신축 네 곳(한화포레나킨텍스, 킨텍스원시티 1·2·3블럭)이 있고, 도보 14분 거리 문촌마을에는 1990년대 중반 입주한 구축 두 곳이 있습니다.</p>
 <h2>5억대 24평형: 문촌마을19단지신우</h2>
-<p>658세대로 세대수 등급은 최소선입니다. 입주 32년 차 구축이고, 역까지 도보 14분이에요.</p>
-<p>5~10월 실거래는 해제 1건을 빼고 네 건, 5억 3,900만~5억 8,000만 원 사이였습니다. 지금 24평형 매물은 바로 들어가 살 수 있는 집 1건(호가 5억 9,000만 원)뿐이라 매물이 귀한 편이에요.</p>
-<p>입주민 후기에서는 역까지 도보로 출퇴근한다는 글이 많습니다. 역으로 가는 길에 원형육교를 돌아야 했는데 그 아래 횡단보도가 생긴다는 소식도 올라와 있어요. 걱정으로는 재건축 추진이 더디다는 점이 자주 나옵니다.</p>
+<p>658세대로 세대수 등급은 최소선입니다. 입주 32년 차 구축이고, 역까지 도보 14분입니다.</p>
+<p>5~10월 실거래는 해제 1건을 빼고 네 건, 5억 3,900만~5억 8,000만 원 사이였습니다. 지금 24평형 매물은 바로 들어가 살 수 있는 집 1건(호가 5억 9,000만 원)뿐이라 매물이 귀한 편입니다.</p>
+<p>입주민 후기에서는 역까지 도보로 출퇴근한다는 글이 많습니다. 역으로 가는 길에 원형육교를 돌아야 했는데 그 아래 횡단보도가 생긴다는 소식도 올라와 있습니다. 걱정으로는 재건축 추진이 더디다는 점이 자주 나옵니다.</p>
 <p><img src="/content/gtx/img/gtx-a-kintex-price-munchon19.png" alt="문촌마을19단지신우 시세 화면" loading="lazy"></p>
 <h2>역 앞 신축 국평: 중위 11억 7,000만~12억 9,000만 원</h2>
-<p><b>한화포레나킨텍스</b>는 1,100세대 대단지이고 역 도보 3분입니다. 5~10월 실거래 17건의 중위값이 11억 7,000만 원으로 신축 네 곳 가운데 가장 낮고, 보증금이 확인된 세 낀 매물 1건의 갭은 6억 2,000만 원이에요. 용적률 689%의 고밀 주상복합이라 동간 거리가 좁고, 관리비가 높다는 입주민 후기가 많습니다.</p>
+<p><b>한화포레나킨텍스</b>는 1,100세대 대단지이고 역 도보 3분입니다. 5~10월 실거래 17건의 중위값이 11억 7,000만 원으로 신축 네 곳 가운데 가장 낮고, 보증금이 확인된 세 낀 매물 1건의 갭은 6억 2,000만 원입니다. 용적률 689%의 고밀 주상복합이라 동간 거리가 좁고, 관리비가 높다는 입주민 후기가 많습니다.</p>
 <p><img src="/content/gtx/img/gtx-a-kintex-price-forena.png" alt="한화포레나킨텍스 시세 화면" loading="lazy"></p>
-<p><b>킨텍스원시티</b>는 1·2·3블럭이 나란히 있습니다. 2블럭(959세대)과 3블럭(782세대)은 안정 등급이고, 1블럭은 297세대예요. 5~10월 실거래 중위값은 12억 7,800만~12억 9,000만 원입니다. 커뮤니티와 호수공원 조망을 장점으로 꼽는 후기가 많고, 배정초(한류초)가 도보 16~20분이라 사설 셔틀을 쓴다는 불만도 함께 나옵니다.</p>
+<p><b>킨텍스원시티</b>는 1·2·3블럭이 나란히 있습니다. 2블럭(959세대)과 3블럭(782세대)은 안정 등급이고, 1블럭은 297세대입니다. 5~10월 실거래 중위값은 12억 7,800만~12억 9,000만 원입니다. 커뮤니티와 호수공원 조망을 장점으로 꼽는 후기가 많고, 배정초(한류초)가 도보 16~20분이라 사설 셔틀을 쓴다는 불만도 함께 나옵니다.</p>
 <p>문촌마을18단지대원은 전용 101㎡ 단일 평형이고 378세대 소규모 단지라 대표 비교에서는 뺐습니다.</p>
 <h2>학군과 학원가</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">단지</th><th scope="col" class="tx">배정초(도보)</th><th scope="col">용적률</th><th scope="col" class="tx">세대수 등급</th></tr></thead><tbody><tr><th scope="row">한화포레나킨텍스</th><td class="tx">한류초 14분</td><td>689%</td><td class="tx">훌륭</td></tr><tr><th scope="row">킨텍스원시티2블럭</th><td class="tx">한류초 19분</td><td>359%</td><td class="tx">안정</td></tr><tr><th scope="row">킨텍스원시티1블럭</th><td class="tx">한류초 16분</td><td>358%</td><td class="tx">비추</td></tr><tr><th scope="row">킨텍스원시티3블럭</th><td class="tx">한류초 20분</td><td>359%</td><td class="tx">안정</td></tr><tr><th scope="row">문촌마을19단지신우</th><td class="tx">한수초 10분</td><td>175%</td><td class="tx">최소선</td></tr><tr><th scope="row">문촌마을18단지대원</th><td class="tx">한수초 4분</td><td>184%</td><td class="tx">비추</td></tr></tbody></table></div>
 <p>배정초는 문촌마을 쪽이 가깝고, 신축 네 곳은 모두 도보 14분이 넘습니다.</p>
 <p><img src="/content/gtx/img/gtx-a-kintex-academy.png" alt="역 주변 학원가 지도" loading="lazy"></p>
-<p>역 반경 1km 안에는 학원가가 없습니다. 가장 가까운 주엽동 학원가(학원 34개)가 1km를 조금 넘고, 일산에서 가장 큰 후곡 학원가(203개)는 2.2km, 차로 7분 거리예요. 아이를 키울 집이라면 학원 이동을 계산에 넣어야 하는 역입니다. 이 지역 매수층의 중심이 바로 그 학령기 자녀를 둔 가구이기도 해요.</p>
+<p>역 반경 1km 안에는 학원가가 없습니다. 가장 가까운 주엽동 학원가(학원 34개)가 1km를 조금 넘고, 일산에서 가장 큰 후곡 학원가(203개)는 2.2km, 차로 7분 거리입니다. 아이를 키울 집이라면 학원 이동을 계산에 넣어야 하는 역입니다. 이 지역 매수층의 중심이 바로 그 학령기 자녀를 둔 가구이기도 합니다.</p>
 <h2>생활 인프라: 몰세권</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">구분</th><th scope="col" class="tx">시설</th><th scope="col" class="tx">거리</th></tr></thead><tbody><tr><th scope="row">대형마트</th><td class="tx">트레이더스 일산점</td><td class="tx">도보 6분</td></tr><tr><th scope="row">쇼핑몰</th><td class="tx">스타필드마켓 일산 · 원마운트</td><td class="tx">도보 6~9분</td></tr><tr><th scope="row">백화점</th><td class="tx">현대백화점 킨텍스점</td><td class="tx">도보 11분</td></tr><tr><th scope="row">공원</th><td class="tx">일산호수공원</td><td class="tx">도보 18분</td></tr><tr><th scope="row">도서관</th><td class="tx">주엽어린이도서관</td><td class="tx">도보 18분</td></tr><tr><th scope="row">아울렛</th><td class="tx">뉴코아아울렛 일산점</td><td class="tx">차로 8분</td></tr><tr><th scope="row">공연장</th><td class="tx">고양아람누리</td><td class="tx">차로 6분</td></tr><tr><th scope="row">대형 병원</th><td class="tx">인제대 일산백병원</td><td class="tx">차로 3분</td></tr></tbody></table></div>
-<p>장보기와 쇼핑은 이 역의 가장 큰 강점입니다. 대형마트·쇼핑몰·백화점이 모두 도보권이에요. 1편 운정중앙역은 백화점까지 차로 12분이었습니다.</p>
+<p>장보기와 쇼핑은 이 역의 가장 큰 강점입니다. 대형마트·쇼핑몰·백화점이 모두 도보권입니다. 1편 운정중앙역은 백화점까지 차로 12분이었습니다.</p>
 <h2>GTX가 열린 뒤에도 일산동구 시세는 내렸습니다</h2>
-<p>킨텍스원시티가 있는 일산동구 매매는 94주 연속 하락(10월 26일 조사)입니다. GTX-A 서울역 구간이 개통한 2024년 12월 말 무렵부터 내림세가 이어진 셈이에요. 같은 기간 전세는 36주 연속 상승(10월 26일 조사)입니다. 고양 주간 시세 흐름은 아래와 같습니다.</p>
+<p>킨텍스원시티가 있는 일산동구 매매는 94주 연속 하락(10월 26일 조사)입니다. GTX-A 서울역 구간이 개통한 2024년 12월 말 무렵부터 내림세가 이어진 셈입니다. 같은 기간 전세는 36주 연속 상승(10월 26일 조사)입니다. 고양 주간 시세 흐름은 아래와 같습니다.</p>
 <figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="고양 일산동구 최근 26주 주간 변동률 꺾은선. 매매 최신 -0.06%, 전세 최신 +0.13%." class="cchart-svg"><line x1="8" y1="75.5" x2="632" y2="75.5" class="cl-zero"/><path d="M8.0 94.4 L33.0 126.0 L57.9 101.2 L82.9 80.7 L107.8 91.3 L132.8 79.1 L157.8 99.4 L182.7 78.6 L207.7 77.0 L232.6 77.9 L257.6 99.5 L282.6 79.2 L307.5 86.3 L332.5 112.5 L357.4 88.8 L382.4 111.8 L407.4 116.7 L432.3 111.6 L457.3 94.6 L482.2 77.8 L507.2 84.8 L532.2 89.4 L557.1 79.4 L582.1 79.7 L607.0 97.8 L632.0 90.9" class="cl cl-ma"/><circle cx="632.0" cy="90.9" r="2.5" class="cl-dot"/><path d="M8.0 67.1 L33.0 57.7 L57.9 51.9 L82.9 54.6 L107.8 52.9 L132.8 48.2 L157.8 43.8 L182.7 54.7 L207.7 41.8 L232.6 36.9 L257.6 41.9 L282.6 46.6 L307.5 65.7 L332.5 63.7 L357.4 48.6 L382.4 46.2 L407.4 14.0 L432.3 37.9 L457.3 28.8 L482.2 33.0 L507.2 66.7 L532.2 60.1 L557.1 64.6 L582.1 25.3 L607.0 43.9 L632.0 42.8" class="cl cl-je"/><circle cx="632.0" cy="42.8" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>고양 일산동구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">고양 덕양구</th><td>+0.10%</td><td>+0.11%</td></tr><tr><th scope="row">고양 일산동구</th><td>-0.06%</td><td>+0.13%</td></tr><tr><th scope="row">고양 일산서구</th><td>+0.02%</td><td>+0.01%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
-<p>공급 일정은 이렇습니다. 고양의 2027년 입주 물량은 3,061세대로 한 해 적정 입주량(8,452세대)의 36%에 그치고, 2028년에는 7,281세대(적정의 86%)가 잡혀 있어 상반기에 입주가 몰립니다.</p>
+<p>공급 일정은 이렇습니다. 고양의 2027년 입주 물량은 3,061세대로 한 해 적정물량(8,452세대)의 36%에 그치고, 2028년에는 7,281세대(적정의 86%)가 잡혀 있어 상반기에 입주가 몰립니다.</p>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>고양 2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정물량은 8,452세대." class="cchart-svg"><rect x="120.0" y="160.5" width="72.0" height="23.5" class="cb"/><text x="156.0" y="156.5" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="123.2" width="72.0" height="60.8" class="cb"/><text x="238.0" y="119.2" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="39.3" width="72.0" height="144.7" class="cb"/><text x="320.0" y="35.3" class="cb-v">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="174.2" width="72.0" height="9.8" class="cb"/><text x="402.0" y="170.2" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="138.2" width="72.0" height="45.8" class="cb"/><text x="484.0" y="134.2" class="cb-v">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,452세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,184</td><td>14%</td></tr><tr><th scope="row">2027</th><td>3,061</td><td>36%</td></tr><tr><th scope="row">2028</th><td>7,281</td><td>86%</td></tr><tr><th scope="row">2029</th><td>494</td><td>6%</td></tr><tr><th scope="row">2030</th><td>2,306</td><td>27%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 8,452세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
 <p><b>제 판단으로는 2027년까지는 입주 물량이 적어 전셋값이 버티고, 2028년 상반기 입주장이 서면 전셋값부터 조정받습니다.</b> GTX는 출퇴근 시간을 줄였지만 일산 시세의 방향은 결국 그해 입주 물량이 정합니다.</p>
 <p>시군구별 주간·월간 시세는 <a href="/zone/%EA%B2%BD%EA%B8%B0/#weekly-sgg">경기 리포트 표</a>에서 볼 수 있습니다.</p>
-<p>적정 입주량은 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡았습니다. 매매는 대표 평형의 2026년 5~10월 실거래에서 해제·직거래와 같은 평형 거래 달 앞뒤 3개월 중위값의 80% 미만 거래를 뺀 값이고, 전세는 8~10월 월세 없는 전세 실거래의 중위값입니다.</p></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2026년 5~10월)</li><li>네이버 부동산 매물 호가(2026-10-27 조회, 세 낀 매물·실거주 매물 구분, 중복 등록은 하나로 셈, 보증금이 호가의 25% 미만인 세 낀 매물은 오기로 보고 갭에서 뺌)</li><li>네이버 지도 도보·대중교통 길찾기(평일 오전 8시 출발)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>행정안전부 주민등록 인구통계(2026년 9월)</li><li>한국부동산원 주간 아파트가격동향(2026-10-19 조사)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>킨텍스역 도보권에서 가장 싼 24평형은 얼마인가요</dt><dd>문촌마을19단지신우 24평형이 2026년 5~10월 실거래 4건(해제 1건 제외) 중위값 5억 5,000만 원입니다. 도보권 24평형 단지는 이곳뿐입니다.</dd><dt>킨텍스역에서 광화문·삼성까지 얼마나 걸리나요</dt><dd>평일 오전 8시 기준 광화문 35분, 여의도 43분, 삼성 61분, 판교 68분입니다.</dd><dt>킨텍스역 앞 신축 국평 시세는 얼마인가요</dt><dd>2019년 입주한 한화포레나킨텍스가 11억 7,000만 원, 킨텍스원시티 1·2·3블럭이 12억 7,800만~12억 9,000만 원입니다(2026년 5~10월 실거래 중위값).</dd></dl></section><div class="cnav"><a href="/gtx/gtx-a-guseong/"><span>이전 글</span>GTX-A 구성역 아파트 15곳, 30대 10억 아래 첫 집은 2곳뿐입니다</a><a href="/gtx/gtx-a-seongnam/"><span>다음 글</span>GTX-A 성남역 아파트 20곳, 30대 현금 10억으로 살 곳은 0곳입니다</a><a href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
+<p>적정물량은 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡았습니다. 매매는 대표 평형의 2026년 5~10월 실거래에서 해제·직거래와 같은 평형 거래 달 앞뒤 3개월 중위값의 80% 미만 거래를 뺀 값이고, 전세는 8~10월 월세 없는 전세 실거래의 중위값입니다.</p>
+<h2>고른 기준</h2>
+<ul><li>범위: 네이버 지도 도보 길찾기로 단지 출입구에서 역 출입구까지 15분 이내인 아파트 전부입니다.</li><li>평형: 24평형(전용 59㎡)이 있으면 24평형, 없으면 국평(전용 84㎡), 둘 다 없으면 가장 작은 평형을 대표로 씁니다.</li><li>세대수 등급: 1,000세대 이상 대단지는 훌륭, 700세대 이상은 안정, 500세대 이상은 최소선입니다. 500세대 미만 소규모 단지는 역과 가까워도 권하지 않습니다.</li><li>출퇴근 등급: 주요 업무지구 네 곳(광화문·여의도·삼성·판교)까지 30분 이내는 매우 우수, 1시간 이내는 우수, 1시간 30분 이내는 양호입니다.</li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2026년 5~10월)</li><li>네이버 부동산 매물 호가(2026-10-27 조회, 세 낀 매물·실거주 매물 구분, 중복 등록은 하나로 셈, 보증금이 호가의 25% 미만인 세 낀 매물은 오기로 보고 갭에서 뺌)</li><li>네이버 지도 도보·대중교통 길찾기(평일 오전 8시 출발)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>행정안전부 주민등록 인구통계(2026년 9월)</li><li>한국부동산원 주간 아파트가격동향(2026-10-19 조사)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>킨텍스역 도보권에서 가장 싼 24평형은 얼마인가요</dt><dd>문촌마을19단지신우 24평형이 2026년 5~10월 실거래 4건(해제 1건 제외) 중위값 5억 5,000만 원입니다. 도보권 24평형 단지는 이곳뿐입니다.</dd><dt>킨텍스역에서 광화문·삼성까지 얼마나 걸리나요</dt><dd>평일 오전 8시 기준 광화문 35분, 여의도 43분, 삼성 61분, 판교 68분입니다.</dd><dt>킨텍스역 앞 신축 국평 시세는 얼마인가요</dt><dd>2019년 입주한 한화포레나킨텍스가 11억 7,000만 원, 킨텍스원시티 1·2·3블럭이 12억 7,800만~12억 9,000만 원입니다(2026년 5~10월 실거래 중위값).</dd></dl></section><div class="cnav"><a href="/gtx/gtx-a-guseong/"><span>이전 글</span>GTX-A 구성역 아파트 15곳, 30대 10억 아래 첫 집은 2곳뿐입니다</a><a href="/gtx/gtx-a-seongnam/"><span>다음 글</span>GTX-A 성남역 아파트 20곳, 30대 현금 10억으로 살 곳은 0곳입니다</a><a href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

@@ -34,7 +34,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta property="og:title" content="오세훈 시장의 &#x27;주택의 삭제&#x27;, 서울 아파트 인허가는 19년 동안 적정의 절반이었습니다">
 <meta property="og:description" content="서울 공급 절벽이 박원순 시정의 정비구역 해제 탓이라는 오세훈 서울시장의 주장을 서울 아파트 인허가 19년 치로 따졌다. 세 시기 모두 한 해 적정물량의 52~56%로, 시장과 상관없이 절반에 그쳤다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/column/oh-sehoon-permits-19y/">
-<meta property="og:image" content="https://www.agongmap.co.kr/share/post-column-oh-sehoon-permits-19y.png?v=2026-10-29">
+<meta property="og:image" content="https://www.agongmap.co.kr/share/post-column-oh-sehoon-permits-19y.png?v=2026-10-31">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">[
   {
@@ -43,7 +43,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "headline": "오세훈 시장의 '주택의 삭제', 서울 아파트 인허가는 19년 동안 적정의 절반이었습니다",
     "description": "서울 공급 절벽이 박원순 시정의 정비구역 해제 탓이라는 오세훈 서울시장의 주장을 서울 아파트 인허가 19년 치로 따졌다. 세 시기 모두 한 해 적정물량의 52~56%로, 시장과 상관없이 절반에 그쳤다.",
     "datePublished": "2026-10-29",
-    "dateModified": "2026-10-29",
+    "dateModified": "2026-10-31",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -217,6 +217,18 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -281,13 +293,13 @@ footer a{color:var(--ink)}
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/column/">반박</a></nav><h1>오세훈 시장의 &#x27;주택의 삭제&#x27;, 서울 아파트 인허가는 19년 동안 적정의 절반이었습니다</h1><p class="cmeta">2026년 10월 29일 작성 · 2026년 10월 29일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
+<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/column/">반박</a></nav><h1>오세훈 시장의 &#x27;주택의 삭제&#x27;, 서울 아파트 인허가는 19년 동안 적정의 절반이었습니다</h1><p class="cmeta">2026년 10월 29일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">서울 공급 절벽이 박원순 시정의 정비구역 해제 탓이라는 오세훈 서울시장의 주장을 서울 아파트 인허가 19년 치로 따졌다. 세 시기 모두 한 해 적정물량의 52~56%로, 시장과 상관없이 절반에 그쳤다.</p><div class="cbody"><p>2026년 10월 18일 오세훈 서울시장의 페이스북 글이 머니투데이에 실렸습니다. 글은 지금의 공급 절벽을 "15년 전 잘못된 결정이 지금쯤 공급됐어야 할 수많은 '주택의 삭제'로 돌아온 것"이라고 규정했습니다. 정부·여당을 향해서는 "대통령과 민주당은 지금의 주택 공급 절벽을 현직 시장의 탓으로 돌리며 책임을 회피하기에 급급하다"고 했습니다. 서울시 백서가 집계한 2012~2020년 정비구역 389곳 해제가 그 근거입니다.</p>
 <p>누구 탓인지를 가리기 전에, 시기마다 서울에서 아파트 허가가 실제로 몇 세대 나왔는지부터 봅니다.</p>
 <h2>세 시기의 아파트 인허가</h2>
 <p>비교 잣대는 아공맵 서울 리포트의 적정물량입니다. 국토교통부 기준표의 분기 적정물량을 네 분기 더한 값으로, 서울은 한 해 74,800호입니다.</p>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">시기</th><th scope="col">해마다 평균 인허가</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2007년~2011년</th><td>39,414</td><td>53%</td></tr><tr><th scope="row">2012년~2020년</th><td>41,638</td><td>56%</td></tr><tr><th scope="row">2021년~2025년</th><td>39,212</td><td>52%</td></tr></tbody></table></div>
-<p>(단위: 세대, 국토교통부 주택건설 인허가 실적 중 아파트. 적정 대비는 2026년 10월 기준 서울 적정물량 74,800호로 나눈 값이며 아파트는 1호가 1세대입니다)</p>
+<p>(단위: 세대, 국토교통부 주택건설 인허가 실적 중 아파트. 적정물량 대비는 2026년 10월 기준 서울 적정물량 74,800호로 나눈 값이며 아파트는 1호가 1세대입니다)</p>
 <p>오 시장이 문제 삼은 2012~2020년의 평균이 셋 중 가장 높고, 최근 5년인 2021~2025년이 가장 낮습니다. 단일 연도로는 2017년의 75,138세대가 19년 중 최고치입니다.</p>
 <h2>정비구역 해제를 어떻게 볼까</h2>
 <p>정비구역이 해제된 일 자체는 서울시 백서에 기록된 사실입니다. 그 결정이 훗날 지을 수 있었던 물량을 깎았다는 주장도 가볍게 넘길 일은 아닙니다. 다만 해제가 이어지던 시기의 아파트 허가가 앞뒤 시기보다 적지 않았다는 점, 그리고 가장 허가가 적었던 때가 최근 5년이라는 점에서 공급 절벽을 15년 전 한 가지 결정으로 돌리기는 어렵습니다.</p>
