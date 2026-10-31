@@ -1100,6 +1100,18 @@ table.adv thead th:first-child{text-align:center}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+  /* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+     글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+  @media (max-width:600px){
+    .pcard{grid-template-columns:1fr}
+    .pcard img{display:none}
+    .hubflow{display:flex;flex-direction:column}
+    .hubflow .hub-recent{order:-1}
+    .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+    .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+    .hubflow .hgrid-cat .hcard h3{font-size:14px}
+    .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+  }
 /*LIST_CSS_END*/
 
   /* 시도 리포트 하단의 '이 지역 글'(백로그 50 요청 ②) — 본문과 가르는 선을 하나 둔다. */
