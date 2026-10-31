@@ -429,4 +429,11 @@
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
+
+  <url>
+    <loc>https://www.agongmap.co.kr/column/hong-completion-2033/</loc>
+    <lastmod>2026-10-31</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
 </urlset>
