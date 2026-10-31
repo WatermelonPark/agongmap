@@ -174,7 +174,7 @@ def make_brand():
     d.text((MX, 104), '공급을 보면 집값이 보인다', font=font(40, 'Bold'), fill=RED)
     nf = font(150, 'Bold')
     d.text((MX, 180), '아공맵', font=nf, fill=INK)
-    d.text((MX, 400), '아파트 · 공급량 · 투자지도', font=font(42, 'Medium'), fill=MUTED)
+    d.text((MX, 400), '아파트 공급 지도', font=font(42, 'Medium'), fill=MUTED)
 
     # 하단 구분선 + 푸터
     fy = 548

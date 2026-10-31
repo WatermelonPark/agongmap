@@ -95,7 +95,7 @@ def draw_icon(size, fill_ratio, cy=None, img=None):
 
 
 WORDMARK = 'AGONGMAP'
-TAGLINE = '아파트 · 공급량 · 투자지도'
+TAGLINE = '아파트 공급 지도'
 MUTED = (94, 111, 116)    # --muted #5e6f74
 _FDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 FONT_BOLD = os.path.join(_FDIR, 'Pretendard-Bold.subset.ttf')
