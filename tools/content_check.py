@@ -75,6 +75,11 @@ def check_post(path, data, root=ROOT):
             CT.fill_inline(meta.get(key) or '', data)
         except CT.TableError as e:
             out.append((_front_line(text, key), '%s: %s' % (key, e)))
+    for i, src in enumerate(meta.get('sources') or []):
+        try:
+            CT.fill_inline(src if isinstance(src, str) else '', data)
+        except CT.TableError as e:
+            out.append((_front_line(text, 'sources'), 'sources %d번: %s' % (i + 1, e)))
     for i, f in enumerate(meta.get('faq') or []):
         try:
             CT.fill_inline((f.get('q') or '') + ' ' + (f.get('a') or ''), data)
@@ -89,6 +94,9 @@ TERM_NOTES = (
     (re.compile(r'적정\s+입주량'), "'적정 입주량' → '적정물량'"),
     (re.compile(r'적정\s+대비'), "'적정 대비' → '적정물량 대비'"),
     (re.compile(r'\d[\d,]*\s*가구'), "물량 단위 '가구' → '세대'"),
+    # 화면 날짜 두 단계(CLAUDE.md) — 원고 문장 속 ISO 날짜. 프런트매터의 date·updated(기계가 읽는 값)는 세지 않는다.
+    (re.compile(r'(?<![\d:/-])20\d\d-\d\d-\d\d(?!\d)'), "ISO 날짜 → 읽는 자리는 '10/26'·'2026년 10월 26일', 표 칸은 '26.10.26'"),
+    (re.compile(r'\(20\d\d-\d\d-\d\d 조사\)'), "출처 조사일을 손으로 적지 않는다 → '{{v:asof:weekly}} 조사'"),
 )
 
 
@@ -97,13 +105,16 @@ def term_notes(text):
     out = []
     for pat, why in TERM_NOTES:
         for m in pat.finditer(text):
+            line = text[text.rfind('\n', 0, m.start()) + 1:text.find('\n', m.start())]
+            if re.match(r'^(date|updated)\s*:', line):
+                continue                      # 프런트매터 날짜는 기계가 읽는 값이다
             out.append((_line_of(text, m.start()), '%s (%s)' % (why, m.group(0))))
     return out
 
 
 # 글 배치 알림(2026-10-30 디자인 리뷰 3차) — 원고 구조는 작성 세션의 몫이라 고칠 곳에 세지 않고 알림만 한다.
 OFF_TOPIC_CITY_CHART = ('gtx', 'danji')   # 도시 편은 도시 입주가 곧 주제라 앞에 와도 된다
-METHOD_HEADS = ('고른 기준', '산식', '방법', '계산 방법', '이 글의 기준')
+METHOD_HEADS = ('고른 기준', '산식', '방법', '계산 방법', '이 글의 기준', '이렇게 셌', '세는 법')
 DUP_LIMIT = 0.5             # 결론 상자(summary)와 첫 문단 글자 2-gram 겹침이 이보다 크면 같은 말 두 번
 
 
