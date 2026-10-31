@@ -392,7 +392,19 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
  border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.clist a[hidden]{display:none}"""
+.clist a[hidden]{display:none}
+/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
+   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+@media (max-width:600px){
+  .pcard{grid-template-columns:1fr}
+  .pcard img{display:none}
+  .hubflow{display:flex;flex-direction:column}
+  .hubflow .hub-recent{order:-1}
+  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
+  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
+  .hubflow .hgrid-cat .hcard h3{font-size:14px}
+  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+}"""
 # 콘텐츠 페이지는 app.css 를 링크하지 않고 뼈대의 인라인 style 을 쓴다. 홈은 app.css 를 읽는다.
 # 그래서 같은 글자가 두 곳에 있고, test_content_pages 가 app.css 의 LIST_CSS 구간과 대조한다.
 
@@ -667,7 +679,7 @@ def hub_cards(all_metas, data):
             '<div class="hc-m">%s</div>%s<span class="hc-go">전체 보기 →</span></a>'
             % (href, html.escape(name), html.escape(cad), html.escape(desc), html.escape(meta_line),
                ('<ul class="hc-l">%s</ul>' % latest) if latest else ''))
-    return '<div class="hgrid">%s</div>' % ''.join(out)
+    return '<div class="hgrid hgrid-cat">%s</div>' % ''.join(out)
 
 
 # ── '기본 개념' 줄(대표 승인 2026-10-30) ──────────────────────────────────────────────────────────────
@@ -721,8 +733,8 @@ def build_reports(all_metas, data=None):
     body = ('<header><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
-            '<section><div class="wrap">%s%s</div></section>'
-            '<section><div class="wrap"><h2 class="rh2">최근 글</h2><div class="plist">%s</div></div></section>'
+            '<div class="hubflow"><section><div class="wrap">%s%s</div></section>'
+            '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2><div class="plist">%s</div></div></section></div>'
             % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
                hub_cards(all_metas, data), basic, items))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
