@@ -715,10 +715,13 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
 
 
 def test_hub_shows_six_category_cards_and_recent_posts():
-    """허브 첫 화면이 카테고리 카드 6장이고, 그 아래 '최근 글' 이 최신순 %d편이다(대표 결정 10-29).
+    """허브가 카테고리 카드 6장과 최신순 '최근 글' %d편을 싣는다(대표 결정 10-29). 600px 이하에서는 최근 글이
+    먼저 보이고 카테고리는 가로 칩 한 줄이며, 목록 썸네일을 뺀다(대표 10-31 '모두 수정' — 10-30 '모바일 여섯 장'을
+    대신한다. 데스크톱 배치는 그대로).
 
     무엇을 바꾸면 빨개지나: 카드를 빼거나 순서를 바꾸거나(발행 주기 순이다), 카드의 글 수가 실제와
-    어긋나거나, 최근 글이 최신순이 아니거나 편수가 넘치면.
+    어긋나거나, 최근 글이 최신순이 아니거나 편수가 넘치면. 휴대폰 규칙에서 최근 글 앞세우기(order:-1)·칩 한 줄
+    (nowrap)·썸네일 숨김을 지우거나, 최근 글 구역이 .hubflow 밖으로 나가면(실제로 각각 깨뜨려 확인).
     픽스처: 저장소에 구워져 있는 /reports/ 와 실제 원고.
     """ % MC.RECENT_N
     p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
@@ -726,8 +729,17 @@ def test_hub_shows_six_category_cards_and_recent_posts():
         pytest.skip('/reports/ 가 아직 없다')
     page = io.open(p, encoding='utf-8').read()
     # 카테고리 격자만 본다 — 그 아래 '기본 개념' 줄(.hgrid-basic)도 같은 .hcard 부품을 쓴다(2026-10-30).
-    cat = re.search(r'<div class="hgrid">(.*?)</div>\s*<h2', page, re.S)
+    cat = re.search(r'<div class="hgrid hgrid-cat">(.*?)</div>\s*<h2', page, re.S)
     assert cat, '카테고리 카드 격자를 못 찾았다'
+    # 휴대폰 순서 — 두 구역이 한 .hubflow 안에 있고, 600px 이하 규칙이 최근 글을 앞세우고 칩을 한 줄로 둔다.
+    flow = page[page.index('<div class="hubflow">'):]
+    assert flow.index('<div class="hgrid hgrid-cat">') < flow.index('<section class="hub-recent">'), '허브 구역 묶음이 깨졌다'
+    mob = re.search(r'@media \(max-width:600px\)\{(.*?)\n\}', page, re.S)
+    assert mob, '600px 이하 규칙이 없다'
+    rules = mob.group(1)
+    assert '.hubflow .hub-recent{order:-1}' in rules, '휴대폰에서 최근 글이 먼저 오지 않는다'
+    assert 'flex-wrap:nowrap' in rules and '.hgrid-cat' in rules, '휴대폰 카테고리가 칩 한 줄이 아니다'
+    assert '.pcard img{display:none}' in rules, '휴대폰 목록 썸네일을 빼지 않았다'
     hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', cat.group(1))
     # 기대 순서를 **여기 적는다**. HUB_CARDS 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀌어
     # 아무것도 지키지 못한다(2026-10-29 변이로 확인). 이 순서는 대표가 정한 발행 주기 순이다.
@@ -1210,7 +1222,7 @@ def test_basic_concepts_row_carries_the_pages_that_left_the_tabbar():
     assert hrefs == want, '기본 개념 줄의 순서·링크가 다르다: %s' % hrefs
     # 카테고리 카드 아래다 — 위로 올라가면 주기 순 카드가 밀린다. (본문 위치로 잰다. CSS 에도
     # 'hgrid-basic' 이 있어 그 글자만 찾으면 <style> 안이 먼저 걸린다.)
-    assert page.index('<div class="hgrid">') < page.index('<div class="hgrid hgrid-basic">'), \
+    assert page.index('<div class="hgrid hgrid-cat">') < page.index('<div class="hgrid hgrid-basic">'), \
         '기본 개념 줄이 카테고리 카드 위에 있다'
     # 이름·곁말은 각 페이지의 <title> 에서 온다(손으로 적지 않는다).
     import html as _h
