@@ -123,3 +123,26 @@ def test_ci_workflow_can_not_write_anything():
     assert not re.search(r':\s*write\b', code), '쓰기 권한이 있다'
     assert not re.search(r'\bgit\s+(push|commit)\b|gh\s+(pr|issue)\s', code), '커밋·푸시·이슈 명령이 있다'
     assert code.count('persist-credentials: false') == code.count('actions/checkout@'), '체크아웃이 토큰을 남긴다'
+
+
+def test_ci_tells_us_when_the_committed_outputs_went_stale():
+    """게이트 잡은 다시 구운 결과가 커밋본과 다르면 경고와 요약으로 알린다.
+
+    왜: PR 은 생성 산출물을 싣지 않는다(CLAUDE.md). 그래서 생성기를 고친 PR 이 병합되면 main 의 커밋본은
+    묵은 상태로 남고, 그 묵은 파일을 읽는 시험이 **발행 워크플로의 게이트**에서 걸려 원고 발행이 통째로
+    막힌다. 2026-10-30 PR #113 의 이 잡이 이미 "65 files changed" 를 찍었는데 그 출력을 아무도 보지 않아
+    그대로 병합됐고, 발행 런 40990048414 가 3 failed 로 섰다. 그 뒤로는 경고로 띄워 눈에 걸리게 한다.
+
+    여기서 **막지는 않는다** — PR 에서 산출물이 다른 것은 규칙대로의 정상 상태다. 막으면 생성기를 고치는
+    PR 이 모두 빨개진다. 발행이 막히지 않게 하는 쪽은 발행 워크플로가 배치와 같은 것을 다 굽는 것이고,
+    그것은 test_batch_parity.test_publish_bakes_everything_the_gate_measures 가 본다.
+
+    무엇을 바꾸면 빨개지나: 경고 줄을 지우면, 산출물 대조(git diff)를 지우면.
+    픽스처: 저장소의 실제 ci-tests.yml. 글자로 읽는다 — 러너에서만 도는 셸이라 여기서 실행할 수 없다.
+    """
+    y = io.open(CI, encoding='utf-8').read()
+    gate = y[y.index('  gate:'):y.index('  bare-runtime:')]
+    assert 'git diff --name-only' in gate and 'git diff --stat' in gate, \
+        '게이트 잡이 커밋본과 다시 구운 결과를 맞대지 않는다 — 묵은 산출물을 볼 자리가 없다'
+    assert '::warning' in gate, '다시 구운 결과가 달라도 경고하지 않는다 — 출력만으로는 아무도 보지 않는다'
+    assert 'GITHUB_STEP_SUMMARY' in gate, '요약에 남기지 않는다 — 로그를 펼쳐야만 보인다'
