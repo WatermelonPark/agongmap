@@ -195,7 +195,8 @@ CUE_CSS = ('.cue{position:relative}.cue::before,.cue::after{content:"";position:
            '.cue.cue-l::before,.cue.cue-r::after{opacity:1}')
 # 덮개를 켜고 끄는 함수 — sel 에 맞는 상자를 .cue 로 감싸고(이미 감싸여 있으면 그대로) 스크롤·크기 변화마다 다시 잰다.
 # 숨은 상자는 폭이 0 이라 건너뛰고, 보일 때 다시 부르면 된다(돌려준 함수). /weekly/ 와 zone.js 가 같은 글자를 싣는다.
-CUE_JS = ('function cueBox(s){var w=s.parentNode;if(!w.classList.contains("cue")){w=document.createElement("div");'
+CUE_JS = ('function cueBox(s){var w=s.parentNode;if(!w||!w.classList)return function(){};'
+          'if(!w.classList.contains("cue")){w=document.createElement("div");'
           'w.className="cue";s.parentNode.insertBefore(w,s);w.appendChild(s);}'
           'function f(){if(!s.clientWidth)return;var r=s.scrollWidth-s.clientWidth-s.scrollLeft;'
           'w.classList.toggle("cue-r",r>2);w.classList.toggle("cue-l",s.scrollLeft>2);}'

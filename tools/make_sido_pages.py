@@ -137,7 +137,7 @@ def zone_js():
         '/* 밀어 보는 상자(분기표·지도 조각)의 가장자리 흐림 — /weekly/ 와 같은 MW.CUE_JS(2026-10-31 디자인 리뷰 2차). */\n'
         + MW.CUE_JS + '\nvar CUES=[];document.querySelectorAll(".ztb-scroll,.zwk .mm-scroll").forEach(function(s){CUES.push(cueBox(s));});\n'
         'function zmSwipe(){document.querySelectorAll(".zwk .mm-scroll").forEach(function(s){'
-        'var n=s.parentNode.classList.contains("cue")?s.parentNode:s,c=n.nextElementSibling,h=c&&c.querySelector(".zm-swipe");'
+        'var p=s.parentNode,n=(p&&p.classList&&p.classList.contains("cue"))?p:s,c=n.nextElementSibling,h=c&&c.querySelector(".zm-swipe");'
         'if(h)h.hidden=!(s.scrollWidth>s.clientWidth+1);});CUES.forEach(function(f){f();});}\n'
         'document.querySelectorAll(".zm-seg button[data-zm]").forEach(function(b){'
         'b.addEventListener("click",function(){var k=b.getAttribute("data-zm");\n'
