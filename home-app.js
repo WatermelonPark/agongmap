@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v212';
+const HOME_BUILD='v213';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -1416,12 +1416,14 @@ function priceTilesHtml(M){
   var rows=n>2?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':n>1?'위 = 매매 · 아래 = 전세':'';
   /* 2026-10-30 디자인 리뷰 2차: 머리(칠한 값·날짜·범례)를 지도 아래 한 줄로 내리고 날짜는 지도 위 기준 줄(#tb-when, M.when —
      '10/26 기준(10/29 발표) · 한국부동산원') 하나만 말한다. 예전엔 기준 줄과 머리에 날짜가 두 번 나왔다. */
-  return '<div class="map-tiles"><div class="cue"><div class="map-scroll wg-map">'+svg+'</div></div>'
+  /* 칸 안 두세 줄의 뜻은 지도 **위**에 한 줄(2026-10-31 디자인 리뷰 2차 — 375px 에서 지도가 1,000px 라 아래 한 줄로는 처음 보는
+     숫자의 뜻을 알 수 없었다). 범례·안내는 그대로 지도 아래. */
+  return '<div class="map-tiles">'+(rows?'<p class="map-rows">칸 숫자: '+rows+'</p>':'')+'<div class="cue"><div class="map-scroll wg-map">'+svg+'</div></div>'
     +'<div class="wg-head wg-low"><span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span>'
     +'<span class="wg-when">'+s.ser.join('·')+' '+M.unit+'(%)</span></div>'
-    +'<div class="wg-foot"><span>'+rows+'<span class="wg-swipe">'+(rows?' · ':'')+'옆으로 밀어 전체 보기</span></span></div>'
+    +'<div class="wg-foot"><span><span class="wg-swipe">옆으로 밀어 전체 보기</span></span></div>'
     +'<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p></div>';
 }
 function renderSidoMap(){
