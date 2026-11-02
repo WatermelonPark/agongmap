@@ -114,6 +114,7 @@ body{padding-bottom:66px}
   text-decoration:none}
 .nav-btn svg{display:block}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+.nav-btn.on{color:#fff}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -126,7 +127,7 @@ body{padding-bottom:66px}
 <header><div class="wrap">
   <div class="chip">❓ 부동산 데이터 FAQ</div>
   <h1>숫자로 답하는<br>부동산 기초 궁금증</h1>
-  <p class="lead">뉴스 헤드라인 말고, KOSIS·한국부동산원·국토교통부 데이터가 말하는 답을 모았다.</p>
+  <p class="lead">뉴스 헤드라인 말고, KOSIS·한국부동산원·국토교통부 데이터가 말하는 답을 모았습니다.</p>
 </div></header>
 <!-- 왼쪽 질문 목록(1024px 이상, desk.css doc). 질문을 더하면 id(q번호)와 여기 줄을 같이 더한다(test_site_nav 가 앵커를 본다) -->
 <nav class="dtoc" hidden aria-label="목차"><b>질문</b><ol><li><a href="#q1">전세가율이란 무엇인가요?</a></li><li><a href="#q2">아파트는 인허가부터 입주까지 몇 년 걸리나요?</a></li><li><a href="#q3">인허가는 왜 참고로만 보나요?</a></li><li><a href="#q4">이번 주 아파트 시세는 어디서 확인하나요?</a></li><li><a href="#q5">데이터는 얼마나 자주 바뀌나요?</a></li><li><a href="#q6">입주물량은 왜 중요한가요?</a></li><li><a href="#q7">판정이 '균형'인데 왜 부족 세대수가 나오나요?</a></li><li><a href="#q8">LTV와 DSR의 차이는 무엇인가요?</a></li><li><a href="#q9">아파트 사이클이란 무엇인가요?</a></li><li><a href="#q10">실거래가격지수는 호가와 뭐가 다른가요?</a></li><li><a href="#q11">부린이가 무슨 뜻인가요?</a></li></ol></nav>
@@ -185,7 +186,8 @@ body{padding-bottom:66px}
 <footer class="sfoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
   <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
-  자료: KOSIS·한국부동산원·국토교통부·한국은행 · 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
+  자료: KOSIS·한국부동산원·국토교통부·한국은행<br>
+  공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
 </div></footer>
 
 <script>

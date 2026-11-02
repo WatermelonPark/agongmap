@@ -313,3 +313,29 @@ def test_hand_pages_light_the_tab_they_belong_to():
         if on != ([want] if want else []):
             bad[rel] = on
     assert not bad, '손 페이지가 켠 탭이 정본과 다르다: %s' % bad
+
+
+def test_a_lit_tab_is_drawn_lit():
+    """탭바에 켜진 탭(class="nav-btn on")이 있는 페이지는 그 탭을 흰 글자로 그리는 규칙(site_nav.NAV_ON_CSS)을 싣는다.
+
+    재현한 실제 상태(2026-10-31 디자인 리뷰 2차): 10-30 FAQ 가 '콘텐츠' 탭을 켜도록 class 만 바꾸고 규칙은 안 넣어, FAQ 의
+    네 탭이 모두 회색(켜진 탭 없음처럼)으로 보였다 — 퀴즈 랜딩에는 규칙이 있었다.
+    변이(실제로 확인): faq/index.html 에서 '.nav-btn.on{color:#fff}' 줄을 지우면 빨개진다.
+    픽스처: 저장소의 모든 HTML — 자기 <style> 에 규칙이 없으면 읽는 /app.css 에서 찾는다(홈).
+    """
+    app = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    rule = re.compile(r'\.nav-btn\.on[^{]*\{[^}]*color:\s*#fff', re.I)
+    bad, seen = [], 0
+    for rel in _html_pages():
+        s = io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+        if 'class="nav-btn on"' not in s:
+            continue
+        seen += 1
+        css = ' '.join(re.findall(r'<style[^>]*>(.*?)</style>', s, re.S))
+        if '/app.css' in s:
+            css += app
+        if not rule.search(css):
+            bad.append(rel)
+    assert seen >= 8, '켜진 탭이 있는 페이지를 거의 못 찾았다(%d)' % seen
+    assert not bad, '켜진 탭을 흰 글자로 그리는 규칙이 없다: %s' % bad
+    assert rule.search(N.NAV_ON_CSS)
