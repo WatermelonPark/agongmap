@@ -80,9 +80,19 @@ jobs:
           python3 -m pip install --quiet pytest pillow
           python3 -m pytest tools/tests/ -q
 
-      - name: 생성기가 바꾼 파일 (보여 주기만 한다 — 커밋하지 않는다)
+      - name: 커밋된 산출물이 묵었는지 (알려 주기만 한다 — 커밋하지 않는다)
         if: always()
-        run: git diff --stat
+        run: |
+          # 위에서 다시 구운 결과가 커밋본과 다르면, 이 PR 이 병합된 뒤 main 의 산출물은 묵은 것이다.
+          # PR 은 산출물을 싣지 않으므로(CLAUDE.md) 여기서 막지는 않는다. 대신 눈에 띄게 적는다 —
+          # 2026-10-30 PR #113 에서 이 단계가 "65 files changed" 를 찍었는데 그대로 병합됐고, 묵은
+          # 커밋본 때문에 원고 발행이 게이트에서 막혔다(런 40990048414).
+          git diff --stat
+          N=$(git diff --name-only | wc -l)
+          if [ "$N" -gt 0 ]; then
+            echo "::warning title=병합 뒤 산출물 재굽기::커밋된 생성 산출물 ${N}개가 이 코드와 다르다. 병합 뒤 main 에서 생성기를 돌려 커밋해야 원고 발행이 게이트에서 막히지 않는다."
+            { echo "### 병합 뒤 재굽기 필요 — 산출물 ${N}개"; echo ''; echo '```'; git diff --name-only; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   # 패키지를 하나도 깔지 않은 3.12 에서 도는 자리들을 실제로 돌려 본다. 배치의 fetch 잡(split_data)·커밋 잡의
   # 생성기 단계·감시(check_freshness)·발행 확인(close_published_issues)·결과 보고(format_batch_report)는
