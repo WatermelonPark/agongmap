@@ -224,6 +224,8 @@ section+section h2{margin-top:12px}
 .note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
 /* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
 @media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
+/* 네 열로 줄여도 375px 에서 28px 넘쳤다(2026-10-31 디자인 리뷰 2차) — 긴 머리('2026 적정물량 대비')는 두 줄로 접고 칸 여백을 줄인다. */
+@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 5px}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
@@ -249,7 +251,7 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
-footer a{color:var(--ink)}
+footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:""" + ("%gpx" % N.LABEL_PX) + """;font-weight:600;text-decoration:none}

@@ -11,6 +11,10 @@
 
 변이(실제로 확인): app.css .sc-tier 를 11.5px 로, make_content_pages .cnote 를 12px 로, 개인정보 th 를 .78rem 으로
 되돌리면 각각 빨개진다.
+2026-10-31(디자인 리뷰 2차)에 /weekly/·/monthly/·/cycle/ 을 더했다 — 재현한 상태: /weekly/ 머리 일정 줄·TOP 3 기준 줄·지도 캡션·
+시군구 표 머리 12~12.5px(뼈대 <style>·make_weekly_page.TABLE_CSS), /monthly/ .secno 11.5px·.toc a 12.5px, /cycle/ 고리 근거 줄
+.conf .meta·.read .lab 11.5px 등. 변이(실제로 확인): make_weekly_page 에서 put_min_font 호출을 빼면 /weekly/ 가, make_monthly_page
+.secno 를 11.5px 로 되돌리면 /monthly/ 가, app.css .conf .meta 를 11.5px 로 되돌리면 /cycle/ 이 빨개진다.
 픽스처: 생성기를 먼저 돌린 저장소의 /zone/서울/·시도 허브·콘텐츠 글 하나·/privacy/ 그대로(게이트와 같은 순서). 페이지가
 아직 없으면(생성기 안 돈 사본) 그 페이지만 건너뛴다 — CI 에서는 건너뜀도 실패라 생성기가 돈 상태에서 돈다.
 """
@@ -89,7 +93,8 @@ def _small_rules(rel):
 
 
 def _pages():
-    out = ['zone/서울/index.html', 'zone/index.html', 'privacy/index.html']
+    out = ['zone/서울/index.html', 'zone/index.html', 'privacy/index.html',
+           'weekly/index.html', 'monthly/index.html', 'cycle/index.html']   # 2026-10-31 디자인 리뷰 2차에서 넓혔다
     built = CM.built(ROOT)
     if built:
         sec, slug, _ = built[0]
