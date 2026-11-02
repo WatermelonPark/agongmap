@@ -257,3 +257,89 @@ def test_publish_commit_keeps_the_lists_feed_and_sitemap(tmp_path):
     assert 'tools/keep_me.txt' not in files, '커밋 대상 밖 파일이 실렸다'
     assert (d / 'tools' / 'keep_me.txt').read_text(encoding='utf-8') == '대상 밖 옛 판', \
         '대상 밖 변경이 되돌려지지 않았다'
+
+
+def _pub_steps():
+    """발행 워크플로의 steps 구간에서 **게이트 앞까지** 도는 python 도구를 순서대로 읽는다.
+
+    트리거(paths)에도 생성기 파일 이름이 적혀 있으므로 steps 구간으로 잘라서 센다.
+    """
+    t = _pub_text()
+    steps = t[t.index('    steps:'):]
+    out = []
+    for line in steps[:steps.index('-m pytest')].splitlines():
+        s = line.strip()
+        if s.startswith('#'):
+            continue
+        m = re.search(r'python3? tools/([a-z_]+)\.py', s)
+        if m:
+            out.append(m.group(1))
+    return _dedupe(out)
+
+
+# 발행이 돌리지 않는 배치 생성기와 그 이유. 발행은 숫자를 수집하지 않는다(대표 결정 2026-10-26 ①) —
+# 늘어나면 여기에 이유와 함께 적는다. 이유 없이 빼면 아래 시험이 빨개진다.
+PUBLISH_SKIP = {
+    'update_adv_data': 'API 키로 원천을 받는다 — 숫자 갱신은 매일 배치의 몫이다',
+    'blog_feed': '네트워크 곁가지 — 발행에는 필요하지 않다',
+}
+
+# 생성기가 쓰는 산출물의 커밋 대상 이름(매일 배치 TARGETS 와 같은 이름). 굽는 것은 커밋해야 한다.
+PUBLISH_OUTPUTS = {
+    'split_data': ('data-core.js', 'data-rest.json', 'data-trend.json', 'data-sgg.json', 'data-size.json'),
+    'make_sido_pages': ('zone',),
+    'make_indicator_pages': ('moveins', 'jeonse-ratio'),
+    'make_monthly_page': ('monthly',),
+    'make_weekly_page': ('weekly',),
+    'make_home_summary': ('index.html', 'tools/data/.home_stamp'),
+    'refresh_cycle_data': ('cycle',),
+    'make_content_pages': ('city', 'gtx', 'danji', 'column', 'reports'),
+    'make_feed': ('feed.xml',),
+    'make_llms_txt': ('llms.txt', 'llms-full.txt'),
+    'make_city_moveins': ('tools/data/city_moveins.json',),
+    'make_content_cards': ('share',),
+}
+
+
+def test_the_publish_step_parser_actually_reads_the_steps():
+    """파서 자기 확인 — 빈 목록끼리는 같아서 아래 시험이 조용히 통과한다."""
+    steps = _pub_steps()
+    for must in ('make_city_moveins', 'make_content_pages', 'make_feed', 'make_llms_txt'):
+        assert must in steps, '발행 워크플로에서 %s 를 읽지 못했다 — 파서가 깨졌다: %s' % (must, steps)
+    assert 'make_content_cards' in steps, '카드 생성이 게이트 앞에서 사라졌다'
+
+
+def test_publish_bakes_everything_the_gate_measures():
+    """발행 워크플로는 게이트 앞에서 매일 배치와 **같은 생성기**를 돌리고, 구운 것을 커밋한다.
+
+    왜: 발행의 게이트는 전체 시험이다. 그 시험 몇은 커밋된 생성 페이지를 읽는다. 그런데 발행이 글
+    페이지만 구우면, 생성기만 고치고 산출물을 싣지 않은 병합(PR 은 산출물을 싣지 않는다 — CLAUDE.md)
+    뒤에 커밋본이 묵은 채로 게이트에 걸려 **발행이 통째로 막힌다**. 2026-10-30 PR #113 이 공용 푸터·글자
+    하한·날짜 정본을 생성기에 넣고 병합된 뒤, 발행 런 40990048414 가 그렇게 3 failed 로 섰다. 배치와 같은
+    것을 다 구우면 그 회차는 막히는 대신 다시 구워 커밋한다.
+
+    무엇을 바꾸면 빨개지나(셋 다 확인): 생성기 한 줄을 지우면, 이유 없이 PUBLISH_SKIP 에 넣으면,
+      굽는 산출물을 TARGETS 에서 빼면.
+    픽스처: 저장소의 실제 두 워크플로 파일. 배치 목록에서 가져오므로 배치에 생성기가 늘면 발행도 따라야 한다.
+    """
+    batch = _cloud_steps()
+    batch_pre = batch[:batch.index('pytest')]
+    want = [g for g in batch_pre if g not in PUBLISH_SKIP]
+    pub = _pub_steps()
+    missing = [g for g in want if g not in pub]
+    assert not missing, (
+        '발행이 게이트 앞에서 굽지 않는 배치 생성기가 있다 — 그 산출물이 묵으면 발행이 막힌다: %s'
+        % missing)
+    # 순서도 배치와 같아야 한다. 뒤 생성기가 앞 생성기의 산출물을 읽는다(예: make_content_pages 가
+    # make_city_moveins 의 도시 자료를, make_feed 가 글 페이지를).
+    order = [g for g in pub if g in want]
+    assert order == want, '발행 생성기 순서가 배치와 다르다\n  배치: %s\n  발행: %s' % (want, order)
+
+    m = re.search(r'^\s*TARGETS="([^"]+)"', _pub_text(), re.M)
+    assert m, '발행 워크플로에서 커밋 대상 목록을 읽지 못했다'
+    targets = set(m.group(1).split())
+    for gen in pub:
+        for out in PUBLISH_OUTPUTS.get(gen, ()):
+            assert out in targets, (
+                '%s 를 돌리는데 그 산출물 %r 이 커밋 대상에 없다 — 되돌려지고 다음 회차에 또 같은 일이 된다'
+                % (gen, out))
