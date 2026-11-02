@@ -56,6 +56,23 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: 원격 끝으로 전진 (충돌 원인 제거)
+        run: |
+          set -e
+          # 런은 **자기 트리거 커밋**을 체크아웃한다. 앞 런이 그 뒤에 산출물을 커밋해 두면 이 런은 옛
+          # 바탕 위에서 같은 생성 파일을 다시 써서, 마지막 rebase 가 index.html·reports/index.html·
+          # sitemap.xml 에서 충돌한다. 충돌 파일이 전부 생성 산출물이라 바탕이 그대로인 채로는
+          # 재시도해도 **같은 충돌이 그대로 되풀이되고**, 세 번 뒤 그 회차 발행이 유실된다
+          # (2026-11-02 단지 11편 런 41459123576, 11-02 도시 편 런 41457156426 — 둘 다 앞 런의 커밋과
+          # 부딪혔다). 굽기 전에 전진하면 그 충돌이 아예 생기지 않는다.
+          #
+          # 내 원고가 빠질 염려는 없다 — 이 런을 부른 커밋은 이미 main 에 있으므로 전진은 앞으로만
+          # 간다. 그 사이 올라온 다른 원고까지 함께 굽는 것은 발행이 빨라지는 쪽이다(concurrency 가
+          # 취소하지 않고 줄 세우는 것과 같은 뜻이다).
+          git fetch origin main
+          git reset --hard FETCH_HEAD
+          git log -1 --format='바탕: %h %s'
+
       - name: 원고가 말하는 새 도시 받아 넣기
         env:
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY || secrets.DATAGOKR }}
@@ -164,11 +181,21 @@ jobs:
             if [ "$PULLED" = 1 ] && git push; then
               echo "발행 완료"; pushed=1; break
             fi
-            git rebase --abort 2>/dev/null || true
+            if [ "$PULLED" != 1 ]; then
+              # rebase 가 충돌했다. 여기서는 재시도하지 않는다 — 충돌 파일은 전부 생성 산출물이고,
+              # 바탕이 그대로인 채 다시 걸면 같은 충돌이 그대로 나온다. 그 되풀이에 15초를 쓰고
+              # 발행을 잃는 대신, 무엇이 걸렸는지 적고 바로 멈춘다(2026-11-02 단지 11편).
+              # 수동 실행하면 위의 '원격 끝으로 전진' 단계가 새 바탕에서 다시 구워 풀린다.
+              CONF=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+              git rebase --abort 2>/dev/null || true
+              WHO=$(git log -1 --format='%an' FETCH_HEAD 2>/dev/null || true)
+              echo "::error::rebase 충돌로 이 발행이 유실된다 — 충돌: ${CONF:-모름} (원격 끝 작성자: ${WHO:-모름}). 같은 바탕에서는 재시도해도 같은 충돌이라 멈춘다. 이 워크플로를 수동 실행하면 원격 끝 위에서 다시 구워 풀린다."
+              exit 1
+            fi
             echo "push 재시도 $i"; sleep 5
           done
           if [ "$pushed" -eq 0 ]; then
             WHO=$(git log -1 --format='%an' FETCH_HEAD 2>/dev/null || true)
-            echo "::error::push 3회 모두 실패 — 이 발행이 유실된다(원격 끝 작성자: ${WHO:-모름}). 원고를 다시 올리거나 이 워크플로를 수동 실행할 것."
+            echo "::error::push 3회 모두 거부됐다 — 이 발행이 유실된다(원격 끝 작성자: ${WHO:-모름}). 원고를 다시 올리거나 이 워크플로를 수동 실행할 것."
             exit 1
           fi
