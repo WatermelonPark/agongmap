@@ -242,8 +242,24 @@ def test_generated_pages_are_in_sitemap_and_llms():
     llms = io.open(os.path.join(ROOT, 'llms.txt'), encoding='utf-8').read()
     for sec, slug in built:
         assert '/%s/%s/' % (sec, slug) in sm, '%s/%s 가 sitemap 에 없다' % (sec, slug)
-    for sec, slug in built[:10]:
-        assert '/%s/%s/' % (sec, slug) in llms, '%s/%s 가 llms.txt 에 없다' % (sec, slug)
+    # ⚠️ llms.txt 는 섹션마다 **최신 몇 편**만 싣는다(make_llms_txt.CONTENT_PER_SECTION — AI 가 읽는
+    #    요약이라 길이를 묶었다). 그래서 '맨 앞 열 편'을 재면, 어느 섹션이 그 수를 넘는 날 빨개진다.
+    #    2026-11-05 city 가 열한 편이 되자 가장 오래된 글이 목록에서 밀려나, 발행 게이트(런
+    #    42021784296)와 데이터 배치 게이트가 그 때문에 막혔다. 재야 할 것은 '싣는 수'가 아니라
+    #    '섹션이 빠지지 않았는가 · 최신 글이 빠지지 않았는가'다.
+    have = set(built)
+    newest = {}
+    for sec, slug, path in CM.posts(ROOT):
+        if (sec, slug) not in have:
+            continue
+        meta, _ = CM.read(path, sec, slug)
+        key = (meta['updated'], meta['date'], slug)
+        if sec not in newest or key > newest[sec][0]:
+            newest[sec] = (key, slug)
+    assert newest, '구워진 글의 섹션을 찾지 못했다'
+    for sec, (_, slug) in sorted(newest.items()):
+        assert '/%s/%s/' % (sec, slug) in llms, \
+            '%s 섹션 최신 글(%s)이 llms.txt 에 없다 — 그 섹션이 빠졌거나 최신순이 아니다' % (sec, slug)
 
 
 # ── ⑤ 홈 묶음·robots·수정일 (요청 2) ────────────────────────────────────────
