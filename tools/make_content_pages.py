@@ -37,7 +37,7 @@ import home_src as HS             # noqa: E402  (홈 파일 위치의 정본 —
 
 SITE = I.SITE
 AUTHOR = '아공맵 운영팀'
-DISCLAIMER = '공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.'
+# 면책은 공용 푸터(site_nav.site_footer)가 싣는다 — 글 끝에 같은 문장을 또 두면 두 번 연달아 나왔다(2026-10-31 디자인 리뷰 2차).
 OG_IMAGE = '/og-brand.png'   # 어느 카드도 없을 때 떨어지는 자리
 
 
@@ -122,7 +122,8 @@ def _bars_svg(spec):
     pts = spec['series'][0]['points']
     rule = spec.get('rule')
     top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
-    pad_l, pad_b, pad_t = 8, 26, 16
+    # 위 여백은 휴대폰 글자(viewBox 단위 26, .cb-v)가 가장 높은 막대 위에서 잘리지 않을 만큼 둔다.
+    pad_l, pad_b, pad_t = 8, 26, 30
     plot_h = CH_BAR_H - pad_b - pad_t
     gap = 10
     # 막대가 두세 개뿐인 해(구미는 2027·2029 둘)에 폭을 다 나눠 가지면 화면을 꽉 메운 덩어리가 된다.
@@ -142,17 +143,20 @@ def _bars_svg(spec):
         over = rule and rule[0] and v >= rule[0]
         out.append('<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" class="cb%s"/>'
                    % (x, y, bw, hh, ' cb-over' if over else ''))
+        # 휴대폰에서는 글자를 키우는 대신(.cb-* 미디어 규칙) 가장 큰 해·마지막 해(cb-k)만 값을 적고, 막대가 여섯 개를
+        # 넘으면 x 축 이름을 하나 걸러 적는다(cb-x2) — 커진 글자끼리 겹치지 않게(2026-10-31 디자인 리뷰 2차).
         if not tight or i in keep:
-            out.append('<text x="%.1f" y="%.1f" class="cb-v">%s</text>'
-                       % (x + bw / 2, y - 4, html.escape(CT.num(v))))
-        out.append('<text x="%.1f" y="%d" class="cb-x">%s</text>'
-                   % (x + bw / 2, CH_BAR_H - 8, html.escape(str(lab))))
+            out.append('<text x="%.1f" y="%.1f" class="cb-v%s">%s</text>'
+                       % (x + bw / 2, y - 4, ' cb-k' if i in keep else '', html.escape(CT.num(v))))
+        odd = len(pts) > 6 and (len(pts) - 1 - i) % 2 == 1
+        out.append('<text x="%.1f" y="%d" class="cb-x%s">%s</text>'
+                   % (x + bw / 2, CH_BAR_H - 8, ' cb-x2' if odd else '', html.escape(str(lab))))
     if rule and rule[0]:
         ry = pad_t + plot_h - rule[0] / float(top) * plot_h
         out.append('<line x1="%d" y1="%.1f" x2="%d" y2="%.1f" class="cb-rule"/>'
                    % (6, ry, CH_W - 6, ry))
         out.append('<text x="%d" y="%.1f" class="cb-rl cx-e">%s</text>'
-                   % (CH_W - 8, max(10, ry - 5), html.escape(rule[1])))
+                   % (CH_W - 8, max(26, ry - 5), html.escape(rule[1])))
     out.append('</svg>')
     return ''.join(out)
 
@@ -179,16 +183,22 @@ def _lines_svg(spec):
         out.append('<path d="%s" class="cl cl-%s"/>' % (d, 'je' if s['name'] == '전세' else 'ma'))
         lx, ly = xy(len(s['points']) - 1, s['points'][-1][1], len(s['points']))
         out.append('<circle cx="%.1f" cy="%.1f" r="2.5" class="cl-dot"/>' % (lx, ly))
-    # 양 끝 날짜는 '월-일' 로만 적는다(연도는 각주에 있다). 가장자리에 붙이면 잘려 보여 안쪽으로 넣는다.
+    # 양 끝 날짜는 눈금 꼴 '9/28' 로만 적는다(연도는 각주에 있다, 날짜 두 단계 — sido_zones.day_text). 가장자리에 붙이면
+    # 잘려 보여 안쪽으로 넣는다.
     ends = (ser[0]['points'][0][0], ser[0]['points'][-1][0])
     # 맞춤은 클래스로 준다 — CSS 의 text-anchor 가 SVG 속성을 이겨서, 속성으로 적으면 가운데로 그려지고
     # 양 끝 글자가 그림 밖으로 밀려 잘린다(2026-10-27 브라우저에서 getBBox 로 확인했다).
     out.append('<text x="%d" y="%d" class="cb-x cx-s">%s</text>'
-               % (pad_l + 2, CH_LINE_H - 7, html.escape(ends[0][5:])))
+               % (pad_l + 2, CH_LINE_H - 7, html.escape(_day_tick(ends[0]))))
     out.append('<text x="%d" y="%d" class="cb-x cx-e">%s</text>'
-               % (CH_W - pad_l - 2, CH_LINE_H - 7, html.escape(ends[1][5:])))
+               % (CH_W - pad_l - 2, CH_LINE_H - 7, html.escape(_day_tick(ends[1]))))
     out.append('</svg>')
     return ''.join(out)
+
+
+def _day_tick(iso):
+    import sido_zones as SZ
+    return SZ.day_text(iso)
 
 
 def _chart_html(spec):
@@ -233,8 +243,14 @@ def _text_cols(rows):
     return out
 
 
-def _cls(j, tx):
-    return ' class="tx"' if j in tx else ''
+# 숫자 열 안이라도 글자가 긴 칸(평형 목록·일정 설명)은 줄을 바꾼다 — 칸마다 한 줄로 묶으니 '핵심 숫자' 표의 값 열이
+# 화면 밖으로 밀려 항목 이름만 보였다(2026-10-31 디자인 리뷰 2차). 짧은 숫자 칸은 한 줄 그대로 오른쪽에 붙인다.
+LONG_CELL = 12
+
+
+def _cls(j, tx, text=''):
+    plain = re.sub(r'<[^>]+>', '', str(text)).strip()
+    return ' class="tx"' if (j in tx or len(plain) > LONG_CELL) else ''
 
 
 def _table_html(head, body, note=''):
@@ -244,7 +260,7 @@ def _table_html(head, body, note=''):
     h.append('</tr></thead><tbody>')
     for row in body:
         cells = ['<th scope="row">%s</th>' % html.escape(str(row[0]))]
-        cells += ['<td%s>%s</td>' % (_cls(j, tx), html.escape(str(c))) for j, c in enumerate(row[1:], 1)]
+        cells += ['<td%s>%s</td>' % (_cls(j, tx, c), html.escape(str(c))) for j, c in enumerate(row[1:], 1)]
         h.append('<tr>%s</tr>' % ''.join(cells))
     h.append('</tbody></table>')
     if note:
@@ -282,7 +298,7 @@ def markdown(body):
             h.append('</tr></thead><tbody>')
             for r in rows:
                 cells = (['<th scope="row">%s</th>' % _inline(r[0])]
-                         + ['<td%s>%s</td>' % (_cls(j, tx), _inline(c)) for j, c in enumerate(r[1:], 1)])
+                         + ['<td%s>%s</td>' % (_cls(j, tx, c), _inline(c)) for j, c in enumerate(r[1:], 1)])
                 h.append('<tr>%s</tr>' % ''.join(cells))
             h.append('</tbody></table></div>')
             out.append(''.join(h))
@@ -393,13 +409,19 @@ LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 썸네일 없는 글(반박) 카드가 옆 카드 높이로 늘어나 아래가 비었다 — 제 높이로 둔다(2026-10-31 디자인 리뷰 2차). */
+.pcard.pc-noimg{align-self:start}
 /* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
-   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+   글자 카드로 둔다. 허브(.hubflow)는 카테고리를 제목 바로 아래 가로 칩 한 줄로 두고, 그 아래 새 글, 맨 아래 기본 개념이다
+   (2차 리뷰 10-31: 칩 줄이 새 글 10편 아래에 묻혀 분류 입구가 안 보였다). 섹션 목록의 칩 줄도 같은 가로 밀기 한 줄이다. */
 @media (max-width:600px){
   .pcard{grid-template-columns:1fr}
   .pcard img{display:none}
+  .rchips{flex-wrap:nowrap;overflow-x:auto}
+  .rchip{flex:none}
   .hubflow{display:flex;flex-direction:column}
-  .hubflow .hub-recent{order:-1}
+  .hubflow .hub-recent{order:1}
+  .hubflow .hub-basic{order:2}
   .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
   .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
   .hubflow .hgrid-cat .hcard h3{font-size:14px}
@@ -432,6 +454,17 @@ EXTRA_CSS = LIST_CSS + """
 .cx-e{text-anchor:end}
 .cb-rule{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3;opacity:.65}
 .cb-rl{fill:var(--muted);font-size:11px}
+/* 그림 글자는 viewBox(640) 단위라 단이 좁아지면 함께 줄어든다 — 375px 에서 11 단위가 5.7px 로 그려졌다(2026-10-31 디자인
+   리뷰 2차). 단 폭에 맞춰 단위를 올려 화면에서 13px 안팎이 되게 하고, 커진 글자가 겹치지 않게 값은 대표 둘(cb-k)만,
+   막대가 많으면 x 축 이름은 하나 걸러(cb-x2) 적는다. 폭 640px 이상 단에서는 11 → 13 단위 그대로 13px 이다. */
+.cb-v,.cb-x,.cb-rl{font-size:13px}
+@media (max-width:687px){.cb-v,.cb-x,.cb-rl{font-size:16px}.cb-v:not(.cb-k),.cb-x2{display:none}}
+@media (max-width:580px){.cb-v,.cb-x,.cb-rl{font-size:19px}}
+@media (max-width:500px){.cb-v,.cb-x,.cb-rl{font-size:22px}}
+@media (max-width:440px){.cb-v,.cb-x,.cb-rl{font-size:24px}}
+@media (max-width:400px){.cb-v,.cb-x,.cb-rl{font-size:26px}}
+@media (max-width:368px){.cb-v,.cb-x,.cb-rl{font-size:29px}}
+@media (max-width:335px){.cb-v,.cb-x,.cb-rl{font-size:32px}}
 .cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
 .cl-je{stroke-dasharray:4 3;opacity:.75}
 .cl-zero{stroke:var(--line);stroke-width:1}
@@ -451,9 +484,21 @@ EXTRA_CSS = LIST_CSS + """
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
 .ctab .tx{text-align:left;white-space:normal;min-width:6em}
+/* 데스크톱은 글을 읽는 단(read, 516px)에 두되 표만 단 밖으로 넓힌다 — 단에 갇혀 11열 표가 한 화면에 안 들어오고 행이
+   88px 로 접혔다(2026-10-31 디자인 리뷰 2차). 표가 좁으면 단 폭 그대로다(min-width:100%), 넓으면 960px 까지 가운데로 편다. */
+@media (min-width:1024px){
+  .ctab{width:fit-content;min-width:100%;max-width:min(960px,calc(100vw - 96px));position:relative;left:50%;transform:translateX(-50%)}
+}
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
+/* 목록 글머리표가 단 여백 밖(화면 끝)에 걸렸다 — 뼈대가 padding 을 0 으로 지운다(2026-10-31 디자인 리뷰 2차). */
+.cbody ul,.cbody ol,.csrc{padding-left:1.3em;margin:0 0 14px}
+/* 빵부스러기 링크가 브라우저 기본 파랑이었다(사이트에서 남은 유일한 자리). */
+.crumb a{color:var(--ink2);text-decoration-color:var(--line)}
+/* 본문 그림은 원본으로 열린다 — 표 그림(평형별 시세 등)이 휴대폰 단 폭으로 줄어 그림 속 글자가 4px 가 됐다. */
+.cimg{display:block;margin:0 0 16px}
+.cimg img{margin:0}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
 .cfaq dt{font-weight:600;font-size:15px;margin-top:14px}
@@ -467,7 +512,6 @@ EXTRA_CSS = LIST_CSS + """
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 """
 
 
@@ -521,8 +565,11 @@ def content_img_src(body_html, sec):
     원고는 content/<섹션>/ 옆에 그림을 두고 상대 경로로 쓰는데, 페이지는 /<섹션>/<글>/ 에 구워져
     상대 경로가 /<섹션>/<글>/img/… 를 가리켰다 — 그런 파일은 없어 단지 글 그림이 모두 깨졌다(2026-10-30
     디자인 리뷰). 그림은 복사하지 않고 원고 폴더 한 곳에 둔다(content/ 는 Pages 배포에 포함된다)."""
-    return re.sub(r'(<img src=")(?![a-z]+:|/|#)([^"]+)"',
+    out = re.sub(r'(<img src=")(?![a-z]+:|/|#)([^"]+)"',
                   lambda m: '%s/content/%s/%s"' % (m.group(1), sec, m.group(2)), body_html)
+    # 원본으로 여는 링크로 감싼다 — 단 폭으로 줄인 표 그림을 휴대폰에서 크게 볼 길(2026-10-31 디자인 리뷰 2차).
+    return re.sub(r'<img src="([^"]+)"([^>]*)>',
+                  lambda m: '<a class="cimg" href="%s" target="_blank" rel="noopener">%s</a>' % (m.group(1), m.group(0)), out)
 
 
 def build_page(meta, body_md, data, prev=None, nxt=None):
@@ -560,12 +607,11 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
         '<div class="cbody">%s</div>'
         '%s%s'
         '<div class="cnav">%s</div>'
-        '<p class="cdisc">%s</p>'
         '</div></section>'
         % (sec, html.escape(SECTION_META[sec][0]), html.escape(meta['title']),
            _day_long(meta['date']), _day_long(meta['updated']), AUTHOR,
            html.escape(meta['summary']), body_html, src_html, faq_html,
-           ''.join(nav), DISCLAIMER))
+           ''.join(nav)))
     # 제목·요약은 <title> 과 og 속성 값에 들어간다. 반박 글 제목에는 발언을 그대로 옮긴 큰따옴표가 있어
     # 이스케이프하지 않으면 속성이 그 자리에서 끊긴다(2026-10-29 게이트가 잡았다).
     # 글은 읽는 단(desk 'read') — 넓은 단(wide)이면 1280px 에서 본문 한 줄이 70자를 넘고 결론 상자와 본문 폭이 달랐다
@@ -610,7 +656,7 @@ RECENT_N = 10
 HUB_CARDS = (
     ('column', '반박', '공직자·정치인 발언을 입주 물량과 시세로 따집니다.', '당일'),
     ('/weekly/', '주간·월간 시세', '매주 목요일 갱신되는 시군구 시세와 월간 통계.', '매주'),
-    ('city', '도시 입주물량', '2027~2028년 도시별 입주 물량과 적정 입주량을 견줍니다.', '연재'),
+    ('city', '도시 입주물량', '2027~2028년 도시별 입주 물량을 적정물량과 견줍니다.', '연재'),
     ('gtx', 'GTX 역세권', '역 도보 15분 안 단지를 전수로, 호가·갭·필요 현금까지.', '연재'),
     ('danji', '재건축·리모델링 단지', '1,000세대 이상 단지의 사업 단계·대지지분·실거래.', '연재'),
     ('/zone/', '시도 리포트', '시도별 공급 판정과 시군구 시세를 한 장에.', '분기'),
@@ -733,7 +779,8 @@ def build_reports(all_metas, data=None):
     body = ('<header><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
-            '<div class="hubflow"><section><div class="wrap">%s%s</div></section>'
+            '<div class="hubflow"><section><div class="wrap">%s</div></section>'
+            '<section class="hub-basic"><div class="wrap">%s</div></section>'
             '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2><div class="plist">%s</div></div></section></div>'
             % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
                hub_cards(all_metas, data), basic, items))
@@ -934,7 +981,7 @@ def moveins_cities_html(metas):
     rows = ['    <a href="/%s/%s/">%s<span>%s 갱신</span></a>'
             % (m['section'], m['slug'], html.escape(m['title']), _day_short(m['updated']))
             for m in posts[:MOVEINS_MAX]]
-    note = '도시마다 입주 예정 단지를 이름·입주 월·세대수까지 적고, 한 해 적정 입주량과 견줍니다.'
+    note = '도시마다 입주 예정 단지를 이름·입주 월·세대수까지 적고, 한 해 적정물량과 견줍니다.'
     if len(posts) > MOVEINS_MAX:
         note += ' 글 %d편 전체는 <a href="/%s/">%s</a> 에 있습니다.' % (
             len(posts), MOVEINS_SEC, html.escape(SECTION_META[MOVEINS_SEC][0]))

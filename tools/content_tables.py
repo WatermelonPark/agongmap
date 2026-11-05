@@ -119,7 +119,7 @@ def _upto(f):
     """
     ym = f.get('occ_max') or ''
     out = ('%s년 %d월 입주분까지 공개된 목록' % (ym[:4], int(ym[5:7]))) if len(ym) >= 7 else '공개된 목록'
-    return out + ('(%s 조사)' % f['as_of'] if f.get('as_of') else '')
+    return out + ('(%s 조사)' % _dt(f['as_of']) if f.get('as_of') else '')
 
 
 def _city_note(f, tail=None):
@@ -249,9 +249,10 @@ def city_complexes(data, f, year=None):
         raise TableError('단지 목록이 비었다(%s년)' % year if year else '단지 목록이 비었다')
     if len({(r.get('gu') or '') for r in rows}) < 2:   # 구가 갈리지 않으면 그 열은 전부 같은 값이다
         return (['입주 예정', '단지', '세대'],
-                [[r['ym'], r['name'], num(r['n'])] for r in rows], _city_note(f))
-    body = [[r['ym'], r['name'], r.get('gu') or '구 미상', num(r['n'])] for r in rows]
-    return (['입주 예정', '단지', '구', '세대'], body, _city_note(f))
+                [[_ms(r['ym']), r['name'], num(r['n'])] for r in rows], _city_note(f))
+    # 구는 단지 이름 옆 괄호로 접는다 — 네 열이면 휴대폰에서 '세대' 열이 첫 화면 밖으로 밀렸다(2026-10-31 디자인 리뷰 2차).
+    body = [[_ms(r['ym']), '%s (%s)' % (r['name'], r.get('gu') or '구 미상'), num(r['n'])] for r in rows]
+    return (['입주 예정', '단지(구)', '세대'], body, _city_note(f))
 
 
 def region_key(data, name):
@@ -395,7 +396,7 @@ def weekly_sgg(data, name):
     if not body:
         raise TableError('주간 시세 %s 에 값이 하나도 없다' % name)
     return (['지역', '매매', '전세'], body,
-            '한국부동산원 주간 아파트가격동향 · %s 조사 · 전주 대비 변동률' % last.get('p'))
+            '한국부동산원 주간 아파트가격동향 · %s 조사 · 전주 대비 변동률' % _dt(last.get('p')))
 
 
 def _weekly_series(data, name, kind='ma'):
@@ -446,6 +447,22 @@ def streak(data, name, what='매매'):
     return '%d주 연속 %s(%s 조사)' % (n, '상승' if sign > 0 else '하락', _kdate(last_p))
 
 
+# 화면 날짜 두 단계(CLAUDE.md, sido_zones 정본) — 읽는 자리(각주·출처 '10/26 조사')는 day_text, 표 칸은 day_short·month_short.
+def _dt(iso):
+    import sido_zones as SZ
+    return SZ.day_text(iso)
+
+
+def _ds(iso):
+    import sido_zones as SZ
+    return SZ.day_short(iso)
+
+
+def _ms(ym):
+    import sido_zones as SZ
+    return SZ.month_short(ym)
+
+
 def _kdate(iso):
     m = re.match(r'^(\d{4})-(\d{2})-(\d{2})$', str(iso) or '')
     return '%d월 %d일' % (int(m.group(2)), int(m.group(3))) if m else str(iso)
@@ -464,7 +481,7 @@ def weekly(data, key):
         je = (r.get('je') or [None] * len(regs))[i]
         if ma is None and je is None:
             continue
-        body.append([r.get('p'), pct(ma) + '%' if ma is not None else '·',
+        body.append([_ds(r.get('p')), pct(ma) + '%' if ma is not None else '·',
                      pct(je) + '%' if je is not None else '·'])
     if not body:
         raise TableError('주간 시세 %s 에 값이 하나도 없다' % key)
@@ -512,11 +529,20 @@ def table(data, kind, args):
         if sgg_codes(data, args[0]):
             return weekly_sgg(data, args[0])
         return weekly(data, region_key(data, args[0]))
-    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak, v:need, v:pop, v:peak, v:ratio)' % kind)
+    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak, v:need, v:pop, v:peak, v:ratio, v:asof)' % kind)
 
 
 def value(data, kind, args):
     """문장 안에 넣는 한 값. 표의 '대표 값'과 같은 수를 쓴다."""
+    if kind == 'asof':
+        # 자료 시점 — 출처 줄의 '(2026-10-19 조사)' 를 원고가 손으로 적지 않게 연다(2026-10-31 디자인 리뷰 2차: 같은 글의
+        # 그림·표 각주는 배치가 최신 주로 고치는데 출처만 옛 날짜에 머물러 한 글 안에서 시점이 둘이었다).
+        if args != ['weekly']:
+            raise TableError('asof 자리표는 v:asof:weekly 꼴이다(주간 시세 최신 조사일)')
+        rows = (data.get('weekly') or {}).get('rows') or []
+        if not rows:
+            raise TableError('주간 시세 자료가 없다')
+        return _dt(rows[-1].get('p'))
     if kind == 'streak':
         if not 1 <= len(args) <= 2:
             raise TableError('streak 자리표는 지역[:매매|전세] 꼴이다')
@@ -633,7 +659,7 @@ def _chart_weekly(data, name):
         '%s 최신 %s%%' % (k, pct(v)) for k, (_, v) in sorted(last.items())))
     return {'kind': 'lines', 'title': '%s 최근 %d주 변동률' % (name, CHART_WEEKS), 'alt': alt,
             'note': '한국부동산원 주간 아파트가격동향 · %s 조사 · 전주 대비 변동률'
-                    % sorted(last.values())[-1][0],
+                    % _dt(sorted(last.values())[-1][0]),
             'series': out, 'rule': (0.0, None), 'cards': []}
 
 
@@ -682,6 +708,8 @@ def fill_meta(meta, data):
     for k in ('title', 'summary'):
         if isinstance(out.get(k), str):
             out[k] = fill_inline(out[k], data)
+    if isinstance(out.get('sources'), list):
+        out['sources'] = [fill_inline(x, data) if isinstance(x, str) else x for x in out['sources']]
     faq = out.get('faq')
     if isinstance(faq, list):
         out['faq'] = [dict((kk, fill_inline(vv, data) if isinstance(vv, str) else vv)
