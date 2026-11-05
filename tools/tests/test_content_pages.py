@@ -465,7 +465,9 @@ def test_city_tables_drop_empty_columns_and_say_what_the_list_covers():
 
     무엇을 바꾸면 빨개지나: 구가 갈리지 않는 도시의 단지 목록에 '구' 열을 그대로 두면(구미 글이 '·' 로만
     찬 열을 싣고 있었다 — 총괄 제보 2026-10-27), 또는 각주를 '2028-06 목록 기준' 으로 되돌리면(읽는 사람이
-    '2028년 6월에 만든 목록' 으로 오해한다).
+    '2028년 6월에 만든 목록' 으로 오해한다). 구가 갈리는 도시는 구를 단지 이름 옆 괄호로 접는다 — 네 열이면 휴대폰에서
+    세대 열이 첫 화면 밖이었다(2026-10-31 디자인 리뷰 2차). 입주 예정 칸은 '27.2'(month_short), 조사일은 '10/27'(day_text)
+    이다 — 화면 날짜 두 단계(CLAUDE.md). 변이: 구 열을 되살리거나 칸을 ISO 로 되돌리면 빨개진다(확인).
     픽스처: 실제 도시 자료. 구가 갈리는 도시와 갈리지 않는 도시를 둘 다 밟는지 단정한다.
     """
     data = CT.load()
@@ -482,9 +484,12 @@ def test_city_tables_drop_empty_columns_and_say_what_the_list_covers():
             assert len(head) == len(rows[0]), '%s: 머리와 행의 칸 수가 다르다' % name
         else:
             saw_gu = True
-            assert '구' in head, '%s: 구가 갈리는데 구 열이 없다 — %s' % (name, head)
+            assert head == ['입주 예정', '단지(구)', '세대'], '%s: 구를 단지 옆 괄호로 접지 않았다 — %s' % (name, head)
+            gu1 = f['rows'][0].get('gu') or '구 미상'
+            assert rows[0][1].endswith('(%s)' % gu1), '%s: 단지 칸에 구가 없다 — %s' % (name, rows[0])
+        assert re.match(r'^\d{2}\.\d{1,2}$', rows[0][0]), '%s: 입주 예정 칸이 표 칸 날짜 꼴(27.2)이 아니다 — %s' % (name, rows[0][0])
         assert '입주분까지 공개된 목록' in note, '%s: 각주가 목록 범위를 말하지 않는다 — %s' % (name, note)
-        assert re.search(r'\(\d{4}-\d{2}-\d{2} 조사\)', note), '%s: 각주에 조사일이 없다 — %s' % (name, note)
+        assert re.search(r'\(\d{1,2}/\d{1,2} 조사\)', note), '%s: 각주에 조사일(10/27 꼴)이 없다 — %s' % (name, note)
     assert saw_gu and saw_flat, '구가 갈리는 도시와 갈리지 않는 도시를 둘 다 밟지 못했다'
 
 
@@ -728,16 +733,22 @@ def test_hub_shows_six_category_cards_and_recent_posts():
     if not os.path.exists(p):
         pytest.skip('/reports/ 가 아직 없다')
     page = io.open(p, encoding='utf-8').read()
-    # 카테고리 격자만 본다 — 그 아래 '기본 개념' 줄(.hgrid-basic)도 같은 .hcard 부품을 쓴다(2026-10-30).
-    cat = re.search(r'<div class="hgrid hgrid-cat">(.*?)</div>\s*<h2', page, re.S)
+    # 카테고리 격자만 본다 — '기본 개념' 줄(.hgrid-basic)도 같은 .hcard 부품을 쓰지만 제 구역(.hub-basic)에 있다.
+    cat = re.search(r'<div class="hgrid hgrid-cat">(.*?)</div>\s*</div></section>', page, re.S)
     assert cat, '카테고리 카드 격자를 못 찾았다'
-    # 휴대폰 순서 — 두 구역이 한 .hubflow 안에 있고, 600px 이하 규칙이 최근 글을 앞세우고 칩을 한 줄로 둔다.
+    # 휴대폰 순서(2차 리뷰 10-31) — 세 구역이 한 .hubflow 안에 카테고리 → 기본 개념 → 최근 글 순으로 있고(데스크톱 순서),
+    # 600px 이하 규칙이 카테고리를 제목 바로 아래 칩 한 줄로 두고 그 아래 최근 글, 맨 아래 기본 개념으로 돌린다.
+    # 변이: .hub-recent 를 order:-1 로 되돌려 칩 줄이 다시 새 글 아래로 묻히면 빨개진다(확인).
     flow = page[page.index('<div class="hubflow">'):]
-    assert flow.index('<div class="hgrid hgrid-cat">') < flow.index('<section class="hub-recent">'), '허브 구역 묶음이 깨졌다'
+    assert (flow.index('<div class="hgrid hgrid-cat">') < flow.index('<section class="hub-basic">')
+            < flow.index('<section class="hub-recent">')), '허브 구역 묶음이 깨졌다'
     mob = re.search(r'@media \(max-width:600px\)\{(.*?)\n\}', page, re.S)
     assert mob, '600px 이하 규칙이 없다'
     rules = mob.group(1)
-    assert '.hubflow .hub-recent{order:-1}' in rules, '휴대폰에서 최근 글이 먼저 오지 않는다'
+    assert '.hubflow .hub-recent{order:1}' in rules and '.hubflow .hub-basic{order:2}' in rules, \
+        '휴대폰에서 카테고리 칩 → 최근 글 → 기본 개념 순이 아니다'
+    assert 'order:-1' not in rules, '휴대폰에서 최근 글이 칩 줄 위로 올라간다(칩 줄이 새 글 아래 묻힌다)'
+    assert '.rchips{flex-wrap:nowrap;overflow-x:auto}' in rules, '섹션 목록 칩 줄이 휴대폰에서 한 줄 가로 밀기가 아니다'
     assert 'flex-wrap:nowrap' in rules and '.hgrid-cat' in rules, '휴대폰 카테고리가 칩 한 줄이 아니다'
     assert '.pcard img{display:none}' in rules, '휴대폰 목록 썸네일을 빼지 않았다'
     hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', cat.group(1))
@@ -1346,8 +1357,11 @@ def test_every_built_post_image_points_at_a_real_file():
     픽스처: 저장소의 구워진 콘텐츠 페이지 전부와, 상대·절대·외부 주소가 섞인 합성 본문.
     """
     import urllib.parse
-    assert MC.content_img_src('<img src="img/a.png"><img src="/share/b.png"><img src="https://x/c.png">', 'danji') == \
-        '<img src="/content/danji/img/a.png"><img src="/share/b.png"><img src="https://x/c.png">'
+    got = MC.content_img_src('<img src="img/a.png"><img src="/share/b.png"><img src="https://x/c.png">', 'danji')
+    assert re.findall(r'<img src="([^"]+)"', got) == ['/content/danji/img/a.png', '/share/b.png', 'https://x/c.png']
+    # 본문 그림은 원본으로 여는 링크로 감싼다(2026-10-31 디자인 리뷰 2차 — 휴대폰에서 표 그림 글자가 4px).
+    # 변이: content_img_src 의 링크 감싸기를 지우면 빨개진다(확인).
+    assert got.count('<a class="cimg" href="') == 3 and '<a class="cimg" href="/content/danji/img/a.png"' in got
     bad, seen = [], 0
     for sec, slug, _ in CM.built(ROOT):
         page = io.open(os.path.join(ROOT, sec, slug, 'index.html'), encoding='utf-8').read()
