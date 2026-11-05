@@ -8,6 +8,13 @@
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
   <lastBuildDate>Fri, 06 Nov 2026 00:00:00 +0900</lastBuildDate>
   <item>
+    <title>시도별 아파트 공급 분석 — 2026년 3분기 기준</title>
+    <link>https://www.agongmap.co.kr/zone/</link>
+    <guid isPermaLink="false">agongmap-zone-2026Q3</guid>
+    <pubDate>Fri, 06 Nov 2026 00:00:00 +0900</pubDate>
+    <description>2026년 3분기 기준 전국 아파트 공급은 764,000세대 부족(1년 적정물량의 2.0배)입니다. 국토교통부 착공·준공 실적으로 16개 시도의 3년 공급을 판정하고, 한국부동산원 주간 시세를 지도로 봅니다.</description>
+  </item>
+  <item>
     <title>GTX-B 부천종합운동장역 아파트 4곳, 여월동 국평 8억은 1년째 제자리입니다</title>
     <link>https://www.agongmap.co.kr/gtx/gtx-b-bucheon-stadium/</link>
     <guid isPermaLink="false">agongmap-content-gtx-gtx-b-bucheon-stadium</guid>
@@ -27,6 +34,13 @@
     <guid isPermaLink="false">agongmap-content-danji-sanggye6-nowon</guid>
     <pubDate>Fri, 06 Nov 2026 00:00:00 +0900</pubDate>
     <description>상계주공6단지 2,646세대는 2026년 3월 추진위원회 승인을 받고 7월 16일부터 8월 18일까지 최고 59층 3,573세대 정비계획과 정비구역 지정안을 공람했다. 24평형 실거래 중위값은 최근 1년 사이 23% 올랐다.</description>
+  </item>
+  <item>
+    <title>주간 아파트가격 동향 2026년 11월 첫째 주 · 전국·서울 아파트 시세 지도</title>
+    <link>https://www.agongmap.co.kr/weekly/</link>
+    <guid isPermaLink="false">agongmap-weekly-2026-11-05</guid>
+    <pubDate>Thu, 05 Nov 2026 00:00:00 +0900</pubDate>
+    <description>11/2 조사 · 11/5 발표 기준 이번 주 아파트 매매가격은 전국 +0.07%, 경기 +0.20%로 가장 크게 올랐다. 시군구 상승 1위 용인 기흥구 +0.61%, 하락 1위 서울 강남구 -0.39%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
   </item>
   <item>
     <title>2027년 진주 아파트 분양·입주물량, 입주하는 단지가 없습니다</title>
@@ -113,13 +127,6 @@
     <description>솔거마을 대림 1,158세대는 산본 7구역 단독으로 2,056세대 재건축안을 냈고, 군포시가 2026년 10월 26일 지정 제안을 수용해 10월 27일부터 11월 13일까지 공람 중이다.</description>
   </item>
   <item>
-    <title>주간 아파트가격 동향 2026년 10월 넷째 주 · 전국·서울 아파트 시세 지도</title>
-    <link>https://www.agongmap.co.kr/weekly/</link>
-    <guid isPermaLink="false">agongmap-weekly-2026-10-29</guid>
-    <pubDate>Thu, 29 Oct 2026 00:00:00 +0900</pubDate>
-    <description>10/26 조사 · 10/29 발표 기준 이번 주 아파트 매매가격은 전국 +0.07%, 경기 +0.20%로 가장 크게 올랐다. 시군구 상승 1위 군포 +0.58%, 하락 1위 서울 강남구 -0.38%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
-  </item>
-  <item>
     <title>수원 영통포레파크원(황골마을주공1단지) 재건축, 대지지분·실거래·세 낀 매물(2026)</title>
     <link>https://www.agongmap.co.kr/danji/yeongtong-forest-parkone/</link>
     <guid isPermaLink="false">agongmap-content-danji-yeongtong-forest-parkone</guid>
@@ -197,7 +204,7 @@
     <description>구미 2027년 입주 물량은 4,581세대로, 인구로 잡은 한 해 적정물량의 142%입니다.</description>
   </item>
   <item>
-    <title>2027년 평택 아파트 입주물량, 2028년 입주는 적정의 257%입니다</title>
+    <title>2027년 평택 아파트 입주물량, 2028년 입주는 적정의 256%입니다</title>
     <link>https://www.agongmap.co.kr/city/pyeongtaek-2027-moveins/</link>
     <guid isPermaLink="false">agongmap-content-city-pyeongtaek-2027-moveins</guid>
     <pubDate>Tue, 27 Oct 2026 00:00:00 +0900</pubDate>
@@ -300,13 +307,6 @@
     <guid isPermaLink="false">agongmap-monthly-2026-09</guid>
     <pubDate>Thu, 15 Oct 2026 00:00:00 +0900</pubDate>
     <description>매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.</description>
-  </item>
-  <item>
-    <title>시도별 아파트 공급 분석 — 2026년 2분기 기준</title>
-    <link>https://www.agongmap.co.kr/zone/</link>
-    <guid isPermaLink="false">agongmap-zone-2026Q2</guid>
-    <pubDate>Sun, 27 Sep 2026 00:00:00 +0900</pubDate>
-    <description>2026년 2분기 기준 전국 아파트 공급은 737,502세대 부족(1년 적정물량의 1.9배)입니다. 국토교통부 착공·준공 실적으로 16개 시도의 3년 공급을 판정하고, 한국부동산원 주간 시세를 지도로 봅니다.</description>
   </item>
 </channel>
 </rss>
