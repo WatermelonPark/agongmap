@@ -282,6 +282,8 @@ def _pub_steps():
 PUBLISH_SKIP = {
     'update_adv_data': 'API 키로 원천을 받는다 — 숫자 갱신은 매일 배치의 몫이다',
     'blog_feed': '네트워크 곁가지 — 발행에는 필요하지 않다',
+    'make_weekly_share': '/weekly/ og 카드는 그 주 데이터로 그린다 — 원고가 올라와도 달라지지 않는다',
+    'make_monthly_share': '/monthly/ og 카드는 그 달 데이터로 그린다 — 원고가 올라와도 달라지지 않는다',
 }
 
 # 생성기가 쓰는 산출물의 커밋 대상 이름(매일 배치 TARGETS 와 같은 이름). 굽는 것은 커밋해야 한다.
@@ -446,3 +448,25 @@ def test_publish_stops_instead_of_repeating_the_same_rebase_conflict(tmp_path):
     # rebase 를 물고 끝내지 않는다(다음 명령이 "rebase in progress" 로 막히지 않게).
     assert not (mine / '.git' / 'rebase-merge').exists() and not (mine / '.git' / 'rebase-apply').exists(), \
         'rebase 를 물고 끝났다'
+
+
+def test_the_batch_draws_the_share_cards_before_the_gate():
+    """배치(클라우드·로컬 둘 다)는 **게이트 앞**에서 공유 카드를 굽는다.
+
+    왜: 게이트의 test_card_text_matches_the_manuscript_title 은 카드에 박힌 글자와 원고 제목을 맞댄다.
+    제목에는 자리표가 들어갈 수 있어(예: '적정의 {{v:share:평택:2028}}') 새 데이터가 들어오면 제목의
+    숫자가 바뀌고, 카드도 함께 다시 그려져야 한다. 카드를 게이트 뒤에 두었더니 **데이터가 움직인 날마다**
+    옛 카드와 새 제목이 어긋나 커밋이 막혔다 — 2026-11-05 런 42053599155(카드 257% 대 제목 256%)로
+    그날 데이터 갱신이 세 번 연속 멈췄다. 산출물을 재는 시험은 그 산출물을 만드는 단계 뒤에 와야 한다.
+
+    무엇을 바꾸면 빨개지나: 어느 한쪽에서든 카드 생성을 pytest 뒤로 되돌리면.
+    픽스처: 저장소의 실제 두 배치 파일. 파서가 읽은 단계 순서로 센다(글자 위치가 아니라 단계 목록).
+    """
+    for name, steps in (('클라우드', _cloud_steps()), ('로컬', _bat_steps())):
+        assert 'pytest' in steps and 'make_content_cards' in steps, \
+            '%s 배치에서 게이트나 카드 단계를 읽지 못했다: %s' % (name, steps)
+        assert steps.index('make_content_cards') < steps.index('pytest'), \
+            '%s 배치가 게이트 뒤에서 카드를 굽는다 — 데이터가 움직인 날 커밋이 막힌다: %s' % (name, steps)
+        # 주간·월간 og 카드도 같은 자리에 둔다(그 둘은 데이터로만 그린다).
+        for g in ('make_weekly_share', 'make_monthly_share'):
+            assert steps.index(g) < steps.index('pytest'), '%s 배치의 %s 가 게이트 뒤다' % (name, g)
