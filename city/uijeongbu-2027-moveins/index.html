@@ -131,6 +131,8 @@ section+section h2{margin-top:12px}
 .note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
 /* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
 @media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
+/* 네 열로 줄여도 375px 에서 28px 넘쳤다(2026-10-31 디자인 리뷰 2차) — 긴 머리('2026 적정물량 대비')는 두 줄로 접고 칸 여백을 줄인다. */
+@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 5px}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
 .note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
@@ -156,7 +158,7 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
-footer a{color:var(--ink)}
+footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
@@ -343,7 +345,7 @@ footer a{color:var(--ink)}
 <h2>더 보기</h2>
 <ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 의정부 아파트 입주 물량은 얼마나 되나요</dt><dd>2,809세대로, 의정부 인구로 잡은 한 해 적정물량(3,696세대)의 76%입니다.</dd><dt>의정부에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2027년 10월 1,401세대입니다.</dd><dt>의정부 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/suwon-2027-moveins/"><span>이전 글</span>2027년 수원 아파트 분양·입주물량, 입주 물량은 적정의 34%입니다</a><a href="/city/yongin-2027-moveins/"><span>다음 글</span>2027년 용인 아파트 분양·입주물량, 적정의 60%이고 그마저 처인구에 몰립니다</a></div></div></section>
 </main>
-<footer><div class="wrap">
+<footer class="sitefoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
   <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
