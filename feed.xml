@@ -6,7 +6,14 @@
   <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 통계를 알립니다.</description>
   <language>ko</language>
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
-  <lastBuildDate>Mon, 02 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <lastBuildDate>Thu, 05 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <item>
+    <title>2027년 진주 아파트 분양·입주물량, 입주하는 단지가 없습니다</title>
+    <link>https://www.agongmap.co.kr/city/jinju-2027-moveins/</link>
+    <guid isPermaLink="false">agongmap-content-city-jinju-2027-moveins</guid>
+    <pubDate>Thu, 05 Nov 2026 00:00:00 +0900</pubDate>
+    <description>진주에는 2027년에 입주하는 아파트 단지가 없고, 2027~2029년 세 해 입주를 합쳐도 적정물량의 4분의 1 수준입니다.</description>
+  </item>
   <item>
     <title>GTX-B 마석역 아파트 9곳, 종점역 24평형은 아직 2억대입니다</title>
     <link>https://www.agongmap.co.kr/gtx/gtx-b-maseok/</link>
