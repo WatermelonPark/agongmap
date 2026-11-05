@@ -209,13 +209,19 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 썸네일 없는 글(반박) 카드가 옆 카드 높이로 늘어나 아래가 비었다 — 제 높이로 둔다(2026-10-31 디자인 리뷰 2차). */
+.pcard.pc-noimg{align-self:start}
 /* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
-   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+   글자 카드로 둔다. 허브(.hubflow)는 카테고리를 제목 바로 아래 가로 칩 한 줄로 두고, 그 아래 새 글, 맨 아래 기본 개념이다
+   (2차 리뷰 10-31: 칩 줄이 새 글 10편 아래에 묻혀 분류 입구가 안 보였다). 섹션 목록의 칩 줄도 같은 가로 밀기 한 줄이다. */
 @media (max-width:600px){
   .pcard{grid-template-columns:1fr}
   .pcard img{display:none}
+  .rchips{flex-wrap:nowrap;overflow-x:auto}
+  .rchip{flex:none}
   .hubflow{display:flex;flex-direction:column}
-  .hubflow .hub-recent{order:-1}
+  .hubflow .hub-recent{order:1}
+  .hubflow .hub-basic{order:2}
   .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
   .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
   .hubflow .hgrid-cat .hcard h3{font-size:14px}
@@ -244,6 +250,17 @@ footer a{color:var(--ink)}
 .cx-e{text-anchor:end}
 .cb-rule{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3;opacity:.65}
 .cb-rl{fill:var(--muted);font-size:11px}
+/* 그림 글자는 viewBox(640) 단위라 단이 좁아지면 함께 줄어든다 — 375px 에서 11 단위가 5.7px 로 그려졌다(2026-10-31 디자인
+   리뷰 2차). 단 폭에 맞춰 단위를 올려 화면에서 13px 안팎이 되게 하고, 커진 글자가 겹치지 않게 값은 대표 둘(cb-k)만,
+   막대가 많으면 x 축 이름은 하나 걸러(cb-x2) 적는다. 폭 640px 이상 단에서는 11 → 13 단위 그대로 13px 이다. */
+.cb-v,.cb-x,.cb-rl{font-size:13px}
+@media (max-width:687px){.cb-v,.cb-x,.cb-rl{font-size:16px}.cb-v:not(.cb-k),.cb-x2{display:none}}
+@media (max-width:580px){.cb-v,.cb-x,.cb-rl{font-size:19px}}
+@media (max-width:500px){.cb-v,.cb-x,.cb-rl{font-size:22px}}
+@media (max-width:440px){.cb-v,.cb-x,.cb-rl{font-size:24px}}
+@media (max-width:400px){.cb-v,.cb-x,.cb-rl{font-size:26px}}
+@media (max-width:368px){.cb-v,.cb-x,.cb-rl{font-size:29px}}
+@media (max-width:335px){.cb-v,.cb-x,.cb-rl{font-size:32px}}
 .cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
 .cl-je{stroke-dasharray:4 3;opacity:.75}
 .cl-zero{stroke:var(--line);stroke-width:1}
@@ -263,9 +280,21 @@ footer a{color:var(--ink)}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
 .ctab .tx{text-align:left;white-space:normal;min-width:6em}
+/* 데스크톱은 글을 읽는 단(read, 516px)에 두되 표만 단 밖으로 넓힌다 — 단에 갇혀 11열 표가 한 화면에 안 들어오고 행이
+   88px 로 접혔다(2026-10-31 디자인 리뷰 2차). 표가 좁으면 단 폭 그대로다(min-width:100%), 넓으면 960px 까지 가운데로 편다. */
+@media (min-width:1024px){
+  .ctab{width:fit-content;min-width:100%;max-width:min(960px,calc(100vw - 96px));position:relative;left:50%;transform:translateX(-50%)}
+}
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
+/* 목록 글머리표가 단 여백 밖(화면 끝)에 걸렸다 — 뼈대가 padding 을 0 으로 지운다(2026-10-31 디자인 리뷰 2차). */
+.cbody ul,.cbody ol,.csrc{padding-left:1.3em;margin:0 0 14px}
+/* 빵부스러기 링크가 브라우저 기본 파랑이었다(사이트에서 남은 유일한 자리). */
+.crumb a{color:var(--ink2);text-decoration-color:var(--line)}
+/* 본문 그림은 원본으로 열린다 — 표 그림(평형별 시세 등)이 휴대폰 단 폭으로 줄어 그림 속 글자가 4px 가 됐다. */
+.cimg{display:block;margin:0 0 16px}
+.cimg img{margin:0}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
 .cfaq dt{font-weight:600;font-size:15px;margin-top:14px}
@@ -279,7 +308,6 @@ footer a{color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
@@ -291,11 +319,6 @@ footer a{color:var(--ink)}
 <p>역 반경 1km 안이 대부분 논밭과 개발제한구역이기 때문입니다.</p>
 <p>GTX-A에 3호선·경의중앙선·서해선·교외선까지 다섯 개 노선이 서는 환승역인데, 역 앞에 아파트가 없습니다.</p>
 <p><b>그래도 광화문 28분입니다. 이 연재에서 광화문까지 30분 안에 닿는 역은 대곡역이 처음입니다.</b></p>
-<h2>이 글은 이렇게 셌습니다</h2>
-<p>대곡역에서 도보 15분 이내(네이버 지도 도보 길찾기 기준) 아파트를 빠짐없이 담았습니다.</p>
-<p>평형은 24평형(전용 59㎡)이 있으면 24평형, 없으면 국평(전용 84㎡, 34평형)입니다.</p>
-<p>세대수는 1,000세대 이상 대단지(훌륭), 700 이상 안정, 500 이상 최소선입니다. 500세대 미만 소규모 단지는 역에 가까워도 사지 마십시오.</p>
-<p>주요 업무지구까지 출퇴근 시간은 30분 안이면 매우 우수, 1시간 안이면 우수, 1시간 30분 안이면 양호로 봅니다.</p>
 <h2>출퇴근 시간, 광화문 28분이고 여의도 35분입니다</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">업무지구</th><th scope="col">소요 시간</th><th scope="col">환승</th><th scope="col" class="tx">경로</th></tr></thead><tbody><tr><th scope="row">광화문</th><td>28분</td><td>1회</td><td class="tx">GTX-A 서울역 → 1호선 시청역</td></tr><tr><th scope="row">여의도</th><td>35분</td><td>2회</td><td class="tx">GTX-A 서울역 → 1호선 노량진 → 9호선 여의도</td></tr><tr><th scope="row">삼성(강남)</th><td>56분</td><td>2회</td><td class="tx">GTX-A 서울역 → 4호선 사당 → 2호선 삼성</td></tr><tr><th scope="row">판교</th><td>63분</td><td>1회</td><td class="tx">GTX-A 서울역 → 9000번 버스 판교</td></tr></tbody></table></div>
 <p>GTX-A로 서울역까지 가서 1호선 한 번 환승하면 광화문이 28분입니다. 매우 우수입니다.</p>
@@ -303,8 +326,8 @@ footer a{color:var(--ink)}
 <p>판교만 63분으로 양호입니다.</p>
 <p><b>3편 킨텍스역보다 한 정거장 서울 쪽이라 광화문이 7분 빠릅니다.</b> 킨텍스가 35분, 대곡이 28분입니다.</p>
 <h2>도보 15분 이내 아파트 2곳</h2>
-<p><img src="/content/gtx/img/gtx-a-daegok-map.png" alt="역 반경 1km와 도보 15분 이내 단지 위치" loading="lazy"></p>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">단지</th><th scope="col">평형</th><th scope="col">역 도보</th><th scope="col">세대수(등급)</th><th scope="col">입주</th><th scope="col">용적률</th><th scope="col">매매 실거래(5~10월)</th><th scope="col">세 낀 매물 호가</th><th scope="col">실거주 매물 호가</th><th scope="col" class="tx">전세(8~10월)</th><th scope="col">갭(세 낀 매물)</th></tr></thead><tbody><tr><th scope="row">대림2차</th><td>24평형</td><td>15분</td><td>640(최소선)</td><td>1997</td><td>222%</td><td>8건(제외 1건) 3.9억~4.4억, 중위 4억 2,000</td><td>14건 4.1억~4.8억</td><td>11건 4억~5억</td><td class="tx">중위 2억 8,000 (5건)</td><td>1.4억~2.6억</td></tr><tr><th scope="row">대곡역두산위브</th><td>24평형</td><td>15분</td><td>643(최소선)</td><td>2023</td><td>257%</td><td>16건(제외 3건) 6.35억~7.35억, 중위 6억 9,000</td><td>8건 6.9억~8억</td><td>9건 6.6억~7.7억</td><td class="tx">중위 4억 2,500 (13건)</td><td>2.7억~3.5억</td></tr></tbody></table></div>
+<p><a class="cimg" href="/content/gtx/img/gtx-a-daegok-map.png" target="_blank" rel="noopener"><img src="/content/gtx/img/gtx-a-daegok-map.png" alt="역 반경 1km와 도보 15분 이내 단지 위치" loading="lazy"></a></p>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">단지</th><th scope="col">평형</th><th scope="col">역 도보</th><th scope="col">세대수(등급)</th><th scope="col">입주</th><th scope="col">용적률</th><th scope="col">매매 실거래(5~10월)</th><th scope="col">세 낀 매물 호가</th><th scope="col">실거주 매물 호가</th><th scope="col" class="tx">전세(8~10월)</th><th scope="col">갭(세 낀 매물)</th></tr></thead><tbody><tr><th scope="row">대림2차</th><td>24평형</td><td>15분</td><td>640(최소선)</td><td>1997</td><td>222%</td><td class="tx">8건(제외 1건) 3.9억~4.4억, 중위 4억 2,000</td><td class="tx">14건 4.1억~4.8억</td><td>11건 4억~5억</td><td class="tx">중위 2억 8,000 (5건)</td><td>1.4억~2.6억</td></tr><tr><th scope="row">대곡역두산위브</th><td>24평형</td><td>15분</td><td>643(최소선)</td><td>2023</td><td>257%</td><td class="tx">16건(제외 3건) 6.35억~7.35억, 중위 6억 9,000</td><td>8건 6.9억~8억</td><td>9건 6.6억~7.7억</td><td class="tx">중위 4억 2,500 (13건)</td><td>2.7억~3.5억</td></tr></tbody></table></div>
 <p>실거래는 2026년 5~10월 대표 평형 신고분이고, 해제·직거래와 시세보다 크게 낮은 거래(같은 평형, 거래 달 앞뒤 3개월 거래 중위값의 80% 미만)는 뺐습니다. 호가는 같은 집이 여러 중개사로 올라온 것을 하나로 셌고, 세입자가 있어 전세를 안고 사는 세 낀 매물과 바로 들어가 살 수 있는 실거주 매물(즉시·협의 입주)로 나눴습니다. 갭은 세 낀 매물의 호가에서 그 집의 전세 보증금을 뺀 값입니다(월세 낀 매물은 뺐습니다). 실거주 매물 수에는 설명 없이 입주가능일만 즉시입주로 적힌 매물이 들어 있습니다.</p>
 <p>두 곳 모두 역 남동쪽 토당동에 나란히 붙어 있습니다.</p>
 <p>한 곳은 1997년 입주한 구축, 한 곳은 2023년 입주한 신축입니다. 둘 다 평지 단지입니다.</p>
@@ -318,7 +341,7 @@ footer a{color:var(--ink)}
 <p>아쉬운 점도 분명합니다.</p>
 <p>역까지 가는 길이 논길이라 밤에 무섭다는 지적, 복도식 구축이라 저층 벌레와 여름철 배수구 냄새 같은 노후 문제가 나옵니다.</p>
 <p>매물이 25건(세 낀 매물 14건·실거주 매물 11건) 나와 있어 매도 경쟁이 붙어 있다는 글도 있습니다.</p>
-<p><img src="/content/gtx/img/gtx-a-daegok-price-daelim2.png" alt="대림2차 시세 화면" loading="lazy"></p>
+<p><a class="cimg" href="/content/gtx/img/gtx-a-daegok-price-daelim2.png" target="_blank" rel="noopener"><img src="/content/gtx/img/gtx-a-daegok-price-daelim2.png" alt="대림2차 시세 화면" loading="lazy"></a></p>
 <h2>신축 24평형, 대곡역두산위브 중위 6억 9,000만 원</h2>
 <p><b>대곡역두산위브 24평형</b></p>
 <p>643세대(최소선), 2023년 입주, 역 도보 15분입니다.</p>
@@ -326,13 +349,13 @@ footer a{color:var(--ink)}
 <p>신축이라 조경과 관리가 좋고, 한강과 들판 쪽으로 트인 조망이 좋다는 입주민 후기가 많습니다.</p>
 <p>배정초(능곡초)까지 도보 5분으로 두 곳 가운데 더 가깝습니다.</p>
 <p>단점은 역 앞 도로와 상권이 아직 정비되지 않았다는 것, 그리고 가까운 마트와 학원이 적다는 것입니다.</p>
-<p><img src="/content/gtx/img/gtx-a-daegok-price-doosanweve.png" alt="대곡역두산위브 시세 화면" loading="lazy"></p>
+<p><a class="cimg" href="/content/gtx/img/gtx-a-daegok-price-doosanweve.png" target="_blank" rel="noopener"><img src="/content/gtx/img/gtx-a-daegok-price-doosanweve.png" alt="대곡역두산위브 시세 화면" loading="lazy"></a></p>
 <p>같은 15분, 같은 24평형인데 중위값이 2억 7,000만 원 차이가 납니다.</p>
 <p>29년 차 구축과 3년 차 신축의 차이입니다.</p>
 <h2>학군과 학원가는 어떨까요</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">단지</th><th scope="col" class="tx">배정초(도보)</th><th scope="col" class="tx">경사</th><th scope="col">용적률</th><th scope="col" class="tx">세대수 등급</th></tr></thead><tbody><tr><th scope="row">대림2차</th><td class="tx">능곡초 9분</td><td class="tx">평지</td><td>222%</td><td class="tx">최소선</td></tr><tr><th scope="row">대곡역두산위브</th><td class="tx">능곡초 5분</td><td class="tx">평지</td><td>257%</td><td class="tx">최소선</td></tr></tbody></table></div>
 <p>배정초는 두 곳 모두 능곡초입니다. 두산위브 도보 5분, 대림2차 도보 9분입니다.</p>
-<p><img src="/content/gtx/img/gtx-a-daegok-academy.png" alt="역 주변 학원가 지도" loading="lazy"></p>
+<p><a class="cimg" href="/content/gtx/img/gtx-a-daegok-academy.png" target="_blank" rel="noopener"><img src="/content/gtx/img/gtx-a-daegok-academy.png" alt="역 주변 학원가 지도" loading="lazy"></a></p>
 <p>학원가는 약합니다.</p>
 <p>역에서 1km 안에는 토당동 학원가 한 곳, 학원 6개뿐입니다.</p>
 <p>가까운 큰 학원가는 화정역 일대(59개)가 차로 6분, 일산 마두동(144개)이 차로 9분입니다.</p>
@@ -344,14 +367,19 @@ footer a{color:var(--ink)}
 <p>백화점과 일산호수공원은 차로 11분입니다. 3편 킨텍스역이 몰세권이었다면, 대곡역은 차가 있어야 하는 역입니다.</p>
 <h2>같은 고양인데 덕양구는 오르고 일산은 내렸습니다</h2>
 <p>대곡역이 있는 덕양구 매매는 32주 연속 상승(10월 26일 조사)이고, 바로 옆 킨텍스역의 일산동구 매매는 94주 연속 하락(10월 26일 조사)입니다. 같은 GTX-A, 같은 고양시인데 방향이 반대입니다. 고양 주간 시세 흐름은 아래와 같습니다.</p>
-<figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="고양 덕양구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.10%, 전세 최신 +0.11%." class="cchart-svg"><line x1="8" y1="126.0" x2="632" y2="126.0" class="cl-zero"/><path d="M8.0 95.9 L33.0 117.7 L57.9 101.8 L82.9 97.1 L107.8 102.7 L132.8 110.7 L157.8 89.5 L182.7 68.8 L207.7 98.4 L232.6 97.0 L257.6 63.9 L282.6 97.1 L307.5 100.5 L332.5 90.3 L357.4 95.0 L382.4 113.9 L407.4 73.1 L432.3 97.4 L457.3 91.3 L482.2 95.2 L507.2 92.2 L532.2 97.6 L557.1 67.6 L582.1 48.7 L607.0 80.2 L632.0 83.7" class="cl cl-ma"/><circle cx="632.0" cy="83.7" r="2.5" class="cl-dot"/><path d="M8.0 71.0 L33.0 61.0 L57.9 56.5 L82.9 57.0 L107.8 33.8 L132.8 97.3 L157.8 34.7 L182.7 14.0 L207.7 66.7 L232.6 84.9 L257.6 73.6 L282.6 62.9 L307.5 71.1 L332.5 81.9 L357.4 88.5 L382.4 72.8 L407.4 90.4 L432.3 88.2 L457.3 103.2 L482.2 41.2 L507.2 58.1 L532.2 86.5 L557.1 101.4 L582.1 68.3 L607.0 81.5 L632.0 77.8" class="cl cl-je"/><circle cx="632.0" cy="77.8" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>고양 덕양구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">고양 덕양구</th><td>+0.10%</td><td>+0.11%</td></tr><tr><th scope="row">고양 일산동구</th><td>-0.06%</td><td>+0.13%</td></tr><tr><th scope="row">고양 일산서구</th><td>+0.02%</td><td>+0.01%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
+<figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="고양 덕양구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.10%, 전세 최신 +0.11%." class="cchart-svg"><line x1="8" y1="126.0" x2="632" y2="126.0" class="cl-zero"/><path d="M8.0 95.9 L33.0 117.7 L57.9 101.8 L82.9 97.1 L107.8 102.7 L132.8 110.7 L157.8 89.5 L182.7 68.8 L207.7 98.4 L232.6 97.0 L257.6 63.9 L282.6 97.1 L307.5 100.5 L332.5 90.3 L357.4 95.0 L382.4 113.9 L407.4 73.1 L432.3 97.4 L457.3 91.3 L482.2 95.2 L507.2 92.2 L532.2 97.6 L557.1 67.6 L582.1 48.7 L607.0 80.2 L632.0 83.7" class="cl cl-ma"/><circle cx="632.0" cy="83.7" r="2.5" class="cl-dot"/><path d="M8.0 71.0 L33.0 61.0 L57.9 56.5 L82.9 57.0 L107.8 33.8 L132.8 97.3 L157.8 34.7 L182.7 14.0 L207.7 66.7 L232.6 84.9 L257.6 73.6 L282.6 62.9 L307.5 71.1 L332.5 81.9 L357.4 88.5 L382.4 72.8 L407.4 90.4 L432.3 88.2 L457.3 103.2 L482.2 41.2 L507.2 58.1 L532.2 86.5 L557.1 101.4 L582.1 68.3 L607.0 81.5 L632.0 77.8" class="cl cl-je"/><circle cx="632.0" cy="77.8" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">5/4</text><text x="630" y="143" class="cb-x cx-e">10/26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>고양 덕양구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 10/26 조사 · 전주 대비 변동률</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">고양 덕양구</th><td>+0.10%</td><td>+0.11%</td></tr><tr><th scope="row">고양 일산동구</th><td>-0.06%</td><td>+0.13%</td></tr><tr><th scope="row">고양 일산서구</th><td>+0.02%</td><td>+0.01%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 10/26 조사 · 전주 대비 변동률</p></div>
 <p>공급은 고양 전체가 같은 조건입니다. 고양의 2027년 입주 물량은 3,061세대로 한 해 적정물량(8,452세대)의 36%에 그치고, 2028년에는 7,281세대(적정의 86%)가 잡혀 있어 상반기에 입주가 몰립니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>고양 2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정물량은 8,452세대." class="cchart-svg"><rect x="120.0" y="160.5" width="72.0" height="23.5" class="cb"/><text x="156.0" y="156.5" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="123.2" width="72.0" height="60.8" class="cb"/><text x="238.0" y="119.2" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="39.3" width="72.0" height="144.7" class="cb"/><text x="320.0" y="35.3" class="cb-v">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="174.2" width="72.0" height="9.8" class="cb"/><text x="402.0" y="170.2" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="138.2" width="72.0" height="45.8" class="cb"/><text x="484.0" y="134.2" class="cb-v">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="16.0" x2="634" y2="16.0" class="cb-rule"/><text x="632" y="11.0" class="cb-rl cx-e">적정 8,452세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-30 조사)</figcaption></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>고양 2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정물량은 8,452세대." class="cchart-svg"><rect x="120.0" y="162.4" width="72.0" height="21.6" class="cb"/><text x="156.0" y="158.4" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="128.2" width="72.0" height="55.8" class="cb"/><text x="238.0" y="124.2" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="51.3" width="72.0" height="132.7" class="cb"/><text x="320.0" y="47.3" class="cb-v cb-k">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="175.0" width="72.0" height="9.0" class="cb"/><text x="402.0" y="171.0" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="142.0" width="72.0" height="42.0" class="cb"/><text x="484.0" y="138.0" class="cb-v cb-k">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 8,452세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/2 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,184</td><td>14%</td></tr><tr><th scope="row">2027</th><td>3,061</td><td>36%</td></tr><tr><th scope="row">2028</th><td>7,281</td><td>86%</td></tr><tr><th scope="row">2029</th><td>494</td><td>6%</td></tr><tr><th scope="row">2030</th><td>2,306</td><td>27%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 8,452세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
 <p><b>제 판단으로는 2027년까지는 입주 물량이 부족해 덕양구 오름세가 이어지고, 2028년 상반기 입주장이 서면 전셋값부터 조정받습니다.</b> 역 앞 지식융합단지 개발이 이야기되고 있지만, 그해 시세를 정하는 건 결국 입주 물량입니다.</p>
 <p>시군구별 주간·월간 시세는 <a href="/zone/%EA%B2%BD%EA%B8%B0/#weekly-sgg">경기 리포트 표</a>에서 볼 수 있습니다.</p>
-<p>적정물량은 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡았습니다. 매매는 대표 평형의 2026년 5~10월 실거래에서 해제·직거래와 같은 평형 거래 달 앞뒤 3개월 중위값의 80% 미만 거래를 뺀 값이고, 전세는 8~10월 월세 없는 전세 실거래의 중위값입니다.</p></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2026년 5~10월)</li><li>네이버 부동산 매물 호가(2026-10-27 조회, 세 낀 매물·실거주 매물 구분, 중복 등록은 하나로 셈, 보증금이 호가의 25% 미만인 세 낀 매물은 오기로 보고 갭에서 뺌)</li><li>네이버 지도 도보·대중교통 길찾기(평일 오전 8시 출발)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>행정안전부 주민등록 인구통계(2026년 9월)</li><li>한국부동산원 주간 아파트가격동향(2026-10-19 조사)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>대곡역에서 광화문까지 얼마나 걸리나요</dt><dd>GTX-A로 서울역까지 가서 1호선으로 한 번 환승하면 평일 오전 8시 기준 28분입니다.</dd><dt>대곡역 도보권 아파트는 몇 곳인가요</dt><dd>네이버 지도 도보 기준 15분 이내는 대림2차(640세대)와 대곡역두산위브(643세대) 두 곳입니다.</dd></dl></section><div class="cnav"><a href="/gtx/gtx-a-changneung/"><span>이전 글</span>GTX-A 창릉역 아파트 1곳, 2030년 개통 전 국평은 10억 안팎입니다</a><a href="/gtx/gtx-a-dongtan/"><span>다음 글</span>GTX-A 동탄역 아파트 14곳, 30대 24평형은 현금 8억부터입니다</a><a href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
+<p>적정물량은 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡았습니다. 매매는 대표 평형의 2026년 5~10월 실거래에서 해제·직거래와 같은 평형 거래 달 앞뒤 3개월 중위값의 80% 미만 거래를 뺀 값이고, 전세는 8~10월 월세 없는 전세 실거래의 중위값입니다.</p>
+<h2>이 글은 이렇게 셌습니다</h2>
+<p>대곡역에서 도보 15분 이내(네이버 지도 도보 길찾기 기준) 아파트를 빠짐없이 담았습니다.</p>
+<p>평형은 24평형(전용 59㎡)이 있으면 24평형, 없으면 국평(전용 84㎡, 34평형)입니다.</p>
+<p>세대수는 1,000세대 이상 대단지(훌륭), 700 이상 안정, 500 이상 최소선입니다. 500세대 미만 소규모 단지는 역에 가까워도 사지 마십시오.</p>
+<p>주요 업무지구까지 출퇴근 시간은 30분 안이면 매우 우수, 1시간 안이면 우수, 1시간 30분 안이면 양호로 봅니다.</p></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2026년 5~10월)</li><li>네이버 부동산 매물 호가(2026년 10월 27일 조회, 세 낀 매물·실거주 매물 구분, 중복 등록은 하나로 셈, 보증금이 호가의 25% 미만인 세 낀 매물은 오기로 보고 갭에서 뺌)</li><li>네이버 지도 도보·대중교통 길찾기(평일 오전 8시 출발)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>행정안전부 주민등록 인구통계(2026년 9월)</li><li>한국부동산원 주간 아파트가격동향(10/26 조사)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>대곡역에서 광화문까지 얼마나 걸리나요</dt><dd>GTX-A로 서울역까지 가서 1호선으로 한 번 환승하면 평일 오전 8시 기준 28분입니다.</dd><dt>대곡역 도보권 아파트는 몇 곳인가요</dt><dd>네이버 지도 도보 기준 15분 이내는 대림2차(640세대)와 대곡역두산위브(643세대) 두 곳입니다.</dd></dl></section><div class="cnav"><a href="/gtx/gtx-a-changneung/"><span>이전 글</span>GTX-A 창릉역 아파트 1곳, 2030년 개통 전 국평은 10억 안팎입니다</a><a href="/gtx/gtx-a-dongtan/"><span>다음 글</span>GTX-A 동탄역 아파트 14곳, 30대 24평형은 현금 8억부터입니다</a><a href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a></div></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

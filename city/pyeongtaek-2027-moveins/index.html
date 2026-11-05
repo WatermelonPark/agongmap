@@ -217,13 +217,19 @@ footer a{color:var(--ink)}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .clist a[hidden]{display:none}
+/* 썸네일 없는 글(반박) 카드가 옆 카드 높이로 늘어나 아래가 비었다 — 제 높이로 둔다(2026-10-31 디자인 리뷰 2차). */
+.pcard.pc-noimg{align-self:start}
 /* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
-   글자 카드로 둔다. 허브(.hubflow)는 새 글 목록을 먼저 보이고, 카테고리 카드는 가로 칩 한 줄로 줄인다. */
+   글자 카드로 둔다. 허브(.hubflow)는 카테고리를 제목 바로 아래 가로 칩 한 줄로 두고, 그 아래 새 글, 맨 아래 기본 개념이다
+   (2차 리뷰 10-31: 칩 줄이 새 글 10편 아래에 묻혀 분류 입구가 안 보였다). 섹션 목록의 칩 줄도 같은 가로 밀기 한 줄이다. */
 @media (max-width:600px){
   .pcard{grid-template-columns:1fr}
   .pcard img{display:none}
+  .rchips{flex-wrap:nowrap;overflow-x:auto}
+  .rchip{flex:none}
   .hubflow{display:flex;flex-direction:column}
-  .hubflow .hub-recent{order:-1}
+  .hubflow .hub-recent{order:1}
+  .hubflow .hub-basic{order:2}
   .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
   .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
   .hubflow .hgrid-cat .hcard h3{font-size:14px}
@@ -252,6 +258,17 @@ footer a{color:var(--ink)}
 .cx-e{text-anchor:end}
 .cb-rule{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3;opacity:.65}
 .cb-rl{fill:var(--muted);font-size:11px}
+/* 그림 글자는 viewBox(640) 단위라 단이 좁아지면 함께 줄어든다 — 375px 에서 11 단위가 5.7px 로 그려졌다(2026-10-31 디자인
+   리뷰 2차). 단 폭에 맞춰 단위를 올려 화면에서 13px 안팎이 되게 하고, 커진 글자가 겹치지 않게 값은 대표 둘(cb-k)만,
+   막대가 많으면 x 축 이름은 하나 걸러(cb-x2) 적는다. 폭 640px 이상 단에서는 11 → 13 단위 그대로 13px 이다. */
+.cb-v,.cb-x,.cb-rl{font-size:13px}
+@media (max-width:687px){.cb-v,.cb-x,.cb-rl{font-size:16px}.cb-v:not(.cb-k),.cb-x2{display:none}}
+@media (max-width:580px){.cb-v,.cb-x,.cb-rl{font-size:19px}}
+@media (max-width:500px){.cb-v,.cb-x,.cb-rl{font-size:22px}}
+@media (max-width:440px){.cb-v,.cb-x,.cb-rl{font-size:24px}}
+@media (max-width:400px){.cb-v,.cb-x,.cb-rl{font-size:26px}}
+@media (max-width:368px){.cb-v,.cb-x,.cb-rl{font-size:29px}}
+@media (max-width:335px){.cb-v,.cb-x,.cb-rl{font-size:32px}}
 .cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
 .cl-je{stroke-dasharray:4 3;opacity:.75}
 .cl-zero{stroke:var(--line);stroke-width:1}
@@ -271,9 +288,21 @@ footer a{color:var(--ink)}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
 .ctab .tx{text-align:left;white-space:normal;min-width:6em}
+/* 데스크톱은 글을 읽는 단(read, 516px)에 두되 표만 단 밖으로 넓힌다 — 단에 갇혀 11열 표가 한 화면에 안 들어오고 행이
+   88px 로 접혔다(2026-10-31 디자인 리뷰 2차). 표가 좁으면 단 폭 그대로다(min-width:100%), 넓으면 960px 까지 가운데로 편다. */
+@media (min-width:1024px){
+  .ctab{width:fit-content;min-width:100%;max-width:min(960px,calc(100vw - 96px));position:relative;left:50%;transform:translateX(-50%)}
+}
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
 .csrc{font-size:13px;color:var(--ink2);line-height:1.7}
+/* 목록 글머리표가 단 여백 밖(화면 끝)에 걸렸다 — 뼈대가 padding 을 0 으로 지운다(2026-10-31 디자인 리뷰 2차). */
+.cbody ul,.cbody ol,.csrc{padding-left:1.3em;margin:0 0 14px}
+/* 빵부스러기 링크가 브라우저 기본 파랑이었다(사이트에서 남은 유일한 자리). */
+.crumb a{color:var(--ink2);text-decoration-color:var(--line)}
+/* 본문 그림은 원본으로 열린다 — 표 그림(평형별 시세 등)이 휴대폰 단 폭으로 줄어 그림 속 글자가 4px 가 됐다. */
+.cimg{display:block;margin:0 0 16px}
+.cimg img{margin:0}
 .csrc li{margin-bottom:3px}
 .cfaq{margin-top:26px}
 .cfaq dt{font-weight:600;font-size:15px;margin-top:14px}
@@ -287,7 +316,6 @@ footer a{color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
-.cdisc{font-size:13px;color:var(--muted);margin-top:22px;line-height:1.6}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
@@ -295,21 +323,21 @@ footer a{color:var(--ink)}
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/city/">도시 입주물량</a></nav><h1>2027년 평택 아파트 입주물량, 2028년 입주는 적정의 257%입니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 10월 31일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
 <main id="main"><section><div class="wrap"><p class="csum">평택 2027년 입주 물량은 11,211세대로, 인구로 잡은 한 해 적정물량의 224%입니다.</p><div class="cbody"><p>2027년 평택 입주 물량은 11,211세대입니다. 한 해 적정물량의 224%이고, 그다음 해에는 이보다 더 많이 들어옵니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>11,211세대</b><span>평택 2027년 입주</span></div><div class="ccard"><b>224%</b><span>적정물량 대비</span></div><div class="ccard"><b>43주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="평택 연도별 입주 물량 막대그래프. 2026년 1,604세대, 2027년 11,211세대, 2028년 12,849세대, 2029년 5,029세대. 한 해 적정물량은 4,996세대." class="cchart-svg"><rect x="161.0" y="163.0" width="72.0" height="21.0" class="cb"/><text x="197.0" y="159.0" class="cb-v">1,604</text><text x="197.0" y="202" class="cb-x">2026</text><rect x="243.0" y="37.4" width="72.0" height="146.6" class="cb cb-over"/><text x="279.0" y="33.4" class="cb-v">11,211</text><text x="279.0" y="202" class="cb-x">2027</text><rect x="325.0" y="16.0" width="72.0" height="168.0" class="cb cb-over"/><text x="361.0" y="12.0" class="cb-v">12,849</text><text x="361.0" y="202" class="cb-x">2028</text><rect x="407.0" y="118.2" width="72.0" height="65.8" class="cb cb-over"/><text x="443.0" y="114.2" class="cb-v">5,029</text><text x="443.0" y="202" class="cb-x">2029</text><line x1="6" y1="118.7" x2="634" y2="118.7" class="cb-rule"/><text x="632" y="113.7" class="cb-rl cx-e">적정 4,996세대</text></svg><figcaption>평택 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-31 조사)</figcaption></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>11,211세대</b><span>평택 2027년 입주</span></div><div class="ccard"><b>224%</b><span>적정물량 대비</span></div><div class="ccard"><b>43주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="평택 연도별 입주 물량 막대그래프. 2026년 1,604세대, 2027년 11,211세대, 2028년 12,849세대, 2029년 5,029세대. 한 해 적정물량은 4,996세대." class="cchart-svg"><rect x="161.0" y="164.8" width="72.0" height="19.2" class="cb"/><text x="197.0" y="160.8" class="cb-v">1,604</text><text x="197.0" y="202" class="cb-x">2026</text><rect x="243.0" y="49.6" width="72.0" height="134.4" class="cb cb-over"/><text x="279.0" y="45.6" class="cb-v">11,211</text><text x="279.0" y="202" class="cb-x">2027</text><rect x="325.0" y="30.0" width="72.0" height="154.0" class="cb cb-over"/><text x="361.0" y="26.0" class="cb-v cb-k">12,849</text><text x="361.0" y="202" class="cb-x">2028</text><rect x="407.0" y="123.7" width="72.0" height="60.3" class="cb cb-over"/><text x="443.0" y="119.7" class="cb-v cb-k">5,029</text><text x="443.0" y="202" class="cb-x">2029</text><line x1="6" y1="124.1" x2="634" y2="124.1" class="cb-rule"/><text x="632" y="119.1" class="cb-rl cx-e">적정 4,996세대</text></svg><figcaption>평택 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/2 조사)</figcaption></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,604</td><td>32%</td></tr><tr><th scope="row">2027</th><td>11,211</td><td>224%</td></tr><tr><th scope="row">2028</th><td>12,849</td><td>257%</td></tr><tr><th scope="row">2029</th><td>5,029</td><td>101%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 4,996세대(인구 ÷ 2.5 × 2%, 인구 2026년 9월)</p></div>
 <p>적정물량은 인구로 잡은 연 4,996세대입니다. 입주가 가장 몰리는 달은 2027년 2월 4,848세대입니다.</p>
 <h2>평택 2027년에는 어느 단지가 입주하나요</h2>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2027-01</th><td class="tx">지제역 반도체밸리 쌍용 더 플래티넘</td><td>1,340</td></tr><tr><th scope="row">2027-01</th><td class="tx">평택 브레인시티 5BL 대광로제비앙 그랜드센텀</td><td>1,182</td></tr><tr><th scope="row">2027-02</th><td class="tx">지제역 반도체밸리 해링턴 플레이스</td><td>1,209</td></tr><tr><th scope="row">2027-02</th><td class="tx">진위역 서희스타힐스 더 파크뷰</td><td>1,659</td></tr><tr><th scope="row">2027-02</th><td class="tx">평택 브레인시티 중흥S-클래스</td><td>1,980</td></tr><tr><th scope="row">2027-04</th><td class="tx">신영지웰 평택화양</td><td>999</td></tr><tr><th scope="row">2027-05</th><td class="tx">고덕국제신도시 서한이다음 그레이튼</td><td>1,138</td></tr><tr><th scope="row">2027-12</th><td class="tx">평택 브레인시티 수자인</td><td>889</td></tr><tr><th scope="row">2027-12</th><td class="tx">평택화양 서희스타힐스 센트럴파크 2차</td><td>815</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-31 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">27.1</th><td class="tx">지제역 반도체밸리 쌍용 더 플래티넘</td><td>1,340</td></tr><tr><th scope="row">27.1</th><td class="tx">평택 브레인시티 5BL 대광로제비앙 그랜드센텀</td><td>1,182</td></tr><tr><th scope="row">27.2</th><td class="tx">지제역 반도체밸리 해링턴 플레이스</td><td>1,209</td></tr><tr><th scope="row">27.2</th><td class="tx">진위역 서희스타힐스 더 파크뷰</td><td>1,659</td></tr><tr><th scope="row">27.2</th><td class="tx">평택 브레인시티 중흥S-클래스</td><td>1,980</td></tr><tr><th scope="row">27.4</th><td class="tx">신영지웰 평택화양</td><td>999</td></tr><tr><th scope="row">27.5</th><td class="tx">고덕국제신도시 서한이다음 그레이튼</td><td>1,138</td></tr><tr><th scope="row">27.12</th><td class="tx">평택 브레인시티 수자인</td><td>889</td></tr><tr><th scope="row">27.12</th><td class="tx">평택화양 서희스타힐스 센트럴파크 2차</td><td>815</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/2 조사)</p></div>
 <p>청약 공고로 채운 단지는 일반·특별공급 세대만 셉니다.</p>
 <h2>평택 2028년에는 어느 단지가 입주하나요</h2>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">2028-01</th><td class="tx">평택 브레인시티 한신더휴</td><td>991</td></tr><tr><th scope="row">2028-01</th><td class="tx">힐스테이트평택역센트럴시티</td><td>1,918</td></tr><tr><th scope="row">2028-02</th><td class="tx">고덕자연&amp;하우스디(A4)</td><td>517</td></tr><tr><th scope="row">2028-03</th><td class="tx">더플래티넘파인애비뉴</td><td>1,048</td></tr><tr><th scope="row">2028-04</th><td class="tx">브레인시티 푸르지오</td><td>1,990</td></tr><tr><th scope="row">2028-05</th><td class="tx">브레인시티 메디스파크 로제비앙 모아엘가</td><td>1,215</td></tr><tr><th scope="row">2028-06</th><td class="tx">더 플래티넘 스카이헤론</td><td>784</td></tr><tr><th scope="row">2028-07</th><td class="tx">평택 브레인시티 10BL 앤네이처 미래도</td><td>1,413</td></tr><tr><th scope="row">2028-10</th><td class="tx">고덕신도시 아테라 A-63블록 공공분양주택</td><td>630</td></tr><tr><th scope="row">2028-12</th><td class="tx">브레인시티 비스타동원</td><td>1,600</td></tr><tr><th scope="row">2028-12</th><td class="tx">평택 고덕 우미 린 프레스티지(Abc-36BL)</td><td>743</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(2026-10-31 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">28.1</th><td class="tx">평택 브레인시티 한신더휴</td><td>991</td></tr><tr><th scope="row">28.1</th><td class="tx">힐스테이트평택역센트럴시티</td><td>1,918</td></tr><tr><th scope="row">28.2</th><td class="tx">고덕자연&amp;하우스디(A4)</td><td>517</td></tr><tr><th scope="row">28.3</th><td class="tx">더플래티넘파인애비뉴</td><td>1,048</td></tr><tr><th scope="row">28.4</th><td class="tx">브레인시티 푸르지오</td><td>1,990</td></tr><tr><th scope="row">28.5</th><td class="tx">브레인시티 메디스파크 로제비앙 모아엘가</td><td>1,215</td></tr><tr><th scope="row">28.6</th><td class="tx">더 플래티넘 스카이헤론</td><td>784</td></tr><tr><th scope="row">28.7</th><td class="tx">평택 브레인시티 10BL 앤네이처 미래도</td><td>1,413</td></tr><tr><th scope="row">28.10</th><td class="tx">고덕신도시 아테라 A-63블록 공공분양주택</td><td>630</td></tr><tr><th scope="row">28.12</th><td class="tx">브레인시티 비스타동원</td><td>1,600</td></tr><tr><th scope="row">28.12</th><td class="tx">평택 고덕 우미 린 프레스티지(Abc-36BL)</td><td>743</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/2 조사)</p></div>
 <h2>평택 아파트값은 오르고 있나요</h2>
-<figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="평택 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.05%, 전세 최신 +0.16%." class="cchart-svg"><line x1="8" y1="54.9" x2="632" y2="54.9" class="cl-zero"/><path d="M8.0 68.2 L33.0 126.0 L57.9 73.2 L82.9 90.7 L107.8 54.6 L132.8 20.0 L157.8 67.1 L182.7 79.4 L207.7 59.9 L232.6 83.8 L257.6 56.9 L282.6 58.1 L307.5 42.2 L332.5 54.1 L357.4 58.2 L382.4 64.7 L407.4 83.5 L432.3 53.9 L457.3 72.7 L482.2 52.9 L507.2 38.7 L532.2 59.6 L557.1 69.2 L582.1 52.9 L607.0 56.7 L632.0 42.8" class="cl cl-ma"/><circle cx="632.0" cy="42.8" r="2.5" class="cl-dot"/><path d="M8.0 33.6 L33.0 19.0 L57.9 44.7 L82.9 45.3 L107.8 30.0 L132.8 24.3 L157.8 46.1 L182.7 29.6 L207.7 30.4 L232.6 34.8 L257.6 45.1 L282.6 45.4 L307.5 37.9 L332.5 38.1 L357.4 45.6 L382.4 40.9 L407.4 44.8 L432.3 31.5 L457.3 34.6 L482.2 39.2 L507.2 38.6 L532.2 24.9 L557.1 30.7 L582.1 36.5 L607.0 25.5 L632.0 14.0" class="cl cl-je"/><circle cx="632.0" cy="14.0" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">05-04</text><text x="630" y="143" class="cb-x cx-e">10-26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>평택 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">평택</th><td>+0.05%</td><td>+0.16%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 2026-10-26 조사 · 전주 대비 변동률</p></div>
+<figure class="cchart"><svg viewBox="0 0 640 150" role="img" aria-label="평택 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.05%, 전세 최신 +0.16%." class="cchart-svg"><line x1="8" y1="54.9" x2="632" y2="54.9" class="cl-zero"/><path d="M8.0 68.2 L33.0 126.0 L57.9 73.2 L82.9 90.7 L107.8 54.6 L132.8 20.0 L157.8 67.1 L182.7 79.4 L207.7 59.9 L232.6 83.8 L257.6 56.9 L282.6 58.1 L307.5 42.2 L332.5 54.1 L357.4 58.2 L382.4 64.7 L407.4 83.5 L432.3 53.9 L457.3 72.7 L482.2 52.9 L507.2 38.7 L532.2 59.6 L557.1 69.2 L582.1 52.9 L607.0 56.7 L632.0 42.8" class="cl cl-ma"/><circle cx="632.0" cy="42.8" r="2.5" class="cl-dot"/><path d="M8.0 33.6 L33.0 19.0 L57.9 44.7 L82.9 45.3 L107.8 30.0 L132.8 24.3 L157.8 46.1 L182.7 29.6 L207.7 30.4 L232.6 34.8 L257.6 45.1 L282.6 45.4 L307.5 37.9 L332.5 38.1 L357.4 45.6 L382.4 40.9 L407.4 44.8 L432.3 31.5 L457.3 34.6 L482.2 39.2 L507.2 38.6 L532.2 24.9 L557.1 30.7 L582.1 36.5 L607.0 25.5 L632.0 14.0" class="cl cl-je"/><circle cx="632.0" cy="14.0" r="2.5" class="cl-dot"/><text x="10" y="143" class="cb-x cx-s">5/4</text><text x="630" y="143" class="cb-x cx-e">10/26</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>평택 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 10/26 조사 · 전주 대비 변동률</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">평택</th><td>+0.05%</td><td>+0.16%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 10/26 조사 · 전주 대비 변동률</p></div>
 <h2>평택 집값은 앞으로 어떻게 될까요</h2>
 <p>제 판단으로는 평택은 앞으로 두 해 동안 공급이 시세를 누르는 쪽으로 기웁니다. 한 해 적정물량 대비 입주 물량이 2027년 224%, 2028년 257%이기 때문입니다. 주간 시세는 매매 1주 연속 상승(10월 26일 조사), 전세 43주 연속 상승(10월 26일 조사)입니다. 브레인시티와 평택역 일대에 한 달에 수천 세대씩 입주장이 이어져서, 그 전후로는 전세 매물이 쌓일 수 있습니다. 신축을 고르는 쪽에서는 선택지가 넓어지는 시기입니다. 평택은 2028년까지 입주 물량이 넘치는 방향입니다.</p>
 <h2>더 보기</h2>
-<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 평택 아파트 입주 물량은 얼마나 되나요</dt><dd>11,211세대로, 평택 인구로 잡은 한 해 적정물량(4,996세대)의 224%입니다.</dd><dt>평택에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2027년 2월 4,848세대입니다.</dd><dt>평택 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/gumi-2027-moveins/"><span>이전 글</span>2027년 구미 아파트 입주물량, 2028년 입주는 한 곳도 없습니다</a><a href="/city/suwon-2027-moveins/"><span>다음 글</span>2027년 수원 아파트 분양·입주물량, 입주 물량은 적정의 34%입니다</a></div><p class="cdisc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</p></div></section>
+<ul><li><a href="/zone/경기/">경기 분기별 공급 리포트</a></li><li><a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세 표</a></li></ul></div><section><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 평택 아파트 입주 물량은 얼마나 되나요</dt><dd>11,211세대로, 평택 인구로 잡은 한 해 적정물량(4,996세대)의 224%입니다.</dd><dt>평택에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2027년 2월 4,848세대입니다.</dd><dt>평택 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><div class="cnav"><a href="/city/gumi-2027-moveins/"><span>이전 글</span>2027년 구미 아파트 입주물량, 2028년 입주는 한 곳도 없습니다</a><a href="/city/suwon-2027-moveins/"><span>다음 글</span>2027년 수원 아파트 분양·입주물량, 입주 물량은 적정의 34%입니다</a></div></div></section>
 </main>
 <footer><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
