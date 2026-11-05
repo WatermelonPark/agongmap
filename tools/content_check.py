@@ -8,6 +8,8 @@
 사용:
     python tools/content_check.py                 전부 검사
     python tools/content_check.py content/gtx     그 폴더만
+    python tools/content_check.py --lenient       2026-11-05 양식(tldr·audience·key·city·topic)을 묻지 않는다 — 옛 원고를
+                                                  고치는 동안만. 환경 변수 CONTENT_CHECK_LENIENT=1 도 같다. 커밋 기본은 엄격.
 """
 import io
 import os
@@ -48,17 +50,32 @@ def _probe(data, m):
     return {'v': CT.value, 'table': CT.table, 'chart': CT.chart}[m.group(1)](data, parts[0], parts[1:])
 
 
-def check_post(path, data, root=ROOT):
+def check_post(path, data, root=ROOT, lenient=False):
     """한 편 → [(줄, 문제)]"""
     rel = os.path.relpath(path, root).replace(os.sep, '/')
     text = io.open(path, encoding='utf-8').read()
     out, waits = [], []
     try:
-        meta, body = CM.read(path)
+        meta, body = CM.read(path, lenient=lenient)
     except CM.ContentError as e:
         msg = str(e).split(': ', 1)[-1]
-        key = next((k for k in CM.REQUIRED + ('faq', 'sources', 'region') if k in msg), None)
+        key = next((k for k in CM.REQUIRED + CM.REQUIRED_V2 + ('faq', 'sources', 'region') if k in msg), None)
         return ([(_front_line(text, key) if key else 1, msg)], [], rel)
+    # 2026-11-05 양식의 지역·길이 — 이름표에 없는 city, 자리표를 채우면 넘치는 길이. 생성기(make_content_pages)와 같은 함수다.
+    if not lenient:
+        for name in meta.get('city') or []:
+            try:
+                CT.city_codes(data, name)
+            except CT.TableError as e:
+                out.append((_front_line(text, 'city'), str(e)))
+        try:
+            CT.check_lengths(CT.fill_meta(meta, data))
+        except CT.PendingCity:
+            pass                                   # 아직 안 받은 도시의 자리표 — 아래 본문 검사가 기다림으로 센다
+        except CT.TableError as e:
+            msg = str(e)
+            key = next((k for k in ('tldr', 'audience', 'key', 'title') if msg.startswith(k)), 'title')
+            out.append((_front_line(text, key), msg))
     # 본문은 프런트매터 뒤에서 시작한다 — 줄 번호를 파일 기준으로 되돌린다.
     offset = text.count('\n', 0, text.index(body)) if body and body in text else 0
     for m in PLACEHOLDER.finditer(body):
@@ -149,6 +166,8 @@ def layout_notes(text, summary='', section=''):
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
+    lenient = '--lenient' in argv or os.environ.get('CONTENT_CHECK_LENIENT') == '1'
+    argv = [a for a in argv if a != '--lenient']
     only = argv[0].replace('\\', '/').rstrip('/').split('/')[-1] if argv else None
     data = CT.load()
     posts = CM.posts(ROOT, section=only if only in CM.SECTIONS else None)
@@ -157,10 +176,10 @@ def main(argv=None):
         return 0
     bad, waiting = 0, 0
     for sec, slug, path in posts:
-        problems, waits, rel = check_post(path, data)
+        problems, waits, rel = check_post(path, data, lenient=lenient)
         text = io.open(path, encoding='utf-8').read()
         try:
-            summary = CM.read(path, sec, slug)[0].get('summary') or ''
+            summary = CM.read(path, sec, slug, lenient=True)[0].get('summary') or ''
         except Exception:
             summary = ''
         for ln, why in sorted(term_notes(text) + layout_notes(text, summary, sec)):
@@ -177,9 +196,10 @@ def main(argv=None):
         bad += 1
         for ln, why in sorted(problems):
             print('  ✗    %s:%d  %s' % (rel, ln, why))
-    print('\n원고 %d편 중 %d편에 고칠 곳이 있다.%s' % (
+    print('\n원고 %d편 중 %d편에 고칠 곳이 있다.%s%s' % (
         len(posts), bad,
-        ' %d편은 아직 안 받은 도시를 기다린다(올려도 된다).' % waiting if waiting else ''))
+        ' %d편은 아직 안 받은 도시를 기다린다(올려도 된다).' % waiting if waiting else '',
+        ' (--lenient: 2026-11-05 양식은 묻지 않았다 — 커밋 전에 기본값으로 다시 돌릴 것)' if lenient else ''))
     if bad:
         print('쓸 수 있는 자리표는 content/README.md 에 있다.')
     return 1 if bad else 0

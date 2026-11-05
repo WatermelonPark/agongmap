@@ -35,6 +35,17 @@ date: 2026-10-20
 updated: 2026-10-27
 section: city
 region: 인천
+tldr:
+  - 첫째 줄 결론입니다
+  - 둘째 줄 근거입니다
+  - 셋째 줄 전망입니다
+audience: 2027년 인천 전세 시점을 재는 실수요자
+key:
+  - label: 2027년 입주
+    value: "{{v:moveins:인천:2027}}"
+city:
+  - 인천 연수구
+topic: moveins
 sources:
   - 국토교통부 주택건설실적통계(인허가·착공·준공)
 faq:
@@ -141,14 +152,20 @@ def test_region_display_name_is_accepted():
 def _build_page(tmp_path):
     p = _write(tmp_path)
     meta, body = CM.read(p)
-    page, lm = MC.build_page(meta, body, CT.load())
+    data = CT.load()
+    meta = CT.fill_meta(meta, data)            # main() 과 같은 순서 — 머리(key·tldr)의 자리표를 먼저 채운다
+    page, lm = MC.build_page(meta, body, data)
     return meta, page, lm
 
 
 def test_page_has_summary_dates_author_sources_and_no_placeholder(tmp_path):
     """요약·날짜·저자·출처·면책이 모두 페이지에 있고, 자리표는 하나도 남지 않는다."""
     meta, page, _ = _build_page(tmp_path)
-    assert meta['summary'] in page and 'csum' in page, '요약 답변 블록이 없다'
+    assert meta['summary'] in page, '요약이 설명 메타·JSON-LD 에서 빠졌다'
+    assert 'class="ctldr"' in page and all(x in page for x in meta['tldr']), '3줄 요약이 없다'
+    assert meta['audience'] in page and 'class="caud"' in page, "'이 글이 맞는 분' 이 없다"
+    assert 'class="ckey"' in page and '2027년 입주' in page, '핵심 숫자 띠가 없다'
+    assert 'class="csum"' not in page, '옛 결론 상자가 3줄 요약과 함께 두 번 나온다'
     assert meta['date'] in page and meta['updated'] in page, '작성일·갱신일이 없다'
     assert MC.AUTHOR in page and '/about/' in page, '저자 표기가 없다'
     assert '국토교통부 주택건설실적통계' in page, '출처 목록이 없다'
@@ -191,13 +208,13 @@ def test_markdown_subset_renders(tmp_path):
 
 
 def test_section_index_lists_posts_newest_first(tmp_path):
-    """섹션 목록이 최신순이고, 맨 위에 카테고리 칩이 있으며, 글마다 썸네일을 단다(대표 결정 10-29).
+    """섹션 목록이 최신순이고, 맨 위에 질문 칩(섹션 사이 건너뛰기)과 지역 칩이 있으며, 글은 결론 카드다(11-05 개편).
 
-    무엇을 바꾸면 빨개지나: 정렬을 뒤집거나, 칩을 빼거나(섹션 사이를 못 건너뛴다), 목록 부품에서
-    썸네일을 떼면. 빵부스러기는 '아공맵 › 콘텐츠 › <섹션>' 이어야 한다.
+    무엇을 바꾸면 빨개지나: 정렬을 뒤집거나, 칩을 빼거나(섹션 사이를 못 건너뛴다), 지역 칩을 빼면.
+    빵부스러기는 '아공맵 › 콘텐츠 › <섹션>' 이어야 한다.
     픽스처: 갱신일이 다른 글 셋.
     """
-    metas = [{'section': 'city', 'slug': 'a', 'title': 'A', 'summary': '가' * 50,
+    metas = [{'section': 'city', 'slug': 'a', 'title': 'A', 'summary': '가' * 50, 'city': ['구미'],
               'date': '2026-10-01', 'updated': '2026-10-03'},
              {'section': 'city', 'slug': 'b', 'title': 'B', 'summary': '나' * 50,
               'date': '2026-10-02', 'updated': '2026-10-05'},
@@ -205,8 +222,9 @@ def test_section_index_lists_posts_newest_first(tmp_path):
               'date': '2026-10-03', 'updated': '2026-10-04'}]
     order = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
     page, lastmod = MC.build_index('city', order)
-    slugs = re.findall(r'<a class="pcard[^"]*" href="/city/([^/]+)/"', page)
+    slugs = re.findall(r'<a class="kcard" href="/city/([^/]+)/"', page)
     assert slugs == [m['slug'] for m in order], '최신순이 아니다: %s' % slugs
+    assert 'class="cityf"' in page, '섹션 목록에 지역 칩이 없다'
     assert lastmod == '2026-10-05'
     assert 'class="rchips"' in page and 'href="/%s/"' % MC.REPORTS_DIR in page, '카테고리 칩이 없다'
     assert '› <a href="/%s/">콘텐츠</a> ›' % MC.REPORTS_DIR in page, '빵부스러기에 콘텐츠가 없다'
@@ -601,8 +619,9 @@ def test_zone_reports_link_the_posts_about_that_region():
         pytest.skip('원고가 없다')
     want = {}
     for sec, meta, _ in posts:
-        z = MC.zone_of(meta)
-        if z and os.path.exists(os.path.join(ROOT, sec, meta['slug'], 'index.html')):
+        if not os.path.exists(os.path.join(ROOT, sec, meta['slug'], 'index.html')):
+            continue
+        for z in MC.zones_of(meta):          # region 의 시도와 city 마다의 시도(11-05 개편)
             want.setdefault(z, set()).add('/%s/%s/' % (sec, meta['slug']))
     assert want, '어느 글도 시도에 묶이지 않았다 — region 매핑이 끊겼다'
     seen = 0
@@ -719,100 +738,76 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
         assert CT.value(data, 'need', ['서울']).endswith('호'), '시도 need 의 단위가 바뀌었다'
 
 
-def test_hub_shows_six_category_cards_and_recent_posts():
-    """허브가 카테고리 카드 6장과 최신순 '최근 글' %d편을 싣는다(대표 결정 10-29). 600px 이하에서는 최근 글이
-    먼저 보이고 카테고리는 가로 칩 한 줄이며, 목록 썸네일을 뺀다(대표 10-31 '모두 수정' — 10-30 '모바일 여섯 장'을
-    대신한다. 데스크톱 배치는 그대로).
+def _built_metas():
+    out = []
+    for sec, slug, path in CM.built(ROOT):
+        try:
+            out.append(CM.read(path, sec, slug)[0])
+        except CM.ContentError:
+            continue
+    return out
 
-    무엇을 바꾸면 빨개지나: 카드를 빼거나 순서를 바꾸거나(발행 주기 순이다), 카드의 글 수가 실제와
-    어긋나거나, 최근 글이 최신순이 아니거나 편수가 넘치면. 휴대폰 규칙에서 최근 글 앞세우기(order:-1)·칩 한 줄
-    (nowrap)·썸네일 숨김을 지우거나, 최근 글 구역이 .hubflow 밖으로 나가면(실제로 각각 깨뜨려 확인).
+
+def test_hub_offers_questions_regions_and_recent_cards():
+    """허브(2026-11-05 개편) — '질문으로 찾기' 넷(TOPICS 순, 글 수는 실제), '지역으로 찾기' 칩(구워진 글의 모든 지역),
+    '최근 글' 결론 카드 전부 최신순, 맨 아래 '기본 개념' 한 줄. 옛 카테고리 카드 여섯 장(10-29)은 없다.
+
+    무엇을 바꾸면 빨개지나(각각 실제로 확인): 질문 카드 순서를 바꾸거나 글 수를 손으로 적으면, 지역 칩에서 한 도시를 빼면,
+    최근 글을 자르거나(RECENT 상한) 정렬을 뒤집으면, 기본 개념 줄을 최근 글 위로 올리면.
     픽스처: 저장소에 구워져 있는 /reports/ 와 실제 원고.
-    """ % MC.RECENT_N
+    """
     p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
     if not os.path.exists(p):
         pytest.skip('/reports/ 가 아직 없다')
     page = io.open(p, encoding='utf-8').read()
-    # 카테고리 격자만 본다 — '기본 개념' 줄(.hgrid-basic)도 같은 .hcard 부품을 쓰지만 제 구역(.hub-basic)에 있다.
-    cat = re.search(r'<div class="hgrid hgrid-cat">(.*?)</div>\s*</div></section>', page, re.S)
-    assert cat, '카테고리 카드 격자를 못 찾았다'
-    # 휴대폰 순서(2차 리뷰 10-31) — 세 구역이 한 .hubflow 안에 카테고리 → 기본 개념 → 최근 글 순으로 있고(데스크톱 순서),
-    # 600px 이하 규칙이 카테고리를 제목 바로 아래 칩 한 줄로 두고 그 아래 최근 글, 맨 아래 기본 개념으로 돌린다.
-    # 변이: .hub-recent 를 order:-1 로 되돌려 칩 줄이 다시 새 글 아래로 묻히면 빨개진다(확인).
-    flow = page[page.index('<div class="hubflow">'):]
-    assert (flow.index('<div class="hgrid hgrid-cat">') < flow.index('<section class="hub-basic">')
-            < flow.index('<section class="hub-recent">')), '허브 구역 묶음이 깨졌다'
-    mob = re.search(r'@media \(max-width:600px\)\{(.*?)\n\}', page, re.S)
-    assert mob, '600px 이하 규칙이 없다'
-    rules = mob.group(1)
-    assert '.hubflow .hub-recent{order:1}' in rules and '.hubflow .hub-basic{order:2}' in rules, \
-        '휴대폰에서 카테고리 칩 → 최근 글 → 기본 개념 순이 아니다'
-    assert 'order:-1' not in rules, '휴대폰에서 최근 글이 칩 줄 위로 올라간다(칩 줄이 새 글 아래 묻힌다)'
-    assert '.rchips{flex-wrap:nowrap;overflow-x:auto}' in rules, '섹션 목록 칩 줄이 휴대폰에서 한 줄 가로 밀기가 아니다'
-    assert 'flex-wrap:nowrap' in rules and '.hgrid-cat' in rules, '휴대폰 카테고리가 칩 한 줄이 아니다'
-    assert '.pcard img{display:none}' in rules, '휴대폰 목록 썸네일을 빼지 않았다'
-    hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', cat.group(1))
-    # 기대 순서를 **여기 적는다**. HUB_CARDS 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀌어
-    # 아무것도 지키지 못한다(2026-10-29 변이로 확인). 이 순서는 대표가 정한 발행 주기 순이다.
-    want = ['/column/', '/weekly/', '/city/', '/gtx/', '/danji/', '/zone/']
-    assert hrefs == want, '카드 순서·링크가 다르다(발행 주기 순이어야 한다): %s' % hrefs
-    cads = re.findall(r'<a class="hcard"[^>]*>.*?<em>([^<]+)</em>', page, re.S)
-    assert cads == ['당일', '매주', '연재', '연재', '연재', '분기'], '발행 주기 표시가 다르다: %s' % cads
-    # 섹션 카드의 글 수는 실제 구워진 글과 같아야 한다.
-    built = {}
-    for sec, slug, _ in CM.built(ROOT):
-        built[sec] = built.get(sec, 0) + 1
-    for key, name, _d, _c in MC.HUB_CARDS:
-        if key.startswith('/'):
-            continue
-        m = re.search(r'<a class="hcard" href="/%s/".*?<div class="hc-m">([^<]*)</div>' % key, page, re.S)
-        assert m, '%s 카드를 못 찾았다' % key
-        n = built.get(key, 0)
-        assert ('글 %d편' % n) in m.group(1) or (n == 0 and '준비' in m.group(1)), \
-            '%s 카드의 글 수(%s)가 실제(%d편)와 다르다' % (key, m.group(1), n)
-    # 최근 글 — 편수와 정렬.
-    # 최근 글 — 구워진 주소를 뽑아 **원고의 갱신일**과 맞댄다. 페이지에서 날짜를 긁으면 정규식이
-    # 어긋났을 때 빈 목록이 되어 '정렬이 맞다' 로 통과한다(2026-10-29 변이로 확인).
-    links = re.findall(r'<a class="pcard[^"]*" href="/([^/]+)/([^/]+)/"', page.split('최근 글')[1])
-    assert 0 < len(links) <= MC.RECENT_N, '최근 글이 %d편이다' % len(links)
-    upd = {}
-    for sec, slug, path in CM.built(ROOT):
-        meta, _ = CM.read(path, sec, slug)
-        upd[(sec, slug)] = (meta['updated'], meta['date'], slug)
+    metas = _built_metas()
+    assert 'hgrid-cat' not in page and 'class="hcard"' not in page, '옛 카테고리 카드가 남았다'
+    q = re.search(r'<div class="qgrid">(.*?)</div>\s*</div></section>', page, re.S)
+    assert q, '질문 카드 격자를 못 찾았다'
+    cards = re.findall(r'<a class="qcard" href="/([^/]+)/"><b>([^<]+)</b><span class="qc-n">([^<]*)</span>', q.group(1))
+    # 기대 순서·질문을 **여기 적는다** — TOPICS 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀐다.
+    assert [(c[0], c[1]) for c in cards] == [
+        ('city', '내 동네, 앞으로 입주 얼마나?'), ('gtx', '역세권 첫 집, 얼마면 되나?'),
+        ('danji', '재건축·리모델링, 어디까지 왔나?'), ('column', '그 발언, 숫자로 맞나?')], cards
+    for sec, _q, n in cards:
+        want = len([m for m in metas if MC.topic_of(m) == MC.SECTION_TOPIC[sec]])
+        assert n == ('글 %d편' % want if want else '준비 중'), '%s 질문의 글 수(%s)가 실제(%d)와 다르다' % (sec, n, want)
+    chips = re.findall(r'<button type="button" class="rchip[^"]*" data-city="([^"]*)"', page)
+    cities = {c for m in metas for c in MC.post_cities(m)}
+    assert cities and cities <= set(chips), '지역 칩에 없는 도시: %s' % sorted(cities - set(chips))
+    recent = page.split('최근 글', 1)[1]
+    links = re.findall(r'<a class="kcard" href="/([^/]+)/([^/]+)/"', recent)
+    assert len(links) == len(metas), '최근 글이 %d편이다(구워진 글 %d편)' % (len(links), len(metas))
+    upd = {(m['section'], m['slug']): (m['updated'], m['date'], m['slug']) for m in metas}
     keys = [upd[(s, g)] for s, g in links if (s, g) in upd]
-    assert len(keys) == len(links), '목록에 자료에 없는 글이 있다'
-    assert keys == sorted(keys, reverse=True), '최근 글이 최신순이 아니다: %s' % [k[0] for k in keys]
-    assert keys[0] == max(upd.values()), '가장 최신 글이 맨 위가 아니다'
+    assert len(keys) == len(links) and keys == sorted(keys, reverse=True), '최근 글이 최신순이 아니다'
+    assert page.index('class="hub-basic-row"') > page.index('<a class="kcard"'), '기본 개념 줄이 최근 글 위에 있다'
+    assert 'class="cityf"' in page and '<script>' in recent, '지역 칩이나 거르는 스크립트가 없다'
 
 
-def test_every_listed_post_has_a_real_thumbnail():
-    """목록의 글마다 썸네일 주소가 **실재하는 파일**을 가리키고, 공통 카드로 떨어진 글이 없다(요청 ⑤).
+def test_cards_have_no_thumbnails_and_carry_chips_hook_and_key():
+    """목록·홈·시도 리포트의 글 카드(11-05 개편)는 그림 썸네일이 없고, 지역 칩·질문 칩·결론 제목·날짜를 가지며,
+    key 를 적은 글은 핵심 숫자를 보인다.
 
-    무엇을 바꾸면 빨개지나: 썸네일을 굽지 않고 목록만 고치거나, 카드 생성이 조용히 실패해 그 글이
-    섹션 공통 카드로 떨어지면(2026-10-29 fontTools 가 없어 그런 일이 있었다).
-    픽스처: 저장소의 허브·섹션 목록·홈과 share/ 의 그림들.
-
-    ⚠️ 이 시험은 **발행을 멈춘다**(배치·발행 게이트가 pytest 전체다). 그래서 카드를 굽는 단계는 게이트
-       앞에 와야 한다 — 뒤에 두었더니 새 글이 올라온 회차마다 아직 없는 카드를 보고 빨개져 발행이
-       세 런 연속 멈췄다(2026-10-29). 순서는 test_publish_workflow_runs_on_content_and_gates_before_commit 이 지킨다.
+    무엇을 바꾸면 빨개지나: card 가 썸네일 img 를 다시 넣거나, 칩·제목·날짜 중 하나를 빼거나, key 를 그리지 않으면.
+    픽스처: 저장소의 허브·섹션 목록·홈과 실제 원고.
     """
-    import urllib.parse
     pages = [os.path.join(ROOT, MC.REPORTS_DIR, 'index.html'), os.path.join(ROOT, HS.HOME)]
-    pages += [os.path.join(ROOT, s, 'index.html') for s in CM.SECTIONS
-              if os.path.exists(os.path.join(ROOT, s, 'index.html'))]
+    pages += [os.path.join(ROOT, s, 'index.html') for s in CM.SECTIONS]
+    keyed = {(m['section'], m['slug']) for m in _built_metas() if MC._key_of(m)}
     seen = 0
     for p in pages:
         if not os.path.exists(p):
             continue
         page = io.open(p, encoding='utf-8').read()
-        for src in re.findall(r'<img src="(/share/thumb-[^"]+)"', page):
-            rel = urllib.parse.unquote(src.split('?')[0].lstrip('/'))
-            assert os.path.exists(os.path.join(ROOT, rel)), '%s: 없는 썸네일 %s' % (os.path.basename(p), rel)
+        assert '/share/thumb-' not in page, '%s: 목록 썸네일이 남았다' % os.path.basename(p)
+        for m in re.finditer(r'<a class="kcard" href="/([^/]+)/([^/]+)/"[^>]*>(.*?)</a>', page, re.S):
+            body = m.group(3)
+            assert 'kc-chip kc-t' in body and 'class="kc-hook"' in body and 'class="kc-date"' in body, body[:200]
+            if (m.group(1), m.group(2)) in keyed:
+                assert 'class="kc-key"' in body, '%s/%s 카드에 핵심 숫자가 없다' % (m.group(1), m.group(2))
             seen += 1
-    assert seen >= 5, '썸네일을 %d개밖에 못 봤다' % seen
-    # '모든 글이 제 카드를 가진다'는 게이트가 보지 않는다. 카드는 발행·배치 모두 게이트 **뒤**에서 굽기 때문에, 새 글이
-    # 올라온 회차의 게이트에는 그 글 카드가 아직 없다(2026-10-30 단지 6·7편 발행이 이 단정에 막혔고, 그 상태로는 매일
-    # 배치 게이트도 데이터 커밋을 막는다). 카드가 빠진 글은 batch_notes.content_card_lines 가 ℹ️ 줄로 알린다.
+    assert seen >= 5, '카드를 %d장밖에 못 봤다' % seen
 
 
 def test_missing_post_cards_are_a_batch_note_not_a_gate(tmp_path):
@@ -962,8 +957,10 @@ def test_a_city_not_collected_yet_is_a_wait_not_an_error(tmp_path):
     (d / 'wait-x.md').write_text(
         '---\ntitle: "%s 모의 글"\n'
         'summary: "%s 의 사업 단계와 대지지분을 공급 데이터와 함께 봅니다. 숫자는 국가 통계에서 옵니다."\n'
-        'date: "2026-10-29"\nupdated: "2026-10-29"\nsection: "danji"\nregion: "%s"\n---\n\n'
-        '입주 물량은 {{v:moveins:%s:2027}} 입니다.\n' % (pend, pend, pend, pend), encoding='utf-8')
+        'date: "2026-10-29"\nupdated: "2026-10-29"\nsection: "danji"\nregion: "%s"\n'
+        'tldr:\n  - 결론\n  - 근거\n  - 전망\naudience: 독자\nkey:\n  - label: 2027년 입주\n    value: "{{v:moveins:%s:2027}}"\n'
+        'city:\n  - %s\ntopic: redevelop\n---\n\n'
+        '입주 물량은 {{v:moveins:%s:2027}} 입니다.\n' % (pend, pend, pend, pend, pend, pend), encoding='utf-8')
     problems, waits, _ = CC.check_post(str(d / 'wait-x.md'), data, root=str(tmp_path))
     assert not problems and len(waits) == 1, '기다림이 고칠 곳으로 잡혔다: %s' % (problems,)
 
@@ -980,7 +977,7 @@ def test_list_css_is_one_canon_in_both_places():
     assert m, 'app.css 에 LIST_CSS 표식 구간이 없다'
     norm = lambda s: re.sub(r'^\s+', '', s.strip(), flags=re.M).replace('\r\n', '\n')
     assert norm(m.group(1)) == norm(MC.LIST_CSS), 'app.css 의 목록 부품이 생성기 정본과 다르다'
-    assert '.pcard' in MC.EXTRA_CSS, '콘텐츠 페이지가 목록 부품을 싣지 않는다'
+    assert '.kcard' in MC.EXTRA_CSS, '콘텐츠 페이지가 카드 부품을 싣지 않는다'
 
 
 def test_collector_reads_every_city_placeholder_kind():
@@ -1208,44 +1205,28 @@ def test_thumbnail_number_is_that_regions_own_moveins_value():
     assert not shared, '한 숫자를 여러 지역이 쓴다 — 지역이 섞였다: %s' % shared
 
 
-def test_basic_concepts_row_carries_the_pages_that_left_the_tabbar():
-    """허브의 '기본 개념' 줄이 사이클·FAQ·테스트 3종을 **카테고리 카드 아래**에 싣는다(대표 승인 2026-10-30).
+def test_basic_concepts_row_sits_under_recent_posts():
+    """허브의 '기본 개념' 줄이 사이클·FAQ·테스트 3종을 **맨 아래 한 줄**로 싣는다(10-30 승인한 다섯, 11-05 개편에서 카드 → 한 줄).
 
-    왜: 상단 탭에서 '사이클'을 빼면서 그 입구를 여기로 옮겼다. 탭이 주된 통로였으니 허브에서 눈에 띄어야
-    한다(GA 10/2~10/29: /cycle/ 세션 26 중 19가 사이트 안 이동, 검색 랜딩 7). 발행 주기가 없는 상시 글이라
-    주기 순으로 늘어선 카테고리 카드 **아래**다. 사이클이 첫째다.
-
-    무엇을 바꾸면 빨개지나: 줄에서 한 장을 빼거나, 사이클을 첫째가 아닌 자리로 옮기거나, 카테고리 카드
-      **위**로 올리거나, 모바일에서 접으면(display:none).
+    왜: 상단 탭에서 '사이클'을 빼면서 그 입구를 여기로 옮겼다. 발행 주기가 없는 상시 글이라 입구만 있으면 된다.
+    무엇을 바꾸면 빨개지나: 줄에서 한 장을 빼거나, 사이클을 첫째가 아닌 자리로 옮기거나, 최근 글 **위**로 올리면.
     픽스처: 저장소에 구워져 있는 /reports/ 와 손 페이지들의 실제 <title>.
     """
     p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
     if not os.path.exists(p):
         pytest.skip('/reports/ 가 아직 없다')
     page = io.open(p, encoding='utf-8').read()
-    row = re.search(r'<h2 class="rh2">%s</h2><div class="hgrid hgrid-basic">(.*?)</div>'
-                    % re.escape(MC.BASIC_H2), page, re.S)
+    row = re.search(r'<p class="hub-basic-row"><b>%s</b>(.*?)</p>' % re.escape(MC.BASIC_H2), page, re.S)
     assert row, "'기본 개념' 줄을 찾지 못했다"
-    hrefs = re.findall(r'<a class="hcard" href="([^"]+)"', row.group(1))
-    # 기대 목록을 **여기 적는다**. MC.BASIC_PAGES 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀌어
-    # 한 장을 빼도 통과한다(2026-10-30 변이로 확인 — 처음 쓴 판이 그랬다). 이 다섯은 대표가 정했다.
+    hrefs = re.findall(r'<a href="([^"]+)"', row.group(1))
+    # 기대 목록을 **여기 적는다**. MC.BASIC_PAGES 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀐다(2026-10-30 변이로 확인).
     want = ['/cycle/', '/faq/', '/burini-test/', '/investor-test/', '/redev-test/']
     assert hrefs == want, '기본 개념 줄의 순서·링크가 다르다: %s' % hrefs
-    # 카테고리 카드 아래다 — 위로 올라가면 주기 순 카드가 밀린다. (본문 위치로 잰다. CSS 에도
-    # 'hgrid-basic' 이 있어 그 글자만 찾으면 <style> 안이 먼저 걸린다.)
-    assert page.index('<div class="hgrid hgrid-cat">') < page.index('<div class="hgrid hgrid-basic">'), \
-        '기본 개념 줄이 카테고리 카드 위에 있다'
-    # 이름·곁말은 각 페이지의 <title> 에서 온다(손으로 적지 않는다).
+    assert row.start() > page.rindex('<a class="kcard"'), '기본 개념 줄이 최근 글 위에 있다'
     import html as _h
     for slug in MC.BASIC_PAGES:
-        name, sub = MC._page_title(slug, ROOT)
-        assert name, '%s 의 제목을 읽지 못했다' % slug
-        assert ('<h3>%s</h3>' % _h.escape(name)) in row.group(1), \
-            '%s 카드 이름이 페이지 제목과 다르다(%r)' % (slug, name)
-    # 모바일에서 접지 않는다 — hc-l 처럼 숨기는 규칙이 이 줄에 붙으면 안 된다.
-    assert 'hgrid-basic' in MC.LIST_CSS or 'hgrid-basic' in MC.EXTRA_CSS
-    assert not re.search(r'\.hgrid-basic[^{]*\{[^}]*display:\s*none', MC.EXTRA_CSS), \
-        '기본 개념 줄이 숨겨진다'
+        name, _sub = MC._page_title(slug, ROOT)
+        assert name and ('>%s</a>' % _h.escape(name)) in row.group(1), '%s 이름이 페이지 제목과 다르다(%r)' % (slug, name)
 
 
 def test_cycle_page_lights_the_content_tab():
@@ -1380,7 +1361,7 @@ def test_post_dates_on_screen_use_the_two_step_format():
     """글 머리의 작성·갱신일은 '2026년 10월 30일'(day_long), 목록·카드·홈 '최근 리포트'·시도 '이 지역 글'의 갱신일은
     '26.10.30'(day_short)이다 — ISO 꼴 '2026-10-30' 이 화면에 나오지 않는다(CLAUDE.md 날짜 두 단계, 2026-10-30 디자인 리뷰).
 
-    무엇을 바꾸면 빨개지나(실제로 확인): post_item 의 _day_short 를 meta['updated'] 로 되돌리면.
+    무엇을 바꾸면 빨개지나(실제로 확인): card 의 _day_short 를 meta['updated'] 로 되돌리면.
     픽스처: 생성기를 돌린 저장소의 콘텐츠 허브·글·홈·시도 리포트(게이트와 같은 순서). JSON-LD·RSS 는 ISO 그대로라 보지 않는다.
     """
     pages = [HS.HOME, os.path.join(MC.REPORTS_DIR, 'index.html')]
@@ -1395,7 +1376,7 @@ def test_post_dates_on_screen_use_the_two_step_format():
             continue
         s = io.open(p, encoding='utf-8').read()
         spots = re.findall(r'class="cmeta">(.*?)</p>', s) + re.findall(r'<(?:i|span)>([^<]*갱신)</(?:i|span)>', s) \
-            + re.findall(r'class="hc-m">([^<]*)<', s)
+            + re.findall(r'class="kc-date">([^<]*)<', s)
         bad += ['%s: %s' % (rel, x) for x in spots if iso.search(x)]
     assert not bad, '화면 날짜가 ISO 꼴이다: %s' % bad[:8]
 
@@ -1420,7 +1401,7 @@ def test_post_layout_reads_as_an_article():
     """글 페이지 배치(2026-10-30 디자인 리뷰 3차) — 읽는 단·표 정렬·칩·도시 이름 붙은 입주 카드.
 
     재현한 실제 상태: 글이 넓은 단(wide)이라 1280px 에서 한 줄이 70자를 넘었고, 표의 글자 열('경로')이 오른쪽 정렬, 칩 첫 칸
-    '콘텐츠'가 섹션처럼 읽혔으며 허브 카드(주간·월간 시세·시도 리포트)와 칩 목록이 달랐다. 단지·GTX 글의 입주 카드
+    '콘텐츠'가 섹션처럼 읽혔으며 허브 입구와 칩 목록이 달랐다(지금은 둘 다 TOPICS 의 질문 넷이다). 단지·GTX 글의 입주 카드
     '2027년 입주 640세대'는 단지 세대수로 읽혔다.
     변이(각각 실제로 확인): build_page 의 desk='read' 를 빼면, _text_cols 가 빈 집합을 내면, 첫 칩을 '콘텐츠'로 되돌리면,
     content_tables 카드 이름에서 도시 이름을 빼면 빨개진다.
@@ -1434,7 +1415,7 @@ def test_post_layout_reads_as_an_article():
     assert re.search(r'\.cbody img\{[^}]*max-width:100%', MC.EXTRA_CSS), '본문 그림에 최대 폭이 없다'
     chips = MC.section_chips('city')
     assert re.findall(r'class="rchip[^"]*" href="[^"]*">([^<]+)<', chips)[0] == '전체'
-    assert re.findall(r'>([^<]+)</a>', chips)[1:] == [n for _, n, _d, _c in MC.HUB_CARDS]
+    assert re.findall(r'>([^<]+)</a>', chips)[1:] == [short for _k, _q, short, _s in MC.TOPICS]
     for sec, slug, _ in CM.built(ROOT)[:3]:
         page = io.open(os.path.join(ROOT, sec, slug, 'index.html'), encoding='utf-8').read()
         assert 'data-desk="read"' in page, '%s/%s 가 읽는 단이 아니다' % (sec, slug)
@@ -1464,3 +1445,160 @@ def test_content_check_notes_post_layout_without_failing():
     assert not CC.layout_notes(front + body, '전혀 다른 요약 문장', 'city') or \
         not any('도시 입주' in w for _, w in CC.layout_notes(front + body, '전혀 다른 요약', 'city'))
     assert CC.layout_notes(front + '## 출퇴근\n\n본문\n', '', 'danji') == []
+
+
+# ── ⑧ 2026-11-05 콘텐츠 구조 개편 — 양식·카드·입구·연결 ──────────────────────────────────────────────
+def test_front_matter_v2_fields_are_validated(tmp_path):
+    """새 다섯 항목(tldr·audience·key·city·topic)은 필수이고 길이·모양을 잰다. lenient 는 옛 양식을 그대로 읽는다.
+
+    무엇을 바꾸면 빨개지나(각각 실제로 확인): REQUIRED_V2 에서 항목을 빼면(첫 단정), validate_v2 의 길이 검사 하나를
+    지우면(그 변이), validate 가 lenient 를 무시하면(마지막 단정).
+    픽스처: 올바른 원고에서 항목을 하나씩 지우거나 어긋나게 바꾼 판.
+    """
+    for key in CM.REQUIRED_V2:
+        lines, skip = [], False
+        for l in FRONT.split('\n'):
+            if l.startswith(key + ':'):
+                skip = True
+                continue
+            if skip and (l.startswith('  ') or l.startswith('- ')):
+                continue
+            skip = False
+            lines.append(l)
+        p = _write(tmp_path, '\n'.join(lines), slug='miss-' + key)
+        with pytest.raises(CM.ContentError) as e:
+            CM.read(p)
+        assert key in str(e.value), '%s 가 빠졌는데 다른 오류가 났다: %s' % (key, e.value)
+        assert CM.read(p, lenient=True)[0]['title'], 'lenient 가 옛 양식을 못 읽는다'
+    cases = [
+        ('title: 시험용 글 제목', 'title: ' + '가' * (CM.TITLE_MAX + 1), 'title'),
+        ('  - 셋째 줄 전망입니다\n', '', 'tldr'),
+        ('  - 첫째 줄 결론입니다', '  - ' + '가' * (CM.TLDR_MAX + 1), 'tldr'),
+        ('audience: 2027년 인천 전세 시점을 재는 실수요자', 'audience: ' + '가' * (CM.AUDIENCE_MAX + 1), 'audience'),
+        ('  - label: 2027년 입주', '  - label: ' + '가' * (CM.KEY_MAX + 1), 'key'),
+        ('  - 인천 연수구', '  - 인천 연수구\n  - 인천 남동구\n  - 인천 서구\n  - 인천 부평구', 'city'),
+        ('topic: moveins', 'topic: whatever', 'topic'),
+    ]
+    for old, new, word in cases:
+        assert old in FRONT
+        p = _write(tmp_path, FRONT.replace(old, new), slug='bad-' + word)
+        with pytest.raises(CM.ContentError) as e:
+            CM.read(p)
+        assert word in str(e.value), (word, str(e.value))
+    meta = CM.read(_write(tmp_path))[0]
+    assert meta['key'] == {'label': '2027년 입주', 'value': '{{v:moveins:인천:2027}}'} and meta['city'] == ['인천 연수구']
+    # 시도 전체 글은 city 를 비우고 region 을 둔다 — 그때 카드 지역 칩은 '서울 전체'.
+    whole = FRONT.replace('  - 인천 연수구\n', '').replace('region: 인천', 'region: 서울')
+    meta = CM.read(_write(tmp_path, whole, slug='whole-x'))[0]
+    assert meta['city'] == [] and MC.post_cities(meta) == ['서울 전체']
+
+
+def test_filled_lengths_are_checked_after_placeholders():
+    """자리표를 채운 뒤 길이를 다시 잰다 — 원고 검사는 자리표를 빼고 재므로 채운 값이 넘치는 일은 여기서만 잡힌다.
+
+    무엇을 바꾸면 빨개지나: check_lengths 가 key.value 를 보지 않으면. 픽스처: 채우면 12자를 넘는 key.value.
+    """
+    meta = {'title': 't', 'audience': 'a', 'tldr': ['x'], 'key': {'label': '입주', 'value': '가' * (CM.KEY_MAX + 1)}}
+    with pytest.raises(CT.TableError) as e:
+        CT.check_lengths(meta)
+    assert 'key.value' in str(e.value)
+    assert CT.check_lengths({'title': 't', 'tldr': ['x'], 'key': {'label': 'l', 'value': 'v'}})
+
+
+def test_card_markup_chips_hook_key_and_date():
+    """카드 한 장 — 지역 칩(첫 도시, 둘 이상이면 '외 N'), 질문 칩(TOPICS 의 짧은 이름), 결론 제목, 핵심 숫자, 날짜 '26.11.5',
+    data-city 에 모든 도시. 시도 글(city 없음)은 '서울 전체'.
+
+    무엇을 바꾸면 빨개지나: card 에서 '외 N' 을 빼거나, 날짜를 ISO 로 되돌리거나, data-city 에 첫 도시만 넣으면.
+    """
+    m = {'section': 'gtx', 'slug': 'x', 'title': '결론 제목', 'date': '2026-11-01', 'updated': '2026-11-05',
+         'city': ['화성 동탄구', '수원 영통구'], 'topic': 'first-home', 'key': {'label': '필요 현금', 'value': '8억~'}}
+    c = MC.card(m)
+    assert '<span class="kc-chip">화성 동탄구 외 1</span>' in c and '<span class="kc-chip kc-t">역세권 첫 집</span>' in c
+    assert '<b class="kc-hook">결론 제목</b>' in c and '<strong>8억~</strong><small>필요 현금</small>' in c
+    assert '<i class="kc-date">26.11.5</i>' in c and 'data-city="화성 동탄구|수원 영통구"' in c and 'data-topic="first-home"' in c
+    w = MC.card({'section': 'column', 'slug': 'y', 'title': 't', 'date': '2026-11-01', 'updated': '2026-11-02', 'region': '서울'})
+    assert '<span class="kc-chip">서울 전체</span>' in w and 'kc-key' not in w and '발언 검증' in w
+
+
+def test_region_box_links_the_zone_the_map_and_the_city_post():
+    """글 끝 '이 지역 더 보기'(양방향 연결의 글 쪽) — 시도 리포트, 홈 시세 지도(시군구 하나면 그 칸, 구 여럿인 시는 지도),
+    같은 도시의 입주물량 글.
+
+    무엇을 바꾸면 빨개지나: _sgg_anchor 가 구 여럿인 시에서 첫 구 코드를 쓰면(둘째 단정), region_box 가 다른 도시의 글을
+    묶으면(셋째 단정).
+    """
+    data = CT.load()
+    gtx = {'section': 'gtx', 'slug': 'g', 'title': 'G', 'region': '경기', 'city': ['화성 동탄구'], 'topic': 'first-home',
+           'date': '2026-11-01', 'updated': '2026-11-01'}
+    city = {'section': 'city', 'slug': 'hwaseong-x', 'title': '화성 입주', 'region': '화성', 'city': ['화성'], 'topic': 'moveins',
+            'date': '2026-11-01', 'updated': '2026-11-01'}
+    other = dict(city, slug='suwon-x', title='수원 입주', region='수원', city=['수원'])
+    box = MC.region_box(gtx, data, [other, city])
+    assert '/zone/' in box and '/city/hwaseong-x/' in box and '/city/suwon-x/' not in box
+    code = CT.sgg_codes(data, '화성 동탄구')[0][0]
+    assert '/#stats-market-week~%s' % code in box
+    assert MC._sgg_anchor(data, '수원')[0] == '/#stats-market-week', '구가 여럿인 시가 첫 구로 간다'
+    assert MC._sgg_anchor(data, '없는동네')[0] == '/#stats-market-week'
+
+
+def test_zones_of_groups_a_post_by_region_and_cities():
+    """시도 묶음은 region 의 시도와 city 마다의 시도다 — 분당 단지 글은 경기에, 구미 도시 글은 경북에, 서울 반박 글은 서울에.
+
+    무엇을 바꾸면 빨개지나: zones_of 가 city 를 보지 않으면(region 없는 글이 어디에도 안 묶인다).
+    """
+    assert MC.zones_of({'section': 'danji', 'region': '경기', 'city': ['성남 분당구']}) == {'경기'}
+    assert MC.zones_of({'section': 'city', 'region': '구미', 'city': ['구미']}) == {'경북'}
+    assert MC.zones_of({'section': 'column', 'region': '서울', 'city': []}) == {'서울'}
+    assert MC.zones_of({'section': 'gtx', 'city': ['화성 동탄구']}) == {'경기'}
+
+
+def test_questions_and_city_chips_count_from_the_posts():
+    """'질문으로 찾기' 넷은 TOPICS 순이고 글 수·최신 결론 둘을 글에서 세며, '지역으로 찾기' 칩은 시도별로 묶인다.
+
+    무엇을 바꾸면 빨개지나: questions_block 이 글 없는 질문을 빼면(입구가 사라진다), city_chips 가 시도 묶음을 잃으면.
+    """
+    metas = [{'section': 'city', 'slug': 'a', 'title': 'A 결론', 'city': ['구미'], 'topic': 'moveins', 'date': '2026-11-01', 'updated': '2026-11-03'},
+             {'section': 'city', 'slug': 'b', 'title': 'B 결론', 'city': ['수원'], 'topic': 'moveins', 'date': '2026-11-01', 'updated': '2026-11-02'},
+             {'section': 'gtx', 'slug': 'c', 'title': 'C 결론', 'city': ['화성 동탄구'], 'topic': 'first-home', 'date': '2026-11-01', 'updated': '2026-11-01'}]
+    q = MC.questions_block(metas)
+    assert re.findall(r'class="qc-n">([^<]*)<', q) == ['글 2편', '글 1편', '준비 중', '준비 중']
+    assert q.index('A 결론') < q.index('B 결론')
+    chips = MC.city_chips(metas)
+    assert '<em>경기</em>' in chips and '<em>경북</em>' in chips
+    assert chips.index('<em>경기</em>') < chips.index('<em>경북</em>'), '시도 표시 순서(DISPLAY_ORDER)가 아니다'
+    assert chips.count('<button') == 4 and 'data-city="수원"' in chips
+
+
+def test_lead_thumb_is_stripped_from_the_body():
+    """본문 첫 줄의 제목 카드 그림(img/<slug>-thumb.png)은 빼고 굽는다 — 제목이 글 머리와 그림에서 두 번 보였다.
+
+    무엇을 바꾸면 빨개지나: strip_lead_thumb 가 첫 줄만 보지 않고 본문 중간 그림까지 빼면(셋째 단정).
+    """
+    assert MC.strip_lead_thumb('![요약](img/x-thumb.png)\n\n## 핵심\n') == '## 핵심\n'
+    assert MC.strip_lead_thumb('\n![요약](img/x-thumb.png)\n문단\n') == '문단\n'
+    assert MC.strip_lead_thumb('문단\n\n![요약](img/x-thumb.png)\n') == '문단\n\n![요약](img/x-thumb.png)\n'
+
+
+def test_content_check_is_strict_by_default_and_lenient_on_request(tmp_path):
+    """원고 검사는 새 양식을 기본으로 묻고(옛 양식은 고칠 곳), --lenient 일 때만 묻지 않는다.
+
+    무엇을 바꾸면 빨개지나: check_post 가 lenient 를 기본으로 두면. 픽스처: 옛 양식(다섯 항목 없음) 원고 하나.
+    """
+    import content_check as CC
+    old = '\n'.join(l for l in FRONT.split('\n') if not re.match(r'^(tldr|audience|key|city|topic):|^  ', l))
+    p = _write(tmp_path, old, slug='old-x')
+    data = CT.load()
+    problems, _w, _r = CC.check_post(p, data, root=str(tmp_path))
+    assert problems and 'tldr' in problems[0][1], problems
+    assert CC.check_post(p, data, root=str(tmp_path), lenient=True)[0] == []
+
+
+def test_readme_documents_the_v2_fields():
+    """content/README.md 가 새 다섯 항목과 상한을 적는다 — 작성 세션이 읽는 유일한 안내다."""
+    s = io.open(os.path.join(ROOT, 'content', 'README.md'), encoding='utf-8').read()
+    for k in CM.REQUIRED_V2:
+        assert ('%s:' % k) in s, '%s 안내가 없다' % k
+    for k in ('moveins', 'first-home', 'redevelop', 'claim'):
+        assert k in s
+    assert str(CM.TITLE_MAX) in s and str(CM.TLDR_MAX) in s
