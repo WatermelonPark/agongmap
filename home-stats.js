@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v212';
+var HOME_STATS_BUILD='v213';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -854,13 +854,13 @@ function drawNationMap(k){
   box.innerHTML=
     mapDateChip(row.p,SER+' · '+T.unit,gap)+
     rankTables(S,T.unit,k)+
+    '<p class="map-rows">칸 숫자: '+(hasWo?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':'위 = 매매 · 아래 = 전세')+'</p>'+   // 칸 줄의 뜻은 지도 위(2026-10-31)
     '<div class="cue"><div class="map-scroll">'+svg+'</div></div>'+
     /* 범례 한 줄(왼쪽 하락 → 오른쪽 상승)은 홈 시세 지도(priceTilesHtml)와 같은 .tb-key 어휘다(2026-10-30 디자인 리뷰 2차) */
     '<div class="map-suplegend"><span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'+
     '<span class="tk-ramp" aria-hidden="true"></span><span class="tk"><i class="tk-u"></i>상승</span></span>'+
     '<span>'+SER+' '+T.unit+'(%)</span>'+
-    '<span>'+(hasWo?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':'위 = 매매 · 아래 = 전세')+
-    ' · 지역을 누르면 그래프<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></span></div>';
+    '<span>지역을 누르면 그래프<span class="map-swipe" hidden> · 옆으로 밀어 전체 보기</span></span></div>';
   /* 상자가 지도보다 좁을 때만 민다는 안내를 켠다(데스크톱에서는 안 넘친다). */
   syncSwipe(k);
   /* TOP10 헤더 정렬 — innerHTML 이후에 붙인다(인라인 onclick은 따옴표 중첩이 깨진다) */
@@ -1129,9 +1129,10 @@ function renderReleaseInfo(){
   _syncHolidays();
   const w=document.getElementById('rel-week'), r=weeklyReleaseNow();
   const nx=r?wkNextText(r):'';   // 연휴 주는 빈 문자열(wkNextText) — 꼬리 ' · '를 남기지 않는다
-  if(w)w.textContent='한국부동산원 · 매주 목요일 발표'+(nx?' · '+nx:'');
+  /* 출처(한국부동산원)는 바로 아래 기준 줄과 지도 밑 '자료:' 줄이 말한다 — 머리 줄은 일정만(2026-10-31 디자인 리뷰 2차, 출처 세 번 → 두 번) */
+  if(w)w.textContent='매주 목요일 발표'+(nx?' · '+nx:'');
   const m=document.getElementById('rel-month');
-  if(m)m.textContent='한국부동산원 · 매월 15일 발표 · 다음 '+_fmtRel(_next15(new Date()));
+  if(m)m.textContent='매월 15일 발표 · 다음 발표 '+_fmtRel(_next15(new Date()));   // 주간과 같은 '다음 발표' 낱말
 }
 function renderTrPeriods(k){
   const T=TREND[k], el=document.getElementById(k+'-period'); if(!el||!T.periods)return;

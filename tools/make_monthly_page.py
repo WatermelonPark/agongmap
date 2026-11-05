@@ -649,17 +649,19 @@ def _with_top(section_html, tops):
 EXTRA_CSS = """
 /* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
 .note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
-.secno{display:inline-block;font-size:11.5px;font-weight:600;color:var(--muted);
+.secno{display:inline-block;font-size:13px;font-weight:600;color:var(--muted);
  border:1px solid var(--line);border-radius:0;padding:1px 7px;margin-bottom:6px}
 .basis{font-size:13px;color:var(--muted);margin-bottom:8px}
 .basis b{color:var(--ink);font-weight:600}
 .up{color:var(--up)} .dn{color:var(--dn)}
 .toc{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
-.toc a{font-size:12.5px;color:var(--ink2);text-decoration:none;border:1px solid var(--line);
+.toc a{font-size:13px;color:var(--ink2);text-decoration:none;border:1px solid var(--line);
  border-radius:3px;padding:0 11px;min-height:40px;display:inline-flex;align-items:center;white-space:nowrap}   /* 31px·2px 였다(2026-09-18 오딧 11번) */
 .toc a:hover{background:var(--paper2)}
 table td:first-child,table th[scope=row]{white-space:nowrap}
 tbody tr.agg{background:var(--paper2)}
+/* 데스크톱은 머리도 왼쪽(2026-10-31 디자인 리뷰 2차 — 표가 왼쪽 560px 인데 칩·제목·리드만 836px 단 가운데라 엇갈렸다) */
+@media(min-width:1024px){header{text-align:left}}
 .top3{font-size:var(--fs-dense);color:var(--ink2);margin:2px 0 10px;line-height:1.7}
 .top3 b{color:var(--ink);font-weight:600;margin-right:4px}
 .top3 a{color:var(--ink)}

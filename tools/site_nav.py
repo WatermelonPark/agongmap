@@ -67,6 +67,9 @@ LABEL_PX = 13
 # 탭바 키보드 초점(백로그 36-8, 2026-10-06) — 손 페이지 탭바엔 초점 표시가 없어 Tab 으로 어디 있는지 보이지 않았다. 먹색 바탕 위라
 # 흰 테두리를 안쪽으로 그린다. app.css 와 각 페이지 <style> 이 이 글자를 그대로 싣고 test_site_nav 가 모든 탭바 페이지를 본다.
 NAV_FOCUS_CSS = '.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}'
+# 켜진 탭 색(2026-10-31 디자인 리뷰 2차 — FAQ 가 '콘텐츠' 탭을 켜도록 class="nav-btn on" 을 달았는데 이 규칙이 없어 네 탭이
+# 모두 회색이었다). 탭을 켜는 페이지는 자기 <style> 이나 읽는 시트(app.css)에 이 글자를 싣고, test_site_nav 가 본다.
+NAV_ON_CSS = '.nav-btn.on{color:#fff}'
 IDS = tuple(t[0] for t in TABS)
 LABELS = tuple(t[2] for t in TABS)
 HREF = {t[0]: t[1] for t in TABS}
@@ -101,7 +104,8 @@ DISCLAIMER = '공공 데이터를 가공한 참고 자료이며 투자자문이 
 HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
                '  ' + FOOTER_BRAND + '<br>\n'
                '  ' + FOOTER_LINKS + '<br>\n'
-               '  자료: KOSIS·한국부동산원·국토교통부·한국은행 · ' + DISCLAIMER + '\n'
+               '  자료: KOSIS·한국부동산원·국토교통부·한국은행<br>\n'
+               '  ' + DISCLAIMER + '\n'
                '</div></footer>')
 
 
@@ -109,7 +113,7 @@ def site_footer(src):
     """생성 페이지·콘텐츠 페이지 푸터 — 브랜드 · 링크 줄(FOOTER_LINKS) · 그 페이지의 자료 기관 · 면책.
     src 는 기관명이다(공개 저장소 규칙 — '자료: 아공맵' 처럼 우리 이름을 출처로 쓰지 않는다). 없으면 자료 줄을 뺀다."""
     srcl = ('  자료: %s\n' % src) if src else ''
-    return ('<footer><div class="wrap">\n'
+    return ('<footer class="sitefoot"><div class="wrap">\n'
             '  ' + FOOTER_BRAND + '<br>\n'
             '  ' + FOOTER_LINKS + '<br>\n'
             + srcl +

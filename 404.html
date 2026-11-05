@@ -25,9 +25,8 @@
   p a{color:var(--ink);font-weight:600}
   /* 그림자 없는 먹색 채움 — 주 CTA 어휘(홈 .home-cta·.tb-more)와 통일.
      장식 그림자는 원부 정리 때 걷은 것의 잔재였다(2026-08-14 검수). */
-  a.home{display:inline-flex;align-items:center;min-height:48px;background:var(--ink);color:#fff;text-decoration:none;
-    font-size:16px;font-weight:600;padding:12px 32px;border-radius:3px}
-  a.home:active{transform:scale(.98)}
+  .cta{display:block;width:100%;max-width:400px;margin:30px auto 10px;text-align:center;text-decoration:none;
+    background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
   /* 공용 푸터(site_nav.HAND_FOOTER) — 가운데 정렬 한 단 아래에 둔다 */
   body{flex-direction:column}
   footer.sfoot{margin-top:36px;max-width:440px;text-align:center;font-size:13px;line-height:1.7;color:var(--muted)}
@@ -58,13 +57,14 @@ body{padding-bottom:66px}
   <div class="code">404</div>
   <div class="cycle">아공맵</div>
   <h1>찾으시는 페이지가 없네요</h1>
-  <p>주소가 바뀌었거나 사라진 페이지예요.<br>홈에서 다시 시작하거나 <a href="/cycle/">공급 사이클 리포트</a>를 열어 보세요.</p>
-  <a class="home" href="/">홈으로 가기 →</a>
+  <p>주소가 바뀌었거나 사라진 페이지입니다.<br>홈에서 다시 시작하거나 <a href="/cycle/">공급 사이클 리포트</a>를 열어 보세요.</p>
+  <a class="cta" href="/">🏠 아공맵 홈으로</a>
 </div></main>
 <footer class="sfoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
   <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
-  자료: KOSIS·한국부동산원·국토교통부·한국은행 · 공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
+  자료: KOSIS·한국부동산원·국토교통부·한국은행<br>
+  공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
 </div></footer>
 <nav class="bottomnav">
   <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>

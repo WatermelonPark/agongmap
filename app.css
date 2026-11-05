@@ -48,6 +48,7 @@
   .hero .meta{margin-top:34px;font-size:13.5px;color:var(--muted);display:flex;
     gap:16px;flex-wrap:wrap;align-items:center;position:relative;z-index:2}
   .hero .meta .dot{width:4px;height:4px;border-radius:50%;background:var(--muted)}
+  @media(max-width:480px){.hero .meta .dot{display:none}}   /* 좁은 화면에서 줄이 바뀌면 점이 줄 끝에 매달렸다(2026-10-31 디자인 리뷰 2차) — 간격(gap)이 가른다 */
 
   /* READ-ME box */
   .howto{background:var(--ink);color:#e8ebf2;padding:28px 0;font-size:14.5px}
@@ -96,7 +97,7 @@
   .read{font-size:14px;color:var(--ink2);background:var(--paper2);border-radius:0;
     padding:14px 18px;margin:16px 0;line-height:1.6}
   .read b{color:var(--ink)}
-  .read .lab{display:inline-block;font-size:11.5px;font-weight:500;color:#fff;
+  .read .lab{display:inline-block;font-size:13px;font-weight:500;color:#fff;
     background:var(--ink2);padding:2px 9px;border-radius:0;margin-right:8px;
     vertical-align:middle;letter-spacing:.04em}
 
@@ -119,23 +120,23 @@
   .conf .gauge i.mid{background:var(--flow)}
   .conf .ctxt{font-size:13.5px;color:var(--ink2);line-height:1.5;flex:1;min-width:220px}
   .conf .ctxt b{color:var(--ink)}
-  .conf .clevel{font-size:12px;font-weight:600;letter-spacing:.02em;padding:3px 10px;
+  .conf .clevel{font-size:13px;font-weight:600;letter-spacing:.02em;padding:3px 10px;
     border-radius:0;flex:none}
   .cl-high{background:#dff3ec;color:#157a61}
   .cl-mid{background:#fdf3d8;color:#7a5800}
-  .conf .meta{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .conf .meta{font-size:13px;color:var(--muted);margin-top:3px}
 
   /* 본문 파트 배너 (청록) */
   .mainbanner{background:#1a6b54;padding:22px 0;margin-top:10px}   /* 흰 글자 대비 4.26 → 6.5 */
   .mainbanner .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
-  .mainbanner .mainkicker{display:inline-block;font-size:12px;font-weight:500;
+  .mainbanner .mainkicker{display:inline-block;font-size:13px;font-weight:500;
     background:#fff;color:#1a6b54;padding:3px 12px;border-radius:0;margin-bottom:10px}
   .mainbanner p{margin:0;color:#fff;font-size:15px;line-height:1.6}
   .mainbanner b{color:#fff}
   /* 참고 배너 & 섹션 */
   .refbanner{background:var(--paper2);padding:22px 0;margin-top:10px}
   .refbanner .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
-  .refbanner .refkicker{display:inline-block;font-size:12px;font-weight:500;
+  .refbanner .refkicker{display:inline-block;font-size:13px;font-weight:500;
     background:#fff;color:#7a5800;padding:3px 12px;border-radius:0;margin-bottom:10px}
   .refbanner p{margin:0;color:#3a2e00;font-size:15px;line-height:1.6}
   .refbanner b{color:#1a1500}
@@ -147,7 +148,7 @@
   .hcol{border-radius:0;padding:20px 22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
   .hcol.short{border-top:4px solid #e0564a}
   .hcol.long{border-top:4px solid #2c5f9e}
-  .hcol .htag{font-size:12.5px;font-weight:600;letter-spacing:.03em;color:var(--muted);margin-bottom:6px}
+  .hcol .htag{font-size:13px;font-weight:600;letter-spacing:.03em;color:var(--muted);margin-bottom:6px}
   .hcol .hbig{font-size:22px;font-weight:600;color:var(--ink);margin-bottom:14px}
   .hcol ul{margin:0;padding-left:18px}
   .hcol li{font-size:14px;line-height:1.65;color:var(--ink2);margin-bottom:9px}
@@ -170,6 +171,7 @@
   footer .src{margin-top:10px;line-height:1.8}
   footer b{color:var(--ink2)}
   footer a{color:var(--ink2)}   /* 생성 페이지 공용 푸터 링크(2026-10-30 디자인 리뷰 — zone 푸터가 브라우저 기본 파랑이었다) */
+  footer.sitefoot{text-align:center}   /* 공용 푸터(site_nav.site_footer)는 어느 페이지에서나 가운데 정렬(2026-10-31 디자인 리뷰 2차 — zone 만 왼쪽이었다) */
   /* 푸터 '만든이' 메일(mailto, 2026-09-28 작은 글씨 정리 — 홈 운영 주체 줄을 빼며 제보 경로를 푸터 메일 링크로 남겼다)은 둘레
      글자색을 따른다. /cycle/ 푸터처럼 링크 색을 따로 두지 않은 곳에서 브라우저 기본 파랑으로 튀지 않게. */
   footer a[href^="mailto:"]{color:inherit}
@@ -380,7 +382,7 @@
   /* 버튼 모양은 홈 '이달의 통계' 버튼(.tb-sub a)과 한 규칙이다(2026-10-05 대표 요청 — 글자 링크 → 버튼). 설명은 버튼 아래 한 덩어리. */
   .shero .shero-link span{color:var(--muted);font-size:13px;display:block;margin-top:6px}
   .dash{padding:0 0 18px}
-  .dash .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 18px}
+  .dash .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}   /* 제목(.shero .wrap)·모드 단추와 같은 왼쪽 끝(2026-10-31 디자인 리뷰 2차 — 18px 이라 6px 어긋났다) */
   .ctrl{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
     padding:14px 16px;margin-top:-6px;position:relative;z-index:2;}
   .ctrl-row{display:flex;align-items:center;gap:12px;padding:6px 0}
@@ -455,7 +457,7 @@
     text-decoration:none}   /* 그림자 없음 — 장식 금지(audit_design) */
   body.cy-scrolled .cy-toc{display:inline-flex}
   .tldr{padding:44px 0 8px}
-  .tldr-kicker{font-size:12.5px;font-weight:500;color:var(--muted);margin-bottom:10px}
+  .tldr-kicker{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:10px}
   .tldr-h{font-size:clamp(22px,4.2vw,30px);font-weight:700;letter-spacing:-.02em;
     line-height:1.25;margin-bottom:26px}
   .tldr-h b{color:#1a6b54}
@@ -493,7 +495,7 @@
   @media(max-width:720px){.tldr-grid{grid-template-columns:1fr;gap:16px;
     grid-template-areas:"diagram" "steps" "rate" "more"}}
   /* ===== 통계: 기본/심화 전환 ===== */
-  .smode{display:flex;gap:6px;justify-content:center;margin:12px auto 20px;max-width:560px;padding:0 16px;position:relative;z-index:3}
+  .smode{display:flex;gap:6px;justify-content:center;margin:12px auto 20px;max-width:560px;padding:0 24px;position:relative;z-index:3}
   /* 넓은 화면은 아래 하위 탭·제목과 같은 왼쪽 끝(본문 단 .wrap)에 맞춘다 — 상단 탭만 가운데 정렬이라 축이 셋이었다(2026-10-30 디자인 리뷰 2차) */
   @media(min-width:600px){.smode{max-width:var(--col-wide);padding:0 24px;justify-content:flex-start}}
   .smode button{flex:1;font-family:inherit;font-size:14px;font-weight:600;padding:11px 0;
@@ -588,7 +590,7 @@
   /* 가로로 미는 지도의 가장자리 흐림(home-app.js scrollCue, 2026-10-30 디자인 리뷰 2차) — 밀 것이 남은 쪽에만 지면색으로 흐린다.
      지도 칸이 불투명이라 표의 배경 그림자 대신 덮개를 쓴다. 누름은 막지 않는다. */
   .cue{position:relative}
-  .cue::before,.cue::after{content:'';position:absolute;top:0;bottom:0;width:28px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:1}
+  .cue::before,.cue::after{content:'';position:absolute;top:0;bottom:0;width:28px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:3}
   .cue::before{left:0;background:linear-gradient(to left,rgba(244,246,245,0),var(--paper))}
   .cue::after{right:0;background:linear-gradient(to right,rgba(244,246,245,0),var(--paper))}
   .cue.cue-l::before,.cue.cue-r::after{opacity:1}
@@ -609,6 +611,8 @@
     text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
   .rank-tbl thead th{background:var(--paper2);font-weight:600;color:var(--ink2);font-size:13px}
   .rank-tbl td:nth-child(2){text-align:left;font-weight:600}
+  .map-rows{font-size:13px;color:var(--ink2);margin:0 0 6px;line-height:1.5}   /* 시군구 타일 칸 줄의 뜻 — 지도 위 한 줄(홈·시세 탭) */
+  .rank-tbl thead th:nth-child(2){text-align:left}   /* 지역 열은 머리도 왼쪽(칸과 같은 정렬, 2026-10-31 디자인 리뷰 2차) */
   /* 지역명 = 그 지역 그래프로 가는 링크(openTrendRegion) */
   .rank-tbl a.rk-go{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;
     display:block;margin:-4px 0;padding:4px 0}   /* 누름 면을 칸 높이 전체로(글자 줄 15px → 칸 높이, 백로그 36-8) */
@@ -1320,7 +1324,7 @@ table.adv thead th:first-child{text-align:center}
   .home-sec .tb-bar p.map-src{flex:1 1 0;min-width:0;margin:0;max-width:none;font-size:13px;line-height:1.55;color:var(--muted);text-align:left;word-break:keep-all;
     container-type:inline-size}
   @container (max-width:470px){.map-src #map-span{display:block}.map-src .ms-sep{display:none}}
-  @media(max-width:560px){.home-sec .tb-bar p.map-src{flex-basis:100%}}
+  @media(max-width:560px){.home-sec .tb-bar p.map-src,.home-sec .tb-bar .tb-when{flex-basis:100%}}   /* 세 모드 모두 단추는 기준 줄 아래 같은 자리 — 시세 모드만 단추가 기준 줄 옆에 붙어 모드를 바꾸면 단추가 오르내렸다(2026-10-31 디자인 리뷰 2차) */
   .map-src #map-span{color:var(--ink2);font-weight:600}
   #sec-score.mm-price .map-src{display:none}   /* 공급 출처 줄 — 시세 모드(주간·월간)에서는 그 지도의 출처가 아니다(mapMode) */
   /* 이달의 통계 입구 — 글자 링크였는데 2026-10-05 대표 요청으로 버튼(흰 바탕·먹색 테두리). 바로 위 '시도별로 자세히 보기'(먹색
