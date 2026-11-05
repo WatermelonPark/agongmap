@@ -340,19 +340,30 @@ def test_monthly_card_generator_restamps_the_page(tmp_path, monkeypatch):
     assert '?v=' + old not in html, '카드를 새로 구웠는데 지난 판 주소가 남았다'
 
 
-def test_batch_bakes_the_monthly_card_after_the_gate():
-    """배치(update-cloud.yml)가 월간 카드를 pytest 게이트 **뒤**, pillow 가 있을 때 주간 카드 다음에 굽는다(로컬 bat 순서는
-    test_batch_parity 가 본다). 게이트 앞에 두면 pillow 가 없는 자리라 매 회차 죽는다(test_test_deps_are_installed).
+def test_batch_bakes_the_monthly_card_before_the_gate_and_after_pillow():
+    """배치(update-cloud.yml)가 월간 카드를 **pillow 설치 뒤, pytest 게이트 앞**에, 주간 카드 다음에 굽는다
+    (로컬 bat 순서는 test_batch_parity 가 본다).
 
-    변이(각각 실제로 확인): 월간 카드 줄을 지우거나 pytest 줄 앞으로 옮기면 빨개진다.
+    ⚠️ 2026-11-06 에 게이트 뒤 → 앞으로 옮겼다. 게이트가 카드를 **재기** 때문이다: 원고 제목에 자리표가
+       들어갈 수 있어(예: '적정의 {{v:share:평택:2028}}') 새 데이터가 들어오면 제목의 숫자가 바뀌고
+       카드도 다시 그려져야 한다. 카드를 뒤에 두었더니 그 수가 움직인 날마다 옛 카드와 새 제목이 어긋나
+       데이터 커밋이 통째로 막혔다(런 42053599155: 카드 257% 대 제목 256%, 그날 세 번 연속 실패).
+       산출물을 재는 시험은 그 산출물을 만드는 단계 뒤에 와야 한다.
+    ⚠️ 그래도 **pillow 설치 뒤**여야 한다 — 설치 앞에 두면 매 회차 ModuleNotFoundError 로 죽는데
+       `|| echo ::warning` 이라 배치는 초록으로 끝난다(2026-08-04 그렇게 네 회차 연속 조용히 실패했고
+       /weekly/ og:image 가 3주 동안 옛 지도에 고정됐다). 그래서 설치 줄도 카드와 함께 앞으로 옮겼다.
+
+    변이(각각 실제로 확인): 월간 카드 줄을 지우거나 pytest 줄 뒤로 되돌리거나 pip 설치 줄 앞으로 옮기면
+      빨개진다.
     픽스처: 저장소 워크플로 파일.
     """
     y = io.open(os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml'), encoding='utf-8').read()
     lines = [l.strip() for l in y.splitlines() if not l.strip().startswith('#')]
     at = lambda pat: next(i for i, l in enumerate(lines) if re.search(pat, l))
-    gate, wk, mo = at(r'python3 -m pytest tools/tests'), at(r'python3 tools/make_weekly_share\.py'), \
-        at(r'python3 tools/make_monthly_share\.py')
-    assert gate < wk < mo
+    pip, wk, mo, gate = (at(r'pip install .*\bpillow\b'), at(r'python3 tools/make_weekly_share\.py'),
+                         at(r'python3 tools/make_monthly_share\.py'), at(r'python3 -m pytest tools/tests'))
+    assert pip < wk < mo < gate, \
+        'pillow 설치 → 주간 카드 → 월간 카드 → 게이트 순서가 아니다: %s' % [pip, wk, mo, gate]
 
 
 def test_pressing_share_twice_restores_the_button():
