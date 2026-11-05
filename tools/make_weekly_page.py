@@ -185,6 +185,22 @@ MAP_BOX_CSS = ('.mm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
                '.mm-scroll svg a{cursor:pointer}.mm-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}'
                '.mm-scroll svg a:focus:not(:focus-visible){outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}')
 MAP_CSS = MAP_BOX_CSS + '.mm-swipe{display:none}@media(max-width:520px){.mm-swipe{display:inline}}'
+# 밀어 보는 지도의 가장자리 흐림(2026-10-31 디자인 리뷰 2차 — 홈·시세 탭에는 .cue 가 있는데 그 거울인 /weekly/ 머리 지도와 시도 리포트
+# 조각에는 없었다). 홈 app.css .cue 와 같은 규칙·같은 동작이다: 상자(.cue) 위에 덮개를 그리고, 밀 것이 남은 쪽만 켠다.
+# 바탕색 덮개(background local) 방식은 불투명한 칸 아래에 그려져 정작 넘친 자리에서 보이지 않았다.
+CUE_CSS = ('.cue{position:relative}.cue::before,.cue::after{content:"";position:absolute;top:0;bottom:0;width:28px;'
+           'pointer-events:none;opacity:0;transition:opacity .15s;z-index:3}'
+           '.cue::before{left:0;background:linear-gradient(to left,rgba(244,246,245,0),#f4f6f5)}'
+           '.cue::after{right:0;background:linear-gradient(to right,rgba(244,246,245,0),#f4f6f5)}'
+           '.cue.cue-l::before,.cue.cue-r::after{opacity:1}')
+# 덮개를 켜고 끄는 함수 — sel 에 맞는 상자를 .cue 로 감싸고(이미 감싸여 있으면 그대로) 스크롤·크기 변화마다 다시 잰다.
+# 숨은 상자는 폭이 0 이라 건너뛰고, 보일 때 다시 부르면 된다(돌려준 함수). /weekly/ 와 zone.js 가 같은 글자를 싣는다.
+CUE_JS = ('function cueBox(s){var w=s.parentNode;if(!w||!w.classList)return function(){};'
+          'if(!w.classList.contains("cue")){w=document.createElement("div");'
+          'w.className="cue";s.parentNode.insertBefore(w,s);w.appendChild(s);}'
+          'function f(){if(!s.clientWidth)return;var r=s.scrollWidth-s.clientWidth-s.scrollLeft;'
+          'w.classList.toggle("cue-r",r>2);w.classList.toggle("cue-l",s.scrollLeft>2);}'
+          's.addEventListener("scroll",f,{passive:true});window.addEventListener("resize",f);f();return f;}')
 
 
 def _home_const(src, name):
@@ -413,7 +429,7 @@ NAV_ON = N.HREF[NAV_TAB]
 # 데스크톱 머리 위 빈칸(백로그 36-9, 2026-10-06 대표 결정) — 머리 위 여백 52px 이 넓은 화면에서는 첫 줄 앞 빈 띠로 보였다.
 # 720px 이상에서만 24px 로 줄인다(모바일은 그대로). 뼈대는 배치 산출물이라 생성기가 없으면 넣는다(put_nav).
 HEAD_DESKTOP_CSS = '@media(min-width:720px){header{padding-top:24px}}'
-NAV_ON_CSS = '.nav-btn.on{color:#fff}'   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다
+NAV_ON_CSS = N.NAV_ON_CSS   # 이 페이지는 공용 시트를 안 읽으므로 규칙을 같이 싣는다(정본 site_nav)
 _NAV_A = re.compile(r'<a class="nav-btn(?: on)?"(?: aria-current="page")? href="([^"]*)"')
 _NAV_BLOCK = re.compile(r'<nav class="bottomnav">.*?</nav>', re.S)
 _FOOTER_CSS = re.compile(r'((?:^|[}\s])footer\{[^}]*?font-size:)[\d.]+px')
@@ -564,13 +580,13 @@ TABLE_CSS = ('.sggt summary{cursor:pointer;font-size:15px;font-weight:600;color:
              'border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}'
              '.sggt .tbl{overflow-x:auto}'
              '.sggt table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}'
-             '.sggt thead th{font-size:12px;font-weight:600;color:var(--muted);text-align:right;padding:8px 5px;'
+             '.sggt thead th{font-size:13px;font-weight:600;color:var(--muted);text-align:right;padding:8px 5px;'
              'border-bottom:1.5px solid var(--ink);white-space:nowrap;cursor:pointer;user-select:none}'
              '.sggt thead th:first-child,.sggt tbody th{text-align:left}'
              '.sggt tbody th{font-weight:400;color:var(--ink);padding:7px 5px;border-bottom:1px solid var(--line)}'
              '.sggt td{padding:7px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;color:var(--ink2)}'
              '.sggt td.up{color:var(--up2)}.sggt td.dn{color:var(--dn2)}'
-             '.sggt .note{font-size:12.5px;color:var(--muted);margin:10px 0 0}'
+             '.sggt .note{font-size:13px;color:var(--muted);margin:10px 0 0}'
              # 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄)
              '.note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}')
 
@@ -726,14 +742,15 @@ def build(W, Q):
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
         '  <div class="minimap">',
-        '    <div class="mm-scroll">%s</div>' % svg,
+        '    <div class="cue"><div class="mm-scroll">%s</div></div>' % svg,
         # 범례는 왼쪽 하락 → 오른쪽 상승(시세 가로축 정본, 2026-10-06) — 홈 시세 지도 wg-key 와 같은 방향(전수리뷰 X2-9·Z2-7)
         '    <div class="mm-cap"><span><i style="background:#3a7bd5"></i>하락</span>'
         '<span><i style="background:#e0564a"></i>상승</span><span>시군구 %s</span>'
         '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'
         '<a class="go" href="/#stats-market-week-rank">TOP 10 →</a></div>' % map_what,   # 시세 탭 순위 보기(2026-10-10)
         '  </div>',
-        '  <style>%s</style>' % MAP_CSS,
+        '  <style>%s</style>' % (MAP_CSS + CUE_CSS),
+        '  <script>(function(){%sdocument.querySelectorAll(".minimap .mm-scroll").forEach(cueBox);})();</script>' % CUE_JS,
     ])
 
     # ── 시군구 TOP 3 (홈 TOP 10 과 같은 대상: SGG_QNAME 에 이름이 있고 값이 있는 곳)
@@ -892,10 +909,27 @@ _CAP_RADIUS = re.compile(r'(\.mm-cap i\{[^}]*border-radius:)\s*2px')
 FOOTER_SRC = '한국부동산원 R-ONE 전국주택가격동향조사'
 
 
+MIN_PX = 13
+
+
+def put_min_font(s):
+    """뼈대 <style> 의 13px 미만 글자를 13px 로(2026-10-31 디자인 리뷰 2차 — /weekly/ 머리 일정 줄·TOP 3 기준 줄·지도 캡션·
+    'TOP 10 →' 이 12~12.5px 로 남아 있었다). 뼈대는 손으로 관리하는 자리지만 배치가 매 회차 이 함수를 지나게 해 손이 옛 값을
+    되살려도 다음 회차에 맞춰진다. SVG 글자 규칙(fill: 을 쓰는 규칙, CLAUDE.md 하한의 제외)과 svg 선택자는 건드리지 않는다.
+    test_page_min_font 가 구워진 /weekly/ 를 잰다."""
+    def fix(m):
+        sel, body = m.group(1), m.group(2)
+        if 'svg' in sel or 'fill:' in body:
+            return m.group(0)
+        return sel + '{' + re.sub(r'font-size:\s*1[0-2](?:\.\d+)?px', 'font-size:%dpx' % MIN_PX, body) + '}'
+    return re.sub(r'(<style>.*?</style>)',
+                  lambda st: re.sub(r'([^{}<>]+)\{([^{}]*)\}', fix, st.group(1)), s, flags=re.S)
+
+
 def put_footer(s):
     """푸터를 사이트 공용 정본(site_nav.site_footer)으로 — 뼈대의 옛 한 줄 푸터에는 개인정보처리방침·면책이 없었다
     (2026-10-30 디자인 리뷰). 뼈대를 손으로 고치지 않고 매 회차 이 함수가 굽는다."""
-    pat = re.compile(r'<footer>.*?</footer>', re.S)
+    pat = re.compile(r'<footer(?: class="sitefoot")?>.*?</footer>', re.S)   # 정본이 class 를 단 뒤(2026-10-31)에도 다시 찾는다
     if len(pat.findall(s)) != 1:
         raise SystemExit('weekly/index.html 에서 <footer> 를 하나 찾지 못했다')
     nl = '\r\n' if '\r\n' in s else '\n'
@@ -1015,6 +1049,7 @@ def render(s, W, Q, root=None):
     s = put_coverage(s, W)             # Dataset 기간 시작을 데이터에서(overflow)
     s = put_source(s)
     s = put_footer(s)                  # 공용 푸터(2026-10-30 디자인 리뷰)
+    s = put_min_font(s)                # 글자 하한 13px(2026-10-31 디자인 리뷰 2차)
     s = put_more(s)                    # '더 둘러보기' 링크·설명(전수리뷰 Z2-8)
     s = _CAP_RADIUS.sub(lambda m: m.group(1) + 'var(--r-touch)', s)
     p = W['rows'][-1]['p']

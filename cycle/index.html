@@ -445,6 +445,7 @@ h2.t .t-sub{display:block;font-size:clamp(16px,2.2vw,19px);font-weight:600;color
 
 </main>
 <footer><div class="wrap">
+  <div style="margin-bottom:10px"><b>아공맵</b> — 아파트 공급 지도</div>
   <div><b>방법.</b> KOSIS 아파트 실거래가격지수(매매·전세)·주택건설 인허가/착공/준공·주택보급률, 한국은행 CD금리를 시도×분기로 정합. 각 고리는 시차상관(한쪽이 먼저 움직이고 다른 쪽이 따라오는 시간차를 0~수년 범위에서 탐색)으로 추정. 인허가는 연말 쏠림(<span data-d="q4_span">2007~2025</span>년 합계 4분기 <span data-d="q4">42</span>%)이 커 매매→인허가 고리만 연 단위로 분석. 상관(r)은 함께 움직이는 정도, 신뢰도는 우연일 확률(p)로 판정.</div>
   <div class="src"><b>한계.</b> 가격은 지수(절대가격 아님), 누적 공급은 2011년 이후 신규분. 표본은 시도당 분기 <span data-d="n_q">49</span>개·연 <span data-d="l3_n">18</span>개. 상관은 인과의 충분한 증명이 아니며, 시간 순서로 방향을 가렸을 뿐이다. 2020~22년은 금리 급변이 사이클을 일시적으로 압도했다.<br>
     <span style="display:inline-block;margin-top:8px"><a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a></span></div>
@@ -503,7 +504,7 @@ function initReport(){
 const jibC="#2c5f9e";
 new Chart(cL1,{type:'bar',data:{labels:D.link1_new.levels,
   datasets:[{data:D.link1_new.jeonse_rise,
-    backgroundColor:['#e0564a','#c0cbc5','#3a7bd5'],borderRadius:6}]},
+    backgroundColor:['#ff5a4f','#ffc233','#3ecf7a'],borderRadius:6}]},   /* 적음·보통·많음 = 입주 신호등 색(홈·시세 탭과 같은 정본, 2026-10-31 디자인 리뷰 2차 — 시세 빨강·파랑을 쓰고 있었다) */
   options:{responsive:true,maintainAspectRatio:false,
     plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'전세 상승률 '+fmtN(c.raw)+'%'}}},
     scales:{x:{grid:{display:false},title:{display:true,text:'분기별 공급(입주) 수준'},
