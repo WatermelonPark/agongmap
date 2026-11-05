@@ -343,3 +343,106 @@ def test_publish_bakes_everything_the_gate_measures():
             assert out in targets, (
                 '%s 를 돌리는데 그 산출물 %r 이 커밋 대상에 없다 — 되돌려지고 다음 회차에 또 같은 일이 된다'
                 % (gen, out))
+
+
+def _publish_push_step():
+    """'변경 있으면 커밋·푸시' 스텝을 **푸시 루프까지 통째로** 떼어 온다(위 함수는 커밋 줄에서 자른다)."""
+    t = _pub_text()
+    i = t.index('- name: 변경 있으면 커밋·푸시')
+    run = t.index('run: |', i) + len('run: |')
+    lines = []
+    for ln in t[run:].splitlines()[1:]:
+        if ln.strip() and not ln.startswith('          '):
+            break
+        lines.append(ln[10:] if len(ln) > 10 else '')
+    assert any('push 재시도' in l for l in lines), '푸시 루프를 찾지 못했다'
+    return '\n'.join(lines) + '\n'
+
+
+def test_publish_forwards_to_the_remote_tip_before_baking():
+    """발행은 **굽기 전에** 원격 끝으로 전진한다 — 옛 바탕에서 구워 생기는 충돌을 없앤다.
+
+    왜: 런은 자기 트리거 커밋을 체크아웃한다. 앞 런이 그 뒤에 산출물을 커밋해 두면 이 런은 옛 바탕에서
+    같은 생성 파일을 다시 써서 rebase 가 충돌한다. 2026-11-02 단지 11편(런 41459123576)과 같은 날
+    도시 편(런 41457156426)이 그렇게 유실됐다 — 둘 다 앞 런의 커밋과 부딪혔다.
+
+    무엇을 바꾸면 빨개지나: 전진 단계를 지우면, 생성기 뒤로 옮기면(그러면 옛 바탕에서 구운 것이 남는다).
+    픽스처: 저장소의 실제 워크플로. 전진이 첫 생성기보다 앞인지 스텝 구간에서 센다.
+    """
+    t = _pub_text()
+    steps = t[t.index('    steps:'):]
+    fwd = steps.find('git reset --hard FETCH_HEAD')
+    assert fwd >= 0, '굽기 전에 원격 끝으로 전진하지 않는다 — 옛 바탕에서 구워 rebase 가 충돌한다'
+    assert 'git fetch origin main' in steps[:fwd], '전진 전에 원격을 받지 않는다'
+    first_gen = min(i for i in (steps.find('python tools/make_city_moveins.py'),
+                                steps.find('python tools/split_data.py')) if i >= 0)
+    assert fwd < first_gen, '전진이 생성기보다 뒤다 — 옛 바탕에서 구운 산출물이 그대로 남는다'
+
+
+def test_publish_stops_instead_of_repeating_the_same_rebase_conflict(tmp_path):
+    """rebase 가 충돌하면 **한 번에 멈추고** 무엇이 걸렸는지 적는다 — 같은 충돌을 세 번 되풀이하지 않는다.
+
+    왜: 충돌 파일은 전부 생성 산출물이다. 바탕이 그대로인 채 다시 걸면 같은 충돌이 그대로 나오므로
+    재시도는 쓸모가 없다. 그런데도 세 번 되풀이한 끝에 "push 3회 모두 실패"로 끝나, 그 회차 발행이
+    유실됐다(2026-11-02 단지 11편 런 41459123576). 지금은 충돌을 push 거부와 가려, 충돌 파일 이름과
+    풀는 방법(수동 실행)을 적고 바로 멈춘다.
+
+    무엇을 바꾸면 빨개지나(둘 다 확인): 충돌 가름을 지워 다시 세 번 되풀이하게 하면, 충돌 파일 이름을
+      빼면.
+    픽스처: 임시 bare 저장소를 원격으로 두고 **진짜 충돌을 만든다** — 다른 런이 같은 생성 파일을 먼저
+      고쳐 올린 상태. 네트워크 없이 로컬 경로 원격으로 돈다.
+    """
+    bash = shutil.which('bash')
+    if not bash:
+        pytest.skip('bash 가 없다 — 워크플로 조각을 돌려 볼 수 없다(CI 러너에는 있다)')
+
+    def git(cwd, *a):
+        return subprocess.run(['git'] + list(a), cwd=str(cwd), capture_output=True, text=True,
+                              encoding='utf-8', errors='replace')
+
+    bare = tmp_path / 'remote.git'
+    subprocess.run(['git', 'init', '-q', '--bare', '-b', 'main', str(bare)], check=True)
+
+    # ① 원격에 바탕을 만든다.
+    seed = tmp_path / 'seed'
+    seed.mkdir()
+    for rel in ('index.html', 'reports/index.html', 'feed.xml', 'sitemap.xml', 'danji/index.html'):
+        (seed / rel).parent.mkdir(parents=True, exist_ok=True)
+        (seed / rel).write_text('바탕\n', encoding='utf-8')
+    git(seed, 'init', '-q', '-b', 'main')
+    git(seed, 'config', 'user.email', 't@t'), git(seed, 'config', 'user.name', 't')
+    git(seed, 'add', '-A'), git(seed, 'commit', '-qm', 'base')
+    git(seed, 'remote', 'add', 'origin', str(bare)), git(seed, 'push', '-q', 'origin', 'main')
+
+    # ② 다른 런이 같은 파일을 먼저 고쳐 올렸다.
+    other = tmp_path / 'other'
+    git(tmp_path, 'clone', '-q', str(bare), str(other))
+    git(other, 'config', 'user.email', 'o@o'), git(other, 'config', 'user.name', 'stats-bot')
+    for rel in ('index.html', 'reports/index.html'):
+        (other / rel).write_text('앞 런이 쓴 판\n', encoding='utf-8')
+    git(other, 'commit', '-qam', '원고 발행: 콘텐츠 페이지 재생성'), git(other, 'push', '-q')
+
+    # ③ 이 런은 **옛 바탕**에서 같은 파일을 다르게 구웠다 — 전진 단계가 없을 때의 상태 그대로다.
+    mine = tmp_path / 'mine'
+    git(tmp_path, 'clone', '-q', str(bare), str(mine))
+    git(mine, 'reset', '-q', '--hard', 'HEAD~1')
+    git(mine, 'config', 'user.email', 'm@m'), git(mine, 'config', 'user.name', 't')
+    for rel in ('index.html', 'reports/index.html'):
+        (mine / rel).write_text('이 런이 쓴 판\n', encoding='utf-8')
+
+    p = subprocess.run([bash, '-c', _publish_push_step()], cwd=str(mine), capture_output=True,
+                       text=True, encoding='utf-8', errors='replace', timeout=180)
+    out = p.stdout + p.stderr
+    assert p.returncode != 0, '충돌인데 성공으로 끝났다:\n' + out
+    errs = [l for l in out.splitlines() if '::error::' in l]
+    assert errs, '무엇이 잘못됐는지 적지 않는다:\n' + out
+    # ⚠️ 'index.html' 을 출력 전체에서 찾으면 안 된다 — git 이 찍는 'CONFLICT ... in index.html' 이 걸려,
+    #    우리 알림에서 파일 이름을 빼도 통과한다(처음 쓴 판이 그랬다). ::error:: 줄에서만 센다.
+    assert any('index.html' in l for l in errs), \
+        '알림에 충돌 파일 이름이 없다 — 어느 산출물이 부딪혔는지 알 수 없다:\n' + '\n'.join(errs)
+    assert any('수동 실행' in l for l in errs), '푸는 방법을 적지 않는다:\n' + '\n'.join(errs)
+    assert 'push 재시도 2' not in out, \
+        '같은 충돌을 되풀이한다 — 바탕이 그대로면 결과도 같다:\n' + out
+    # rebase 를 물고 끝내지 않는다(다음 명령이 "rebase in progress" 로 막히지 않게).
+    assert not (mine / '.git' / 'rebase-merge').exists() and not (mine / '.git' / 'rebase-apply').exists(), \
+        'rebase 를 물고 끝났다'
