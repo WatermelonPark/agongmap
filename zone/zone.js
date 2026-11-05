@@ -19,7 +19,10 @@ var own=b.parentNode.parentNode.getAttribute("data-ref");
 b.setAttribute("aria-expanded",(!p.hidden&&own===p.dataset.k)?"true":"false");});});});
 /* 시세 지도 주간·월간(zone_map, 2026-10-10) — 단추(data-zm)와 같은 값의 묶음(.zm)만 보인다. 지도가 상자보다 넓을 때만
    '옆으로 밀어 전체 보기'를 켠다(홈 syncSwipe 와 같은 생각 — 숨은 묶음은 넓이가 0 이라 보일 때 다시 잰다). */
-function zmSwipe(){document.querySelectorAll(".zwk .mm-scroll").forEach(function(s){var c=s.nextElementSibling,h=c&&c.querySelector(".zm-swipe");if(h)h.hidden=!(s.scrollWidth>s.clientWidth+1);});}
+/* 밀어 보는 상자(분기표·지도 조각)의 가장자리 흐림 — /weekly/ 와 같은 MW.CUE_JS(2026-10-31 디자인 리뷰 2차). */
+function cueBox(s){var w=s.parentNode;if(!w||!w.classList)return function(){};if(!w.classList.contains("cue")){w=document.createElement("div");w.className="cue";s.parentNode.insertBefore(w,s);w.appendChild(s);}function f(){if(!s.clientWidth)return;var r=s.scrollWidth-s.clientWidth-s.scrollLeft;w.classList.toggle("cue-r",r>2);w.classList.toggle("cue-l",s.scrollLeft>2);}s.addEventListener("scroll",f,{passive:true});window.addEventListener("resize",f);f();return f;}
+var CUES=[];document.querySelectorAll(".ztb-scroll,.zwk .mm-scroll").forEach(function(s){CUES.push(cueBox(s));});
+function zmSwipe(){document.querySelectorAll(".zwk .mm-scroll").forEach(function(s){var p=s.parentNode,n=(p&&p.classList&&p.classList.contains("cue"))?p:s,c=n.nextElementSibling,h=c&&c.querySelector(".zm-swipe");if(h)h.hidden=!(s.scrollWidth>s.clientWidth+1);});CUES.forEach(function(f){f();});}
 document.querySelectorAll(".zm-seg button[data-zm]").forEach(function(b){b.addEventListener("click",function(){var k=b.getAttribute("data-zm");
 document.querySelectorAll(".zm-seg button[data-zm]").forEach(function(x){var on=x===b;x.classList.toggle("on",on);x.setAttribute("aria-pressed",on?"true":"false");});
 document.querySelectorAll(".zm[data-zm]").forEach(function(m){m.hidden=m.getAttribute("data-zm")!==k;});

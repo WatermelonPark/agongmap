@@ -260,8 +260,24 @@ def test_generated_pages_are_in_sitemap_and_llms():
     llms = io.open(os.path.join(ROOT, 'llms.txt'), encoding='utf-8').read()
     for sec, slug in built:
         assert '/%s/%s/' % (sec, slug) in sm, '%s/%s 가 sitemap 에 없다' % (sec, slug)
-    for sec, slug in built[:10]:
-        assert '/%s/%s/' % (sec, slug) in llms, '%s/%s 가 llms.txt 에 없다' % (sec, slug)
+    # ⚠️ llms.txt 는 섹션마다 **최신 몇 편**만 싣는다(make_llms_txt.CONTENT_PER_SECTION — AI 가 읽는
+    #    요약이라 길이를 묶었다). 그래서 '맨 앞 열 편'을 재면, 어느 섹션이 그 수를 넘는 날 빨개진다.
+    #    2026-11-05 city 가 열한 편이 되자 가장 오래된 글이 목록에서 밀려나, 발행 게이트(런
+    #    42021784296)와 데이터 배치 게이트가 그 때문에 막혔다. 재야 할 것은 '싣는 수'가 아니라
+    #    '섹션이 빠지지 않았는가 · 최신 글이 빠지지 않았는가'다.
+    have = set(built)
+    newest = {}
+    for sec, slug, path in CM.posts(ROOT):
+        if (sec, slug) not in have:
+            continue
+        meta, _ = CM.read(path, sec, slug)
+        key = (meta['updated'], meta['date'], slug)
+        if sec not in newest or key > newest[sec][0]:
+            newest[sec] = (key, slug)
+    assert newest, '구워진 글의 섹션을 찾지 못했다'
+    for sec, (_, slug) in sorted(newest.items()):
+        assert '/%s/%s/' % (sec, slug) in llms, \
+            '%s 섹션 최신 글(%s)이 llms.txt 에 없다 — 그 섹션이 빠졌거나 최신순이 아니다' % (sec, slug)
 
 
 # ── ⑤ 홈 묶음·robots·수정일 (요청 2) ────────────────────────────────────────
@@ -993,7 +1009,8 @@ def test_collector_reads_every_city_placeholder_kind():
     import make_city_moveins as MCM
     # 기대 종류를 **여기 적는다**. CT.CITY_KINDS 로 돌면 목록을 줄일 때 시험도 같이 줄어 아무것도
     # 지키지 못한다(2026-10-30 변이로 확인 — 허브 카드 순서에서 똑같은 실수를 했다).
-    want = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio')
+    want = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio',
+             'share3', 'moveins3')
     assert tuple(CT.CITY_KINDS) == want, '도시 자리표 종류가 바뀌었다: %s' % (CT.CITY_KINDS,)
     for kind in want:
         for pre in ('v', 'table', 'chart'):
@@ -1602,3 +1619,169 @@ def test_readme_documents_the_v2_fields():
     for k in ('moveins', 'first-home', 'redevelop', 'claim'):
         assert k in s
     assert str(CM.TITLE_MAX) in s and str(CM.TLDR_MAX) in s
+
+
+def _city_json(root=None):
+    return json.load(io.open(os.path.join(root or ROOT, 'tools', 'data', 'city_moveins.json'),
+                             encoding='utf-8'))
+
+
+def test_three_year_window_starts_the_year_after_the_list_begins():
+    """3년 창은 자료의 기준월 **다음 해**부터 세 해다 — 연도를 코드에 박지 않는다.
+
+    왜 창을 자료에서 뽑나. 글이 `{{v:share3:청주}}` 라고만 적으면 해가 바뀌어도 그 글은 늘 '앞으로 3년'을
+    말한다. 창을 코드에 박으면 2028년이 와도 옛 3년을 말한다(2026-09-11 교훈: 시험·코드에 현재 모델을
+    박지 말 것).
+    무엇을 바꾸면 빨개지나: 창 길이를 바꾸거나 시작 해를 한 해 밀면.
+    픽스처: tools/data/city_moveins.json 의 start 를 직접 읽어 따로 계산한다.
+    """
+    y0 = int(_city_json()['start'][:4])
+    assert CT.FUT_YEARS == 3, '3년 합계인데 창이 %d년이다' % CT.FUT_YEARS
+    assert CT._future_years(CT.load()) == tuple(str(y0 + 1 + i) for i in range(3)), \
+        '3년 창이 자료의 기준월 다음 해부터가 아니다'
+
+
+def test_three_year_sum_for_a_city_matches_the_data():
+    """도시의 `v:moveins3`·`v:share3` 가 자료의 세 해 합과 적정물량 3년치에서 나온다.
+
+    왜: 글쓴이가 손으로 셈하면 글마다 숫자가 갈린다(대표 지시 11-05 로 모든 연재가 이 수를 적게 됐다).
+    무엇을 바꾸면 빨개지나: 합에서 한 해를 빼면, 적정물량에 3을 곱하지 않으면(한 해치로 나누면 세 배가
+      된다), 단위를 빼면.
+    픽스처: 저장소의 실제 city_moveins.json 에서 **따로 계산**한다 — 기대값을 박지 않는다.
+    """
+    data = CT.load()
+    want = CT._future_years(data)
+    cities = _city_json().get('cities') or {}
+    full = [n for n, f in sorted(cities.items())
+            if all(y in (f.get('by_year') or {}) for y in want)]
+    if not full:
+        pytest.skip('세 해가 모두 있는 도시가 자료에 없다')
+    n = full[0]
+    f = cities[n]
+    tot = sum(int(f['by_year'][y]) for y in want)
+    assert CT.value(data, 'moveins3', [n]) == CT.num(tot) + '세대'
+    assert CT.value(data, 'share3', [n]) == '%d%%' % int(round(tot / float(f['need'] * 3) * 100))
+    # 한 해치 적정물량으로 나누는 실수를 걸러 둔다 — 그러면 세 배가 되고 글이 '300%' 를 말한다.
+    one = '%d%%' % int(round(tot / float(f['need']) * 100))
+    assert CT.value(data, 'share3', [n]) != one or f['need'] == 0, \
+        '3년 합을 한 해 적정물량으로 나눴다'
+    # 연도를 적으면 거부한다 — 창은 자료가 고른다.
+    for kind in ('share3', 'moveins3'):
+        with pytest.raises(CT.TableError):
+            CT.value(data, kind, [n, want[0]])
+        with pytest.raises(CT.TableError):       # 표가 아니라 값이다
+            CT.table(data, kind, [n])
+
+
+def test_three_year_sum_for_a_sido_is_the_sites_own_future_window():
+    """시도의 3년 합계는 사이트 모델의 '앞으로 H분기'를 그대로 쓴다 — 홈 판정과 같은 수다.
+
+    왜: 따로 세면 글과 홈이 다른 말을 한다. supply 표의 '앞으로 N분기 지어질 물량' 줄이 분자이고,
+    분기 적정물량 × H 가 분모다.
+    무엇을 바꾸면 빨개지나: 분모를 ref×4(한 해치)로 바꾸면, 분자를 입주물량 표의 세 해 합으로 바꾸면,
+      H 가 12분기가 아닐 때도 '3년'이라 말하게 하면.
+    픽스처: 저장소의 실제 data-core.js(ADV.sido.zones)에서 따로 계산한다.
+    """
+    data = CT.load()
+    z = {x['z']: x for x in (data['sido'].get('zones') or [])}
+    key = next((k for k in ('서울', '인천', '전국') if k in z), None) or sorted(z)[0]
+    H = data['sido'].get('H')
+    assert H == 12, '사이트 모델의 앞으로 %s분기가 3년이 아니다 — share3 의 이름부터 다시 볼 것' % H
+    fut, ref = int(z[key]['fut']), z[key]['ref']
+    assert CT.value(data, 'moveins3', [key]) == CT.num(fut) + '세대'
+    assert CT.value(data, 'share3', [key]) == '%d%%' % int(round(fut / float(ref * H) * 100))
+    # supply 표의 그 줄과 같은 수여야 한다(글이 표와 다른 말을 하지 않게).
+    _, body, _ = CT.table(data, 'supply', [key])
+    row = dict((r[0], r[1]) for r in body)
+    assert row['앞으로 %d분기 지어질 물량' % H] == CT.num(fut) + '세대'
+    # H 가 3년이 아니게 되면 조용히 다른 길이를 재지 않고 막는다.
+    bad = {'sido': dict(data['sido'], H=8), 'cities': data.get('cities') or {}}
+    with pytest.raises(CT.TableError):
+        CT.value(bad, 'share3', [key])
+
+
+def test_a_year_not_published_yet_is_a_wait_not_an_error(tmp_path):
+    """창 안의 해가 아직 공개 목록에 없으면 **기다림**이다 — 원고를 올릴 수 있어야 한다.
+
+    왜: 입주 예정 목록은 앞으로 갈수록 얇다. 2029년분이 없는 도시의 글을 오류로 막으면 그 글은 분양이
+    끝날 때까지 올릴 수조차 없다(2026-10-29 군포 때와 같은 순환). 그래서 검사는 `…` 로 넘기고 생성기는
+    그 글만 건너뛰며, 자료가 들어온 회차에 저절로 구워진다(총괄 요청 11-05).
+
+    무엇을 바꾸면 빨개지나: PendingYear 를 그냥 TableError 로 되돌리면, 검사기가 기다림을 고칠 곳으로
+      세면, 없는 해를 0 으로 때워 합을 내면(글이 틀린 3년 합을 말한다).
+    픽스처: 실제 도시 하나에서 창의 마지막 해를 **지운** 자료를 지어 쓴다 — 오늘 자료에 그런 도시가
+      있는지에 기대지 않는다.
+    """
+    data = CT.load()
+    want = CT._future_years(data)
+    cities = dict(_city_json().get('cities') or {})
+    full = [n for n, f in sorted(cities.items())
+            if all(y in (f.get('by_year') or {}) for y in want)]
+    if not full:
+        pytest.skip('세 해가 모두 있는 도시가 자료에 없다')
+    name = full[0]
+    thin = json.loads(json.dumps(cities[name]))
+    thin['by_year'].pop(want[-1])
+    d2 = dict(data, cities={'start': (data.get('cities') or {}).get('start'),
+                            'cities': dict(cities, **{name: thin})})
+    assert issubclass(CT.PendingYear, CT.Pending) and issubclass(CT.Pending, CT.TableError), \
+        '기다림이 TableError 의 하위가 아니다 — 배치가 그 글에서 죽는다'
+    for kind in ('share3', 'moveins3'):
+        with pytest.raises(CT.PendingYear):
+            CT.value(d2, kind, [name])
+    # 없는 해를 0 으로 때우지 않는다: 합이 세 해가 다 있을 때보다 작아지는 일이 없어야 한다.
+    with pytest.raises(CT.PendingYear):
+        CT.city_moveins3_n(d2, thin, name)
+    # 그 해가 다시 들어오면 그대로 나온다.
+    assert CT.value(data, 'share3', [name]).endswith('%')
+
+    # 검사기는 그 글을 '고칠 곳'으로 세지 않는다.
+    import content_check as CC
+    d = tmp_path / 'content' / 'city'
+    d.mkdir(parents=True)
+    (d / 'wait3.md').write_text(
+        '---\ntitle: "%s 모의 글"\n'
+        'summary: "%s 의 3년 입주 합계를 공급 데이터와 함께 봅니다. 숫자는 국가 통계에서 옵니다."\n'
+        'date: "2026-11-05"\nupdated: "2026-11-05"\nsection: "city"\nregion: "%s"\n'
+        'tldr:\n  - 결론\n  - 근거\n  - 전망\naudience: 독자\nkey:\n  - label: 3년 합계\n    value: "{{v:share3:%s}}"\n'
+        'city:\n  - %s\ntopic: moveins\n---\n\n'
+        '3년 합계는 적정물량의 {{v:share3:%s}} 입니다.\n' % (name, name, name, name, name, name),
+        encoding='utf-8')
+    problems, waits, _ = CC.check_post(str(d / 'wait3.md'), d2, root=str(tmp_path))
+    assert not problems and len(waits) == 1, '기다림이 고칠 곳으로 잡혔다: %s' % (problems,)
+
+
+def test_the_moveins_chart_carries_the_three_year_line(tmp_path):
+    """`{{chart:moveins:…}}` 아래에 3년 합계 한 줄이 따라붙고, 글자로만 나가는 곳에도 같은 문장이 간다.
+
+    왜: 카드는 세 칸까지라(좁은 화면에서 줄이 늘어난다) 넷째를 넣으면 '흐름' 카드가 밀려난다. 그래서
+    각주 아래 한 줄로 둔다. 대체 텍스트(alt)에도 넣어야 llms-full.txt 가 같은 문장을 받는다.
+    무엇을 바꾸면 빨개지나: 그 줄을 빼면, alt 에서 빼면, 자료가 얇은 도시에서 그림까지 막으면.
+    픽스처: 세 해가 다 있는 도시와, 마지막 해를 지운 자료를 함께 쓴다.
+    """
+    data = CT.load()
+    want = CT._future_years(data)
+    cities = dict(_city_json().get('cities') or {})
+    full = [n for n, f in sorted(cities.items())
+            if all(y in (f.get('by_year') or {}) for y in want)]
+    if not full:
+        pytest.skip('세 해가 모두 있는 도시가 자료에 없다')
+    name = full[0]
+    spec = CT.chart(data, 'moveins', [name])
+    assert len(spec.get('cards') or []) <= 3, '카드가 세 칸을 넘었다'
+    foot = spec.get('foot')
+    assert foot and '3년 합계' in foot and '적정물량 대비' in foot, '3년 합계 줄이 없다: %r' % foot
+    assert want[0] in foot and want[-1] in foot, '어느 세 해인지 적지 않았다: %r' % foot
+    assert CT.value(data, 'share3', [name]) in foot, '그 줄의 비율이 자리표와 다르다'
+    assert foot in spec['alt'], '대체 텍스트에 그 줄이 없다 — llms-full.txt 가 못 받는다'
+    # 페이지에 실제로 실린다.
+    html_out = MC._chart_html(spec)
+    assert foot in html_out and 'cfoot3' in html_out, '그림 아래에 그 줄이 보이지 않는다'
+    # 자료가 얇으면 그 줄만 빠지고 그림은 그대로 나온다.
+    thin = json.loads(json.dumps(cities[name]))
+    thin['by_year'].pop(want[-1])
+    d2 = dict(data, cities={'start': (data.get('cities') or {}).get('start'),
+                            'cities': dict(cities, **{name: thin})})
+    s2 = CT.chart(d2, 'moveins', [name])
+    assert not s2.get('foot'), '세 해가 안 찼는데 3년 합계를 적었다'
+    assert s2['series'][0]['points'], '그림까지 막혔다 — 그 줄만 빠져야 한다'

@@ -204,14 +204,6 @@ if errorlevel 1 (
   exit /b 27
 )
 
-rem Test gate: after the generators, before the commit (same place as the cloud batch).
-rem Failing tests mean a code regression; the data is not committed.
-python -m pytest tools\tests -q
-if errorlevel 1 (
-  echo ERROR: pytest failed - not committing
-  exit /b 24
-)
-
 python tools\make_weekly_share.py
 if errorlevel 1 (
   echo ERROR: make_weekly_share failed - newsletter skipped
@@ -229,6 +221,18 @@ rem Per-post share cards (backlog 50). Same place as the cloud batch: after the 
 rem A failure only means new posts fall back to the section card, so it does not stop the run.
 python tools\make_content_cards.py
 if errorlevel 1 echo WARN: make_content_cards failed - new posts fall back to the section card
+
+rem Test gate: after the generators AND the share cards, before the commit (same place as the
+rem cloud batch). Failing tests mean a code regression; the data is not committed.
+rem The cards come first because the gate measures them: a manuscript title can hold a placeholder
+rem (e.g. '적정의 {{v:share:평택:2028}}'), so new data changes the card text too. With the cards
+rem drawn after the gate, test_card_text_matches_the_manuscript_title compared the old card with the
+rem new title and blocked the commit on every day the data moved (2026-11-05 run 42053599155).
+python -m pytest tools\tests -q
+if errorlevel 1 (
+  echo ERROR: pytest failed - not committing
+  exit /b 24
+)
 
 rem 이중 구현 정합성 검사(check_dual_calc)는 2026-08-06에 폐지했다.
 rem 점수를 tools\sido_zones.py가 빌드 시점에 계산해 ADV.sido로 싣고 홈·지역

@@ -70,7 +70,7 @@ def check_post(path, data, root=ROOT, lenient=False):
                 out.append((_front_line(text, 'city'), str(e)))
         try:
             CT.check_lengths(CT.fill_meta(meta, data))
-        except CT.PendingCity:
+        except CT.Pending:
             pass                                   # 아직 안 받은 도시의 자리표 — 아래 본문 검사가 기다림으로 센다
         except CT.TableError as e:
             msg = str(e)
@@ -81,7 +81,7 @@ def check_post(path, data, root=ROOT, lenient=False):
     for m in PLACEHOLDER.finditer(body):
         try:
             _probe(data, m)
-        except CT.PendingCity as e:
+        except CT.Pending as e:
             waits.append((offset + _line_of(body, m.start()), '%s — %s' % (m.group(0), e)))
         except CT.TableError as e:
             out.append((offset + _line_of(body, m.start()), '%s — %s' % (m.group(0), e)))
@@ -185,7 +185,8 @@ def main(argv=None):
         for ln, why in sorted(term_notes(text) + layout_notes(text, summary, sec)):
             print('  ※    %s:%d  %s' % (rel, ln, why))
         for ln, why in sorted(waits):
-            # 아직 수집되지 않은 시군구는 고칠 곳이 아니다 — 올리면 배치가 받아 넣고 다음 구움에서 나온다.
+            # 아직 자료가 없는 것은 고칠 곳이 아니다(안 받은 도시, 아직 분양 안 된 연도) —
+            # 올리면 배치가 받아 넣고 다음 구움에서 나온다.
             print('  …    %s:%d  %s' % (rel, ln, why))
         if waits and not problems:
             waiting += 1
@@ -198,7 +199,7 @@ def main(argv=None):
             print('  ✗    %s:%d  %s' % (rel, ln, why))
     print('\n원고 %d편 중 %d편에 고칠 곳이 있다.%s%s' % (
         len(posts), bad,
-        ' %d편은 아직 안 받은 도시를 기다린다(올려도 된다).' % waiting if waiting else '',
+        ' %d편은 아직 안 들어온 자료를 기다린다(올려도 된다).' % waiting if waiting else '',
         ' (--lenient: 2026-11-05 양식은 묻지 않았다 — 커밋 전에 기본값으로 다시 돌릴 것)' if lenient else ''))
     if bad:
         print('쓸 수 있는 자리표는 content/README.md 에 있다.')
