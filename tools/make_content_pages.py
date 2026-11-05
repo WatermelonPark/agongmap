@@ -214,6 +214,10 @@ def _chart_html(spec):
         out.append('<p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p>')
     out.append('<figcaption>%s%s</figcaption>' % (
         html.escape(spec['title']), ' · ' + html.escape(spec['note']) if spec.get('note') else ''))
+    # 3년 합계 한 줄(content_tables 가 짓는다). 각주와 같은 글자 크기로 두되 줄은 따로 — 각주에 이어
+    # 붙이면 출처 문장 끝에 숫자가 매달려 읽기 어렵다.
+    if spec.get('foot'):
+        out.append('<p class="cfoot3">%s</p>' % html.escape(spec['foot']))
     out.append('</figure>')
     return ''.join(out)
 
@@ -442,6 +446,7 @@ EXTRA_CSS = LIST_CSS + """
 .ccard b{display:block;font-size:18px;font-weight:600;line-height:1.25;letter-spacing:-.01em}
 .ccard span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
 .cchart figcaption,.clegend{font-size:13px;color:var(--muted);margin:6px 0 0;line-height:1.55}
+.cfoot3{font-size:13px;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
 .clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}

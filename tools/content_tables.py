@@ -10,6 +10,7 @@
   supply:<지역>            공급 판정 요약(적정물량·앞으로 3년·재고·누적 과부족·등급)
   stats:<계열>:<지역>      STATS 계열 최근 12기간(인허가·미분양·전세가율·준공·착공)
   weekly:<지역>            최근 8주 매매·전세 변동률
+값 전용으로 더 있는 것은 아래 value() 와 content/README.md 에 적는다(share3·moveins3 등).
 """
 import io
 import json
@@ -27,12 +28,29 @@ class TableError(Exception):
     """자리표를 채우지 못했다 — 생성기가 배치를 세운다."""
 
 
-class PendingCity(TableError):
+class Pending(TableError):
+    """아직 자료가 없어 **기다리는** 자리표 — 오타가 아니다.
+
+    원고 검사는 이것을 경고(…)로 넘겨 원고를 올릴 수 있게 하고, 생성기는 그 글만 건너뛴다. 자료가
+    들어온 회차에 저절로 구워진다. 오타는 이 갈래에 넣지 않는다 — 그냥 TableError 로 막는다.
+    """
+
+
+class PendingCity(Pending):
     """아직 수집되지 않은 시군구다 — 오타가 아니라 '배치가 다음에 받아 올' 도시.
 
     이름표(홈 SGG_QNAME)로 시도를 찾을 수 있으면 실재하는 시군구이고, 수집기가 원고의 region 을 읽어
     다음 회차에 넣는다. 그래서 원고 검사는 이것을 **경고**로 넘기고(올릴 수 있게) 생성기는 그 글만
     건너뛴다. 모르는 이름이면 그냥 TableError 다 — 오타를 통과시키지 않는다.
+    """
+
+
+class PendingYear(Pending):
+    """3년 합계가 재는 연도 하나가 아직 공개 목록에 없다 — 분양이 되는 대로 들어온다.
+
+    왜 기다림인가. 입주 예정 목록은 앞으로 갈수록 얇다(마지막 입주월은 f['occ_max']). 2029년분이 없는
+    도시의 글을 막으면, 그 글은 분양이 끝날 때까지 올릴 수조차 없다. 그래서 '올려 두고 기다리는' 쪽으로
+    둔다 — 자료가 들어온 회차에 저절로 구워진다(총괄 요청 2026-11-05).
     """
 
 
@@ -104,11 +122,26 @@ def _city_years(f, year=None):
 
 # 첫 인자로 **도시 이름**이 올 수 있는 자리표 종류. 수집기(make_city_moveins)가 원고에서 도시를
 # 찾을 때 이 목록을 쓴다 — 종류를 늘리면 여기도 늘려야 그 도시가 수집된다(시험이 대조한다).
-CITY_KINDS = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio')
+CITY_KINDS = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio',
+              'share3', 'moveins3')
 # streak·weekly 는 뺀다 — 주간 시세는 data-sgg 에서 오고 도시 자료가 필요 없다. 게다가 그 인자는
 # '부천 소사구' 처럼 구 이름이라 수집 대상에 넣으면 시도를 못 찾는 경고만 쏟아진다(2026-10-30 확인).
 
 SRC_CITY = '한국부동산원 입주예정물량정보 · 청약홈 분양정보'
+
+# 3년 합계 자리표(share3·moveins3)가 재는 창. 사이트 모델의 '앞으로 3년'과 같은 길이다
+# (시도는 ADV.sido.H 분기 = 12분기). 연도를 글이 적지 않는 까닭: 해가 바뀌면 그 글이 옛 창을 말한다.
+FUT_YEARS = 3
+
+
+def _future_years(data):
+    """3년 합계가 더할 연도들 — 자료의 기준월 다음 해부터 FUT_YEARS 해.
+
+    기준월(cities['start'])은 수집기가 적는 '이 목록이 어느 달부터인가'이고, 그림의 기본 연도도 같은
+    자리에서 온다(_chart_moveins). 그래서 그림이 집어 보이는 해가 3년 창의 첫 해다 — 둘이 갈리지 않는다.
+    """
+    y0 = int(((data.get('cities') or {}).get('start') or '2026-01')[:4])
+    return tuple(str(y0 + 1 + i) for i in range(FUT_YEARS))
 
 
 def _upto(f):
@@ -169,6 +202,32 @@ def city_share(data, f, year):
     return '%d%%' % int(round(v / float(f['need']) * 100))
 
 
+def city_moveins3_n(data, f, name):
+    """도시의 3년 입주 합(세대, 정수). 창 안의 해 하나라도 없으면 PendingYear 를 올린다."""
+    by = f.get('by_year') or {}
+    want = _future_years(data)
+    missing = [y for y in want if y not in by]
+    if missing:
+        raise PendingYear('%s 의 %s년 입주 예정이 아직 목록에 없다 — %s. 분양이 되는 대로 들어온다'
+                          % (name, '·'.join(missing), _upto(f)))
+    return sum(int(by[y]) for y in want)
+
+
+def city_moveins3(data, f, name):
+    """`{{v:moveins3:청주}}` → '21,859세대' (3년 합)."""
+    return num(city_moveins3_n(data, f, name)) + '세대'
+
+
+def city_share3(data, f, name):
+    """`{{v:share3:청주}}` → '106%' (3년 합 ÷ 한 해 적정물량 × 3).
+
+    왜 여는가. 한 달·한 해 몰림 숫자만 적으면 '그래서 3년을 보면 어떤가' 가 빠진다(대표 지시 11-05).
+    글쓴이가 손으로 셈하면 글마다 숫자가 갈리므로 자리표로 받는다(총괄 요청 11-05).
+    """
+    tot = city_moveins3_n(data, f, name)
+    return '%d%%' % int(round(tot / float(f['need'] * FUT_YEARS) * 100))
+
+
 def city_ratio(data, f, year, base):
     """두 해 물량의 비 — `{{v:ratio:의정부:2028:2027}}` → '19%'(2028년이 2027년의 몇 %인가).
 
@@ -196,6 +255,39 @@ def sido_need(data, key):
     if not z or not z.get('ref'):
         raise TableError('%r 의 적정물량이 없다' % key)
     return num(int(round(z['ref'] * 4))) + '호'
+
+
+def _sido_fut3(data, key):
+    """시도의 (앞으로 3년 물량, 3년 적정물량). 사이트 모델의 그 값을 그대로 쓴다 — 따로 세지 않는다.
+
+    `zone.fut` 은 '앞으로 H분기 지어질 물량'(supply 표의 그 줄)이고 `zone.ref` 는 분기 적정물량이다.
+    홈의 등급도 이 둘로 나온다. 그래서 글의 '3년 합계 적정물량 대비'가 홈 판정과 같은 수가 된다.
+
+    ⚠️ H 가 12분기(3년)가 아니면 막는다. 이름이 '3년'인데 창이 달라지면 글이 틀린 말을 하게 된다 —
+       조용히 다른 길이를 재는 것이 가장 나쁘다.
+    """
+    z = _zones(data).get(key)
+    if not z or not z.get('ref') or z.get('fut') is None:
+        raise TableError('%r 의 앞으로 3년 물량·적정물량이 없다' % key)
+    H = data['sido'].get('H')
+    if H != FUT_YEARS * 4:
+        raise TableError('사이트 모델의 앞으로 %s분기가 3년(12분기)이 아니다 — share3 를 쓸 수 없다' % H)
+    return int(z['fut']), z['ref'] * H
+
+
+def sido_moveins3(data, key):
+    """`{{v:moveins3:서울}}` → '…세대' (앞으로 3년 지어질 물량). supply 표의 그 줄과 같은 수다."""
+    return num(_sido_fut3(data, key)[0]) + '세대'
+
+
+def sido_share3(data, key):
+    """`{{v:share3:서울}}` → '…%' (앞으로 3년 물량 ÷ 3년 적정물량).
+
+    ⚠️ 도시의 share3 와 분자의 출처가 다르다 — 시도는 준공 실적과 착공에서 민 추정이고, 도시는 청약홈·
+       부동산원의 입주 예정 목록이다(sido_share 의 같은 주의와 한 뜻이다).
+    """
+    fut, need3 = _sido_fut3(data, key)
+    return '%d%%' % int(round(fut / float(need3) * 100))
 
 
 def sido_share(data, key, year):
@@ -498,7 +590,7 @@ def table(data, kind, args):
         if f:
             return city_moveins(data, f, args[0], args[1] if len(args) > 1 else None)
         return moveins(data, region_key(data, args[0]), args[1] if len(args) > 1 else None)
-    if kind in ('share', 'need', 'pop', 'peak', 'ratio'):
+    if kind in ('share', 'need', 'pop', 'peak', 'ratio', 'share3', 'moveins3'):
         raise TableError('%s 는 표가 아니라 값이다 — {{v:%s:…}} 로 쓸 것' % (kind, kind))
     if kind == 'complexes':
         if not 1 <= len(args) <= 2:
@@ -529,7 +621,7 @@ def table(data, kind, args):
         if sgg_codes(data, args[0]):
             return weekly_sgg(data, args[0])
         return weekly(data, region_key(data, args[0]))
-    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:streak, v:need, v:pop, v:peak, v:ratio, v:asof)' % kind)
+    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:share3, v:moveins3, v:streak, v:need, v:pop, v:peak, v:ratio, v:asof)' % kind)
 
 
 def value(data, kind, args):
@@ -565,6 +657,16 @@ def value(data, kind, args):
         if kind == 'ratio':
             return city_ratio(data, f, args[1], args[2])
         return city_peak(data, f, args[1] if len(args) > 1 else None)
+    if kind in ('share3', 'moveins3'):
+        if len(args) != 1:
+            raise TableError('%s 자리표는 지역 하나를 받는다 — 연도는 적지 않는다(자료가 3년을 고른다)' % kind)
+        f = city(data, args[0])
+        if f:
+            return (city_share3 if kind == 'share3' else city_moveins3)(data, f, args[0])
+        if region_key(data, args[0]) in _zones(data):
+            key = region_key(data, args[0])
+            return (sido_share3(data, key) if kind == 'share3' else sido_moveins3(data, key))
+        _pending_or_error(args[0], '%r 의 3년 합계를 낼 자료가 없다(도시 자료에도 시도에도 없다)' % args[0])
     if kind == 'share':
         if len(args) != 2:
             raise TableError('share 자리표는 지역:연도 꼴이다')
@@ -639,10 +741,27 @@ def _chart_moveins(data, name, year=None):
         name, ', '.join('%s년 %s세대' % (y, num(v)) for y, v in pts))
     if need:
         alt += ' 한 해 적정물량은 %s세대.' % num(need)
+    # 3년 합계 한 줄. 카드로 넣지 않는 까닭: 카드는 세 칸까지라(좁은 화면에서 줄이 늘어난다) 넷째가
+    # 들어가면 '흐름' 카드가 밀려난다. 각주 아래 한 줄로 두면 그림을 글자로만 내보내는 곳
+    # (llms-full.txt)도 같은 문장을 받는다. 자료가 아직 얇은 도시는 이 줄만 빠지고 그림은 그대로 나온다.
+    foot3 = None
+    try:
+        f3 = city(data, name)
+        if f3:
+            foot3 = '3년 합계(%s~%s년) %s세대 · 적정물량 대비 %s' % (
+                _future_years(data)[0], _future_years(data)[-1],
+                num(city_moveins3_n(data, f3, name)), city_share3(data, f3, name))
+        else:
+            k = region_key(data, name)
+            foot3 = '앞으로 3년 %s · 적정물량 대비 %s' % (sido_moveins3(data, k), sido_share3(data, k))
+    except TableError:
+        foot3 = None
+    if foot3:
+        alt += ' ' + foot3 + '.'
     return {'kind': 'bars', 'title': '%s 해마다 입주 물량' % name, 'alt': alt, 'note': note,
             'series': [{'name': '입주 세대', 'points': pts}],
             'rule': (need, '적정 %s세대' % num(need)) if need else None,
-            'cards': cards[:3]}
+            'cards': cards[:3], 'foot': foot3}
 
 
 def _chart_weekly(data, name):
