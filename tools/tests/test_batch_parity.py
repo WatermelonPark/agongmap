@@ -511,7 +511,11 @@ def test_the_rebake_workflow_calls_the_publish_one_instead_of_copying_it():
     assert 'TARGETS' not in r, '재생성 쪽에 커밋 대상을 베껴 적었다'
 
     # ② main 푸시마다 돈다. 경로를 **고르지** 않는다(코드만 바뀐 병합을 놓치지 않게).
-    on = r[r.index('on:'):r.index('concurrency:')]
+    # 트리거 구간만 잘라 본다. 끝을 'concurrency:' 로 잡으면 그 키가 없는 파일에서 터진다
+    # (2026-11-06 재생성에서 그 키를 빼자 시험이 ValueError 로 죽었다) — 다음 **맨 왼쪽 키**까지로 센다.
+    m = re.search(r'^on:\s*\n(?:[ \t]+[^\n]*\n|\n)*', r, re.M)
+    assert m, '재생성에서 트리거 구간을 읽지 못했다'
+    on = m.group(0)
     assert re.search(r'push:\s*\n\s*branches:\s*\[\s*main\s*\]', on), 'main 푸시에서 돌지 않는다'
     assert not _paths_block(on, 'paths'), \
         "재생성에 paths 가 있다 — 경로를 고르면 그 밖의 병합을 또 놓친다(그게 이 워크플로가 생긴 까닭이다)"
@@ -520,10 +524,17 @@ def test_the_rebake_workflow_calls_the_publish_one_instead_of_copying_it():
     assert _paths_block(on, 'paths-ignore') == _paths_block(p, 'paths'), \
         '재생성의 paths-ignore 가 발행의 paths 와 다르다 — 어느 푸시가 두 번 굽거나 아예 안 구워진다'
 
-    # ④ 발행과 같은 동시 실행 그룹. 둘은 같은 파일을 커밋한다.
-    grp = lambda s: re.search(r'concurrency:\s*\n\s*group:\s*([^\s]+)', s)
-    assert grp(r) and grp(p) and grp(r).group(1) == grp(p).group(1), \
-        '재생성과 발행이 다른 그룹이다 — 동시에 돌면 rebase 가 충돌해 한 회차를 잃는다'
+    # ④ 줄 세우기는 **불리는 쪽**의 그룹이 한다. 부르는 쪽에는 그룹을 두지 않는다.
+    #
+    # ⚠️ 처음에는 '둘이 같은 그룹이어야 한다'고 적었는데 그게 틀렸다. 부르는 쪽과 불리는 쪽이 같은
+    #    그룹이면 GitHub 이 호출을 거부한다 — 잡이 하나도 생기지 않고 'This run likely failed because of
+    #    a workflow file issue' 로 끝난다(2026-11-06 첫 런 42210348489). 그룹을 빼자 바로 돌았다
+    #    (런 42212024087, rebake / publish success). 변이를 다섯 넣어 다 빨개지는 것까지 확인했는데도
+    #    단정 자체가 규칙과 어긋나 있었다 — 워크플로 문법은 한 번 돌려 봐야 알 수 있다.
+    grp = lambda s: re.search(r'^concurrency:\s*\n\s*group:\s*([^\s]+)', s, re.M)
+    assert not grp(r), \
+        '재생성에 concurrency 가 있다 — 불리는 쪽과 그룹이 겹치면 GitHub 이 호출을 거부한다(런 42210348489)'
+    assert grp(p), '발행 쪽 그룹이 사라졌다 — 그러면 재생성과 발행이 동시에 돌아 rebase 가 충돌한다'
 
 
 def test_the_rebake_loop_can_not_trigger_itself():
