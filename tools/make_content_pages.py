@@ -363,73 +363,53 @@ def restore_tables(html_text, blocks):
 
 
 # ── 페이지 ──────────────────────────────────────────────────────────────────
-LIST_CSS = """/* 콘텐츠 목록 부품(백로그 50, 2026-10-29) — 콘텐츠 페이지와 홈 "최근 리포트" 가 같은 마크업을 쓴다.
-   모바일은 왼쪽 썸네일 리스트, 768px 이상은 앨범형 3열. 썸네일은 그 글의 OG 카드를 줄인 것이다. */
-/* 카테고리 칩 — 섹션 목록 맨 위에서 서로 건너뛴다. 허브에서 옮겨 왔다(대표 결정 10-29). */
+LIST_CSS = """/* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) — 허브·섹션 목록·홈 "최근 리포트"·시도 리포트 '이 지역 글'이 카드 하나를 쓴다.
+   카드 = 칩(지역·질문) → 결론 제목(두 줄) → 핵심 숫자(큰 값 + 작은 이름) → 날짜. 그림 썸네일은 없다(112×63 안 글자가 4~6px 라
+   읽히지 않았고, 제목이 글 내용을 말하지 못해 '무엇이 내 관심사인지' 알 수 없었다 — 대표 지적 11-05). 모바일은 한 단, 768px
+   이상은 3열 같은 높이. */
 .rchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
-.rchip{display:inline-block;text-decoration:none}
-/* 카테고리 카드(허브 첫 화면) — 썸네일 없이 글자만. 모바일 2열, 768px 이상 3열(요청 ②). */
-.hgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0 0 22px}
-.hcard{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid var(--line);
- border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
-.hcard h3{margin:0;font-size:15px;font-weight:600;display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
-.hcard h3 em{font-style:normal;font-size:13px;font-weight:600;color:var(--paper);background:var(--ink2);
- border-radius:3px;padding:2px 6px}
-.hcard p{margin:0;font-size:13px;line-height:1.5;color:var(--ink2);
- display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.hc-m{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hc-l{display:none}   /* 모바일에서는 최신 글 둘을 숨긴다 — 2열 카드 여섯 장이 한 화면에 들어오게(총괄 10-30) */
-.hc-go{margin-top:auto;font-size:13px;font-weight:600;color:var(--ink)}
-/* '기본 개념' 줄 — 카테고리 카드와 같은 부품이되 주기 표지(em)·글 수(hc-m)가 없다. 상시 글이라 셀 것이
-   없고, 모바일에서도 접지 않는다(총괄 10-30: 탭을 뺐으니 허브 안에서 눈에 띄어야 한다). */
-.hgrid-basic{margin-top:-10px}
-.hgrid-basic .hcard p{-webkit-line-clamp:2}
-/* 글 목록 — 모바일은 왼쪽 썸네일 리스트, PC 는 앨범형(요청 ②③). 마크업은 하나다. */
-.plist{display:grid;gap:10px}
-.pcard{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:start;padding:10px;
- border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
-.pcard.pc-noimg{grid-template-columns:1fr}
-.pcard img{width:112px;height:63px;object-fit:cover;border-radius:3px;display:block;background:var(--paper2)}
-.pc-b{min-width:0}
-.pcard b{display:block;font-size:14px;font-weight:600;line-height:1.45;
- display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pcard span{display:none}
-.pcard i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:4px}
-.rh2{font-size:16px;font-weight:600;margin:0 0 12px}
-@media (min-width:768px){
-  .hc-l{display:block;margin:0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
-  .hgrid{grid-template-columns:repeat(3,1fr);gap:14px}
-  .hcard p{-webkit-line-clamp:3}
-  .plist{grid-template-columns:repeat(3,1fr)}
-  .pcard{grid-template-columns:1fr;gap:0;padding:0;overflow:hidden}
-  .pcard img{width:100%;height:auto;aspect-ratio:480/252;border-radius:0}
-  .pc-b{padding:12px 14px}
-  .pcard b{font-size:15px}
-  .pcard span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
-   font-size:13px;line-height:1.55;color:var(--ink2);margin-top:5px}
-}
-.rchip{font:inherit;font-size:13px;line-height:1;padding:8px 12px;border:1px solid var(--line);
- border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
+.rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:8px 12px;
+ border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.clist a[hidden]{display:none}
-/* 썸네일 없는 글(반박) 카드가 옆 카드 높이로 늘어나 아래가 비었다 — 제 높이로 둔다(2026-10-31 디자인 리뷰 2차). */
-.pcard.pc-noimg{align-self:start}
-/* 600px 이하(대표 10-31 '모두 수정', 디자인 리뷰): 목록 썸네일(112×63)은 그 안 글자가 4~6px 라 읽히지 않아 빼고
-   글자 카드로 둔다. 허브(.hubflow)는 카테고리를 제목 바로 아래 가로 칩 한 줄로 두고, 그 아래 새 글, 맨 아래 기본 개념이다
-   (2차 리뷰 10-31: 칩 줄이 새 글 10편 아래에 묻혀 분류 입구가 안 보였다). 섹션 목록의 칩 줄도 같은 가로 밀기 한 줄이다. */
+.kgrid{display:grid;gap:10px}
+.kcard{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--line);border-radius:3px;
+ background:var(--paper);color:var(--ink);text-decoration:none;min-width:0}
+.kcard[hidden]{display:none}
+.kc-chips{display:flex;gap:5px;flex-wrap:wrap}
+.kc-chip{font-size:13px;line-height:1;padding:4px 7px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
+.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-hook{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+ font-size:16px;font-weight:600;line-height:1.45}
+.kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key small{font-size:13px;color:var(--muted)}
+.kc-date{font-style:normal;font-size:13px;color:var(--muted)}
+/* 질문 카드 — 허브 '질문으로 찾기'. 휴대폰은 질문·글 수만(첫 화면에 넷이 다 들어오게), 768px 이상은 최신 글 둘도. */
+.qgrid{display:grid;gap:8px;margin:0 0 22px}
+.qcard{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:3px;
+ background:var(--paper);color:var(--ink);text-decoration:none}
+.qcard b{font-size:16px;font-weight:600;line-height:1.4}
+.qc-n{font-size:13px;color:var(--muted)}
+.qcard ul{display:none;margin:4px 0 0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
+/* 지역 칩 — 시도별 한 줄. 허브 JS 가 data-city 로 카드를 거른다. JS 가 없으면 전부 보인다. */
+.cityf{margin:0 0 22px}
+.cf-g{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+.cf-g em{font-style:normal;font-size:13px;font-weight:600;color:var(--ink2);min-width:3.2em}
+.cf-n{font-size:13px;color:var(--muted);margin:0 0 12px}
+.rh2{font-size:16px;font-weight:600;margin:0 0 12px}
+.hub-basic-row{font-size:13px;color:var(--ink2);margin:8px 0 0;line-height:1.8}
+.hub-basic-row a{color:var(--ink2)}
+@media (min-width:768px){
+  .kgrid{grid-template-columns:repeat(3,1fr);gap:14px}
+  .qgrid{grid-template-columns:repeat(2,1fr)}
+  .qcard ul{display:block}
+}
 @media (max-width:600px){
-  .pcard{grid-template-columns:1fr}
-  .pcard img{display:none}
   .rchips{flex-wrap:nowrap;overflow-x:auto}
   .rchip{flex:none}
-  .hubflow{display:flex;flex-direction:column}
-  .hubflow .hub-recent{order:1}
-  .hubflow .hub-basic{order:2}
-  .hubflow .hgrid-cat{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:6px;margin:0 0 16px}
-  .hubflow .hgrid-cat .hcard{flex:none;padding:8px 12px}
-  .hubflow .hgrid-cat .hcard h3{font-size:14px}
-  .hubflow .hgrid-cat .hcard p,.hubflow .hgrid-cat .hc-m,.hubflow .hgrid-cat .hc-go{display:none}
+  .cf-g{flex-wrap:nowrap;overflow-x:auto}
+  .cf-g .rchip{flex:none}
 }"""
 # 콘텐츠 페이지는 app.css 를 링크하지 않고 뼈대의 인라인 style 을 쓴다. 홈은 app.css 를 읽는다.
 # 그래서 같은 글자가 두 곳에 있고, test_content_pages 가 app.css 의 LIST_CSS 구간과 대조한다.
@@ -475,8 +455,23 @@ EXTRA_CSS = LIST_CSS + """
 .cl-zero{stroke:var(--line);stroke-width:1}
 .cl-dot{fill:var(--ink)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
-.csum{font-size:16px;line-height:1.75;color:var(--ink);background:var(--paper2);
- border-left:3px solid var(--ink);padding:14px 16px;margin:0 0 20px}
+/* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
+.eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
+.eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
+.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+.ctldr ol{margin:0;padding:0 0 0 1.3em}
+.ctldr li{font-size:15.5px;line-height:1.7}
+.caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
+.caud b{color:var(--ink);margin-right:6px}
+.ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey span{font-size:13px;color:var(--muted)}
+.cmore{margin-top:26px}
+.cmore h2{font-size:16px;margin:0 0 10px}
+.cmore-l{display:flex;gap:10px;flex-wrap:wrap}
+.cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;text-decoration:none;color:var(--ink);font-size:14px}
+.cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 .cbody h2{font-size:20px;margin:28px 0 10px}
 .cbody h3{font-size:16.5px;margin:22px 0 8px}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
@@ -564,6 +559,183 @@ def _zone_link(region):
             % (urllib.parse.quote(key), html.escape(SZ.DISPLAY_NAME.get(key, key))))
 
 
+# ── 질문(주제)·카드 부품(2026-11-05 콘텐츠 구조 개편) ─────────────────────────────────────────────────
+# 정본은 content_md.TOPICS(원고 검사가 같은 목록으로 topic 을 본다). 여기 이름으로 생성기·시험이 읽는다.
+TOPICS = CM.TOPICS
+TOPIC_BY = {k: (q, short, sec) for k, q, short, sec in TOPICS}
+SECTION_TOPIC = {sec: k for k, _q, _s, sec in TOPICS}
+
+
+def topic_of(meta):
+    """글의 질문 키. 없으면 섹션의 기본 질문(옛 양식 글을 lenient 로 읽은 경우)."""
+    t = meta.get('topic')
+    return t if t in TOPIC_BY else SECTION_TOPIC[meta['section']]
+
+
+def _region_disp(name):
+    import sido_zones as SZ
+    key = SZ.key_of(name) if SZ.key_of(name) in SZ.ORDER else name
+    return SZ.DISPLAY_NAME.get(key, key)
+
+
+def post_cities(meta):
+    """카드·칩에 쓰는 지역 이름 목록. city 가 비면 '시도 전체'(region) 한 칸 — 서울 집값 발언 반박 같은 시도 글."""
+    cities = [c for c in (meta.get('city') or []) if c]
+    if cities:
+        return cities
+    return [_region_disp(meta['region']) + ' 전체'] if meta.get('region') else []
+
+
+def _key_of(meta):
+    k = meta.get('key')
+    if isinstance(k, list) and k and isinstance(k[0], dict):
+        k = k[0]
+    return k if isinstance(k, dict) and k.get('value') else None
+
+
+def card(meta):
+    """카드 하나 — 허브·섹션 목록·홈·시도 리포트가 같은 마크업을 쓴다(CSS 는 LIST_CSS .kcard).
+
+    칩은 지역(첫 도시, 둘 이상이면 '외 N')과 질문의 짧은 이름, 제목은 결론형 한 문장(두 줄에서 자른다), 핵심 숫자는 큰 값과
+    작은 이름, 날짜는 좁은 자리 꼴('26.11.5'). data-city 는 허브 지역 칩이 거르는 값(모든 도시, '|' 로 이어서).
+    """
+    cities = post_cities(meta)
+    tkey = topic_of(meta)
+    chips = ''
+    if cities:
+        chips += '<span class="kc-chip">%s</span>' % html.escape(cities[0] + (' 외 %d' % (len(cities) - 1) if len(cities) > 1 else ''))
+    chips += '<span class="kc-chip kc-t">%s</span>' % html.escape(TOPIC_BY[tkey][1])
+    key = _key_of(meta)
+    key_html = ('<span class="kc-key"><strong>%s</strong><small>%s</small></span>'
+                % (html.escape(key['value']), html.escape(key.get('label') or ''))) if key else ''
+    return ('<a class="kcard" href="/%s/%s/" data-sec="%s" data-topic="%s" data-city="%s">'
+            '<span class="kc-chips">%s</span><b class="kc-hook">%s</b>%s<i class="kc-date">%s</i></a>'
+            % (meta['section'], meta['slug'], meta['section'], tkey, html.escape('|'.join(cities)),
+               chips, html.escape(meta['title']), key_html, _day_short(meta['updated'])))
+
+
+def _newest(metas, n=None):
+    out = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    return out[:n] if n else out
+
+
+def cards_grid(metas, n=None):
+    return '<div class="kgrid">%s</div>' % ''.join(card(m) for m in _newest(metas, n))
+
+
+def city_sido(name):
+    """지역 칩 이름 → 시도 키. '서울 전체' 꼴(시도 글)은 그 시도, 시군구는 코드 접두에서(손 표 없음). 모르면 None."""
+    import sido_zones as SZ
+    if name.endswith(' 전체'):
+        k = SZ.key_of(name[:-3])
+        return k if k in SZ.ORDER else None
+    try:
+        import make_city_moveins as MCM
+        return MCM.sido_of(name)
+    except Exception:
+        return None
+
+
+def city_groups(metas):
+    """[(시도 화면 이름, [지역 칩 이름…])] — 글의 city 에서 모아 시도 표시 순서(DISPLAY_ORDER)로. 글 수 많은 지역이 앞."""
+    import sido_zones as SZ
+    cnt, by = {}, {}
+    for m in metas:
+        for c in post_cities(m):
+            cnt[c] = cnt.get(c, 0) + 1
+            by.setdefault(city_sido(c) or '', set()).add(c)
+    order = [z for z in SZ.DISPLAY_ORDER if z in by] + sorted(k for k in by if k not in SZ.DISPLAY_ORDER)
+    return [(SZ.DISPLAY_NAME.get(z, z) if z else '그 밖', sorted(by[z], key=lambda c: (-cnt[c], c))) for z in order]
+
+
+def city_chips(metas, total_label='글'):
+    """'지역으로 찾기' — 시도별 칩 줄. 칩은 button(JS 가 거른다). JS 없이는 모두 보이는 목록이라 입구 구실은 그대로다."""
+    groups = city_groups(metas)
+    if not groups:
+        return ''
+    rows = ['<div class="cf-g"><em>전체</em><button type="button" class="rchip on" data-city="">%s %d편</button></div>'
+            % (html.escape(total_label), len(metas))]
+    for sido, cities in groups:
+        rows.append('<div class="cf-g"><em>%s</em>%s</div>' % (html.escape(sido), ''.join(
+            '<button type="button" class="rchip" data-city="%s">%s</button>' % (html.escape(c), html.escape(c)) for c in cities)))
+    # 거른 수 줄은 거를 때만 보인다(hidden) — 전체일 때는 '전체' 칩이 이미 편수를 말한다.
+    return '<nav class="cityf" aria-label="지역으로 찾기">%s</nav><p class="cf-n" hidden>%s %d편</p>' % (''.join(rows), html.escape(total_label), len(metas))
+
+
+# 지역 칩이 카드를 거르는 스크립트. 칩을 다시 누르면 푼다. 거른 수는 .cf-n 에 적는다.
+FILTER_JS = ("<script>(function(){var f=document.querySelector('.cityf');if(!f)return;"
+             "var cards=document.querySelectorAll('.kgrid .kcard[data-city]'),n=document.querySelector('.cf-n');"
+             "f.addEventListener('click',function(e){var b=e.target.closest('.rchip');if(!b)return;e.preventDefault();"
+             "var c=b.getAttribute('data-city')||'',on=!!c&&!b.classList.contains('on'),k=0;"
+             "f.querySelectorAll('.rchip.on').forEach(function(x){x.classList.remove('on')});"
+             "cards.forEach(function(x){var s=!on||('|'+x.getAttribute('data-city')+'|').indexOf('|'+c+'|')>=0;x.hidden=!s;if(s)k++});"
+             "(on?b:f.querySelector('.rchip[data-city=\\\"\\\"]')).classList.add('on');"
+             "if(n){n.textContent=(on?c+' ':'')+'글 '+k+'편';n.hidden=!on}});})();</script>")
+
+
+def questions_block(metas):
+    """'질문으로 찾기' — 질문 넷. 글 수와 최신 결론 둘은 글에서 센다. 글이 없는 질문도 입구는 둔다(준비 중)."""
+    out = []
+    for k, q, _short, sec in TOPICS:
+        posts = _newest([m for m in metas if topic_of(m) == k])
+        hooks = ''.join('<li>%s</li>' % html.escape(m['title']) for m in posts[:2])
+        out.append('<a class="qcard" href="/%s/"><b>%s</b><span class="qc-n">%s</span>%s</a>'
+                   % (sec, html.escape(q), ('글 %d편' % len(posts)) if posts else '준비 중',
+                      ('<ul>%s</ul>' % hooks) if hooks else ''))
+    return '<div class="qgrid">%s</div>' % ''.join(out)
+
+
+def section_chips(cur=None):
+    """섹션(질문) 사이를 건너뛰는 칩. 첫 칩은 '전체'(허브). 이름은 TOPICS 의 짧은 이름 — 허브 질문 카드와 같은 넷이다."""
+    out = ['<a class="rchip" href="/%s/">전체</a>' % REPORTS_DIR]
+    for k, _q, short, sec in TOPICS:
+        out.append('<a class="rchip%s" href="/%s/">%s</a>' % (' on' if sec == cur else '', sec, html.escape(short)))
+    return '<nav class="rchips" aria-label="질문으로 찾기">%s</nav>' % ''.join(out)
+
+
+def _sgg_anchor(data, name):
+    """지역 이름 → 홈 시세 지도 주소. 시군구 하나로 풀리면 그 칸의 그래프(#stats-market-week~코드), 구가 여럿이거나 모르면 지도 자체."""
+    try:
+        got = CT.sgg_codes(data, name) if data else []
+    except Exception:
+        got = []
+    if len(got) == 1:
+        return '/#stats-market-week~%s' % got[0][0], got[0][1]
+    return '/#stats-market-week', name        # 구가 여럿인 시('수원')는 첫 구가 아니라 지도 자체로
+
+
+def region_box(meta, data, others=None):
+    """글 끝 '이 지역 더 보기' — 시도 리포트, 홈 시세 지도(첫 도시 칸), 같은 도시의 입주물량 글(있으면). 양방향 연결의 글 쪽."""
+    rows = []
+    zone = zone_of(meta) if meta.get('region') else None
+    if zone:
+        z = _zone_link(meta['region'])
+        if z:
+            rows.append(z)
+    cities = [c for c in (meta.get('city') or []) if c]
+    if cities:
+        href, label = _sgg_anchor(data, cities[0])
+        rows.append('<a href="%s"><span>시세 지도</span>%s 주간 시세</a>' % (href, html.escape(label)))
+    elif meta.get('region'):
+        rows.append('<a href="/#stats-market-week"><span>시세 지도</span>%s 주간 시세</a>' % html.escape(_region_disp(meta['region'])))
+    heads = {c.split(' ')[0] for c in cities}
+    for o in _newest(others or []):
+        if o['section'] == 'city' and o['slug'] != meta['slug'] and heads & {c.split(' ')[0] for c in (o.get('city') or [])}:
+            rows.append('<a href="/city/%s/"><span>%s</span>%s</a>' % (o['slug'], html.escape(TOPIC_BY['moveins'][1]), html.escape(o['title'])))
+            break
+    if not rows:
+        return ''
+    return '<section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l">%s</div></section>' % ''.join(rows)
+
+
+_LEAD_THUMB = re.compile(r'^\s*!\[[^\]]*\]\([^)]*-thumb\.png\)[ \t]*\n+')
+
+
+def strip_lead_thumb(body_md):
+    """본문 첫 줄의 제목 카드 그림(img/<slug>-thumb.png)을 뺀다 — 제목이 글 머리와 그림에서 두 번 보였다(11-05 개편)."""
+    return _LEAD_THUMB.sub('', body_md, count=1)
+
+
 def content_img_src(body_html, sec):
     """원고의 상대 그림 주소(img/x.png)를 원고 폴더의 절대 주소(/content/<섹션>/img/x.png)로.
 
@@ -577,8 +749,8 @@ def content_img_src(body_html, sec):
                   lambda m: '<a class="cimg" href="%s" target="_blank" rel="noopener">%s</a>' % (m.group(1), m.group(0)), out)
 
 
-def build_page(meta, body_md, data, prev=None, nxt=None):
-    filled, blocks = fill_placeholders(body_md, data)
+def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
+    filled, blocks = fill_placeholders(strip_lead_thumb(body_md), data)
     sec = meta['section']
     body_html = content_img_src(restore_tables(markdown(filled), blocks), sec)
     url = '%s/%s/%s/' % (SITE, sec, meta['slug'])
@@ -588,7 +760,8 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
         nav.append('<a href="/%s/%s/"><span>이전 글</span>%s</a>' % (sec, prev['slug'], html.escape(prev['title'])))
     if nxt:
         nav.append('<a href="/%s/%s/"><span>다음 글</span>%s</a>' % (sec, nxt['slug'], html.escape(nxt['title'])))
-    if meta.get('region'):
+    more = region_box(meta, data, others)
+    if meta.get('region') and not more:
         z = _zone_link(meta['region'])
         if z:
             nav.append(z)
@@ -601,21 +774,38 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
     if srcs:
         src_html = ('<section><h2>숫자의 출처</h2><ul class="csrc">%s</ul></section>'
                     % ''.join('<li>%s</li>' % html.escape(s) for s in srcs))
+    # 글 머리(11-05 개편): 눈썹(질문 · 지역) → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문.
+    # summary 는 설명 메타·og·JSON-LD·피드에 남고 화면에서는 3줄 요약이 그 자리다(둘 다 두면 같은 말이 두 번).
+    tkey = topic_of(meta)
+    cities = post_cities(meta)
+    eyebrow = '<p class="eyebrow"><a href="/%s/">%s</a>%s</p>' % (
+        TOPIC_BY[tkey][2], html.escape(TOPIC_BY[tkey][0]),
+        (' · ' + html.escape(' · '.join(cities))) if cities else '')
+    head = ''
+    if meta.get('tldr'):
+        head += '<div class="ctldr"><b>3줄 요약</b><ol>%s</ol></div>' % ''.join('<li>%s</li>' % html.escape(x) for x in meta['tldr'])
+    if meta.get('audience'):
+        head += '<p class="caud"><b>이 글이 맞는 분</b>%s</p>' % html.escape(meta['audience'])
+    key = _key_of(meta)
+    if key:
+        head += '<div class="ckey"><strong>%s</strong><span>%s</span></div>' % (html.escape(key['value']), html.escape(key.get('label') or ''))
+    if not head:
+        head = '<p class="csum">%s</p>' % html.escape(meta['summary'])   # 옛 양식 글(lenient) — 결론 상자로 되돌아간다
     body = (
         '<header><div class="wrap">'
-        '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">%s</a></nav>'
-        '<h1>%s</h1>'
+        '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">%s</a> › <a href="/%s/">%s</a></nav>'
+        '%s<h1>%s</h1>'
         '<p class="cmeta">%s 작성 · %s 갱신 · <a href="/about/">%s</a></p>'
         '</div></header>'
         '<section><div class="wrap">'
-        '<p class="csum">%s</p>'
+        '%s'
         '<div class="cbody">%s</div>'
-        '%s%s'
+        '%s%s%s'
         '<div class="cnav">%s</div>'
         '</div></section>'
-        % (sec, html.escape(SECTION_META[sec][0]), html.escape(meta['title']),
+        % (REPORTS_DIR, html.escape(REPORTS_TITLE), sec, html.escape(SECTION_META[sec][0]), eyebrow, html.escape(meta['title']),
            _day_long(meta['date']), _day_long(meta['updated']), AUTHOR,
-           html.escape(meta['summary']), body_html, src_html, faq_html,
+           head, body_html, src_html, faq_html, more,
            ''.join(nav)))
     # 제목·요약은 <title> 과 og 속성 값에 들어간다. 반박 글 제목에는 발언을 그대로 옮긴 큰따옴표가 있어
     # 이스케이프하지 않으면 속성이 그 자리에서 끊긴다(2026-10-29 게이트가 잡았다).
@@ -632,16 +822,17 @@ def build_page(meta, body_md, data, prev=None, nxt=None):
 
 
 def build_index(sec, posts_meta):
-    """섹션 목록 페이지. 맨 위에 카테고리 칩(섹션 사이 건너뛰기), 목록은 허브와 같은 부품이다."""
+    """섹션 목록 페이지 — 질문을 머리로, 한 줄 소개, 질문 칩(섹션 사이 건너뛰기), 그 섹션 글의 지역 칩, 카드 목록(허브와 같은 부품)."""
     name, desc = SECTION_META[sec]
     url = '%s/%s/' % (SITE, sec)
-    items = ''.join(post_item(m) for m in posts_meta) or '<p>아직 글이 없습니다.</p>'
+    q = TOPIC_BY[SECTION_TOPIC[sec]][0]
+    items = cards_grid(posts_meta) if posts_meta else '<p>아직 글이 없습니다.</p>'
     body = ('<header><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">콘텐츠</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
-            '<section><div class="wrap">%s<div class="plist">%s</div></div></section>'
-            % (REPORTS_DIR, html.escape(name), html.escape(name), html.escape(desc),
-               section_chips(sec), items))
+            '<section><div class="wrap">%s%s%s</div></section>%s'
+            % (REPORTS_DIR, html.escape(name), html.escape(q), html.escape(desc),
+               section_chips(sec), city_chips(posts_meta), items, FILTER_JS if posts_meta else ''))
     lastmod = max([m['updated'] for m in posts_meta], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
                   desc=html.escape(desc), url=url, body=body,
@@ -653,85 +844,7 @@ def build_index(sec, posts_meta):
 
 REPORTS_DIR = 'reports'
 REPORTS_TITLE = '콘텐츠'
-REPORTS_DESC = '발언을 따지는 반박부터 매주 시세, 도시·역세권·단지 분석까지. 숫자는 국가 통계에서 옵니다.'
-RECENT_N = 10
-
-# 카테고리 카드. 순서는 **발행 주기**다 — 시의성 있는 것을 위로(대표 지시 2026-10-29).
-# (섹션 또는 지표 주소, 이름, 설명 한 줄, 주기 표시). 섹션이 아닌 둘(zone·weekly)은 글 수 대신 대상 수를 센다.
-HUB_CARDS = (
-    ('column', '반박', '공직자·정치인 발언을 입주 물량과 시세로 따집니다.', '당일'),
-    ('/weekly/', '주간·월간 시세', '매주 목요일 갱신되는 시군구 시세와 월간 통계.', '매주'),
-    ('city', '도시 입주물량', '2027~2028년 도시별 입주 물량을 적정물량과 견줍니다.', '연재'),
-    ('gtx', 'GTX 역세권', '역 도보 15분 안 단지를 전수로, 호가·갭·필요 현금까지.', '연재'),
-    ('danji', '재건축·리모델링 단지', '1,000세대 이상 단지의 사업 단계·대지지분·실거래.', '연재'),
-    ('/zone/', '시도 리포트', '시도별 공급 판정과 시군구 시세를 한 장에.', '분기'),
-)
-
-
-def _counts(data):
-    """카드에 적을 '대상 수' — 손으로 세지 않고 모델에서 읽는다."""
-    import sido_zones as SZ
-    agg = set(getattr(SZ, 'AGG', ()) or ())
-    return {'/zone/': '%d개 시도' % len([z for z in SZ.ORDER if z not in agg]),
-            '/weekly/': '%d개 시군구' % len(data['sgg_names'])}
-
-
-def _thumb(meta):
-    """그 글의 목록용 썸네일 주소. 아직 안 구워졌으면 None — 그 자리는 글자만 보인다."""
-    rel = thumb_rel(meta['section'], meta['slug'])
-    return ('/%s?v=%s' % (rel, meta['updated'])) if os.path.exists(os.path.join(ROOT, rel)) else None
-
-
-def post_item(meta, summary=True):
-    """목록 한 줄(=앨범형 카드 하나). PC 는 앨범형 3열, 모바일은 왼쪽 썸네일 리스트 — 같은 마크업을 CSS 가 가른다.
-
-    썸네일은 그 글의 OG 카드를 줄인 것이라 따로 관리할 그림이 없다. 없으면 글자만 나온다(목록이 비지 않는다).
-    """
-    th = _thumb(meta)
-    img = ('<img src="%s" alt="" width="480" height="252" loading="lazy" decoding="async">' % th) if th else ''
-    body = '<b>%s</b>' % html.escape(meta['title'])
-    if summary:
-        body += '<span>%s</span>' % html.escape(meta['summary'])
-    body += '<i>%s · %s 갱신</i>' % (html.escape(SECTION_META[meta['section']][0]), _day_short(meta['updated']))
-    return ('<a class="pcard%s" href="/%s/%s/" data-sec="%s">%s<div class="pc-b">%s</div></a>'
-            % ('' if th else ' pc-noimg', meta['section'], meta['slug'], meta['section'], img, body))
-
-
-def section_chips(cur=None):
-    """섹션 사이를 건너뛰는 칩. 목록 페이지 맨 위에 둔다(허브에서 옮겨 왔다 — 대표 결정 10-29)."""
-    # 첫 칩은 '전체'(콘텐츠 허브) — '콘텐츠'로 적으면 섹션 하나처럼 읽혔다. 칩 목록은 허브 카드(HUB_CARDS)와 같은 순서·같은
-    # 이름이다(주간·월간 시세·시도 리포트 포함) — 두 탐색 체계가 서로 달랐다(2026-10-30 디자인 리뷰).
-    out = ['<a class="rchip" href="/%s/">전체</a>' % REPORTS_DIR]
-    for key, name, _desc, _cad in HUB_CARDS:
-        href = key if key.startswith('/') else '/%s/' % key
-        out.append('<a class="rchip%s" href="%s">%s</a>'
-                   % (' on' if key == cur else '', href, html.escape(name)))
-    return '<nav class="rchips" aria-label="카테고리">%s</nav>' % ''.join(out)
-
-
-def hub_cards(all_metas, data):
-    """카테고리 카드 6장. 글 수·최근 갱신일·최신 글 둘은 데이터에서 센다."""
-    cnt = _counts(data)
-    by = {}
-    for m in all_metas:
-        by.setdefault(m['section'], []).append(m)
-    out = []
-    for key, name, desc, cad in HUB_CARDS:
-        href = key if key.startswith('/') else '/%s/' % key
-        posts = sorted(by.get(key, []), key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
-        if key.startswith('/'):
-            meta_line = cnt.get(key, '')
-            latest = ''
-        else:
-            meta_line = ('글 %d편 · %s 갱신' % (len(posts), _day_short(posts[0]['updated']))) if posts else '준비 중'
-            latest = ''.join('<li>%s</li>' % html.escape(m['title']) for m in posts[:2])
-        out.append(
-            '<a class="hcard" href="%s"><h3>%s<em>%s</em></h3><p>%s</p>'
-            '<div class="hc-m">%s</div>%s<span class="hc-go">전체 보기 →</span></a>'
-            % (href, html.escape(name), html.escape(cad), html.escape(desc), html.escape(meta_line),
-               ('<ul class="hc-l">%s</ul>' % latest) if latest else ''))
-    return '<div class="hgrid hgrid-cat">%s</div>' % ''.join(out)
-
+REPORTS_DESC = '질문이나 내 동네로 들어와 결론부터 읽는 글. 숫자는 국가 통계에서 옵니다.'
 
 # ── '기본 개념' 줄(대표 승인 2026-10-30) ──────────────────────────────────────────────────────────────
 # 상단 탭에서 '사이클'을 빼면서(site_nav.TABS) 그 입구를 여기로 옮겼다. 발행 주기가 없는 상시 글이라
@@ -759,36 +872,35 @@ def _page_title(slug, root=ROOT):
     return (name.strip() or None), sub.strip()
 
 
-def basic_cards(root=ROOT):
-    """'기본 개념' 카드 묶음. 카테고리 카드와 같은 부품(.hcard)을 써서 한 벌로 보이게 한다."""
+def basic_row(root=ROOT):
+    """'기본 개념' 한 줄 — 허브 맨 아래. 이름은 각 페이지 <title> 에서 읽는다(11-05 개편: 카드 다섯 장에서 한 줄로 줄였다 — 상시
+    글이라 입구만 있으면 된다)."""
     out = []
     for slug in BASIC_PAGES:
-        name, sub = _page_title(slug, root)
-        if not name:
-            continue
-        out.append('<a class="hcard" href="/%s/"><h3>%s</h3><p>%s</p>'
-                   '<span class="hc-go">열기 →</span></a>'
-                   % (slug, html.escape(name), html.escape(sub or '')))
+        name, _sub = _page_title(slug, root)
+        if name:
+            out.append('<a href="/%s/">%s</a>' % (slug, html.escape(name)))
     if not out:
         return ''
-    return ('<h2 class="rh2">%s</h2><div class="hgrid hgrid-basic">%s</div>'
-            % (html.escape(BASIC_H2), ''.join(out)))
+    return '<p class="hub-basic-row"><b>%s</b> · %s</p>' % (html.escape(BASIC_H2), ' · '.join(out))
 
 
 def build_reports(all_metas, data=None):
-    """콘텐츠 허브 — 카테고리 카드 6장, 그 아래 '기본 개념' 줄, 그 아래 네 섹션 통합 '최근 글' %d편.""" % RECENT_N
-    data = data if data is not None else CT.load()
-    newest = sorted(all_metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)[:RECENT_N]
-    items = ''.join(post_item(m) for m in newest) or '<p>아직 글이 없습니다.</p>'
-    basic = basic_cards()
+    """콘텐츠 허브(2026-11-05 개편) — '질문으로 찾기' 넷, '지역으로 찾기' 시도별 칩, 최근 글 전부(카드), 맨 아래 '기본 개념' 한 줄.
+
+    옛 허브(카테고리 카드 여섯 장, 10-29·10-30 결정)는 '무엇이 내 관심사인지' 말하지 못했다(대표 11-05). 독자는 질문이나 내
+    동네로 들어와 결론 카드로 글을 고른다.
+    """
+    newest = _newest(all_metas)
     body = ('<header><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
-            '<div class="hubflow"><section><div class="wrap">%s</div></section>'
-            '<section class="hub-basic"><div class="wrap">%s</div></section>'
-            '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2><div class="plist">%s</div></div></section></div>'
+            '<section class="hub-q"><div class="wrap"><h2 class="rh2">질문으로 찾기</h2>%s</div></section>'
+            '<section class="hub-city"><div class="wrap"><h2 class="rh2">지역으로 찾기</h2>%s</div></section>'
+            '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2>%s%s</div></section>%s'
             % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
-               hub_cards(all_metas, data), basic, items))
+               questions_block(all_metas), city_chips(all_metas),
+               cards_grid(newest) if newest else '<p>아직 글이 없습니다.</p>', basic_row(), FILTER_JS))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in all_metas], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),
@@ -809,10 +921,8 @@ def home_recent_html(metas):
     """홈 '최근 리포트' 묶음. 콘텐츠 목록과 **같은 부품**을 쓴다(요청 ④) — 썸네일·꼬리표가 한 벌로 간다."""
     if not metas:
         return ''
-    newest = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)[:HOME_RECENT]
-    items = ''.join(post_item(m, summary=False) for m in newest)
-    return ('<div class="crecent"><h2>최근 리포트</h2><div class="plist">%s</div>'
-            '<p class="crecent-all"><a href="/%s/">콘텐츠 전체 보기 →</a></p></div>' % (items, REPORTS_DIR))
+    return ('<div class="crecent"><h2>최근 리포트</h2>%s'
+            '<p class="crecent-all"><a href="/%s/">콘텐츠 전체 보기 →</a></p></div>' % (cards_grid(metas, HOME_RECENT), REPORTS_DIR))
 
 
 def write_home_recent(metas, root=ROOT):
@@ -860,20 +970,27 @@ def zone_of(meta):
         return None
 
 
+def zones_of(meta):
+    """글이 묶이는 시도들 — region 의 시도와 city 마다의 시도(11-05 개편: 분당 글은 city '성남 분당구'로도 경기에 묶인다)."""
+    out = set()
+    z = zone_of(meta)
+    if z:
+        out.add(z)
+    for c in meta.get('city') or []:
+        z = city_sido(c)
+        if z:
+            out.add(z)
+    return out
+
+
 def zone_posts_html(metas):
-    """시도 리포트 아래에 붙는 '이 지역 글' 묶음. 갱신일 최신 순."""
+    """시도 리포트 아래에 붙는 '이 지역 글' 묶음 — 허브와 같은 카드(11-05 개편). 갱신일 최신 순."""
     if not metas:
         return ''
-    newest = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
-    items = ''.join(
-        '<li><a href="/%s/%s/"><b>%s</b><i>%s · %s 갱신</i></a></li>'
-        % (m['section'], m['slug'], html.escape(m['title']),
-           html.escape(SECTION_META[m['section']][0]), _day_short(m['updated']))
-        for m in newest)
     # 리포트의 다른 절과 같은 본문 틀(.wrap) 안에 둔다 — 예전엔 틀 밖이라 375px 에서 좌우 여백이 0, 1280px 에서는
     # 오른쪽 본문 단과 어긋났다(2026-10-30 디자인 리뷰).
-    return ('<section class="zposts"><div class="wrap"><div class="crecent"><h2>이 지역 글</h2><ul>%s</ul></div></div></section>'
-            % items)
+    return ('<section class="zposts"><div class="wrap"><div class="crecent"><h2>이 지역 글</h2>%s</div></div></section>'
+            % cards_grid(metas))
 
 
 def write_zone_posts(metas, root=ROOT):
@@ -885,8 +1002,7 @@ def write_zone_posts(metas, root=ROOT):
     import sido_zones as SZ
     by = {}
     for m in metas:
-        z = zone_of(m)
-        if z:
+        for z in zones_of(m):
             by.setdefault(z, []).append(m)
     done = 0
     for z in SZ.ORDER:
@@ -935,7 +1051,7 @@ def weekly_column_html(metas):
                     % (m['section'], m['slug'], html.escape(m['title']),
                        html.escape(SECTION_META[m['section']][0]), _day_short(m['updated'])))
     # 섹션 이름은 SECTION_META 에서 읽는다 — 섹션이 늘거나 이름이 바뀌면 이 곁말도 따라온다.
-    names = ' · '.join(SECTION_META[k][0] for k, _n, _d, _c in HUB_CARDS if not k.startswith('/'))
+    names = ' · '.join(SECTION_META[k][0] for k in CM.SECTIONS)
     rows.append('    <a href="/%s/">%s<span>%s</span></a>'
                 % (REPORTS_DIR, html.escape('%s 전체 보기' % REPORTS_TITLE), html.escape(names)))
     return '\n'.join(['<section><div class="wrap">', '  <h2>%s</h2>' % html.escape(WEEKLY_H2),
@@ -1012,8 +1128,8 @@ def write_moveins_cities(metas, root=ROOT):
     return True
 
 
-def collect(root=ROOT, strict=False):
-    """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다.
+def collect(root=ROOT, strict=False, old_format=None):
+    """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다. old_format 목록을 주면 옛 양식으로 구운 글을 거기 적는다.
 
     ⚠️ 규약을 어긴 원고 하나 때문에 배치를 세우지 않는다. 그 글만 건너뛰고 경고를 남긴 뒤 나머지를 굽는다 —
        콘텐츠 원고는 여러 세션이 수시로 올리는데, 한 편의 오타가 그날의 데이터 갱신까지 막으면 손해가 크다
@@ -1021,10 +1137,18 @@ def collect(root=ROOT, strict=False):
        strict=True 는 사람이 손으로 돌려 원고를 고칠 때 쓴다 — 첫 오류에서 멈춘다.
     """
     out, skipped = [], []
+    old_format = old_format if old_format is not None else []
     for sec, slug, path in CM.posts(root):
         try:
             meta, body = CM.read(path, sec, slug)
         except CM.ContentError as e:
+            if CM.is_v2_miss(e):
+                # 2026-11-05 양식(다섯 항목)이 없는 옛 원고는 굽되 경고한다 — 카드에 지역 칩·핵심 숫자가 빠지고 글 머리는
+                # 결론 상자로 돌아간다. 다른 세션이 옛 양식으로 올린 글 한 편이 그날 발행 전체를 막지 않게(11-06).
+                meta, body = CM.read(path, sec, slug, lenient=True)
+                old_format.append('%s/%s' % (sec, slug))
+                out.append((sec, meta, body))
+                continue
             if strict:
                 raise
             skipped.append(str(e))
@@ -1039,9 +1163,13 @@ def _warn(msg):
 
 
 def main(strict=False):
-    posts, skipped = collect(strict=strict)
+    old_format = []
+    posts, skipped = collect(strict=strict, old_format=old_format)
     for why in skipped:
         _warn('콘텐츠 원고를 건너뛴다 — ' + why)
+    for what in old_format:
+        _warn('옛 양식 원고 — %s: 2026-11-05 양식 다섯 항목(tldr·audience·key·city·topic)이 없어 카드에 지역·핵심 숫자가 빠진다'
+              '(content/README.md)' % what)
     if not posts:
         # 원고가 없으면 페이지는 만들지 않는다. 다만 홈 묶음은 비운다 — 글을 전부 내린 회차에 홈만 옛 목록을
         # 들고 있으면 없는 글로 가는 링크가 남는다.
@@ -1054,7 +1182,9 @@ def main(strict=False):
     filled, dropped = [], []
     for sec, meta, body in posts:
         try:
-            filled.append((sec, CT.fill_meta(meta, data), body))
+            for name in meta.get('city') or []:
+                CT.city_codes(data, name)                  # 이름표에 없는 도시는 건너뛴다(허브 칩·시세 링크가 그 이름으로 만들어진다)
+            filled.append((sec, CT.check_lengths(CT.fill_meta(meta, data)), body))
         except CT.TableError as e:
             if strict:
                 raise
@@ -1070,6 +1200,7 @@ def main(strict=False):
     by_sec = {}
     for sec, meta, body in posts:
         by_sec.setdefault(sec, []).append((meta, body))
+    everyone = [m for _s, m, _b in posts]       # 글 끝 '이 지역 더 보기'가 같은 도시의 입주물량 글을 찾는 범위
     entries, wrote = [], 0
     for sec, items in by_sec.items():
         items.sort(key=lambda x: (x[0]['date'], x[0]['slug']))
@@ -1078,7 +1209,7 @@ def main(strict=False):
             prev = metas[i - 1] if i else None
             nxt = metas[i + 1] if i + 1 < len(metas) else None
             try:
-                page, lm = build_page(meta, body, data, prev, nxt)
+                page, lm = build_page(meta, body, data, prev, nxt, everyone)
             except (CT.TableError, CM.ContentError) as e:
                 # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
                 if strict:
@@ -1097,8 +1228,7 @@ def main(strict=False):
         done = [m for m in metas if os.path.exists(os.path.join(ROOT, sec, m['slug'], 'index.html'))]
         if not done:
             continue
-        newest = sorted(done, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
-        page, lm = build_index(sec, newest)
+        page, lm = build_index(sec, _newest(done))
         fp = os.path.join(ROOT, sec, 'index.html')
         os.makedirs(os.path.dirname(fp), exist_ok=True)
         page, lm, _ = SP.keep_dates(page, SP.read_old(fp), lm or I.PUBLISHED)
