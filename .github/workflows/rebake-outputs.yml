@@ -39,11 +39,14 @@ on:
       - 'tools/site_nav.py'
   workflow_dispatch:
 
-# 발행 워크플로와 **같은 그룹**이다. 둘은 같은 파일을 커밋하므로 동시에 돌면 rebase 가 충돌한다
-# (2026-11-02 런 41459123576 이 그렇게 한 회차를 잃었다). 취소하지 않고 줄을 세운다.
-concurrency:
-  group: publish-content
-  cancel-in-progress: false
+# ⚠️ 여기에 concurrency 를 **두지 않는다.** 부르는 쪽과 불리는 쪽이 같은 그룹이면 GitHub 이 그 호출을
+#    아예 거부한다 — 잡이 하나도 생기지 않고 'This run likely failed because of a workflow file issue'
+#    로 끝난다(2026-11-06 첫 런 42210348489 이 그랬다. 그룹을 빼자 바로 돌았다 — 런 42212024087).
+#    교착을 막는 검사로 보인다.
+#    그래도 직렬화는 된다: 줄을 세우는 것은 **불리는 쪽**(publish-content.yml)의 그룹이다. 이 워크플로의
+#    잡은 그 런이 끝날 때까지 기다리는 얇은 껍데기라 제 그룹이 필요 없다. 거부가 났다는 사실 자체가
+#    GitHub 이 불리는 쪽 그룹을 센다는 증거다.
+#    (둘이 동시에 돌면 같은 파일을 커밋해 rebase 가 충돌한다 — 2026-11-02 런 41459123576.)
 
 permissions:
   contents: write
