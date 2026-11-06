@@ -1128,8 +1128,8 @@ def write_moveins_cities(metas, root=ROOT):
     return True
 
 
-def collect(root=ROOT, strict=False):
-    """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다.
+def collect(root=ROOT, strict=False, old_format=None):
+    """[(섹션, meta, 본문)], [건너뛴 사유] — 원고를 읽고 검사한다. old_format 목록을 주면 옛 양식으로 구운 글을 거기 적는다.
 
     ⚠️ 규약을 어긴 원고 하나 때문에 배치를 세우지 않는다. 그 글만 건너뛰고 경고를 남긴 뒤 나머지를 굽는다 —
        콘텐츠 원고는 여러 세션이 수시로 올리는데, 한 편의 오타가 그날의 데이터 갱신까지 막으면 손해가 크다
@@ -1137,10 +1137,18 @@ def collect(root=ROOT, strict=False):
        strict=True 는 사람이 손으로 돌려 원고를 고칠 때 쓴다 — 첫 오류에서 멈춘다.
     """
     out, skipped = [], []
+    old_format = old_format if old_format is not None else []
     for sec, slug, path in CM.posts(root):
         try:
             meta, body = CM.read(path, sec, slug)
         except CM.ContentError as e:
+            if CM.is_v2_miss(e):
+                # 2026-11-05 양식(다섯 항목)이 없는 옛 원고는 굽되 경고한다 — 카드에 지역 칩·핵심 숫자가 빠지고 글 머리는
+                # 결론 상자로 돌아간다. 다른 세션이 옛 양식으로 올린 글 한 편이 그날 발행 전체를 막지 않게(11-06).
+                meta, body = CM.read(path, sec, slug, lenient=True)
+                old_format.append('%s/%s' % (sec, slug))
+                out.append((sec, meta, body))
+                continue
             if strict:
                 raise
             skipped.append(str(e))
@@ -1155,9 +1163,13 @@ def _warn(msg):
 
 
 def main(strict=False):
-    posts, skipped = collect(strict=strict)
+    old_format = []
+    posts, skipped = collect(strict=strict, old_format=old_format)
     for why in skipped:
         _warn('콘텐츠 원고를 건너뛴다 — ' + why)
+    for what in old_format:
+        _warn('옛 양식 원고 — %s: 2026-11-05 양식 다섯 항목(tldr·audience·key·city·topic)이 없어 카드에 지역·핵심 숫자가 빠진다'
+              '(content/README.md)' % what)
     if not posts:
         # 원고가 없으면 페이지는 만들지 않는다. 다만 홈 묶음은 비운다 — 글을 전부 내린 회차에 홈만 옛 목록을
         # 들고 있으면 없는 글로 가는 링크가 남는다.

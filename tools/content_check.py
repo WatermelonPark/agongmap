@@ -59,8 +59,14 @@ def check_post(path, data, root=ROOT, lenient=False):
         meta, body = CM.read(path, lenient=lenient)
     except CM.ContentError as e:
         msg = str(e).split(': ', 1)[-1]
-        key = next((k for k in CM.REQUIRED + CM.REQUIRED_V2 + ('faq', 'sources', 'region') if k in msg), None)
-        return ([(_front_line(text, key) if key else 1, msg)], [], rel)
+        if CM.is_v2_miss(e):
+            # 옛 양식 — 올려도 되지만(생성기가 옛 양식으로 굽는다) 카드에 지역·핵심 숫자가 빠진다. 기다림(…)으로 알린다.
+            waits.append((1, msg + ' — 올라가지만 카드에 지역 칩·핵심 숫자가 빠진다'))
+            meta, body = CM.read(path, lenient=True)
+            lenient = True
+        else:
+            key = next((k for k in CM.REQUIRED + CM.REQUIRED_V2 + ('faq', 'sources', 'region') if k in msg), None)
+            return ([(_front_line(text, key) if key else 1, msg)], [], rel)
     # 2026-11-05 양식의 지역·길이 — 이름표에 없는 city, 자리표를 채우면 넘치는 길이. 생성기(make_content_pages)와 같은 함수다.
     if not lenient:
         for name in meta.get('city') or []:
