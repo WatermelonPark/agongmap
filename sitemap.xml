@@ -220,7 +220,7 @@
 
   <url>
     <loc>https://www.agongmap.co.kr/danji/</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -381,7 +381,14 @@
 
   <url>
     <loc>https://www.agongmap.co.kr/danji/sanggye6-nowon/</loc>
-    <lastmod>2026-11-06</lastmod>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.agongmap.co.kr/gtx/gtx-b-pyeongnae-hopyeong/</loc>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -508,7 +515,7 @@
   </url>
 
   <url>
-    <loc>https://www.agongmap.co.kr/gtx/gtx-b-pyeongnae-hopyeong/</loc>
+    <loc>https://www.agongmap.co.kr/danji/banghak1-dobong/</loc>
     <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
