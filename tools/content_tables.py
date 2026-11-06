@@ -821,12 +821,39 @@ def fill_inline(text, data):
     return PH.sub(sub, text or '')
 
 
+def city_codes(data, name):
+    """프런트매터 city 한 곳 → [(코드, 이름표)]. 이름표(홈 SGG_QNAME)에 없으면 TableError — 허브 지역 칩과 시세 지도 링크가
+    그 이름으로 만들어지므로 오타를 통과시키지 않는다(2026-11-05 콘텐츠 구조 개편)."""
+    got = sgg_codes(data, name)
+    if not got:
+        raise TableError("city %r 를 시군구 이름표에서 찾지 못했다 — '성남 분당구'·'수원 영통구'·'남양주' 꼴로" % name)
+    return got
+
+
+def check_lengths(meta):
+    """자리표를 **채운 뒤** 글자 수 상한(content_md.TITLE_MAX 등)을 다시 잰다. 원고 검사는 자리표를 빼고 쟀으므로
+    '적정의 {{v:share:수원:2027}}' 이 채워져 12자를 넘는 일은 여기서만 잡힌다."""
+    import content_md as CM
+    checks = [('title', meta.get('title') or '', CM.TITLE_MAX), ('audience', meta.get('audience') or '', CM.AUDIENCE_MAX)]
+    checks += [('tldr %d번째 줄' % (i + 1), x, CM.TLDR_MAX) for i, x in enumerate(meta.get('tldr') or [])]
+    key = meta.get('key') if isinstance(meta.get('key'), dict) else {}
+    checks += [('key.%s' % k, key.get(k) or '', CM.KEY_MAX) for k in ('label', 'value')]
+    for what, text, lim in checks:
+        if len(text.strip()) > lim:
+            raise TableError('%s 가 자리표를 채우면 %d자다 — %d자 이하(채운 글: %s)' % (what, len(text.strip()), lim, text.strip()))
+    return meta
+
+
 def fill_meta(meta, data):
     """프런트매터의 글에 자리표를 채워 **새 dict** 로 돌려준다. 실패하면 TableError 를 올린다."""
     out = dict(meta)
-    for k in ('title', 'summary'):
+    for k in ('title', 'summary', 'audience'):
         if isinstance(out.get(k), str):
             out[k] = fill_inline(out[k], data)
+    if isinstance(out.get('tldr'), list):
+        out['tldr'] = [fill_inline(x, data) if isinstance(x, str) else x for x in out['tldr']]
+    if isinstance(out.get('key'), dict):
+        out['key'] = dict((k, fill_inline(v, data) if isinstance(v, str) else v) for k, v in out['key'].items())
     if isinstance(out.get('sources'), list):
         out['sources'] = [fill_inline(x, data) if isinstance(x, str) else x for x in out['sources']]
     faq = out.get('faq')
