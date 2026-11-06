@@ -33,6 +33,9 @@ on:
       - 'tools/split_data.py'
       - 'tools/site_nav.py'
   workflow_dispatch:
+  # 산출물 재생성 워크플로(rebake-outputs.yml)가 main 푸시마다 이 워크플로를 그대로 부른다 —
+  # 굽는 절차를 두 곳에 적지 않기 위해서다. 그쪽 트리거는 경로를 고르지 않는다.
+  workflow_call:
 
 concurrency:
   group: publish-content
