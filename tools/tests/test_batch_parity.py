@@ -470,3 +470,76 @@ def test_the_batch_draws_the_share_cards_before_the_gate():
         # 주간·월간 og 카드도 같은 자리에 둔다(그 둘은 데이터로만 그린다).
         for g in ('make_weekly_share', 'make_monthly_share'):
             assert steps.index(g) < steps.index('pytest'), '%s 배치의 %s 가 게이트 뒤다' % (name, g)
+
+
+REBAKE = os.path.join(ROOT, '.github', 'workflows', 'rebake-outputs.yml')
+
+
+def _paths_block(text, key):
+    """`key:`(paths · paths-ignore) 아래의 '- 경로' 목록을 순서대로 읽는다."""
+    m = re.search(r'^\s*%s:\s*\n((?:\s*(?:#[^\n]*|-\s*\'[^\']+\')\s*\n)+)' % key, text, re.M)
+    if not m:
+        return []
+    return re.findall(r"-\s*'([^']+)'", m.group(1))
+
+
+def test_the_rebake_workflow_calls_the_publish_one_instead_of_copying_it():
+    """main 푸시마다 도는 재생성 워크플로가 **발행 워크플로를 부른다** — 굽는 절차를 베껴 적지 않는다.
+
+    왜 있나: PR 은 생성 산출물을 싣지 않는다(CLAUDE.md). 그래서 병합 뒤 누군가 다시 굽기 전까지 main 의
+    커밋본이 코드와 어긋나고, 그 창에 걸린 게이트가 발행과 데이터 배치를 막았다 — 열흘에 세 번
+    (2026-10-30 런 40990048414 · 2026-11-05 weekly·monthly 글자 하한 · 2026-11-05 런 42053599155).
+    전까지는 원고가 올라오는 날에만 다시 구워졌다.
+
+    왜 '부르는' 쪽이어야 하나: 생성기 목록·커밋 대상·푸시 루프를 두 곳에 적으면 한쪽만 고쳐져 어긋난다.
+    2026-09-16 로컬 배치가 make_monthly_page 를 빠뜨린 사고가 바로 그것이다(백로그 11).
+
+    무엇을 바꾸면 빨개지나(넷 다 확인): 발행 워크플로에서 workflow_call 을 빼면, 재생성 쪽에 생성기를
+      베껴 적으면, 두 워크플로의 경로 목록이 어긋나면, 동시 실행 그룹을 달리하면.
+    픽스처: 저장소의 실제 워크플로 파일 둘.
+    """
+    assert os.path.exists(REBAKE), '산출물 재생성 워크플로가 없다 — 코드만 바뀐 병합 뒤 main 이 묵는다'
+    r = io.open(REBAKE, encoding='utf-8').read()
+    p = _pub_text()
+
+    # ① 발행 워크플로를 부른다. 굽는 절차를 베껴 적지 않는다.
+    assert re.search(r'uses:\s*\./\.github/workflows/publish-content\.yml', r), \
+        '재생성이 발행 워크플로를 부르지 않는다'
+    assert 'workflow_call' in p, '발행 워크플로가 workflow_call 을 열지 않았다 — 재생성이 부를 수 없다'
+    assert not re.search(r'python3?\s+tools/', r), \
+        '재생성 쪽에 생성기를 베껴 적었다 — 두 곳이 어긋난다(백로그 11 과 같은 사고)'
+    assert 'TARGETS' not in r, '재생성 쪽에 커밋 대상을 베껴 적었다'
+
+    # ② main 푸시마다 돈다. 경로를 **고르지** 않는다(코드만 바뀐 병합을 놓치지 않게).
+    on = r[r.index('on:'):r.index('concurrency:')]
+    assert re.search(r'push:\s*\n\s*branches:\s*\[\s*main\s*\]', on), 'main 푸시에서 돌지 않는다'
+    assert not _paths_block(on, 'paths'), \
+        "재생성에 paths 가 있다 — 경로를 고르면 그 밖의 병합을 또 놓친다(그게 이 워크플로가 생긴 까닭이다)"
+
+    # ③ 발행이 이미 반응하는 경로만 비킨다 — 같은 푸시에 두 런이 같은 일을 하지 않게.
+    assert _paths_block(on, 'paths-ignore') == _paths_block(p, 'paths'), \
+        '재생성의 paths-ignore 가 발행의 paths 와 다르다 — 어느 푸시가 두 번 굽거나 아예 안 구워진다'
+
+    # ④ 발행과 같은 동시 실행 그룹. 둘은 같은 파일을 커밋한다.
+    grp = lambda s: re.search(r'concurrency:\s*\n\s*group:\s*([^\s]+)', s)
+    assert grp(r) and grp(p) and grp(r).group(1) == grp(p).group(1), \
+        '재생성과 발행이 다른 그룹이다 — 동시에 돌면 rebase 가 충돌해 한 회차를 잃는다'
+
+
+def test_the_rebake_loop_can_not_trigger_itself():
+    """재생성·발행이 **봇 토큰**으로 푸시한다 — 그래서 자기 커밋이 자기를 다시 부르지 않는다.
+
+    재생성은 경로를 고르지 않으므로, 그 커밋이 런을 다시 부르면 끝없이 돈다. 막아 주는 것은 GitHub 의
+    규칙이다: GITHUB_TOKEN 으로 푸시한 커밋은 워크플로를 트리거하지 않는다. 그래서 체크아웃이 **다른
+    토큰(PAT)** 을 쓰기 시작하면 그 보장이 깨진다.
+
+    무엇을 바꾸면 빨개지나: 체크아웃에 token: ${{ secrets.<PAT> }} 를 주면.
+    픽스처: 저장소의 실제 워크플로 파일 둘.
+    """
+    for p in (REBAKE, PUB):
+        s = '\n'.join(l for l in io.open(p, encoding='utf-8').read().splitlines()
+                       if not l.lstrip().startswith('#'))
+        for m in re.finditer(r'token:\s*\$\{\{\s*secrets\.([A-Z_0-9]+)', s):
+            assert m.group(1) == 'GITHUB_TOKEN', \
+                '%s 가 PAT(%s)로 푸시한다 — 봇 커밋이 런을 다시 불러 끝없이 돈다' % (
+                    os.path.basename(p), m.group(1))
