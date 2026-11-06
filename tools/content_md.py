@@ -99,6 +99,14 @@ def parse_front(block):
     return out
 
 
+V2_MISS = '프런트매터에 %s 가 없다(2026-11-05 양식 — content/README.md)'
+
+
+def is_v2_miss(err):
+    """ContentError 가 '2026-11-05 양식 다섯 항목 없음'인가 — 생성기는 그 글을 옛 양식으로 굽고(경고), 검사기는 기다림으로 센다."""
+    return '2026-11-05 양식' in str(err)
+
+
 def vis_len(text):
     """자리표를 뺀 글자 수 — 상한을 잴 때 쓴다."""
     return len(_PH.sub('', text or '').strip())
@@ -112,7 +120,7 @@ def validate_v2(meta):
     # city 는 비어도 된다 — 시도 전체를 말하는 글(서울 집값 발언 반박 등)은 region 이 지역이다. 그때 허브 지역 칩은 '서울 전체'.
     miss = [k for k in REQUIRED_V2 if not meta.get(k) and not (k == 'city' and meta.get('region') and k in meta)]
     if miss:
-        raise ContentError('프런트매터에 %s 가 없다(2026-11-05 양식 — content/README.md)' % ', '.join(miss))
+        raise ContentError(V2_MISS % ', '.join(miss))
     n = vis_len(meta['title'])
     if n > TITLE_MAX:
         raise ContentError('title 이 %d자다 — %d자 이하 결론형 한 문장으로' % (n, TITLE_MAX))

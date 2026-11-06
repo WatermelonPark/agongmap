@@ -1598,17 +1598,25 @@ def test_lead_thumb_is_stripped_from_the_body():
 
 
 def test_content_check_is_strict_by_default_and_lenient_on_request(tmp_path):
-    """원고 검사는 새 양식을 기본으로 묻고(옛 양식은 고칠 곳), --lenient 일 때만 묻지 않는다.
+    """원고 검사는 새 양식을 기본으로 묻고(옛 양식은 기다림 줄로 알린다), --lenient 일 때만 묻지 않는다. 생성기는 옛 양식 글을
+    건너뛰지 않고 경고와 함께 굽는다.
 
-    무엇을 바꾸면 빨개지나: check_post 가 lenient 를 기본으로 두면. 픽스처: 옛 양식(다섯 항목 없음) 원고 하나.
+    무엇을 바꾸면 빨개지나: check_post 가 lenient 를 기본으로 두면(첫 단정), collect 가 옛 양식 글을 건너뛰면(셋째 단정).
+    픽스처: 옛 양식(다섯 항목 없음) 원고 하나.
     """
     import content_check as CC
     old = '\n'.join(l for l in FRONT.split('\n') if not re.match(r'^(tldr|audience|key|city|topic):|^  ', l))
     p = _write(tmp_path, old, slug='old-x')
     data = CT.load()
-    problems, _w, _r = CC.check_post(p, data, root=str(tmp_path))
-    assert problems and 'tldr' in problems[0][1], problems
-    assert CC.check_post(p, data, root=str(tmp_path), lenient=True)[0] == []
+    problems, waits, _r = CC.check_post(p, data, root=str(tmp_path))
+    assert not problems and len(waits) == 1 and 'tldr' in waits[0][1] and '카드' in waits[0][1], (problems, waits)
+    assert CC.check_post(p, data, root=str(tmp_path), lenient=True)[1] == []
+    # 생성기는 그 글을 건너뛰지 않고 옛 양식으로 굽는다(경고) — 다른 세션의 옛 양식 글 한 편이 발행을 막지 않는다(11-06).
+    old_format = []
+    posts, skipped = MC.collect(root=str(tmp_path), old_format=old_format)
+    assert [m['slug'] for _s, m, _b in posts] == ['old-x'] and skipped == [] and old_format == ['city/old-x']
+    c = MC.card(posts[0][1])
+    assert 'kc-key' not in c and '입주물량' in c, c
 
 
 def test_readme_documents_the_v2_fields():
