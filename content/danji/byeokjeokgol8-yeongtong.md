@@ -13,7 +13,7 @@ city:
   - 수원 영통구
 topic: redevelop
 date: 2026-10-26
-updated: 2026-11-05
+updated: 2026-11-07
 section: danji
 region: 경기
 sources:
@@ -85,8 +85,6 @@ faq:
 ![월별 매매 건수](img/byeokjeokgol8-yeongtong-trades.png)
 
 2026년 1~6월 월 11~34건이던 매매가 이주 공고 뒤 7월 52건, 8월 67건, 9월 96건으로 늘었다. 9월 영통구 아파트 매매 501건(해제·직거래 제외) 가운데 19%가 이 단지였다. 분담금이 정해지고 이주가 시작되면서 사업 성사 여부에 대한 불확실성이 사라진 시점과 겹친다.
-
-![시세 추이](img/byeokjeokgol8-yeongtong-price.png)
 
 매매 호가는 38건이 5억 8,000만~6억 8,000만 원이다(2026년 10월 24일). 이주 중이라 전세 매물은 없다.
 
