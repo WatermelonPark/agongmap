@@ -172,7 +172,8 @@ def test_no_merge_explainer():
 # '아파트'가 첫 화면 어디에도 없었다), 범례 속 11.5px 회색 '지역을 누르면 상세 리포트', title 의 '입주물량'.
 HERO_KICK = '아공맵 · 아파트 공급 지도'
 HERO_H1 = '공급은 3년, 시세는 매주'
-HERO_SUB = '국토교통부 착공·준공 실적으로 시도별 3년 공급을 판정하고, 한국부동산원 주간 시세를 매주 싣습니다.'
+# 부제는 2026-11-07 디자인 검수 home-3 으로 '시도별'·'주간'을 뺐다 — 읽는 문장 14px(11-06 대표 결정)에서 320px 두 줄을 지키려고.
+HERO_SUB = '국토교통부 착공·준공 실적으로 3년 공급을 판정하고, 한국부동산원 시세를 매주 싣습니다.'
 FONTS = os.path.join(ROOT, 'tools', 'fonts')
 
 
@@ -242,13 +243,16 @@ def test_home_h1_stays_on_one_line():
 
 
 def test_home_subtitle_is_two_lines_at_most_on_mobile():
-    """부제는 모바일 두 줄 이내(C1). 변이: .hero-sub 글자를 clamp(14px,…) 로 키우면 320px 에서 세 줄이 되어 빨개진다(확인)."""
+    """부제는 모바일 두 줄 이내(C1)이고 읽는 문장이라 14px 이상이다(2026-11-06 대표 결정 — 디자인 검수 home-3).
+    변이(확인): 부제를 옛 문장('…시도별 3년 공급을 판정하고, 한국부동산원 주간 시세를 매주 싣습니다.')으로 되돌리면 320px 에서 세 줄,
+    .hero-sub 하한을 옛 13.5px 로 되돌리면 14px 단정이 빨개진다."""
     ImageFont = pytest.importorskip('PIL.ImageFont')
     css = _src('app.css')
     rule = _css_rule(css, '.home-hero .hero-sub')
     sub = re.search(r'<p class="hero-sub">(.*?)</p>', _home_hero(), re.S).group(1)
     for vw in (320, 360, 375, 414):
         size = _clamp(rule, vw)
+        assert size >= 14, '%dpx 에서 부제가 %.1fpx — 읽는 문장 하한 14px 미만' % (vw, size)
         f = ImageFont.truetype(os.path.join(FONTS, 'Pretendard-Medium.subset.ttf'), round(size * 2) / 2)
         n = len(_lines(f, sub, _content_width(css, vw)))
         assert n <= 2, '%dpx 에서 부제가 %d줄' % (vw, n)

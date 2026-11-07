@@ -268,7 +268,7 @@ def test_hero_is_the_title_block_only():
     # 기준 줄(#tb-when = M.when) 하나가 말한다 — 지도 머리에도 날짜가 있어 두 번 나왔다.
     assert "when:_md(r.survey)+' 기준('+_md(r.pub)+' 발표) · 한국부동산원'" in _js_func(_home(), 'wkMapModel')
     tiles = _js_func(_home(), 'priceTilesHtml')
-    assert "' '+M.unit+'(%)</span></div>'" in tiles and 's.lead' not in tiles, '시군구 지도 아랫줄에 날짜가 다시 붙었다(기준 줄과 두 번)'
+    assert "'<span class=\"wg-when\">'+M.unit+'(%)</span></div>'" in tiles and 's.lead' not in tiles, '시군구 지도 아랫줄에 날짜가 다시 붙었다(기준 줄과 두 번)'
     assert 'dropOldMyZone();' in boot
     css = _src('app.css')
     assert not re.search(r'\.(hero-wk|hw-\d|myz)', css), '뺀 히어로 줄의 CSS 규칙이 남아 있다'
