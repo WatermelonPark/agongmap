@@ -4,6 +4,8 @@
 카카오 공유는 점수 카드를 직접 넘기지만, 링크 복사·밴드·문자로 보내면 미리보기 봇이 JS 를 실행하지
 않아 랜딩의 일반 카드만 보였다. 점수마다 og:image(share/{세트}-{점수}.png)를 가진 정적 페이지를 두고
 대결 링크를 그리로 보낸다. 사람은 곧바로 홈의 대결 화면으로 넘어간다.
+스크립트가 늦게 도는 느린 망에서 잠깐 보이는 폴백 화면도 다른 손 페이지와 같은 틀(먹색 칩·문서 h1 토큰·공용 푸터
+site_nav.HAND_FOOTER)이다(2026-11-07 디자인 검수 hand-11 — 예전엔 22px 제목과 단추뿐이었다). 탭바는 되돌리는 화면이라 싣지 않는다.
 
 ⚠️ 세트·주소·문항 수를 여기 적지 않는다. home-quiz.js 의 QUIZ_SLUG·QUIZSETS·QUIZ_LEN 에서(home_src 경유) 읽는다.
    canonical 은 랜딩으로 건다 — 점수 페이지 33장이 따로 색인되면 얇은 중복 문서가 된다.
@@ -20,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import robots_meta as RM  # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
+import site_nav as N  # noqa: E402  (손 페이지 공용 푸터 정본 — 2026-11-07 디자인 검수 hand-11)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://www.agongmap.co.kr'
@@ -41,12 +44,16 @@ PAGE = '''<!doctype html>
 <meta name="twitter:card" content="%(tw)s">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/app.css">
+<style>.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:6px 16px;margin-bottom:18px}
+.sfoot{text-align:center}</style>
 </head><body>
-<main class="wrap" style="max-width:560px;margin:14vh auto;text-align:center;padding:0 20px">
-<h1 style="font-size:22px">%(emoji)s %(title)s %(sc)d/%(n)d점</h1>
-<p style="color:var(--muted);line-height:1.7">친구가 받은 점수입니다. 같은 문제로 도전하는 화면으로 이동합니다.</p>
-<p style="margin-top:22px"><a href="%(landing)s" style="display:inline-block;background:var(--ink);color:var(--paper);padding:12px 22px;border-radius:3px;text-decoration:none">도전하기</a></p>
+<main class="wrap" style="max-width:560px;margin:14vh auto 0;text-align:center;padding:0 20px">
+<div class="chip">%(emoji)s %(title)s</div>
+<h1 style="font-size:var(--h1-doc);line-height:1.3">친구의 점수 %(sc)d/%(n)d점</h1>
+<p style="color:var(--ink2);line-height:1.7;margin-top:12px">친구가 받은 점수입니다. 같은 문제로 도전하는 화면으로 이동합니다.</p>
+<p style="margin-top:22px"><a href="%(landing)s" style="display:inline-block;background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:14px 26px;border-radius:3px;text-decoration:none">같은 문제로 도전하기</a></p>
 </main>
+%(footer)s
 <script>
 /* 대결 파라미터(?c=&s=&q=)가 있으면 홈의 대결 화면으로, 없으면 랜딩으로. 미리보기 봇은 JS 를 실행하지 않아 위 OG 를 읽는다. */
 (function(){var q=location.search;
@@ -97,7 +104,7 @@ def pages():
                 raise SystemExit('공유 이미지가 없다: share/%s-%d.png' % (key, sc))
             w, h = png_size(img)
             body = PAGE % {
-                'tw': twitter_card(w, h), 'robots': RM.TAG, 'title': html.escape(title), 'emoji': emoji, 'sc': sc, 'n': n, 'slug': slug[key], 'w': w, 'h': h,
+                'footer': N.HAND_FOOTER, 'tw': twitter_card(w, h), 'robots': RM.TAG, 'title': html.escape(title), 'emoji': emoji, 'sc': sc, 'n': n, 'slug': slug[key], 'w': w, 'h': h,
                 'landing': '%s/%s/' % (SITE, slug[key]), 'url': '%s/%s/%d/' % (SITE, slug[key], sc),
                 'img': '%s/share/%s-%d.png' % (SITE, key, sc)}
             out.append((os.path.join(ROOT, slug[key], str(sc), 'index.html'), body))

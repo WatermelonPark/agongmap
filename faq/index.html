@@ -90,8 +90,10 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   .lead{font-size:var(--fs-read);color:var(--ink2);max-width:460px;margin:0 auto}
   section{padding:26px 0 8px}
   details{background:#fff;border:1px solid var(--line);border-radius:0;margin-bottom:12px;overflow:hidden}
-  summary{cursor:pointer;list-style:none;font-size:var(--fs-read);font-weight:600;padding:16px 20px;position:relative}
-  summary::after{content:"+";position:absolute;right:18px;color:var(--muted);font-weight:400;font-size:20px}
+  /* 오른쪽 여백은 펼침 기호(right 18px + 기호 폭) 몫을 비운다 — 긴 질문 글자가 '+'에 닿지 않게(2026-11-07 디자인 검수 hand-1) */
+  summary{cursor:pointer;list-style:none;font-size:var(--fs-read);font-weight:600;padding:16px 46px 16px 20px;position:relative}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";position:absolute;right:18px;top:13px;width:16px;text-align:center;color:var(--muted);font-weight:400;font-size:20px}
   details[open] summary::after{content:"−"}
   details p{font-size:var(--fs-read);color:var(--ink2);padding:0 20px 16px}
   details a{color:var(--ink);font-weight:600}
@@ -178,16 +180,17 @@ body{padding-bottom:66px}
     <summary>부린이가 무슨 뜻인가요?</summary>
     <p>부동산+어린이, 즉 부동산 초보자를 뜻하는 신조어입니다. 내 감각이 어느 단계인지 궁금하면 <a href="/burini-test/">부린이 테스트</a> 10문항으로 5분 만에 확인할 수 있습니다. 무주택 달걀부터 부동산 봉황까지 11단계로 알려 드립니다.</p>
   </details>
-  <a class="cta" href="/">🏠 아공맵 홈으로</a>
+  <a class="cta" href="/">아공맵 홈으로</a>
 </div></section>
 
 
 </main>
 <footer class="sfoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
-  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
-  자료: KOSIS·한국부동산원·국토교통부·한국은행<br>
-  공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a><br>
+  문의 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
+  자료: KOSIS·한국부동산원·국토교통부·한국은행
+  <div class="disc" style="font-size:14px">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
 <script>
