@@ -748,8 +748,8 @@ def _key_of(meta):
 def card(meta):
     """카드 하나 — 허브·섹션 목록·홈·시도 리포트가 같은 마크업을 쓴다(CSS 는 LIST_CSS .kcard).
 
-    칩은 지역(첫 도시, 둘 이상이면 '외 N')과 질문의 짧은 이름, 제목은 결론형 한 문장(두 줄에서 자른다), 핵심 숫자는 큰 값과
-    작은 이름, 날짜는 좁은 자리 꼴('26.11.5'). data-city 는 허브 지역 칩이 거르는 값(모든 도시, '|' 로 이어서).
+    칩은 지역(첫 도시, 둘 이상이면 '외 N')과 질문의 짧은 이름, 제목은 결론형 한 문장, 핵심 숫자는 큰 값과
+    작은 이름, 날짜는 **작성일**의 좁은 자리 꼴('26.11.5', card_order). data-city 는 허브 지역 칩이 거르는 값(모든 도시, '|' 로 이어서).
     """
     cities = post_cities(meta)
     tkey = topic_of(meta)
@@ -763,11 +763,20 @@ def card(meta):
     return ('<a class="kcard" href="/%s/%s/" data-sec="%s" data-topic="%s" data-city="%s">'
             '<span class="kc-chips">%s</span><b class="kc-hook">%s</b>%s<i class="kc-date">%s</i></a>'
             % (meta['section'], meta['slug'], meta['section'], tkey, html.escape('|'.join(cities)),
-               chips, html.escape(meta['title']), key_html, _day_short(meta['updated'])))
+               chips, html.escape(meta['title']), key_html, _day_short(meta['date'])))
+
+
+def card_order(m):
+    """카드 목록의 정렬 열쇠 — 작성일(처음 올린 날)이 먼저, 같은 날이면 갱신일·slug.
+
+    카드 날짜도 작성일이다(2026-11-07 대표 승인). 갱신일은 원고를 한꺼번에 고친 날 모든 글이 같은 날이 되어 카드에서 정보가
+    없었다(11-05 일괄 개편 뒤 46장 중 41장이 26.11.5). 갱신일은 글 머리 메타 줄('… 작성 · … 갱신')과 JSON-LD·sitemap 에 남는다.
+    """
+    return (m['date'], m['updated'], m['slug'])
 
 
 def _newest(metas, n=None):
-    out = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    out = sorted(metas, key=card_order, reverse=True)
     return out[:n] if n else out
 
 
