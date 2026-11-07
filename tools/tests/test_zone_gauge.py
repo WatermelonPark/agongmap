@@ -63,7 +63,7 @@ def test_hub_cards_carry_the_gauge_and_the_multiple():
         t = SZ.card_text(z['dtot'], z['ratio'], adv['sido']['H'])
         frag = t.split('(')[-1].rstrip(')') if '(' in t else t
         assert frag in h, (z['z'], frag)
-        assert ('<i>%s' % t.split('(')[0]) in h, (z['z'], t)
+        assert re.search(r'<i class="zv %s">%s' % (z['grade'], re.escape(t.split('(')[0])), h), (z['z'], t)   # 판정 글자색(11-07 reports-2)
 
 
 def test_home_table_legend_is_one_price_ramp():
