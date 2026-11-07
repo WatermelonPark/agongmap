@@ -429,6 +429,13 @@
   </url>
 
   <url>
+    <loc>https://www.agongmap.co.kr/city/jeonju-2027-moveins/</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
     <loc>https://www.agongmap.co.kr/zone/</loc>
     <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
@@ -550,7 +557,7 @@
   </url>
 
   <url>
-    <loc>https://www.agongmap.co.kr/city/jeonju-2027-moveins/</loc>
+    <loc>https://www.agongmap.co.kr/city/wonju-2027-moveins/</loc>
     <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
