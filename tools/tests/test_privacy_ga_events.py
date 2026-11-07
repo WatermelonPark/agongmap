@@ -177,3 +177,25 @@ def test_privacy_scopes_the_list_to_site_code_and_names_auto_events():
     assert auto, 'GA 자동 수집 이벤트 안내(#ga-auto)가 없다'
     for ev in ('first_visit', 'session_start', 'user_engagement'):
         assert '<code>%s</code>' % ev in auto.group(1), ev
+
+
+def test_privacy_history_keeps_only_the_latest_line_open():
+    """6항 변경 이력은 최근 개정 한 줄만 펼쳐 두고 지난 줄은 <details class="hist"> 에 접는다(2026-11-07 디자인 검수 hand-5).
+
+    재현한 상태: 10줄이 코드 식별자(monospace)와 함께 모두 펼쳐져 375px 에서 약 850px — 방침 본문에서 가장 긴 덩어리였다.
+    위 두 시험은 문서 순서의 마지막 <li> 를 최신으로 읽으므로 접힌 목록이 먼저, 펼친 최근 줄이 나중이다. 새 개정을 더하면 지금
+    펼친 줄을 접힌 목록 끝으로 옮긴다.
+    변이(실제로 확인): 최근 줄을 접힌 목록 안으로 옮기거나, 지난 줄 하나를 접힌 목록 밖에 두면 빨개진다.
+    픽스처 없이 실제 privacy/index.html 을 읽는다.
+    """
+    s = _read('privacy/index.html')
+    i = s.find('<details class="hist">')
+    assert i >= 0, '6항 접힌 이력(details.hist)이 없다'
+    j = s.index('</details>', i)
+    a, b = s.rindex('<section', 0, i), s.index('</section>', j)
+    li = re.compile(r'<li(?: [^>]*)?>(\d{4}년 \d+월 \d+일) — ')
+    every = [(m.start(), m.group(1)) for m in li.finditer(s, a, b)]
+    inside = [d for p, d in every if i < p < j]
+    assert inside and [d for _, d in every[:-1]] == inside, '접힌 목록이 최근 줄을 뺀 지난 이력 전부가 아니다: 접힘 %s, 전체 %s' % (
+        inside, every)
+    assert every[-1][0] > j, '최근 줄이 접힌 목록 뒤에 펼쳐 있지 않다'

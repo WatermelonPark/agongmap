@@ -244,7 +244,7 @@ def test_hand_pages_share_one_footer():
 
 
 def test_every_footer_carries_the_canonical_links():
-    """저장소의 모든 <footer> 가 공용 링크 줄(site_nav.FOOTER_LINKS — 홈·소개·FAQ·개인정보처리방침·연락처)을 싣는다.
+    """저장소의 모든 <footer> 가 공용 링크 줄(site_nav.FOOTER_LINKS — 홈·소개·FAQ·개인정보처리방침)과 문의 줄(FOOTER_CONTACT)을 싣는다.
 
     재현한 실제 상태(2026-10-30 디자인 리뷰): /weekly/·/monthly/·/moveins/·/jeonse-ratio/·/zone/·콘텐츠 허브와 글의
     푸터에 개인정보처리방침 링크가 없었고, 콘텐츠 푸터는 '자료: 아공맵'(기관명 규칙 위반)이었다.
@@ -257,6 +257,12 @@ def test_every_footer_carries_the_canonical_links():
            if '<footer' in io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
            and N.FOOTER_LINKS not in io.open(os.path.join(ROOT, rel), encoding='utf-8').read()]
     assert not bad, '공용 링크 줄이 없는 푸터: %s' % bad
+    # 메일은 링크 줄이 아니라 문의 줄(FOOTER_CONTACT)에 둔다(2026-11-07 디자인 검수 hand-10 — 한 줄 중점 넷). 변이(실제로 확인):
+    # cycle/index.html 푸터의 문의 줄을 지우면 빨개진다.
+    bad = [rel for rel in _html_pages()
+           if '<footer' in io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
+           and N.FOOTER_CONTACT not in io.open(os.path.join(ROOT, rel), encoding='utf-8').read()]
+    assert not bad and 'mailto' not in N.FOOTER_LINKS, '문의 줄이 없는 푸터: %s' % bad
     assert N.FOOTER_LINKS in I.fill(I.SHELL, src='국토교통부')
     assert N.FOOTER_LINKS in M.FOOT
     w = MW.put_footer('<footer><div class="wrap">옛 푸터</div></footer>')

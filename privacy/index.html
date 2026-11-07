@@ -54,8 +54,9 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     background:var(--ink);padding:6px 16px;border-radius:0;margin-bottom:18px}
   h1{font-size:var(--h1-doc);line-height:1.3;color:var(--ink);margin:.45em 0 .2em;letter-spacing:-.02em}
   .lead{color:var(--muted);font-size:.95rem;margin:0}
+  .nw{white-space:nowrap}   /* 날짜 한 덩어리가 줄 끝에서 갈라져 '30일'만 남지 않게(hand-6) */
   section{padding:26px 0;border-bottom:1px solid var(--line)}
-  h2{font-size:1.12rem;color:var(--ink);margin:0 0 .5em}
+  h2{font-size:21px;color:var(--ink);margin:0 0 .5em}   /* 절 머리가 본문 굵은 강조와 같은 무게로 보이지 않게(hand-7, 예전 1.12rem) */
   p{margin:.5em 0}
   ul{margin:.4em 0;padding-left:1.2em}
   li{margin:.35em 0}
@@ -65,6 +66,18 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   .scroll td:first-child{min-width:6.5em}
   .scroll table{min-width:560px}   /* 좁은 화면에서 네 열이 한 글자 폭으로 짓눌리지 않게 — 넘치면 상자 안에서 밀고 그림자가 알린다 */
   @media (max-width:600px){.scroll td:first-child{position:sticky;left:0;background:var(--paper);z-index:1}}
+  /* 1·2항 표(.stack)는 좁은 화면에서 행마다 카드로 쌓는다 — 옆으로 밀어야 보이던 '보유 기간'·'이전 국가'가 첫 화면에 있다
+     (2026-11-07 디자인 검수 hand-0). 칸 이름은 td 의 data-label 이 싣는다. GA 이벤트 표는 그대로 밀고 한 줄 안내를 단다. */
+  @media (max-width:600px){
+    .scroll.stack{overflow:visible;background:none}
+    .scroll.stack table,.scroll.stack tbody,.scroll.stack tr,.scroll.stack td{display:block;min-width:0}
+    .scroll.stack thead{display:none}
+    .scroll.stack tr{background:var(--panel);border:1px solid var(--line);margin:0 0 10px;padding:6px 0}
+    .scroll.stack td{border:0;padding:5px 14px}
+    .scroll.stack td:first-child{position:static;background:none;font-weight:600;color:var(--ink)}
+    .scroll.stack td[data-label]::before{content:attr(data-label);display:block;font-size:13px;font-weight:600;color:var(--muted)}
+    details.ev .scroll::after{content:'옆으로 밀면 나머지 칸이 보입니다';display:block;font-size:13px;color:var(--muted);margin:4px 0 0}
+  }
   th,td{padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
   td{text-align:left}
   th{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap;background:var(--panel);text-align:center}
@@ -95,37 +108,44 @@ body{padding-bottom:66px}
 details.ev{margin:.8em 0}
 details.ev summary{cursor:pointer;font-weight:600}
 details.ev code{font-size:13px;white-space:nowrap}
+/* 6항 변경 이력 — 지난 줄은 접어 두고 최근 개정 한 줄만 펼쳐 둔다(hand-5). 새 개정을 더하면 지금 펼친 줄을 접힌 목록 끝으로
+   옮기고 새 줄을 펼친 목록에 둔다(test_privacy_ga_events 가 이력 마지막 줄을 최신으로 읽고, 펼친 줄이 그 하나인지 본다). */
+details.hist{margin:.6em 0}
+details.hist summary{cursor:pointer;font-weight:600}
+details.hist code{font-size:13px}
 </style>
 <link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
 </head>
-<body data-desk="read">
+<body data-desk="doc">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <header><div class="wrap">
   <div class="chip">🔒 개인정보처리방침</div>
   <h1>아공맵 개인정보처리방침</h1>
-  <p class="lead">시행일 2026년 8월 1일 · 최근 개정 2026년 10월 30일</p>
+  <p class="lead"><span class="nw">시행일 2026년 8월 1일</span> · <span class="nw">최근 개정 2026년 10월 30일</span></p>
 </div></header>
+<!-- 왼쪽 조항 목록(1024px 이상, desk.css doc). 절을 더하면 id(s번호)와 여기 줄을 같이 더한다(test_desk 가 앵커를 본다) -->
+<nav class="dtoc" hidden aria-label="목차"><b>조항</b><ol><li><a href="#s1">수집 항목과 목적</a></li><li><a href="#s2">처리 위탁·국외 이전</a></li><li><a href="#s3">쿠키와 거부 방법</a></li><li><a href="#s4">이용자의 권리</a></li><li><a href="#s5">안전성 확보 조치</a></li><li><a href="#s6">방침의 변경</a></li></ol></nav>
 <main id="main">
 
-<section><div class="wrap">
+<section id="s1"><div class="wrap">
   <h2>1. 수집하는 개인정보 항목과 목적</h2>
   <p>아공맵(이하 “서비스”)은 아래 항목만 수집합니다. 회원가입 절차가 없으며, 이름·연락처·주소 등은 수집하지 않습니다.</p>
-  <div class="scroll">
+  <div class="scroll stack">
   <table>
     <thead><tr><th>구분</th><th>수집 항목</th><th>이용 목적</th><th>보유 기간</th></tr></thead>
     <tbody>
       <tr>
         <td>접속 분석<br>(자동 수집)</td>
-        <td>쿠키·기기/브라우저 정보, 방문 페이지·체류시간, 대략적 지역 정보(IP 기반, 저장은 익명화)</td>
-        <td>서비스 이용 현황 파악 및 개선</td>
-        <td>수집일로부터 14개월</td>
+        <td data-label="수집 항목">쿠키·기기/브라우저 정보, 방문 페이지·체류시간, 대략적 지역 정보(IP 기반, 저장은 익명화)</td>
+        <td data-label="이용 목적">서비스 이용 현황 파악 및 개선</td>
+        <td data-label="보유 기간">수집일로부터 14개월</td>
       </tr>
       <tr>
         <td>이용 이벤트<br>(자동 수집)</td>
-        <td>화면·버튼 이용 기록, 퀴즈 점수·문항별 정답 여부, 친구 대결 점수(아래 목록)</td>
-        <td>서비스 이용 현황 파악 및 개선</td>
-        <td>수집일로부터 14개월</td>
+        <td data-label="수집 항목">화면·버튼 이용 기록, 퀴즈 점수·문항별 정답 여부, 친구 대결 점수(아래 목록)</td>
+        <td data-label="이용 목적">서비스 이용 현황 파악 및 개선</td>
+        <td data-label="보유 기간">수집일로부터 14개월</td>
       </tr>
     </tbody>
   </table>
@@ -186,24 +206,24 @@ details.ev code{font-size:13px;white-space:nowrap}
   </details>
 </div></section>
 
-<section><div class="wrap">
+<section id="s2"><div class="wrap">
   <h2>2. 처리 위탁 및 국외 이전</h2>
   <p>서비스는 자체 서버를 운영하지 않으며, 아래 사업자의 서비스를 이용합니다. 이 과정에서 개인정보가 국외로 이전됩니다.</p>
-  <div class="scroll">
+  <div class="scroll stack">
   <table>
     <thead><tr><th>수탁자</th><th>이전 항목</th><th>이전 국가·시점</th><th>이용 목적·보유기간</th></tr></thead>
     <tbody>
       <tr>
         <td>Google LLC<br>(Google Analytics)</td>
-        <td>쿠키·이용 기록(1항의 이용 이벤트 포함)</td>
-        <td>미국 · 페이지 접속 시 즉시</td>
-        <td>이용 현황 분석 · 14개월</td>
+        <td data-label="이전 항목">쿠키·이용 기록(1항의 이용 이벤트 포함)</td>
+        <td data-label="이전 국가·시점">미국 · 페이지 접속 시 즉시</td>
+        <td data-label="이용 목적·보유기간">이용 현황 분석 · 14개월</td>
       </tr>
       <tr>
         <td>GitHub, Inc.<br>(GitHub Pages)</td>
-        <td>접속 IP 등 서버 접속 기록</td>
-        <td>미국 · 페이지 접속 시 즉시</td>
-        <td>웹사이트 호스팅 · 사업자 정책에 따름</td>
+        <td data-label="이전 항목">접속 IP 등 서버 접속 기록</td>
+        <td data-label="이전 국가·시점">미국 · 페이지 접속 시 즉시</td>
+        <td data-label="이용 목적·보유기간">웹사이트 호스팅 · 사업자 정책에 따름</td>
       </tr>
     </tbody>
   </table>
@@ -211,7 +231,7 @@ details.ev code{font-size:13px;white-space:nowrap}
   <p>이용자는 국외 이전을 거부할 수 있습니다. 접속 분석은 아래 3항의 방법으로 차단할 수 있습니다.</p>
 </div></section>
 
-<section><div class="wrap">
+<section id="s3"><div class="wrap">
   <h2>3. 쿠키·브라우저 저장소와 거부 방법</h2>
   <p>서비스는 이용 현황 분석을 위해 Google Analytics를 사용하며 쿠키를 저장합니다. 다음 방법으로 거부할 수 있습니다.</p>
   <ul>
@@ -221,7 +241,7 @@ details.ev code{font-size:13px;white-space:nowrap}
   <p>쿠키를 차단해도 통계·지도·퀴즈 등 서비스의 모든 기능은 정상적으로 이용할 수 있습니다.</p>
 </div></section>
 
-<section><div class="wrap">
+<section id="s4"><div class="wrap">
   <h2>4. 이용자의 권리</h2>
   <p>이용자는 자신의 개인정보에 대해 열람·정정·삭제·처리정지를 요구할 수 있습니다. 아래 연락처로 요청하시면 지체 없이 처리하고 결과를 알려드립니다.</p>
   <div class="note">
@@ -237,34 +257,40 @@ details.ev code{font-size:13px;white-space:nowrap}
   </ul>
 </div></section>
 
-<section><div class="wrap">
+<section id="s5"><div class="wrap">
   <h2>5. 안전성 확보 조치</h2>
   <p>서비스는 정적 웹사이트로 운영되어 <b>개인정보를 담는 자체 데이터베이스를 두지 않습니다.</b> 모든 페이지는 HTTPS로 제공됩니다.</p>
 </div></section>
 
-<section><div class="wrap">
+<section id="s6"><div class="wrap">
   <h2>6. 방침의 변경</h2>
   <p>법령·서비스 변경에 따라 이 방침이 수정될 수 있습니다. 중요한 변경이 있을 경우 시행 7일 전부터 이 페이지에 공지합니다.</p>
-  <ul>
-    <li>2026년 8월 1일 — 최초 제정·시행</li>
-    <li>2026년 9월 30일 — 설명을 실제 처리에 맞게 바로잡음: 퀴즈 점수·문항별 정답 여부 등 이용 이벤트가 Google Analytics로 전송된다는 사실과 전송 목록을 1항에 적음(처리 방식은 바뀌지 않았고, 이전 문구가 “서버로 전송되지 않는다”고 잘못 적고 있었음)</li>
-    <li>2026년 10월 2일 — 1항 전송 목록에 시세 지도·순위표에서 지역을 눌러 그래프를 여는 이벤트(<code>trend_pick</code>)를 더함</li>
-    <li>2026년 10월 4일 — 1항 <code>trend_pick</code> 설명에 홈 지도 시세 보기의 그래프·표 단추를 더함(보내는 값은 같음)</li>
-    <li>2026년 10월 5일 — 홈 '내 지역' 고정 기능을 없애 1항 전송 목록에서 <code>myzone</code>을 빼고, 브라우저 저장 예시에서 고정한 내 지역을 뺌(남아 있던 저장값은 홈이 지움)</li>
-    <li>2026년 10월 6일 — 1항 <code>blog_link</code> 설명에 입주물량 페이지를 더함(보내는 값은 같음)</li>
-    <li>2026년 10월 10일 — 1항 <code>stats_gt</code> 설명을 순위·지도·그래프·표 보기로 고침(보기 값에 순위·지도가 더해짐)</li>
-    <li data-ga="f2486773">2026년 10월 20일 — 1항 목록을 '사이트 코드가 보내는 이벤트'로 좁히고 Google Analytics가 스스로 모으는 기본 이벤트를 한 줄로 밝힘, 운영자 기기 표식(<code>traffic_type</code>)을 더함</li>
+  <details class="hist">
+    <summary>지난 변경 이력(2026년 8월 1일 제정부터)</summary>
+    <ul>
+      <li>2026년 8월 1일 — 최초 제정·시행</li>
+      <li>2026년 9월 30일 — 설명을 실제 처리에 맞게 바로잡음: 퀴즈 점수·문항별 정답 여부 등 이용 이벤트가 Google Analytics로 전송된다는 사실과 전송 목록을 1항에 적음(처리 방식은 바뀌지 않았고, 이전 문구가 “서버로 전송되지 않는다”고 잘못 적고 있었음)</li>
+      <li>2026년 10월 2일 — 1항 전송 목록에 시세 지도·순위표에서 지역을 눌러 그래프를 여는 이벤트(<code>trend_pick</code>)를 더함</li>
+      <li>2026년 10월 4일 — 1항 <code>trend_pick</code> 설명에 홈 지도 시세 보기의 그래프·표 단추를 더함(보내는 값은 같음)</li>
+      <li>2026년 10월 5일 — 홈 '내 지역' 고정 기능을 없애 1항 전송 목록에서 <code>myzone</code>을 빼고, 브라우저 저장 예시에서 고정한 내 지역을 뺌(남아 있던 저장값은 홈이 지움)</li>
+      <li>2026년 10월 6일 — 1항 <code>blog_link</code> 설명에 입주물량 페이지를 더함(보내는 값은 같음)</li>
+      <li>2026년 10월 10일 — 1항 <code>stats_gt</code> 설명을 순위·지도·그래프·표 보기로 고침(보기 값에 순위·지도가 더해짐)</li>
+      <li data-ga="f2486773">2026년 10월 20일 — 1항 목록을 '사이트 코드가 보내는 이벤트'로 좁히고 Google Analytics가 스스로 모으는 기본 이벤트를 한 줄로 밝힘, 운영자 기기 표식(<code>traffic_type</code>)을 더함</li>
+    </ul>
+  </details>
+  <ul class="hist-now">
     <li data-ga="1b2e1ca7">2026년 10월 30일 — 사이트에서 네이버 블로그 글 링크를 모두 걷어(주간 시세·입주물량 페이지·홈) 1항 전송 목록에서 <code>blog_link</code>를 뺌</li>
   </ul>
-  <a class="cta" href="/">🏠 아공맵 홈으로</a>
+  <a class="cta" href="/">아공맵 홈으로</a>
 </div></section>
 
 </main>
 <footer class="sfoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
-  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
-  자료: KOSIS·한국부동산원·국토교통부·한국은행<br>
-  공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a><br>
+  문의 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
+  자료: KOSIS·한국부동산원·국토교통부·한국은행
+  <div class="disc" style="font-size:14px">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
 <script>
@@ -278,5 +304,6 @@ if('serviceWorker' in navigator){
   <a class="nav-btn" href="/#stats"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>시세</span></a>
   <a class="nav-btn" href="/reports/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M15 3v4h4M9.5 12h6M9.5 16h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>콘텐츠</span></a>
 </nav>
+<script>(function(){var t=document.querySelector('.dtoc');if(!t)return;var a=[].slice.call(t.querySelectorAll('a[href^="#"]')),m={};a.forEach(function(x){var s=document.getElementById(x.getAttribute('href').slice(1));if(s)m[s.id]=x});t.addEventListener('click',function(e){var x=e.target.closest&&e.target.closest('a');if(!x)return;var d=document.getElementById(x.getAttribute('href').slice(1));if(d&&d.tagName==='DETAILS')d.open=true});if(!('IntersectionObserver' in window))return;var o=new IntersectionObserver(function(es){es.forEach(function(e){if(!e.isIntersecting)return;a.forEach(function(x){x.removeAttribute('aria-current')});var x=m[e.target.id];if(x)x.setAttribute('aria-current','true')})},{rootMargin:'-15% 0px -75% 0px'});Object.keys(m).forEach(function(k){o.observe(document.getElementById(k))})})();</script>
 </body>
 </html>
