@@ -1082,7 +1082,8 @@ table.adv thead th:first-child{text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
 .kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
-.kc-hook{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+/* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
+.kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
 .kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}

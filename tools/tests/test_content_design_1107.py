@@ -214,6 +214,10 @@ def test_reading_text_in_content_pages_is_at_least_14px():
     for sel in (r'\.qcard ul', r'\.csrc', r'\.cfoot3', r'\.cbody p\.cnotep', r'\.cbody \.cfold p'):
         m = re.search(r'(?:^|\n|\})%s\{[^}]*font-size:([\d.]+)px' % sel, css)
         assert m and float(m.group(1)) >= 14, '%s 글자가 14px 아래다' % sel
+    # 카드 결론 제목은 세 줄까지(두 줄 자르기에서 3열 칸의 결론 동사가 잘렸다 — 홈 '최근 리포트' 검수, 영역 B 넘김).
+    # 변이(실제로 확인): .kc-hook 을 -webkit-line-clamp:2 로 되돌리면 빨개진다.
+    m = re.search(r'\.kc-hook\{[^}]*-webkit-line-clamp:(\d+)', MC.LIST_CSS)
+    assert m and int(m.group(1)) >= 3, '카드 결론 제목이 두 줄에서 잘린다'
     m = re.search(r'\n\.rh2\{([^}]*)\}', css)
     assert m and 'font-size:20px' in m.group(1) and 'font-weight:700' in m.group(1), '허브 절 제목이 뼈대 h2 급이 아니다'
 
