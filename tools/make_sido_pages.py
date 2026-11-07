@@ -740,7 +740,10 @@ WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;colo
           '.zcell b span{color:var(--ink)}'
           # '시세도 함께' 칸(next_links) — .zcell 을 링크로 쓴다. 누르는 칸이라 바탕이 반응하고 끝에 화살표를 단다.
           'a.zcell{text-decoration:none;color:var(--ink);transition:background .12s}a.zcell:hover{background:var(--paper2)}'
-          'a.zcell b::after{content:" →";color:var(--ink2)}a.zcell span.up{color:#a93226}a.zcell span.dn{color:var(--gwaing)}'
+          'a.zcell b::after{content:" →";color:var(--ink2)}'
+          'a.zcell strong{display:block;font-size:21px;font-weight:700;letter-spacing:-.01em;margin:3px 0 5px;color:var(--ink);'
+          'font-variant-numeric:tabular-nums}a.zcell small{display:block;font-size:13px;color:var(--muted);line-height:1.55}'
+          'a.zcell strong.up{color:#a93226}a.zcell strong.dn{color:var(--gwaing)}'
           '.zposts.zp-cut .kgrid>:nth-child(n+%d){display:none}' % (POSTS_CAP + 1) +
           '.zp-more{display:inline-flex;align-items:center;min-height:40px;margin-top:10px;padding:0 14px;font:inherit;font-size:14px;'
           'font-weight:600;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:var(--r-touch);cursor:pointer}'
@@ -1015,7 +1018,9 @@ def next_links(z, weekly, stats):
             # 검수 reports-6: 13px 회색 한 줄이라 같은 페이지 안에서 숫자 위계가 둘이었다). 부호 색은 주간 표와 같은 MW.sign.
             (k0, v0), rest = parts[0], parts[1:]
             sg = MW.sign(v0)
-            cards.append('<a class="zcell" href="/weekly/"><b>이번 주 %s</b><span%s>%s%%</span><i>%s</i></a>'
+            # 값·아래 줄은 strong·small — 칸 하나가 한 덩어리 글로 읽힌다(span·i 로 나누면 '1년 전 대비 …%p · 9월 기준' 같은 조각이
+            # 다른 장과 우연히 같아져 공통 문장 비율 시험(test_zone_weekly D4)이 데이터에 따라 흔들렸다).
+            cards.append('<a class="zcell" href="/weekly/"><b>이번 주 %s</b><strong%s>%s%%</strong><small>%s</small></a>'
                          % (k0, (' class="%s"' % sg) if sg else '', MW.pv2(v0),
                             ' · '.join(['%s %s%%' % (k, MW.pv2(v)) for k, v in rest] + when)))
     j = (stats or {}).get('전세가율') or {}
@@ -1029,7 +1034,7 @@ def next_links(z, weekly, stats):
             import make_indicator_pages as I   # 변화량은 /jeonse-ratio/ 표와 같은 함수(표시값의 차, 전수 리뷰 #16)
             d = I.jeonse_delta(cur, ago)
             chg = '' if d is None else '1년 전 대비 %+.1f%%p · ' % d
-            cards.append('<a class="zcell" href="/jeonse-ratio/"><b>전세가율</b><span>%.1f%%</span><i>%s%s 기준</i></a>'
+            cards.append('<a class="zcell" href="/jeonse-ratio/"><b>전세가율</b><strong>%.1f%%</strong><small>%s%s 기준</small></a>'
                          % (cur, chg, esc(SZ.month_text(dates[li]))))
     year = year_line(z, stats)
     if not cards and not year:

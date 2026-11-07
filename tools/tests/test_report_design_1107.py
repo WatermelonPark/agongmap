@@ -110,11 +110,11 @@ def test_region_posts_follow_the_numbers_and_fold_after_four():
 
 
 def test_market_cards_show_the_number_large():
-    """'시세도 함께' 칸은 '숫자로 보면'과 같은 .zcell — 큰 숫자(span)와 아래 줄(i)로 나뉜다(reports-6). 부호 색은 주간 표의 MW.sign.
+    """'시세도 함께' 칸은 '숫자로 보면'과 같은 .zcell — 큰 숫자(strong)와 아래 줄(small)로 나뉜다(reports-6). 부호 색은 주간 표의 MW.sign.
     변이(실제로 확인): next_links 를 옛 .zlinks 한 줄 칸으로 되돌리면 빨개진다."""
     html = M.next_links('서울', {'regions': ['서울'], 'rows': [{'p': '2026-10-12', 'ma': [0.12], 'je': [-0.05]}]}, {})
     assert '<div class="zgrid zmk">' in html
-    assert '<a class="zcell" href="/weekly/"><b>이번 주 매매</b><span class="up">+0.12%</span><i>전세 -0.05% · ' in html, html
+    assert '<a class="zcell" href="/weekly/"><b>이번 주 매매</b><strong class="up">+0.12%</strong><small>전세 -0.05% · ' in html, html
 
 
 def test_page_modified_date_reads_long_and_does_not_churn_the_page():
