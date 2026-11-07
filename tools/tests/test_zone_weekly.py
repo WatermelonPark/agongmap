@@ -418,7 +418,7 @@ def test_year_line_uses_the_card_months_and_labels_not_row_offsets():
     assert '전세가율 %.1f%%(2030년 5월) → %.1f%%(2031년 5월)' % (v(jr, '2030.05'), v(jr, '2031.05')) in line, line
     assert I.jeonse_ref_index(jr, I.JEONSE_NEED) == jd.index('2031.05')
     card = M.next_links('서울', None, stats)
-    assert '2031년 5월 기준' in card and '2031년 6월' not in re.search(r'<b>전세가율</b><span>[^<]*</span><i>(.*?)</i>', card).group(1), card
+    assert '2031년 5월 기준' in card and '2031년 6월' not in re.search(r'<b>전세가율</b><strong>[^<]*</strong><small>(.*?)</small>', card).group(1), card
     # 양 끝 값이 없으면 그 항목만 빠지고, 둘 다 없으면 줄이 없다
     assert M.year_line('서울', {'미분양': un}).count('전세가율') == 0
     assert M.year_line('서울', {}) == '' and M.year_line('없는곳', stats) == ''

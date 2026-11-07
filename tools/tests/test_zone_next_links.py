@@ -54,9 +54,9 @@ def _block(z):
 
 def _card(blk, href):
     """'시세도 함께' 칸 하나를 예전 한 줄 글('매매 +0.07% · 전세 +0.17% · 11/2 조사 · 11/5 발표', '52.3% · 1년 전 대비 -0.7%p ·
-    2026년 9월 기준')로 되읽는다. 11-07(디자인 검수 reports-6)부터 칸은 .zcell — 제목 <b>(이번 주 매매·전세가율), 큰 숫자 <span>,
-    나머지 줄 <i> 로 나뉜다. 같은 글이 되어야 값·순서·기준일이 그대로다. 칸이 없으면 None."""
-    m = re.search(r'<a class="zcell" href="%s"><b>([^<]*)</b><span[^>]*>([^<]*)</span><i>([^<]*)</i></a>' % re.escape(href), blk or '')
+    2026년 9월 기준')로 되읽는다. 11-07(디자인 검수 reports-6)부터 칸은 .zcell — 제목 <b>(이번 주 매매·전세가율), 큰 숫자 <strong>,
+    나머지 줄 <small> 로 나뉜다. 같은 글이 되어야 값·순서·기준일이 그대로다. 칸이 없으면 None."""
+    m = re.search(r'<a class="zcell" href="%s"><b>([^<]*)</b><strong[^>]*>([^<]*)</strong><small>([^<]*)</small></a>' % re.escape(href), blk or '')
     if not m:
         return None
     b, v, rest = m.groups()

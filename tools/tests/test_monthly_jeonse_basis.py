@@ -45,7 +45,7 @@ def test_monthly_jeonse_uses_the_same_basis_month_as_jeonse_ratio():
     ref = jr['dates'][I.jeonse_ref_index(jr, I.JEONSE_NEED)]
     assert ref == full, '픽스처가 부분 최신 열을 재현하지 않는다'
     html, _ = I.build_jeonse({'전세가율': jr})
-    ratio_month = re.search(r'전국 아파트 전세가율 · (\d{4}년 \d{1,2}월) 기준', html).group(1)
+    ratio_month = re.search(r'전국 아파트 전세가율(?:</span>)? (?:<span class="nw">)?· (\d{4}년 \d{1,2}월) 기준', html).group(1)   # 조각 nowrap(11-07 indicators-8)
     assert ratio_month == MP.month_label(ref)
     assert lab == MP.month_label(ref), '/monthly/ 는 %s, /jeonse-ratio/ 는 %s 기준을 말한다' % (lab, ratio_month)
 
