@@ -50,16 +50,16 @@
   .hero .meta .dot{width:4px;height:4px;border-radius:50%;background:var(--muted)}
   @media(max-width:480px){.hero .meta .dot{display:none}}   /* 좁은 화면에서 줄이 바뀌면 점이 줄 끝에 매달렸다(2026-10-31 디자인 리뷰 2차) — 간격(gap)이 가른다 */
 
-  /* READ-ME box */
-  .howto{background:var(--ink);color:#e8ebf2;padding:28px 0;font-size:14.5px}
-  .howto .wrap{display:flex;gap:14px;align-items:flex-start}
-  .howto .ic{flex:none;width:30px;height:30px;border-radius:50%;background:#e8ebf2;
-    color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px}
-  .howto b{color:#fff}
-  .howto .gloss{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;font-size:13.5px;color:#c2c7d6}
-  .howto .gloss div{padding-left:14px;border-left:2px solid #313c5e}
-  .howto .gloss b{color:#fff}
-  @media(max-width:600px){.howto .gloss{grid-template-columns:1fr}}
+  /* READ-ME box — /cycle/ 본문 띠(.mainbanner) 안에 접어 둔다(2026-11-07 디자인 검수 indicators-11 — 검은 띠·초록 띠가 연달아 310px).
+     글자는 초록 띠 위 5.4:1 이상(#e8ebf2), 문장은 14px(읽는 글 하한). */
+  .mainbanner .howto-d{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.28);color:#e8ebf2;font-size:14.5px;line-height:1.65}
+  .mainbanner .howto-d>summary{color:#fff;min-height:32px}
+  .mainbanner .howto-body{margin-top:10px}
+  .mainbanner .howto-d .gloss{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;font-size:14px}
+  .mainbanner .howto-d .gloss div{padding-left:14px;border-left:2px solid rgba(255,255,255,.35)}
+  .mainbanner .howto-x{margin-top:12px;font-size:14px}
+  .mainbanner .howto-g{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.28);font-size:14px}
+  @media(max-width:600px){.mainbanner .howto-d .gloss{grid-template-columns:1fr}}
 
   /* SECTIONS as cycle steps */
   section.step{padding:58px 0;border-top:1px solid var(--line);position:relative}
@@ -80,14 +80,14 @@
 
   .verdict{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;
     padding:5px 13px;border-radius:0;margin-bottom:18px}
-  .v-strong{background:#dff3ec;color:#157a61;border:1px solid #9dd9c5}
+  .v-strong{background:#dff3ec;color:#1a6b54;border:1px solid #9dd9c5}   /* 글자 초록은 #1a6b54 하나(11-07 indicators-6) */
   .v-mid{background:#fdf3d8;color:#7a5800;border:1px solid #ecd28a}
   .v-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
 
   .chartbox{background:#fff;border-radius:0;
     padding:22px 18px 16px;margin:22px 0;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
   .chartbox h3{font-size:14px;font-weight:600;margin-bottom:4px}
-  .chartbox .cap{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+  .chartbox .cap{font-size:var(--fs-dense);color:var(--muted);margin-bottom:14px;line-height:1.6}   /* 캡션도 문장이라 14px(11-07 indicators-0) */
   .cwrap{position:relative;height:340px}.cwrap.tall{height:420px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:8px 0}
   .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--ink2)}
@@ -107,8 +107,9 @@
     border-radius:var(--r-touch);cursor:pointer;transition:.15s}
   .toggle button.on{background:var(--ink);color:var(--paper)}
 
-  .note{font-size:13.5px;color:var(--muted);border-left:3px solid var(--ink2);
-    padding:10px 16px;margin:16px 0;background:#fff;border-radius:0}
+  /* 고리의 근거 단락(4~6문장)이라 읽는 글 크기로(2026-11-07 디자인 검수 indicators-0 — 13.5px 회색이라 본문 16px 옆에서 건너뛰게 됐다) */
+  .note{font-size:14.5px;line-height:1.65;color:var(--ink2);border-left:3px solid var(--ink2);
+    padding:10px 14px;margin:16px 0;background:#fff;border-radius:0}
   .note b{color:var(--ink)}
 
   /* confidence panel */
@@ -118,16 +119,16 @@
   .conf .gauge i{width:11px;height:11px;border-radius:50%;background:var(--line)}
   .conf .gauge i.on{background:var(--stock)}
   .conf .gauge i.mid{background:var(--flow)}
-  .conf .ctxt{font-size:13.5px;color:var(--ink2);line-height:1.5;flex:1;min-width:220px}
+  .conf .ctxt{font-size:14.5px;color:var(--ink2);line-height:1.6;flex:1;min-width:220px}
   .conf .ctxt b{color:var(--ink)}
   .conf .clevel{font-size:13px;font-weight:600;letter-spacing:.02em;padding:3px 10px;
     border-radius:0;flex:none}
-  .cl-high{background:#dff3ec;color:#157a61}
+  .cl-high{background:#dff3ec;color:#1a6b54}
   .cl-mid{background:#fdf3d8;color:#7a5800}
   .conf .meta{font-size:13px;color:var(--muted);margin-top:3px}
 
   /* 본문 파트 배너 (청록) */
-  .mainbanner{background:#1a6b54;padding:22px 0;margin-top:10px}   /* 흰 글자 대비 4.26 → 6.5 */
+  .mainbanner{background:#1a6b54;padding:22px 0 18px;margin-top:10px}   /* 흰 글자 대비 4.26 → 6.5 */
   .mainbanner .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
   .mainbanner .mainkicker{display:inline-block;font-size:13px;font-weight:500;
     background:#fff;color:#1a6b54;padding:3px 12px;border-radius:0;margin-bottom:10px}
@@ -153,7 +154,7 @@
   .hcol ul{margin:0;padding-left:18px}
   .hcol li{font-size:14px;line-height:1.65;color:var(--ink2);margin-bottom:9px}
   .hcol li b{color:var(--ink)}
-  .disc{font-size:13px;color:var(--muted);line-height:1.6;margin-top:20px;
+  .disc{font-size:var(--fs-dense);color:var(--muted);line-height:1.6;margin-top:20px;
     padding-top:16px;border-top:1px solid var(--line)}
   @media(max-width:640px){.hbox{grid-template-columns:1fr}}
 
@@ -166,6 +167,10 @@
     background:var(--ink);color:var(--paper);border-radius:50%;display:flex;
     align-items:center;justify-content:center;font-size:14px;font-weight:600}
   .take li b{color:var(--ink)}
+  /* 끝 요약 항목마다 그 절로 돌아가는 링크(2026-11-07 디자인 검수 indicators-12 — 22,000px 를 다 읽은 독자에게 '어디로 갈지'). */
+  .take li .take-go{display:inline-flex;align-items:center;min-height:32px;margin-left:4px;font-size:var(--fs-dense);font-weight:600;
+    color:#1a6b54;text-decoration:none;white-space:nowrap}
+  .take li .take-go:hover{text-decoration:underline;text-underline-offset:3px}
 
   footer{padding:44px 0 80px;font-size:13px;color:var(--muted)}
   footer .src{margin-top:10px;line-height:1.8}
@@ -456,13 +461,20 @@
     background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:var(--r-touch);font-size:13px;font-weight:600;
     text-decoration:none}   /* 그림자 없음 — 장식 금지(audit_design) */
   body.cy-scrolled .cy-toc{display:inline-flex}
+  /* 절 끝 '다음 · …' 한 줄과 30초 요약 아래 참고 절 입구(2026-11-07 디자인 검수 indicators-4 — 22,600px 문서에 375px 이동 수단이
+     '↑ 30초 요약' 하나였고 참고 ①~④로 가는 입구가 없었다). 같은 글 안 이동이라 GA 를 달지 않는다. */
+  .cy-next{margin:22px 0 0;text-align:right;font-size:var(--fs-dense)}
+  .cy-next a{display:inline-flex;align-items:center;min-height:40px;color:var(--part-ink,var(--ink));font-weight:600;text-decoration:none}
+  .cy-next a:hover{text-decoration:underline;text-underline-offset:3px}
+  .tldr-refs{grid-area:refs;margin:0;font-size:var(--fs-dense);color:var(--muted)}
+  .tldr-refs a{display:inline-flex;align-items:center;min-height:32px;color:var(--ink2);font-weight:600;text-underline-offset:3px}
   .tldr{padding:44px 0 8px}
   .tldr-kicker{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:10px}
   .tldr-h{font-size:clamp(22px,4.2vw,30px);font-weight:700;letter-spacing:-.02em;
     line-height:1.25;margin-bottom:26px}
   .tldr-h b{color:#1a6b54}
   .tldr-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:18px 28px;align-items:start;
-    grid-template-areas:"diagram steps" "rate steps" "more more"}
+    grid-template-areas:"diagram steps" "rate steps" "refs steps" "more more"}
   .tldr-diagram{grid-area:diagram;display:flex;justify-content:center}
   .tldr-diagram .cycbox{cursor:pointer}
   .tldr-diagram .cycbox rect.cb{transition:fill .15s}
@@ -493,7 +505,7 @@
   .tldr-arrow{display:inline-block;animation:tldrbob 1.4s ease-in-out infinite;font-weight:600;color:var(--ink)}
   @keyframes tldrbob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
   @media(max-width:720px){.tldr-grid{grid-template-columns:1fr;gap:16px;
-    grid-template-areas:"diagram" "steps" "rate" "more"}}
+    grid-template-areas:"diagram" "steps" "rate" "refs" "more"}}
   /* ===== 통계: 기본/심화 전환 ===== */
   .smode{display:flex;gap:6px;justify-content:center;margin:12px auto 20px;max-width:560px;padding:0 24px;position:relative;z-index:3}
   /* 넓은 화면은 아래 하위 탭·제목과 같은 왼쪽 끝(본문 단 .wrap)에 맞춘다 — 상단 탭만 가운데 정렬이라 축이 셋이었다(2026-10-30 디자인 리뷰 2차) */
@@ -1345,10 +1357,11 @@ table.adv thead th:first-child{text-align:center}
   .zhead h1{font-size:var(--h1-report);line-height:1.15;font-weight:700;letter-spacing:-.01em}
   .zlead{margin-top:14px;font-size:var(--fs-read);color:var(--ink2);display:flex;align-items:center;
     gap:9px;flex-wrap:wrap}
-  .znote{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+  /* 리포트의 문장(마침표로 끝나는 설명·주석)은 14px(2026-11-06 대표 결정 — 읽는 글 14px·라벨 13px, 11-07 디자인 검수 reports-12). */
+  .znote{margin-top:10px;font-size:var(--fs-dense);color:var(--muted);line-height:1.7}
   .zhead+section,section+section{padding-top:30px}
   section h2{font-size:19px;font-weight:700;margin-bottom:4px}
-  .zsub{font-size:13px;color:var(--muted);line-height:1.7;margin:2px 0 12px}
+  .zsub{font-size:var(--fs-dense);color:var(--muted);line-height:1.7;margin:2px 0 12px}
   /* 리포트 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
   .zsub a:not([class]),.znote a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
   .zback{display:inline-flex;align-items:center;min-height:40px;padding:0 6px 0 2px;font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none}   /* 132x15 링크였다(2026-09-18 오딧 12번) */
@@ -1406,7 +1419,7 @@ table.adv thead th:first-child{text-align:center}
      버튼도 26px 로 WCAG 2.5.8 의 24px 를 넘는다. */
   .ztb tfoot td:first-child{padding:0}
   .ztb tfoot .rbtn{display:flex;align-items:center;width:100%;min-height:40px;padding:0 9px}
-  .tb-refnote{margin:6px 0 0;font-size:13px;line-height:1.55;color:var(--muted)}
+  .tb-refnote{margin:6px 0 0;font-size:var(--fs-dense);line-height:1.6;color:var(--muted)}
 
   /* .zgrid와 같은 이유로 셀이 선을 그린다(2026-08-16). 컨테이너 배경을 선 색으로
      깔면 항목이 열 수로 안 떨어질 때 마지막 줄 빈 칸에 그 색이 드러난다 —
@@ -1421,7 +1434,11 @@ table.adv thead th:first-child{text-align:center}
   .zlinks a:hover{background:var(--paper2)}
   .zlinks a:active{background:var(--line)}
   .z-hint{font-size:14px;color:var(--ink2)}
-  .zlead.zlead-s{line-height:1.6}           /* 지역 허브 머리 한 줄(2026-10-06) — 긴 설명은 설명 메타에만 */
+  /* 지역 허브 머리 한 줄(2026-10-06) — 긴 설명은 설명 메타에만. 블록이라야 <br> 이 줄을 나눈다 — flex 면 1280px 에서 기준 줄과
+     '지역을 누르면 …' 두 문장이 공백으로 붙었다(2026-11-07 디자인 검수 reports-13). */
+  .zlead.zlead-s{display:block;line-height:1.6}
+  .zread .zmonthly{margin-top:16px}
+  .zread .zmonthly a{font-weight:600}
   .zread .zg-note{margin-top:12px}
   /* 해마다 입주 신호등(make_sido_pages.lights_html, 2026-10-05) — 동그라미 하나가 한 해, 안 숫자가 몇 년 차. 문턱은 입주물량 정본(70·130%). */
   /* 신호등 모양(2026-10-06 대표 요청 — '배경색은 다 채우고 신호등 느낌나게'): 어두운 틀(.zl) 안에 세 등을 모두 채워 켠다. 등은 실제
@@ -1433,7 +1450,7 @@ table.adv thead th:first-child{text-align:center}
   .zl-d.lo{background:#ff5a4f}
   .zl-d.ok{background:#ffc233}
   .zl-d.hi{background:#3ecf7a}
-  .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:13px;color:var(--ink2)}
+  .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:var(--fs-dense);color:var(--ink2)}
   .zl-legend .zl-cap{flex:0 0 100%}
   .zl-legend .zl-d{width:12px;height:12px;margin:0 2px 0 2px;box-shadow:0 0 0 2px #263238}   /* 범례 등도 틀 색 테두리 — 밝은 바탕에서 등이 보이게 */
   /* 시도 리포트 '어떻게 계산했나'는 접어 둔다(make_sido_pages, 2026-10-06) — 제목 줄 전체가 누름 면(44px). */
@@ -1446,7 +1463,7 @@ table.adv thead th:first-child{text-align:center}
   .zlinks a i .zk{white-space:nowrap}   /* '(1년 적정물량의 4.2배)' 괄호 덩어리는 한 줄로(make_sido_pages.card_html, 2026-10-05) */
   /* 부족 정도 막대(make_sido_pages.gauge_html, 2026-10-05) — 칸 폭 전체의 한 줄. 바탕(등급 구간 색)은 생성기가 등급 컷·등급 색으로 굽는다. */
   .zlinks a .zg{position:relative;flex:0 0 100%;height:6px;margin:4px 0 2px}
-  .zlinks a .zg-m{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink)}
+  .zlinks a .zg-m{position:absolute;top:-5px;width:6px;height:16px;margin-left:-3px;background:var(--ink);box-shadow:0 0 0 1px var(--paper)}
   /* 해마다 입주 전망(make_sido_pages.outlook_cells, 2026-10-05) — 세 칸(+ 리포트는 '3년 너머' 참고 칸). 막대 높이는 적정의 1.5배까지,
      가로선이 100%(적정). 색은 신호등(.zl-d)과 같은 세 단계(lo·ok·hi, 70·130%). */
   .zo{display:flex;gap:10px;flex:0 0 100%;margin-top:6px}
@@ -1469,7 +1486,7 @@ table.adv thead th:first-child{text-align:center}
   .zo-lg .zo-i small{font-size:13px}
   .zo-lg .zo-c{max-width:52px;height:64px}
   .zo-note{font-size:13px;color:var(--muted);line-height:1.6;margin:8px 0 0}
-  .zg-note{font-size:13px;line-height:1.55;color:var(--ink2);margin:6px 0 0;max-width:640px}
+  .zg-note{font-size:var(--fs-dense);line-height:1.6;color:var(--ink2);margin:6px 0 0;max-width:640px}
   .zg-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:13px;color:var(--ink2)}
   .zg-l{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .zg-l i{display:inline-block;width:12px;height:8px}
@@ -1478,6 +1495,12 @@ table.adv thead th:first-child{text-align:center}
   .zlinks a:has(.zg) i .zk{display:block}
   .zlinks a i{font-style:normal;font-size:13px;color:var(--muted);
     margin-left:auto;font-variant-numeric:tabular-nums}
+  /* 칸의 판정 문장('311,689세대 부족')은 칸에서 가장 센 글자다 — 13px 회색이라 신호등(다른 개념)보다 약했다(2026-11-07 디자인 검수
+     reports-2). 글자색은 판정 배지(.sc-tier)의 등급 글자색 그대로(지면 대비 4.9:1 이상), 괄호 배수(.zk)는 회색 보조 줄로 남긴다. */
+  .zlinks a i.zv{font-size:var(--fs-dense);font-weight:600;color:var(--ink)}
+  .zlinks a i.zv.g4{color:#a93226}.zlinks a i.zv.g3{color:#c0392b}.zlinks a i.zv.g2{color:#8f5806}
+  .zlinks a i.zv.g1{color:var(--ink2)}.zlinks a i.zv.g0{color:#1a5276}
+  .zlinks a i.zv .zk{font-size:13px;font-weight:400;color:var(--muted)}
 
   /* 참고 2행(미분양·인허가 1년) — 표 맨 아래 붙박이. 위 칸들을 읽는 맥락이지
      점수가 아니다.
@@ -1506,12 +1529,12 @@ table.adv thead th:first-child{text-align:center}
   .zs-ref b{font-weight:500;color:var(--muted)}
   .zs-ref small{display:block;font-size:13px}
   .zs-thin strong{font-weight:600;color:var(--ink2)}
-  .zs-note,.zs-est{font-size:13px;color:var(--muted);line-height:1.6;margin:2px 0 0 calc(7.5em + 10px)}
+  .zs-note,.zs-est{font-size:var(--fs-dense);color:var(--muted);line-height:1.6;margin:2px 0 0 calc(7.5em + 10px)}
   .zs-est{margin-left:0;margin-top:8px}
   .zchip{font-style:normal;font-size:13px;font-weight:500;color:var(--muted);
     border:1px solid var(--line);padding:0 4px;margin-right:5px;vertical-align:1px}
   @media (max-width:520px){.zs-row{grid-template-columns:1fr;gap:0}.zs-note{margin-left:0}}
-  .zwarn{margin-top:10px;font-size:13px;color:#a93226;line-height:1.65;
+  .zwarn{margin-top:10px;font-size:var(--fs-dense);color:#a93226;line-height:1.65;
     border-left:3px solid #a93226;padding-left:10px}
   /* 스크린리더 전용 — 표 caption처럼 화면엔 없고 음성으로만 읽히는 것 */
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
