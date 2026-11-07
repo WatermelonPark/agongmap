@@ -450,6 +450,13 @@
   </url>
 
   <url>
+    <loc>https://www.agongmap.co.kr/gtx/gtx-b-byeollae/</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
     <loc>https://www.agongmap.co.kr/zone/</loc>
     <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
@@ -571,7 +578,7 @@
   </url>
 
   <url>
-    <loc>https://www.agongmap.co.kr/gtx/gtx-b-byeollae/</loc>
+    <loc>https://www.agongmap.co.kr/city/ansan-2027-moveins/</loc>
     <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
