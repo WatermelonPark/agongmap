@@ -343,16 +343,21 @@ def test_seoul_demolition_compares_apartments_with_apartments():
 # 캡션이 부르는 색 이름 → 그 이름으로 부를 수 있는 hex. 같은 이름이 서로 먼 색을 가리키지 않게 좁게 둔다.
 COLOR_WORDS = {'빨강': {'#e0564a', '#c0392b'}, '초록': {'#2f8f6f', '#3aa17e', '#1f8a70'},
                '청록': {'#127a70'}, '황갈': {'#a89578'}, '회색': {'#a5b5ad', '#c6d0cb', '#c0cbc5'},
-               '호박': {'#e0a93b'}, '노랑': {'#e8b84b'}, '보라': {'#a98be0'}}
+               '호박': {'#e0a93b', '#b8860b'}, '노랑': {'#e8b84b'}, '보라': {'#a98be0', '#6c4ab6'}}
 
 
 def _chart_hexes(s, cid, col):
+    """차트 블록이 칠하는 색 — hex 글자, COL.키, 그리고 이름 붙은 색 상수(MAEMAE·JEONSE·RATE 등 `const X="#…"`).
+    상수까지 읽는 까닭: 참고 ① 금리 차트가 남색 상자를 걷으며 색을 상수로 옮겼다(2026-11-07 디자인 검수 indicators-5) — hex 만
+    읽으면 캡션의 '빨강·보라·호박'을 대조할 색이 블록에 하나도 없게 된다."""
     i = s.find('new Chart(%s,' % cid)
     assert i >= 0, cid
     j = s.find('new Chart(', i + 10)
     blk = s[i:j if j > 0 else len(s)]
     hexes = set(h.lower() for h in re.findall(r"#[0-9a-fA-F]{6}", blk))
     hexes |= {col[k] for k in re.findall(r'COL\.(\w+)', blk)}
+    named = {k: v.lower() for k, v in re.findall(r'\b([A-Z][A-Z_]+)="(#[0-9a-fA-F]{6})"', s)}
+    hexes |= {v for k, v in named.items() if re.search(r'\b%s\b' % k, blk)}
     return hexes, blk
 
 
