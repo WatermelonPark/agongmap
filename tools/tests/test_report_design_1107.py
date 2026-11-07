@@ -257,3 +257,29 @@ def test_desk_layouts_for_posts_weekly_links_and_doc_measure():
     assert 'body[data-desk=report] .zposts .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}' in d
     assert 'body[data-desk=weekly] .links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))' in d
     assert re.search(r'body\[data-desk=doc\] \.wrap>p,[^{]*\{max-width:720px\}', d)
+
+
+def test_cycle_reference_sections_are_folded_and_open_from_links():
+    """사이클 참고 ①~④는 접는 칸이다(2026-11-07 대표 결정 '참고 4절 접기' — 휴대폰 29화면 중 10화면이 참고였다).
+
+    제목(h2)은 summary 안이라 접어도 보이고, 본문·그림은 details 안이다. 블로그 글(make_theory_post 의 /cycle/#ref1)·절 끝
+    '다음' 링크·30초 요약의 참고 줄이 #refN 으로 들어오므로, 그 주소나 링크로 오면 칸을 펴는 스크립트가 있어야 한다.
+    무엇을 바꾸면 빨개지나(실제로 확인): 한 절의 details 를 풀면(넷이 아니게 된다), 제목을 summary 밖으로 빼면, 펴는 스크립트를
+    지우면. 데이터 재산정(refresh_cycle_data)이 접는 칸을 지우지 않는지는 픽스처가 아니라 저장소의 실제 파일로 본다 — 배치가
+    매 회차 이 파일을 다시 쓴 뒤에도 이 시험이 돈다.
+    픽스처: 저장소의 cycle/index.html.
+    """
+    import io, os, re
+    root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+    s = io.open(os.path.join(root, 'cycle', 'index.html'), encoding='utf-8').read()
+    for k in (1, 2, 3, 4):
+        m = re.search(r'<section class="step ref" id="ref%d">(.*?)</section>' % k, s, re.S)
+        assert m, 'ref%d 절이 없다' % k
+        sec = m.group(1)
+        d = re.search(r'<details class="refd">\s*<summary><h2 class="t">.*?</h2>.*?</summary>(.*)</details>', sec, re.S)
+        assert d, 'ref%d 가 접는 칸이 아니거나 제목이 summary 밖이다' % k
+        assert '<canvas' in d.group(1) or '<div class="chartbox"' in d.group(1) or len(d.group(1)) > 500, 'ref%d 본문이 칸 밖이다' % k
+    assert s.count('<details class="refd">') == 4
+    assert re.search(r"/\^#ref\[1-4\]\$/", s) and "hashchange" in s and "details.refd" in s, '#refN 으로 오면 펴는 스크립트가 없다'
+    # 들어오는 링크가 실제로 #refN 을 쓴다 — 블로그 초안 도구와 이 페이지의 다음 링크.
+    assert 'href="#ref1"' in s
