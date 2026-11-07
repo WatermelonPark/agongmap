@@ -210,9 +210,9 @@ def test_markdown_subset_renders(tmp_path):
 def test_section_index_lists_posts_newest_first(tmp_path):
     """섹션 목록이 최신순이고, 맨 위에 질문 칩(섹션 사이 건너뛰기)과 지역 칩이 있으며, 글은 결론 카드다(11-05 개편).
 
-    무엇을 바꾸면 빨개지나: 정렬을 뒤집거나, 칩을 빼거나(섹션 사이를 못 건너뛴다), 지역 칩을 빼면.
-    빵부스러기는 '아공맵 › 콘텐츠 › <섹션>' 이어야 한다.
-    픽스처: 갱신일이 다른 글 셋.
+    무엇을 바꾸면 빨개지나: build_index 가 받은 순서를 뒤집거나, 칩을 빼거나(섹션 사이를 못 건너뛴다), 지역 칩을 빼면.
+    빵부스러기는 '아공맵 › 콘텐츠 › <섹션>' 이어야 한다. 정렬 열쇠(card_order, 작성일 먼저)는 허브 시험이 실제 원고로 본다.
+    픽스처: 작성일 순서(c·b·a)와 갱신일 순서(b·c·a)가 다른 글 셋.
     """
     metas = [{'section': 'city', 'slug': 'a', 'title': 'A', 'summary': '가' * 50, 'city': ['구미'],
               'date': '2026-10-01', 'updated': '2026-10-03'},
@@ -220,7 +220,7 @@ def test_section_index_lists_posts_newest_first(tmp_path):
               'date': '2026-10-02', 'updated': '2026-10-05'},
              {'section': 'city', 'slug': 'c', 'title': 'C', 'summary': '다' * 50,
               'date': '2026-10-03', 'updated': '2026-10-04'}]
-    order = sorted(metas, key=lambda m: (m['updated'], m['date'], m['slug']), reverse=True)
+    order = sorted(metas, key=lambda m: (m['date'], m['updated'], m['slug']), reverse=True)
     page, lastmod = MC.build_index('city', order)
     slugs = re.findall(r'<a class="kcard" href="/city/([^/]+)/"', page)
     assert slugs == [m['slug'] for m in order], '최신순이 아니다: %s' % slugs
@@ -774,7 +774,7 @@ def test_hub_offers_questions_regions_and_recent_cards():
     첫 HUB_FIRST 장과 '글 N편 더 보기'). 옛 카테고리 카드 여섯 장(10-29)은 없다.
 
     무엇을 바꾸면 빨개지나(각각 실제로 확인): 질문 카드 순서를 바꾸거나 글 수를 손으로 적으면, 지역 칩에서 한 도시를 빼면,
-    최근 글을 자르거나(RECENT 상한) 정렬을 뒤집으면, 기본 개념 줄을 최근 글 아래로 내리면, cards_grid 의 fold 를 빼면(더 보기
+    최근 글을 자르거나(RECENT 상한) 정렬을 뒤집거나 card_order 를 갱신일 먼저로 되돌리면(2026-11-07 작성일 먼저), 기본 개념 줄을 최근 글 아래로 내리면, cards_grid 의 fold 를 빼면(더 보기
     단추가 사라진다) 또는 단추의 편수를 전체 수로 적으면.
     픽스처: 저장소에 구워져 있는 /reports/ 와 실제 원고.
     """
@@ -800,7 +800,8 @@ def test_hub_offers_questions_regions_and_recent_cards():
     recent = page.split('최근 글', 1)[1]
     links = re.findall(r'<a class="kcard" href="/([^/]+)/([^/]+)/"', recent)
     assert len(links) == len(metas), '최근 글이 %d편이다(구워진 글 %d편)' % (len(links), len(metas))
-    upd = {(m['section'], m['slug']): (m['updated'], m['date'], m['slug']) for m in metas}
+    # 기대 순서를 여기 적는다(작성일 → 갱신일 → slug, 2026-11-07) — MC.card_order 를 부르면 열쇠를 바꿀 때 기대값도 같이 바뀐다.
+    upd = {(m['section'], m['slug']): (m['date'], m['updated'], m['slug']) for m in metas}
     keys = [upd[(s, g)] for s, g in links if (s, g) in upd]
     assert len(keys) == len(links) and keys == sorted(keys, reverse=True), '최근 글이 최신순이 아니다'
     assert page.index('class="cityf"') < page.index('class="hub-basic"') < page.index('<a class="kcard"'), \
@@ -1538,7 +1539,7 @@ def test_filled_lengths_are_checked_after_placeholders():
 
 
 def test_card_markup_chips_hook_key_and_date():
-    """카드 한 장 — 지역 칩(첫 도시, 둘 이상이면 '외 N'), 질문 칩(TOPICS 의 짧은 이름), 결론 제목, 핵심 숫자, 날짜 '26.11.5',
+    """카드 한 장 — 지역 칩(첫 도시, 둘 이상이면 '외 N'), 질문 칩(TOPICS 의 짧은 이름), 결론 제목, 핵심 숫자, 작성일 '26.11.1',
     data-city 에 모든 도시. 시도 글(city 없음)은 '서울 전체'.
 
     무엇을 바꾸면 빨개지나: card 에서 '외 N' 을 빼거나, 날짜를 ISO 로 되돌리거나, data-city 에 첫 도시만 넣으면.
@@ -1548,7 +1549,10 @@ def test_card_markup_chips_hook_key_and_date():
     c = MC.card(m)
     assert '<span class="kc-chip">화성 동탄구 외 1</span>' in c and '<span class="kc-chip kc-t">역세권 첫 집</span>' in c
     assert '<b class="kc-hook">결론 제목</b>' in c and '<strong>8억~</strong><small>필요 현금</small>' in c
-    assert '<i class="kc-date">26.11.5</i>' in c and 'data-city="화성 동탄구|수원 영통구"' in c and 'data-topic="first-home"' in c
+    # 카드 날짜는 작성일(date)이다 — 갱신일(26.11.5)이 아니라 26.11.1(2026-11-07 대표 승인: 일괄 갱신 뒤 모든 카드가 같은 날이었다).
+    # 변이: card 의 _day_short(meta['date']) 를 meta['updated'] 로 되돌리면 빨개진다.
+    assert '<i class="kc-date">26.11.1</i>' in c and '26.11.5' not in c, c
+    assert 'data-city="화성 동탄구|수원 영통구"' in c and 'data-topic="first-home"' in c
     w = MC.card({'section': 'column', 'slug': 'y', 'title': 't', 'date': '2026-11-01', 'updated': '2026-11-02', 'region': '서울'})
     assert '<span class="kc-chip">서울 전체</span>' in w and 'kc-key' not in w and '발언 검증' in w
 
