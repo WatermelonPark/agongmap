@@ -1435,6 +1435,10 @@ def test_content_check_notes_off_canon_words_without_failing():
     src = io.open(os.path.join(ROOT, 'tools', 'content_tables.py'), encoding='utf-8').read()
     assert "'적정 대비'" not in src and '적정 입주량 %s' not in src, '생성기가 옛 낱말을 굽는다'
     assert CT is not None
+    # 2026-11-07 원고 규칙 세 가지도 알림이다(옛 양식 원고 — 다른 작성 세션이 같은 꼴로 올렸다: 전주·원주 도시 편).
+    # 변이(실제로 확인): 세 규칙 가운데 하나를 TERM_NOTES 에서 지우면 줄 목록이 달라진다.
+    more = CC.term_notes('제목은 적정의 {{v:share3:전주}}입니다\n본문\n## 더 보기\n![단지 시세 화면](img/x.png)\n적정물량의 30%')
+    assert [ln for ln, _ in more] == [1, 3, 4], more
 
 
 def test_post_layout_reads_as_an_article():
