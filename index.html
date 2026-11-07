@@ -451,8 +451,9 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   <header class="shero"><div class="wrap">
     <h2>시세·통계 보기</h2>
     <!-- 이달의 통계 진입점(2026-09-15 점검 후속 ④): 매달 정부 통계를 대조하는 사람에게 가장 맞는
-         화면인데 여기서 가는 길이 없었다. -->
-    <p class="shero-link"><a href="/monthly/">이달의 통계 한 화면으로 보기 →</a><span>매매·인허가·입주물량·미분양·전세가율, 시도별 기준월과 함께</span></p>
+         화면인데 여기서 가는 길이 없었다. 버튼 아래 설명 한 줄('매매·인허가·…')은 뺐다(2026-11-07 디자인 검수 stats-3 — 375px 에서
+         지도가 y≈455 에서 시작해 조작·설명 열 덩어리 아래에 묻혔다). -->
+    <p class="shero-link"><a href="/monthly/">이달의 통계 한 화면으로 보기 →</a></p>
   </div></header>
 
   <div class="smode" role="tablist" aria-label="통계 모드">
@@ -463,19 +464,21 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   </div>
 
   <div class="dash" id="stats-market"><div class="wrap">
+    <!-- 주간|월간(왼쪽, 떠 있는 .adv-tabs)과 각 구역의 순위|지도|그래프|표(.mk-gt, 오른쪽)는 한 줄이다(2026-11-07 디자인 검수 stats-3 —
+         두 줄이던 조작을 한 줄로 줄여 375px 에서 지도가 위로 올라온다). 폭이 모자라면(320px) 순위 줄이 아래로 내려간다. -->
     <div class="adv-tabs" role="tablist" aria-label="시장동향 주기">
       <button id="mtab-week" class="on" role="tab" aria-selected="true" onclick="setMarketTab('week')">주간</button>
       <button id="mtab-month" role="tab" aria-selected="false" onclick="setMarketTab('month')">월간</button>
     </div>
 
     <section class="adv-sec gsec gm-m" id="sec-week">
-      <div class="adv-h"><h3>주간 아파트 동향</h3><span class="rel" id="rel-week"></span>
-        <div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('week','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('week','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('week','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('week','t')">표</button></div></div>
+      <div class="gt-head mk-gt"><div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('week','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('week','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('week','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('week','t')">표</button></div></div>
+      <div class="adv-h"><h3>주간 아파트 동향</h3><span class="rel" id="rel-week"></span></div>
       <div class="adv-regsel"><select id="adv-week-reg" onchange="onTrendReg('week')" aria-label="시도 선택"></select><select id="adv-week-sgg" onchange="onTrendSgg('week')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="week-map"></div>
       </div>
-      <div class="gt-g"><div class="period trp" id="week-period"></div><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span></div><div class="chart-unit" id="week-unit">변동률(%)</div><div class="chartwrap sm" id="weekChartBox"><canvas id="weekChart"></canvas></div></div>
+      <div class="gt-g"><div class="period trp" id="week-period"></div><div class="chart-top"><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span></div><div class="chart-unit" id="week-unit">변동률(%)</div></div><div class="chartwrap sm" id="weekChartBox"><canvas id="weekChart"></canvas></div></div>
       <div class="gt-t">
         <div class="tr-row"><button class="trbtn" onclick="trFlip('week',this)">⇄ 행열 전환</button></div>
         <div class="adv-tblwrap matrix" id="adv-week-matrix"></div>
@@ -485,13 +488,13 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     </section>
 
     <section class="adv-sec gsec gm-m" id="sec-month" style="display:none">
-      <div class="adv-h"><h3>월간 아파트 동향</h3><span class="rel" id="rel-month"></span>
-        <div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('month','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('month','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('month','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('month','t')">표</button></div></div>
+      <div class="gt-head mk-gt"><div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('month','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('month','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('month','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('month','t')">표</button></div></div>
+      <div class="adv-h"><h3>월간 아파트 동향</h3><span class="rel" id="rel-month"></span></div>
       <div class="adv-regsel"><select id="adv-month-reg" onchange="onTrendReg('month')" aria-label="시도 선택"></select><select id="adv-month-sgg" onchange="onTrendSgg('month')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="month-map"></div>
       </div>
-      <div class="gt-g"><div class="period trp" id="month-period"></div><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span><span class="cl-wo">월세</span></div><div class="chart-unit" id="month-unit">변동률(%)</div><div class="chartwrap sm" id="monthChartBox"><canvas id="monthChart"></canvas></div></div>
+      <div class="gt-g"><div class="period trp" id="month-period"></div><div class="chart-top"><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span><span class="cl-wo">월세</span></div><div class="chart-unit" id="month-unit">변동률(%)</div></div><div class="chartwrap sm" id="monthChartBox"><canvas id="monthChart"></canvas></div></div>
       <div class="gt-t">
         <div class="tr-row"><button class="trbtn" onclick="trFlip('month',this)">⇄ 행열 전환</button></div>
         <div class="adv-tblwrap matrix" id="adv-month-matrix"></div>
@@ -585,9 +588,10 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="adv-tblwrap matrix" id="adv-occ-matrix"></div>
         <div class="adv-tblwrap compact" id="adv-occ-compact"></div>
       </div>
-      <p class="adv-note">준공 실적과 착공 기반 추정 물량을 지역별 분기 적정물량과 견줍니다.</p>
+      <!-- 산식은 읽는 문장(14px)에 싣고 출처 줄(13px 캡션)에는 기관·주기만 둔다(2026-11-07 디자인 검수 stats-6) -->
+      <p class="adv-note">준공 실적(지난 분기)과 착공 실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.947)을 분기마다 합쳐 지역별 분기 적정물량과 견줍니다.</p>
       <div class="adv-legend"><span><i style="background:#ff5a4f"></i>적음(70% 미만)</span><span><i style="background:#ffc233"></i>보통</span><span><i style="background:#3ecf7a"></i>많음(130% 초과)</span><span><i style="background:#ff5a4f73"></i>옅은 색 = 착공 기준 추정</span></div>
-      <div class="src-note"><span id="occ-when"></span>자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.947) · 분기 합산 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
+      <div class="src-note"><span id="occ-when"></span>자료: 국토교통부 「주택건설실적통계」 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
     </section>
 
 
