@@ -43,7 +43,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "headline": "전세가율 — 전국·시도별 현황과 의미",
     "description": "전세가율은 매매가 대비 전세가 비율. 2026년 9월 기준 전국 아파트 전세가율은 69.2%로 1년 전보다 +1.0%p. 경북이 78.9%로 가장 높고 서울은 52.3%. 시도별 현황과 사이클 신호로서의 의미를 데이터로 정리했다.",
     "datePublished": "2026-07-29",
-    "dateModified": "2026-11-05",
+    "dateModified": "2026-11-07",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -73,7 +73,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   }
 ]</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2f6db3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
@@ -86,19 +86,25 @@ h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.2
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
 .bigsub{font-size:13.5px;color:var(--muted)}
+/* 머리 기준 줄의 조각은 통째로 넘긴다 — 구분점이 줄 끝에 매달리거나 '+1.0%p' 만 홀로 둘째 줄에 떨어졌다(2026-11-07 디자인 검수 indicators-8).
+   큰 숫자의 단위는 숫자 옆에(indicators-9 — /moveins/ 의 236,618 이 세대인지 괄호 끝까지 읽어야 알았다). */
+.bigsub .nw{white-space:nowrap}.bigsub .bigd{display:inline-block;margin-top:2px;font-size:var(--fs-dense);color:var(--ink2);font-weight:600}
+.big small{font-size:.42em;font-weight:500;color:var(--muted);margin-left:4px;letter-spacing:0}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
 /* 절 경계가 보이게 제목 위 여백(2026-10-30 디자인 리뷰 — 앞 문단·주석 밑에 붙어 있었다). 첫 절은 머리 바로 아래라 빼지 않는다. */
 section+section h2{margin-top:12px}
 @media(min-width:1024px){.tbl-wrap.tbl-narrow{max-width:560px}}
-.note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
-/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
-@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
+.note-more{margin-top:4px}.note-more summary{font-size:var(--fs-dense);color:var(--muted);cursor:pointer}.note-more .note{color:var(--ink2)}
+/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해 열을 숨겨 다섯 열로(표 아래 주석이 밝힌다).
+   연 적정물량 열은 남긴다 — '62% 적음'의 분모라 숨기면 비율을 검산할 수 없었다(2026-11-07 디자인 검수 indicators-2). */
+@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3){display:none}}
 /* 네 열로 줄여도 375px 에서 28px 넘쳤다(2026-10-31 디자인 리뷰 2차) — 긴 머리('2026 적정물량 대비')는 두 줄로 접고 칸 여백을 줄인다. */
-@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 5px}}
+@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 3px}#utable.mv th:first-child,#utable.mv td:first-child{padding-left:0}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
-.note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
+/* 표 아래 주석·접는 칸 본문은 문장이라 14px(2026-11-06 대표 결정 — 읽는 글 14px, 11-07 디자인 검수 indicators-1) */
+.note{font-size:var(--fs-dense);color:var(--muted);line-height:1.6;margin-top:8px}
 /* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
 .note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .tbl-wrap{overflow-x:auto;margin:6px 0 2px;background:
@@ -133,7 +139,7 @@ footer a{color:var(--ink2)}
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -141,7 +147,7 @@ footer a{color:var(--ink2)}
   <div class="chip">지표 해설</div>
   <h1>전세가율 — 매매가 대비 전세가,<br>실수요의 체온계</h1>
   <div class="big">69.2%</div>
-  <div class="bigsub">전국 아파트 전세가율 · 2026년 9월 기준 · 1년 전 대비 +1.0%p</div>
+  <div class="bigsub"><span class="nw">전국 아파트 전세가율</span> <span class="nw">· 2026년 9월 기준</span><br><span class="nw bigd">1년 전 대비 +1.0%p</span></div>
 </header>
 <main id="main">
 
@@ -200,9 +206,10 @@ footer a{color:var(--ink2)}
 </main>
 <footer class="sitefoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
-  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a><br>
+  문의 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
   자료: KOSIS·한국부동산원 「매매가격 대비 전세가격비」
-  <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
+  <div class="disc" style="font-size:14px">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
 <nav class="bottomnav">

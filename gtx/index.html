@@ -24,14 +24,14 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css"></noscript>
-<title>GTX 역세권 | 아공맵</title>
+<title>역세권 첫 집 | 아공맵</title>
 <meta name="description" content="GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.">
 <link rel="canonical" href="https://www.agongmap.co.kr/gtx/">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" href="/app_icon.png">
 <meta name="theme-color" content="#131e24">
 <meta property="og:type" content="article">
-<meta property="og:title" content="GTX 역세권">
+<meta property="og:title" content="역세권 첫 집">
 <meta property="og:description" content="GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.">
 <meta property="og:url" content="https://www.agongmap.co.kr/gtx/">
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
@@ -40,7 +40,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   {
     "@context": "https://schema.org",
     "@type": "Article",
-    "headline": "GTX 역세권",
+    "headline": "역세권 첫 집",
     "description": "GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.",
     "datePublished": "2026-07-29",
     "dateModified": "2026-11-07",
@@ -67,13 +67,13 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
       {
         "@type": "ListItem",
         "position": 2,
-        "name": "GTX 역세권"
+        "name": "역세권 첫 집"
       }
     ]
   }
 ]</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2f6db3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
@@ -86,19 +86,25 @@ h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.2
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
 .bigsub{font-size:13.5px;color:var(--muted)}
+/* 머리 기준 줄의 조각은 통째로 넘긴다 — 구분점이 줄 끝에 매달리거나 '+1.0%p' 만 홀로 둘째 줄에 떨어졌다(2026-11-07 디자인 검수 indicators-8).
+   큰 숫자의 단위는 숫자 옆에(indicators-9 — /moveins/ 의 236,618 이 세대인지 괄호 끝까지 읽어야 알았다). */
+.bigsub .nw{white-space:nowrap}.bigsub .bigd{display:inline-block;margin-top:2px;font-size:var(--fs-dense);color:var(--ink2);font-weight:600}
+.big small{font-size:.42em;font-weight:500;color:var(--muted);margin-left:4px;letter-spacing:0}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
 /* 절 경계가 보이게 제목 위 여백(2026-10-30 디자인 리뷰 — 앞 문단·주석 밑에 붙어 있었다). 첫 절은 머리 바로 아래라 빼지 않는다. */
 section+section h2{margin-top:12px}
 @media(min-width:1024px){.tbl-wrap.tbl-narrow{max-width:560px}}
-.note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
-/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
-@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
+.note-more{margin-top:4px}.note-more summary{font-size:var(--fs-dense);color:var(--muted);cursor:pointer}.note-more .note{color:var(--ink2)}
+/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해 열을 숨겨 다섯 열로(표 아래 주석이 밝힌다).
+   연 적정물량 열은 남긴다 — '62% 적음'의 분모라 숨기면 비율을 검산할 수 없었다(2026-11-07 디자인 검수 indicators-2). */
+@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3){display:none}}
 /* 네 열로 줄여도 375px 에서 28px 넘쳤다(2026-10-31 디자인 리뷰 2차) — 긴 머리('2026 적정물량 대비')는 두 줄로 접고 칸 여백을 줄인다. */
-@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 5px}}
+@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 3px}#utable.mv th:first-child,#utable.mv td:first-child{padding-left:0}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
-.note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
+/* 표 아래 주석·접는 칸 본문은 문장이라 14px(2026-11-06 대표 결정 — 읽는 글 14px, 11-07 디자인 검수 indicators-1) */
+.note{font-size:var(--fs-dense);color:var(--muted);line-height:1.6;margin-top:8px}
 /* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
 .note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .tbl-wrap{overflow-x:auto;margin:6px 0 2px;background:
@@ -135,63 +141,72 @@ footer a{color:var(--ink2)}
 /* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) — 허브·섹션 목록·홈 "최근 리포트"·시도 리포트 '이 지역 글'이 카드 하나를 쓴다.
    카드 = 칩(지역·질문) → 결론 제목(두 줄) → 핵심 숫자(큰 값 + 작은 이름) → 날짜. 그림 썸네일은 없다(112×63 안 글자가 4~6px 라
    읽히지 않았고, 제목이 글 내용을 말하지 못해 '무엇이 내 관심사인지' 알 수 없었다 — 대표 지적 11-05). 모바일은 한 단, 768px
-   이상은 3열 같은 높이. */
-.rchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
-.rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:8px 12px;
+   이상은 3열 같은 높이. 간격은 4의 배수(2026-11-07 디자인 검수 — 5·6·10·14·22px 가 섞여 있었다). */
+/* 칩 줄은 휴대폰에서도 접어 내린다 — 가로 밀기였을 때 다섯째 질문 칩과 경기 지역 칩 대부분이 화면 밖에 단서 없이 숨었다
+   (2026-11-07 디자인 검수). 칩 높이 35px(손가락 목표에 가깝게). */
+.rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+/* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
+.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.kgrid{display:grid;gap:10px}
-.kcard{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--line);border-radius:3px;
+.kgrid{display:grid;gap:12px}
+.kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
  background:var(--paper);color:var(--ink);text-decoration:none;min-width:0}
+.kcard:hover{border-color:var(--ink2)}
+.kcard:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kcard[hidden]{display:none}
-.kc-chips{display:flex;gap:5px;flex-wrap:wrap}
-.kc-chip{font-size:13px;line-height:1;padding:4px 7px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
+/* 허브 '최근 글'은 첫 묶음만 보이고 '더 보기'로 편다(.kfold — 허브 JS 가 거를 때·펼 때 푼다, JS 가 없으면 noscript 가 푼다). */
+.kfold .kcard:nth-child(n+13){display:none}
+.kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
+.kc-chips{display:flex;gap:4px;flex-wrap:wrap}
+.kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
 .kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
-.kc-hook{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+/* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
+.kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
 .kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
-/* 질문 카드 — 허브 '질문으로 찾기'. 휴대폰은 질문·글 수만(첫 화면에 넷이 다 들어오게), 768px 이상은 최신 글 둘도. */
-.qgrid{display:grid;gap:8px;margin:0 0 22px}
-.qcard{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:3px;
- background:var(--paper);color:var(--ink);text-decoration:none}
+/* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
+   14px(2026-11-06 하한 — 13px 였다). */
+.qgrid{display:grid;gap:8px;margin:0 0 24px}
+.qcard{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:4px 12px;padding:12px 16px;
+ border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
+.qcard:hover{border-color:var(--ink2)}
 .qcard b{font-size:16px;font-weight:600;line-height:1.4}
-.qc-n{font-size:13px;color:var(--muted)}
-.qcard ul{display:none;margin:4px 0 0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
-/* 지역 칩 — 시도별 한 줄. 허브 JS 가 data-city 로 카드를 거른다. JS 가 없으면 전부 보인다. */
-.cityf{margin:0 0 22px}
-.cf-g{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
-.cf-g em{font-style:normal;font-size:13px;font-weight:600;color:var(--ink2);min-width:3.2em}
+.qc-n{font-size:13px;color:var(--muted);white-space:nowrap}
+.qcard ul{grid-column:1/-1;list-style:none;margin:2px 0 0;padding:0;font-size:14px;line-height:1.55;color:var(--ink2)}
+.qcard li{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.qcard li+li{display:none}
+/* 지역 칩 — 시도별 한 줄(넘치면 접는다). 허브 JS 가 data-city 로 카드를 거른다. JS 가 없으면 전부 보인다. */
+.cityf{margin:0 0 24px}
+.cf-g{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}
+.cf-g em{flex:none;font-style:normal;font-size:13px;line-height:35px;font-weight:600;color:var(--ink2);min-width:3.2em}
+.cf-c{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
 .cf-n{font-size:13px;color:var(--muted);margin:0 0 12px}
-.rh2{font-size:16px;font-weight:600;margin:0 0 12px}
-.hub-basic-row{font-size:13px;color:var(--ink2);margin:8px 0 0;line-height:1.8}
-.hub-basic-row a{color:var(--ink2)}
+/* 절 제목은 뼈대 h2 와 같은 급(20px/700) — 16px/600 이라 카드 제목과 같은 급이었다(2026-11-07 디자인 검수). */
+.rh2{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.35;margin:0 0 12px}
 @media (min-width:768px){
-  .kgrid{grid-template-columns:repeat(3,1fr);gap:14px}
+  .kgrid{grid-template-columns:repeat(3,1fr);gap:16px}
   .qgrid{grid-template-columns:repeat(2,1fr)}
-  .qcard ul{display:block}
-}
-@media (max-width:600px){
-  .rchips{flex-wrap:nowrap;overflow-x:auto}
-  .rchip{flex:none}
-  .cf-g{flex-wrap:nowrap;overflow-x:auto}
-  .cf-g .rchip{flex:none}
+  .qcard li+li{display:-webkit-box}
 }
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
 .cchart{margin:0 0 20px;padding:0}
-.cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0}
+.cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0;overflow:visible}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .ccard{flex:1 1 30%;min-width:96px;background:var(--paper2);border:1px solid var(--line);
  border-radius:3px;padding:8px 10px}
 .ccard b{display:block;font-size:18px;font-weight:600;line-height:1.25;letter-spacing:-.01em}
-.ccard span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+/* 회색 종이(paper2) 위 라벨은 ink2 — muted 는 4.44:1 로 4.5 에 못 미쳤다(2026-11-07 디자인 검수). */
+.ccard span{display:block;font-size:13px;color:var(--ink2);margin-top:2px}
 .cchart figcaption,.clegend{font-size:13px;color:var(--muted);margin:6px 0 0;line-height:1.55}
-.cfoot3{font-size:13px;color:var(--ink);margin:4px 0 0;line-height:1.55}
+.cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
 .clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
@@ -205,26 +220,41 @@ footer a{color:var(--ink2)}
 .cb-rule{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3;opacity:.65}
 .cb-rl{fill:var(--muted);font-size:11px}
 /* 그림 글자는 viewBox(640) 단위라 단이 좁아지면 함께 줄어든다 — 375px 에서 11 단위가 5.7px 로 그려졌다(2026-10-31 디자인
-   리뷰 2차). 단 폭에 맞춰 단위를 올려 화면에서 13px 안팎이 되게 하고, 커진 글자가 겹치지 않게 값은 대표 둘(cb-k)만,
-   막대가 많으면 x 축 이름은 하나 걸러(cb-x2) 적는다. 폭 640px 이상 단에서는 11 → 13 단위 그대로 13px 이다. */
-.cb-v,.cb-x,.cb-rl{font-size:13px}
-@media (max-width:687px){.cb-v,.cb-x,.cb-rl{font-size:16px}.cb-v:not(.cb-k),.cb-x2{display:none}}
+   리뷰 2차). 글 단(.wrap 560 - 좌우 22)은 600px 이상 화면에서 516px 이라 13 단위는 10.5px 였다(2026-11-07 디자인 검수) —
+   기본을 17 단위(516px 에서 13.7px)로 두고 단이 좁아지면 단위를 올린다. 커진 글자가 겹치지 않게 휴대폰은 값을 대표 둘(cb-k)만,
+   막대가 많으면 x 축 이름은 하나 걸러(cb-x2) 적는다. 17 단위 값이 막대 간격에 안 들어가는 그림(cb-dense)은 화면 폭과
+   상관없이 대표 둘만 적는다. 크기 계산은 test_content_review2.test_chart_labels_hold_13px_on_a_phone 이 본다. */
+.cb-v,.cb-x,.cb-rl{font-size:17px}
+@media (max-width:687px){.cb-v:not(.cb-k),.cb-x2{display:none}}
 @media (max-width:580px){.cb-v,.cb-x,.cb-rl{font-size:19px}}
 @media (max-width:500px){.cb-v,.cb-x,.cb-rl{font-size:22px}}
 @media (max-width:440px){.cb-v,.cb-x,.cb-rl{font-size:24px}}
 @media (max-width:400px){.cb-v,.cb-x,.cb-rl{font-size:26px}}
 @media (max-width:368px){.cb-v,.cb-x,.cb-rl{font-size:29px}}
 @media (max-width:335px){.cb-v,.cb-x,.cb-rl{font-size:32px}}
+.cb-dense .cb-v:not(.cb-k){display:none}
+/* 끝 맞춤한 값이 옆 막대에 걸쳐도 읽히게 종이색 테두리(마지막 막대 값이 한 칸 왼쪽으로 들어온다). */
+.cb-v{paint-order:stroke;stroke:var(--paper);stroke-width:4px;stroke-linejoin:round}
+/* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
+.cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
+.cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
 .cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
 .cl-je{stroke-dasharray:4 3;opacity:.75}
-.cl-zero{stroke:var(--line);stroke-width:1}
+.cl-zero{stroke:var(--muted);stroke-width:1}
 .cl-dot{fill:var(--ink)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
+.cmeta a{white-space:nowrap}
+/* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
+   두 개였다(2026-11-07 디자인 검수). 허브 제목은 리포트 급(--h1-report), 글 제목은 데스크톱에서 38px(본문 15px 의 2.5배). */
+.hub-head,.post-head{text-align:left;padding:32px 0 8px}
+.hub-q .qgrid,.hub-city .cityf{margin-bottom:0}
+.hub-head h1{font-size:var(--h1-report);line-height:1.2}
+@media (min-width:1024px){.post-head h1{font-size:38px}}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
 .ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
@@ -232,19 +262,36 @@ footer a{color:var(--ink2)}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
 .ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
 .ckey span{font-size:13px;color:var(--muted)}
-.cmore{margin-top:26px}
-.cmore h2{font-size:16px;margin:0 0 10px}
-.cmore-l{display:flex;gap:10px;flex-wrap:wrap}
-.cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;text-decoration:none;color:var(--ink);font-size:14px}
+.cmore{margin-top:8px}
+.cmore h2{font-size:20px;margin:0 0 12px}
+.cmore-l{display:flex;gap:8px;flex-wrap:wrap}
+.cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
-.cbody h2{font-size:20px;margin:28px 0 10px}
-.cbody h3{font-size:16.5px;margin:22px 0 8px}
+/* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
+.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
+.cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
+.cbody h3{font-size:18px;margin:22px 0 8px}
+/* 본문 링크가 브라우저 기본 파랑이었다(도시 편 '더 보기' 목록 — 뼈대 규칙은 p 안 링크만 잡는다). */
+.cbody a:not([class]){color:var(--ink);text-decoration-color:var(--line);text-decoration-thickness:1px;text-underline-offset:3px}
+.cbody a:not([class]):hover{text-decoration-color:var(--ink)}
+/* '※' 로 여는 문단은 표 밑 기준·읽는 법이다. 짧으면 한 줄 각주(14px — 문장이다), 길면 접는다(.cfold): 표 바로 밑에
+   방법론 15줄이 본문 크기로 서서 결과 절을 막았다(2026-11-07 디자인 검수). 원고 글자는 그대로다. */
+.cbody p.cnotep{font-size:14px;line-height:1.7;color:var(--ink2)}
+.cfold{margin:0 0 14px;border-left:2px solid var(--line);padding:0 0 0 12px}
+.cfold summary{font-size:13px;color:var(--ink2);cursor:pointer;padding:6px 0}
+.cfold summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.cbody .cfold p{font-size:14px;line-height:1.7;color:var(--ink2);margin:4px 0 8px}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
-/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
-@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.28),transparent) left center/16px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.28),transparent) right center/16px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰). 2026-11-07 디자인
+   검수: 10px 그림자가 눈에 안 띄어 16px 로 키우고, 첫 열(단지·항목 이름)은 데스크톱에서도 붙여 둔다 — 열이 많은 표(GTX 11열)는
+   960px 로 펴도 넘쳐, 밀면 어느 행인지 놓쳤다. 열이 많은 표(.ctab-wide)는 휴대폰에서 표 밑에 '옆으로 밀기' 한 줄을 단다. */
+.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}
+.ctab-hint{display:none;font-size:13px;color:var(--muted);margin:-10px 0 16px}
+@media (max-width:600px){.ctab-hint{display:block}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
@@ -256,39 +303,50 @@ footer a{color:var(--ink2)}
 }
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
-.csrc{font-size:13px;color:var(--ink2);line-height:1.7}
+.csrc{font-size:14px;color:var(--ink2);line-height:1.7}
 /* 목록 글머리표가 단 여백 밖(화면 끝)에 걸렸다 — 뼈대가 padding 을 0 으로 지운다(2026-10-31 디자인 리뷰 2차). */
 .cbody ul,.cbody ol,.csrc{padding-left:1.3em;margin:0 0 14px}
 /* 빵부스러기 링크가 브라우저 기본 파랑이었다(사이트에서 남은 유일한 자리). */
 .crumb a{color:var(--ink2);text-decoration-color:var(--line)}
-/* 본문 그림은 원본으로 열린다 — 표 그림(평형별 시세 등)이 휴대폰 단 폭으로 줄어 그림 속 글자가 4px 가 됐다. */
+/* 본문 그림은 원본으로 열린다 — 표·지도 캡처가 휴대폰 단 폭으로 줄어 그림 속 글자가 3~4px 가 됐다. 혼자 선 그림은 figure 로
+   굽고 밑에 그림 이름과 '눌러서 크게 보기'를 단다 — 눌러지는 줄 아무 표시가 없었다(2026-11-07 디자인 검수). */
 .cimg{display:block;margin:0 0 16px}
 .cimg img{margin:0}
+.cfig{margin:0 0 16px}
+.cfig .cimg{margin:0;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.cfig figcaption{font-size:13px;color:var(--ink2);margin:6px 0 0;line-height:1.55}
+.cbody .cfig figcaption a{color:var(--ink2);text-decoration-color:var(--line);white-space:nowrap}
 .csrc li{margin-bottom:3px}
-.cfaq{margin-top:26px}
+/* 꼬리 절 사이 간격은 뼈대 section 여백 하나만 — 출처 절과 FAQ 사이가 80px 비어 글이 끝난 것처럼 보였다(2026-11-07 디자인 검수). */
+.csrc-s{padding-bottom:0}
+.cfaq{margin-top:0}
 .cfaq dt{font-weight:600;font-size:15px;margin-top:14px}
 .cfaq dd{margin:6px 0 0;font-size:14.5px;line-height:1.75;color:var(--ink2)}
-.cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
-.cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
- text-decoration:none;color:var(--ink);font-size:14px}
+/* 이전·다음 글과 섹션 목록은 2급 — 테두리 없이 위아래 선만. 휴대폰은 이전·다음을 한 줄에. */
+.cnav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px}
+.cnav a{min-width:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 2px;
+ text-decoration:none;color:var(--ink2);font-size:14px;line-height:1.5}
 .cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
+.cnav a.cnav-n{text-align:right}
+.cnav a.cnav-hub{grid-column:1/-1;color:var(--ink);font-weight:600}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
 </head>
 <body data-desk="wide">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
-<header><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/reports/">콘텐츠</a> › <b>GTX 역세권</b></nav><h1>역세권 첫 집, 얼마면 되나?</h1><p class="cmeta">GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.</p></div></header>
-<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="질문으로 찾기"><a class="rchip" href="/reports/">전체</a><a class="rchip" href="/city/">입주물량</a><a class="rchip on" href="/gtx/">역세권 첫 집</a><a class="rchip" href="/danji/">재건축·리모델링</a><a class="rchip" href="/column/">발언 검증</a></nav><nav class="cityf" aria-label="지역으로 찾기"><div class="cf-g"><em>전체</em><button type="button" class="rchip on" data-city="">글 11편</button></div><div class="cf-g"><em>경기</em><button type="button" class="rchip" data-city="남양주">남양주</button><button type="button" class="rchip" data-city="고양 덕양구">고양 덕양구</button><button type="button" class="rchip" data-city="고양 일산동구">고양 일산동구</button><button type="button" class="rchip" data-city="고양 일산서구">고양 일산서구</button><button type="button" class="rchip" data-city="부천 오정구">부천 오정구</button><button type="button" class="rchip" data-city="부천 원미구">부천 원미구</button><button type="button" class="rchip" data-city="성남 분당구">성남 분당구</button><button type="button" class="rchip" data-city="용인 기흥구">용인 기흥구</button><button type="button" class="rchip" data-city="파주">파주</button><button type="button" class="rchip" data-city="화성 동탄구">화성 동탄구</button></div></nav><p class="cf-n" hidden>글 11편</p><div class="kgrid"><a class="kcard" href="/gtx/gtx-b-wangsuk/" data-sec="gtx" data-topic="first-home" data-city="남양주"><span class="kc-chips"><span class="kc-chip">남양주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 왕숙역 도보 15분 기존 아파트 0곳, 첫 입주는 2028년입니다</b><span class="kc-key"><strong>0곳</strong><small>15분 안 기존 단지</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/gtx/gtx-b-pyeongnae-hopyeong/" data-sec="gtx" data-topic="first-home" data-city="남양주"><span class="kc-chips"><span class="kc-chip">남양주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 평내호평역 24평형, 1년 상승률이 17%와 2%로 갈렸습니다</b><span class="kc-key"><strong>5억 700만</strong><small>루첸 24평 중위</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/gtx/gtx-b-bucheon-stadium/" data-sec="gtx" data-topic="first-home" data-city="부천 오정구|부천 원미구"><span class="kc-chips"><span class="kc-chip">부천 오정구 외 1</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 부천종합운동장역 첫 집, 여월동 국평 8억은 1년째 제자리입니다</b><span class="kc-key"><strong>8억 450만</strong><small>여월동 국평 중위</small></span><i class="kc-date">26.11.6</i></a><a class="kcard" href="/gtx/gtx-b-maseok/" data-sec="gtx" data-topic="first-home" data-city="남양주"><span class="kc-chips"><span class="kc-chip">남양주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 마석역 24평형은 아직 2억대, 착공 뒤에도 값이 제자리입니다</b><span class="kc-key"><strong>2억 4,150만</strong><small>창현두산2단지 중위</small></span><i class="kc-date">26.11.6</i></a><a class="kcard" href="/gtx/gtx-a-unjeong/" data-sec="gtx" data-topic="first-home" data-city="파주"><span class="kc-chips"><span class="kc-chip">파주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 운정중앙역 5억대 첫 집은 중흥S클래스·자이시그니처 2곳입니다</b><span class="kc-key"><strong>5억 4,000만</strong><small>중흥S클래스 24평형</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-seongnam/" data-sec="gtx" data-topic="first-home" data-city="성남 분당구"><span class="kc-chips"><span class="kc-chip">성남 분당구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 성남역 24평형 첫 집은 현금 12억 3,000만 원부터입니다</b><span class="kc-key"><strong>12억 3,000만</strong><small>24평형 필요 현금</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-kintex/" data-sec="gtx" data-topic="first-home" data-city="고양 일산동구|고양 일산서구"><span class="kc-chips"><span class="kc-chip">고양 일산동구 외 1</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 킨텍스역 5억대 24평형은 문촌마을19단지 하나뿐입니다</b><span class="kc-key"><strong>5억 5,000만</strong><small>24평형 실거래 중위</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-guseong/" data-sec="gtx" data-topic="first-home" data-city="용인 기흥구"><span class="kc-chips"><span class="kc-chip">용인 기흥구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 구성역 10억 아래 첫 집은 블루밍·상떼빌 2곳뿐입니다</b><span class="kc-key"><strong>8억 2,000만</strong><small>상떼빌 국평 중위</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-dongtan/" data-sec="gtx" data-topic="first-home" data-city="화성 동탄구"><span class="kc-chips"><span class="kc-chip">화성 동탄구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 동탄역 24평형은 현금 8억부터, 토허제에도 호가는 안 꺾였습니다</b><span class="kc-key"><strong>현금 8억~</strong><small>24평형 필요 현금</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-daegok/" data-sec="gtx" data-topic="first-home" data-city="고양 덕양구"><span class="kc-chips"><span class="kc-chip">고양 덕양구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 대곡역 아파트 2곳, 4억대 24평형은 대림2차 하나입니다</b><span class="kc-key"><strong>4억 2,000만</strong><small>대림2차 24평형 중위</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-changneung/" data-sec="gtx" data-topic="first-home" data-city="고양 덕양구"><span class="kc-chips"><span class="kc-chip">고양 덕양구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 창릉역 도보권 아파트는 1곳, 국평 중위 9억 9,500만 원입니다</b><span class="kc-key"><strong>9억 9,500만</strong><small>국평 실거래 중위</small></span><i class="kc-date">26.11.5</i></a></div></div></section><script>(function(){var f=document.querySelector('.cityf');if(!f)return;var cards=document.querySelectorAll('.kgrid .kcard[data-city]'),n=document.querySelector('.cf-n');f.addEventListener('click',function(e){var b=e.target.closest('.rchip');if(!b)return;e.preventDefault();var c=b.getAttribute('data-city')||'',on=!!c&&!b.classList.contains('on'),k=0;f.querySelectorAll('.rchip.on').forEach(function(x){x.classList.remove('on')});cards.forEach(function(x){var s=!on||('|'+x.getAttribute('data-city')+'|').indexOf('|'+c+'|')>=0;x.hidden=!s;if(s)k++});(on?b:f.querySelector('.rchip[data-city=\"\"]')).classList.add('on');if(n){n.textContent=(on?c+' ':'')+'글 '+k+'편';n.hidden=!on}});})();</script>
+<header class="hub-head"><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/reports/">콘텐츠</a> › <b>역세권 첫 집</b></nav><h1>역세권 첫 집, 얼마면 되나?</h1><p class="cmeta">GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.</p></div></header>
+<main id="main"><section><div class="wrap"><nav class="rchips" aria-label="질문으로 찾기"><a class="rchip" href="/reports/">전체</a><a class="rchip" href="/city/">도시 입주물량</a><a class="rchip" href="/gtx/" aria-current="page">역세권 첫 집</a><a class="rchip" href="/danji/">재건축·리모델링</a><a class="rchip" href="/column/">발언 검증</a></nav><nav class="cityf" aria-label="지역으로 찾기"><div class="cf-g"><em></em><span class="cf-c"><button type="button" class="rchip on" data-city="">전체 11편</button></span></div><div class="cf-g"><em>경기</em><span class="cf-c"><button type="button" class="rchip" data-city="고양">고양</button><button type="button" class="rchip" data-city="고양 덕양구">덕양구</button><button type="button" class="rchip" data-city="고양 일산동구">일산동구</button><button type="button" class="rchip" data-city="고양 일산서구">일산서구</button><button type="button" class="rchip" data-city="남양주">남양주</button><button type="button" class="rchip" data-city="부천">부천</button><button type="button" class="rchip" data-city="부천 오정구">오정구</button><button type="button" class="rchip" data-city="부천 원미구">원미구</button><button type="button" class="rchip" data-city="성남 분당구">성남 분당구</button><button type="button" class="rchip" data-city="용인 기흥구">용인 기흥구</button><button type="button" class="rchip" data-city="파주">파주</button><button type="button" class="rchip" data-city="화성 동탄구">화성 동탄구</button></span></div></nav><p class="cf-n" hidden>글 11편</p><div class="kgrid"><a class="kcard" href="/gtx/gtx-b-wangsuk/" data-sec="gtx" data-topic="first-home" data-city="남양주"><span class="kc-chips"><span class="kc-chip">남양주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 왕숙역 도보 15분 기존 아파트 0곳, 첫 입주는 2028년입니다</b><span class="kc-key"><strong>0곳</strong><small>15분 안 기존 단지</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/gtx/gtx-b-pyeongnae-hopyeong/" data-sec="gtx" data-topic="first-home" data-city="남양주"><span class="kc-chips"><span class="kc-chip">남양주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 평내호평역 24평형, 1년 상승률이 17%와 2%로 갈렸습니다</b><span class="kc-key"><strong>5억 700만</strong><small>루첸 24평 중위</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/gtx/gtx-b-bucheon-stadium/" data-sec="gtx" data-topic="first-home" data-city="부천 오정구|부천 원미구"><span class="kc-chips"><span class="kc-chip">부천 오정구 외 1</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 부천종합운동장역 첫 집, 여월동 국평 8억은 1년째 제자리입니다</b><span class="kc-key"><strong>8억 450만</strong><small>여월동 국평 중위</small></span><i class="kc-date">26.11.6</i></a><a class="kcard" href="/gtx/gtx-b-maseok/" data-sec="gtx" data-topic="first-home" data-city="남양주"><span class="kc-chips"><span class="kc-chip">남양주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 마석역 24평형은 아직 2억대, 착공 뒤에도 값이 제자리입니다</b><span class="kc-key"><strong>2억 4,150만</strong><small>창현두산2단지 중위</small></span><i class="kc-date">26.11.6</i></a><a class="kcard" href="/gtx/gtx-a-unjeong/" data-sec="gtx" data-topic="first-home" data-city="파주"><span class="kc-chips"><span class="kc-chip">파주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 운정중앙역 5억대 첫 집은 중흥S클래스·자이시그니처 2곳입니다</b><span class="kc-key"><strong>5억 4,000만</strong><small>중흥S클래스 24평형</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-seongnam/" data-sec="gtx" data-topic="first-home" data-city="성남 분당구"><span class="kc-chips"><span class="kc-chip">성남 분당구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 성남역 24평형 첫 집은 현금 12억 3,000만 원부터입니다</b><span class="kc-key"><strong>12억 3,000만</strong><small>24평형 필요 현금</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-kintex/" data-sec="gtx" data-topic="first-home" data-city="고양 일산동구|고양 일산서구"><span class="kc-chips"><span class="kc-chip">고양 일산동구 외 1</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 킨텍스역 5억대 24평형은 문촌마을19단지 하나뿐입니다</b><span class="kc-key"><strong>5억 5,000만</strong><small>24평형 실거래 중위</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-guseong/" data-sec="gtx" data-topic="first-home" data-city="용인 기흥구"><span class="kc-chips"><span class="kc-chip">용인 기흥구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 구성역 10억 아래 첫 집은 블루밍·상떼빌 2곳뿐입니다</b><span class="kc-key"><strong>8억 2,000만</strong><small>상떼빌 국평 중위</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-dongtan/" data-sec="gtx" data-topic="first-home" data-city="화성 동탄구"><span class="kc-chips"><span class="kc-chip">화성 동탄구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 동탄역 24평형은 현금 8억부터, 토허제에도 호가는 안 꺾였습니다</b><span class="kc-key"><strong>현금 8억~</strong><small>24평형 필요 현금</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-daegok/" data-sec="gtx" data-topic="first-home" data-city="고양 덕양구"><span class="kc-chips"><span class="kc-chip">고양 덕양구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 대곡역 아파트 2곳, 4억대 24평형은 대림2차 하나입니다</b><span class="kc-key"><strong>4억 2,000만</strong><small>대림2차 24평형 중위</small></span><i class="kc-date">26.11.5</i></a><a class="kcard" href="/gtx/gtx-a-changneung/" data-sec="gtx" data-topic="first-home" data-city="고양 덕양구"><span class="kc-chips"><span class="kc-chip">고양 덕양구</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-A 창릉역 도보권 아파트는 1곳, 국평 중위 9억 9,500만 원입니다</b><span class="kc-key"><strong>9억 9,500만</strong><small>국평 실거래 중위</small></span><i class="kc-date">26.11.5</i></a></div></div></section><script>(function(){var g=document.querySelector('.kgrid.kfold'),mb=document.querySelector('.kmore'),open=false;if(mb)mb.addEventListener('click',function(){open=true;if(g)g.classList.remove('kfold');mb.hidden=true});var f=document.querySelector('.cityf');if(!f)return;var cards=document.querySelectorAll('.kgrid .kcard[data-city]'),n=document.querySelector('.cf-n');f.addEventListener('click',function(e){var b=e.target.closest('.rchip');if(!b)return;e.preventDefault();var c=b.getAttribute('data-city')||'',on=!!c&&!b.classList.contains('on'),k=0;f.querySelectorAll('.rchip.on').forEach(function(x){x.classList.remove('on')});cards.forEach(function(x){var d='|'+x.getAttribute('data-city')+'|',s=!on||d.indexOf('|'+c+'|')>=0||d.indexOf('|'+c+' ')>=0;x.hidden=!s;if(s)k++});(on?b:f.querySelector('.rchip[data-city=\"\"]')).classList.add('on');if(g)g.classList.toggle('kfold',!on&&!open);if(mb)mb.hidden=on||open;if(n){n.textContent=(on?c+' ':'')+'글 '+k+'편';n.hidden=!on}});})();</script>
 </main>
 <footer class="sitefoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
-  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
-  <div class="disc">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a><br>
+  문의 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a>
+  <div class="disc" style="font-size:14px">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 
 <nav class="bottomnav">
