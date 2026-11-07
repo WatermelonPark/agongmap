@@ -164,7 +164,7 @@ var document={querySelector:function(q){ var m=/data-m="(\w+)"\](\s*\.nb)?/.exec
 var ADV={fresh:{days:F.days,force:F.force,supply:{p:"2026Q2",d:"2026-10-05"},weekly:{p:"2026-10-05",d:"2026-10-08"},monthly:{p:"2026-09",d:"2026-10-08"}}};
 var MAP_MODE='supply', TB_VIEW='map';
 function priceOk(m){ return m!=='monthly'; }   // 월간은 열 수 없는 모드(재료 없음) — 단추는 잠기지 않았다
-function renderAggCards(){} function renderSidoMap(){} function track(){} function tbView(){}
+function renderAggCards(){} function renderSidoMap(){} function track(){} function tbView(){} function scoreCta(){}
 var _kst=function(){ return {day:_dn("2026-10-08"),hour:12}; };
 markFresh();
 out.badges=Object.keys(B).filter(function(k){ return B[k].kids.length; });
