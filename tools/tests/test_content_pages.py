@@ -766,10 +766,12 @@ def _built_metas():
 
 def test_hub_offers_questions_regions_and_recent_cards():
     """허브(2026-11-05 개편) — '질문으로 찾기' 넷(TOPICS 순, 글 수는 실제), '지역으로 찾기' 칩(구워진 글의 모든 지역),
-    '최근 글' 결론 카드 전부 최신순, 맨 아래 '기본 개념' 한 줄. 옛 카테고리 카드 여섯 장(10-29)은 없다.
+    '기본 개념' 칩(지역 칩 아래, 최근 글 위 — 2026-11-07 디자인 검수), '최근 글' 결론 카드 전부 최신순(마크업에는 전부, 화면에는
+    첫 HUB_FIRST 장과 '글 N편 더 보기'). 옛 카테고리 카드 여섯 장(10-29)은 없다.
 
     무엇을 바꾸면 빨개지나(각각 실제로 확인): 질문 카드 순서를 바꾸거나 글 수를 손으로 적으면, 지역 칩에서 한 도시를 빼면,
-    최근 글을 자르거나(RECENT 상한) 정렬을 뒤집으면, 기본 개념 줄을 최근 글 위로 올리면.
+    최근 글을 자르거나(RECENT 상한) 정렬을 뒤집으면, 기본 개념 줄을 최근 글 아래로 내리면, cards_grid 의 fold 를 빼면(더 보기
+    단추가 사라진다) 또는 단추의 편수를 전체 수로 적으면.
     픽스처: 저장소에 구워져 있는 /reports/ 와 실제 원고.
     """
     p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
@@ -797,7 +799,12 @@ def test_hub_offers_questions_regions_and_recent_cards():
     upd = {(m['section'], m['slug']): (m['updated'], m['date'], m['slug']) for m in metas}
     keys = [upd[(s, g)] for s, g in links if (s, g) in upd]
     assert len(keys) == len(links) and keys == sorted(keys, reverse=True), '최근 글이 최신순이 아니다'
-    assert page.index('class="hub-basic-row"') > page.index('<a class="kcard"'), '기본 개념 줄이 최근 글 위에 있다'
+    assert page.index('class="cityf"') < page.index('class="hub-basic"') < page.index('<a class="kcard"'), \
+        '기본 개념 칩이 지역 칩과 최근 글 사이에 있지 않다'
+    if len(metas) > MC.HUB_FIRST:
+        assert '<div class="kgrid kfold">' in recent and ('글 %d편 더 보기' % (len(metas) - MC.HUB_FIRST)) in recent, \
+            "최근 글이 접히지 않았거나 '더 보기' 편수가 다르다"
+        assert '.kfold .kcard:nth-child(n+%d){display:none}' % (MC.HUB_FIRST + 1) in MC.LIST_CSS
     assert 'class="cityf"' in page and '<script>' in recent, '지역 칩이나 거르는 스크립트가 없다'
 
 
@@ -1222,24 +1229,28 @@ def test_thumbnail_number_is_that_regions_own_moveins_value():
     assert not shared, '한 숫자를 여러 지역이 쓴다 — 지역이 섞였다: %s' % shared
 
 
-def test_basic_concepts_row_sits_under_recent_posts():
-    """허브의 '기본 개념' 줄이 사이클·FAQ·테스트 3종을 **맨 아래 한 줄**로 싣는다(10-30 승인한 다섯, 11-05 개편에서 카드 → 한 줄).
+def test_basic_concepts_chips_sit_above_recent_posts():
+    """허브의 '기본 개념' 칩 줄이 사이클·FAQ·테스트 3종을 싣는다(10-30 승인한 다섯). 절 제목(.rh2)과 칩(.rchip) 꼴로 최근 글 **위**
+    (2026-11-07 디자인 검수 — 맨 아래 13px 중점 한 줄은 40장 카드 뒤 푸터와 같은 꼴이라 입구 구실을 못 했다).
 
     왜: 상단 탭에서 '사이클'을 빼면서 그 입구를 여기로 옮겼다. 발행 주기가 없는 상시 글이라 입구만 있으면 된다.
-    무엇을 바꾸면 빨개지나: 줄에서 한 장을 빼거나, 사이클을 첫째가 아닌 자리로 옮기거나, 최근 글 **위**로 올리면.
+    무엇을 바꾸면 빨개지나: 줄에서 한 장을 빼거나, 사이클을 첫째가 아닌 자리로 옮기거나, 최근 글 **아래**로 내리거나, 칩을 중점
+    나열로 되돌리면.
     픽스처: 저장소에 구워져 있는 /reports/ 와 손 페이지들의 실제 <title>.
     """
     p = os.path.join(ROOT, MC.REPORTS_DIR, 'index.html')
     if not os.path.exists(p):
         pytest.skip('/reports/ 가 아직 없다')
     page = io.open(p, encoding='utf-8').read()
-    row = re.search(r'<p class="hub-basic-row"><b>%s</b>(.*?)</p>' % re.escape(MC.BASIC_H2), page, re.S)
-    assert row, "'기본 개념' 줄을 찾지 못했다"
-    hrefs = re.findall(r'<a href="([^"]+)"', row.group(1))
+    row = re.search(r'<section class="hub-basic">.*?<h2 class="rh2">%s</h2><nav class="rchips"[^>]*>(.*?)</nav>'
+                    % re.escape(MC.BASIC_H2), page, re.S)
+    assert row, "'기본 개념' 칩 줄을 찾지 못했다"
+    assert ' · ' not in row.group(1), '기본 개념이 중점 나열이다'
+    hrefs = re.findall(r'<a class="rchip" href="([^"]+)"', row.group(1))
     # 기대 목록을 **여기 적는다**. MC.BASIC_PAGES 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀐다(2026-10-30 변이로 확인).
     want = ['/cycle/', '/faq/', '/burini-test/', '/investor-test/', '/redev-test/']
     assert hrefs == want, '기본 개념 줄의 순서·링크가 다르다: %s' % hrefs
-    assert row.start() > page.rindex('<a class="kcard"'), '기본 개념 줄이 최근 글 위에 있다'
+    assert row.start() < page.index('<a class="kcard"'), '기본 개념 줄이 최근 글 아래에 있다'
     import html as _h
     for slug in MC.BASIC_PAGES:
         name, _sub = MC._page_title(slug, ROOT)
