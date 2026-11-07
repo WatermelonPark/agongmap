@@ -420,7 +420,7 @@ def test_home_top10_rank_moves_follow_each_tables_own_order():
                                                   if c in Q and v is not None], 10)[1 if dn else 0]]
         assert [r[2] for r in rows] == want_codes, (bi, [r[2] for r in rows], want_codes)
         for medal, rank, c, cls, txt in rows:
-            assert bool(medal) == (not dn and int(rank) <= 3), (bi, rank, medal)
+            assert not medal, (bi, rank, medal)   # 메달 이모지는 뺐다(2026-11-07 디자인 검수 stats-10 — 1~3위는 굵기로 app.css 가 가른다)
             if c not in was:
                 assert cls == 'new'
                 continue
@@ -454,7 +454,7 @@ def test_home_top10_lists_only_regions_moving_that_way():
     """홈 TOP 10 의 상승 표에는 오른 곳만, 하락 표에는 내린 곳만 — /weekly/ TOP 3 와 한 규칙(weekly_moves.top_split, 전수리뷰 H2-2·X2-4).
     재현한 실제 상태: 2023-01 월간 매매는 오른 시군구가 1곳뿐이라 홈 '상승 TOP 10'이 🥇영주 +0.38% 뒤로 🥈김제 0.00%·🥉밀양 0.00%·
     4~10위 내린 곳을 실었고, 2021-09 매매·2026-04 월세는 '하락 TOP 10' 뒤쪽에 오른 곳이 섞였다. 픽스처는 그 모양을 합성한다 —
-    한 달은 오른 곳 1·보합 2(0.004 는 표시 0.00)·내린 곳 다수(상승 표 1줄, 메달 하나), 다른 달은 모두 0 이상(하락 표가 비어 안내 한 줄).
+    한 달은 오른 곳 1·보합 2(0.004 는 표시 0.00)·내린 곳 다수(상승 표 1줄), 다른 달은 모두 0 이상(하락 표가 비어 안내 한 줄).
     기대값은 파이썬 정본 top_split(n=10)이고, /weekly/ top3 는 같은 함수의 n=3 이라 앞 세 곳이 홈 앞 세 곳과 같아야 한다.
 
     변이(실제로 확인): rankTables 의 상승 표를 옛 `cr.order.slice(0,10)` 으로 되돌리면, 하락 표 거르기(pvSign(v)<0)를 빼면,
@@ -474,7 +474,7 @@ def test_home_top10_lists_only_regions_moving_that_way():
             rows, none = boxes[side]
             assert [c for _, _, c in rows] == [c for c, _ in want[side]], (side, rows, want[side])
             assert [r for _, r, _ in rows] == list(range(1, len(rows) + 1))
-            assert all(m == (side == 0 and r <= 3) for m, r, _ in rows), rows
+            assert not any(m for m, _, _ in rows), rows   # 메달 없음(stats-10)
             if side == empty_side:
                 assert not rows and none and '내린 시군구가 없다' in none[0], (rows, none)
                 checked += 1
