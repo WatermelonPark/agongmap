@@ -136,7 +136,7 @@
 
   <url>
     <loc>https://www.agongmap.co.kr/city/</loc>
-    <lastmod>2026-11-05</lastmod>
+    <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -401,6 +401,13 @@
   </url>
 
   <url>
+    <loc>https://www.agongmap.co.kr/column/hong-hope-gangnam-only/</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
     <loc>https://www.agongmap.co.kr/zone/</loc>
     <lastmod>2026-11-06</lastmod>
     <changefreq>weekly</changefreq>
@@ -522,7 +529,14 @@
   </url>
 
   <url>
-    <loc>https://www.agongmap.co.kr/column/hong-hope-gangnam-only/</loc>
+    <loc>https://www.agongmap.co.kr/city/cheonan-2027-moveins/</loc>
+    <lastmod>2026-11-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.agongmap.co.kr/danji/guro-jugong/</loc>
     <lastmod>2026-11-07</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
