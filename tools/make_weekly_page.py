@@ -95,9 +95,10 @@ def pub(p):
 # '숫자의 출처' 문단. 예전 문장('호가·광고가 아닌 국가 통계라, 뉴스 기사보다 하루 빠르다')은 확인한 적 없는
 # 비교였다 — 부동산원 주간 동향은 발표 당일 기사화되는 일이 많고, 배치가 멈춘 주에는 정면으로 틀린 말이
 # 된다(TRUST-8). 우리가 확인할 수 있고 지킬 수 있는 사실만 적는다. 반영이 늦는 주는 위 날짜 줄이 스스로 알린다.
-SOURCE_TEXT = ('한국부동산원 「전국주택가격동향조사」 아파트 매매·전세가격지수 변동률을 그대로 쓴다. '
-               '호가·광고가가 아닌 국가 통계다. 매주 목요일 발표분을 발표 당일 반영하고, 반영이 늦어지면 '
-               '맨 위 날짜 줄에 \'%s\'라고 적는다.' % WR.WAIT)
+# 말투는 같은 페이지·리포트·월간의 합쇼체(2026-11-07 디자인 검수 reports-11 — 이 문단만 해라체였다).
+SOURCE_TEXT = ('한국부동산원 「전국주택가격동향조사」 아파트 매매·전세가격지수 변동률을 그대로 씁니다. '
+               '호가·광고가가 아닌 국가 통계입니다. 매주 목요일 발표분을 발표 당일 반영하고, 반영이 늦어지면 '
+               '맨 위 날짜 줄에 \'%s\'라고 적습니다.' % WR.WAIT)
 
 
 H1_WEEK = '이번 주'   # 결론 제목 머리. 발표가 늦은 주에는 스크립트가 이 말을 발표일로 바꾼다
@@ -184,7 +185,8 @@ MAP_HREF = '/#stats-market-week~%s'
 MAP_BOX_CSS = ('.mm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
                '.mm-scroll svg a{cursor:pointer}.mm-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}'
                '.mm-scroll svg a:focus:not(:focus-visible){outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}')
-MAP_CSS = MAP_BOX_CSS + '.mm-swipe{display:none}@media(max-width:520px){.mm-swipe{display:inline}}'
+MAP_CSS = MAP_BOX_CSS + ('.mm-swipe,.mm-swipe-top{display:none}@media(max-width:520px){.mm-swipe{display:inline}'
+                         '.mm-swipe-top{display:block;font-size:13px;color:var(--muted);text-align:right;margin:0 0 6px}}')
 # 밀어 보는 지도의 가장자리 흐림(2026-10-31 디자인 리뷰 2차 — 홈·시세 탭에는 .cue 가 있는데 그 거울인 /weekly/ 머리 지도와 시도 리포트
 # 조각에는 없었다). 홈 app.css .cue 와 같은 규칙·같은 동작이다: 상자(.cue) 위에 덮개를 그리고, 밀 것이 남은 쪽만 켠다.
 # 바탕색 덮개(background local) 방식은 불투명한 칸 아래에 그려져 정작 넘친 자리에서 보이지 않았다.
@@ -586,7 +588,7 @@ TABLE_CSS = ('.sggt summary{cursor:pointer;font-size:15px;font-weight:600;color:
              '.sggt tbody th{font-weight:400;color:var(--ink);padding:7px 5px;border-bottom:1px solid var(--line)}'
              '.sggt td{padding:7px 5px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;color:var(--ink2)}'
              '.sggt td.up{color:var(--up2)}.sggt td.dn{color:var(--dn2)}'
-             '.sggt .note{font-size:13px;color:var(--muted);margin:10px 0 0}'
+             '.sggt .note{font-size:var(--fs-dense);line-height:1.6;color:var(--muted);margin:10px 0 0}'   # 문장은 14px(11-07 reports-12)
              # 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄)
              '.note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}')
 
@@ -742,6 +744,9 @@ def build(W, Q):
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
         '  <div class="minimap">',
+        # 좁은 화면의 '옆으로 밀어 전체 보기'는 지도 **위**에도 — 아래 캡션만으로는 1,100px 높이 지도 꼭대기에서 오른쪽(강원·경북·부산)이
+        # 있는지 몰랐다(2026-11-07 디자인 검수 reports-7). 넓은 화면은 지도가 다 들어와 보이지 않는다(MAP_CSS).
+        '    <p class="mm-swipe-top">옆으로 밀어 전체 보기 →</p>',
         '    <div class="cue"><div class="mm-scroll">%s</div></div>' % svg,
         # 범례는 왼쪽 하락 → 오른쪽 상승(시세 가로축 정본, 2026-10-06) — 홈 시세 지도 wg-key 와 같은 방향(전수리뷰 X2-9·Z2-7)
         '    <div class="mm-cap"><span><i style="background:#3a7bd5"></i>하락</span>'

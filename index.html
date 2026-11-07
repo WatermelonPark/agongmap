@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v214">
+<html lang="ko" data-build="v215">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -90,8 +90,8 @@ try{(function(){
      아래 구간은 tools/make_home_font.py 가 통째로 고쳐 쓴다 — 손으로 고치지 말 것. 홈 문구에 새 글자를 넣으면 그 도구를
      다시 돌린다(test_home_font 가 알려 준다). -->
 <!--HOME_FONT_START-->
-<link rel="preload" href="/webfonts/home-6d34f0c31e.woff2" as="font" type="font/woff2" crossorigin fetchpriority="low">
-<style>@font-face{font-family:'AgongHome';font-style:normal;font-weight:45 920;font-display:swap;src:url(/webfonts/home-6d34f0c31e.woff2) format('woff2-variations'),url(/webfonts/home-6d34f0c31e.woff2) format('woff2');unicode-range:U+20-7E,U+B1,U+B7,U+2013-2014,U+2026,U+2039-203A,U+2191-2193,U+2212,U+25BC,U+300C-300D,U+AC00-AC01,U+AC04,U+AC08,U+AC10-AC13,U+AC15,U+AC19,U+AC1C,U+AC40,U+AC70,U+AC74,U+AC80,U+AC83,U+AC8C,U+ACA0,U+ACA9,U+ACAC,U+ACB0,U+ACBD,U+ACC4,U+ACE0-ACE1,U+ACE7,U+ACF3,U+ACF5,U+ACFC,U+AD00,U+AD11,U+AD50,U+AD6C-AD6D,U+AD70,U+AD8C,U+ADC0,U+ADE0,U+ADF8,U+ADFC,U+AE08-AE09,U+AE30,U+AE38,U+AE40,U+AE4C,U+AE68,U+AE6C,U+AECD,U+AFF0,U+B098,U+B09C,U+B0A0,U+B0A8-B0A9,U+B0AF,U+B0B3-B0B4,U+B0C5,U+B108,U+B118,U+B123-B124,U+B140,U+B144,U+B150,U+B178,U+B17C,U+B204,U+B208,U+B20C,U+B234,U+B294,U+B2C8,U+B2D9,U+B2E4,U+B2E8,U+B2EB-B2ED,U+B2F9,U+B300,U+B354-B355,U+B35C,U+B370,U+B3C4,U+B3CC,U+B3D9,U+B410,U+B418,U+B41C,U+B429,U+B450,U+B458,U+B465,U+B4A4,U+B4DC,U+B4E0,U+B4E4,U+B4F1,U+B514,U+B54C,U+B5A8,U+B5B4,U+B5BB,U+B610,U+B6F0,U+B72C,U+B73B,U+B77C-B77D,U+B780,U+B78C,U+B790-B791,U+B798,U+B7C9,U+B7EC,U+B824-B825,U+B828,U+B837-B839,U+B85C-B85D,U+B8CC,U+B8E1,U+B960,U+B974,U+B97C,U+B984-B985,U+B989,U+B9AC,U+B9B0,U+B9B4,U+B9BD,U+B9C1,U+B9C8-B9C9,U+B9CC,U+B9CE,U+B9D0,U+B9E4,U+B9F5,U+BA38,U+BA70,U+BA74,U+BA78,U+BA85,U+BA87,U+BAA8-BAA9,U+BAAB,U+BABB,U+BB34,U+BB36,U+BB38,U+BB3B-BB3C,U+BBF8,U+BC00,U+BC14-BC16,U+BC18,U+BC1B-BC1C,U+BC29,U+BC30-BC31,U+BC84,U+BC88,U+BC95,U+BCC0,U+BCC4,U+BCD1,U+BCF4-BCF5,U+BCF8,U+BD05,U+BD09,U+BD24,U+BD80-BD81,U+BD84,U+BD88-BD89,U+BD99,U+BE0C,U+BE14,U+BE44,U+BE57,U+BE7C,U+BE8D,U+C090,U+C0AC,U+C0B0,U+C0BC-C0BD,U+C0C1,U+C0C8-C0C9,U+C11C-C11E,U+C120,U+C124,U+C12D,U+C131,U+C138,U+C14B,U+C154,U+C168,U+C18C-C18D,U+C190,U+C19C,U+C1A1,U+C218,U+C21C,U+C22B,U+C2A4,U+C2A8,U+C2AC,U+C2B5,U+C2B9,U+C2DC-C2DD,U+C2E0,U+C2E3-C2E4,U+C2EC,U+C313,U+C4F0,U+C501,U+C529,U+C544-C545,U+C548-C54A,U+C54C,U+C554,U+C55E,U+C57D,U+C591,U+C5B4,U+C5C6,U+C5C8,U+C5D0,U+C5D4,U+C5EC-C5ED,U+C5F0,U+C5F4,U+C601,U+C606,U+C608,U+C624,U+C62C,U+C635,U+C640,U+C644,U+C654-C655,U+C65C,U+C678,U+C67C,U+C694,U+C6A9,U+C6B0,U+C6B4,U+C6B8,U+C6C0,U+C6D0,U+C6D4,U+C6E0,U+C704,U+C720,U+C728,U+C73C,U+C740,U+C744,U+C74C-C74D,U+C758,U+C774-C775,U+C778,U+C77C-C77D,U+C784-C785,U+C788,U+C790-C791,U+C7A1,U+C7A5,U+C7AC,U+C800-C801,U+C804,U+C810,U+C815,U+C81C,U+C870-C871,U+C885,U+C88B,U+C8E0,U+C8FC,U+C900,U+C904,U+C90D,U+C911,U+C989,U+C99D,U+C9C0-C9C1,U+C9C4,U+C9D1,U+C9D3,U+C9F8,U+CABD,U+CB49,U+CBE4,U+CC28-CC29,U+CC2C,U+CC38,U+CC3D,U+CC44-CC45,U+CC59,U+CC98-CC99,U+CC9C,U+CCAB,U+CCAD,U+CCB4,U+CD08,U+CD5C,U+CD94-CD95,U+CD98,U+CD9C,U+CDA9,U+CE20-CE21,U+CE58,U+CE5C,U+CE60,U+CE68,U+CE74,U+CE78,U+CEE4,U+CF58,U+D06C,U+D074,U+D0C0,U+D0C4,U+D0C9,U+D0DC-D0DD,U+D130,U+D138,U+D14C-D14D,U+D150,U+D1A0-D1A1,U+D1B5,U+D22C,U+D2B8,U+D2BC,U+D30C,U+D310,U+D314,U+D328,U+D3C9,U+D3EC,U+D45C,U+D478,U+D480,U+D488,U+D504,U+D558,U+D55C,U+D560,U+D568-D569,U+D56D,U+D574,U+D588-D589,U+D5A5,U+D5C8,U+D5F7,U+D600,U+D604,U+D615,U+D638,U+D640,U+D648,U+D64D,U+D654-D655,U+D658,U+D669,U+D68C-D68D,U+D6A8,U+D6C4,U+D750,U+D754,U+D765,U+D788,U+D799}
+<link rel="preload" href="/webfonts/home-2b9f734ea3.woff2" as="font" type="font/woff2" crossorigin fetchpriority="low">
+<style>@font-face{font-family:'AgongHome';font-style:normal;font-weight:45 920;font-display:swap;src:url(/webfonts/home-2b9f734ea3.woff2) format('woff2-variations'),url(/webfonts/home-2b9f734ea3.woff2) format('woff2');unicode-range:U+20-7E,U+B1,U+B7,U+2013-2014,U+2026,U+2039-203A,U+2191-2193,U+2212,U+25BC,U+300C-300D,U+AC00-AC01,U+AC04,U+AC08,U+AC10-AC13,U+AC15,U+AC19,U+AC1C,U+AC40,U+AC70,U+AC74,U+AC80,U+AC83,U+AC8C,U+ACA0,U+ACA9,U+ACAC,U+ACB0,U+ACBD,U+ACC4,U+ACE0-ACE1,U+ACE7,U+ACF3,U+ACF5,U+ACFC,U+AD00,U+AD11,U+AD50,U+AD6C-AD6D,U+AD70,U+AD8C,U+ADC0,U+ADE0,U+ADF8,U+ADFC,U+AE08-AE09,U+AE30,U+AE38,U+AE40,U+AE4C,U+AE68,U+AE6C,U+AECD,U+AFF0,U+B098,U+B09C,U+B0A0,U+B0A8-B0A9,U+B0AF,U+B0B3-B0B4,U+B0C5,U+B108,U+B118,U+B123-B124,U+B140,U+B144,U+B150,U+B178,U+B17C,U+B204,U+B208,U+B20C,U+B234,U+B294,U+B2C8,U+B2D9,U+B2E4,U+B2E8,U+B2EB-B2ED,U+B2F9,U+B300,U+B354-B355,U+B35C,U+B370,U+B378,U+B3C4,U+B3CC,U+B3D9,U+B410,U+B418,U+B41C,U+B429,U+B450,U+B458,U+B465,U+B4A4,U+B4DC,U+B4E0,U+B4E4,U+B4F1,U+B514,U+B54C,U+B5A8,U+B5B4,U+B5BB,U+B610,U+B6F0,U+B72C,U+B73B,U+B77C-B77D,U+B780,U+B78C,U+B790-B791,U+B798,U+B7C9,U+B7EC,U+B824-B825,U+B828,U+B837-B839,U+B85C-B85D,U+B8CC,U+B8E1,U+B960,U+B974,U+B97C,U+B984-B985,U+B989,U+B9AC,U+B9B0,U+B9B4,U+B9BD,U+B9C1,U+B9C8-B9C9,U+B9CC,U+B9CE,U+B9D0,U+B9E4,U+B9F5,U+BA38,U+BA70,U+BA74,U+BA78,U+BA85,U+BA87,U+BAA8-BAA9,U+BAAB,U+BABB,U+BB34,U+BB36,U+BB38,U+BB3B-BB3C,U+BBF8,U+BC00,U+BC14-BC16,U+BC18,U+BC1B-BC1C,U+BC29,U+BC30-BC31,U+BC84,U+BC88,U+BC95,U+BCC0,U+BCC4,U+BCD1,U+BCF4-BCF5,U+BCF8,U+BD05,U+BD09,U+BD24,U+BD80-BD81,U+BD84,U+BD88-BD89,U+BD99,U+BE0C,U+BE44,U+BE57,U+BE7C,U+BE8D,U+C090,U+C0AC,U+C0B0,U+C0BC-C0BD,U+C0C1,U+C0C8-C0C9,U+C11C,U+C11E,U+C120,U+C124,U+C12D,U+C131,U+C138,U+C154,U+C168,U+C18C-C18D,U+C190,U+C19C,U+C1A1,U+C218,U+C21C,U+C22B,U+C2A4,U+C2A8,U+C2AC,U+C2B5,U+C2B9,U+C2DC-C2DD,U+C2E0,U+C2E3-C2E4,U+C2EC,U+C313,U+C4F0,U+C501,U+C529,U+C544-C545,U+C548-C54A,U+C54C,U+C554,U+C55E,U+C57D,U+C591,U+C5B4,U+C5B8,U+C5C6,U+C5C8,U+C5D0,U+C5D4,U+C5EC-C5ED,U+C5F0,U+C5F4,U+C601,U+C606,U+C608,U+C624,U+C62C,U+C635,U+C640,U+C644,U+C654-C655,U+C65C,U+C678,U+C67C,U+C694,U+C6A9,U+C6B0,U+C6B4,U+C6B8,U+C6C0,U+C6D0,U+C6D4,U+C6E0,U+C704,U+C720,U+C728,U+C73C,U+C740,U+C744,U+C74C-C74D,U+C758,U+C774-C775,U+C778,U+C77C-C77D,U+C784-C785,U+C788,U+C790-C791,U+C7A1,U+C7A5,U+C7AC,U+C800-C801,U+C804,U+C810,U+C815,U+C81C,U+C870-C871,U+C885,U+C88B,U+C8E0,U+C8FC,U+C900,U+C904,U+C90D,U+C911,U+C989,U+C99D,U+C9C0-C9C1,U+C9C4,U+C9D1,U+C9D3,U+CABD,U+CB49,U+CBE4,U+CC28-CC29,U+CC2C,U+CC38,U+CC3D,U+CC44-CC45,U+CC59,U+CC98-CC99,U+CC9C,U+CCAB,U+CCAD,U+CCB4,U+CD08,U+CD5C,U+CD94-CD95,U+CD98,U+CD9C,U+CDA9,U+CE20-CE21,U+CE58,U+CE5C,U+CE60,U+CE68,U+CE74,U+CE78,U+CEE4,U+CF58,U+D06C,U+D074,U+D0C0,U+D0C4,U+D0C9,U+D0DC-D0DD,U+D130,U+D138,U+D14C-D14D,U+D150,U+D1A0-D1A1,U+D1B5,U+D22C,U+D2B8,U+D2BC,U+D30C,U+D310,U+D314,U+D328,U+D3C9,U+D3EC,U+D45C,U+D478,U+D480,U+D488,U+D504,U+D558,U+D55C,U+D560,U+D568-D569,U+D56D,U+D574,U+D588-D589,U+D5A5,U+D5C8,U+D5F7,U+D600,U+D604,U+D615,U+D638,U+D640,U+D648,U+D64D,U+D654-D655,U+D658,U+D669,U+D68C-D68D,U+D6A8,U+D6C4,U+D750,U+D754,U+D765,U+D788,U+D799}
 body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif}</style>
 <!--HOME_FONT_END-->
 <meta name="naver-site-verification" content="9f461a064c309c0d55284e1932be4d001b4f7ea9" />
@@ -198,7 +198,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   #splash .mark-txt{opacity:1;transform:none;animation:none}
 }
 </style>
-<link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
 </head>
 <!-- home-app: 1024px 이상에서 하단 탭바를 상단 내비로 올리는 규칙(app.css, 홈 마케팅 검수 C7)의 범위 표지 — 홈에만 건다. -->
 <body class="home-app" data-desk="home">
@@ -250,7 +250,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
          09-13 결정과 맞다. 제목은 한 줄이 조건이다(app.css .hero-msg, 폭 시험은 test_followup_texts). -->
     <span class="hero-kick">아공맵 · 아파트 공급 지도</span>
     <h1 class="hero-msg">공급은 3년, 시세는 매주<i class="hero-ramp" aria-hidden="true"></i></h1>
-    <p class="hero-sub">국토교통부 착공·준공 실적으로 시도별 3년 공급을 판정하고, 한국부동산원 주간 시세를 매주 싣습니다.</p>
+    <p class="hero-sub">국토교통부 착공·준공 실적으로 3년 공급을 판정하고, 한국부동산원 시세를 매주 싣습니다.</p>
   </div></header>
 
   <!-- 제목 텍스트는 히어로가 대신한다(2026-08-08 사용자: "텍스트 합치고 심플하게").
@@ -267,6 +267,11 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     </div>
     <!-- 판정·시세 카드 셋(renderAggCards) — 보기(지도·그래프·표)와 무관하게 늘 보인다 -->
     <div id="agg-wrap"></div>
+    <!-- 카드 신호등 범례 한 줄(부팅 때 채운다) — 신호등을 단 판정 카드 **바로 아래**(2026-11-07 디자인 검수 home-0). 10-30 디자인 리뷰
+         2차로 지도 아래로 내렸더니 카드의 '1 2 3' 등과 650~800px 떨어져 카드를 읽는 동안에는 등이 장식으로 보였다 — '설명은 콘텐츠
+         아래'의 콘텐츠는 그 설명이 풀이하는 카드다. 비어 있는 동안 제 줄 자리를 잡는다(부팅 전후 아래 단추·지도 위치가 같다).
+         시세 모드에서는 숨는다(시세 카드에는 등이 없다). -->
+    <p class="map-lk" id="lt-key"></p>
     <div class="tb-bar">
       <!-- role=tablist는 자식이 role=tab이고 tabpanel을 제어할 때만 맞다. 여기서는
            같은 표를 다시 그리는 토글이라 group + aria-pressed가 정확하다. -->
@@ -307,9 +312,6 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 <!--HOME_SUMMARY_END-->
     </div>
     <div id="graph-wrap"></div>
-    <!-- 카드 신호등 범례 한 줄(부팅 때 채운다) — 2026-10-30 디자인 리뷰 2차로 공급 기준 줄 끝에서 지도(그래프) 아래로 내렸다('설명은
-         콘텐츠 아래'). 지도 상자(#map-wrap) 밖에 두어 그 예약 높이는 그대로고, 비어 있는 동안 제 줄 자리를 잡는다. 시세 모드에서는 숨는다. -->
-    <p class="map-lk" id="lt-key"></p>
     <div class="tb-key">
       <span class="tk"><i class="tk-d"></i>하락</span>
       <span class="tk-ramp" aria-hidden="true"></span>
@@ -354,6 +356,8 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     <!-- 입구 둘은 목적지가 다르다: 위 '이번 주 요약 보기'는 /weekly/(요약·공유 주소), 이 링크는 통계 탭 시군구
          TOP 10(시장동향 순위 보기 — '-rank', 2026-10-10). 버튼이 아니라 링크라 길게 눌러 새 탭·주소 복사가 된다. 이름은 목적지를 말한다. -->
     <div class="hs-cta"><a class="home-cta" href="#stats-market-week-rank" onclick="track('home_cta',{to:'weekly_map'})">시군구 상승·하락 TOP 10 보기</a></div>
+    <!-- 공유 단추 둘(renderWeeklyGrid) — 주 행동(TOP 10) 아래, 구역 끝(2026-11-07 디자인 검수 home-2) -->
+    <div id="home-weekly-share"></div>
     <!-- 이 자리에 2026-09-27부터 '이번 주 해석 글' 카드(ADV 의 blog 키 → renderBlogLine)가 있었다. 네이버 발행이
          끝나(10-26·10-29 대표 결정) 묵은 글만 가리켰고, 아래 '최근 리포트' 묶음이 같은 일을 더 잘 한다.
          2026-10-30 총괄 결정으로 카드·데이터(ADV 의 blog 키)·스타일을 함께 걷었다 — 되살리지 말 것. -->
@@ -369,10 +373,12 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
          ⚠️ 참여자 수·평균 점수는 넣지 않는다. 지금 트래픽에선 적은 숫자가
          그대로 드러나 사회적 증거가 역효과다(PM 결정). -->
     <div id="quiz-sample" class="qsample" aria-hidden="true"></div>
+    <!-- 단추 글자에 컬러 이모지(🐣·🦅·🏗️)를 달지 않는다 — 홈의 다른 단추·탭바는 단색 선 아이콘·글자뿐이라 아이콘 언어가 둘이 됐고
+         기기마다 모양이 달랐다(2026-11-07 디자인 검수 home-9). 결과 예시 카드(#quiz-sample)의 그림은 공유 이미지와 같은 것이라 둔다. -->
     <div class="hs-cta">
-      <a class="home-cta" href="/burini-test/" onclick="track('home_cta',{to:'quiz_burini'})">🐣 부린이 테스트 · 난이도 하</a>
-      <a class="home-cta alt" href="/investor-test/" onclick="track('home_cta',{to:'quiz_investor'})">🦅 투자자 테스트 · 난이도 중</a>
-      <a class="home-cta alt" href="/redev-test/" onclick="track('home_cta',{to:'quiz_redev'})">🏗️ 재건축·재개발 테스트 · 난이도 상</a>
+      <a class="home-cta" href="/burini-test/" onclick="track('home_cta',{to:'quiz_burini'})">부린이 테스트 · 난이도 하</a>
+      <a class="home-cta alt" href="/investor-test/" onclick="track('home_cta',{to:'quiz_investor'})">투자자 테스트 · 난이도 중</a>
+      <a class="home-cta alt" href="/redev-test/" onclick="track('home_cta',{to:'quiz_redev'})">재건축·재개발 테스트 · 난이도 상</a>
     </div>
   </div></section>
 
@@ -384,7 +390,8 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
          남아, 배너를 눌러 들어간 /cycle/ 은 14라고 말하는 모순이 라이브에 있었다. -->
     <div class="hs-kicker">14개 시도 · 20년</div>
     <h2>집값은 왜 돌고 도는가</h2>
-    <p>공급 → 전세 → 매매 → 다시 공급, 20년 데이터로 검증한 순환의 6개 고리입니다.</p>
+    <!-- 고리 수(6)는 /cycle/ 안에서만 말한다 — 아래 축약 도식은 칸·화살표가 넷이라 '6개 고리'와 어긋났다(2026-11-07 디자인 검수 home-10). -->
+    <p>공급 → 전세 → 매매 → 다시 공급, 20년 데이터로 검증한 순환 고리입니다.</p>
     <!-- 사이클 카드에도 그림을 준다(2026-08-17 사용자). /cycle/의 상호작용
          다이어그램(클릭 점프·고리 번호)을 그대로 옮기지 않고 축약 도식만 둔다 —
          홈에서는 "돈다"는 모양만 보이면 되고, 정본은 리포트 쪽이다.
@@ -438,7 +445,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
        같은 푸터가 이 파일에 세 벌(홈·통계·퀴즈) 있다 — 셋을 같이 고친다(test_home_summary 가 같은지 본다). -->
   <div class="home-foot">
     <div class="ft-brand"><b>아공맵</b> — 아파트 공급 지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">GTX 역세권</a><i class="ft-dot"> · </i><a href="/danji/">단지 분석</a><i class="ft-dot"> · </i><a href="/column/">해설</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div></div>
@@ -451,8 +458,9 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   <header class="shero"><div class="wrap">
     <h2>시세·통계 보기</h2>
     <!-- 이달의 통계 진입점(2026-09-15 점검 후속 ④): 매달 정부 통계를 대조하는 사람에게 가장 맞는
-         화면인데 여기서 가는 길이 없었다. -->
-    <p class="shero-link"><a href="/monthly/">이달의 통계 한 화면으로 보기 →</a><span>매매·인허가·입주물량·미분양·전세가율, 시도별 기준월과 함께</span></p>
+         화면인데 여기서 가는 길이 없었다. 버튼 아래 설명 한 줄('매매·인허가·…')은 뺐다(2026-11-07 디자인 검수 stats-3 — 375px 에서
+         지도가 y≈455 에서 시작해 조작·설명 열 덩어리 아래에 묻혔다). -->
+    <p class="shero-link"><a href="/monthly/">이달의 통계 한 화면으로 보기 →</a></p>
   </div></header>
 
   <div class="smode" role="tablist" aria-label="통계 모드">
@@ -463,19 +471,21 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   </div>
 
   <div class="dash" id="stats-market"><div class="wrap">
+    <!-- 주간|월간(왼쪽, 떠 있는 .adv-tabs)과 각 구역의 순위|지도|그래프|표(.mk-gt, 오른쪽)는 한 줄이다(2026-11-07 디자인 검수 stats-3 —
+         두 줄이던 조작을 한 줄로 줄여 375px 에서 지도가 위로 올라온다). 폭이 모자라면(320px) 순위 줄이 아래로 내려간다. -->
     <div class="adv-tabs" role="tablist" aria-label="시장동향 주기">
       <button id="mtab-week" class="on" role="tab" aria-selected="true" onclick="setMarketTab('week')">주간</button>
       <button id="mtab-month" role="tab" aria-selected="false" onclick="setMarketTab('month')">월간</button>
     </div>
 
     <section class="adv-sec gsec gm-m" id="sec-week">
-      <div class="adv-h"><h3>주간 아파트 동향</h3><span class="rel" id="rel-week"></span>
-        <div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('week','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('week','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('week','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('week','t')">표</button></div></div>
+      <div class="gt-head mk-gt"><div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('week','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('week','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('week','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('week','t')">표</button></div></div>
+      <div class="adv-h"><h3>주간 아파트 동향</h3><span class="rel" id="rel-week"></span></div>
       <div class="adv-regsel"><select id="adv-week-reg" onchange="onTrendReg('week')" aria-label="시도 선택"></select><select id="adv-week-sgg" onchange="onTrendSgg('week')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="week-map"></div>
       </div>
-      <div class="gt-g"><div class="period trp" id="week-period"></div><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span></div><div class="chart-unit" id="week-unit">변동률(%)</div><div class="chartwrap sm" id="weekChartBox"><canvas id="weekChart"></canvas></div></div>
+      <div class="gt-g"><div class="period trp" id="week-period"></div><div class="chart-top"><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span></div><div class="chart-unit" id="week-unit">변동률(%)</div></div><div class="chartwrap sm" id="weekChartBox"><canvas id="weekChart"></canvas></div></div>
       <div class="gt-t">
         <div class="tr-row"><button class="trbtn" onclick="trFlip('week',this)">⇄ 행열 전환</button></div>
         <div class="adv-tblwrap matrix" id="adv-week-matrix"></div>
@@ -485,13 +495,13 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
     </section>
 
     <section class="adv-sec gsec gm-m" id="sec-month" style="display:none">
-      <div class="adv-h"><h3>월간 아파트 동향</h3><span class="rel" id="rel-month"></span>
-        <div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('month','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('month','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('month','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('month','t')">표</button></div></div>
+      <div class="gt-head mk-gt"><div class="gt"><button aria-pressed="false" data-v="r" onclick="gtSet('month','r')">순위</button><button class="on" aria-pressed="true" data-v="m" onclick="gtSet('month','m')">지도</button><button aria-pressed="false" data-v="g" onclick="gtSet('month','g')">그래프</button><button aria-pressed="false" data-v="t" onclick="gtSet('month','t')">표</button></div></div>
+      <div class="adv-h"><h3>월간 아파트 동향</h3><span class="rel" id="rel-month"></span></div>
       <div class="adv-regsel"><select id="adv-month-reg" onchange="onTrendReg('month')" aria-label="시도 선택"></select><select id="adv-month-sgg" onchange="onTrendSgg('month')" aria-label="시군구 선택" hidden></select></div>
       <div class="gt-m">
         <div class="tilemap" id="month-map"></div>
       </div>
-      <div class="gt-g"><div class="period trp" id="month-period"></div><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span><span class="cl-wo">월세</span></div><div class="chart-unit" id="month-unit">변동률(%)</div><div class="chartwrap sm" id="monthChartBox"><canvas id="monthChart"></canvas></div></div>
+      <div class="gt-g"><div class="period trp" id="month-period"></div><div class="chart-top"><div class="chart-legend"><span class="cl-ma">매매</span><span class="cl-je">전세</span><span class="cl-wo">월세</span></div><div class="chart-unit" id="month-unit">변동률(%)</div></div><div class="chartwrap sm" id="monthChartBox"><canvas id="monthChart"></canvas></div></div>
       <div class="gt-t">
         <div class="tr-row"><button class="trbtn" onclick="trFlip('month',this)">⇄ 행열 전환</button></div>
         <div class="adv-tblwrap matrix" id="adv-month-matrix"></div>
@@ -585,9 +595,10 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
         <div class="adv-tblwrap matrix" id="adv-occ-matrix"></div>
         <div class="adv-tblwrap compact" id="adv-occ-compact"></div>
       </div>
-      <p class="adv-note">준공 실적과 착공 기반 추정 물량을 지역별 분기 적정물량과 견줍니다.</p>
+      <!-- 산식은 읽는 문장(14px)에 싣고 출처 줄(13px 캡션)에는 기관·주기만 둔다(2026-11-07 디자인 검수 stats-6) -->
+      <p class="adv-note">준공 실적(지난 분기)과 착공 실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.947)을 분기마다 합쳐 지역별 분기 적정물량과 견줍니다.</p>
       <div class="adv-legend"><span><i style="background:#ff5a4f"></i>적음(70% 미만)</span><span><i style="background:#ffc233"></i>보통</span><span><i style="background:#3ecf7a"></i>많음(130% 초과)</span><span><i style="background:#ff5a4f73"></i>옅은 색 = 착공 기준 추정</span></div>
-      <div class="src-note"><span id="occ-when"></span>자료: 국토교통부 「주택건설실적통계」 — 준공실적(지난 분기) + 착공실적을 3년 뒤로 민 추정(미래 분기, 전환율 0.947) · 분기 합산 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
+      <div class="src-note"><span id="occ-when"></span>자료: 국토교통부 「주택건설실적통계」 · 홈 공급표와 같은 값 · 분기마다 갱신</div>
     </section>
 
 
@@ -613,7 +624,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
 
   <div class="minifooter">
     <div class="ft-brand"><b>아공맵</b> — 아파트 공급 지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">GTX 역세권</a><i class="ft-dot"> · </i><a href="/danji/">단지 분석</a><i class="ft-dot"> · </i><a href="/column/">해설</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
@@ -675,7 +686,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard',-apple-
   </div>
   <div class="minifooter">
     <div class="ft-brand"><b>아공맵</b> — 아파트 공급 지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">GTX 역세권</a><i class="ft-dot"> · </i><a href="/danji/">단지 분석</a><i class="ft-dot"> · </i><a href="/column/">해설</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>

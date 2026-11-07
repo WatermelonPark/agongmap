@@ -378,7 +378,8 @@ def sec(anchor, n, title, basis, source, body):
     이번 달 발표분'이라는 확신이 이 화면의 존재 이유다(요청서 2번)."""
     body = body.replace('<table>', '<table aria-label="%s">' % esc(title), 1)   # 스크린리더용 표 이름(접근성 점검 2026-09-18)
     return ('<section id="%s"><div class="wrap">'
-            '<div class="secno">%d</div><h2>%s</h2>'
+            # 절 번호는 제목 안에(2026-11-07 디자인 검수 reports-9 — 제 줄의 외딴 상자가 절마다 한 줄을 더 먹었다)
+            '<h2><span class="secno">%d</span>%s</h2>'
             '<p class="basis"><b>%s</b> 기준 · %s</p>%s'
             '</div></section>' % (anchor, n, esc(title), esc(basis), esc(source), body))
 
@@ -649,8 +650,7 @@ def _with_top(section_html, tops):
 EXTRA_CSS = """
 /* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
 .note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
-.secno{display:inline-block;font-size:13px;font-weight:600;color:var(--muted);
- border:1px solid var(--line);border-radius:0;padding:1px 7px;margin-bottom:6px}
+.secno{font-weight:700;color:var(--muted);margin-right:8px;font-variant-numeric:tabular-nums}
 .basis{font-size:13px;color:var(--muted);margin-bottom:8px}
 .basis b{color:var(--ink);font-weight:600}
 .up{color:var(--up)} .dn{color:var(--dn)}
@@ -706,8 +706,9 @@ def main():
     title = '이달의 통계 — 시도별 매매·전세·인허가·입주물량·미분양 | 아공맵'
     desc = DESC
     body = (N.dtoc(TOC_ITEMS)
-            + '<header><div class="wrap"><div class="chip">이달의 통계</div>'
-            '<h1>이달의 통계, 한 화면에서</h1>'
+            # 칩은 제목('이달의 통계, …')과 같은 말이었다(2026-11-07 디자인 검수 reports-9) — 이 판의 가장 최신 기준을 적는다.
+            + '<header><div class="wrap"><div class="chip">최신 %s 기준</div>' % esc(newest)
+            + '<h1>이달의 통계, 한 화면에서</h1>'
             '<p class="lead">매달 흩어져 발표되는 공개 통계를 보는 순서 그대로 모았습니다. '
             '지표마다 <b>기준월과 발표 원천</b>을 함께 적었습니다.</p></div></header>'
             + toc + ''.join(secs)

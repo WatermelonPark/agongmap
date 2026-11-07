@@ -37,6 +37,9 @@ body[data-desk=doc]{--dk-l:max(24px,calc((100vw - 1180px)/2))}
 body[data-desk=doc] .wrap{margin-left:calc(var(--dk-l) + 280px);margin-right:auto;padding-left:0;padding-right:24px;
   max-width:860px}
 body[data-desk=doc] .bottomnav .wrap{margin:0}
+/* 글 문단은 한 줄 45자 안팎(720px)에서 끊는다 — 836px 단을 꽉 채워 한 줄이 60자를 넘었고 차트와 같은 폭이라 글이 캡션처럼 보였다
+   (2026-11-07 디자인 검수 indicators-10). 차트·표·두 칸 상자는 단 폭 그대로다. */
+body[data-desk=doc] .wrap>p,body[data-desk=doc] .wrap>.note,body[data-desk=doc] .wrap>.read,body[data-desk=doc] .wrap>.conf{max-width:720px}
 body[data-desk=doc] .dtoc{display:block;position:fixed;top:52px;left:var(--dk-l);width:240px;max-height:calc(100vh - 52px);
   overflow:auto;padding:28px 16px 28px 0;border-right:1px solid var(--line,#d9dee3);z-index:20}
 body[data-desk=doc] .dtoc b{display:block;font-size:13px;font-weight:700;color:var(--muted,#5b6670);letter-spacing:.02em;margin:0 0 10px}
@@ -62,6 +65,8 @@ body[data-desk=report]>main{grid-column:2;grid-row:1;min-width:0;padding-top:22p
 body[data-desk=report]>footer{grid-column:1/-1}
 body[data-desk=report]>header>.wrap,body[data-desk=report]>main .wrap,body[data-desk=report]>footer>.wrap{max-width:none;padding-left:0;padding-right:0}
 @media(min-height:960px){body[data-desk=report]>header{position:sticky;top:52px;max-height:calc(100vh - 52px);overflow-y:auto}}
+/* 이 지역 글 카드는 오른쪽 단(약 736px)에 두 열 — 세 열(206px)이면 결론 문장인 제목이 두 줄에서 잘렸다(2026-11-07 디자인 검수 reports-4). */
+body[data-desk=report] .zposts .kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 
 /* ── weekly: 왼쪽 결론+지도, 오른쪽 순위·표 ────────────────────── */
 /* 왼쪽 단은 시군구 지도의 최소 폭(472px — 지도 글자가 11px 아래로 내려가지 않는 폭, 홈 sggMapSvg)보다 넓게 두고, 오른쪽이
@@ -76,3 +81,5 @@ body[data-desk=weekly]>main{padding-top:22px}
 /* 왼쪽 머리(결론+시군구 지도)는 붙이지 않는다 — 약 1170~1320px 라 흔한 데스크톱 창(900~1080px)보다 늘 커서, 붙이면 지도 아래 줄
    (전남~제주)·범례·TOP 10 링크가 오른쪽 단을 끝까지 내릴 때까지 화면 밖에 남았다(전수리뷰 2차 H1-2). 안쪽 스크롤은 지도 아래를
    다시 숨기므로 쓰지 않는다. */
+/* '더 둘러보기' 카드 일곱 장이 오른쪽 단에 한 줄씩 쌓였다(2026-11-07 디자인 검수 reports-13) — 두 열로 묶는다. */
+body[data-desk=weekly] .links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}

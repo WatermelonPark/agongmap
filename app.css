@@ -50,16 +50,16 @@
   .hero .meta .dot{width:4px;height:4px;border-radius:50%;background:var(--muted)}
   @media(max-width:480px){.hero .meta .dot{display:none}}   /* 좁은 화면에서 줄이 바뀌면 점이 줄 끝에 매달렸다(2026-10-31 디자인 리뷰 2차) — 간격(gap)이 가른다 */
 
-  /* READ-ME box */
-  .howto{background:var(--ink);color:#e8ebf2;padding:28px 0;font-size:14.5px}
-  .howto .wrap{display:flex;gap:14px;align-items:flex-start}
-  .howto .ic{flex:none;width:30px;height:30px;border-radius:50%;background:#e8ebf2;
-    color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px}
-  .howto b{color:#fff}
-  .howto .gloss{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;font-size:13.5px;color:#c2c7d6}
-  .howto .gloss div{padding-left:14px;border-left:2px solid #313c5e}
-  .howto .gloss b{color:#fff}
-  @media(max-width:600px){.howto .gloss{grid-template-columns:1fr}}
+  /* READ-ME box — /cycle/ 본문 띠(.mainbanner) 안에 접어 둔다(2026-11-07 디자인 검수 indicators-11 — 검은 띠·초록 띠가 연달아 310px).
+     글자는 초록 띠 위 5.4:1 이상(#e8ebf2), 문장은 14px(읽는 글 하한). */
+  .mainbanner .howto-d{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.28);color:#e8ebf2;font-size:14.5px;line-height:1.65}
+  .mainbanner .howto-d>summary{color:#fff;min-height:32px}
+  .mainbanner .howto-body{margin-top:10px}
+  .mainbanner .howto-d .gloss{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;font-size:14px}
+  .mainbanner .howto-d .gloss div{padding-left:14px;border-left:2px solid rgba(255,255,255,.35)}
+  .mainbanner .howto-x{margin-top:12px;font-size:14px}
+  .mainbanner .howto-g{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,.28);font-size:14px}
+  @media(max-width:600px){.mainbanner .howto-d .gloss{grid-template-columns:1fr}}
 
   /* SECTIONS as cycle steps */
   section.step{padding:58px 0;border-top:1px solid var(--line);position:relative}
@@ -80,14 +80,14 @@
 
   .verdict{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;
     padding:5px 13px;border-radius:0;margin-bottom:18px}
-  .v-strong{background:#dff3ec;color:#157a61;border:1px solid #9dd9c5}
+  .v-strong{background:#dff3ec;color:#1a6b54;border:1px solid #9dd9c5}   /* 글자 초록은 #1a6b54 하나(11-07 indicators-6) */
   .v-mid{background:#fdf3d8;color:#7a5800;border:1px solid #ecd28a}
   .v-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
 
   .chartbox{background:#fff;border-radius:0;
     padding:22px 18px 16px;margin:22px 0;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
   .chartbox h3{font-size:14px;font-weight:600;margin-bottom:4px}
-  .chartbox .cap{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+  .chartbox .cap{font-size:var(--fs-dense);color:var(--muted);margin-bottom:14px;line-height:1.6}   /* 캡션도 문장이라 14px(11-07 indicators-0) */
   .cwrap{position:relative;height:340px}.cwrap.tall{height:420px}
   .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;margin:8px 0}
   .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--ink2)}
@@ -107,8 +107,9 @@
     border-radius:var(--r-touch);cursor:pointer;transition:.15s}
   .toggle button.on{background:var(--ink);color:var(--paper)}
 
-  .note{font-size:13.5px;color:var(--muted);border-left:3px solid var(--ink2);
-    padding:10px 16px;margin:16px 0;background:#fff;border-radius:0}
+  /* 고리의 근거 단락(4~6문장)이라 읽는 글 크기로(2026-11-07 디자인 검수 indicators-0 — 13.5px 회색이라 본문 16px 옆에서 건너뛰게 됐다) */
+  .note{font-size:14.5px;line-height:1.65;color:var(--ink2);border-left:3px solid var(--ink2);
+    padding:10px 14px;margin:16px 0;background:#fff;border-radius:0}
   .note b{color:var(--ink)}
 
   /* confidence panel */
@@ -118,16 +119,16 @@
   .conf .gauge i{width:11px;height:11px;border-radius:50%;background:var(--line)}
   .conf .gauge i.on{background:var(--stock)}
   .conf .gauge i.mid{background:var(--flow)}
-  .conf .ctxt{font-size:13.5px;color:var(--ink2);line-height:1.5;flex:1;min-width:220px}
+  .conf .ctxt{font-size:14.5px;color:var(--ink2);line-height:1.6;flex:1;min-width:220px}
   .conf .ctxt b{color:var(--ink)}
   .conf .clevel{font-size:13px;font-weight:600;letter-spacing:.02em;padding:3px 10px;
     border-radius:0;flex:none}
-  .cl-high{background:#dff3ec;color:#157a61}
+  .cl-high{background:#dff3ec;color:#1a6b54}
   .cl-mid{background:#fdf3d8;color:#7a5800}
   .conf .meta{font-size:13px;color:var(--muted);margin-top:3px}
 
   /* 본문 파트 배너 (청록) */
-  .mainbanner{background:#1a6b54;padding:22px 0;margin-top:10px}   /* 흰 글자 대비 4.26 → 6.5 */
+  .mainbanner{background:#1a6b54;padding:22px 0 18px;margin-top:10px}   /* 흰 글자 대비 4.26 → 6.5 */
   .mainbanner .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
   .mainbanner .mainkicker{display:inline-block;font-size:13px;font-weight:500;
     background:#fff;color:#1a6b54;padding:3px 12px;border-radius:0;margin-bottom:10px}
@@ -153,7 +154,7 @@
   .hcol ul{margin:0;padding-left:18px}
   .hcol li{font-size:14px;line-height:1.65;color:var(--ink2);margin-bottom:9px}
   .hcol li b{color:var(--ink)}
-  .disc{font-size:13px;color:var(--muted);line-height:1.6;margin-top:20px;
+  .disc{font-size:14px;color:var(--muted);line-height:1.6;margin-top:20px;   /* 면책 문장 — 읽는 문장 14px(2026-11-06 대표 결정) */
     padding-top:16px;border-top:1px solid var(--line)}
   @media(max-width:640px){.hbox{grid-template-columns:1fr}}
 
@@ -166,6 +167,10 @@
     background:var(--ink);color:var(--paper);border-radius:50%;display:flex;
     align-items:center;justify-content:center;font-size:14px;font-weight:600}
   .take li b{color:var(--ink)}
+  /* 끝 요약 항목마다 그 절로 돌아가는 링크(2026-11-07 디자인 검수 indicators-12 — 22,000px 를 다 읽은 독자에게 '어디로 갈지'). */
+  .take li .take-go{display:inline-flex;align-items:center;min-height:32px;margin-left:4px;font-size:var(--fs-dense);font-weight:600;
+    color:#1a6b54;text-decoration:none;white-space:nowrap}
+  .take li .take-go:hover{text-decoration:underline;text-underline-offset:3px}
 
   footer{padding:44px 0 80px;font-size:13px;color:var(--muted)}
   footer .src{margin-top:10px;line-height:1.8}
@@ -349,7 +354,7 @@
     background:var(--ink);color:#fff;padding:12px 22px;border-radius:var(--r-touch);font-size:14px;
     font-weight:500;opacity:0;transition:opacity .3s;pointer-events:none;z-index:200}
   .qtoast.show{opacity:1}
-.legal-disc{font-size:13px;color:var(--muted);line-height:1.7;margin:14px auto 0;padding:10px 18px 0;
+.legal-disc{font-size:14px;color:var(--muted);line-height:1.7;margin:14px auto 0;padding:10px 18px 0;
   border-top:1px solid var(--line);text-align:center;max-width:520px}
 .legal-disc b{color:var(--ink);font-weight:600}
 .minifooter{text-align:center;font-size:13px;color:var(--muted);
@@ -373,14 +378,14 @@
 .ft-meta a:hover{text-decoration:underline}
 
   /* ===== 통계 대시보드 ===== */
-  .shero{background:var(--paper);color:var(--ink);padding:30px 0 12px}
+  .shero{background:var(--paper);color:var(--ink);padding:18px 0 10px}   /* 위 30px → 18px(2026-11-07 디자인 검수 stats-3 — 375px 첫 화면에서 지도를 올린다) */
   .shero .eyebrow{color:var(--ink);font-size:13px;font-weight:500;margin-bottom:14px}
   .shero h2{font-size:30px;font-weight:700;margin:0 0 12px}
   .shero p{font-size:14.5px;line-height:1.7;color:var(--ink2);margin:0;max-width:620px}
   .shero b{color:var(--ink)}
   .shero .shero-link{font-size:14px;max-width:520px}
-  /* 버튼 모양은 홈 '이달의 통계' 버튼(.tb-sub a)과 한 규칙이다(2026-10-05 대표 요청 — 글자 링크 → 버튼). 설명은 버튼 아래 한 덩어리. */
-  .shero .shero-link span{color:var(--muted);font-size:13px;display:block;margin-top:6px}
+  /* 버튼 모양은 홈 '이달의 통계' 버튼(.tb-sub a)과 한 규칙이다(2026-10-05 대표 요청 — 글자 링크 → 버튼). 버튼 아래 설명 한 줄은
+     2026-11-07 디자인 검수 stats-3 으로 뺐다(지도 위 조작·설명 열 덩어리 중 하나). */
   .dash{padding:0 0 18px}
   .dash .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}   /* 제목(.shero .wrap)·모드 단추와 같은 왼쪽 끝(2026-10-31 디자인 리뷰 2차 — 18px 이라 6px 어긋났다) */
   .ctrl{background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
@@ -403,6 +408,12 @@
   .period button{flex:1;min-width:54px;border:1px solid var(--line);background:#fff;line-height:1.3;
     border-radius:var(--r-touch);padding:9px 0;min-height:40px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer}
   .period button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  /* 시장동향 그래프의 기간(3개월|1년|3년|전체)은 그래프 안 옵션이라 1단 모드 단추(.smode — 4등분 상자)와 같은 꼴이면 안 된다
+     (2026-11-07 디자인 검수 stats-2 — 1280px 에서 같은 189×40px 상자 넷이 220px 간격으로 두 번 섰다). 순위|지도|그래프|표(.gt)와
+     같은 붙은 분절로 둔다. 높이 40px 은 그대로(test_speed_a11y). 규모별 피벗(.period.szrow)은 그대로다. */
+  .period.trp{display:inline-flex;flex-wrap:nowrap;gap:0;margin:4px 0 8px;border:1.5px solid var(--line);border-radius:var(--r-touch);overflow:hidden;background:#fff}
+  .period.trp button{flex:none;min-width:0;min-height:40px;padding:6px 14px;border:0;border-radius:0;background:transparent;color:var(--muted)}
+  .period.trp button.on{background:var(--ink);color:#fff}
   /* 규모별 동향 피벗 — 지표/규모 멀티토글 + 정렬·행렬전환. 균등 그리드라
      줄바꿈이 안 생기고, 모바일은 규모를 3열×2줄로 의도적으로 나눈다. */
   .szrow{display:grid;gap:5px;margin:6px 0 0}
@@ -456,13 +467,20 @@
     background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:var(--r-touch);font-size:13px;font-weight:600;
     text-decoration:none}   /* 그림자 없음 — 장식 금지(audit_design) */
   body.cy-scrolled .cy-toc{display:inline-flex}
+  /* 절 끝 '다음 · …' 한 줄과 30초 요약 아래 참고 절 입구(2026-11-07 디자인 검수 indicators-4 — 22,600px 문서에 375px 이동 수단이
+     '↑ 30초 요약' 하나였고 참고 ①~④로 가는 입구가 없었다). 같은 글 안 이동이라 GA 를 달지 않는다. */
+  .cy-next{margin:22px 0 0;text-align:right;font-size:var(--fs-dense)}
+  .cy-next a{display:inline-flex;align-items:center;min-height:40px;color:var(--part-ink,var(--ink));font-weight:600;text-decoration:none}
+  .cy-next a:hover{text-decoration:underline;text-underline-offset:3px}
+  .tldr-refs{grid-area:refs;margin:0;font-size:var(--fs-dense);color:var(--muted)}
+  .tldr-refs a{display:inline-flex;align-items:center;min-height:32px;color:var(--ink2);font-weight:600;text-underline-offset:3px}
   .tldr{padding:44px 0 8px}
   .tldr-kicker{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:10px}
   .tldr-h{font-size:clamp(22px,4.2vw,30px);font-weight:700;letter-spacing:-.02em;
     line-height:1.25;margin-bottom:26px}
   .tldr-h b{color:#1a6b54}
   .tldr-grid{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:18px 28px;align-items:start;
-    grid-template-areas:"diagram steps" "rate steps" "more more"}
+    grid-template-areas:"diagram steps" "rate steps" "refs steps" "more more"}
   .tldr-diagram{grid-area:diagram;display:flex;justify-content:center}
   .tldr-diagram .cycbox{cursor:pointer}
   .tldr-diagram .cycbox rect.cb{transition:fill .15s}
@@ -493,9 +511,9 @@
   .tldr-arrow{display:inline-block;animation:tldrbob 1.4s ease-in-out infinite;font-weight:600;color:var(--ink)}
   @keyframes tldrbob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
   @media(max-width:720px){.tldr-grid{grid-template-columns:1fr;gap:16px;
-    grid-template-areas:"diagram" "steps" "rate" "more"}}
+    grid-template-areas:"diagram" "steps" "rate" "refs" "more"}}
   /* ===== 통계: 기본/심화 전환 ===== */
-  .smode{display:flex;gap:6px;justify-content:center;margin:12px auto 20px;max-width:560px;padding:0 24px;position:relative;z-index:3}
+  .smode{display:flex;gap:6px;justify-content:center;margin:12px auto 14px;max-width:560px;padding:0 24px;position:relative;z-index:3}
   /* 넓은 화면은 아래 하위 탭·제목과 같은 왼쪽 끝(본문 단 .wrap)에 맞춘다 — 상단 탭만 가운데 정렬이라 축이 셋이었다(2026-10-30 디자인 리뷰 2차) */
   @media(min-width:600px){.smode{max-width:var(--col-wide);padding:0 24px;justify-content:flex-start}}
   .smode button{flex:1;font-family:inherit;font-size:14px;font-weight:600;padding:11px 0;
@@ -517,7 +535,7 @@
   .adv-badge{font-size:13px;font-weight:500;color:var(--muted);
     background:none;border:0;padding:0}
   .adv-badge+.adv-badge::before{content:"·";margin:0 5px;color:var(--line)}
-  .adv-note{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+  .adv-note{font-size:14px;color:var(--ink2);margin-bottom:12px;line-height:1.6}   /* 읽는 문장 14px(2026-11-06 대표 결정, 디자인 검수 stats-6) */
   #sec-permit .adv-note,#sec-occ .adv-note{margin:8px 0 4px}   /* 설명은 그래프·표 아래 한 문장(전수리뷰 H2-7) */
   .adv-tblwrap{overflow-x:auto;border-radius:0;background:#fff;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
   table.adv{border-collapse:collapse;font-size:13px;white-space:nowrap;width:100%}
@@ -559,7 +577,12 @@
        시군구는 매트릭스에 아예 없어서 선택 없이는 볼 방법이 없었다(2026-08-01). */
     .gsec.sel-one .adv-tblwrap.matrix{display:none}
     .gsec.sel-one .adv-tblwrap.compact{display:block}
+    /* 지역을 고른 표(compact)는 행열 전환을 받지 않는다 — 단추를 눌러도 표가 그대로라 고장으로 읽혔다(2026-11-07 디자인 검수
+       stats-1). 기본통계 한 지역(#sec-basicmain.single)과 같은 처치다. 행열 전환은 전 지역 매트릭스에만 남는다. */
+    .gsec.sel-one .tr-row{display:none}
   }
+  /* 한 지역 표(compact)는 세 열뿐이라 1280px 단 폭(772px)을 다 쓰면 열이 243px 씩 벌어져 숫자가 가운데 떴다(stats-7) — 폭을 묶는다 */
+  .adv-tblwrap.compact{max-width:520px}
   .adv-links{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
   .adv-links a{display:block;background:#fff;border:1px solid var(--line);border-radius:var(--r-touch);
     padding:12px 14px;text-decoration:none;transition:.15s}
@@ -577,13 +600,16 @@
   .gsec.gm-g .gt-m,.gsec.gm-t .gt-m{display:none}
   /* 시장동향의 순위·지도는 한 상자(#week-map·#month-map — 날짜 줄·TOP 10·지도를 drawNationMap 이 함께 굽는다)를 나눠 보인다
      (2026-10-10 대표 결정 — 지도 보기에서 TOP 10 두 표가 지도를 아래로 밀어 '너무 강했다'). 날짜 줄은 둘 다에 남는다. */
-  .gsec.gm-m .map-rank,.gsec.gm-r .map-scroll,.gsec.gm-r .map-suplegend{display:none}
+  .gsec.gm-m .map-rank,.gsec.gm-r .map-scroll,.gsec.gm-r .map-suplegend,.gsec.gm-r .map-rows{display:none}
   /* 지도 모드에만 지역 선택이 없다 — 지도가 전 지역을 이미 보여준다.
      표 모드에서는 선택이 '필터'로 실제 일을 한다(아래 .sel-one).
      ⚠️ 한때 PC 표 모드에서 드롭다운을 띄워놓고 매트릭스가 선택을 안 읽어 죽은
      컨트롤이 된 적이 있다(2026-08-01). 컨트롤을 보이게 할 거면 반드시 일을 시킬 것. */
   .gsec.gm-m .adv-regsel,.gsec.gm-r .adv-regsel{display:none}
   /* 기준 줄 — 홈 지도 시세 모드 기준 줄(#tb-when)과 같은 옅은 글줄(2026-10-30 디자인 리뷰 2차, 예전엔 가운데 검은 띠) */
+  /* 지도 위 한 줄 = 기준 줄 + 칸 줄의 뜻(drawNationMap, 2026-11-07 디자인 검수 stats-3) */
+  .map-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 12px;margin:0 0 10px}
+  .map-top>p{margin:0}
   .map-datechip{margin:0 0 10px;font-size:13px;line-height:1.4;font-weight:500;color:var(--ink);text-align:left;font-variant-numeric:tabular-nums}
   .tilemap{padding:2px 0 4px}
   .map-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -618,14 +644,18 @@
     display:block;margin:-4px 0;padding:4px 0}   /* 누름 면을 칸 높이 전체로(글자 줄 15px → 칸 높이, 백로그 36-8) */
   .rank-tbl a.rk-go:hover{text-decoration-color:currentColor}
   .rank-tbl td:first-child{color:var(--muted);font-weight:600}
+  /* 1~3위는 숫자 굵기·먹색으로만 가른다 — 상승 표에만 달던 메달 이모지(🥇🥈🥉)는 '이김'으로 읽혀 방향을 평가하는 인상을 줬고
+     팔레트 밖 색이었다(2026-11-07 디자인 검수 stats-10). 두 표 모두 같은 규칙. */
+  .rank-tbl tbody tr:nth-child(-n+3) td:first-child{color:var(--ink);font-weight:700}
   .rank-tbl td.rk-none{font-weight:400;padding:10px 8px}   /* 그 방향으로 움직인 곳이 없을 때 한 줄(rankTables) */
   /* 정렬 가능한 헤더 — 현재 기준 열은 잉크로 눌러 강조하고 본문 열도 짙게 */
   .rank-tbl thead th.rk-sort{cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.06);white-space:nowrap}
   .rank-tbl thead th.rk-sort::after{content:'';display:inline-block;width:0;height:0;margin-left:3px;
     vertical-align:middle;border-left:3px solid transparent;border-right:3px solid transparent;
     border-top:4px solid var(--line)}
-  .rank-tbl thead th.rk-sort.on{background:var(--ink);color:#fff}
-  .rank-tbl thead th.rk-sort.on::after{border-top-color:#fff}
+  /* 켜진 정렬 열은 밑줄 2px 로만 — 켜진 탭과 같은 먹색 채움이라 1280px 에서 두 표에 검은 덩어리가 나란히 섰다(stats-10) */
+  .rank-tbl thead th.rk-sort.on{color:var(--ink);box-shadow:inset 0 -2px 0 var(--ink)}
+  .rank-tbl thead th.rk-sort.on::after{border-top-color:var(--ink)}
   .rank-tbl thead th.rk-sort button{all:unset;cursor:pointer;padding:6px 0;min-height:24px}
   .rank-tbl thead th.rk-sort button:focus-visible{outline:2px solid currentColor;outline-offset:2px}
   .rank-tbl td.sortcol{background:#f7f9f8}
@@ -634,7 +664,6 @@
     .rank-tbl.wide{font-size:13px}
     .rank-tbl.wide th,.rank-tbl.wide td{padding:4px 3px}
     .rank-tbl.wide thead th{font-size:13px}
-    .rank-tbl.wide .rk-medal{margin-right:1px;font-size:13px}
   }
   /* 320px 에서 13px 하한(백로그 36-3)을 지키면 TOP 10 표가 상자보다 40px 넓어 '전주 대비' 열이 잘렸다(36-5) — 좁은 화면에서는
      여백을 줄이고 지역 이름을 두 줄로 접는다(낱말 단위). */
@@ -649,7 +678,6 @@
   .rk-up{color:var(--ink2);font-weight:600;font-size:13px}
   .rk-dn{color:var(--ink2);font-weight:600;font-size:13px}
   .rk-same{color:var(--muted)}
-  .rk-medal{margin-right:3px;font-size:13px;vertical-align:-1px}
   .rk-new{color:var(--muted);font-weight:600;font-size:13px}
   .map-suplegend{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:4px 12px;
     font-size:13px;font-weight:500;color:var(--muted);margin-top:10px;text-align:left}
@@ -662,17 +690,33 @@
      눈금이 '+0.15%'에서 '0.15'로 짧아지는 만큼 축이 좁아지고 플롯이 넓어진다. */
   .chart-unit{text-align:right;font-size:13px;font-weight:500;color:var(--muted);margin:0 0 2px}
   .chart-legend{display:flex;gap:18px;justify-content:center;font-size:13px;font-weight:500;color:var(--ink2);margin:0 0 8px}
+  /* 시장동향 그래프 위: 범례(왼쪽)와 단위·기간(오른쪽)이 한 줄(2026-11-07 디자인 검수 stats-9 — 가운데·오른쪽 두 줄로 축이 갈렸다) */
+  .chart-top{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;margin:0 0 8px}
+  .chart-top .chart-legend{justify-content:flex-start;margin:0}
+  .chart-top .chart-unit{margin:0 0 0 auto}
   .chart-legend span{display:inline-flex;align-items:center;gap:6px}
   .chart-legend span::before{content:'';width:13px;height:13px;border-radius:0}
-  .chart-legend .cl-ma::before{background:#e0564a}
-  .chart-legend .cl-je::before{background:#a98be0}
+  /* 계열 색(stats-5, 2026-11-07): 매매 먹(--ink)·전세 회청(#7a8b91)·월세 초록 — 빨강·파랑은 같은 화면 묶음의 지도·표·순위에서
+     상승·하락을 말하므로 그래프 계열에 쓰지 않는다. 값은 home-stats.js drawTrendChart 의 TR_COL 과 같다(test_home_stats_design). */
+  .chart-legend .cl-ma::before{background:#131e24}
+  .chart-legend .cl-je::before{background:#7a8b91}
   /* 월세는 면적 없이 선만 그린다(3겹 면적은 서로를 가림) — 범례는 매매·전세와 같은 색면 */
   .chart-legend .cl-wo::before{background:#1f8a70}
   @media(max-width:720px){.chartwrap.sm{height:270px}}
-  .adv-tabs{display:flex;gap:8px;margin:2px 0 12px;flex-wrap:wrap}
-  .adv-tabs button{font-family:inherit;font-size:13.5px;font-weight:600;padding:8px 18px;min-height:40px;border-radius:var(--r-touch);
-    border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:.15s}
-  .adv-tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  /* 2단 하위 탭(시장동향 주간|월간·투자지표 항목)은 3단 보기 단추(.gt)와 같은 붙은 분절이다(2026-11-07 디자인 검수 stats-2 — 알약·
+     분절·상자 세 가지 꼴이 섞여 어느 줄이 큰 갈래인지 안 보였다). 큰 갈래(.smode)만 떨어진 상자 넷이다. */
+  .adv-tabs{display:inline-flex;margin:2px 0 12px;border:1.5px solid var(--line);border-radius:var(--r-touch);overflow:hidden;background:#fff}
+  .adv-tabs button{font-family:inherit;font-size:13px;font-weight:600;padding:6px 14px;min-height:40px;border:0;
+    background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
+  .adv-tabs button.on{background:var(--ink);color:#fff}
+  /* 시장동향 머리: 주간|월간(왼쪽)과 순위|지도|그래프|표(오른쪽 .mk-gt)를 한 줄에(stats-3). 주간|월간은 구역 밖 하나라 왼쪽에 띄우고,
+     구역 첫 줄 .mk-gt(flex — 띄운 상자 옆 남은 폭을 쓴다)가 오른쪽에 선다. 남은 폭이 모자라면(320px) 브라우저가 그 줄을 띄운 상자
+     아래로 내린다. 제목 줄(.adv-h)은 그 아래에서 시작한다. */
+  #stats-market .adv-tabs{float:left;margin:0 8px 10px 0}
+  #stats-market .adv-sec,#stats-market .adv-sec:first-child{margin-top:0}
+  #stats-market .gt-head.mk-gt{margin:0 0 10px;min-width:max-content}   /* 단추 넷이 다 들어갈 폭이 없으면 줄째 아래로(잘리지 않게) */
+  #stats-market .adv-h{clear:left}
+  @media(max-width:400px){.gt button,.adv-tabs button{padding:6px 12px}}
   #stats-adv .adv-sec,#stats-more .adv-sec{margin-top:8px}
   #stats-market .adv-sec:first-child{margin-top:8px}
   /* 리포트용 'section+section{padding-top:30px}'(아래 지역 리포트 규칙)가 시세 탭 구역에도 먹어 월간·인허가·입주 머리 위가 30px
@@ -721,18 +765,21 @@
      밑줄 띠는 지도 범례(.tk-ramp)와 같은 파랑→빨강이라 제목을 읽는 순간 지도 색의 뜻이 이어진다. */
   /* 서비스 이름은 상자 없는 워드마크. 12px 검은 상자는 이름이 아니라 딱지로 읽혔다
      (2026-09-16 사용자 2안). 크기는 제목과 같은 방식으로 폭을 따라가 어느 기기에서든
-     제목:이름 ≈ 1.6배를 유지한다(320px 24:15 · 375px 27:17 · PC 40:24).
+     제목:이름 ≈ 2배 이상을 유지한다(2026-11-07 디자인 검수 home-6 — 옛 1.6배(375px 27:17 · PC 40:24)는 이름과 제목이 한 덩어리로
+     보였다. 지금 320px 28:14 · 375px 33:14 · PC 48:17). 제목은 한 줄 조건이 그대로다(test_home_h1_stays_on_one_line).
      display:table — 글자 폭만큼만 차지하면서 자기 줄을 쓴다(inline이면 제목과 한 줄에 붙는다). */
-  .home-hero .hero-kick{display:table;margin:0 auto .7em;color:var(--ink);font-size:clamp(15px,4.5vw,24px);
-    font-weight:700;letter-spacing:.02em;line-height:1.3}
-  .home-hero h1.hero-msg{display:inline-block;font-size:clamp(24px,7.2vw,40px);letter-spacing:-.035em;
+  .home-hero .hero-kick{display:table;margin:0 auto .7em;color:var(--ink);font-size:clamp(14px,3.8vw,17px);
+    font-weight:600;letter-spacing:.02em;line-height:1.3}
+  .home-hero h1.hero-msg{display:inline-block;font-size:clamp(28px,8.8vw,48px);letter-spacing:-.035em;
     line-height:1.15;white-space:nowrap;margin:0}
   /* 부제 한 문장(C1, 2026-09-26 대표 승인). 모바일 두 줄 이내가 조건이다 — 운영 글꼴(Pretendard 500)을 물린
      Chromium 으로 320·375px(13.5px)·414px(14.9px)·430px(15.5px) 모두 두 줄을 쟀다(2026-09-27). 글자를 키우면
      320px 에서 세 줄이 되니 다시 잴 것(test_home_subtitle_is_two_lines_at_most_on_mobile).
+     2026-11-07 디자인 검수 home-3: 읽는 문장 14px 하한(11-06 대표 결정)에 맞춰 14px 부터 시작하고, 320px 두 줄을 지키려고 문장에서
+     '시도별'·'주간'을 뺐다(판정 단위는 바로 아래 카드·지도가 말한다).
      데스크톱은 폭을 묶어 제목 아래 두 줄로 모은다(한 줄 632px 는 제목 355px 보다 훨씬 길어 흩어져 보였다). */
-  .home-hero .hero-sub{max-width:30em;margin:14px auto 0;font-size:clamp(13.5px,3.6vw,16px);font-weight:500;
-    line-height:1.55;color:var(--ink2)}
+  .home-hero .hero-sub{max-width:30em;margin:14px auto 0;font-size:clamp(14px,3.8vw,16px);font-weight:500;
+    line-height:1.55;color:var(--ink2);text-wrap:balance}
   .hero-ramp{display:block;height:4px;margin-top:10px;
     background:linear-gradient(90deg,rgba(38,110,180,.85),rgba(38,110,180,.16) 44%,
       rgba(198,58,48,.16) 56%,rgba(198,58,48,.85))}
@@ -790,12 +837,17 @@
   .home-sec p.wg-since{font-size:13px;line-height:1.6;font-weight:600;color:var(--ink);margin:0 auto 10px}   /* .home-sec p(0,1,1)를 이긴다 */
   /* 칸 줄의 뜻('칸 숫자: 위 = 매매 · 아래 = 전세')은 홈에서도 13px·왼쪽 정렬이다 — .home-sec p(16px·가운데)가 이겨 크고 가운데였다
      (2026-11-05 대표 지적). 지도 폭(.map-tiles 640px)에 맞춰 왼쪽 끝에서 시작한다. */
-  .home-sec p.map-rows{font-size:13px;line-height:1.5;color:var(--ink2);text-align:left;max-width:640px;margin:0 auto 6px}
+  .home-sec p.map-rows{font-size:13px;line-height:1.5;color:var(--ink2);text-align:left;max-width:640px;margin:0}
+  /* 홈 시세 지도 위 한 줄 = 칸 줄의 뜻(왼쪽) + 밀기 안내(오른쪽, 520px 이하) — 2026-11-07 디자인 검수 home-4 */
+  .map-tiles .map-top{justify-content:space-between;margin:0 0 6px;font-size:13px;color:var(--ink2)}
   /* 공유 버튼(B8) — /weekly/·/monthly/ 의 두 버튼(tools/page_share.py)과 같은 모양 */
   .wg-share{display:flex;gap:8px;max-width:400px;margin:14px auto 0}
   .wg-sh{flex:1 1 0;min-width:0;min-height:46px;display:flex;align-items:center;justify-content:center;gap:5px;background:#fff;color:var(--ink);border:1.5px solid var(--ink);
     border-radius:3px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;padding:10px 6px;line-height:1.3;white-space:nowrap}
-  .wg-sh-k{background:#FEE500;border-color:#FEE500;color:#191919}   /* 퀴즈 카카오 버튼(.qshare-btn.primary)과 같은 색 */
+  /* 카카오 단추도 흰 바탕·먹선 — 노란 채움은 화면에서 가장 센 색이라 부차 행동(공유)이 구역의 첫 초점이 됐다(2026-11-07 디자인 검수
+     home-2). 카카오임은 아이콘(노란 네모 안 말풍선, renderWeeklyGrid)이 말한다. 퀴즈 결과 화면의 카카오 버튼은 그대로다. */
+  .wg-sh-k{color:var(--ink)}
+  #home-weekly-share .wg-share{margin-top:10px}
   /* 홈 사이클 카드의 축약 도식(2026-08-17). /cycle/의 상호작용 다이어그램과 달리
      장식이라 클릭 대상이 아니다 — 카드 전체의 CTA가 이미 리포트로 간다. */
   .cyc-mini{max-width:340px;margin:16px auto 0}
@@ -828,11 +880,11 @@
   .sc-how summary::-webkit-details-marker{display:none}
   .sc-how summary .t::after{content:' ▾';font-weight:600;color:var(--muted)}
   .sc-how[open] summary .t::after{content:' ▴'}
-  .sc-how .body{margin-top:9px;font-size:13px;line-height:1.9;color:var(--ink2)}
+  .sc-how .body{margin-top:9px;font-size:14px;line-height:1.75;color:var(--ink2)}   /* 읽는 문장 14px(2026-11-07 디자인 검수 home-3 — 계산법 공개 글이 가장 작은 글자였다) */
   /* 통짜 서술 13줄이 정신없다(2026-08-08 사용자) — 항목별 왼쪽 괘선 리스트.
      왼쪽 세로선은 .w-lead(존 페이지 리드)와 같은 어휘다. */
   .sc-how .how-ls{list-style:none;margin:0;padding:0}
-  .sc-how .how-ls li{margin:9px 0;padding:2px 0 2px 13px;border-left:2px solid var(--line);line-height:1.75}
+  .sc-how .how-ls li{margin:8px 0;padding:2px 0 2px 13px;border-left:2px solid var(--line);line-height:1.75}
   .sc-how .how-ls li>b:first-child{color:var(--ink)}
   .sc-tier{flex:none;min-width:62px;text-align:center;font-size:13px;font-weight:600;border-radius:0;padding:3px 2px;background:#f1f3f5;color:var(--muted);white-space:nowrap}
   .sc-tier.g4{background:#fdecea;color:#a93226}
@@ -846,7 +898,8 @@
   /* 홈 안의 공용 클래스(다른 페이지도 쓰는 배지·표 설명·푸터 줄)는 전역 규칙을 그대로 두고 홈에서만 13px 로 덮는다 —
      홈 화면 글자 하한 13px(2026-09-28 대표 결정 — 작은 글씨 정리, test_home_min_font). 시도 리포트 등의 고정폭 배지(62px)는
      바꾸지 않는다. #view-home(아이디)이라 공용 규칙보다 늘 이긴다. */
-  #view-home .sc-tier,#view-home .tb-refnote,#view-home .ft-src,#view-home .ft-meta,#view-home .legal-disc{font-size:13px}
+  #view-home .sc-tier,#view-home .tb-refnote,#view-home .ft-src,#view-home .ft-meta{font-size:13px}
+  /* 면책 고지는 읽는 문장이라 14px(2026-11-06 대표 결정 — 디자인 검수 stats-6·home-3). 홈·시세·퀴즈 푸터 세 벌 공통(.legal-disc 전역 규칙). */
   /* 좁은 화면: 고정폭 합이 커서 ▸(sc-go)가 화면 밖으로 밀려 가로 스크롤이 생겼다.
      반드시 .sc-val/.sc-tier 정의 '뒤'에 와야 덮어쓴다(같은 특이도라 순서가 승패를 가름). */
   @media(max-width:400px){
@@ -871,6 +924,9 @@ a.qpick-card{text-decoration:none;color:inherit;box-sizing:border-box;position:r
 
 /* 표 헤더는 항상 중앙정렬(2026-07-22 원칙) — 고정컬럼 헤더의 좌측 예외 무효화 */
 table.adv thead th:first-child{text-align:center}
+/* 단, 한 지역 표(compact)의 첫 열(날짜) 머리는 칸과 같은 왼쪽이다 — 머리 가운데·칸 왼쪽이라 열이 하나로 읽히지 않았다(2026-11-07
+   디자인 검수 stats-7). 순위 표(2026-10-31 '지역 열 머리도 칸과 같은 왼쪽')와 같은 예외다. 전 지역 매트릭스는 원칙 그대로. */
+.adv-tblwrap.compact table.adv thead th:first-child{text-align:left}
 #sec-score{padding-top:22px}
 #sec-score .thead{margin-top:18px}
 
@@ -909,10 +965,11 @@ table.adv thead th:first-child{text-align:center}
   #view-home .agg-lt{display:flex}
   #view-home .agg-lt .zl{margin-left:0;gap:3px}
   #view-home .zl-d{width:21px;height:21px;font-size:13px}
-  /* 카드 신호등 범례 한 줄(2026-10-06 지도 아래 → 2026-10-17 카드 아래 단추 왼쪽 → 2026-10-30 디자인 리뷰 2차로 다시 지도 아래,
-     '설명은 콘텐츠 아래'). 지도 상자 밖이라 비어 있는 동안 제 줄 자리를 잡는다. 지도(최대 480px)와 같은 폭에 맞춘다. 시세 모드는 숨는다. */
+  /* 카드 신호등 범례 한 줄(2026-10-06 지도 아래 → 2026-10-17 카드 아래 단추 왼쪽 → 2026-10-30 디자인 리뷰 2차로 다시 지도 아래 →
+     2026-11-07 디자인 검수 home-0 으로 판정 카드 바로 아래 제 줄 — 풀이하는 카드에서 650~800px 떨어져 있었다). 카드 단과 같은
+     왼쪽 끝이다. 비어 있는 동안 제 줄 자리를 잡는다(한 줄 — 320px 에서도 한 줄이다). 시세 모드는 숨는다. */
   #view-home #lt-key{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:2px 10px;color:var(--ink2);
-    font-size:13px;line-height:1.55;max-width:480px;margin:6px auto 0;text-align:left}
+    font-size:13px;line-height:1.55;margin:0;text-align:left}
   #view-home #lt-key:empty{display:block;min-height:1.55em}
   #sec-score.mm-price #lt-key{display:none}
   #view-home .agg-lk-i{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
@@ -1051,6 +1108,9 @@ table.adv thead th:first-child{text-align:center}
   .crecent{max-width:var(--col-wide);margin:0 auto;padding:4px 24px 18px;text-align:left}
   @media(min-width:1340px){.crecent{max-width:1260px}}
   .crecent h2{font-size:15px;font-weight:600;margin:0 0 8px;color:var(--ink)}
+  /* 홈의 '최근 리포트'는 다른 홈 구역 제목(.home-sec h2)과 같은 크기 — 15px 라 안의 카드 제목(16px)보다 작았다(2026-11-07 디자인 검수
+     home-12). 시도 리포트의 '이 지역 글'은 그대로 15px 다. */
+  #view-home .crecent h2{font-size:clamp(21px,4.6vw,27px);font-weight:700;letter-spacing:-.02em;margin:0 0 12px}
   .crecent ul{list-style:none;margin:0;padding:0}
   .crecent li{margin:0 0 7px}
   .crecent a{color:var(--ink);text-decoration:none;font-size:14px;line-height:1.5}
@@ -1060,50 +1120,58 @@ table.adv thead th:first-child{text-align:center}
 /* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) — 허브·섹션 목록·홈 "최근 리포트"·시도 리포트 '이 지역 글'이 카드 하나를 쓴다.
    카드 = 칩(지역·질문) → 결론 제목(두 줄) → 핵심 숫자(큰 값 + 작은 이름) → 날짜. 그림 썸네일은 없다(112×63 안 글자가 4~6px 라
    읽히지 않았고, 제목이 글 내용을 말하지 못해 '무엇이 내 관심사인지' 알 수 없었다 — 대표 지적 11-05). 모바일은 한 단, 768px
-   이상은 3열 같은 높이. */
-.rchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
-.rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:8px 12px;
+   이상은 3열 같은 높이. 간격은 4의 배수(2026-11-07 디자인 검수 — 5·6·10·14·22px 가 섞여 있었다). */
+/* 칩 줄은 휴대폰에서도 접어 내린다 — 가로 밀기였을 때 다섯째 질문 칩과 경기 지역 칩 대부분이 화면 밖에 단서 없이 숨었다
+   (2026-11-07 디자인 검수). 칩 높이 35px(손가락 목표에 가깝게). */
+.rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+/* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
+.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.kgrid{display:grid;gap:10px}
-.kcard{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--line);border-radius:3px;
+.kgrid{display:grid;gap:12px}
+.kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
  background:var(--paper);color:var(--ink);text-decoration:none;min-width:0}
+.kcard:hover{border-color:var(--ink2)}
+.kcard:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kcard[hidden]{display:none}
-.kc-chips{display:flex;gap:5px;flex-wrap:wrap}
-.kc-chip{font-size:13px;line-height:1;padding:4px 7px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
+/* 허브 '최근 글'은 첫 묶음만 보이고 '더 보기'로 편다(.kfold — 허브 JS 가 거를 때·펼 때 푼다, JS 가 없으면 noscript 가 푼다). */
+.kfold .kcard:nth-child(n+13){display:none}
+.kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
+.kc-chips{display:flex;gap:4px;flex-wrap:wrap}
+.kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
 .kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
-.kc-hook{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+/* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
+.kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
 .kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
-/* 질문 카드 — 허브 '질문으로 찾기'. 휴대폰은 질문·글 수만(첫 화면에 넷이 다 들어오게), 768px 이상은 최신 글 둘도. */
-.qgrid{display:grid;gap:8px;margin:0 0 22px}
-.qcard{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:3px;
- background:var(--paper);color:var(--ink);text-decoration:none}
+/* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
+   14px(2026-11-06 하한 — 13px 였다). */
+.qgrid{display:grid;gap:8px;margin:0 0 24px}
+.qcard{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:4px 12px;padding:12px 16px;
+ border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
+.qcard:hover{border-color:var(--ink2)}
 .qcard b{font-size:16px;font-weight:600;line-height:1.4}
-.qc-n{font-size:13px;color:var(--muted)}
-.qcard ul{display:none;margin:4px 0 0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
-/* 지역 칩 — 시도별 한 줄. 허브 JS 가 data-city 로 카드를 거른다. JS 가 없으면 전부 보인다. */
-.cityf{margin:0 0 22px}
-.cf-g{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
-.cf-g em{font-style:normal;font-size:13px;font-weight:600;color:var(--ink2);min-width:3.2em}
+.qc-n{font-size:13px;color:var(--muted);white-space:nowrap}
+.qcard ul{grid-column:1/-1;list-style:none;margin:2px 0 0;padding:0;font-size:14px;line-height:1.55;color:var(--ink2)}
+.qcard li{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.qcard li+li{display:none}
+/* 지역 칩 — 시도별 한 줄(넘치면 접는다). 허브 JS 가 data-city 로 카드를 거른다. JS 가 없으면 전부 보인다. */
+.cityf{margin:0 0 24px}
+.cf-g{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}
+.cf-g em{flex:none;font-style:normal;font-size:13px;line-height:35px;font-weight:600;color:var(--ink2);min-width:3.2em}
+.cf-c{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
 .cf-n{font-size:13px;color:var(--muted);margin:0 0 12px}
-.rh2{font-size:16px;font-weight:600;margin:0 0 12px}
-.hub-basic-row{font-size:13px;color:var(--ink2);margin:8px 0 0;line-height:1.8}
-.hub-basic-row a{color:var(--ink2)}
+/* 절 제목은 뼈대 h2 와 같은 급(20px/700) — 16px/600 이라 카드 제목과 같은 급이었다(2026-11-07 디자인 검수). */
+.rh2{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.35;margin:0 0 12px}
 @media (min-width:768px){
-  .kgrid{grid-template-columns:repeat(3,1fr);gap:14px}
+  .kgrid{grid-template-columns:repeat(3,1fr);gap:16px}
   .qgrid{grid-template-columns:repeat(2,1fr)}
-  .qcard ul{display:block}
-}
-@media (max-width:600px){
-  .rchips{flex-wrap:nowrap;overflow-x:auto}
-  .rchip{flex:none}
-  .cf-g{flex-wrap:nowrap;overflow-x:auto}
-  .cf-g .rchip{flex:none}
+  .qcard li+li{display:-webkit-box}
 }
 /*LIST_CSS_END*/
 
@@ -1345,10 +1413,11 @@ table.adv thead th:first-child{text-align:center}
   .zhead h1{font-size:var(--h1-report);line-height:1.15;font-weight:700;letter-spacing:-.01em}
   .zlead{margin-top:14px;font-size:var(--fs-read);color:var(--ink2);display:flex;align-items:center;
     gap:9px;flex-wrap:wrap}
-  .znote{margin-top:10px;font-size:13px;color:var(--muted);line-height:1.7}
+  /* 리포트의 문장(마침표로 끝나는 설명·주석)은 14px(2026-11-06 대표 결정 — 읽는 글 14px·라벨 13px, 11-07 디자인 검수 reports-12). */
+  .znote{margin-top:10px;font-size:var(--fs-dense);color:var(--muted);line-height:1.7}
   .zhead+section,section+section{padding-top:30px}
   section h2{font-size:19px;font-weight:700;margin-bottom:4px}
-  .zsub{font-size:13px;color:var(--muted);line-height:1.7;margin:2px 0 12px}
+  .zsub{font-size:var(--fs-dense);color:var(--muted);line-height:1.7;margin:2px 0 12px}
   /* 리포트 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
   .zsub a:not([class]),.znote a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
   .zback{display:inline-flex;align-items:center;min-height:40px;padding:0 6px 0 2px;font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none}   /* 132x15 링크였다(2026-09-18 오딧 12번) */
@@ -1406,7 +1475,7 @@ table.adv thead th:first-child{text-align:center}
      버튼도 26px 로 WCAG 2.5.8 의 24px 를 넘는다. */
   .ztb tfoot td:first-child{padding:0}
   .ztb tfoot .rbtn{display:flex;align-items:center;width:100%;min-height:40px;padding:0 9px}
-  .tb-refnote{margin:6px 0 0;font-size:13px;line-height:1.55;color:var(--muted)}
+  .tb-refnote{margin:6px 0 0;font-size:var(--fs-dense);line-height:1.6;color:var(--muted)}
 
   /* .zgrid와 같은 이유로 셀이 선을 그린다(2026-08-16). 컨테이너 배경을 선 색으로
      깔면 항목이 열 수로 안 떨어질 때 마지막 줄 빈 칸에 그 색이 드러난다 —
@@ -1421,7 +1490,11 @@ table.adv thead th:first-child{text-align:center}
   .zlinks a:hover{background:var(--paper2)}
   .zlinks a:active{background:var(--line)}
   .z-hint{font-size:14px;color:var(--ink2)}
-  .zlead.zlead-s{line-height:1.6}           /* 지역 허브 머리 한 줄(2026-10-06) — 긴 설명은 설명 메타에만 */
+  /* 지역 허브 머리 한 줄(2026-10-06) — 긴 설명은 설명 메타에만. 블록이라야 <br> 이 줄을 나눈다 — flex 면 1280px 에서 기준 줄과
+     '지역을 누르면 …' 두 문장이 공백으로 붙었다(2026-11-07 디자인 검수 reports-13). */
+  .zlead.zlead-s{display:block;line-height:1.6}
+  .zread .zmonthly{margin-top:16px}
+  .zread .zmonthly a{font-weight:600}
   .zread .zg-note{margin-top:12px}
   /* 해마다 입주 신호등(make_sido_pages.lights_html, 2026-10-05) — 동그라미 하나가 한 해, 안 숫자가 몇 년 차. 문턱은 입주물량 정본(70·130%). */
   /* 신호등 모양(2026-10-06 대표 요청 — '배경색은 다 채우고 신호등 느낌나게'): 어두운 틀(.zl) 안에 세 등을 모두 채워 켠다. 등은 실제
@@ -1433,7 +1506,7 @@ table.adv thead th:first-child{text-align:center}
   .zl-d.lo{background:#ff5a4f}
   .zl-d.ok{background:#ffc233}
   .zl-d.hi{background:#3ecf7a}
-  .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:13px;color:var(--ink2)}
+  .zl-legend{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin:8px 0 0;font-size:var(--fs-dense);color:var(--ink2)}
   .zl-legend .zl-cap{flex:0 0 100%}
   .zl-legend .zl-d{width:12px;height:12px;margin:0 2px 0 2px;box-shadow:0 0 0 2px #263238}   /* 범례 등도 틀 색 테두리 — 밝은 바탕에서 등이 보이게 */
   /* 시도 리포트 '어떻게 계산했나'는 접어 둔다(make_sido_pages, 2026-10-06) — 제목 줄 전체가 누름 면(44px). */
@@ -1446,7 +1519,7 @@ table.adv thead th:first-child{text-align:center}
   .zlinks a i .zk{white-space:nowrap}   /* '(1년 적정물량의 4.2배)' 괄호 덩어리는 한 줄로(make_sido_pages.card_html, 2026-10-05) */
   /* 부족 정도 막대(make_sido_pages.gauge_html, 2026-10-05) — 칸 폭 전체의 한 줄. 바탕(등급 구간 색)은 생성기가 등급 컷·등급 색으로 굽는다. */
   .zlinks a .zg{position:relative;flex:0 0 100%;height:6px;margin:4px 0 2px}
-  .zlinks a .zg-m{position:absolute;top:-4px;width:4px;height:14px;margin-left:-2px;background:var(--ink)}
+  .zlinks a .zg-m{position:absolute;top:-5px;width:6px;height:16px;margin-left:-3px;background:var(--ink);box-shadow:0 0 0 1px var(--paper)}
   /* 해마다 입주 전망(make_sido_pages.outlook_cells, 2026-10-05) — 세 칸(+ 리포트는 '3년 너머' 참고 칸). 막대 높이는 적정의 1.5배까지,
      가로선이 100%(적정). 색은 신호등(.zl-d)과 같은 세 단계(lo·ok·hi, 70·130%). */
   .zo{display:flex;gap:10px;flex:0 0 100%;margin-top:6px}
@@ -1469,7 +1542,7 @@ table.adv thead th:first-child{text-align:center}
   .zo-lg .zo-i small{font-size:13px}
   .zo-lg .zo-c{max-width:52px;height:64px}
   .zo-note{font-size:13px;color:var(--muted);line-height:1.6;margin:8px 0 0}
-  .zg-note{font-size:13px;line-height:1.55;color:var(--ink2);margin:6px 0 0;max-width:640px}
+  .zg-note{font-size:var(--fs-dense);line-height:1.6;color:var(--ink2);margin:6px 0 0;max-width:640px}
   .zg-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin:8px 0 0;font-size:13px;color:var(--ink2)}
   .zg-l{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
   .zg-l i{display:inline-block;width:12px;height:8px}
@@ -1478,6 +1551,12 @@ table.adv thead th:first-child{text-align:center}
   .zlinks a:has(.zg) i .zk{display:block}
   .zlinks a i{font-style:normal;font-size:13px;color:var(--muted);
     margin-left:auto;font-variant-numeric:tabular-nums}
+  /* 칸의 판정 문장('311,689세대 부족')은 칸에서 가장 센 글자다 — 13px 회색이라 신호등(다른 개념)보다 약했다(2026-11-07 디자인 검수
+     reports-2). 글자색은 판정 배지(.sc-tier)의 등급 글자색 그대로(지면 대비 4.9:1 이상), 괄호 배수(.zk)는 회색 보조 줄로 남긴다. */
+  .zlinks a i.zv{font-size:var(--fs-dense);font-weight:600;color:var(--ink)}
+  .zlinks a i.zv.g4{color:#a93226}.zlinks a i.zv.g3{color:#c0392b}.zlinks a i.zv.g2{color:#8f5806}
+  .zlinks a i.zv.g1{color:var(--ink2)}.zlinks a i.zv.g0{color:#1a5276}
+  .zlinks a i.zv .zk{font-size:13px;font-weight:400;color:var(--muted)}
 
   /* 참고 2행(미분양·인허가 1년) — 표 맨 아래 붙박이. 위 칸들을 읽는 맥락이지
      점수가 아니다.
@@ -1506,12 +1585,12 @@ table.adv thead th:first-child{text-align:center}
   .zs-ref b{font-weight:500;color:var(--muted)}
   .zs-ref small{display:block;font-size:13px}
   .zs-thin strong{font-weight:600;color:var(--ink2)}
-  .zs-note,.zs-est{font-size:13px;color:var(--muted);line-height:1.6;margin:2px 0 0 calc(7.5em + 10px)}
+  .zs-note,.zs-est{font-size:var(--fs-dense);color:var(--muted);line-height:1.6;margin:2px 0 0 calc(7.5em + 10px)}
   .zs-est{margin-left:0;margin-top:8px}
   .zchip{font-style:normal;font-size:13px;font-weight:500;color:var(--muted);
     border:1px solid var(--line);padding:0 4px;margin-right:5px;vertical-align:1px}
   @media (max-width:520px){.zs-row{grid-template-columns:1fr;gap:0}.zs-note{margin-left:0}}
-  .zwarn{margin-top:10px;font-size:13px;color:#a93226;line-height:1.65;
+  .zwarn{margin-top:10px;font-size:var(--fs-dense);color:#a93226;line-height:1.65;
     border-left:3px solid #a93226;padding-left:10px}
   /* 스크린리더 전용 — 표 caption처럼 화면엔 없고 음성으로만 읽히는 것 */
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;

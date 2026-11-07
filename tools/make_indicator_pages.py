@@ -203,7 +203,7 @@ __ROBOTS__
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">__LD__</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2f6db3;__TOKENS__}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;__TOKENS__}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
@@ -216,19 +216,25 @@ h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.2
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
 .bigsub{font-size:13.5px;color:var(--muted)}
+/* 머리 기준 줄의 조각은 통째로 넘긴다 — 구분점이 줄 끝에 매달리거나 '+1.0%p' 만 홀로 둘째 줄에 떨어졌다(2026-11-07 디자인 검수 indicators-8).
+   큰 숫자의 단위는 숫자 옆에(indicators-9 — /moveins/ 의 236,618 이 세대인지 괄호 끝까지 읽어야 알았다). */
+.bigsub .nw{white-space:nowrap}.bigsub .bigd{display:inline-block;margin-top:2px;font-size:var(--fs-dense);color:var(--ink2);font-weight:600}
+.big small{font-size:.42em;font-weight:500;color:var(--muted);margin-left:4px;letter-spacing:0}
 section{padding:20px 0}
 h2{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:10px}
 /* 절 경계가 보이게 제목 위 여백(2026-10-30 디자인 리뷰 — 앞 문단·주석 밑에 붙어 있었다). 첫 절은 머리 바로 아래라 빼지 않는다. */
 section+section h2{margin-top:12px}
 @media(min-width:1024px){.tbl-wrap.tbl-narrow{max-width:560px}}
-.note-more{margin-top:4px}.note-more summary{font-size:13px;color:var(--muted);cursor:pointer}
-/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해·연 적정물량 열을 숨겨 네 열로(주석이 밝힌다). */
-@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3),#utable.mv th:nth-child(6),#utable.mv td:nth-child(6){display:none}}
+.note-more{margin-top:4px}.note-more summary{font-size:var(--fs-dense);color:var(--muted);cursor:pointer}.note-more .note{color:var(--ink2)}
+/* /moveins/ 표는 375px 에서 여섯 열이 넘쳐 뒤 두 해가 잘렸다 — 좁은 화면은 지난해 열을 숨겨 다섯 열로(표 아래 주석이 밝힌다).
+   연 적정물량 열은 남긴다 — '62% 적음'의 분모라 숨기면 비율을 검산할 수 없었다(2026-11-07 디자인 검수 indicators-2). */
+@media(max-width:480px){#utable.mv th:nth-child(3),#utable.mv td:nth-child(3){display:none}}
 /* 네 열로 줄여도 375px 에서 28px 넘쳤다(2026-10-31 디자인 리뷰 2차) — 긴 머리('2026 적정물량 대비')는 두 줄로 접고 칸 여백을 줄인다. */
-@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 5px}}
+@media(max-width:480px){#utable.mv thead th{white-space:normal;line-height:1.3}#utable.mv th,#utable.mv td{padding:7px 3px}#utable.mv th:first-child,#utable.mv td:first-child{padding-left:0}}
 p{margin-bottom:12px;font-size:var(--fs-read)}
 p:last-child{margin-bottom:0}
-.note{font-size:13px;color:var(--muted);line-height:1.6;margin-top:8px}
+/* 표 아래 주석·접는 칸 본문은 문장이라 14px(2026-11-06 대표 결정 — 읽는 글 14px, 11-07 디자인 검수 indicators-1) */
+.note{font-size:var(--fs-dense);color:var(--muted);line-height:1.6;margin-top:8px}
 /* 본문 링크가 브라우저 기본 파랑이었다(백로그 36-9) — 사이트 링크 어휘(먹색 + 옅은 밑줄) */
 .note a:not([class]),p a:not([class]){color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 .tbl-wrap{overflow-x:auto;margin:6px 0 2px;background:
@@ -490,7 +496,7 @@ def build_jeonse(sts, today=None):
     # 커밋을 막았다(전수리뷰 X2-1·Z1-1). 여럿이면 '서울과 세종'처럼 잇고 조사는 끝 이름에 붙는다.
     hi_n, lo_n = names_text([SZ.disp(v[0]) for v in his]), names_text([SZ.disp(v[0]) for v in los])
     natd_desc = '' if nat_d is None else '로 1년 전보다 %+.1f%%p' % nat_d
-    natd_sub = '' if nat_d is None else ' · 1년 전 대비 %+.1f%%p' % nat_d
+    natd_sub = '' if nat_d is None else '<br><span class="nw bigd">1년 전 대비 %+.1f%%p</span>' % nat_d   # 변화량은 제 줄(indicators-8)
     # 오른 곳이 없으면(가장 큰 변화가 0 이하 — 모든 시도가 그대로이거나 내린 해) '가장 크게 오른 곳'을 말하지 않는다(전수리뷰 B2).
     # 변화는 표시값(소수 첫째 자리)끼리의 차라 표의 '+0.0%p' 와 같은 기준이다.
     upm_p = ('' if upv is None or upv <= 0 else
@@ -506,7 +512,7 @@ def build_jeonse(sts, today=None):
   <div class="chip">지표 해설</div>
   <h1>전세가율 — 매매가 대비 전세가,<br>실수요의 체온계</h1>
   <div class="big">%(nat).1f%%</div>
-  <div class="bigsub">전국 아파트 전세가율 · %(prd)s 기준%(natd)s</div>
+  <div class="bigsub"><span class="nw">전국 아파트 전세가율</span> <span class="nw">· %(prd)s 기준</span>%(natd)s</div>
 </header>
 
 <section class="wrap">
@@ -675,20 +681,20 @@ def build_moveins(adv, today=None):
     body = """<header class="wrap">
   <div class="chip">지표 해설</div>
   <h1>아파트 입주물량 —<br>공급이 시장에 도착하는 순간</h1>
-  <div class="big">%(nat26)s</div>
-  <div class="bigsub">%(Y)s년 전국 입주물량(준공 실적+%(est)s, 세대) · %(Y1)s년 %(nat27)s세대</div>
+  <div class="big">%(nat26)s<small>세대</small></div>
+  <div class="bigsub">%(Y)s년 전국 입주물량(준공 실적+%(est)s) <span class="nw">· %(Y1)s년 %(nat27)s세대</span></div>
 </header>
 
 <section class="wrap">
   <h2>시도별 연간 입주물량 (세대)</h2>
   <div class="tbl-wrap"><table id="utable" class="mv" aria-label="시도별 연간 입주물량">
-    <thead><tr><th>지역</th><th data-num>%(Y)s 적정물량 대비</th><th data-num>%(Y0)s</th><th data-num>%(Y)s</th><th data-num>%(Y1)s</th><th data-num>적정물량/년</th></tr></thead>
+    <thead><tr><th>지역</th><th data-num>%(Y)s 적정물량 대비</th><th data-num>%(Y0)s</th><th data-num>%(Y)s</th><th data-num>%(Y1)s</th><th data-num>적정물량/<wbr>년</th></tr></thead>
     <tbody>
 %(trs)s
     </tbody>
   </table></div>
-  <div class="note">%(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정 · 표두를 누르면 정렬</div>
-  <details class="note-more"><summary>추정 방법·연도 기준 자세히</summary><div class="note">이후 분기는 착공 실적을 %(lead_y)s 뒤로 밀어 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 연도는 달력 연도(1~12월)입니다. 지역 리포트의 해마다 신호등은 판정 기준 분기 다음 4분기씩 세어 같은 해라도 값이 다를 수 있습니다. 적정물량은 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 값을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신. 좁은 화면에서는 %(Y0)s년·연 적정물량 열을 숨깁니다.</div></details>
+  <div class="note">%(basis)s, 이후는 <b>착공 실적을 %(lead_y)s 뒤로 밀어</b> 추정 · 표두를 누르면 정렬 · 좁은 화면은 %(Y0)s년 열을 숨깁니다</div>
+  <details class="note-more"><summary>추정 방법·연도 기준 자세히</summary><div class="note">이후 분기는 착공 실적을 %(lead_y)s 뒤로 밀어 추정한 값입니다(전환율 %(conv)s — 착공한 물량의 약 %(convp)d%%가 %(lead_y)s 뒤 준공). 연도는 달력 연도(1~12월)입니다. 지역 리포트의 해마다 신호등은 판정 기준 분기 다음 4분기씩 세어 같은 해라도 값이 다를 수 있습니다. 적정물량은 가격이 하락에서 상승으로 돌아선 시점의 입주물량을 실측해 잡은 분기 값을 연환산(×4)한 고정 상수이며, %(est_txt)s는 추정치입니다. 자료: 국토교통부 주택건설실적(준공·착공), 분기마다 갱신.</div></details>
 </section>
 
 %(city)s<section class="wrap">

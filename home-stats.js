@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v214';
+var HOME_STATS_BUILD='v215';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -806,22 +806,22 @@ function rankTables(S,unit,k){
     if(!items.length)h.push('<tr><td colspan="'+(cols.length+3)+'" class="rk-none">'+empty+'</td></tr>');
     items.forEach(([c,v],i)=>{
       const rank=base+i;
-      const medal=(!dn&&rank<=3)?'<span class="rk-medal">'+['🥇','🥈','🥉'][rank-1]+'</span>':'';   // 많이 내린 곳에는 메달을 달지 않는다
-      h.push('<tr><td>'+medal+rank+'</td><td><a class="rk-go" href="#stats-market-'+k+'~'+c+'" data-code="'+c+'">'+SGG_QNAME[c]+'</a></td>'+
+      /* 1~3위 메달 이모지는 뺐다(2026-11-07 디자인 검수 stats-10) — 굵기는 app.css(.rank-tbl tbody tr:nth-child(-n+3)) */
+      h.push('<tr><td>'+rank+'</td><td><a class="rk-go" href="#stats-market-'+k+'~'+c+'" data-code="'+c+'">'+SGG_QNAME[c]+'</a></td>'+
         cols.map(m=>vcell(c,m)).join('')+'<td>'+dcell(c,dn)+'</td></tr>');
     });
     h.push('</tbody></table></div></div>');
     return h.join('');
   }
-  const basis='<span style="font-weight:600;color:var(--muted);font-size:13px">'+MLAB[met]+' 기준</span>';
+  /* 머리 꼬리 '매매 기준'은 뺐다 — 밑줄 친 정렬 열 머리('매매 ▾')가 같은 말을 한다(stats-10 겹말) */
   /* 상승 표에는 오른 곳만, 하락 표에는 내린 곳만 싣는다(표시값 부호, 0.00 은 어느 표에도 없다) — /weekly/ TOP 3 와 같은 규칙
      (파이썬 정본 weekly_moves.top_split, test_weekly_moves 가 node 로 대조). 예전엔 앞 10·뒤 10 을 부호 없이 실어, 한쪽으로 쏠린 달에
      '상승 TOP 10'에 내린 곳이 메달까지 달고 섰다(2023-01 월간 매매 🥈김제 0.00% 등, 전수리뷰 H2-2). 거른 목록은 정렬의 앞·뒤 그대로라
      순위 번호·순위 이동은 전체 순위 그대로 맞다. */
   const per=k==='week'?'주':'달';
   return '<div class="map-rank">'+
-    tbl('<span style="color:#e0564a">▲</span> 상승 TOP 10 '+basis,cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
-    tbl('<span style="color:#3a7bd5">▼</span> 하락 TOP 10 '+basis,cr.order.filter(([,v])=>pvSign(v)<0).slice(-10).reverse(),1,true,'이번 '+per+' 내린 시군구가 없다')+
+    tbl('<span style="color:#c0392b">▲</span> 상승 TOP 10',cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
+    tbl('<span style="color:#1a5276">▼</span> 하락 TOP 10',cr.order.filter(([,v])=>pvSign(v)<0).slice(-10).reverse(),1,true,'이번 '+per+' 내린 시군구가 없다')+
     '</div>';
 }
 /* 지도 '옆으로 밀어 전체 보기' 안내 — 상자가 지도보다 좁을 때만. 숨은 상태(폭 0)에서는 판정하지 않고, 보일 때
@@ -852,9 +852,11 @@ function drawNationMap(k){
   const svg=sggMapSvg(hasWo?[vma,vje,vwo]:[vma,vje],{ref:ref,names:['매매','전세','월세'],href:c=>'#stats-market-'+k+'~'+c});
   const box=document.getElementById(T.map);
   box.innerHTML=
-    mapDateChip(row.p,SER+' · '+T.unit,gap)+
+    /* 기준 줄과 칸 줄의 뜻은 지도 위 한 줄(.map-top — 폭이 모자라면 꺾인다). 칸 줄의 뜻은 지도 위(2026-10-31)를 지키고 줄 수만
+       줄였다(2026-11-07 디자인 검수 stats-3·8 — 375px 에서 지도 위 열 덩어리 중 둘). 순위 보기에서는 칸 줄을 숨긴다(app.css). */
+    '<div class="map-top">'+mapDateChip(row.p,SER+' · '+T.unit,gap)+
+    '<p class="map-rows">칸 숫자: '+(hasWo?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':'위 = 매매 · 아래 = 전세')+'</p></div>'+
     rankTables(S,T.unit,k)+
-    '<p class="map-rows">칸 숫자: '+(hasWo?'위 = 매매 · 가운데 = 전세 · 아래 = 월세':'위 = 매매 · 아래 = 전세')+'</p>'+   // 칸 줄의 뜻은 지도 위(2026-10-31)
     '<div class="cue"><div class="map-scroll">'+svg+'</div></div>'+
     /* 범례 한 줄(왼쪽 하락 → 오른쪽 상승)은 홈 시세 지도(priceTilesHtml)와 같은 .tb-key 어휘다(2026-10-30 디자인 리뷰 2차) */
     '<div class="map-suplegend"><span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'+
@@ -1151,6 +1153,8 @@ function trSetPeriod(k,i){
   TRP[k]=i; renderTrPeriods(k); drawTrendChart(k);
   track('stats_period',{section:k,period:TREND[k].periods[i][0]});
 }
+/* 시장동향 그래프 계열 색 — 범례 네모(app.css .chart-legend .cl-ma·.cl-je·.cl-wo)와 같은 값(test_home_stats_design 이 대조) */
+const TR_COL={ma:'#131e24',je:'#7a8b91',wo:'#1f8a70'};
 function drawTrendChart(k){
   /* 지역 상자·기간 단추·범위 줄은 차트 라이브러리와 무관하다 — 먼저 그리고 그래프만 라이브러리를 기다린다(전수리뷰 H2-4) */
   const T=TREND[k], W=trendData(k); if(!W)return;
@@ -1170,26 +1174,28 @@ function drawTrendChart(k){
   const uel=document.getElementById(k+'-unit');
   if(uel&&n)uel.textContent='변동률(%) · '+T.lab(rows[0].p)+' ~ '+T.lab(rows[n-1].p);
   if(needChart(()=>drawTrendChart(k))){ chartFailNote(k); return; }
-  /* 월세는 월간에만 있다. 면적 3겹은 서로를 가려 선만 그린다(fill 없음). */
+  /* 월세는 월간에만 있다. 면적 3겹은 서로를 가려 선만 그린다(fill 없음). 면적은 매매 하나만 옅게 깐다 — 전세 면적이 매매를 덮었다.
+     색은 TR_COL(계열) — 빨강·파랑은 지도·표·순위의 상승·하락이다(2026-11-07 디자인 검수 stats-5). */
   const dsets=[
-    {label:'매매',data:rows.map(r=>r.ma[ri]),borderColor:'#e0564a',backgroundColor:areaGrad('#e0564a','1a'),fill:'origin',
+    {label:'매매',data:rows.map(r=>r.ma[ri]),borderColor:TR_COL.ma,backgroundColor:areaGrad(TR_COL.ma,'1f'),fill:'origin',
       borderWidth:2,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true},
-    {label:'전세',data:rows.map(r=>r.je[ri]),borderColor:'#a98be0',backgroundColor:areaGrad('#a98be0','1a'),fill:'origin',
+    {label:'전세',data:rows.map(r=>r.je[ri]),borderColor:TR_COL.je,fill:false,
       borderWidth:2,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true}];
   if(n&&Array.isArray(rows[n-1].wo))dsets.push(
-    {label:'월세',data:rows.map(r=>(r.wo||[])[ri]),borderColor:'#1f8a70',fill:false,
-      borderWidth:2,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true});
+    {label:'월세',data:rows.map(r=>(r.wo||[])[ri]),borderColor:TR_COL.wo,fill:false,borderDash:[5,3],
+      borderWidth:1.5,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true});
   const chart=mkChart(T.chart,{type:'line',
     data:{labels:rows.map(r=>T.lab(r.p)),datasets:dsets},
     options:{responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},
         tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw==null?'-':pv2(Number(c.raw))}%`}}},
-      scales:{x:{grid:{display:false},ticks:{maxRotation:45,minRotation:45,autoSkip:true,
-          maxTicksLimit:Math.max(8,Math.ceil(n/5)),font:{size:10},
+      /* 눈금은 11px·기울임은 필요할 때만(autoSkip 이 먼저 거른다 — 1280px 에 눈금 11개를 45° 로 눕혔다, stats-4) */
+      scales:{x:{grid:{display:false},ticks:{maxRotation:45,minRotation:0,autoSkip:true,
+          maxTicksLimit:Math.max(8,Math.ceil(n/5)),font:{size:11},
           /* 축은 짧게(04-06), 정확한 날짜는 툴팁이 책임진다 */
           callback:function(v){const l=this.getLabelForValue(v);return T.tick?T.tick(l):l;}}},
         y:{grid:{color:c=>c.tick.value===0?INK:GRID,lineWidth:c=>c.tick.value===0?1.2:1},
-          ticks:{callback:v=>String(+Number(v).toFixed(3)),maxTicksLimit:6,padding:2,font:{size:10}},title:{display:false}}}}});
+          ticks:{callback:v=>String(+Number(v).toFixed(3)),maxTicksLimit:6,padding:2,font:{size:11}},title:{display:false}}}}});
 }
 function renderWeekSec(){ renderTrendTables('week'); drawTrendChart('week'); drawTrendMap('week'); }
 function renderMonthSec(){ renderTrendTables('month'); drawTrendChart('month'); drawTrendMap('month'); }
