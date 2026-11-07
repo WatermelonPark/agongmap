@@ -335,11 +335,12 @@ def test_home_and_zone_show_the_modified_date_on_screen_and_in_json_ld():
     import sido_zones as SZ
     z = [x for x in SZ.ORDER if os.path.exists(os.path.join(ROOT, 'zone', x, 'index.html'))][0]
     page = io.open(os.path.join(ROOT, 'zone', z, 'index.html'), encoding='utf-8').read()
-    mz = re.search(r'페이지 수정 (\d{4}-\d{2}-\d{2})', page)
+    mz = re.search(r'페이지 수정 (\d{4})년 (\d{1,2})월 (\d{1,2})일', page)   # 읽는 꼴(SZ.day_long, 11-07 디자인 검수 reports-8)
     assert mz, '%s 리포트 화면에 페이지 수정일이 없다' % z
+    shown = '%s-%02d-%02d' % (mz.group(1), int(mz.group(2)), int(mz.group(3)))
     art = [x for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', page, re.S)
            for x in (lambda d: d if isinstance(d, list) else [d])(json.loads(b)) if x.get('@type') == 'Article']
-    assert art and art[0]['dateModified'] == mz.group(1), '%s 화면 수정일이 JSON-LD 와 다르다' % z
+    assert art and art[0]['dateModified'] == shown, '%s 화면 수정일이 JSON-LD 와 다르다' % z
 
 
 def _posts_with_front_placeholder():
@@ -616,11 +617,14 @@ def test_zone_posts_generator_sorts_posts_by_region(tmp_path):
 def test_sido_generator_bakes_the_marker():
     """시도 생성기가 글 묶음 표식을 굽는다 — 표식이 없으면 채울 자리가 없다.
 
-    무엇을 바꾸면 빨개지나: make_sido_pages 의 FOOT 에서 표식을 지우면.
+    무엇을 바꾸면 빨개지나: make_sido_pages 의 POSTS_SLOT 에서 표식을 지우거나, build_page 가 그 자리를 굽지 않으면(11-07 부터
+    자리는 바닥글이 아니라 '숫자로 보면' 바로 뒤 — 디자인 검수 reports-3).
     """
     import make_sido_pages as SP
-    assert MC.ZONE_START in SP.FOOT and MC.ZONE_END in SP.FOOT, \
-        '시도 페이지 바닥글에 글 묶음 표식이 없다'
+    assert MC.ZONE_START in SP.POSTS_SLOT and MC.ZONE_END in SP.POSTS_SLOT, \
+        '시도 페이지에 글 묶음 표식이 없다'
+    import inspect
+    assert 'POSTS_SLOT' in inspect.getsource(SP.build_page), 'build_page 가 글 묶음 자리를 굽지 않는다'
 
 
 def test_zone_reports_link_the_posts_about_that_region():
