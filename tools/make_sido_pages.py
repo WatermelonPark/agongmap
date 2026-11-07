@@ -113,10 +113,6 @@ def zone_js():
     return (
         '/* 지역 페이지 표 동작 — make_sido_pages.zone_js()가 생성한다. 직접 고치지 말 것. */\n'
         '(function(){\n'
-        '/* 표의 기본 화면을 맨 아래(미래 분기)로 — 공급을 보러 온 사람이 매번\n'
-        '   28행을 내리게 하지 않는다(2026-08-11 사용자). 과거는 올리면 된다. */\n'
-        'document.querySelectorAll(".ztb-scroll").forEach(function(e){'
-        'e.scrollTop=e.scrollHeight});\n'
         '/* 안내 문구는 make_sido_pages.REFNOTE 정본을 그대로 실어 손으로 옮기지 않는다. */\n'
         'var ZREFNOTE=' + json.dumps(REFNOTE, ensure_ascii=False) + ';\n'
         'document.querySelectorAll(".ztb tfoot tr.zref").forEach(function(tr){\n'
@@ -136,6 +132,12 @@ def zone_js():
         '   \'옆으로 밀어 전체 보기\'를 켠다(홈 syncSwipe 와 같은 생각 — 숨은 묶음은 넓이가 0 이라 보일 때 다시 잰다). */\n'
         '/* 밀어 보는 상자(분기표·지도 조각)의 가장자리 흐림 — /weekly/ 와 같은 MW.CUE_JS(2026-10-31 디자인 리뷰 2차). */\n'
         + MW.CUE_JS + '\nvar CUES=[];document.querySelectorAll(".ztb-scroll,.zwk .mm-scroll").forEach(function(s){CUES.push(cueBox(s));});\n'
+        '/* 표의 기본 화면을 맨 아래(미래 분기)로 — 공급을 보러 온 사람이 매번\n'
+        '   28행을 내리게 하지 않는다(2026-08-11 사용자). 과거는 올리면 된다.\n'
+        '   ⚠️ cueBox 가 상자를 .cue 로 감싼 **뒤**에 둔다 — 요소를 옮기면 scrollTop 이 0 으로 돌아가 데스크톱에서 2017~2020 행만\n'
+        '   보였다(2026-11-07 디자인 검수 reports-0, 10-31 회귀). */\n'
+        'document.querySelectorAll(".ztb-scroll").forEach(function(e){'
+        'e.scrollTop=e.scrollHeight});\n'
         'function zmSwipe(){document.querySelectorAll(".zwk .mm-scroll").forEach(function(s){'
         'var p=s.parentNode,n=(p&&p.classList&&p.classList.contains("cue"))?p:s,c=n.nextElementSibling,h=c&&c.querySelector(".zm-swipe");'
         'if(h)h.hidden=!(s.scrollWidth>s.clientWidth+1);});CUES.forEach(function(f){f();});}\n'
@@ -146,6 +148,12 @@ def zone_js():
         'document.querySelectorAll(".zm[data-zm]").forEach(function(m){m.hidden=m.getAttribute("data-zm")!==k;});\n'
         'zmSwipe();});});\n'
         'zmSwipe();window.addEventListener("resize",zmSwipe);\n'
+        '/* 이 지역 글 — 앞 POSTS_CAP 편만 보이고 나머지는 단추로 편다(make_sido_pages.POSTS_SLOT, 2026-11-07 디자인 검수 reports-3). */\n'
+        'document.querySelectorAll(".zposts").forEach(function(sec){var g=sec.querySelector(".kgrid");'
+        'if(!g||g.children.length<=' + str(POSTS_CAP) + ')return;var n=g.children.length;sec.classList.add("zp-cut");'
+        'var b=document.createElement("button");b.type="button";b.className="zp-more";b.textContent="글 "+n+"편 모두 보기";'
+        'b.addEventListener("click",function(){sec.classList.remove("zp-cut");b.remove();});'
+        'g.parentNode.insertBefore(b,g.nextSibling);});\n'
         '})();\n')
 
 
@@ -313,6 +321,13 @@ MERGED_INTO = {'광주': '전남광주', '전남': '전남광주'}
 
 
 DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
+# 리포트 머리의 '페이지 수정 2026년 11월 6일'(읽는 꼴 — 2026-11-07 디자인 검수 reports-8)도 keep_dates 가 가린다. 이 자리만 가린다 —
+# 본문의 다른 '…년 …월 …일'이 바뀌면 내용이 바뀐 것이다.
+PAGE_DAY_RE = re.compile(r'(?<=페이지 수정 )\d{4}년 \d{1,2}월 \d{1,2}일')
+
+
+def _mask_dates(html):
+    return PAGE_DAY_RE.sub('@', DATE_RE.sub('@', html))
 
 
 def read_old(path):
@@ -348,7 +363,7 @@ def keep_dates(new_html, old_html, today):
     """
     if not old_html:
         return new_html, today, True
-    if DATE_RE.sub('@', new_html) == DATE_RE.sub('@', old_html):
+    if _mask_dates(new_html) == _mask_dates(old_html):
         return old_html, (ld_date(old_html) or today), False
     # ⚠️ 내용이 바뀌어도 **최초 발행일은 물려받는다**. 안 그러면 갱신 회차마다
     # datePublished가 오늘로 다시 찍혀, 8월에 색인된 페이지가 9월에 '어제 처음
@@ -596,8 +611,11 @@ def share_section(z):
 # 그 지역을 다룬 콘텐츠 글 묶음이 들어오는 자리(백로그 50). 이 생성기는 **빈 표식만** 굽고, 안쪽은
 # make_content_pages 가 원고의 region 을 읽어 채운다 — 홈 '최근 리포트' 와 같은 방식이다. 두 생성기의
 # 순서에 기대지 않으려고 이렇게 나눴다(시도 페이지가 먼저 구워져도 다음 단계에서 채워진다).
-FOOT = '''<!--ZONE_POSTS_START--><!--ZONE_POSTS_END-->
-</main>
+# 자리는 '숫자로 보면' 바로 뒤다(2026-11-07 디자인 검수 reports-3 — 맨 끝 '다른 지역' 칸 18장 뒤라 경기는 375px 에서 8,300px 아래였다).
+# 글이 POSTS_CAP 편을 넘으면 zone.js 가 앞 POSTS_CAP 편만 보이고 '글 N편 모두 보기' 단추를 단다(스크립트 없이는 모두 보인다).
+POSTS_SLOT = '<!--ZONE_POSTS_START--><!--ZONE_POSTS_END-->'
+POSTS_CAP = 4
+FOOT = '''</main>
 ''' + N.site_footer('국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트') + '''
 
 ''' + N.bottomnav('zone') + '''
@@ -712,8 +730,21 @@ def summary_html(parts):
 # 집계 3장(전국·수도권·지방)은 많이 오른 곳·많이 내린 곳 AGG_TOP 곳씩만 싣는다(요청서 D4).
 AGG_TOP = 5
 WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;color:var(--muted);white-space:nowrap}'
+          # 375px 분기표 — '적정 대비' 열 머리의 바탕 줄(nowrap)·미래 줄의 '착공 기준 추정'·참고 행 주석(nowrap)·'인허가 1년ⓘ' 단추가
+          # 앞 세 칸을 280px 로 벌려, 바로 위 .zsub 가 말하는 색 칸(매매·전세·월세)이 화면 밖이었다(2026-11-07 디자인 검수 reports-1).
+          # 좁은 화면에서만 그 넷을 줄바꿈하게 하고 칸 여백을 줄인다 — 바탕 줄은 열 머리에 그대로 둔다(2026-10-21 대표 지적).
+          '@media (max-width:600px){.ztb th,.ztb td{padding:5px 6px}.ztb th small.zbase{white-space:normal}'
+          '.ztb td.zfut{white-space:normal;word-break:keep-all;line-height:1.45}'
+          '.ztb tfoot .rbtn{padding:0 6px;white-space:normal;word-break:keep-all;line-height:1.3}}'
           '.zsum p{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2)}.zsum b{color:var(--ink);font-weight:600}'
           '.zcell b span{color:var(--ink)}'
+          # '시세도 함께' 칸(next_links) — .zcell 을 링크로 쓴다. 누르는 칸이라 바탕이 반응하고 끝에 화살표를 단다.
+          'a.zcell{text-decoration:none;color:var(--ink);transition:background .12s}a.zcell:hover{background:var(--paper2)}'
+          'a.zcell b::after{content:" →";color:var(--ink2)}a.zcell span.up{color:#a93226}a.zcell span.dn{color:var(--gwaing)}'
+          '.zposts.zp-cut .kgrid>:nth-child(n+%d){display:none}' % (POSTS_CAP + 1) +
+          '.zp-more{display:inline-flex;align-items:center;min-height:40px;margin-top:10px;padding:0 14px;font:inherit;font-size:14px;'
+          'font-weight:600;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:var(--r-touch);cursor:pointer}'
+          '.zp-more:hover{background:var(--paper2)}.zp-more:focus-visible{outline:2px solid var(--ink);outline-offset:2px}'
           # 막대 아래 접는 칸(3년 너머·추정, split_ref_block) — 제목 한 줄만 보이고 펼치면 참고 줄이 나온다.
           '.zmore{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}'
           '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer}'
@@ -734,12 +765,12 @@ WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;colo
           '.zwk .ztb thead tr+tr th{white-space:normal;word-break:keep-all;min-width:2.6em}'
           # 연속 칸의 '▲156 이상'(계열 첫 값까지 닿은 연속)은 두 줄로 접는다 — 한 줄이면 그 칸만 77px 로 벌어졌다.
           '.zwk .ztb td:nth-child(4),.zwk .ztb td:nth-child(7){white-space:normal;word-break:keep-all}'
-          '.zwk-none{font-size:13px;color:var(--muted);margin:0 0 6px}'
+          '.zwk-none{font-size:var(--fs-dense);color:var(--muted);margin:0 0 6px}'
           '.zwk .ztb thead tr:first-child th{text-align:center}.zwk .ztb thead tr:first-child th:first-child{text-align:left}'
           '.zwk .ztb thead tr+tr th:first-child{text-align:right}'
           '.zwk .ztb .up{color:#a93226}.zwk .ztb .dn{color:var(--gwaing)}'
           '.zwk h3{font-size:14px;font-weight:600;margin:14px 0 6px}'
-          '.zyear{font-size:13px;line-height:1.7;color:var(--ink2);margin-top:12px}.zyear b{color:var(--ink);margin-right:4px}'
+          '.zyear{font-size:var(--fs-dense);line-height:1.7;color:var(--ink2);margin-top:12px}.zyear b{color:var(--ink);margin-right:4px}'
           # 시세 지도(zone_map): 주간·월간 단추는 홈 .gt(app.css), 지도 상자는 /weekly/ 머리 지도와 같은 .mm-scroll(MW.MAP_BOX_CSS)
           '.zm-seg{margin:2px 0 12px}.zm-cap{font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 12px}'
           + MW.MAP_BOX_CSS)
@@ -974,13 +1005,19 @@ def next_links(z, weekly, stats):
         i, row = regs.index(z), rows[-1]
         ma = (row.get('ma') or [])[i] if i < len(row.get('ma') or []) else None
         je = (row.get('je') or [])[i] if i < len(row.get('je') or []) else None
-        parts = ['%s %s%%' % (k, MW.pv2(v)) for k, v in (('매매', ma), ('전세', je)) if v is not None]
+        parts = [(k, v) for k, v in (('매매', ma), ('전세', je)) if v is not None]
         if parts:
             try:
-                when = ' · %s 조사 · %s 발표' % (MW.md(row['p']), MW.md(MW.pub(row['p'])))
+                when = ['%s 조사 · %s 발표' % (MW.md(row['p']), MW.md(MW.pub(row['p'])))]
             except Exception:   # 조사일 모양이 틀어져도 카드는 굽는다 — 날짜만 뺀다(weekly_section 기준 줄과 같은 물러섬, 전수리뷰 Z1 overflow)
-                when = ''
-            cards.append('<a href="/weekly/"><b>이번 주 시세</b><i>%s%s</i></a>' % (' · '.join(parts), when))
+                when = []
+            # 칸은 '숫자로 보면'과 같은 .zcell — 첫 값(매매, 없으면 전세)이 큰 숫자, 나머지 값과 기준일은 아래 줄(2026-11-07 디자인
+            # 검수 reports-6: 13px 회색 한 줄이라 같은 페이지 안에서 숫자 위계가 둘이었다). 부호 색은 주간 표와 같은 MW.sign.
+            (k0, v0), rest = parts[0], parts[1:]
+            sg = MW.sign(v0)
+            cards.append('<a class="zcell" href="/weekly/"><b>이번 주 %s</b><span%s>%s%%</span><i>%s</i></a>'
+                         % (k0, (' class="%s"' % sg) if sg else '', MW.pv2(v0),
+                            ' · '.join(['%s %s%%' % (k, MW.pv2(v)) for k, v in rest] + when)))
     j = (stats or {}).get('전세가율') or {}
     ser, dates = (j.get('series') or {}).get(z), j.get('dates') or []
     li = jeonse_index(j) if ser and dates else None
@@ -991,14 +1028,14 @@ def next_links(z, weekly, stats):
         if cur is not None:
             import make_indicator_pages as I   # 변화량은 /jeonse-ratio/ 표와 같은 함수(표시값의 차, 전수 리뷰 #16)
             d = I.jeonse_delta(cur, ago)
-            chg = '' if d is None else ' · 1년 전 대비 %+.1f%%p' % d
-            cards.append('<a href="/jeonse-ratio/"><b>전세가율</b><i>%.1f%%%s · %s 기준</i></a>'
+            chg = '' if d is None else '1년 전 대비 %+.1f%%p · ' % d
+            cards.append('<a class="zcell" href="/jeonse-ratio/"><b>전세가율</b><span>%.1f%%</span><i>%s%s 기준</i></a>'
                          % (cur, chg, esc(SZ.month_text(dates[li]))))
     year = year_line(z, stats)
     if not cards and not year:
         return ''
     return ('<section><div class="wrap"><h2>%s 시세도 함께</h2>%s%s</div></section>'
-            % (esc(SZ.disp(z)), ('<div class="zlinks">%s</div>' % ''.join(cards)) if cards else '', year))
+            % (esc(SZ.disp(z)), ('<div class="zgrid zmk">%s</div>' % ''.join(cards)) if cards else '', year))
 
 
 # 전세가율 기준월 한 번 계산해 둔다(19장이 같은 STATS 를 읽는다 — 보류 경고가 장마다 찍히지 않게). [계열 객체, 열 번호]
@@ -1119,9 +1156,10 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<span class="zbasis">%s 기준 · %s</span>'
              # 화면에도 페이지 수정일을 적는다(백로그 50 요청 2.4) — JSON-LD dateModified 와 같은 값이다.
              # keep_dates 가 날짜를 가려 비교하므로, 이 줄 때문에 매일 새 판이 되지는 않는다.
+             # 읽는 꼴(SZ.day_long, 날짜 두 단계 — 11-07 디자인 검수 reports-8). JSON-LD 는 ISO 그대로다.
              '<span class="zbasis">페이지 수정 %s</span></p>'
              % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
-                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC), esc(_today())))
+                esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC), esc(SZ.day_long(_today()))))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
     # 지난 4년·앞으로 3년·3년 너머(참고) + 추정 표기. 창 너머 신호(2026-08-11 사용자)의
@@ -1196,6 +1234,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
         # 뽑게. 겉모습은 그대로다(.zcell span 이 block·큰 글자, 색은 WK_CSS 의 .zcell b span).
         h.append('<div class="zcell"><b>%s <span>%s</span></b><i>%s</i></div>' % (k, v, note))
     h.append('</div></section>')
+    h.append(POSTS_SLOT)   # 이 지역 글(make_content_pages 가 채운다) — 판정 숫자 바로 뒤
 
     # ── 기간별 표 ──
     h.append('<section><div class="wrap"><h2>%s의 분기별 공급</h2>'
@@ -1204,7 +1243,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
              '<div class="ztb-scroll"><table class="ztb" aria-label="%s의 분기별 공급">'
              # '적정 대비' 퍼센트의 바탕(분기 적정물량 세대수)을 열 머리에 적는다 — 퍼센트만으로는 몇 세대가 100% 인지
              # 몰라 표를 읽기 어려웠다(2026-10-21 대표 지적). 값은 '숫자로 보면' 카드의 '분기 N세대'와 같은 d_ref.
-             '<thead><tr><th>기간</th><th>공급</th><th>적정 대비<small class="zbase">%s세대=100%%</small></th>'
+             '<thead><tr><th>기간</th><th>공급</th><th>적정 대비<small class="zbase">%s세대<wbr>=100%%</small></th>'
              '<th>매매</th><th>전세</th><th>월세</th></tr></thead><tbody>'
              % (esc(SZ.disp(z)), esc(SZ.disp(z)), num(d_ref)))
     first_fut = True
@@ -1306,9 +1345,9 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
         if o['z'] == z:
             continue
         # 허브와 같은 칸 — 판정 태그 대신 해마다 입주 신호등(2026-10-05 대표 결정)
-        h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i></a>'
+        h.append('<a href="/zone/%s/"><b>%s</b>%s<i class="zv %s">%s</i></a>'
                  % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])),
-                    lights_html(SZ.yearly_supply(stats, o['z'], Lq, calc['H']) if stats else []),
+                    lights_html(SZ.yearly_supply(stats, o['z'], Lq, calc['H']) if stats else []), o['grade'],
                     card_html(o) if o.get('ctxt') else esc(o['rtxt'])))
     h.append('</div><p class="zsub" style="margin-top:14px">'
              '<a class="zback" href="/">← 전국 공급 표로 돌아가기</a></p></div></section>')
@@ -1488,27 +1527,26 @@ def build_hub(calc, stats=None):
     h.append('<section><div class="wrap"><h2>전국·수도권·지방</h2><div class="zlinks">')
     # 판정 태그(.sc-tier)는 칸에서 뺐다 — 그 자리를 해마다 입주 신호등이 맡는다(2026-10-05 대표 결정). 판정은 지도 색·리포트 본문에 남는다.
     for o in agg:
-        h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
-                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
+        h.append('<a href="/zone/%s/"><b>%s</b>%s<i class="zv %s">%s</i>%s</a>'
+                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]), o['grade'],
                     card_html(o) if o.get('ctxt') else esc(o['rtxt']), gauge_html(o)))
     h.append('</div><h2 class="z17">%d개 시도</h2>' % len(sido) +
              ''
              '<div class="zlinks" id="sido-list">')
     for o in sido:
         # 칸의 data-gi·data-tot(옛 정렬 토글이 읽던 등급·세대수)는 토글을 뺀 뒤 읽는 곳이 없어 걷었다(전수리뷰 Z1 overflow).
-        h.append('<a href="/zone/%s/"><b>%s</b>%s<i>%s</i>%s</a>'
-                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]),
+        h.append('<a href="/zone/%s/"><b>%s</b>%s<i class="zv %s">%s</i>%s</a>'
+                 % (urllib.parse.quote(o['z']), esc(SZ.disp(o['z'])), lights_html(outl[o['z']]), o['grade'],
                     card_html(o), gauge_html(o)))
     h.append('</div></div></section>')
-    h.append('<section class="zread"><div class="wrap"><h2>읽는 법</h2>%s<p class="zg-note">%s</p>%s</div></section>'
+    # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
+    # 화면인데 허브에서 가는 길이 없었다. 예전엔 제 절('매달 발표되는 통계') + 4열 격자에 카드 한 장이라 페이지 끝의 무게만
+    # 늘렸다(2026-11-07 디자인 검수 reports-13) — '읽는 법' 아래 한 줄 링크로 둔다.
+    h.append('<section class="zread"><div class="wrap"><h2>읽는 법</h2>%s<p class="zg-note">%s</p>%s'
+             '<p class="zsub zmonthly"><a href="/monthly/">이달의 통계 →</a> 시도별 매매·인허가·입주물량·미분양·전세가율을 '
+             '한 화면에서 봅니다.</p></div></section>'
              % (lights_legend_html(ny) if ny else '',
                 esc(GAUGE_NOTE), gauge_legend_html(calc['H'])))
-    # 이달의 통계 진입점(2026-09-15 점검 후속 ④) — 매달 정부 통계를 대조하는 사람에게 가장 맞는
-    # 화면인데 허브에서 가는 길이 없었다.
-    h.append('<section><div class="wrap"><h2>매달 발표되는 통계</h2><div class="zlinks">'
-             '<a href="/monthly/"><b>이달의 통계</b>'
-             '<i>시도별 매매·인허가·입주물량·미분양·전세가율을 한 화면에</i></a>'
-             '</div></div></section>')
     h.append(FOOT)
     return ''.join(h)
 

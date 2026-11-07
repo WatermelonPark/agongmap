@@ -418,7 +418,7 @@ def test_year_line_uses_the_card_months_and_labels_not_row_offsets():
     assert '전세가율 %.1f%%(2030년 5월) → %.1f%%(2031년 5월)' % (v(jr, '2030.05'), v(jr, '2031.05')) in line, line
     assert I.jeonse_ref_index(jr, I.JEONSE_NEED) == jd.index('2031.05')
     card = M.next_links('서울', None, stats)
-    assert '2031년 5월 기준' in card and '2031년 6월' not in re.search(r'<b>전세가율</b><i>(.*?)</i>', card).group(1), card
+    assert '2031년 5월 기준' in card and '2031년 6월' not in re.search(r'<b>전세가율</b><span>[^<]*</span><i>(.*?)</i>', card).group(1), card
     # 양 끝 값이 없으면 그 항목만 빠지고, 둘 다 없으면 줄이 없다
     assert M.year_line('서울', {'미분양': un}).count('전세가율') == 0
     assert M.year_line('서울', {}) == '' and M.year_line('없는곳', stats) == ''
@@ -622,7 +622,7 @@ def test_quarter_table_header_says_the_quarter_baseline():
     _, names = _zones()
     for z in names:
         s = _page(z)
-        th = re.search(r'<th>적정 대비<small class="zbase">([\d,]+)세대=100%</small></th>', s)
+        th = re.search(r'<th>적정 대비<small class="zbase">([\d,]+)세대(?:<wbr>)?=100%</small></th>', s)   # <wbr>: 375px 줄바꿈 자리(11-07)
         assert th, '%s: 적정 대비 열 머리에 분기 적정물량이 없다' % z
         base = int(th.group(1).replace(',', ''))
         card = re.search(r'분기 ([\d,]+)세대 × \d+분기', s)
