@@ -72,12 +72,14 @@ def og_image(meta, root=ROOT):
             return '%s/%s?v=%s' % (SITE, rel, meta['updated'])
     return SITE + OG_IMAGE
 
-SECTION_META = {
-    'city': ('도시 입주물량', '도시별 입주물량과 공급 흐름을 국가 통계로 읽습니다.'),
-    'gtx': ('GTX 역세권', 'GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.'),
-    'danji': ('단지 분석', '재건축·리모델링 단지를 공급 데이터와 함께 봅니다.'),
-    'column': ('반박', '공직자·정치인 발언을 입주 물량과 시세로 따집니다.'),
+# 섹션 이름은 content_md.TOPICS 의 짧은 이름에서 온다(칩 = 빵부스러기 = <title> = og = 카드 = llms). 여기에는 소개 한 줄만 적는다.
+_SECTION_DESC = {
+    'city': '도시별 입주물량과 공급 흐름을 국가 통계로 읽습니다.',
+    'gtx': 'GTX 노선과 역세권 아파트 공급을 국가 통계로 읽습니다.',
+    'danji': '재건축·리모델링 단지를 공급 데이터와 함께 봅니다.',
+    'column': '공직자·정치인 발언을 입주 물량과 시세로 따집니다.',
 }
+SECTION_META = {sec: (short, _SECTION_DESC[sec]) for _k, _q, short, sec in CM.TOPICS}
 assert set(SECTION_META) == set(CM.SECTIONS), '섹션 목록이 content_md 와 다르다'
 
 
@@ -108,22 +110,39 @@ def _inline(t):
 # ── 그림(인라인 SVG) ────────────────────────────────────────────────────────
 # 이미지 파일이 아니라 인라인 SVG 다(요청 ①, 총괄 10-27). 그래야 배치가 페이지를 다시 구울 때 숫자가 따라
 # 오고, 다크 모드도 CSS 변수로 따라온다. 색만으로 계열을 가르지 않는다 — 매매는 실선, 전세는 점선이다.
-CH_W, CH_BAR_H, CH_LINE_H = 640, 210, 150       # viewBox 크기(폭은 CSS 로 100% 가 된다)
+CH_W, CH_BAR_H, CH_LINE_H = 640, 210, 190       # viewBox 크기(폭은 CSS 로 100% 가 된다)
+# 그림 글자 크기(viewBox 단위). 데스크톱 기본이 17, 휴대폰 가장 좁은 화면이 32(EXTRA_CSS 미디어 규칙과 같은 값 — 시험이 대조한다).
+CH_UNIT, CH_UNIT_MAX = 17, 32
+CH_EM = 0.6               # 숫자 한 글자 폭 ≈ 0.6em(Pretendard 숫자·쉼표 어림, 넉넉하게)
 
 
-def _svg_open(spec, h):
+def _svg_open(spec, h, cls=''):
     # preserveAspectRatio 를 건드리지 않는다 — 'none' 으로 늘리면 좁은 화면에서 글자와 선 굵기가 함께
     # 늘어나 뭉갠다. 폭은 CSS(width:100%)가 맞추고 높이는 비율대로 따라온다.
-    return ('<svg viewBox="0 0 %d %d" role="img" aria-label="%s" class="cchart-svg">'
-            % (CH_W, h, html.escape(spec['alt'])))
+    return ('<svg viewBox="0 0 %d %d" role="img" aria-label="%s" class="cchart-svg%s">'
+            % (CH_W, h, html.escape(spec['alt']), cls))
+
+
+def _anchor(cx, txt, lo, hi):
+    """가운데 맞춤 글자가 그림 밖으로 나가면 끝 맞춤으로 — (x, 맞춤 클래스). 가장 큰 단위(휴대폰 32)로 잰다.
+
+    마지막 막대 값 '15,287'이 375px 에서 오른쪽 끝이 잘려 '15,28'로 읽혔다(2026-11-07 디자인 검수, 치명). 맞춤은 클래스로
+    준다(CSS 의 text-anchor 가 SVG 속성을 이긴다 — _lines_svg 주석)."""
+    half = len(txt) * CH_EM * CH_UNIT_MAX / 2.0
+    if cx + half > CH_W - 2:
+        return hi, ' cx-e'
+    if cx - half < 2:
+        return lo, ' cx-s'
+    return cx, ''
 
 
 def _bars_svg(spec):
     pts = spec['series'][0]['points']
     rule = spec.get('rule')
     top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
-    # 위 여백은 휴대폰 글자(viewBox 단위 26, .cb-v)가 가장 높은 막대 위에서 잘리지 않을 만큼 둔다.
-    pad_l, pad_b, pad_t = 8, 26, 30
+    # 위 여백은 휴대폰 글자(viewBox 단위 26, .cb-v)가 가장 높은 막대 위에서 잘리지 않을 만큼 둔다. 아래 여백은 휴대폰 x 축
+    # 글자(26~32 단위) 윗선이 막대 밑단에 붙지 않을 만큼(2026-11-07 디자인 검수 — 26 이라 연도 글자 위로 막대가 덮였다).
+    pad_l, pad_b, pad_t = 8, 40, 30
     plot_h = CH_BAR_H - pad_b - pad_t
     gap = 10
     # 막대가 두세 개뿐인 해(구미는 2027·2029 둘)에 폭을 다 나눠 가지면 화면을 꽉 메운 덩어리가 된다.
@@ -135,7 +154,10 @@ def _bars_svg(spec):
     # 마지막 해만 적는다 — 나머지 숫자는 바로 아래 표와 대체 텍스트에 있다.
     tight = bw < 34
     keep = {max(range(len(pts)), key=lambda i: pts[i][1]), len(pts) - 1}
-    out = [_svg_open(spec, CH_BAR_H)]
+    # 데스크톱 기본 단위(17)로도 값 글자가 막대 간격보다 넓으면 화면 폭과 상관없이 대표 둘만 적는다(cb-dense).
+    widest = max(len(CT.num(v)) for _, v in pts)
+    dense = widest * CH_EM * CH_UNIT > bw + gap
+    out = [_svg_open(spec, CH_BAR_H, ' cb-dense' if dense else '')]
     for i, (lab, v) in enumerate(pts):
         x = pad_l + i * (bw + gap)
         hh = max(1.0, v / float(top) * plot_h)
@@ -146,11 +168,14 @@ def _bars_svg(spec):
         # 휴대폰에서는 글자를 키우는 대신(.cb-* 미디어 규칙) 가장 큰 해·마지막 해(cb-k)만 값을 적고, 막대가 여섯 개를
         # 넘으면 x 축 이름을 하나 걸러 적는다(cb-x2) — 커진 글자끼리 겹치지 않게(2026-10-31 디자인 리뷰 2차).
         if not tight or i in keep:
-            out.append('<text x="%.1f" y="%.1f" class="cb-v%s">%s</text>'
-                       % (x + bw / 2, y - 4, ' cb-k' if i in keep else '', html.escape(CT.num(v))))
+            txt = CT.num(v)
+            tx, al = _anchor(x + bw / 2, txt, x, x + bw)
+            out.append('<text x="%.1f" y="%.1f" class="cb-v%s%s">%s</text>'
+                       % (tx, y - 4, ' cb-k' if i in keep else '', al, html.escape(txt)))
         odd = len(pts) > 6 and (len(pts) - 1 - i) % 2 == 1
-        out.append('<text x="%.1f" y="%d" class="cb-x%s">%s</text>'
-                   % (x + bw / 2, CH_BAR_H - 8, ' cb-x2' if odd else '', html.escape(str(lab))))
+        tx, al = _anchor(x + bw / 2, str(lab), x, x + bw)
+        out.append('<text x="%.1f" y="%d" class="cb-x%s%s">%s</text>'
+                   % (tx, CH_BAR_H - 8, ' cb-x2' if odd else '', al, html.escape(str(lab))))
     if rule and rule[0]:
         ry = pad_t + plot_h - rule[0] / float(top) * plot_h
         out.append('<line x1="%d" y1="%.1f" x2="%d" y2="%.1f" class="cb-rule"/>'
@@ -161,12 +186,20 @@ def _bars_svg(spec):
     return ''.join(out)
 
 
+def _pct_tick(v):
+    """눈금 글자 — 변동률 표기 정본(content_tables.pct, 소수 둘째 자리·표시값 부호)에 '%'. 0 은 '0'."""
+    t = CT.pct(v)
+    return '0' if t.strip('+-0.') == '' else t + '%'
+
+
 def _lines_svg(spec):
     ser = spec['series']
     vals = [v for s in ser for _, v in s['points']]
     hi, lo = max(vals + [0.0]), min(vals + [0.0])
     span = (hi - lo) or 1.0
-    pad_l, pad_t, pad_b = 8, 14, 24
+    # 위 여백은 최고 눈금 글자(휴대폰 26~32 단위)가 선 위에 설 자리, 아래 여백은 양 끝 날짜 줄(2026-11-07 디자인 검수 — 눈금 숫자가
+    # 하나도 없어 변동 폭이 +0.1 인지 +1.0 인지 보이지 않았다).
+    pad_l, pad_t, pad_b = 8, 34, 40
     plot_h = CH_LINE_H - pad_t - pad_b
     n = max(len(s['points']) for s in ser)
 
@@ -175,6 +208,13 @@ def _lines_svg(spec):
         return x, pad_t + plot_h - (v - lo) / span * plot_h
     out = [_svg_open(spec, CH_LINE_H)]
     zx, zy = xy(0, 0.0, n)
+    # 눈금: 최고·0·최저(같은 자리에 겹치면 0 을 남긴다). 최고·최저는 옅은 점선, 0 은 진한 척추. 글자는 왼쪽 안쪽에 선 위로.
+    ticks = [(0.0, zy)]
+    for v in (hi, lo):
+        y = xy(0, v, n)[1]
+        if abs(y - zy) >= 30:              # 26 단위 글자 한 줄보다 가까우면 0 눈금과 겹친다
+            ticks.append((v, y))
+            out.append('<line x1="%d" y1="%.1f" x2="%d" y2="%.1f" class="cl-grid"/>' % (pad_l, y, CH_W - pad_l, y))
     out.append('<line x1="%d" y1="%.1f" x2="%d" y2="%.1f" class="cl-zero"/>'
                % (pad_l, zy, CH_W - pad_l, zy))      # 0선 척추
     for s in ser:
@@ -183,6 +223,15 @@ def _lines_svg(spec):
         out.append('<path d="%s" class="cl cl-%s"/>' % (d, 'je' if s['name'] == '전세' else 'ma'))
         lx, ly = xy(len(s['points']) - 1, s['points'][-1][1], len(s['points']))
         out.append('<circle cx="%.1f" cy="%.1f" r="2.5" class="cl-dot"/>' % (lx, ly))
+    for v, y in ticks:
+        out.append('<text x="%d" y="%.1f" class="cb-x cx-s cl-t">%s</text>' % (pad_l + 2, y - 5, html.escape(_pct_tick(v))))
+    # 마지막 값은 첫 계열(매매 — 실선) 하나만, 점 왼쪽 위에 적는다. 두 계열 값을 나란히 적으면 휴대폰 글자에서 서로 겹친다 —
+    # 전세 값은 대체 텍스트와 본문에 있다.
+    s0 = ser[0]
+    lx, ly = xy(len(s0['points']) - 1, s0['points'][-1][1], len(s0['points']))
+    vy = ly - 8 if ly - 8 - 26 >= 0 else ly + 30
+    out.append('<text x="%.1f" y="%.1f" class="cb-v cb-k cx-e cl-t">%s</text>'
+               % (lx - 6, vy, html.escape(_pct_tick(s0['points'][-1][1]))))
     # 양 끝 날짜는 눈금 꼴 '9/28' 로만 적는다(연도는 각주에 있다, 날짜 두 단계 — sido_zones.day_text). 가장자리에 붙이면
     # 잘려 보여 안쪽으로 넣는다.
     ends = (ser[0]['points'][0][0], ser[0]['points'][-1][0])
@@ -257,6 +306,15 @@ def _cls(j, tx, text=''):
     return ' class="tx"' if (j in tx or len(plain) > LONG_CELL) else ''
 
 
+# 열이 이만큼 이상인 표는 휴대폰 단(331px)에 다 안 들어온다 — 표 밑에 '옆으로 밀어 N열 모두 보기' 한 줄(휴대폰에서만 보인다)을
+# 단다. 그림자 단서만으로는 몇 열이 숨었는지 몰랐다(2026-11-07 디자인 검수 — GTX 11열 표의 '필요 현금' 열).
+WIDE_COLS = 5
+
+
+def _tab_hint(ncols):
+    return ('<p class="ctab-hint">옆으로 밀어 %d열 모두 보기</p>' % ncols) if ncols >= WIDE_COLS else ''
+
+
 def _table_html(head, body, note=''):
     tx = _text_cols(body)
     h = ['<div class="ctab"><table><thead><tr>']
@@ -270,6 +328,7 @@ def _table_html(head, body, note=''):
     if note:
         h.append('<p class="cnote">%s</p>' % html.escape(note))
     h.append('</div>')
+    h.append(_tab_hint(len(head)))
     return ''.join(h)
 
 
@@ -305,6 +364,7 @@ def markdown(body):
                          + ['<td%s>%s</td>' % (_cls(j, tx, c), _inline(c)) for j, c in enumerate(r[1:], 1)])
                 h.append('<tr>%s</tr>' % ''.join(cells))
             h.append('</tbody></table></div>')
+            h.append(_tab_hint(len(head)))
             out.append(''.join(h))
             continue
         if re.match(r'^[-*]\s+', s) or re.match(r'^\d+\.\s+', s):
@@ -329,16 +389,53 @@ def markdown(body):
             para.append(lines[i].strip())
             i += 1
         if para:
-            out.append('<p>%s</p>' % _inline(' '.join(para)))
+            out.append(_para(' '.join(para)))
     return '\n'.join(out)
+
+
+# '※' 문단(표 밑 기준·읽는 법)이 이보다 길면 접는다 — 표 바로 밑 15줄 방법론이 결과 절을 막았다(2026-11-07 디자인 검수).
+NOTE_FOLD = 110
+NOTE_SUMMARY = '※ 이 표의 기준과 읽는 법'
+
+
+def _para(text):
+    """문단 하나. '※' 로 여는 문단은 기준·읽는 법이다 — 짧으면 각주 문단(.cnotep), 길면 접는 칸(.cfold). 원고 글자는 그대로 싣는다."""
+    if not text.startswith('※'):
+        return '<p>%s</p>' % _inline(text)
+    if len(text) <= NOTE_FOLD:
+        return '<p class="cnotep">%s</p>' % _inline(text)
+    return '<details class="cfold"><summary>%s</summary><p>%s</p></details>' % (
+        html.escape(NOTE_SUMMARY), _inline(text.lstrip('※').strip()))
 
 
 PLACEHOLDER = CT.PH      # 정규식은 content_tables 가 정본이다 — 종류가 늘면 한 곳만 고친다
 
 
-def fill_placeholders(body, data):
-    """자리표를 먼저 채운다. 표는 토큰으로 빼 두었다가 마크다운 변환 뒤 되돌린다."""
+SAME_NOTE = '출처는 위와 같습니다'
+
+
+def _card_in_key(v, key):
+    """카드 값('34%')이 글 머리 핵심 숫자 띠('적정물량의 34%')에 이미 있나 — 숫자 앞뒤가 다른 숫자에 붙지 않은 자리에서만."""
+    kv = (key or {}).get('value') or ''
+    v = (v or '').strip()
+    return bool(v and kv and re.search(r'(?<![\d.,])%s(?![\d.,])' % re.escape(v), kv))
+
+
+def fill_placeholders(body, data, key=None):
+    """자리표를 먼저 채운다. 표는 토큰으로 빼 두었다가 마크다운 변환 뒤 되돌린다.
+
+    key(글 머리 핵심 숫자 띠)를 주면 그림 숫자 카드 가운데 띠와 같은 값은 뺀다 — 같은 수가 띠·카드에 166px 사이로 두 번
+    섰다(2026-11-07 디자인 검수). 바로 앞 표·그림과 같은 각주는 '출처는 위와 같습니다' 한 줄로 줄인다 — 도시 편에서 같은
+    두 줄 각주가 표 셋·그림 하나 밑에 네 번 나왔다.
+    """
     blocks = []
+    last = {'note': None}
+
+    def note_of(n):
+        if n and n == last['note']:
+            return SAME_NOTE
+        last['note'] = n or last['note']
+        return n
 
     def sub(m):
         kind, rest = m.group(1), m.group(2)
@@ -348,9 +445,13 @@ def fill_placeholders(body, data):
         if kind == 'v':
             return CT.value(data, parts[0], parts[1:])
         if kind == 'chart':
-            blocks.append(_chart_html(CT.chart(data, parts[0], parts[1:])))
+            spec = dict(CT.chart(data, parts[0], parts[1:]))
+            spec['cards'] = [(k, v) for k, v in (spec.get('cards') or []) if not _card_in_key(v, key)]
+            spec['note'] = note_of(spec.get('note'))
+            blocks.append(_chart_html(spec))
         else:
-            blocks.append(_table_html(*CT.table(data, parts[0], parts[1:])))
+            head, rows, note = CT.table(data, parts[0], parts[1:])
+            blocks.append(_table_html(head, rows, note_of(note)))
         return '\n\n\x00TABLE%d\x00\n\n' % (len(blocks) - 1)
 
     return PLACEHOLDER.sub(sub, body), blocks
@@ -366,50 +467,58 @@ def restore_tables(html_text, blocks):
 LIST_CSS = """/* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) — 허브·섹션 목록·홈 "최근 리포트"·시도 리포트 '이 지역 글'이 카드 하나를 쓴다.
    카드 = 칩(지역·질문) → 결론 제목(두 줄) → 핵심 숫자(큰 값 + 작은 이름) → 날짜. 그림 썸네일은 없다(112×63 안 글자가 4~6px 라
    읽히지 않았고, 제목이 글 내용을 말하지 못해 '무엇이 내 관심사인지' 알 수 없었다 — 대표 지적 11-05). 모바일은 한 단, 768px
-   이상은 3열 같은 높이. */
-.rchips{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
-.rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:8px 12px;
+   이상은 3열 같은 높이. 간격은 4의 배수(2026-11-07 디자인 검수 — 5·6·10·14·22px 가 섞여 있었다). */
+/* 칩 줄은 휴대폰에서도 접어 내린다 — 가로 밀기였을 때 다섯째 질문 칩과 경기 지역 칩 대부분이 화면 밖에 단서 없이 숨었다
+   (2026-11-07 디자인 검수). 칩 높이 35px(손가락 목표에 가깝게). */
+.rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
+.rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
 .rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+/* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
+.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.kgrid{display:grid;gap:10px}
-.kcard{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--line);border-radius:3px;
+.kgrid{display:grid;gap:12px}
+.kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
  background:var(--paper);color:var(--ink);text-decoration:none;min-width:0}
+.kcard:hover{border-color:var(--ink2)}
+.kcard:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kcard[hidden]{display:none}
-.kc-chips{display:flex;gap:5px;flex-wrap:wrap}
-.kc-chip{font-size:13px;line-height:1;padding:4px 7px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
+/* 허브 '최근 글'은 첫 묶음만 보이고 '더 보기'로 편다(.kfold — 허브 JS 가 거를 때·펼 때 푼다, JS 가 없으면 noscript 가 푼다). */
+.kfold .kcard:nth-child(n+13){display:none}
+.kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
+.kc-chips{display:flex;gap:4px;flex-wrap:wrap}
+.kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
 .kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
-.kc-hook{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+/* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
+.kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
 .kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
-/* 질문 카드 — 허브 '질문으로 찾기'. 휴대폰은 질문·글 수만(첫 화면에 넷이 다 들어오게), 768px 이상은 최신 글 둘도. */
-.qgrid{display:grid;gap:8px;margin:0 0 22px}
-.qcard{display:flex;flex-direction:column;gap:4px;padding:12px 14px;border:1px solid var(--line);border-radius:3px;
- background:var(--paper);color:var(--ink);text-decoration:none}
+/* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
+   14px(2026-11-06 하한 — 13px 였다). */
+.qgrid{display:grid;gap:8px;margin:0 0 24px}
+.qcard{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:4px 12px;padding:12px 16px;
+ border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink);text-decoration:none}
+.qcard:hover{border-color:var(--ink2)}
 .qcard b{font-size:16px;font-weight:600;line-height:1.4}
-.qc-n{font-size:13px;color:var(--muted)}
-.qcard ul{display:none;margin:4px 0 0;padding:0 0 0 14px;font-size:13px;line-height:1.6;color:var(--ink2)}
-/* 지역 칩 — 시도별 한 줄. 허브 JS 가 data-city 로 카드를 거른다. JS 가 없으면 전부 보인다. */
-.cityf{margin:0 0 22px}
-.cf-g{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
-.cf-g em{font-style:normal;font-size:13px;font-weight:600;color:var(--ink2);min-width:3.2em}
+.qc-n{font-size:13px;color:var(--muted);white-space:nowrap}
+.qcard ul{grid-column:1/-1;list-style:none;margin:2px 0 0;padding:0;font-size:14px;line-height:1.55;color:var(--ink2)}
+.qcard li{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.qcard li+li{display:none}
+/* 지역 칩 — 시도별 한 줄(넘치면 접는다). 허브 JS 가 data-city 로 카드를 거른다. JS 가 없으면 전부 보인다. */
+.cityf{margin:0 0 24px}
+.cf-g{display:flex;gap:8px;align-items:flex-start;margin:0 0 8px}
+.cf-g em{flex:none;font-style:normal;font-size:13px;line-height:35px;font-weight:600;color:var(--ink2);min-width:3.2em}
+.cf-c{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
 .cf-n{font-size:13px;color:var(--muted);margin:0 0 12px}
-.rh2{font-size:16px;font-weight:600;margin:0 0 12px}
-.hub-basic-row{font-size:13px;color:var(--ink2);margin:8px 0 0;line-height:1.8}
-.hub-basic-row a{color:var(--ink2)}
+/* 절 제목은 뼈대 h2 와 같은 급(20px/700) — 16px/600 이라 카드 제목과 같은 급이었다(2026-11-07 디자인 검수). */
+.rh2{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.35;margin:0 0 12px}
 @media (min-width:768px){
-  .kgrid{grid-template-columns:repeat(3,1fr);gap:14px}
+  .kgrid{grid-template-columns:repeat(3,1fr);gap:16px}
   .qgrid{grid-template-columns:repeat(2,1fr)}
-  .qcard ul{display:block}
-}
-@media (max-width:600px){
-  .rchips{flex-wrap:nowrap;overflow-x:auto}
-  .rchip{flex:none}
-  .cf-g{flex-wrap:nowrap;overflow-x:auto}
-  .cf-g .rchip{flex:none}
+  .qcard li+li{display:-webkit-box}
 }"""
 # 콘텐츠 페이지는 app.css 를 링크하지 않고 뼈대의 인라인 style 을 쓴다. 홈은 app.css 를 읽는다.
 # 그래서 같은 글자가 두 곳에 있고, test_content_pages 가 app.css 의 LIST_CSS 구간과 대조한다.
@@ -419,14 +528,15 @@ EXTRA_CSS = LIST_CSS + """
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
 .cchart{margin:0 0 20px;padding:0}
-.cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0}
+.cchart-svg{display:block;width:100%;max-width:640px;height:auto;margin:2px 0 0;overflow:visible}
 .ccards{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}
 .ccard{flex:1 1 30%;min-width:96px;background:var(--paper2);border:1px solid var(--line);
  border-radius:3px;padding:8px 10px}
 .ccard b{display:block;font-size:18px;font-weight:600;line-height:1.25;letter-spacing:-.01em}
-.ccard span{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+/* 회색 종이(paper2) 위 라벨은 ink2 — muted 는 4.44:1 로 4.5 에 못 미쳤다(2026-11-07 디자인 검수). */
+.ccard span{display:block;font-size:13px;color:var(--ink2);margin-top:2px}
 .cchart figcaption,.clegend{font-size:13px;color:var(--muted);margin:6px 0 0;line-height:1.55}
-.cfoot3{font-size:13px;color:var(--ink);margin:4px 0 0;line-height:1.55}
+.cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
 .clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
@@ -440,26 +550,41 @@ EXTRA_CSS = LIST_CSS + """
 .cb-rule{stroke:var(--ink);stroke-width:1;stroke-dasharray:4 3;opacity:.65}
 .cb-rl{fill:var(--muted);font-size:11px}
 /* 그림 글자는 viewBox(640) 단위라 단이 좁아지면 함께 줄어든다 — 375px 에서 11 단위가 5.7px 로 그려졌다(2026-10-31 디자인
-   리뷰 2차). 단 폭에 맞춰 단위를 올려 화면에서 13px 안팎이 되게 하고, 커진 글자가 겹치지 않게 값은 대표 둘(cb-k)만,
-   막대가 많으면 x 축 이름은 하나 걸러(cb-x2) 적는다. 폭 640px 이상 단에서는 11 → 13 단위 그대로 13px 이다. */
-.cb-v,.cb-x,.cb-rl{font-size:13px}
-@media (max-width:687px){.cb-v,.cb-x,.cb-rl{font-size:16px}.cb-v:not(.cb-k),.cb-x2{display:none}}
+   리뷰 2차). 글 단(.wrap 560 - 좌우 22)은 600px 이상 화면에서 516px 이라 13 단위는 10.5px 였다(2026-11-07 디자인 검수) —
+   기본을 17 단위(516px 에서 13.7px)로 두고 단이 좁아지면 단위를 올린다. 커진 글자가 겹치지 않게 휴대폰은 값을 대표 둘(cb-k)만,
+   막대가 많으면 x 축 이름은 하나 걸러(cb-x2) 적는다. 17 단위 값이 막대 간격에 안 들어가는 그림(cb-dense)은 화면 폭과
+   상관없이 대표 둘만 적는다. 크기 계산은 test_content_review2.test_chart_labels_hold_13px_on_a_phone 이 본다. */
+.cb-v,.cb-x,.cb-rl{font-size:17px}
+@media (max-width:687px){.cb-v:not(.cb-k),.cb-x2{display:none}}
 @media (max-width:580px){.cb-v,.cb-x,.cb-rl{font-size:19px}}
 @media (max-width:500px){.cb-v,.cb-x,.cb-rl{font-size:22px}}
 @media (max-width:440px){.cb-v,.cb-x,.cb-rl{font-size:24px}}
 @media (max-width:400px){.cb-v,.cb-x,.cb-rl{font-size:26px}}
 @media (max-width:368px){.cb-v,.cb-x,.cb-rl{font-size:29px}}
 @media (max-width:335px){.cb-v,.cb-x,.cb-rl{font-size:32px}}
+.cb-dense .cb-v:not(.cb-k){display:none}
+/* 끝 맞춤한 값이 옆 막대에 걸쳐도 읽히게 종이색 테두리(마지막 막대 값이 한 칸 왼쪽으로 들어온다). */
+.cb-v{paint-order:stroke;stroke:var(--paper);stroke-width:4px;stroke-linejoin:round}
+/* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
+.cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
+.cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
 .cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
 .cl-je{stroke-dasharray:4 3;opacity:.75}
-.cl-zero{stroke:var(--line);stroke-width:1}
+.cl-zero{stroke:var(--muted);stroke-width:1}
 .cl-dot{fill:var(--ink)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
+.cmeta a{white-space:nowrap}
+/* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
+   두 개였다(2026-11-07 디자인 검수). 허브 제목은 리포트 급(--h1-report), 글 제목은 데스크톱에서 38px(본문 15px 의 2.5배). */
+.hub-head,.post-head{text-align:left;padding:32px 0 8px}
+.hub-q .qgrid,.hub-city .cityf{margin-bottom:0}
+.hub-head h1{font-size:var(--h1-report);line-height:1.2}
+@media (min-width:1024px){.post-head h1{font-size:38px}}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
 .ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--muted);margin:0 0 6px}
+.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
@@ -467,19 +592,36 @@ EXTRA_CSS = LIST_CSS + """
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
 .ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
 .ckey span{font-size:13px;color:var(--muted)}
-.cmore{margin-top:26px}
-.cmore h2{font-size:16px;margin:0 0 10px}
-.cmore-l{display:flex;gap:10px;flex-wrap:wrap}
-.cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;text-decoration:none;color:var(--ink);font-size:14px}
+.cmore{margin-top:8px}
+.cmore h2{font-size:20px;margin:0 0 12px}
+.cmore-l{display:flex;gap:8px;flex-wrap:wrap}
+.cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
-.cbody h2{font-size:20px;margin:28px 0 10px}
-.cbody h3{font-size:16.5px;margin:22px 0 8px}
+/* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
+.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
+.cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
+.cbody h3{font-size:18px;margin:22px 0 8px}
+/* 본문 링크가 브라우저 기본 파랑이었다(도시 편 '더 보기' 목록 — 뼈대 규칙은 p 안 링크만 잡는다). */
+.cbody a:not([class]){color:var(--ink);text-decoration-color:var(--line);text-decoration-thickness:1px;text-underline-offset:3px}
+.cbody a:not([class]):hover{text-decoration-color:var(--ink)}
+/* '※' 로 여는 문단은 표 밑 기준·읽는 법이다. 짧으면 한 줄 각주(14px — 문장이다), 길면 접는다(.cfold): 표 바로 밑에
+   방법론 15줄이 본문 크기로 서서 결과 절을 막았다(2026-11-07 디자인 검수). 원고 글자는 그대로다. */
+.cbody p.cnotep{font-size:14px;line-height:1.7;color:var(--ink2)}
+.cfold{margin:0 0 14px;border-left:2px solid var(--line);padding:0 0 0 12px}
+.cfold summary{font-size:13px;color:var(--ink2);cursor:pointer;padding:6px 0}
+.cfold summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.cbody .cfold p{font-size:14px;line-height:1.7;color:var(--ink2);margin:4px 0 8px}
 .cbody p{font-size:15px;line-height:1.8;margin:0 0 14px}
 .cbody li{font-size:15px;line-height:1.8}
 .cbody blockquote{margin:0 0 14px;padding:10px 14px;background:var(--paper2);border-radius:3px}
-.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.2),transparent) left center/10px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.2),transparent) right center/10px 100% no-repeat scroll}
-/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰) */
-@media (max-width:600px){.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}}
+.ctab{overflow-x:auto;margin:0 0 16px;background:linear-gradient(to right,var(--paper) 30%,rgba(255,255,255,0)) left center/24px 100% no-repeat local,linear-gradient(to left,var(--paper) 30%,rgba(255,255,255,0)) right center/24px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.28),transparent) left center/16px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.28),transparent) right center/16px 100% no-repeat scroll}
+/* ↑ 넘침 표시 — 가로로 밀 것이 남은 쪽 가장자리에 그림자(지표 페이지 .tbl-wrap 과 같은 규칙, 2026-10-30 디자인 리뷰). 2026-11-07 디자인
+   검수: 10px 그림자가 눈에 안 띄어 16px 로 키우고, 첫 열(단지·항목 이름)은 데스크톱에서도 붙여 둔다 — 열이 많은 표(GTX 11열)는
+   960px 로 펴도 넘쳐, 밀면 어느 행인지 놓쳤다. 열이 많은 표(.ctab-wide)는 휴대폰에서 표 밑에 '옆으로 밀기' 한 줄을 단다. */
+.ctab th[scope=row]{position:sticky;left:0;background:var(--paper);z-index:1}
+.ctab-hint{display:none;font-size:13px;color:var(--muted);margin:-10px 0 16px}
+@media (max-width:600px){.ctab-hint{display:block}}
 .ctab table{width:100%;border-collapse:collapse;font-size:14px}
 .ctab th,.ctab td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 .ctab th[scope=row]{text-align:left;font-weight:500}
@@ -491,22 +633,32 @@ EXTRA_CSS = LIST_CSS + """
 }
 .ctab thead th{border-bottom:1.5px solid var(--ink);font-size:13px;color:var(--muted)}
 .cnote{font-size:13px;color:var(--muted);margin:6px 0 0}
-.csrc{font-size:13px;color:var(--ink2);line-height:1.7}
+.csrc{font-size:14px;color:var(--ink2);line-height:1.7}
 /* 목록 글머리표가 단 여백 밖(화면 끝)에 걸렸다 — 뼈대가 padding 을 0 으로 지운다(2026-10-31 디자인 리뷰 2차). */
 .cbody ul,.cbody ol,.csrc{padding-left:1.3em;margin:0 0 14px}
 /* 빵부스러기 링크가 브라우저 기본 파랑이었다(사이트에서 남은 유일한 자리). */
 .crumb a{color:var(--ink2);text-decoration-color:var(--line)}
-/* 본문 그림은 원본으로 열린다 — 표 그림(평형별 시세 등)이 휴대폰 단 폭으로 줄어 그림 속 글자가 4px 가 됐다. */
+/* 본문 그림은 원본으로 열린다 — 표·지도 캡처가 휴대폰 단 폭으로 줄어 그림 속 글자가 3~4px 가 됐다. 혼자 선 그림은 figure 로
+   굽고 밑에 그림 이름과 '눌러서 크게 보기'를 단다 — 눌러지는 줄 아무 표시가 없었다(2026-11-07 디자인 검수). */
 .cimg{display:block;margin:0 0 16px}
 .cimg img{margin:0}
+.cfig{margin:0 0 16px}
+.cfig .cimg{margin:0;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.cfig figcaption{font-size:13px;color:var(--ink2);margin:6px 0 0;line-height:1.55}
+.cbody .cfig figcaption a{color:var(--ink2);text-decoration-color:var(--line);white-space:nowrap}
 .csrc li{margin-bottom:3px}
-.cfaq{margin-top:26px}
+/* 꼬리 절 사이 간격은 뼈대 section 여백 하나만 — 출처 절과 FAQ 사이가 80px 비어 글이 끝난 것처럼 보였다(2026-11-07 디자인 검수). */
+.csrc-s{padding-bottom:0}
+.cfaq{margin-top:0}
 .cfaq dt{font-weight:600;font-size:15px;margin-top:14px}
 .cfaq dd{margin:6px 0 0;font-size:14.5px;line-height:1.75;color:var(--ink2)}
-.cnav{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
-.cnav a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:11px 13px;
- text-decoration:none;color:var(--ink);font-size:14px}
+/* 이전·다음 글과 섹션 목록은 2급 — 테두리 없이 위아래 선만. 휴대폰은 이전·다음을 한 줄에. */
+.cnav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px}
+.cnav a{min-width:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 2px;
+ text-decoration:none;color:var(--ink2);font-size:14px;line-height:1.5}
 .cnav a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
+.cnav a.cnav-n{text-align:right}
+.cnav a.cnav-hub{grid-column:1/-1;color:var(--ink);font-weight:600}
 .clist{display:flex;flex-direction:column;gap:10px;margin-top:18px}
 .clist a{border:1px solid var(--line);border-radius:3px;padding:13px 15px;text-decoration:none;color:var(--ink)}
 .clist b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px}
@@ -619,8 +771,20 @@ def _newest(metas, n=None):
     return out[:n] if n else out
 
 
-def cards_grid(metas, n=None):
-    return '<div class="kgrid">%s</div>' % ''.join(card(m) for m in _newest(metas, n))
+def cards_grid(metas, n=None, fold=None):
+    """카드 격자. fold 를 주면 그 수 뒤 카드는 접어 두고(.kfold) '글 N편 더 보기' 단추를 단다 — 허브 '최근 글'이 40장을 한 번에
+    쌓아 휴대폰에서 7,000px 카드 벽이었다(2026-11-07 디자인 검수). 카드는 모두 마크업에 있다(거르기·검색·JS 없는 독자)."""
+    got = _newest(metas, n)
+    if not fold or len(got) <= fold:
+        return '<div class="kgrid">%s</div>' % ''.join(card(m) for m in got)
+    assert fold == HUB_FIRST, 'LIST_CSS 의 .kfold nth-child(n+%d) 와 수가 다르다' % (HUB_FIRST + 1)
+    return ('<div class="kgrid kfold">%s</div>'
+            '<button type="button" class="rchip kmore">글 %d편 더 보기</button>'
+            '<noscript><style>.kfold .kcard:nth-child(n){display:flex}.kmore{display:none}</style></noscript>'
+            % (''.join(card(m) for m in got), len(got) - fold))
+
+
+HUB_FIRST = 12      # 허브 '최근 글'이 처음 보이는 카드 수(3열 네 줄). LIST_CSS 의 .kfold nth-child(n+13) 과 짝이다
 
 
 def city_sido(name):
@@ -637,39 +801,72 @@ def city_sido(name):
 
 
 def city_groups(metas):
-    """[(시도 화면 이름, [지역 칩 이름…])] — 글의 city 에서 모아 시도 표시 순서(DISPLAY_ORDER)로. 글 수 많은 지역이 앞."""
+    """[(시도 화면 이름, [지역 칩 이름…])] — 글의 city 에서 모아 시도 표시 순서(DISPLAY_ORDER)로.
+
+    한 시도 안에서는 이름 순이라 시와 그 구가 붙어 선다('부천' 다음 '부천 오정구'·'부천 원미구' — 글 수 순일 때는 '부천'이
+    13번째, '부천 원미구'가 2번째로 떨어져 섰다, 2026-11-07 디자인 검수). 구 칩만 둘 이상인 시('고양 덕양구'·'고양 일산동구')는
+    시 칩('고양')을 앞에 하나 더 세운다 — 시 칩은 앞말로 걸러(FILTER_JS) 그 시의 구 글을 모두 남긴다. 시도 이름('서울')은
+    시 칩으로 세우지 않는다('서울 전체'가 따로 있다).
+    """
     import sido_zones as SZ
-    cnt, by = {}, {}
+    by = {}
     for m in metas:
         for c in post_cities(m):
-            cnt[c] = cnt.get(c, 0) + 1
             by.setdefault(city_sido(c) or '', set()).add(c)
+    sido_names = set(SZ.ORDER) | set(SZ.DISPLAY_NAME.values())
+    for z, names in by.items():
+        heads = {}
+        for c in names:
+            if ' ' in c:
+                heads.setdefault(c.split(' ')[0], set()).add(c)
+        for h, kids in heads.items():
+            if h not in names and h not in sido_names and len(kids) >= 2:
+                names.add(h)
     order = [z for z in SZ.DISPLAY_ORDER if z in by] + sorted(k for k in by if k not in SZ.DISPLAY_ORDER)
-    return [(SZ.DISPLAY_NAME.get(z, z) if z else '그 밖', sorted(by[z], key=lambda c: (-cnt[c], c))) for z in order]
+    key = lambda c: (c.split(' ')[0], ' ' in c and not c.endswith(' 전체'), c)     # 시·'○○ 전체'가 그 구들 앞
+    return [(SZ.DISPLAY_NAME.get(z, z) if z else '그 밖', sorted(by[z], key=key)) for z in order]
+
+
+def _chip_label(c, names):
+    """지역 칩 글자 — 바로 앞에 그 시의 칩이 있는 구는 구 이름만('부천' 다음의 '원미구'). 거르는 값(data-city)은 이름 그대로다."""
+    head, _, rest = c.partition(' ')
+    return rest if rest and head in names and not rest.endswith('전체') else c
 
 
 def city_chips(metas, total_label='글'):
-    """'지역으로 찾기' — 시도별 칩 줄. 칩은 button(JS 가 거른다). JS 없이는 모두 보이는 목록이라 입구 구실은 그대로다."""
+    """'지역으로 찾기' — 시도별 칩 줄. 칩은 button(JS 가 거른다). JS 없이는 모두 보이는 목록이라 입구 구실은 그대로다.
+
+    첫 줄의 '전체' 칩은 거름을 푸는 단추라 글자도 '전체 N편'이다('글 N편'은 편수 이름표로 읽혀 눌리는 줄 몰랐다).
+    """
     groups = city_groups(metas)
     if not groups:
         return ''
-    rows = ['<div class="cf-g"><em>전체</em><button type="button" class="rchip on" data-city="">%s %d편</button></div>'
-            % (html.escape(total_label), len(metas))]
+    rows = ['<div class="cf-g"><em></em><span class="cf-c"><button type="button" class="rchip on" data-city="">전체 %d편</button></span></div>'
+            % len(metas)]
     for sido, cities in groups:
-        rows.append('<div class="cf-g"><em>%s</em>%s</div>' % (html.escape(sido), ''.join(
-            '<button type="button" class="rchip" data-city="%s">%s</button>' % (html.escape(c), html.escape(c)) for c in cities)))
+        names = set(cities)
+        rows.append('<div class="cf-g"><em>%s</em><span class="cf-c">%s</span></div>' % (html.escape(sido), ''.join(
+            '<button type="button" class="rchip" data-city="%s">%s</button>'
+            % (html.escape(c), html.escape(_chip_label(c, names))) for c in cities)))
     # 거른 수 줄은 거를 때만 보인다(hidden) — 전체일 때는 '전체' 칩이 이미 편수를 말한다.
     return '<nav class="cityf" aria-label="지역으로 찾기">%s</nav><p class="cf-n" hidden>%s %d편</p>' % (''.join(rows), html.escape(total_label), len(metas))
 
 
 # 지역 칩이 카드를 거르는 스크립트. 칩을 다시 누르면 푼다. 거른 수는 .cf-n 에 적는다.
-FILTER_JS = ("<script>(function(){var f=document.querySelector('.cityf');if(!f)return;"
+# 거르기는 이름 그대로이거나 **앞말 + 빈칸**이 같으면 남긴다 — '부천' 칩이 '부천 원미구'·'부천 오정구' 글까지 남긴다(정확 일치일
+# 때는 '수원'을 누르면 영통구 글 4편이 숨었다, 2026-11-07 디자인 검수). 빈칸까지 보므로 '광주'가 '광주시' 꼴을 잘못 잡지 않는다.
+# 허브 '최근 글'의 접힘(.kfold)은 거르는 동안 풀고(맞는 글이 모두 보인다), '더 보기'를 누르면 아주 푼다.
+FILTER_JS = ("<script>(function(){var g=document.querySelector('.kgrid.kfold'),mb=document.querySelector('.kmore'),open=false;"
+             "if(mb)mb.addEventListener('click',function(){open=true;if(g)g.classList.remove('kfold');mb.hidden=true});"
+             "var f=document.querySelector('.cityf');if(!f)return;"
              "var cards=document.querySelectorAll('.kgrid .kcard[data-city]'),n=document.querySelector('.cf-n');"
              "f.addEventListener('click',function(e){var b=e.target.closest('.rchip');if(!b)return;e.preventDefault();"
              "var c=b.getAttribute('data-city')||'',on=!!c&&!b.classList.contains('on'),k=0;"
              "f.querySelectorAll('.rchip.on').forEach(function(x){x.classList.remove('on')});"
-             "cards.forEach(function(x){var s=!on||('|'+x.getAttribute('data-city')+'|').indexOf('|'+c+'|')>=0;x.hidden=!s;if(s)k++});"
+             "cards.forEach(function(x){var d='|'+x.getAttribute('data-city')+'|',"
+             "s=!on||d.indexOf('|'+c+'|')>=0||d.indexOf('|'+c+' ')>=0;x.hidden=!s;if(s)k++});"
              "(on?b:f.querySelector('.rchip[data-city=\\\"\\\"]')).classList.add('on');"
+             "if(g)g.classList.toggle('kfold',!on&&!open);if(mb)mb.hidden=on||open;"
              "if(n){n.textContent=(on?c+' ':'')+'글 '+k+'편';n.hidden=!on}});})();</script>")
 
 
@@ -689,7 +886,8 @@ def section_chips(cur=None):
     """섹션(질문) 사이를 건너뛰는 칩. 첫 칩은 '전체'(허브). 이름은 TOPICS 의 짧은 이름 — 허브 질문 카드와 같은 넷이다."""
     out = ['<a class="rchip" href="/%s/">전체</a>' % REPORTS_DIR]
     for k, _q, short, sec in TOPICS:
-        out.append('<a class="rchip%s" href="/%s/">%s</a>' % (' on' if sec == cur else '', sec, html.escape(short)))
+        # 지금 섹션은 aria-current(테두리 꼴) — 지역 칩의 '켜짐'(채움)과 같은 꼴이면 어느 것이 페이지인지 갈리지 않았다.
+        out.append('<a class="rchip" href="/%s/"%s>%s</a>' % (sec, ' aria-current="page"' if sec == cur else '', html.escape(short)))
     return '<nav class="rchips" aria-label="질문으로 찾기">%s</nav>' % ''.join(out)
 
 
@@ -709,7 +907,8 @@ def region_box(meta, data, others=None):
     rows = []
     zone = zone_of(meta) if meta.get('region') else None
     if zone:
-        z = _zone_link(meta['region'])
+        # 시도 키로 찾는다 — 도시 글(region '수원')은 region 이 시도가 아니라 리포트 카드가 빠졌다(2026-11-07 디자인 검수).
+        z = _zone_link(zone)
         if z:
             rows.append(z)
     cities = [c for c in (meta.get('city') or []) if c]
@@ -725,6 +924,7 @@ def region_box(meta, data, others=None):
             break
     if not rows:
         return ''
+    rows[0] = rows[0].replace('<a ', '<a class="cgo" ', 1)     # 첫 행동 하나만 채운다(LIST 밖 EXTRA_CSS .cgo)
     return '<section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l">%s</div></section>' % ''.join(rows)
 
 
@@ -736,6 +936,9 @@ def strip_lead_thumb(body_md):
     return _LEAD_THUMB.sub('', body_md, count=1)
 
 
+IMG_HINT = '눌러서 크게 보기'
+
+
 def content_img_src(body_html, sec):
     """원고의 상대 그림 주소(img/x.png)를 원고 폴더의 절대 주소(/content/<섹션>/img/x.png)로.
 
@@ -744,27 +947,45 @@ def content_img_src(body_html, sec):
     디자인 리뷰). 그림은 복사하지 않고 원고 폴더 한 곳에 둔다(content/ 는 Pages 배포에 포함된다)."""
     out = re.sub(r'(<img src=")(?![a-z]+:|/|#)([^"]+)"',
                   lambda m: '%s/content/%s/%s"' % (m.group(1), sec, m.group(2)), body_html)
+
     # 원본으로 여는 링크로 감싼다 — 단 폭으로 줄인 표 그림을 휴대폰에서 크게 볼 길(2026-10-31 디자인 리뷰 2차).
-    return re.sub(r'<img src="([^"]+)"([^>]*)>',
-                  lambda m: '<a class="cimg" href="%s" target="_blank" rel="noopener">%s</a>' % (m.group(1), m.group(0)), out)
+    def wrap(m):
+        return '<a class="cimg" href="%s" target="_blank" rel="noopener">%s</a>' % (m.group(1), m.group(0))
+
+    # 혼자 선 그림(문단 하나가 그림 하나)은 figure 로 굽고 밑에 그림 이름·'눌러서 크게 보기'를 단다 — 지도·표 캡처가 단 폭으로
+    # 줄어 글자가 3~4px 인데 눌러지는 표시가 없었다(2026-11-07 디자인 검수). 문장 속 그림은 링크만 둔다.
+    def fig(m):
+        img = m.group(1)
+        src = re.search(r'src="([^"]+)"', img).group(1)
+        alt = re.search(r'alt="([^"]*)"', img)
+        cap = (alt.group(1) + ' · ') if alt and alt.group(1) else ''      # alt 는 이미 이스케이프된 글자다(_inline)
+        return ('<figure class="cfig">%s<figcaption>%s<a href="%s" target="_blank" rel="noopener">%s</a></figcaption></figure>'
+                % (re.sub(r'<img src="([^"]+)"([^>]*)>', wrap, img), cap, src, IMG_HINT))
+    alone = re.compile(r'^<p>\s*(<img [^>]*>)\s*</p>$')
+    parts = re.split(r'(<p>\s*<img [^>]*>\s*</p>)', out)
+    return ''.join(alone.sub(fig, p) if alone.match(p) else re.sub(r'<img src="([^"]+)"([^>]*)>', wrap, p) for p in parts)
 
 
 def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
-    filled, blocks = fill_placeholders(strip_lead_thumb(body_md), data)
+    filled, blocks = fill_placeholders(strip_lead_thumb(body_md), data, key=_key_of(meta))
     sec = meta['section']
     body_html = content_img_src(restore_tables(markdown(filled), blocks), sec)
     url = '%s/%s/%s/' % (SITE, sec, meta['slug'])
     srcs = meta.get('sources') or []
     nav = []
     if prev:
-        nav.append('<a href="/%s/%s/"><span>이전 글</span>%s</a>' % (sec, prev['slug'], html.escape(prev['title'])))
+        nav.append('<a class="cnav-p" href="/%s/%s/"><span>이전 글</span>%s</a>' % (sec, prev['slug'], html.escape(prev['title'])))
     if nxt:
-        nav.append('<a href="/%s/%s/"><span>다음 글</span>%s</a>' % (sec, nxt['slug'], html.escape(nxt['title'])))
+        nav.append('<a class="cnav-n" href="/%s/%s/"><span>다음 글</span>%s</a>' % (sec, nxt['slug'], html.escape(nxt['title'])))
     more = region_box(meta, data, others)
     if meta.get('region') and not more:
-        z = _zone_link(meta['region'])
+        z = _zone_link(zone_of(meta) or meta['region'])
         if z:
-            nav.append(z)
+            nav.append(z.replace('<a ', '<a class="cnav-hub" ', 1))
+    # 글 끝에서 섹션 목록으로 돌아가는 길(2026-11-07 디자인 검수 — 머리 눈썹·빵부스러기에만 있었다).
+    tk = topic_of(meta)
+    nav.append('<a class="cnav-hub" href="/%s/"><span>이 질문의 글 모두</span>%s</a>'
+               % (TOPIC_BY[tk][2], html.escape(TOPIC_BY[tk][0])))
     faq_html = ''
     if meta.get('faq'):
         items = ''.join('<dt>%s</dt><dd>%s</dd>' % (html.escape(f['q']), html.escape(f['a']))
@@ -772,7 +993,7 @@ def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
         faq_html = '<section class="cfaq"><h2>자주 묻는 질문</h2><dl>%s</dl></section>' % items
     src_html = ''
     if srcs:
-        src_html = ('<section><h2>숫자의 출처</h2><ul class="csrc">%s</ul></section>'
+        src_html = ('<section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc">%s</ul></section>'
                     % ''.join('<li>%s</li>' % html.escape(s) for s in srcs))
     # 글 머리(11-05 개편): 눈썹(질문 · 지역) → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문.
     # summary 는 설명 메타·og·JSON-LD·피드에 남고 화면에서는 3줄 요약이 그 자리다(둘 다 두면 같은 말이 두 번).
@@ -792,7 +1013,7 @@ def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
     if not head:
         head = '<p class="csum">%s</p>' % html.escape(meta['summary'])   # 옛 양식 글(lenient) — 결론 상자로 되돌아간다
     body = (
-        '<header><div class="wrap">'
+        '<header class="post-head"><div class="wrap">'
         '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">%s</a> › <a href="/%s/">%s</a></nav>'
         '%s<h1>%s</h1>'
         '<p class="cmeta">%s 작성 · %s 갱신 · <a href="/about/">%s</a></p>'
@@ -827,11 +1048,11 @@ def build_index(sec, posts_meta):
     url = '%s/%s/' % (SITE, sec)
     q = TOPIC_BY[SECTION_TOPIC[sec]][0]
     items = cards_grid(posts_meta) if posts_meta else '<p>아직 글이 없습니다.</p>'
-    body = ('<header><div class="wrap">'
-            '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">콘텐츠</a> › <b>%s</b></nav>'
+    body = ('<header class="hub-head"><div class="wrap">'
+            '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">%s</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
             '<section><div class="wrap">%s%s%s</div></section>%s'
-            % (REPORTS_DIR, html.escape(name), html.escape(q), html.escape(desc),
+            % (REPORTS_DIR, html.escape(REPORTS_TITLE), html.escape(name), html.escape(q), html.escape(desc),
                section_chips(sec), city_chips(posts_meta), items, FILTER_JS if posts_meta else ''))
     lastmod = max([m['updated'] for m in posts_meta], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
@@ -873,34 +1094,37 @@ def _page_title(slug, root=ROOT):
 
 
 def basic_row(root=ROOT):
-    """'기본 개념' 한 줄 — 허브 맨 아래. 이름은 각 페이지 <title> 에서 읽는다(11-05 개편: 카드 다섯 장에서 한 줄로 줄였다 — 상시
-    글이라 입구만 있으면 된다)."""
+    """'기본 개념' 칩 줄 — 허브 '지역으로 찾기' 바로 아래. 이름은 각 페이지 <title> 에서 읽는다.
+
+    11-05 개편 때 카드 다섯 장을 맨 아래 13px 한 줄(중점 다섯 개)로 줄였더니 40장 카드 뒤 푸터와 같은 꼴이라 입구 구실을
+    못 했다(2026-11-07 디자인 검수). 절 제목(.rh2)과 칩(.rchip)으로 질문·지역 입구와 같은 급에 둔다."""
     out = []
     for slug in BASIC_PAGES:
         name, _sub = _page_title(slug, root)
         if name:
-            out.append('<a href="/%s/">%s</a>' % (slug, html.escape(name)))
+            out.append('<a class="rchip" href="/%s/">%s</a>' % (slug, html.escape(name)))
     if not out:
         return ''
-    return '<p class="hub-basic-row"><b>%s</b> · %s</p>' % (html.escape(BASIC_H2), ' · '.join(out))
+    return ('<section class="hub-basic"><div class="wrap"><h2 class="rh2">%s</h2><nav class="rchips" aria-label="%s">%s</nav>'
+            '</div></section>' % (html.escape(BASIC_H2), html.escape(BASIC_H2), ''.join(out)))
 
 
 def build_reports(all_metas, data=None):
-    """콘텐츠 허브(2026-11-05 개편) — '질문으로 찾기' 넷, '지역으로 찾기' 시도별 칩, 최근 글 전부(카드), 맨 아래 '기본 개념' 한 줄.
+    """콘텐츠 허브(2026-11-05 개편) — '질문으로 찾기' 넷, '지역으로 찾기' 시도별 칩, '기본 개념' 칩, 최근 글(첫 HUB_FIRST 장 + 더 보기).
 
     옛 허브(카테고리 카드 여섯 장, 10-29·10-30 결정)는 '무엇이 내 관심사인지' 말하지 못했다(대표 11-05). 독자는 질문이나 내
     동네로 들어와 결론 카드로 글을 고른다.
     """
     newest = _newest(all_metas)
-    body = ('<header><div class="wrap">'
+    body = ('<header class="hub-head"><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
             '<section class="hub-q"><div class="wrap"><h2 class="rh2">질문으로 찾기</h2>%s</div></section>'
-            '<section class="hub-city"><div class="wrap"><h2 class="rh2">지역으로 찾기</h2>%s</div></section>'
-            '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2>%s%s</div></section>%s'
+            '<section class="hub-city"><div class="wrap"><h2 class="rh2">지역으로 찾기</h2>%s</div></section>%s'
+            '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2>%s</div></section>%s'
             % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
-               questions_block(all_metas), city_chips(all_metas),
-               cards_grid(newest) if newest else '<p>아직 글이 없습니다.</p>', basic_row(), FILTER_JS))
+               questions_block(all_metas), city_chips(all_metas), basic_row(),
+               cards_grid(newest, fold=HUB_FIRST) if newest else '<p>아직 글이 없습니다.</p>', FILTER_JS))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in all_metas], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),

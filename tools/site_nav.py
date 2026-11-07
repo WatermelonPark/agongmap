@@ -55,7 +55,7 @@ TABS = (
 HAND_TAB_ON = {'faq/index.html': 'reports', 'burini-test/index.html': 'reports',
                'investor-test/index.html': 'reports', 'redev-test/index.html': 'reports',
                'about/index.html': None, 'privacy/index.html': None, '404.html': None}
-# 탭 라벨 글자 크기(px) — 홈 화면 글자 하한 13px(2026-09-28 대표 결정 — 홈 작은 글씨 정리, 예전 11.5px). 탭바는 모든 페이지
+# 탭 라벨 글자 크기(px) — 라벨 글자 하한 13px(2026-09-28 대표 결정 — 홈 작은 글씨 정리, 예전 11.5px). 탭바는 모든 페이지
 # 공용이라 app.css·손 페이지 <style>·생성기(make_indicator_pages SHELL, make_weekly_page put_nav)가 이 값을 쓴다 —
 # test_site_nav 가 저장소의 모든 탭바 규칙과 대조한다. 320px 네 칸(80px)에 '사이클' 13px(약 40px)이 들고, 탭바 높이(62px)는
 # 고정이라 본문 아래 여백(padding-bottom 66px)은 그대로다.
@@ -64,6 +64,11 @@ HAND_TAB_ON = {'faq/index.html': 'reports', 'burini-test/index.html': 'reports',
 THEME_COLOR = '#131e24'
 
 LABEL_PX = 13
+# 사이트 글자 하한 두 단계의 정본(2026-11-06 대표 결정 '읽는 글 14px 하한 채택'). 읽는 문장 — 마침표로 끝나는 설명·주석·단락·카드
+# 결론 줄·보기 줄·링크 카드 설명·푸터 면책 — 은 READ_PX 이상, 라벨·축 눈금·표 칸·칩·날짜·캡션 한 줄은 LABEL_PX(위 탭 라벨과 같은 값)
+# 이상이다. SVG 지도 라벨·그래프 축·사이클 도식은 예외다. 손 페이지(소개·FAQ·개인정보·퀴즈 랜딩 3종·404)와 공용 푸터 면책은
+# test_hand_reading_font 가 이 두 값으로 본다(홈·시세 탭·생성 페이지의 하한 시험은 아직 LABEL_PX 하나로 본다).
+READ_PX = 14
 # 탭바 키보드 초점(백로그 36-8, 2026-10-06) — 손 페이지 탭바엔 초점 표시가 없어 Tab 으로 어디 있는지 보이지 않았다. 먹색 바탕 위라
 # 흰 테두리를 안쪽으로 그린다. app.css 와 각 페이지 <style> 이 이 글자를 그대로 싣고 test_site_nav 가 모든 탭바 페이지를 본다.
 NAV_FOCUS_CSS = '.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}'
@@ -90,36 +95,45 @@ def bottomnav(on=None):
 # ── 손 페이지 푸터(백로그 36-4, 2026-10-06) ─────────────────────────────────────────────────────────────
 # 소개·FAQ·개인정보·퀴즈 랜딩 3종·404 의 푸터가 제각각이었다 — 어떤 곳은 면책이 없고(개인정보·퀴즈), 어떤 곳은 소개·개인정보
 # 링크가 없었다(FAQ·퀴즈). 이 한 덩어리를 그대로 붙이고 test_site_nav 가 각 페이지의 <footer> 를 이 값과 대조한다.
-# 글자 크기는 13px 이상(시세 탭·퀴즈·푸터 하한 — test_view_min_font, 손 페이지 쪽은 test_site_nav 가 본다).
+# 글자 크기: 푸터 바탕(브랜드·링크 줄·문의·자료 줄 — 한 줄 라벨)은 FOOTER_PX(= LABEL_PX 13px) 이상, 면책 문장은 읽는 글이라
+# READ_PX(14px) 이상이다(2026-11-06). 면책의 크기는 FOOTER_DISC 의 인라인 style 이 싣는다 — 손 페이지 <style>·app.css·생성기
+# 뼈대(make_indicator_pages SHELL·/weekly/ 뼈대)의 .disc·footer 규칙이 13px 이어도 이 한 줄이 이긴다. 그래서 면책 크기를 바꿀
+# 곳은 여기 하나다(test_hand_reading_font 가 손 페이지·site_footer·퀴즈 점수 페이지를 본다).
 # 연락처 agongmap@gmail.com 은 서비스 대표 주소(공개 연락처, 2026-09-18 대표 결정)다.
 HAND_FOOTER_PAGES = ('about/index.html', 'faq/index.html', 'privacy/index.html', 'burini-test/index.html',
                      'investor-test/index.html', 'redev-test/index.html', '404.html')
 # 모든 페이지 푸터가 싣는 링크 줄의 정본(2026-10-30 디자인 리뷰 — 생성 페이지·콘텐츠 페이지 대부분에 개인정보처리방침 링크가
 # 없었다). 손 페이지 HAND_FOOTER 와 생성기 푸터(site_footer)가 같은 글자를 쓰고, test_site_nav 가 저장소의 모든 <footer> 에
 # 이 줄이 있는지 본다(홈 세 벌은 갱신 주기로 묶은 사이트맵 푸터라 test_home_summary 가 따로 본다).
+# 메일은 링크 줄에서 뺐다(2026-11-07 디자인 검수 hand-10 — 한 줄에 중점 넷이라 메일 주소가 내비 링크처럼 읽혔고 375px 폭을 거의
+# 다 채웠다). 메일은 FOOTER_CONTACT 한 줄로 링크 줄 아래에 둔다.
 FOOTER_LINKS = ('<a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · '
-                '<a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a>')
+                '<a href="/privacy/">개인정보처리방침</a>')
+FOOTER_CONTACT = '문의 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a>'
 FOOTER_BRAND = '<b>아공맵</b> — 아파트 공급 지도'
 DISCLAIMER = '공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.'
+FOOTER_PX = LABEL_PX
+FOOTER_DISC = '<div class="disc" style="font-size:%gpx">%s</div>' % (READ_PX, DISCLAIMER)
 HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
                '  ' + FOOTER_BRAND + '<br>\n'
                '  ' + FOOTER_LINKS + '<br>\n'
-               '  자료: KOSIS·한국부동산원·국토교통부·한국은행<br>\n'
-               '  ' + DISCLAIMER + '\n'
+               '  ' + FOOTER_CONTACT + '<br>\n'
+               '  자료: KOSIS·한국부동산원·국토교통부·한국은행\n'
+               '  ' + FOOTER_DISC + '\n'
                '</div></footer>')
 
 
 def site_footer(src):
-    """생성 페이지·콘텐츠 페이지 푸터 — 브랜드 · 링크 줄(FOOTER_LINKS) · 그 페이지의 자료 기관 · 면책.
+    """생성 페이지·콘텐츠 페이지 푸터 — 브랜드 · 링크 줄(FOOTER_LINKS) · 문의 · 그 페이지의 자료 기관 · 면책.
     src 는 기관명이다(공개 저장소 규칙 — '자료: 아공맵' 처럼 우리 이름을 출처로 쓰지 않는다). 없으면 자료 줄을 뺀다."""
     srcl = ('  자료: %s\n' % src) if src else ''
     return ('<footer class="sitefoot"><div class="wrap">\n'
             '  ' + FOOTER_BRAND + '<br>\n'
             '  ' + FOOTER_LINKS + '<br>\n'
+            '  ' + FOOTER_CONTACT + (('<br>\n') if src else '\n')
             + srcl +
-            '  <div class="disc">' + DISCLAIMER + '</div>\n'
+            '  ' + FOOTER_DISC + '\n'
             '</div></footer>')
-FOOTER_PX = 13
 
 
 # ── 데스크톱 틀(2026-10-06 대표 결정 '데스크톱 전체 개편') ─────────────────────────────────────────────────────

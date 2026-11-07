@@ -19,7 +19,9 @@
   .wrap{max-width:440px;text-align:center;position:relative}
   .inner{position:relative;z-index:1}
   .code{font-size:72px;font-weight:600;letter-spacing:-.03em;color:var(--ink);line-height:1;margin-bottom:8px}
-  .cycle{font-size:14px;font-weight:600;color:var(--ink2);margin-bottom:20px}
+  /* 머리 칩 — 다른 손 페이지(소개·FAQ·개인정보·퀴즈)와 같은 먹색 칩(2026-11-07 디자인 검수 hand-4, 예전엔 회색 글자 라벨) */
+  .chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;
+    background:var(--ink);padding:6px 16px;border-radius:0;margin-bottom:18px}
   h1{font-size:24px;font-weight:700;letter-spacing:-.02em;line-height:1.3;margin-bottom:14px}
   p{font-size:15px;color:var(--ink2);line-height:1.6;margin-bottom:28px}
   p a{color:var(--ink);font-weight:600}
@@ -27,6 +29,10 @@
      장식 그림자는 원부 정리 때 걷은 것의 잔재였다(2026-08-14 검수). */
   .cta{display:block;width:100%;max-width:400px;margin:30px auto 10px;text-align:center;text-decoration:none;
     background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
+  /* 되돌아가기 — 주소 오타로 온 독자에게 가장 빠른 복구(hand-4). 퀴즈 랜딩의 보조 단추(.cta.sub)와 같은 값. 스크립트가 돌고
+     뒤로 갈 곳이 있을 때만 보인다(hidden 을 스크립트가 뗀다). */
+  .cta.sub{background:#fff;color:var(--ink);border:1.5px solid var(--ink);margin-top:12px;font-family:inherit;cursor:pointer}
+  .cta[hidden]{display:none}
   /* 공용 푸터(site_nav.HAND_FOOTER) — 가운데 정렬 한 단 아래에 둔다 */
   body{flex-direction:column}
   footer.sfoot{margin-top:36px;max-width:440px;text-align:center;font-size:13px;line-height:1.7;color:var(--muted)}
@@ -49,22 +55,25 @@ body{padding-bottom:66px}
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=ba8953cf" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <main id="main" class="wrap"><div class="inner">
+  <div class="chip">아공맵</div>
   <div class="code">404</div>
-  <div class="cycle">아공맵</div>
   <h1>찾으시는 페이지가 없네요</h1>
   <p>주소가 바뀌었거나 사라진 페이지입니다.<br>홈에서 다시 시작하거나 <a href="/cycle/">공급 사이클 리포트</a>를 열어 보세요.</p>
-  <a class="cta" href="/">🏠 아공맵 홈으로</a>
+  <a class="cta" href="/">아공맵 홈으로</a>
+  <button class="cta sub" type="button" id="back" hidden onclick="history.back()">이전 페이지로</button>
+  <script>if(history.length>1)document.getElementById('back').hidden=false;</script>
 </div></main>
 <footer class="sfoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>
-  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a> · <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
-  자료: KOSIS·한국부동산원·국토교통부·한국은행<br>
-  공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.
+  <a href="/">홈</a> · <a href="/about/">소개</a> · <a href="/faq/">FAQ</a> · <a href="/privacy/">개인정보처리방침</a><br>
+  문의 <a href="mailto:agongmap@gmail.com">agongmap@gmail.com</a><br>
+  자료: KOSIS·한국부동산원·국토교통부·한국은행
+  <div class="disc" style="font-size:14px">공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.</div>
 </div></footer>
 <nav class="bottomnav">
   <a class="nav-btn" href="/"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>홈</span></a>

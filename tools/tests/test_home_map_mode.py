@@ -292,6 +292,7 @@ MODE_HARNESS = r'''
 var MAP_MODE='supply', TB_VIEW=%(view)s, sent=[], drawn=0, cards=0, views=[], HAS=%(has)s;
 function track(e,p){ sent.push([e,p]); }
 function seeFresh(m){}   // N 배지(test_home_fresh 가 따로 본다)
+function scoreCta(m){}   // 지도 아래 단추 갈아 끼우기(test_home_stats_design 이 따로 본다)
 function renderSidoMap(){ drawn++; } function renderAggCards(){ cards++; }
 function tbView(v,quiet){ views.push([v,!!quiet]); TB_VIEW=v; }
 var WK_MAP_REF=0.4, MO_MAP_REF=1.0, SIDO_GEO={};
@@ -553,9 +554,10 @@ def test_price_buttons_draw_the_nationwide_district_map_in_the_card(geo):
         vh = 12 if n > 2 else 13
         return tile['rows'] * (15 + n * (vh + 1) + 2) - 2 + 4
 
-    # 지도 아랫줄의 계열·단위에는 날짜가 없다 — 날짜는 지도 위 기준 줄(#tb-when) 하나가 말한다(2026-10-30 디자인 리뷰 2차)
-    for mode, k, n, head in (('weekly', 'week', 2, '매매·전세 전주 대비(%)'),
-                             ('monthly', 'month', 3, '매매·전세·월세 전월 대비(%)')):
+    # 지도 아랫줄의 단위에는 날짜가 없다 — 날짜는 지도 위 기준 줄(#tb-when) 하나가 말한다(2026-10-30 디자인 리뷰 2차). 계열
+    # ('매매·전세')도 없다 — 지도 위 칸 줄이 말한다(2026-11-07 디자인 검수 home-5, 같은 말이 위아래 두 번이었다).
+    for mode, k, n, head in (('weekly', 'week', 2, '전주 대비(%)'),
+                             ('monthly', 'month', 3, '전월 대비(%)')):
         h = got[mode]
         assert '<div class="map-tiles">' in h and 'class="tap"' not in h and 'class="ml' not in h, '%s 모드가 시군구 지도가 아니다' % mode
         vb = re.search(r'<svg viewBox="-2 -2 ([\d.]+) ([\d.]+)"', h)
@@ -568,5 +570,9 @@ def test_price_buttons_draw_the_nationwide_district_map_in_the_card(geo):
         assert h.index('class="map-scroll') < h.index('class="wg-when"') < h.index('class="map-act"'), mode
         assert '<div class="cue"><div class="map-scroll wg-map">' in h, mode
         assert ('가운데 = 전세 · 아래 = 월세' in h) == (n == 3)
+        # 칸 줄의 뜻과 밀기 안내는 지도 위 한 줄(home-4 — 지도 아래 1,100px 아래에 있던 밀기 안내를 위로)
+        top = h[:h.index('class="map-scroll')]
+        assert '칸 숫자: 위 = 매매' in top and 'class="wg-swipe">옆으로 밀어 전체 보기' in top, mode
+        assert h.count('옆으로 밀어 전체 보기') == 1 and '매매·전세 ' + head not in h, mode
     assert got['locks'] == [False, False], got['locks']
     assert got['picked'] == ['score_map'], got['picked']

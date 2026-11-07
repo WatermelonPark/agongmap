@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v214';
+const HOME_BUILD='v215';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -34,7 +34,9 @@ let BUILD_RELOAD=false;
 })();
 
 
-const FONT="'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',sans-serif";
+/* 그래프 글꼴 = 홈 body 목록의 앞(서브셋 AgongHome 먼저 — 축 숫자·영문은 서브셋 안이다). 예전엔 AgongHome 이 빠져 축만 대체 글꼴로
+   그렸다(2026-11-07 디자인 검수 stats-4). */
+const FONT="'AgongHome','Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',sans-serif";
 const INK="#131e24",INK2="#4c5f66",GRID="#dde4e1";   // INK·GRID 는 home-stats.js 그래프 축이 쓴다
 /* Chart.js는 defer라 이 시점엔 아직 없다 — boot()에서 부른다. */
 function chartSetup(){
@@ -1179,8 +1181,8 @@ function aggLights(z){
   return '<span class="zl" role="img" aria-label="'+(z.ya||'')+'">'
     +z.yl.map(function(y){ return '<span class="zl-d '+y.k+'">'+y.n+'</span>'; }).join('')+'</span>';
 }
-/* 신호등 범례 — 짧은 한 줄을 공급 기준 줄 끝(#lt-key)에 둔다. 2026-10-06 에 카드 아래 두 줄 범례를 지도 아래로 걷었고, 2026-10-17
-   대표 요청으로 기준 줄째 카드 바로 아래(지도/그래프/표 단추 왼쪽)로 다시 올렸다. 문턱 70·130%는 지역 탭 '읽는 법'·FAQ 가 말한다). 이름은 ADV.sido.ylg(sido_zones.light_legend). */
+/* 신호등 범례 — 짧은 한 줄(#lt-key)을 판정 카드 바로 아래 제 줄에 둔다(2026-11-07 디자인 검수 home-0). 2026-10-06 에 카드 아래 두 줄
+   범례를 지도 아래로 걷었고, 2026-10-17 대표 요청으로 기준 줄째 카드 바로 아래로 올렸고, 10-30 에 다시 지도 아래로 내렸다. 문턱 70·130%는 지역 탭 '읽는 법'·FAQ 가 말한다). 이름은 ADV.sido.ylg(sido_zones.light_legend). */
 function aggLightKey(z){
   var g=ADV.sido&&ADV.sido.ylg; if(!g||!g.length||!z||!z.yl) return '';
   var ns=z.yl.map(function(y){ return y.n; }).join('·');   // 해 수는 실린 값에서 센다(손으로 '1·2·3'을 적지 않는다)
@@ -1332,7 +1334,30 @@ function mapMode(m){
   if(m!=='supply'&&TB_VIEW!=='map') tbView('map',true);
   renderAggCards();
   renderSidoMap();
+  scoreCta(m);
   track('map_mode',{mode:m});
+}
+/* 지도 아래 두 단추(.tb-more 먹색·.tb-sub 흰 바탕)는 모드의 다음 행동이다(2026-11-07 디자인 검수 home-1 — 주간 시세를 보던 사람
+   앞에 '시도별로 자세히 보기'(공급 리포트)가 그대로 있었고, 주간 전용 입구 TOP 10 은 600px 아래였다). 공급은 손으로 쓴 HTML 그대로
+   (처음 부를 때 그 값을 data-o* 에 적어 두고 되돌린다), 주간은 시군구 TOP 10(먹색)·이번 주 요약(/weekly/), 월간은 이달의 통계(먹색)·
+   시군구 월간 TOP 10. 목적지 주소는 다른 입구와 같다(TOP 10 = '#stats-market-<주기>-rank', CLAUDE.md). to 값은 입구마다 따로다. */
+const SCORE_CTA={
+  weekly:[['#stats-market-week-rank','시군구 상승·하락 TOP 10 보기','score_week_rank'],['/weekly/','이번 주 요약 보기 →','score_weekly']],
+  monthly:[['/monthly/','이달의 통계 한 화면으로 보기 →','score_monthly'],['#stats-market-month-rank','시군구 월간 상승·하락 TOP 10 보기','score_month_rank']]
+};
+function scoreCta(m){
+  var C=SCORE_CTA[m];
+  ['.tb-more a','.tb-sub a'].forEach(function(q,i){
+    var a=document.querySelector('#sec-score '+q); if(!a) return;
+    if(a.dataset.oh==null){
+      var t=/to:'(\w+)'/.exec(a.getAttribute('onclick')||'');
+      a.dataset.oh=a.getAttribute('href'); a.dataset.ot=a.textContent; a.dataset.oto=t?t[1]:'';
+      a.removeAttribute('onclick');
+      a.addEventListener('click',function(){ if(a.dataset.to) track('home_cta',{to:a.dataset.to}); });
+    }
+    var c=C?C[i]:[a.dataset.oh,a.dataset.ot,a.dataset.oto];
+    a.setAttribute('href',c[0]); a.textContent=c[1]; a.dataset.to=c[2];
+  });
 }
 /* 모드 단추의 '새 데이터' N 배지(2026-10-08 대표 요청, B안). 데이터가 이 사이트에 처음 실린 날(KST)부터 ADV.fresh.days[모드] 일
    동안(그날 포함 — 주간 4·월간 7·공급 14, 정본 split_data.FRESH_DAYS) 단다. 처음 ADV.fresh.force 일(그날과 다음 날)은 눌렀든 안
@@ -1418,12 +1443,14 @@ function priceTilesHtml(M){
      '10/26 기준(10/29 발표) · 한국부동산원') 하나만 말한다. 예전엔 기준 줄과 머리에 날짜가 두 번 나왔다. */
   /* 칸 안 두세 줄의 뜻은 지도 **위**에 한 줄(2026-10-31 디자인 리뷰 2차 — 375px 에서 지도가 1,000px 라 아래 한 줄로는 처음 보는
      숫자의 뜻을 알 수 없었다). 범례·안내는 그대로 지도 아래. */
-  return '<div class="map-tiles">'+(rows?'<p class="map-rows">칸 숫자: '+rows+'</p>':'')+'<div class="cue"><div class="map-scroll wg-map">'+svg+'</div></div>'
+  /* 밀기 안내('옆으로 밀어 전체 보기')도 지도 위 칸 줄 끝(.map-top, 520px 이하만) — 지도 아래(1,100px 아래)에 있어 잘린 열을 못 본 채
+     지나쳤다(2026-11-07 디자인 검수 home-4). 지도 아래 범례 줄은 단위만 말한다 — '매매·전세'는 위 칸 줄이 이미 말한다(home-5 겹말). */
+  return '<div class="map-tiles"><div class="map-top">'+(rows?'<p class="map-rows">칸 숫자: '+rows+'</p>':'')
+    +'<span class="wg-swipe">옆으로 밀어 전체 보기</span></div><div class="cue"><div class="map-scroll wg-map">'+svg+'</div></div>'
     +'<div class="wg-head wg-low"><span class="tb-key wg-key"><span class="tk"><i class="tk-d"></i>하락</span>'
     +'<span class="tk-ramp" aria-hidden="true"></span>'
     +'<span class="tk"><i class="tk-u"></i>상승</span></span>'
-    +'<span class="wg-when">'+s.ser.join('·')+' '+M.unit+'(%)</span></div>'
-    +'<div class="wg-foot"><span><span class="wg-swipe">옆으로 밀어 전체 보기</span></span></div>'
+    +'<span class="wg-when">'+M.unit+'(%)</span></div>'
     +'<p class="map-act">지도에서 지역을 누르면 '+M.adj+' 그래프가 열립니다</p></div>';
 }
 function renderSidoMap(){
@@ -1757,16 +1784,20 @@ function renderWeeklyGrid(){
   const sh=weeklyShare(ADV.weekly);
   /* 공유 버튼(B8·VIRAL-1) — 내용은 /weekly/ 공유 버튼과 같은 함수가 구운 ADV.weekly.share. */
   const share=sh?'<div class="wg-share"><button type="button" class="wg-sh wg-sh-k" onclick="shareWeekly(\'kakao\')">'
-    +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
+    +'<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect width="24" height="24" rx="5" fill="#FEE500"/><path fill="#191919" transform="translate(3.6 3.8) scale(.7)" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡 공유</button>'
     +'<button type="button" class="wg-sh" onclick="shareWeekly(\'link\')">'
     +'<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>링크 공유</button></div>':'';
+  /* 공유는 구역 끝(TOP 10 단추 아래 #home-weekly-share) — 결론을 본 뒤의 행동이다. 예전엔 이 상자 안 TOP 10 위에 있어 노란
+     카카오 단추가 구역의 첫 초점이었다(2026-11-07 디자인 검수 home-2). 상자가 없으면(옛 HTML) 예전 자리에 붙인다. */
+  const shBox=document.getElementById('home-weekly-share');
   box.innerHTML=lines
     +'<div class="wg-foot"><a class="wg-link" href="#score" onclick="return showWeeklyMap()">지도에서 보기 ↑</a>'
     /* home_cta 의 to 값: 홈에서 /weekly/ 로 가는 입구를 가른다(격자·푸터) — 홈 마케팅 검수 A3·IA-7. */
     +'<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">이번 주 요약 보기 →</a></div>'
-    +share;
+    +(shBox?'':share);
+  if(shBox)shBox.innerHTML=share;
   /* 카카오 SDK 는 누르려는 순간 받기 시작한다(퀴즈 결과 화면의 선로딩과 같은 뜻 — 첫 로딩에는 받지 않는다). */
-  const kb=box.querySelector('.wg-sh-k');
+  const kb=(shBox||box).querySelector('.wg-sh-k');
   if(kb)['pointerenter','touchstart','focus'].forEach(t=>kb.addEventListener(t,()=>{loadKakao().catch(()=>{});},{once:true,passive:true}));
   /* 구역 머리줄 = 조사일·발표일·다음 발표(홈 마케팅 검수 A2). 예전엔 '매주 갱신' 고정 문구라 09-24~26 배치가
      멈춘 동안 9일 묵은 값을 그 아래 보였다. 발표가 늦은 주에는 스스로 '반영 대기'라 적고, 제목도 '이번 주'를

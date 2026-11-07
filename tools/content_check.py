@@ -170,6 +170,65 @@ def layout_notes(text, summary='', section=''):
     return out
 
 
+# 카드 핵심 숫자 알림(2026-11-07 디자인 검수) — 카드에서 가장 큰 글자(22px)가 새 정보를 주지 않거나 다른 글과 같으면 글을 가르지
+# 못한다(도시 편 11장 전부가 제목의 '적정물량의 N%'를 되풀이했고, 발언 검증 3장이 같은 '적정물량의 28%'였다). 원고의 몫이라 알림만.
+_NUM = re.compile(r'\d[\d,]*(?:\.\d+)?')
+WIDE_TABLE_COLS = 7         # 원고 표가 이보다 열이 많으면 휴대폰에서 핵심 열이 화면 밖으로 밀린다
+
+
+def _key_value(meta):
+    k = meta.get('key')
+    if isinstance(k, list) and k and isinstance(k[0], dict):
+        k = k[0]
+    return (k.get('value') or '').strip() if isinstance(k, dict) else ''
+
+
+def key_notes(entries):
+    """[(rel, 원고 글, 자리표 채운 meta)] → {rel: [(줄, 알림)]}. 세 가지를 본다.
+
+    ① key.value 의 숫자가 모두 제목에 이미 있다 — 카드 큰 숫자가 제목을 되풀이한다.
+    ② 같은 섹션의 다른 글과 key.value 가 같다 — 카드끼리 숫자로 갈리지 않는다.
+    ③ key.value 에 소수 둘째 자리 이상('105.95%') — 큰 숫자는 한눈에 읽히는 정밀도로.
+    """
+    out = {}
+    by_val = {}
+    for rel, text, meta in entries:
+        v = _key_value(meta)
+        if v:
+            by_val.setdefault((meta.get('section'), v), []).append(rel)
+    for rel, text, meta in entries:
+        v = _key_value(meta)
+        if not v:
+            continue
+        ln = _front_line(text, 'key')
+        notes = []
+        nums = _NUM.findall(v)
+        title = meta.get('title') or ''
+        if nums and all(re.search(r'(?<![\d,.])%s(?![\d,]|\.\d)' % re.escape(n), title) for n in nums):
+            notes.append((ln, "카드 핵심 숫자 '%s' — 제목에 이미 있는 값이라 카드가 새 정보를 주지 않는다(제목에 없는 값: 절대량·기준 시점 등)" % v))
+        same = [r for r in by_val.get((meta.get('section'), v), []) if r != rel]
+        if same:
+            notes.append((ln, "카드 핵심 숫자 '%s' — 같은 섹션 %s 와 같은 값이라 숫자로는 글이 갈리지 않는다" % (v, ', '.join(same))))
+        if re.search(r'\d\.\d{2,}', v):
+            notes.append((ln, "카드 핵심 숫자 '%s' — 소수 둘째 자리까지다. 큰 숫자는 정수·한 자리로(정확값은 본문에)" % v))
+        if notes:
+            out[rel] = notes
+    return out
+
+
+def table_notes(text):
+    """원고 → [(줄, 알림)]. 열이 WIDE_TABLE_COLS 보다 많은 원고 표 — 휴대폰에서 첫 두세 열만 보이고 핵심 열(가격·현금)이 밀린다."""
+    out = []
+    lines = text.split('\n')
+    for i, ln in enumerate(lines):
+        s = ln.strip()
+        if s.startswith('|') and i + 1 < len(lines) and re.match(r'^\|[\s:|-]+\|$', lines[i + 1].strip()):
+            n = len(s.strip('|').split('|'))
+            if n > WIDE_TABLE_COLS:
+                out.append((i + 1, '표가 %d열 — 휴대폰에서 앞 두세 열만 보인다. 핵심 열을 둘째 자리로 올리거나 나머지 열을 다른 표로' % n))
+    return out
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     lenient = '--lenient' in argv or os.environ.get('CONTENT_CHECK_LENIENT') == '1'
@@ -181,6 +240,21 @@ def main(argv=None):
         print('검사할 원고가 없다')
         return 0
     bad, waiting = 0, 0
+    entries = []
+    for sec, slug, path in posts:
+        try:
+            try:
+                m = CM.read(path, sec, slug)[0]          # 엄격 읽기가 key 를 dict 로 고른다 — 그래야 자리표가 채워진다
+            except CM.ContentError:
+                m = CM.read(path, sec, slug, lenient=True)[0]
+            try:
+                m = CT.fill_meta(m, data)
+            except CT.TableError:
+                pass                              # 자리표를 못 채운 글은 원고 글자 그대로 본다(그 오류는 아래에서 센다)
+            entries.append((os.path.relpath(path, ROOT).replace(os.sep, '/'), io.open(path, encoding='utf-8').read(), m))
+        except Exception:
+            continue
+    knotes = key_notes(entries)
     for sec, slug, path in posts:
         problems, waits, rel = check_post(path, data, lenient=lenient)
         text = io.open(path, encoding='utf-8').read()
@@ -188,7 +262,7 @@ def main(argv=None):
             summary = CM.read(path, sec, slug, lenient=True)[0].get('summary') or ''
         except Exception:
             summary = ''
-        for ln, why in sorted(term_notes(text) + layout_notes(text, summary, sec)):
+        for ln, why in sorted(term_notes(text) + layout_notes(text, summary, sec) + table_notes(text) + knotes.get(rel, [])):
             print('  ※    %s:%d  %s' % (rel, ln, why))
         for ln, why in sorted(waits):
             # 아직 자료가 없는 것은 고칠 곳이 아니다(안 받은 도시, 아직 분양 안 된 연도) —

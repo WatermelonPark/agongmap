@@ -52,6 +52,21 @@ def _block(z):
     return s, (m.group(1) if m else None), (m.start() if m else -1)
 
 
+def _card(blk, href):
+    """'시세도 함께' 칸 하나를 예전 한 줄 글('매매 +0.07% · 전세 +0.17% · 11/2 조사 · 11/5 발표', '52.3% · 1년 전 대비 -0.7%p ·
+    2026년 9월 기준')로 되읽는다. 11-07(디자인 검수 reports-6)부터 칸은 .zcell — 제목 <b>(이번 주 매매·전세가율), 큰 숫자 <strong>,
+    나머지 줄 <small> 로 나뉜다. 같은 글이 되어야 값·순서·기준일이 그대로다. 칸이 없으면 None."""
+    m = re.search(r'<a class="zcell" href="%s"><b>([^<]*)</b><strong[^>]*>([^<]*)</strong><small>([^<]*)</small></a>' % re.escape(href), blk or '')
+    if not m:
+        return None
+    b, v, rest = m.groups()
+    if href == '/weekly/':
+        assert b.startswith('이번 주 '), b
+        return ' · '.join(['%s %s' % (b[len('이번 주 '):], v)] + ([rest] if rest else []))
+    assert b == '전세가율', b
+    return v + ' · ' + rest
+
+
 def test_every_report_has_the_block_between_method_and_other_regions():
     for z in SZ.ORDER:
         s, blk, at = _block(z)
@@ -66,7 +81,7 @@ def test_weekly_line_matches_saved_data():
     row = w['rows'][-1]
     for z in SZ.ORDER:
         _, blk, _ = _block(z)
-        m = re.search(r'<a href="/weekly/"><b>이번 주 시세</b><i>(.*?)</i></a>', blk or '')
+        m = _card(blk, '/weekly/')
         i = w['regions'].index(z) if z in w['regions'] else None
         ma = row['ma'][i] if i is not None else None
         je = row['je'][i] if i is not None else None
@@ -76,7 +91,7 @@ def test_weekly_line_matches_saved_data():
         assert m, '%s: 주간 시세 칸이 없다' % z
         want = ' · '.join('%s %s%%' % (k, _pv2(v)) for k, v in (('매매', ma), ('전세', je)) if v is not None)
         want += ' · %s 조사 · %s 발표' % (_md(row['p']), _md(row['p'], 3))
-        assert m.group(1) == want, '%s: %r ≠ %r' % (z, m.group(1), want)
+        assert m == want, '%s: %r ≠ %r' % (z, m, want)
 
 
 def test_jeonse_line_matches_saved_data():
@@ -98,7 +113,7 @@ def test_jeonse_line_matches_saved_data():
              if all(k < len(j['series'].get(r) or []) and j['series'][r][k] is not None for r in need))
     for z in SZ.ORDER:
         _, blk, _ = _block(z)
-        m = re.search(r'<a href="/jeonse-ratio/"><b>전세가율</b><i>(.*?)</i></a>', blk or '')
+        m = _card(blk, '/jeonse-ratio/')
         ser = j['series'].get(z) or []
         cur = ser[li] if li < len(ser) else None
         if cur is None:
@@ -110,7 +125,7 @@ def test_jeonse_line_matches_saved_data():
         if ago is not None:
             want += ' · 1년 전 대비 %+.1f%%p' % (round(float('%.1f' % cur) - float('%.1f' % ago), 1) + 0.0)
         want += ' · %s 기준' % SZ.month_text(j['dates'][li])   # 읽는 꼴(날짜 두 단계, 백로그 36-1)
-        assert m and m.group(1) == want, '%s: %r ≠ %r' % (z, m and m.group(1), want)
+        assert m == want, '%s: %r ≠ %r' % (z, m, want)
 
 
 def test_generator_reads_saved_values_not_literals():
@@ -138,6 +153,6 @@ def test_weekly_card_survives_a_malformed_survey_date():
         if p is not None:
             row['p'] = p
         html = P.next_links('서울', {'regions': ['서울'], 'rows': [row]}, {})
-        card = re.search(r'<b>이번 주 시세</b><i>([^<]*)</i>', html).group(1)
+        card = _card(html, '/weekly/')
         assert card.startswith('매매 +0.12% · 전세 +0.05%'), card
         assert ('조사' in card) is dated, (p, card)
