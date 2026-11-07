@@ -700,6 +700,10 @@ def test_card_text_matches_the_manuscript_title():
 
     무엇을 바꾸면 빨개지나: 제목을 고치고 카드를 다시 굽지 않으면. 지역 카드(test_zone_cards)와 같은 방법이다.
     픽스처: 저장소의 카드 파일과 원고. 카드가 아직 없는 글은 섹션 공통 카드로 떨어지므로 건너뛴다.
+    도시 자료가 아직 없는 글(PR CI 처럼 키가 없어 새 도시를 못 받은 사본)은 카드 생성기가 채우지 못한
+    제목을 그대로 그린다(make_content_cards 의 except 갈래). 그때 기대값도 같은 원고 제목이다 —
+    예전에는 여기서 PendingCity 가 터져 새 도시 원고 PR 마다 게이트가 빨개졌다(2026-11-07 PR #132 원주).
+    변이: 이 갈래를 지우면 도시 자료에 없는 region 을 쓴 원고가 있는 사본에서 PendingCity 로 빨개진다.
     """
 
     data = CT.load()
@@ -709,7 +713,10 @@ def test_card_text_matches_the_manuscript_title():
         if not os.path.exists(p):
             continue
         meta, _ = CM.read(path, sec, slug)
-        want = CT.fill_inline(meta['title'], data)
+        try:
+            want = CT.fill_inline(meta['title'], data)
+        except CT.Pending:
+            want = meta['title']
         from PIL import Image
         # 글 칸은 iTXt 로 저장된다(한글이라 UTF-8). 직접 청크를 훑으면 tEXt 만 보다 놓친다.
         got = dict(Image.open(p).text)
