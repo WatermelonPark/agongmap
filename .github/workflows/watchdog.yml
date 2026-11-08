@@ -345,3 +345,37 @@ jobs:
           echo "실패 목록은 이 실행의 'freshness' 잡 로그 맨 아래 FAIL 항목을 볼 것."
           echo "→ update-cloud 실행 이력, KOSIS 표 ID 변경/폐지 여부 확인"
           exit 1
+
+  # 사람에게 가는 메일은 경보 이슈 코멘트 하나뿐이다(2026-11-08 대표 결정 — 실행 실패 메일은 대표가 GitHub 설정에서 껐다).
+  # 판정 잡(recheck·recheck2·alert) 가운데 하나가 빨개진 예약 회차만 한 통 보낸다 — 그 빨강은 이미 '새 IP로 다시 봐도 같은
+  # 데이터 문제'다(위 주석). 1차(freshness)가 시간 초과로 죽은 것만으로는 보내지 않는다: 그때는 recheck 가 대신 판정한다.
+  # 손으로 돌린 회차(workflow_dispatch)는 보는 사람이 화면에서 확인하므로 보내지 않는다.
+  notify:
+    needs: [freshness, recheck, recheck2, alert]
+    if: ${{ !cancelled() && github.event_name == 'schedule' && (needs.recheck.result == 'failure' || needs.recheck2.result == 'failure' || needs.alert.result == 'failure') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: 경보 이슈에 한 통
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          RUN="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          DAY=$(TZ=Asia/Seoul date '+%-m/%-d')
+          {
+            echo "### 🔴 라이브 데이터 점검 실패 · $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST"
+            echo ""
+            echo "사이트 숫자가 원천 통계와 맞지 않거나 원천보다 뒤처졌습니다. 새 IP로 다시 확인해도 같았습니다."
+            echo ""
+            echo "**하실 일:** 클라우드 세션에 '감시 실패 확인해 줘'라고 한 줄 남겨 주세요. 실패 목록은 실행 로그의 FAIL 항목에 있습니다."
+            echo ""
+            echo "[실행 로그]($RUN) · @${{ github.repository_owner }}"
+          } > _alert.md
+          bash tools/post_alert.sh post "🔴 라이브 데이터 점검 실패 · 사이트 숫자 확인 필요 · 하실 일: 세션에 알리기 ($DAY)" _alert.md

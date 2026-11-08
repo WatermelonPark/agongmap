@@ -15,10 +15,13 @@
    한 번이라도 멘션되거나 담당자로 지정된 사람은 그 이슈를 구독한 상태가 되어,
    이후 코멘트는 멘션이 없어도 전부 메일로 간다. 2026-09-12 에 정상 회차의 멘션을
    뗐지만 메일은 매 회차 그대로 갔다(받은 메일 꼬리: "because you were mentioned").
-   그래서 build() 가 돌려주는 '멘션 여부'는 곧 **코멘트를 남길지 여부**다. 워크플로는
-   이 값이 참일 때만 이슈에 쓰고, 거짓이면 화면 요약(Step Summary)에만 남긴다:
-     실패했을 때 · 점검 이상일 때 · 월요일 회차(살아 있다는 신호) · 기준월 장기 뒤처짐
-   침묵이 곧 정상을 뜻하게 만드는 것이 목적이다.
+   그래서 이슈에 코멘트를 남길지(=메일을 보낼지)는 main() 이 meta 파일 첫 줄로 워크플로에 넘긴다.
+
+⚠️ 메일은 **데이터 갱신이 하루 넘게 멈췄을 때만** 간다(2026-11-08 대표 결정 '꼭 봐야 하는 것만').
+   하루 실패는 자동 재시도·다음 크론·세션이 대개 푸므로 화면 요약에만 남긴다. 확인 중(⚠️)·월요일
+   살아 있음 신호·기준월 장기 뒤처짐도 메일을 부르지 않는다. 멈춘 시각은 경보 이슈 본문의 숨은 표식
+   (stall_read·stall_write)이 회차를 건너 기억하고, 같은 KST 날짜에는 한 통만 간다(stall_decide).
+   build() 의 둘째 값('멘션 여부')은 이제 '본문에 멘션을 붙일 만한 회차'라는 뜻일 뿐 메일 스위치가 아니다.
 
 ⚠️ 단계별 상세를 지우는 대상은 **메일 본문**뿐이다. 실행 로그 링크는 항상 남기고,
    화면 요약(GITHUB_STEP_SUMMARY)에는 원본 기록을 그대로 붙인다 — 세션이 파고들
@@ -33,6 +36,7 @@ import io
 import os
 import re
 import sys
+import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import month_lag as ML  # noqa: E402  (뒤처짐 표시와 기준 개월을 한 곳에서 가져온다 — 생성기·감시는 끌어오지 않는다, F-6)
@@ -209,13 +213,14 @@ def _short_date(kst):
     return '%d/%d' % (int(m.group(1)), int(m.group(2))) if m else ''
 
 
-def headline(raw, kst, weekday):
+def headline(raw, kst, weekday, stalled_h=None):
     """메일 제목이 될 한 줄. **제목만 보고 열지 말지 정할 수 있어야 한다**(2026-09-17 대표).
 
     GitHub 이슈 코멘트 메일의 제목은 그 시점의 이슈 제목이다. 그래서 코멘트를 남기기
     직전에 이슈 제목을 이 문장으로 바꾼다. 모든 제목은 같은 세 토막으로 읽힌다:
       무슨 일인가 · 사이트는 괜찮은가 · 내가 할 일이 있는가
     색 동그라미가 맨 앞이라 받은편지함 목록에서 색만 봐도 된다(🔴 실패, 🟡 확인 중, 🟢 정상).
+    stalled_h: 멈춤 메일을 보내는 회차의 멈춘 시간(stall_decide). 이때만 할 일이 생긴다 — 세션에 알리기.
     """
     lines = [ln.rstrip() for ln in raw.splitlines() if ln.strip()]
     bad = any(ln.lstrip().startswith(BAD) for ln in lines)
@@ -224,6 +229,10 @@ def headline(raw, kst, weekday):
     day = _short_date(kst)
     tail = (' (%s)' % day) if day else ''
     nothing = any(ln.lstrip().startswith(SKIP) for ln in lines)
+    if bad and stalled_h is not None:
+        n = stall_days(stalled_h)
+        return '🔴 데이터 갱신 %s 멈춤 · 사이트는 옛 데이터 · 하실 일: 세션에 알리기%s' % (
+            '이틀째' if n == 2 else '%d일째' % n, tail)
     if bad:
         # 재시도 대기(시도 1·2)와 최종 실패는 제목이 달라야 한다 — 같으면 스로틀 날 같은 제목이
         # 서너 통 오고 어느 것이 마지막인지 모른다(리뷰 2026-09-18 20번).
@@ -243,12 +252,60 @@ def headline(raw, kst, weekday):
     return '🟢 데이터 정상 · 하실 일 없음' + tail
 
 
+# ── 멈춤 메일(2026-11-08 대표 결정) ─────────────────────────────────────────
+# 데이터 갱신이 이만큼 이어서 멈췄을 때 처음 메일이 간다. 배치는 매일 한 번(예약 13:00 KST)과 목요일 두 번 더 돌아,
+# 첫 실패 다음 날 같은 회차가 24시간 뒤다. 20시간이면 큐 지연으로 다음 날 회차가 당겨 떠도 걸리고, 목요일
+# 07:00 회차(전날 13:00 실패 뒤 18시간)는 아직 하루가 안 찼다고 보아 넘긴다.
+STALL_MAIL_H = 20
+STALL_RE = re.compile(r'\n*<!--\s*stall first=(\d+) mailed=([0-9-]*)\s*-->\n*')
+
+
+def is_retry_pending(lines):
+    """실패 줄이 모두 '35분 뒤 자동 재시도'인 회차인가 — 아직 결과가 나지 않았다."""
+    bads = [ln for ln in lines if ln.lstrip().startswith(BAD)]
+    return bool(bads) and all(re.search(r'러너 0/3 clean.*자동 재시도', ln) for ln in bads)
+
+
+def stall_read(body):
+    """경보 이슈 본문의 숨은 표식 → (처음 멈춘 epoch 초, 마지막 메일 KST 날짜). 없으면 None."""
+    m = STALL_RE.search(body or '')
+    return (int(m.group(1)), m.group(2)) if m else None
+
+
+def stall_write(body, state):
+    """본문의 표식을 state 로 바꾼다(None 이면 지운다). 나머지 본문은 그대로 둔다."""
+    out = STALL_RE.sub('\n', body or '').rstrip('\n')
+    if state:
+        out += '\n\n<!-- stall first=%d mailed=%s -->' % state
+    return out.strip('\n') + '\n'
+
+
+def stall_decide(prev, bad, pending, now, today):
+    """→ (메일을 보내나, 새 표식 또는 None, 멈춘 시간).
+
+    prev: stall_read 결과. bad: 이번 회차에 ❌ 가 있나. pending: 자동 재시도를 기다리는 회차인가(is_retry_pending).
+    now: epoch 초. today: KST 'YYYY-MM-DD'. 성공 회차는 표식을 지운다. 재시도 대기 회차는 멈춘 시각은 세되
+    메일은 보내지 않는다 — 35분 뒤 결과가 날 회차에 '멈췄다'고 쓰면 안 된다.
+    """
+    if not bad:
+        return False, None, 0.0
+    first, mailed = prev if prev else (int(now), '')
+    hours = max(0.0, (now - first) / 3600.0)
+    send = (not pending) and hours >= STALL_MAIL_H and mailed != today
+    return send, (first, today if send else mailed), hours
+
+
+def stall_days(hours):
+    """멈춘 시간 → 제목의 'N일째'. 하루가 덜 찼어도 메일이 가는 시점이면 이틀째다."""
+    return max(2, int(hours // 24) + 1)
+
+
 def mention_preview(bad, warn, weekday, lag_hard):
     """이 회차가 코멘트(=메일)를 남기는가. build() 끝의 mention 과 같은 식이다."""
     return bool(bad or warn) or weekday == 0 or lag_hard
 
 
-def build(raw, kst, run_url, owner, weekday):
+def build(raw, kst, run_url, owner, weekday, stalled_h=None):
     """기록 전문 → (본문, 멘션여부).
 
     weekday: 0=월 … 6=일. 월요일 회차 한 번은 정상이어도 멘션을 붙여 '살아 있다'를
@@ -273,8 +330,13 @@ def build(raw, kst, run_url, owner, weekday):
         out.append('**사이트는 정상입니다.** 다만 새 데이터가 반영되지 않아 이전 '
                    '시점 그대로입니다.')
         out.append('')
-        out.append('**하실 일: 없습니다.** 세션에서 원인을 확인하고 고칩니다. '
-                   '사흘 넘게 이 메일이 계속 오면 그때 알려 주세요.')
+        if stalled_h is not None:
+            out.append('**하실 일:** 데이터 갱신이 %d시간째 멈춰 있습니다. 클라우드 세션에 '
+                       "'배치 리포트 이슈 보고 고쳐 줘'라고 한 줄 남겨 주세요. 고쳐질 때까지 "
+                       '하루에 한 통만 갑니다.' % int(stalled_h))
+        else:
+            out.append('**하실 일: 없습니다.** 하루 실패는 자동 재시도·다음 회차가 대개 풉니다. '
+                       '하루 넘게 멈추면 그때 메일이 갑니다.')
         out.append('')
         out.append('**무슨 일인가:**')
         for ln in bad:
@@ -364,13 +426,27 @@ def main(argv=None):
     ap.add_argument('--owner', required=True)
     ap.add_argument('--weekday', type=int, required=True, help='0=월 … 6=일')
     ap.add_argument('--meta', help='첫 줄에 메일 여부(1/0), 둘째 줄에 제목을 적을 파일')
+    ap.add_argument('--state-in', help='경보 이슈의 지금 본문(없으면 빈 파일) — 멈춤 표식을 읽는다')
+    ap.add_argument('--state-out', help='표식이 바뀌었을 때만 새 본문을 쓸 파일(안 바뀌면 만들지 않는다)')
+    ap.add_argument('--now', type=float, help='epoch 초(시험용, 기본은 지금)')
     a = ap.parse_args(argv)
     raw = io.open(a.report, encoding='utf-8', errors='replace').read()
-    body, mention = build(raw, a.kst, a.run_url, a.owner, a.weekday)
+    lines = [ln.rstrip() for ln in raw.splitlines() if ln.strip()]
+    bad = any(ln.lstrip().startswith(BAD) for ln in lines)
+    body_in = ''
+    if a.state_in and os.path.exists(a.state_in):
+        body_in = io.open(a.state_in, encoding='utf-8', errors='replace').read()
+    prev = stall_read(body_in)
+    now = a.now if a.now is not None else time.time()
+    send, state, hours = stall_decide(prev, bad, is_retry_pending(lines), now, a.kst.strip()[:10])
+    if a.state_out and state != prev:
+        io.open(a.state_out, 'w', encoding='utf-8', newline='\n').write(stall_write(body_in, state))
+    stalled = hours if send else None
+    body, _ = build(raw, a.kst, a.run_url, a.owner, a.weekday, stalled_h=stalled)
     if a.meta:
         # 워크플로가 읽는다: 메일을 보낼 회차인가(=이슈에 코멘트를 남길 것인가)와 그 제목.
         io.open(a.meta, 'w', encoding='utf-8', newline='\n').write(
-            '%d\n%s\n' % (1 if mention else 0, headline(raw, a.kst, a.weekday)))
+            '%d\n%s\n' % (1 if send else 0, headline(raw, a.kst, a.weekday, stalled_h=stalled)))
     sys.stdout.write(body)
     return 0
 

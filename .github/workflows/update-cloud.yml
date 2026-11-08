@@ -770,24 +770,23 @@ jobs:
           KST=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M')
           TITLE="아공맵 배치 리포트"
           RUN="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          # ⚠️ @멘션은 사실상 **메일 발송 스위치**다. 이슈 코멘트 알림은 구독자에게만
-          # 가지만 멘션은 구독과 무관하게 메일이 간다(2026-08-08 사용자 확인).
-          # 그래서 예전엔 '매일 온다'를 보장하려고 항상 붙였는데, 그러면 정상 회차에도
-          # 매일 메일이 가고 곧 안 읽히게 된다 — 진짜 경보가 그 속에 묻힌다.
-          # watchdog.yml이 "오경보가 쌓이면 진짜 경보도 같이 묻힌다"고 이미 적어 두고도
-          # 정상 알림에는 그 원칙이 빠져 있었다(2026-09-12 대표 지적으로 발견).
-          # 지금은 실패·점검이상·월요일에만 붙인다. 침묵이 곧 정상이라는 뜻이 되게 한다.
-          #
-          # 멘션을 떼도 조용한 정지는 안 생긴다 — 배치와 점검이 서로를 본다:
-          #   배치 실패      → 배치가 멘션
-          #   배치는 성공인데 데이터가 안 나감 / 배치가 아예 안 뜸 → 점검이 뒤처짐으로 잡음
-          #   점검이 안 뜸   → 배치가 위의 30시간 규칙으로 잡아 멘션
+          # 메일은 사람이 꼭 봐야 할 때만 간다(2026-11-08 대표 결정): 이 배치는 '데이터 갱신이 하루 넘게 멈춤'뿐이다.
+          # 하루 실패·확인 중(⚠️)·월요일 살아 있음 신호·기준월 뒤처짐은 화면 요약에만 남는다. 조용한 정지는 서로가 본다:
+          #   배치가 하루 넘게 실패 → 배치가 경보 이슈에 한 통
+          #   배치는 성공인데 데이터가 안 나감 / 배치가 아예 안 뜸 → 감시(watchdog.yml)가 뒤처짐으로 잡아 한 통
+          #   예약 시험이 다음 분기에 게이트가 막힐 것을 봄 → ci-tests.yml 예약 실행이 한 통
           OWNER="${{ github.repository_owner }}"
           WD=$(( $(TZ=Asia/Seoul date '+%u') - 1 ))   # 0=월 … 6=일
           # 본문 조립은 tools/format_batch_report.py 가 한다(시험이 붙어 있는 자리).
-          # ⚠️ 그게 죽어도 알림 자체는 나가야 한다 — 침묵이 가장 나쁘다. 폴백은 옛 형식
-          #    그대로 두되 멘션을 붙여 사람이 이상을 알아채게 한다.
-          if ! python3 tools/format_batch_report.py "$R" --kst "$KST"                  --run-url "$RUN" --owner "$OWNER" --weekday "$WD" --meta _report.meta > _report.md; then
+          # ⚠️ 그게 죽어도 알림 자체는 나가야 한다 — 형식기가 죽은 것은 코드 고장이라 매 회차 되풀이된다. 폴백은 옛 형식
+          #    그대로 두되 멘션을 붙여 사람이 이상을 알아채게 한다(멈춤 표식은 건드리지 않는다).
+          # 멈춤 표식(언제부터 멈췄나·오늘 메일을 보냈나)은 경보 이슈 본문에 숨어 있다 — 형식기가 읽고 바뀌면 새 본문을 쓴다.
+          AN=$(bash tools/post_alert.sh find 2>/dev/null || true)
+          : > _state_in.txt
+          if [ -n "$AN" ]; then gh issue view "$AN" --json body --jq .body > _state_in.txt 2>/dev/null || : > _state_in.txt; fi
+          rm -f _state_out.txt
+          if ! python3 tools/format_batch_report.py "$R" --kst "$KST" --run-url "$RUN" --owner "$OWNER" --weekday "$WD" --meta _report.meta \
+                 --state-in _state_in.txt --state-out _state_out.txt > _report.md; then
             echo "::warning::알림 본문 생성 실패 — 옛 형식으로 보낸다"
             # 본문을 못 만든 것 자체가 이상이다 — 메일을 보내고 제목에 그렇게 적는다. 기록에 ❌ 줄이 있으면 제목은 🔴 다
             # (제목만 보고 판단하라는 설계 — 생성기 회귀가 형식기까지 죽인 회차가 🟡 로 나가면 안 된다, 전수리뷰 F-6).
@@ -817,48 +816,24 @@ jobs:
             echo ""
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
-          # ── 메일을 보낼 회차에만 이슈에 쓴다(2026-09-17 대표 요청·실측) ─────────
-          # ⚠️ **이슈 코멘트가 곧 메일이다.** 한 번이라도 멘션되거나 담당자로 지정된 사람은
-          #    그 이슈의 구독자가 되어, 이후 코멘트는 멘션이 없어도 전부 메일로 받는다.
-          #    2026-09-12 에 정상 회차의 멘션을 뗐는데도 메일은 매 회차 갔다 — 2주에
-          #    20통, 9/12 하루에 7통. 받은 메일 꼬리에 "because you were mentioned"가
-          #    그대로 찍혀 있었다. 그래서 정상 회차는 이슈에 쓰지 않고 위의 화면 요약에만
-          #    남긴다. 기록은 거기 다 있으니 세션이 파고들 입구는 그대로다.
-          # ⚠️ 메일 제목은 **그 시점의 이슈 제목**이다. 받는 사람이 제목만 보고 판단할 수
-          #    있도록, 코멘트를 남기기 직전에 이슈 제목을 그 회차의 결론으로 바꾼다
-          #    (제목 변경은 알림을 만들지 않는다). 그래서 이슈를 제목으로 찾으면 안 되고
-          #    라벨로 찾는다.
-          # ⚠️ 담당자 지정(--assignee)을 되살리지 말 것 — "Assigned" 메일이 한 통 더 간다.
+          # ── 멈춤 표식을 이슈 본문에 남기고, 메일을 보낼 회차에만 코멘트를 단다 ─────────
+          # 본문 고치기는 메일이 아니다(코멘트만 메일이다). 표식이 처음 생기는데 이슈가 없으면 조용히 만든다.
+          if [ -f _state_out.txt ]; then
+            [ -n "$AN" ] || AN=$(bash tools/post_alert.sh ensure "$TITLE" || true)
+            if [ -n "$AN" ]; then gh issue edit "$AN" --body-file _state_out.txt >/dev/null || echo "::warning::멈춤 표식 저장 실패 — 다음 회차가 멈춘 시각을 모른다"; fi
+          fi
+          # ⚠️ **이슈 코멘트가 곧 메일이다.** 한 번이라도 멘션되거나 담당자로 지정된 사람은 그 이슈의 구독자가 되어,
+          #    이후 코멘트는 멘션이 없어도 전부 메일로 받는다(2026-09-17 실측). 그래서 메일을 보낼 회차에만 쓴다 —
+          #    2026-11-08 대표 결정으로 '데이터 갱신이 하루 넘게 멈췄을 때'뿐이다(format_batch_report.stall_decide).
+          #    나머지 회차는 위의 화면 요약에만 남는다. 코멘트·제목 바꾸기는 tools/post_alert.sh 한 곳이 한다.
           SEND=$(sed -n 1p _report.meta 2>/dev/null || true)
           HEAD=$(sed -n 2p _report.meta 2>/dev/null || true)
           [ -n "$HEAD" ] || HEAD="$TITLE"
           if [ "$SEND" != "1" ]; then
-            echo "정상 회차 — 이슈에 쓰지 않는다(메일 없음). 기록은 화면 요약에 남겼다: $HEAD"
+            echo "메일 없는 회차 — 이슈에 쓰지 않는다. 기록은 화면 요약에 남겼다: $HEAD"
             exit 0
           fi
-          LABEL="batch-report"
-          gh label create "$LABEL" --color 0E8A16 --description "배치 결과 알림(코멘트=메일)" 2>/dev/null || true
-          N=$(gh issue list --state open --label "$LABEL" --limit 1 --json number --jq '.[0].number' 2>/dev/null || true)
-          if [ -z "$N" ] || [ "$N" = "null" ]; then
-            # 라벨을 붙이기 전에 만들어진 옛 이슈(제목 고정 시절)를 한 번 이어받는다.
-            N=$(gh issue list --state open --search "$TITLE in:title" --limit 1 --json number --jq '.[0].number' 2>/dev/null || true)
-            if [ -n "$N" ] && [ "$N" != "null" ]; then gh issue edit "$N" --add-label "$LABEL" >/dev/null || true; fi
-          fi
-          if [ -z "$N" ] || [ "$N" = "null" ]; then
-            # `gh issue create`는 --json 미지원(unknown flag). 첫 실전(2026-08-08 20:33)에서
-            # 그 플래그로 죽었는데 2>/dev/null이 에러를 삼켜 경고 한 줄만 남았다.
-            # 생성 출력은 이슈 URL — 끝의 숫자를 잘라 쓰고, 에러는 더 이상 숨기지 않는다.
-            URL=$(gh issue create --title "$HEAD" --label "$LABEL" \
-                  --body "데이터 갱신에 알릴 일이 있을 때만 코멘트가 달립니다(실패·확인할 것·월요일 확인). 메일 제목은 그 회차의 결론입니다. 닫아도 다음에 알릴 일이 생기면 새로 만들어집니다." \
-                  || true)
-            N=$(echo "$URL" | grep -oE '[0-9]+$' || true)
-          fi
-          if [ -n "$N" ] && [ "$N" != "null" ]; then
-            gh issue edit "$N" --title "$HEAD" >/dev/null || echo "::warning::이슈 제목 변경 실패 — 메일 제목이 옛 문구로 간다"
-            gh issue comment "$N" --body-file _report.md && echo "이슈 #$N 에 보고: $HEAD" || echo "::warning::이슈 코멘트 실패 — Step Summary에는 남았다"
-          else
-            echo "::warning::보고 이슈를 찾지도 만들지도 못했다 — Step Summary에는 남았다"
-          fi
+          bash tools/post_alert.sh post "$HEAD" _report.md || echo "::warning::경보 보내기 실패 — 화면 요약에는 남았다"
 
   # 3러너 전멸(0/3 clean) 시 자기 재트리거. 러너 추가가 아니라 '시간을 바꿔
   # 다시 던지기'인 이유: 실패가 러너 간 독립이 아니라 시간대에 상관돼 있어서다
