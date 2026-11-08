@@ -10,6 +10,10 @@
   2. 메일 제목만 보고 판단할 수 있다 — 무슨 일인가 · 사이트는 괜찮은가 · 할 일이 있는가.
   3. 담당자 지정과 '코멘트 달고 닫기'를 되살리지 않는다(한 통씩 더 간다).
 
+2026-11-08 대표 결정('꼭 봐야 하는 것만')으로 더 줄였다: 메일은 경보 이슈 코멘트 하나뿐이고(tools/post_alert.sh), 보내는
+경우는 데이터 갱신이 하루 넘게 멈춤(같은 KST 날짜에 한 통) · 감시 판정 실패 · 매일 밤 예약 시험 실패 셋이다. 월요일 정상
+확인·확인 중(⚠️)·하루 실패는 화면 요약에만 남고, 블로그 발행 알림 예약은 껐다.
+
 ⚠️ 워크플로는 실행해 볼 수 없어 원문을 본다. 문구가 아니라 **구조**(무엇 뒤에 무엇이 오는가)를
    단정해, 주석을 고쳤다고 깨지지 않게 한다.
 """
@@ -43,27 +47,133 @@ def _code(text):
 # ── 1. 정상 회차는 메일이 없다 ─────────────────────────────────────────────
 
 def test_meta_tells_the_workflow_whether_to_write(tmp_path):
+    """meta 첫 줄(메일 여부)은 '하루 넘게 멈춤'일 때만 1 이다(2026-11-08 대표 결정).
+
+    변이(각각 확인): main() 의 send 를 bad 로 바꾸면 첫 실패 회차가 1 이 되어 빨강, stall_decide 의 STALL_MAIL_H 비교를
+          지우면 같은 이유로 빨강, 월요일 회차에 메일을 되살리면(send 에 weekday == 0 을 더하면) 빨강.
+    픽스처: 정상 기록(평일·월요일), 테스트 실패 기록 — 경보 이슈 본문이 없을 때(첫 실패)와 21시간 전 표식이 있을 때.
+    """
     rep = tmp_path / 'r.txt'
     meta = tmp_path / 'm.txt'
-    for raw, weekday, want in ((OK, 2, '0'), (OK, 0, '1'),
-                               (OK + '❌ 테스트 실패 — 배포 중단\n', 2, '1')):
+    now = 1_800_000_000
+    old = '설명\n\n<!-- stall first=%d mailed= -->\n' % (now - 21 * 3600)
+    for raw, weekday, body, want in ((OK, 2, '', '0'), (OK, 0, '', '0'),
+                                     (OK + '❌ 테스트 실패 — 배포 중단\n', 2, '', '0'),
+                                     (OK + '❌ 테스트 실패 — 배포 중단\n', 2, old, '1')):
+        st = tmp_path / 'in.txt'
+        st.write_text(body, encoding='utf-8')
         rep.write_text(raw, encoding='utf-8')
-        F.main([str(rep), '--kst', KST, '--run-url', 'u', '--owner', 'O',
-                '--weekday', str(weekday), '--meta', str(meta)])
+        F.main([str(rep), '--kst', KST, '--run-url', 'u', '--owner', 'O', '--weekday', str(weekday),
+                '--meta', str(meta), '--state-in', str(st), '--state-out', str(tmp_path / 'out.txt'),
+                '--now', str(now)])
         lines = meta.read_text(encoding='utf-8').splitlines()
-        assert lines[0] == want, (weekday, raw[-20:])
+        assert lines[0] == want, (weekday, raw[-20:], body)
         assert len(lines) == 2 and lines[1].strip(), '둘째 줄에 제목이 있어야 한다'
+
+
+def test_stall_mail_goes_once_a_day_only_after_a_day_of_failure():
+    """멈춤 메일의 판정(stall_decide)을 회차 순서대로 굴린다 — 수요일 13시 첫 실패부터.
+
+    변이(각각 확인): `mailed != today` 를 지우면 목요일 16시 회차가 두 통째를 보내 빨강, pending 조건을 지우면 재시도 대기
+          회차가 메일을 보내 빨강, 성공 회차에서 상태를 지우지 않으면(None 대신 prev) 회복 뒤 첫 실패가 바로 메일이라 빨강.
+    픽스처: 실제 예약(매일 13:00 KST, 목 07:00·16:00 KST)의 회차 간격과 자동 재시도(35분) 대기 회차.
+    """
+    H = 3600
+    wed = 1_800_000_000
+    st, sent = None, []
+    for t, bad, pending, day in ((wed, True, False, 'wed'),             # 첫 실패 — 메일 없음
+                                 (wed + 18 * H, True, False, 'thu'),    # 목 07시: 아직 하루가 안 참
+                                 (wed + 24 * H, True, True, 'thu'),     # 목 13시: 재시도 대기 — 결과가 아직 없다
+                                 (wed + 26 * H, True, False, 'thu'),    # 재시도 끝 실패 — 한 통
+                                 (wed + 27 * H, True, False, 'thu'),    # 목 16시: 같은 날 두 통째는 없다
+                                 (wed + 48 * H, True, False, 'fri'),    # 금 13시: 아직 멈춤 — 하루 한 통
+                                 (wed + 72 * H, False, False, 'sat'),   # 토: 회복
+                                 (wed + 96 * H, True, False, 'sun')):   # 일: 새로 멈춤 — 다시 하루를 기다린다
+        send, st, hours = F.stall_decide(st, bad, pending, t, day)
+        if send:
+            sent.append((day, int(hours)))
+    assert sent == [('thu', 26), ('fri', 48)], sent
+    assert F.stall_days(20) == 2 and F.stall_days(26) == 2 and F.stall_days(48) == 3
+
+
+def test_stall_marker_round_trips_and_keeps_the_issue_text():
+    body = '꼭 보셔야 할 일이 있을 때만 코멘트가 달립니다.\n'
+    a = F.stall_write(body, (123, '2026-11-08'))
+    assert a.startswith(body.rstrip('\n')) and F.stall_read(a) == (123, '2026-11-08')
+    assert '<!--' in a and '@' not in a.split('<!--')[1], '숨은 표식에 멘션이 들어가면 본문 고치기가 메일이 된다'
+    assert F.stall_write(a, None) == body and F.stall_read(F.stall_write(a, None)) is None
+    assert F.stall_read(F.stall_write(a, (456, ''))) == (456, '')
+
+
+def test_stalled_mail_says_what_to_do():
+    raw = OK + '❌ 테스트 실패 — 배포 중단\n'
+    h = F.headline(raw, KST, 2, stalled_h=26)
+    body, mention = F.build(raw, KST, 'u', 'O', 2, stalled_h=26)
+    assert h.startswith('🔴') and '이틀째' in h and '세션에 알리기' in h and len(h) <= 60, h
+    assert '26시간째' in body and '@O' in body and mention
+    assert '하실 일 없음' not in h
+
+
+def _alert():
+    return io.open(os.path.join(ROOT, 'tools', 'post_alert.sh'), encoding='utf-8').read()
 
 
 def test_workflow_comments_only_after_checking_the_send_flag():
     code = _code(_wf('update-cloud.yml'))
     i_flag = code.find('if [ "$SEND" != "1" ]')
-    i_comment = code.find('gh issue comment')
+    i_post = code.find('post_alert.sh post')
     assert i_flag >= 0, '메일 여부를 보지 않고 이슈에 쓴다'
-    assert 0 <= i_flag < i_comment, '코멘트가 메일 여부 검사보다 앞에 있다'
-    assert code.count('gh issue comment') == 1, '검사를 거치지 않는 코멘트 경로가 생겼다'
-    gate = code[i_flag:i_comment]
-    assert re.search(r'\bexit 0\b', gate), '정상 회차에서 빠져나가지 않는다'
+    assert 0 <= i_flag < i_post, '코멘트가 메일 여부 검사보다 앞에 있다'
+    assert code.count('post_alert.sh post') == 1, '검사를 거치지 않는 코멘트 경로가 생겼다'
+    assert 'gh issue comment' not in code, '코멘트는 tools/post_alert.sh 한 곳에서만 단다'
+    gate = code[i_flag:i_post]
+    assert re.search(r'\bexit 0\b', gate), '메일 없는 회차에서 빠져나가지 않는다'
+
+
+def test_every_comment_goes_through_the_alert_script():
+    """사람에게 가는 메일은 경보 이슈 코멘트 하나뿐이다(2026-11-08). 워크플로가 이슈에 직접 코멘트를 달면 안 된다.
+
+    변이: watchdog.yml 의 notify 에서 post_alert.sh 대신 gh issue comment 를 쓰면 빨강.
+    """
+    a = _code(_alert())
+    assert a.count('gh issue comment') == 1
+    wfdir = os.path.join(ROOT, '.github', 'workflows')
+    for name in sorted(os.listdir(wfdir)):
+        assert 'gh issue comment' not in _code(_wf(name)), name
+    for name in ('update-cloud.yml', 'watchdog.yml', 'nightly-alert.yml'):
+        assert 'post_alert.sh post' in _code(_wf(name)), name
+
+
+def test_alerts_fire_only_for_scheduled_real_failures():
+    """감시는 판정 잡이 빨개진 예약 회차만, 예약 시험 경보는 ci-tests 예약 실행이 실패한 날만 보낸다.
+
+    변이(각각 확인): watchdog notify 의 if 에서 schedule 조건을 지우면 빨강, 판정 잡 대신 failure() 로 넓히면(1차 시간 초과만으로
+          메일) 빨강, nightly-alert 의 conclusion 조건을 지우면 매일 밤 메일이라 빨강.
+    """
+    w = _code(_wf('watchdog.yml'))
+    m = re.search(r'^  notify:\n(?:    .*\n)*?    if: \$\{\{(.*)\}\}', w, re.M)
+    assert m, 'watchdog 에 notify 잡이 없다'
+    cond = m.group(1)
+    assert "github.event_name == 'schedule'" in cond and 'failure()' not in cond, cond
+    for job in ('recheck', 'recheck2', 'alert'):
+        assert "needs.%s.result == 'failure'" % job in cond, (job, cond)
+    assert "needs.freshness.result" not in cond, '1차 시간 초과만으로 보내면 안 된다'
+    n = _code(_wf('nightly-alert.yml'))
+    assert "github.event.workflow_run.event == 'schedule'" in n
+    assert "github.event.workflow_run.conclusion == 'failure'" in n
+    ci_name = _wf('ci-tests.yml').splitlines()[0][len('name: '):]
+    assert "workflows: ['%s']" % ci_name in n, 'ci-tests 이름이 바뀌면 경보가 조용히 끊긴다'
+
+
+def test_blog_reminders_are_off():
+    """블로그 발행 종료(2026-10-29)로 발행 알림·발행 확인 예약을 껐다(2026-11-08). 손으로는 돈다.
+
+    변이: write-reminder.yml 에 cron 줄을 되살리면 빨강.
+    """
+    for name in ('write-reminder.yml', 'publish-check.yml'):
+        code = _code(_wf(name))
+        assert 'schedule:' not in code and '- cron:' not in code, name
+        assert 'workflow_dispatch:' in code, name
 
 
 def test_fallback_report_still_sends_mail():
@@ -102,7 +212,7 @@ def test_headline_severity_follows_the_body():
 
 
 def test_workflow_renames_the_issue_before_commenting():
-    code = _code(_wf('update-cloud.yml'))
+    code = _code(_alert())
     i_title = code.find('gh issue edit "$N" --title "$HEAD"')
     assert 0 <= i_title < code.find('gh issue comment'), '제목을 바꾸기 전에 코멘트를 단다'
     assert '--label "$LABEL"' in code, '제목이 바뀌므로 이슈는 라벨로 찾아야 한다'
@@ -118,9 +228,10 @@ def test_failure_mail_subjects_are_readable():
 # ── 3. 한 통씩 더 가는 것들을 되살리지 않는다 ──────────────────────────────
 
 def test_no_workflow_assigns_the_owner():
-    for name in ('update-cloud.yml', 'write-reminder.yml'):
+    for name in ('update-cloud.yml', 'write-reminder.yml', 'watchdog.yml', 'nightly-alert.yml'):
         code = _code(_wf(name))
         assert '--assignee' not in code and '--add-assignee' not in code, name
+    assert '--assignee' not in _code(_alert()) and '--add-assignee' not in _code(_alert())
 
 
 def test_closer_closes_without_a_comment():

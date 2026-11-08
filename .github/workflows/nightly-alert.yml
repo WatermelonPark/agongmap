@@ -1,0 +1,46 @@
+name: 예약 시험 경보 · 매일 밤 시험이 빨개진 날만 한 통 · 하실 일 없음
+
+# 사람에게 가는 메일은 경보 이슈 코멘트 하나뿐이다(2026-11-08 대표 결정 — 실행 실패 메일은 대표가 GitHub 설정에서 껐다,
+# tools/post_alert.sh 머리 주석). ci-tests.yml 의 매일 밤 예약 실행은 '다음 분기 데이터가 들어오는 날 배치 게이트가 막힐
+# 것'을 미리 보는 자리라(그 파일의 schedule 주석), 그것이 빨개진 날 경보 이슈에 한 통을 남긴다.
+#
+# 왜 ci-tests.yml 안이 아니라 따로인가: ci-tests 는 PR 코드를 돌리는 워크플로라 쓰기 권한을 두지 않는다
+# (test_ci_workflow_mirrors_gate.test_ci_workflow_can_not_write_anything). 이 워크플로는 저장소 기본 가지의 코드만 돌고
+# PR 코드를 체크아웃하지 않는다. PR·main 푸시의 빨강은 그 PR 을 모는 세션이 보고, 러너 판 시험(runner-trial.yml 이
+# workflow_call 로 ci-tests 를 부름)은 이 이벤트를 만들지 않는다 — 실험은 메일이 없다.
+
+on:
+  workflow_run:
+    workflows: ['시험 (PR·main) · 배치 게이트와 같은 조건 · 하실 일 없음']
+    types: [completed]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  notify:
+    if: ${{ github.event.workflow_run.event == 'schedule' && github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: 경보 이슈에 한 통
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN: ${{ github.event.workflow_run.html_url }}
+        run: |
+          DAY=$(TZ=Asia/Seoul date '+%-m/%-d')
+          {
+            echo "### 🔴 매일 밤 예약 시험 실패 · $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M') KST"
+            echo ""
+            echo "사이트는 지금 정상입니다. 이대로 두면 다음 데이터가 들어오는 날 배치가 데이터를 커밋하지 못할 수 있습니다."
+            echo ""
+            echo "**하실 일:** 클라우드 세션에 '예약 시험 실패 고쳐 줘'라고 한 줄 남겨 주세요."
+            echo ""
+            echo "[실행 로그]($RUN) · @${{ github.repository_owner }}"
+          } > _alert.md
+          bash tools/post_alert.sh post "🔴 매일 밤 예약 시험 실패 · 사이트는 정상 · 하실 일: 세션에 알리기 ($DAY)" _alert.md
