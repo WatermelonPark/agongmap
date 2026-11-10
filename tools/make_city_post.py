@@ -641,7 +641,6 @@ def body(f, sheets, xlsx_name, outlook, k=0, lead=''):
               '<p>이 입주 일정이면 %s 전세가 어느 쪽으로 움직일 것 같으세요.</p>' % city,
               '<p>입주가 몰리는 달을 보고 나서 이사 시기를 앞당길지 미룰지 고민되시는 분도 계실 것 같아요.</p>',
               '<p>목록에 있는 단지 가운데 직접 가 보신 곳이 있으신가요.</p>')[kk % 5])
-    B.append(P.disclaimer(f['now_y'] + len(rows)))
     return '\n'.join(B)
 
 
