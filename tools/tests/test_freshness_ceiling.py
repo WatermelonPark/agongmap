@@ -212,3 +212,32 @@ def test_harness_with_ceilings_off_stays_green_however_far_today_moves(monkeypat
     monkeypatch.setattr(C, 'TODAY', C.TODAY + 3650 * DAY)
     r = _run(monkeypatch, capsys, 4)
     assert r['rc'] == 0 and 'VERDICT=ok' in r['out'], r['out'][-800:]
+
+def test_confirmed_source_pause_warns_until_review_date(monkeypatch):
+    """사람이 확인한 원천 정지(SOURCE_PAUSED)는 다시 볼 날까지 실패가 아니라 경고다 — 같은 원천 정지로 매일 경보 메일이
+    가지 않게(2026-11-10 대표 결정). 원천이 새 달을 냈는데 우리가 못 받으면, 다시 볼 날이 지나면, 목록에 없는 계열이면
+    그대로 실패다.
+
+    변이(각각 확인): check() 의 WARN.append 를 지우면 경고 단정이 빨강, paused_until 의 날짜 비교를 지우면 '다시 볼 날
+          다음 날' 단정이 빨강, SOURCE_PAUSED 를 비우면 첫 단정이 빨강. ('원천이 앞섬'은 grace 안 뒤처짐이 상한보다 늘 짧아
+          behind 판정에서 먼저 실패한다 — check() 의 `not behind` 는 그 순서가 바뀌어도 덮지 않게 둔 겹 막이다.)
+    픽스처: 2026-11-10 의 실제 상태 — KOSIS 규모별 매매·전세·월세 표가 2026.06 에서 멈춤(원천도 2026.06), 상한 130일.
+          오늘은 고정한다(데이터 시점과 무관한 합성 날짜라 데이터가 앞으로 가도 같은 판정이다).
+    """
+    label, ours, cap = '규모별 매매', '2026.06', C.MAX_AGE_BASIC
+    until = datetime.date.fromisoformat(C.SOURCE_PAUSED[label][1])
+    frozen = lambda: C.digits(ours)  # noqa: E731
+    ahead = lambda: '202609'  # noqa: E731  원천은 새 달을 냈다
+    end = C.period_end(ours)
+    assert end + (cap + 1) * DAY <= until, '픽스처의 오늘이 정지 기간 안에 들지 않는다'
+    monkeypatch.setattr(C, 'WARN', [])
+    monkeypatch.setattr(C, 'TODAY', end + (cap + 1) * DAY)
+    assert C.check(label, ours, frozen, C.GRACE_BASIC, _retry=False, max_age=cap) is None
+    assert len(C.WARN) == 1 and label in C.WARN[0] and '원천 정지' in C.WARN[0], C.WARN
+    r = C.check(label, ours, ahead, C.GRACE_BASIC, _retry=False, max_age=cap)
+    assert r and '원천 202609' in r, '원천이 새 달을 냈는데 경고로 덮였다'
+    r = C.check('규모별 전환율', ours, frozen, C.GRACE_BASIC, _retry=False, max_age=cap)
+    assert r and '상한' in r, '정지 목록에 없는 계열이 경고로 빠졌다'
+    monkeypatch.setattr(C, 'TODAY', until + DAY)
+    r = C.check(label, ours, frozen, C.GRACE_BASIC, _retry=False, max_age=cap)
+    assert r and '상한' in r, '다시 볼 날이 지났는데 계속 경고로만 남는다'
