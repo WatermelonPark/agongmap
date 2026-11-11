@@ -73,7 +73,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   }
 ]</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
@@ -210,10 +210,10 @@ footer a{color:var(--ink2)}
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
@@ -239,10 +239,10 @@ footer a{color:var(--ink2)}
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
