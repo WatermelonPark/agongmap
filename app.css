@@ -194,6 +194,7 @@
     align-items:center;justify-content:center;gap:3px;color:#97a0b8;
     font-size:13px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
     font-family:inherit}
+  @media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS, 11-12 접근성 점검) */
   .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */   /* 홈의 '홈'·'시세' 탭은 <button> 이라 상속하지 않으면 시스템 글꼴로 그려진다(B11 검토) */
   .nav-btn.on{color:#fff}
     .nav-btn svg{display:block}

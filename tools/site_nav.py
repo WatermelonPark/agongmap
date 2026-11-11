@@ -72,6 +72,10 @@ READ_PX = 14
 # 탭바 키보드 초점(백로그 36-8, 2026-10-06) — 손 페이지 탭바엔 초점 표시가 없어 Tab 으로 어디 있는지 보이지 않았다. 먹색 바탕 위라
 # 흰 테두리를 안쪽으로 그린다. app.css 와 각 페이지 <style> 이 이 글자를 그대로 싣고 test_site_nav 가 모든 탭바 페이지를 본다.
 NAV_FOCUS_CSS = '.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}'
+# 키보드 초점이 하단 탭바(62px) 밑에 숨지 않게 — 초점을 옮길 때 브라우저가 이만큼 띄워 스크롤한다(WCAG 2.4.11, 2026-11-12 접근성
+# 점검: 375px 에서 FAQ 질문·지도 칸·푸터 링크 등이 탭바 뒤에 통째로 가렸다). 탭바가 아래에 있는 폭(1023px 이하)만. 탭바를 싣는
+# 모든 스타일 원본(app.css·지표 뼈대·주간 뼈대 생성기·손 페이지)이 이 글자를 싣고 test_site_nav 가 본다.
+NAV_SCROLL_PAD_CSS = '@media(max-width:1023px){html{scroll-padding-bottom:72px}}'
 # 켜진 탭 색(2026-10-31 디자인 리뷰 2차 — FAQ 가 '콘텐츠' 탭을 켜도록 class="nav-btn on" 을 달았는데 이 규칙이 없어 네 탭이
 # 모두 회색이었다). 탭을 켜는 페이지는 자기 <style> 이나 읽는 시트(app.css)에 이 글자를 싣고, test_site_nav 가 본다.
 NAV_ON_CSS = '.nav-btn.on{color:#fff}'

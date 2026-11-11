@@ -673,6 +673,8 @@ def put_nav(s):
         s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
     if N.NAV_FOCUS_CSS not in s:     # 탭바 키보드 초점(백로그 36-8) — 뼈대는 배치 산출물이라 여기서 넣는다
         s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_FOCUS_CSS, 1)
+    if N.NAV_SCROLL_PAD_CSS not in s:     # 초점이 탭바 밑에 숨지 않게(2026-11-12 접근성 점검)
+        s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_SCROLL_PAD_CSS, 1)
     if HEAD_DESKTOP_CSS not in s:    # 데스크톱 머리 위 빈칸(백로그 36-9)
         s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + HEAD_DESKTOP_CSS, 1)
     # 탭 라벨 글자 크기도 정본(site_nav.LABEL_PX — 홈 화면 글자 하한 13px, 2026-09-28)으로 맞춘다. 뼈대 <style> 은 배치 산출물이라
