@@ -89,7 +89,9 @@ def _home_parts():
     # PV_SENT(부팅 page_view 를 보냈는가)와 대결 쿼리 걷기(chalInURL·chalSearch)는 showView 가 쓴다(전수리뷰 #44·#46)
     return '\n'.join(['var PV_SENT=false, PV_AFTER=null;', _js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
                       _js_func(src, 'chalInURL'), _js_func(src, 'chalSearch'), _js_func(src, 'chalBootable'),
-                      _js_func(src, 'applyHash'), r2c.group(0)])
+                      _js_func(src, 'applyHash'), r2c.group(0),
+                      # 시장동향 주소 입구는 요청한 때의 GT_SEQ 를 넘긴다(2026-11-12 누름 경로 점검 B) — 그 선언도 같이 싣는다
+                      re.search(r'^const GT_SEQ=\{[^}]*\};', src, re.M).group(0)])
 
 
 HARNESS = r'''

@@ -1014,8 +1014,12 @@ function openTrendRegion(k,code,view,seq){
     /* 되돌릴 때는 보기만이 아니라 지역 선택도 '전체'로 — 남겨 두면 다음에 '그래프'·'표'를 누를 때 예전 지역이 나온다 */
     if(!code){ if(TR_OPEN[k]){ TR_OPEN[k]=null; document.getElementById(T.sel).value=''; fillSggSel(k,''); TRSHOW[k]=12;
       (k==='week'?renderWeekSec:renderMonthSec)(); gtSet(k,TR_BACK[k],true); }
-      if(view==='r'&&GT_SEQ[k]===seq)gtSet(k,'r',true);
+      if(view==='r'){ if(GT_SEQ[k]===seq)gtSet(k,'r',true);
+        if(/-rank$/.test(location.hash))history.replaceState(history.state,'','#stats-market-'+k); }   // 순위 입구는 연 뒤에 걷는다(D)
       return; }
+    /* 받는 사이 사람이 다른 보기(순위·지도 등)를 골랐으면 그 입구는 버리고 주소의 '~코드'도 걷는다(2026-11-12 누름 경로 점검 B —
+       예전엔 데이터가 온 뒤 그 지역 그래프로 덮었다). seq 는 주소 입구(applyHash)만 넘긴다. */
+    if(seq!==undefined&&GT_SEQ[k]!==seq){ trHashDrop(k); return; }
     const t=trendTarget(W,code);
     if(!TR_OPEN[k]){ const s=document.getElementById('sec-'+k); TR_BACK[k]=s&&s.classList.contains('gm-r')?'r':'m'; }
     fillTrendReg(k,W.regions);
@@ -1033,7 +1037,17 @@ function openTrendRegion(k,code,view,seq){
 function trOpenDrop(k){
   if(!TR_OPEN[k])return;
   TR_OPEN[k]=null;
-  if(location.hash.indexOf('~')>=0)statsNav('#stats-market-'+k,true);
+  trHashDrop(k);
+}
+/* 주소의 '~코드'를 걷는다. 그 항목이 같은 주기의 코드 없는 주소에서 지역 링크로 온 것이면(applyHash 가 단 trBase) 한 칸 뒤로
+   접는다 — 예전엔 지금 항목을 앞 항목과 같은 주소로 바꿔(replaceState) 첫 뒤로 가기가 아무 일도 하지 않았다(2026-11-12 누름 경로
+   점검 E). 뒤로 돌아온 hashchange 는 applyHash 가 한 번 건너뛴다(화면은 이미 맞다 — 다시 돌리면 맨 위로 튄다). 표지가 없으면
+   (주소로 바로 들어온 첫 항목 등) 예전처럼 바꿔 쓴다 — 뒤로 가면 사이트를 떠나기 때문이다. */
+function trHashDrop(k){
+  if(location.hash.indexOf('#stats-market-'+k+'~')!==0)return;
+  const st=history.state, base='#stats-market-'+k;
+  if(st&&st.trBase===base){ TR_SKIP_HASH=base; history.back(); }
+  else statsNav(base,true);
 }
 /* 표 표시 개수 — 기본 12개, '더보기'로 12씩 늘린다. 시군구를 고른 상태면
    전체 시계열(data-sgg.json)이 필요하므로 먼저 받아온 뒤 늘린다. */
@@ -1285,6 +1299,9 @@ function gtSet(sec,v,silent){
   if(silent)return;   // openTrendRegion 이 바꾼 것 — 사람이 누른 전환만 센다
   GT_SEQ[sec]=(GT_SEQ[sec]||0)+1;   // 받는 중인 순위 입구가 이 고름을 덮지 않게(openTrendRegion)
   if(v==='m'||v==='r')trOpenDrop(sec);   // 지역 그래프를 닫고 전 지역 보기로 — 주소의 '~코드'도 걷는다
+  /* 연 지역 그래프에서 그래프↔표를 바꾸면 주소의 '-t'도 맞춘다 — 예전엔 주소가 그대로라 새로고침하면 다른 보기가 열렸다
+     (2026-11-12 누름 경로 점검 A). */
+  else if((v==='g'||v==='t')&&TR_OPEN[sec])statsNav(statsHashOf('market'),true);
   track('stats_gt',{section:sec,view:v});
 }
 function setAdvTab(t,push){
