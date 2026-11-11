@@ -1382,7 +1382,10 @@ function renderBubbleSec(){
     const pL=px(lo),pH=px(hi),pN=px(loan),NW=15;
     const blueAnc=(pN<pL&&pN>pL-NW)?pN:pL;
     const redIn=(pH+NW>98)||(pN>pH&&pN<pH+NW);
-    const blueSt='left:'+blueAnc+'%;transform:translate(calc(-100% - 3px),-50%);color:#1a5276';
+    // 밴드가 막대 왼끝 가까이서 시작하면(서울·세종) 파란 숫자가 막대 밖 지역 이름에 붙었다(375px 2px — 2026-11-12 디자인 마감 점검)
+    // → 그때는 밴드 안쪽(오른편)에 둔다.
+    const blueIn=blueAnc<NW;
+    const blueSt='left:'+blueAnc+'%;transform:'+(blueIn?'translate(3px,-50%)':'translate(calc(-100% - 3px),-50%)')+';color:#1a5276';
     const redSt=redIn?'left:'+pH+'%;transform:translate(calc(-100% - 3px),-50%);color:#a93226':'left:'+pH+'%;transform:translate(3px,-50%);color:#a93226';
     h+='<div class="bb-row" data-r="'+rg+'" role="button" tabindex="0" aria-expanded="false" onclick="bbToggle(this)" onkeydown="rowKey(event,this)"><span class="bb-lab">'+zn(rg)+'</span>'
       +'<div class="bb-track" title="월세수익률 '+lo.toFixed(2)+'% ~ 위험선 '+hi.toFixed(2)+'% · 대출금리 '+loan.toFixed(2)+'%">'
