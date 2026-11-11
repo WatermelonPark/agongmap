@@ -700,10 +700,10 @@
   .chart-top .chart-unit{margin:0 0 0 auto}
   .chart-legend span{display:inline-flex;align-items:center;gap:6px}
   .chart-legend span::before{content:'';width:13px;height:13px;border-radius:0}
-  /* 계열 색(stats-5, 2026-11-07): 매매 먹(--ink)·전세 회청(#7a8b91)·월세 초록 — 빨강·파랑은 같은 화면 묶음의 지도·표·순위에서
-     상승·하락을 말하므로 그래프 계열에 쓰지 않는다. 값은 home-stats.js drawTrendChart 의 TR_COL 과 같다(test_home_stats_design). */
-  .chart-legend .cl-ma::before{background:#131e24}
-  .chart-legend .cl-je::before{background:#7a8b91}
+  /* 계열 색(2026-11-11 대표 결정 '사이클 색으로 통일' — 11-07 stats-5 의 먹·회청을 대신함): 매매 빨강·전세 보라·월세 초록,
+     정본 site_nav.SERIES_COL. 값은 home-stats.js drawTrendChart 의 TR_COL 과 같다(test_home_stats_design). */
+  .chart-legend .cl-ma::before{background:#c0392b}
+  .chart-legend .cl-je::before{background:#6c4ab6}
   /* 월세는 면적 없이 선만 그린다(3겹 면적은 서로를 가림) — 범례는 매매·전세와 같은 색면 */
   .chart-legend .cl-wo::before{background:#1f8a70}
   @media(max-width:720px){.chartwrap.sm{height:270px}}

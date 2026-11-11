@@ -203,7 +203,7 @@ __ROBOTS__
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">__LD__</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;__TOKENS__;__BRAND__}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;__TOKENS__;__BRAND__;__SERIES__}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
@@ -303,7 +303,7 @@ def type_tokens(css=None):
 
 
 def fill(shell, desk='wide', **kw):
-    out = shell.replace('__TOKENS__', type_tokens()).replace('__BRAND__', N.BRAND_TOKENS).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
+    out = shell.replace('__TOKENS__', type_tokens()).replace('__BRAND__', N.BRAND_TOKENS).replace('__SERIES__', N.SERIES_TOKENS).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
     out = out.replace('__THEME__', N.THEME_COLOR)   # 브라우저 머리 색 정본(site_nav.THEME_COLOR)
     out = out.replace('__GAINT__', GT.INTERNAL_SCRIPT).replace('__GACFG__', GT.config_call())   # GA 내부 트래픽 표식(백로그 48)
     # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)

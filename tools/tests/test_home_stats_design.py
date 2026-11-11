@@ -157,22 +157,25 @@ def test_stats_map_basis_and_cell_meaning_share_one_line_above_the_map():
     assert 'flex-wrap:wrap' in _rule(css, '.map-top')
 
 
-def test_trend_chart_series_colors_are_not_the_direction_colors():
-    """stats-5: 그래프 계열 색은 TR_COL(매매 먹·전세 회청·월세 초록) 하나이고 범례 네모(.cl-ma·.cl-je·.cl-wo)와 같다. 빨강·파랑(지도·
-    표·순위의 상승·하락 — #e0564a·#c0392b·#3a7bd5·#1a5276)과 옛 보라 #a98be0 는 drawTrendChart 와 범례에 없다.
+def test_trend_chart_series_colors_follow_the_site_series_colors():
+    """그래프 계열 색은 TR_COL 하나이고 사이트 공통 계열색(site_nav.SERIES_COL — 매매 빨강·전세 보라·월세 초록, 2026-11-11 대표 결정
+    '사이클 색으로 통일')과 같으며 범례 네모(.cl-ma·.cl-je·.cl-wo)와 같다. 11-07 stats-5 의 먹·회청(#131e24·#7a8b91)과 옛 연보라
+    #a98be0·옛 빨강 #e0564a 는 쓰지 않는다.
 
-    변이(실제로 확인): drawTrendChart 의 매매 선을 옛 '#e0564a' 로 되돌리면, .cl-je 범례를 '#a98be0' 로 되돌리면, TR_COL.je 만
-    바꾸고 범례를 그대로 두면 빨개진다.
+    변이(실제로 확인): TR_COL.ma 를 옛 '#131e24' 로 되돌리면, .cl-je 범례를 '#a98be0' 로 되돌리면, TR_COL.je 만 바꾸고 범례를 그대로
+    두면 빨개진다.
     """
+    import site_nav as N
     src = HS.home_source()
     m = re.search(r"^const TR_COL=\{ma:'(#[0-9a-f]{6})',je:'(#[0-9a-f]{6})',wo:'(#[0-9a-f]{6})'\};", src, re.M)
     assert m, 'TR_COL 이 없다'
     col = dict(zip(('ma', 'je', 'wo'), m.groups()))
+    assert col == {'ma': N.SERIES_COL['ma'], 'je': N.SERIES_COL['je'], 'wo': N.SERIES_COL['sup']}, col
     css = _css()
     for k, cls in (('ma', 'cl-ma'), ('je', 'cl-je'), ('wo', 'cl-wo')):
         assert ('background:%s' % col[k]) in _rule(css, '.chart-legend .%s::before' % cls), (k, cls)
     draw = _js_func(src, 'drawTrendChart')
-    for bad in ('#e0564a', '#c0392b', '#3a7bd5', '#1a5276', '#a98be0'):
+    for bad in ('#e0564a', '#131e24', '#7a8b91', '#a98be0'):
         assert bad not in draw and bad not in set(col.values()), bad
     for k in ('ma', 'je', 'wo'):
         assert 'TR_COL.%s' % k in draw, k
