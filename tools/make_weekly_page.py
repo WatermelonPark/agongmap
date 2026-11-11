@@ -689,17 +689,24 @@ def put_nav(s):
 
 
 _ROOT_OPEN = re.compile(r':root\{--ink:#131e24;')
+_BRAND_RUN = re.compile(r'--brand:#[0-9a-fA-F]{6};(?:--[\w-]+:#[0-9a-fA-F]{6};)*?--mark-ink:#[0-9a-fA-F]{6};')
+_UP2 = re.compile(r'(--up2:)#[0-9a-fA-F]{6}')
+_DN2 = re.compile(r'(--dn2:)#[0-9a-fA-F]{6}')
 _INK_BG = re.compile(r'((?:\.bottomnav|\.cta)\{[^}]*?background:)var\(--ink\)')
 
 
 def put_brand(s):
     """틀 강조색(2026-11-11 대표 결정 B안, 정본 site_nav.BRAND_TOKENS) — 뼈대 <style> 은 배치 산출물이라 PR 로 고치지 않고 여기서
     맞춘다: 첫 :root 에 강조색 토큰을 싣고, 탭바·큰 단추(.cta) 바탕을 먹색에서 남색으로. 이미 맞으면 그대로 둔다."""
-    if N.BRAND_TOKENS not in s:
+    if s.count(N.BRAND_TOKENS + ';') != 1:
+        s = _BRAND_RUN.sub('', s)     # 값이 바뀐 옛 토큰 줄은 걷고 정본으로 다시 싣는다(겹쳐 쌓이지 않게)
         if len(_ROOT_OPEN.findall(s)) != 1:
             raise SystemExit('weekly/index.html 에서 :root 토큰 자리를 찾지 못했다')
         s = _ROOT_OPEN.sub(lambda m: m.group(0) + N.BRAND_TOKENS + ';', s, count=1)
-    return _INK_BG.sub(lambda m: m.group(1) + 'var(--brand)', s)
+    s = _INK_BG.sub(lambda m: m.group(1) + 'var(--brand)', s)
+    # 흰 바탕 등락 글자(표·순위·머리 숫자)는 데이터 의미색 정본 한 벌(site_nav.UP_INK·DN_INK, 2026-11-11 색 감사).
+    s = _UP2.sub(lambda m: m.group(1) + N.UP_INK, s)
+    return _DN2.sub(lambda m: m.group(1) + N.DN_INK, s)
 
 
 _DESK_LINK = re.compile(r'<link rel="stylesheet" href="/desk\.css[^"]*"[^>]*>')

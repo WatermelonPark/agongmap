@@ -31,6 +31,13 @@ def _tokens(text):
 CANON = _tokens(N.BRAND_TOKENS)
 
 
+def _shell():
+    """지표 뼈대(make_indicator_pages.SHELL)를 원본 파일 글자에서 읽는다 — 다른 시험이 모듈 값을 바꿔 두면 순서에 따라 갈렸다."""
+    src = _read('tools/make_indicator_pages.py')
+    i = src.index('SHELL = """')
+    return src[i:src.index('"""', i + 12)]
+
+
 def test_every_style_source_carries_the_canonical_tokens():
     """app.css·지표 뼈대(콘텐츠·월간·지표 페이지)·손 페이지·주간 뼈대가 정본과 같은 토큰을 싣는다.
 
@@ -42,13 +49,16 @@ def test_every_style_source_carries_the_canonical_tokens():
     assert _tokens(_read('app.css')) == CANON, 'app.css 토큰이 정본과 다르다'
     for rel in HAND:   # 홈은 app.css 를 읽는다
         assert _tokens(_read(rel)) == CANON, '%s 의 :root 토큰이 정본과 다르다' % rel
-    import make_indicator_pages as MI
-    assert _tokens(MI.SHELL.replace('__BRAND__', N.BRAND_TOKENS)) == CANON and '__BRAND__' in MI.SHELL
+    shell = _shell()
+    assert _tokens(shell.replace('__BRAND__', N.BRAND_TOKENS)) == CANON and '__BRAND__' in shell
     import make_weekly_page as MW
     skel = ':root{--ink:#131e24;--ink2:#4c5f66}\n.bottomnav{height:62px;background:var(--ink);}\n.cta{background:var(--ink);color:#fff}'
     out = MW.put_brand(skel)
     assert _tokens(out) == CANON and 'background:var(--ink)' not in out, out
     assert MW.put_brand(out) == out, '두 번 돌리면 토큰이 겹친다'
+    old = skel.replace(':root{--ink:#131e24;', ':root{--ink:#131e24;' + N.BRAND_TOKENS.replace('#16325c', '#000000') + ';')
+    out2 = MW.put_brand(old)
+    assert out2.count('--brand:') == 1 and _tokens(out2) == CANON, '값이 바뀐 옛 토큰 줄이 남아 겹쳤다(2026-11-11 실제로 났다)'
 
 
 def test_tabbar_is_navy_everywhere():
@@ -56,10 +66,9 @@ def test_tabbar_is_navy_everywhere():
 
     변이(확인): faq/index.html 의 .bottomnav 바탕을 var(--ink) 로 되돌리면 빨강.
     """
-    import make_indicator_pages as MI
     srcs = {rel: _read(rel) for rel in HAND}
     srcs['app.css'] = _read('app.css')
-    srcs['SHELL'] = MI.SHELL
+    srcs['SHELL'] = _shell()
     for name, text in srcs.items():
         rules = re.findall(r'(?:^|[}\s])\.bottomnav\{([^}]*)\}', text)
         assert rules, '%s: 탭바 규칙이 없다' % name
@@ -82,3 +91,26 @@ def test_data_graphics_never_use_the_brand_color():
     for name, text in (('home-stats.js', stats), ('MAP_CSS', MW.MAP_CSS),
                        ('TABLE_CSS', MW.TABLE_CSS), ('콘텐츠 차트 CSS', chart)):
         assert not re.search(r'--brand|--mark|#16325c|#ffe066', text), '%s 에 틀 강조색이 들어갔다' % name
+
+
+def test_up_down_text_on_white_is_one_pair():
+    """흰 바탕 등락 글자는 한 벌(site_nav.UP_INK·DN_INK)이다 — 색 감사(11-11)에서 '상승' 글자 빨강 네 벌·'하락' 파랑 세 벌이었다.
+    판정 '부족'(g2)은 지도와 같은 빨강 계열이다(노랑이면 신호등 '보통'과 겹친다).
+
+    변이(각각 확인): 지표 뼈대 --up 을 #b23b2e 로 되돌리면 빨강, put_brand 의 --up2 바꾸기를 지우면 빨강, app.css
+          .sc-tier.g2 를 노랑(#8f5806)으로 되돌리면 빨강.
+    픽스처: 저장소의 실제 스타일 원본과, 옛 주간 뼈대 값(--up2:#8f2318·--dn2:#123c5c)을 담은 합성 :root.
+    """
+    import make_weekly_page as MW
+    import make_sido_pages as MS
+    assert '--up:%s;--dn:%s;' % (N.UP_INK, N.DN_INK) in _shell()
+    out = MW.put_brand(':root{--ink:#131e24;--up:#c0392b;--up2:#8f2318;--dn:#3a7bd5;--dn2:#123c5c}')
+    assert '--up2:%s' % N.UP_INK in out and '--dn2:%s' % N.DN_INK in out, out
+    css = _read('app.css')
+    ups = re.findall(r'td\.up\{color:(#[0-9a-fA-F]{6})', css)
+    dns = re.findall(r'td\.dn\{color:(#[0-9a-fA-F]{6})', css)
+    assert ups and set(ups) == {N.UP_INK} and dns and set(dns) == {N.DN_INK}, (ups, dns)
+    g2 = re.search(r'\.sc-tier\.g2\{background:#([0-9a-f]{6});color:#([0-9a-f]{6})\}', css)
+    for h in (g2.group(1), g2.group(2), MS.GRADE_COLOR['g2'][1:]):
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        assert r > g and r > b and not (g > b + 40), '부족(g2)이 빨강 계열이 아니다: #%s' % h
