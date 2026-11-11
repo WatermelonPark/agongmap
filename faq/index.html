@@ -74,7 +74,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }
 </script>
 <style>b,strong{font-weight:600}
-  :root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;
+  :root{--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fffbe8;--mark-ink:#5a4300;--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;
     --muted:#5e6f74;--line:#c4cec9}
   /* 조판 치수 — 공용 시트 :root 정본의 사본이다. 값을 손으로 바꾸지 말 것(test_design_tokens 가 일치를 고정한다) */
   :root{--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
@@ -85,7 +85,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
   header{padding:56px 0 30px;text-align:center}
   .chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;
-    background:var(--ink);padding:6px 16px;border-radius:0;margin-bottom:18px}
+    background:var(--brand);padding:6px 16px;border-radius:0;margin-bottom:18px}
   h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.3;margin-bottom:12px}
   .lead{font-size:var(--fs-read);color:var(--ink2);max-width:460px;margin:0 auto}
   section{padding:26px 0 8px}
@@ -98,7 +98,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   details p{font-size:var(--fs-read);color:var(--ink2);padding:0 20px 16px}
   details a{color:var(--ink);font-weight:600}
   .cta{display:block;width:100%;max-width:400px;margin:26px auto;text-align:center;text-decoration:none;
-    background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
+    background:var(--brand);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
   footer{padding:24px 0 60px;text-align:center;font-size:13px;color:var(--muted);line-height:1.7}
   footer a{color:var(--muted)}
 
@@ -109,7 +109,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
    ⚠️ 주석에도 공용 시트의 파일명을 쓰지 말 것 — audit_design의 공유 판정이
    문자열 검색이라 주석의 파일명만으로 그 시트의 그림자까지 합산된다. */
 body{padding-bottom:66px}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);
   display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(19,30,36,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;
@@ -120,8 +120,10 @@ body{padding-bottom:66px}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
+
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}   /* 본문 링크는 남색 밑줄(2026-11-11 색 감사 — 링크가 본문과 같은 먹색이라 눌리는 곳이 안 보였다) */
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="doc">
 <a class="skip" href="#main">본문으로 건너뛰기</a>

@@ -47,7 +47,7 @@ body[data-desk=doc] .dtoc ol{list-style:none;margin:0;padding:0}
 body[data-desk=doc] .dtoc a{display:block;padding:7px 10px;margin:0 0 2px;font-size:14px;line-height:1.45;color:var(--ink2,#3a4650);
   text-decoration:none;border-left:3px solid transparent}
 body[data-desk=doc] .dtoc a:hover{background:rgba(19,30,36,.05);color:var(--ink,#131e24)}
-body[data-desk=doc] .dtoc a[aria-current]{border-left-color:var(--ink,#131e24);color:var(--ink,#131e24);font-weight:700;
+body[data-desk=doc] .dtoc a[aria-current]{border-left-color:var(--brand,#16325c);color:var(--brand,#16325c);font-weight:700;
   background:rgba(19,30,36,.04)}
 body[data-desk=doc] .dtoc a:focus-visible{outline:2px solid var(--ink,#131e24);outline-offset:-2px}
 /* /monthly/ 의 절 이동 칩은 왼쪽 목차가 대신한다 */

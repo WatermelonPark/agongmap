@@ -7,6 +7,9 @@
     --ink:#131e24; --ink2:#4c5f66; --paper:#f4f6f5; --paper2:#e9edeb;
     --maemae:#c0392b; --jeonse:#6c4ab6; --stock:#1f8a70; --flow:#d99a00;
     --line:#c4cec9; --muted:#5e6f74;
+    /* 틀 강조색(2026-11-11 대표 결정 B안 '남색 + 형광 표시') — 내비·선택된 단추·주요 단추·링크·요약 표지에만 쓴다.
+       지도·표·그래프(데이터)에는 쓰지 않는다. 정본은 site_nav.BRAND_TOKENS 이고 test_brand_color 가 모든 페이지를 대조한다. */
+    --brand:#16325c; --brand-bg:#e8eef7; --mark:#ffe066; --mark-bg:#fff3b8; --mark-soft:#fffbe8; --mark-ink:#5a4300;
     /* '균형'(g1) 판정의 중립 회색 — 홈 지도 채움(supplyFill)과 범례 램프 가운데 칸이 같이 쓴다(홈 마케팅 검수 C4②).
        무채색이어야 하고 '자료 없음'(--paper2)·지면(--paper)과 갈려야 한다(test_home_first_screen). */
     --bal:#d3d9d6;
@@ -105,7 +108,7 @@
   .toggle button{font-family:inherit;font-size:13.5px;font-weight:600;padding:7px 15px;
     border:1px solid var(--ink);background:transparent;color:var(--ink);
     border-radius:var(--r-touch);cursor:pointer;transition:.15s}
-  .toggle button.on{background:var(--ink);color:var(--paper)}
+  .toggle button.on{background:var(--brand);color:var(--paper)}
 
   /* 고리의 근거 단락(4~6문장)이라 읽는 글 크기로(2026-11-07 디자인 검수 indicators-0 — 13.5px 회색이라 본문 16px 옆에서 건너뛰게 됐다) */
   .note{font-size:14.5px;line-height:1.65;color:var(--ink2);border-left:3px solid var(--ink2);
@@ -164,7 +167,7 @@
   .take li{counter-increment:t;padding:20px 0 20px 52px;position:relative;
     border-top:1px solid var(--line);font-size:16px;color:var(--ink2)}
   .take li::before{content:counter(t);position:absolute;left:0;top:18px;width:32px;height:32px;
-    background:var(--ink);color:var(--paper);border-radius:50%;display:flex;
+    background:var(--brand);color:var(--paper);border-radius:50%;display:flex;
     align-items:center;justify-content:center;font-size:14px;font-weight:600}
   .take li b{color:var(--ink)}
   /* 끝 요약 항목마다 그 절로 돌아가는 링크(2026-11-07 디자인 검수 indicators-12 — 22,000px 를 다 읽은 독자에게 '어디로 갈지'). */
@@ -175,6 +178,7 @@
   footer{padding:44px 0 80px;font-size:13px;color:var(--muted)}
   footer .src{margin-top:10px;line-height:1.8}
   footer b{color:var(--ink2)}
+  :where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}   /* 본문 링크는 남색 밑줄(2026-11-11 색 감사 — 본문과 같은 먹색이라 눌리는 곳이 안 보였고, 홈 '숫자로 보면'은 브라우저 기본 파랑이었다) */
   footer a{color:var(--ink2)}   /* 생성 페이지 공용 푸터 링크(2026-10-30 디자인 리뷰 — zone 푸터가 브라우저 기본 파랑이었다) */
   footer.sitefoot{text-align:center}   /* 공용 푸터(site_nav.site_footer)는 어느 페이지에서나 가운데 정렬(2026-10-31 디자인 리뷰 2차 — zone 만 왼쪽이었다) */
   /* 푸터 '만든이' 메일(mailto, 2026-09-28 작은 글씨 정리 — 홈 운영 주체 줄을 빼며 제보 경로를 푸터 메일 링크로 남겼다)은 둘레
@@ -183,7 +187,7 @@
 
   /* ===== 하단 내비 ===== */
   body{padding-bottom:66px}
-  .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);
     display:flex;justify-content:center;z-index:100;
     box-shadow:0 -4px 18px rgba(19,30,36,.28)}
   .nav-btn{flex:1;max-width:220px;border:0;background:none;display:flex;flex-direction:column;
@@ -224,7 +228,7 @@
     padding:6px 8px 6px 0;min-height:44px;margin-bottom:4px}
   /* 진행바 */
   .qprogress{height:6px;background:var(--paper2);border-radius:0;margin:30px 0 8px;overflow:hidden}
-  .qbar{height:100%;background:var(--ink);border-radius:0;transition:width .35s ease;width:0}
+  .qbar{height:100%;background:var(--brand);border-radius:0;transition:width .35s ease;width:0}
   .qcount{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:18px}
     .qq{font-size:21px;font-weight:600;line-height:1.4;margin-bottom:24px;letter-spacing:-.01em}
     .qq:focus:not(:focus-visible){outline:none}   /* nextQ 가 옮긴 초점(스크린리더용)은 테두리 없이 */
@@ -250,7 +254,7 @@
   .qexp .ehead.o{color:var(--stock)}.qexp .ehead.x{color:#c0392b}
   .qexp p{font-size:14.5px;line-height:1.7;color:var(--ink2);margin:0}
   .qexp b{color:var(--ink)}
-  .qnext{margin-top:18px;width:100%;background:var(--ink);color:#fff;border:0;border-radius:var(--r-touch);
+  .qnext{margin-top:18px;width:100%;background:var(--brand);color:#fff;border:0;border-radius:var(--r-touch);
     padding:15px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;display:none}
   .qnext.show{display:block}
   /* 결과 */
@@ -323,7 +327,7 @@
   .versus .vs-mid{flex:none;font-size:13px;font-weight:600;color:var(--muted);}
   .versus .vs-verdict{font-size:18px;font-weight:600;color:var(--ink);margin-bottom:14px}
   .versus .vs-btn{width:100%;font-family:inherit;font-size:15.5px;font-weight:600;padding:13px;
-    border:0;border-radius:var(--r-touch);background:var(--ink);color:#fff;cursor:pointer}
+    border:0;border-radius:var(--r-touch);background:var(--brand);color:#fff;cursor:pointer}
   .versus .vs-btn:active{transform:scale(.99)}
   .versus .vs-next{font-size:13.5px;font-weight:600;color:var(--stock)}
   /* 결과 → 다음 단계 유도 */
@@ -334,7 +338,7 @@
   .nextstep .ns-desc{font-size:13.5px;color:var(--ink2);line-height:1.6;margin-bottom:16px}
   .nextstep .ns-desc b{color:var(--ink)}
   .ns-btn{display:block;width:100%;font-family:inherit;font-size:15.5px;font-weight:600;
-    padding:14px;border-radius:var(--r-touch);border:0;cursor:pointer;background:var(--ink);color:#fff;margin-bottom:9px}
+    padding:14px;border-radius:var(--r-touch);border:0;cursor:pointer;background:var(--brand);color:#fff;margin-bottom:9px}
   .ns-btn:active{transform:scale(.99)}
   .ns-btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line);margin-bottom:0}
   /* 첫 버튼은 <a href>다(인앱 브라우저에서 길게 눌러 열도록). <button> 기본값이던 가운데
@@ -396,7 +400,7 @@
   .seg{display:flex;gap:6px;flex-wrap:wrap;flex:1}
   .seg button{border:1px solid var(--line);background:#fff;border-radius:var(--r-touch);
     padding:6px 13px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
-  .seg button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .seg button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .seg button{min-height:40px}   /* 세그먼트가 약 26~27px였다(점검 후속 ⑦) */
   #reg-sel{flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--r-touch);
     font-size:14px;font-weight:600;color:var(--ink);background:#fff;font-family:inherit}
@@ -407,13 +411,13 @@
      못 미쳤다(2026-08-01 검수). 글자 크기는 그대로 두고 세로 여백만 늘린다. */
   .period button{flex:1;min-width:54px;border:1px solid var(--line);background:#fff;line-height:1.3;
     border-radius:var(--r-touch);padding:9px 0;min-height:40px;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer}
-  .period button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .period button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   /* 시장동향 그래프의 기간(3개월|1년|3년|전체)은 그래프 안 옵션이라 1단 모드 단추(.smode — 4등분 상자)와 같은 꼴이면 안 된다
      (2026-11-07 디자인 검수 stats-2 — 1280px 에서 같은 189×40px 상자 넷이 220px 간격으로 두 번 섰다). 순위|지도|그래프|표(.gt)와
      같은 붙은 분절로 둔다. 높이 40px 은 그대로(test_speed_a11y). 규모별 피벗(.period.szrow)은 그대로다. */
   .period.trp{display:inline-flex;flex-wrap:nowrap;gap:0;margin:4px 0 8px;border:1.5px solid var(--line);border-radius:var(--r-touch);overflow:hidden;background:#fff}
   .period.trp button{flex:none;min-width:0;min-height:40px;padding:6px 14px;border:0;border-radius:0;background:transparent;color:var(--muted)}
-  .period.trp button.on{background:var(--ink);color:#fff}
+  .period.trp button.on{background:var(--brand);color:#fff}
   /* 규모별 동향 피벗 — 지표/규모 멀티토글 + 정렬·행렬전환. 균등 그리드라
      줄바꿈이 안 생기고, 모바일은 규모를 3열×2줄로 의도적으로 나눈다. */
   .szrow{display:grid;gap:5px;margin:6px 0 0}
@@ -462,7 +466,7 @@
   }
   /* 30초 요약 */
   /* 28화면 분량인데 위치 표시가 없었다(2026-09-18 오딧 8번). 위쪽 3px 진행 막대 + 요약(목차)으로 가는 버튼. */
-  .cy-progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--ink);z-index:60;pointer-events:none;transition:width .1s linear}
+  .cy-progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--brand);z-index:60;pointer-events:none;transition:width .1s linear}
   .cy-toc{position:fixed;right:14px;bottom:76px;z-index:60;display:none;align-items:center;min-height:40px;padding:0 14px;
     background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:var(--r-touch);font-size:13px;font-weight:600;
     text-decoration:none}   /* 그림자 없음 — 장식 금지(audit_design) */
@@ -518,7 +522,7 @@
   @media(min-width:600px){.smode{max-width:var(--col-wide);padding:0 24px;justify-content:flex-start}}
   .smode button{flex:1;font-family:inherit;font-size:14px;font-weight:600;padding:11px 0;
     border-radius:var(--r-touch);border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:.15s}
-  .smode button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .smode button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   .smode button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
   /* ===== 심화통계 ===== */
   .adv-sec{margin-top:22px}
@@ -593,7 +597,7 @@
   .gt{display:inline-flex;margin-left:auto;border:1.5px solid var(--line);border-radius:var(--r-touch);overflow:hidden;background:#fff}
   .gt button{font-family:inherit;font-size:13px;font-weight:600;padding:6px 14px;min-height:40px;border:0;background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
   /* min-height 40px: 09-15 에 세그먼트를 40px 로 올릴 때 이 토글(26px)·심화 탭(34px)·기간(36px)·주석 칩(28px)은 빠졌다(2026-09-18 오딧 2번). 선택자별로 따로 적지 말고 여기 한 줄로. */
-  .gt button.on{background:var(--ink);color:#fff}
+  .gt button.on{background:var(--brand);color:#fff}
   .gsec.gm-g .gt-t{display:none}
   .gsec.gm-t .gt-g{display:none}
   .gsec.gm-m .gt-g,.gsec.gm-m .gt-t,.gsec.gm-r .gt-g,.gsec.gm-r .gt-t{display:none}
@@ -708,7 +712,7 @@
   .adv-tabs{display:inline-flex;margin:2px 0 12px;border:1.5px solid var(--line);border-radius:var(--r-touch);overflow:hidden;background:#fff}
   .adv-tabs button{font-family:inherit;font-size:13px;font-weight:600;padding:6px 14px;min-height:40px;border:0;
     background:transparent;color:var(--muted);cursor:pointer;transition:.15s}
-  .adv-tabs button.on{background:var(--ink);color:#fff}
+  .adv-tabs button.on{background:var(--brand);color:#fff}
   /* 시장동향 머리: 주간|월간(왼쪽)과 순위|지도|그래프|표(오른쪽 .mk-gt)를 한 줄에(stats-3). 주간|월간은 구역 밖 하나라 왼쪽에 띄우고,
      구역 첫 줄 .mk-gt(flex — 띄운 상자 옆 남은 폭을 쓴다)가 오른쪽에 선다. 남은 폭이 모자라면(320px) 브라우저가 그 줄을 띄운 상자
      아래로 내린다. 제목 줄(.adv-h)은 그 아래에서 시작한다. */
@@ -735,7 +739,7 @@
   .tr-row{display:flex;justify-content:flex-end;margin:0 0 8px}
   .trbtn{font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;border-radius:var(--r-touch);
     border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;line-height:1.3}
-  .trbtn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .trbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   #sec-basicmain.single .tr-row{display:none}
   table.adv td.fut{background:#f6f8f7}
   table.adv tr.bandrow td{background:#edf1ef;color:#6b5d33;font-weight:600;border-bottom:2px solid #e0d5b4}
@@ -784,9 +788,9 @@
     background:linear-gradient(90deg,rgba(38,110,180,.85),rgba(38,110,180,.16) 44%,
       rgba(198,58,48,.16) 56%,rgba(198,58,48,.85))}
   .home-cta{font-family:inherit;font-size:18px;font-weight:600;padding:17px 24px;border-radius:var(--r-touch);
-    width:100%;max-width:400px;border:0;cursor:pointer;background:var(--ink);color:#fff;transition:.15s}
+    width:100%;max-width:400px;border:0;cursor:pointer;background:var(--brand);color:#fff;transition:.15s}
   .home-cta:active{transform:scale(.98)}
-  .home-cta.alt{background:#fff;color:var(--ink);border:1.5px solid var(--ink);box-shadow:none;
+  .home-cta.alt{background:#fff;color:var(--brand);border:1.5px solid var(--brand);box-shadow:none;
     font-size:16px;padding:14px 24px}
   .home-foot{text-align:left;font-size:13px;color:var(--muted);margin:26px auto 0;line-height:1.7;padding:0 18px 20px;max-width:520px;box-sizing:border-box}
   /* 홈 푸터 정돈(2026-10-05 대표 요청) — 가운데 정렬이라 '읽을거리'·'소개 · 개인정보 · 만든이' 줄이 가운데에서 어색하게 꺾였다.
@@ -1126,9 +1130,9 @@ table.adv thead th:first-child{text-align:center}
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -1141,12 +1145,12 @@ table.adv thead th:first-child{text-align:center}
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -1246,7 +1250,7 @@ table.adv thead th:first-child{text-align:center}
   .tb-seg button{border:0;background:transparent;color:var(--muted);padding:6px 15px;
     font:inherit;font-size:13px;font-weight:500;cursor:pointer;border-right:1px solid var(--line)}
   .tb-seg button:last-child{border-right:0}
-  .tb-seg button.on{background:var(--ink);color:var(--paper);font-weight:600}
+  .tb-seg button.on{background:var(--brand);color:var(--paper);font-weight:600}
   .tb-seg button[disabled]{opacity:.4;cursor:default}
   /* 손가락 대상 최소 높이(2026-09-15 점검 후속 ⑦) — 지도/그래프/표 전환이 약 32px였다. */
   .tb-seg button{min-height:40px}
@@ -1358,7 +1362,7 @@ table.adv thead th:first-child{text-align:center}
      p를 붙여 특이도를 맞추고, auto를 살려 .home-sec p의 max-width:520px 안에서
      가운데 정렬을 유지한다. */
   .home-sec p.tb-more{margin:18px auto 0}
-  .tb-more a{display:block;text-align:center;background:var(--ink);color:var(--paper);
+  .tb-more a{display:block;text-align:center;background:var(--brand);color:var(--paper);
     text-decoration:none;font-size:14.5px;font-weight:600;padding:14px 16px;
     border-radius:var(--r-touch);transition:.15s}
   .tb-more a:hover{background:#000}
@@ -1396,7 +1400,7 @@ table.adv thead th:first-child{text-align:center}
   .inst-d{flex:1 1 auto;font-size:13px;line-height:1.5;color:var(--ink2)}
   .inst-go,.inst-x{font:inherit;font-size:13px;font-weight:600;min-height:40px;padding:8px 14px;cursor:pointer;
     border-radius:var(--r-touch)}
-  .inst-go{background:var(--ink);color:#fff;border:0}
+  .inst-go{background:var(--brand);color:#fff;border:0}
   .inst-x{margin-left:auto;background:#fff;color:var(--ink2);border:1px solid var(--line)}
   .zsort{margin-top:12px}
   /* 허브: 'N개 시도' 제목이 위 집계 박스에 붙어 있었다(2026-08-08 사용자) */

@@ -203,7 +203,7 @@ __ROBOTS__
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">__LD__</script>
 <style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;__TOKENS__}
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;__TOKENS__;__BRAND__}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
@@ -211,7 +211,7 @@ body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -257,9 +257,10 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:""" + ("%gpx" % N.LABEL_PX) + """;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
 .nav-btn svg{display:block}
@@ -302,7 +303,7 @@ def type_tokens(css=None):
 
 
 def fill(shell, desk='wide', **kw):
-    out = shell.replace('__TOKENS__', type_tokens()).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
+    out = shell.replace('__TOKENS__', type_tokens()).replace('__BRAND__', N.BRAND_TOKENS).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
     out = out.replace('__THEME__', N.THEME_COLOR)   # 브라우저 머리 색 정본(site_nav.THEME_COLOR)
     out = out.replace('__GAINT__', GT.INTERNAL_SCRIPT).replace('__GACFG__', GT.config_call())   # GA 내부 트래픽 표식(백로그 48)
     # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)

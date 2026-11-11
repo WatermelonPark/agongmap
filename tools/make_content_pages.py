@@ -473,9 +473,9 @@ LIST_CSS = """/* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) —
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -488,12 +488,12 @@ LIST_CSS = """/* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) —
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -583,14 +583,14 @@ EXTRA_CSS = LIST_CSS + """
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -598,7 +598,7 @@ EXTRA_CSS = LIST_CSS + """
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
