@@ -79,9 +79,14 @@ NAV_ON_CSS = '.nav-btn.on{color:#fff}'
 # 틀에 유채색 0%) 내비·선택된 단추·주요 단추·링크·요약 표지는 남색(--brand), 결론 숫자에는 노랑 형광 표시(--mark), 콘텐츠 분류
 # 태그는 연노랑(--mark-bg·--mark-ink)으로 칠한다. 데이터(지도·표·그래프)는 의미색만 쓰고 이 색을 쓰지 않는다 — 남색은 하락 파랑
 # (#2a62a3)보다 훨씬 어둡게 두어 갈린다. 모든 페이지의 :root 가 이 글자를 그대로 싣고 test_brand_color 가 대조한다.
-BRAND_TOKENS = '--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fffbe8;--mark-ink:#5a4300'
+BRAND_TOKENS = '--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300'
 # 하단 탭바(데스크톱 위 내비) 바탕 — 모든 탭바 페이지가 같은 남색이다(test_brand_color).
 NAV_BG_CSS = 'background:var(--brand)'
+# 데이터 의미색 — 흰 바탕 위 등락 글자(2026-11-11 색 감사: '상승' 글자 빨강이 #c0392b·#a93226·#8f2318·#b23b2e 네 벌,
+# '하락' 파랑이 #1a5276·#123c5c·#2a62a3 세 벌이었다). 흰 바탕 표·순위의 등락 글자는 이 둘만 쓴다(대비 6:1 이상).
+# 지도 칸 채움과 칠한 칸 위 글자(make_weekly_page.tile_ink ↔ 홈 tcol)는 바탕이 달라 따로 둔다. test_brand_color 가 대조한다.
+UP_INK = '#a93226'
+DN_INK = '#1a5276'
 IDS = tuple(t[0] for t in TABS)
 LABELS = tuple(t[2] for t in TABS)
 HREF = {t[0]: t[1] for t in TABS}
