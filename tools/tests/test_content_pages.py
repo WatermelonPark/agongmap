@@ -744,7 +744,7 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
         z = zones.get(key)
         if not z or not z.get('ref'):
             continue
-        want = CT.num(int(round(z['ref'] * 4))) + '호'
+        want = CT.num(int(round(z['ref'] * 4))) + '세대'   # 화면 단위는 '세대' 하나(10-06 대표 결정, 11-12 디자인 마감 점검)
         assert CT.value(data, 'need', [key]) == want, '%s: need 가 기준표(ref×4)와 다르다' % key
         head, rows, _ = CT.moveins(data, key)
         by = {r[0]: r[1] for r in rows if r[0] != '합계'}
@@ -759,12 +759,12 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
     for kind in ('pop', 'peak'):
         with pytest.raises(CT.TableError):
             CT.value(data, kind, ['서울'])
-    # 산식이 다르다 — 도시 need 는 '세대', 시도 need 는 '호'로 끝난다.
+    # 단위는 둘 다 '세대'다(산식이 다른 것은 위 ref×4 단정이 본다). 변이(실제로 확인): sido_need 를 옛 + '호' 로 되돌리면 빨강.
     cities = (data.get('cities') or {}).get('cities') or {}
     if cities:
         one = sorted(cities)[0]
         assert CT.value(data, 'need', [one]).endswith('세대'), '도시 need 의 단위가 바뀌었다'
-        assert CT.value(data, 'need', ['서울']).endswith('호'), '시도 need 의 단위가 바뀌었다'
+        assert CT.value(data, 'need', ['서울']).endswith('세대'), '시도 need 가 원천 단위 \'호\'로 나간다'
 
 
 def _built_metas():

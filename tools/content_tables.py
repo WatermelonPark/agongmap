@@ -243,18 +243,24 @@ def city_ratio(data, f, year, base):
     return '%d%%' % int(round(a / float(b) * 100))
 
 
+def _unit_ho():
+    """원천 단위 '호'의 화면 글자(SZ.unit_text — '세대')."""
+    import sido_zones as SZ
+    return SZ.unit_text('호')
+
+
 def sido_need(data, key):
     """시도의 **한 해** 적정물량. 기준표의 분기 적정물량(zone.ref)에 4를 곱한다.
 
     ⚠️ 도시(시군구)의 v:need 와 산식이 다르다. 도시는 인구 ÷ 2.5 × 2%(movein_need)이고, 시도는 국토교통부
-    자료로 만든 기준표 값이다(sido_zones, 상수 고정 — 재계산하지 않는다). 단위도 시도는 '호', 도시는
-    '세대'로 원천의 말을 따른다. 한 글에서 시도와 도시를 나란히 견주면 두 수의 성격이 다르다는 것을
-    글이 밝혀야 한다.
+    자료로 만든 기준표 값이다(sido_zones, 상수 고정 — 재계산하지 않는다). 화면 단위는 둘 다 '세대'다(2026-10-06 대표 결정
+    — 원천 '호'는 SZ.unit_text 로 바꾼다, 아파트는 1호가 1세대. 11-12 디자인 마감 점검에서 글에 '74,800호'가 남아 있었다).
+    한 글에서 시도와 도시를 나란히 견주면 두 수의 성격이 다르다는 것을 글이 밝혀야 한다.
     """
     z = _zones(data).get(key)
     if not z or not z.get('ref'):
         raise TableError('%r 의 적정물량이 없다' % key)
-    return num(int(round(z['ref'] * 4))) + '호'
+    return num(int(round(z['ref'] * 4))) + _unit_ho()
 
 
 def _sido_fut3(data, key):
@@ -423,7 +429,7 @@ def supply(data, key):
         raise TableError('공급 판정에 지역 %r 이 없다' % key)
     import sido_zones as SZ
     H = data['sido'].get('H')
-    body = [['분기 적정물량', num(z.get('ref')) + '호'],
+    body = [['분기 적정물량', num(z.get('ref')) + _unit_ho()],
             ['앞으로 %d분기 지어질 물량' % H, num(z.get('fut')) + '세대'],
             ['지난 재고(적정물량 대비)', num(z.get('inow')) + '세대'],
             ['누적 과부족', z.get('ctxt') or (num(z.get('dtot')) + '세대')],
@@ -699,7 +705,7 @@ def value(data, kind, args):
         return dict((r[0], r[1]) for r in body)['누적 과부족']
     if kind == 'stats':
         unit = head[1]
-        return body[-1][1] + ('%' if '%' in unit else '호')
+        return body[-1][1] + ('%' if '%' in unit else _unit_ho())
     if kind == 'weekly':
         return body[-1][1]                  # 최신 주 매매 변동률
     raise TableError('값으로 쓸 수 없는 자리표다: %r' % kind)
