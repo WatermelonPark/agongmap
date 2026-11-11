@@ -1430,6 +1430,22 @@ def main(strict=False):
         print('content pages: 쓸 수 있는 원고가 없다 — 페이지를 만들지 않는다%s'
               % (' · 홈 묶음 비움' if emptied else ''))
         return 0
+    # 본문 자리표를 못 채우는 글을 **먼저** 거른다 — 이전·다음 글과 '이 지역 더 보기'는 구워지는 글만 가리켜야 한다.
+    # 예전엔 거르기 전 목록에서 이웃을 골라, 건너뛴 단지 글(광명 철산13, 11-06~)로 가는 '이전·다음 글'이 404 였다
+    # (2026-11-12 SEO 점검). 한 바퀴 더 구워도 52편에 2초 남짓이다.
+    ok = []
+    for sec, meta, body in posts:
+        try:
+            build_page(meta, body, data)
+        except (CT.TableError, CM.ContentError) as e:
+            # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
+            if strict:
+                raise
+            skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
+            _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
+            continue
+        ok.append((sec, meta, body))
+    posts = ok
     by_sec = {}
     for sec, meta, body in posts:
         by_sec.setdefault(sec, []).append((meta, body))
@@ -1441,15 +1457,7 @@ def main(strict=False):
         for i, (meta, body) in enumerate(items):
             prev = metas[i - 1] if i else None
             nxt = metas[i + 1] if i + 1 < len(metas) else None
-            try:
-                page, lm = build_page(meta, body, data, prev, nxt, everyone)
-            except (CT.TableError, CM.ContentError) as e:
-                # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
-                if strict:
-                    raise
-                skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
-                _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
-                continue
+            page, lm = build_page(meta, body, data, prev, nxt, everyone)
             d = os.path.join(ROOT, sec, meta['slug'])
             os.makedirs(d, exist_ok=True)
             fp = os.path.join(d, 'index.html')

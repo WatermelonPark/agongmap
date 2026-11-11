@@ -165,7 +165,11 @@ def outside(s):
     return s
 
 
-DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
+
+# 구간 끝의 수정일 덩어리(modified_block) — 화면 한 줄과 WebPage JSON-LD. 수정일은 JSON-LD 의 ISO 값에서 읽는다
+# (화면 줄은 읽는 꼴 '2026년 11월 6일'이고, 요약 본문에 데이터 날짜가 섞여도 그것을 수정일로 잘못 읽지 않게).
+_MOD_BLOCK = re.compile(r'\s*<p class="hsum-u">[^<]*</p>\s*<script type="application/ld\+json">[^<]*"WebPage"[^<]*</script>\s*$')
+_LD_MOD = re.compile(r'"dateModified": "(\d{4}-\d{2}-\d{2})"')
 
 
 def region_modified(s):
@@ -173,8 +177,8 @@ def region_modified(s):
     m = _REGION.search(s)
     if not m:
         return None
-    d = DATE_RE.search(m.group(1))
-    return d.group(0) if d else None
+    d = _LD_MOD.search(m.group(1))
+    return d.group(1) if d else None
 
 
 def modified_date(s, body, today):
@@ -184,21 +188,23 @@ def modified_date(s, body, today):
     수정일도 구간 **안**에 둔다 — JSON-LD 와 화면 글자가 같은 값을 쓴다(백로그 50 요청 2.4).
     ⚠️ 날짜만 다른 재생성은 옛 날짜를 그대로 쓴다. 안 그러면 데이터가 그대로인 날에도 홈이 '오늘 수정'이라고
        말해 검색엔진에 틀린 신호가 간다(/zone/ 의 keep_dates 와 같은 규칙).
+    ⚠️ 옛 구간에는 지난 회차의 수정일 덩어리가 붙어 있고 새 body 에는 아직 없다 — 그 덩어리를 떼고 견준다. 예전엔
+       떼지 않아 늘 '다름'이 되어 데이터가 그대로인 닷새(11-07~11)에도 홈 수정일이 매일 올랐다(2026-11-12 SEO 점검).
     """
     old = _REGION.search(s)
     prev = region_modified(s)
-    if prev and old and DATE_RE.sub('@', old.group(1)).strip() == DATE_RE.sub('@', body).strip():
+    if prev and old and _MOD_BLOCK.sub('', old.group(1).replace('\r\n', '\n')).strip() == body.strip():
         return prev
     return today
 
 
 def modified_block(date):
-    """화면 한 줄 + 같은 값의 구조화 데이터(WebPage.dateModified)."""
+    """화면 한 줄(읽는 꼴 SZ.day_long — 시도 리포트 머리와 같은 꼴) + 같은 값의 구조화 데이터(WebPage.dateModified, ISO)."""
     ld = json.dumps({"@context": "https://schema.org", "@type": "WebPage",
                      "url": "https://www.agongmap.co.kr/", "dateModified": date,
                      "inLanguage": "ko-KR"}, ensure_ascii=False)
     return ('<p class="hsum-u">페이지 수정 %s</p>\n<script type="application/ld+json">%s</script>'
-            % (date, ld))
+            % (SZ.day_long(date), ld))
 
 
 def render(s, adv):

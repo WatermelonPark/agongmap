@@ -326,13 +326,15 @@ def test_home_and_zone_show_the_modified_date_on_screen_and_in_json_ld():
     픽스처: 저장소에 구워져 있는 실제 홈과 시도 리포트 한 장.
     """
     home = io.open(os.path.join(ROOT, HS.HOME), encoding='utf-8').read()
-    m = re.search(r'<p class="hsum-u">페이지 수정 (\d{4}-\d{2}-\d{2})</p>', home)
-    assert m, '홈 화면에 페이지 수정일이 없다'
+    import sido_zones as SZ
+    # 화면은 읽는 꼴(SZ.day_long — 시도 리포트 머리와 같은 꼴, 2026-11-12 SEO 점검), JSON-LD 는 ISO.
+    m = re.search(r'<p class="hsum-u">페이지 수정 (\d{4})년 (\d{1,2})월 (\d{1,2})일</p>', home)
+    assert m, '홈 화면에 페이지 수정일이 없다(읽는 꼴)'
+    shown_home = '%s-%02d-%02d' % (m.group(1), int(m.group(2)), int(m.group(3)))
     ld = [json.loads(b) for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', home, re.S)]
     mods = {x.get('dateModified') for d in ld for x in (d if isinstance(d, list) else [d]) if x.get('dateModified')}
-    assert m.group(1) in mods, '홈 화면 수정일(%s)이 JSON-LD(%s)와 다르다' % (m.group(1), sorted(mods))
+    assert shown_home in mods, '홈 화면 수정일(%s)이 JSON-LD(%s)와 다르다' % (shown_home, sorted(mods))
 
-    import sido_zones as SZ
     z = [x for x in SZ.ORDER if os.path.exists(os.path.join(ROOT, 'zone', x, 'index.html'))][0]
     page = io.open(os.path.join(ROOT, 'zone', z, 'index.html'), encoding='utf-8').read()
     mz = re.search(r'페이지 수정 (\d{4})년 (\d{1,2})월 (\d{1,2})일', page)   # 읽는 꼴(SZ.day_long, 11-07 디자인 검수 reports-8)
@@ -1823,3 +1825,44 @@ def test_the_moveins_chart_carries_the_three_year_line(tmp_path):
     s2 = CT.chart(d2, 'moveins', [name])
     assert not s2.get('foot'), '세 해가 안 찼는데 3년 합계를 적었다'
     assert s2['series'][0]['points'], '그림까지 막혔다 — 그 줄만 빠져야 한다'
+
+
+def test_neighbors_and_region_box_skip_posts_that_did_not_build(tmp_path, monkeypatch):
+    """본문 자리표를 못 채워 건너뛴 글로는 '이전·다음 글'도 '이 지역 더 보기'도 걸지 않는다.
+
+    실제 상태: 단지 글 광명 철산13 은 광명 2028년 입주가 목록에 아직 없어 11-06 부터 건너뛰는데, 이웃 두 편
+    (백송·상계6)의 '이전·다음 글'이 그 글을 가리켜 404 였다(2026-11-12 SEO 점검). 이웃을 거르기 **전** 목록에서 골랐다.
+    변이(실제로 확인): main() 의 첫 바퀴(ok 거르기)를 지우고 옛 try/except 로 되돌리면 빨개진다.
+    픽스처: 같은 섹션의 글 셋(a·b·c, 날짜순)에서 가운데 b 만 build_page 가 TableError 를 낸다. 쓰기 자리는 tmp_path.
+    """
+    posts = [('danji', {'slug': s, 'date': '2026-11-0%d' % i, 'updated': '2026-11-0%d' % i,
+                         'section': 'danji', 'title': s}, 'body')
+             for i, s in enumerate('abc', 1)]
+    calls = []
+
+    def fake_build(meta, body, data, prev=None, nxt=None, others=None):
+        if meta['slug'] == 'b':
+            raise CT.TableError('자리표를 못 채움')
+        calls.append((meta['slug'], prev and prev['slug'], nxt and nxt['slug'],
+                      None if others is None else sorted(m['slug'] for m in others)))
+        return '<html></html>', '2026-11-01'
+
+    monkeypatch.setattr(MC, 'ROOT', str(tmp_path))
+    monkeypatch.setattr(MC, 'collect', lambda strict=False, old_format=None: (list(posts), []))
+    monkeypatch.setattr(MC.CT, 'load', lambda: {})
+    monkeypatch.setattr(MC.CT, 'fill_meta', lambda meta, data: meta)
+    monkeypatch.setattr(MC.CT, 'check_lengths', lambda meta: meta)
+    monkeypatch.setattr(MC, 'build_page', fake_build)
+    monkeypatch.setattr(MC, 'build_index', lambda sec, metas: ('<html></html>', None))
+    monkeypatch.setattr(MC, 'build_reports', lambda metas, data: ('<html></html>', None))
+    monkeypatch.setattr(MC.SP, 'read_old', lambda fp: None)
+    monkeypatch.setattr(MC.SP, 'keep_dates', lambda page, old, lm: (page, lm, False))
+    monkeypatch.setattr(MC.I, 'update_sitemap', lambda entries: None)
+    for name in ('write_home_recent', 'write_zone_posts', 'write_weekly_column', 'write_moveins_cities'):
+        monkeypatch.setattr(MC, name, lambda metas: 0)
+    assert MC.main() == 0
+    final = {slug: (p, n, o) for slug, p, n, o in calls if o is not None}
+    assert set(final) == {'a', 'c'}, calls
+    assert final['a'][1] == 'c' and final['c'][0] == 'a', final
+    assert all('b' not in o for _p, _n, o in final.values()), final
+    assert not (tmp_path / 'danji' / 'b').exists()
