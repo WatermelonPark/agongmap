@@ -756,7 +756,7 @@ WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;colo
           '.zp-more:hover{background:var(--paper2)}.zp-more:focus-visible{outline:2px solid var(--ink);outline-offset:2px}'
           # 막대 아래 접는 칸(3년 너머·추정, split_ref_block) — 제목 한 줄만 보이고 펼치면 참고 줄이 나온다.
           '.zmore{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}'
-          '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer}'
+          '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer;padding:10px 0}'   # 누름 면 40px(11-12 접근성 점검 — 23px 였다)
           '.zmore .zsplit{margin-top:6px;border-top:0;padding-top:0}'
           '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
           # 가로로 넘치는 표(375px 에서 전세 칸)는 오른쪽 가장자리에 그림자가 진다 — 끝까지 밀면 사라진다(배경 local/scroll 겹침).

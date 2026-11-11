@@ -73,12 +73,15 @@ h2.t .t-sub{display:block;font-size:clamp(16px,2.2vw,19px);font-weight:600;color
 .links{display:flex;flex-direction:column;gap:10px;margin-top:14px}
 .links a{display:block;background:#fff;border:1px solid var(--line,#d8dfdc);border-radius:0;
   padding:14px 18px;text-decoration:none;color:var(--ink,#16203a);font-size:14.5px;font-weight:600}
-.links a span{display:block;font-size:13px;font-weight:400;color:var(--muted,#5e7b6d);margin-top:2px}
+.links a span{display:block;font-size:14px;font-weight:400;color:var(--muted,#5e7b6d);margin-top:2px}
+footer .src{font-size:14px}   /* '한계.' 문단은 읽는 글 — 14px(11-12 접근성 점검) */
 /* 네비를 <a>로 쓰므로 밑줄을 지운다(홈은 <button>이라 필요 없었다). */
 .bottomnav .nav-btn{text-decoration:none}
 
 /* 읽는 법 상자는 접어 둔다 — 375px 첫 화면에서 고리보다 15줄 설명이 먼저 보였다(2026-10-30 디자인 리뷰). 펼치면 예전 그대로. */
 .howto-d>summary{cursor:pointer;list-style:revert}.howto-d>summary b{color:#fff}
+/* 초록 배너 위 초점 고리는 흰색 — 먹색 고리는 바탕과 2.64:1 이었다(2026-11-12 접근성 점검, 기준 3:1) */
+.howto-d>summary:focus-visible{outline:2px solid #fff;outline-offset:2px}
 /* 참고 ①~④는 접어 둔다(2026-11-07 대표 결정 '참고 4절 접기') — 휴대폰에서 약 7,800px(10화면)이 고리 여섯 뒤에 이어져
    요약까지 29화면이었다. 제목·꼬리표는 보이고 본문·그림은 펼치면 나온다. #ref1 같은 링크로 들어오면 그 칸이 저절로 펼쳐진다
    (아래 스크립트 — 블로그 글·절 끝 '다음' 링크·30초 요약의 참고 줄이 그 주소를 쓴다). 내용은 DOM 에 그대로라 검색에 남는다. */
@@ -113,7 +116,7 @@ h2.t .t-sub{display:block;font-size:clamp(16px,2.2vw,19px);font-weight:600;color
   <div class="tldr-kicker">30초 요약</div>
   <h2 class="tldr-h">부동산은 <b>공급 사이클</b>로 돈다</h2>
   <div class="tldr-grid">
-    <div class="tldr-diagram"><svg viewBox="0 0 460 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="부동산 공급 사이클 순환 다이어그램" style="width:100%;max-width:440px;height:auto">
+    <div class="tldr-diagram"><svg viewBox="0 0 460 460" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="부동산 공급 사이클 순환 다이어그램" style="width:100%;max-width:440px;height:auto">
 <circle cx="230" cy="230" r="152" fill="none" stroke="#d2dad6" stroke-width="2.5"/>
 <polygon points="315.5,103.9 303.9,87.9 295.9,101.8" fill="#4c5f66"/>
 <polygon points="382.0,241.0 390.0,223.0 374.0,223.0" fill="#4c5f66"/>

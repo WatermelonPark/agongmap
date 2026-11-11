@@ -107,12 +107,12 @@ body{padding-bottom:66px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 /* 이용 이벤트 목록(1항) — 접어 두고 펼쳐 본다 */
 details.ev{margin:.8em 0}
-details.ev summary{cursor:pointer;font-weight:600}
+details.ev summary{cursor:pointer;font-weight:600;padding:6px 0}
 details.ev code{font-size:13px;white-space:nowrap}
 /* 6항 변경 이력 — 지난 줄은 접어 두고 최근 개정 한 줄만 펼쳐 둔다(hand-5). 새 개정을 더하면 지금 펼친 줄을 접힌 목록 끝으로
    옮기고 새 줄을 펼친 목록에 둔다(test_privacy_ga_events 가 이력 마지막 줄을 최신으로 읽고, 펼친 줄이 그 하나인지 본다). */
 details.hist{margin:.6em 0}
-details.hist summary{cursor:pointer;font-weight:600}
+details.hist summary{cursor:pointer;font-weight:600;padding:6px 0}
 details.hist code{font-size:13px}
 
 :where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}   /* 본문 링크는 남색 밑줄(2026-11-11 색 감사 — 링크가 본문과 같은 먹색이라 눌리는 곳이 안 보였다) */

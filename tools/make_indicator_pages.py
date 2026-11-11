@@ -254,7 +254,7 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
 :where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}

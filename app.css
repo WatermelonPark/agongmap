@@ -105,7 +105,7 @@
     vertical-align:middle;letter-spacing:.04em}
 
   .toggle{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-  .toggle button{font-family:inherit;font-size:13.5px;font-weight:600;padding:7px 15px;
+  .toggle button{font-family:inherit;font-size:13.5px;font-weight:600;padding:7px 15px;min-height:40px;
     border:1px solid var(--ink);background:transparent;color:var(--ink);
     border-radius:var(--r-touch);cursor:pointer;transition:.15s}
   .toggle button.on{background:var(--brand);color:var(--paper)}
@@ -276,7 +276,7 @@
   .rcard.rc-sample .rc-dots{gap:5px;margin:8px 0 12px}
   .rcard.rc-sample .rc-dots i{width:9px;height:9px}
   .rcard.rc-sample .rc-grade{font-size:16px;margin-bottom:7px}
-  .rcard.rc-sample .rc-desc{font-size:13px;line-height:1.6}
+  .rcard.rc-sample .rc-desc{font-size:14px;line-height:1.6}   /* 읽는 문장 14px(11-06 대표 결정, 11-12 접근성 점검) */
   .rcard .rc-head{font-size:13px;font-weight:600;color:rgba(232,235,242,.66)}
   .rcard .rc-emoji{font-size:54px;margin:12px 0 2px;line-height:1}
   .rcard .rc-score{font-size:46px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
@@ -735,11 +735,11 @@
     border-radius:var(--r-touch);background:#fff;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
   /* 표 아래 '더보기' — 표와 한 몸으로 보이게 폭 전체를 쓰고 위 테두리만 잇는다 */
   .tr-more{display:block;width:100%;font-family:inherit;font-size:13px;font-weight:600;
-    padding:10px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink2);cursor:pointer}
+    padding:10px;min-height:40px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink2);cursor:pointer}
   .tr-more:hover{background:var(--paper2);color:var(--ink)}
   .tr-more:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
   .tr-row{display:flex;justify-content:flex-end;margin:0 0 8px}
-  .trbtn{font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;border-radius:var(--r-touch);
+  .trbtn{font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;min-height:40px;border-radius:var(--r-touch);
     border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;line-height:1.3}
   .trbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   #sec-basicmain.single .tr-row{display:none}
@@ -882,7 +882,7 @@
     border-top:1px solid var(--line);padding-top:13px}
   /* 산출 방법 토글. 오른쪽 출처·주기 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리. 출처 기관은 펼치면 항목마다 있다). */
   .sc-how summary{list-style:none;cursor:pointer;font-size:13px;font-weight:600;
-    color:var(--ink);display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+    color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px}
   .sc-how summary::-webkit-details-marker{display:none}
   .sc-how summary .t::after{content:' ▾';font-weight:600;color:var(--muted)}
   .sc-how[open] summary .t::after{content:' ▴'}
@@ -1257,7 +1257,7 @@ table.adv thead th:first-child{text-align:center}
   .tb-seg button.on{background:var(--brand);color:var(--paper);font-weight:600}
   .tb-seg button[disabled]{opacity:.4;cursor:default}
   /* 손가락 대상 최소 높이(2026-09-15 점검 후속 ⑦) — 지도/그래프/표 전환이 약 32px였다. */
-  .tb-seg button{min-height:40px}
+  .tb-seg button{min-height:40px;min-width:44px}   /* '표' 한 글자 단추가 폭 31px 였다(11-12 접근성 점검) */
   .tb-chk{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
   .tb-key{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;
     color:var(--muted);flex-wrap:wrap}
@@ -1589,7 +1589,7 @@ table.adv thead th:first-child{text-align:center}
   .zs-row{display:grid;grid-template-columns:7.5em 1fr;gap:10px;font-size:14px;
     color:var(--ink2);line-height:1.6;margin:3px 0}
   .zs-row b{font-weight:600;color:var(--ink)}
-  .zs-ref{color:var(--muted);font-size:13px;margin-top:8px}
+  .zs-ref{color:var(--muted);font-size:14px;margin-top:8px}   /* 마침표로 끝나는 읽는 문장 — 14px(11-12 접근성 점검) */
   .zs-ref b{font-weight:500;color:var(--muted)}
   .zs-ref small{display:block;font-size:13px}
   .zs-thin strong{font-weight:600;color:var(--ink2)}
