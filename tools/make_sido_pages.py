@@ -1221,17 +1221,21 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
         # 부제의 등식(적정 − 공급 ∓ 재고)으로 검산했을 때 부호가 반대가 된다
         # (2026-08-07 감사).
         # 여유 지역은 제목도 '누적 여유'다 — '누적 순부족 13,237세대 여유'는 제목과 값이 반대 말을 했다(2026-10-06 리뷰).
-        (('누적 순부족', '%s세대 부족' % num(d_tot)) if d_tot >= 0
-         else ('누적 여유', '%s세대 여유' % num(-d_tot))) + (eq,),
+        # 값 끝의 '부족'·'여유'는 제목이 이미 말해 뺀다 — 붙이면 값이 두 줄로 접혀 같은 줄 칸과 기준선이 어긋났다(2026-11-12 디자인
+        # 마감 점검, 375·1280px 모두).
+        (('누적 순부족', '%s세대' % num(d_tot)) if d_tot >= 0
+         else ('누적 여유', '%s세대' % num(-d_tot))) + (eq,),
         (('지난 %s 쌓인 부족' % win_y, num(-d_inow) + '세대',
           '준공이 적정물량보다 적어 쌓인 몫(멸실을 뺀 값)') if d_inow < 0 else
          ('지난 %s 남은 재고' % win_y, num(d_inow) + '세대',
           '준공이 적정물량보다 많아 남은 몫(멸실을 뺀 값)')),
         ('앞으로 %.0f년 공급' % yrs, num(fut_sum) + '세대',
          '이미 착공한 물량을 %s 뒤로 밀어 추정' % lead_y),
-        (('앞으로 %.0f년 적정물량' % yrs) + (' <em class="zchip">추정</em>' if row.get('est') else ''),
+        # '추정' 표지는 설명 줄 머리에 둔다 — 칸 제목에 두면 375px 에서 제목이 접혀 같은 줄 숫자 높이가 갈렸다(11-12 디자인 마감 점검).
+        ('앞으로 %.0f년 적정물량' % yrs,
          num(d_need) + '세대',
-         ('분기 %s세대 × %d분기' % (num(d_ref), calc['H']))
+         ('<em class="zchip">추정</em> ' if row.get('est') else '')
+         + ('분기 %s세대 × %d분기' % (num(d_ref), calc['H']))
          + ('<br>이 지역은 기준표에 없어 적정물량을 추정했습니다.' if row.get('est') else '')),
         ('미분양', (num(row['unsold']) + '세대') if row.get('unsold') is not None else '–',
          # ⚠️ '기준 · 분기 적정물량' 접두는 check_freshness의 파생 페이지 감시가
