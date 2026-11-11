@@ -32,6 +32,7 @@
 | `tools/data/` | 시딩 데이터·캐시·스탬프. `tools/cache/`와 벌크 원본은 gitignore |
 | `docs/` | 세션 간 요청서·결정 기록·백로그. 날짜 접두 파일명. 목록은 `docs/README.md`, 종결된 요청서는 `docs/archive/`로 옮긴다 |
 | `.github/workflows/` | 클라우드 배치·감시·발행 알림 (아래 "자동화") |
+| `.claude/skills/`, `.claude/agents/` | 이 저장소 규칙에 맞춘 점검 스킬 다섯(`agongmap-seo-check`·`-a11y-check`·`-click-path-audit`·`-release-check`·`-design-polish`)과 리뷰 에이전트 둘(`agongmap-python-reviewer`·`agongmap-test-analyzer`). 공개 플러그인(ECC)의 점검 항목을 참고해 우리 정본·시험 이름으로 새로 썼다(2026-11-11 — 원문 복사는 저작권 고지에 개인 이름이 들어가 하지 않았다). 클라우드 세션은 플러그인을 불러오지 않지만 이 폴더는 읽는다. 정본 이름이 바뀌면 여기도 고친다 |
 | `drafts/`, `logs/` | **로컬 전용(gitignore)**. 블로그 초안과 배치 로그. 클라우드 세션에서는 보이지 않는다 |
 
 ### 주요 도구
