@@ -167,6 +167,17 @@ def test_weekly_source_speaks_like_the_rest_of_the_page():
     assert '.mm-swipe-top{display:block' in MW.MAP_CSS
 
 
+def test_weekly_map_rules_come_before_the_map():
+    """지도 규칙(MAP_CSS)이 '옆으로 밀어' 줄·지도보다 앞에 있어야 첫 그림이 13px 로 그려진다.
+    실제 상태: 규칙이 160KB 지도 뒤에 있어 그 줄이 기본 16px 로 그려졌다가 줄며 지도가 7px 올라갔다
+    (375px CLS 0.145, 2026-11-12 배포 점검 — 고친 뒤 0).
+    변이(실제로 확인): build() 에서 '<style>…MAP_CSS…' 줄을 '</div>' 뒤(옛 자리)로 옮기면 빨개진다."""
+    W, Q = MW.load()
+    head = MW.build(W, Q)[0]
+    rule = head.index('<style>' + MW.MAP_CSS)
+    assert rule < head.index('class="mm-swipe-top"') and rule < head.index('<div class="mm-scroll">')
+
+
 def test_monthly_heading_numbers_and_chip():
     """/monthly/ 절 번호는 h2 안(reports-9), 칩은 제목과 다른 말(최신 기준), 집계 행 파랑은 paper2 위 4.5:1 이상(reports-10).
     변이(실제로 확인): sec() 를 옛 '<div class="secno">' 로 되돌리거나 SHELL --dn 을 #2f6db3 으로 되돌리면 빨개진다."""

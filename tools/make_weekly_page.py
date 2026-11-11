@@ -764,6 +764,9 @@ def build(W, Q):
         % (WR.week_label(p, year=True), when),
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
+        # 지도 규칙은 지도 **앞**에 둔다 — 160KB 지도 뒤에 두면 '옆으로 밀어' 줄이 기본 16px 로 먼저 그려졌다가 13px 로 줄며
+        # 지도가 7px 올라갔다(375px CLS 0.145, 2026-11-12 배포 점검).
+        '  <style>%s</style>' % (MAP_CSS + CUE_CSS),
         '  <div class="minimap">',
         # 좁은 화면의 '옆으로 밀어 전체 보기'는 지도 **위**에도 — 아래 캡션만으로는 1,100px 높이 지도 꼭대기에서 오른쪽(강원·경북·부산)이
         # 있는지 몰랐다(2026-11-07 디자인 검수 reports-7). 넓은 화면은 지도가 다 들어와 보이지 않는다(MAP_CSS).
@@ -775,7 +778,6 @@ def build(W, Q):
         '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'
         '<a class="go" href="/#stats-market-week-rank">TOP 10 →</a></div>' % map_what,   # 시세 탭 순위 보기(2026-10-10)
         '  </div>',
-        '  <style>%s</style>' % (MAP_CSS + CUE_CSS),
         '  <script>(function(){%sdocument.querySelectorAll(".minimap .mm-scroll").forEach(cueBox);})();</script>' % CUE_JS,
     ])
 
