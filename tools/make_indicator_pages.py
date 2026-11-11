@@ -327,17 +327,20 @@ def not_before_pub(iso):
     return max(iso, PUBLISHED)
 
 
-def ld_pack(headline, desc, url, crumb_name, modified):
+def ld_pack(headline, desc, url, crumb_name, modified, kind='Article'):
+    """페이지 JSON-LD 한 벌. kind='CollectionPage' 는 글 목록 페이지(콘텐츠 허브)다 — 글이 아니라 목록이라
+    mainEntityOfPage 대신 url 을 싣는다(2026-11-12 SEO 점검)."""
     modified = not_before_pub(modified)
-    return json.dumps([{
-        "@context": "https://schema.org", "@type": "Article",
+    page = {
+        "@context": "https://schema.org", "@type": kind,
         "headline": headline,
         "description": desc,
         "datePublished": PUBLISHED, "dateModified": modified,
         "author": {"@type": "Organization", "name": "아공맵"},
         "publisher": {"@type": "Organization", "name": "아공맵"},
-        "mainEntityOfPage": url,
-    }, {
+    }
+    page["mainEntityOfPage" if kind == 'Article' else "url"] = url
+    return json.dumps([page, {
         "@context": "https://schema.org", "@type": "BreadcrumbList",
         "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "아공맵", "item": SITE + '/'},

@@ -1866,3 +1866,21 @@ def test_neighbors_and_region_box_skip_posts_that_did_not_build(tmp_path, monkey
     assert final['a'][1] == 'c' and final['c'][0] == 'a', final
     assert all('b' not in o for _p, _n, o in final.values()), final
     assert not (tmp_path / 'danji' / 'b').exists()
+
+
+def test_list_pages_are_collection_pages_and_posts_stay_articles():
+    """콘텐츠 허브(/reports/)와 섹션 목록(/city/ 등)의 JSON-LD 는 CollectionPage, 글은 Article 그대로다(2026-11-12 SEO 점검 —
+    목록 여섯 장이 Article 이었다).
+    변이(실제로 확인): build_index·build_reports 의 kind='CollectionPage' 를 빼면 빨개진다.
+    픽스처: 저장소의 실제 원고(구워진 글의 메타)로 메모리에서 구운 목록 둘."""
+    metas = _built_metas()
+    if not metas:
+        pytest.skip('구워진 글이 아직 없다')
+
+    def first_ld(page):
+        return json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', page, re.S).group(1))[0]
+    sec = metas[0]['section']
+    for page in (MC.build_index(sec, [m for m in metas if m['section'] == sec])[0], MC.build_reports(metas, CT.load())[0]):
+        ld = first_ld(page)
+        assert ld['@type'] == 'CollectionPage' and 'mainEntityOfPage' not in ld and ld['url'].startswith('https://'), ld
+    assert json.loads(I_ld := MC.I.ld_pack('h', 'd', 'https://x/', 'c', '2026-11-01'))[0]['@type'] == 'Article', I_ld

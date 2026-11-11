@@ -164,7 +164,9 @@ def test_zone_json_ld_about_is_a_real_place():
     빨개진다.
     픽스처: 저장소 판정(ADV.sido)으로 메모리에서 구운 허브, DISPLAY_NAME 의 키(전남광주)와 서울 리포트 머리."""
     adv, stats = M.load()
-    assert 'about' not in _article(M.build_hub(adv['sido'], stats))
+    # 허브는 글이 아니라 목록이라 CollectionPage 다(2026-11-12 SEO 점검 — 변이: head() 의 crumb is False 갈래를 지우면 빨강).
+    hub = json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', M.build_hub(adv['sido'], stats), re.S).group(1))[0]
+    assert hub['@type'] == 'CollectionPage' and 'about' not in hub and hub['url'].endswith('/zone/'), hub
     for z in sorted(SZ.DISPLAY_NAME) + ['서울']:
         assert _article(M.head(z, 'd', 't'))['about'] == {'@type': 'Place', 'name': SZ.disp(z)}, z
 

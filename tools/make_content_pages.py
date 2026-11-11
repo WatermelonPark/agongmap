@@ -1066,7 +1066,7 @@ def build_index(sec, posts_meta):
     lastmod = max([m['updated'] for m in posts_meta], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
                   desc=html.escape(desc), url=url, body=body,
-                  ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED),
+                  ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED, kind='CollectionPage'),
                   src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
@@ -1139,7 +1139,7 @@ def build_reports(all_metas, data=None):
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),
                   ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
                   url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
-                                                   lastmod or I.PUBLISHED),
+                                                   lastmod or I.PUBLISHED, kind='CollectionPage'),
                   src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod

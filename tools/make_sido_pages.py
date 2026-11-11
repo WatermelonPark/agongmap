@@ -494,6 +494,10 @@ def head(z, desc, title, url=None, crumb=None, desk='report'):
     # 실렸다(전수리뷰 Z1-12). 이름은 화면 이름(백로그 46).
     if z in SZ.ORDER:
         ld[0]["about"] = {"@type": "Place", "name": SZ.disp(z)}
+    # 허브(crumb=False)는 글이 아니라 리포트 목록이다 — CollectionPage(2026-11-12 SEO 점검).
+    if crumb is False:
+        ld[0]["@type"] = "CollectionPage"
+        ld[0]["url"] = ld[0].pop("mainEntityOfPage")
     return '''<!DOCTYPE html>
 <html lang="ko">
 <head>
