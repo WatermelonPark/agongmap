@@ -685,7 +685,21 @@ def put_nav(s):
     s = _FOOTER_CSS.sub(lambda m: m.group(1) + '%gpx' % N.FOOTER_PX, s)
     for old in _NAV_NOTES_OLD:
         s = s.replace(old, _NAV_NOTE)
-    return GT.put(put_desk(s))     # GA 내부 트래픽 표식(백로그 48) — 뼈대 머리는 배치 산출물이라 여기서 맞춘다
+    return GT.put(put_desk(put_brand(s)))     # GA 내부 트래픽 표식(백로그 48) — 뼈대 머리는 배치 산출물이라 여기서 맞춘다
+
+
+_ROOT_OPEN = re.compile(r':root\{--ink:#131e24;')
+_INK_BG = re.compile(r'((?:\.bottomnav|\.cta)\{[^}]*?background:)var\(--ink\)')
+
+
+def put_brand(s):
+    """틀 강조색(2026-11-11 대표 결정 B안, 정본 site_nav.BRAND_TOKENS) — 뼈대 <style> 은 배치 산출물이라 PR 로 고치지 않고 여기서
+    맞춘다: 첫 :root 에 강조색 토큰을 싣고, 탭바·큰 단추(.cta) 바탕을 먹색에서 남색으로. 이미 맞으면 그대로 둔다."""
+    if N.BRAND_TOKENS not in s:
+        if len(_ROOT_OPEN.findall(s)) != 1:
+            raise SystemExit('weekly/index.html 에서 :root 토큰 자리를 찾지 못했다')
+        s = _ROOT_OPEN.sub(lambda m: m.group(0) + N.BRAND_TOKENS + ';', s, count=1)
+    return _INK_BG.sub(lambda m: m.group(1) + 'var(--brand)', s)
 
 
 _DESK_LINK = re.compile(r'<link rel="stylesheet" href="/desk\.css[^"]*"[^>]*>')

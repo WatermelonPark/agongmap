@@ -185,7 +185,7 @@ def test_cta_wording():
 def test_404_offers_a_way_back():
     s = _read('404.html')
     assert re.search(r'<button class="cta sub"[^>]*onclick="history\.back\(\)"[^>]*>이전 페이지로</button>', s), '되돌아가기 단추가 없다'
-    assert '<div class="chip">' in s and re.search(r'(?:^|[}\s])\.chip\{[^}]*background:var\(--ink\)', _css(s)), '먹색 머리 칩이 없다'
+    assert '<div class="chip">' in s and re.search(r'(?:^|[}\s])\.chip\{[^}]*background:var\(--brand\)', _css(s)), '남색 머리 칩이 없다(틀 강조색, 2026-11-11 색 감사 B안)'
 
 
 def test_faq_question_leaves_room_for_the_icon():
