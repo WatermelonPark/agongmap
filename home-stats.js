@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v217';
+var HOME_STATS_BUILD='v218';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -115,10 +115,12 @@ const DS_LABEL={매매지수:'매매 실거래지수',전세지수:'전세 실�
   금리:'CD금리',보급률:'주택보급률',
   아파트건설:'아파트 건설(연도별)',주택멸실:'주택 멸실',아파트멸실:'아파트 멸실',노후주택30년:'30년이상 노후아파트',
   리드타임:'착공·준공 리드타임'};
-const DS_COLOR={매매지수:'#e0564a',전세지수:'#a98be0',전세가율:'#2c7a5b',인허가:'#e8a33b',
-  착공:'#3a7bd5',분양:'#3f7d8c',준공:'#7b5ea8',미분양:'#8a6a4a',
-  금리:'#e8b84b',보급률:'#2c5f9e',
-  아파트건설:'#c0563a',주택멸실:'#9a4a3a',아파트멸실:'#b5563f',노후주택30년:'#b8862c'};
+/* 계열색은 사이트 공통(site_nav.SERIES_COL, 2026-11-11 '사이클 색으로 통일'): 가격 매매 빨강·전세 보라, 공급 단계(인허가·착공·분양·준공·
+   아파트건설) 초록. 예전엔 계열마다 제각각이라 착공이 '하락' 파랑, 준공이 보라(전세)로 그려졌다. */
+const DS_COLOR={매매지수:'#c0392b',전세지수:'#6c4ab6',전세가율:'#6c4ab6',인허가:'#1f8a70',
+  착공:'#1f8a70',분양:'#1f8a70',준공:'#1f8a70',미분양:'#8a6a4a',
+  금리:'#e8b84b',보급률:'#5e6f74',
+  아파트건설:'#1f8a70',주택멸실:'#9a4a3a',아파트멸실:'#b5563f',노후주택30년:'#b8862c'};
 /* 색이 빠진 계열을 고르면 areaGrad가 'undefined38'을 addColorStop에 넘겨 예외로
    차트가 통째로 안 그려진다 — 아파트멸실이 실제로 그랬다(2026-08-07 감사). */
 const DS_FALLBACK='#5e6f74';
@@ -463,9 +465,9 @@ function drawLeadtime(){
   statChartObj=new Chart(document.getElementById('statChart'),{
     type:'line',
     data:{labels:L.lags,datasets:[
-      {label:'2011~2017 (과거)',data:L.old,borderColor:'#3a7bd5',backgroundColor:'transparent',
+      {label:'2011~2017 (과거)',data:L.old,borderColor:'#9aa7ab',backgroundColor:'transparent',
         borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true},
-      {label:'2018~ (최근)',data:L.new,borderColor:'#e0564a',backgroundColor:'transparent',
+      {label:'2018~ (최근)',data:L.new,borderColor:'#1f8a70',backgroundColor:'transparent',
         borderWidth:2.5,pointRadius:0,tension:.3,spanGaps:true}
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
@@ -1153,8 +1155,9 @@ function trSetPeriod(k,i){
   TRP[k]=i; renderTrPeriods(k); drawTrendChart(k);
   track('stats_period',{section:k,period:TREND[k].periods[i][0]});
 }
-/* 시장동향 그래프 계열 색 — 범례 네모(app.css .chart-legend .cl-ma·.cl-je·.cl-wo)와 같은 값(test_home_stats_design 이 대조) */
-const TR_COL={ma:'#131e24',je:'#7a8b91',wo:'#1f8a70'};
+/* 시장동향 그래프 계열 색 — 사이트 공통 계열색(site_nav.SERIES_COL: 매매 빨강·전세 보라·월세 초록, 2026-11-11 대표 결정 '사이클 색으로
+   통일')이고 범례 네모(app.css .chart-legend .cl-ma·.cl-je·.cl-wo)와 같은 값(test_home_stats_design·test_brand_color 가 대조) */
+const TR_COL={ma:'#c0392b',je:'#6c4ab6',wo:'#1f8a70'};
 function drawTrendChart(k){
   /* 지역 상자·기간 단추·범위 줄은 차트 라이브러리와 무관하다 — 먼저 그리고 그래프만 라이브러리를 기다린다(전수리뷰 H2-4) */
   const T=TREND[k], W=trendData(k); if(!W)return;
@@ -1175,7 +1178,7 @@ function drawTrendChart(k){
   if(uel&&n)uel.textContent='변동률(%) · '+T.lab(rows[0].p)+' ~ '+T.lab(rows[n-1].p);
   if(needChart(()=>drawTrendChart(k))){ chartFailNote(k); return; }
   /* 월세는 월간에만 있다. 면적 3겹은 서로를 가려 선만 그린다(fill 없음). 면적은 매매 하나만 옅게 깐다 — 전세 면적이 매매를 덮었다.
-     색은 TR_COL(계열) — 빨강·파랑은 지도·표·순위의 상승·하락이다(2026-11-07 디자인 검수 stats-5). */
+     색은 TR_COL(사이트 공통 계열색, 2026-11-11 — 11-07 stats-5 의 먹·회청을 대신함). */
   const dsets=[
     {label:'매매',data:rows.map(r=>r.ma[ri]),borderColor:TR_COL.ma,backgroundColor:areaGrad(TR_COL.ma,'1f'),fill:'origin',
       borderWidth:2,pointRadius:n>40?0:3,pointHoverRadius:5,tension:.18,spanGaps:true},

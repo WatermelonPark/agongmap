@@ -87,6 +87,11 @@ NAV_BG_CSS = 'background:var(--brand)'
 # 지도 칸 채움과 칠한 칸 위 글자(make_weekly_page.tile_ink ↔ 홈 tcol)는 바탕이 달라 따로 둔다. test_brand_color 가 대조한다.
 UP_INK = '#a93226'
 DN_INK = '#1a5276'
+# 그래프 계열색(2026-11-11 대표 결정 '사이클 색으로 통일') — 매매 빨강·전세 보라·공급(착공·준공·입주물량, 월세 선) 초록.
+# /cycle/ 와 app.css --maemae·--jeonse·--stock 이 원래 쓰던 값이다. 시세 탭 시장동향(TR_COL)·기본통계(DS_COLOR)·콘텐츠 글 그림이
+# 같은 값을 쓴다(test_brand_color). 지도·표의 상승·하락은 칸 채움·글자색(UP_INK·DN_INK)이라 선 그래프와 범례로 갈린다.
+SERIES_COL = {'ma': '#c0392b', 'je': '#6c4ab6', 'sup': '#1f8a70'}
+SERIES_TOKENS = '--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70'
 IDS = tuple(t[0] for t in TABS)
 LABELS = tuple(t[2] for t in TABS)
 HREF = {t[0]: t[1] for t in TABS}
