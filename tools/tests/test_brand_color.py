@@ -114,3 +114,32 @@ def test_up_down_text_on_white_is_one_pair():
     for h in (g2.group(1), g2.group(2), MS.GRADE_COLOR['g2'][1:]):
         r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
         assert r > g and r > b and not (g > b + 40), '부족(g2)이 빨강 계열이 아니다: #%s' % h
+
+
+def test_every_chart_uses_the_site_series_colors():
+    """그래프 계열색은 사이트 공통 한 벌(site_nav.SERIES_COL — 매매 빨강·전세 보라·공급 초록, 2026-11-11 대표 결정 '사이클 색으로
+    통일'). app.css 토큰, 지표 뼈대 토큰(콘텐츠 글 그림이 읽는다), 기본통계 DS_COLOR 의 가격·공급 계열, 콘텐츠 그림 CSS 가 같은 값을
+    쓴다. 예전엔 기본통계 착공이 '하락' 파랑(#3a7bd5), 준공이 보라(전세색)였고 콘텐츠 그림은 먹색뿐이었다.
+
+    변이(각각 확인): DS_COLOR 착공을 '#3a7bd5' 로, 콘텐츠 .cl 선을 var(--ink) 로, 지표 뼈대의 __SERIES__ 자리를 지우면 빨강.
+    픽스처: 저장소의 실제 스타일·스크립트 원본.
+    """
+    import make_content_pages as MC
+    import home_src as HS
+    S = N.SERIES_COL
+    assert _tok(N.SERIES_TOKENS) == {'--maemae': S['ma'], '--jeonse': S['je'], '--stock': S['sup']}
+    assert {k: v for k, v in _tok(_read('app.css')).items() if k in ('--maemae', '--jeonse', '--stock')} == _tok(N.SERIES_TOKENS)
+    shell = _shell()
+    assert '__SERIES__' in shell and _read('tools/make_indicator_pages.py').count("replace('__SERIES__', N.SERIES_TOKENS)") == 1
+    stats = next(t for f, t in HS.home_files() if f.endswith('home-stats.js'))
+    ds = dict(re.findall(r"([가-힣0-9]+):'(#[0-9a-f]{6})'", re.search(r'const DS_COLOR=\{(.*?)\};', stats, re.S).group(1)))
+    assert ds['매매지수'] == S['ma'] and ds['전세지수'] == S['je'], ds
+    for k in ('인허가', '착공', '분양', '준공'):
+        assert ds[k] == S['sup'], (k, ds[k])
+    css = MC.EXTRA_CSS
+    assert '.cl{fill:none;stroke:var(--maemae)' in css and '.cl-je{stroke:var(--jeonse)' in css
+    assert '.cb{fill:var(--stock)' in css
+
+
+def _tok(text):
+    return dict(re.findall(r'(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6})', text))
