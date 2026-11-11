@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v218';
+var HOME_STATS_BUILD='v219';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -563,7 +563,7 @@ function drawSizePivot(){
   const cell=(c,v,grp)=>{
     if(v==null)return '<td'+(grp?' class="szgrp"':'')+'>·</td>';
     const rc=c.pct?pvSign(v):v;
-    const col=c.pct?(rc>0?';color:#c0392b':(rc<0?';color:#1a5276':'')):'';
+    const col=c.pct?(rc>0?';color:#a93226':(rc<0?';color:#1a5276':'')):'';   // 등락 글자 한 벌(site_nav.UP_INK·DN_INK)
     const t=c.pct?pv2(v):v.toFixed(2);
     return `<td${grp?' class="szgrp"':''} style="white-space:nowrap${col}">${t}</td>`;
   };
@@ -822,7 +822,7 @@ function rankTables(S,unit,k){
      순위 번호·순위 이동은 전체 순위 그대로 맞다. */
   const per=k==='week'?'주':'달';
   return '<div class="map-rank">'+
-    tbl('<span style="color:#c0392b">▲</span> 상승 TOP 10',cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
+    tbl('<span style="color:#a93226">▲</span> 상승 TOP 10',cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
     tbl('<span style="color:#1a5276">▼</span> 하락 TOP 10',cr.order.filter(([,v])=>pvSign(v)<0).slice(-10).reverse(),1,true,'이번 '+per+' 내린 시군구가 없다')+
     '</div>';
 }
@@ -1208,7 +1208,7 @@ function drawPermitChart(){
   const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
   if(needChart(()=>drawPermitChart())){ chartFailNote('permit'); return; }
   const vals=P.rows.map(r=>r.v[ri]);
-  const cols=vals.map(v=>{const c=permitCls(reg,v);return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');});
+  const cols=vals.map(v=>{const c=permitCls(reg,v);return c==='hi'?'#1a5276':(c==='lo'?'#a93226':'#c0cbc5');});   // 표 칸 글자색과 같은 한 벌(범례는 표 바탕+막대 테두리)
   mkChart('permitChart',{type:'bar',
     data:{labels:P.rows.map(r=>r.p.replace('H1',' 상').replace('H2',' 하')),
       datasets:[{label:'아파트 인허가',data:vals,backgroundColor:cols}]},
@@ -1219,8 +1219,8 @@ function drawPermitChart(){
     plugins:[{id:'permitRef',afterDraw(ch){
       if(!ref)return;
       const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
-      // 선 색은 막대·범례와 같다 — 저점 쪽 빨강, 고점 쪽 파랑(예전엔 거꾸로였다, 2026-10-06 리뷰)
-      [[ref[0]/2,'#e0564a','과거 저점 ½'],[ref[1]/2,'#3a7bd5','과거 고점 ½']].forEach(([v,c,t])=>{
+      // 선 색은 막대·범례·표 칸 글자와 같다 — 저점 쪽 빨강, 고점 쪽 파랑(예전엔 거꾸로였다, 2026-10-06 리뷰. 11-12 표와 한 벌)
+      [[ref[0]/2,'#a93226','과거 저점 ½'],[ref[1]/2,'#1a5276','과거 고점 ½']].forEach(([v,c,t])=>{
         if(v<ya.min||v>ya.max)return;
         const y=ya.getPixelForValue(v);
         ctx.save();ctx.strokeStyle=c;ctx.setLineDash([5,4]);ctx.lineWidth=1.5;

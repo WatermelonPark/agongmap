@@ -706,6 +706,8 @@ def put_brand(s):
     s = _INK_BG.sub(lambda m: m.group(1) + 'var(--brand)', s)
     # 흰 바탕 등락 글자(표·순위·머리 숫자)는 데이터 의미색 정본 한 벌(site_nav.UP_INK·DN_INK, 2026-11-11 색 감사).
     s = _UP2.sub(lambda m: m.group(1) + N.UP_INK, s)
+    # 머리 결론 숫자도 같은 한 벌 — 상승만 지도 빨강(--up)이고 하락은 --dn2 라 짝이 어긋났다(2026-11-12 디자인 마감 점검).
+    s = s.replace('h1 em.up{color:var(--up)}', 'h1 em.up{color:var(--up2)}')
     return _DN2.sub(lambda m: m.group(1) + N.DN_INK, s)
 
 

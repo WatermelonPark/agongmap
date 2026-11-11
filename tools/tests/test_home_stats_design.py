@@ -364,3 +364,13 @@ def test_home_quiz_buttons_have_no_emoji_and_cycle_text_has_no_count():
     assert all(not re.search('[\U0001F000-\U0001FAFF☀-➿️]', b) for b in btns), btns
     cyc = re.search(r'<h2>집값은 왜 돌고 도는가</h2>\s*(?:<!--.*?-->\s*)?<p>([^<]*)</p>', home, re.S).group(1)
     assert not re.search(r'\d+\s*개\s*고리', cyc), cyc
+
+
+def test_number_cells_are_right_aligned_heads_stay_centered():
+    """시세 탭 표(table.adv)·순위 표(.rank-tbl)의 숫자 칸은 오른쪽 맞춤이고(자릿수가 세로로 맞는다), 머리는 07-22 원칙대로 가운데다.
+    실제 상태(2026-11-12 디자인 마감 점검): 칸이 가운데 맞춤이라 +0.35%·+0.61% 끝과 ▲2위·▲18위 자릿수가 어긋났다.
+    변이(실제로 확인): 'table.adv th,table.adv td' 규칙의 text-align 을 center 로 되돌리면 빨개진다."""
+    css = _css()
+    assert 'text-align:right' in _rule(css, 'table.adv th,table.adv td')
+    assert 'text-align:right' in _rule(css, '.rank-tbl th,.rank-tbl td')
+    assert 'text-align:center' in _rule(css, 'table.adv thead th') and 'text-align:center' in _rule(css, '.rank-tbl thead th')
