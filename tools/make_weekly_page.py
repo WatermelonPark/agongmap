@@ -231,6 +231,9 @@ def _to_fixed3(x):
     return str(Decimal(x).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP))
 
 
+MAP_INK_A = 0.45   # 홈 sggMapSvg INK_A 의 거울 — 이 알파 이상인 칸의 값 글자는 먹색(2026-11-12 접근성 점검·대표 결정)
+
+
 def map_color(v, ref):
     """홈 mapColor 의 거울 — 글자가 0.00 인 칸은 무색, 아니면 원값 크기로 빨강·파랑 알파."""
     if v is None or pv2r(v) == 0:
@@ -288,8 +291,12 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None, label='전국 시군구 
         return None
 
     def tcol(v):
+        # 홈 tcol 의 거울 — 진한 칸(알파 MAP_INK_A 이상)은 먹색, '0.00' 칸은 #4e5d61(2026-11-12 접근성 점검)
         r = pv2r(v) or 0
-        return '#8f2318' if r > 0 else ('#123c5c' if r < 0 else '#5e6f74')
+        if r == 0:
+            return '#4e5d61'
+        m = re.search(r',([0-9.]+)\)$', map_color(v, ref))
+        return '#131e24' if m and float(m.group(1)) >= MAP_INK_A else ('#8f2318' if r > 0 else '#123c5c')
     # 칸 설명의 앞말(홈 pre 의 거울) — 구는 소속 시(수원 장안), 그 밖은 소속 시도(서울 강남), 시도 머리 칸은 없음
     hn = {c: nm for c, nm, _x, _y, h in N['t'] if h and len(c) == 2}
     hn.update({c: nm for c, nm, _x, _y, _h in N['t'] if c in SI_PARENT})
@@ -673,6 +680,15 @@ def put_nav(s):
         s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
     if N.NAV_FOCUS_CSS not in s:     # 탭바 키보드 초점(백로그 36-8) — 뼈대는 배치 산출물이라 여기서 넣는다
         s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_FOCUS_CSS, 1)
+    # 읽는 문장 14px(2026-11-06 대표 결정 — 11-12 접근성 점검에서 뼈대의 서울 구 요약 줄·링크 카드 설명이 13px 로 남아 있었다).
+    s = s.replace('  .sub{font-size:13px;', '  .sub{font-size:14px;', 1)
+    s = s.replace('.links a span{display:block;font-size:13px;', '.links a span{display:block;font-size:14px;', 1)
+    # 대체 글꼴(웹 글꼴이 늦게 와 화면이 밀리는 것 줄이기, 정본 site_nav.FONT_FALLBACK_CSS — 2026-11-12 배포 점검·대표 결정)
+    if N.FONT_FALLBACK_CSS not in s:
+        s = s.replace('<style>', '<style>' + N.FONT_FALLBACK_CSS + ('\r\n' if '\r\n' in s else '\n'), 1)
+    s = s.replace("font-family:'Pretendard Variable','Pretendard',-apple", 'font-family:' + N.FONT_STACK_HEAD + '-apple')
+    if N.NAV_SCROLL_PAD_CSS not in s:     # 초점이 탭바 밑에 숨지 않게(2026-11-12 접근성 점검)
+        s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_SCROLL_PAD_CSS, 1)
     if HEAD_DESKTOP_CSS not in s:    # 데스크톱 머리 위 빈칸(백로그 36-9)
         s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + HEAD_DESKTOP_CSS, 1)
     # 탭 라벨 글자 크기도 정본(site_nav.LABEL_PX — 홈 화면 글자 하한 13px, 2026-09-28)으로 맞춘다. 뼈대 <style> 은 배치 산출물이라
@@ -706,6 +722,8 @@ def put_brand(s):
     s = _INK_BG.sub(lambda m: m.group(1) + 'var(--brand)', s)
     # 흰 바탕 등락 글자(표·순위·머리 숫자)는 데이터 의미색 정본 한 벌(site_nav.UP_INK·DN_INK, 2026-11-11 색 감사).
     s = _UP2.sub(lambda m: m.group(1) + N.UP_INK, s)
+    # 머리 결론 숫자도 같은 한 벌 — 상승만 지도 빨강(--up)이고 하락은 --dn2 라 짝이 어긋났다(2026-11-12 디자인 마감 점검).
+    s = s.replace('h1 em.up{color:var(--up)}', 'h1 em.up{color:var(--up2)}')
     return _DN2.sub(lambda m: m.group(1) + N.DN_INK, s)
 
 
@@ -764,6 +782,9 @@ def build(W, Q):
         % (WR.week_label(p, year=True), when),
         '  <h1>%s</h1>' % h1,
         '  ' + stale_js,
+        # 지도 규칙은 지도 **앞**에 둔다 — 160KB 지도 뒤에 두면 '옆으로 밀어' 줄이 기본 16px 로 먼저 그려졌다가 13px 로 줄며
+        # 지도가 7px 올라갔다(375px CLS 0.145, 2026-11-12 배포 점검).
+        '  <style>%s</style>' % (MAP_CSS + CUE_CSS),
         '  <div class="minimap">',
         # 좁은 화면의 '옆으로 밀어 전체 보기'는 지도 **위**에도 — 아래 캡션만으로는 1,100px 높이 지도 꼭대기에서 오른쪽(강원·경북·부산)이
         # 있는지 몰랐다(2026-11-07 디자인 검수 reports-7). 넓은 화면은 지도가 다 들어와 보이지 않는다(MAP_CSS).
@@ -775,7 +796,6 @@ def build(W, Q):
         '<span>지역을 누르면 주간 그래프<span class="mm-swipe"> · 옆으로 밀어 전체 보기</span></span>'
         '<a class="go" href="/#stats-market-week-rank">TOP 10 →</a></div>' % map_what,   # 시세 탭 순위 보기(2026-10-10)
         '  </div>',
-        '  <style>%s</style>' % (MAP_CSS + CUE_CSS),
         '  <script>(function(){%sdocument.querySelectorAll(".minimap .mm-scroll").forEach(cueBox);})();</script>' % CUE_JS,
     ])
 

@@ -1,3 +1,4 @@
+@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}   /* 대체 글꼴 — 정본 site_nav.FONT_FALLBACK_CSS(2026-11-12 배포 점검) */
   /* 건너뛰기 링크 — 첫 Tab 에만 보인다(2026-09-18 접근성 점검: 랜드마크·건너뛰기가 어느 페이지에도 없었다) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:var(--r-touch)}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -33,7 +34,7 @@
   body{background:var(--paper);color:var(--ink);
     /* 가변 폰트 CSS가 등록하는 패밀리명은 'Pretendard Variable'이다. 이게 앞에 없으면
    링크를 걸어도 폰트가 적용되지 않는다(정적 버전 대비 흔한 함정). */
-  font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     line-height:1.75;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
   .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
 
@@ -105,7 +106,7 @@
     vertical-align:middle;letter-spacing:.04em}
 
   .toggle{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-  .toggle button{font-family:inherit;font-size:13.5px;font-weight:600;padding:7px 15px;
+  .toggle button{font-family:inherit;font-size:13.5px;font-weight:600;padding:7px 15px;min-height:40px;
     border:1px solid var(--ink);background:transparent;color:var(--ink);
     border-radius:var(--r-touch);cursor:pointer;transition:.15s}
   .toggle button.on{background:var(--brand);color:var(--paper)}
@@ -194,6 +195,7 @@
     align-items:center;justify-content:center;gap:3px;color:#97a0b8;
     font-size:13px;font-weight:600;cursor:pointer;transition:color .15s;position:relative;
     font-family:inherit}
+  @media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS, 11-12 접근성 점검) */
   .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */   /* 홈의 '홈'·'시세' 탭은 <button> 이라 상속하지 않으면 시스템 글꼴로 그려진다(B11 검토) */
   .nav-btn.on{color:#fff}
     .nav-btn svg{display:block}
@@ -275,7 +277,7 @@
   .rcard.rc-sample .rc-dots{gap:5px;margin:8px 0 12px}
   .rcard.rc-sample .rc-dots i{width:9px;height:9px}
   .rcard.rc-sample .rc-grade{font-size:16px;margin-bottom:7px}
-  .rcard.rc-sample .rc-desc{font-size:13px;line-height:1.6}
+  .rcard.rc-sample .rc-desc{font-size:14px;line-height:1.6}   /* 읽는 문장 14px(11-06 대표 결정, 11-12 접근성 점검) */
   .rcard .rc-head{font-size:13px;font-weight:600;color:rgba(232,235,242,.66)}
   .rcard .rc-emoji{font-size:54px;margin:12px 0 2px;line-height:1}
   .rcard .rc-score{font-size:46px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
@@ -457,7 +459,7 @@
     font-variant-numeric:tabular-nums;color:var(--ink)}
   #stat-tbl td:first-child{text-align:left;font-weight:600;color:var(--ink2)}
   #stat-tbl tr:nth-child(even) td{background:#f9fafa}
-  .chg-up{color:#d2342a}.chg-dn{color:var(--gwaing)}
+  .chg-up{color:#a93226}.chg-dn{color:var(--gwaing)}
   .src-note{font-size:13px;color:var(--muted);margin-top:12px;line-height:1.6}
   @media(max-width:560px){
     .ctrl-row{flex-wrap:wrap}
@@ -543,9 +545,10 @@
   #sec-permit .adv-note,#sec-occ .adv-note{margin:8px 0 4px}   /* 설명은 그래프·표 아래 한 문장(전수리뷰 H2-7) */
   .adv-tblwrap{overflow-x:auto;border-radius:0;background:#fff;border-top:1.5px solid var(--ink);border-bottom:1px solid var(--line)}
   table.adv{border-collapse:collapse;font-size:13px;white-space:nowrap;width:100%}
-  table.adv th,table.adv td{padding:6px 9px;border-bottom:1px solid var(--paper2);text-align:center;
+  /* 숫자 칸은 오른쪽 맞춤 — 자릿수가 세로로 맞아야 견준다(2026-11-12 디자인 마감 점검, 가운데 맞춤이면 +0.35%·+0.61% 끝이 어긋났다) */
+  table.adv th,table.adv td{padding:6px 9px;border-bottom:1px solid var(--paper2);text-align:right;
     font-variant-numeric:tabular-nums}
-  table.adv thead th{background:var(--paper2);color:var(--ink2);font-weight:600;position:sticky;top:0}
+  table.adv thead th{background:var(--paper2);color:var(--ink2);font-weight:600;position:sticky;top:0;text-align:center}   /* 머리는 가운데(07-22 원칙) */
   table.adv tbody th{font-weight:400;color:inherit;background:#fff}
   table.adv th:first-child,table.adv td:first-child{position:sticky;left:0;background:#fff;text-align:left;/*td만*/
     font-weight:600;color:var(--ink);border-right:1px solid var(--line);z-index:1}
@@ -638,8 +641,8 @@
     background-color:#fff}
   .rank-tbl{width:100%;border-collapse:collapse;font-size:13px}
   .rank-tbl th,.rank-tbl td{padding:4px 8px;border-bottom:1px solid var(--paper2);
-    text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
-  .rank-tbl thead th{background:var(--paper2);font-weight:600;color:var(--ink2);font-size:13px}
+    text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}   /* 숫자 칸 오른쪽 맞춤(11-12 디자인 마감 점검) */
+  .rank-tbl thead th{background:var(--paper2);font-weight:600;color:var(--ink2);font-size:13px;text-align:center}
   .rank-tbl td:nth-child(2){text-align:left;font-weight:600}
   .map-rows{font-size:13px;color:var(--ink2);margin:0 0 6px;line-height:1.5}   /* 시군구 타일 칸 줄의 뜻 — 지도 위 한 줄(홈·시세 탭) */
   .rank-tbl thead th:nth-child(2){text-align:left}   /* 지역 열은 머리도 왼쪽(칸과 같은 정렬, 2026-10-31 디자인 리뷰 2차) */
@@ -733,11 +736,11 @@
     border-radius:var(--r-touch);background:#fff;color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
   /* 표 아래 '더보기' — 표와 한 몸으로 보이게 폭 전체를 쓰고 위 테두리만 잇는다 */
   .tr-more{display:block;width:100%;font-family:inherit;font-size:13px;font-weight:600;
-    padding:10px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink2);cursor:pointer}
+    padding:10px;min-height:40px;border:0;border-top:1px solid var(--line);background:#fff;color:var(--ink2);cursor:pointer}
   .tr-more:hover{background:var(--paper2);color:var(--ink)}
   .tr-more:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
   .tr-row{display:flex;justify-content:flex-end;margin:0 0 8px}
-  .trbtn{font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;border-radius:var(--r-touch);
+  .trbtn{font-family:inherit;font-size:13px;font-weight:600;padding:6px 12px;min-height:40px;border-radius:var(--r-touch);
     border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;line-height:1.3}
   .trbtn.on{background:var(--brand);color:#fff;border-color:var(--brand)}
   #sec-basicmain.single .tr-row{display:none}
@@ -880,7 +883,7 @@
     border-top:1px solid var(--line);padding-top:13px}
   /* 산출 방법 토글. 오른쪽 출처·주기 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리. 출처 기관은 펼치면 항목마다 있다). */
   .sc-how summary{list-style:none;cursor:pointer;font-size:13px;font-weight:600;
-    color:var(--ink);display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+    color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px}
   .sc-how summary::-webkit-details-marker{display:none}
   .sc-how summary .t::after{content:' ▾';font-weight:600;color:var(--muted)}
   .sc-how[open] summary .t::after{content:' ▴'}
@@ -1255,7 +1258,7 @@ table.adv thead th:first-child{text-align:center}
   .tb-seg button.on{background:var(--brand);color:var(--paper);font-weight:600}
   .tb-seg button[disabled]{opacity:.4;cursor:default}
   /* 손가락 대상 최소 높이(2026-09-15 점검 후속 ⑦) — 지도/그래프/표 전환이 약 32px였다. */
-  .tb-seg button{min-height:40px}
+  .tb-seg button{min-height:40px;min-width:44px}   /* '표' 한 글자 단추가 폭 31px 였다(11-12 접근성 점검) */
   .tb-chk{font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
   .tb-key{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;
     color:var(--muted);flex-wrap:wrap}
@@ -1587,7 +1590,7 @@ table.adv thead th:first-child{text-align:center}
   .zs-row{display:grid;grid-template-columns:7.5em 1fr;gap:10px;font-size:14px;
     color:var(--ink2);line-height:1.6;margin:3px 0}
   .zs-row b{font-weight:600;color:var(--ink)}
-  .zs-ref{color:var(--muted);font-size:13px;margin-top:8px}
+  .zs-ref{color:var(--muted);font-size:14px;margin-top:8px}   /* 마침표로 끝나는 읽는 문장 — 14px(11-12 접근성 점검) */
   .zs-ref b{font-weight:500;color:var(--muted)}
   .zs-ref small{display:block;font-size:13px}
   .zs-thin strong{font-weight:600;color:var(--ink2)}

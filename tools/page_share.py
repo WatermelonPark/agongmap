@@ -43,7 +43,7 @@ def link(page_url, source, campaign):
 
 
 CSS = ('.pshare{padding:6px 0 26px}'
-       '.pshare-lead{font-size:13px;color:var(--muted);text-align:center;margin:0 0 10px}'
+       '.pshare-lead{font-size:14px;color:var(--muted);text-align:center;margin:0 0 10px}'
        '.pshare-row{display:flex;gap:8px;max-width:400px;margin:0 auto}'
        '.pshare-btn{flex:1 1 0;min-width:0;min-height:46px;display:flex;align-items:center;justify-content:center;gap:5px;'
        'background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:3px;cursor:pointer;'

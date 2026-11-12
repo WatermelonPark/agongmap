@@ -91,6 +91,23 @@ def test_generator_touches_only_the_marker_block_and_three_metas(kw):
     assert out.count(START) == 1 and out.count(END) == 1
 
 
+def test_modified_date_stays_while_the_summary_stays(monkeypatch):
+    """요약이 그대로면 다음 날 다시 구워도 '페이지 수정'은 옛 날짜다. 요약이 바뀐 날만 오늘이 된다. 화면은 읽는 꼴, JSON-LD 는 ISO.
+
+    실제 상태: 옛 구간에 붙은 지난 회차 수정일 덩어리를 떼지 않고 새 body 와 견줘 늘 '다름'이었다 — data-core.js 가
+    그대로인 11-07~11 에 홈 수정일이 매일 올랐다(2026-11-12 SEO 점검).
+    변이(실제로 확인): modified_date 의 _MOD_BLOCK.sub 를 빼고 옛 구간 그대로 견주면 빨개진다.
+    픽스처: 합성 데이터 두 벌(_adv(), _adv(H=8)) 과 날짜 셋.
+    """
+    monkeypatch.setattr(MH.KST, 'today_iso', lambda: '2026-11-01')
+    first = MH.render(_index(), _adv())
+    assert '<p class="hsum-u">페이지 수정 2026년 11월 1일</p>' in first and '"dateModified": "2026-11-01"' in first
+    monkeypatch.setattr(MH.KST, 'today_iso', lambda: '2026-11-05')
+    assert MH.render(first, _adv()) == first, '요약이 그대로인데 수정일이 바뀌었다'
+    moved = MH.render(first, _adv(H=8))
+    assert '"dateModified": "2026-11-05"' in moved and '페이지 수정 2026년 11월 5일' in moved
+
+
 def test_generator_refuses_a_page_without_exactly_one_marker_pair():
     s = _index()
     for bad in (s.replace(START, ''), s.replace(END, END + END), s.replace('<meta name="twitter:description"', '<meta name="x"')):
