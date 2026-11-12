@@ -286,7 +286,7 @@ def test_weekly_page_head_has_no_sido_moves_and_table_uses_the_same_moves():
         (Q[c], MW.pv2(v), r, '' if d is None else str(d), mark(d)) for c, v, r, d in want]
     assert 'id="utable"' in table and 'data-num' in table
     # RET-7 한 줄은 가는 곳(시도 목록 /zone/)과 같은 말을 한다('이 지역'이라 적지 않는다 — 3차 검토)
-    assert '<a href="/zone/">시도별 공급 판정 보기 →</a>' in table and '이 지역' not in table
+    assert '<a class="go40" href="/zone/">시도별 공급 판정 보기 →</a>' in table and '이 지역' not in table
 
 
 def test_news_is_only_what_changed_this_week():

@@ -185,7 +185,9 @@ MAP_HREF = '/#stats-market-week~%s'
 MAP_BOX_CSS = ('.mm-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}'
                '.mm-scroll svg a{cursor:pointer}.mm-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}'
                '.mm-scroll svg a:focus:not(:focus-visible){outline:none}.mm-scroll svg a:focus-visible>g>rect{stroke:#1b2426;stroke-width:1.6}')
-MAP_CSS = MAP_BOX_CSS + ('.mm-swipe,.mm-swipe-top{display:none}@media(max-width:520px){.mm-swipe{display:inline}'
+# 따로 선 링크(지도 아래 'TOP 10 →'·표 아래 '시도별 공급 판정 보기 →')의 누름 면 40px — 22px·16px 였다(2026-11-12 디자인 마감 점검)
+MAP_CSS = MAP_BOX_CSS + ('.mm-cap .go,a.go40{display:inline-flex;align-items:center;min-height:40px}'
+                         '.mm-swipe,.mm-swipe-top{display:none}@media(max-width:520px){.mm-swipe{display:inline}'
                          '.mm-swipe-top{display:block;font-size:13px;color:var(--muted);text-align:right;margin:0 0 6px}}')
 # 밀어 보는 지도의 가장자리 흐림(2026-10-31 디자인 리뷰 2차 — 홈·시세 탭에는 .cue 가 있는데 그 거울인 /weekly/ 머리 지도와 시도 리포트
 # 조각에는 없었다). 홈 app.css .cue 와 같은 규칙·같은 동작이다: 상자(.cue) 위에 덮개를 그리고, 밀 것이 남은 쪽만 켠다.
@@ -647,7 +649,7 @@ def table_html(W, Q):
         '  </details>',
         # RET-7: 두 주기를 느슨하게 잇는다 — 타일에 판정 칩을 붙이지 않고 한 줄로 시도 리포트 목록(/zone/)에 보낸다.
         # 가는 곳이 시도 목록이라 문구도 '시도별'이다('이 지역'이라 적으면 그 시군구의 리포트로 가는 줄 안다 — 3차 검토).
-        '  <p class="note"><a href="/zone/">시도별 공급 판정 보기 →</a></p>',
+        '  <p class="note"><a class="go40" href="/zone/">시도별 공급 판정 보기 →</a></p>',   # 누름 면 40px(MAP_CSS)
         '</div></section>',
         '<style>%s</style>' % TABLE_CSS,
         I.SORT_SCRIPT,
