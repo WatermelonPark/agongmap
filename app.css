@@ -172,7 +172,7 @@
     align-items:center;justify-content:center;font-size:14px;font-weight:600}
   .take li b{color:var(--ink)}
   /* 끝 요약 항목마다 그 절로 돌아가는 링크(2026-11-07 디자인 검수 indicators-12 — 22,000px 를 다 읽은 독자에게 '어디로 갈지'). */
-  .take li .take-go{display:inline-flex;align-items:center;min-height:32px;margin-left:4px;font-size:var(--fs-dense);font-weight:600;
+  .take li .take-go{display:inline-flex;align-items:center;min-height:40px;margin-left:4px;font-size:var(--fs-dense);font-weight:600;
     color:#1a6b54;text-decoration:none;white-space:nowrap}
   .take li .take-go:hover{text-decoration:underline;text-underline-offset:3px}
 
@@ -479,7 +479,7 @@
   .cy-next a{display:inline-flex;align-items:center;min-height:40px;color:var(--part-ink,var(--ink));font-weight:600;text-decoration:none}
   .cy-next a:hover{text-decoration:underline;text-underline-offset:3px}
   .tldr-refs{grid-area:refs;margin:0;font-size:var(--fs-dense);color:var(--muted)}
-  .tldr-refs a{display:inline-flex;align-items:center;min-height:32px;color:var(--ink2);font-weight:600;text-underline-offset:3px}
+  .tldr-refs a{display:inline-flex;align-items:center;min-height:40px;color:var(--ink2);font-weight:600;text-underline-offset:3px}
   .tldr{padding:44px 0 8px}
   .tldr-kicker{font-size:13px;font-weight:500;color:var(--muted);margin-bottom:10px}
   .tldr-h{font-size:clamp(22px,4.2vw,30px);font-weight:700;letter-spacing:-.02em;
@@ -834,7 +834,7 @@
     font-size:13px;color:var(--ink2);margin-top:8px;text-align:left}
   .wg-swipe{display:none}
   @media(max-width:520px){.wg-swipe{display:inline}}
-  .wg-link{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+  .wg-link{display:inline-flex;align-items:center;min-height:40px;color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
   /* 지도 칸 링크(홈·통계 공통) — 누를 곳임을 커서·초점 테두리로 보인다 */
   .map-scroll svg a{cursor:pointer}
   .map-scroll svg a:hover>g>rect:first-child{stroke:#1b2426}
@@ -1188,7 +1188,7 @@ table.adv thead th:first-child{text-align:center}
   .zposts{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}
   .zposts .crecent{max-width:none;margin:0;padding:0 0 18px}
   .crecent-all{margin:10px 0 0}
-  .crecent-all a{font-size:13px;color:var(--ink2);text-decoration:none;font-weight:600}
+  .crecent-all a{display:inline-flex;align-items:center;min-height:40px;font-size:13px;color:var(--ink2);text-decoration:none;font-weight:600}   /* 누름 면 40px(11-12 디자인 마감 점검 — 15px 였다) */
   /* 주간 구역의 해설 글 카드 규칙은 2026-10-30에 걷었다 — 네이버 발행 종료(홈 마크업·스크립트도 함께). */
   /* 2026-10-30 디자인 리뷰 2차: 지도 위에서 지도 아래로(범례 다음 줄) — 첫 화면에 지도가 먼저 보이게 */
   .home-sec .map-act{font-size:13.5px;line-height:1.45;color:var(--ink);font-weight:500;margin:6px 0 0;max-width:none;text-align:left}
