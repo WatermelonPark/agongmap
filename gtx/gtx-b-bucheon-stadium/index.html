@@ -109,12 +109,13 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     ]
   }
 ]</script>
-<style>
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
 :root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
@@ -161,7 +162,7 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
 :where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
@@ -170,6 +171,7 @@ footer a{color:var(--ink2)}
 .bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -252,6 +254,7 @@ footer a{color:var(--ink2)}
 .cb{fill:var(--stock);opacity:.5}
 .cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -416,8 +419,8 @@ footer a{color:var(--ink2)}
 <p>역 바로 옆이 레포츠공원과 종합운동장이고, 대학병원(부천성모병원)과 백화점이 차로 10분 안입니다.</p>
 <h2>부천 공급, 3년 합계가 적정물량의 절반에 못 미칩니다</h2>
 <p>부천의 2027~2029년 입주 물량은 모두 7,746세대로 3년 적정물량(한 해 6,028세대)의 43%입니다. 가장 많은 2027년도 3,962세대(적정물량의 66%)이고, 2028년은 1,911세대(적정물량의 32%)로 줄어듭니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,962세대</b><span>부천 2027년 입주</span></div><div class="ccard"><b>66%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="부천 연도별 입주 물량 막대그래프. 2026년 186세대, 2027년 3,962세대, 2028년 1,911세대, 2029년 1,873세대, 2032년 3,017세대. 한 해 적정물량은 6,028세대. 3년 합계(2027~2029년) 7,746세대 · 적정물량 대비 43%." class="cchart-svg"><rect x="120.0" y="165.7" width="72.0" height="4.3" class="cb"/><text x="156.0" y="161.7" class="cb-v">186</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="78.0" width="72.0" height="92.0" class="cb"/><text x="238.0" y="74.0" class="cb-v cb-k">3,962</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="125.6" width="72.0" height="44.4" class="cb"/><text x="320.0" y="121.6" class="cb-v">1,911</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="126.5" width="72.0" height="43.5" class="cb"/><text x="402.0" y="122.5" class="cb-v">1,873</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="99.9" width="72.0" height="70.1" class="cb"/><text x="484.0" y="95.9" class="cb-v cb-k">3,017</text><text x="484.0" y="202" class="cb-x">2032</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 6,028세대</text></svg><figcaption>부천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/11 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 7,746세대 · 적정물량 대비 43%</p></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>186</td><td>3%</td></tr><tr><th scope="row">2027</th><td>3,962</td><td>66%</td></tr><tr><th scope="row">2028</th><td>1,911</td><td>32%</td></tr><tr><th scope="row">2029</th><td>1,873</td><td>31%</td></tr><tr><th scope="row">2032</th><td>3,017</td><td>50%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 6,028세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,962세대</b><span>부천 2027년 입주</span></div><div class="ccard"><b>66%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="부천 연도별 입주 물량 막대그래프. 2026년 186세대, 2027년 3,962세대, 2028년 1,911세대, 2029년 1,873세대, 2030년 입주 예정 없음, 2031년 입주 예정 없음, 2032년 3,017세대. 한 해 적정물량은 6,028세대. 3년 합계(2027~2029년) 7,746세대 · 적정물량 대비 43%." class="cchart-svg"><rect x="38.0" y="165.7" width="72.0" height="4.3" class="cb"/><text x="74.0" y="161.7" class="cb-v">186</text><text x="74.0" y="202" class="cb-x">2026</text><rect x="120.0" y="78.0" width="72.0" height="92.0" class="cb"/><text x="156.0" y="74.0" class="cb-v cb-k">3,962</text><text x="156.0" y="202" class="cb-x cb-x2">2027</text><rect x="202.0" y="125.6" width="72.0" height="44.4" class="cb"/><text x="238.0" y="121.6" class="cb-v">1,911</text><text x="238.0" y="202" class="cb-x">2028</text><rect x="284.0" y="126.5" width="72.0" height="43.5" class="cb"/><text x="320.0" y="122.5" class="cb-v">1,873</text><text x="320.0" y="202" class="cb-x cb-x2">2029</text><text x="402.0" y="166.0" class="cb-v cb-k cb-none">없음</text><text x="402.0" y="202" class="cb-x">2030</text><text x="484.0" y="166.0" class="cb-v cb-k cb-none">없음</text><text x="484.0" y="202" class="cb-x cb-x2">2031</text><rect x="530.0" y="99.9" width="72.0" height="70.1" class="cb"/><text x="566.0" y="95.9" class="cb-v cb-k">3,017</text><text x="566.0" y="202" class="cb-x">2032</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 6,028세대</text></svg><figcaption>부천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/11 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 7,746세대 · 적정물량 대비 43%</p></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>186</td><td>3%</td></tr><tr><th scope="row">2027</th><td>3,962</td><td>66%</td></tr><tr><th scope="row">2028</th><td>1,911</td><td>32%</td></tr><tr><th scope="row">2029</th><td>1,873</td><td>31%</td></tr><tr><th scope="row">2030</th><td>입주 예정 없음</td><td>—</td></tr><tr><th scope="row">2031</th><td>입주 예정 없음</td><td>—</td></tr><tr><th scope="row">2032</th><td>3,017</td><td>50%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 6,028세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
 <p><b>제 판단으로는 원미구가 먼저 오르고 오정구가 따라 오를 차례입니다.</b> 같은 역을 쓰는 두 동네인데 공급 조건은 부천 전체가 같고, 앞으로 3년 입주는 적정물량의 절반에 못 미칩니다. 여월휴먼시아 국평 8억은 그 부족이 아직 값에 덜 반영된 자리이고, 원미구와 벌어진 차이는 시간이 지나면 좁혀진다고 봅니다.</p>
 <p>시군구별 주간·월간 시세는 <a href="/zone/%EA%B2%BD%EA%B8%B0/#weekly-sgg">경기 리포트 표</a>에서 볼 수 있습니다.</p>
 <p>적정물량은 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡았습니다. 매매는 대표 평형의 2026년 5~10월 실거래에서 해제·직거래와 같은 평형 거래 달 앞뒤 3개월 중위값의 80% 미만 거래를 뺀 값이고, 전세는 8~10월 월세 없는 전세 실거래의 중위값입니다.</p>
