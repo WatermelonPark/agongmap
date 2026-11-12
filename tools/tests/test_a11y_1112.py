@@ -108,3 +108,24 @@ def test_map_cell_numbers_and_report_table_cells_reach_4_5_to_1():
     assert not low, low[:5]
     worst = MS.tint(1.0, 1.0)
     assert _cr(_on(worst, paper), _hex('#131e24')) >= 4.5 and _cr(_on(MS.tint(-1.0, 1.0), paper), _hex('#131e24')) >= 4.5
+
+
+def test_series_lines_and_labels_have_the_dark_variants():
+    """계열색의 흰 바탕 대비(2026-11-12 대표 결정 '글자·선만 진한 변형'): 그래프 선은 3:1 이상(WCAG 1.4.11), 보통 크기 글자는 4.5:1 이상.
+    실제 상태(접근성 점검): 기본통계 금리 선 #e8b84b 1.84:1, /cycle/ 착공 선 #d99a00 2.45:1, /cycle/ 도식 '신축공급'(16.5px·600)
+    초록 #1f8a70 4.26:1, '3~5' 배지(흰 글자 14px) 4.26:1.
+    변이(실제로 확인): DS_COLOR 금리를 '#e8b84b' 로, cycle FLOW 를 '#d99a00' 으로 되돌리면 빨개진다.
+    픽스처: 저장소의 home-stats.js(home_src 로)·cycle/index.html."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import home_src as HS
+    stats = next(t for f, t in HS.home_files() if f.endswith('home-stats.js'))
+    white = (255, 255, 255)
+    rate = re.search(r"금리:'(#[0-9a-f]{6})'", re.search(r'const DS_COLOR=\{(.*?)\};', stats, re.S).group(1)).group(1)
+    assert _cr(_hex(rate), white) >= 3, rate
+    cyc = io.open(os.path.join(ROOT, 'cycle', 'index.html'), encoding='utf-8').read()
+    flow = re.search(r'FLOW="(#[0-9a-fA-F]{6})"', cyc).group(1)
+    assert _cr(_hex(flow), white) >= 3, flow
+    lab = re.search(r'fill="(#[0-9a-fA-F]{6})">신축공급</text>', cyc).group(1)
+    badge = re.search(r'<rect x="206\.0" y="341\.5"[^>]*fill="(#[0-9a-fA-F]{6})"/>', cyc).group(1)
+    assert _cr(_hex(lab), white) >= 4.5 and _cr(_hex(badge), white) >= 4.5, (lab, badge)
