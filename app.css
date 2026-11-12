@@ -1,3 +1,4 @@
+@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}   /* 대체 글꼴 — 정본 site_nav.FONT_FALLBACK_CSS(2026-11-12 배포 점검) */
   /* 건너뛰기 링크 — 첫 Tab 에만 보인다(2026-09-18 접근성 점검: 랜드마크·건너뛰기가 어느 페이지에도 없었다) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:var(--r-touch)}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
@@ -33,7 +34,7 @@
   body{background:var(--paper);color:var(--ink);
     /* 가변 폰트 CSS가 등록하는 패밀리명은 'Pretendard Variable'이다. 이게 앞에 없으면
    링크를 걸어도 폰트가 적용되지 않는다(정적 버전 대비 흔한 함정). */
-  font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     line-height:1.75;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
   .wrap{max-width:var(--col-wide);margin:0 auto;padding:0 24px}
 

@@ -73,14 +73,15 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   ]
 }
 </script>
-<style>b,strong{font-weight:600}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+b,strong{font-weight:600}
   :root{--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;
     --muted:#5e6f74;--line:#c4cec9}
   /* 조판 치수 — 공용 시트 :root 정본의 사본이다. 값을 손으로 바꾸지 말 것(test_design_tokens 가 일치를 고정한다) */
   :root{--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
-    font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     line-height:1.7;-webkit-font-smoothing:antialiased}
   .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
   header{padding:56px 0 30px;text-align:center}

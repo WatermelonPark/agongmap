@@ -683,6 +683,10 @@ def put_nav(s):
     # 읽는 문장 14px(2026-11-06 대표 결정 — 11-12 접근성 점검에서 뼈대의 서울 구 요약 줄·링크 카드 설명이 13px 로 남아 있었다).
     s = s.replace('  .sub{font-size:13px;', '  .sub{font-size:14px;', 1)
     s = s.replace('.links a span{display:block;font-size:13px;', '.links a span{display:block;font-size:14px;', 1)
+    # 대체 글꼴(웹 글꼴이 늦게 와 화면이 밀리는 것 줄이기, 정본 site_nav.FONT_FALLBACK_CSS — 2026-11-12 배포 점검·대표 결정)
+    if N.FONT_FALLBACK_CSS not in s:
+        s = s.replace('<style>', '<style>' + N.FONT_FALLBACK_CSS + ('\r\n' if '\r\n' in s else '\n'), 1)
+    s = s.replace("font-family:'Pretendard Variable','Pretendard',-apple", 'font-family:' + N.FONT_STACK_HEAD + '-apple')
     if N.NAV_SCROLL_PAD_CSS not in s:     # 초점이 탭바 밑에 숨지 않게(2026-11-12 접근성 점검)
         s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_SCROLL_PAD_CSS, 1)
     if HEAD_DESKTOP_CSS not in s:    # 데스크톱 머리 위 빈칸(백로그 36-9)

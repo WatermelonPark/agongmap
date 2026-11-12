@@ -202,12 +202,13 @@ __ROBOTS__
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">__LD__</script>
-<style>
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
 :root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;__TOKENS__;__BRAND__;__SERIES__}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
