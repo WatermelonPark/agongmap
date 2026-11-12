@@ -1073,7 +1073,9 @@ def build_index(sec, posts_meta):
 
 
 REPORTS_DIR = 'reports'
-REPORTS_TITLE = '콘텐츠'
+REPORTS_TITLE = '콘텐츠'          # 탭·빵부스러기 이름(site_nav 탭 '콘텐츠'와 같다)
+# 허브 페이지 제목·h1·JSON-LD — '콘텐츠'는 검색어가 없다(2026-11-12 SEO 점검·대표 결정). 탭 이름은 그대로 REPORTS_TITLE.
+REPORTS_NAME = '부동산 공급 리포트'
 REPORTS_DESC = '질문이나 내 동네로 들어와 결론부터 읽는 글. 숫자는 국가 통계에서 옵니다.'
 
 # ── '기본 개념' 줄(대표 승인 2026-10-30) ──────────────────────────────────────────────────────────────
@@ -1131,14 +1133,14 @@ def build_reports(all_metas, data=None):
             '<section class="hub-q"><div class="wrap"><h2 class="rh2">질문으로 찾기</h2>%s</div></section>'
             '<section class="hub-city"><div class="wrap"><h2 class="rh2">지역으로 찾기</h2>%s</div></section>%s'
             '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2>%s</div></section>%s'
-            % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
+            % (html.escape(REPORTS_TITLE), html.escape(REPORTS_NAME), html.escape(REPORTS_DESC),
                questions_block(all_metas), city_chips(all_metas), basic_row(),
                cards_grid(newest, fold=HUB_FIRST) if newest else '<p>아직 글이 없습니다.</p>', FILTER_JS))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in all_metas], default=None)
-    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),
-                  ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
-                  url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
+    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_NAME),
+                  ogtitle=html.escape(REPORTS_NAME), desc=html.escape(REPORTS_DESC),
+                  url=url, body=body, ld=I.ld_pack(REPORTS_NAME, REPORTS_DESC, url, REPORTS_TITLE,
                                                    lastmod or I.PUBLISHED, kind='CollectionPage'),
                   src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))

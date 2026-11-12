@@ -206,3 +206,23 @@ def test_site_and_blog_zone_titles_take_the_year_from_one_function(monkeypatch, 
         P.draft_zone(adv, {}, row, 1, 1)
     site = M.page_title('서울', adv['sido'], '부족', SZ.latest_survey(adv))
     assert seen['yr'] == SZ.outlook_year(SZ.latest_survey(adv)) == site[:4] == want, (seen, site)
+
+
+def test_zone_h1_and_reports_title_carry_the_answer_and_a_search_word():
+    """시도 리포트 h1 은 '서울 아파트 공급, 매우 부족'처럼 판정까지 말한다(제목의 판정 낱말은 37~42자째라 검색 결과에서 잘린다).
+    콘텐츠 허브 제목·h1 은 검색어가 있는 REPORTS_NAME('부동산 공급 리포트'), 탭·빵부스러기 이름은 그대로 '콘텐츠'(2026-11-12 SEO
+    점검·대표 결정).
+    변이(실제로 확인): h1 을 옛 '%s 아파트 공급' 으로, build_reports 의 title 을 REPORTS_TITLE 로 되돌리면 빨개진다.
+    픽스처: 저장소 판정(ADV.sido)으로 메모리에서 구운 리포트 전부와 실제 원고로 구운 허브."""
+    import make_content_pages as MC
+    import content_tables as CT
+    adv, stats = M.load()
+    s = adv['sido']
+    for z in s['zones']:
+        page = M.build_page(z['z'], s, stats, {}, s['zones'])
+        h1 = re.search(r'<h1>([^<]*)</h1>', page).group(1)
+        assert h1 == M.esc('%s 아파트 공급, %s' % (SZ.disp(z['z']), M.GRADE_TXT[z['grade']][0])), (z['z'], h1)
+    metas = [m for _s, m, _b in MC.collect()[0]]
+    hub = MC.build_reports(metas, CT.load())[0]
+    assert '<title>%s | 아공맵</title>' % MC.REPORTS_NAME in hub and '<h1>%s</h1>' % MC.REPORTS_NAME in hub
+    assert '› <b>%s</b>' % MC.REPORTS_TITLE in hub and MC.REPORTS_TITLE == '콘텐츠'

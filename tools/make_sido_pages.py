@@ -1163,14 +1163,15 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
-             '<h1>%s 아파트 공급</h1>'
+             # h1 에 판정까지(2026-11-12 SEO 점검·대표 결정) — 제목(title)의 판정 낱말은 37~42자째라 검색 결과에서 잘린다.
+             '<h1>%s 아파트 공급, %s</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
              '<span class="zbasis">%s 기준 · %s</span>'
              # 화면에도 페이지 수정일을 적는다(백로그 50 요청 2.4) — JSON-LD dateModified 와 같은 값이다.
              # keep_dates 가 날짜를 가려 비교하므로, 이 줄 때문에 매일 새 판이 되지는 않는다.
              # 읽는 꼴(SZ.day_long, 날짜 두 단계 — 11-07 디자인 검수 reports-8). JSON-LD 는 ISO 그대로다.
              '<span class="zbasis">페이지 수정 %s</span></p>'
-             % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
+             % (esc(SZ.disp(z)), esc(SZ.disp(z)), esc(lab), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
                 esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC), esc(SZ.day_long(_today()))))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
