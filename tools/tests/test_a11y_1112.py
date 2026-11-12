@@ -129,3 +129,20 @@ def test_series_lines_and_labels_have_the_dark_variants():
     lab = re.search(r'fill="(#[0-9a-fA-F]{6})">신축공급</text>', cyc).group(1)
     badge = re.search(r'<rect x="206\.0" y="341\.5"[^>]*fill="(#[0-9a-fA-F]{6})"/>', cyc).group(1)
     assert _cr(_hex(lab), white) >= 4.5 and _cr(_hex(badge), white) >= 4.5, (lab, badge)
+
+
+def test_page_chips_carry_no_emoji():
+    """손 페이지·퀴즈 점수 페이지 머리 표지(.chip)에는 이모지를 쓰지 않는다(2026-11-12 대표 결정 — 11-07 메달 이모지를 '팔레트 밖 색'
+    이라 걷은 기준과 같다). 공유 미리보기 제목(og:title)의 이모지는 그대로다.
+    실제 상태: 소개 🗺️·FAQ ❓·개인정보 🔒·부린이 🐣·투자자 🦅·재건축 🏗️ 와 점수 페이지 33장.
+    변이(실제로 확인): make_quiz_share_pages 의 chip 을 옛 '%(emoji)s %(title)s' 로 되돌리면(점수 페이지를 다시 구우면) 빨개진다.
+    픽스처: 저장소의 손 페이지와 구워 둔 점수 페이지 전부, 점수 페이지 생성기 틀."""
+    pages = ['about/index.html', 'faq/index.html', 'privacy/index.html', '404.html'] + sorted(
+        os.path.relpath(f, ROOT) for q in ('burini-test', 'investor-test', 'redev-test')
+        for f in glob.glob(os.path.join(ROOT, q, '**', 'index.html'), recursive=True))
+    emoji = re.compile('[\U0001F300-\U0001FAFF☀-➿⬀-⯿️]')
+    bad = [(p, c) for p in pages for c in re.findall(r'<div class="chip">([^<]*)</div>', io.open(os.path.join(ROOT, p), encoding='utf-8').read())
+           if emoji.search(c)]
+    assert not bad, bad
+    src = io.open(os.path.join(ROOT, 'tools', 'make_quiz_share_pages.py'), encoding='utf-8').read()
+    assert '<div class="chip">%(title)s</div>' in src
