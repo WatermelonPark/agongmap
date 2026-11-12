@@ -60,3 +60,51 @@ def test_reading_sentences_that_were_13px_are_14px():
     for text, sel in ((app, '.rcard.rc-sample .rc-desc'), (app, '.zs-ref'), (ind, '.links a span'), (cyc, '.links a span'),
                       (cyc, 'footer .src'), (PS.CSS, '.pshare-lead'), (wk, '  .sub'), (wk, '.links a span')):
         assert px(text, sel) >= N.READ_PX, sel
+
+
+def _lum(c):
+    f = lambda x: (x / 255) / 12.92 if x / 255 <= 0.03928 else (((x / 255) + 0.055) / 1.055) ** 2.4
+    return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2])
+
+
+def _hex(h):
+    return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def _on(fill, bg):
+    """rgba(r,g,b,a) 를 바탕 위에 합성한 색(불투명이면 그대로)."""
+    if fill.startswith('rgba'):
+        r, g, b, a = [float(x) for x in re.findall(r'[\d.]+', fill)]
+        return tuple(c * a + bg[i] * (1 - a) for i, c in enumerate((r, g, b)))
+    return _hex(fill)
+
+
+def _cr(a, b):
+    la, lb = _lum(a), _lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def test_map_cell_numbers_and_report_table_cells_reach_4_5_to_1():
+    """전국 시군구 지도 칸 숫자는 칸 색 위에서 4.5:1 이상 — 진한 칸(알파 MAP_INK_A 이상)은 먹색 글자(2026-11-12 대표 결정 '진한 칸 글자만
+    먹색'). '0.00' 칸 글자는 #4e5d61. 시도 리포트 표의 가장 진한 칸 위 먹색 글자도 4.5:1 이상(tint 최대 알파 0.78).
+    실제 상태(11-12 접근성 점검): 주간 지도 636개 중 107개, 월간 848개 중 221개가 미달(최저 2.72:1 — #8f2318 글자·#e36c62 칸),
+    '0.00' 칸 4.40:1, 리포트 표 19칸 4.40:1.
+    변이(실제로 확인): make_weekly_page 의 tcol 에서 먹색 갈래를 지우거나 MAP_INK_A 를 0.9 로 올리면, tint 의 0.78 을 0.8 로 되돌리면
+    빨개진다(홈 거울은 test_sgg_map 이 한 글자까지 대조한다).
+    픽스처: 합성 값(기준 ref 의 0~1.6배, 양·음·0·빈 값)을 실은 sgg_map_svg 출력, 지면색(#f4f6f5) 바탕."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import make_weekly_page as MW
+    import make_sido_pages as MS
+    ref = 0.2
+    codes = [t[0] for t in MW.nation_tile()['t']]
+    span = [-0.32, -0.2, -0.13, -0.08, -0.02, 0.0, None, 0.004, 0.03, 0.06, 0.09, 0.12, 0.2, 0.33]
+    vals = {c: span[k % len(span)] for k, c in enumerate(codes)}
+    svg = MW.sgg_map_svg([vals, vals], ['매매', '전세'], ref)
+    paper = _hex('#f4f6f5')
+    cells = re.findall(r'rx="3" fill="([^"]+)" stroke="#d8dfdc"/><text [^>]*fill="(#\w{6})">', svg)
+    assert len(cells) > 100, len(cells)
+    low = [(f, t, round(_cr(_on(f, paper), _hex(t)), 2)) for f, t in cells if _cr(_on(f, paper), _hex(t)) < 4.5]
+    assert not low, low[:5]
+    worst = MS.tint(1.0, 1.0)
+    assert _cr(_on(worst, paper), _hex('#131e24')) >= 4.5 and _cr(_on(MS.tint(-1.0, 1.0), paper), _hex('#131e24')) >= 4.5

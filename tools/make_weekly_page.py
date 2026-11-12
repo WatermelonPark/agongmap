@@ -231,6 +231,9 @@ def _to_fixed3(x):
     return str(Decimal(x).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP))
 
 
+MAP_INK_A = 0.45   # 홈 sggMapSvg INK_A 의 거울 — 이 알파 이상인 칸의 값 글자는 먹색(2026-11-12 접근성 점검·대표 결정)
+
+
 def map_color(v, ref):
     """홈 mapColor 의 거울 — 글자가 0.00 인 칸은 무색, 아니면 원값 크기로 빨강·파랑 알파."""
     if v is None or pv2r(v) == 0:
@@ -288,8 +291,12 @@ def sgg_map_svg(vals, names, ref, href=None, tile=None, label='전국 시군구 
         return None
 
     def tcol(v):
+        # 홈 tcol 의 거울 — 진한 칸(알파 MAP_INK_A 이상)은 먹색, '0.00' 칸은 #4e5d61(2026-11-12 접근성 점검)
         r = pv2r(v) or 0
-        return '#8f2318' if r > 0 else ('#123c5c' if r < 0 else '#5e6f74')
+        if r == 0:
+            return '#4e5d61'
+        m = re.search(r',([0-9.]+)\)$', map_color(v, ref))
+        return '#131e24' if m and float(m.group(1)) >= MAP_INK_A else ('#8f2318' if r > 0 else '#123c5c')
     # 칸 설명의 앞말(홈 pre 의 거울) — 구는 소속 시(수원 장안), 그 밖은 소속 시도(서울 강남), 시도 머리 칸은 없음
     hn = {c: nm for c, nm, _x, _y, h in N['t'] if h and len(c) == 2}
     hn.update({c: nm for c, nm, _x, _y, _h in N['t'] if c in SI_PARENT})

@@ -631,10 +631,11 @@ FOOT = '''</main>
 
 
 def tint(v, scale):
-    """홈 표와 같은 색 규칙 — 0.00일 때만 무색, 아니면 최소 0.13은 물든다."""
+    """홈 표와 같은 색 규칙(home-app.js tintA) — 0.00일 때만 무색, 아니면 최소 0.13은 물든다. 최대 알파 0.78: 0.8 에서는 가장 진한
+    빨강 칸 위 먹색 글자가 4.40:1 이었다(2026-11-12 접근성 점검)."""
     if v is None or v == 0:
         return 'transparent'
-    a = (0.13 + 0.87 * min(1.0, abs(v) / float(scale))) * 0.8
+    a = (0.13 + 0.87 * min(1.0, abs(v) / float(scale))) * 0.78
     return ('rgba(198,58,48,%.3f)' if v > 0 else 'rgba(38,110,180,%.3f)') % a
 
 

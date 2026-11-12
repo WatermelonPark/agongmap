@@ -585,7 +585,12 @@ function sggMapSvg(vals,o){
   };
   const SI_PARENT=new Set(['a80203','a80103','a80202','a80102','a80602','a80301','a80302','a80305']);
   const clOf=c=>{ if(SI_PARENT.has(c))return c; for(const p of SI_PARENT)if(c.indexOf(p)===0)return p; return null; };
-  const tcol=v=>{const r=pvSign(v);return r>0?'#8f2318':(r<0?'#123c5c':'#5e6f74');};
+  /* 값 글자색: 칠한 알파가 MAP_INK_A 이상인 진한 칸은 먹색 — 진한 빨강 칸 위 진한 빨강 글자가 2.72:1 이었다(2026-11-12 접근성 점검,
+     대표 결정 '진한 칸 글자만 먹색'. 먹색은 가장 진한 빨강 5.3·파랑 4.95:1). 옅은 칸은 등락색 그대로, '0.00' 칸은 #4e5d61(5.75:1). */
+  const INK_A=0.45;   // 이 알파 이상인 칸의 값 글자는 먹색 — 알파는 칸 색(mapColor) 글자에서 읽어 둘이 한 값을 본다(파이썬 거울 MAP_INK_A)
+  const tcol=(v,ref)=>{const r=pvSign(v);if(r===0)return '#4e5d61';
+    const m=/,([0-9.]+)\)$/.exec(mapColor(v,ref));
+    return m&&parseFloat(m[1])>=INK_A?'#131e24':(r>0?'#8f2318':'#123c5c');};
   /* 칸 설명의 앞말 — 짧은 이름('북'·'중'·'강서')이 여러 시도에 겹쳐 보조기기에서 같은 소리로 읽히지 않게, 구는 소속 시
      (수원 장안), 그 밖의 칸은 소속 시도(서울 강남·부산 북)를 붙인다. 시도 머리 칸(두 글자 코드)은 붙이지 않는다. */
   const HN={}; N.t.forEach(([c,nm,,,h])=>{ if(h&&c.length===2)HN[c]=nm; });
@@ -610,7 +615,7 @@ function sggMapSvg(vals,o){
       `<text x="${TW/2}" y="${NH-4}" text-anchor="middle" font-size="${MAP_FS}"${nm.length>=4?` textLength="${TW-3}" lengthAdjust="spacingAndGlyphs"`:''} font-weight="600" fill="${(h||SI_PARENT.has(c))?'#fff':'#1b2426'}">${nm}</text>`+
       vals.map((m,j)=>{ const v=m[c], ry=NH+1+j*(VH+1);
         return `<rect y="${ry}" width="${TW}" height="${VH}" rx="3" fill="${mapColor(v,ref)}" stroke="#d8dfdc"/>`+
-          `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="${MAP_FS}" font-weight="600" fill="${tcol(v)}">${pv2(v)}</text>`; }).join('')+
+          `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="${MAP_FS}" font-weight="600" fill="${tcol(v,ref)}">${pv2(v)}</text>`; }).join('')+
       (href?'':`<title>${lab}</title>`)+'</g>';
     sv.push(href?`<a href="${href}" data-code="${c}" aria-label="${lab}">${g}</a>`:g);
   });
@@ -777,7 +782,8 @@ var TB_TINTC={};
    조용히 갈라지는 상태였다(2026-08-10 리뷰). PAPER_RGB는 CSS --paper의 사본 —
    토큰을 바꾸면 여기도 같이 바꿀 것. */
 var TB_UP=[198,58,48], TB_DN=[38,110,180], PAPER_RGB=[244,246,245];
-function tintA(v,scale){ return (TB_MIN+(1-TB_MIN)*Math.min(1,Math.abs(v)/scale))*0.8; }
+/* 최대 0.78 — 가장 진한 빨강 칸 위 먹색 글자가 0.8 에서 4.40:1 이었다(2026-11-12 접근성 점검, 4.5:1 이상으로). 파이썬 거울 make_sido_pages.tint */
+function tintA(v,scale){ return (TB_MIN+(1-TB_MIN)*Math.min(1,Math.abs(v)/scale))*0.78; }
 function tbTint(v,scale){
   if(v==null) return TB_NODATA;
   if(v===0) return 'transparent';
