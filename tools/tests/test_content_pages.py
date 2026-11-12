@@ -425,8 +425,9 @@ def test_city_values_agree_with_the_city_tables():
         assert CT.value(data, 'need', [name]).replace('세대', '') in note, \
             '%s: need 가 moveins 표 각주와 다르다 (%s / %s)' % (name, CT.value(data, 'need', [name]), note)
         # share: 그 해 행의 '적정 대비' 칸과 같은가
-        year = rows[1][0] if len(rows) > 1 else rows[0][0]
-        want = dict((r[0], r[2]) for r in rows)[year]
+        got = [r for r in rows if r[1] != CT.NO_MOVEIN]          # 입주 예정이 없는 해(자리만 둔 행)는 share 가 없다
+        year = got[1][0] if len(got) > 1 else got[0][0]
+        want = dict((r[0], r[2]) for r in got)[year]
         assert CT.value(data, 'share', [name, year]) == want, \
             '%s %s: share(%s) 가 표의 적정 대비(%s)와 다르다' % (
                 name, year, CT.value(data, 'share', [name, year]), want)
@@ -436,11 +437,11 @@ def test_city_values_agree_with_the_city_tables():
             agg[r['ym']] = agg.get(r['ym'], 0) + r['n']
         ym, n = max(sorted(agg.items()), key=lambda x: x[1])
         # ratio: 두 해 행의 세대 수 비와 같은가(콘텐츠-도시 요청으로 연 자리표)
-        ys = [r[0] for r in rows]
+        ys = [r[0] for r in got]
         if len(ys) > 1:
             a, b = ys[-1], ys[-2]
-            n_a = int(dict((r[0], r[1]) for r in rows)[a].replace(',', ''))
-            n_b = int(dict((r[0], r[1]) for r in rows)[b].replace(',', ''))
+            n_a = int(dict((r[0], r[1]) for r in got)[a].replace(',', ''))
+            n_b = int(dict((r[0], r[1]) for r in got)[b].replace(',', ''))
             if n_b:
                 assert CT.value(data, 'ratio', [name, a, b]) == '%d%%' % int(round(n_a / float(n_b) * 100)),                     '%s: ratio(%s÷%s) 가 표의 두 행과 다르다' % (name, a, b)
         got = CT.value(data, 'peak', [name])
@@ -544,10 +545,18 @@ def test_chart_numbers_come_from_the_data_files():
     for name, f in sorted(cities.items()):
         spec = CT.chart(data, 'moveins', [name])
         pts = dict(spec['series'][0]['points'])
-        assert pts == {y: v for y, v in f['by_year'].items()}, '%s: 막대가 by_year 와 다르다' % name
+        assert {y: v for y, v in pts.items() if v is not None} == {y: v for y, v in f['by_year'].items()}, \
+            '%s: 막대가 by_year 와 다르다' % name
+        # 빈 해(None)는 첫 해와 끝 해 사이에서 목록에 없는 해뿐이다(2026-11-12 대표 결정 '빈 해를 입주 예정 없음으로' —
+        # 변이(실제로 확인): CT.year_span 대신 옛 sorted(by) 로 되돌리면 아래 단정이, 빈 해를 0 으로 채우면 위 단정이 빨개진다)
+        ys = sorted(int(y) for y in f['by_year'])
+        assert sorted(y for y, v in pts.items() if v is None) == \
+            [str(y) for y in range(ys[0], ys[-1] + 1) if str(y) not in f['by_year']], name
+        assert list(pts) == [str(y) for y in range(ys[0], ys[-1] + 1)], name
         assert spec['rule'][0] == f['need'], '%s: 기준선이 적정 입주량과 다르다' % name
         for y, v in pts.items():
-            assert CT.num(v) in spec['alt'], '%s: 대체 텍스트에 %s년 값이 없다' % (name, y)
+            want = CT.num(v) if v is not None else '%s년 %s' % (y, CT.NO_MOVEIN)
+            assert want in spec['alt'], '%s: 대체 텍스트에 %s년 값이 없다' % (name, y)
     # 주간 꺾은선은 그 지역 계열의 마지막 주에서 끝난다(표의 최신 주와 같은 날).
     for name in ('서울', '분당구'):
         spec = CT.chart(data, 'weekly', [name])

@@ -120,6 +120,17 @@ def _city_years(f, year=None):
     return by
 
 
+# 공개 목록에 그 해 입주가 하나도 없는 해(안산 2028 등). 표·그림에서 해를 건너뛰면 2027 → 2029 로 붙어 빈 해가 사라졌다
+# (2026-11-12 디자인 마감 점검·대표 결정 '빈 해를 입주 예정 없음으로'). 값을 0 으로 꾸미지 않고 자리만 둔다.
+NO_MOVEIN = '입주 예정 없음'
+
+
+def year_span(by):
+    """by(연도 → 세대)의 첫 해부터 끝 해까지 모든 해 — 빠진 해는 값 None."""
+    ys = sorted(int(y) for y in by)
+    return [(str(y), by.get(str(y))) for y in range(ys[0], ys[-1] + 1)] if ys else []
+
+
 # 첫 인자로 **도시 이름**이 올 수 있는 자리표 종류. 수집기(make_city_moveins)가 원고에서 도시를
 # 찾을 때 이 목록을 쓴다 — 종류를 늘리면 여기도 늘려야 그 도시가 수집된다(시험이 대조한다).
 CITY_KINDS = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio',
@@ -189,7 +200,8 @@ def city_moveins(data, f, name, year=None):
         rows.append(['합계', num(tot)])
         return (['지역', '세대'], rows, _city_note(f))
     by = _city_years(f)
-    rows = [[y, num(v), '%d%%' % int(round(v / float(f['need']) * 100))] for y, v in sorted(by.items())]
+    rows = [[y, num(v), '%d%%' % int(round(v / float(f['need']) * 100))] if v is not None else [y, NO_MOVEIN, '—']
+            for y, v in year_span(by)]
     return (['연도', '세대', '적정물량 대비'], rows,
             '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 %s세대(%s, 인구 %s년 %d월)'
             % (num(f['need']), f.get('need_note') or '', f['pop_prd'][:4], int(f['pop_prd'][4:])))
@@ -729,7 +741,7 @@ def _chart_moveins(data, name, year=None):
     if not by:
         raise TableError('%r 의 연도별 입주물량이 없다' % name)
     year = str(year or (int((data.get('cities') or {}).get('start', '2026-01')[:4]) + 1))
-    pts = [(y, by[y]) for y in sorted(by)]
+    pts = year_span(by) if f else [(y, by[y]) for y in sorted(by)]   # 도시는 빈 해도 자리를 둔다(NO_MOVEIN)
     cards = []
     if year in by:
         # 카드 이름에 도시를 적는다 — 단지·GTX 글에서 '2027년 입주 640세대'가 그 단지 세대수로 읽혔다(2026-10-30 디자인 리뷰).
@@ -744,7 +756,7 @@ def _chart_moveins(data, name, year=None):
         except TableError:
             continue
     alt = '%s 연도별 입주 물량 막대그래프. %s.' % (
-        name, ', '.join('%s년 %s세대' % (y, num(v)) for y, v in pts))
+        name, ', '.join(('%s년 %s세대' % (y, num(v))) if v is not None else '%s년 %s' % (y, NO_MOVEIN) for y, v in pts))
     if need:
         alt += ' 한 해 적정물량은 %s세대.' % num(need)
     # 3년 합계 한 줄. 카드로 넣지 않는 까닭: 카드는 세 칸까지라(좁은 화면에서 줄이 늘어난다) 넷째가

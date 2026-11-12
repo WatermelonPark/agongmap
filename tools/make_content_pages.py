@@ -139,7 +139,8 @@ def _anchor(cx, txt, lo, hi):
 def _bars_svg(spec):
     pts = spec['series'][0]['points']
     rule = spec.get('rule')
-    top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
+    # 값이 None 인 해는 막대 없이 자리만 두고 '없음'을 적는다(CT.NO_MOVEIN — 공개 목록에 그 해 입주가 없다, 2026-11-12 대표 결정).
+    top = max([v for _, v in pts if v is not None] + ([rule[0]] if rule and rule[0] else [0])) or 1
     # 위 여백은 휴대폰 글자(viewBox 단위 26, .cb-v)가 가장 높은 막대 위에서 잘리지 않을 만큼 둔다. 아래 여백은 휴대폰 x 축
     # 글자(26~32 단위) 윗선이 막대 밑단에 붙지 않을 만큼(2026-11-07 디자인 검수 — 26 이라 연도 글자 위로 막대가 덮였다).
     pad_l, pad_b, pad_t = 8, 40, 30
@@ -153,13 +154,21 @@ def _bars_svg(spec):
     # 막대가 많으면 값을 다 적을 자리가 없다(경기 13개에서 숫자가 서로 겹쳤다). 좁아지면 가장 큰 해와
     # 마지막 해만 적는다 — 나머지 숫자는 바로 아래 표와 대체 텍스트에 있다.
     tight = bw < 34
-    keep = {max(range(len(pts)), key=lambda i: pts[i][1]), len(pts) - 1}
+    keep = {max(range(len(pts)), key=lambda i: pts[i][1] or 0), len(pts) - 1}
     # 데스크톱 기본 단위(17)로도 값 글자가 막대 간격보다 넓으면 화면 폭과 상관없이 대표 둘만 적는다(cb-dense).
-    widest = max(len(CT.num(v)) for _, v in pts)
+    widest = max(len(CT.num(v)) for _, v in pts if v is not None)
     dense = widest * CH_EM * CH_UNIT > bw + gap
     out = [_svg_open(spec, CH_BAR_H, ' cb-dense' if dense else '')]
     for i, (lab, v) in enumerate(pts):
         x = pad_l + i * (bw + gap)
+        if v is None:
+            tx, al = _anchor(x + bw / 2, '없음', x, x + bw)
+            out.append('<text x="%.1f" y="%.1f" class="cb-v cb-k cb-none%s">없음</text>' % (tx, pad_t + plot_h - 4, al))
+            odd = len(pts) > 6 and (len(pts) - 1 - i) % 2 == 1
+            tx, al = _anchor(x + bw / 2, str(lab), x, x + bw)
+            out.append('<text x="%.1f" y="%d" class="cb-x%s%s">%s</text>'
+                       % (tx, CH_BAR_H - 8, ' cb-x2' if odd else '', al, html.escape(str(lab))))
+            continue
         hh = max(1.0, v / float(top) * plot_h)
         y = pad_t + plot_h - hh
         over = rule and rule[0] and v >= rule[0]
@@ -544,6 +553,7 @@ EXTRA_CSS = LIST_CSS + """
 .cb{fill:var(--stock);opacity:.5}
 .cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
