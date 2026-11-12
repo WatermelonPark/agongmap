@@ -343,7 +343,7 @@ def test_seoul_demolition_compares_apartments_with_apartments():
 # 캡션이 부르는 색 이름 → 그 이름으로 부를 수 있는 hex. 같은 이름이 서로 먼 색을 가리키지 않게 좁게 둔다.
 COLOR_WORDS = {'빨강': {'#e0564a', '#c0392b'}, '초록': {'#2f8f6f', '#3aa17e', '#1f8a70'},
                '청록': {'#127a70'}, '황갈': {'#a89578'}, '회색': {'#a5b5ad', '#c6d0cb', '#c0cbc5'},
-               '호박': {'#e0a93b', '#b8860b'}, '노랑': {'#e8b84b'}, '보라': {'#a98be0', '#6c4ab6'}}
+               '호박': {'#e0a93b', '#b8860b', '#b07d00'}, '노랑': {'#e8b84b'}, '보라': {'#a98be0', '#6c4ab6'}}
 
 
 def _chart_hexes(s, cid, col):

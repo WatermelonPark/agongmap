@@ -494,6 +494,10 @@ def head(z, desc, title, url=None, crumb=None, desk='report'):
     # 실렸다(전수리뷰 Z1-12). 이름은 화면 이름(백로그 46).
     if z in SZ.ORDER:
         ld[0]["about"] = {"@type": "Place", "name": SZ.disp(z)}
+    # 허브(crumb=False)는 글이 아니라 리포트 목록이다 — CollectionPage(2026-11-12 SEO 점검).
+    if crumb is False:
+        ld[0]["@type"] = "CollectionPage"
+        ld[0]["url"] = ld[0].pop("mainEntityOfPage")
     return '''<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -627,10 +631,11 @@ FOOT = '''</main>
 
 
 def tint(v, scale):
-    """홈 표와 같은 색 규칙 — 0.00일 때만 무색, 아니면 최소 0.13은 물든다."""
+    """홈 표와 같은 색 규칙(home-app.js tintA) — 0.00일 때만 무색, 아니면 최소 0.13은 물든다. 최대 알파 0.78: 0.8 에서는 가장 진한
+    빨강 칸 위 먹색 글자가 4.40:1 이었다(2026-11-12 접근성 점검)."""
     if v is None or v == 0:
         return 'transparent'
-    a = (0.13 + 0.87 * min(1.0, abs(v) / float(scale))) * 0.8
+    a = (0.13 + 0.87 * min(1.0, abs(v) / float(scale))) * 0.78
     return ('rgba(198,58,48,%.3f)' if v > 0 else 'rgba(38,110,180,%.3f)') % a
 
 
@@ -752,7 +757,7 @@ WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;colo
           '.zp-more:hover{background:var(--paper2)}.zp-more:focus-visible{outline:2px solid var(--ink);outline-offset:2px}'
           # 막대 아래 접는 칸(3년 너머·추정, split_ref_block) — 제목 한 줄만 보이고 펼치면 참고 줄이 나온다.
           '.zmore{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}'
-          '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer}'
+          '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer;padding:10px 0}'   # 누름 면 40px(11-12 접근성 점검 — 23px 였다)
           '.zmore .zsplit{margin-top:6px;border-top:0;padding-top:0}'
           '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
           # 가로로 넘치는 표(375px 에서 전세 칸)는 오른쪽 가장자리에 그림자가 진다 — 끝까지 밀면 사라진다(배경 local/scroll 겹침).
@@ -1158,14 +1163,15 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
-             '<h1>%s 아파트 공급</h1>'
+             # h1 에 판정까지(2026-11-12 SEO 점검·대표 결정) — 제목(title)의 판정 낱말은 37~42자째라 검색 결과에서 잘린다.
+             '<h1>%s 아파트 공급, %s</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
              '<span class="zbasis">%s 기준 · %s</span>'
              # 화면에도 페이지 수정일을 적는다(백로그 50 요청 2.4) — JSON-LD dateModified 와 같은 값이다.
              # keep_dates 가 날짜를 가려 비교하므로, 이 줄 때문에 매일 새 판이 되지는 않는다.
              # 읽는 꼴(SZ.day_long, 날짜 두 단계 — 11-07 디자인 검수 reports-8). JSON-LD 는 ISO 그대로다.
              '<span class="zbasis">페이지 수정 %s</span></p>'
-             % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
+             % (esc(SZ.disp(z)), esc(SZ.disp(z)), esc(lab), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
                 esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC), esc(SZ.day_long(_today()))))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
@@ -1217,17 +1223,21 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
         # 부제의 등식(적정 − 공급 ∓ 재고)으로 검산했을 때 부호가 반대가 된다
         # (2026-08-07 감사).
         # 여유 지역은 제목도 '누적 여유'다 — '누적 순부족 13,237세대 여유'는 제목과 값이 반대 말을 했다(2026-10-06 리뷰).
-        (('누적 순부족', '%s세대 부족' % num(d_tot)) if d_tot >= 0
-         else ('누적 여유', '%s세대 여유' % num(-d_tot))) + (eq,),
+        # 값 끝의 '부족'·'여유'는 제목이 이미 말해 뺀다 — 붙이면 값이 두 줄로 접혀 같은 줄 칸과 기준선이 어긋났다(2026-11-12 디자인
+        # 마감 점검, 375·1280px 모두).
+        (('누적 순부족', '%s세대' % num(d_tot)) if d_tot >= 0
+         else ('누적 여유', '%s세대' % num(-d_tot))) + (eq,),
         (('지난 %s 쌓인 부족' % win_y, num(-d_inow) + '세대',
           '준공이 적정물량보다 적어 쌓인 몫(멸실을 뺀 값)') if d_inow < 0 else
          ('지난 %s 남은 재고' % win_y, num(d_inow) + '세대',
           '준공이 적정물량보다 많아 남은 몫(멸실을 뺀 값)')),
         ('앞으로 %.0f년 공급' % yrs, num(fut_sum) + '세대',
          '이미 착공한 물량을 %s 뒤로 밀어 추정' % lead_y),
-        (('앞으로 %.0f년 적정물량' % yrs) + (' <em class="zchip">추정</em>' if row.get('est') else ''),
+        # '추정' 표지는 설명 줄 머리에 둔다 — 칸 제목에 두면 375px 에서 제목이 접혀 같은 줄 숫자 높이가 갈렸다(11-12 디자인 마감 점검).
+        ('앞으로 %.0f년 적정물량' % yrs,
          num(d_need) + '세대',
-         ('분기 %s세대 × %d분기' % (num(d_ref), calc['H']))
+         ('<em class="zchip">추정</em> ' if row.get('est') else '')
+         + ('분기 %s세대 × %d분기' % (num(d_ref), calc['H']))
          + ('<br>이 지역은 기준표에 없어 적정물량을 추정했습니다.' if row.get('est') else '')),
         ('미분양', (num(row['unsold']) + '세대') if row.get('unsold') is not None else '–',
          # ⚠️ '기준 · 분기 적정물량' 접두는 check_freshness의 파생 페이지 감시가

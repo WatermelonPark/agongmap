@@ -326,13 +326,15 @@ def test_home_and_zone_show_the_modified_date_on_screen_and_in_json_ld():
     픽스처: 저장소에 구워져 있는 실제 홈과 시도 리포트 한 장.
     """
     home = io.open(os.path.join(ROOT, HS.HOME), encoding='utf-8').read()
-    m = re.search(r'<p class="hsum-u">페이지 수정 (\d{4}-\d{2}-\d{2})</p>', home)
-    assert m, '홈 화면에 페이지 수정일이 없다'
+    import sido_zones as SZ
+    # 화면은 읽는 꼴(SZ.day_long — 시도 리포트 머리와 같은 꼴, 2026-11-12 SEO 점검), JSON-LD 는 ISO.
+    m = re.search(r'<p class="hsum-u">페이지 수정 (\d{4})년 (\d{1,2})월 (\d{1,2})일</p>', home)
+    assert m, '홈 화면에 페이지 수정일이 없다(읽는 꼴)'
+    shown_home = '%s-%02d-%02d' % (m.group(1), int(m.group(2)), int(m.group(3)))
     ld = [json.loads(b) for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', home, re.S)]
     mods = {x.get('dateModified') for d in ld for x in (d if isinstance(d, list) else [d]) if x.get('dateModified')}
-    assert m.group(1) in mods, '홈 화면 수정일(%s)이 JSON-LD(%s)와 다르다' % (m.group(1), sorted(mods))
+    assert shown_home in mods, '홈 화면 수정일(%s)이 JSON-LD(%s)와 다르다' % (shown_home, sorted(mods))
 
-    import sido_zones as SZ
     z = [x for x in SZ.ORDER if os.path.exists(os.path.join(ROOT, 'zone', x, 'index.html'))][0]
     page = io.open(os.path.join(ROOT, 'zone', z, 'index.html'), encoding='utf-8').read()
     mz = re.search(r'페이지 수정 (\d{4})년 (\d{1,2})월 (\d{1,2})일', page)   # 읽는 꼴(SZ.day_long, 11-07 디자인 검수 reports-8)
@@ -423,8 +425,9 @@ def test_city_values_agree_with_the_city_tables():
         assert CT.value(data, 'need', [name]).replace('세대', '') in note, \
             '%s: need 가 moveins 표 각주와 다르다 (%s / %s)' % (name, CT.value(data, 'need', [name]), note)
         # share: 그 해 행의 '적정 대비' 칸과 같은가
-        year = rows[1][0] if len(rows) > 1 else rows[0][0]
-        want = dict((r[0], r[2]) for r in rows)[year]
+        got = [r for r in rows if r[1] != CT.NO_MOVEIN]          # 입주 예정이 없는 해(자리만 둔 행)는 share 가 없다
+        year = got[1][0] if len(got) > 1 else got[0][0]
+        want = dict((r[0], r[2]) for r in got)[year]
         assert CT.value(data, 'share', [name, year]) == want, \
             '%s %s: share(%s) 가 표의 적정 대비(%s)와 다르다' % (
                 name, year, CT.value(data, 'share', [name, year]), want)
@@ -434,11 +437,11 @@ def test_city_values_agree_with_the_city_tables():
             agg[r['ym']] = agg.get(r['ym'], 0) + r['n']
         ym, n = max(sorted(agg.items()), key=lambda x: x[1])
         # ratio: 두 해 행의 세대 수 비와 같은가(콘텐츠-도시 요청으로 연 자리표)
-        ys = [r[0] for r in rows]
+        ys = [r[0] for r in got]
         if len(ys) > 1:
             a, b = ys[-1], ys[-2]
-            n_a = int(dict((r[0], r[1]) for r in rows)[a].replace(',', ''))
-            n_b = int(dict((r[0], r[1]) for r in rows)[b].replace(',', ''))
+            n_a = int(dict((r[0], r[1]) for r in got)[a].replace(',', ''))
+            n_b = int(dict((r[0], r[1]) for r in got)[b].replace(',', ''))
             if n_b:
                 assert CT.value(data, 'ratio', [name, a, b]) == '%d%%' % int(round(n_a / float(n_b) * 100)),                     '%s: ratio(%s÷%s) 가 표의 두 행과 다르다' % (name, a, b)
         got = CT.value(data, 'peak', [name])
@@ -542,10 +545,18 @@ def test_chart_numbers_come_from_the_data_files():
     for name, f in sorted(cities.items()):
         spec = CT.chart(data, 'moveins', [name])
         pts = dict(spec['series'][0]['points'])
-        assert pts == {y: v for y, v in f['by_year'].items()}, '%s: 막대가 by_year 와 다르다' % name
+        assert {y: v for y, v in pts.items() if v is not None} == {y: v for y, v in f['by_year'].items()}, \
+            '%s: 막대가 by_year 와 다르다' % name
+        # 빈 해(None)는 첫 해와 끝 해 사이에서 목록에 없는 해뿐이다(2026-11-12 대표 결정 '빈 해를 입주 예정 없음으로' —
+        # 변이(실제로 확인): CT.year_span 대신 옛 sorted(by) 로 되돌리면 아래 단정이, 빈 해를 0 으로 채우면 위 단정이 빨개진다)
+        ys = sorted(int(y) for y in f['by_year'])
+        assert sorted(y for y, v in pts.items() if v is None) == \
+            [str(y) for y in range(ys[0], ys[-1] + 1) if str(y) not in f['by_year']], name
+        assert list(pts) == [str(y) for y in range(ys[0], ys[-1] + 1)], name
         assert spec['rule'][0] == f['need'], '%s: 기준선이 적정 입주량과 다르다' % name
         for y, v in pts.items():
-            assert CT.num(v) in spec['alt'], '%s: 대체 텍스트에 %s년 값이 없다' % (name, y)
+            want = CT.num(v) if v is not None else '%s년 %s' % (y, CT.NO_MOVEIN)
+            assert want in spec['alt'], '%s: 대체 텍스트에 %s년 값이 없다' % (name, y)
     # 주간 꺾은선은 그 지역 계열의 마지막 주에서 끝난다(표의 최신 주와 같은 날).
     for name in ('서울', '분당구'):
         spec = CT.chart(data, 'weekly', [name])
@@ -742,7 +753,7 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
         z = zones.get(key)
         if not z or not z.get('ref'):
             continue
-        want = CT.num(int(round(z['ref'] * 4))) + '호'
+        want = CT.num(int(round(z['ref'] * 4))) + '세대'   # 화면 단위는 '세대' 하나(10-06 대표 결정, 11-12 디자인 마감 점검)
         assert CT.value(data, 'need', [key]) == want, '%s: need 가 기준표(ref×4)와 다르다' % key
         head, rows, _ = CT.moveins(data, key)
         by = {r[0]: r[1] for r in rows if r[0] != '합계'}
@@ -757,12 +768,12 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
     for kind in ('pop', 'peak'):
         with pytest.raises(CT.TableError):
             CT.value(data, kind, ['서울'])
-    # 산식이 다르다 — 도시 need 는 '세대', 시도 need 는 '호'로 끝난다.
+    # 단위는 둘 다 '세대'다(산식이 다른 것은 위 ref×4 단정이 본다). 변이(실제로 확인): sido_need 를 옛 + '호' 로 되돌리면 빨강.
     cities = (data.get('cities') or {}).get('cities') or {}
     if cities:
         one = sorted(cities)[0]
         assert CT.value(data, 'need', [one]).endswith('세대'), '도시 need 의 단위가 바뀌었다'
-        assert CT.value(data, 'need', ['서울']).endswith('호'), '시도 need 의 단위가 바뀌었다'
+        assert CT.value(data, 'need', ['서울']).endswith('세대'), '시도 need 가 원천 단위 \'호\'로 나간다'
 
 
 def _built_metas():
@@ -1823,3 +1834,62 @@ def test_the_moveins_chart_carries_the_three_year_line(tmp_path):
     s2 = CT.chart(d2, 'moveins', [name])
     assert not s2.get('foot'), '세 해가 안 찼는데 3년 합계를 적었다'
     assert s2['series'][0]['points'], '그림까지 막혔다 — 그 줄만 빠져야 한다'
+
+
+def test_neighbors_and_region_box_skip_posts_that_did_not_build(tmp_path, monkeypatch):
+    """본문 자리표를 못 채워 건너뛴 글로는 '이전·다음 글'도 '이 지역 더 보기'도 걸지 않는다.
+
+    실제 상태: 단지 글 광명 철산13 은 광명 2028년 입주가 목록에 아직 없어 11-06 부터 건너뛰는데, 이웃 두 편
+    (백송·상계6)의 '이전·다음 글'이 그 글을 가리켜 404 였다(2026-11-12 SEO 점검). 이웃을 거르기 **전** 목록에서 골랐다.
+    변이(실제로 확인): main() 의 첫 바퀴(ok 거르기)를 지우고 옛 try/except 로 되돌리면 빨개진다.
+    픽스처: 같은 섹션의 글 셋(a·b·c, 날짜순)에서 가운데 b 만 build_page 가 TableError 를 낸다. 쓰기 자리는 tmp_path.
+    """
+    posts = [('danji', {'slug': s, 'date': '2026-11-0%d' % i, 'updated': '2026-11-0%d' % i,
+                         'section': 'danji', 'title': s}, 'body')
+             for i, s in enumerate('abc', 1)]
+    calls = []
+
+    def fake_build(meta, body, data, prev=None, nxt=None, others=None):
+        if meta['slug'] == 'b':
+            raise CT.TableError('자리표를 못 채움')
+        calls.append((meta['slug'], prev and prev['slug'], nxt and nxt['slug'],
+                      None if others is None else sorted(m['slug'] for m in others)))
+        return '<html></html>', '2026-11-01'
+
+    monkeypatch.setattr(MC, 'ROOT', str(tmp_path))
+    monkeypatch.setattr(MC, 'collect', lambda strict=False, old_format=None: (list(posts), []))
+    monkeypatch.setattr(MC.CT, 'load', lambda: {})
+    monkeypatch.setattr(MC.CT, 'fill_meta', lambda meta, data: meta)
+    monkeypatch.setattr(MC.CT, 'check_lengths', lambda meta: meta)
+    monkeypatch.setattr(MC, 'build_page', fake_build)
+    monkeypatch.setattr(MC, 'build_index', lambda sec, metas: ('<html></html>', None))
+    monkeypatch.setattr(MC, 'build_reports', lambda metas, data: ('<html></html>', None))
+    monkeypatch.setattr(MC.SP, 'read_old', lambda fp: None)
+    monkeypatch.setattr(MC.SP, 'keep_dates', lambda page, old, lm: (page, lm, False))
+    monkeypatch.setattr(MC.I, 'update_sitemap', lambda entries: None)
+    for name in ('write_home_recent', 'write_zone_posts', 'write_weekly_column', 'write_moveins_cities'):
+        monkeypatch.setattr(MC, name, lambda metas: 0)
+    assert MC.main() == 0
+    final = {slug: (p, n, o) for slug, p, n, o in calls if o is not None}
+    assert set(final) == {'a', 'c'}, calls
+    assert final['a'][1] == 'c' and final['c'][0] == 'a', final
+    assert all('b' not in o for _p, _n, o in final.values()), final
+    assert not (tmp_path / 'danji' / 'b').exists()
+
+
+def test_list_pages_are_collection_pages_and_posts_stay_articles():
+    """콘텐츠 허브(/reports/)와 섹션 목록(/city/ 등)의 JSON-LD 는 CollectionPage, 글은 Article 그대로다(2026-11-12 SEO 점검 —
+    목록 여섯 장이 Article 이었다).
+    변이(실제로 확인): build_index·build_reports 의 kind='CollectionPage' 를 빼면 빨개진다.
+    픽스처: 저장소의 실제 원고(구워진 글의 메타)로 메모리에서 구운 목록 둘."""
+    metas = _built_metas()
+    if not metas:
+        pytest.skip('구워진 글이 아직 없다')
+
+    def first_ld(page):
+        return json.loads(re.search(r'<script type="application/ld\+json">(.*?)</script>', page, re.S).group(1))[0]
+    sec = metas[0]['section']
+    for page in (MC.build_index(sec, [m for m in metas if m['section'] == sec])[0], MC.build_reports(metas, CT.load())[0]):
+        ld = first_ld(page)
+        assert ld['@type'] == 'CollectionPage' and 'mainEntityOfPage' not in ld and ld['url'].startswith('https://'), ld
+    assert json.loads(I_ld := MC.I.ld_pack('h', 'd', 'https://x/', 'c', '2026-11-01'))[0]['@type'] == 'Article', I_ld

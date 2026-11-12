@@ -143,3 +143,23 @@ def test_every_chart_uses_the_site_series_colors():
 
 def _tok(text):
     return dict(re.findall(r'(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6})', text))
+
+
+def test_up_text_has_one_red_on_every_screen():
+    """등락 글자·표지·인허가 막대는 흰 바탕 한 벌(UP_INK·DN_INK)이다 — 계열 빨강(#c0392b)이나 옛 #d2342a·#e0564a 가 글자로 남지 않는다.
+    실제 상태(2026-11-12 디자인 마감 점검): 순위 표 머리 ▲ 와 규모별 표 상승 글자가 #c0392b, 기본통계 증감 .chg-up 이 #d2342a,
+    /weekly/ 머리 결론 숫자 상승만 --up(지도 빨강), 인허가 막대 #e0564a·#3a7bd5 와 표 칸 글자 #a93226·#1a5276 이 두 벌이었다.
+    변이(각각 확인): home-stats.js 순위 머리 ▲ 를 #c0392b 로, app.css .chg-up 을 #d2342a 로, put_brand 의 h1 em.up 바꾸기를
+          지우면, 인허가 막대 lo 를 #e0564a 로 되돌리면 빨강.
+    픽스처: 저장소의 실제 스타일·스크립트 원본과 옛 주간 뼈대 줄."""
+    import home_src as HS
+    import make_weekly_page as MW
+    stats = next(t for f, t in HS.home_files() if f.endswith('home-stats.js'))
+    texts = set(re.findall(r'color:(#[0-9a-fA-F]{6})', stats))
+    assert not texts & {'#c0392b', '#d2342a', '#e0564a', '#3a7bd5'}, sorted(texts)
+    assert N.UP_INK in texts and N.DN_INK in texts, sorted(texts)
+    bar = re.search(r"const cols=vals\.map\(v=>\{const c=permitCls\(reg,v\);return c==='hi'\?'(#\w{6})':\(c==='lo'\?'(#\w{6})'", stats)
+    assert bar and bar.groups() == (N.DN_INK, N.UP_INK), bar and bar.groups()
+    assert re.search(r'\.chg-up\{color:(#\w{6})\}', _read('app.css')).group(1) == N.UP_INK
+    out = MW.put_brand(':root{--ink:#131e24;--up:#c0392b;--up2:#8f2318;--dn2:#123c5c}\n  h1 em.up{color:var(--up)}')
+    assert 'h1 em.up{color:var(--up2)}' in out, out

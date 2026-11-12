@@ -144,7 +144,7 @@ def test_audit_reads_the_desktop_sheet(tmp_path, capsys, monkeypatch):
     """
     p = _write(tmp_path, 'desk.css', '/* 홈 app.css 와 같은 52px */\n'
                "body[data-desk] .bottomnav::before{content:'x';font-weight:800}\n"
-               'body[data-desk] .bottomnav{box-shadow:0 2px 8px rgba(0,0,0,.2)}\n')
+               'body[data-desk] .dtoc{box-shadow:0 2px 8px rgba(0,0,0,.2)}\n')   # 떠 있는 탭바 그림자는 기능이라 세지 않는다(11-12)
     a = audit_design.audit(p)
     assert a['shared'] is False and a['w800'] == 1 and a['shadow'] == 1, a
     assert any(f.startswith('800') for f in audit_design.violations(a))
@@ -155,3 +155,19 @@ def test_audit_reads_the_desktop_sheet(tmp_path, capsys, monkeypatch):
     audit_design.main()
     out = capsys.readouterr().out
     assert re.search(r'^desk\.css\s', out, re.M), 'audit_design.main() 표에 desk.css 줄이 없다'
+
+
+def test_audit_counts_only_decorative_shadows(tmp_path):
+    """감사의 '그림자'는 장식 그림자만 센다 — inset(정렬 열 밑줄·속 빈 고리)과 떠 있는 고정 요소(.bottomnav·.inst)는 기능이라 뺀다.
+    실제 상태(2026-11-12 디자인 마감 점검): 홈·/cycle/·리포트의 '그림자×4' 가 탭바·데스크톱 위 내비·설치 알림·정렬 열 밑줄 넷이었다.
+    변이(실제로 확인): 'inset' not in x 조건이나 FLOATING 거르기를 빼면 빨개진다. 카드에 장식 그림자 둘을 더하면 여전히 위반이다.
+    픽스처: 탭바·설치 알림·inset 밑줄과 장식 카드 그림자 둘을 담은 합성 시트."""
+    p = tmp_path / 'x.css'
+    p.write_text('.bottomnav{position:fixed;box-shadow:0 -4px 18px rgba(0,0,0,.2)}\n'
+                 '.inst{position:fixed;\n  box-shadow:0 6px 22px rgba(0,0,0,.2)}\n'
+                 '.rank-tbl th.on{box-shadow:inset 0 -2px 0 #000}\n', encoding='utf-8')
+    assert audit_design.audit(str(p))['shadow'] == 0
+    p.write_text(p.read_text(encoding='utf-8') + '.card{box-shadow:0 2px 8px #0002}.tile{box-shadow:0 4px 12px #0003}\n',
+                 encoding='utf-8')
+    a = audit_design.audit(str(p))
+    assert a['shadow'] == 2 and any(f.startswith('그림자') for f in audit_design.violations(a)), a

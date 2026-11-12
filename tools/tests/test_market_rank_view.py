@@ -94,8 +94,8 @@ def test_rank_and_map_split_the_same_box():
 GT = r'''
 %(decl)s
 %(fn)s
-var drops=[], sent=[], swipe=[], TREND={week:{}};
-function trOpenDrop(k){ drops.push(k); } function track(e,p){ sent.push([e,p]); } function syncSwipe(k){ swipe.push(k); }
+var drops=[], sent=[], swipe=[], TREND={week:{}}, TR_OPEN={week:null};
+function trOpenDrop(k){ drops.push(k); } function statsNav(){} function statsHashOf(){ return ''; } function track(e,p){ sent.push([e,p]); } function syncSwipe(k){ swipe.push(k); }
 function cl(){ var s={}; return {toggle:function(c,v){ if(v)s[c]=1; else delete s[c]; },has:function(c){return !!s[c]},list:function(){return Object.keys(s).sort()}}; }
 var B=['r','m','g','t'].map(function(v){ var a={}; return {dataset:{v:v},classList:cl(),setAttribute:function(k,x){a[k]=x},get:function(k){return a[k]}}; });
 var SEC={classList:cl(),querySelectorAll:function(){return B}};
@@ -126,6 +126,7 @@ var TR_OPEN={week:null}, TRSHOW={week:12}, TREND={week:{sel:'wsel'}}, TREND_P=Pr
 function trendData(){ return {regions:['서울']}; } function trendTarget(W,c){ return {zone:'',sgg:''}; }
 function fillTrendReg(){} function fillSggSel(){} function renderWeekSec(){} function renderMonthSec(){} function afterLayout(){}
 function loadFullData(){ return TREND_P; } function ensureSggHist(){ return Promise.resolve(); }
+var location={hash:''}, history={state:null,replaceState:function(){}}; function trHashDrop(){}
 var cls='gm-m', SEL={value:''}, SEC={classList:{contains:function(c){ return c===cls; }},scrollIntoView:function(){}};
 var document={getElementById:function(id){ return id==='sec-week'?SEC:SEL; }};
 function gtSet(k,v){ gts.push(v); cls='gm-'+v; }
@@ -179,7 +180,7 @@ function openTrendRegion(t,c,v,s){ calls.push(['open',t,c,v||null].concat(s===un
 var GT_SEQ={week:3,month:5};
 function gtSet(t,v,s){ calls.push(['gt',t,v,!!s]); }
 function afterLayout(f){ f(); } function startQuiz(){} function backToPick(){}
-var history={replaceState:function(a,b,u){ calls.push(['replace',u]); }};
+var history={state:null,replaceState:function(a,b,u){ calls.push(['replace',u]); }};
 var document={getElementById:function(){ return null; }};
 var location={hash:''};
 var res={};
@@ -193,12 +194,13 @@ var res={};
 def test_rank_entry_hash_opens_the_rank_view_and_keeps_the_old_shapes():
     hs = ['#stats-market-week-rank', '#stats-market-month-rank', '#stats-market-week~a7-t', '#stats-market', '#stats-adv-occ']
     got = _node(ROUTER % {'fn': _fn(_files()['home-app.js'], 'applyHash'), 'hashes': json.dumps(hs)})
+    # 순위는 openTrendRegion 이 데이터가 온 뒤에(요청한 때의 GT_SEQ 와 함께) — gtSet 을 따로 부르지 않는다. 주소의 '-rank'도
+    # 그 함수가 순위로 바꾼 뒤에 걷는다 — 못 받은 날 '다시 시도'가 입구를 다시 읽게(2026-11-12 누름 경로 점검 D)
     assert got['#stats-market-week-rank'] == [['view', 'stats'], ['mode', 'market'], ['tab', 'week'],
-                                              ['open', 'week', None, 'r', 3], ['replace', '#stats-market-week']], \
-        got['#stats-market-week-rank']      # 순위는 openTrendRegion 이 데이터가 온 뒤에(요청한 때의 GT_SEQ 와 함께) — gtSet 을 따로 부르지 않는다
+                                              ['open', 'week', None, 'r', 3]], got['#stats-market-week-rank']
     assert ['open', 'month', None, 'r', 5] in got['#stats-market-month-rank']
     assert not [c for h in got for c in got[h] if c[0] == 'gt'], got
-    assert got['#stats-market-week~a7-t'][-1] == ['open', 'week', 'a7', 't']          # 옛 모양(지역·표)은 그대로
+    assert got['#stats-market-week~a7-t'][-1] == ['open', 'week', 'a7', 't', 3]       # 옛 모양(지역·표) + 요청한 때의 수(B)
     assert not [c for c in got['#stats-market'] if c[0] == 'gt']                    # 맨 시장동향은 기본(지도)
     assert ['adv', 'occ'] in got['#stats-adv-occ']
 
@@ -217,3 +219,98 @@ def test_top10_entries_link_the_rank_view():
     for h in P.WEEKLY_SHOT_HASH.values():
         assert re.match(rx.replace('\\/', '/'), h), h                              # 캡처 주소를 라우터가 받는다
     assert MW  # /weekly/ 생성기를 함께 불러 둔다(CTA 가 그 파일의 글자다)
+
+
+# ── 2026-11-12 누름 경로 점검(.claude/skills/agongmap-click-path-audit) A~E ───────────────────────────────────────────
+CLICK = r'''
+%(seq)s
+var TR_OPEN={week:null}, TR_BACK={week:'m'}, TRSHOW={week:12}, TREND={week:{sel:'wsel'}}, TREND_P=Promise.resolve(), SGG_HIST_READY=true;
+let TR_SKIP_HASH='';
+var log=[], cls='gm-g';
+function track(){} function syncSwipe(){} function statsHashOf(){ return '#stats-market-week~'+TR_OPEN.week+(cls==='gm-t'?'-t':''); }
+function statsNav(h,r){ log.push(['nav',h,!!r]); location.hash=h; }
+var location={hash:''}, history={state:null,back:function(){ log.push(['back']); },
+  replaceState:function(s,t,u){ log.push(['replace',u,s]); history.state=s; location.hash=u; }};
+function cl(){ return {toggle:function(c,v){ if(v)cls=c; },contains:function(c){ return c===cls; }}; }
+var SEC={classList:cl(),querySelectorAll:function(){ return []; },scrollIntoView:function(){}}, SEL={value:''};
+var document={getElementById:function(id){ return id==='sec-week'?SEC:SEL; }};
+function trendData(){ return {regions:['서울']}; } function trendTarget(){ return {zone:'서울',sgg:''}; }
+function fillTrendReg(){} function fillSggSel(){} function renderWeekSec(){} function renderMonthSec(){} function afterLayout(){}
+function loadFullData(){ return TREND_P; } function ensureSggHist(){ return Promise.resolve(); }
+%(gtset)s
+%(open)s
+%(drop)s
+%(hdrop)s
+var res={};
+(async function(){
+  // A: 연 지역 그래프에서 그래프 → 표를 누르면 주소의 '-t'를 맞춘다(바꿔 쓰기). 연 그래프가 없으면 주소를 건드리지 않는다.
+  TR_OPEN.week='a7'; location.hash='#stats-market-week~a7'; log=[]; gtSet('week','t'); res.A=log;
+  TR_OPEN.week=null; location.hash='#stats-market-week'; log=[]; gtSet('week','t'); res.A0=log;
+  // B: '~코드' 입구를 요청한 뒤 사람이 다른 보기를 눌렀으면(GT_SEQ 가 달라짐) 그 지역 그래프로 덮지 않고 '~코드'를 걷는다.
+  TR_OPEN.week=null; cls='gm-m'; location.hash='#stats-market-week~a7'; history.state=null; log=[];
+  var p=openTrendRegion('week','a7','g',GT_SEQ.week); GT_SEQ.week++; await p; res.B=[TR_OPEN.week,cls,log];
+  // D: 순위 입구('-rank')는 순위로 바꾼 뒤에 주소에서 걷는다.
+  location.hash='#stats-market-week-rank'; log=[]; await openTrendRegion('week',null,'r',GT_SEQ.week); res.D=[cls,log];
+  // E: 같은 주기의 코드 없는 주소에서 지역 링크로 온 항목(trBase)이면 한 칸 뒤로 접는다. 표지가 없으면 예전처럼 바꿔 쓴다.
+  TR_OPEN.week='a7'; location.hash='#stats-market-week~a7-t'; history.state={trBase:'#stats-market-week'}; log=[];
+  trOpenDrop('week'); res.E=[log,TR_SKIP_HASH];
+  TR_OPEN.week='a7'; location.hash='#stats-market-week~a7'; history.state=null; TR_SKIP_HASH=''; log=[];
+  trOpenDrop('week'); res.E0=[log,TR_SKIP_HASH];
+  process.stdout.write(JSON.stringify(res));
+})();
+'''
+
+
+def test_click_path_fixes_a_b_d_e_in_the_trend_functions():
+    """누름 경로 점검(2026-11-12)이 두 폭에서 두 번씩 재현한 결함:
+      A. 지역 그래프에서 그래프↔표를 바꿔도 주소가 그대로라 새로고침하면 다른 보기가 열렸다.
+      B. '~코드' 입구 데이터가 늦는 사이 '순위'·'지도'를 누르면 데이터가 온 뒤 그 지역 그래프로 덮였다(seq 를 보지 않았다).
+      D. 순위 입구가 '-rank'를 바로 걷어, 못 받은 날 '다시 시도'가 순위가 아니라 지도를 열었다.
+      E. 그래프를 닫을 때 지금 항목을 앞 항목과 같은 주소로 바꿔 써, 첫 뒤로 가기가 아무 일도 하지 않았다.
+    변이(각각 실제로 확인): gtSet 의 '-t' 맞추기 줄을 지우면 A, openTrendRegion 의 seq 비교 줄을 지우면 B, r 갈래의 replaceState 를
+          지우면 D, trHashDrop 의 back 갈래를 지우면 E 가 빨개진다.
+    픽스처: home-stats.js 의 실제 gtSet·openTrendRegion·trOpenDrop·trHashDrop 과 home-app.js 의 GT_SEQ 를 합성 DOM·history 위에서."""
+    f = _files()
+    src = f['home-stats.js']
+    got = _node(CLICK % {'seq': _gt_seq_decl(f), 'gtset': _fn(src, 'gtSet'), 'open': _fn(src, 'openTrendRegion'),
+                         'drop': _fn(src, 'trOpenDrop'), 'hdrop': _fn(src, 'trHashDrop')})
+    assert got['A'] == [['nav', '#stats-market-week~a7-t', True]], got['A']
+    assert got['A0'] == [], got['A0']
+    tr, view, log = got['B']
+    assert tr is None and view == 'gm-m' and log == [['nav', '#stats-market-week', True]], got['B']
+    assert got['D'][0] == 'gm-r' and got['D'][1] == [['replace', '#stats-market-week', None]], got['D']
+    assert got['E'] == [[['back']], '#stats-market-week'], got['E']
+    assert got['E0'] == [[['nav', '#stats-market-week', True]], ''], got['E0']
+
+
+ROUTER_E = r'''
+%(fn)s
+%(seq)s
+let TR_SKIP_HASH='';
+var calls=[], R2C=new Set(), HASH_APPLYING=false;
+function showView(v){ calls.push(['view',v]); } function setStatsMode(){} function setMarketTab(){} function setAdvTab(){}
+function openTrendRegion(t,c,v,s){ calls.push(['open',t,c]); }
+function afterLayout(f){ f(); } function startQuiz(){} function backToPick(){}
+var history={state:null,replaceState:function(s,t,u){ calls.push(['mark',s&&s.trBase,u]); history.state=s; }};
+var document={getElementById:function(){ return null; }};
+var location={hash:''}, res={};
+location.hash='#stats-market-week~a7'; applyHash({oldURL:'https://x/#stats-market-week'}); res.mark=calls;
+calls=[]; history.state=null; location.hash='#stats-market-week~a7'; applyHash({oldURL:'https://x/#stats-market-month'}); res.other=calls;
+calls=[]; history.state=null; location.hash='#stats-market-week~a7'; applyHash(); res.boot=calls;
+calls=[]; TR_SKIP_HASH='#stats-market-week'; location.hash='#stats-market-week'; applyHash({oldURL:'https://x/#stats-market-week~a7'});
+res.skip=[calls,TR_SKIP_HASH];
+process.stdout.write(JSON.stringify(res));
+'''
+
+
+def test_router_marks_a_region_entry_reached_from_the_plain_address_and_skips_its_own_back():
+    """applyHash: 같은 주기의 코드 없는 주소에서 지역 링크로 온 '~코드' 항목에만 표지(trBase)를 단다 — 주소로 바로 들어온 첫 항목
+    (이벤트 없음)이나 다른 주기에서 온 항목에는 달지 않는다(그 항목에서 뒤로 가면 사이트를 떠나거나 다른 화면이다). trHashDrop 이
+    history.back() 으로 돌아온 hashchange 는 한 번 건너뛴다(다시 돌리면 showView 가 맨 위로 튄다).
+    변이(실제로 확인): oldURL 비교를 빼면 other·boot 단정이, TR_SKIP_HASH 건너뛰기를 지우면 skip 단정이 빨개진다.
+    픽스처: home-app.js 의 실제 applyHash 와 GT_SEQ."""
+    f = _files()
+    got = _node(ROUTER_E % {'fn': _fn(f['home-app.js'], 'applyHash'), 'seq': _gt_seq_decl(f)})
+    assert ['mark', '#stats-market-week', '#stats-market-week~a7'] in got['mark'], got['mark']
+    assert not [c for c in got['other'] + got['boot'] if c[0] == 'mark'], (got['other'], got['boot'])
+    assert got['skip'] == [[], ''], got['skip']

@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v218';
+var HOME_STATS_BUILD='v219';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -119,7 +119,7 @@ const DS_LABEL={매매지수:'매매 실거래지수',전세지수:'전세 실�
    아파트건설) 초록. 예전엔 계열마다 제각각이라 착공이 '하락' 파랑, 준공이 보라(전세)로 그려졌다. */
 const DS_COLOR={매매지수:'#c0392b',전세지수:'#6c4ab6',전세가율:'#6c4ab6',인허가:'#1f8a70',
   착공:'#1f8a70',분양:'#1f8a70',준공:'#1f8a70',미분양:'#8a6a4a',
-  금리:'#e8b84b',보급률:'#5e6f74',
+  금리:'#b07d00',보급률:'#5e6f74',   // 금리 선: 금색의 진한 변형(#e8b84b 는 흰 바탕 1.84:1 — 11-12 접근성 점검·대표 결정)
   아파트건설:'#1f8a70',주택멸실:'#9a4a3a',아파트멸실:'#b5563f',노후주택30년:'#b8862c'};
 /* 색이 빠진 계열을 고르면 areaGrad가 'undefined38'을 addColorStop에 넘겨 예외로
    차트가 통째로 안 그려진다 — 아파트멸실이 실제로 그랬다(2026-08-07 감사). */
@@ -563,7 +563,7 @@ function drawSizePivot(){
   const cell=(c,v,grp)=>{
     if(v==null)return '<td'+(grp?' class="szgrp"':'')+'>·</td>';
     const rc=c.pct?pvSign(v):v;
-    const col=c.pct?(rc>0?';color:#c0392b':(rc<0?';color:#1a5276':'')):'';
+    const col=c.pct?(rc>0?';color:#a93226':(rc<0?';color:#1a5276':'')):'';   // 등락 글자 한 벌(site_nav.UP_INK·DN_INK)
     const t=c.pct?pv2(v):v.toFixed(2);
     return `<td${grp?' class="szgrp"':''} style="white-space:nowrap${col}">${t}</td>`;
   };
@@ -822,7 +822,7 @@ function rankTables(S,unit,k){
      순위 번호·순위 이동은 전체 순위 그대로 맞다. */
   const per=k==='week'?'주':'달';
   return '<div class="map-rank">'+
-    tbl('<span style="color:#c0392b">▲</span> 상승 TOP 10',cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
+    tbl('<span style="color:#a93226">▲</span> 상승 TOP 10',cr.order.filter(([,v])=>pvSign(v)>0).slice(0,10),1,false,'이번 '+per+' 오른 시군구가 없다')+
     tbl('<span style="color:#1a5276">▼</span> 하락 TOP 10',cr.order.filter(([,v])=>pvSign(v)<0).slice(-10).reverse(),1,true,'이번 '+per+' 내린 시군구가 없다')+
     '</div>';
 }
@@ -1014,8 +1014,12 @@ function openTrendRegion(k,code,view,seq){
     /* 되돌릴 때는 보기만이 아니라 지역 선택도 '전체'로 — 남겨 두면 다음에 '그래프'·'표'를 누를 때 예전 지역이 나온다 */
     if(!code){ if(TR_OPEN[k]){ TR_OPEN[k]=null; document.getElementById(T.sel).value=''; fillSggSel(k,''); TRSHOW[k]=12;
       (k==='week'?renderWeekSec:renderMonthSec)(); gtSet(k,TR_BACK[k],true); }
-      if(view==='r'&&GT_SEQ[k]===seq)gtSet(k,'r',true);
+      if(view==='r'){ if(GT_SEQ[k]===seq)gtSet(k,'r',true);
+        if(/-rank$/.test(location.hash))history.replaceState(history.state,'','#stats-market-'+k); }   // 순위 입구는 연 뒤에 걷는다(D)
       return; }
+    /* 받는 사이 사람이 다른 보기(순위·지도 등)를 골랐으면 그 입구는 버리고 주소의 '~코드'도 걷는다(2026-11-12 누름 경로 점검 B —
+       예전엔 데이터가 온 뒤 그 지역 그래프로 덮었다). seq 는 주소 입구(applyHash)만 넘긴다. */
+    if(seq!==undefined&&GT_SEQ[k]!==seq){ trHashDrop(k); return; }
     const t=trendTarget(W,code);
     if(!TR_OPEN[k]){ const s=document.getElementById('sec-'+k); TR_BACK[k]=s&&s.classList.contains('gm-r')?'r':'m'; }
     fillTrendReg(k,W.regions);
@@ -1033,7 +1037,17 @@ function openTrendRegion(k,code,view,seq){
 function trOpenDrop(k){
   if(!TR_OPEN[k])return;
   TR_OPEN[k]=null;
-  if(location.hash.indexOf('~')>=0)statsNav('#stats-market-'+k,true);
+  trHashDrop(k);
+}
+/* 주소의 '~코드'를 걷는다. 그 항목이 같은 주기의 코드 없는 주소에서 지역 링크로 온 것이면(applyHash 가 단 trBase) 한 칸 뒤로
+   접는다 — 예전엔 지금 항목을 앞 항목과 같은 주소로 바꿔(replaceState) 첫 뒤로 가기가 아무 일도 하지 않았다(2026-11-12 누름 경로
+   점검 E). 뒤로 돌아온 hashchange 는 applyHash 가 한 번 건너뛴다(화면은 이미 맞다 — 다시 돌리면 맨 위로 튄다). 표지가 없으면
+   (주소로 바로 들어온 첫 항목 등) 예전처럼 바꿔 쓴다 — 뒤로 가면 사이트를 떠나기 때문이다. */
+function trHashDrop(k){
+  if(location.hash.indexOf('#stats-market-'+k+'~')!==0)return;
+  const st=history.state, base='#stats-market-'+k;
+  if(st&&st.trBase===base){ TR_SKIP_HASH=base; history.back(); }
+  else statsNav(base,true);
 }
 /* 표 표시 개수 — 기본 12개, '더보기'로 12씩 늘린다. 시군구를 고른 상태면
    전체 시계열(data-sgg.json)이 필요하므로 먼저 받아온 뒤 늘린다. */
@@ -1208,7 +1222,7 @@ function drawPermitChart(){
   const reg=advSel('adv-permit-reg',regs), ri=regs.indexOf(reg), ref=P.ref[reg];
   if(needChart(()=>drawPermitChart())){ chartFailNote('permit'); return; }
   const vals=P.rows.map(r=>r.v[ri]);
-  const cols=vals.map(v=>{const c=permitCls(reg,v);return c==='hi'?'#3a7bd5':(c==='lo'?'#e0564a':'#c0cbc5');});
+  const cols=vals.map(v=>{const c=permitCls(reg,v);return c==='hi'?'#1a5276':(c==='lo'?'#a93226':'#c0cbc5');});   // 표 칸 글자색과 같은 한 벌(범례는 표 바탕+막대 테두리)
   mkChart('permitChart',{type:'bar',
     data:{labels:P.rows.map(r=>r.p.replace('H1',' 상').replace('H2',' 하')),
       datasets:[{label:'아파트 인허가',data:vals,backgroundColor:cols}]},
@@ -1219,8 +1233,8 @@ function drawPermitChart(){
     plugins:[{id:'permitRef',afterDraw(ch){
       if(!ref)return;
       const ctx=ch.ctx,xa=ch.scales.x,ya=ch.scales.y;
-      // 선 색은 막대·범례와 같다 — 저점 쪽 빨강, 고점 쪽 파랑(예전엔 거꾸로였다, 2026-10-06 리뷰)
-      [[ref[0]/2,'#e0564a','과거 저점 ½'],[ref[1]/2,'#3a7bd5','과거 고점 ½']].forEach(([v,c,t])=>{
+      // 선 색은 막대·범례·표 칸 글자와 같다 — 저점 쪽 빨강, 고점 쪽 파랑(예전엔 거꾸로였다, 2026-10-06 리뷰. 11-12 표와 한 벌)
+      [[ref[0]/2,'#a93226','과거 저점 ½'],[ref[1]/2,'#1a5276','과거 고점 ½']].forEach(([v,c,t])=>{
         if(v<ya.min||v>ya.max)return;
         const y=ya.getPixelForValue(v);
         ctx.save();ctx.strokeStyle=c;ctx.setLineDash([5,4]);ctx.lineWidth=1.5;
@@ -1285,6 +1299,9 @@ function gtSet(sec,v,silent){
   if(silent)return;   // openTrendRegion 이 바꾼 것 — 사람이 누른 전환만 센다
   GT_SEQ[sec]=(GT_SEQ[sec]||0)+1;   // 받는 중인 순위 입구가 이 고름을 덮지 않게(openTrendRegion)
   if(v==='m'||v==='r')trOpenDrop(sec);   // 지역 그래프를 닫고 전 지역 보기로 — 주소의 '~코드'도 걷는다
+  /* 연 지역 그래프에서 그래프↔표를 바꾸면 주소의 '-t'도 맞춘다 — 예전엔 주소가 그대로라 새로고침하면 다른 보기가 열렸다
+     (2026-11-12 누름 경로 점검 A). */
+  else if((v==='g'||v==='t')&&TR_OPEN[sec])statsNav(statsHashOf('market'),true);
   track('stats_gt',{section:sec,view:v});
 }
 function setAdvTab(t,push){
@@ -1382,7 +1399,10 @@ function renderBubbleSec(){
     const pL=px(lo),pH=px(hi),pN=px(loan),NW=15;
     const blueAnc=(pN<pL&&pN>pL-NW)?pN:pL;
     const redIn=(pH+NW>98)||(pN>pH&&pN<pH+NW);
-    const blueSt='left:'+blueAnc+'%;transform:translate(calc(-100% - 3px),-50%);color:#1a5276';
+    // 밴드가 막대 왼끝 가까이서 시작하면(서울·세종) 파란 숫자가 막대 밖 지역 이름에 붙었다(375px 2px — 2026-11-12 디자인 마감 점검)
+    // → 그때는 밴드 안쪽(오른편)에 둔다.
+    const blueIn=blueAnc<NW;
+    const blueSt='left:'+blueAnc+'%;transform:'+(blueIn?'translate(3px,-50%)':'translate(calc(-100% - 3px),-50%)')+';color:#1a5276';
     const redSt=redIn?'left:'+pH+'%;transform:translate(calc(-100% - 3px),-50%);color:#a93226':'left:'+pH+'%;transform:translate(3px,-50%);color:#a93226';
     h+='<div class="bb-row" data-r="'+rg+'" role="button" tabindex="0" aria-expanded="false" onclick="bbToggle(this)" onkeydown="rowKey(event,this)"><span class="bb-lab">'+zn(rg)+'</span>'
       +'<div class="bb-track" title="월세수익률 '+lo.toFixed(2)+'% ~ 위험선 '+hi.toFixed(2)+'% · 대출금리 '+loan.toFixed(2)+'%">'

@@ -139,7 +139,8 @@ def _anchor(cx, txt, lo, hi):
 def _bars_svg(spec):
     pts = spec['series'][0]['points']
     rule = spec.get('rule')
-    top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
+    # 값이 None 인 해는 막대 없이 자리만 두고 '없음'을 적는다(CT.NO_MOVEIN — 공개 목록에 그 해 입주가 없다, 2026-11-12 대표 결정).
+    top = max([v for _, v in pts if v is not None] + ([rule[0]] if rule and rule[0] else [0])) or 1
     # 위 여백은 휴대폰 글자(viewBox 단위 26, .cb-v)가 가장 높은 막대 위에서 잘리지 않을 만큼 둔다. 아래 여백은 휴대폰 x 축
     # 글자(26~32 단위) 윗선이 막대 밑단에 붙지 않을 만큼(2026-11-07 디자인 검수 — 26 이라 연도 글자 위로 막대가 덮였다).
     pad_l, pad_b, pad_t = 8, 40, 30
@@ -153,13 +154,21 @@ def _bars_svg(spec):
     # 막대가 많으면 값을 다 적을 자리가 없다(경기 13개에서 숫자가 서로 겹쳤다). 좁아지면 가장 큰 해와
     # 마지막 해만 적는다 — 나머지 숫자는 바로 아래 표와 대체 텍스트에 있다.
     tight = bw < 34
-    keep = {max(range(len(pts)), key=lambda i: pts[i][1]), len(pts) - 1}
+    keep = {max(range(len(pts)), key=lambda i: pts[i][1] or 0), len(pts) - 1}
     # 데스크톱 기본 단위(17)로도 값 글자가 막대 간격보다 넓으면 화면 폭과 상관없이 대표 둘만 적는다(cb-dense).
-    widest = max(len(CT.num(v)) for _, v in pts)
+    widest = max(len(CT.num(v)) for _, v in pts if v is not None)
     dense = widest * CH_EM * CH_UNIT > bw + gap
     out = [_svg_open(spec, CH_BAR_H, ' cb-dense' if dense else '')]
     for i, (lab, v) in enumerate(pts):
         x = pad_l + i * (bw + gap)
+        if v is None:
+            tx, al = _anchor(x + bw / 2, '없음', x, x + bw)
+            out.append('<text x="%.1f" y="%.1f" class="cb-v cb-k cb-none%s">없음</text>' % (tx, pad_t + plot_h - 4, al))
+            odd = len(pts) > 6 and (len(pts) - 1 - i) % 2 == 1
+            tx, al = _anchor(x + bw / 2, str(lab), x, x + bw)
+            out.append('<text x="%.1f" y="%d" class="cb-x%s%s">%s</text>'
+                       % (tx, CH_BAR_H - 8, ' cb-x2' if odd else '', al, html.escape(str(lab))))
+            continue
         hh = max(1.0, v / float(top) * plot_h)
         y = pad_t + plot_h - hh
         over = rule and rule[0] and v >= rule[0]
@@ -544,6 +553,7 @@ EXTRA_CSS = LIST_CSS + """
 .cb{fill:var(--stock);opacity:.5}
 .cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -1066,14 +1076,16 @@ def build_index(sec, posts_meta):
     lastmod = max([m['updated'] for m in posts_meta], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
                   desc=html.escape(desc), url=url, body=body,
-                  ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED),
+                  ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED, kind='CollectionPage'),
                   src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
 
 
 REPORTS_DIR = 'reports'
-REPORTS_TITLE = '콘텐츠'
+REPORTS_TITLE = '콘텐츠'          # 탭·빵부스러기 이름(site_nav 탭 '콘텐츠'와 같다)
+# 허브 페이지 제목·h1·JSON-LD — '콘텐츠'는 검색어가 없다(2026-11-12 SEO 점검·대표 결정). 탭 이름은 그대로 REPORTS_TITLE.
+REPORTS_NAME = '부동산 공급 리포트'
 REPORTS_DESC = '질문이나 내 동네로 들어와 결론부터 읽는 글. 숫자는 국가 통계에서 옵니다.'
 
 # ── '기본 개념' 줄(대표 승인 2026-10-30) ──────────────────────────────────────────────────────────────
@@ -1131,15 +1143,15 @@ def build_reports(all_metas, data=None):
             '<section class="hub-q"><div class="wrap"><h2 class="rh2">질문으로 찾기</h2>%s</div></section>'
             '<section class="hub-city"><div class="wrap"><h2 class="rh2">지역으로 찾기</h2>%s</div></section>%s'
             '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2>%s</div></section>%s'
-            % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
+            % (html.escape(REPORTS_TITLE), html.escape(REPORTS_NAME), html.escape(REPORTS_DESC),
                questions_block(all_metas), city_chips(all_metas), basic_row(),
                cards_grid(newest, fold=HUB_FIRST) if newest else '<p>아직 글이 없습니다.</p>', FILTER_JS))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in all_metas], default=None)
-    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),
-                  ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
-                  url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
-                                                   lastmod or I.PUBLISHED),
+    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_NAME),
+                  ogtitle=html.escape(REPORTS_NAME), desc=html.escape(REPORTS_DESC),
+                  url=url, body=body, ld=I.ld_pack(REPORTS_NAME, REPORTS_DESC, url, REPORTS_TITLE,
+                                                   lastmod or I.PUBLISHED, kind='CollectionPage'),
                   src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
@@ -1430,6 +1442,22 @@ def main(strict=False):
         print('content pages: 쓸 수 있는 원고가 없다 — 페이지를 만들지 않는다%s'
               % (' · 홈 묶음 비움' if emptied else ''))
         return 0
+    # 본문 자리표를 못 채우는 글을 **먼저** 거른다 — 이전·다음 글과 '이 지역 더 보기'는 구워지는 글만 가리켜야 한다.
+    # 예전엔 거르기 전 목록에서 이웃을 골라, 건너뛴 단지 글(광명 철산13, 11-06~)로 가는 '이전·다음 글'이 404 였다
+    # (2026-11-12 SEO 점검). 한 바퀴 더 구워도 52편에 2초 남짓이다.
+    ok = []
+    for sec, meta, body in posts:
+        try:
+            build_page(meta, body, data)
+        except (CT.TableError, CM.ContentError) as e:
+            # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
+            if strict:
+                raise
+            skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
+            _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
+            continue
+        ok.append((sec, meta, body))
+    posts = ok
     by_sec = {}
     for sec, meta, body in posts:
         by_sec.setdefault(sec, []).append((meta, body))
@@ -1441,15 +1469,7 @@ def main(strict=False):
         for i, (meta, body) in enumerate(items):
             prev = metas[i - 1] if i else None
             nxt = metas[i + 1] if i + 1 < len(metas) else None
-            try:
-                page, lm = build_page(meta, body, data, prev, nxt, everyone)
-            except (CT.TableError, CM.ContentError) as e:
-                # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
-                if strict:
-                    raise
-                skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
-                _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
-                continue
+            page, lm = build_page(meta, body, data, prev, nxt, everyone)
             d = os.path.join(ROOT, sec, meta['slug'])
             os.makedirs(d, exist_ok=True)
             fp = os.path.join(d, 'index.html')

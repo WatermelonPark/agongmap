@@ -11,7 +11,7 @@
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
 // home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
 // — 하나라도 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v218'; // 그래프 계열색 사이클 색으로 통일(매매 빨강·전세 보라·공급 초록, 2026-11-11)
+const VERSION = 'v219'; // 점검 스킬 다섯 실행 결과(등락색 한 벌·숫자 오른쪽 맞춤·인허가 범례·누름 경로·접근성)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가

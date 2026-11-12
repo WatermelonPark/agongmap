@@ -120,6 +120,17 @@ def _city_years(f, year=None):
     return by
 
 
+# 공개 목록에 그 해 입주가 하나도 없는 해(안산 2028 등). 표·그림에서 해를 건너뛰면 2027 → 2029 로 붙어 빈 해가 사라졌다
+# (2026-11-12 디자인 마감 점검·대표 결정 '빈 해를 입주 예정 없음으로'). 값을 0 으로 꾸미지 않고 자리만 둔다.
+NO_MOVEIN = '입주 예정 없음'
+
+
+def year_span(by):
+    """by(연도 → 세대)의 첫 해부터 끝 해까지 모든 해 — 빠진 해는 값 None."""
+    ys = sorted(int(y) for y in by)
+    return [(str(y), by.get(str(y))) for y in range(ys[0], ys[-1] + 1)] if ys else []
+
+
 # 첫 인자로 **도시 이름**이 올 수 있는 자리표 종류. 수집기(make_city_moveins)가 원고에서 도시를
 # 찾을 때 이 목록을 쓴다 — 종류를 늘리면 여기도 늘려야 그 도시가 수집된다(시험이 대조한다).
 CITY_KINDS = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio',
@@ -189,7 +200,8 @@ def city_moveins(data, f, name, year=None):
         rows.append(['합계', num(tot)])
         return (['지역', '세대'], rows, _city_note(f))
     by = _city_years(f)
-    rows = [[y, num(v), '%d%%' % int(round(v / float(f['need']) * 100))] for y, v in sorted(by.items())]
+    rows = [[y, num(v), '%d%%' % int(round(v / float(f['need']) * 100))] if v is not None else [y, NO_MOVEIN, '—']
+            for y, v in year_span(by)]
     return (['연도', '세대', '적정물량 대비'], rows,
             '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 %s세대(%s, 인구 %s년 %d월)'
             % (num(f['need']), f.get('need_note') or '', f['pop_prd'][:4], int(f['pop_prd'][4:])))
@@ -243,18 +255,24 @@ def city_ratio(data, f, year, base):
     return '%d%%' % int(round(a / float(b) * 100))
 
 
+def _unit_ho():
+    """원천 단위 '호'의 화면 글자(SZ.unit_text — '세대')."""
+    import sido_zones as SZ
+    return SZ.unit_text('호')
+
+
 def sido_need(data, key):
     """시도의 **한 해** 적정물량. 기준표의 분기 적정물량(zone.ref)에 4를 곱한다.
 
     ⚠️ 도시(시군구)의 v:need 와 산식이 다르다. 도시는 인구 ÷ 2.5 × 2%(movein_need)이고, 시도는 국토교통부
-    자료로 만든 기준표 값이다(sido_zones, 상수 고정 — 재계산하지 않는다). 단위도 시도는 '호', 도시는
-    '세대'로 원천의 말을 따른다. 한 글에서 시도와 도시를 나란히 견주면 두 수의 성격이 다르다는 것을
-    글이 밝혀야 한다.
+    자료로 만든 기준표 값이다(sido_zones, 상수 고정 — 재계산하지 않는다). 화면 단위는 둘 다 '세대'다(2026-10-06 대표 결정
+    — 원천 '호'는 SZ.unit_text 로 바꾼다, 아파트는 1호가 1세대. 11-12 디자인 마감 점검에서 글에 '74,800호'가 남아 있었다).
+    한 글에서 시도와 도시를 나란히 견주면 두 수의 성격이 다르다는 것을 글이 밝혀야 한다.
     """
     z = _zones(data).get(key)
     if not z or not z.get('ref'):
         raise TableError('%r 의 적정물량이 없다' % key)
-    return num(int(round(z['ref'] * 4))) + '호'
+    return num(int(round(z['ref'] * 4))) + _unit_ho()
 
 
 def _sido_fut3(data, key):
@@ -423,7 +441,7 @@ def supply(data, key):
         raise TableError('공급 판정에 지역 %r 이 없다' % key)
     import sido_zones as SZ
     H = data['sido'].get('H')
-    body = [['분기 적정물량', num(z.get('ref')) + '호'],
+    body = [['분기 적정물량', num(z.get('ref')) + _unit_ho()],
             ['앞으로 %d분기 지어질 물량' % H, num(z.get('fut')) + '세대'],
             ['지난 재고(적정물량 대비)', num(z.get('inow')) + '세대'],
             ['누적 과부족', z.get('ctxt') or (num(z.get('dtot')) + '세대')],
@@ -699,7 +717,7 @@ def value(data, kind, args):
         return dict((r[0], r[1]) for r in body)['누적 과부족']
     if kind == 'stats':
         unit = head[1]
-        return body[-1][1] + ('%' if '%' in unit else '호')
+        return body[-1][1] + ('%' if '%' in unit else _unit_ho())
     if kind == 'weekly':
         return body[-1][1]                  # 최신 주 매매 변동률
     raise TableError('값으로 쓸 수 없는 자리표다: %r' % kind)
@@ -723,7 +741,7 @@ def _chart_moveins(data, name, year=None):
     if not by:
         raise TableError('%r 의 연도별 입주물량이 없다' % name)
     year = str(year or (int((data.get('cities') or {}).get('start', '2026-01')[:4]) + 1))
-    pts = [(y, by[y]) for y in sorted(by)]
+    pts = year_span(by) if f else [(y, by[y]) for y in sorted(by)]   # 도시는 빈 해도 자리를 둔다(NO_MOVEIN)
     cards = []
     if year in by:
         # 카드 이름에 도시를 적는다 — 단지·GTX 글에서 '2027년 입주 640세대'가 그 단지 세대수로 읽혔다(2026-10-30 디자인 리뷰).
@@ -738,7 +756,7 @@ def _chart_moveins(data, name, year=None):
         except TableError:
             continue
     alt = '%s 연도별 입주 물량 막대그래프. %s.' % (
-        name, ', '.join('%s년 %s세대' % (y, num(v)) for y, v in pts))
+        name, ', '.join(('%s년 %s세대' % (y, num(v))) if v is not None else '%s년 %s' % (y, NO_MOVEIN) for y, v in pts))
     if need:
         alt += ' 한 해 적정물량은 %s세대.' % num(need)
     # 3년 합계 한 줄. 카드로 넣지 않는 까닭: 카드는 세 칸까지라(좁은 화면에서 줄이 늘어난다) 넷째가

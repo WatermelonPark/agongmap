@@ -597,3 +597,46 @@ def test_home_first_screen_reads_only_core_data():
     for gone in ('occupancy', 'permits', 'bubble'):
         assert gone not in SD.CORE_ADV
     assert '전세가율' not in SD.CORE_STATS
+
+
+QUEUE_C = r'''
+const PARTS={stats:{src:'/home-stats.js',api:['setMarketTab']}};
+var curView='stats', ran=[], gate;
+function partBusy(){} function partReady(){ return gate; }
+var window=globalThis;
+%(block)s
+const realTab=function(t){ ran.push(t); };
+(async function(){
+  var res={};
+  // 1) 주소 입구가 넣은 부름 → 기다리는 사이 사람이 화면을 옮김(statsNav push) → 도착 뒤 버린다
+  gate=new Promise(r=>setTimeout(r,5)); ran=[];
+  HASH_APPLYING=true; var p=window.setMarketTab('week',false); HASH_APPLYING=false;
+  var keep=window.setMarketTab; window.setMarketTab=realTab; NAV_N++; await p; res.stale=ran.slice(); window.setMarketTab=keep;
+  // 2) 사람이 옮기지 않았으면 주소 입구의 부름도 돈다
+  gate=new Promise(r=>setTimeout(r,5)); ran=[];
+  HASH_APPLYING=true; p=window.setMarketTab('month',false); HASH_APPLYING=false;
+  keep=window.setMarketTab; window.setMarketTab=realTab; await p; res.fresh=ran.slice(); window.setMarketTab=keep;
+  // 3) 사람이 누른 부름(주소 입구 아님)은 그사이 화면이 옮겨도 차례대로 돈다
+  gate=new Promise(r=>setTimeout(r,5)); ran=[];
+  p=window.setMarketTab('week'); keep=window.setMarketTab; window.setMarketTab=realTab; NAV_N++; await p; res.human=ran.slice();
+  process.stdout.write(JSON.stringify(res));
+})();
+'''
+
+
+def test_hash_queued_calls_are_dropped_when_the_person_moved_meanwhile():
+    """주소 입구(applyHash)가 대기열에 넣은 부름은, 기다리는 사이 사람이 화면을 옮겼으면(statsNav push 수 NAV_N) 도착 뒤 버린다.
+    재현한 실제 상태(2026-11-12 누름 경로 점검 C, 4회): 데이터 3초 지연, 홈 주간 시세 → 서울 칸 → 통계 파일이 온 뒤 '월간' → 데이터가
+    온 뒤 대기열의 setMarketTab('week') 가 돌아 화면만 주간으로 돌아가고 주소는 #stats-market-month 로 남았다.
+    변이(실제로 확인): 대기 함수의 'viaHash&&…NAV_N!==n0' 줄을 지우면 stale 단정이 빨개진다. 사람이 누른 부름까지 버리게 하면
+    human 단정이 빨개진다.
+    픽스처: home-app.js 의 실제 대기 함수 덩어리(NAV_N·HASH_APPLYING 선언부터 forEach 끝까지)."""
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    core = _core()
+    a = core.index('var NAV_N=0, HASH_APPLYING=false;')
+    b = core.index('\n}));', a) + len('\n}));')
+    p = subprocess.run(['node', '-e', QUEUE_C % {'block': core[a:b]}], capture_output=True, timeout=60)
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
+    got = json.loads(p.stdout.decode('utf-8'))
+    assert got == {'stale': [], 'fresh': ['month'], 'human': ['week']}, got

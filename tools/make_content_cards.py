@@ -165,7 +165,7 @@ def draw_thumb(spec, big=None, cap=None):
         return img
     pts = spec['series'][0]['points']
     rule = spec.get('rule')
-    top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
+    top = max([v for _, v in pts if v is not None] + ([rule[0]] if rule and rule[0] else [0])) or 1   # None = 입주 예정 없는 해
     plot_t, plot_b = top_h + 18, H - 26
     plot_h = plot_b - plot_t
     gap = 6
@@ -173,9 +173,10 @@ def draw_thumb(spec, big=None, cap=None):
     x0 = max(pad, W - pad - (bw * len(pts) + gap * (len(pts) - 1)))
     for i, (lab, v) in enumerate(pts):
         x = x0 + i * (bw + gap)
-        hh = max(2.0, v / float(top) * plot_h)
-        over = rule and rule[0] and v >= rule[0]
-        d.rectangle([x, plot_b - hh, x + bw, plot_b], fill=ZC.INK if over else ZC.LINE)
+        if v is not None:   # 입주 예정이 없는 해(CT.NO_MOVEIN)는 막대 없이 연도 자리만
+            hh = max(2.0, v / float(top) * plot_h)
+            over = rule and rule[0] and v >= rule[0]
+            d.rectangle([x, plot_b - hh, x + bw, plot_b], fill=ZC.INK if over else ZC.LINE)
         if bw >= 22:
             yf = ZC.font(13, 'Medium')
             yb = d.textbbox((0, 0), str(lab)[2:], font=yf)
