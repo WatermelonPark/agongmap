@@ -29,6 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_test_deps_are_installed import _pip_mods, _steps, TOOL_CMD, WF_DIR  # noqa: E402
 
 CI = os.path.join(WF_DIR, 'ci-tests.yml')
+ADOPT_FLAG = ' --adopt '
 BATCH = os.path.join(WF_DIR, 'update-cloud.yml')
 
 
@@ -53,7 +54,9 @@ def _gate_sequence(path, job):
             if m:
                 mods |= _pip_mods(m.group(1))
                 pip_seen = True
-            if not pip_seen:
+            # 아티팩트 받기(`--adopt` — 수집 잡이 받아 온 파일을 저장소 파일에 합친다)는 생성기가 아니다. CI 에는 받아 올
+            # 아티팩트가 없으니 순서 대조에서 뺀다(2026-11-13 — make_city_moveins.adopt).
+            if not pip_seen and ADOPT_FLAG not in line:
                 pre += TOOL_CMD.findall(line)
             m = re.search(r'(python3? -m pytest [^;|&]*?)\s*(?:;|\|\||&&|then|$)', line)
             if m and pytest_cmd is None:

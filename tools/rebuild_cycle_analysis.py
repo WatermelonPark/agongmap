@@ -202,6 +202,21 @@ def y_avg(series, dates):
     return {k: sum(v) / len(v) for k, v in o.items() if len(v) == 12}
 
 
+def why_of(err):
+    """예외의 사유 글. 메시지 없는 `assert 식` 은 사유가 빈 글이라, 실패한 그 줄(단정 식)을 대신 돌려준다.
+
+    이론편 전제 가드(theory_link3·4)의 단정은 대부분 메시지가 없다. 그대로 문구에 실으면 배치 기록 줄이
+    '…어긋난다 — h1_25: .' 처럼 사유가 빈 채 매 회차 나가, 무엇이 깨졌는지 코드를 열어야 알았다(2026-11-13 전수 리뷰).
+    """
+    s = str(err)
+    if s:
+        return s
+    import traceback
+    tb = traceback.extract_tb(err.__traceback__)
+    line = (tb[-1].line or '').strip() if tb else ''
+    return line[len('assert '):] if line.startswith('assert ') else line
+
+
 def y_sum(series, dates):
     o = {}
     for d, v in zip(dates, series):

@@ -231,7 +231,7 @@ def test_every_workflow_alert_line_has_a_plain_sentence():
 
     변이(실제로 확인): PLAIN 에서 '주간 시세 페이지 실패' 대응을 지우면 빨강. 워크플로에 대응 없는 rep "❌ 새 단계 실패"
     줄을 더해도 빨강.
-    픽스처: 저장소의 실제 update-cloud.yml(생성기 여덟·게이트·공유카드·git·푸시·감시 되짚기 줄).
+    픽스처: 저장소의 실제 update-cloud.yml(생성기 아홉·게이트·공유카드·git·푸시·감시 되짚기 줄).
     """
     import re
     lines = _workflow_alert_lines()

@@ -253,7 +253,7 @@ def headline(raw, kst, weekday, stalled_h=None):
 
 
 # ── 멈춤 메일(2026-11-08 대표 결정) ─────────────────────────────────────────
-# 데이터 갱신이 이만큼 이어서 멈췄을 때 처음 메일이 간다. 배치는 매일 한 번(예약 13:00 KST)과 목요일 두 번 더 돌아,
+# 데이터 갱신이 이만큼 이어서 멈췄을 때 처음 메일이 간다. 배치는 매일 한 번(예약 13:00 KST)과 목요일 다섯 번 더(2026-11-12) 돌아,
 # 첫 실패 다음 날 같은 회차가 24시간 뒤다. 20시간이면 큐 지연으로 다음 날 회차가 당겨 떠도 걸리고, 목요일
 # 07:00 회차(전날 13:00 실패 뒤 18시간)는 아직 하루가 안 찼다고 보아 넘긴다.
 STALL_MAIL_H = 20
@@ -408,8 +408,8 @@ def build(raw, kst, run_url, owner, weekday, stalled_h=None):
     mention = bool(bad or warn) or weekday == 0 or lag_hard
     if mention and weekday == 0 and not (bad or warn):
         out.append('')
-        out.append('(월요일 확인 메일입니다. 이상이 있을 때만 메일이 가고, 평소에는 '
-                   '조용합니다.)')
+        # 이 본문은 실행 화면 요약에만 남는다 — 메일은 하루 넘게 멈춘 회차뿐이다(2026-11-08). 예전 문구는 '확인 메일'이라 했다.
+        out.append('(월요일 확인 기록입니다. 메일은 데이터 갱신이 하루 넘게 멈췄을 때만 갑니다.)')
     out.append('')
     tail = '[실행 로그](%s)' % run_url
     if mention:

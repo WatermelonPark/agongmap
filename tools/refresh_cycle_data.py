@@ -290,18 +290,16 @@ def demol_prose(S, region=DEMOL_REGION, years=DEMOL_YEARS):
     def yearly(D):
         return {int(d[:4]): v for d, v in zip(D['dates'], D['series'].get(region) or []) if v is not None}
     apt, allh = yearly(am), yearly(hm)
-    done, months = {}, {}
-    for d, v in zip(jg['dates'], jg['series'].get(region) or []):
-        p = ym(d)
-        if p and v is not None:
-            done[p[0]] = done.get(p[0], 0) + v
-            months[p[0]] = months.get(p[0], 0) + 1
+    # 준공 연 합은 재산정과 **같은 함수**(RC.y_sum — 열두 달이 다 있는 해만, 빈 칸은 0)로 센다. 원천(KOSIS)은 값 0 을 빈 칸으로
+    # 주므로 빈 칸은 결측이 아니라 0 이다. 예전엔 여기서만 빈 칸을 '없는 달'로 세어, 서울 준공에 0 인 달이 하나 생기면 그 해가
+    # 덜 찬 해가 되어 창이 조용히 옛 해로 밀리거나(2016~2024 → 2011~2019) 창을 못 찾아 배치가 멈췄다(2026-11-13 전수 리뷰).
+    done = {int(y): v for y, v in RC.y_sum(jg['series'].get(region) or [], jg['dates']).items()}
     if not apt or not allh:
         raise RuntimeError('%s 멸실 계열이 비었다' % region)
     y1 = min(max(apt), max(allh))
     while y1 - years + 1 >= min(apt):
         ys = range(y1 - years + 1, y1 + 1)
-        if all(y in apt and y in allh and months.get(y) == 12 for y in ys):
+        if all(y in apt and y in allh and y in done for y in ys):
             a, h, c = (sum(D[y] for y in ys) for D in (apt, allh, done))
             pct = SZ.half_up(100.0 * a / c)
             return {'dm_span': '%d~%d' % (ys[0], ys[-1]), 'dm_done': str(RC._man(c)), 'dm_apt': _man1(a),
@@ -405,7 +403,14 @@ def main():
     # 같은 페이지 차트 데이터에서 바로 나오는 칸(종합 절 상·하위 지역, 멸실 절 수·연도, 자료 기간 — 전수 리뷰
     # #62·#66·#69). 손으로 적어 두면 차트와 문장이 갈렸다.
     jr.update(RC.page_prose(cur))
-    jr.update(demol_prose(S))   # 참고 ④ 서울 멸실 칸 — data.js 의 아파트 준공·멸실에서(전수리뷰 D3)
+    # 참고 ④ 서울 멸실 칸 — data.js 의 아파트 준공·멸실에서(전수리뷰 D3). 셀 수 없는 회차(계열이 비었거나 함께 찬 창이 없다)는
+    # 어제 칸을 두고 알린다 — flow_chain·stock30 과 같은 방침이다. 예전엔 여기서만 예외가 그대로 올라가 생성기가 실패했고,
+    # 배치는 생성기가 실패하면 그날 데이터 전체를 커밋하지 않는다(2026-11-13 전수 리뷰).
+    try:
+        jr.update(demol_prose(S))
+    except RuntimeError as e:
+        print('  ⚠️ 서울 멸실 칸을 셀 수 없다(%s) — 참고 ④ 는 어제 칸을 둔다' % e)
+        jr.update({k: prose[k] for k in DM_KEYS if k in prose})
     prose.update(jr)
     page = splice(page, 'prose', prose)
     page = fill_spans(page, jr)

@@ -881,7 +881,7 @@ def _reindex_rows(rows, old_cols, new_cols):
     return out
 
 
-def _hold_sido_empty(monthly, cur, failed=None):
+def _hold_sido_empty(monthly, cur, failed=None, tag='monthly', unit='달'):
     """월간 응답에서 **시도 값(매매·전세)이 전부 빈 달**은 싣지 않는다(전수리뷰 T2-2, 2026-10-18 결정).
 
     원천이 시도 이름·계층을 바꾸면(2025-05 광주·전남이 '전남광주>광주'로 옮겨 간 전례) fetch_monthly_rone 의 sido() 가 이름을
@@ -892,6 +892,10 @@ def _hold_sido_empty(monthly, cur, failed=None):
     다음 회차에 원천이 시도를 채우면 그때 들어오고, 계속 비면 감시가 우리 최신 달이 원천보다 늦은 것으로 잡는다. 보류한
     회차는 failed 에 'monthly:시도 결측 보류'로 남긴다(.fetch_failed → 배치 알림 ℹ️ 줄). 집계(전국·수도권·지방) 열은 보지
     않는다 — 집계만 남은 달이 바로 이 모양이다. 월세(wo)는 원래 늦게 붙는 계열이라 판정에 넣지 않는다.
+
+    주간도 같은 함수를 탄다(tag='weekly', unit='주' — 2026-11-13 전수 리뷰). 주간 수집도 같은 sido() 로 시도 행을 찾으므로 같은
+    회차에 시도 칸이 전부 None 이 되는데, 주간에는 이 보류가 없어 저장된 최근 주들의 시도 값이 '주간소급수정'이라는 이름으로
+    None 에 덮였다(스텁 재현: 시도 값 756칸 → 0칸, 실패 기록 없음).
     """
     regs = monthly.get('regions') or []
     idx = [i for i, r in enumerate(regs) if r in SZ.ORDER and r not in SZ.AGG]
@@ -917,10 +921,10 @@ def _hold_sido_empty(monthly, cur, failed=None):
     for part in ('seoul', 'sgg'):
         if monthly.get(part) and new:
             monthly[part]['rows'] = [r for r in monthly[part].get('rows') or [] if r.get('p') not in new]
-    print('::warning::monthly: 시도 값이 전부 빈 달 %s — 저장값을 지키고 새 달(%s)은 보류한다(원천 시도 이름·계층 확인)'
-          % (', '.join(held), ', '.join(new) or '없음'))
+    print('::warning::%s: 시도 값이 전부 빈 %s %s — 저장값을 지키고 새 %s(%s)은 보류한다(원천 시도 이름·계층 확인)'
+          % (tag, unit, ', '.join(held), unit, ', '.join(new) or '없음'))
     if failed is not None:
-        failed.append('monthly:시도 결측 보류')
+        failed.append('%s:시도 결측 보류' % tag)
     return held
 
 
@@ -2489,6 +2493,7 @@ def main():
     try:
         weekly = fetch_weekly()
         cur = adv.get('weekly') or {}
+        _hold_sido_empty(weekly, cur, soft_failed, tag='weekly', unit='주')   # 시도 값이 전부 빈 주는 보류(월간과 같은 규칙)
         cur_last = cur['rows'][-1]['p'] if cur.get('rows') else ''
         # 역행 방지 + 병합: R-ONE 부분 응답 등으로 새 데이터가 기존 최신 주보다 뒤처지면
         # 최신 주와 서울/시군구 상세는 기존 것을 유지하고 과거 시계열만 확장한다
