@@ -15,7 +15,8 @@ import re
 SECTIONS = ('city', 'gtx', 'danji', 'column')
 REQUIRED = ('title', 'summary', 'date', 'updated', 'section')
 # 2026-11-05 콘텐츠 구조 개편(대표 지시 "어떤 글이 내 관심사인지 모르겠다") — 독자가 카드 하나로 글을 고르게 하는 다섯 항목.
-# 이것도 필수다. 없으면 생성기는 그 글을 건너뛰고(경고), 원고 검사는 고칠 곳으로 센다. 일할 때는 content_check --lenient.
+# 이것도 필수다. 다만 없는 옛 양식 원고는 막지 않는다(11-06) — 생성기는 굽되 경고하고(카드에 지역 칩·핵심 숫자가 빠진다),
+# 원고 검사는 고칠 곳이 아니라 기다림(…)으로 알린다(is_v2_miss). 일할 때는 content_check --lenient.
 REQUIRED_V2 = ('tldr', 'audience', 'key', 'city', 'topic')
 # 글의 질문(주제) — 허브 '질문으로 찾기'의 네 입구. (키, 질문, 칩에 쓰는 짧은 이름, 그 질문이 사는 섹션).
 # make_content_pages.TOPICS 가 같은 튜플이다(생성기가 content_md 를 들여오므로 정본은 여기 두고 거기서 다시 내보낸다).

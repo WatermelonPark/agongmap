@@ -9,7 +9,7 @@ description: 아공맵 PR 병합 전후 점검 — 병합 뒤 워크플로·GitH
 
 ## 병합 전
 
-1. CI 와 같은 조건으로 전체 시험: `python3 -m venv` 에 `pytest pillow` 만 깔고 생성기 여덟 개를 먼저 돌린 뒤
+1. CI 와 같은 조건으로 전체 시험: `python3 -m venv` 에 `pytest pillow` 만 깔고 `ci-tests.yml` 의 'split_data + 생성기' 단계를 그대로(앞단 `make_city_moveins`·`split_data` + 생성기 아홉) 먼저 돌린 뒤
    `GITHUB_ACTIONS=1 python3 -m pytest tools/tests -q`(건너뜀도 실패). 끝나면 생성 산출물을 되돌린다.
 2. PR 에 생성 산출물(`data*.js(on)`·`zone/`·`weekly/`·`monthly/`·`city/` 등·sitemap·feed·llms·`share/` 이미지)이 섞이지 않았는지 `git diff --stat` 으로 본다.
 3. 홈 HTML·스크립트·app.css 를 바꿨으면 판 표식 다섯 개가 같은 값인지(`test_home_build`), desk.css 를 바꿨으면 손 페이지 `desk.css?v=` 해시(`test_desk`).
@@ -19,7 +19,8 @@ description: 아공맵 PR 병합 전후 점검 — 병합 뒤 워크플로·GitH
 1. `main` 의 워크플로: `ci-tests.yml`(시험), `publish-content.yml`(원고), `rebake-outputs.yml`(산출물 재생성)이 초록인지.
    취소는 동시성 때문일 수 있다 — 이 커밋을 포함한 뒤 런이 초록이면 된다.
 2. `pages build and deployment` 가 끝났는지.
-3. 운영 주소에서 바뀐 것이 보이는지: 홈은 `data-build` 판, 생성 페이지는 다음 배치(예약 13:00 KST, 실제 17시께) 뒤에 바뀐다.
+3. 운영 주소에서 바뀐 것이 보이는지: 홈은 `data-build` 판. 코드로 바뀌는 생성 페이지는 병합 직후 `rebake-outputs.yml`(원고·생성기 경로면 `publish-content.yml`) 런이 끝난 뒤,
+   데이터 값은 다음 데이터 배치 뒤에 바뀐다. 배치 예약(KST)은 매일 13:00, 목요일 07·10·11·12·16시이고 GitHub 대기열 탓에 실제 시작은 4~9시간 늦다 — 급하면 `update-cloud.yml` 을 손으로 돌린다.
    서비스워커가 옛 판을 들고 있으면 한 번 새로고침해야 한다(판 표식 보호가 작동하는지 확인).
 4. 배치가 하루 넘게 멈추면 경보 이슈에 한 통이 간다(`tools/post_alert.sh`) — 그 전에 실행 화면 요약을 본다.
 
@@ -37,7 +38,7 @@ const cls = await page.evaluate(() => new Promise(r => { let v = 0;
     .observe({ type: 'layout-shift', buffered: true }); setTimeout(() => r(v), 3000); }));
 ```
 
-기준: LCP 2.5초 이하, CLS 0.1 이하. 홈은 부팅 전후 줄 수가 같아야 한다(`.map-src` 470px 규칙). 같은 조건으로 병합 전후를 견줘 나빠졌으면 원인 커밋을 찾는다.
+기준: LCP 2.5초 이하, CLS 0.1 이하. 웹 글꼴 교체로 인한 밀림은 크기를 맞춘 대체 글꼴(`site_nav.FONT_FALLBACK_CSS`)이 줄인다 — 글꼴 목록을 싣는 새 페이지는 그 규칙과 `FONT_STACK_HEAD` 를 싣는다(`test_site_nav`). 홈은 부팅 전후 줄 수가 같아야 한다(`.map-src` 470px 규칙). 같은 조건으로 병합 전후를 견줘 나빠졌으면 원인 커밋을 찾는다.
 
 ## 보고 꼴
 
