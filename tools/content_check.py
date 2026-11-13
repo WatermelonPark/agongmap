@@ -102,6 +102,10 @@ def check_post(path, data, root=ROOT, lenient=False):
     for key in ('summary', 'title'):
         try:
             CT.fill_inline(meta.get(key) or '', data)
+        except CT.Pending as e:
+            # 아직 안 들어온 자료는 고칠 곳이 아니다 — 본문의 같은 자리표와 같은 눈으로 기다림(…)에 센다. 예전엔 Pending 이
+            # TableError 의 아래 갈래라 여기서만 ✗ 가 됐다(2026-11-13 전수 리뷰).
+            waits.append((_front_line(text, key), '%s: %s' % (key, e)))
         except CT.TableError as e:
             out.append((_front_line(text, key), '%s: %s' % (key, e)))
     for i, src in enumerate(meta.get('sources') or []):
