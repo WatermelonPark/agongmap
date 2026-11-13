@@ -3,7 +3,7 @@
 
 매주·매달 바뀌어 단톡방에 퍼뜨리기 좋은 화면에 공유 수단이 없었다(공유 코드는 퀴즈와 시도 리포트뿐). 두 관례를
 그대로 잇는다.
-  - 퀴즈(home-app.js shareTest·shareResult): 카카오 SDK 를 **누를 때만** 받는다(loadKakao·needKakao). SDK 가 있으면
+  - 홈 주간 시세 공유(home-app.js shareWeekly — 퀴즈 공유는 2026-11-14 제거): 카카오 SDK 를 **누를 때만** 받는다(loadKakao·needKakao). SDK 가 있으면
     Kakao.Share.sendDefault 피드(제목·설명·그림을 우리가 정해 보낸다), 못 받으면 OS 공유 → 링크 복사로 넘어간다.
     GA 는 share {content_type, method: kakao|os_share|copy}.
   - 시도 리포트(make_sido_pages.share_section): 랜딩 페이지라 첫 로딩에 SDK 를 싣지 않는다. 그래서 여기서도

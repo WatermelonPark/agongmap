@@ -1588,37 +1588,6 @@ ADV_UNWATCHED = {
 }
 
 
-<<<<<<< HEAD
-def check_quiz_review(today, src=None):
-    """퀴즈 제도 문항의 검토 기한 → (fails, warns).
-
-    기한이 지난 문항은 warns 다. 데이터 사고가 아니라 콘텐츠 검토 알림이기 때문이다. 예전엔 fails 에 넣어
-    2026-12-15(1개)·2027-03-15(4개)부터 누가 home-app.js 를 고칠 때까지 감시가 **매일** 빨개졌고, 그 기간의
-    'Run failed' 메일은 퀴즈 때문인지 진짜 뒤처짐 때문인지 구별되지 않았다 — 진짜 경보가 이미 예상한 빨강
-    속에 묻힌다(2026-09-26 데이터 감사). write-reminder.yml 의 원칙과 같다: 실패 메일은 데이터 사고의 통로다.
-    사람에게는 배치 기록의 ℹ️ 줄(batch_notes.quiz_review_lines — 실행 화면 요약에 실린다. 2026-11-08 부터 메일은 아니다)로 간다.
-    ⚠️ 문항을 0개 찾았거나 홈 스크립트를 못 읽은 것은 fails 로 둔다. 기한 감시가 조용히 꺼진 것이고(백로그 10
-    이동 모의에서 실제로 그랬다), 날짜가 지나서 생기는 일이 아니다. 홈 스크립트는 home_src 로만 읽는다.
-    """
-    fails, warns = [], []
-    try:
-        src = HS.home_source() if src is None else src
-        qi = QR.items(src)
-        qo = QR.overdue(src, today)
-        print('  제도 문항 %d개 · 기한 지남 %d개' % (len(qi), len(qo)))
-        if not qi:
-            fails.append('퀴즈 제도 문항을 0개 찾았다 — 검토 기한 감시가 헛돈다(asof·review 형식이나 홈 스크립트 위치 확인)')
-        half = QR.half_tagged(src)
-        if half:
-            fails.append('퀴즈 문항 %d개가 asof·review 가운데 하나만 달아 검토 기한 감시에서 빠진다: %s' % (len(half), '; '.join(half)))
-        warns.extend(qo)
-    except HS.HomeSourceError as e:
-        fails.append('홈 스크립트를 읽지 못해 퀴즈 검토 기한을 못 봤다: %s' % e)
-    return fails, warns
-
-
-=======
->>>>>>> 185fb27b (퀴즈 3종 제거: 랜딩·점수 페이지·생성기·홈 퀴즈 화면·진입점을 걷고 옛 주소는 홈으로 넘긴다(대표 결정 11-14), 판 v222)
 def _emit_warnings(warns, summary=None):
     """감시를 실패시키지 않는 알림을 남긴다 — 로그의 WARN 목록, GitHub 실행 화면의 ::warning:: 주석,
     그리고 summary(잡 요약 파일)가 있으면 거기에도. 판정(_gate)과 종료 코드에는 손대지 않는다."""
