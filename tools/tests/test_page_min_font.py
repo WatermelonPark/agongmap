@@ -60,18 +60,37 @@ def _rules(css):
         yield m.group(1).strip(), m.group(2)
 
 
-def _px(body):
+def _tokens(css):
+    """CSS 변수 가운데 길이 값인 것 → {이름: px}. 같은 이름이 여러 번 정의되면(미디어 구간 포함) **가장 작은 값**을 본다 —
+    어느 폭에서든 하한 아래로 내려가면 잡는다."""
+    out = {}
+    # clamp(최소, 선호, 최대) 는 최소값을 본다(--h1-report 가 그 꼴이다) — 가장 작아질 때가 하한에 걸리는지가 물음이다.
+    for name, num, unit in re.findall(r'(--[\w-]+)\s*:\s*(?:clamp\(\s*)?([\d.]+)(px|rem)\b', _strip_media(css)):
+        v = float(num) * (16 if unit == 'rem' else 1)
+        out[name] = min(v, out.get(name, v))
+    return out
+
+
+def _px(body, tokens=None):
+    """규칙의 글자 크기(px). `font-size:var(--이름)` 은 그 변수의 값으로 푼다. 예전엔 변수를 풀지 않고 '크기 없음'으로 넘겨,
+    --fs-dense 를 11px 로 바꿔도 이 시험이 초록이었다(2026-11-13 전수 리뷰 — 읽는 문장 여럿이 그 변수로 크기를 받는다)."""
     m = re.search(r'font-size:\s*([\d.]+)(px|rem)\b', body)
-    if not m:
-        return None
-    return float(m.group(1)) * (16 if m.group(2) == 'rem' else 1)
+    if m:
+        return float(m.group(1)) * (16 if m.group(2) == 'rem' else 1)
+    m = re.search(r'font-size:\s*var\(\s*(--[\w-]+)', body)
+    if m:
+        return (tokens or {}).get(m.group(1))
+    return None
 
 
 def _small_rules(rel):
     page = _read(rel)
-    css = ''.join(re.findall(r'<style>(.*?)</style>', page, re.S))
-    if 'href="/app.css"' in page:
-        css = _read('app.css') + css
+    return _small_rules_of(page, _read('app.css') if 'href="/app.css"' in page else '')
+
+
+def _small_rules_of(page, sheet=''):
+    css = sheet + ''.join(re.findall(r'<style>(.*?)</style>', page, re.S))
+    tokens = _tokens(css)
     body = page[page.find('<body'):]
     have = set()
     for m in re.finditer(r'class="([^"]*)"', body):
@@ -79,7 +98,7 @@ def _small_rules(rel):
     have_tags = set(re.findall(r'<([a-z][a-z0-9]*)\b', body))
     bad = []
     for sel, rb in _rules(css):
-        px = _px(rb)
+        px = _px(rb, tokens)
         if px is None or px >= MIN or 'fill:' in rb or '#view-home' in sel:
             continue
         for one in sel.split(','):
@@ -108,3 +127,27 @@ def test_report_content_and_privacy_text_is_at_least_13px(rel):
         pytest.skip('%s 가 아직 구워지지 않았다' % rel)
     bad = _small_rules(rel)
     assert not bad, '%s 에 13px 미만 글자 규칙: %s' % (rel, bad)
+
+
+def test_font_sizes_given_by_a_css_variable_are_measured():
+    """글자 크기를 CSS 변수로 받는 규칙도 잰다 — 변수 값이 하한 아래면 잡는다.
+
+    왜: 이 시험은 `font-size:var(--fs-dense)` 를 '크기 없음'으로 넘겼다. 그 변수를 11px 로 바꿔 다시 구워도 글자·디자인·접근성
+        시험 644개가 초록이었다 — 리포트의 읽는 문장 여럿(.zwk-lead·.zyear·.note)이 그 변수로 크기를 받는다.
+    변이(실제로 확인): _px 에서 var(...) 갈래를 지우면 첫 단정이 빨개진다. _tokens 가 첫 정의만 보면(가장 작은 값을 보지 않으면)
+          셋째 단정이 빨개진다.
+    픽스처: 변수로 크기를 받는 규칙 하나가 든 합성 페이지 — 변수 값이 하한 아래, 하한, 그리고 좁은 화면에서만 하한 아래인 세 꼴.
+            그리고 저장소의 실제 리포트가 변수로 크기를 받는 규칙을 실제로 갖고 있는지(이 시험이 재는 것이 실재하는지).
+    """
+    page = '<style>:root{--fs-x:%s}%s.note{font-size:var(--fs-x)}</style><body><p class="note">글</p></body>'
+    assert _small_rules_of(page % ('11px', '')) == ['.note 11px']
+    assert _small_rules_of(page % ('%dpx' % MIN, '')) == []
+    assert _small_rules_of(page % ('14px', '@media(max-width:400px){:root{--fs-x:12px}}')) == ['.note 12px']
+    rel = 'zone/서울/index.html'
+    if not os.path.exists(os.path.join(ROOT, rel)):
+        pytest.skip('%s 가 아직 구워지지 않았다' % rel)
+    css = _read('app.css') + ''.join(re.findall(r'<style>(.*?)</style>', _read(rel), re.S))
+    used = set(re.findall(r'font-size:\s*var\(\s*(--[\w-]+)', css))
+    assert used, '리포트에 변수로 크기를 받는 규칙이 없다 — 이 시험의 전제를 다시 볼 것'
+    missing = sorted(used - set(_tokens(css)))
+    assert not missing, '크기 변수의 값을 찾지 못했다(하한을 잴 수 없다): %s' % missing

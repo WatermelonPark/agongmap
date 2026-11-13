@@ -51,6 +51,51 @@ def warm_neutral(h):
     return chroma <= 32 and (g - b) >= (r - g) and r > b + 4 and 40 <= (0.299*r + 0.587*g + 0.114*b) <= 254
 
 
+# 한글에 해로운 조판 둘 — 감사(audit)와 적용(apply_design)이 **같은 눈**으로 본다. 예전엔 두 도구가 정규식을 따로 적어, 감사는
+# `text-transform: uppercase`(쌍점 뒤 빈칸)를 세는데 적용은 못 고쳤고, 자간은 둘 다 '.05em' 꼴만 잡아 '0.08em'·'1em'·'.045em'
+# 을 놓쳤다(2026-11-13 전수 리뷰).
+TRACK_MAX = 0.04                 # 이보다 넓은 자간(em)은 위반 — 한글은 자간을 벌리면 낱말 경계가 흐려진다
+TRACK_RE = re.compile(r'letter-spacing:\s*(-?(?:\d+\.?\d*|\.\d+))em')
+UPPER_RE = re.compile(r'text-transform:\s*uppercase')
+
+
+def wide_tracking(css):
+    """TRACK_MAX 보다 넓은 자간 선언의 값들(em)."""
+    return [float(v) for v in TRACK_RE.findall(css) if float(v) > TRACK_MAX]
+
+
+def _shadows(css):
+    """(선택자, box-shadow 값) — 규칙마다 첫 선언. 규칙을 한 번에 훑고 본문에서 찾는다.
+
+    예전 식(`([^{}]*)\\{[^{}]*?box-shadow:…`)은 그림자가 없는 규칙마다 선택자 자리의 모든 시작점에서 다시 훑어, 중괄호 없는 긴
+    글(HTML 본문) 뒤에 규칙이 오는 페이지에서 문서 길이의 제곱으로 느렸다 — 시도 리포트 한 장에 13초, 이 감사를 부르는 시험
+    하나가 24초로 게이트에서 셋째로 느렸다(2026-11-13 전수 리뷰).
+    """
+    out = []
+    for sel, body in _rules(css):
+        b = re.search(r'box-shadow:\s*([^;}\n]+)', body)
+        if b:
+            out.append((sel, b.group(1)))
+    return out
+
+
+def _rules(css):
+    """(선택자, 본문) — 안쪽에 중괄호가 없는 `선택자{본문}` 덩어리를 차례로. 중괄호 자리만 한 번 훑어 **문서 길이에 비례**한다.
+
+    정규식 `([^{}]*)\\{([^{}]*)\\}` 도 같은 덩어리를 찾지만, 중괄호 없는 긴 글이 `}` 로 끝나는 자리(스크립트·JSON 이 든 페이지)
+    에서 시작점마다 다시 훑어 제곱으로 느리다(/cycle/ 한 장에 8초).
+    """
+    start, open_at = 0, None
+    for m in re.finditer(r'[{}]', css):
+        i = m.start()
+        if css[i] == '{':
+            sel_from, open_at = start, i          # 선택자는 직전 중괄호 바로 뒤부터다
+        elif open_at is not None:
+            yield css[sel_from:open_at], css[open_at + 1:i]
+            open_at = None
+        start = i + 1
+
+
 def audit(path):
     """한 페이지(.html) 또는 공유 시트 하나(.css)를 감사한다.
 
@@ -78,14 +123,14 @@ def audit(path):
         'fontlink': 'pretendardvariable' in s.lower(),
         'w800': len(re.findall(r'font-weight:\s*(?:800|900)\b', scope))
                 + len(re.findall(r'font-weight="(?:800|900)"', s)),
-        'upper': len(re.findall(r'text-transform:\s*uppercase', scope)),
-        'track': len(re.findall(r'letter-spacing:\s*\.(?:0[5-9]|[1-9]\d*)em', scope)),
+        'upper': len(UPPER_RE.findall(scope)),
+        'track': len(wide_tracking(scope)),
         'radii': sorted(radii),
         'gold': len(re.findall(r'--gold|--accent', scope)),
         'warm': warms,
         # 장식 그림자만 센다 — inset(정렬 열 밑줄·속 빈 고리)과 화면 위에 떠 있는 고정 요소(하단 탭바·데스크톱 위 내비·설치 알림)의
         # 그림자는 '떠 있음'을 알리는 기능이라 뺀다(2026-11-12 디자인 마감 점검: 홈·/cycle/·리포트의 '그림자×4' 가 넷 다 이것이었다).
-        'shadow': len([x for sel, x in re.findall(r'([^{}]*)\{[^{}]*?box-shadow:\s*([^;}\n]+)', scope)
+        'shadow': len([x for sel, x in _shadows(scope)
                        if 'none' not in x and '0 0 0' not in x and 'inset' not in x
                        and not re.search(FLOATING, sel)]),
         'grad': len(re.findall(r'linear-gradient', scope)),

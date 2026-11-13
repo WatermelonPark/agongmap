@@ -171,3 +171,54 @@ def test_audit_counts_only_decorative_shadows(tmp_path):
                  encoding='utf-8')
     a = audit_design.audit(str(p))
     assert a['shadow'] == 2 and any(f.startswith('그림자') for f in audit_design.violations(a)), a
+
+
+def test_audit_and_apply_see_the_same_tracking_and_uppercase(tmp_path):
+    """자간·대문자 변환을 감사가 세면 적용 도구가 고치고, 둘 다 같은 꼴을 본다 — '0.08em'·'1em'·'.045em'·쌍점 뒤 빈칸.
+
+    왜: 두 도구가 정규식을 따로 적어, 자간은 둘 다 '.05em' 꼴만 잡았고('0.08em'·'1em'·'.045em' 은 위반 없음으로 나왔다),
+        `text-transform: uppercase`(쌍점 뒤 빈칸)는 감사가 세는데 적용은 그대로 남겼다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): audit_design.TRACK_RE 를 예전 식(`\.(?:0[5-9]|[1-9]\d*)em`)으로 되돌리면 첫 단정이, apply_design 의
+          uppercase 판정을 `'text-transform:uppercase' in s` 로 되돌리면 적용 뒤 단정이 빨개진다.
+    픽스처: 위반 꼴 넷과 허용 꼴 둘(.04em — 문턱 그대로, 음수 자간)이 든 합성 페이지.
+    """
+    html = ('<!doctype html><html><head><meta name="viewport" content="width=device-width">'
+            '<style>.a{letter-spacing:0.08em}.b{letter-spacing: 1em}.c{letter-spacing:.045em}.d{letter-spacing:.05em}'
+            '.ok{letter-spacing:.04em}.neg{letter-spacing:-.01em}.u{text-transform: uppercase;color:#131e24}</style>'
+            '</head><body></body></html>')
+    p = _write(tmp_path, 'k.html', html)
+    a = audit_design.audit(p)
+    assert (a['track'], a['upper']) == (4, 1), a
+    apply_design.apply(p)
+    out = io.open(p, encoding='utf-8').read()
+    after = audit_design.audit(p)
+    assert (after['track'], after['upper']) == (0, 0), (after, out)
+    assert '.ok{letter-spacing:.04em}' in out and '.neg{letter-spacing:-.01em}' in out, '허용한 자간을 적용 도구가 지웠다'
+    assert 'uppercase' not in out and '.u{color:#131e24}' in out.replace('.u{ ', '.u{'), out
+
+
+def test_shadow_scan_is_linear_and_agrees_with_the_rule_grammar():
+    """그림자 훑기는 문서 길이에 비례하고, 예전 정규식과 같은 답을 낸다.
+
+    왜: 예전 식은 그림자가 없는 규칙마다 선택자 자리의 모든 시작점에서 다시 훑어 제곱으로 느렸다 — 시도 리포트 한 장에 13초,
+        /cycle/ 에 7초, 이 감사를 부르는 시험 하나가 24초로 게이트에서 셋째로 느렸다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): _rules 를 `re.finditer(r'([^{}]*)\{([^{}]*)\}', css)` 로 되돌리면 아래 긴 입력이 20초 안에 끝나지 않아
+          빨개진다(딴 프로세스에서 상한을 두고 본다 — 이 시험이 게이트를 매달지 않는다).
+    픽스처: 저장소의 실제 app.css(답 대조), 그리고 닫는 중괄호 뒤에 중괄호 없는 긴 글이 오고 다시 '}' 로 끝나는 합성 입력
+            (`a{b{c:1} …긴 글… }` — 스크립트·JSON 이 든 페이지의 모양. 여는 중괄호 없이 '}' 를 만나는 자리가 느린 자리다).
+    """
+    import subprocess
+    css = io.open(os.path.join(os.path.dirname(TOOLS), 'app.css'), encoding='utf-8').read()
+    old = re.findall(r'([^{}]*)\{[^{}]*?box-shadow:\s*([^;}\n]+)', css)
+    new = audit_design._shadows(css)
+    assert old and [(s.strip(), x) for s, x in old] == [(s.strip(), x) for s, x in new]
+    assert list(audit_design._rules('a{b{c:1}d}e{f:2}')) == [('b', 'c:1'), ('e', 'f:2')]
+    code = ('import sys; sys.path.insert(0, %r)\nimport audit_design as A\n'
+            's = "a{b{c:1}" + ("가나다라 " * 60000) + "}" + ".k{box-shadow:0 1px 2px #000}"\n'
+            'print(len(A._shadows(s * 3)))\n') % TOOLS
+    try:
+        r = subprocess.run([sys.executable, '-c', code], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                           universal_newlines=True, timeout=20)
+    except subprocess.TimeoutExpired:
+        pytest.fail('그림자 훑기가 긴 글에서 끝나지 않는다(제곱 시간)')
+    assert r.returncode == 0 and r.stdout.strip() == '3', r.stderr[-400:]
