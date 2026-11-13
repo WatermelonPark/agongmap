@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v220';
+const HOME_BUILD='v221';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -63,7 +63,10 @@ function needChart(redo){ if(window.Chart)return false; loadChart().then(redo).c
 let KAKAO_P=null, KAKAO_FAIL=false;
 function loadKakao(){
   if(window.Kakao)return Promise.resolve();
+  /* 파일은 왔는데 window.Kakao 가 안 생긴 경우(콘텐츠 차단기의 빈 응답, SDK 실행 실패)도 실패로 세운다. 안 세우면 needKakao 가
+     이미 풀린 약속을 받아 redo → needKakao → redo 로 끝없이 돌아 탭이 멈췄다(2026-11-13 전수 리뷰). */
   if(!KAKAO_P)KAKAO_P=loadScript('https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js')
+    .then(()=>{ if(!window.Kakao)KAKAO_FAIL=true; })
     .catch(e=>{ KAKAO_P=null; KAKAO_FAIL=true; throw e; });
   return KAKAO_P;
 }
@@ -202,6 +205,25 @@ function loadFullData(){
      조용히 깨지므로 분리기가 낸 JSON을 그대로 읽는다. */
   return loadData('/data-trend.json');
 }
+/* 늦게 받는 조각(data-trend.json)의 주간·월간 블록이 코어(data-core.js)보다 **옛 판**이면 코어의 새 주·달을 지킨다.
+   서비스워커는 느린 망·오프라인에서 캐시본을 주는데, 코어는 홈 방문마다 갱신되고 trend 는 시세 탭을 연 날에만 갱신된다 —
+   홈만 자주 보던 사람이 시세 탭을 열면 옛 주의 trend 가 ADV.weekly·monthly 를 통째로 덮어 홈 지도·기준 줄이 지난주로
+   돌아갔다(2026-11-13 전수 리뷰. ensureSggHist 는 같은 가드를 이미 갖고 있었다). 옛 판이면 trend 의 이력에 코어의 새 행을
+   이어 붙이고, 머리(head·share·ps·grace·agg)와 시군구 마지막 행은 코어 것을 둔다. 지역 목록이 다르면(모델 개편 회차)
+   행을 이을 수 없으므로 코어를 그대로 둔다. */
+function lateBlock(cur,late){
+  const lastP=b=>b&&b.rows&&b.rows.length?b.rows[b.rows.length-1].p:'';
+  if(!cur||!cur.rows||!cur.rows.length||!late||lastP(late)>=lastP(cur))return late;
+  if(JSON.stringify(cur.regions)!==JSON.stringify(late.regions))return cur;
+  const lp=lastP(late), out=Object.assign({},late,cur);
+  out.rows=(late.rows||[]).concat(cur.rows.filter(r=>r.p>lp));
+  const cs=cur.sgg, ls=late.sgg;
+  if(cs&&ls&&ls.rows&&JSON.stringify(cs.codes)===JSON.stringify(ls.codes)){
+    const sp=lastP(ls);
+    out.sgg=Object.assign({},ls,{rows:ls.rows.concat((cs.rows||[]).filter(r=>r.p>sp))});
+  }
+  return out;
+}
 let _loaded={};
 function loadData(url){
   /* 통계 탭 진입 시 trend(그래프) → rest(기본통계 11계열) 순서로 둘 다 받는다.
@@ -219,7 +241,9 @@ function loadData(url){
     if(!r.ok)throw new Error('HTTP '+r.status);
     return r.json();
   }).then(d=>{
-    Object.assign(ADV,d.ADV); Object.assign(STATS,d.STATS);
+    const A=Object.assign({},d.ADV);
+    ['weekly','monthly'].forEach(k=>{ if(A[k])A[k]=lateBlock(ADV[k],A[k]); });
+    Object.assign(ADV,A); Object.assign(STATS,d.STATS);
     // 통계 화면 파일(home-stats.js)이 아직 오는 중이거나 못 받았으면 그 안내를 남긴다
     if(box&&!PART_WAIT&&!PART_FAIL)box.style.display='none';
   }).catch(e=>{
@@ -291,7 +315,10 @@ function showView(v,updateHash,quiet){
     if(curView==='test'&&v!=='test'&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
     const q=v==='test'?location.search:chalSearch();
     const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname+q:(q===location.search?full:location.pathname+q+full);
-    if(v===curView)history.replaceState(null,'',tgtUrl);
+    /* 같은 화면 탭을 다시 누를 때 지금 항목의 state 를 지우지 않는다 — null 을 넘기면 지역 그래프가 연 항목의 표지(trBase)가
+       사라져, 그 뒤 '지도'로 닫을 때 trHashDrop 이 한 칸 접지 못하고 같은 주소가 두 칸 쌓였다(첫 뒤로 가기가 헛돈다 —
+       2026-11-13 전수 리뷰). */
+    if(v===curView)history.replaceState(history.state,'',tgtUrl);
     else if(location.hash!==tgtHash)history.pushState(null,'',tgtUrl);
   }
   /* page_view 는 화면이 실제로 바뀔 때만, 부팅 때는 한 번만(A3·MEAS-1, 2026-09-27). 예전엔 gtag config 의 자동
@@ -330,7 +357,14 @@ document.querySelectorAll('.nav-btn').forEach(b=>{if(b.dataset.view)
    GA4 는 이벤트를 beacon 으로 보내 떠나는 클릭도 남는다. */
 document.querySelectorAll('.bottomnav .nav-btn').forEach(b=>b.addEventListener('click',()=>
   track('nav_tab',{tab:b.dataset.view||(b.getAttribute('href')||'').replace(/[^a-z]/g,'')})));
-function goQuiz(k){showView('test');startQuiz(k);}
+/* 대결 결과 화면에서 다른 테스트로 갈 때(‘투자자 테스트 도전하기’)는 지금 항목의 주소에서 대결 쿼리(c·s·q)를 **먼저** 걷는다.
+   안 걷으면 showView 가 쿼리를 남긴 채 지금 항목을 #test 로 바꾸고 startQuiz 가 새 항목에서만 쿼리를 걷어, 두 항목의 쿼리가
+   달라진다 — 뒤로 가기에 hashchange 가 오지 않아 주소만 바뀌고 화면은 새 테스트에 머물렀다(2026-11-13 전수 리뷰,
+   showView 의 2026-09-27 결함과 같은 꼴). */
+function goQuiz(k){
+  if(chalInURL(location.search))history.replaceState(history.state,'',location.pathname+chalSearch()+location.hash);
+  showView('test');startQuiz(k);
+}
 // 해시는 setStatsMode가 한 번만 쌓는다(showView까지 쌓으면 한 클릭에 두 칸)
 function goStats(m){showView('stats',false);setStatsMode(m);}
 // 리포트가 /cycle/로 가져간 앵커들. score는 일부러 뺐다 — zone 37장이
@@ -852,22 +886,25 @@ function tbBuild(){
   (P.rows||[]).forEach(function(r){ prow[tbMi(r.p)]=r; });
   var rows=[];
   for(var i=TB_FROM;i<=lastD+S.H*3;i++){
-    var fut=i>lastD, sup=[];
+    var fut=i>lastD, sup=[], raw=fut?[]:null;
     for(var k=0;k<regs.length;k++){
       var r=regs[k];
       if(fut){
-        /* ⚠️ 여기서 반올림하지 않는다. 월별로 반올림해 더하면 분기 합이
-           zone 페이지(분기 착공 합 × conv를 한 번만 반올림)와 어긋난다 —
-           미래 240칸 중 51칸이 ±1이었다(2026-08-07 감사). 표시 직전에 한 번만. */
+        /* ⚠️ 여기서 반올림도, 전환율 곱도 하지 않는다 — 착공 **원값**(f)만 싣고, tbAgg 가 기간 합에 전환율을 한 번 곱한다.
+           월별로 반올림해 더하면 분기 합이 zone 페이지(분기 착공 합 × conv 를 한 번만 반올림)와 어긋났다(미래 240칸 중 51칸이
+           ±1, 2026-08-07 감사). 달마다 곱해 더해도 어긋난다: 분기 착공 합의 끝 세 자리가 500 이면 곱이 정확히 x.5 인데 달마다
+           곱한 합은 부동소수 오차로 x.4999… 가 되어 1세대 아래로 반올림된다(169·9·322 → 473 대 474 — 2026-11-13 전수 리뷰.
+           그런 칸이 표에 드는 날 홈과 리포트가 갈리고, 두 쪽을 칸마다 대조하는 게이트 시험이 그날 데이터 커밋을 막는다). */
         var j=ki[i-LEAD];
-        sup.push(j==null?0:((K.series[r]||[])[j]||0)*S.conv);
+        raw.push(j==null?0:((K.series[r]||[])[j]||0));
+        sup.push(0);
       }else{
         var n=di[i];
         sup.push(n==null?0:((D.series[r]||[])[n]||0));
       }
     }
     var pr=fut?null:prow[i];
-    rows.push({i:i,fut:fut,s:sup,
+    rows.push({i:i,fut:fut,s:sup,f:raw,
       m:pr?regs.map(function(r){return (pr.ma||[])[pi[r]];}):null,
       j:pr?regs.map(function(r){return (pr.je||[])[pi[r]];}):null,
       w:pr?regs.map(function(r){return (pr.wo||[])[pi[r]];}):null});
@@ -878,7 +915,7 @@ function tbBuild(){
   var un={},pm={};
   S.zones.forEach(function(z){ un[z.z]=z.unsold; pm[z.z]=z.pm12; });
   /* 분기·연 가격 합은 split_data 가 원값으로 한 번 더해 실은 ADV.monthly.agg 를 읽는다(tbAgg). pidx 는 regs → 그 배열의 칸. */
-  return TB_BCACHE={regs:regs,refs:refs,est:est,rows:rows,H:S.H,L:S.L,
+  return TB_BCACHE={regs:regs,refs:refs,est:est,rows:rows,H:S.H,L:S.L,conv:S.conv,
           un:un,pm:pm,uprd:S.unsold_prd,
           pagg:P.agg||null,pidx:regs.map(function(r){return pi[r];})};
 }
@@ -898,18 +935,22 @@ function tbAgg(rows,per){
     var g=Math.floor(r.i/size);
     if(cur===null||g!==key){
       key=g;
-      cur={i:g*size,g:g,n:0,nf:0,s:r.s.map(function(){return 0;}),m:null,j:null,w:null,c:{}};
+      cur={i:g*size,g:g,n:0,nf:0,s:r.s.map(function(){return 0;}),f:r.s.map(function(){return 0;}),m:null,j:null,w:null,c:{}};
       out.push(cur);
     }
     cur.n++; if(r.fut) cur.nf++;
     r.s.forEach(function(v,k){ cur.s[k]+=v; });
+    if(r.f) r.f.forEach(function(v,k){ cur.f[k]+=v; });      // 미래 달의 착공 원값 — 전환율은 아래에서 기간 합에 한 번
     ['m','j','w'].forEach(function(f){
       if(!r[f]) return;
       if(!cur[f]){ cur[f]=r.s.map(function(){return null;}); cur.c[f]=r.s.map(function(){return 0;}); }
       r[f].forEach(function(v,k){ if(v!=null){ cur[f][k]=(cur[f][k]||0)+v; cur.c[f][k]++; } });
     });
   });
+  var conv=(B&&B.conv)||0;
   out.forEach(function(c){
+    c.s=c.s.map(function(v,k){ return c.f[k]?v+c.f[k]*conv:v; });   // 실적 합 + (착공 원값 합 × 전환율) — 리포트와 같은 셈 순서
+    delete c.f;
     c.fut=(c.nf===c.n);                 // 전부 미래일 때만 미래 행
     c.mix=(c.nf>0&&c.nf<c.n);           // 실적과 추정이 한 칸에 섞였다
     c.part=(c.n<size);                  // 기간이 덜 찼다(표 시작·끝)

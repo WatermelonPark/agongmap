@@ -10,7 +10,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_STATS_BUILD='v220';
+var HOME_STATS_BUILD='v221';
 /* 착공→준공 시차별 연결 강도(r) — rebuild_cycle_analysis.link45_leadtime 과 **같은 계산**(전국 착공·준공 12개월 이동평균,
    과거 = 2018.01 앞 착공, 최근 = 그 뒤)을 시차 20~50개월에 펼친 곡선. 봉우리(최강 시차)는 박지 않고 곡선에서 찾는다
    (leadPeak) — 예전엔 옛 분석값 peak_old [27,0.96] 을 따로 박아 같은 화면 주석(28개월)·정본과 갈렸다(전수리뷰 #50·#105).
@@ -65,10 +65,15 @@ function statsOpen(){
     renderReleaseInfo();
     renderWeekSec();
     renderMonthSec();
+    /* 버블밴드는 여기서 그린다 — 입력이 trend 의 ADV.bubble 하나다. 예전엔 기본통계(data-rest.json) 뒤에 묶여 있어, 그 파일만
+       못 받으면 버블밴드 탭이 제목과 출처 줄만 남고 안내 없이 비었다(2026-11-13 전수 리뷰). */
+    renderBubbleSec();
   });
-  return TREND_P.then(()=>ensureBasicStats()
-      .then(()=>{ renderBubbleSec(); initStats(); }))
-    .catch(()=>{statsInited=false;TREND_P=null;});
+  /* 그래프 데이터(trend)를 못 받은 것과 기본통계(rest)를 못 받은 것을 가른다. trend 실패는 안내 칸에 '다시 시도' 단추를 단다 —
+     대기열을 거치지 않는 재시도(단추가 이 함수를 바로 부른다)가 또 실패하면 loadData 의 글자만 남고 단추가 사라졌다(같은 리뷰).
+     rest 실패는 그래프가 멀쩡하므로 안내 칸을 건드리지 않는다(기본통계 구역의 #src-note 가 말한다). */
+  return TREND_P.then(()=>ensureBasicStats().then(()=>{ initStats(); }).catch(()=>{statsInited=false;TREND_P=null;}),
+    ()=>{statsInited=false;TREND_P=null;partBusy('stats','statsOpen','fail');});
 }
 /* 기본통계(13계열)는 이 함수를 거쳐서만 그린다 */
 /* ============ 통계 대시보드 ============ */
@@ -920,15 +925,20 @@ function sggHas(S,c){
   const i=S.codes.indexOf(c);
   return i>=0&&(S.rows||[]).some(r=>['ma','je','wo'].some(f=>(r[f]||[])[i]!=null));
 }
-/* 구를 가진 시의 '시 전체' 행(수원·성남·용인·안양·고양·부천·안산·화성·청주·천안·전주·포항·창원) — 한국부동산원이 시 전체 값도
+/* 구를 가진 시의 '시 전체' 행(수원·성남·용인·안양·고양·부천·안산·화성·청주·천안·전주·포항·창원 등 — 목록은 데이터에서 센다) — 한국부동산원이 시 전체 값도
    내는데, 공용 이름표(SGG_QNAME)에 없어 지역 선택에서 고를 수 없었다(2026-10-29 대표 지적 '성남시 전체가 없다'). 그래프·표의
    지역 선택에서만 고를 수 있게 한다(대표 결정 10-29) — TOP 10·/weekly/ 전체 표·시도 리포트 표는 시와 그 구가 함께 순위에 오르지
-   않게 넣지 않으므로 SGG_QNAME 에 올리지 않고 여기서 따로 찾는다. 어느 코드가 시 전체인지는 손으로 적지 않는다: 자기 코드로
-   시작하는 이름 있는 구가 있으면 시 전체다. 이름은 지도 칸 이름(NATION_TILE)에 ' 전체'. */
+   않게 넣지 않으므로 SGG_QNAME 에 올리지 않고 여기서 따로 찾는다. 어느 코드가 시 전체인지는 손으로 적지 않는다: 지도 칸 이름
+   (NATION_TILE)으로 시작하는 구 이름표가 있으면 시 전체다. 이름은 그 칸 이름에 ' 전체'. */
 function sggCityName(S,c){
-  if(SGG_QNAME[c]||c.length<=2||!S.codes.some(x=>x!==c&&x.indexOf(c)===0&&SGG_QNAME[x]))return null;
+  if(SGG_QNAME[c]||c.length<=2)return null;
   const t=(typeof NATION_TILE!=='undefined'?NATION_TILE.t:[]).find(r=>r[0]===c);
-  return t?t[1]+' 전체':null;
+  if(!t)return null;
+  /* 그 시의 구인가는 **이름**으로 본다(구 이름표가 '천안 동남구'처럼 시 이름으로 시작한다). 예전엔 코드 앞말로 봐서, 구 코드가
+     시 코드로 시작하지 않는 천안(c301 — 구는 c302·c303)·전주(c401 — c402·c403)가 빠졌다: 지도에서 그 칸을 누르면 주소는
+     ~c301 인데 화면은 충남 전체 그래프였고 지역 선택에도 '천안 전체'가 없었다(2026-11-13 전수 리뷰). */
+  const pre=t[1]+' ';
+  return S.codes.some(x=>x!==c&&SGG_QNAME[x]&&SGG_QNAME[x].indexOf(pre)===0)?t[1]+' 전체':null;
 }
 function sggName(S,c){ return SGG_QNAME[c]||sggCityName(S,c); }
 /* 그래프·표 지역 선택 목록 = 시 전체 행 + 시군구(sggOfSido). 시 전체는 그 구들 바로 앞에 선다(fillSggSel 의 정렬 이름). */

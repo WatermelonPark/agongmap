@@ -35,7 +35,7 @@
 | 퀴즈 3종(`burini-test/`, `investor-test/`, `redev-test/`) | 랜딩은 손으로 쓴 파일, 점수별 하위 페이지(`/0/`~)는 `make_quiz_share_pages.py`가 만든다(사람이 돌리고 커밋한다). 퀴즈 정본 읽기는 `home_src.quiz_len()`·`quiz_grades()`·`quiz_grade_of()` 하나로 하고, 손으로 적은 'N문항'은 `test_every_quiz_count_follows_quiz_len`이 대조한다 |
 | `about/`, `faq/`, `privacy/`, `404.html` | 손 페이지. GA 이벤트를 더하거나 보내는 값을 바꾸면 개인정보처리방침의 전송 목록 표(`#ga-events`)도 고친다(`test_privacy_ga_events`가 코드의 모든 GA 호출과 대조). 목록은 '사이트 코드가 보내는 이벤트'이고 GA 자동 수집은 `#ga-auto` 한 줄로 밝힌다. 목록을 고치면 변경 이력에 오늘 날짜 줄(`data-ga` 지문)을 더하고 '최근 개정'도 고친다(`test_privacy_history_follows_the_event_table`) |
 | `tools/` | 배치·생성기·점검 도구 (아래 표) |
-| `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다. 시험 중 블로그 초안 도구(make_naver_post·make_theory_post·make_city_post)의 쓰기 자리(OUT·STATE)는 conftest 의 autouse 픽스처 `_drafts_out_of_repo`가 임시 폴더로 돌리고, 저장소 쓰기 감시가 gitignore 폴더 `drafts/`도 파일마다 본다 — 초안 도구에 새 쓰기 자리 상수를 두면 conftest 의 `_DRAFT_TOOLS`에도 올린다(`test_repo_write_guard`) |
+| `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다. 홈 스크립트 조각을 node 에 올리는 새 시험은 공용 도우미 `tools/tests/_js.py`(`fn`·`node`)를 쓴다. 시험 중 블로그 초안 도구(make_naver_post·make_theory_post·make_city_post)의 쓰기 자리(OUT·STATE)는 conftest 의 autouse 픽스처 `_drafts_out_of_repo`가 임시 폴더로 돌리고, 저장소 쓰기 감시가 gitignore 폴더 `drafts/`도 파일마다 본다 — 초안 도구에 새 쓰기 자리 상수를 두면 conftest 의 `_DRAFT_TOOLS`에도 올린다(`test_repo_write_guard`) |
 | `tools/data/` | 시딩 데이터·캐시·스탬프. 도시 입주물량 `city_moveins.json`·블로그 최신 글 `blog_latest.json`·`.home_stamp`는 배치가 커밋한다. `tools/cache/`와 벌크 원본은 gitignore |
 | `docs/` | 요청서·결정 기록·백로그. 날짜 접두 파일명. 목록은 `docs/README.md`, 종결된 문서는 `docs/archive/`로 옮긴다 |
 | `.github/workflows/` | 워크플로 열 개 (아래 "워크플로" 표) |
@@ -244,9 +244,13 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
 - **주소가 화면을 말하고, 늦게 온 데이터가 사람이 고른 보기를 덮지 않는다**: 주소 입구는 요청한 때의 `GT_SEQ`를 넘기고(그사이 사람이 다른
   보기를 고르면 버린다), 주소 입구가 대기열에 넣은 부름은 그사이 화면이 옮겨졌으면 버리며(`NAV_N`), 지역 그래프에서 그래프↔표를 바꾸면
   주소의 `-t`도 맞추고, 그래프를 닫을 때는 들어온 항목을 한 칸 뒤로 접는다(`trHashDrop`). '다시 시도'는 들어온 입구를 다시 연다(`statsRetry`).
+- **늦게 받는 조각이 코어의 새 주·달을 덮지 않는다.** 통계 탭을 열 때 받는 `data-trend.json`이 코어(`data-core.js`)보다 옛 판이면
+  (서비스워커 캐시본) `lateBlock`이 trend 의 이력에 코어의 새 행을 이어 붙이고 머리는 코어 것을 둔다(`test_home_late_data`).
+- 홈 공급 표의 미래 칸은 착공 **기간 합**에 전환율을 한 번 곱한다(`tbAgg` — 시도 리포트 `series`와 같은 셈 순서). 달마다 곱해 더하면
+  분기 합 끝이 500 인 칸에서 1세대 갈린다.
 - 시세 탭 지역 선택 상자는 판정 단위를 `DISPLAY_ORDER`로, 그 밖의 원천 권역 행은 뒤에 둔다. 시군구 이름표는 다른 이름의 앞말과 같으면
   안 된다(경기 광주시는 '경기 광주'). 구를 가진 시(성남·수원·청주 등)의 시 전체 행은 공용 이름표(`SGG_QNAME`)에 올리지 않고 시세 탭
-  그래프·표 지역 선택에서만 '성남 전체'로 고른다(`sggPickOf`·`sggCityName` — 시 코드는 데이터에서 센다. TOP 10·`/weekly/` 표·시도 리포트
+  그래프·표 지역 선택에서만 '성남 전체'로 고른다(`sggPickOf`·`sggCityName` — 시 코드는 데이터에서 센다: 지도 칸 이름으로 시작하는 구 이름표가 있으면 시 전체다. TOP 10·`/weekly/` 표·시도 리포트
   표에는 넣지 않는다, 2026-10-29 대표 결정).
 
 ## 정본: sido_zones

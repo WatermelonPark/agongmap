@@ -129,7 +129,8 @@ const calls={kakao:[],share:[],clip:[],ev:[],loaded:0};
 globalThis.window=globalThis;
 globalThis.gtag=(a,b,c)=>calls.ev.push([a,b,c]);
 globalThis.document={querySelector:()=>null,createElement:()=>({}),
-  head:{appendChild:s=>{calls.loaded++;setTimeout(()=>MODE.sdk==='ok'?(globalThis.Kakao=KAKAO,s.onload()):s.onerror(),0);}}};
+  head:{appendChild:s=>{calls.loaded++;setTimeout(()=>MODE.sdk==='ok'?(globalThis.Kakao=KAKAO,s.onload()):
+    MODE.sdk==='empty'?s.onload():s.onerror(),0);}}};   // empty: 파일은 왔는데 window.Kakao 가 안 생긴다(차단기의 빈 응답)
 const KAKAO={_i:false,isInitialized(){return this._i;},init(k){calls.key=k;this._i=true;},
   Share:{sendDefault:o=>calls.kakao.push(o)}};
 const nav={clipboard:{writeText:t=>{calls.clip.push(t);return Promise.resolve();}}};
@@ -422,3 +423,50 @@ def test_quiz_landings_use_the_home_kakao_key_and_sdk():
         if sdks != [sdk]:
             bad.append('%s: SDK %s (홈 %s)' % (rel, sdks, sdk))
     assert not bad, '랜딩의 카카오 키·SDK 가 홈 정본과 다르다: %s' % bad
+
+
+def test_an_sdk_that_loads_without_defining_kakao_falls_back_instead_of_spinning():
+    """카카오 SDK 파일이 왔는데(onload) window.Kakao 가 안 생기면 실패로 보고 OS 공유로 넘어간다 — 생성 페이지 공유 조각과 홈 둘 다.
+
+    왜: 콘텐츠 차단기가 SDK 를 빈 응답으로 바꿔 주거나 옛 웹뷰에서 SDK 실행이 죽으면 onload 는 오고 Kakao 는 없다. 실패 표식은
+        onerror 에서만 섰기 때문에, 공유 함수가 이미 풀린 약속을 받아 자기를 끝없이 다시 불러 그 탭이 멈췄다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): page_share 의 onload 에서 `if(!window.Kakao)FAIL=true;` 를 지우면 첫 묶음이, 홈 loadKakao 의
+          `.then(()=>{ if(!window.Kakao)KAKAO_FAIL=true; })` 를 지우면 둘째 묶음이 끝나지 않아 시간 초과(20초)로 빨개진다.
+    픽스처: 방금 구운 공유 조각(PS.block)과 저장소 홈의 loadKakao·needKakao 를, 'onload 는 오지만 Kakao 는 없는' 문서 모형에서 돌린다.
+    """
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+
+    def run(js):
+        try:
+            p = subprocess.run(['node', '-e', js], capture_output=True, timeout=20)
+        except subprocess.TimeoutExpired:
+            pytest.fail('공유가 끝나지 않는다 — SDK 가 Kakao 를 만들지 못했을 때 자기를 끝없이 다시 부른다')
+        assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
+        return json.loads(p.stdout.decode('utf-8'))
+
+    d = {'ct': 'weekly', 'url': 'https://example.invalid/weekly/', 'title': '제목', 'text': '설명',
+         'img': 'https://example.invalid/a.png', 'w': 1200, 'h': 630, 'btn': '보기'}
+    html = PS.block(d, '')
+    m = re.search(r'<script>(\(function\(\)\{var D=.*?\}\)\(\);)</script>', html, re.S)
+    assert m
+    c = run('const MODE=%s;' % json.dumps({'sdk': 'empty', 'os': True}) + _STUB + m.group(1)
+            + '\nagShare("kakao",{innerHTML:"",textContent:""});'
+              'setTimeout(()=>process.stdout.write(JSON.stringify(calls)),50);')
+    assert c['loaded'] == 1 and not c['kakao'] and [x['url'] for x in c['share']] == [d['url']], c
+    app = dict(HS.home_files())['home-app.js']
+
+    def fn(name):
+        a = app.index('\nfunction %s(' % name) + 1
+        i, depth = app.index('{', a), 0
+        for j in range(i, len(app)):
+            depth += {'{': 1, '}': -1}.get(app[j], 0)
+            if depth == 0:
+                return app[a:j + 1]
+
+    c = run('globalThis.window=globalThis; let n=0, fell=0;\n'
+            'function loadScript(u){ n++; return new Promise(r=>setTimeout(r,0)); }\n'      # 파일은 온다. Kakao 는 안 생긴다
+            'let KAKAO_P=null, KAKAO_FAIL=false;\n' + fn('loadKakao') + '\n' + fn('needKakao') + '\n'
+            'function share(){ if(needKakao(share))return; fell++; }\n'
+            'share(); setTimeout(()=>process.stdout.write(JSON.stringify({n:n,fell:fell,fail:KAKAO_FAIL})),50);')
+    assert c == {'n': 1, 'fell': 1, 'fail': True}, c

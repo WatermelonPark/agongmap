@@ -8,7 +8,7 @@
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 의 home_source() 로 읽는다(홈 스크립트에 이어 붙어 온다). */
 /* 판 표식 — home-app.js HOME_BUILD·sw.js VERSION 과 같은 값(test_home_build). 받은 뒤 홈이 견줘 다르면 한 번 새로고침한다
    (partBuildOk: 열어 둔 옛 판 탭이 배포 뒤 ?v=옛판 주소로 새 판 파일을 받는 경우). VERSION 을 올리면 여기도 같이. */
-var HOME_QUIZ_BUILD='v220';
+var HOME_QUIZ_BUILD='v221';
 const QUIZSETS={
   beginner:{
     title:'부린이 테스트', emoji:'🐣',
@@ -679,7 +679,7 @@ function versusHTML(){
 /* 공유 문구 — 세트마다 카드 그림(share/<세트>-N.png)과 같은 말(전수리뷰 #86, test_quiz_share_text 가 세 세트의 카드
    생성기 문구와 대조한다). 부린이는 BLV, 재건축은 QUIZSETS.calc.taunt(카드 생성기가 읽는 표), 투자자는 아래 구간. */
 function shareTaunt(s){
-  const i=Math.max(0,Math.min(10,s|0));
+  const i=Math.max(0,Math.min(QUIZ_LEN,s|0));   // 점수 0~문항 수 — 문항 수를 박지 않는다
   if(curSet==='beginner')return BLV[i].taunt;
   const tt=QUIZSETS[curSet]&&QUIZSETS[curSet].taunt;
   if(tt&&tt[i])return tt[i].join(' ');
