@@ -6,7 +6,14 @@
   <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 통계를 알립니다.</description>
   <language>ko</language>
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
-  <lastBuildDate>Sat, 07 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <lastBuildDate>Thu, 12 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <item>
+    <title>주간 아파트가격 동향 2026년 11월 둘째 주 · 전국·서울 아파트 시세 지도</title>
+    <link>https://www.agongmap.co.kr/weekly/</link>
+    <guid isPermaLink="false">agongmap-weekly-2026-11-12</guid>
+    <pubDate>Thu, 12 Nov 2026 00:00:00 +0900</pubDate>
+    <description>11/9 조사 · 11/12 발표 기준 이번 주 아파트 매매가격은 전국 +0.07%, 경기 +0.21%로 가장 크게 올랐다. 시군구 상승 1위 용인 기흥구 +0.63%, 하락 1위 서울 송파구 -0.35%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
+  </item>
   <item>
     <title>2027년 안산 아파트 분양·입주물량, 한 단지로 적정의 22%입니다</title>
     <link>https://www.agongmap.co.kr/city/ansan-2027-moveins/</link>
@@ -118,13 +125,6 @@
     <guid isPermaLink="false">agongmap-content-danji-sanggye6-nowon</guid>
     <pubDate>Fri, 06 Nov 2026 00:00:00 +0900</pubDate>
     <description>상계주공6단지 2,646세대는 2026년 3월 추진위원회 승인을 받고 7월 16일부터 8월 18일까지 최고 59층 3,573세대 정비계획과 정비구역 지정안을 공람했다. 24평형 실거래 중위값은 최근 1년 사이 23% 올랐다.</description>
-  </item>
-  <item>
-    <title>주간 아파트가격 동향 2026년 11월 첫째 주 · 전국·서울 아파트 시세 지도</title>
-    <link>https://www.agongmap.co.kr/weekly/</link>
-    <guid isPermaLink="false">agongmap-weekly-2026-11-05</guid>
-    <pubDate>Thu, 05 Nov 2026 00:00:00 +0900</pubDate>
-    <description>11/2 조사 · 11/5 발표 기준 이번 주 아파트 매매가격은 전국 +0.07%, 경기 +0.20%로 가장 크게 올랐다. 시군구 상승 1위 용인 기흥구 +0.61%, 하락 1위 서울 강남구 -0.39%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
   </item>
   <item>
     <title>진주 2027년 입주 단지는 없고 세 해 합쳐도 적정물량의 24%입니다</title>
@@ -278,14 +278,14 @@
     <link>https://www.agongmap.co.kr/city/gimpo-2027-moveins/</link>
     <guid isPermaLink="false">agongmap-content-city-gimpo-2027-moveins</guid>
     <pubDate>Tue, 27 Oct 2026 00:00:00 +0900</pubDate>
-    <description>김포 2027년 입주 물량은 1,200세대로, 인구로 잡은 한 해 적정물량의 31%입니다.</description>
+    <description>김포 입주는 2027년 1,200세대(적정물량의 31%)에 그치다가, 2028년 한 해 적정물량의 236%인 9,122세대가 한꺼번에 들어와 전셋값이 조정받습니다.</description>
   </item>
   <item>
     <title>구미 2028년 입주는 적정물량의 4%, 2027년 뒤로 신축이 끊깁니다</title>
     <link>https://www.agongmap.co.kr/city/gumi-2027-moveins/</link>
     <guid isPermaLink="false">agongmap-content-city-gumi-2027-moveins</guid>
     <pubDate>Tue, 27 Oct 2026 00:00:00 +0900</pubDate>
-    <description>구미 2027년 입주 물량은 4,581세대로, 인구로 잡은 한 해 적정물량의 142%입니다.</description>
+    <description>구미 2028년 입주는 135세대로 인구로 잡은 한 해 적정물량의 4%뿐입니다. 2027년 입주장(적정물량의 142%) 뒤로 신축이 끊겨 공급은 부족한 방향입니다.</description>
   </item>
   <item>
     <title>평택 2027년 입주는 적정물량의 224%, 두 해 공급이 시세를 누릅니다</title>
@@ -306,7 +306,7 @@
     <link>https://www.agongmap.co.kr/city/uijeongbu-2027-moveins/</link>
     <guid isPermaLink="false">agongmap-content-city-uijeongbu-2027-moveins</guid>
     <pubDate>Tue, 27 Oct 2026 00:00:00 +0900</pubDate>
-    <description>의정부 2027년 입주 물량은 2,809세대로, 인구로 잡은 한 해 적정물량의 76%입니다.</description>
+    <description>의정부 입주는 2027년 2,809세대(적정물량의 76%)로 가을에 전셋값이 조정받고, 2028년에는 적정물량의 15%인 538세대로 줄어 다시 빠듯해집니다.</description>
   </item>
   <item>
     <title>용인 2027년 입주는 적정물량의 60%, 그마저 처인구에 몰립니다</title>

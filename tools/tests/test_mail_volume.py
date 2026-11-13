@@ -367,3 +367,21 @@ def test_info_lines_ride_along_only_when_a_comment_goes_out():
     weekday, mention = F.build(raw, KST, 'u', 'O', 3)
     assert '원천 일부 실패' in monday and '**참고:**' in monday
     assert not mention and F.headline(raw, KST, 3).startswith('🟢'), 'ℹ️ 줄이 메일을 불러선 안 된다'
+
+
+def test_a_push_to_main_cannot_cancel_the_nightly_test_run():
+    """매일 밤 예약 시험과 main 푸시 시험은 다른 concurrency 그룹이다 — 푸시가 예약 실행을 취소하지 못한다.
+
+    왜: 그룹이 ref 만 보면 둘이 같은 그룹이라(둘 다 refs/heads/main), 예약 실행이 도는 동안 PR 이 병합되면 푸시 실행이 예약
+        실행을 취소한다. 취소는 conclusion 이 'failure' 가 아니라 nightly-alert 조건에 안 걸리고, 대신 돈 실행은 event 가
+        push 라 역시 안 걸린다 — 그날 밤 경보가 통째로 빠진다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): ci-tests.yml 의 group 에서 `${{ github.event_name }}` 을 지우면 빨개진다.
+    픽스처: 저장소의 실제 ci-tests.yml(예약·푸시 트리거와 concurrency 구간).
+    """
+    w = _code(_wf('ci-tests.yml'))
+    on = w[w.index('\non:'):w.index('\npermissions:')]
+    assert 'schedule:' in on and 'push:' in on, '예약·푸시 둘 다 도는 워크플로가 아니다 — 이 시험의 전제를 다시 볼 것'
+    m = re.search(r'^concurrency:\n(?:\s*#.*\n)*\s*group:\s*(.+)$', w, re.M)
+    assert m, 'ci-tests 에 concurrency group 이 없다'
+    assert 'github.event_name' in m.group(1), '그룹이 이벤트를 가르지 않는다: %s' % m.group(1)
+    assert 'cancel-in-progress: true' in w

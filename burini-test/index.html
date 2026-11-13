@@ -74,24 +74,25 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   "about": {"@type": "Thing", "name": "부동산 상식"}
 }
 </script>
-<style>b,strong{font-weight:600}
-  :root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+b,strong{font-weight:600}
+  :root{--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;
     --muted:#5e6f74;--line:#c4cec9;--jeonse:#6c4ab6;--stock:#1f8a70;--green:#1a6b54}
   /* 조판 치수 — 공용 시트 :root 정본의 사본이다. 값을 손으로 바꾸지 말 것(test_design_tokens 가 일치를 고정한다) */
   :root{--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
-    font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     line-height:1.7;-webkit-font-smoothing:antialiased;padding-bottom:78px}
   .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
   header{padding:56px 0 36px;text-align:center}
   .chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;
-    background:var(--ink);padding:6px 16px;border-radius:0;margin-bottom:18px}
+    background:var(--brand);padding:6px 16px;border-radius:0;margin-bottom:18px}
   h1{font-size:var(--h1-report);font-weight:700;letter-spacing:-.02em;line-height:1.25;margin-bottom:14px}
   h1 em{font-style:normal;color:var(--ink)}
   .lead{font-size:var(--fs-read);color:var(--ink2);max-width:440px;margin:0 auto}
   .cta{display:block;width:100%;max-width:400px;margin:26px auto 0;text-align:center;text-decoration:none;
-    background:var(--ink);color:#fff;font-size:18px;font-weight:600;padding:17px 24px;border-radius:3px}
+    background:var(--brand);color:#fff;font-size:18px;font-weight:600;padding:17px 24px;border-radius:3px}
   .cta:active{transform:scale(.98)}
   .cta.sub{background:#fff;color:var(--ink);border:1.5px solid var(--ink);margin-top:12px}
   .meta{font-size:13px;color:var(--muted);text-align:center;margin-top:14px}
@@ -113,7 +114,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 td{text-align:left}
 th{text-align:center}
   th{background:var(--paper2);font-size:13px;color:var(--ink2)}
-  td:first-child{font-weight:600;white-space:nowrap}
+  td:first-child{font-weight:600;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}   /* 점수 열은 숫자 — 오른쪽 맞춤(11-12 디자인 마감 점검) */
   .links{display:flex;flex-direction:column;gap:10px;margin-top:14px}
   .links a{display:block;background:#fff;border:1px solid var(--line);border-radius:0;
     padding:14px 18px;text-decoration:none;color:var(--ink);font-size:14.5px;font-weight:600}
@@ -121,24 +122,27 @@ th{text-align:center}
   footer{padding:30px 0 60px;text-align:center;font-size:13px;color:var(--muted);line-height:1.7}
   footer a{color:var(--muted)}
 
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);
  display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(19,30,36,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;
  justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn svg{display:block}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}
 .nav-btn.on,.nav-btn:hover{color:#fff}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 페이지는 공용 시트를 안 읽어 규칙을 동봉한다(2026-09-30 전수리뷰 #71) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
+
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}   /* 본문 링크는 남색 밑줄(2026-11-11 색 감사 — 링크가 본문과 같은 먹색이라 눌리는 곳이 안 보였다) */
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <header><div class="wrap">
-  <div class="chip">🐣 부린이 테스트</div>
+  <div class="chip">부린이 테스트</div>
   <h1>내 부동산 감각,<br><em>몇 점일까?</em></h1>
   <p class="lead">내집마련 전에 꼭 알아야 할 부동산 상식 10문항. 2지선다라 부담 없고, 문항마다 즉시 채점·해설이 달립니다. 5분이면 끝.</p>
   <a class="cta" href="/#test-beginner">부린이 테스트 시작하기</a>

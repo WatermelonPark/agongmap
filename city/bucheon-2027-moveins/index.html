@@ -109,16 +109,17 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     ]
   }
 ]</script>
-<style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -161,14 +162,16 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -184,9 +187,9 @@ footer a{color:var(--ink2)}
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -199,12 +202,12 @@ footer a{color:var(--ink2)}
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -246,11 +249,12 @@ footer a{color:var(--ink2)}
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -275,10 +279,10 @@ footer a{color:var(--ink2)}
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
@@ -290,14 +294,14 @@ footer a{color:var(--ink2)}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -305,7 +309,7 @@ footer a{color:var(--ink2)}
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
@@ -372,24 +376,24 @@ footer a{color:var(--ink2)}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header class="post-head"><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/reports/">콘텐츠</a> › <a href="/city/">도시 입주물량</a></nav><p class="eyebrow"><a href="/city/">내 동네, 앞으로 입주 얼마나?</a> · 부천</p><h1>부천 2027년 입주는 적정물량의 66%, 원미구는 거의 없습니다</h1><p class="cmeta">2026년 10월 27일 작성 · 2026년 11월 7일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
-<main id="main"><section><div class="wrap"><div class="ctldr"><b>3줄 요약</b><ol><li>2027년 부천 입주는 3,962세대로 적정물량의 66%입니다</li><li>입주는 소사·오정에 몰리고 오름세를 이끄는 원미구는 2028년까지 거의 없습니다</li><li>2028년 입주는 적정물량의 32%로 더 줄어 부천 오름세는 이어집니다</li></ol></div><p class="caud"><b>이 글이 맞는 분</b>2027~2028년 부천 원미·소사·오정 매매·전세를 재는 실수요자</p><div class="ckey"><strong>3,962세대</strong><span>2027년 입주</span></div><div class="cbody"><p>부천에서 오름세를 이끄는 원미구 아파트 매매가는 42주 연속 상승(11월 2일 조사)입니다. 2027년 부천 입주 물량은 3,962세대로, 한 해 적정물량의 66%입니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>66%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="부천 연도별 입주 물량 막대그래프. 2026년 186세대, 2027년 3,962세대, 2028년 1,911세대, 2029년 1,873세대, 2032년 3,017세대. 한 해 적정물량은 6,028세대. 3년 합계(2027~2029년) 7,746세대 · 적정물량 대비 43%." class="cchart-svg"><rect x="120.0" y="165.7" width="72.0" height="4.3" class="cb"/><text x="156.0" y="161.7" class="cb-v">186</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="78.0" width="72.0" height="92.0" class="cb"/><text x="238.0" y="74.0" class="cb-v cb-k">3,962</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="125.6" width="72.0" height="44.4" class="cb"/><text x="320.0" y="121.6" class="cb-v">1,911</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="126.5" width="72.0" height="43.5" class="cb"/><text x="402.0" y="122.5" class="cb-v">1,873</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="99.9" width="72.0" height="70.1" class="cb"/><text x="484.0" y="95.9" class="cb-v cb-k">3,017</text><text x="484.0" y="202" class="cb-x">2032</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 6,028세대</text></svg><figcaption>부천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/9 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 7,746세대 · 적정물량 대비 43%</p></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>186</td><td>3%</td></tr><tr><th scope="row">2027</th><td>3,962</td><td>66%</td></tr><tr><th scope="row">2028</th><td>1,911</td><td>32%</td></tr><tr><th scope="row">2029</th><td>1,873</td><td>31%</td></tr><tr><th scope="row">2032</th><td>3,017</td><td>50%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 6,028세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
+<main id="main"><section><div class="wrap"><div class="ctldr"><b>3줄 요약</b><ol><li>2027년 부천 입주는 3,962세대로 적정물량의 66%입니다</li><li>입주는 소사·오정에 몰리고 오름세를 이끄는 원미구는 2028년까지 거의 없습니다</li><li>2028년 입주는 적정물량의 32%로 더 줄어 부천 오름세는 이어집니다</li></ol></div><p class="caud"><b>이 글이 맞는 분</b>2027~2028년 부천 원미·소사·오정 매매·전세를 재는 실수요자</p><div class="ckey"><strong>3,962세대</strong><span>2027년 입주</span></div><div class="cbody"><p>부천에서 오름세를 이끄는 원미구 아파트 매매가는 43주 연속 상승(11월 9일 조사)입니다. 2027년 부천 입주 물량은 3,962세대로, 한 해 적정물량의 66%입니다.</p>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>66%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="부천 연도별 입주 물량 막대그래프. 2026년 186세대, 2027년 3,962세대, 2028년 1,911세대, 2029년 2,421세대, 2030년 입주 예정 없음, 2031년 입주 예정 없음, 2032년 3,017세대. 한 해 적정물량은 6,028세대. 3년 합계(2027~2029년) 8,294세대 · 적정물량 대비 46%." class="cchart-svg"><rect x="38.0" y="165.7" width="72.0" height="4.3" class="cb"/><text x="74.0" y="161.7" class="cb-v">186</text><text x="74.0" y="202" class="cb-x">2026</text><rect x="120.0" y="78.0" width="72.0" height="92.0" class="cb"/><text x="156.0" y="74.0" class="cb-v cb-k">3,962</text><text x="156.0" y="202" class="cb-x cb-x2">2027</text><rect x="202.0" y="125.6" width="72.0" height="44.4" class="cb"/><text x="238.0" y="121.6" class="cb-v">1,911</text><text x="238.0" y="202" class="cb-x">2028</text><rect x="284.0" y="113.8" width="72.0" height="56.2" class="cb"/><text x="320.0" y="109.8" class="cb-v">2,421</text><text x="320.0" y="202" class="cb-x cb-x2">2029</text><text x="402.0" y="166.0" class="cb-v cb-k cb-none">없음</text><text x="402.0" y="202" class="cb-x">2030</text><text x="484.0" y="166.0" class="cb-v cb-k cb-none">없음</text><text x="484.0" y="202" class="cb-x cb-x2">2031</text><rect x="530.0" y="99.9" width="72.0" height="70.1" class="cb"/><text x="566.0" y="95.9" class="cb-v cb-k">3,017</text><text x="566.0" y="202" class="cb-x">2032</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 6,028세대</text></svg><figcaption>부천 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/13 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 8,294세대 · 적정물량 대비 46%</p></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>186</td><td>3%</td></tr><tr><th scope="row">2027</th><td>3,962</td><td>66%</td></tr><tr><th scope="row">2028</th><td>1,911</td><td>32%</td></tr><tr><th scope="row">2029</th><td>2,421</td><td>40%</td></tr><tr><th scope="row">2030</th><td>입주 예정 없음</td><td>—</td></tr><tr><th scope="row">2031</th><td>입주 예정 없음</td><td>—</td></tr><tr><th scope="row">2032</th><td>3,017</td><td>50%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 6,028세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
 <p>적정물량은 인구로 잡은 연 6,028세대입니다. 입주가 가장 몰리는 달은 2032년 3월 1,859세대입니다.</p>
 <h2>부천 2027년에는 어느 구에 입주하나요</h2>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">오정구</th><td>2,268</td></tr><tr><th scope="row">소사구</th><td>1,587</td></tr><tr><th scope="row">원미구</th><td>107</td></tr><tr><th scope="row">합계</th><td>3,962</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/9 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">오정구</th><td>2,268</td></tr><tr><th scope="row">소사구</th><td>1,587</td></tr><tr><th scope="row">원미구</th><td>107</td></tr><tr><th scope="row">합계</th><td>3,962</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/13 조사)</p></div>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지(구)</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">27.1</th><td class="tx">부천아테라자이(부천괴안지구 B-2) (소사구)</td><td>200</td></tr><tr><th scope="row">27.1</th><td class="tx">성산주택가로주택사업 (오정구)</td><td>33</td></tr><tr><th scope="row">27.1</th><td class="tx">소사본동 아파트(LH매입임대) (소사구)</td><td>109</td></tr><tr><th scope="row">27.2</th><td class="tx">J팰리스(LH매입임대) (소사구)</td><td>43</td></tr><tr><th scope="row">27.5</th><td class="tx">우진아파트가로주택정비사업 (오정구)</td><td>48</td></tr><tr><th scope="row">27.5</th><td class="tx">원종 휴먼빌 클라츠 (오정구)</td><td>255</td></tr><tr><th scope="row">27.7</th><td class="tx">상동팰리스(LH매입임대) (원미구)</td><td>30</td></tr><tr><th scope="row">27.7</th><td class="tx">오정 해모로 스마트시티 (오정구)</td><td>200</td></tr><tr><th scope="row">27.8</th><td class="tx">소사역 롯데캐슬 더 뉴엘 (소사구)</td><td>983</td></tr><tr><th scope="row">27.8</th><td class="tx">엘리프 역곡 (소사구)</td><td>252</td></tr><tr><th scope="row">27.9</th><td class="tx">고강동한일빌라외가로주택정비사업 (오정구)</td><td>92</td></tr><tr><th scope="row">27.11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-5BL) 신혼희망타운 공공분양 (오정구)</td><td>638</td></tr><tr><th scope="row">27.11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-5BL) 행복주택 (오정구)</td><td>314</td></tr><tr><th scope="row">27.11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-6BL) 행복주택 (오정구)</td><td>227</td></tr><tr><th scope="row">27.11</th><td class="tx">e편한세상 대장 퍼스티움(부천대장지구 A-6BL)신혼희망타운 공공분양 (오정구)</td><td>461</td></tr><tr><th scope="row">27.12</th><td class="tx">중동 공동주택 아파트(LH매입임대) (원미구)</td><td>77</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
 <p>청약 공고로 채운 단지는 일반·특별공급 세대만 셉니다.</p>
 <h2>부천 2028년에는 어느 단지가 입주하나요</h2>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지(구)</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">28.1</th><td class="tx">부천대장A7(공공분양) (오정구)</td><td>473</td></tr><tr><th scope="row">28.1</th><td class="tx">부천대장A8(공공분양) (오정구)</td><td>392</td></tr><tr><th scope="row">28.1</th><td class="tx">엘리프원종 (오정구)</td><td>207</td></tr><tr><th scope="row">28.3</th><td class="tx">중앙하이츠원종역 (오정구)</td><td>172</td></tr><tr><th scope="row">28.5</th><td class="tx">경기도 부천시 소사구 소사본동 277-30번지 일원 가로주택정비사업 (소사구)</td><td>79</td></tr><tr><th scope="row">28.6</th><td class="tx">소라아파트 소규모재건축사업 (소사구)</td><td>98</td></tr><tr><th scope="row">28.6</th><td class="tx">송내동 성우아파트 소규모재건축사업 (소사구)</td><td>128</td></tr><tr><th scope="row">28.7</th><td class="tx">부천역 에피트 어바닉 (원미구)</td><td>93</td></tr><tr><th scope="row">28.8</th><td class="tx">중동역 다채로움 더원 (소사구)</td><td>39</td></tr><tr><th scope="row">28.10</th><td class="tx">쌍용 더 플래티넘 온수역 (소사구)</td><td>230</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
 <h2>부천 아파트값은 오르고 있나요</h2>
-<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="부천 원미구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.40%, 전세 최신 +0.08%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="150.0" x2="632" y2="150.0" class="cl-zero"/><path d="M8.0 120.4 L33.0 118.3 L57.9 107.4 L82.9 96.8 L107.8 101.7 L132.8 121.0 L157.8 117.7 L182.7 109.5 L207.7 108.6 L232.6 106.2 L257.6 106.8 L282.6 128.7 L307.5 120.7 L332.5 117.5 L357.4 104.5 L382.4 79.1 L407.4 73.4 L432.3 68.7 L457.3 95.7 L482.2 67.8 L507.2 78.7 L532.2 76.9 L557.1 34.0 L582.1 45.3 L607.0 73.6 L632.0 60.8" class="cl cl-ma"/><circle cx="632.0" cy="60.8" r="2.5" class="cl-dot"/><path d="M8.0 135.9 L33.0 133.9 L57.9 115.6 L82.9 117.7 L107.8 126.9 L132.8 119.6 L157.8 117.0 L182.7 112.7 L207.7 122.3 L232.6 112.2 L257.6 108.7 L282.6 131.6 L307.5 126.4 L332.5 136.4 L357.4 127.0 L382.4 100.5 L407.4 129.6 L432.3 131.5 L457.3 92.2 L482.2 111.1 L507.2 106.6 L532.2 118.1 L557.1 80.0 L582.1 106.6 L607.0 111.5 L632.0 133.0" class="cl cl-je"/><circle cx="632.0" cy="133.0" r="2.5" class="cl-dot"/><text x="10" y="145.0" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.52%</text><text x="626.0" y="52.8" class="cb-v cb-k cx-e cl-t">+0.40%</text><text x="10" y="183" class="cb-x cx-s">5/11</text><text x="630" y="183" class="cb-x cx-e">11/2</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>부천 원미구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/2 조사 · 전주 대비 변동률</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">부천 소사구</th><td>+0.02%</td><td>+0.26%</td></tr><tr><th scope="row">부천 오정구</th><td>+0.07%</td><td>+0.11%</td></tr><tr><th scope="row">부천 원미구</th><td>+0.40%</td><td>+0.08%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
+<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="부천 원미구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.40%, 전세 최신 +0.13%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="150.0" x2="632" y2="150.0" class="cl-zero"/><path d="M8.0 118.3 L33.0 107.4 L57.9 96.8 L82.9 101.7 L107.8 121.0 L132.8 117.7 L157.8 109.5 L182.7 108.6 L207.7 106.2 L232.6 106.8 L257.6 128.7 L282.6 120.7 L307.5 117.5 L332.5 104.5 L357.4 79.1 L382.4 73.4 L407.4 68.7 L432.3 95.7 L457.3 67.8 L482.2 78.7 L507.2 76.9 L532.2 34.0 L557.1 45.3 L582.1 73.6 L607.0 60.8 L632.0 59.2" class="cl cl-ma"/><circle cx="632.0" cy="59.2" r="2.5" class="cl-dot"/><path d="M8.0 133.9 L33.0 115.6 L57.9 117.7 L82.9 126.9 L107.8 119.6 L132.8 117.0 L157.8 112.7 L182.7 122.3 L207.7 112.2 L232.6 108.7 L257.6 131.6 L282.6 126.4 L307.5 136.4 L332.5 127.0 L357.4 100.5 L382.4 129.6 L407.4 131.5 L432.3 92.2 L457.3 111.1 L482.2 106.6 L507.2 118.1 L532.2 80.0 L557.1 106.6 L582.1 111.5 L607.0 133.0 L632.0 120.9" class="cl cl-je"/><circle cx="632.0" cy="120.9" r="2.5" class="cl-dot"/><text x="10" y="145.0" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.52%</text><text x="626.0" y="51.2" class="cb-v cb-k cx-e cl-t">+0.40%</text><text x="10" y="183" class="cb-x cx-s">5/18</text><text x="630" y="183" class="cb-x cx-e">11/9</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>부천 원미구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/9 조사 · 전주 대비 변동률</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">부천 소사구</th><td>+0.11%</td><td>+0.34%</td></tr><tr><th scope="row">부천 오정구</th><td>+0.13%</td><td>+0.12%</td></tr><tr><th scope="row">부천 원미구</th><td>+0.40%</td><td>+0.13%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
 <h2>부천 집값은 앞으로 어떻게 될까요</h2>
 <p>제 판단으로는 부천은 오름세가 더 이어지는 구간입니다. 2027년 입주가 적정에 못 미치고, 2028년 입주는 적정물량의 32%로 더 줄어들기 때문입니다. 오르는 힘은 원미구에 몰려 있는데, 원미구는 2028년까지 입주 물량이 거의 없는 동네입니다. 입주장이 이어지는 소사구·오정구는 아직 제자리입니다. 부천 공급은 2029년까지 부족한 방향입니다.</p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>한국부동산원 입주예정물량정보</li><li>청약홈 분양정보(입주자 모집 공고)</li><li>KOSIS 주민등록인구</li><li>한국부동산원 주간 아파트가격동향</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2027년 부천 아파트 입주 물량은 얼마나 되나요</dt><dd>3,962세대로, 부천 인구로 잡은 한 해 적정물량(6,028세대)의 66%입니다.</dd><dt>부천에서 입주가 가장 몰리는 달은 언제인가요</dt><dd>2032년 3월 1,859세대입니다.</dd><dt>부천 아파트 주간 시세는 어디서 보나요</dt><dd>아공맵 경기 리포트의 시군구 주간·월간 시세 표에서 한국부동산원 주간 아파트가격동향을 매주 확인할 수 있습니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a><a href="/#stats-market-week"><span>시세 지도</span>부천 주간 시세</a></div></section><div class="cnav"><a class="cnav-n" href="/city/changwon-2027-moveins/"><span>다음 글</span>창원 2027년 입주는 적정물량의 11%, 신축이 가장 귀한 해입니다</a><a class="cnav-hub" href="/city/"><span>이 질문의 글 모두</span>내 동네, 앞으로 입주 얼마나?</a></div></div></section>
 </main>

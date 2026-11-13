@@ -83,14 +83,21 @@ def audit(path):
         'radii': sorted(radii),
         'gold': len(re.findall(r'--gold|--accent', scope)),
         'warm': warms,
-        'shadow': len([x for x in re.findall(r'box-shadow:\s*([^;}\n]+)', scope)
-                       if 'none' not in x and '0 0 0' not in x]),
+        # 장식 그림자만 센다 — inset(정렬 열 밑줄·속 빈 고리)과 화면 위에 떠 있는 고정 요소(하단 탭바·데스크톱 위 내비·설치 알림)의
+        # 그림자는 '떠 있음'을 알리는 기능이라 뺀다(2026-11-12 디자인 마감 점검: 홈·/cycle/·리포트의 '그림자×4' 가 넷 다 이것이었다).
+        'shadow': len([x for sel, x in re.findall(r'([^{}]*)\{[^{}]*?box-shadow:\s*([^;}\n]+)', scope)
+                       if 'none' not in x and '0 0 0' not in x and 'inset' not in x
+                       and not re.search(FLOATING, sel)]),
         'grad': len(re.findall(r'linear-gradient', scope)),
         # 표 정렬: th와 td를 한 규칙으로 묶어 우측 정렬하면 헤더가 값처럼 붙어
         # 열과 어긋나 보인다. thead th 별도 지정이 없으면 위반으로 본다.
         'thalign': bool(re.search(r'th\s*,\s*td[^{]*\{[^{}]*text-align:\s*right', scope))
                    and not re.search(r'thead\s+th[^{]*\{[^{}]*text-align', scope),
     }
+
+
+# 화면 위에 떠 있는 고정 요소 — 그림자가 기능이다(위 'shadow' 주석).
+FLOATING = r'\.bottomnav|\.inst\b'
 
 
 def violations(a):

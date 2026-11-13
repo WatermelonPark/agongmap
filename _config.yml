@@ -8,3 +8,8 @@ exclude:
   - tools/
   - art_raw/
   - CLAUDE.md
+  # 글 원고(프런트매터가 든 md). 빼지 않으면 Jekyll 이 /content/<섹션>/<slug>.html 로 변환해 내보낸다 — 자리표({{v:…}})가
+  # Liquid 에 지워져 숫자가 빠진 문장, canonical 은 자기 자신인 중복 페이지가 색인 가능한 채 떴다(2026-11-13 전수 리뷰).
+  # ⚠️ content/ 를 통째로 빼면 안 된다: 글 페이지가 /content/<섹션>/img/ 그림을 직접 불러온다(test_pages_config).
+  - content/README.md
+  - content/*/*.md

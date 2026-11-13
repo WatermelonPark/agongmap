@@ -238,9 +238,19 @@ def main(argv=None):
         sys.stderr.write('batch_notes: 데이터를 읽지 못했다 (%s)\n' % e)
         return 0
     import kst
-    for ln in (lines(adv) + theory_claim_lines() + quiz_review_lines(kst.today()) + sgg_map_gap_lines(adv) + hand_permit_lines(sts)
-               + conv_model_lines(sts) + content_card_lines()):
-        sys.stdout.write(ln + '\n')
+    # 곁가지마다 따로 감싼다 — 하나가 예외로 죽어도 나머지 줄(특히 ⚠️ 인허가 신호 빠짐)은 나간다. 예전엔 한 식으로 이어 붙여,
+    # 맨 끝 content_card_lines 하나가 죽으면 그 회차 기록 줄이 **전부** 사라졌다(워크플로는 `|| true` 로 받아 빈 채 넘어간다 —
+    # 2026-11-13 전수 리뷰). 죽은 곁가지는 '검사 불가' 한 줄로 남긴다.
+    for name, fn in (('인허가 신호', lambda: lines(adv)), ('이론편 전제', theory_claim_lines),
+                     ('퀴즈 검토 기한', lambda: quiz_review_lines(kst.today())),
+                     ('시군구 매핑', lambda: sgg_map_gap_lines(adv)), ('손 페이지 인허가', lambda: hand_permit_lines(sts)),
+                     ('전환율 재측정', lambda: conv_model_lines(sts)), ('글 카드', content_card_lines)):
+        try:
+            got = fn()
+        except Exception as e:      # noqa: BLE001 — 알림용 곁가지다. 죽은 것을 알리는 것이 이 줄의 일이다
+            got = ['%s 배치 기록 검사 불가 — %s: %s: %s' % (WARN, name, type(e).__name__, e)]
+        for ln in got:
+            sys.stdout.write(ln + '\n')
     return 0
 
 

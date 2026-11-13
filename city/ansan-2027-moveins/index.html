@@ -109,16 +109,17 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     ]
   }
 ]</script>
-<style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -161,14 +162,16 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -184,9 +187,9 @@ footer a{color:var(--ink2)}
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -199,12 +202,12 @@ footer a{color:var(--ink2)}
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -246,11 +249,12 @@ footer a{color:var(--ink2)}
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -275,10 +279,10 @@ footer a{color:var(--ink2)}
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
@@ -290,14 +294,14 @@ footer a{color:var(--ink2)}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -305,7 +309,7 @@ footer a{color:var(--ink2)}
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
@@ -372,17 +376,17 @@ footer a{color:var(--ink2)}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 <header class="post-head"><div class="wrap"><nav class="crumb"><a href="/">아공맵</a> › <a href="/reports/">콘텐츠</a> › <a href="/city/">도시 입주물량</a></nav><p class="eyebrow"><a href="/city/">내 동네, 앞으로 입주 얼마나?</a> · 안산</p><h1>2027년 안산 아파트 분양·입주물량, 한 단지로 적정의 22%입니다</h1><p class="cmeta">2026년 11월 7일 작성 · 2026년 11월 7일 갱신 · <a href="/about/">아공맵 운영팀</a></p></div></header>
-<main id="main"><section><div class="wrap"><div class="ctldr"><b>3줄 요약</b><ol><li>2027년 안산 입주는 1,051세대 한 단지로 적정물량의 22%입니다</li><li>2028년 입주 단지는 없고, 세 해를 합쳐도 적정물량의 12%입니다</li><li>전세는 상록구가 62주 연속 상승(11월 2일 조사)입니다</li></ol></div><p class="caud"><b>이 글이 맞는 분</b>2027~2029년 안산 매매·전세 시점을 재는 실수요자</p><div class="ckey"><strong>적정물량의 12%</strong><span>세 해 입주 합계</span></div><div class="cbody"><p>안산 아파트 매매가는 상록구가 9주 연속 상승(11월 2일 조사), 단원구가 23주 연속 상승(11월 2일 조사)입니다. 전세는 상록구가 62주 연속 상승(11월 2일 조사), 단원구가 59주 연속 상승(11월 2일 조사)입니다. 그런데 2027~2029년 세 해 동안 안산에 입주하는 아파트는 세 단지뿐입니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>1,051세대</b><span>안산 2027년 입주</span></div><div class="ccard"><b>22%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="안산 연도별 입주 물량 막대그래프. 2027년 1,051세대, 2029년 638세대. 한 해 적정물량은 4,867세대." class="cchart-svg"><rect x="243.0" y="139.8" width="72.0" height="30.2" class="cb"/><text x="279.0" y="135.8" class="cb-v cb-k">1,051</text><text x="279.0" y="202" class="cb-x">2027</text><rect x="325.0" y="151.6" width="72.0" height="18.4" class="cb"/><text x="361.0" y="147.6" class="cb-v cb-k">638</text><text x="361.0" y="202" class="cb-x">2029</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 4,867세대</text></svg><figcaption>안산 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/9 조사)</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2027</th><td>1,051</td><td>22%</td></tr><tr><th scope="row">2029</th><td>638</td><td>13%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 4,867세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
+<main id="main"><section><div class="wrap"><div class="ctldr"><b>3줄 요약</b><ol><li>2027년 안산 입주는 1,051세대 한 단지로 적정물량의 22%입니다</li><li>2028년 입주 단지는 없고, 세 해를 합쳐도 적정물량의 12%입니다</li><li>전세는 상록구가 보합(11월 9일 조사)입니다</li></ol></div><p class="caud"><b>이 글이 맞는 분</b>2027~2029년 안산 매매·전세 시점을 재는 실수요자</p><div class="ckey"><strong>적정물량의 12%</strong><span>세 해 입주 합계</span></div><div class="cbody"><p>안산 아파트 매매가는 상록구가 10주 연속 상승(11월 9일 조사), 단원구가 24주 연속 상승(11월 9일 조사)입니다. 전세는 상록구가 보합(11월 9일 조사), 단원구가 60주 연속 상승(11월 9일 조사)입니다. 그런데 2027~2029년 세 해 동안 안산에 입주하는 아파트는 세 단지뿐입니다.</p>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>1,051세대</b><span>안산 2027년 입주</span></div><div class="ccard"><b>22%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="안산 연도별 입주 물량 막대그래프. 2027년 1,051세대, 2028년 입주 예정 없음, 2029년 638세대, 2030년 입주 예정 없음, 2031년 984세대. 한 해 적정물량은 4,867세대." class="cchart-svg"><rect x="120.0" y="139.8" width="72.0" height="30.2" class="cb"/><text x="156.0" y="135.8" class="cb-v cb-k">1,051</text><text x="156.0" y="202" class="cb-x">2027</text><text x="238.0" y="166.0" class="cb-v cb-k cb-none">없음</text><text x="238.0" y="202" class="cb-x">2028</text><rect x="284.0" y="151.6" width="72.0" height="18.4" class="cb"/><text x="320.0" y="147.6" class="cb-v">638</text><text x="320.0" y="202" class="cb-x">2029</text><text x="402.0" y="166.0" class="cb-v cb-k cb-none">없음</text><text x="402.0" y="202" class="cb-x">2030</text><rect x="448.0" y="141.7" width="72.0" height="28.3" class="cb"/><text x="484.0" y="137.7" class="cb-v cb-k">984</text><text x="484.0" y="202" class="cb-x">2031</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 4,867세대</text></svg><figcaption>안산 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/13 조사)</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2027</th><td>1,051</td><td>22%</td></tr><tr><th scope="row">2028</th><td>입주 예정 없음</td><td>—</td></tr><tr><th scope="row">2029</th><td>638</td><td>13%</td></tr><tr><th scope="row">2030</th><td>입주 예정 없음</td><td>—</td></tr><tr><th scope="row">2031</th><td>984</td><td>20%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 4,867세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
 <p>적정물량은 인구로 잡은 연 4,867세대입니다. 2027년 입주는 한 해 적정물량의 22%이고, 2028년에 입주하는 단지는 지금 공개된 목록에 없습니다. 2027~2029년 세 해를 합쳐도 적정물량의 12%입니다.</p>
 <h2>안산 2027년에는 어느 단지가 입주하나요</h2>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">27.11</th><td class="tx">롯데캐슬 시그니처 중앙</td><td>1,051</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/9 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">입주 예정</th><th scope="col" class="tx">단지</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">27.11</th><td class="tx">롯데캐슬 시그니처 중앙</td><td>1,051</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/13 조사)</p></div>
 <p>2027년 입주는 11월 단원구 롯데캐슬 시그니처 중앙 한 단지이고, 상록구에는 입주하는 단지가 없습니다. 청약 공고로 채운 단지는 일반·특별공급 세대만 셉니다.</p>
 <h2>안산 2028년에는 어느 단지가 입주하나요</h2>
 <p>한국부동산원 입주예정물량정보(2028년 6월 입주분까지)와 청약홈 공고 어디에도 2028년에 입주하는 안산 아파트는 없습니다.</p>
@@ -392,9 +396,9 @@ footer a{color:var(--ink2)}
 <h2>지금 청약 받는 안산 아파트가 있나요</h2>
 <p>청약홈에 공고된 단지 기준으로, 지금 청약 접수를 받거나 계약이 남은 안산 아파트는 없고, 최근 6개월 안에 나온 공고도 없습니다(2026년 11월 7일 기준).</p>
 <h2>안산 아파트값은 오르고 있나요</h2>
-<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="안산 단원구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.03%, 전세 최신 +0.08%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="139.8" x2="632" y2="139.8" class="cl-zero"/><path d="M8.0 143.3 L33.0 150.0 L57.9 143.5 L82.9 125.7 L107.8 95.7 L132.8 89.1 L157.8 102.3 L182.7 97.1 L207.7 89.4 L232.6 87.8 L257.6 95.8 L282.6 102.7 L307.5 90.2 L332.5 100.4 L357.4 90.0 L382.4 75.5 L407.4 82.6 L432.3 68.9 L457.3 107.2 L482.2 55.2 L507.2 82.5 L532.2 68.4 L557.1 103.0 L582.1 87.4 L607.0 89.8 L632.0 121.9" class="cl cl-ma"/><circle cx="632.0" cy="121.9" r="2.5" class="cl-dot"/><path d="M8.0 57.6 L33.0 49.9 L57.9 68.6 L82.9 55.3 L107.8 41.6 L132.8 64.5 L157.8 82.0 L182.7 90.5 L207.7 57.9 L232.6 62.6 L257.6 82.4 L282.6 90.0 L307.5 68.7 L332.5 56.7 L357.4 50.4 L382.4 56.2 L407.4 62.4 L432.3 75.8 L457.3 88.7 L482.2 98.5 L507.2 102.5 L532.2 76.3 L557.1 34.0 L582.1 39.8 L607.0 45.6 L632.0 84.8" class="cl cl-je"/><circle cx="632.0" cy="84.8" r="2.5" class="cl-dot"/><text x="10" y="134.8" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.16%</text><text x="626.0" y="113.9" class="cb-v cb-k cx-e cl-t">+0.03%</text><text x="10" y="183" class="cb-x cx-s">5/11</text><text x="630" y="183" class="cb-x cx-e">11/2</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>안산 단원구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/2 조사 · 전주 대비 변동률</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">안산 상록구</th><td>+0.01%</td><td>+0.26%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">안산 단원구</th><td>+0.03%</td><td>+0.08%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
+<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="안산 단원구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.06%, 전세 최신 +0.04%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="139.8" x2="632" y2="139.8" class="cl-zero"/><path d="M8.0 150.0 L33.0 143.5 L57.9 125.7 L82.9 95.7 L107.8 89.1 L132.8 102.3 L157.8 97.1 L182.7 89.4 L207.7 87.8 L232.6 95.8 L257.6 102.7 L282.6 90.2 L307.5 100.4 L332.5 90.0 L357.4 75.5 L382.4 82.6 L407.4 68.9 L432.3 107.2 L457.3 55.2 L482.2 82.5 L507.2 68.4 L532.2 103.0 L557.1 87.4 L582.1 89.8 L607.0 121.9 L632.0 98.3" class="cl cl-ma"/><circle cx="632.0" cy="98.3" r="2.5" class="cl-dot"/><path d="M8.0 49.9 L33.0 68.6 L57.9 55.3 L82.9 41.6 L107.8 64.5 L132.8 82.0 L157.8 90.5 L182.7 57.9 L207.7 62.6 L232.6 82.4 L257.6 90.0 L282.6 68.7 L307.5 56.7 L332.5 50.4 L357.4 56.2 L382.4 62.4 L407.4 75.8 L432.3 88.7 L457.3 98.5 L482.2 102.5 L507.2 76.3 L532.2 34.0 L557.1 39.8 L582.1 45.6 L607.0 84.8 L632.0 113.5" class="cl cl-je"/><circle cx="632.0" cy="113.5" r="2.5" class="cl-dot"/><text x="10" y="134.8" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.16%</text><text x="626.0" y="90.3" class="cb-v cb-k cx-e cl-t">+0.06%</text><text x="10" y="183" class="cb-x cx-s">5/18</text><text x="630" y="183" class="cb-x cx-e">11/9</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>안산 단원구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/9 조사 · 전주 대비 변동률</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">안산 상록구</th><td>+0.02%</td><td>0.00%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">안산 단원구</th><td>+0.06%</td><td>+0.04%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
 <h2>안산 집값은 앞으로 어떻게 될까요</h2>
 <p>제 판단으로는 안산은 2029년까지 공급이 시세를 누르지 못하는 도시입니다. 세 해 입주를 합쳐도 적정물량의 12%이고, 2028년에는 입주하는 단지가 아예 없으며, 상록구는 세 해 동안 입주가 한 건도 없기 때문입니다. 최근 6개월 동안 새 청약 공고도 없어, 안산 공급은 2029년 뒤까지 부족한 방향입니다.</p>
 <h2>고른 기준</h2>

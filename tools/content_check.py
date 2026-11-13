@@ -40,6 +40,12 @@ def _front_line(text, key):
     return _line_of(text, m.start()) if m else 1
 
 
+def _pages():
+    """생성기 모듈 — 쓸 때 가져온다(뼈대·시도 생성기까지 따라 들어와 무겁다. 표준 라이브러리뿐이라 설치는 필요 없다)."""
+    import make_content_pages as MC
+    return MC
+
+
 def _probe(data, m):
     """자리표 하나를 실제로 만들어 본다 — 종류마다 맞는 함수로. 오류는 그대로 올린다.
 
@@ -96,6 +102,10 @@ def check_post(path, data, root=ROOT, lenient=False):
     for key in ('summary', 'title'):
         try:
             CT.fill_inline(meta.get(key) or '', data)
+        except CT.Pending as e:
+            # 아직 안 들어온 자료는 고칠 곳이 아니다 — 본문의 같은 자리표와 같은 눈으로 기다림(…)에 센다. 예전엔 Pending 이
+            # TableError 의 아래 갈래라 여기서만 ✗ 가 됐다(2026-11-13 전수 리뷰).
+            waits.append((_front_line(text, key), '%s: %s' % (key, e)))
         except CT.TableError as e:
             out.append((_front_line(text, key), '%s: %s' % (key, e)))
     for i, src in enumerate(meta.get('sources') or []):
@@ -108,6 +118,23 @@ def check_post(path, data, root=ROOT, lenient=False):
             CT.fill_inline((f.get('q') or '') + ' ' + (f.get('a') or ''), data)
         except CT.TableError as e:
             out.append((_front_line(text, 'faq'), 'faq %d번: %s' % (i + 1, e)))
+    # 표 줄(|)인데 표가 되지 못한 줄 — 생성기의 마크다운 걸음(MC.markdown)이 직접 알려 준다(검사기가 문법을 따로 흉내내지 않는다).
+    stray = []
+    _pages().markdown(body, stray)
+    for n, s in stray:
+        out.append((offset + n, "표 줄이 표가 되지 못했다 — 머리 줄 바로 아래 구분 줄(|---|---|)과 줄 끝 파이프(|)를 볼 것: %s" % s[:40]))
+    # 끝으로 **생성기의 '한 편 굽기'를 그대로** 돌려 본다. 위 검사들이 못 본 탈(값의 꼴이 달라 굽다 예외로 끝나는 원고)이
+    # 여기서 드러난다 — 검사를 통과한 원고가 배치의 생성기 단계에서 멈추는 일을 구조로 막는다(2026-11-13 전수 리뷰).
+    if not out:
+        try:
+            _pages().build_page(CT.check_lengths(CT.fill_meta(meta, data)) if not lenient else CT.fill_meta(meta, data), body, data)
+        except CT.Pending as e:
+            if not waits:
+                waits.append((1, str(e)))
+        except (CT.TableError, CM.ContentError) as e:
+            out.append((1, '생성기가 이 글을 건너뛴다 — %s' % e))
+        except Exception as e:      # noqa: BLE001 — 예상 밖 예외를 고칠 곳으로 알리는 것이 이 줄의 일이다
+            out.append((1, '생성기가 이 글을 굽다 예외로 멈춘다 — %s: %s' % (type(e).__name__, e)))
     return [(ln, '%s' % why) for ln, why in out], waits, rel
 
 

@@ -49,7 +49,9 @@ TABLE_FROM = SZ.qidx(SZ.TABLE_FROM_YEAR, 1)
 # ⚠️ 등급마다 붙어 있던 고정 설명문을 2026-09-13에 걷었다. g1의 '필요한 만큼 들어오고 있습니다'가 바로 아래
 # '누적 순부족 50,579세대'와 정면으로 부딪혀 경기 리포트가 반대로 읽혔다(PM 요청 ①). 이제 설명은 지역마다 그 지역의
 # 비율로 만든다 — verdict_line() 참조.
-GRADE_COLOR = {'g4': '#a93226', 'g3': '#c0392b', 'g2': '#b9770e', 'g1': '#5e6f74', 'g0': '#1a5276'}
+# 부족 세 단계는 지도(홈 supplyFill)와 같은 빨강 계열의 짙기로 가른다(2026-11-11 색 감사 — '부족'만 노랑이라 지도의 연한 빨강과
+# 다른 색으로 읽혔고, 노랑은 해마다 입주 신호등의 '보통'과도 겹쳤다).
+GRADE_COLOR = {'g4': '#a93226', 'g3': '#c0392b', 'g2': '#e08a7d', 'g1': '#5e6f74', 'g0': '#1a5276'}
 GRADE_TXT = {k: (SZ.GRADE_LABS[k], GRADE_COLOR[k]) for k in SZ.GRADE_KEYS}
 # 집계 3종은 '지역'이 아니라 묶음이라 설명이 달라야 한다
 # 시도 수는 모델에서 센다(CLAUDE.md "사람이 센 수를 박지 않는다"). 이 파일의 '16개 시도'
@@ -326,8 +328,18 @@ DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 PAGE_DAY_RE = re.compile(r'(?<=페이지 수정 )\d{4}년 \d{1,2}월 \d{1,2}일')
 
 
+# 뒤 단계(make_content_pages)가 채우는 표식 구간 — 정본은 site_nav.LATE_SLOTS. 견줄 때만 비운다(파일은 그대로 둔다).
+_LATE_SLOT_RES = tuple((a, b, re.compile(re.escape(a) + r'.*?' + re.escape(b), re.S)) for a, b in N.LATE_SLOTS)
+
+
+def _mask_slots(html):
+    for a, b, rx in _LATE_SLOT_RES:
+        html = rx.sub(lambda m, a=a, b=b: a + b, html)
+    return html
+
+
 def _mask_dates(html):
-    return PAGE_DAY_RE.sub('@', DATE_RE.sub('@', html))
+    return PAGE_DAY_RE.sub('@', DATE_RE.sub('@', _mask_slots(html)))
 
 
 def read_old(path):
@@ -353,8 +365,13 @@ def keep_dates(new_html, old_html, today):
     ⚠️ 이게 없으면 데이터가 안 바뀐 날에도 리포트·허브 전부와 sitemap의 lastmod가 날짜만
     달라진 채 매일 커밋된다(옛 make_zone_pages가 같은 이유로 갖고 있던 장치인데
     2026-08-06 재편 때 빠뜨렸다). 검색엔진에도 '매일 전부 갱신'이라는 틀린 신호가
-    간다. 페이지 안의 YYYY-MM-DD는 datePublished·dateModified 둘뿐이라 날짜만
-    가려내고 비교하면 된다.
+    간다. 날짜(YYYY-MM-DD 와 머리의 '페이지 수정 …일')만 가려내고 비교한다.
+
+    ⚠️ 뒤 단계가 채우는 표식 구간(site_nav.LATE_SLOTS — '이 지역 글', /moveins/ 도시 글 칸)도 양쪽에서 비우고
+    견준다. 새 판은 늘 빈 쌍이고 옛 판은 채워진 구간이라, 안 가리면 데이터가 그대로인 날에도 전부 '바뀜'이 되어
+    이 장치가 통째로 꺼진다(2026-11-13 전수 리뷰 — 시도 리포트 전부와 /moveins/ 가 날짜만 바뀐 채 매일 커밋됐다).
+    같다고 본 날은 옛 판(채워진 구간 그대로)을 돌려주고, 그 구간은 뒤 단계가 다시 맞춘다. 그래서 글 목록만 바뀐
+    날은 dateModified 가 움직이지 않는다 — 이 날짜는 리포트 본문(데이터)이 바뀐 날이다.
 
     돌려주는 값: (채택할 HTML, 그 페이지의 lastmod, 내용이 실제로 바뀌었나)
 
@@ -492,6 +509,10 @@ def head(z, desc, title, url=None, crumb=None, desk='report'):
     # 실렸다(전수리뷰 Z1-12). 이름은 화면 이름(백로그 46).
     if z in SZ.ORDER:
         ld[0]["about"] = {"@type": "Place", "name": SZ.disp(z)}
+    # 허브(crumb=False)는 글이 아니라 리포트 목록이다 — CollectionPage(2026-11-12 SEO 점검).
+    if crumb is False:
+        ld[0]["@type"] = "CollectionPage"
+        ld[0]["url"] = ld[0].pop("mainEntityOfPage")
     return '''<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -613,7 +634,7 @@ def share_section(z):
 # 순서에 기대지 않으려고 이렇게 나눴다(시도 페이지가 먼저 구워져도 다음 단계에서 채워진다).
 # 자리는 '숫자로 보면' 바로 뒤다(2026-11-07 디자인 검수 reports-3 — 맨 끝 '다른 지역' 칸 18장 뒤라 경기는 375px 에서 8,300px 아래였다).
 # 글이 POSTS_CAP 편을 넘으면 zone.js 가 앞 POSTS_CAP 편만 보이고 '글 N편 모두 보기' 단추를 단다(스크립트 없이는 모두 보인다).
-POSTS_SLOT = '<!--ZONE_POSTS_START--><!--ZONE_POSTS_END-->'
+POSTS_SLOT = ''.join(N.SLOT_ZONE_POSTS)
 POSTS_CAP = 4
 FOOT = '''</main>
 ''' + N.site_footer('국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트') + '''
@@ -625,10 +646,11 @@ FOOT = '''</main>
 
 
 def tint(v, scale):
-    """홈 표와 같은 색 규칙 — 0.00일 때만 무색, 아니면 최소 0.13은 물든다."""
+    """홈 표와 같은 색 규칙(home-app.js tintA) — 0.00일 때만 무색, 아니면 최소 0.13은 물든다. 최대 알파 0.78: 0.8 에서는 가장 진한
+    빨강 칸 위 먹색 글자가 4.40:1 이었다(2026-11-12 접근성 점검)."""
     if v is None or v == 0:
         return 'transparent'
-    a = (0.13 + 0.87 * min(1.0, abs(v) / float(scale))) * 0.8
+    a = (0.13 + 0.87 * min(1.0, abs(v) / float(scale))) * 0.78
     return ('rgba(198,58,48,%.3f)' if v > 0 else 'rgba(38,110,180,%.3f)') % a
 
 
@@ -750,7 +772,7 @@ WK_CSS = ('.ztb th small.zbase{display:block;font-size:13px;font-weight:400;colo
           '.zp-more:hover{background:var(--paper2)}.zp-more:focus-visible{outline:2px solid var(--ink);outline-offset:2px}'
           # 막대 아래 접는 칸(3년 너머·추정, split_ref_block) — 제목 한 줄만 보이고 펼치면 참고 줄이 나온다.
           '.zmore{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}'
-          '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer}'
+          '.zmore summary{font-size:13px;color:var(--muted);cursor:pointer;padding:10px 0}'   # 누름 면 40px(11-12 접근성 점검 — 23px 였다)
           '.zmore .zsplit{margin-top:6px;border-top:0;padding-top:0}'
           '.zwk-lead{font-size:var(--fs-dense);line-height:1.75;color:var(--ink2);margin:6px 0 12px}'
           # 가로로 넘치는 표(375px 에서 전세 칸)는 오른쪽 가장자리에 그림자가 진다 — 끝까지 밀면 사라진다(배경 local/scroll 겹침).
@@ -1156,14 +1178,15 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
     h = [head(z, desc, title)]
     h.append('<header class="zhead"><div class="wrap">'
              '<nav class="crumb"><a href="/">아공맵</a> › <a href="/zone/">시도 공급 분석</a> › <b>%s</b></nav>'
-             '<h1>%s 아파트 공급</h1>'
+             # h1 에 판정까지(2026-11-12 SEO 점검·대표 결정) — 제목(title)의 판정 낱말은 37~42자째라 검색 결과에서 잘린다.
+             '<h1>%s 아파트 공급, %s</h1>'
              '<p class="zlead"><span class="sc-tier %s">%s</span> %s'
              '<span class="zbasis">%s 기준 · %s</span>'
              # 화면에도 페이지 수정일을 적는다(백로그 50 요청 2.4) — JSON-LD dateModified 와 같은 값이다.
              # keep_dates 가 날짜를 가려 비교하므로, 이 줄 때문에 매일 새 판이 되지는 않는다.
              # 읽는 꼴(SZ.day_long, 날짜 두 단계 — 11-07 디자인 검수 reports-8). JSON-LD 는 ISO 그대로다.
              '<span class="zbasis">페이지 수정 %s</span></p>'
-             % (esc(SZ.disp(z)), esc(SZ.disp(z)), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
+             % (esc(SZ.disp(z)), esc(SZ.disp(z)), esc(lab), row['grade'], esc(lab), esc(verdict_line(row, calc['H'])),
                 esc(calc.get('Ltxt') or calc['L']), esc(BASIS_SRC), esc(SZ.day_long(_today()))))
     # 머리의 큰 신호등은 뺐다(2026-10-06 리뷰·대표 결정) — 바로 아래 해마다 막대와 같은 값을 두 번 보여 줬고 375px 머리가 1,040px
     # 이었다. 막대 아래에 상태 글자(적음·보통·많음)를 붙여 한 그림으로 합쳤다(outlook_cells).
@@ -1215,17 +1238,21 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
         # 부제의 등식(적정 − 공급 ∓ 재고)으로 검산했을 때 부호가 반대가 된다
         # (2026-08-07 감사).
         # 여유 지역은 제목도 '누적 여유'다 — '누적 순부족 13,237세대 여유'는 제목과 값이 반대 말을 했다(2026-10-06 리뷰).
-        (('누적 순부족', '%s세대 부족' % num(d_tot)) if d_tot >= 0
-         else ('누적 여유', '%s세대 여유' % num(-d_tot))) + (eq,),
+        # 값 끝의 '부족'·'여유'는 제목이 이미 말해 뺀다 — 붙이면 값이 두 줄로 접혀 같은 줄 칸과 기준선이 어긋났다(2026-11-12 디자인
+        # 마감 점검, 375·1280px 모두).
+        (('누적 순부족', '%s세대' % num(d_tot)) if d_tot >= 0
+         else ('누적 여유', '%s세대' % num(-d_tot))) + (eq,),
         (('지난 %s 쌓인 부족' % win_y, num(-d_inow) + '세대',
           '준공이 적정물량보다 적어 쌓인 몫(멸실을 뺀 값)') if d_inow < 0 else
          ('지난 %s 남은 재고' % win_y, num(d_inow) + '세대',
           '준공이 적정물량보다 많아 남은 몫(멸실을 뺀 값)')),
         ('앞으로 %.0f년 공급' % yrs, num(fut_sum) + '세대',
          '이미 착공한 물량을 %s 뒤로 밀어 추정' % lead_y),
-        (('앞으로 %.0f년 적정물량' % yrs) + (' <em class="zchip">추정</em>' if row.get('est') else ''),
+        # '추정' 표지는 설명 줄 머리에 둔다 — 칸 제목에 두면 375px 에서 제목이 접혀 같은 줄 숫자 높이가 갈렸다(11-12 디자인 마감 점검).
+        ('앞으로 %.0f년 적정물량' % yrs,
          num(d_need) + '세대',
-         ('분기 %s세대 × %d분기' % (num(d_ref), calc['H']))
+         ('<em class="zchip">추정</em> ' if row.get('est') else '')
+         + ('분기 %s세대 × %d분기' % (num(d_ref), calc['H']))
          + ('<br>이 지역은 기준표에 없어 적정물량을 추정했습니다.' if row.get('est') else '')),
         ('미분양', (num(row['unsold']) + '세대') if row.get('unsold') is not None else '–',
          # ⚠️ '기준 · 분기 적정물량' 접두는 check_freshness의 파생 페이지 감시가

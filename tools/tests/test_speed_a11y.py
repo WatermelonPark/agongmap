@@ -42,9 +42,16 @@ def test_no_page_navigation_through_buttons():
 def test_tab_buttons_have_a_40px_minimum():
     css = _read('app.css')
     # 09-15 엔 두 선택자만 잡아 통계 토글(.gt 26px)·심화 탭(34px)·기간(36px)·주석 칩(28px)이 빠졌다(2026-09-18 오딧 2번).
-    for sel in (r'\.tb-seg button', r'\.seg button', r'\.gt button', r'\.adv-tabs button', r'\.period button', r'\.aux button'):
+    # 2026-11-12 접근성 점검: '이전 12개 더보기'(36px)·'⇄ 행열 전환'(31px)·/cycle/ 지역 단추(34px)·'산출 방법' 접는 칸(23px)도 더했다.
+    # 변이(실제로 확인): .trbtn 의 min-height:40px 를 지우면 빨개진다.
+    for sel in (r'\.tb-seg button', r'\.seg button', r'\.gt button', r'\.adv-tabs button', r'\.period button', r'\.aux button',
+                r'\.tr-more', r'\.trbtn', r'\.toggle button', r'\.sc-how summary',
+                # 따로 선 링크(11-12 디자인 마감 점검: 홈 '콘텐츠 전체 보기'15·'지도에서 보기'23, /cycle/ 요약 링크 32px)
+                r'\.wg-link', r'\.crecent-all a', r'\.take li \.take-go', r'\.tldr-refs a'):
         hs = [int(x) for x in re.findall(sel + r'\{[^}]*min-height:(\d+)px', css)]
         assert hs and max(hs) >= 40, '%s 최소 높이가 40px 미만이다' % sel.replace('\\', '')
+    import make_weekly_page as MW   # /weekly/ 뼈대는 산출물이라 생성기 MAP_CSS 가 싣는다
+    assert '.mm-cap .go,a.go40{display:inline-flex;align-items:center;min-height:40px}' in MW.MAP_CSS
 
 
 def test_disclaimer_contrast_uses_the_muted_token():

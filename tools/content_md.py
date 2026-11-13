@@ -8,6 +8,7 @@ pip 설치 전에 돌기 때문이다(다른 생성기와 같은 제약).
 `- q:`/`  a:` 짝 목록. 모르는 모양을 만나면 조용히 넘기지 않고 ContentError 를 던진다 — 원고가 의도한
 항목이 빠진 채 페이지가 구워지는 쪽이 더 나쁘다.
 """
+import datetime
 import io
 import os
 import re
@@ -15,7 +16,8 @@ import re
 SECTIONS = ('city', 'gtx', 'danji', 'column')
 REQUIRED = ('title', 'summary', 'date', 'updated', 'section')
 # 2026-11-05 콘텐츠 구조 개편(대표 지시 "어떤 글이 내 관심사인지 모르겠다") — 독자가 카드 하나로 글을 고르게 하는 다섯 항목.
-# 이것도 필수다. 없으면 생성기는 그 글을 건너뛰고(경고), 원고 검사는 고칠 곳으로 센다. 일할 때는 content_check --lenient.
+# 이것도 필수다. 다만 없는 옛 양식 원고는 막지 않는다(11-06) — 생성기는 굽되 경고하고(카드에 지역 칩·핵심 숫자가 빠진다),
+# 원고 검사는 고칠 곳이 아니라 기다림(…)으로 알린다(is_v2_miss). 일할 때는 content_check --lenient.
 REQUIRED_V2 = ('tldr', 'audience', 'key', 'city', 'topic')
 # 글의 질문(주제) — 허브 '질문으로 찾기'의 네 입구. (키, 질문, 칩에 쓰는 짧은 이름, 그 질문이 사는 섹션).
 # make_content_pages.TOPICS 가 같은 튜플이다(생성기가 content_md 를 들여오므로 정본은 여기 두고 거기서 다시 내보낸다).
@@ -58,7 +60,9 @@ def split_front(text):
 
 def _scalar(v):
     v = v.strip()
-    if len(v) >= 2 and v[0] == v[-1] and v[0] in '"\'':
+    # 바깥 따옴표 한 쌍만 벗긴다. 안쪽에 같은 따옴표가 더 있으면 감싼 것이 아니라 글의 일부다 —
+    # '"집값 떨어진다"는 말, 숫자는 "아니다"' 의 양 끝을 벗기면 따옴표 짝이 어긋난 제목이 된다(2026-11-13 전수 리뷰).
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in '"\'' and v[0] not in v[1:-1]:
         v = v[1:-1]
     return v.strip()
 
@@ -161,6 +165,20 @@ def validate_v2(meta):
     return meta
 
 
+def shape_v2(meta):
+    """옛 양식으로 읽을 때(lenient)도 key·city 의 **모양**은 엄격 읽기와 같게 고른다 — 묻지는 않는다(없거나 틀리면 그대로 둔다).
+
+    안 고르면 `key` 가 한 짝 목록인 채라 자리표가 채워지지 않고 카드에 '{{v:…}}' 가 실리며, `city: 수원` 한 줄은 글자 하나씩
+    ('수','원') 도시로 읽힌다(2026-11-13 전수 리뷰).
+    """
+    key = meta.get('key')
+    if isinstance(key, list) and len(key) == 1 and isinstance(key[0], dict):
+        meta['key'] = key[0]
+    if isinstance(meta.get('city'), str):
+        meta['city'] = [meta['city'].strip()] if meta['city'].strip() else []
+    return meta
+
+
 def validate(meta, slug, section, lenient=False):
     """필수 항목·형식 검사. 어기면 ContentError — 빠진 채로 굽지 않는다. lenient=True 는 2026-11-05 양식(REQUIRED_V2)을
     묻지 않는다 — 옛 원고를 고치는 동안 검사기·생성기를 돌릴 때만 쓴다."""
@@ -172,6 +190,8 @@ def validate(meta, slug, section, lenient=False):
             raise ContentError("'%s' 는 한 줄 값이어야 한다" % k)
     if not lenient:
         validate_v2(meta)
+    else:
+        shape_v2(meta)
     if not SLUG_RE.match(slug):
         raise ContentError('파일 이름(slug)은 영소문자·숫자·붙임표만 쓴다: %r' % slug)
     if meta['section'] != section:
@@ -181,6 +201,10 @@ def validate(meta, slug, section, lenient=False):
     for k in ('date', 'updated'):
         if not DATE_RE.match(meta[k]):
             raise ContentError("'%s' 는 YYYY-MM-DD 여야 한다: %r" % (k, meta[k]))
+        try:
+            datetime.date(int(meta[k][:4]), int(meta[k][5:7]), int(meta[k][8:10]))
+        except ValueError:
+            raise ContentError("'%s' 가 달력에 없는 날이다: %r" % (k, meta[k]))
     if meta['updated'] < meta['date']:
         raise ContentError('updated(%s)가 date(%s)보다 앞선다' % (meta['updated'], meta['date']))
     n = len(meta['summary'])
@@ -192,6 +216,13 @@ def validate(meta, slug, section, lenient=False):
             raise ContentError('faq 항목은 q 와 a 가 모두 있어야 한다: %r' % (f,))
     if isinstance(meta.get('sources'), str):
         raise ContentError('sources 는 목록으로 쓴다(- 로 시작하는 줄)')
+    # 꼴 검사 — 목록 항목이 '이름: 값' 꼴이면 파서가 짝({이름: 값})으로 읽는다(faq 의 q·a 가 그렇게 적힌다). sources 에
+    # '- KOSIS: 주민등록인구'처럼 쌍점을 쓰면 글이 아니라 짝이 되어 생성기가 그 값을 글로 다루다 예외로 끝났다(2026-11-13 전수 리뷰).
+    for i, x in enumerate(meta.get('sources') or []):
+        if not isinstance(x, str):
+            raise ContentError("sources %d번이 한 줄 글이 아니다 — 항목에 '이름: 값' 꼴(쌍점)을 쓰지 않는다: %r" % (i + 1, x))
+    if 'region' in meta and not isinstance(meta['region'], str):
+        raise ContentError("'region' 은 한 줄 값이어야 한다(목록이 아니다) — 여러 도시는 city 에 적는다")
     return meta
 
 

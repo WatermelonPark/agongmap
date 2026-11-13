@@ -109,16 +109,17 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     ]
   }
 ]</script>
-<style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -161,14 +162,16 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -184,9 +187,9 @@ footer a{color:var(--ink2)}
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -199,12 +202,12 @@ footer a{color:var(--ink2)}
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -246,11 +249,12 @@ footer a{color:var(--ink2)}
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -275,10 +279,10 @@ footer a{color:var(--ink2)}
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
@@ -290,14 +294,14 @@ footer a{color:var(--ink2)}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -305,7 +309,7 @@ footer a{color:var(--ink2)}
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
@@ -372,7 +376,7 @@ footer a{color:var(--ink2)}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -400,13 +404,13 @@ footer a{color:var(--ink2)}
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">항목</th><th scope="col" class="tx">이름</th><th scope="col" class="tx">거리</th></tr></thead><tbody><tr><th scope="row">가까운 학원가</th><td class="tx">야탑동 학원가(34개)</td><td class="tx">도보 8분</td></tr><tr><th scope="row">가까운 학원가</th><td class="tx">이매동 학원가(21개)</td><td class="tx">도보 12분</td></tr><tr><th scope="row">분당 최대 학원가</th><td class="tx">정자동 학원가(63개), 수내동 학원가(60개)</td><td class="tx">차로 10분 안팎</td></tr><tr><th scope="row">공원</th><td class="tx">탄천, 굿모닝파크</td><td class="tx">도보 10분, 11분</td></tr><tr><th scope="row">대형마트</th><td class="tx">롯데마트 판교점</td><td class="tx">도보 19분</td></tr><tr><th scope="row">백화점</th><td class="tx">현대백화점 판교점</td><td class="tx">차로 5분</td></tr><tr><th scope="row">대형 병원</th><td class="tx">분당차병원</td><td class="tx">차로 4분</td></tr></tbody></table></div>
 <figure class="cfig"><a class="cimg" href="/content/danji/img/areum4-imae-map.png" target="_blank" rel="noopener"><img src="/content/danji/img/areum4-imae-map.png" alt="위치" loading="lazy"></a><figcaption>위치 · <a href="/content/danji/img/areum4-imae-map.png" target="_blank" rel="noopener">눌러서 크게 보기</a></figcaption></figure>
 <h2>성남 입주 물량</h2>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>11,105세대</b><span>성남 2027년 입주</span></div><div class="ccard"><b>155%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="성남 연도별 입주 물량 막대그래프. 2026년 1,076세대, 2027년 11,105세대, 2028년 315세대, 2029년 933세대, 2030년 594세대. 한 해 적정물량은 7,186세대. 3년 합계(2027~2029년) 12,353세대 · 적정물량 대비 57%." class="cchart-svg"><rect x="120.0" y="156.4" width="72.0" height="13.6" class="cb"/><text x="156.0" y="152.4" class="cb-v">1,076</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="30.0" width="72.0" height="140.0" class="cb cb-over"/><text x="238.0" y="26.0" class="cb-v cb-k">11,105</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="166.0" width="72.0" height="4.0" class="cb"/><text x="320.0" y="162.0" class="cb-v">315</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="158.2" width="72.0" height="11.8" class="cb"/><text x="402.0" y="154.2" class="cb-v">933</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="162.5" width="72.0" height="7.5" class="cb"/><text x="484.0" y="158.5" class="cb-v cb-k">594</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="79.4" x2="634" y2="79.4" class="cb-rule"/><text x="632" y="74.4" class="cb-rl cx-e">적정 7,186세대</text></svg><figcaption>성남 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/9 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 12,353세대 · 적정물량 대비 57%</p></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>11,105세대</b><span>성남 2027년 입주</span></div><div class="ccard"><b>155%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="성남 연도별 입주 물량 막대그래프. 2026년 1,076세대, 2027년 11,105세대, 2028년 315세대, 2029년 933세대, 2030년 594세대. 한 해 적정물량은 7,186세대. 3년 합계(2027~2029년) 12,353세대 · 적정물량 대비 57%." class="cchart-svg"><rect x="120.0" y="156.4" width="72.0" height="13.6" class="cb"/><text x="156.0" y="152.4" class="cb-v">1,076</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="30.0" width="72.0" height="140.0" class="cb cb-over"/><text x="238.0" y="26.0" class="cb-v cb-k">11,105</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="166.0" width="72.0" height="4.0" class="cb"/><text x="320.0" y="162.0" class="cb-v">315</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="158.2" width="72.0" height="11.8" class="cb"/><text x="402.0" y="154.2" class="cb-v">933</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="162.5" width="72.0" height="7.5" class="cb"/><text x="484.0" y="158.5" class="cb-v cb-k">594</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="79.4" x2="634" y2="79.4" class="cb-rule"/><text x="632" y="74.4" class="cb-rl cx-e">적정 7,186세대</text></svg><figcaption>성남 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/13 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 12,353세대 · 적정물량 대비 57%</p></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,076</td><td>15%</td></tr><tr><th scope="row">2027</th><td>11,105</td><td>155%</td></tr><tr><th scope="row">2028</th><td>315</td><td>4%</td></tr><tr><th scope="row">2029</th><td>933</td><td>13%</td></tr><tr><th scope="row">2030</th><td>594</td><td>8%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 7,186세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
-<p>성남의 2027년 입주 물량은 11,105세대로 한 해 적정물량 7,186세대의 155%다. 적정물량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 분당구 매매가는 86주 연속 상승(11월 2일 조사)이고, 주간 시세 흐름은 아래와 같다.</p>
-<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="성남 분당구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.23%, 전세 최신 +0.11%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="142.7" x2="632" y2="142.7" class="cl-zero"/><path d="M8.0 84.3 L33.0 76.3 L57.9 111.9 L82.9 108.8 L107.8 58.0 L132.8 75.0 L157.8 85.1 L182.7 86.1 L207.7 76.8 L232.6 85.1 L257.6 63.0 L282.6 98.3 L307.5 83.7 L332.5 89.5 L357.4 85.3 L382.4 68.7 L407.4 70.7 L432.3 86.5 L457.3 95.5 L482.2 97.7 L507.2 94.9 L532.2 66.2 L557.1 34.0 L582.1 70.0 L607.0 114.9 L632.0 111.1" class="cl cl-ma"/><circle cx="632.0" cy="111.1" r="2.5" class="cl-dot"/><path d="M8.0 119.0 L33.0 127.7 L57.9 118.4 L82.9 123.1 L107.8 95.1 L132.8 97.2 L157.8 119.7 L182.7 115.1 L207.7 130.6 L232.6 108.7 L257.6 124.5 L282.6 128.9 L307.5 131.6 L332.5 150.0 L357.4 128.3 L382.4 125.4 L407.4 88.9 L432.3 143.9 L457.3 120.0 L482.2 136.6 L507.2 128.8 L532.2 112.8 L557.1 135.8 L582.1 106.5 L607.0 100.7 L632.0 127.3" class="cl cl-je"/><circle cx="632.0" cy="127.3" r="2.5" class="cl-dot"/><text x="10" y="137.7" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.79%</text><text x="626.0" y="103.1" class="cb-v cb-k cx-e cl-t">+0.23%</text><text x="10" y="183" class="cb-x cx-s">5/11</text><text x="630" y="183" class="cb-x cx-e">11/2</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>성남 분당구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/2 조사 · 전주 대비 변동률</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">성남 분당구</th><td>+0.23%</td><td>+0.11%</td></tr><tr><th scope="row">성남 수정구</th><td>+0.24%</td><td>+0.05%</td></tr><tr><th scope="row">성남 중원구</th><td>+0.39%</td><td>+0.17%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
+<p>성남의 2027년 입주 물량은 11,105세대로 한 해 적정물량 7,186세대의 155%다. 적정물량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 분당구 매매가는 87주 연속 상승(11월 9일 조사)이고, 주간 시세 흐름은 아래와 같다.</p>
+<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="성남 분당구 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.26%, 전세 최신 +0.22%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="142.7" x2="632" y2="142.7" class="cl-zero"/><path d="M8.0 76.3 L33.0 111.9 L57.9 108.8 L82.9 58.0 L107.8 75.0 L132.8 85.1 L157.8 86.1 L182.7 76.8 L207.7 85.1 L232.6 63.0 L257.6 98.3 L282.6 83.7 L307.5 89.5 L332.5 85.3 L357.4 68.7 L382.4 70.7 L407.4 86.5 L432.3 95.5 L457.3 97.7 L482.2 94.9 L507.2 66.2 L532.2 34.0 L557.1 70.0 L582.1 114.9 L607.0 111.1 L632.0 107.8" class="cl cl-ma"/><circle cx="632.0" cy="107.8" r="2.5" class="cl-dot"/><path d="M8.0 127.7 L33.0 118.4 L57.9 123.1 L82.9 95.1 L107.8 97.2 L132.8 119.7 L157.8 115.1 L182.7 130.6 L207.7 108.7 L232.6 124.5 L257.6 128.9 L282.6 131.6 L307.5 150.0 L332.5 128.3 L357.4 125.4 L382.4 88.9 L407.4 143.9 L432.3 120.0 L457.3 136.6 L482.2 128.8 L507.2 112.8 L532.2 135.8 L557.1 106.5 L582.1 100.7 L607.0 127.3 L632.0 112.3" class="cl cl-je"/><circle cx="632.0" cy="112.3" r="2.5" class="cl-dot"/><text x="10" y="137.7" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.79%</text><text x="626.0" y="99.8" class="cb-v cb-k cx-e cl-t">+0.26%</text><text x="10" y="183" class="cb-x cx-s">5/18</text><text x="630" y="183" class="cb-x cx-e">11/9</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>성남 분당구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/9 조사 · 전주 대비 변동률</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">성남 분당구</th><td>+0.26%</td><td>+0.22%</td></tr><tr><th scope="row">성남 수정구</th><td>+0.16%</td><td>+0.38%</td></tr><tr><th scope="row">성남 중원구</th><td>+0.25%</td><td>+0.31%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
 <p>2027년 입주장이 지나면 2028·2029년 성남 입주 물량은 위 표처럼 적정물량에 크게 못 미친다. 여기에 분당 특별정비구역 이주가 시작되면 이주 수요가 더해진다. 2차 선정 5개 구역만 13,429세대다. 아공맵은 이 구간에서 성남의 신축 희소성이 커질 것으로 본다. 정비 일정이 뒤에 있는 아름마을은 앞 순번 구역의 이주 기간에 전세 수요를 받는 쪽에 선다. 사업 속도는 단지 간 통합 여부가 정해지는 시점에 달려 있다.</p>
-<p>관련 리포트: <a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세</a></p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2025년 1월~2026년 10월, 2026년 10월 26일 조회)</li><li>국토교통부 건축물대장(표제부 대지면적·용적률)</li><li>네이버 부동산 매물 호가(2026년 10월 23일 조회)</li><li>성남시 분당 노후계획도시 정비사업 특별정비구역 2차 선정 결과(2026년 9월 29일, 경기일보 보도)</li><li>국방부 비행안전구역 변경고시(2025년 9월 29일, SBS Biz 보도)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>한국부동산원 주간 아파트가격동향(11/2 조사)</li><li>행정안전부 주민등록 인구(2026년 9월)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>아름마을4단지 두산삼호 대지지분은 얼마인가요</dt><dd>건축물대장 대지면적 75,702.9㎡ 기준 세대당 평균 20.2평이고, 공급면적 비율로 나누면 47평형 22.5평, 국평(31평형) 14.9평, 57평형 27.3평으로 추정됩니다.</dd><dt>아름마을은 분당 특별정비구역 2차에 선정됐나요</dt><dd>아닙니다. 2026년 9월 29일 성남시가 발표한 2차 선정 5개 구역(13,429세대)에 아름마을은 없고, 같은 이매동의 이매촌1구역(1,734세대)이 들었습니다.</dd><dt>아름마을 고도제한은 어떻게 바뀌었나요</dt><dd>2025년 9월 29일 국방부 변경고시로 아름마을 1~7단지가 서울공항 비행안전 2구역에서 6구역으로 바뀌어 동별 위치에 따라 최고 48층까지 재건축할 수 있게 됐습니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a><a href="/#stats-market-week~a801033"><span>시세 지도</span>성남 분당구 주간 시세</a></div></section><div class="cnav"><a class="cnav-n" href="/danji/byeokjeokgol8-yeongtong/"><span>다음 글</span>영통 벽적골8단지 리모델링, 이주 시작 뒤 9월 매매 96건으로 거래가 몰립니다</a><a class="cnav-hub" href="/danji/"><span>이 질문의 글 모두</span>재건축·리모델링, 어디까지 왔나?</a></div></div></section>
+<p>관련 리포트: <a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세</a></p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2025년 1월~2026년 10월, 2026년 10월 26일 조회)</li><li>국토교통부 건축물대장(표제부 대지면적·용적률)</li><li>네이버 부동산 매물 호가(2026년 10월 23일 조회)</li><li>성남시 분당 노후계획도시 정비사업 특별정비구역 2차 선정 결과(2026년 9월 29일, 경기일보 보도)</li><li>국방부 비행안전구역 변경고시(2025년 9월 29일, SBS Biz 보도)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>한국부동산원 주간 아파트가격동향(11/9 조사)</li><li>행정안전부 주민등록 인구(2026년 9월)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>아름마을4단지 두산삼호 대지지분은 얼마인가요</dt><dd>건축물대장 대지면적 75,702.9㎡ 기준 세대당 평균 20.2평이고, 공급면적 비율로 나누면 47평형 22.5평, 국평(31평형) 14.9평, 57평형 27.3평으로 추정됩니다.</dd><dt>아름마을은 분당 특별정비구역 2차에 선정됐나요</dt><dd>아닙니다. 2026년 9월 29일 성남시가 발표한 2차 선정 5개 구역(13,429세대)에 아름마을은 없고, 같은 이매동의 이매촌1구역(1,734세대)이 들었습니다.</dd><dt>아름마을 고도제한은 어떻게 바뀌었나요</dt><dd>2025년 9월 29일 국방부 변경고시로 아름마을 1~7단지가 서울공항 비행안전 2구역에서 6구역으로 바뀌어 동별 위치에 따라 최고 48층까지 재건축할 수 있게 됐습니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a><a href="/#stats-market-week~a801033"><span>시세 지도</span>성남 분당구 주간 시세</a></div></section><div class="cnav"><a class="cnav-n" href="/danji/byeokjeokgol8-yeongtong/"><span>다음 글</span>영통 벽적골8단지 리모델링, 이주 시작 뒤 9월 매매 96건으로 거래가 몰립니다</a><a class="cnav-hub" href="/danji/"><span>이 질문의 글 모두</span>재건축·리모델링, 어디까지 왔나?</a></div></div></section>
 </main>
 <footer class="sitefoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

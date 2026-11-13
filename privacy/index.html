@@ -41,17 +41,18 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 <meta property="og:description" content="수집 항목·목적·보유기간·국외 이전·이용자 권리 안내.">
 <meta property="og:url" content="https://www.agongmap.co.kr/privacy/">
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
-<style>b,strong{font-weight:600}
-  :root{--paper:#f4f6f5;--ink:#131e24;--body:#131e24;--muted:#5e6f74;--line:#c4cec9;--panel:#fdfdfd}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+b,strong{font-weight:600}
+  :root{--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--paper:#f4f6f5;--ink:#131e24;--body:#131e24;--muted:#5e6f74;--line:#c4cec9;--panel:#fdfdfd}
   /* 조판 치수 — 공용 시트 :root 정본의 사본이다. 값을 손으로 바꾸지 말 것(test_design_tokens 가 일치를 고정한다) */
   :root{--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
   *{box-sizing:border-box}
   body{margin:0;background:var(--paper);color:var(--body);
-    font-family:'Pretendard Variable','Pretendard',-apple-system,'Malgun Gothic',system-ui,sans-serif;line-height:1.75;font-size:var(--fs-read);word-break:keep-all;overflow-wrap:break-word}
+    font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,'Malgun Gothic',system-ui,sans-serif;line-height:1.75;font-size:var(--fs-read);word-break:keep-all;overflow-wrap:break-word}
   .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
   header{padding:44px 0 26px;border-bottom:1px solid var(--line);text-align:center}
   .chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;
-    background:var(--ink);padding:6px 16px;border-radius:0;margin-bottom:18px}
+    background:var(--brand);padding:6px 16px;border-radius:0;margin-bottom:18px}
   h1{font-size:var(--h1-doc);line-height:1.3;color:var(--ink);margin:.45em 0 .2em;letter-spacing:-.02em}
   .lead{color:var(--muted);font-size:.95rem;margin:0}
   .nw{white-space:nowrap}   /* 날짜 한 덩어리가 줄 끝에서 갈라져 '30일'만 남지 않게(hand-6) */
@@ -84,7 +85,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
   .note{background:var(--panel);border:1px solid var(--line);border-radius:0;padding:14px 16px;font-size:.92rem}
   a{color:var(--ink)}
   .cta{display:block;width:100%;max-width:400px;margin:26px auto;text-align:center;text-decoration:none;
-    background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
+    background:var(--brand);color:#fff;font-size:17px;font-weight:600;padding:16px 24px;border-radius:3px}
   footer{padding:26px 0 60px;text-align:center;color:var(--muted);font-size:13px;line-height:1.7}
   footer a{color:var(--muted)}
 
@@ -94,33 +95,36 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
    ⚠️ 주석에도 공용 시트의 파일명을 쓰지 말 것 — audit_design의 공유 판정이
    문자열 검색이라 주석의 파일명만으로 그 시트의 그림자까지 합산된다. */
 body{padding-bottom:66px}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);
   display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(19,30,36,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;
   text-decoration:none}
 .nav-btn svg{display:block}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}
 /* 건너뛰기 링크는 첫 Tab 에만 보인다 — 이 규칙이 없어 링크가 늘 맨 위에 떠 있었다(2026-09-23 실측) */
 .skip{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 14px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;text-decoration:none;border-radius:3px}
 .skip:focus{top:8px;outline:2px solid #fff;outline-offset:2px}
 /* 이용 이벤트 목록(1항) — 접어 두고 펼쳐 본다 */
 details.ev{margin:.8em 0}
-details.ev summary{cursor:pointer;font-weight:600}
+details.ev summary{cursor:pointer;font-weight:600;padding:6px 0}
 details.ev code{font-size:13px;white-space:nowrap}
 /* 6항 변경 이력 — 지난 줄은 접어 두고 최근 개정 한 줄만 펼쳐 둔다(hand-5). 새 개정을 더하면 지금 펼친 줄을 접힌 목록 끝으로
    옮기고 새 줄을 펼친 목록에 둔다(test_privacy_ga_events 가 이력 마지막 줄을 최신으로 읽고, 펼친 줄이 그 하나인지 본다). */
 details.hist{margin:.6em 0}
-details.hist summary{cursor:pointer;font-weight:600}
+details.hist summary{cursor:pointer;font-weight:600;padding:6px 0}
 details.hist code{font-size:13px}
+
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}   /* 본문 링크는 남색 밑줄(2026-11-11 색 감사 — 링크가 본문과 같은 먹색이라 눌리는 곳이 안 보였다) */
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="doc">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
 
 <header><div class="wrap">
-  <div class="chip">🔒 개인정보처리방침</div>
+  <div class="chip">개인정보처리방침</div>
   <h1>아공맵 개인정보처리방침</h1>
   <p class="lead"><span class="nw">시행일 2026년 8월 1일</span> · <span class="nw">최근 개정 2026년 10월 30일</span></p>
 </div></header>

@@ -96,6 +96,23 @@ def test_hub_cards_lead_with_the_verdict_in_the_grade_colour():
         assert _contrast(col, '#f4f6f5') >= 4.5 and _contrast(col, '#e9edeb') >= 4.5, (g, col)
 
 
+def test_number_cells_keep_one_line_titles_and_values():
+    """'숫자로 보면' 칸: 값은 'N세대'로 끝나고(제목 '누적 순부족'·'누적 여유'가 이미 방향을 말한다) '추정' 표지는 칸 제목 밖(설명 줄)이다.
+    실제 상태(2026-11-12 디자인 마감 점검): '317,320세대 부족'이 두 줄로 접혀 같은 줄 칸과 설명 줄 기준선이 36px 갈렸고, 375px 에서
+    '앞으로 3년 적정물량 [추정]' 제목이 접혀 같은 줄 숫자 높이가 달랐다.
+    변이(실제로 확인): 값을 옛 '%s세대 부족' 으로 되돌리거나 zchip 을 제목으로 되돌리면 빨개진다.
+    픽스처: 저장소 판정으로 메모리에서 구운 리포트 — 전 판정 단위(추정 적정물량 지역이 있으면 그 지역도 지난다)."""
+    _, stats, s = _ctx()
+    for z in s['zones']:
+        page = M.build_page(z['z'], s, stats, {}, s['zones'])
+        cells = re.findall(r'<div class="zcell"><b>(.*?) <span>(.*?)</span></b>', page)
+        assert cells, z['z']
+        for k, v in cells:
+            assert 'zchip' not in k, (z['z'], k)
+            if k.startswith('누적'):
+                assert re.fullmatch(r'[0-9,]+세대', v), (z['z'], k, v)
+
+
 def test_region_posts_follow_the_numbers_and_fold_after_four():
     """'이 지역 글' 자리는 '숫자로 보면' 바로 뒤(분기표 앞)이고 바닥글에는 없다. POSTS_CAP 편이 넘으면 zone.js 가 나머지를 접고 단추를
     단다(reports-3). 변이(실제로 확인): POSTS_SLOT 을 FOOT 로 되돌리면 순서 단정이, zone.js 의 zp-cut 을 지우면 접기 단정이 빨개진다."""
@@ -165,6 +182,17 @@ def test_weekly_source_speaks_like_the_rest_of_the_page():
     head = MW.build(W, Q)[0]
     assert head.index('class="mm-swipe-top"') < head.index('<div class="cue"><div class="mm-scroll">')
     assert '.mm-swipe-top{display:block' in MW.MAP_CSS
+
+
+def test_weekly_map_rules_come_before_the_map():
+    """지도 규칙(MAP_CSS)이 '옆으로 밀어' 줄·지도보다 앞에 있어야 첫 그림이 13px 로 그려진다.
+    실제 상태: 규칙이 160KB 지도 뒤에 있어 그 줄이 기본 16px 로 그려졌다가 줄며 지도가 7px 올라갔다
+    (375px CLS 0.145, 2026-11-12 배포 점검 — 고친 뒤 0).
+    변이(실제로 확인): build() 에서 '<style>…MAP_CSS…' 줄을 '</div>' 뒤(옛 자리)로 옮기면 빨개진다."""
+    W, Q = MW.load()
+    head = MW.build(W, Q)[0]
+    rule = head.index('<style>' + MW.MAP_CSS)
+    assert rule < head.index('class="mm-swipe-top"') and rule < head.index('<div class="mm-scroll">')
 
 
 def test_monthly_heading_numbers_and_chip():
