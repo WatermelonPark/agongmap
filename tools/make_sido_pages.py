@@ -328,8 +328,18 @@ DATE_RE = re.compile(r'\d{4}-\d{2}-\d{2}')
 PAGE_DAY_RE = re.compile(r'(?<=페이지 수정 )\d{4}년 \d{1,2}월 \d{1,2}일')
 
 
+# 뒤 단계(make_content_pages)가 채우는 표식 구간 — 정본은 site_nav.LATE_SLOTS. 견줄 때만 비운다(파일은 그대로 둔다).
+_LATE_SLOT_RES = tuple((a, b, re.compile(re.escape(a) + r'.*?' + re.escape(b), re.S)) for a, b in N.LATE_SLOTS)
+
+
+def _mask_slots(html):
+    for a, b, rx in _LATE_SLOT_RES:
+        html = rx.sub(lambda m, a=a, b=b: a + b, html)
+    return html
+
+
 def _mask_dates(html):
-    return PAGE_DAY_RE.sub('@', DATE_RE.sub('@', html))
+    return PAGE_DAY_RE.sub('@', DATE_RE.sub('@', _mask_slots(html)))
 
 
 def read_old(path):
@@ -355,8 +365,13 @@ def keep_dates(new_html, old_html, today):
     ⚠️ 이게 없으면 데이터가 안 바뀐 날에도 리포트·허브 전부와 sitemap의 lastmod가 날짜만
     달라진 채 매일 커밋된다(옛 make_zone_pages가 같은 이유로 갖고 있던 장치인데
     2026-08-06 재편 때 빠뜨렸다). 검색엔진에도 '매일 전부 갱신'이라는 틀린 신호가
-    간다. 페이지 안의 YYYY-MM-DD는 datePublished·dateModified 둘뿐이라 날짜만
-    가려내고 비교하면 된다.
+    간다. 날짜(YYYY-MM-DD 와 머리의 '페이지 수정 …일')만 가려내고 비교한다.
+
+    ⚠️ 뒤 단계가 채우는 표식 구간(site_nav.LATE_SLOTS — '이 지역 글', /moveins/ 도시 글 칸)도 양쪽에서 비우고
+    견준다. 새 판은 늘 빈 쌍이고 옛 판은 채워진 구간이라, 안 가리면 데이터가 그대로인 날에도 전부 '바뀜'이 되어
+    이 장치가 통째로 꺼진다(2026-11-13 전수 리뷰 — 시도 리포트 전부와 /moveins/ 가 날짜만 바뀐 채 매일 커밋됐다).
+    같다고 본 날은 옛 판(채워진 구간 그대로)을 돌려주고, 그 구간은 뒤 단계가 다시 맞춘다. 그래서 글 목록만 바뀐
+    날은 dateModified 가 움직이지 않는다 — 이 날짜는 리포트 본문(데이터)이 바뀐 날이다.
 
     돌려주는 값: (채택할 HTML, 그 페이지의 lastmod, 내용이 실제로 바뀌었나)
 
@@ -619,7 +634,7 @@ def share_section(z):
 # 순서에 기대지 않으려고 이렇게 나눴다(시도 페이지가 먼저 구워져도 다음 단계에서 채워진다).
 # 자리는 '숫자로 보면' 바로 뒤다(2026-11-07 디자인 검수 reports-3 — 맨 끝 '다른 지역' 칸 18장 뒤라 경기는 375px 에서 8,300px 아래였다).
 # 글이 POSTS_CAP 편을 넘으면 zone.js 가 앞 POSTS_CAP 편만 보이고 '글 N편 모두 보기' 단추를 단다(스크립트 없이는 모두 보인다).
-POSTS_SLOT = '<!--ZONE_POSTS_START--><!--ZONE_POSTS_END-->'
+POSTS_SLOT = ''.join(N.SLOT_ZONE_POSTS)
 POSTS_CAP = 4
 FOOT = '''</main>
 ''' + N.site_footer('국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트') + '''

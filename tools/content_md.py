@@ -193,6 +193,13 @@ def validate(meta, slug, section, lenient=False):
             raise ContentError('faq 항목은 q 와 a 가 모두 있어야 한다: %r' % (f,))
     if isinstance(meta.get('sources'), str):
         raise ContentError('sources 는 목록으로 쓴다(- 로 시작하는 줄)')
+    # 꼴 검사 — 목록 항목이 '이름: 값' 꼴이면 파서가 짝({이름: 값})으로 읽는다(faq 의 q·a 가 그렇게 적힌다). sources 에
+    # '- KOSIS: 주민등록인구'처럼 쌍점을 쓰면 글이 아니라 짝이 되어 생성기가 그 값을 글로 다루다 예외로 끝났다(2026-11-13 전수 리뷰).
+    for i, x in enumerate(meta.get('sources') or []):
+        if not isinstance(x, str):
+            raise ContentError("sources %d번이 한 줄 글이 아니다 — 항목에 '이름: 값' 꼴(쌍점)을 쓰지 않는다: %r" % (i + 1, x))
+    if 'region' in meta and not isinstance(meta['region'], str):
+        raise ContentError("'region' 은 한 줄 값이어야 한다(목록이 아니다) — 여러 도시는 city 에 적는다")
     return meta
 
 

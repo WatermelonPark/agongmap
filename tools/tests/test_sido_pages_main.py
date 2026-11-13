@@ -119,6 +119,62 @@ def test_unchanged_rerun_keeps_pages_and_lastmod(site, monkeypatch):
     assert set(lm.values()) == {DAY1}, 'lastmod 가 내용 변화 없이 움직였다: %s' % sorted(set(lm.values()))
 
 
+def test_filled_post_slots_do_not_restamp_unchanged_pages(site, monkeypatch):
+    """'이 지역 글' 구간이 채워진 뒤에 다시 구워도, 데이터가 그대로면 페이지와 sitemap lastmod 가 그대로다.
+
+    왜: 이 생성기는 늘 빈 표식 쌍을 굽고 make_content_pages.write_zone_posts 가 뒤에서 채운다(글이 없는 시도도 줄바꿈 하나가
+        들어간다). 그래서 커밋된 옛 판과 새 판은 그 구간에서 늘 달랐고, keep_dates 가 매일 '바뀜'으로 읽어 시도 리포트 전부의
+        dateModified·'페이지 수정'·lastmod 가 날마다 오늘로 올랐다(2026-11-13 전수 리뷰 — 배치 커밋이 날짜 두 곳만 바꾼 19장을
+        매일 실었다). 바로 위 시험은 P.main() 만 두 번 돌려 이 길을 지나지 않았다.
+    변이(실제로 확인): make_sido_pages._mask_dates 에서 `_mask_slots(html)` 을 `html` 로 되돌리면 둘째 날 모든 페이지가 다시 쓰여
+          빨개진다. site_nav.LATE_SLOTS 에서 SLOT_ZONE_POSTS 를 빼도 같다.
+    픽스처: 9/1 에 구운 뒤 실제 write_zone_posts 로 구간을 채운 저장소 상태 — 글이 없는 시도(줄바꿈만 든 구간)와 글이 있는
+            시도(서울 — 구간 안에 카드 마크업과 날짜가 든다) 둘 다 — 에서 9/8 에 원천 갱신 없이 다시 돈 배치.
+    """
+    import make_content_pages as MC
+    names = _names()
+    _set_today(monkeypatch, DAY1)
+    P.main()
+    MC.write_zone_posts([], root=str(site))          # 글 없는 시도: 표식 사이에 줄바꿈 하나
+    fp = site / 'zone' / '서울' / 'index.html'
+    a, b = P.N.SLOT_ZONE_POSTS
+    h = _read(fp)
+    assert h.count(a) == 1 and h.count(b) == 1
+    h = h[:h.index(a) + len(a)] + '\n<section class="zposts">글 카드 <span>2026-08-30 갱신</span></section>\n' + h[h.index(b):]
+    io.open(str(fp), 'w', encoding='utf-8', newline='\n').write(h)
+    first = {z: _read(site / 'zone' / z / 'index.html') for z in names}
+    assert first['세종'] != first['세종'].replace(a + '\n' + b, a + b), '픽스처가 채워진 구간을 재현하지 못했다'
+    _set_today(monkeypatch, DAY2)
+    P.main()
+    for z in names:
+        assert _read(site / 'zone' / z / 'index.html') == first[z], '%s 가 내용 변화 없이 다시 쓰였다(글 구간 탓)' % z
+    lm = _lastmods(site)
+    assert set(lm.values()) == {DAY1}, 'lastmod 가 내용 변화 없이 움직였다: %s' % sorted(set(lm.values()))
+
+
+def test_late_slots_are_one_canon_and_only_hide_the_slot():
+    """뒤 단계가 채우는 표식 구간의 글자는 site_nav.LATE_SLOTS 하나에서 나오고, keep_dates 는 그 구간 **안**만 가린다.
+
+    변이(실제로 확인): _mask_slots 의 정규식을 `.*` (탐욕)로 바꾸면 구간 밖 변화까지 가려 둘째 단정이 빨개진다.
+          make_content_pages.ZONE_START 를 다른 글자로 적으면 첫 단정이 빨개진다.
+    픽스처: 표식 쌍마다 만든 한 줄 페이지 — 옛 판은 채워진 구간, 새 판은 빈 쌍.
+    """
+    import make_content_pages as MC
+    import make_indicator_pages as I
+    assert P.POSTS_SLOT == ''.join(P.N.SLOT_ZONE_POSTS)
+    assert (MC.ZONE_START, MC.ZONE_END) == P.N.SLOT_ZONE_POSTS
+    assert (MC.MOVEINS_START, MC.MOVEINS_END) == P.N.SLOT_MOVEINS_CITY == (I.CITY_START, I.CITY_END)
+    assert set(P.N.LATE_SLOTS) == {P.N.SLOT_ZONE_POSTS, P.N.SLOT_MOVEINS_CITY}
+    for a, b in P.N.LATE_SLOTS:
+        old = 'x%s\n<p>글 2026-08-30</p>\n%sy "dateModified": "%s"' % (a, b, DAY1)
+        new = 'x%s%sy "dateModified": "%s"' % (a, b, DAY2)
+        assert P.keep_dates(new, old, DAY2) == (old, DAY1, False), (a, b)
+        moved = new.replace('y "date', 'Y "date')           # 구간 밖이 바뀌면 바뀐 것이다
+        assert P.keep_dates(moved, old, DAY2)[2] is True, (a, b)
+        two = 'x%s%sy%s%sz "dateModified": "%s"' % (a, b, a, b, DAY2)   # 쌍이 둘이어도 사이(y)는 가리지 않는다
+        assert P.keep_dates(two.replace('y', 'Y'), two.replace(DAY2, DAY1), DAY2)[2] is True, (a, b)
+
+
 def test_changed_page_keeps_its_first_publish_date(site, monkeypatch):
     """내용이 바뀐 회차에는 dateModified 만 오늘이 되고 datePublished 는 처음 발행일을 물려받는다.
     안 그러면 8월에 색인된 페이지가 '어제 처음 발행, 수정 이력 없음' 이라고 선언한다(2026-08-07 감사).

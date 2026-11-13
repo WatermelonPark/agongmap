@@ -103,6 +103,14 @@ DN_INK = '#1a5276'
 # 같은 값을 쓴다(test_brand_color). 지도·표의 상승·하락은 칸 채움·글자색(UP_INK·DN_INK)이라 선 그래프와 범례로 갈린다.
 SERIES_COL = {'ma': '#c0392b', 'je': '#6c4ab6', 'sup': '#1f8a70'}
 SERIES_TOKENS = '--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70'
+# 뒤 단계가 채우는 표식 구간(자리는 그 페이지의 생성기가 빈 쌍으로 내고, 안쪽은 make_content_pages 가 채운다). 페이지를 다시 굽는
+# 생성기는 늘 빈 쌍을 내므로, 커밋된 옛 판(채워진 구간)과 견주면 데이터가 그대로인 날에도 '내용 바뀜'이 된다 — 2026-11-13 전수
+# 리뷰: 시도 리포트 전부와 /moveins/ 의 dateModified·'페이지 수정'·sitemap lastmod 가 매일 오늘로 올랐다. 그래서
+# make_sido_pages.keep_dates 는 이 구간들을 양쪽에서 비우고 견준다. **keep_dates 를 거치는 페이지에 새 표식 구간을 두면 여기에 올린다**
+# (test_late_slots). /weekly/ 해설 칸(WK:COLUMN)과 홈 CONTENT_RECENT 는 keep_dates 를 거치지 않는 페이지라 여기 없다.
+SLOT_ZONE_POSTS = ('<!--ZONE_POSTS_START-->', '<!--ZONE_POSTS_END-->')
+SLOT_MOVEINS_CITY = ('<!--MV:CITY-->', '<!--/MV:CITY-->')
+LATE_SLOTS = (SLOT_ZONE_POSTS, SLOT_MOVEINS_CITY)
 IDS = tuple(t[0] for t in TABS)
 LABELS = tuple(t[2] for t in TABS)
 HREF = {t[0]: t[1] for t in TABS}
