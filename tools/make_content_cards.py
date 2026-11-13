@@ -5,6 +5,9 @@
 쓴다. 그래서 주간 공유 카드(make_weekly_share)처럼 **시험을 통과한 뒤** 이 도구가 따로 굽는다. 카드가 없는
 글은 섹션 공통 카드로 떨어지고, 그것도 없으면 브랜드 카드로 떨어진다 — 미리보기가 비는 일은 없다.
 
+목록 썸네일(`share/thumb-*.jpg`)은 2026-11-13 대표 결정으로 그리지 않는다 — 2026-11-05 개편 뒤 어느 페이지도 쓰지 않았다
+(목록 카드는 칩·제목·핵심 숫자 글자로 선다). 
+
 카드에는 **숫자를 넣지 않는다.** 제목·분류·지역만 그린다. 그래야 카드가 원고가 바뀔 때만 달라지고,
 페이지는 카드 파일을 읽지 않고도 `?v=<updated>` 로 판을 붙일 수 있다(카드와 페이지의 생성 순서가 서로
 묶이지 않는다). 숫자를 담으면 데이터가 바뀐 날마다 카드와 페이지를 같은 순서로 다시 구워야 한다.
@@ -39,166 +42,6 @@ FOOT = 'agongmap.co.kr'
 def card_rel(section, slug):
     """카드의 저장소 상대 경로. 페이지 생성기도 이 함수로 같은 이름을 만든다."""
     return 'share/post-%s-%s.png' % (section, slug)
-
-
-THUMB_W, THUMB_H = 480, 252      # 16:9에 가까운 목록용 판(원본 1200×630의 0.4배)
-
-
-def thumb_rel(section, slug):
-    """목록용 썸네일 경로 — 정본은 페이지 생성기(MC.thumb_rel, pillow 없이 도는 쪽)다."""
-    return MC.thumb_rel(section, slug)
-
-
-QUOTE_MAX = 16           # 인용 한 줄의 글자 수 상한(총괄: 10자 안팎)
-LEAD_MAX = 14            # 따옴표가 없는 제목에서 뽑는 앞 구절의 상한(총괄: 12자 안팎)
-
-
-def _quote(title):
-    """제목에서 따옴표 안 발언을 뽑는다. 없으면 None — 그 글은 막대만 그린다."""
-    import re
-    for m in re.finditer(r"['\u2018\u2019\"\u201c\u201d]([^'\u2018\u2019\"\u201c\u201d]{3,%d})['\u2018\u2019\"\u201c\u201d]" % QUOTE_MAX, title):
-        return m.group(1).strip()
-    return None
-
-
-def _lead(title):
-    """따옴표가 없는 제목의 앞 구절. 쉼표 앞을 쓰되, 길면 **어절 경계**에서 끊는다.
-
-    글자 수로만 자르면 '삼성·하이닉' 처럼 낱말이 토막 난다. 어절을 모으다 상한을 넘기면 멈춘다.
-    """
-    head = (title or '').split(',')[0].strip()
-    if not head:
-        return None
-    if len(head) <= LEAD_MAX:
-        return head
-    out = []
-    for w in head.split():
-        if out and len(' '.join(out + [w])) > LEAD_MAX:
-            break
-        out.append(w)
-    return ' '.join(out) if out else head[:LEAD_MAX]
-
-
-def thumb_caption(title):
-    """반박 편 썸네일의 한 줄 → (글자, 따옴표를 두를지). 제목이 없으면 (None, False).
-
-    ⚠️ 반박 편은 **늘 글자**다 — 숫자는 쓰지 않는다(총괄 결정 2026-10-30). 따지는 글이라 발언이 먼저
-       보여야 하고, 한 섹션 안에서 어떤 글은 숫자·어떤 글은 인용이면 목록이 들쭉날쭉해진다. 제목에
-       따옴표가 있으면 그 발언을 따옴표째, 없으면 제목 앞 구절을 따옴표 없이 같은 모양으로 넣는다.
-    """
-    if not title:
-        return None, False
-    q = _quote(title)
-    if q:
-        return q, True
-    return _lead(title), False
-
-
-def thumb_args(meta, body):
-    """그 글의 썸네일에 그릴 moveins 자리표 인자를 **글이 쓴 순서대로**.
-
-    `chart:moveins` 를 먼저 본다 — 글쓴이가 '이 글의 그림'으로 고른 자리표라, 글이 말하는 지역과 해가 거기
-    들어 있다. 그다음이 table·v 의 moveins, 마지막이 프런트매터 region 이다.
-
-    ⚠️ region 을 먼저 보면 안 된다. 단지·GTX·반박 편의 region 은 시도('경기')라, 수원 단지 글과 서울을
-       따지는 반박 글이 **똑같은 경기 막대**를 달고 나갔다(총괄 지적 2026-10-30). 글이 가리키는 가장 좁은
-       지역은 자리표에 있다.
-    """
-    import content_tables as CT
-    text = (body or '') + ' ' + (meta.get('summary') or '')
-    first, rest = [], []
-    for pre, inner in CT.PH.findall(text):
-        parts = [p.strip() for p in inner.split(':') if p.strip()]
-        if len(parts) < 2 or parts[0] != 'moveins':
-            continue
-        (first if pre == 'chart' else rest).append(parts[1:])
-    region = (meta.get('region') or '').strip()
-    return first + rest + ([[region]] if region else [])
-
-
-def _thumb_source(meta, body, data):
-    """썸네일에 그릴 (막대 묶음, 큰 숫자). 어느 지역인지는 thumb_args 가 고른다."""
-    import content_tables as CT
-    for args in thumb_args(meta, body):
-        try:
-            spec = CT.chart(data, 'moveins', args[:2])
-        except CT.TableError:
-            continue
-        big = None
-        for lab, val in spec.get('cards') or []:
-            if '입주' in lab or '적정' in lab:
-                big = (val, lab)
-                break
-        return spec, big
-    return None, None
-
-
-def draw_thumb(spec, big=None, cap=None):
-    """목록 그림 한 장(480×252). 제목은 넣지 않는다 — 목록에서 바로 옆에 있다.
-
-    위쪽에 큰 숫자 하나(또는 발언 인용), 아래쪽에 연도별 입주 막대와 적정 기준선. 막대는 OG 카드·본문
-    그림과 같은 데이터(content_tables.chart)라 세 곳이 어긋나지 않는다.
-    """
-    W, H = THUMB_W, THUMB_H
-    img = Image.new('RGB', (W, H), ZC.PAPER)
-    d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W, 6], fill=ZC.INK)
-    pad = 18
-    top_h = 86
-    # cap = (글자, 따옴표를 두를지). 반박 편이 쓴다(thumb_caption) — 그 섹션은 늘 글자이고 숫자를
-    # 그리지 않는다. 한 섹션 안에서 글자와 숫자가 섞이면 목록이 들쭉날쭉해진다(총괄 결정 2026-10-30).
-    text = None
-    if cap and cap[0]:
-        text = '\u201c%s\u201d' % cap[0] if cap[1] else cap[0]
-    if text:
-        f = ZC.fit_width(text, W - pad * 2, hi=40, lo=20)
-        bb = d.textbbox((0, 0), text, font=f)
-        d.text((pad - bb[0], 30 - bb[1]), text, font=f, fill=ZC.INK)
-    elif big:
-        val, lab = big
-        f = ZC.fit_width(val, W - pad * 2, hi=52, lo=24)
-        bb = d.textbbox((0, 0), val, font=f)
-        d.text((pad - bb[0], 24 - bb[1]), val, font=f, fill=ZC.INK)
-        lf = ZC.font(18, 'Medium')
-        d.text((pad, 24 + (bb[3] - bb[1]) + 8), lab, font=lf, fill=ZC.MUTED)
-    if not spec:
-        return img
-    pts = spec['series'][0]['points']
-    rule = spec.get('rule')
-    top = max([v for _, v in pts if v is not None] + ([rule[0]] if rule and rule[0] else [0])) or 1   # None = 입주 예정 없는 해
-    plot_t, plot_b = top_h + 18, H - 26
-    plot_h = plot_b - plot_t
-    gap = 6
-    bw = min(46.0, max(8.0, (W - pad * 2 - gap * (len(pts) - 1)) / float(len(pts))))
-    x0 = max(pad, W - pad - (bw * len(pts) + gap * (len(pts) - 1)))
-    for i, (lab, v) in enumerate(pts):
-        x = x0 + i * (bw + gap)
-        if v is not None:   # 입주 예정이 없는 해(CT.NO_MOVEIN)는 막대 없이 연도 자리만
-            hh = max(2.0, v / float(top) * plot_h)
-            over = rule and rule[0] and v >= rule[0]
-            d.rectangle([x, plot_b - hh, x + bw, plot_b], fill=ZC.INK if over else ZC.LINE)
-        if bw >= 22:
-            yf = ZC.font(13, 'Medium')
-            yb = d.textbbox((0, 0), str(lab)[2:], font=yf)
-            d.text((x + bw / 2 - (yb[2] - yb[0]) / 2, plot_b + 5), str(lab)[2:], font=yf, fill=ZC.MUTED)
-    if rule and rule[0]:
-        ry = plot_b - rule[0] / float(top) * plot_h
-        for sx in range(int(pad), W - pad, 8):
-            d.line([sx, ry, sx + 4, ry], fill=ZC.MUTED, width=1)
-    return img
-
-
-def save_thumb(card_img, rel):
-    """카드를 줄여 JPEG 로. webp 가 아니라 jpg 인 까닭: 오래된 카톡 미리보기·메일 클라이언트까지 연다."""
-    out = os.path.join(ROOT, rel)
-    im = card_img.convert('RGB').resize((THUMB_W, THUMB_H), Image.LANCZOS)
-    body = io.BytesIO()
-    im.save(body, 'JPEG', quality=82, optimize=True, progressive=True)
-    data = body.getvalue()
-    if os.path.exists(out) and io.open(out, 'rb').read() == data:
-        return False
-    io.open(out, 'wb').write(data)
-    return True
 
 
 def section_rel(section):
@@ -337,7 +180,7 @@ def main(argv=None):
         print('content cards: 원고가 없다 — 아무것도 바꾸지 않는다')
         return 0
     import content_tables as CT
-    data = CT.load()          # 썸네일 막대가 쓰는 자료 — 글마다 다시 읽지 않는다
+    data = CT.load()          # 제목 자리표를 채우는 자료 — 글마다 다시 읽지 않는다
     wrote, skipped, secs = 0, [], set()
     for sec, slug, path in posts:
         try:
@@ -357,11 +200,6 @@ def main(argv=None):
         chip = MC.SECTION_META[sec][0]
         img, lines = draw_card(title, chip, (meta.get('region') or '').strip())
         if save(img, card_rel(sec, slug), {'title': title, 'chip': chip, 'lines': '\n'.join(lines)}):
-            wrote += 1
-        spec, big = _thumb_source(meta, body, data)
-        cap = thumb_caption(title) if sec == 'column' else None
-        th = draw_thumb(spec, None if cap else big, cap)
-        if save_thumb(th, thumb_rel(sec, slug)):
             wrote += 1
         secs.add(sec)
     for sec in sorted(secs):

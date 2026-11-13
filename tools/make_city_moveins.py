@@ -157,6 +157,27 @@ def cities_wanted(root=ROOT):
     return out
 
 
+def list_start(today_ym, root=ROOT):
+    """목록을 어느 달부터 둘까 — 이번 달, 그러나 **원고가 고정한 가장 이른 창의 1월**보다 늦지 않게.
+
+    원고의 도시 3년 창은 작성 연도 다음 해부터다(content_tables.for_post, 2026-11-13 대표 결정). 예전처럼 늘 이번 달부터 받으면
+    2027년 6월에는 2027년 1~5월 단지가 목록에서 빠져, 2026년에 쓴 글의 '2027년 입주' 합계가 달마다 줄었다. 지금(2026-11)은 가장
+    이른 창이 2027-01 이라 이번 달이 그대로 시작이다 — 아직 오지 않은 해를 위해 지난 달을 당겨 받지 않는다.
+    """
+    firsts = []
+    for sec, slug, path in CM.posts(root):
+        try:
+            meta, _body = CM.read(path, sec, slug)
+        except CM.ContentError:
+            continue
+        d = str(meta.get('date') or '')
+        if d[:4].isdigit():
+            firsts.append(int(d[:4]) + 1)
+    if not firsts:
+        return today_ym
+    return min(today_ym, '%04d-01' % min(firsts))
+
+
 def city_facts(city, sido, start):
     """한 도시의 입주물량 묶음. city_movein 의 병합 결과를 그대로 쓰고 숫자만 모은다."""
     raw = CMV.load(sido)
@@ -247,7 +268,7 @@ def main(argv=None):
     if not cities:
         print('city moveins: 받을 도시가 없다(원고의 시군구도 광역시도) — 아무것도 바꾸지 않는다')
         return 0
-    start = KST.today_iso()[:7]
+    start = list_start(KST.today_iso()[:7])
     fetch = '--fetch' in argv
     new_only = '--new-only' in argv
     if fetch and not os.environ.get('DATA_GO_KR_KEY'):

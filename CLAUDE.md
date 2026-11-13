@@ -31,7 +31,7 @@
 | `content/` | **글 원고의 정본**(`content/<섹션>/<slug>.md`, 섹션은 `city`·`gtx`·`danji`·`column`). 규칙은 `content/README.md`, 아래 "콘텐츠 원고" |
 | `city/`, `gtx/`, `danji/`, `column/`, `reports/` | 생성 페이지(글). 원고에서 `make_content_pages.py`가 굽는다. `/reports/`는 네 섹션을 모은 허브(하단 탭 '콘텐츠') |
 | `cycle/` | 서술은 손으로 쓴 문서이고, `refresh_cycle_data.py`가 매 회차 차트 데이터(zones·rate_overlay·jratio_level·flow_chain·super.stock30)와 data-d 칸·`const ZN`·머리 메타의 'N개 시도 M년' 햇수(`RC.span_years` — RC 는 `rebuild_cycle_analysis`)를 다시 쓴다. D 에 싣는 하위 필드는 `rebuild_cycle_analysis.SHIP_FIELDS`가 정본이다. 고리 절 손 문장의 전제는 `RC.claim_breaks`가 보고, 재산정 `--write`는 전제가 깨지면 쓰지 않는다 — 문장을 고치면 claim_breaks 도 같이 고친다. 탭이 없고 입구는 `/reports/` 허브 '기본 개념' 줄이다 |
-| `share/` | 공유 이미지. 주간·월간 카드(`weekly-map.png`·`monthly-card.png`)와 글 카드(`post-*`·`thumb-*`, `make_content_cards.py`)는 **CI 가 굽는다**(배치와 원고 발행 워크플로, 게이트 앞). 지역 카드(`make_zone_cards.py` 등)는 지역 구성이 바뀔 때 사람이 돌린다 |
+| `share/` | 공유 이미지. 주간·월간 카드(`weekly-map.png`·`monthly-card.png`)와 글 카드(`post-*`, `make_content_cards.py` — 목록 썸네일 `thumb-*`는 2026-11-13 부터 그리지 않는다)는 **CI 가 굽는다**(배치와 원고 발행 워크플로, 게이트 앞). 지역 카드(`make_zone_cards.py` 등)는 지역 구성이 바뀔 때 사람이 돌린다 |
 | 옛 퀴즈 주소(`burini-test/`, `investor-test/`, `redev-test/`) | 퀴즈 3종은 2026-11-14 대표 결정으로 걷었다. 세 주소에는 홈(`/`)으로 넘기는 noindex 최소 페이지만 둔다. 홈·메뉴·sitemap·llms.txt 에 퀴즈 링크를 되살리지 않는다(`test_quiz_removed`) |
 | `about/`, `faq/`, `privacy/`, `404.html` | 손 페이지. GA 이벤트를 더하거나 보내는 값을 바꾸면 개인정보처리방침의 전송 목록 표(`#ga-events`)도 고친다(`test_privacy_ga_events`가 코드의 모든 GA 호출과 대조). 목록은 '사이트 코드가 보내는 이벤트'이고 GA 자동 수집은 `#ga-auto` 한 줄로 밝힌다. 목록을 고치면 변경 이력에 오늘 날짜 줄(`data-ga` 지문)을 더하고 '최근 개정'도 고친다(`test_privacy_history_follows_the_event_table`) |
 | `tools/` | 배치·생성기·점검 도구 (아래 표) |
@@ -122,7 +122,8 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
   같은 시험을 다음 판(26.04)에서 주 1회·수동으로 돌린다. 몇 주 초록이면 고정 판을 함께 올린다(2026-10-06 대표 결정).
 - **감시**: `watchdog.yml`이 매일 `check_freshness.py`로 라이브 데이터를 원천과 대조한다. R-ONE 지역 목록 조회가 끊기면 재시도하고,
   그래도 끊기면 첫날은 경고, 이틀 연속이면 실패다(`region_fail_tolerated`, 상태는 actions/cache 의 `.watch_state` — 같은 회차·이웃 회차는
-  KST 날짜가 아니라 실행 id 와 경과 시간으로 가른다). 감시 최악 소요는 `test_freshness_budget`이 줄인 시계로 main() 을 돌려 잡 상한과
+  KST 날짜가 아니라 실행 id 와 경과 시간으로 가른다). 계열별 원천 조회도 같은 규칙이다 — 재시도까지 못 본 계열은 첫날 경고, 이틀 연속이면
+  실패(`series_fail_escalated`, 확인된 원천 정지 `SOURCE_PAUSED`는 기한까지 경고, 2026-11-13 대표 결정). 감시 최악 소요는 `test_freshness_budget`이 줄인 시계로 main() 을 돌려 잡 상한과
   견준다 — 원천 호출·재시도를 늘리면 이 시험이 알린다. 배치 안의 알림 코드는 배치가 안 뜨면 실행되지 않으므로 감시자를 밖에 둔 것이다.
 - **메일**(2026-11-08 대표 결정 '꼭 봐야 하는 것만'): 사람에게 가는 메일은 경보 이슈(`batch-report` 라벨) 코멘트 하나뿐이고,
   코멘트·제목 바꾸기는 `tools/post_alert.sh` 한 곳이 한다. 보내는 경우는 셋이다 — 데이터 갱신이 하루 넘게 멈춤(배치, 같은 KST 날짜에
