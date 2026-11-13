@@ -203,3 +203,33 @@ def test_info_lines_reach_the_monday_report():
     assert STOP_LINE.match(ln)
     body, mention = F.build(ln + '\n', '2026-12-21 17:10', 'https://example.invalid/run', 'owner', 0)
     assert mention and '사이클 7편 전제가' in body, body
+
+
+def test_a_bare_assert_still_says_what_failed(tmp_path):
+    """메시지 없는 단정이 깨져도 가드 문구에 **무엇이** 깨졌는지(단정 식)가 실린다 — 사유가 빈 줄이 나가지 않는다.
+
+    왜: 가드의 단정 대부분이 메시지 없는 `assert 식` 이라, 배치 기록 줄이 '…어긋난다 — h1_25: .' 로 사유 없이 매 회차 나갔다.
+    변이(실제로 확인): RC.why_of 가 str(err) 만 돌려주게 하면 첫 단정이, theory_link4 가 RC.why_of 대신 e 를 그대로 실으면 끝
+          단정이 빨개진다.
+    픽스처: 도구 모듈처럼 pytest 가 단정을 고쳐 쓰지 않는 파일에 든 메시지 없는 단정·메시지 있는 단정, 그리고 다른 예외.
+            (시험 파일 안의 assert 는 pytest 가 메시지를 붙여 주므로 빈 사유를 재현하지 못한다.)
+    """
+    import importlib.util
+    import inspect
+    import rebuild_cycle_analysis as RC
+    import theory_link4 as T4
+    mod = tmp_path / 'bare_guard.py'
+    mod.write_text('def bare(lo, hi):\n    assert lo > hi\n\n\ndef told(lo, hi):\n    assert lo > hi, "사유가 있다"\n', encoding='utf-8')
+    spec = importlib.util.spec_from_file_location('bare_guard', str(mod))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    with pytest.raises(AssertionError) as e:
+        m.bare(1, 2)
+    assert str(e.value) == '' and RC.why_of(e.value) == 'lo > hi'
+    with pytest.raises(AssertionError) as e:
+        m.told(1, 2)
+    assert RC.why_of(e.value) == '사유가 있다'
+    with pytest.raises(KeyError) as e:
+        {}['없는 키']
+    assert '없는 키' in RC.why_of(e.value)
+    assert "% (k, RC.why_of(e))" in inspect.getsource(T4.link4_numbers), '5편 가드가 단정 실패의 사유를 그대로(빈 글로) 싣는다'

@@ -524,7 +524,7 @@ def link4_numbers(adv, sts, D=None):
         try:
             out[k] = f()
         except (AssertionError, ValueError, StopIteration) as e:
-            raise Link4ClaimError('5편 본문의 단정이 데이터와 어긋난다 — %s: %s' % (k, e))
+            raise Link4ClaimError('5편 본문의 단정이 데이터와 어긋난다 — %s: %s' % (k, RC.why_of(e)))
         except (KeyError, IndexError, TypeError, ZeroDivisionError, AttributeError) as e:
             # 계열에 빈 달·빈 칸이 생겨 셈이 안 서는 회차(12개월 합의 끝 달이 없다, 전년 같은 기간이 0, 칸이 None 등) — 가드를
             # 비켜 날 예외로 새면 초안 생성 가드(SystemExit)를 거르는 시험이 죽는다(대표 결정 2026-10-18 D1, theory_link3 와 같은

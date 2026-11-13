@@ -5,6 +5,7 @@
 수준 값에 변동률 부호가 붙거나(전세가율), 꼴이 어긋난 자리표가 글자 그대로 발행되던 자리를 고정한다.
 """
 import io
+import json
 import os
 import sys
 
@@ -244,3 +245,35 @@ def test_check_counts_a_pending_summary_as_waiting(tmp_path, data):
     probs, waits, _rel = CC.check_post(str(p), data, root=str(tmp_path))
     assert not probs, probs
     assert any('summary' in why and fresh in why for _ln, why in waits), waits
+
+
+def test_the_batch_keeps_a_city_published_after_its_fetch_started(tmp_path):
+    """커밋 잡은 수집 잡이 받아 온 도시 자료를 **도시 단위로** 합친다 — 수집 뒤에 발행된 새 도시를 지우지 않는다.
+
+    왜: 수집 잡은 그 잡이 시작한 때의 원고에 있던 도시만 받는다. 그 사이 새 도시 원고가 병합되면 발행 워크플로가 그 도시를
+        저장소 파일에 더하는데, 커밋 잡이 받아 온 파일을 통째로 덮어써 그 도시가 사라졌다 — 방금 발행된 글이 다음 배치까지
+        목록에서 빠진다.
+    변이(실제로 확인): adopt 에서 `fresh['cities'][c] = have[c]` 줄을 지우면 새 도시가 빠져 빨개진다. 워크플로의 `--adopt` 줄을
+          예전 `cp` 로 되돌리면 끝 단정이 빨개진다.
+    픽스처: 저장소 파일에 도시 셋(가·나·새), 받아 온 파일에 둘(가·나 — 값이 새것). 원고는 가·새를 쓴다(나는 원고에서 빠졌다).
+    """
+    out = tmp_path / 'tools' / 'data' / 'city_moveins.json'
+    out.parent.mkdir(parents=True)
+    out.write_text(json.dumps({'start': '2026-11', 'cities': {'가': {'n': 1}, '나': {'n': 1}, '새': {'n': 7}}}), encoding='utf-8')
+    fresh = tmp_path / 'fresh.json'
+    fresh.write_text(json.dumps({'start': '2026-11', 'source': 's', 'cities': {'가': {'n': 2}, '나': {'n': 2}}}), encoding='utf-8')
+    n, kept = MCM.adopt(str(fresh), out=str(out), wanted={'가': '경기', '새': '경기'})
+    got = json.loads(out.read_text(encoding='utf-8'))
+    assert (n, kept) == (3, ['새'])
+    assert got['cities'] == {'가': {'n': 2}, '나': {'n': 2}, '새': {'n': 7}}, got      # 받은 값이 이기고, 새 도시는 지킨다
+    # 원고가 더는 쓰지 않는 도시는 받아 온 파일을 따라 빠진다
+    out.write_text(json.dumps({'cities': {'가': {'n': 1}, '옛': {'n': 9}}}), encoding='utf-8')
+    MCM.adopt(str(fresh), out=str(out), wanted={'가': '경기'})
+    assert '옛' not in json.loads(out.read_text(encoding='utf-8'))['cities']
+    # 받아 온 파일이 깨졌으면 저장소 파일을 건드리지 않는다
+    fresh.write_text('{깨짐', encoding='utf-8')
+    before = out.read_text(encoding='utf-8')
+    assert MCM.adopt(str(fresh), out=str(out), wanted={}) is None and out.read_text(encoding='utf-8') == before
+    wf = io.open(os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml'), encoding='utf-8').read()
+    code = '\n'.join(ln for ln in wf.splitlines() if not ln.lstrip().startswith('#'))
+    assert 'make_city_moveins.py --adopt "$SRC/tools/data/city_moveins.json"' in code, '커밋 잡이 도시 자료를 통째로 덮는다'

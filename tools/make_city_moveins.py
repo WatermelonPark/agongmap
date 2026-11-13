@@ -182,8 +182,40 @@ def build(cities, start, fetch=False, keep=None):
             'cities': out}
 
 
+def adopt(fresh_path, out=None, wanted=None):
+    """수집 잡이 받아 온 파일(fresh_path)을 저장소 파일에 **도시 단위로** 합쳐 쓴다 → (쓴 도시 수, 지킨 도시 이름들).
+
+    배치의 커밋 잡이 쓴다. 수집 잡은 그 잡이 시작한 때의 원고에 있던 도시만 받는다. 그 사이 새 도시 원고가 병합되면 발행
+    워크플로가 그 도시를 저장소 파일에 더해 커밋하는데, 커밋 잡이 수집 잡의 파일을 통째로 덮어쓰면 그 도시가 사라져 방금
+    발행된 글이 다음 배치까지 목록에서 빠졌다(2026-11-13 전수 리뷰). 그래서 받아 온 파일에 없는 도시 가운데 **지금 원고가
+    쓰는 도시**는 저장소 값을 지킨다. 원고가 더는 쓰지 않는 도시는 받아 온 파일을 따라 빠진다.
+    받아 온 파일을 못 읽으면 아무것도 쓰지 않는다(None) — 부르는 쪽이 저장소 파일을 그대로 둔다.
+    """
+    out = out or OUT
+    fresh = _read(fresh_path)
+    if not fresh or not isinstance(fresh.get('cities'), dict):
+        return None
+    have = (_read(out) or {}).get('cities') or {}
+    wanted = cities_from_content() if wanted is None else wanted
+    kept = sorted(c for c in have if c not in fresh['cities'] and c in wanted)
+    for c in kept:
+        fresh['cities'][c] = have[c]
+    text = json.dumps(fresh, ensure_ascii=False, indent=1, sort_keys=True) + '\n'
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    io.open(out, 'w', encoding='utf-8', newline='\n').write(text)
+    return len(fresh['cities']), kept
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
+    if '--adopt' in argv:
+        got = adopt(argv[argv.index('--adopt') + 1])
+        if got is None:
+            print('city moveins: 받아 온 파일을 읽지 못했다 — 저장소 파일을 그대로 둔다')
+            return 1
+        print('city moveins: 받아 온 파일을 싣는다(%d개 도시%s)'
+              % (got[0], ' · 수집 뒤에 발행된 %s 는 저장소 값을 지킨다' % ', '.join(got[1]) if got[1] else ''))
+        return 0
     cities = cities_from_content()
     if not cities:
         print('city moveins: 원고에 시군구 region 이 없다 — 아무것도 바꾸지 않는다')

@@ -201,7 +201,7 @@ MVP = '<div class="note">표두를 누르면 정렬. %s, 이후는 <b>착공 실
 
 
 def _derived(monkeypatch, seoul, gyeonggi, jr='2026.06 기준', mv=MVP % '2026년 2분기까지 준공 실적',
-             nat=None):
+             nat=None, occ=None):
     pages = {
         C.SITE + '/zone/' + _up.quote('전국') + '/': (nat if nat is not None else OKP),
         C.SITE + '/zone/' + _up.quote('서울') + '/': seoul,
@@ -214,7 +214,7 @@ def _derived(monkeypatch, seoul, gyeonggi, jr='2026.06 기준', mv=MVP % '2026�
     # 분기 적정물량')의 날짜가 미분양 기준월이기 때문(2026-08-10 리뷰로 교정).
     adv = {'sido': {'zones': [{'z': '전국'}, {'z': '서울'}, {'z': '경기'}],
                     'unsold_prd': '2026.06'},
-           'occupancy': {'rows': [{'p': '2026Q2', 'e': False}]}}
+           'occupancy': {'rows': [{'p': '2026Q2', 'e': False}]} if occ is None else occ}
     stats = {'준공': {'dates': ['2026.06'], 'series': {}},
              '전세가율': {'dates': ['2026.06'], 'series': {}}}
     return C.check_derived_pages(adv, stats)
@@ -275,6 +275,21 @@ def test_moveins_reads_the_on_screen_basis(monkeypatch):
     assert len(f) == 1 and 'moveins' in f[0] and '없다' in f[0], f
     f = _derived(monkeypatch, OKP, OKP, mv='"dateModified": "2026-10-02"')
     assert len(f) == 1 and 'moveins' in f[0], f
+
+
+def test_moveins_without_an_actual_quarter_in_the_data_is_not_a_match(monkeypatch):
+    """라이브 데이터에 준공 실적 분기가 없으면 /moveins/ 대조는 '일치'가 아니라 실패다 — 화면에 어떤 분기가 적혀 있든.
+
+    왜: 기대값(want)이 없으면 비교가 건너뛰어져 '일치'로 찍혔다. ADV.occupancy 를 지키는 감시가 이 대조 하나뿐이라, 데이터가
+        비는 사고에서 감시가 스스로 꺼졌다(2026-11-13 전수 리뷰 — 화면 '2025년 1분기까지'도 통과).
+    변이(실제로 확인): check_derived_pages 의 `elif not want:` 갈래를 지우면 세 꼴 모두 [] 로 통과해 빨개진다.
+    픽스처: occupancy 가 빈 행·추정 행뿐·분기 꼴이 아닌 행인 세 가지 라이브 데이터, 화면은 한참 옛 분기를 말하는 /moveins/.
+    """
+    stale = MVP % '2025년 1분기까지 준공 실적'
+    for occ in ({'rows': []}, {'rows': [{'p': '2027Q1', 'e': True}]}, {'rows': [{'p': '2026-06', 'e': False}]}, {}):
+        f = _derived(monkeypatch, OKP, OKP, mv=stale, occ=occ)
+        assert len(f) == 1 and 'moveins' in f[0] and '실적 분기가 없다' in f[0], (occ, f)
+    assert _derived(monkeypatch, OKP, OKP) == []          # 정상 데이터는 그대로 통과한다
 
 
 def test_moveins_basis_marker_is_what_the_generator_prints():

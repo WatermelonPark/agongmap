@@ -451,5 +451,5 @@ def link3_numbers(adv, sts, D=None):
             # 단정(assert)만이 아니다. 반기 행이 없거나(StopIteration) 달이 없으면(ValueError), 매매지수 창에 빈 칸(None)이
             # 끼면(TypeError) 날 트레이스백으로 죽었다 — theory_link4 처럼 모두 같은 멈춤으로 모으고 예외 이름을 남긴다
             # (대표 결정 2026-10-18 D1: 데이터 상태는 초안만 멈추고 게이트를 막지 않는다, 전수리뷰 overflow G1a)
-            raise Link3ClaimError('4편 본문의 단정이 데이터와 어긋난다 — %s: %s %s' % (k, type(e).__name__, e))
+            raise Link3ClaimError('4편 본문의 단정이 데이터와 어긋난다 — %s: %s %s' % (k, type(e).__name__, RC.why_of(e)))
     return out

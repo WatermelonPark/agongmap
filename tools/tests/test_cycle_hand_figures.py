@@ -87,6 +87,29 @@ def test_rebuild_and_study_stop_on_a_broken_index():
     assert i > 0 and i < src.find("os.environ['ECOS_API_KEY']"), '물가를 받기 전에 지수 연속성을 보지 않는다'
 
 
+def test_a_zero_month_in_completions_neither_shifts_nor_stops_the_demolition_window(monkeypatch, tmp_path, capsys):
+    """서울 준공에 빈 칸(원천이 0 을 빈 칸으로 준다)이 있어도 멸실 창은 그대로이고, 창을 못 찾는 회차도 생성기를 세우지 않는다.
+
+    왜: demol_prose 만 빈 칸을 '없는 달'로 세어(재산정 RC.y_sum 은 0 으로 센다), 서울 준공에 0 인 달 하나로 창이 조용히 옛 해로
+        밀리거나(2016~2024 → 2011~2019) '함께 찬 창이 없다'로 예외가 났다. 예외는 생성기 실패가 되고 배치는 그날 데이터 전체를
+        커밋하지 않는다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): demol_prose 가 예전처럼 빈 칸을 건너뛰어 달 수를 세면 첫 단정이, main() 의 try/except 를 걷으면 끝 묶음이
+          RuntimeError 로 빨개진다.
+    픽스처: 2026-10 서울 실제 값에서 2020.05 준공 한 칸만 빈 모양(그 달 준공 0), 그리고 아파트멸실 계열이 통째로 빈 STATS 로
+            돌린 refresh main(어제 칸을 둔다).
+    """
+    st = _demol_stats(_SEOUL_APT, _SEOUL_ALL, _SEOUL_DONE)
+    st['준공']['series']['서울'][st['준공']['dates'].index('2020.05')] = None
+    got = RF.demol_prose(st)
+    assert got['dm_span'] == '2016~2024', got            # 빈 칸은 0 이다 — 2020 은 여전히 다 찬 해다
+    S = RF.load_stats()
+    before = json.loads(re.search(r'const D=(\{.*?\});\n', io.open(RF.PAGE, encoding='utf-8').read(), re.S).group(1))['prose']
+    S['아파트멸실'] = dict(S['아파트멸실'], series={})         # 멸실 계열을 못 받은 회차
+    D = _run_refresh(monkeypatch, tmp_path, S)
+    assert {k: D['prose'].get(k) for k in RF.DM_KEYS} == {k: before.get(k) for k in RF.DM_KEYS}, '어제 칸을 두지 않았다'
+    assert '서울 멸실 칸을 셀 수 없다' in capsys.readouterr().out
+
+
 def _run_refresh(monkeypatch, tmp_path, S):
     page = tmp_path / 'index.html'
     page.write_text(io.open(RF.PAGE, encoding='utf-8').read(), encoding='utf-8')
@@ -312,7 +335,7 @@ def test_seoul_demolition_compares_apartments_with_apartments():
     본문 칸은 이 함수의 값(D.prose)이고, 손으로 적은 옛 수·순감소 주장은 남지 않는다.
 
     변이(각각 실제로 확인): demol_prose 의 비율 분자를 주택멸실(h)로 바꾸면 dm_apt_pct 가 76 이 되어, 창 검사에서 준공
-          열두 달 조건(months.get(y) == 12)을 빼면 열한 달 픽스처의 dm_span 이, 본문 순증 칸을 손 숫자와 옛 '재고가
+          열두 달 조건(`y in done`)을 빼면 열한 달 픽스처의 dm_span 이, 본문 순증 칸을 손 숫자와 옛 '재고가
           순감소' 문장으로 되돌리면 칸·손 문장 단정이 빨개진다.
     픽스처: 2026-10 data.js 의 서울 실제 값(위 상수 — 아파트 멸실 계열은 2024 에서 끝나고 준공은 2025 까지 다 찼다), 그리고
           창의 한 해(2019) 준공이 열한 달뿐인 모양(새 해 멸실이 준공보다 먼저 온 회차) — 창을 한 해 당긴다.
@@ -322,7 +345,8 @@ def test_seoul_demolition_compares_apartments_with_apartments():
                    'dm_net_pct': '80', 'dm_all': '26.6'}, got
     st = _demol_stats(_SEOUL_APT, _SEOUL_ALL, _SEOUL_DONE)
     j = st['준공']['dates'].index('2024.12')
-    st['준공']['series']['서울'][j] = None
+    st['준공']['dates'] = st['준공']['dates'][:j]            # 준공이 2024.11 까지만 발표된 회차 — 2024 는 덜 찬 해다
+    st['준공']['series']['서울'] = st['준공']['series']['서울'][:j]
     assert RF.demol_prose(st)['dm_span'] == '2015~2023'
     # 페이지: 칸이 모두 본문에 있고 D.prose 와 같다(게이트는 생성기 뒤에 돈다), 옛 손 수·순감소 주장은 없다
     D, s = _page()
