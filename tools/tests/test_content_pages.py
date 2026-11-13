@@ -406,6 +406,14 @@ def test_inline_placeholder_rejects_a_table():
         CT.fill_inline('요약 {{table:moveins:경기}} 끝', data)
 
 
+def _city_path(data):
+    """도시 산식 경로를 타는 도시 묶음만 — 광역시(시도 키와 같은 이름)는 적정물량·해마다 입주를 시도 값으로 말하므로 뺀다
+    (content_tables.city, 2026-11-13 대표 결정). 예전엔 파일의 모든 도시가 이 경로라 가정해, 광역시 자료가 처음 들어온
+    발행 실행(#158 병합 뒤)에서 시험 넷이 빨개졌다."""
+    have = (data.get('cities') or {}).get('cities') or {}
+    return {n: f for n, f in have.items() if CT.city(data, n)}
+
+
 def test_city_values_agree_with_the_city_tables():
     """도시 값 자리표(need·pop·peak·share)가 같은 도시의 표와 어긋나지 않는다.
 
@@ -415,7 +423,7 @@ def test_city_values_agree_with_the_city_tables():
     픽스처: tools/data/city_moveins.json 의 실제 도시 전부. 그 파일이 없으면 검사할 것이 없으니 건너뛴다.
     """
     data = CT.load()
-    cities = sorted((data.get('cities') or {}).get('cities') or {})
+    cities = sorted(_city_path(data))
     if not cities:
         pytest.skip('도시 자료가 없다')
     for name in cities:
@@ -473,7 +481,7 @@ def test_year_table_splits_by_district_or_by_quarter():
     픽스처: tools/data/city_moveins.json 의 실제 도시들. 둘 중 한 쪽이 없으면 그 단정만 건너뛴다.
     """
     data = CT.load()
-    cities = (data.get('cities') or {}).get('cities') or {}
+    cities = _city_path(data)
     if not cities:
         pytest.skip('도시 자료가 없다')
     saw_gu = saw_q = False
@@ -539,7 +547,7 @@ def test_chart_numbers_come_from_the_data_files():
     픽스처: 저장소의 실제 자료. 도시 자료가 없으면 검사할 것이 없으니 건너뛴다.
     """
     data = CT.load()
-    cities = (data.get('cities') or {}).get('cities') or {}
+    cities = _city_path(data)
     if not cities:
         pytest.skip('도시 자료가 없다')
     for name, f in sorted(cities.items()):
@@ -764,12 +772,16 @@ def test_sido_share_uses_the_zone_reference_not_the_city_formula():
             '%s %s: share 가 입주물량 표와 어긋난다 — %s' % (key, year, got)
         seen += 1
     assert seen >= 10, '시도를 %d곳밖에 못 봤다' % seen
-    # 도시 전용 자리표는 시도에서 거부한다(인구·단지 목록은 도시 자료에만 있다).
+    # 도시 전용 자리표는 도시 자료가 없는 시도에서 거부한다(인구·단지 목록은 도시 자료에만 있다). 광역시는 그 묶음이 있으면
+    # 단지 목록·몰리는 달·인구를 읽는다(test_metro_cities) — 그래서 거부를 보는 시도는 데이터에서 고른다.
+    import make_city_moveins as MCM
+    metro = MCM.metro_cities()
+    plain = next(k for k in SZ.ORDER if k in zones and k not in metro)
     for kind in ('pop', 'peak'):
         with pytest.raises(CT.TableError):
-            CT.value(data, kind, ['서울'])
+            CT.value(data, kind, [plain])
     # 단위는 둘 다 '세대'다(산식이 다른 것은 위 ref×4 단정이 본다). 변이(실제로 확인): sido_need 를 옛 + '호' 로 되돌리면 빨강.
-    cities = (data.get('cities') or {}).get('cities') or {}
+    cities = _city_path(data)
     if cities:
         one = sorted(cities)[0]
         assert CT.value(data, 'need', [one]).endswith('세대'), '도시 need 의 단위가 바뀌었다'
