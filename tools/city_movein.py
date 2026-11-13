@@ -57,16 +57,35 @@ def full_names(sido):
     return tuple(k for k, v in U.BUBBLE_SHORT.items() if v in src)
 
 
+# 한 실행 안에서 전국 표 두 개(입주예정물량정보·주민등록인구)는 한 번만 받는다. 시도마다 같은 전국 표를 다시 받았는데,
+# 광역시를 늘 받게 되며(make_city_moveins.metro_cities) 시도가 열넷이 되자 수집 잡의 600초 상한이 빠듯해졌다.
+_NATION = {}
+
+
+def _occ_all():
+    if 'occ' not in _NATION:
+        occ, page = [], 1
+        while True:
+            d = _get(OCC_API, {'page': page, 'perPage': 1000})
+            occ += d.get('data') or []
+            if len(occ) >= d.get('totalCount', 0) or not d.get('data'):
+                break
+            page += 1
+        _NATION['occ'] = occ
+    return _NATION['occ']
+
+
+def _pop_all():
+    if 'pop' not in _NATION:
+        import update_adv_data as U
+        _NATION['pop'] = U.kosis(POP_TBL)
+    return _NATION['pop']
+
+
 def fetch(sido):
     """sido(사이트 시도 키, '대구'·'전남광주')의 원천을 받아 캐시에 쓴다. 입주예정물량정보는 전국을 다 받는다(도 안 몫에 쓴다).
-    청약홈은 원천 지역 이름마다 받아 합친다(source_names)."""
-    occ, page = [], 1
-    while True:
-        d = _get(OCC_API, {'page': page, 'perPage': 1000})
-        occ += d.get('data') or []
-        if len(occ) >= d.get('totalCount', 0) or not d.get('data'):
-            break
-        page += 1
+    청약홈은 원천 지역 이름마다 받아 합친다(source_names). 전국 표 둘은 한 실행에 한 번만 받는다(_NATION)."""
+    occ = _occ_all()
     ch = []
     for area in source_names(sido):
         got, page = [], 1
@@ -77,8 +96,7 @@ def fetch(sido):
                 break
             page += 1
         ch += got
-    import update_adv_data as U
-    pop = U.kosis(POP_TBL)
+    pop = _pop_all()
     os.makedirs(CACHE, exist_ok=True)
     raw = dict(sido=sido, occ=occ, ch=ch, pop=pop)
     with open(os.path.join(CACHE, '%s.json' % sido), 'w', encoding='utf-8') as f:

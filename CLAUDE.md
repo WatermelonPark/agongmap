@@ -187,7 +187,9 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
 - 화면 단위는 '세대' 하나다(시도 `v:need` 포함 — `sido_zones.unit_text`). 도시 연도별 표·그림에서 입주가 없는 해는 건너뛰지 않고
   '입주 예정 없음'으로 자리를 둔다(0 으로 적지 않는다 — `content_tables.NO_MOVEIN`·`year_span`).
 - 도시 숫자의 원천은 `tools/data/city_moveins.json`(`make_city_moveins.py`)이다. 도시 적정물량(인구 ÷ 2.5 × 2%, `movein_need.py`)과
-  시도 적정물량(기준표 분기 값 × 4)은 산식이 다르다 — 한 글에서 나란히 견주면 그 차이를 글이 밝힌다.
+  시도 적정물량(기준표 분기 값 × 4)은 산식이 다르다 — 한 글에서 나란히 견주면 그 차이를 글이 밝힌다. 광역시(시도 키 = 한 도시)는
+  적정물량·해마다 입주를 시도 값으로만 말하고 도시 자료에서는 단지 목록·몰리는 달·인구만 읽는다(`content_tables.city`·`listing`,
+  2026-11-13 대표 결정). 광역시 단지 목록은 원고 없이도 늘 받는다(`metro_cities`).
 - 허브 페이지 제목·h1 은 `make_content_pages.REPORTS_NAME`('부동산 공급 리포트'), 탭·빵부스러기 이름은 `REPORTS_TITLE`('콘텐츠')이다.
   목록 페이지의 JSON-LD 는 `CollectionPage`, 글은 `Article`이다.
 - `make_content_pages.py`는 다른 페이지의 표식 구간도 쓴다: 홈 `CONTENT_RECENT`, 시도 리포트 `ZONE_POSTS`('이 지역 글'),
