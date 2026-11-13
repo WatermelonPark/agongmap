@@ -2,10 +2,11 @@
 """사이클 7편(금리와 집값)의 문장 전제 가드 — link7_values (2026-10-16).
 
 본문이 못 박는 것: ① 금리 바닥 뒤 1년 매매 상승이 전세의 3배를 넘는다, ② 고금리 국면에서 매매가 전세보다 먼저·크게 꺾였다,
-③ 최근 금리가 오르는 동안 매매·전세가 함께 올랐다, ④ 금리–매매 상관이 음수다. 하나라도 뒤집히면 초안을 만들지 않아야 한다.
+③ 최근 금리가 오르는 동안 매매·전세가 함께 올랐다, ④ 금리–매매 상관이 음수다. 하나라도 뒤집히면 가드가 멈춰야 한다. 가드는
+theory_guards 에 있다(블로그 초안 도구는 2026-11-13 에 지웠다).
 
 대표 결정 2026-10-18 D1: /cycle/ 금리 오버레이는 배치가 매일 다시 굽고, ③은 시장 국면에 대한 단정이라(지난 39분기 중 21분기에
-거짓) 금리 인하기에 깨진다 — 그때 멈추는 것은 **초안 생성만**이고 게이트는 막지 않는다(그 상태는 batch_notes 의 ℹ️ 줄이 알린다,
+거짓) 금리 인하기에 깨진다 — 그때 멈추는 것은 가드뿐이고 게이트는 막지 않는다(그 상태는 batch_notes 의 ℹ️ 줄이 알린다,
 전수리뷰 BL2-2·T3-4·X1-1). 그래서 실데이터 시험은 멈춤 갈래도 받고, 자리 채움·뒤집기 시험은 네 전제가 모두 서는 고정 스냅숏(SNAP)에서
 돈다 — 실데이터에 기대면 ③이 깨진 국면에서 뒤집기 시험이 다른 이유의 SystemExit 로 헛통과한다.
 
@@ -29,10 +30,11 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-import make_theory_post as T  # noqa: E402
+import theory_guards as T  # noqa: E402
 
-POST = next(p for p in T.POSTS if p['n'] == 7)
-SLOTS = set(re.findall(r'%\((\w+)\)s', POST['body'])) - {'exp', 'zone', 'cycle', 'link'}
+# 7편 발행본 본문이 읽는 데이터 칸(2026-11-13 초안 도구를 지울 때의 본문에서 링크·경험 칸을 뺀 것) — 가드가 이 칸을 모두 내야 한다
+SLOTS = {'hi_q', 'hi_r', 'je_21', 'je_fall', 'je_now', 'je_pk_q', 'low_q', 'low_r', 'mm_21', 'mm_fall', 'mm_lo_q', 'mm_now', 'mm_pk_q',
+         'now_from', 'now_to', 'r_from', 'r_to', 'rate_n', 'rate_r'}
 
 # /cycle/ D.rate_overlay — 2015Q1 부터 분기마다(2026-10-18)
 _MM = [52.8, 54.2, 55.6, 56.2, 56.1, 56.6, 58.0, 59.1, 58.9, 59.6, 61.1, 61.3, 62.2, 62.9, 64.9, 66.3, 64.9, 64.7, 66.2,
@@ -79,7 +81,7 @@ def test_real_data_passes_or_stops_with_a_named_premise():
     """저장소 실데이터: 전제가 서면 모든 자리를 채우고, 깨진 회차(금리 인하기 등)면 7편 문장의 전제를 대며 멈춘다(D1 — 게이트는
     막지 않는다). 그 밖의 예외(끝 분기 빈칸의 TypeError 등)는 코드 결함이라 그대로 빨갛다."""
     try:
-        v = T.link7_values(T.P.cycle_d(), T.overlay_months(T.M.load()[1]))      # 초안 가드(guard_values)와 같은 입력
+        v = T.link7_values(T.cycle_d(), T.overlay_months(T.M.load()[1]))      # 가드(guard_values)와 같은 입력
     except SystemExit as e:
         msg = str(e)
         assert msg.startswith('7편을 만들 수 없다 — ') and len(msg) > len('7편을 만들 수 없다 — ') + 5, msg

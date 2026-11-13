@@ -3,10 +3,10 @@
 
 본문이 문장으로 못 박는 것: ① 서울은 효과가 확인되지 않는다, ② 수도권으로 묶으면 서울보다 강하다, ③ 광역시가 도보다 강하다,
 ④ 확인된 수도권 시도는 한 분기 뒤에 반응한다, ⑤ 가장 강한 시도(대전)가 앞으로 입주가 적정물량을 넘는 곳이다, ⑥ 그런 시도가 있다,
-⑦ 적정물량의 3분의 1에도 못 미치는 시도가 있다('가장 적은 곳은 …'), ⑧ 못 미치는 시도가 대부분이다. 하나라도 뒤집히면 초안을
-만들지 않는다(3편 check_sync_claims 와 같은 원칙).
+⑦ 적정물량의 3분의 1에도 못 미치는 시도가 있다('가장 적은 곳은 …'), ⑧ 못 미치는 시도가 대부분이다. 하나라도 뒤집히면 가드가
+멈춘다(3편 check_sync_claims 와 같은 원칙). 가드는 theory_guards 에 있다(블로그 초안 도구는 2026-11-13 에 지웠다).
 
-대표 결정 2026-10-18 D1: 지금 데이터가 발행본의 전제와 어긋나면 **초안 생성만** SystemExit 로 멈추고 게이트는 막지 않는다(그 상태는
+대표 결정 2026-10-18 D1: 지금 데이터가 발행본의 전제와 어긋나면 가드만 SystemExit 로 멈추고 게이트는 막지 않는다(그 상태는
 batch_notes 의 ℹ️ 줄이 알린다). 그래서 실데이터 시험은 멈춤 갈래도 받고(멈춤 문구가 6편을 가리키는지 본다), 자리 채움·뒤집기 시험은
 모든 전제가 서는 고정 스냅숏(SNAP)에서 돈다 — 데이터 연도·분기와 무관하게 늘 돈다(전수리뷰 T3-14: 예전 자리 채움 대조는 실데이터의
 5편 연도 가드에 걸려 2027년 자료부터 영영 꺼졌다). 6편은 5편 단정(link4_numbers)에 묶이지 않는다(전수리뷰 BL2-4).
@@ -35,11 +35,12 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-import make_theory_post as T  # noqa: E402
+import theory_guards as T  # noqa: E402
 import theory_link4 as L4  # noqa: E402
 
-POST = next(p for p in T.POSTS if p['n'] == 6)
-SLOTS = set(re.findall(r'%\((\w+)\)s', POST['body'])) - {'exp', 'zone', 'cycle', 'link'}
+# 6편 발행본 본문이 읽는 데이터 칸(2026-11-13 초안 도구를 지울 때의 본문에서 링크·경험 칸을 뺀 것) — 가드가 이 칸을 모두 내야 한다
+SLOTS = {'fut_high', 'fut_high_names', 'fut_low', 'l6_metro', 'l6_prov', 'l6_prov_late', 'l6_prov_now', 'l6_prov_sig', 'l6_sig',
+         'l6_sudo_sig', 'l6_top1', 'l6_top3', 'l6_total', 'rate_r', 'seoul_l6', 'sig_pct', 'sudo_l6', 'win_y'}
 
 # /cycle/ D.link6_regional — (지역, 상관 r, 시차, 권역, 유의) — 2026-10-18
 _L6 = [('대전', -0.48, 0, '지방', True), ('인천', -0.45, 1, '수도권', True), ('대구', -0.41, 1, '지방', True),
@@ -84,7 +85,7 @@ def _stops(D, adv, why):
 
 
 def test_snapshot_passes_and_fills_every_slot():
-    """전제가 모두 서는 스냅숏에서는 본문의 자리 표시자를 하나도 빠뜨리지 않고 채운다 — 데이터 연도와 무관하게 늘 돈다(T3-14)."""
+    """전제가 모두 서는 스냅숏에서는 발행본 본문이 읽는 칸을 하나도 빠뜨리지 않고 낸다 — 데이터 연도와 무관하게 늘 돈다(T3-14)."""
     D, adv = _snap()
     v = T.link6_values(D, adv)
     assert SLOTS and SLOTS <= set(v), sorted(SLOTS - set(v))
@@ -102,7 +103,7 @@ def test_real_data_passes_or_stops_with_a_named_premise():
     """저장소 실데이터: 전제가 서면 모든 자리를 채우고, 깨진 회차면 6편 문장의 전제를 이름으로 대며 멈춘다(D1 — 게이트는 막지 않는다).
     그 밖의 예외(TypeError 등)는 코드 결함이라 그대로 빨갛다."""
     adv, _ = T.M.load()
-    D = T.P.cycle_d()
+    D = T.cycle_d()
     try:
         v = T.link6_values(D, adv)
     except SystemExit as e:
@@ -188,8 +189,8 @@ def test_a_fifth_post_only_claim_does_not_stop_the_sixth(monkeypatch):
 
 
 def test_unreadable_judgement_cells_stop_the_draft_instead_of_raising():
-    """판정 칸을 못 읽으면(키가 바뀌었다·적정물량이 0) 날 예외가 아니라 SystemExit 로 멈춘다 — 초안 가드를 SystemExit 로 거르는
-    게이트 시험(test_home_entry 의 _all_drafts)이 죽지 않게. 문장 탓이 아니라고 안내한다."""
+    """판정 칸을 못 읽으면(키가 바뀌었다·적정물량이 0) 날 예외가 아니라 SystemExit 로 멈춘다 — 날 예외면 배치 기록 줄이 '검사
+    불가'(코드 결함)로 적는다. 문장 탓이 아니라고 안내한다(데이터 상태 줄)."""
     D, adv = _snap()
     _zone(adv, '대구')['need'] = 0
     with pytest.raises(SystemExit) as e:
@@ -219,11 +220,10 @@ def test_region_names_follow_the_blog_display_name():
 def test_significance_cut_in_the_text_follows_the_rebuild_canon(monkeypatch):
     """6편 방법 문단의 '우연일 확률이 N%보다 낮은 곳'은 재산정 정본 RC.SIG_P 에서 읽는다 — 손으로 적은 '10%'는 문턱을 바꾼 재산정에서
     곳 수(l6_sig)와 방법 문장을 가른다(전수리뷰 BL2-14). 픽스처: SNAP 과, 문턱을 0.05 로 바꾸고 그 문턱으로 다시 구운 듯한 고리⑥ 판정.
-    변이(실제로 확인): 본문을 '10%%' 글자로 되돌리거나 link6_values 가 sig_pct 를 고정 글자로 넘기면 빨개진다."""
+    변이(실제로 확인): link6_values 가 sig_pct 를 고정 글자('10')로 넘기면 빨개진다."""
     import rebuild_cycle_analysis as RC
     D, adv = _snap()
     assert T.link6_values(D, adv)['sig_pct'] == '%d' % round(RC.SIG_P * 100)
-    assert '%(sig_pct)s%%보다 낮은 곳' in POST['body'] and not re.search(r'\d+%%보다 낮은 곳', POST['body'])
     monkeypatch.setattr(RC, 'SIG_P', 0.05)
     for x, p in zip(D['link6_regional'], _P6):
         x['sig'] = p < 0.05 and x['r'] < 0

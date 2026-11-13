@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """도구가 **실제로 실행되는지** 본다. import만으로는 부족하다.
 
-2026-09-12 실사고. 리뷰가 `make_naver_post`에 `from make_theory_post import …`를
-넣었는데, `make_theory_post`는 이미 `make_naver_post`를 import하고 있었다(CSS·복사
-UI 재사용). 순환 참조가 생겨 `python tools/make_naver_post.py`가 ImportError로
-죽었다 — 금요일 주간 글과 화요일 지역 편을 만드는 바로 그 도구다.
+2026-09-12 실사고. 리뷰가 블로그 주간 초안 도구에 이론편 초안 도구의 `from … import …`를
+넣었는데, 이론편 도구는 이미 주간 도구를 import하고 있었다(CSS·복사 UI 재사용). 순환 참조가
+생겨 주간 도구를 스크립트로 띄우면 ImportError로 죽었다 — 금요일 주간 글과 화요일 지역 편을
+만드는 바로 그 도구였다(두 도구는 2026-11-13 에 지웠다 — 가드만 theory_guards 로 남겼다).
 
 **테스트 209개가 전부 통과했다.** pytest는 모듈을 import만 하는데, 순환 참조는
 한쪽이 `__main__`으로 먼저 올라올 때만 터진다. import 경로에서는 이미 올라온
@@ -19,7 +19,7 @@ UI 재사용). 순환 참조가 생겨 `python tools/make_naver_post.py`가 Impo
     make_weekly_page·make_weekly_share·batch_notes·month_lag 등 8개가 빠져 있었다.
 
 무엇을 깨뜨리면 빨개지나(각각 실제로 확인):
-  - make_naver_post 최상단에 `from make_theory_post import CYCLE_SYNC_N` → ImportError 로 빨강
+  - theory_link3 최상단에 `from theory_guards import CYCLE_SYNC_N` → 의존 방향 시험이 빨강
   - make_weekly_page 최상단에 `import month_lag as W` 뒤 없는 속성(`W.NOPE`) 접근 → AttributeError 로 빨강
   - 아무 도구 최상단에 없는 이름 참조 → NameError 로 빨강
   - _import_stage 를 runpy.run_path(..., run_name='__main__') 로 되돌리면 → 저장소 파일 시험이 빨강
@@ -95,7 +95,7 @@ def test_the_script_list_is_derived_and_covers_the_batch_tools():
     must = {'update_adv_data.py', 'split_data.py', 'make_sido_pages.py', 'make_indicator_pages.py',
             'make_monthly_page.py', 'make_weekly_page.py', 'refresh_cycle_data.py',
             'make_weekly_share.py', 'month_lag.py', 'batch_notes.py', 'format_batch_report.py',
-            'make_naver_post.py', 'make_theory_post.py', 'check_freshness.py',
+            'check_freshness.py',
             'make_home_summary.py', 'blog_feed.py',   # 홈 마케팅 검수 B3·B5(2026-09-27) — 배치가 부른다
             'make_feed.py', 'ping_indexnow.py',      # 홈 마케팅 검수 D1(2026-09-27) — 배치가 부른다
             'make_llms_txt.py'}                      # 홈 마케팅 검수 D5(2026-09-28) — 배치가 부른다
@@ -109,7 +109,7 @@ def test_running_the_tools_does_not_touch_the_repo():
                                             os.path.join('weekly', 'index.html'),
                                             os.path.join('cycle', 'index.html'))]
     before = [os.path.getmtime(p) for p in watch]
-    for name in ('make_sido_pages.py', 'split_data.py', 'make_naver_post.py',
+    for name in ('make_sido_pages.py', 'split_data.py', 'batch_notes.py',
                  'make_weekly_page.py', 'refresh_cycle_data.py'):
         _import_stage(name)
     assert [os.path.getmtime(p) for p in watch] == before
@@ -139,24 +139,23 @@ def _imported_modules(src):
 
 
 def test_imported_modules_sees_every_import_form():
-    """판정 함수가 사고 형태를 본다(전수리뷰 #103). 2026-09-12 사고는 `from make_theory_post import …` 였는데 예전 부분 문자열
-    판정('import make_theory_post' in a)은 이 형태를 못 봤다. 변이(실제로 확인): _imported_modules 를 부분 문자열 판정으로
+    """판정 함수가 사고 형태를 본다(전수리뷰 #103). 2026-09-12 사고는 `from <모듈> import …` 였는데 예전 부분 문자열
+    판정('import <모듈>' in a)은 이 형태를 못 봤다. 변이(실제로 확인): _imported_modules 를 부분 문자열 판정으로
     되돌리면 from 형태 칸이 빨개진다. 픽스처: 사고 형태 한 줄 + 별칭·함수 안 import 를 합성한 소스."""
-    assert 'make_theory_post' in _imported_modules('from make_theory_post import CYCLE_SYNC_N\n')
-    assert 'make_theory_post' in _imported_modules('import make_theory_post as T\n')
-    assert 'make_theory_post' in _imported_modules('def f():\n    from make_theory_post import X\n    return X\n')
-    assert 'make_theory_post' not in _imported_modules('# import make_theory_post\nx = "import make_theory_post"\n')
+    assert 'theory_guards' in _imported_modules('from theory_guards import CYCLE_SYNC_N\n')
+    assert 'theory_guards' in _imported_modules('import theory_guards as T\n')
+    assert 'theory_guards' in _imported_modules('def f():\n    from theory_guards import X\n    return X\n')
+    assert 'theory_guards' not in _imported_modules('# import theory_guards\nx = "import theory_guards"\n')
 
 
-def test_the_two_publishing_tools_have_one_way_dependency():
-    """의존 방향이 한 쪽만 남아야 한다. 양방향이면 위 시험이 터지기 전에 여기서 걸린다.
-    판정은 ast 로 한다 — `from make_theory_post import …`(2026-09-12 사고 형태)도 의존이다(전수리뷰 #103).
-    변이(실제로 확인): make_naver_post.py 맨 앞에 `from make_theory_post import CYCLE_SYNC_N` 을 넣으면 빨개진다(예전엔 초록)."""
-    a = open(os.path.join(TOOLS, 'make_naver_post.py'), encoding='utf-8').read()
-    b = open(os.path.join(TOOLS, 'make_theory_post.py'), encoding='utf-8').read()
-    a_uses_b = 'make_theory_post' in _imported_modules(a)
-    b_uses_a = 'make_naver_post' in _imported_modules(b)
-    assert b_uses_a, '정본 방향(make_theory_post → make_naver_post)을 못 읽었다 — 판정 함수가 헛돈다'
-    assert not (a_uses_b and b_uses_a), (
-        '두 발행 도구가 서로를 import한다 — 스크립트로 띄우면 ImportError로 죽는다. '
-        '정본은 make_naver_post 에 두고 make_theory_post 가 받아 쓴다.')
+def test_the_guard_and_its_count_modules_have_one_way_dependency():
+    """이론편 가드(theory_guards)는 4·5편 셈 모듈(theory_link3·theory_link4)을 부르고, 셈 모듈은 가드를 부르지 않는다 — 한쪽만 남아야
+    2026-09-12 같은 순환 참조가 다시 생기지 않는다. 판정은 ast 로 한다 — 함수 안의 늦은 import 와 `from … import …` 도 의존이다(전수리뷰 #103).
+    변이(실제로 확인): theory_link3.py 의 _nm 안에 `import theory_guards as TG` 를 넣으면 빨개진다.
+    픽스처: 저장소의 실제 세 파일."""
+    def src(name):
+        return open(os.path.join(TOOLS, name + '.py'), encoding='utf-8').read()
+    guard = _imported_modules(src('theory_guards'))
+    assert {'theory_link3', 'theory_link4'} <= guard, '정본 방향(가드 → 셈 모듈)을 못 읽었다 — 판정 함수가 헛돈다'
+    back = [m for m in ('theory_link3', 'theory_link4') if 'theory_guards' in _imported_modules(src(m))]
+    assert not back, '셈 모듈이 가드를 import 한다(순환 참조): %s' % back

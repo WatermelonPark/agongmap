@@ -90,10 +90,6 @@ def test_weekly_share_generator_guards_its_tile():
     assert got == MODEL, '공유 PNG 지역이 모델과 다르다: %s' % sorted(got ^ MODEL)
 
 
-# 검색 표기 사전 한 줄: `SEARCH_NAME = {...}`·`TAG_NAME = {...}`(make_naver_post — 판정 단위 → 검색어). 값에 옛 이름이 들어가도 된다.
-_SEARCH_LABEL = re.compile(r'^(SEARCH_NAME|TAG_NAME)\s*=\s*\{[^}]*\}\s*(#.*)?$')
-
-
 def test_no_generator_still_carries_the_old_split_names():
     """통합 이전 이름을 판정에 쓰는 생성기가 남아 있으면 안 된다.
 
@@ -101,9 +97,9 @@ def test_no_generator_still_carries_the_old_split_names():
        시군구 매핑(gen_sgg_rone_map)은 광주 5개 구 때문에 개별 이름이 필요하며,
        원천 수집(update_adv_data)은 원천이 아직 옛 이름으로 주기 때문에 쓴다.
        안내 페이지(make_sido_pages)는 '광주를 찾아온 사람'을 보내 주는 자리다.
-       블로그 검색 표기 사전(make_naver_post 의 SEARCH_NAME·TAG_NAME 한 줄)은 판정이 아니라 검색어라 값에 옛 이름을 둔다.
-       변이(확인): make_naver_post 에 `z == '광주'` 같은 판정 줄을 넣으면 빨개진다. 픽스처: 09-29 마케팅 커밋이
-       TAG_NAME = {'전남광주': '광주'} 를 넣어 게이트가 막힌 상태.
+       블로그 검색 표기 사전(TAG_NAME = {'전남광주': '광주'} 한 줄)을 따로 빼 주던 예외는 2026-11-13 블로그 초안 도구와 함께
+       지웠다(남은 검색 표기 theory_link3.SEARCH_NAME 은 화면 이름 정본에서 만들어 옛 이름 글자가 없다).
+       변이(확인): 아무 생성기에 `z == '광주'` 같은 판정 줄을 넣으면 빨개진다.
        시군구 접두 표(weekly_moves.SGG_PREFIX)는 홈 sidoOf 의 거울이라 원천 시도 이름을 그대로 들고, 판정 단위로는
        sgg_zone 이 merge_regions.SRC·DST 로 접는다(홈 마케팅 검수 D4 — 일치는 test_zone_weekly 가 본다).
        안내 페이지 표(make_sido_pages.MERGED_INTO)와 시군구 접두 표(weekly_moves.SGG_PREFIX)는 **그 정의 블록만** 뺀다 — 예전엔
@@ -122,9 +118,8 @@ def test_no_generator_still_carries_the_old_split_names():
             src, n = re.subn(r'^%s = \{[^}]*\}' % name, '', src, flags=re.M)
             assert n == 1, '%s 에서 %s 정의 블록을 못 찾았다 — 이름이 바뀌었으면 이 시험도 고칠 것' % (fn, name)
         for ln in src.splitlines():
-            # 주석의 산문 언급은 기록이라 허용한다(주석 줄은 건너뛴다). 검색 표기 사전(SEARCH_NAME·TAG_NAME)은 판정이 아니라
-            # 블로그 제목·태그의 검색어라 옛 이름이 값으로 들어간다(2026-09-29 대표 키워드도구 조회 — 전남광주를 사람들은 '광주'로 찾는다).
-            if ln.lstrip().startswith('#') or _SEARCH_LABEL.match(ln):
+            # 주석의 산문 언급은 기록이라 허용한다(주석 줄은 건너뛴다).
+            if ln.lstrip().startswith('#'):
                 continue
             # 따옴표에 감싸인 옛 이름만 본다
             for name in ("'광주'", "'전남'", '"광주"', '"전남"'):

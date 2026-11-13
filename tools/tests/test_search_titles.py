@@ -43,27 +43,6 @@ def test_week_label_is_the_blog_ordinal(p, want):
     assert WR.week_label(p, year=True) == '%s년 %s' % (p[:4], want)
 
 
-def test_blog_title_uses_the_same_label_function_and_words():
-    """블로그 주간 초안 제목이 /weekly/ 와 같은 함수(week_label)·같은 말(TITLE_KW)을 쓴다 — 사본 서수표가 남지 않는다.
-
-    변이: make_naver_post 에 예전 `ORD = ('첫째', …)` 계산을 되살리거나 라벨을 문자열로 다시 적으면 빨개진다(확인).
-    2026-10-17 제목 두 꼴(weekly_title 의 'bar'·'paren')이 생겨 원문 한 줄 대신 두 꼴의 포맷 문자열과, 실제 제목에 라벨·주차가
-    들어가는지를 본다 — 어느 한 꼴에서 라벨을 글자로 다시 적으면 빨개진다(확인).
-    """
-    src = io.open(os.path.join(ROOT, 'tools', 'make_naver_post.py'), encoding='utf-8').read()
-    assert "'첫째'" not in src and 'ORD[' not in src
-    assert "'[한국부동산원] %s %s (%s)' % (MW.TITLE_KW, MW.WR.week_label(p), tail)" in src
-    assert "'[한국부동산원] %s(%s) | %s' % (MW.TITLE_KW, MW.WR.week_label(p), tail)" in src
-    assert MW.TITLE_KW == '주간 아파트가격 동향'
-    import make_naver_post as P
-    seen = set()
-    for p in ('2026-10-12', '2026-10-26'):        # 괄호 꼴·세로줄 꼴 한 번씩
-        t = P.weekly_title(p, '결론')
-        seen.add(P.weekly_title_form(p))
-        assert t.startswith('[한국부동산원] ' + MW.TITLE_KW) and WR.week_label(p) in t and t.endswith(('(결론)', '| 결론')), t
-    assert seen == {'bar', 'paren'}
-
-
 def _week(p='2026-09-21'):
     regs = list(SZ.DISPLAY_ORDER)
     codes = ['C%02d' % i for i in range(12)]
@@ -180,32 +159,17 @@ def test_outlook_year_is_the_year_being_forecast(p, want):
 
 
 @pytest.mark.parametrize('L,p,want', [('2026Q2', '2026-10-05', '2027'), ('2026Q3', '2027-01-11', '2027'), ('2026Q2', '2026-09-28', '2026')])
-def test_site_and_blog_zone_titles_take_the_year_from_one_function(monkeypatch, L, p, want):
-    """사이트 시도 리포트 제목과 블로그 지역 편 제목의 연도가 같은 함수(sido_zones.outlook_year)·같은 원천(주간 최신 조사일)에서
-    나온다(요청서 B4, 2026-09-27 대표 결정 '전망하는 해 — 10월부터 다음 해').
+def test_site_zone_title_takes_the_year_from_the_outlook_function(L, p, want):
+    """사이트 시도 리포트 제목의 연도는 sido_zones.outlook_year 가 주간 최신 조사일에서 낸다(요청서 B4, 2026-09-27 대표 결정
+    '전망하는 해 — 10월부터 다음 해'). 같은 함수를 쓰던 블로그 지역 편 초안 도구는 2026-11-13 에 지웠다.
 
-    변이: make_naver_post 의 yr 줄을 조사일의 해(p[:4])로, make_sido_pages.page_title 을 기준 분기 규칙으로 되돌리거나 build_page 가
-          조사일을 넘기지 않게 하면 빨개진다(확인).
+    변이: make_sido_pages.page_title 을 기준 분기 규칙으로 되돌리면 빨개진다(확인).
     픽스처: 두 옛 원천이 갈리는 때. ① 2026년 10월 첫 주(조사일 10-05, 기준 분기 2026Q2): 전망하는 해 2027, 옛 사이트 원천(L+1 의 해)
             2026. ② 2027년 1월(조사일 01-11, 기준 분기 2026Q3 — 4분기 실적은 2월께): 2027, 옛 사이트 원천 2026. ③ 9월 말: 2026.
-            draft_zone 을 끝까지 돌리지 않고, 그 안에서 제목을 만드는 zone_title 에 넘어가는 연도를 가로챈다.
     """
-    import make_naver_post as P
-    seen = {}
-
-    class Stop(Exception):
-        pass
-
-    def grab(nm, yr, yrs, ask, seq, total=None):   # total: 바퀴 크기(전수리뷰 #80 제목 실험 팔)
-        seen['yr'] = yr
-        raise Stop()
-    monkeypatch.setattr(P, 'zone_title', grab)
     adv = {'sido': {'L': L, 'H': 12, 'zones': []}, 'weekly': {'rows': [{'p': p}]}}
-    row = {'z': '서울', 'dtot': 1000, 'ref': 1, 'fut': 1, 'inow': 1, 'ratio': 0.3, 'grade': 'g2'}
-    with pytest.raises(Stop):
-        P.draft_zone(adv, {}, row, 1, 1)
     site = M.page_title('서울', adv['sido'], '부족', SZ.latest_survey(adv))
-    assert seen['yr'] == SZ.outlook_year(SZ.latest_survey(adv)) == site[:4] == want, (seen, site)
+    assert SZ.outlook_year(SZ.latest_survey(adv)) == site[:4] == want, site
 
 
 def test_zone_h1_and_reports_title_carry_the_answer_and_a_search_word():

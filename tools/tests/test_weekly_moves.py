@@ -29,7 +29,6 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
-import make_naver_post as P  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 import weekly_moves as WM  # noqa: E402
@@ -307,36 +306,6 @@ def test_news_is_only_what_changed_this_week():
     assert nw['turned'] == [('울산', 'dn')] and nw['entered'] == [('부산', 'dn')]
     assert nw['milestone'] == [('서울', 'up', 8)]
     assert 8 in WM.MILESTONES and 9 not in WM.MILESTONES and 4 not in WM.MILESTONES
-
-
-def test_blog_draft_says_the_same_moves():
-    """블로그 주간 초안은 이번 주 새 변화(weekly_moves.news)와 '순위가 가장 많이 뛴 곳'만 싣고, 사이트와 같은 함수의 값이다.
-    매주 되풀이되는 긴 연속('서울 85주 연속 상승' 류)은 싣지 않는다.
-
-    변이(각각 실제로 확인): weekly_moves_sentences 가 전환 지역을 따로 걸러 대구를 빠뜨리면, news 대신 연속 표지 전부를
-    문장으로 옮기면(옛 '흐름이 가장 길게 이어진 곳') 빨개진다.
-    픽스처: 합성 네 주(시도 — 전환 셋, 새 3주 연속 둘, 4주 '이상' 연속 여럿) + 저장소 시군구 최신 두 주(조사일은 합성 시도 끝
-    두 주로 맞춘다 — 시군구가 시도보다 늦은 갈래는 test_weekly_draft_review 가 본다).
-    """
-    Wr, Q = MW.load()
-    W = _fixture()
-    # 시군구 두 주의 조사일을 합성 시도 주와 맞춘다 — 초안은 시군구가 시도와 같은 날일 때만 순위 문장을 쓴다(전수리뷰 BL1-9)
-    W['sgg'] = dict(Wr['sgg'], rows=[dict(r, p=w['p']) for r, w in zip(Wr['sgg']['rows'][-2:], W['rows'][-2:])])
-    para, rank = P.weekly_moves_sentences(W)
-    mv = WM.moves(W)
-    nw = WM.news(mv)
-    assert nw['turned'] and nw['entered'], '픽스처가 전환·새 연속을 담아야 한다'
-    for z, k in nw['turned']:
-        assert '<b>%s</b>(%s)' % (z, WM.TXT_TURN[k]) in para, (z, para)
-    assert '새로 %d주 연속 흐름에 들어선 곳은 %s입니다.' % (WM.STREAK_MIN, ' · '.join(
-        '%s(%s)' % (z, '상승' if k == WM.UP else '하락') for z, k in nw['entered'])) in para, para
-    assert '이상 연속' not in para and '흐름이 가장 길게' not in para, para
-    top = [(Q[c], d) for c, _, r, d in WM.rank_moves(W['sgg'], Q)[:10] if d is not None and d > 0]
-    if top:
-        name, d = max(top, key=lambda x: x[1])
-        assert rank == '<p>상승 TOP 10 가운데 지난주보다 순위가 가장 많이 뛴 곳은 <b>%s</b>(▲%d위)입니다.</p>' % (name, d)
-    else:
-        assert rank == ''
 
 
 def test_sort_script_keeps_zero_as_a_number():

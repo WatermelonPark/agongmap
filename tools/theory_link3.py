@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """사이클 이론 4편(고리 ③ 집값 상승 → 공급 증가, 땅이 있는 곳에서만)의 숫자를 데이터에서 센다.
 
-4편 본문(make_theory_post.POSTS n=4)의 %(키)s 자리는 전부 여기서 채운다. 사람이 센 수를 본문에 박지 않는다
+4편 본문의 %(키)s 자리는 전부 여기서 채운다. 사람이 센 수를 본문에 박지 않는다
 (CLAUDE.md 데이터 원칙). 계열은 사이트가 쓰는 것 그대로다: adv['permits'](국토교통부 아파트 인허가, 반기),
 sts['매매지수'](한국부동산원 아파트 실거래가격지수), sts['미분양']·sts['착공']·sts['아파트멸실'],
 adv['sido'] 판정(zones 의 split·pbr), /cycle/ 의 정본 D(고리 ③ 시도별 상관·lead_new).
 
 본문의 단정("2007년 이후 가장 적었다", "두 배를 넘은 곳은 경북·전북" 등)은 assert 로 고정한다. 데이터가 바뀌어
-단정이 거짓이 되면 link3_numbers 가 Link3ClaimError 로 멈추고, make_theory_post 가 초안 생성을 멈춘다 —
+단정이 거짓이 되면 link3_numbers 가 Link3ClaimError 로 멈추고, 가드(theory_guards.guard_values)가 배치 기록 줄로 알린다 —
 문장을 자동으로 갈아 끼우지 않는다(3편 check_sync_claims 와 같은 원칙: 그건 사람이 다시 쓸 글이다).
 2026-09-27 마케팅 세션이 원고와 함께 만들고, 숫자 검증자가 식 69개를 독립적으로 다시 돌려 확인했다.
 표준 라이브러리만 쓴다.
@@ -24,11 +24,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LATEST_H = '2026H1'      # 본문이 '지금'·'최근 1년'으로 부르는 인허가 반기. 새 반기가 들어오면 본문과 함께 고친다
 
 
+# 이론편 본문에 보이는 지역 이름 — 화면 이름 정본(SZ.DISPLAY_NAME, 백로그 46) + 블로그 검색어만의 '세종시'(전수리뷰 BL2-10·X1-5).
+# 4편 표·목록(_nm)과 가드(theory_guards — 6편 멈춤 문구 속 지역 이름)가 이 표 하나를 읽는다. 의존은 theory_guards → 이 모듈 한쪽이다.
+SEARCH_NAME = dict(SZ.DISPLAY_NAME, **{'세종': '세종시'})
+
+
 def _nm(rg):
-    """블로그에 보이는 지역 이름 — 블로그 정본 make_naver_post.SEARCH_NAME('전남광주' → '광주·전남', 전수리뷰 BL2-10·X1-5).
-    make_naver_post 는 이 모듈을 부르는 쪽(make_theory_post)이 이미 불러 둔 모듈이라 여기서 늦게 불러도 순환이 아니다."""
-    import make_naver_post as NP
-    return NP.SEARCH_NAME.get(rg, rg)
+    """이론편에 보이는 지역 이름(SEARCH_NAME, '전남광주' → '광주·전남')."""
+    return SEARCH_NAME.get(rg, rg)
 
 
 def boom_table_html(rows):
@@ -43,10 +46,9 @@ def boom_table_html(rows):
 
 
 def names_eunneun(keys):
-    """지역 키 목록 → '경남·제주는'·'광주·전남은'. 이름은 보이는 이름(_nm), 조사는 그 마지막 이름의 받침으로(정본 eunneun)."""
-    import make_naver_post as NP
+    """지역 키 목록 → '경남·제주는'·'광주·전남은'. 이름은 보이는 이름(_nm), 조사는 그 마지막 이름의 받침으로(RC._jong)."""
     shown = [_nm(rg) for rg in keys]
-    return '·'.join(shown) + NP.eunneun(shown[-1])
+    return '·'.join(shown) + ('은' if RC._jong(shown[-1]) else '는')
 
 
 class Link3ClaimError(Exception):
@@ -59,7 +61,7 @@ class Link3DataError(Link3ClaimError):
 
 def link3_numbers(adv, sts, D=None):
     """4편 본문 자리 표시자 → 값(문자열). 단정이 깨지면 Link3ClaimError, 입력 계열이 끊겼으면 Link3DataError. D 는 /cycle/ 정본(없으면
-    cycle/index.html 에서 읽는다 — 초안 가드는 render 와 같은 D 를 넘긴다)."""
+    cycle/index.html 에서 읽는다 — 가드 theory_guards.guard_values 는 읽어 둔 D 를 넘긴다)."""
     # 계열 연속성부터 본다(전수리뷰 #73). 기준시점이 바뀐 매매지수로 세면 '서울은 지난 꼭대기를 넘어섰다'(사실)가
     # 거짓으로 판정돼 'se_pk: '(빈 메시지)로 멈추고, 글쓴이에게 맞는 문장을 고치라고 잘못 안내했다.
     # 판정은 사이클 도구와 한 정본(rebuild_cycle_analysis.index_breaks — 같은 문턱·같은 '여러 지역 동시' 규칙)이다.
@@ -109,7 +111,7 @@ def link3_numbers(adv, sts, D=None):
         return sum(A('전국', y) for y in range(a, b + 1))
 
     def _sudo_px():
-        # [공통] 각 python은 def f(adv, sts): 의 본문이고 전역에 P(make_naver_post)와 json이 있어야 한다. 위치 슬라이스 대신 SIDO·JB를 sido_zones의 AGG·REGION으로 센다. 이 키: 수도권 아파트 실거래가격지수 상승률 2019.06→2021.12
+        # [공통] 각 python은 def f(adv, sts): 의 본문이었다. 위치 슬라이스 대신 SIDO·JB를 sido_zones의 AGG·REGION으로 센다. 이 키: 수도권 아파트 실거래가격지수 상승률 2019.06→2021.12
         # 본문 '값이 더 많이 오른 쪽에서 공급이 줄었습니다'(수도권 상승률 > 지방, 수도권 인허가 감소·지방 증가)를 assert로 고정
         assert G('수도권') > G('지방') and Q('수도권') < 1 < Q('지방')
         return '%.0f%%' % G('수도권')
@@ -450,6 +452,6 @@ def link3_numbers(adv, sts, D=None):
                 AttributeError) as e:
             # 단정(assert)만이 아니다. 반기 행이 없거나(StopIteration) 달이 없으면(ValueError), 매매지수 창에 빈 칸(None)이
             # 끼면(TypeError) 날 트레이스백으로 죽었다 — theory_link4 처럼 모두 같은 멈춤으로 모으고 예외 이름을 남긴다
-            # (대표 결정 2026-10-18 D1: 데이터 상태는 초안만 멈추고 게이트를 막지 않는다, 전수리뷰 overflow G1a)
+            # (대표 결정 2026-10-18 D1: 데이터 상태는 가드만 멈추고 게이트를 막지 않는다, 전수리뷰 overflow G1a)
             raise Link3ClaimError('4편 본문의 단정이 데이터와 어긋난다 — %s: %s %s' % (k, type(e).__name__, RC.why_of(e)))
     return out

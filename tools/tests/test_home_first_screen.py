@@ -31,7 +31,6 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import kst  # noqa: E402
-import make_naver_post as P  # noqa: E402
 import make_sido_pages as M  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
@@ -308,18 +307,16 @@ def test_formula_check_reads_single_digit_terms(inow):
     _check_formula(SZ.formula_text(SZ.LEAD_Q, SZ.BACKLOG_WINDOW, need, fut, inow), need, fut, inow, tot, inow)
 
 
-def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
+def test_formula_is_one_text_on_home_and_zone_report():
     """'3년 적정물량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'(sido_zones.formula_text) 하나를 홈 산출 방법 첫 항목(손으로
-    쓴 index.html)·홈 카드 ⓘ(구운 ftxt)·시도 리포트 '숫자로 보면'(생성기)·블로그 지역 편(초안 생성기)이 같이 쓴다.
-    식의 숫자는 카드·리포트와 같은 정수이고 서로 검산된다(TRUST-2).
+    쓴 index.html)·홈 카드 ⓘ(구운 ftxt)·시도 리포트 '숫자로 보면'(생성기)이 같이 쓴다(같은 식을 쓰던 블로그 지역 편 초안 도구는
+    2026-11-13 에 지웠다). 식의 숫자는 카드·리포트와 같은 정수이고 서로 검산된다(TRUST-2).
 
-    변이(각각 확인): make_sido_pages 의 eq 를 옛 '= 적정 … − 공급 …'으로 되돌리면 리포트 단정이, draft_zone 이 식을 자기
-          말('적정물량 − 공급')로 적으면 블로그 단정이, index.html 첫 항목의 식을 바꾸면 홈 단정이, formula_text 가 모자란
+    변이(각각 확인): make_sido_pages 의 eq 를 옛 '= 적정 … − 공급 …'으로 되돌리면 리포트 단정이, index.html 첫 항목의 식을
+          바꾸면 홈 단정이, formula_text 가 모자란
           재고를 빼는 쪽(−)으로 적으면 검산 단정이 빨개진다. 산출 방법 첫 항목 산문의 '지난 4년'을 '지난 3년'으로 적으면 햇수
           단정(자리별 순서 목록 — 예전 집합 검사는 이 변이를 못 잡았다, 전수리뷰 2차 T2-4).
-          draft_zone 이 식에 -abs(inow) 를 넘겨 '− 남은 재고' 갈래만 틀리게 하면 블로그 단정이 빨개진다(두 갈래를 늘 본다 — T2-6).
     픽스처: 저장소 실데이터 판정 20곳(숫자는 함수에서 유도) + 생성기가 구운 /zone/전국/(CI·배치는 생성기를 먼저 돌린다).
-          블로그 대조는 시도 전부이고, 데이터에 식의 한 갈래가 없으면 실제 행의 재고 부호를 뒤집어 zone_texts 로 다시 구운 사본을 더한다.
     """
     gen = SZ.formula_text()
     assert gen == '3년 적정물량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'
@@ -332,7 +329,7 @@ def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
     ul = re.search(r'<ul class="how-ls">\s*(<li[^>]*>)', _src('index.html'))
     assert ul and ul.group(1) == '<li class="how-formula">', '식 항목이 산출 방법의 첫 항목이 아니다'
 
-    adv, sts = M.load()
+    adv, _ = M.load()
     H = adv['sido']['H']
     for z in adv['sido']['zones']:
         need, fut, inow, tot = SZ.display_ints(z, H)
@@ -344,29 +341,6 @@ def test_formula_is_one_text_on_home_zone_report_and_blog(monkeypatch):
     page = _src(os.path.join('zone', '전국', 'index.html'))
     assert '<section id="calc">' in page, '/zone/전국/ 에 홈 산출 방법이 가리키는 식 블록 앵커가 없다'
     assert '= ' + M.esc(nat['ftxt'].split(' = ')[0]) in page, '시도 리포트의 식이 정본과 다르다'
-
-    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
-    monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
-    monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
-    # 블로그 지역 편은 시도 전부를 본다. 식의 두 갈래(지난 재고가 모자라 '+ 쌓인 부족' · 남아 '− 남은 재고')는 formula_text 와 같은
-    # 조건(display_ints 의 inow < 0)으로 가른다 — 예전엔 서울·인천 이름을 박아, 인천 재고가 부족으로 돌아서는 분기부터 '− 남은 재고'
-    # 갈래가 경보 없이 빠졌다(전수리뷰 T2-6). 데이터에 한 갈래가 없으면 실제 행 사본의 재고 부호를 뒤집어 정본 함수(zone_texts)로
-    # 다시 구운 합성 행으로 채운다. 변이(실제로 확인): draft_zone 이 식에 -abs(inow) 를 넘겨 '− 남은 재고' 갈래만 틀리게 하면 빨개진다.
-    zs = [z for z in adv['sido']['zones'] if not z.get('agg')]
-    short = lambda z: SZ.display_ints(z, H)[2] < 0
-    rows = list(zs)
-    for want in (True, False):
-        if not any(short(z) == want for z in zs):
-            src = next(z for z in zs if z.get('inow'))
-            r2 = {k: v for k, v in src.items() if k != 'dtot'}
-            r2['inow'] = -src['inow']
-            r2['dtot'] = SZ.display_ints(r2, H)[3]
-            r2.update(SZ.zone_texts(r2, H))
-            rows.append(r2)
-    assert {short(r) for r in rows} == {True, False}, '식의 두 갈래를 다 보지 못했다'
-    for r in rows:
-        body = P.draft_zone(adv, sts, r, 1, len(zs))['body']
-        assert '셈은 <b>%s</b>입니다.' % P.esc(r['ftxt'].split(' = ')[0]) in body, r['z']
 
 
 # ── C4②: 지도에서 균형(g1)은 중립색 ────────────────────────────────────────────────────────────────

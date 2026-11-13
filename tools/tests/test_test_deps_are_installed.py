@@ -11,7 +11,7 @@
   - fetch 잡(update_adv_data·split_data) — pip 가 아예 없다. split_data 가 죽으면 세 러너 모두 'crash' 라 재시도도 없다.
   - 커밋 잡에서 pip 줄 **앞**의 생성기 다섯 — 죽으면 '❌ … 커밋 안 함'.
   - `if: always()` 처럼 앞 스텝이 실패해도 도는 스텝(결과 보고의 format_batch_report) — pip 전에 죽은 회차에도 돈다.
-  - watchdog.yml(check_freshness 와 그것이 가져오는 전부)·publish-check.yml(close_published_issues) — pip 가 없다.
+  - watchdog.yml(check_freshness 와 그것이 가져오는 전부) — pip 가 없다.
 그래서 워크플로 파일을 잡·스텝·줄 순서대로 읽어 명령마다 그 시점까지 깔린 패키지를 허용 목록으로 쓴다.
 pytest·pillow 는 시험(pytest 줄 시점)과 커밋 잡의 pip 줄 **뒤** 명령에만 허용된다. 한 파일이 여러 곳에서
 닿으면 가장 엄한 곳을 따른다. 워크플로 안에 인라인으로 적은 파이썬(`python - <<'PY'`)도 같이 본다.
@@ -225,7 +225,7 @@ def test_step_parser_sees_every_bare_runtime_command():
     for chunk in commit.split('\n      - ')[1:]:
         if RUNS_AFTER_FAILURE.search(chunk.split('run:')[0]):
             must_bare |= _cmd_tools(chunk)
-    for wf in ('watchdog.yml', 'publish-check.yml'):
+    for wf in ('watchdog.yml',):
         must_bare |= _cmd_tools(io.open(os.path.join(WF_DIR, wf), encoding='utf-8').read())
     assert len(must_bare) >= 5, '맨 환경 명령을 거의 못 찾았다 — 워크플로 모양이 바뀌었다: %s' % sorted(must_bare)
     wrong = sorted(os.path.basename(p) for p in must_bare if tools.get(p) != set())

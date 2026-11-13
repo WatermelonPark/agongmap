@@ -582,7 +582,7 @@ def cycle_strength(P):
 KEYS = ('sync', 'link1_new', 'link3_regional', 'link6_regional', 'cycle_strength',
         'prose')
 
-# 페이지 D 의 키마다 싣는 하위 필드(전수리뷰 C-11). 페이지 스크립트·본문 칸(page_prose)·블로그 이론편(make_theory_post)이 읽는
+# 페이지 D 의 키마다 싣는 하위 필드(전수리뷰 C-11). 페이지 스크립트·본문 칸(page_prose)·이론편 가드(theory_guards)·옛 블로그 이론편 초안이 읽던
 # 것만 둔다 — 09-12 에 최상위 키 12개를 걷어 낸 뒤에도 rate_overlay.jratio(매일 47분기)·jratio_level[].sudo·link6_regional[].p·
 # link1_new.r·p·lag·super.need_annual·stock2030_2024 처럼 아무도 읽지 않는 하위 값이 남아 있었다. 틀려도 화면이 멀쩡해 아무도
 # 모른다. 재산정(splice)과 매일 배치(refresh_cycle_data)가 이 목록으로 D 를 깎고, 시험이 D 와 이 목록이 같은지 본다.
@@ -901,7 +901,7 @@ def link6_lag_prose(rows):
     """고리⑥ 캡션·읽기 칸의 '유의한 지방 N곳 가운데 a곳은 즉시, b곳은 한 분기 뒤, 수도권(…)은 한 분기 뒤'(전수리뷰 C-3).
 
     손 캡션 '유의한 지역만 보면 지방은 즉시'는 같은 막대 툴팁('지방 · 1분기 뒤' — 대구·전북·부산·울산)과 어긋났다. 수는 차트
-    데이터(D.link6_regional)에서 세고, 6편 블로그 초안(make_theory_post.link6_values)도 이 함수를 읽는다 — 사이트와 블로그가 한 정본.
+    데이터(D.link6_regional)에서 세고, 6편 이론편 가드(theory_guards.link6_values)도 이 함수를 읽는다 — 사이트와 가드가 한 정본.
     수도권 이름은 화면 이름(SZ.disp)으로 지역 정본 순서(SZ.ORDER)대로 잇는다.
     """
     sig = [x for x in rows if x['sig']]
@@ -932,7 +932,7 @@ def page_prose(D):
 # ---------- 재산정 값 바로 뒤 손 문장의 전제 (전수리뷰 C-10) ----------
 # 고리 절의 손 문장은 재산정 값의 방향·순서를 단정한다('소폭 하락으로 돌아선다', '지방 대도시(대구·부산)', '서울은 가장 느슨',
 # '광역시는 강하고 도는 약하다', '수도권으로 묶으면 살아난다', '서울은 예외', '수도권은 한 분기 뒤'). 값은 손으로 돌리는 재산정
-# (--write)에서만 바뀌므로 그 쓰기에서 전제를 보고, 깨지면 쓰지 않는다 — 블로그 이론편 가드(make_theory_post)와 같은 원칙이다.
+# (--write)에서만 바뀌므로 그 쓰기에서 전제를 보고, 깨지면 쓰지 않는다 — 블로그 이론편 가드(theory_guards)와 같은 원칙이다.
 # 단정마다 그 문장이 있는 절을 적는다. 문장을 고치면 여기도 같이 고친다.
 
 def claim_breaks(D):

@@ -4,7 +4,7 @@
 재현하는 실제 상태: 2026-09-10 광주·전남 통합 뒤 판정 단위 키 '전남광주'(국토교통부·KOSIS 가 발표하는 통합 단위 이름)가
 지도 라벨·표 머리·선택 상자·리포트 제목·/monthly/ 표·/cycle/ 차트에 그대로 나갔다. 사람들은 '광주·전남'으로 찾고 읽는다.
 그래서 화면 이름 표 하나(sido_zones.DISPLAY_NAME)를 두고, 생성기는 SZ.disp, 홈은 split_data 가 실은 ADV.zname 을 읽는 zn(),
-/cycle/ 차트는 refresh_cycle_data 가 다시 쓰는 const ZN, 블로그 검색어는 make_naver_post.SEARCH_NAME 이 같은 표를 읽는다.
+/cycle/ 차트는 refresh_cycle_data 가 다시 쓰는 const ZN, 이론편 가드의 검색 표기는 theory_link3.SEARCH_NAME 이 같은 표를 읽는다.
 주소(/zone/전남광주/)·데이터 키·GA 값·sessionStorage 값은 키 그대로다.
 픽스처: 배치 게이트처럼 split_data·생성기를 먼저 돌린 저장소 산출물(생성 페이지·data-core.js·cycle/index.html·llms.txt·feed.xml)과
 홈 스크립트(home_src).
@@ -145,9 +145,13 @@ def test_home_ga_region_values_stay_keys():
     assert re.search(r'class="bb-row" data-r="\'\+rg\+\'"', src), '버블 행에 키가 없다'
 
 
-def test_blog_search_names_read_the_canon_table():
-    import make_naver_post as NP
+def test_theory_search_names_read_the_canon_table():
+    """이론편 가드의 보이는 지역 이름(theory_link3.SEARCH_NAME — theory_guards 가 같은 표를 쓴다)은 화면 이름 정본 표를 읽는다.
+    변이(실제로 확인): SEARCH_NAME 을 손 표({'세종': '세종시'})로 바꾸면 빨개진다. 픽스처: 저장소의 정본 표와 theory_link3 원문."""
+    import theory_guards as TG
+    import theory_link3 as L3
+    assert TG.SEARCH_NAME is L3.SEARCH_NAME
     for k, v in SZ.DISPLAY_NAME.items():
-        assert NP.SEARCH_NAME.get(k) == v, k
-    src = _read('tools/make_naver_post.py')
+        assert L3.SEARCH_NAME.get(k) == v, k
+    src = _read('tools/theory_link3.py')
     assert re.search(r'SEARCH_NAME = dict\(SZ\.DISPLAY_NAME', src), 'SEARCH_NAME 이 정본 표를 읽지 않는다'
