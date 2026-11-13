@@ -60,11 +60,14 @@ _ICON_S = ('<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><
            'd="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v13M8 7l4-4 4 4"/></svg>')
 
 # 누르는 쪽의 스크립트. ES5 — 생성 페이지는 빌드 도구 없이 나간다. D 는 페이지마다 굽는 공유 내용.
+# load(): SDK 파일이 왔는데(onload) window.Kakao 가 안 생긴 경우도 실패로 세운다(FAIL). 콘텐츠 차단기가 빈 응답으로 바꿔 주거나
+# 옛 웹뷰에서 SDK 실행이 죽으면 그렇게 된다 — 안 세우면 kakao() 가 이미 풀린 약속을 받아 자기를 끝없이 다시 불러 탭이 멈췄다
+# (2026-11-13 전수 리뷰. 홈의 loadKakao·needKakao 도 같은 꼴이었다).
 # say(): 버튼의 원래 모양(아이콘+라벨)은 **한 번만** 저장하고 앞선 되돌림 타이머를 지운다. 누를 때마다 저장하면 2초 안에
 # 두 번 누른 경우 안내 문구를 '원래 모양'으로 저장해 버튼이 새로고침 전까지 안내 문구로 굳었다(전수리뷰 #28).
 _JS = r"""(function(){var D=%(d)s,KEY=%(key)s,SDK=%(sdk)s,P=null,FAIL=false;
 function load(){if(window.Kakao)return Promise.resolve();if(P)return P;
-P=new Promise(function(ok,no){var s=document.createElement('script');s.src=SDK;s.async=true;s.onload=function(){ok();};
+P=new Promise(function(ok,no){var s=document.createElement('script');s.src=SDK;s.async=true;s.onload=function(){if(!window.Kakao)FAIL=true;ok();};
 s.onerror=function(){s.parentNode&&s.parentNode.removeChild(s);P=null;FAIL=true;no();};document.head.appendChild(s);});return P;}
 function ready(){if(!window.Kakao)return false;try{if(!Kakao.isInitialized())Kakao.init(KEY);return Kakao.isInitialized();}catch(e){return false;}}
 function ev(m){try{gtag('event','share',{content_type:D.ct,method:m});}catch(e){}}

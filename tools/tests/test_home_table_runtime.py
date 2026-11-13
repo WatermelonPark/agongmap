@@ -161,3 +161,39 @@ def test_home_table_titles_use_display_names(home_table):
             assert not [t for t in titles if t.startswith(k + ' ')], '%s 표 칸 title 이 키 %s 를 찍는다' % (per, k)
             assert [t for t in titles if t.startswith(name + ' ')], '%s 표에 %s 칸 title 이 없다' % (per, name)
             assert '>%s</a></th>' % k not in html and '>%s</a></th>' % name in html, per
+
+
+def test_future_cell_multiplies_the_period_sum_once(tmp_path):
+    """미래 칸은 착공 **기간 합**에 전환율을 한 번 곱한다 — 달마다 곱해 더하지 않는다(시도 리포트와 같은 셈 순서).
+
+    왜: 분기 착공 합의 끝 세 자리가 500 이면 곱이 정확히 x.5 인데, 달마다 곱해 더하면 부동소수 오차로 x.4999… 가 되어 1세대
+        아래로 반올림된다. 그런 칸이 표에 드는 날 홈과 리포트가 갈리고, 위 실데이터 대조 시험이 그날 데이터 커밋을 막는다
+        (2026-11-13 전수 리뷰 — 지금 실데이터에는 그런 칸이 없어 위 시험만으로는 드러나지 않는다).
+    변이(실제로 확인): tbBuild 가 예전처럼 달마다 `*S.conv` 를 곱해 s 에 실으면 473 이 나와 빨개진다.
+    픽스처: 지역 하나, 착공 169·9·322(합 500)가 36개월 뒤 한 분기의 추정이 되는 합성 원장. 전환율은 모델 값(SZ.CONV).
+    """
+    if not shutil.which('node'):
+        pytest.skip('node 없음')
+    app = dict(HS.home_files())['home-app.js']
+    months = [169, 9, 322]
+    assert sum(months) % 1000 == 500
+    adv = {'sido': {'zones': [{'z': '가', 'ref': 100, 'est': False}], 'L': '2026Q2', 'H': 12, 'lead': 12, 'conv': SZ.CONV}}
+    stats = {'준공': {'dates': ['2026.06'], 'series': {'가': [0]}},
+             '착공': {'dates': ['2023.07', '2023.08', '2023.09'], 'series': {'가': months}}}
+    fns = ('tbMi', 'tbQLast', 'tbBuild', 'tbAgg')
+    js = (DOM + 'const ADV=%s, STATS=%s;\n' % (json.dumps(adv, ensure_ascii=False), json.dumps(stats, ensure_ascii=False))
+          + _tb_vars(app) + '\n' + '\n'.join(_fn(app, n) for n in fns) + r"""
+const B=tbBuild(), out={};
+['q','y','m'].forEach(function(p){ out[p]=tbAgg(B.rows,p).filter(function(c){return c.s[0];}).map(function(c){return [c.g,c.s[0],c.fut];}); });
+process.stdout.write(JSON.stringify(out));
+""")
+    path = tmp_path / 't.js'
+    path.write_text(js, encoding='utf-8')
+    p = subprocess.run(['node', str(path)], capture_output=True, timeout=60)
+    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
+    got = json.loads(p.stdout.decode('utf-8'))
+    want = sum(months) * SZ.CONV                      # 리포트의 셈(make_sido_pages.series: 분기 합 × conv)
+    assert len(got['q']) == 1 and got['q'][0][2] is True, got
+    assert got['q'][0][1] == want and P.rnd(got['q'][0][1]) == P.rnd(want), (got['q'], want)
+    assert len(got['y']) == 1 and got['y'][0][1] == want, got['y']      # 연 보기도 그 해 합에 한 번
+    assert [c[1] for c in got['m']] == [m * SZ.CONV for m in months], got['m']

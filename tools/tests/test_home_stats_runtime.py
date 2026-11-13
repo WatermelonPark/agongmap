@@ -88,6 +88,7 @@ def _stats_js(body, pre=''):
             'const __NAV=[]; function statsNav(h,r){__NAV.push([h,!!r]);}\n'
             'function statsHashOf(m){return "#stats-"+m;}\n'
             'function afterLayout(){}\n'
+            'const __PB=[]; function partBusy(n,fn,state){__PB.push([n,fn,state]);}\n'   # home-app.js 의 실패 안내(다시 시도 단추)
             'function needChart(){return false;}\n'
             'function loadChart(){return Promise.resolve();}\n'
             + pre + '\n' + files['home-stats.js'] + '\n'
@@ -846,3 +847,72 @@ def test_city_totals_are_pickable_but_not_ranked():
         assert 'a80103' not in g['ranked'] and any(c.startswith('a80103') for c in g['ranked']), \
             '%s 시 전체가 TOP 10 순위 후보에 들어갔다' % k
         assert g['target'] == {'zone': '경기', 'sgg': 'a80103'}, (k, g['target'])
+
+
+# ── 2026-11-13 전수 리뷰: 버블밴드는 trend 뒤에, 실패 안내는 trend 실패에만 ───────────────────
+def test_bubble_band_draws_without_the_basic_stats_file():
+    """기본통계(data-rest.json)만 못 받아도 버블밴드는 그린다 — 입력이 trend 의 ADV.bubble 하나다. 그때 안내 칸은 건드리지 않는다.
+
+    왜: renderBubbleSec 가 ensureBasicStats 뒤에 묶여 있어, 그 파일만 실패하면 버블밴드 탭이 제목·출처 줄만 남고 비었다.
+    변이(실제로 확인): renderBubbleSec() 을 예전처럼 ensureBasicStats().then(...) 안으로 옮기면 drawn 에 'bubble' 이 없어 빨개진다.
+    픽스처: trend 는 오고 rest 는 실패하는 통계 화면 첫 진입(리뷰 재현: data-rest.json 을 막고 #stats-adv-bubble).
+    """
+    o = _node(_stats_js(r"""
+const R=[];
+loadFullData=()=>Promise.resolve();
+ensureBasicStats=()=>Promise.reject(new Error('rest'));
+renderReleaseInfo=()=>R.push('rel'); renderWeekSec=()=>R.push('week'); renderMonthSec=()=>R.push('month');
+renderBubbleSec=()=>R.push('bubble'); initStats=()=>R.push('init');
+await statsOpen(); OUT={drawn:R.slice(), pb:__PB.slice()};
+""", pre='function loadFullData(){} function ensureBasicStats(){}'))
+    assert o['drawn'] == ['rel', 'week', 'month', 'bubble'], o
+    assert o['pb'] == [], '기본통계만 실패했는데 그래프 안내 칸(다시 시도)을 띄웠다: %r' % o['pb']
+
+
+def test_a_failed_graph_load_always_offers_retry():
+    """그래프 데이터(trend)를 못 받으면 statsOpen 이 스스로 실패 안내(다시 시도 단추)를 부른다 — 대기열을 거치지 않은 재시도에서도.
+
+    왜: 첫 실패는 대기열이 단추를 달지만, '다시 시도'는 statsOpen 을 바로 부른다. 그 재시도가 또 실패하면 loadData 의 글자만
+        남고 단추가 사라졌다.
+    변이(실제로 확인): statsOpen 의 거부 갈래에서 partBusy('stats','statsOpen','fail') 을 지우면 빨개진다.
+    픽스처: trend 요청이 두 번 연속 실패하는 진입(망이 끊긴 채 '다시 시도'를 누름).
+    """
+    o = _node(_stats_js(r"""
+loadFullData=()=>Promise.reject(new Error('trend'));
+ensureBasicStats=()=>Promise.resolve();
+await statsOpen(); const a=__PB.slice(); await statsOpen();
+OUT={first:a, second:__PB.slice(), inited:statsInited};
+""", pre='function loadFullData(){} function ensureBasicStats(){}'))
+    assert o['first'] == [['stats', 'statsOpen', 'fail']], o
+    assert o['second'] == [['stats', 'statsOpen', 'fail']] * 2 and o['inited'] is False, o
+
+
+def test_every_city_with_districts_has_a_whole_city_choice():
+    """구를 가진 시는 모두 '○○ 전체'로 고를 수 있고, 지도에서 그 칸을 누르면 그 시의 그래프가 열린다 — 천안·전주도.
+
+    왜: '그 시의 구인가'를 코드 앞말로 봐서, 구 코드가 시 코드로 시작하지 않는 천안(구는 이웃 번호)·전주가 빠졌다. 지도의
+        '천안' 칸을 누르면 주소는 ~코드인데 화면은 충남 전체 그래프였다.
+    변이(실제로 확인): sggCityName 을 코드 앞말 규칙(`x.indexOf(c)===0`)으로 되돌리면 두 시가 빠져 빨개진다.
+    픽스처: 저장소의 실제 시군구 주간 계열(data-sgg.json)과 실제 이름표·지도 칸. 기대 목록은 데이터에서 센다 — 이름표에 없고
+            시도가 아닌 코드 가운데, 지도 칸 이름으로 시작하는 구 이름표가 있는 것.
+    """
+    sgg = _load('data-sgg.json')['ADV']['weekly']
+    core = _load('data-trend.json')['ADV']['weekly']
+    src = HS.home_source()
+    names = json.loads(re.search(r'const SGG_QNAME=(\{.*?\});', src).group(1))
+    tiles = dict(re.findall(r'\["([a-z]\d+)","([^"]+)",\d+,\d+,[01]\]', src[src.index('const NATION_TILE='):]))
+    codes = sgg['sgg']['codes']
+    want = sorted(c for c in codes if c not in names and len(c) > 2 and c in tiles
+                  and any(n.startswith(tiles[c] + ' ') for n in names.values()))
+    assert len(want) >= 10, '시 전체 후보가 너무 적다 — 픽스처를 볼 것: %r' % want
+    t = src.index('const NATION_TILE=')
+    pre = src[t:src.index(';', src.index(']}', t)) + 1] + '\n'      # 지도 칸 정의는 home-app.js 에 있다(이름표·sidoOf 는 통계 파일)
+    o = _node(_stats_js(r"""
+const W=%s; W.sgg=%s;
+OUT.names=Object.fromEntries(%s.map(c=>[c,sggCityName(W.sgg,c)]));
+OUT.target=Object.fromEntries(%s.map(c=>[c,trendTarget(W,c)]));
+""" % (json.dumps({'regions': core['regions']}), json.dumps(sgg['sgg'], ensure_ascii=False), json.dumps(want), json.dumps(want)),
+        pre=pre))
+    for c in want:
+        assert o['names'][c] == tiles[c] + ' 전체', (c, tiles[c], o['names'][c])
+        assert o['target'][c]['sgg'] == c and o['target'][c]['zone'], (c, tiles[c], o['target'][c])
