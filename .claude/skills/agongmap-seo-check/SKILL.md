@@ -17,11 +17,11 @@ description: 아공맵 페이지의 검색·AI 검색 노출 점검(색인·cano
 | `/weekly/`·`/monthly/`·`/moveins/`·`/jeonse-ratio/` | `make_weekly_page.py`·`make_monthly_page.py`·`make_indicator_pages.py` | 각 생성기 |
 | 콘텐츠 `city/`·`gtx/`·`danji/`·`column/`·`reports/` | `make_content_pages.py`(원고 `content/`) | 원고 머리 `title`·`summary` |
 | 손 페이지(소개·FAQ·개인정보·퀴즈·404·`/cycle/` 서술) | 손으로 쓴 HTML | — |
-| `sitemap.xml`·`feed.xml`·`llms.txt` | 생성기(lastmod 는 `keep_dates`, KST) | 손으로 고치지 않는다 |
+| `sitemap.xml`·`feed.xml`·`llms.txt`·`llms-full.txt` | 생성기(lastmod 는 `keep_dates`, KST) | 손으로 고치지 않는다 |
 
 ## 점검 순서
 
-1. **로컬에서 굽는다**: `python3 tools/make_sido_pages.py` 등 생성기 여덟 개(CLAUDE.md 순서). 점검이 끝나면 산출물은 되돌린다.
+1. **로컬에서 굽는다**: `ci-tests.yml` 의 'split_data + 생성기' 단계 순서 그대로(앞단 둘 + 생성기 아홉). 작업 트리가 아니라 `git worktree` 사본에서 굽거나, 점검이 끝나면 산출물을 되돌린다.
 2. **페이지마다 본다**(375px·1280px, `python3 -m http.server 8321` + Playwright):
    - `<title>` 한 개, 30자 안쪽에 검색어가 앞, 결론이 뒤(블로그 제목 규칙과 같은 꼴). 지역 이름은 화면 이름(`SZ.disp` — '광주·전남').
    - `meta description` 한 개, 본문 첫 문단과 같은 사실(시도 리포트는 `summary_parts` 한 목록에서 나온다).
@@ -29,7 +29,7 @@ description: 아공맵 페이지의 검색·AI 검색 노출 점검(색인·cano
    - robots 메타 정확히 하나(`tools/robots_meta.py`, `test_robots_meta`).
    - JSON-LD: `@type` 이 페이지 종류에 맞는지(Article·Dataset·FAQPage·WebPage), `dateModified` 는 내용이 바뀐 날이지 데이터 시점이 아니다.
    - `h1` 한 개, 제목과 같은 답. 숫자는 화면 숫자 정본(`sido_zones`)과 같다.
-3. **사이트 전체**: sitemap 의 모든 주소가 200 이고 noindex 가 아니다. 새 페이지 종류는 sitemap·`llms.txt`(숫자 없이)·RSS 에 들어갔는지. 바뀐 주소만 IndexNow(`ping_indexnow.py --changed`).
+3. **사이트 전체**: sitemap 의 모든 주소가 200 이고 noindex 가 아니다. 새 페이지 종류는 sitemap·`llms.txt`(숫자 없이 — 콘텐츠 글 목록 구역만 예외, `test_llms_txt`)·`llms-full.txt`·RSS 에 들어갔는지. 목록 페이지(`/zone/`·`/reports/`·섹션 목록)의 JSON-LD 는 `CollectionPage`, 글은 `Article`. 바뀐 주소만 IndexNow(`ping_indexnow.py --changed`).
 4. **내부 링크**: 시도 리포트 ↔ 그 지역 글('이 지역 글'), 글 끝 '이 지역 더 보기' 상자, 허브 칩. 고아 페이지가 없는지.
 5. **속도**: 첫 화면 LCP·CLS 는 `agongmap-release-check` 의 측정 절차를 쓴다.
 
