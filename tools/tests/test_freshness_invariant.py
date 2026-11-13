@@ -779,3 +779,50 @@ def test_price_source_uses_period_window_and_page_retry(monkeypatch):
     assert C.rone_latest('T', 'WK', '20251201') == '2026-01-19'
     assert len(calls) == 4 and all('START_WRTTIME=20251201' in u for u in calls), calls
     assert 'pIndex=3&' in calls[-1] + '&', calls[-1]
+
+
+def test_a_series_unseen_two_rounds_running_fails_the_watch(monkeypatch, tmp_path):
+    """월간·분기 계열도 원천 조회를 이틀(이웃 예약 회차) 연속 못 하면 실패다 — 첫날은 경고 한 줄(2026-11-13 대표 결정).
+
+    왜: 예전엔 핵심 계열(주간)과 지역 목록만 실패로 올리고, 나머지는 반 넘게 못 보지 않는 한 '참고' 한 줄이었다. 한 계열의 원천
+        표가 바뀌어 며칠째 조회가 끊겨도 메일이 가지 않았다.
+    변이(실제로 확인): _gate 의 `if twice:` 묶음을 지우면 둘째 회차가 통과해 빨개진다. series_fail_escalated 에서 이웃 회차 판정
+          (`rec['escalated'] = …`)을 늘 False 로 두면 같다. paused_until 막이를 지우면 원천 정지 계열 단정이 빨개진다.
+    픽스처: 18계열 중 하나만 재시도까지 조회가 끊긴 회차를 상태 폴더(actions/cache 의 .watch_state)와 함께 하루 간격으로 두 번.
+    """
+    monkeypatch.setattr(C.time, 'sleep', lambda s: None)
+    monkeypatch.setenv(C.REGION_STATE_ENV, str(tmp_path))
+    clock = {'t': 1_800_000_000.0}
+    monkeypatch.setattr(C.time, 'time', lambda: clock['t'])
+
+    def dead():
+        raise OSError('timed out')
+
+    def one_round(run_id, dead_label='월간 매매'):
+        _reset_retry(monkeypatch)
+        monkeypatch.setenv('GITHUB_RUN_ID', run_id)
+        fails = [C.check('s%02d' % i, '2026.06', lambda: '2026.06', 50) for i in range(17)]
+        fails.append(C.check(dead_label, '2026.06', dead, 50))
+        C.retry_failed(fails, wait=0)
+        assert C.SKIPPED == [dead_label]
+        return fails
+
+    C._gate(one_round('101'))                          # 첫날 — 경고(통과)
+    C._gate(one_round('101'))                          # 같은 실행의 재확인 — 같은 결정
+    clock['t'] += 24 * 3600
+    with pytest.raises(SystemExit) as e:               # 다음 날 예약 회차도 끊김 — 실패
+        C._gate(one_round('202'))
+    assert e.value.code not in (0, None)
+    # 받은 날이 끼면 기록이 지워진다 — 그다음 끊김은 다시 첫날이다
+    clock['t'] += 24 * 3600
+    _reset_retry(monkeypatch)
+    C._gate([C.check('월간 매매', '2026.06', lambda: '2026.06', 50)])
+    clock['t'] += 24 * 3600
+    C._gate(one_round('303'))
+    # 확인된 원천 정지(기한 안)는 이틀째여도 경고로만 둔다
+    paused = next(iter(C.SOURCE_PAUSED))
+    monkeypatch.setattr(C, 'paused_until', lambda label, today=None: 'x' if label == paused else None)
+    C._gate(one_round('404', paused))
+    clock['t'] += 24 * 3600
+    C._gate(one_round('505', paused))
+    _reset_retry(monkeypatch)

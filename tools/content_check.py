@@ -73,6 +73,7 @@ def check_post(path, data, root=ROOT, lenient=False):
         else:
             key = next((k for k in CM.REQUIRED + CM.REQUIRED_V2 + ('faq', 'sources', 'region') if k in msg), None)
             return ([(_front_line(text, key) if key else 1, msg)], [], rel)
+    data = CT.for_post(data, meta)     # 생성기(build_page·fill_meta)와 같은 창 — 도시 3년 창은 이 글의 작성 연도가 정한다
     # 2026-11-05 양식의 지역·길이 — 이름표에 없는 city, 자리표를 채우면 넘치는 길이. 생성기(make_content_pages)와 같은 함수다.
     if not lenient:
         for name in meta.get('city') or []:

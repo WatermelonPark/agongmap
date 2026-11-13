@@ -726,6 +726,49 @@ def region_fail_tolerated(now, state_dir, run_id=None):
     return not escalate
 
 
+# 계열별 원천 조회 실패의 연속 기록(2026-11-13 대표 결정 '이틀 연속이면 메일'). 예전엔 주간 계열(핵심 계열)과 지역 목록만
+# 실패로 올렸고, 월간·분기 계열은 반 넘게 못 보지 않는 한 '참고' 한 줄로 끝나 며칠째 끊겨도 아무도 몰랐다.
+SERIES_STATE_FILE = 'series_fetch_fail.json'
+
+
+def series_fail_escalated(labels, now, state_dir, run_id=None, today=None):
+    """이번 회차에 재시도까지 원천을 못 본 계열(labels) 가운데 **이틀(이웃 예약 회차) 연속**인 이름들 → 실패로 올린다.
+
+    회차 가르기는 지역 목록(region_fail_tolerated)과 같다: 같은 실행 id 이거나 12시간 안이면 같은 회차(그때의 결정을 따른다),
+    12~40시간이면 다음 회차라 올린다, 그보다 길면 첫날로 본다. 이번에 받은 계열은 기록에서 빠진다(파일을 다시 쓴다).
+    확인된 원천 정지(SOURCE_PAUSED, 기한 안)는 올리지 않는다 — 기한까지는 경고로만 둔다는 결정을 따른다.
+    """
+    path = os.path.join(state_dir, SERIES_STATE_FILE)
+    try:
+        with open(path, encoding='utf-8') as f:
+            prev = json.load(f)
+        if not isinstance(prev, dict):
+            prev = {}
+    except Exception:
+        prev = {}
+    out, keep = [], {}
+    for label in labels:
+        p = prev.get(label)
+        rec = {'ts': now, 'run': run_id, 'escalated': False}
+        try:
+            gap_h = (now - float(p['ts'])) / 3600.0
+        except Exception:
+            gap_h = None
+        if gap_h is not None:
+            same_run = run_id is not None and p.get('run') == run_id
+            if same_run or 0 <= gap_h < REGION_SAME_ROUND_H:
+                rec = p
+            else:
+                rec['escalated'] = REGION_SAME_ROUND_H <= gap_h <= REGION_NEXT_ROUND_H
+        keep[label] = rec
+        if rec.get('escalated') and not paused_until(label, today):
+            out.append(label)
+    os.makedirs(state_dir, exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(keep, f, ensure_ascii=False)
+    return out
+
+
 def region_fail_clear(state_dir):
     """지역 목록을 끝까지 받았으면 연속 실패 기록을 지운다."""
     try:
@@ -1648,8 +1691,16 @@ def _gate(fails):
               % (len(SKIPPED), len(fails), RETRY_WAIT, ', '.join(SKIPPED)))
         print('  → API 키 만료·표 ID 변경·원천 장애 여부 확인')
         _verdict_exit()
+    state_dir = os.environ.get(REGION_STATE_ENV)
+    if state_dir:
+        twice = series_fail_escalated(list(SKIPPED), time.time(), state_dir, os.environ.get('GITHUB_RUN_ID'))
+        if twice:
+            print('FAIL: 이틀(이웃 예약 회차) 연속 원천과 대조하지 못한 계열 — %s' % ', '.join(twice))
+            print('  → 원천 표 ID·API 응답 확인. 하루 끊김은 경고로 두고, 이틀째면 실패로 올린다(2026-11-13 대표 결정)')
+            _verdict_exit()
     if SKIPPED:
-        print('참고: %s 계열은 원천 조회 실패로 건너뜀' % ', '.join(SKIPPED))
+        print('참고: %s 계열은 원천 조회 실패로 건너뜀%s'
+              % (', '.join(SKIPPED), ' — 다음 회차(내일)도 못 보면 실패로 올린다' if state_dir else ''))
     print('VERDICT=ok')
     print('OK: 모든 계열이 원천과 같은 시점입니다.')
 

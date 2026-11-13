@@ -139,7 +139,7 @@ def content_posts(root=ROOT):
         try:
             meta, body = CM.read(path, sec, slug)
             # 제목·요약은 값으로, 본문의 표는 마크다운 표로 채운다 — llms-full.txt 는 글자로만 나간다.
-            meta, body = CT.fill_meta(meta, data), CT.fill_markdown(body, data)
+            meta, body = CT.fill_meta(meta, data), CT.fill_markdown(body, CT.for_post(data, meta))
         except Exception as e:
             sys.stderr.write('⚠️ 원고를 건너뛴다(%s/%s): %s\n' % (sec, slug, e))
             continue
@@ -265,13 +265,14 @@ def build_full(root=ROOT):
     for sec, meta, body in posts:
         # 자리표를 못 채우는 글은 전문 모음에서 건너뛴다 — 여기서 멈추면 llms.txt 까지 못 굽는다
         # (make_content_pages 가 같은 글을 이미 건너뛰고 경고했다).
+        pdata = CT.for_post(data, meta)          # 페이지(build_page)와 같은 창 — 작성 연도가 도시 3년 창을 정한다
         try:
-            MC.fill_placeholders(body, data)
+            MC.fill_placeholders(body, pdata)
         except Exception as e:
             sys.stderr.write('⚠️ 전문 모음에서 건너뛴다(%s/%s): %s\n' % (sec, meta['slug'], e))
             continue
         # 표는 마크다운 표로 채운다(페이지 쪽은 HTML 표).
-        def sub(m, _d=data):
+        def sub(m, _d=pdata):
             kind, rest = m.group(1), m.group(2)
             parts = [p.strip() for p in rest.split(':')]
             if kind == 'v':
