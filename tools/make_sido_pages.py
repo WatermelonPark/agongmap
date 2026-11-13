@@ -413,8 +413,17 @@ def pct1(v):
     '%+.1f'는 -0.04를 '-0.0%'로 만드는데, 0.0인데 부호만 붙은 값은 '변동 없음'이 아니라
     오류처럼 읽힌다. 홈만 고쳐 놔서 zone 20장에 136칸이 남아 있었다(2026-08-08 감사).
     파이썬 round()는 은행가 반올림이라 0.15가 홈(+0.2%)과 갈리므로 rnd()를 쓴다."""
-    r = rnd(v * 10) / 10.0
+    r = shown1(v)
     return ('%+.1f%%' % r) if r != 0 else '0.0%'
+
+
+def shown1(v):
+    """가격 변동률의 **표시값**(소수 첫째 자리, half-up). 칸의 글자(pct1)와 칸의 색(tint)이 같은 값을 본다.
+
+    예전엔 색만 원값으로 칠해, 글자는 '0.0%' 인데 바탕이 빨강·파랑인 칸이 리포트 19장에 127칸 있었다(원값 0.03 → 글자 0.0,
+    색은 최소 알파). 홈 표는 split_data 가 소수 첫째 자리로 실은 값으로 칠해 같은 칸이 무색이다(2026-11-13 전수 리뷰).
+    """
+    return rnd(v * 10) / 10.0
 
 
 def disp_tot(row, H):
@@ -1297,7 +1306,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
         else:
             cells = ('<td>%d%%</td>' % pct) + ''.join(
                 '<td style="background:%s">%s</td>'
-                % (tint((p[n] if p else None), 2),
+                % (tint((shown1(p[n]) if (p and p[n] is not None) else None), 2),
                    pct1(p[n]) if (p and p[n] is not None) else '–')
                 for n in (0, 1, 2))
         h.append('<tr%s><td>%s</td><td>%s</td>%s</tr>'

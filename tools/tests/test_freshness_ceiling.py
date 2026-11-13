@@ -155,13 +155,20 @@ def test_current_data_passes_every_ceiling(monkeypatch, capsys):
     today = C.period_end(adv['weekly']['rows'][-1]['p']) + C.GRACE_WEEKLY * DAY
     over = [(n, p, (today - C.period_end(p)).days, cap) for n, p, cap in rows
             if (today - C.period_end(p)).days > cap]
+    r = _run(monkeypatch, capsys, 4, today=today)
+    late = [ln for ln in r['out'].splitlines() if '끝난 지' in ln]
     if over:
+        # 상한에 닿은 계열이 있어도 **main() 은 돌려 본다**. 예전엔 여기서 돌아가, 그런 계열이 하나라도 있는 동안(규모별 원천 정지가
+        # 몇 달째다) 이 시험이 단정에 닿지 않았다 — too_old 판정을 뒤집어도 초록이었다(2026-11-13 전수 리뷰). 상한에 닿은
+        # 계열 말고 다른 계열이 '끝난 지'로 걸리면 판정이 틀린 것이다.
         import warnings
         warnings.warn('나이 상한에 닿은 계열 %s — 감시가 알린다(시험은 막지 않는다)' % over)
+        names = [n for n, _p, _a, _c in over]
+        stray = [ln for ln in late if not any(n in ln for n in names)]
+        assert not stray, '상한에 닿지 않은 계열이 나이 상한에 걸렸다: %s' % stray[:3]
         return
-    r = _run(monkeypatch, capsys, 4, today=today)
     assert r['rc'] == 0 and 'VERDICT=ok' in r['out'], r['out'][-800:]
-    assert '끝난 지' not in r['out']
+    assert not late
 
 
 def test_ceilings_cover_the_publication_cadence():

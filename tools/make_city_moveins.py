@@ -130,6 +130,33 @@ def cities_from_content(root=ROOT):
     return out
 
 
+def metro_cities(names=None):
+    """시도 키이면서 곧 한 도시인 곳(서울·부산·대구·인천·대전·울산·세종) → {이름: 시도 키}. 원고가 없어도 늘 받는다.
+
+    왜 원고를 기다리지 않나. 광역시 글은 단지 목록을 **보고** 써야 하는데(어느 구에 몰리나), 이 수집은 원고가 말하는 도시만
+    받아 왔고 시도 키와 같은 이름은 일부러 건너뛰었다(cities_from_content). 키가 없는 세션은 원천을 미리 볼 수 없으니 자료가
+    먼저 들어와 있어야 한다(2026-11-13 대표 결정 '광역시 6곳 글'). 이 묶음의 숫자 가운데 글이 쓰는 것은 단지 목록·몰리는 달·
+    인구뿐이다 — 적정물량·해마다 입주는 시도 값을 쓴다(content_tables.city 의 주의).
+
+    ⚠️ 이름을 손으로 적지 않는다. 원천 주소의 시도 전체 이름이 하나뿐이고 그것이 '…시'(광역시·특별시·특별자치시)인 키다.
+    광주광역시는 판정 단위가 광주·전남 통합이라 빠진다 — 그 도시는 시 이름 원고로 받는다(시도 키가 아니므로 평소 길이다).
+    """
+    names = names if names is not None else sgg_names()
+    out = {}
+    for k in SZ.ORDER:
+        full = CMV.full_names(k)
+        if len(full) == 1 and full[0].endswith('시') and collectable(k, names) and sido_of(k, names) == k:
+            out[k] = k
+    return out
+
+
+def cities_wanted(root=ROOT):
+    """받을 도시 전부 → {도시: 시도} — 원고가 말하는 도시 + 광역시. 수집(main)과 싣기(adopt)가 같은 목록을 쓴다."""
+    out = cities_from_content(root)
+    out.update(metro_cities(sgg_names(root)))
+    return out
+
+
 def city_facts(city, sido, start):
     """한 도시의 입주물량 묶음. city_movein 의 병합 결과를 그대로 쓰고 숫자만 모은다."""
     raw = CMV.load(sido)
@@ -196,7 +223,7 @@ def adopt(fresh_path, out=None, wanted=None):
     if not fresh or not isinstance(fresh.get('cities'), dict):
         return None
     have = (_read(out) or {}).get('cities') or {}
-    wanted = cities_from_content() if wanted is None else wanted
+    wanted = cities_wanted() if wanted is None else wanted
     kept = sorted(c for c in have if c not in fresh['cities'] and c in wanted)
     for c in kept:
         fresh['cities'][c] = have[c]
@@ -216,9 +243,9 @@ def main(argv=None):
         print('city moveins: 받아 온 파일을 싣는다(%d개 도시%s)'
               % (got[0], ' · 수집 뒤에 발행된 %s 는 저장소 값을 지킨다' % ', '.join(got[1]) if got[1] else ''))
         return 0
-    cities = cities_from_content()
+    cities = cities_wanted()
     if not cities:
-        print('city moveins: 원고에 시군구 region 이 없다 — 아무것도 바꾸지 않는다')
+        print('city moveins: 받을 도시가 없다(원고의 시군구도 광역시도) — 아무것도 바꾸지 않는다')
         return 0
     start = KST.today_iso()[:7]
     fetch = '--fetch' in argv

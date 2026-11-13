@@ -10,6 +10,8 @@ import os
 import re
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import check_freshness as C
 
@@ -376,8 +378,19 @@ def test_gate_arithmetic_survives_the_retry_pass(monkeypatch):
     C.retry_failed(fails, wait=0)
     assert len(C.SKIPPED) == 14
     assert not [f for f in fails if f], '뒤처짐이 아니라 조회 실패다 — bad는 비어야 한다'
-    assert len(C.SKIPPED) * 2 > len(fails), \
-        '지속 광역 장애가 OK로 통과한다 — 재시도가 분모를 부풀렸는지 확인'
+    # 판정은 **게이트 자체**(C._gate)에 맡긴다. 예전엔 산식(SKIPPED×2 > len(fails))을 여기서 다시 계산해, _gate 의 그 줄을
+    # 틀리게 바꿔도(`* 2 > len(fails) * 100`) 이 시험은 초록이었다(2026-11-13 전수 리뷰 — 검사기가 구현을 다시 적음).
+    with pytest.raises(SystemExit) as e:
+        C._gate(fails)
+    assert e.value.code not in (0, None), '지속 광역 장애가 OK로 통과한다 — 재시도가 분모를 부풀렸는지 확인'
+    # 대조군: 같은 수(18계열)에서 조회 실패가 반에 못 미치면(4) 개수 게이트는 통과한다 — 게이트가 늘 막는 것이 아니다
+    _reset_retry(monkeypatch)
+    few = []
+    for i in range(18):
+        few.append(C.check('t%02d' % i, '2026.06', dead if i < 4 else (lambda: '2026.06'), 50))
+    C.retry_failed(few, wait=0)
+    assert len(C.SKIPPED) == 4
+    C._gate(few)
     _reset_retry(monkeypatch)
 
 

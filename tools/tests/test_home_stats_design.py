@@ -252,7 +252,8 @@ def test_reading_sentences_on_the_stats_tab_are_14px():
     assert _px(_rule(css, '.legal-disc')) >= READ_PX
     assert _px(_rule(css, '.disc')) >= READ_PX   # 면책 문장(.disc) 도 같은 하한
     for m in re.finditer(r'([^{}]+)\{([^}]*)\}', css):
-        if re.search(r'\.(legal-disc|disc)(?![\w-])', m.group(1)) and 'font-size' in m.group(2):
+        # .adv-note 도 **모든 규칙**을 본다 — _rule 은 첫 규칙만 읽어, 뒤에서 13px 로 덮는 규칙이 생겨도 초록이었다(전수 리뷰)
+        if re.search(r'\.(legal-disc|disc|adv-note)(?![\w-])', m.group(1)) and 'font-size' in m.group(2):
             assert _px(m.group(2)) >= READ_PX, m.group(0)
     h = _index()
     occ = h[h.index('id="sec-occ"'):]

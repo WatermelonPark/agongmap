@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 감사 도구와 같은 기준을 쓴다 — 감사가 준수로 본 원형(50%)·데이터 틴트를 적용 도구가
 # 네모·회색으로 바꾸던 어긋남(전수리뷰 #88). 기준은 audit_design 한 곳에만 둔다.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from audit_design import RADIUS_OK, RADIUS_SHAPE, warm_neutral   # noqa: E402
+from audit_design import RADIUS_OK, RADIUS_SHAPE, TRACK_MAX, TRACK_RE, UPPER_RE, warm_neutral, wide_tracking   # noqa: E402
 
 FONT_LINK = ('<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>\n'
              '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard'
@@ -80,12 +80,14 @@ def apply(path):
         log.append('b,strong')
 
     # 3) 한글에 해로운 조판
-    n = len(re.findall(r'letter-spacing:\s*\.(?:0[5-9]|[1-9]\d*)em', s))
+    # 판정은 감사와 같은 정의(audit_design.wide_tracking·UPPER_RE)다 — 감사가 세는 것을 적용이 못 고치는 일이 없게.
+    n = len(wide_tracking(s))
     if n:
-        s = re.sub(r'\s*letter-spacing:\s*\.(?:0[5-9]|[1-9]\d*)em;?', '', s)
+        s = re.sub(r'\s*' + TRACK_RE.pattern + r';?',
+                   lambda m: '' if float(m.group(1)) > TRACK_MAX else m.group(0), s)
         log.append('자간×%d' % n)
-    if 'text-transform:uppercase' in s:
-        s = re.sub(r'\s*text-transform:\s*uppercase;?', '', s)
+    if UPPER_RE.search(s):
+        s = re.sub(r'\s*' + UPPER_RE.pattern + r';?', '', s)
         log.append('uppercase')
 
     # 4) radius 두 값 — 규칙 밖 값만 고친다: 누르는 것(TOUCH)은 3px, 나머지는 0. 감사가 허용하는 값(RADIUS_OK — 0·3px·
