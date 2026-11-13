@@ -581,6 +581,10 @@ def _weekly_series(data, name, kind='ma'):
         i = regs.index(key)
         return [(r.get('p'), (r.get(kind) or [None] * len(regs))[i]) for r in (W.get('rows') or [])]
     got = sgg_codes(data, name)
+    if not got:
+        # 이름표에 없는 이름(오타·행정구역 개편 전 이름 — 2026-07 인천 '서구'는 '서해구'·'검단구'로 갈렸다). 예전엔 아래 예시를 고르다
+        # IndexError 로 죽어, 원고 검사가 고칠 곳(✗)으로 짚지 못하고 그 글을 '탈'로만 건너뛰었다(2026-11-14 광역시 원고 작성 중).
+        raise TableError('%r 는 시군구 이름표에 없다 — 홈 지도의 시군구 이름으로 적을 것' % name)
     if len(got) != 1:
         raise TableError('주간 계열은 한 지역만 받는다 — %r 는 %d곳이다. 구 이름까지 적을 것(예: %s)'
                          % (name, len(got), got[0][1]))

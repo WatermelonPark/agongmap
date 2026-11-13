@@ -277,3 +277,16 @@ def test_the_batch_keeps_a_city_published_after_its_fetch_started(tmp_path):
     wf = io.open(os.path.join(ROOT, '.github', 'workflows', 'update-cloud.yml'), encoding='utf-8').read()
     code = '\n'.join(ln for ln in wf.splitlines() if not ln.lstrip().startswith('#'))
     assert 'make_city_moveins.py --adopt "$SRC/tools/data/city_moveins.json"' in code, '커밋 잡이 도시 자료를 통째로 덮는다'
+
+
+def test_an_unknown_district_name_is_a_table_error(data):
+    """이름표에 없는 구 이름(행정구역 개편 전 이름·오타)은 TableError 다 — 원고 검사가 그 줄을 고칠 곳(✗)으로 짚는다.
+
+    변이(실제로 확인): _weekly_series 의 `if not got:` 갈래를 지우면 IndexError 로 빨개진다(예전 동작 — 검사기가 그 글을 '탈'로만 넘겼다).
+    픽스처: 실제 데이터와 이름표에 없는 이름(2026-07 개편 전 인천 '서구' 꼴 — 데이터에서 없는 것을 확인하고 쓴다).
+    """
+    name = '인천 서구'
+    assert not CT.sgg_codes(data, name), '픽스처 이름이 이름표에 생겼다 — 없는 이름으로 바꿀 것'
+    for kind, args in (('streak', [name]), ('weekly', [name])):
+        with pytest.raises(CT.TableError):
+            CT.value(data, kind, args)
