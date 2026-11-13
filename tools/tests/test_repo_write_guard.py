@@ -59,7 +59,7 @@ DRAFT_WRITER = ('import os\n'
 
 
 def test_writing_into_drafts_fails_the_run(tmp_path):
-    """drafts/(.gitignore — 블로그 초안·썸네일, 로컬 전용이라 덮이면 되돌릴 데가 없다)에 새 파일을 만들거나 있던 파일을 덮어도
+    """drafts/(.gitignore — 블로그 초안·썸네일을 두던 로컬 전용 자리라 덮이면 되돌릴 데가 없다)에 새 파일을 만들거나 있던 파일을 덮어도
     실행이 빨개진다(전수리뷰 T1-5·T3-11·BL1-12).
 
     변이(실제로 확인): conftest 의 `_WATCH_DIRS` 에서 'drafts' 를 빼면 이 시험이 빨개진다(두 경우 모두 rc 0). 감시가 파일마다
@@ -81,20 +81,3 @@ def test_writing_into_drafts_fails_the_run(tmp_path):
     assert old.read_bytes() == b'x' * 5, '픽스처가 같은 크기로 덮지 못했다 — 시험이 헛돈다'
     assert rc != 0 and 'drafts/thumb-weekly-2026-09-21.png' in out, out[-400:]
 
-
-def test_draft_tools_write_into_a_temp_folder_during_tests():
-    """시험 중에는 초안 도구의 쓰기 자리(make_naver_post.OUT·STATE, make_theory_post.OUT, make_city_post.OUT)가 저장소 drafts/
-    가 아니라 시험마다 새 임시 폴더다 — conftest 의 autouse 픽스처 _drafts_out_of_repo(전수리뷰 T1-5·T3-11·BL1-12).
-
-    변이(실제로 확인): 그 픽스처를 지우면(또는 아무것도 안 하게 하면) 이 시험이 빨개진다.
-    픽스처: 저장소의 실제 세 도구 모듈. make_theory_post.OUT 은 import 때 make_naver_post.OUT 을 베낀 사본이라 따로 본다.
-    """
-    import make_city_post as C
-    import make_naver_post as P
-    import make_theory_post as T
-    repo_drafts = os.path.join(os.path.abspath(os.path.join(HERE, '..', '..')), 'drafts')
-    paths = {'make_naver_post.OUT': P.OUT, 'make_naver_post.STATE': P.STATE, 'make_theory_post.OUT': T.OUT,
-             'make_city_post.OUT': C.OUT}
-    inside = {k: v for k, v in paths.items() if os.path.abspath(v).startswith(repo_drafts)}
-    assert not inside, '시험 중에 초안 도구가 저장소 drafts/ 에 쓴다: %s' % inside
-    assert os.path.dirname(P.STATE) == P.OUT and os.path.basename(P.STATE) == '.rotation.json', P.STATE

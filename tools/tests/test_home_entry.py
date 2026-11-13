@@ -35,7 +35,6 @@ CI 에서는 건너뜀도 실패다(conftest) — node 는 러너에 있다.
   - 로더를 DOMContentLoaded 전에 붙이거나(idle() 대신 load() 즉시 호출) 옛 `<script async src=…gtag/js>` 를
     머리에 되살리면 → 지연 로딩 시험
   - load() 의 ga-disable 확인을 지우면 → ga_off 기기 시험(로더를 붙인다)
-  - make_naver_post.site_link 를 거치지 않고 옛 `'%s/#stats-market?utm_…'` 줄로 되돌리면 → 초안 링크 시험
 """
 import json
 import os
@@ -263,52 +262,6 @@ def test_first_page_view_carries_the_blog_campaign():
     assert len(got['pv']) == 1
     loc = got['pv'][0]['page_location']
     assert loc == FIXED_PV, loc
-
-
-def _site_links(html):
-    return re.findall(r'https?://(?:www\.)?agongmap\.co\.kr[^\s"\'<>)]*', html)
-
-
-def _all_drafts(monkeypatch):
-    """초안 생성기가 만드는 본문 전부 — 주간 4주 로테이션, 지역 편 유도문 전 회차, 이론 편 전부."""
-    import make_naver_post as P
-    import make_theory_post as T
-    monkeypatch.setattr(sys, 'argv', ['make_naver_post.py', '--no-shot'])
-    monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
-    monkeypatch.setattr(P, 'thumb_zone', lambda *a, **k: None)
-    monkeypatch.setattr(P, 'series_links', lambda *a, **k: '')
-    adv, sts = P.M.load()
-    out = {}
-    n_rot = len(P.MORE_ROTATION)
-    for rot in range(n_rot):
-        monkeypatch.setattr(P, 'rot_index', lambda p, _r=rot: _r)
-        monkeypatch.setattr(P, 'more_index', lambda p, _r=rot: _r)   # '더 보기' 칸은 따로 돈다(2026-11-14 퀴즈 칸 제거)
-        out['weekly-%d' % rot] = P.draft_weekly(adv, sts)['body']
-    zones = [z for z in adv['sido']['zones'] if not z.get('agg')]
-    for seq in range(1, len(P.ZONE_CTA) + 1):
-        out['zone-%d' % seq] = P.draft_zone(adv, sts, zones[0], seq, len(zones))['body']
-    for post in T.POSTS:
-        try:
-            out['theory-%d' % post['n']] = T.render(post)
-        except SystemExit:
-            continue      # 생성 가드가 걸린 편(데이터 조건)은 링크를 낼 본문이 없다
-    return out
-
-
-def test_every_draft_site_link_puts_the_query_before_the_hash(monkeypatch):
-    drafts = _all_drafts(monkeypatch)
-    links = [(k, u) for k, html in drafts.items() for u in _site_links(html)]
-    assert len(links) >= len(drafts), '초안에서 사이트 링크를 거의 못 찾았다 — 검사가 헛돈다'
-    bad = sorted({'%s: %s' % (k, u) for k, u in links if '#' in u and '?' in u[u.index('#'):]})
-    assert not bad, "'?'가 '#' 뒤에 있는 사이트 링크 — GA 가 캠페인을 못 읽고 홈이 화면을 못 찾는다: %s" % bad[:5]
-
-
-def test_weekly_map_link_lands_on_stats_with_campaign(monkeypatch):
-    drafts = _all_drafts(monkeypatch)
-    want = FIXED_URL.replace('&', '&amp;')
-    for k, html in drafts.items():
-        if k.startswith('weekly-'):
-            assert want in _site_links(html), '%s: 주간 지도 링크가 %s 가 아니다' % (k, want)
 
 
 # ── A3 page_view 한 번 ─────────────────────────────────────────────────────────

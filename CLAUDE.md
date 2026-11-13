@@ -35,13 +35,13 @@
 | 옛 퀴즈 주소(`burini-test/`, `investor-test/`, `redev-test/`) | 퀴즈 3종은 2026-11-14 대표 결정으로 걷었다. 세 주소에는 홈(`/`)으로 넘기는 noindex 최소 페이지만 둔다. 홈·메뉴·sitemap·llms.txt 에 퀴즈 링크를 되살리지 않는다(`test_quiz_removed`) |
 | `about/`, `faq/`, `privacy/`, `404.html` | 손 페이지. GA 이벤트를 더하거나 보내는 값을 바꾸면 개인정보처리방침의 전송 목록 표(`#ga-events`)도 고친다(`test_privacy_ga_events`가 코드의 모든 GA 호출과 대조). 목록은 '사이트 코드가 보내는 이벤트'이고 GA 자동 수집은 `#ga-auto` 한 줄로 밝힌다. 목록을 고치면 변경 이력에 오늘 날짜 줄(`data-ga` 지문)을 더하고 '최근 개정'도 고친다(`test_privacy_history_follows_the_event_table`) |
 | `tools/` | 배치·생성기·점검 도구 (아래 표) |
-| `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다. 홈 스크립트 조각을 node 에 올리는 새 시험은 공용 도우미 `tools/tests/_js.py`(`fn`·`node`)를 쓴다. 시험 중 블로그 초안 도구(make_naver_post·make_theory_post·make_city_post)의 쓰기 자리(OUT·STATE)는 conftest 의 autouse 픽스처 `_drafts_out_of_repo`가 임시 폴더로 돌리고, 저장소 쓰기 감시가 gitignore 폴더 `drafts/`도 파일마다 본다 — 초안 도구에 새 쓰기 자리 상수를 두면 conftest 의 `_DRAFT_TOOLS`에도 올린다(`test_repo_write_guard`) |
+| `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다. 홈 스크립트 조각을 node 에 올리는 새 시험은 공용 도우미 `tools/tests/_js.py`(`fn`·`node`)를 쓴다. 시험이 저장소 파일을 바꾸면 실행이 실패한다 — conftest 의 쓰기 감시가 gitignore 상태 파일(`_STATE_FILES`)과 로컬 전용 폴더 `drafts/`(`_WATCH_DIRS`, 파일마다)까지 본다(`test_repo_write_guard`) |
 | `tools/data/` | 시딩 데이터·캐시·스탬프. 도시 입주물량 `city_moveins.json`·블로그 최신 글 `blog_latest.json`·`.home_stamp`는 배치가 커밋한다. `tools/cache/`와 벌크 원본은 gitignore |
 | `docs/` | 요청서·결정 기록·백로그. 날짜 접두 파일명. 목록은 `docs/README.md`, 종결된 문서는 `docs/archive/`로 옮긴다 |
-| `.github/workflows/` | 워크플로 열 개 (아래 "워크플로" 표) |
+| `.github/workflows/` | 워크플로 여덟 개 (아래 "워크플로" 표) |
 | `.claude/skills/`, `.claude/agents/` | 이 저장소 규칙에 맞춘 점검 스킬 다섯(`agongmap-seo-check`·`-a11y-check`·`-click-path-audit`·`-release-check`·`-design-polish`)과 리뷰 에이전트 둘(`agongmap-python-reviewer`·`agongmap-test-analyzer`). 공개 플러그인의 점검 항목을 참고해 우리 정본·시험 이름으로 새로 썼다(원문 복사는 저작권 고지에 개인 이름이 들어가 하지 않았다). 클라우드 세션은 플러그인을 불러오지 않지만 이 폴더는 읽는다. **정본 이름이 바뀌면 여기도 고친다** |
 | `icons/` | 앱 아이콘 산출물 |
-| `drafts/`, `logs/` | **로컬 전용(gitignore)**. 블로그 초안과 배치 로그. 클라우드 세션에서는 보이지 않는다 |
+| `drafts/`, `logs/` | **로컬 전용(gitignore)**. 옛 블로그 초안과 배치 로그. 클라우드 세션에서는 보이지 않는다 |
 
 ### 워크플로
 
@@ -55,7 +55,6 @@
 | `nightly-alert.yml` | 예약 시험이 실패로 끝났을 때(`workflow_run`) | — | 메일 한 통(경보 이슈 코멘트) |
 | `watchdog.yml` | 매일 18:07 예약 — 라이브 데이터를 원천과 대조 | — | 판정 실패면 메일 한 통 |
 | `runner-trial.yml` | 주 1회·수동 — 같은 시험을 다음 러너 판(26.04)에서 | — | 실행 화면에만 남는다 |
-| `write-reminder.yml`, `publish-check.yml` | 휴면(블로그 발행 종료). 예약 없음, 손으로만 | — | — |
 
 그래서 **PR 을 병합하면 몇 분 안에 `main`이 봇 커밋으로 전진한다**(산출물 재생성). 다음 작업은 `git fetch` 뒤 최신 `main`에서 시작한다.
 `publish-content.yml`의 `paths`와 `rebake-outputs.yml`의 `paths-ignore`는 같은 목록이어야 하고, 발행 커밋 대상은 배치 커밋 대상(TARGETS)의 부분집합이어야 한다(`test_batch_parity`).
@@ -64,7 +63,7 @@
 
 | 도구 | 역할 |
 |---|---|
-| `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키가 필요하다(키 없이는 pytest로 검증한다). 매매·전세지수의 기준시점이 바뀌면 옛 계열에 이어 붙이지 않고 **스스로 전 기간을 다시 받는다**(`_basis_reason`·`refetch_basic_full`, 연결계수 금지 — 2026-09-30 대표 결정). 받지 못하면 그 계열만 보류하고 `.fetch_failed`에 '기준변경 보류'를 남긴다. 월간 응답에서 시도 값(매매·전세)이 전부 빈 달(원천이 시도 이름·계층을 바꾼 회차)은 싣지 않는다 — 저장분에 있던 달은 저장값을 지키고 새 달은 시도·서울구·시군구 세 블록 모두에서 보류한다(`_hold_sido_empty`, 'monthly:시도 결측 보류'). 지수 단절 판정의 정본은 `index_breaks`(`BREAK_JUMP`·`BREAK_REGIONS`)이고 사이클 재산정·`/cycle/` 보류·블로그 도구가 같은 함수를 부른다. 같은 원천 표를 두 경로로 받는 인허가(투자지표 반기 ADV.permits ↔ 기본통계 누계)는 `permit_half_mismatch`로 맞춰 보고, 어긋난 해는 `heal_permit_years`가 12달씩 다시 받는다(게이트 아님 — 커밋 잡이 'ℹ️ 원천 소급 정정 반영' 줄로 올린다). R-ONE 시도 행 찾기는 `rone_sido_key` 하나를 주간·월간 수집과 감시가 함께 쓰고, `--seed-sido`도 `sido_guard`를 거친다. 규모별 최신은 그 지표에 값이 있는 마지막 달(`size_last`)이고 감시·month_lag 가 같이 읽는다 |
+| `update_adv_data.py --update` | 원천 API에서 데이터를 받아 `data.js`를 갱신. 키가 필요하다(키 없이는 pytest로 검증한다). 매매·전세지수의 기준시점이 바뀌면 옛 계열에 이어 붙이지 않고 **스스로 전 기간을 다시 받는다**(`_basis_reason`·`refetch_basic_full`, 연결계수 금지 — 2026-09-30 대표 결정). 받지 못하면 그 계열만 보류하고 `.fetch_failed`에 '기준변경 보류'를 남긴다. 월간 응답에서 시도 값(매매·전세)이 전부 빈 달(원천이 시도 이름·계층을 바꾼 회차)은 싣지 않는다 — 저장분에 있던 달은 저장값을 지키고 새 달은 시도·서울구·시군구 세 블록 모두에서 보류한다(`_hold_sido_empty`, 'monthly:시도 결측 보류'). 지수 단절 판정의 정본은 `index_breaks`(`BREAK_JUMP`·`BREAK_REGIONS`)이고 사이클 재산정·`/cycle/` 보류·이론편 가드(`theory_link3`)가 같은 함수를 부른다. 같은 원천 표를 두 경로로 받는 인허가(투자지표 반기 ADV.permits ↔ 기본통계 누계)는 `permit_half_mismatch`로 맞춰 보고, 어긋난 해는 `heal_permit_years`가 12달씩 다시 받는다(게이트 아님 — 커밋 잡이 'ℹ️ 원천 소급 정정 반영' 줄로 올린다). R-ONE 시도 행 찾기는 `rone_sido_key` 하나를 주간·월간 수집과 감시가 함께 쓰고, `--seed-sido`도 `sido_guard`를 거친다. 규모별 최신은 그 지표에 값이 있는 마지막 달(`size_last`)이고 감시·month_lag 가 같이 읽는다 |
 | `make_city_moveins.py`, `city_movein.py`, `movein_need.py` | 도시(시군구) 입주물량 수집 → `tools/data/city_moveins.json`(배치 fetch 잡과 원고 발행이 돌린다). 적정 입주량 산식의 정본은 아무것도 들여오지 않는 `movein_need.py`(인구 ÷ 2.5 × 2%)다 |
 | `split_data.py` | `data.js` → `data-core.js`, `data-*.json` 분리. 홈 통계용 `data-trend.json`은 허용목록 `TREND_ADV`만 싣는다(새 ADV 키를 홈 통계에 쓰려면 여기에 올린다). 분기·연 가격 합(`ADV.monthly.agg`, 원값 합·달이 덜 찬 칸은 비움)과 입주물량 문턱(`ADV.occupancy.band`)을 실어 홈이 계산하지 않고 읽게 한다. 주간 코어에는 최근 조사기준일 목록 `ADV.weekly.ps`를 실어 '지난 방문 이후 새 발표 N회'가 원천이 거른 주를 세지 않게 한다. 버블밴드 전세가율은 `make_indicator_pages.bubble_payload`(기준월 `jeonse_ref_index`)로 `ADV.bubble`에 싣고, 서울 구 블록과 코어에 이미 있는 키는 trend 에 싣지 않는다. 새 데이터가 처음 실린 날은 `fresh_marks`가 직전 `data-core.js`의 `ADV.fresh`에서 이어 받는다 |
 | 생성기 아홉: `make_sido_pages.py` → `make_indicator_pages.py` → `make_monthly_page.py` → `make_weekly_page.py` → `make_home_summary.py` → `refresh_cycle_data.py` → `make_content_pages.py` → `make_feed.py` → `make_llms_txt.py` | 배치가 **이 순서로** 돌린다(그 앞에 `make_city_moveins.py`·`split_data.py`). 순서의 정본은 워크플로이고 `ci-tests.yml`·bat·`test_batch_parity`가 같은 목록이다. `/zone/`·`/monthly/`·`/jeonse-ratio/`·`/moveins/`·글 페이지의 dateModified·sitemap lastmod는 내용이 바뀐 날(`keep_dates`, KST)이다. 그래서 dateModified 는 데이터 시점을 말하지 않는다 — 감시는 화면의 시점 문구를 읽는다(`/moveins/`는 `make_indicator_pages.MOVEINS_BASIS`) |
@@ -81,7 +80,7 @@
 | `refresh_cycle_data.py`, `rebuild_cycle_analysis.py` | `/cycle/` 데이터 갱신과 재산정. 칸 바로 뒤에는 값에 기대는 손 조사를 두지 않고, 지역 이름 뒤 조사는 화면 이름 받침(`RC._jong`)을 따른다. 고리⑥ 반응 시차 수는 `RC.link6_lag_prose` 한 함수가 정본이다. 홈 사이클 배너·FAQ 의 '20년'은 손 글자라 `test_span_years_come_from_the_data_span`이 자료 기간을 넘지 않는지만 본다 |
 | `page_share.py`, `robots_meta.py`, `ga_tag.py`, `ping_indexnow.py`, `blog_feed.py` | 공유 버튼 조각(`/weekly/`·`/monthly/`). robots 메타(`max-image-preview:large`)의 정본 — 저장소의 모든 `.html`에 정확히 하나씩(`test_robots_meta`), 손 페이지를 새로 만들면 한 줄 넣는다. GA 내부 트래픽 표식(`?internal=on|off` → localStorage, 모든 `gtag('config', …)`는 `gaCfg(…)`를 거친다, `test_ga_internal`). 배치 커밋이 sitemap lastmod를 바꾼 주소만 IndexNow로 보냄(`--changed HEAD~1`, 도메인은 `CNAME`). 네이버 블로그 RSS에서 최신 글을 읽어 `tools/data/blog_latest.json`에 적음(실패하면 지난 값 유지) |
 | `make_zone_cards.py`, `make_og_cards.py`, `make_weekly_share.py`, `make_monthly_share.py` | 공유용 이미지·OG 카드. 이미지 도구는 pillow 만 쓴다(numpy 등 금지). 디자인 감사·적용(`audit_design.py`·`apply_design.py`)은 `RADIUS_SHAPE`·`RADIUS_OK` 한 기준을 쓴다. 카드 글자는 `SZ.disp`·'적정물량'을 쓰고, 주간·월간 카드의 색 기준은 홈 지도 정본(`make_weekly_page.map_refs` = WK_MAP_REF·MO_MAP_REF), 주간 카드 범례는 `make_weekly_share.LEGEND`(하락 → 상승) 순서다 |
-| 블로그 초안 도구(휴면): `make_naver_post.py`, `make_theory_post.py`, `make_city_post.py`, `make_monthly_post.py`, `naver_serp.py`, `blog_similarity.py`, `blog_counter.py` | 블로그 발행은 2026-10-29 종료라 쓰지 않는다. 설명은 `docs/2026-11-13-블로그-도구-휴면-기록.md`. **살아 있는 코드가 읽는 것만 기억한다**: 배치 기록이 이론편 전제 가드(`make_theory_post.guard_values`)를 불러 편마다 ℹ️ 한 줄로 알린다(`batch_notes.theory_claim_lines` — 전제가 깨져도 게이트는 막지 않는다, 2026-10-18 대표 결정. 데이터 상태로 멈춘 편은 멈춤 문구에 `NOT_THE_TEXT`가 든다) |
+| `theory_guards.py`, `theory_link3.py`, `theory_link4.py` | 사이클 이론편(1~7편, 블로그 발행본) 전제 가드. 배치 기록이 `theory_guards.guard_values`를 편마다 불러 전제가 지금 데이터와 어긋난 편을 ℹ️ 한 줄로 알린다(`batch_notes.theory_claim_lines` — 전제가 깨져도 게이트는 막지 않는다, 2026-10-18 대표 결정. 데이터 상태로 멈춘 편은 멈춤 문구에 `NOT_THE_TEXT`가 든다). 4·5편 셈은 `theory_link3`·`theory_link4`(의존은 가드 → 셈 모듈 한쪽). 블로그 초안 도구 일곱과 발행 알림·확인 워크플로는 2026-11-13 대표 결정('가드만 살리고 정리')으로 지웠다 — 기록과 되살리는 법은 `docs/2026-11-13-블로그-도구-휴면-기록.md`. 홈 블로그 칸의 `blog_feed.py`와 그 RSS 정본 `close_published_issues.py`는 남는다 |
 | `run_weekly_update.bat` | 로컬 배치 러너(Windows 작업 스케줄러). 휴면 확정(2026-09-23), 비상용으로만 남긴다. 다시 켜면 두 배치의 순서·대상이 같아야 한다(`test_batch_parity`) |
 
 ### 실행
@@ -133,7 +132,7 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
   '하실 일: 세션에 알리기'를 적는다. 받는 주소는 GitHub 계정 설정이 정하고 저장소에는 적지 않는다(`test_mail_volume`).
 - **메일이 아닌 것은 세션이 본다**: 하루 실패·확인 중(⚠️)·기준월 뒤처짐·배치 기록의 ℹ️·⚠️ 줄(원천 소급 정정, 시군구 매핑 없음, 이론편
   전제 등)·원고 발행 실패는 **실행 화면 요약에만 남는다**. 세션은 작업을 시작할 때와 PR 을 병합한 뒤에 최근 워크플로 실행을 본다.
-- **발행 알림**: 휴면(2026-11-08, 블로그 발행 2026-10-29 종료). `write-reminder.yml`·`publish-check.yml`은 예약을 껐고 손으로만 돈다.
+- **발행 알림**: 없음(블로그 발행 2026-10-29 종료). 발행 알림·확인 워크플로는 11-08 예약을 끈 뒤 11-13 에 지웠다.
 - 클라우드 세션에는 API 키가 없다. 데이터 갱신(`update_adv_data.py`)을 돌리지 말고 pytest로 검증한다.
   클라우드 세션은 컨테이너가 매번 새로 뜨므로 `.claude/hooks/session-start.sh`(SessionStart 훅)가 시작 때
   `python3.12` 격리 가상환경에 `pytest`·`pillow`만 깔아 PATH 앞에 둔다(배치 게이트와 같은 판·같은 패키지). 3.12 가
@@ -144,7 +143,7 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
 
 - **숫자는 원천에서 그대로 가져온다.** 원천이 합쳐서 발표한 값을 비율로 쪼개 채우지 않는다. 검증 불가능한
   수가 되기 때문이다. 원천 분류가 바뀌면 판정 단위 자체를 바꾸거나 그 달을 보류한다.
-- 사이트의 여러 화면과 글이 다른 숫자·다른 산식을 말하면 안 된다. 글·피드·블로그 도구는 배치가 구운 값을 읽고 재계산하지 않는다.
+- 사이트의 여러 화면과 글이 다른 숫자·다른 산식을 말하면 안 된다. 글·피드는 배치가 구운 값을 읽고 재계산하지 않는다.
 - **모델 밖 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)은 싣지 않는다** — 판정 모델 지역 축 계열(`MODEL_REGION_SERIES`)에서 `drop_raw_aggregates`가 매 회차 뺀다(2026-10-18 대표 결정 D2). 광주·전남 주택보급률은 두 조각으로 만들지 않고 비운다(`merge_regions.UNFOLDABLE`, D3 — 주택수·가구수 합 재계산은 백로그 52). 0 이 될 수 없는 연간 비율의 원천 0 은 '없음'이다(`ANNUAL_CONF`의 `zero_missing`).
 - **사람이 센 수와 손으로 적은 목록을 코드에 박지 않는다.** 지역 수·시군구 수·검증 대상 곳 수
   같은 값은 모델이나 데이터에서 세어 쓴다(`len(SGG_QNAME)`, `CYCLE_SYNC_N`처럼). 박아 두면 모델이

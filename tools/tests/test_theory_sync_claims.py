@@ -6,10 +6,13 @@
 있었다. 재산정으로 한 곳이 음수가 되거나 최저 지역이 바뀌면, 아무것도 빨개지지 않은
 채 거짓 제목과 남의 값을 서울 이름으로 단 글이 만들어진다.
 
+가드는 theory_guards 에 있다(블로그 초안 도구는 2026-11-13 에 지웠다). 지금은 배치 기록 줄(batch_notes.theory_claim_lines)이 이
+가드를 불러 3편 전제가 깨진 날 ℹ️ 줄로 알린다.
+
 변이 확인(실제로 깨뜨려 봄):
   - check_sync_claims의 `<= 0`을 `< -1`로 → test_negative_region_stops_generation 빨강
   - 최저 지역 비교를 지우면 → test_other_lowest_region_stops_generation 빨강
-  - render에서 가드 호출을 지우면 → test_render_runs_the_guard_for_episode_3 빨강
+  - guard_values 의 3편 갈래에서 check_sync_claims 호출을 지우면 → test_guard_runs_the_sync_check_for_episode_3 빨강
 픽스처: D.sync 한 줄의 모양({region, corr, sudo}) 그대로. '대구가 최저'와 '한 곳이 음수'는
 재산정에서 실제로 나올 수 있는 두 상태다(2026-09-12 재산정 때 서울 0.58→0.55, 곳 수 15→14).
 """
@@ -19,7 +22,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-import make_theory_post as T  # noqa: E402
+import theory_guards as T  # noqa: E402
 
 
 def _rows(**over):
@@ -45,15 +48,10 @@ def test_other_lowest_region_stops_generation():
     assert '대구' in str(e.value)
 
 
-def test_render_runs_the_guard_for_episode_3(monkeypatch):
+def test_guard_runs_the_sync_check_for_episode_3(monkeypatch):
     monkeypatch.setattr(T, 'CYCLE_SYNC', _rows(대구=0.30))
-    post = next(p for p in T.POSTS if p['n'] == 3)
-    with pytest.raises(SystemExit):
-        T.render(post)
-
-
-def test_table_bolds_the_lowest_region_not_a_literal(monkeypatch):
-    # 변이: sync_table의 굵은 글씨 조건을 nm == '서울'로 되돌리면 빨개진다.
-    monkeypatch.setattr(T, 'CYCLE_SYNC', _rows(대구=0.30))
-    html = T.sync_table()
-    assert '<b>대구</b>' in html and '<b>서울</b>' not in html
+    with pytest.raises(SystemExit) as e:
+        T.guard_values(3, D={}, data=({}, {}))
+    assert str(e.value).startswith('3편을 만들 수 없다 — ') and '대구' in str(e.value)
+    monkeypatch.setattr(T, 'CYCLE_SYNC', _rows())
+    assert T.guard_values(3, D={}, data=({}, {})) == {}

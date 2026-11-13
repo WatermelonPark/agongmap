@@ -64,19 +64,12 @@ PARTIAL = {
     'REG_AGG': '집계 행',
     'METRO': '사이클 분석의 광역시 묶음',
     'PROVINCE': '사이클 분석의 도 묶음',
-    'PRIORITY': '발행 순서를 앞당길 지역(나머지는 순부족 순)',
     'ZONE_REGIONS': '사이클 차트에 세울 대표 4곳',
     'SUPPLY_SIDO': 'WEEKLY_REGIONS 에서 파생(리터럴만 세면 일부로 보인다)',
     # ── 2026-10-05 스캐너 확장(dict·set·튜플 목록·frozenset·new Set)으로 처음 잡힌 것(리뷰 E4) ──
     # 제품 코드는 바꾸지 않았다. 각각 왜 모델 전체와 대조하지 않는지를 적는다.
     'EST': '적정물량을 기준표에 없어 추정한 지역(서울·경기·인천·세종·제주)만',
     'REGION': 'REF_Q 에서 파생한 수도권·지방 사상(리터럴은 수도권 3곳과 집계 이름뿐)',
-    'THUMB_GROUP': '시도 → 썸네일 권역 사상. 값에 권역 이름(수도권)이 섞이고 집계는 뺀다 — 시도 전부가 있는지는 '
-                   'test_post_thumb_ask.test_every_zone_has_a_thumb_group 이 모델과 대조한다',
-    'THUMB_PALETTES': '썸네일 권역 이름이 키(수도권·강원·제주가 지역명과 겹칠 뿐)',
-    'WEEKLY_TABLE': '주간 글 주요 지역 표 — 일부만 싣는 것이 의도. 이름이 모델에 있는지는 '
-                    'test_blog_tools_review.test_weekly_table_names_are_model_names',
-    'CITY_TAG': '도 지역의 대표 도시 태그(광역시·특별자치시는 이름 자체가 도시)',
     'SMALL': '시도 지도에서 칸이 작은 광역시·세종(행정 시도 지형 기준이라 광주가 따로)',
     'NATION_TILE': '전국 시군구 지도 칸 — 원천(행정 시도·시군구) 지리 배치, 판정 단위로 접는 것은 sgg_zone',
     'SIDO_PREFIX': '원천 시군구 코드 머리 → 행정 시도 17곳(광주·전남 따로). 판정 단위로 접는 것은 sgg_zone·MERGED_INTO',
@@ -103,7 +96,8 @@ SKIP_FILE = ('data.js', 'data-core.js', 'sido-geo.js')
 # 선언 머리: `NAME = ` 다음에 리터럴([ ( {) 또는 frozenset( · set( · tuple( · list( · dict( · new Set( 로 감싼 리터럴.
 # 본문은 정규식으로 자르지 않고 괄호 깊이로 짝을 찾는다(_body). 예전 정규식은 `[^\]\)]` 로 첫 닫는 괄호에서 멈추고 `{` 를
 # 받지 않아 dict·set 리터럴과 튜플 목록([('서울', …), …])·frozenset((…)) 을 보지 못했다(2026-10-05 리뷰 E4 —
-# make_naver_post.THUMB_GROUP·WEEKLY_TABLE, sido_zones.EST, home-app.js SMALL, refresh_cycle_data.SUDO 가 빠져 있었다).
+# 블로그 초안 도구의 THUMB_GROUP·WEEKLY_TABLE(2026-11-13 도구와 함께 지웠다), sido_zones.EST, home-app.js SMALL,
+# refresh_cycle_data.SUDO 가 빠져 있었다).
 HEAD = re.compile(
     r'(?:const\s+|var\s+|let\s+)?\b([A-Z_][A-Z0-9_]{2,})\s*(?::[^=\n]{0,80})?=\s*'
     r'(?:new\s+Set\s*|frozenset\s*|set\s*|tuple\s*|list\s*|dict\s*)?([\[\(\{])')
@@ -225,7 +219,7 @@ def test_scanner_actually_sees_the_known_lists():
     정확히 그 모양이라, 스캐너 자신을 먼저 확인한다.
 
     변이(실제로 확인, 2026-10-05): HEAD 에서 `{` 를 빼거나 감싼 꼴(frozenset(·set(·new Set()을 빼면 아래 리터럴 모양별
-    단정이 빨개진다. 분류 표에서 THUMB_GROUP 을 지우면 test_every_region_list_is_classified 가, make_weekly_share.TILE 에서
+    단정이 빨개진다. 분류 표에서 EST 를 지우면 test_every_region_list_is_classified 가, make_weekly_share.TILE 에서
     한 지역을 지우면 test_full_lists_match_the_model 이 빨개진다.
     픽스처: 저장소의 실제 소스 전부.
     """
@@ -233,9 +227,10 @@ def test_scanner_actually_sees_the_known_lists():
     names = {n for _, n in seen}
     for must in ('MATRIX_REGIONS', 'WEEKLY_REGIONS', 'BUBBLE_REGIONS', 'SIDO17'):
         assert must in names, '스캐너가 %s 를 놓쳤다 — 정규식이 깨졌을 수 있다' % must
-    # 리터럴 모양마다 하나씩(2026-10-05 리뷰 E4): dict(THUMB_GROUP), frozenset((…))(WEEKLY_TABLE), set(EST),
-    # JS var {…}(SMALL), set — 같은 이름 SUDO 의 튜플판(rebuild_cycle_analysis)과 따로 센다(refresh_cycle_data).
-    for f, n in (('tools/make_naver_post.py', 'THUMB_GROUP'), ('tools/make_naver_post.py', 'WEEKLY_TABLE'),
+    # 리터럴 모양마다 하나씩(2026-10-05 리뷰 E4): dict(REF_Q·BUBBLE_SHORT), set(EST), JS var {…}(SMALL), set — 같은 이름 SUDO 의
+    # 튜플판(rebuild_cycle_analysis)과 따로 센다(refresh_cycle_data). frozenset((…)) 꼴은 저장소에 남은 것이 없어(블로그 초안 도구의
+    # WEEKLY_TABLE 이 마지막이었다 — 2026-11-13 삭제) 아래 합성 소스 시험(test_decls_reads_nested_and_wrapped_literals)이 본다.
+    for f, n in (('tools/sido_zones.py', 'REF_Q'), ('tools/update_adv_data.py', 'BUBBLE_SHORT'),
                  ('tools/sido_zones.py', 'EST'), ('home-app.js', 'SMALL'), ('tools/refresh_cycle_data.py', 'SUDO')):
         assert (f, n) in seen, '스캐너가 %s(%s) 를 놓쳤다 — dict·set·frozenset 리터럴을 못 본다' % (n, f)
 

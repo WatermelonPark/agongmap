@@ -5,7 +5,7 @@
 지방·제주일 수 있는데 그곳이 곧 관심 지역은 아니다.
 
   목록 표시(허브·'다른 지역' 격자·홈 표 모드)  → DISPLAY_ORDER
-  순위(블로그 공급 부족 순위표)                 → zone_order()
+  순위(등급군 → 절대량)                         → zone_order()
   정부 표와 대조하는 화면(/monthly/)            → ORDER (발표 원천 순서)
 
 손으로 적은 목록이라 모델이 바뀌면 따라오지 않는다. 9/10 광주·전남 통합 같은 변경이 오면
@@ -62,9 +62,14 @@ def test_hub_lists_sido_in_display_order_without_sort_toggle():
 
 
 def test_ranking_still_uses_zone_order():
-    """목록과 순위는 다른 질문이다 — 블로그 순위표까지 고정 순서로 바뀌면 안 된다."""
-    src = io.open(os.path.join(ROOT, 'tools', 'make_naver_post.py'), encoding='utf-8').read()
-    assert 'SZ.zone_order(' in src, '블로그 순위가 zone_order() 를 쓰지 않는다'
+    """목록과 순위는 다른 질문이다 — 순위는 zone_order()(등급군 → 절대량)이고 표시 순서가 아니다. 순위를 굽던 블로그 순위표는
+    2026-11-13 초안 도구와 함께 지웠고, 정본 함수의 규칙을 여기서 고정한다.
+    변이(실제로 확인): zone_order 를 순부족 큰 순(-tot)만으로 정렬하게 바꾸면, 집계를 빼지 않으면 빨개진다.
+    픽스처: 등급이 다른 두 곳과 같은 등급 두 곳, 집계 한 줄의 합성 행."""
+    top, low = SZ.GRADE_KEYS[0], SZ.GRADE_KEYS[-1]
+    rows = [dict(z='전국', grade=top, tot=99, agg=True), dict(z='가', grade=low, tot=50),
+            dict(z='나', grade=top, tot=1), dict(z='다', grade=top, tot=9)]
+    assert [x['z'] for x in SZ.zone_order(rows)] == ['다', '나', '가']
 
 
 def test_monthly_keeps_source_order():
@@ -74,7 +79,7 @@ def test_monthly_keeps_source_order():
 
 
 def test_no_ranking_wording_on_the_list_link():
-    for rel in ('index.html', os.path.join('tools', 'make_naver_post.py')):
+    for rel in ('index.html',):
         s = HS.home_source() if HS.is_home(rel) else io.open(os.path.join(ROOT, rel), encoding='utf-8').read()
         HS.require(s, '/zone/', what=rel)   # 목록 링크를 실제로 읽었는가
         assert '시도별 공급 순위' not in s and '시도 공급 순위' not in s, (

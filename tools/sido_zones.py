@@ -52,7 +52,7 @@ ORDER = list(REF_Q)                                       # 표의 열 순서
 # 부족 순이 아니라 사람들이 관심을 두는 순서다 — 부족한 곳이 지방·제주일 수 있는데 그곳이 곧
 # 관심 지역은 아니다. 집계 3 → 수도권 → 광역시·세종 → 도. 대표가 바꾸면 여기만 고친다.
 # ⚠️ ORDER 와 헷갈리지 말 것. ORDER 는 기준표·발표 원천의 순서라 /monthly/ 처럼 정부 표와
-#    대조하는 화면이 그대로 쓴다. 순위를 말하는 곳(블로그 순위표)은 zone_order() 를 쓴다.
+#    대조하는 화면이 그대로 쓴다. 순위를 말하는 곳은 zone_order() 를 쓴다.
 #    목록 표시(허브·'다른 지역' 격자·홈 표 모드)만 이것을 쓴다 — calc() 가 zones 를 이 순서로 낸다.
 DISPLAY_ORDER = [
     '전국', '수도권', '지방',
@@ -68,7 +68,7 @@ if sorted(DISPLAY_ORDER) != sorted(ORDER) or len(set(DISPLAY_ORDER)) != len(DISP
 
 # 화면에 **보이는** 지역 이름(2026-10-17 대표 승인, 백로그 46). 판정 단위 키·주소(/zone/전남광주/)·데이터 키는 그대로 두고
 # 글자만 바꾼다 — '전남광주'는 원천(국토교통부·KOSIS)의 통합 단위 이름이라 검색되지 않고, 사람들은 '광주·전남'으로 찾는다.
-# 사이트 생성기(disp)·홈(split_data 가 ADV.zname 으로 싣는다)·블로그 생성기(make_naver_post.SEARCH_NAME)가 이 표 하나를 읽는다.
+# 사이트 생성기(disp)·홈(split_data 가 ADV.zname 으로 싣는다)·이론편 가드(theory_link3.SEARCH_NAME)가 이 표 하나를 읽는다.
 DISPLAY_NAME = {'전남광주': '광주·전남'}
 if set(DISPLAY_NAME) - set(REF_Q):
     raise SystemExit('DISPLAY_NAME 에 모델에 없는 지역이 있다: %s' % sorted(set(DISPLAY_NAME) - set(REF_Q)))
@@ -244,15 +244,15 @@ def qkey(i):
 
 
 # 제목 연도는 '전망하는 해'다(2026-09-27 대표 결정). 10월부터는 다음 해를 쓴다 — 내년 전망 검색 수요는 가을부터 커진다
-# (09-27 블로그 검색 실측 '2026 부동산 전망' 10,428건 대 '2027' 459건). 근거·실험은 make_naver_post 지역 편 제목 주석.
+# (09-27 블로그 검색 실측 '2026 부동산 전망' 10,428건 대 '2027' 459건). 근거·실험은 옛 블로그 지역 편 제목 주석(git 이력).
 OUTLOOK_NEXT_FROM_MONTH = 10
 
 
 def outlook_year(p):
     """주간 조사일 'YYYY-MM-DD' → 제목에 쓸 '전망하는 해' 문자열('2026'). 읽을 수 없으면 ''(제목에서 연도를 뺀다).
 
-    사이트 시도 리포트 제목(make_sido_pages.page_title)과 블로그 지역 편 제목(make_naver_post.draft_zone)이 **이 함수
-    하나**로 연도를 쓴다(요청서 B4, 2026-09-27 대표 결정). 날짜는 두 곳 모두 ADV.weekly 최신 행의 조사일이다.
+    사이트 시도 리포트 제목(make_sido_pages.page_title)이 이 함수로 연도를 쓴다(요청서 B4, 2026-09-27 대표 결정 — 블로그 지역 편
+    제목도 같은 함수였다, 2026-11-13 도구 삭제). 날짜는 ADV.weekly 최신 행의 조사일이다.
     """
     try:
         y, m = int(p[:4]), int(p[5:7])
@@ -604,7 +604,7 @@ def card_text(dtot, ratio, H=None):
 # 카드의 686,396 은 '앞으로 3년 적정물량 − 착공 기반 입주 추정'(425,873)이 아니다. 지난 4년 덜 지은 몫(260,523)이
 # 더해진 값인데 홈에는 그 말이 없어 홈 재료만으로는 검산이 안 됐다. 식의 이름은 여기 하나에서 만들고
 # 홈 산출 방법(손으로 쓴 index.html — 시험이 이 문구와 대조)·홈 카드 ⓘ(split_data 가 구운 ftxt)·시도 리포트의
-# '숫자로 보면' 식(make_sido_pages)·블로그 지역 편(make_naver_post)이 같이 쓴다.
+# '숫자로 보면' 식(make_sido_pages)이 같이 쓴다.
 def formula_text(H=None, W=None, need=None, fut=None, inow=None):
     """'3년 적정물량 − 착공 기반 입주 추정 + 지난 4년 쌓인 부족'. 숫자를 주면 각 항 뒤에 붙인다.
 

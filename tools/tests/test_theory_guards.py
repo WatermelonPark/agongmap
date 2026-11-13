@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-"""사이클 이론편(1~7편) 전제 가드 — 초안만 멈추고 게이트는 막지 않으며, 멈춘 편은 배치 기록 줄로 알린다(대표 결정 2026-10-18 D1).
+"""사이클 이론편(1~7편) 전제 가드 — 게이트는 막지 않으며, 멈춘 편은 배치 기록 줄로 알린다(대표 결정 2026-10-18 D1).
 
 이론편 본문은 발행 당시 데이터의 사실(‘공급이 적은 분기에 전세가 더 올랐다’, ‘금리가 올랐는데 매매·전세가 함께 올랐다’ …)을
-문장으로 못 박는다. 지금 데이터가 그 전제와 어긋나면 make_theory_post.guard_values 가 SystemExit 로 그 편의 초안 생성을 멈춘다.
+문장으로 못 박는다. 지금 데이터가 그 전제와 어긋나면 theory_guards.guard_values 가 SystemExit 로 그 편을 멈춘다(블로그 초안 도구는
+2026-11-13 에 지웠고 이 가드만 남겼다).
 게이트 시험은 그 데이터 상태로 실패하지 않고(실데이터 시험은 멈춤 갈래도 받는다), batch_notes.theory_claim_lines 가 편마다 ℹ️ 한
 줄을 배치 기록에 올린다(옛 3편 sync_claim_lines 를 접었다). 가드가 SystemExit 말고 다른 예외로 죽으면 코드 결함이다 — 실데이터
 시험이 그대로 빨갛고, 기록 줄은 '검사 불가'다.
@@ -15,7 +16,7 @@
   - 같은 이유로 멈춘 이웃 편 묶기를 빼면 → test_stopped_posts_get_one_info_line_each('1편'·'2편' 두 줄이 된다)
   - 코드 결함(그 밖의 예외) 받기를 빼면 → test_crashing_guard_is_reported_as_unchecked(예외가 그대로 샌다)
   - 도구·데이터를 못 올릴 때의 받기를 빼면 → test_unloadable_tools_are_reported
-  - render 가 guard_values 를 거치지 않고 제 가드를 따로 두면 → test_render_and_batch_notes_share_one_guard
+  - theory_claim_lines 가 편을 theory_guards.POSTS 가 아닌 손 목록으로 돌거나 한 편을 빼면 → test_every_post_number_is_checked_in_order
   - theory_claim_lines 가 데이터 상태 멈춤(멈춤 문구의 T.NOT_THE_TEXT)을 가르지 않거나, 데이터 상태 멈춤 문구 하나에서 그 말을
     빼면 → test_data_state_stops_are_not_blamed_on_the_published_post
 """
@@ -28,7 +29,7 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import batch_notes as N  # noqa: E402
 import format_batch_report as F  # noqa: E402
-import make_theory_post as T  # noqa: E402
+import theory_guards as T  # noqa: E402
 
 STOP_LINE = re.compile(r'^%s 사이클 ([\d·]+)편 (?:전제가 지금 데이터와 어긋남 — .+ \(초안 생성만 멈춤, 발행본 재검토\)'
                        r'|초안 생성 멈춤\(데이터 상태, 발행본과 무관\) — .+)$' % re.escape(N.ML.MARK))
@@ -50,11 +51,10 @@ def _stop7(D, months=None):
 
 
 def test_every_post_guard_on_real_data_fills_or_is_reported(monkeypatch):
-    """저장소 실데이터로 1~7편 가드를 돌린다: 통과한 편은 초안 본문 자리 표시자가 하나도 남지 않고, 멈춘 편은 멈춤 문구가 그 편을
-    가리키며 batch_notes 기록 줄에 그 편이 실린다. 가드가 날 예외로 죽으면(코드 결함) 이 시험이 빨갛다 — 기록 줄에도 '검사 불가'가
+    """저장소 실데이터로 1~7편 가드를 돌린다: 통과한 편은 빈 칸 없는 값 표를 돌려주고, 멈춘 편은 멈춤 문구가 그 편을 가리키며
+    batch_notes 기록 줄에 그 편이 실린다. 가드가 날 예외로 죽으면(코드 결함) 이 시험이 빨갛다 — 기록 줄에도 '검사 불가'가
     없어야 한다."""
-    monkeypatch.setattr(T.P, 'rivals', lambda *a, **k: None)
-    D, data = T.P.cycle_d(), T.M.load()
+    D, data = T.cycle_d(), T.M.load()
     seen = {'ok': [], 'stop': []}
 
     def check(n, lines):
@@ -66,15 +66,15 @@ def test_every_post_guard_on_real_data_fills_or_is_reported(monkeypatch):
             assert n in _reported(lines), ('%d편이 멈췄는데 기록 줄에 없다' % n, lines)
             seen['stop'].append(n)
             return
-        html = T.render(next(p for p in T.POSTS if p['n'] == n))
-        assert '%(' not in html, '%d편 초안에 채우지 못한 자리가 남았다' % n
+        v = T.guard_values(n, D, data)
+        assert isinstance(v, dict) and None not in v.values(), '%d편 가드가 빈 칸을 돌려준다: %s' % (n, v)
         seen['ok'].append(n)
 
     lines = N.theory_claim_lines()
     assert not [ln for ln in lines if '검사 불가' in ln], lines
     assert all(STOP_LINE.match(ln) for ln in lines), lines
-    for post in T.POSTS:
-        check(post['n'], lines)
+    for n in T.POSTS:
+        check(n, lines)
     assert len(seen['ok']) + len(seen['stop']) == len(T.POSTS) >= 7
     if not seen['stop']:                  # 실데이터가 모두 통과한 회차 — 멈춤 갈래를 합성으로 채운다(금리 인하로 7편 ③이 깨진 날)
         monkeypatch.setattr(T, 'link7_values', _stop7)
@@ -87,7 +87,7 @@ def test_every_post_guard_on_real_data_fills_or_is_reported(monkeypatch):
 
 def _stub(monkeypatch, outcomes):
     """guard_values 를 편마다 정한 결과로 바꾼다 — 값이 예외면 던지고, 없으면 통과. 저장소 데이터는 읽지 않는다."""
-    monkeypatch.setattr(T.P, 'cycle_d', lambda: {})
+    monkeypatch.setattr(T, 'cycle_d', lambda: {})
     monkeypatch.setattr(T.M, 'load', lambda: ({}, {}))
 
     def guard(n, D=None, data=None):
@@ -156,7 +156,7 @@ def _data_stops(monkeypatch):
 def test_data_state_stops_are_not_blamed_on_the_published_post(monkeypatch):
     """문장 전제가 아니라 데이터 상태로 멈춘 편은 '전제가 어긋남 … 발행본 재검토'가 아니라 '데이터 상태' 줄로 알린다 — 발행본을 다시
     볼 일이 아니라 다음 배치에서 풀리는 일인데, 같은 꼴로 쓰면 월요일 확인 메일이 발행본 재검토를 시킨다(전수리뷰 G1a 검토).
-    멈춤 문구와 판별이 한 상수(make_theory_post.NOT_THE_TEXT)를 쓰는지도 갈래마다 실제 가드의 문구로 본다.
+    멈춤 문구와 판별이 한 상수(theory_guards.NOT_THE_TEXT)를 쓰는지도 갈래마다 실제 가드의 문구로 본다.
 
     변이(각각 실제로 확인): theory_claim_lines 가 NOT_THE_TEXT 로 가르지 않으면(모두 '전제가 어긋남') 다섯 갈래가 모두 빨갛다. 4편
     Link3DataError 멈춤 문구에서 NOT_THE_TEXT 를 빼면(고치기 전 문구) 4편 갈래가 빨갛다.
@@ -176,24 +176,26 @@ def test_data_state_stops_are_not_blamed_on_the_published_post(monkeypatch):
 def test_unloadable_tools_are_reported(monkeypatch):
     def boom():
         raise RuntimeError('/cycle/ 에서 D 블록을 찾지 못했다')
-    monkeypatch.setattr(T.P, 'cycle_d', boom)
+    monkeypatch.setattr(T, 'cycle_d', boom)
     out = N.theory_claim_lines()
     assert out == ['%s 사이클 이론편 검사 불가 — RuntimeError: /cycle/ 에서 D 블록을 찾지 못했다' % N.ML.MARK], out
 
 
-def test_render_and_batch_notes_share_one_guard(monkeypatch):
-    """초안 도구(render)와 배치 기록(theory_claim_lines)은 같은 가드 함수(guard_values) 하나를 부른다 — 둘이 따로 재면 한쪽이
-    멈추는데 다른 쪽은 '이상 없음'이라 말할 수 있다(CLAUDE.md 같은 대상은 같은 코드)."""
+def test_every_post_number_is_checked_in_order(monkeypatch):
+    """배치 기록은 theory_guards.POSTS 의 편을 빠짐없이, 편 순서대로 가드에 넣는다 — 한 편이 빠지면 그 편의 전제가 깨져도 아무 줄이
+    나가지 않는다(초록인 채로 알림 하나가 사라진다).
+
+    변이(실제로 확인): theory_claim_lines 의 `for n in T.POSTS` 를 `for n in T.POSTS[:-1]` 로 바꾸면 빨갛다(7편이 빠진다).
+    픽스처: 저장소 데이터를 읽지 않는 합성 상태 — 가드가 받은 편 번호만 적고 모두 통과시킨다."""
+    seen = []
+
     def guard(n, D=None, data=None):
-        if n == 5:
-            raise SystemExit('5편을 만들 수 없다 — 가상의 깨진 전제. 문장을 먼저 고칠 것.')
+        seen.append(n)
         return {}
+    _stub(monkeypatch, {})
     monkeypatch.setattr(T, 'guard_values', guard)
-    monkeypatch.setattr(T.P, 'rivals', lambda *a, **k: None)
-    with pytest.raises(SystemExit) as e:
-        T.render(next(p for p in T.POSTS if p['n'] == 5))
-    assert '가상의 깨진 전제' in str(e.value)
-    assert _reported(N.theory_claim_lines()) == {5}
+    assert N.theory_claim_lines() == []
+    assert seen == list(T.POSTS) == list(range(1, 8)), seen
 
 
 def test_info_lines_reach_the_monday_report():

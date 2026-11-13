@@ -1,22 +1,21 @@
 # -*- coding: utf-8 -*-
-"""사이클 이론 5편(고리 ④ 착공 → 입주) — 본문 숫자는 전부 theory_link4 가 데이터에서 세고, 단정이 깨지면 생성이 멈춘다.
+"""사이클 이론 5편(고리 ④ 착공 → 입주) 가드 — 숫자는 theory_link4 가 데이터에서 세고, 단정이 깨지면 theory_guards.guard_values 가
+멈춘다(블로그 초안 도구는 2026-11-13 에 지웠다 — 배치 기록 줄 batch_notes.theory_claim_lines 가 이 가드를 부른다).
 
-⚠️ 실데이터로 5편을 렌더링해 단정("옛 시차라면 2025년에 드러났어야" 등)을 확인하는 시험은 두지
-않는다. 데이터가 앞으로 가면(2026년 연간치가 들어오면) 단정이 깨질 수 있는데, 그걸 배치 게이트가 잡으면
-그날 데이터 커밋 전체가 멈춘다(CLAUDE.md '게이트 시험은 데이터가 앞으로 가도 초록'). 단정은 초안을 만들 때
-render 가 지킨다. 여기서는 구조만 고정한다.
+⚠️ 실데이터로 단정("옛 시차라면 2025년에 드러났어야" 등)을 확인하는 시험은 두지 않는다. 데이터가 앞으로 가면(2026년 연간치가
+들어오면) 단정이 깨질 수 있는데, 그걸 배치 게이트가 잡으면 그날 데이터 커밋 전체가 멈춘다(CLAUDE.md '게이트 시험은 데이터가
+앞으로 가도 초록'). 성공 경로는 고정 스냅숏에서 본다.
 
 무엇을 깨뜨리면 빨개지나(각각 실제로 확인):
-  - theory_link4 에서 본문이 쓰는 값의 함수(def _<키>) 하나를 지우면 → 자리 표시자 시험
-  - render 에서 Link4ClaimError 를 SystemExit 으로 바꾸는 try/except 를 지우면 → 가드 시험
-  - 5편 본문에 숫자를 손으로 박으면(예: '312,088호') → 손 숫자 시험
+  - guard_values 5편 갈래에서 Link4ClaimError 를 SystemExit 으로 바꾸는 except 를 지우면 → test_claim_break_stops_the_guard
   - link4_numbers 의 착공·준공 끝 달 검사를 옛 맨 assert 로 되돌리면 → 끝 달 어긋남 시험 둘(AssertionError 가 가드를 비켜 샌다)
-  - render 의 Link4DataError 갈래를 지우면 → 안내 시험('문장을 먼저 고칠 것'으로 글쓴이 탓을 한다)
+  - guard_values 의 Link4DataError 갈래를 지우면 → 안내 시험('문장을 먼저 고칠 것'으로 글쓴이 탓을 한다)
   - link4_numbers 단정 모음의 KeyError·TypeError… 받기를 지우면 → 셈이 깨진 칸 시험(TypeError 가 그대로 샌다)
-픽스처: 실제 POSTS 5편 본문과 theory_link4 소스. 가드 시험은 link4_numbers 를 예외를 던지는 가짜로 바꾼다. 끝 달 시험은 준공·착공
-전국 두 계열만 둔 합성 STATS(분기를 닫지 않는 달에 한 표만 새 달을 받은 회차 — 착공 호출만 순단했거나 원천이 한 표를 늦게 실은
-상태)이고, 셈이 깨진 칸 시험은 단정이 읽는 /cycle/ 칸 하나가 빈(null) 합성 D 다. 둘 다 실데이터에 기대지 않아 데이터가 앞으로
-가도 같은 입력이다(5편 본문이 2026년 데이터를 전제하므로 합성 달도 2026년이다).
+  - 단정 함수 하나(_fut_low)에 코드 오타(없는 키)를 넣거나 발행본이 읽는 값 함수 하나를 지우면 → 스냅숏 시험
+픽스처: 가드 시험은 link4_numbers 를 예외를 던지는 가짜로 바꾼다. 끝 달 시험은 준공·착공 전국 두 계열만 둔 합성 STATS(분기를 닫지
+않는 달에 한 표만 새 달을 받은 회차 — 착공 호출만 순단했거나 원천이 한 표를 늦게 실은 상태)이고, 셈이 깨진 칸 시험은 단정이 읽는
+/cycle/ 칸 하나가 빈(null) 합성 D 다. 둘 다 실데이터에 기대지 않아 데이터가 앞으로 가도 같은 입력이다(5편 본문이 2026년 데이터를
+전제하므로 합성 달도 2026년이다).
 """
 import io
 import os
@@ -26,30 +25,25 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-import make_naver_post as P  # noqa: E402
-import make_theory_post as T  # noqa: E402
+import theory_guards as T  # noqa: E402
 import theory_link4 as L4  # noqa: E402
 
-POST = next(p for p in T.POSTS if p["n"] == 5)
-RENDER_KEYS = {'link', 'cycle', 'zone', 'exp', 'nsido', 'moveins'}
+# 5편 발행본 본문이 읽는 데이터 칸(2026-11-13 초안 도구를 지울 때의 본문에서 링크·경험·지역 칸을 뺀 것) — 가드가 이 칸을 모두 내야 한다
+SLOTS = {'arr_y', 'cn_lead', 'conv', 'dg_st', 'dg_st_old', 'dn25', 'dn25_old', 'dn_pk', 'dn_ytd', 'dn_ytd_since', 'fq_below',
+         'fq_min4', 'fq_min4p', 'fq_min4v', 'fq_n', 'fut_high', 'fut_high_names', 'fut_low', 'fut_low_n', 'gb_lead', 'gg_fut', 'h1_24',
+         'h1_25', 'h29p', 'h2_24', 'h2_25', 'h2_drop', 'ic_fut', 'jb_new', 'jb_old', 'lag_hi', 'lag_lo', 'lead_gap', 'lead_new',
+         'lead_new_y', 'lead_old', 'lead_old_y', 'lead_r', 'nat_r', 'ref_q', 'ref_y', 'roll_from', 'roll_now', 'roll_prev', 'roll_ratio',
+         'roll_to', 'sd_new', 'sd_old', 'se_r', 'shift_q', 'shift_y', 'st21', 'st22', 'st23', 'st_pk', 'st_ytd', 'st_ytd_up', 'win_y',
+         'y26', 'y26p', 'y27', 'y27p', 'ytd_m'}
 
 
-def test_every_placeholder_has_a_counted_value():
-    src = io.open(L4.__file__, encoding='utf-8').read()
-    made = set(re.findall(r'^    def _(\w+)\(\):', src, re.M))
-    used = set(re.findall(r'%\((\w+)\)', POST['body']))
-    assert used - RENDER_KEYS <= made, sorted(used - RENDER_KEYS - made)
-
-
-def test_claim_break_stops_the_draft(monkeypatch):
-    monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
-
+def test_claim_break_stops_the_guard(monkeypatch):
     def broken(adv, sts, D=None):
         raise L4.Link4ClaimError('dn25: 옛 시차 반례가 더는 성립하지 않는다')
     monkeypatch.setattr(L4, 'link4_numbers', broken)
     with pytest.raises(SystemExit) as e:
-        T.render(POST)
-    assert '5편을 만들 수 없다' in str(e.value)
+        T.guard_values(5, D={}, data=({}, {}))
+    assert str(e.value) == '5편을 만들 수 없다 — dn25: 옛 시차 반례가 더는 성립하지 않는다. 문장을 먼저 고칠 것.', str(e.value)
 
 
 def _sts(dn_last, st_last):
@@ -72,14 +66,13 @@ def test_series_end_mismatch_is_a_data_stop_not_a_traceback(dn_last, st_last):
     assert dn_last in str(e.value) and st_last in str(e.value), str(e.value)
 
 
-def test_series_end_mismatch_tells_the_writer_to_wait_for_the_batch(monkeypatch):
-    """render(5편)은 끝 달 어긋남을 글쓴이 탓으로 안내하지 않는다 — 다음 배치를 받은 뒤 다시 돌리라고 한다(4편 Link3DataError 와 같은 갈래)."""
-    monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
-    monkeypatch.setattr(T.M, 'load', lambda: ({}, _sts('2026.08', '2026.07')))
+def test_series_end_mismatch_tells_the_writer_to_wait_for_the_batch():
+    """가드(5편)는 끝 달 어긋남을 글쓴이 탓으로 안내하지 않는다 — 다음 배치를 받은 뒤 다시 돌리라고 한다(4편 Link3DataError 와 같은
+    갈래). 멈춤 문구에 NOT_THE_TEXT 가 들어 배치 기록 줄이 '데이터 상태'로 가른다."""
     with pytest.raises(SystemExit) as e:
-        T.render(POST)
+        T.guard_values(5, D={}, data=({}, _sts('2026.08', '2026.07')))
     msg = str(e.value)
-    assert '5편을 만들 수 없다' in msg and '착공·준공 마지막 달이 다르다' in msg, msg
+    assert '5편을 만들 수 없다' in msg and '착공·준공 마지막 달이 다르다' in msg and T.NOT_THE_TEXT in msg, msg
     assert '문장을 먼저 고칠 것' not in msg and 'git pull' in msg, msg
 
 
@@ -100,15 +93,6 @@ def test_arithmetic_break_in_a_claim_is_a_claim_stop_not_a_traceback(tmp_path, m
     assert ' arr_y: TypeError' in str(e.value), str(e.value)
 
 
-def test_no_hand_written_counts_in_body():
-    # 5편 본문에는 비율을 풀어 쓴 분모 문장('허가 100세대 가운데 …')이 없다 — 그 문장은 4편에만 있다(test_theory_post4 가 뺀다).
-    # 4편 시험을 본떠 옮겨 온 옛 '허가 100호 가운데' 지우기는 한 번도 맞은 적 없는 죽은 코드라 뺐다(전수리뷰 T3-15).
-    text = re.sub(r'%\(\w+\)s', '', POST['body'])
-    # 연도(4자리)·편 번호·'1년' 같은 가정은 문장이다. 세대·호·퍼센트·배수는 전부 계산값이어야 한다.
-    hand = re.findall(r'\d[\d,]*\s*(?:호|세대|%%|배)', text)
-    assert not hand, hand
-
-
 def _snapshot():
     """5편 고정 스냅숏(theory5_snapshot.json) — 2026-10-20 저장소의 ADV.occupancy·ADV.sido·STATS 준공·착공·인허가와 /cycle/ D 를
     옮겨 둔 것. 모든 단정이 서는 상태라 데이터가 앞으로 가도(2027년 자료 — 본문의 2026년 전제가 깨지는 날) 같은 입력이다."""
@@ -118,18 +102,13 @@ def _snapshot():
     return s['adv'], s['sts'], s['D']
 
 
-def test_snapshot_passes_every_claim_and_fills_every_slot(monkeypatch):
-    """성공 경로: 고정 스냅숏에서 link4_numbers 의 단정이 모두 서고 5편 본문 자리 표시자가 하나도 남지 않는다. 단정 모음의 넓은 받기
-    (KeyError·TypeError → Link4ClaimError)는 단정 함수 안의 코드 회귀도 '데이터가 바뀌었다'로 삼켜 게이트에서 안 보이게 한다 — 이
-    시험은 그 회귀를 빨갛게 드러낸다(전수리뷰 overflow G1a, 대표 결정 2026-10-18 D1).
+def test_snapshot_passes_every_claim_and_fills_every_slot():
+    """성공 경로: 고정 스냅숏에서 link4_numbers 의 단정이 모두 서고 발행본 본문이 읽는 칸이 모두 빈 글 없이 나온다. 가드(guard_values)도
+    같은 값을 낸다. 단정 모음의 넓은 받기(KeyError·TypeError → Link4ClaimError)는 단정 함수 안의 코드 회귀도 '데이터가 바뀌었다'로
+    삼켜 게이트에서 안 보이게 한다 — 이 시험은 그 회귀를 빨갛게 드러낸다(전수리뷰 overflow G1a, 대표 결정 2026-10-18 D1).
     변이(실제로 확인): 단정 함수 하나(_fut_low)에 코드 오타(없는 키)를 넣으면, 값 함수 하나를 지우면 빨개진다."""
     adv, sts, D = _snapshot()
     v = L4.link4_numbers(adv, sts, D)
-    used = set(re.findall(r'%\((\w+)\)', POST['body'])) - RENDER_KEYS
-    assert used and used <= set(v), sorted(used - set(v))
-    assert all(isinstance(v[k], str) and v[k] for k in used), [k for k in used if not v[k]]
-    monkeypatch.setattr(P, 'rivals', lambda *a, **k: None)
-    monkeypatch.setattr(P, 'cycle_d', lambda: D)
-    monkeypatch.setattr(T.M, 'load', lambda: (adv, sts))      # 초안 가드도 저장소가 아니라 스냅숏을 읽는다
-    html = T.render(dict(POST))
-    assert '%(' not in html and '5편을 만들 수 없다' not in html
+    assert SLOTS <= set(v), sorted(SLOTS - set(v))
+    assert all(isinstance(v[k], str) and v[k] for k in SLOTS), [k for k in SLOTS if not v[k]]
+    assert T.guard_values(5, D, (adv, sts)) == v

@@ -185,14 +185,14 @@ def test_every_site_constant_and_sitemap_loc_is_the_cname_domain():
     """sitemap 을 굽는 생성기들의 SITE 상수·피드·/llms.txt·IndexNow(CNAME)·감시가 한 도메인이다. 갈리면 IndexNow 는 host 불일치로
     전부 거절하고, 피드와 페이지가 다른 주소를 가리킨다(D1 검토).
 
-    SITE 상수를 둔 도구는 손 목록이 아니라 소스에서 찾는다 — 블로그 초안 도구(make_naver_post·make_theory_post)의 링크 도메인이
-    손 목록에서 빠져 있었다(전수리뷰 BL1 overflow). 변이(확인): make_naver_post.SITE 를 다른 도메인으로 바꾸면 빨개진다."""
+    SITE 상수를 둔 도구는 손 목록이 아니라 소스에서 찾는다 — 블로그 초안 도구(2026-11-13 삭제)의 링크 도메인이 손 목록에서 빠져
+    있었다(전수리뷰 BL1 overflow). 변이(확인): make_content_pages.SITE 를 다른 도메인으로 바꾸면 빨개진다."""
     import importlib
     import re
     tools = os.path.join(ROOT, 'tools')
     mods = sorted(f[:-3] for f in os.listdir(tools)
                   if f.endswith('.py') and re.search(r'(?m)^SITE = ', io.open(os.path.join(tools, f), encoding='utf-8').read()))
-    assert {'make_sido_pages', 'make_naver_post', 'check_freshness', 'make_feed'} <= set(mods), mods
+    assert {'make_sido_pages', 'make_content_pages', 'check_freshness', 'make_feed'} <= set(mods), mods
     want = 'https://' + io.open(os.path.join(ROOT, 'CNAME'), encoding='utf-8').read().strip()
     got = {m: importlib.import_module(m).SITE for m in mods}
     got['ping_indexnow'] = P.site()
