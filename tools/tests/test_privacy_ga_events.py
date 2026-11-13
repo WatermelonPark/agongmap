@@ -6,16 +6,17 @@
 quiz_complete{score}, 대결에서 challenge_result{score, friend_score} 를 gtag 로 보낸다. 공개 문서가 실제 처리와
 반대였고 이를 보는 시험이 없었다. 대표 결정(2026-09-30 ②)으로 방침을 사실대로 고치고, 1항에 전송 목록 표
 (id="ga-events", 행마다 data-ev)를 두었다. 이 시험은 그 표와 코드를 양방향으로 대조한다.
+(2026-11-14 퀴즈 3종을 걷으며 퀴즈·대결 이벤트도 코드와 표에서 함께 뺐다 — 이 양방향 대조가 그 정리를 강제했다.)
 
 코드 쪽은 저장소에서 GA 로 값을 보내는 곳을 모두 훑는다: 홈 전체(home_src.home_source() — index.html 과
-home-*.js), 저장소 맨 위·한 단계 아래 HTML(퀴즈 랜딩·사이클·생성 페이지 허브), tools/*.py 생성기(시도 리포트·
+home-*.js), 저장소 맨 위·한 단계 아래 HTML(사이클·생성 페이지 허브), tools/*.py 생성기(시도 리포트·
 공유 조각·주간·월간). 호출 모양은 track('이벤트',{키:…}) 과 gtag('event'|'set','이름',{키:…}) 두 가지다.
 이름을 변수로 넘기는 호출은 이 훑기가 못 보므로, 그런 호출이 생기면 따로 실패한다.
 
 무엇을 깨뜨리면 빨개지나(모두 실제로 확인):
-  · home-quiz.js 의 quiz_answer 에 매개변수 하나(예: pick)를 더하면 → 방침에 없는 전송으로 실패.
-  · privacy/index.html 표에서 quiz_complete 행을 지우면 → 같은 시험이 실패.
-  · 표에 코드에 없는 행이나 값(예: quiz_complete 에 answer)을 더하면 → 코드에 없는 항목으로 실패.
+  · home-app.js 의 shareWeekly 가 보내는 share 에 매개변수 하나(예: pick)를 더하면 → 방침에 없는 전송으로 실패.
+  · privacy/index.html 표에서 trend_pick 행을 지우면 → 같은 시험이 실패.
+  · 표에 코드에 없는 행이나 값(예: 지운 quiz_complete 행)을 되살리면 → 코드에 없는 항목으로 실패.
   · 1항 문구를 옛 '서버로 전송·수집되지 않습니다'로 되돌리면 → test_privacy_does_not_deny_quiz_transfer 가 실패.
   · home-app.js 에 track(ev2,{}) 처럼 이름을 변수로 보내는 호출을 더하면 → test_every_call_names_its_event 가 실패.
 픽스처 없이 실제 파일을 읽는다. 날짜·데이터와 무관하다.
@@ -97,12 +98,12 @@ def page_events():
     return ev
 
 
-def test_scanner_sees_the_quiz_events():
-    """훑기가 조용히 0개를 찾고 통과하지 않게 — 리뷰가 짚은 퀴즈 전송이 보여야 한다."""
+def test_scanner_sees_the_site_events():
+    """훑기가 조용히 0개를 찾고 통과하지 않게 — 홈·통계·공유의 대표 전송이 보여야 한다(퀴즈 이벤트는 2026-11-14 제거)."""
     ev = code_events()
-    assert {'correct'} <= ev.get('quiz_answer', set())
-    assert {'score'} <= ev.get('quiz_complete', set())
-    assert {'score', 'friend_score'} <= ev.get('challenge_result', set())
+    assert {'period', 'region', 'from'} <= ev.get('trend_pick', set())
+    assert {'content_type', 'method'} <= ev.get('share', set())
+    assert not [e for e in ev if e.startswith(('quiz_', 'challenge_'))], '걷은 퀴즈 이벤트를 코드가 아직 보낸다: %s' % sorted(ev)
     assert len(ev) >= 20, '이벤트가 너무 적게 잡혔다 — 훑는 파일이나 호출 모양이 바뀌었는지 볼 것: %s' % sorted(ev)
 
 
@@ -131,7 +132,7 @@ def test_every_call_names_its_event():
 def test_privacy_does_not_deny_quiz_transfer():
     s = _read('privacy/index.html')
     assert not re.search(r'퀴즈[^<]{0,40}서버로 전송·수집되지 않', s), '방침이 퀴즈 결과를 보내지 않는다고 적었다'
-    assert '퀴즈 점수' in s and 'Google Analytics에 전송' in s
+    assert 'Google Analytics에 전송' in s
     # 방침을 고쳤으면 변경 이력에 날짜를 남긴다 — 머리의 '최근 개정'과 6항 이력의 마지막 날짜가 같아야 한다
     head = re.search(r'최근 개정 (\d{4}년 \d+월 \d+일)', s)
     hist = re.findall(r'<li(?: [^>]*)?>(\d{4}년 \d+월 \d+일) — ', s)

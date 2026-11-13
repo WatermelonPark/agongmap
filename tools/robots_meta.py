@@ -6,11 +6,11 @@
 2026-09-27 기준 robots 메타가 있는 페이지는 404(noindex)·개인정보(index, follow) 두 장뿐이었고 max-image-preview 는 0장이었다.
 
 쓰는 곳
-  - 전체를 굽는 생성기(make_sido_pages 템플릿·통합 안내, make_indicator_pages SHELL — /monthly/ 도 이 뼈대,
-    make_quiz_share_pages)는 뼈대 문자열에 TAG 를 그대로 넣는다.
+  - 전체를 굽는 생성기(make_sido_pages 템플릿·통합 안내, make_indicator_pages SHELL — /monthly/ 도 이 뼈대)는
+    뼈대 문자열에 TAG 를 그대로 넣는다.
   - 손 뼈대의 표식만 채우는 생성기(make_weekly_page, refresh_cycle_data)는 ensure() 로 없으면 넣는다 — 뼈대가 배치
     산출물이라 PR 로 고치지 않는다(CLAUDE.md). 첫 배치가 한 줄을 넣고 그 뒤로는 그대로 둔다.
-  - 손 페이지(index.html·소개·FAQ·개인정보·404·퀴즈 랜딩)는 손으로 적는다.
+  - 손 페이지(index.html·소개·FAQ·개인정보·404)는 손으로 적는다. 옛 퀴즈 주소 세 곳(홈으로 넘기는 noindex 페이지)도 같다.
 저장소의 모든 .html 에 robots 메타가 **정확히 하나** 있고 그 content 에 CONTENT 가 드는지는 test_robots_meta 가 본다
 (생성기를 돌린 뒤 — 배치 게이트는 생성기 뒤에 돈다).
 

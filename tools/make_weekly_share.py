@@ -9,11 +9,35 @@ data.js의 ADV.weekly 최신 주차를 읽어 16개 시도 타일 지도를 그�
 사용: python tools/make_weekly_share.py
 """
 import io, os, re, json, sys
-from PIL import Image, ImageDraw, PngImagePlugin
+from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
-from make_beginner_cards import noto  # noqa: E402
+
+# 글꼴 로더 — 예전엔 퀴즈 카드 도구(make_beginner_cards)에서 가져왔다. 2026-11-14 퀴즈 제거로 그 도구를 지우며 옮겼다.
+# 폰트는 저장소에 번들(tools/fonts/, Pretendard — SIL OFL 1.1)해 OS와 무관하게 동작한다.
+FONT_DIR = os.path.join(ROOT, 'tools', 'fonts')
+FONT_FILES = {'Bold': 'Pretendard-Bold.subset.ttf', 'Medium': 'Pretendard-Medium.subset.ttf'}
+# 번들 폰트가 없을 때만 쓰는 시스템 가변폰트 폴백(개발 PC 호환용)
+FONT_FALLBACK = ['C:/Windows/Fonts/NotoSansKR-VF.ttf']
+
+
+def noto(size, weight='Bold'):
+    """번들 폰트(tools/fonts) 우선, 없으면 시스템 가변폰트로 폴백."""
+    path = os.path.join(FONT_DIR, FONT_FILES.get(weight, FONT_FILES['Bold']))
+    if os.path.exists(path):
+        return ImageFont.truetype(path, size)
+    for p in FONT_FALLBACK:
+        if os.path.exists(p):
+            f = ImageFont.truetype(p, size)
+            try:
+                f.set_variation_by_name(weight)
+            except Exception:
+                pass
+            return f
+    raise FileNotFoundError(
+        '한글 폰트를 찾을 수 없습니다. %s 에 Pretendard 서브셋을 두세요.' % FONT_DIR)
+
 
 def _pubdate(basis):
     """조사기준일(월요일 'YYYY-MM-DD') -> 부동산원 공표일(그 주 목요일).
