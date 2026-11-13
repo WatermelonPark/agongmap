@@ -8,6 +8,7 @@ pip 설치 전에 돌기 때문이다(다른 생성기와 같은 제약).
 `- q:`/`  a:` 짝 목록. 모르는 모양을 만나면 조용히 넘기지 않고 ContentError 를 던진다 — 원고가 의도한
 항목이 빠진 채 페이지가 구워지는 쪽이 더 나쁘다.
 """
+import datetime
 import io
 import os
 import re
@@ -59,7 +60,9 @@ def split_front(text):
 
 def _scalar(v):
     v = v.strip()
-    if len(v) >= 2 and v[0] == v[-1] and v[0] in '"\'':
+    # 바깥 따옴표 한 쌍만 벗긴다. 안쪽에 같은 따옴표가 더 있으면 감싼 것이 아니라 글의 일부다 —
+    # '"집값 떨어진다"는 말, 숫자는 "아니다"' 의 양 끝을 벗기면 따옴표 짝이 어긋난 제목이 된다(2026-11-13 전수 리뷰).
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in '"\'' and v[0] not in v[1:-1]:
         v = v[1:-1]
     return v.strip()
 
@@ -162,6 +165,20 @@ def validate_v2(meta):
     return meta
 
 
+def shape_v2(meta):
+    """옛 양식으로 읽을 때(lenient)도 key·city 의 **모양**은 엄격 읽기와 같게 고른다 — 묻지는 않는다(없거나 틀리면 그대로 둔다).
+
+    안 고르면 `key` 가 한 짝 목록인 채라 자리표가 채워지지 않고 카드에 '{{v:…}}' 가 실리며, `city: 수원` 한 줄은 글자 하나씩
+    ('수','원') 도시로 읽힌다(2026-11-13 전수 리뷰).
+    """
+    key = meta.get('key')
+    if isinstance(key, list) and len(key) == 1 and isinstance(key[0], dict):
+        meta['key'] = key[0]
+    if isinstance(meta.get('city'), str):
+        meta['city'] = [meta['city'].strip()] if meta['city'].strip() else []
+    return meta
+
+
 def validate(meta, slug, section, lenient=False):
     """필수 항목·형식 검사. 어기면 ContentError — 빠진 채로 굽지 않는다. lenient=True 는 2026-11-05 양식(REQUIRED_V2)을
     묻지 않는다 — 옛 원고를 고치는 동안 검사기·생성기를 돌릴 때만 쓴다."""
@@ -173,6 +190,8 @@ def validate(meta, slug, section, lenient=False):
             raise ContentError("'%s' 는 한 줄 값이어야 한다" % k)
     if not lenient:
         validate_v2(meta)
+    else:
+        shape_v2(meta)
     if not SLUG_RE.match(slug):
         raise ContentError('파일 이름(slug)은 영소문자·숫자·붙임표만 쓴다: %r' % slug)
     if meta['section'] != section:
@@ -182,6 +201,10 @@ def validate(meta, slug, section, lenient=False):
     for k in ('date', 'updated'):
         if not DATE_RE.match(meta[k]):
             raise ContentError("'%s' 는 YYYY-MM-DD 여야 한다: %r" % (k, meta[k]))
+        try:
+            datetime.date(int(meta[k][:4]), int(meta[k][5:7]), int(meta[k][8:10]))
+        except ValueError:
+            raise ContentError("'%s' 가 달력에 없는 날이다: %r" % (k, meta[k]))
     if meta['updated'] < meta['date']:
         raise ContentError('updated(%s)가 date(%s)보다 앞선다' % (meta['updated'], meta['date']))
     n = len(meta['summary'])
