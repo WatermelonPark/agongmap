@@ -771,9 +771,9 @@ def update_sitemap(entries):
 # 개편으로 본문이 바뀌었는데 07-16 에 멈춰 있었고, /privacy/ 는 lastmod 가 아예 없었다(2026-09-23 점검,
 # 백로그 29). 배치마다 그 파일의 마지막 커밋 날짜로 따라간다. /cycle/ 는 데이터 칸을 배치가 갈아끼우므로
 # refresh_cycle_data 가 따로 맞춘다.
+# 퀴즈 랜딩 세 장(/burini-test/ 등)은 2026-11-14 퀴즈 제거로 빠졌다 — 그 주소는 홈으로 넘기는 noindex 페이지다.
 HAND_PAGES = (('/faq/', 'faq/index.html'), ('/about/', 'about/index.html'),
-              ('/privacy/', 'privacy/index.html'), ('/burini-test/', 'burini-test/index.html'),
-              ('/investor-test/', 'investor-test/index.html'), ('/redev-test/', 'redev-test/index.html'))
+              ('/privacy/', 'privacy/index.html'))
 
 
 def _git(root, *args):

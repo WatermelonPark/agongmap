@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-"""홈 퀴즈·통계 코드 분할(홈 마케팅 검수 B11·MOB-8, 2026-09-27)을 고정한다.
+"""홈 통계 코드 분할(홈 마케팅 검수 B11·MOB-8, 2026-09-27)을 고정한다.
+(퀴즈 화면 home-quiz.js 도 같은 구조였으나 2026-11-14 퀴즈 3종 제거로 지웠다 — 분할 파일은 이제 통계 하나다.)
 
-지도 첫 화면이 쓰지 않는 퀴즈(home-quiz.js)·통계(home-stats.js) 코드를 home-app.js 에서 떼어, 그 화면을 열 때
+지도 첫 화면이 쓰지 않는 통계(home-stats.js) 코드를 home-app.js 에서 떼어, 그 화면을 열 때
 loadPart 로 받는다. 파일이 오기 전에 불린 입구(PARTS.*.api)는 같은 이름의 대기 함수가 받아 두었다가 도착하면 부른
 순서대로 진짜 함수를 부른다. 이 구조의 흔한 결함은 넷이다 — 모두 초록인 채 라이브에서만 드러난다.
   ① 홈 스크립트·onclick 이 부르는 분할 파일 함수가 입구 목록에 없어 ReferenceError(누름이 조용히 죽는다).
@@ -114,12 +115,12 @@ def _top_names(js):
 
 
 def test_home_source_carries_the_split_files():
-    """도구·시험이 읽는 홈 소스(home_source)에 분할 파일이 이어 붙어 온다 — QUIZSETS·SGG_QNAME 을 읽는 생성기·감시가
+    """도구·시험이 읽는 홈 소스(home_source)에 분할 파일이 이어 붙어 온다 — SGG_QNAME 을 읽는 생성기·감시가
     파일이 옮겨졌다고 조용히 꺼지지 않게(백로그 10 의 교훈).
 
-    무엇을 깨뜨리면 빨개지나(실제로 확인): home_src.EXTERNAL 에서 분할 파일을 빼면(표식 QUIZSETS 가 없어 HomeSourceError),
+    무엇을 깨뜨리면 빨개지나(실제로 확인): home_src.EXTERNAL 에서 분할 파일을 빼면(표식 SGG_QNAME 이 없어 HomeSourceError),
     home-app.js 의 PARTS 에 새 파일을 더하고 home_src.PARTS 에 안 적으면.
-    픽스처: 저장소의 home-app.js·home-quiz.js·home-stats.js.
+    픽스처: 저장소의 home-app.js·home-stats.js.
     """
     decl = _parts_decl()
     assert sorted(src for src, _ in decl.values()) == sorted(HS.PARTS), (
@@ -139,7 +140,7 @@ def test_every_part_entry_is_declared_and_every_core_call_is_an_entry():
     - 홈이 분할 파일의 const/let 을 읽으면 안 된다(대기 함수로 받을 수 없다 — 파일이 오기 전엔 ReferenceError).
     - 같은 최상위 이름이 두 파일에 있으면 안 된다(나중에 도는 분할 파일이 홈 것을 덮는다).
     무엇을 깨뜨리면 빨개지나(각각 실제로 확인): PARTS.stats.api 에서 'gtSet' 을 빼면(index.html onclick),
-    home-app.js 에 renderAdvAll() 호출을 더하면(입구 아님), home-quiz.js 의 bootChallenge 를 bootChallenge2 로 바꾸면,
+    home-app.js 에 renderAdvAll() 호출을 더하면(입구 아님), home-stats.js 의 statsOpen 을 statsOpen2 로 바꾸면,
     home-stats.js 에 function pv2(){} 를 더하면(중복).
     픽스처: 저장소의 홈 파일 그대로.
     """
@@ -206,25 +207,14 @@ function deliver(i, body){ vm.runInContext(body, ctx); scripts[i].onload(); }
   out.statsCalls = rec.calls.splice(0);
   // 도착 뒤에는 대기 함수가 아니라 진짜 함수가 바로 불린다
   ctx.setStatsMode('more'); out.direct = rec.calls.splice(0);
-  // ② 퀴즈: 딥링크(#test-beginner) 경로 — applyHash 가 startQuiz 를 부르면 퀴즈 파일을 받고, 못 받으면 알리고 다시 받는다
-  ctx.location = {hash: '#test-beginner'};
+  // ② 옛 퀴즈 주소(#test-beginner — 발행한 글·북마크): 파일을 받지 않고 홈을 열며 주소의 해시를 걷는다(2026-11-14 퀴즈 제거)
+  ctx.location = {hash: '#test-beginner', pathname: '/', search: '?utm_source=x'};
+  ctx.history = {replaceState: (st, t, u) => rec.calls.push(['replaceState', u])};
   ctx.showView = (v) => { rec.calls.push(['showView', v]); ctx.curView = v; };
+  const before = rec.appended.length;
   vm.runInContext('applyHash()', ctx);
   await tick();
-  const qi = rec.appended.length - 1;
-  out.quizAppended = rec.appended.slice(1);
-  out.qcardWhileWaiting = els['qcard'] && els['qcard'].innerHTML;
-  scripts[qi].onerror(); await tick(); await tick();
-  out.afterFail = {toast: rec.toast.slice(), calls: rec.calls.splice(0)};
-  ctx.startQuiz('calc');
-  await tick();
-  out.retryAppended = rec.appended.length - 1 > qi;
-  ctx.curView = 'home';            // 파일이 오기 전에 뒤로 가기로 홈에 왔다
-  deliver(rec.appended.length - 1, "function startQuiz(){rec.calls.push(['startQuiz'].concat([].slice.call(arguments)))}");
-  await tick(); await tick();
-  out.quizCallsAfterLeave = rec.calls.splice(0);
-  ctx.curView = 'test'; ctx.startQuiz('investor');
-  out.quizCalls = rec.calls.splice(0);
+  out.oldQuizHash = {appended: rec.appended.length - before, calls: rec.calls.splice(0)};
   process.stdout.write(JSON.stringify(out));
 })().catch((e) => { console.error(e); process.exit(1); });
 """
@@ -265,12 +255,11 @@ def test_calls_before_the_part_arrives_wait_and_replay_in_order():
     """분할 파일이 오기 전에 누른 것이 사라지지 않고, 파일(통계는 그래프 데이터까지)이 온 뒤 부른 순서대로 돈다.
 
     로더 코드(loadScript·PARTS 대기 함수·loadPart·partReady·partBusy·loadFullData·loadData·applyHash)를 꺼내 node 로
-    돌린다. 재현하는 실제 상태: 느린 망에서 '시세' 탭 → 투자지표 → 기본통계를 파일 도착 전에 연달아 누름, 퀴즈 랜딩의
-    '시작하기'(/#test-beginner)로 들어왔는데 퀴즈 파일을 못 받은 뒤 다시 시도, 다시 받는 사이 뒤로 가기로 홈에 옴.
+    돌린다. 재현하는 실제 상태: 느린 망에서 '시세' 탭 → 투자지표 → 기본통계를 파일 도착 전에 연달아 누름, 퀴즈를 걷은 뒤
+    옛 퀴즈 주소(/#test-beginner, 발행한 글·북마크에 남아 있다)로 들어옴.
     무엇을 깨뜨리면 빨개지나(각각 실제로 확인): 대기 함수가 partReady 를 기다리지 않고 곧바로 window[fn] 을 부르게 하면
     (아직 대기 함수라 누름이 사라진다), partReady 가 통계에서 loadFullData 를 기다리지 않게 하면(callsBeforeData
-    가 0 이 아니다), loadPart 실패에서 delete PART_P[n] 을 지우면(다시 받지 않는다), partURL 에서 '?v=' 를 빼면,
-    대기 함수의 '떠난 화면이면 버린다'(curView 비교) 줄을 지우면.
+    가 0 이 아니다), partURL 에서 '?v=' 를 빼면, applyHash 의 옛 퀴즈 주소 갈래를 지우면(홈을 열지 않고 해시도 남는다).
     """
     o, build = _run_loader()
     assert o['statsAppended'] == ['/home-stats.js?v=' + build], o['statsAppended']
@@ -278,12 +267,8 @@ def test_calls_before_the_part_arrives_wait_and_replay_in_order():
     assert o['callsBeforeData'] == 0, '그래프 데이터가 오기 전에 통계 함수가 돌았다(투자지표 입력이 아직 없다)'
     assert o['statsCalls'] == [['statsOpen'], ['setStatsMode', 'adv'], ['setStatsMode', 'basic']], o['statsCalls']
     assert o['direct'] == [['setStatsMode', 'more']]
-    assert o['quizAppended'] == ['/home-quiz.js?v=' + build], o['quizAppended']
-    assert '불러오는 중' in (o['qcardWhileWaiting'] or ''), '퀴즈 파일을 기다리는 동안 불러오는 중 표시가 없다'
-    assert o['afterFail']['toast'] and not [c for c in o['afterFail']['calls'] if c[0] == 'startQuiz'], o['afterFail']
-    assert o['retryAppended'], '못 받은 뒤 다시 눌러도 퀴즈 파일을 다시 받지 않는다'
-    assert o['quizCallsAfterLeave'] == [], '기다리는 사이 떠난 화면의 누름을 도착 뒤에 부른다(화면과 주소가 갈린다)'
-    assert o['quizCalls'] == [['startQuiz', 'investor']], o['quizCalls']
+    assert o['oldQuizHash'] == {'appended': 0, 'calls': [['replaceState', '/?utm_source=x'], ['showView', 'home']]}, \
+        '옛 퀴즈 주소가 홈으로 열리지 않는다: %s' % o['oldQuizHash']
 
 
 LOADER_BOX = r"""
@@ -513,12 +498,12 @@ const resp = (tag) => ({ok: true, status: 200, type: 'basic', tag, clone() { ret
 
 
 def test_sw_precaches_the_parts_at_the_address_home_asks_for():
-    """서비스워커가 분할 파일을 홈이 부르는 바로 그 주소('/home-quiz.js?v=<판>')로 사전 캐시하고, 온라인이면 캐시보다
+    """서비스워커가 분할 파일을 홈이 부르는 바로 그 주소('/home-stats.js?v=<판>')로 사전 캐시하고, 온라인이면 캐시보다
     네트워크를 먼저 쓴다(home-app.js 와 같은 규칙 — 새 판 배포 뒤 옛 캐시가 붙들지 않게).
 
-    재현하는 실제 상태: 오프라인 재방문자가 퀴즈 랜딩의 '시작하기'(/#test-beginner)로 들어온다 — 사전 캐시 주소에 판이
-    없거나 판이 다르면 caches.match 가 못 찾아 퀴즈가 안 뜬다.
-    무엇을 깨뜨리면 빨개지나(각각 실제로 확인): sw.js PRECACHE 에서 home-quiz.js 줄을 빼면, "+ VERSION" 을 빼고 판 없는
+    재현하는 실제 상태: 오프라인 재방문자가 블로그 주간 링크(/#stats-market)로 들어온다 — 사전 캐시 주소에 판이
+    없거나 판이 다르면 caches.match 가 못 찾아 통계 화면이 안 뜬다.
+    무엇을 깨뜨리면 빨개지나(각각 실제로 확인): sw.js PRECACHE 에서 home-stats.js 줄을 빼면, "+ VERSION" 을 빼고 판 없는
     주소로 넣으면, network-first 목록에서 home-stats.js 를 빼면(정적 자산 분기의 cache-first 가 옛 캐시를 준다).
     픽스처: 저장소 sw.js 의 설치·fetch 처리기 그대로, 판은 home-app.js 의 HOME_BUILD.
     """
@@ -537,18 +522,19 @@ def test_sw_precaches_the_parts_at_the_address_home_asks_for():
 
 
 def test_head_preloads_the_part_for_deep_links():
-    """퀴즈·통계로 바로 들어오는 주소는 머리에서 그 분할 파일을 같은 판 주소로 preload 한다 — 본문 스크립트가 돈 뒤에야
-    받기 시작하면 첫 화면이 한 번 더 기다린다(퀴즈 랜딩 '시작하기', 대결 링크, 블로그 주간 링크).
+    """통계로 바로 들어오는 주소는 머리에서 그 분할 파일을 같은 판 주소로 preload 한다 — 본문 스크립트가 돈 뒤에야
+    받기 시작하면 첫 화면이 한 번 더 기다린다(블로그 주간 링크). 옛 퀴즈 주소(#test-…·대결 ?c=&s=)는 아무것도 받지 않는다
+    (2026-11-14 퀴즈 제거).
 
     무엇을 깨뜨리면 빨개지나(실제로 확인): index.html ⑤ 의 '?v='+b 를 빼면(홈이 부르는 주소와 달라 preload 가 버려진다),
     #stats 분기에서 data-trend.json 을 빼면.
-    픽스처: index.html 머리의 ⑤ 스크립트를 node 로 돌린다(주소 셋: #test-beginner, 대결 ?c=&s=, #stats-market).
+    픽스처: index.html 머리의 ⑤ 스크립트를 node 로 돌린다(주소 넷: 옛 #test-beginner, 옛 대결 ?c=&s=, #stats-market, 홈).
     """
     if not shutil.which('node'):
         pytest.skip('node 없음')
     html = _files()['index.html']
     head = html[:html.index('</head>')]
-    js = [s for s in re.findall(r'<script>(.*?)</script>', head, re.S) if 'home-quiz.js' in s]
+    js = [s for s in re.findall(r'<script>(.*?)</script>', head, re.S) if 'home-stats.js' in s]
     assert len(js) == 1, '머리에서 분할 파일 preload 스크립트를 못 찾았다'
     build = re.search(r'<html[^>]*\bdata-build="(v\d+)"', html).group(1)
     runner = r"""
@@ -566,9 +552,9 @@ process.stdout.write(JSON.stringify(out));
     p = subprocess.run(['node', '-e', runner], capture_output=True, timeout=60)
     assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
     o = json.loads(p.stdout.decode('utf-8'))
-    q, s = '/home-quiz.js?v=' + build, '/home-stats.js?v=' + build
-    assert o['https://x.test/#test-beginner'] == [[q, 'script']], o
-    assert o['https://x.test/?c=7&s=calc&q=1z'] == [[q, 'script']], o
+    s = '/home-stats.js?v=' + build
+    assert o['https://x.test/#test-beginner'] == [], o
+    assert o['https://x.test/?c=7&s=calc&q=1z'] == [], o
     assert o['https://x.test/?utm_source=naver_blog#stats-market'] == [[s, 'script'], ['/data-trend.json', 'fetch']], o
     assert o['https://x.test/'] == [], '홈 첫 화면에서 분할 파일을 미리 받는다'
     # 홈이 부르는 주소와 같은가(loadPart 의 partURL, loadFullData 의 주소)

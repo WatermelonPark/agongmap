@@ -189,7 +189,7 @@ def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer()
     대표 요청 — 지도 아래에서 옮겼고 '분기마다 갱신'은 뺐다, 끝은 '… 실적 기준'). 구간 자리의 정적 문구는 분기를 약속하지 않고(스크립트가
     못 돌면 그대로 보인다) 부팅이 구간을 채운다. 이달의 통계 입구(B6)는 '시도별로 자세히 보기' 바로 아래다(to 값은 test_home_cta).
     지도 아래 운영 주체 줄(B9·TRUST-6)과 '산출 방법' 옆 출처 줄은 뺐다(2026-09-28 대표 결정 — 작은 글씨 정리). 제보 경로는 홈
-    푸터 '만든이' 메일이 mailto 링크로 남기고(같은 푸터 세 벌 모두), 출처 기관은 산출 방법을 펼치면 항목마다 있다.
+    푸터 '만든이' 메일이 mailto 링크로 남기고(같은 푸터 두 벌 모두 — 퀴즈 화면 푸터는 2026-11-14 제거), 출처 기관은 산출 방법을 펼치면 항목마다 있다.
 
     변이(각각 실제로 확인): 출처 줄을 지도 아래(산출 방법 앞)로 되돌리면, 신호등 범례(#lt-key)를 지도 아래(10-30 자리)로 되돌리면, 문구에 '분기마다 갱신'을 되살리면,
           푸터 메일을 일반 텍스트로 되돌리면, 운영 주체 줄(map-who)이나 산출 방법 옆 출처(.src)를 되살리면,
@@ -217,7 +217,7 @@ def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer()
     for org in ('국토교통부', '한국부동산원'):   # 출처 기관은 펼친 본문에 남는다
         assert org in summ.group(2), org
     metas = re.findall(r'<div class="ft-meta">(.*?)</div>', h)
-    assert len(metas) == 3 and all('<a href="mailto:agongmap@gmail.com">' in m for m in metas), metas
+    assert len(metas) == 2 and all('<a href="mailto:agongmap@gmail.com">' in m for m in metas), metas
     more, sub = sec.index('<p class="tb-more">'), sec.index('<p class="tb-sub"><a href="/monthly/"')
     assert more < sub < how and sec[more:sub].count('<p') == 1
     boot = _js_func(h, 'boot')

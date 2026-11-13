@@ -599,7 +599,9 @@ MAP_LEGEND = (
     '한 칸에 숫자가 둘인데요, 위가 매매이고 아래가 전세 변동률이에요. 색이 붉으면 상승, 푸르면 하락입니다.',
 )
 
-# ⑤ 더 보기 — 4주에 걸쳐 사이트의 다른 코너를 하나씩 소개한다.
+# ⑤ 더 보기 — 몇 주에 걸쳐 사이트의 다른 코너를 하나씩 소개한다(칸 수만큼 돈다, more_index).
+# 넷째 칸(퀴즈 3종 링크)은 2026-11-14 퀴즈 제거로 뺐다. 칸 수를 '이번 주의 지표'(rot_index, 4칸)와 따로 세는 까닭:
+# 4로 나눈 나머지를 그대로 쓰면 셋째 칸 다음 주에 첫 칸이 두 주 연달아 나간다(회차 간 반복 금지).
 MORE_ROTATION = [
     dict(h='이번 주 시세를 지도로 보려면',
          desc='시군구 %d곳과 서울 %d개 구의 매매·전세 변동률을 지도 한 장에 담아 뒀어요. '
@@ -617,16 +619,6 @@ MORE_ROTATION = [
          desc='공급에서 전세로, 전세에서 매매로, 다시 공급으로 돌아오는 순환의 6개 고리를 '
               '%d개 시도 %d년 데이터로 검증해 봤어요.' % (CYCLE_SYNC_N, CYCLE_SPAN_N),
          path='/cycle/', label='「집값은 돌고 돈다」 읽기'),
-    # 테스트가 셋인데 부린이 하나만 소개하고 있었다. "문항마다 국가 통계에
-    # 근거한 해설"은 설명서 문구라 빼고, 종류를 보여준다(2026-09-07 사용자).
-    # links가 있으면 desc 뒤에 링크를 여러 줄로 단다 — path/label 한 쌍으로는
-    # 셋을 못 보여준다.
-    dict(h='내 부동산 감각은 몇 점일까',
-         desc='테스트는 세 가지인데요. 각 %d문항, 5분이면 끝나요.' % HS.quiz_len(),
-         # 링크 글자에 엠대시를 쓰지 않는다(화법 기준 v1, 전수리뷰 T1-6) — 쌍점으로 가른다.
-         links=[('/burini-test/', '부린이 테스트: 내 감각은 몇 점인가'),
-                ('/investor-test/', '투자자 테스트: 통념을 뒤집을 준비가 됐나'),
-                ('/redev-test/', '재건축·재개발 테스트: 이 사업, 사업성이 있나')]),
 ]
 
 
@@ -744,6 +736,13 @@ def rot_index(p):
     2026-09-26 데이터 감사). write-reminder.yml 처럼 고정 월요일에서 지난 주 수로 센다."""
     y, m, d = (int(x) for x in p.split('-'))
     return ((datetime.date(y, m, d) - ROT_ANCHOR).days // 7) % 4
+
+
+def more_index(p):
+    """'더 보기' 칸 번호(0..len(MORE_ROTATION)-1) — rot_index 와 같은 기준 월요일에서 지난 주 수로 센다. 바로 이웃한
+    두 주는 늘 다른 칸이다(칸 수로 나누므로). 2026 년 안의 첫 세 칸 순서는 rot_index 와 같다."""
+    y, m, d = (int(x) for x in p.split('-'))
+    return ((datetime.date(y, m, d) - ROT_ANCHOR).days // 7) % len(MORE_ROTATION)
 
 
 def _series_last(sts, key, region='전국'):
@@ -875,7 +874,7 @@ def draft_weekly(adv, sts, shot=True, why_no_shot='지난 회차라 사이트 �
     p = W['rows'][-1]['p']
     rot = rot_index(p)
     extra_html = extra_section(adv, sts, rot)
-    more = MORE_ROTATION[rot]
+    more = MORE_ROTATION[more_index(p)]
     reg, last = W['regions'], W['rows'][-1]
     prev = W['rows'][-2] if len(W['rows']) > 1 else None
     val = dict(zip(reg, zip(last['ma'], last['je'])))
@@ -1029,7 +1028,7 @@ def draft_weekly(adv, sts, shot=True, why_no_shot='지난 회차라 사이트 �
     if extra_html:
         body.append(extra_html)
 
-    # ── ⑤ 더 보기(4주 로테이션). 매번 같은 링크를 붙이면 무시당하므로 4주에 걸쳐
+    # ── ⑤ 더 보기(칸 수만큼 도는 로테이션, more_index). 매번 같은 링크를 붙이면 무시당하므로 몇 주에 걸쳐
     # 사이트의 다른 코너를 하나씩 소개한다.
     body.append('<h3>%s</h3>' % more['h'])
     links = more.get('links') or [(more['path'], more['label'])]

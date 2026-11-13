@@ -1,7 +1,7 @@
 /* 아공맵 홈 본문 스크립트 — 2026-09-16 index.html 인라인에서 분리(백로그 10, 동결 창).
    ⚠️ index.html 과 한 몸이다. sw.js 는 이 파일을 network-first 로 받는다(새 마크업 + 옛 스크립트 조합 방지).
    도구·시험은 이 파일을 직접 열지 말고 tools/home_src.py 로 읽는다.
-   퀴즈·통계 화면 코드는 home-quiz.js·home-stats.js 로 떼어 그 화면을 열 때 받는다(B11, 아래 PARTS). */
+   통계 화면 코드는 home-stats.js 로 떼어 그 화면을 열 때 받는다(B11, 아래 PARTS). 퀴즈 3종은 2026-11-14 에 걷었다(대표 결정). */
 /* 판 표식(홈 마케팅 검수 C11·MOB-9, 2026-09-27). 서비스워커는 HTML 과 이 파일을 **따로** network-first(3.5초
    한도)로 받는다. 배포 직후 느린 망에서 HTML(14KB)은 새 판으로 오고 이 파일(78KB)만 한도를 넘겨 옛 캐시로 오면
    새 마크업 위에서 옛 스크립트가 돈다 — Chromium 에서 home-app.js 응답만 5초 늦춰 재현했다(2초면 안 섞인다).
@@ -9,9 +9,9 @@
    응답이 캐시에 들어가 두 번째에는 맞는다. 같은 HTML 판으로는 두 번 새로고침하지 않고(sessionStorage), 저장소를
    못 쓰면 아예 새로고침하지 않는다(무한 반복 방지). 판 표식이 없는 HTML(표식 이전 판)은 비교하지 않는다.
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
-   판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
+   판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v221';
+const HOME_BUILD='v222';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -19,7 +19,7 @@ let BUILD_RELOAD=false;
     let seen=sessionStorage.getItem(k)||'';
     if(seen.slice(-1)==='!'){   // 방금 판이 달라 새로고침했다
       seen=seen.slice(0,-1); sessionStorage.setItem(k,seen);
-      /* 분할 파일 판이 달라 새로고침했으면 'quiz:v165' 식(B11). 그때는 fixed 를 싣지 않는다 — 분할 파일은 그 화면을 다시
+      /* 분할 파일 판이 달라 새로고침했으면 'stats:v165' 식(B11). 그때는 fixed 를 싣지 않는다 — 분할 파일은 그 화면을 다시
          열어야 받으므로 새로고침 직후엔 맞았는지 모른다(HTML·본문 판만 보고 true 라 적으면 틀린 기록이 된다). */
       const part=sessionStorage.getItem('agongmap-build-part')||'';
       sessionStorage.removeItem('agongmap-build-part');
@@ -72,26 +72,25 @@ function loadKakao(){
 }
 /* ⚠️ 받기에 실패해도 공유는 이어간다 — KAKAO_FAIL 이 서면 kakaoReady()가 false 라 OS 공유·복사로 넘어간다. */
 function needKakao(redo){ if(window.Kakao||KAKAO_FAIL)return false; loadKakao().then(redo,redo); return true; }
-/* 퀴즈·통계 코드 분할(홈 마케팅 검수 B11·MOB-8, 2026-09-27). 지도 첫 화면은 퀴즈(문항·채점·대결·결과 공유)와
-   통계 화면(대시보드·주간/월간 그래프·투자지표·버블밴드) 코드를 쓰지 않는다 — 그 둘을 home-quiz.js·home-stats.js 로
-   떼어 그 화면에 들어갈 때 받는다(차트·카카오와 같은 loadScript).
+/* 통계 코드 분할(홈 마케팅 검수 B11·MOB-8, 2026-09-27). 지도 첫 화면은 통계 화면(대시보드·주간/월간 그래프·투자지표·
+   버블밴드) 코드를 쓰지 않는다 — 그것을 home-stats.js 로 떼어 그 화면에 들어갈 때 받는다(차트·카카오와 같은 loadScript).
+   퀴즈 화면(home-quiz.js)도 같은 방식이었으나 2026-11-14 퀴즈 3종을 걷으며 지웠다.
    - 입구(PARTS.*.api): 홈 스크립트·index.html 의 onclick 이 부르는 그 파일의 함수 이름. 파일이 오기 전에는 같은 이름의
      대기 함수가 받아 두었다가 **도착하면 부른 순서대로** 진짜 함수를 부른다 — 느린 망에서 누른 것이 사라지지 않는다.
      분할 파일의 최상위 function 선언이 전역의 대기 함수를 덮어쓴다(대기 함수는 대입으로 만들어 덮어쓸 수 있다).
      목록과 분할 파일의 선언·홈이 부르는 이름이 어긋나지 않는지는 test_home_parts 가 본다.
-   - 기다리는 동안: 통계는 #stats-loading 에 '불러오는 중', 퀴즈 시작은 문항 칸에 '불러오는 중'. 못 받으면 알리고
+   - 기다리는 동안: 통계는 #stats-loading 에 '불러오는 중'. 못 받으면 알리고
      다음 누름에서 다시 받는다(실패한 약속을 지운다).
    - 판 표식으로 양방향 보호한다. ① 주소에 판(HOME_BUILD)을 붙인다(?v=) — 브라우저 HTTP 캐시(GitHub Pages
      max-age=600)와 서비스워커 캐시가 주소째로 갈려 **옛** 판 분할 파일이 새 홈에 섞이지 않는다. sw.js 는 같은
-     주소('?v='+VERSION)를 사전 캐시한다(오프라인). ② 분할 파일도 자기 판(HOME_QUIZ_BUILD·HOME_STATS_BUILD)을 싣고
+     주소('?v='+VERSION)를 사전 캐시한다(오프라인). ② 분할 파일도 자기 판(HOME_STATS_BUILD)을 싣고
      받은 뒤 HOME_BUILD 와 견준다(partBuildOk) — GitHub Pages 는 쿼리를 무시하므로, 열어 둔 옛 판 탭이 배포 뒤에
-     퀴즈·통계를 열면 ?v=옛판 주소로 **새** 판 파일이 온다(새 서비스워커가 network-first 로 받고 옛 캐시는 activate 때
+     통계를 열면 ?v=옛판 주소로 **새** 판 파일이 온다(새 서비스워커가 network-first 로 받고 옛 캐시는 activate 때
      지운다 — 검토에서 재현). 다르면 맨 위 판 표식과 같은 길(한 번만 새로고침, 다음 부팅이 build_reload 로 잰다)로
-     새로고침한다. 네 판 값(sw VERSION·data-build·HOME_BUILD·분할 파일 둘)이 같은지는 test_home_build 가 본다.
+     새로고침한다. 네 판 값(sw VERSION·data-build·HOME_BUILD·분할 파일)이 같은지는 test_home_build 가 본다.
    - 통계는 그래프 데이터(data-trend.json)도 함께 기다린다. 투자지표·버블밴드 입력(occupancy·permits·bubble·전세가율)은
      data-core 에서 빠져 그 파일들로만 온다(B11 data-core 다이어트, tools/split_data.py). */
 const PARTS={
-  quiz:{src:'/home-quiz.js',api:['startQuiz','backToPick','bootChallenge']},
   stats:{src:'/home-stats.js',api:['statsOpen','setStatsMode','setMarketTab','setAdvTab','gtSet','trFlip',
     'onTrendReg','onTrendSgg','openTrendRegion','renderPermitSec','renderOccSec']},
 };
@@ -143,16 +142,6 @@ function partBusy(n,fn,state){
       box.style.display='';}
     return;
   }
-  if(fn!=='startQuiz'&&fn!=='bootChallenge')return;
-  const intro=document.getElementById('quiz-intro'), play=document.getElementById('quiz-play'), card=document.getElementById('qcard');
-  if(!intro||!play||!card)return;
-  if(state==='wait'){
-    intro.style.display='none'; play.style.display='';
-    card.innerHTML='<p role="status" style="padding:36px 0;text-align:center;color:var(--muted)">테스트를 불러오는 중…</p>';
-  }else if(state==='fail'){
-    play.style.display='none'; intro.style.display='';
-    toast('테스트를 불러오지 못했습니다. 연결을 확인하고 다시 눌러 주세요.');
-  }
 }
 /* 주소 입구(applyHash)가 대기열에 넣은 부름은, 기다리는 사이 사람이 화면을 옮겼으면(statsNav 의 push — NAV_N) 버린다. 예전엔
    통계 파일은 왔고 데이터가 늦는 사이 '월간'을 누르면, 데이터가 온 뒤 대기열의 setMarketTab('week') 가 돌아 화면만 주간으로
@@ -168,13 +157,12 @@ Object.keys(PARTS).forEach(n=>PARTS[n].api.forEach(fn=>{
       /* 기다리는 사이 다른 화면으로 떠났으면 그 화면용 누름은 버린다 — 예: '시세' → '투자지표'를 누르고 파일이 오기 전에
          뒤로 가기로 홈에 오면, 늦게 돈 setStatsMode 가 주소만 #stats-adv-occ 로 바꿔 화면(홈)과 주소가 갈린다.
          statsOpen(화면 준비)은 숨은 채로라도 돌려 둔다 — 다시 들어올 때 statsInited 가 이미 서 있다. */
-      if(fn!=='statsOpen'&&curView!==(n==='stats'?'stats':'test'))return;
+      if(fn!=='statsOpen'&&curView!=='stats')return;
       const f=window[fn];
       if(typeof f==='function'&&f!==wait)return f.apply(null,a);
     },()=>{
       partBusy(n,fn,'fail');
       if(n==='stats')statsInited=false;   // 다음 진입에서 statsOpen 을 다시 부르게
-      if(fn==='bootChallenge')showView('test',false);   // 부팅 page_view 를 빠뜨리지 않게(boot 는 quiet 로 띄웠다, #46)
     });
   };
   window[fn]=wait;
@@ -196,7 +184,7 @@ if(document.fonts&&document.fonts.ready){
 
 /* ============ 하단 내비 뷰 전환 ============ */
 function track(ev,params){try{if(typeof gtag==='function')gtag('event',ev,params||{});}catch(e){}}
-const vHome=document.getElementById('view-home'),vStats=document.getElementById('view-stats'),vTest=document.getElementById('view-test');
+const vHome=document.getElementById('view-home'),vStats=document.getElementById('view-stats');
 let statsInited=false,curView=null;
 let _fullData=null;
 function loadFullData(){
@@ -275,25 +263,14 @@ function viewLoc(v,href){
   return (j<0?pre:pre.slice(0,j))+(q.length?'?'+q.join('&'):'')+hash;
 }
 let PV_SENT=false;   // 부팅 page_view 를 보냈는가(showView)
-/* 부팅 page_view 를 보낸 **뒤** 할 일(대결 부팅의 home_visit). 대결 부팅은 page_view 를 home-quiz.js 도착 뒤로 미루므로
-   home_visit 이 그 앞에 가지 않게 여기에 걸어 둔다(통합 검토 — '부팅 page_view 뒤' 순서가 대결 경로에서 뒤집혔다). */
-let PV_AFTER=null;
-function showView(v,updateHash,quiet){
-  /* 퀴즈 뷰는 전용 탭이 없다(퀴즈 탭 → 지역 탭 교체, d6fe72e). 아무 탭도 안 켜면
-     '지금 어디인가' 표시가 사라진다(2026-08-10 리뷰) — 퀴즈는 홈에서 진입하는
-     하위 화면이므로 홈을 켠 채 둔다. */
+function showView(v,updateHash){
   // 아래 page_view 용 — 첫 호출의 착지 주소는 이 함수가 주소를 바꾸기(pushState) 전에 잡는다
-  /* quiet: 부팅이 대결 링크를 풀기 전에 퀴즈 화면만 먼저 띄울 때(boot). page_view 를 보내지 않고, 다음 호출을 여전히
-     '첫 호출'로 둔다 — 값이 틀린 대결 링크가 홈으로 돌아가면 부팅 page_view 가 두 번(view_test·view_home) 갔다(전수리뷰 #46). */
   const first=!PV_SENT, changed=v!==curView||!PV_SENT, landing=location.href;
-  const nv=(v==='test')?'home':v;
   /* 켠 탭은 aria-current="page" 도 단다 — 다른 페이지 탭바(site_nav.bottomnav)와 같은 의미(전수리뷰 #47) */
-  document.querySelectorAll('.nav-btn').forEach(x=>{const on=x.dataset.view===nv;x.classList.toggle('on',on);
+  document.querySelectorAll('.nav-btn').forEach(x=>{const on=x.dataset.view===v;x.classList.toggle('on',on);
     if(on)x.setAttribute('aria-current','page');else x.removeAttribute('aria-current');});
   vHome.style.display=v==='home'?'':'none';
   vStats.style.display=v==='stats'?'':'none';
-  vTest.style.display=v==='test'?'':'none';
-  document.body.classList.toggle('in-test',v==='test');   // 푸터 색인은 퀴즈 중엔 감춘다(2026-09-18 오딧 9번)
   window.scrollTo(0,0);
   if(v==='stats'&&!statsInited){
     /* 통계 화면 코드는 home-stats.js 에 있다(B11). statsOpen 은 그 파일과 그래프 데이터(data-trend.json)가 둘 다
@@ -307,13 +284,7 @@ function showView(v,updateHash,quiet){
     /* 홈으로 갈 때도 쿼리는 남긴다. 예전엔 location.pathname 만 써서 쿼리 착지(블로그 '/?utm…#stats-market',
        설치 앱 start_url '/?utm_source=pwa…')에서 홈 → 뒤로 가기를 하면 쿼리까지 바뀌어 hashchange 가 오지 않았고,
        주소는 통계인데 화면은 홈에 머물렀다(홈 마케팅 검수 1차 배포 검증, 2026-09-27). */
-    /* 대결 쿼리(c·s·q)는 퀴즈 화면에서만 남긴다 — 홈·시세로 옮기면서 걷지 않으면 그 화면에서 새로고침·탭 복원·주소 복사 때
-       부팅이 해시 대신 대결 퀴즈를 띄웠다(전수리뷰 #44·#49). utm 등 다른 쿼리는 둔다. */
-    /* 퀴즈를 떠날 때는 지금 항목(퀴즈)의 주소에서도 대결 쿼리를 먼저 걷는다. 새 항목만 걷어 pushState 하면 두 항목의
-       쿼리가 달라져, 뒤로 가기에 hashchange 가 오지 않고(popstate 만) 주소는 퀴즈인데 화면은 홈·시세에 머물렀다 —
-       위 2026-09-27 결함이 대결 경로에서 되살아난 모양(통합 검토). */
-    if(curView==='test'&&v!=='test'&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
-    const q=v==='test'?location.search:chalSearch();
+    const q=location.search;
     const tgtHash=v==='home'?'':full, tgtUrl=v==='home'?location.pathname+q:(q===location.search?full:location.pathname+q+full);
     /* 같은 화면 탭을 다시 누를 때 지금 항목의 state 를 지우지 않는다 — null 을 넘기면 지역 그래프가 연 항목의 표지(trBase)가
        사라져, 그 뒤 '지도'로 닫을 때 trHashDrop 이 한 칸 접지 못하고 같은 주소가 두 칸 쌓였다(첫 뒤로 가기가 헛돈다 —
@@ -328,23 +299,8 @@ function showView(v,updateHash,quiet){
      view= 만 더해 싣는다 — origin 에서 새로 만들면 쿼리가 빠져 블로그 캠페인이 안 잡힌다. 그 뒤 화면 전환은
      origin+'/' 에 view= 를 단 가상 주소다(viewLoc): 세션 출처는 첫 hit 가 정하므로 utm 을 매 전환에 되풀이할
      까닭이 없고, 착지 쿼리를 실으면 같은 화면이 착지 쿼리마다 다른 주소로 갈라진다. */
-  else if(v!=='test'&&chalInURL(location.search))history.replaceState(null,'',location.pathname+chalSearch()+location.hash);
   curView=v;
-  if(changed&&!quiet){PV_SENT=true;track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});
-    if(first&&PV_AFTER){const f=PV_AFTER;PV_AFTER=null;f();}}
-}
-/* 대결 쿼리(c·s·q)를 걷은 쿼리 문자열. 대결 링크가 아니면 그대로. */
-function chalSearch(){
-  if(!chalInURL(location.search))return location.search;
-  const q=location.search.slice(1).split('&').filter(x=>x&&!/^(c|s|q)(=|$)/.test(x));
-  return q.length?'?'+q.join('&'):'';
-}
-/* 부팅이 대결로 들어갈 주소인가 — 대결 쿼리가 있고, 해시가 없거나 그 대결 세트의 퀴즈(#test-<s>)일 때만. 다른 화면의
-   해시(#stats-… 등)가 붙어 있으면 그 화면이 이긴다(전수리뷰 #44 — 옛 탭·복사한 주소에 남은 쿼리). */
-function chalBootable(){
-  if(!chalInURL(location.search))return false;
-  const m=location.search.match(/[?&]s=(beginner|investor|calc)/);
-  return !location.hash||location.hash==='#test-'+m[1];
+  if(changed){PV_SENT=true;track('page_view',{page_title:'view_'+v,page_location:viewLoc(v,first?landing:location.origin+'/')});}
 }
 // 리포트 탭은 <a href="/cycle/">라 dataset.view가 없다. 가드가 없으면
 // showView(undefined)가 불려 네 뷰가 전부 사라진다.
@@ -357,14 +313,6 @@ document.querySelectorAll('.nav-btn').forEach(b=>{if(b.dataset.view)
    GA4 는 이벤트를 beacon 으로 보내 떠나는 클릭도 남는다. */
 document.querySelectorAll('.bottomnav .nav-btn').forEach(b=>b.addEventListener('click',()=>
   track('nav_tab',{tab:b.dataset.view||(b.getAttribute('href')||'').replace(/[^a-z]/g,'')})));
-/* 대결 결과 화면에서 다른 테스트로 갈 때(‘투자자 테스트 도전하기’)는 지금 항목의 주소에서 대결 쿼리(c·s·q)를 **먼저** 걷는다.
-   안 걷으면 showView 가 쿼리를 남긴 채 지금 항목을 #test 로 바꾸고 startQuiz 가 새 항목에서만 쿼리를 걷어, 두 항목의 쿼리가
-   달라진다 — 뒤로 가기에 hashchange 가 오지 않아 주소만 바뀌고 화면은 새 테스트에 머물렀다(2026-11-13 전수 리뷰,
-   showView 의 2026-09-27 결함과 같은 꼴). */
-function goQuiz(k){
-  if(chalInURL(location.search))history.replaceState(history.state,'',location.pathname+chalSearch()+location.hash);
-  showView('test');startQuiz(k);
-}
 // 해시는 setStatsMode가 한 번만 쌓는다(showView까지 쌓으면 한 클릭에 두 칸)
 function goStats(m){showView('stats',false);setStatsMode(m);}
 // 리포트가 /cycle/로 가져간 앵커들. score는 일부러 뺐다 — zone 37장이
@@ -390,7 +338,9 @@ function applyHash(e){
      여기서도 '?' 뒤를 잘라 둔다 — 머리 스크립트가 못 돈 경우(옛 캐시의 HTML 등)에도 화면은 열리게. */
   const h=location.hash.replace('#','').split('?')[0];
   if(!h){showView('home',false);return;}
-  if(h==='test-beginner'||h==='test-investor'||h==='test-calc'){showView('test',false);startQuiz(h.slice(5),undefined,true);return;}
+  /* 옛 퀴즈 주소(/#test·/#test-<세트> — 발행한 글·북마크·공유 링크)는 홈으로 연다. 퀴즈 3종은 2026-11-14 에 걷었다.
+     주소에서 해시를 걷어 홈 '/' 과 같은 항목으로 둔다(남겨 두면 새로고침·뒤로 가기마다 이 갈래를 다시 탄다). */
+  if(/^test(-|$)/.test(h)){history.replaceState(null,'',location.pathname+location.search);showView('home',false);return;}
   /* '~코드'(시장동향만): 지도 칸·TOP 10 지역명에서 고른 지역의 그래프(openTrendRegion). 코드 없는 시장동향 주소는 그 함수가
      연 그래프를 열기 전 보기(순위·지도 — TR_BACK)로 되돌린다(뒤로 가기). */
   const sm=h.match(/^stats-(market|adv|basic|more)(?:-(week|month|occ|permit|bubble))?(-rank)?(?:~([a-c][0-9]{1,8})(-t)?)?$/);
@@ -416,13 +366,12 @@ function applyHash(e){
     return;
   }
   if(h==='score'){showView('home',false);afterLayout(()=>{const el=document.getElementById('sec-score');if(el)el.scrollIntoView();});return;}
-  if(h==='test'){showView('test',false);backToPick(true);return;}
   /* 맨 #stats(모든 페이지 탭바의 '시세' 링크·PWA 바로가기)는 #stats-market 과 같게 모드·하위 탭까지 맞추고 주소도 정규
      해시로 바꿔 둔다 — 예전엔 화면만 열어, 투자지표로 옮긴 뒤 뒤로 가면 주소만 #stats 로 돌아오고 화면은 그대로였다
      (전수리뷰 #45). */
   if(h==='stats'){showView('stats',false);setStatsMode('market',false);setMarketTab('week',false);openTrendRegion('week',null);
     history.replaceState(null,'','#stats-market-week');return;}
-  if(h==='home'||h==='test'){showView(h,false);return;}
+  if(h==='home'){showView(h,false);return;}
   // 리포트는 /cycle/로 이전했다. 옛 해시로 들어온 링크·북마크를 넘긴다.
   // replace를 쓰는 이유: push면 뒤로가기가 이 페이지로 되돌아와 무한 왕복한다.
   if(R2C.has(h)){location.replace('/cycle/'+(h==='report'?'':'#'+h));return;}
@@ -434,87 +383,12 @@ window.addEventListener('hashchange',applyHash);
 
 /* ============ 통계 대시보드 → home-stats.js(B11 코드 분할, 통계 화면을 열 때 받는다) ============ */
 
-/* ============ 부동산 테스트 (부린이 / 투자자) ============ */
-/* 부린이 테스트 레벨 표 (점수 0~10 → 무주택 달걀부터 부동산 봉황까지 — 칸 수·이름은 아래 표가 정본).
-   share/beginner-{0..10}.png 카드의 스탬프·이모지·문구와 1:1로 대응한다. */
-const BLV=[
-  {lv:'LV1',emoji:'\u{1F95A}',g:'무주택 달걀',
-   d:'아직 청약도 임장도 낯선 단계. 용어부터 하나씩 익히면 금방 깨어납니다.',
-   taunt:'아직 껍데기 속 무주택입니다'},
-  {lv:'LV1',emoji:'\u{1F423}',g:'부화 임박',
-   d:'금이 가기 시작했습니다. 조금만 더 읽으면 세상 밖으로 나옵니다.',
-   taunt:'곧 세상 밖으로 나올 참입니다'},
-  {lv:'LV2',emoji:'\u{1F424}',g:'갓 깬 삐약이',
-   d:'이제 막 눈을 떴습니다. 전세와 월세 차이부터 하나씩 익혀보세요.',
-   taunt:'전세 계약서가 아직 무섭죠?'},
-  {lv:'LV3',emoji:'\u{1F425}',g:'솜털 병아리',
-   d:'단어는 들어봤는데 뜻은 아직. 해설만 읽어도 두 계단은 올라갑니다.',
-   taunt:'용어는 외웠는데 실전은 아직이죠'},
-  {lv:'LV4',emoji:'\u{1FA99}',g:'첫 발품 영계',
-   d:'임장은 다녀봤지만 LTV·DSR만 정리해도 확 달라집니다.',
-   taunt:'임장은 이제 다녀보셨나요?'},
-  {lv:'LV5',emoji:'\u{1FAB9}',g:'알 낳는 암탉',
-   d:'슬슬 감이 잡히는 단계. 동전도 하나둘 모이기 시작합니다.',
-   taunt:'슬슬 감이 잡히시죠?'},
-  {lv:'LV6',emoji:'\u{1F413}',g:'목청 좋은 장닭',
-   d:'기본기는 탄탄합니다. 헷갈린 한두 개 제도만 챙기면 곧 내 집 마련입니다.',
-   taunt:'이제 아무도 못 말리겠는데요?'},
-  {lv:'LV7',emoji:'\u{1F3E0}',g:'내 집 마련',
-   d:'대출·세금·임대차를 또렷이 꿰고 있습니다. 계약서 앞에서 안 떨릴 수준.',
-   taunt:'드디어 첫 둥지 축하합니다!'},
-  {lv:'LV8',emoji:'\u{1F3D8}\u{FE0F}',g:'다주택자',
-   d:'한 채로는 성에 안 차는 실력. 이쯤 되면 중개사에게 되묻는 쪽입니다.',
-   taunt:'한 채로는 성에 안 차죠?'},
-  {lv:'LV9',emoji:'\u{1F3D9}\u{FE0F}',g:'부동산 거물',
-   d:'시장이 손안에 들어왔습니다. 투자자 테스트로 넘어갈 때입니다.',
-   taunt:'시장이 손안에 들어왔네요'},
-  {lv:'LV10',emoji:'\u{1F985}',g:'부동산 봉황',
-   d:'부린이는 무슨 — 금은보화 위에 앉으셔도 됩니다. 이제 투자자 테스트에서 통념을 깨보세요.',
-   taunt:'금은보화 위에 앉으셨네요'}
-];
-/* 퀴즈 본체(QUIZSETS~showResult·친구 대결·결과 공유) → home-quiz.js(B11 코드 분할, 퀴즈를 열 때 받는다) */
-// 공유 링크는 퀴즈 전용 OG(og-test.png)를 가진 /burini-test/로 보낸다.
-// 해시(#test)나 루트(?c=)로 보내면 홈 OG(og-brand.png)로 언펄돼 퀴즈 훅이 사라진다.
-const SHARE_URL='https://www.agongmap.co.kr/burini-test/';
-// GA 어트리뷰션 규약: utm_source는 유입 장치(quiz_invite/quiz_challenge), utm_medium=viral 고정,
-// utm_campaign은 퀴즈 세트. 랜딩의 location.replace('/'+q)가 쿼리를 보존하므로 홈까지 전달된다.
-const SHARE_URL_UTM=SHARE_URL+'?utm_source=quiz_invite&utm_medium=viral&utm_campaign=quiz3set';
-/* 대결 링크 모양인가 — 퀴즈 랜딩 3종이 홈으로 넘기는 조건과 같다(burini-test/index.html 등). 값 검사(점수 상한·시드)는
-   home-quiz.js 의 readChallenge 몫이다. 부팅이 이걸로 퀴즈 화면을 먼저 띄우고 그 파일을 받는다(B11). */
-function chalInURL(q){ return /[?&]c=\d/.test(q)&&/[?&]s=(beginner|investor|calc)/.test(q); }
+/* 카카오 SDK — 주간 시세 공유(shareWeekly)가 쓴다. 퀴즈 공유(shareTest·kakaoFeed)는 2026-11-14 퀴즈 제거로 걷었다. */
 const KAKAO_KEY='1bd3370cb08703d1450ddb0e7726ab98';
 function kakaoReady(){
   if(!window.Kakao)return false;
   try{if(!Kakao.isInitialized())Kakao.init(KAKAO_KEY);return Kakao.isInitialized();}
   catch(e){return false;}
-}
-/* 카카오 채널(_hRjxnX) 추가 버튼은 2026-08-01 제거.
-   사업자등록이 없어 비즈니스 채널 전환이 불가하고, 그러면 알림톡·친구톡을
-   못 쓴다. 즉 채널을 추가해도 "매주 시세 알림"이 실제로 가지 않는다.
-   지키지 못할 약속을 CTA로 거는 셈이라 버튼 자체를 뺐다.
-   Kakao SDK는 공유(kakaoFeed)에 계속 쓰므로 유지. */
-function kakaoFeed(title,desc,img,link,btn){
-  const L=link||SHARE_URL_UTM;
-  Kakao.Share.sendDefault({objectType:'feed',
-    content:{title:title,description:desc,
-      imageUrl:img||'https://www.agongmap.co.kr/og-test.png',imageWidth:img?800:1200,imageHeight:img?800:630,
-      link:{mobileWebUrl:L,webUrl:L}},
-    buttons:[{title:btn||'나도 도전하기',link:{mobileWebUrl:L,webUrl:L}},
-      {title:'풀 리포트 보기',link:{mobileWebUrl:'https://www.agongmap.co.kr/?utm_source=quiz_share&utm_medium=viral&utm_campaign=full_report',webUrl:'https://www.agongmap.co.kr/?utm_source=quiz_share&utm_medium=viral&utm_campaign=full_report'}}]});
-}
-function shareTest(){
-  if(needKakao(shareTest))return;
-  track('share',{content_type:'quiz_invite',method:kakaoReady()?'kakao':(navigator.share?'os_share':'copy')});
-  if(kakaoReady()){
-    try{kakaoFeed('내 부동산 감각, 몇 점일까?','부린이·투자자·재건축 3종 테스트 — 10문항 5분, 즉시 채점·해설');return;}
-    catch(e){}
-  }
-  const txt='내 부동산 감각, 몇 점일까? 부린이·투자자·재건축 3종 테스트 — 10문항 5분\n'+SHARE_URL_UTM;
-  if(navigator.share){
-    navigator.share({title:'부동산 사이클 테스트',
-      text:'내 부동산 감각, 몇 점일까? 10문항 5분 테스트 — 같이 풀어보자!',
-      url:SHARE_URL_UTM}).catch(e=>{if(e&&e.name!=='AbortError')copyText(txt);});
-  }else{copyText(txt);}
 }
 function copyText(txt){
   if(navigator.clipboard&&navigator.clipboard.writeText){
@@ -1831,7 +1705,7 @@ function renderHeroMap(){
   el.innerHTML=p.join('');
 }
 
-/* 모든 선언(QUIZSETS·curSet 등) 이후에 초기 라우팅 실행 — TDZ 방지.
+/* 모든 선언 이후에 초기 라우팅 실행 — TDZ 방지.
    ⚠️ DOMContentLoaded까지 미루는 이유: applyHash()가 #stats로 들어오면 그 자리에서
    차트를 만드는데, Chart.js가 defer라 파싱 시점엔 아직 없다. defer 스크립트는
    DOMContentLoaded 직전에 실행이 보장되므로 이 훅이 정확한 경계다. */
@@ -1865,7 +1739,7 @@ function renderWeeklyGrid(){
     +'<a class="wg-link" href="/weekly/" onclick="track(\'home_cta\',{to:\'weekly_grid\'})">이번 주 요약 보기 →</a></div>'
     +(shBox?'':share);
   if(shBox)shBox.innerHTML=share;
-  /* 카카오 SDK 는 누르려는 순간 받기 시작한다(퀴즈 결과 화면의 선로딩과 같은 뜻 — 첫 로딩에는 받지 않는다). */
+  /* 카카오 SDK 는 누르려는 순간 받기 시작한다(첫 로딩에는 받지 않는다). */
   const kb=(shBox||box).querySelector('.wg-sh-k');
   if(kb)['pointerenter','touchstart','focus'].forEach(t=>kb.addEventListener(t,()=>{loadKakao().catch(()=>{});},{once:true,passive:true}));
   /* 구역 머리줄 = 조사일·발표일·다음 발표(홈 마케팅 검수 A2). 예전엔 '매주 갱신' 고정 문구라 09-24~26 배치가
@@ -1931,7 +1805,7 @@ function wkPs(W){
 function wkShouldRemember(seen,pub){return !!pub&&(!seen||!/^\d{4}-\d{2}-\d{2}$/.test(seen)||seen<pub);}
 function wkSeen(){try{return localStorage.getItem(WK_SEEN_KEY);}catch(e){return null;}}
 function wkRemember(pub){try{localStorage.setItem(WK_SEEN_KEY,pub);}catch(e){}}
-/* 주간 시세 공유(B8·VIRAL-1). 카카오는 퀴즈와 같은 지연 로딩(needKakao) — 못 받으면 OS 공유 → 링크 복사.
+/* 주간 시세 공유(B8·VIRAL-1). 카카오는 지연 로딩(needKakao) — 못 받으면 OS 공유 → 링크 복사.
    링크의 utm_campaign=week_YYYYMMDD 가 주마다 주소를 바꿔 카카오의 페이지 단위 미리보기 보관을 피한다(VIRAL-2). */
 function shareWeekly(m){
   let d=null;try{d=weeklyShare(ADV.weekly);}catch(e){}
@@ -1956,31 +1830,6 @@ function shareWeekly(m){
 /* 주간 구역의 해설 글 카드(blogLine·renderBlogLine, 2026-09-27~)는 2026-10-30에 걷었다. 네이버 발행이 끝나
    (10-26·10-29 대표 결정) 그 카드는 묵은 글만 가리켰고, 아래 '최근 리포트' 묶음이 사이트 글로 같은 일을 한다.
    데이터 쪽(split_data 의 ADV 의 blog 키)·마크업(#wk-blog)·스타일(.wk-blog)도 같이 걷었다 — 되살리지 말 것. */
-/* 퀴즈 카드의 '결과 예시' — 실제 결과 화면(.rcard)과 같은 마크업을 축소해 쓴다.
-   티어 문구는 BLV 정본에서 읽는다. 가짜 데이터로 오해되지 않게 라벨을 붙인다.
-   예시 점수 3 = 🐥 솜털 병아리. 8(🏘️ 다주택자)로 걸었다가 사용자가 "병아리가
-   더 귀엽다"고 해서 낮췄다(2026-08-17). 만점을 걸면 "쉽겠네"가 되고, 부린이
-   테스트의 얼굴은 도달점보다 출발점 쪽이 맞다 — 상위 티어는 풀어야 보인다. */
-const SAMPLE_SCORE=3, SAMPLE_TOTAL=BLV.length-1;   // BLV 는 점수 0~QUIZ_LEN 한 칸씩이라 길이-1 이 문항 수다(전수리뷰 H1-5)
-function quizSample(){
-  const box=document.getElementById('quiz-sample');
-  /* ⚠️ window.BLV로 보면 안 된다 — 최상위 const는 window에 안 걸린다(2026-08-17
-     실측: windowBLV=undefined, BLV는 len=11). 이름 그대로 참조한다. */
-  if(!box||typeof BLV==='undefined'||!BLV[SAMPLE_SCORE])return;
-  const g=BLV[SAMPLE_SCORE];
-  let dots='';
-  for(let i=0;i<SAMPLE_TOTAL;i++)dots+='<i class="'+(i<SAMPLE_SCORE?'ok':'no')+'"></i>';
-  box.innerHTML='<div class="qs-label">결과 예시</div>'
-    +'<div class="rcard rc-sample">'
-    +'<div class="rc-head">부린이 테스트</div>'
-    +'<div class="rc-emoji">'+g.emoji+'</div>'
-    +'<div class="rc-score">'+SAMPLE_SCORE+'<small>/'+SAMPLE_TOTAL+'</small></div>'
-    +'<div class="rc-dots">'+dots+'</div>'
-    +'<div><span class="rc-lv">'+g.lv+'</span></div>'
-    +'<div class="rc-grade">'+g.g+'</div>'
-    +'<div class="rc-desc">'+g.d+'</div>'
-    +'</div>';
-}
 // <home-small> ── 이 구간은 test_home_small 이 통째로 node 에 올려 돌린다(DOM·저장소·gtag 는 흉내).
 /* ===== 홈 작은 장치(홈 마케팅 검수 3차 묶음 S, 2026-09-27) — 내 지역(C5)·출처 구간(B9)·측정(B10)·설치 안내(C10①) =====
    네 장치 모두 순수 함수(시험이 node 로 돌린다)와 DOM 을 만지는 얇은 함수로 나눴다. 시험: tools/tests/test_home_small.py. */
@@ -2146,7 +1995,6 @@ function boot(){
   if(BUILD_RELOAD)return;   // 판이 달라 새로고침하는 중 — 옛 스크립트로 새 마크업을 그리지 않는다(맨 위 판 표식)
   /* chartSetup 은 차트 라이브러리를 받은 뒤 loadChart 가 부른다 */
   renderWeeklyGrid();
-  quizSample();
   renderHeroMap();    // 히어로 배경 = 이번 주 전국 시군구 지도
   renderSupplySpan(); // 카드 아래 기준 줄의 '앞으로 3년(…~…)' 구간(B9)
   dropOldMyZone();    // 뺀 '내 지역'의 옛 저장값 정리
@@ -2157,19 +2005,8 @@ function boot(){
 renderAggCards();   // 판정 카드 셋 — 모드 버튼 아래·지도/그래프/표 버튼 위(보기와 무관하게 늘 보인다)
 markFresh();        // 모드 단추 N 배지 — renderAggCards 가 못 쓰는 시세 단추를 잠근 뒤에(잠긴 단추엔 달지 않는다)
 renderSidoMap();    // 기본 모드 — 보이는 것부터
-  /* 대결 링크(?c=&s=, 퀴즈 랜딩이 넘겨준다)는 퀴즈 화면을 먼저 띄우고 해석·시작은 home-quiz.js 의 bootChallenge 가
-     한다(B11 — 점수 상한 QUIZ_LEN 이 그 파일에 있다). 모양만 보는 chalInURL 은 랜딩의 넘김 조건과 같다. */
-  if(chalInURL(location.search)&&chalBootable()){
-    /* page_view 는 bootChallenge 가 대결을 확정한 뒤(또는 applyHash 가) 한 번 보낸다(#46). 그 사이 머리 스크립트의 idle
-       폴백(index.html, dataLayer 에 page_view 가 없으면 보냄)이 먼저 돌면 두 건이 됐다 — 폴백에 미룬다고 알린다(통합 검토). */
-    window.__pvDefer=true;
-    PV_AFTER=()=>{VISIT=countVisit();};
-    showView('test',false,true);
-    bootChallenge();
-  }else{
-    applyHash();
-  }
-  if(!PV_AFTER)VISIT=countVisit();   // 그날 첫 홈 부팅에 home_visit 한 번(B10) — 부팅 page_view(applyHash·showView) 뒤
+  applyHash();
+  VISIT=countVisit();   // 그날 첫 홈 부팅에 home_visit 한 번(B10) — 부팅 page_view(applyHash·showView) 뒤
   watchSections();      // 주간 구역 노출 section_view(B10)
   setTimeout(()=>{_instReady=true;installMaybe();},INSTALL_DELAY);   // 설치 안내(C10①)는 첫 화면이 자리 잡은 뒤에만
 }

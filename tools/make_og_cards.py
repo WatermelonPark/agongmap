@@ -1,24 +1,16 @@
 # -*- coding: utf-8 -*-
-"""퀴즈 3종 OG 카드 (1200x630) — 카카오톡·트위터 공유 미리보기.
+"""브랜드 OG 카드 og-brand.png (1200x630) — 카카오톡·트위터 공유 미리보기(홈·about·faq·cycle·zone 허브 등).
 
-og-test.png(부린이)·og-investor.png·og-redev.png 세 장을 같은 템플릿으로 찍는다.
-톤은 랜딩 페이지(/burini-test/ 등)의 쿨 토큰과 1:1로 맞춘다:
+톤은 사이트 쿨 토큰과 1:1로 맞춘다:
   ink #131e24 / paper #f4f6f5 / green #1a6b54 / red #c0392b / muted #5e6f74 / line #c4cec9
 
-이모지는 Segoe UI Emoji(컬러)로 렌더한다 — 원본 og-test.png의 병아리와 동일 서체다.
-Segoe가 없는 OS(리눅스·맥)에서는 EMOJI_FONTS의 다음 후보(Noto Color Emoji, Apple Color
-Emoji)로 굽는다. 서체가 달라 이모지 모양이 바뀌므로 운영 카드는 Windows에서 굽는 것이 원칙이다.
-후보가 하나도 없으면 경로를 나열한 오류로 멈추되, 이모지를 쓰지 않는 og-brand.png는 먼저 굽는다.
-문구는 각 랜딩의 h1/부제와 대응한다. 랜딩을 고치면 이 문구도 같이 볼 것.
+퀴즈 3종 OG 카드(og-test.png·og-investor.png·og-redev.png)와 그 이모지 렌더링은 2026-11-14 퀴즈 제거로 걷었다.
+브랜드 카드 푸터의 '부동산 테스트'도 같은 날 뺐다.
 
 사용:  python tools/make_og_cards.py
 """
 import os
-import sys
 from PIL import Image, ImageDraw, ImageFont
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import home_src as HS  # noqa: E402  (퀴즈 문항 수 정본 QUIZ_LEN)
 
 W, H = 1200, 630
 
@@ -35,126 +27,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FONT_DIR = os.path.join(ROOT, 'fonts') if os.path.exists(os.path.join(ROOT, 'fonts')) \
     else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
 FONT_FILES = {'Bold': 'Pretendard-Bold.subset.ttf', 'Medium': 'Pretendard-Medium.subset.ttf'}
-# 컬러 이모지 서체 후보 (경로, 렌더 px). 컬러 글리프는 고정 비트맵이라 서체마다 받는 크기가 다르다
-# (Noto Color Emoji는 109px만 받는다). draw_emoji가 칸에 맞춰 리샘플하므로 크기는 선명도에만 쓰인다.
-EMOJI_FONTS = (
-    ('C:/Windows/Fonts/seguiemj.ttf', 240),
-    ('/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf', 109),
-    ('/usr/share/fonts/noto/NotoColorEmoji.ttf', 109),
-    ('/System/Library/Fonts/Apple Color Emoji.ttc', 160),
-)
-
-# 부제의 문항 수는 home-quiz.js QUIZ_LEN 에서 읽는다(전수리뷰 P-9 — 손 숫자 '10문항'이었다).
-QUIZ_SUB = '%d문항 2지선다 · 5분 · 즉시 채점·해설' % HS.quiz_len()
-
-# (출력파일, 칩, h1 1줄(먹색), h1 2줄(빨강·훅), 부제, 푸터 좌측, 이모지)
-CARDS = [
-    ('og-test.png', '부린이 테스트',
-     '내 부동산 감각,', '몇 점일까?',
-     QUIZ_SUB,
-     '내집마련 전 필수 체크 · 국가기관 데이터 기반', '🐣'),
-    ('og-investor.png', '투자자 테스트',
-     '통념을 뒤집을', '준비가 됐나?',
-     QUIZ_SUB,
-     '규제·금리·수급의 진짜 게임 · 국가기관 데이터 기반', '🦅'),
-    ('og-redev.png', '재건축·재개발 테스트',
-     '이 재건축,', '사업성 있을까?',
-     QUIZ_SUB,
-     '대지지분·용적률·조합원 수 · 국가기관 데이터 기반', '🏗️'),
-]
 
 
 def font(size, weight='Bold'):
     return ImageFont.truetype(os.path.join(FONT_DIR, FONT_FILES[weight]), size)
-
-
-def emoji_font():
-    """(글꼴, 렌더 px) — EMOJI_FONTS에서 있는 첫 후보. 없으면 후보 경로를 나열해 멈춘다
-    (예전에는 Windows 경로 하나를 박아 리눅스에서 'cannot open resource'로만 죽었다, 전수리뷰 #87)."""
-    for path, px in EMOJI_FONTS:
-        if os.path.exists(path):
-            return ImageFont.truetype(path, px), px
-    raise FileNotFoundError('컬러 이모지 글꼴이 없습니다. 다음 중 하나를 두십시오: '
-                            + ', '.join(p for p, _ in EMOJI_FONTS))
-
-
-def fit_width(text, target, weight='Bold', hi=96, lo=28):
-    """target 픽셀 폭에 들어가는 가장 큰 폰트."""
-    pr = ImageDraw.Draw(Image.new('RGB', (4, 4)))
-    best = lo
-    while lo <= hi:
-        mid = (lo + hi) // 2
-        bb = pr.textbbox((0, 0), text, font=font(mid, weight))
-        if bb[2] - bb[0] <= target:
-            best = mid; lo = mid + 1
-        else:
-            hi = mid - 1
-    return font(best, weight)
-
-
-def draw_emoji(img, ch, box):
-    """box(=(x0,y0,x1,y1)) 안에 컬러 이모지를 중앙 배치. Segoe는 고정 비트맵이라
-    큰 사이즈로 렌더 후 리샘플해 선명도를 확보한다."""
-    bx0, by0, bx1, by1 = box
-    bw, bh = bx1 - bx0, by1 - by0
-    ef, render_px = emoji_font()   # 서체의 실제 컬러 비트맵 크기
-    tile = Image.new('RGBA', (render_px + 40, render_px + 40), (0, 0, 0, 0))
-    td = ImageDraw.Draw(tile)
-    td.text((20, 20), ch, font=ef, embedded_color=True)
-    bb = tile.getbbox()
-    if bb:
-        tile = tile.crop(bb)
-    s = min(bw / tile.width, bh / tile.height)
-    nw, nh = max(1, int(tile.width * s)), max(1, int(tile.height * s))
-    tile = tile.resize((nw, nh), Image.LANCZOS)
-    img.alpha_composite(tile, (bx0 + (bw - nw) // 2, by0 + (bh - nh) // 2))
-
-
-def make(out, chip, h1a, h1b, sub, foot, emoji):
-    img = Image.new('RGBA', (W, H), PAPER + (255,))
-    d = ImageDraw.Draw(img)
-
-    # 상단 그린 바
-    d.rectangle([0, 0, W, 13], fill=GREEN)
-
-    MX = 64  # 좌우 여백
-
-    # 이모지 (우측). 텍스트가 침범하지 않도록 먼저 영역을 잡는다.
-    draw_emoji(img, emoji, (852, 150, 1136, 400))
-
-    # 칩 (그린 알약)
-    cf = font(28, 'Bold')
-    cbb = d.textbbox((0, 0), chip, font=cf)
-    cw, ch = cbb[2] - cbb[0], cbb[3] - cbb[1]
-    px, py = 22, 13
-    d.rounded_rectangle([MX, 66, MX + cw + px * 2, 66 + ch + py * 2], radius=6, fill=GREEN)
-    d.text((MX + px - cbb[0], 66 + py - cbb[1]), chip, font=cf, fill=WHITE)
-
-    # 헤드라인 2줄 — 텍스트 폭을 이모지 왼쪽(~x=820)까지로 제한
-    tw = 820 - MX
-    hf = fit_width(max([h1a, h1b], key=len), tw, hi=88)
-    asc, desc = hf.getmetrics()
-    lh = asc + desc
-    y1 = 168
-    d.text((MX, y1), h1a, font=hf, fill=INK)
-    d.text((MX, y1 + int(lh * 1.06)), h1b, font=hf, fill=RED)
-
-    # 부제
-    sf = font(34, 'Medium')
-    sy = y1 + int(lh * 1.06) + lh + 26
-    d.text((MX, sy), sub, font=sf, fill=MUTED)
-
-    # 하단 구분선 + 푸터
-    fy = 548
-    d.line([MX, fy, W - MX, fy], fill=LINE, width=2)
-    d.text((MX, fy + 24), foot, font=font(24, 'Medium'), fill=MUTED)
-    dom = 'agongmap.co.kr'
-    df = font(26, 'Bold')
-    dbb = d.textbbox((0, 0), dom, font=df)
-    d.text((W - MX - (dbb[2] - dbb[0]), fy + 22), dom, font=df, fill=RED)
-
-    img.convert('RGB').save(os.path.join(ROOT, out), 'PNG', optimize=True)
-    return out
 
 
 def make_brand():
@@ -163,7 +39,7 @@ def make_brand():
     from make_app_icon import draw_icon
     img = Image.new('RGBA', (W, H), PAPER + (255,))
     d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W, 13], fill=INK)          # 상단 바: 브랜드는 먹색(퀴즈=그린과 구분)
+    d.rectangle([0, 0, W, 13], fill=INK)          # 상단 바: 브랜드는 먹색
     MX = 64
 
     # 우측: 사이클 모래시계 (배경색 동일해 그대로 붙는다)
@@ -179,7 +55,7 @@ def make_brand():
     # 하단 구분선 + 푸터
     fy = 548
     d.line([MX, fy, W - MX, fy], fill=LINE, width=2)
-    d.text((MX, fy + 24), '주간 시세 지도 · 시도별 공급 진단 · 부동산 테스트 · 국가기관 데이터 기반',
+    d.text((MX, fy + 24), '주간 시세 지도 · 시도별 공급 진단 · 국가기관 데이터 기반',
            font=font(24, 'Medium'), fill=MUTED)
     dom = 'agongmap.co.kr'
     df = font(26, 'Bold')
@@ -191,15 +67,7 @@ def make_brand():
 
 
 def main():
-    # og-brand는 이모지를 쓰지 않으므로 먼저 굽는다 — 이모지 글꼴이 없는 환경에서도
-    # 홈·about·faq·cycle·zone 허브의 og:image는 다시 구울 수 있어야 한다(전수리뷰 #87).
     print('written ->', make_brand())
-    try:
-        emoji_font()
-    except FileNotFoundError as e:
-        raise SystemExit('퀴즈 카드 %d장은 굽지 못했습니다: %s' % (len(CARDS), e))
-    for c in CARDS:
-        print('written ->', make(*c))
 
 
 if __name__ == '__main__':

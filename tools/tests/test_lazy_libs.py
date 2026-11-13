@@ -68,8 +68,9 @@ def test_every_chart_drawer_waits_for_the_library():
 
 def test_share_functions_wait_for_kakao():
     s = _read('index.html')
-    for fn in ('shareTest', 'shareResult'):
-        assert re.search(r'function %s\(\)\{\s*if\(needKakao\(%s\)\)return;' % (fn, fn), s), '%s 가 카카오 SDK를 기다리지 않는다' % fn
+    # 퀴즈 공유(shareTest·shareResult)는 2026-11-14 퀴즈 제거로 빠졌다. 남은 카카오 공유는 주간 시세 공유 하나다.
+    assert re.search(r'function shareWeekly\(m\)\{.*?if\(needKakao\(\(\)=>shareWeekly\(m\)\)\)return;', s, re.S), \
+        'shareWeekly 가 카카오 SDK를 기다리지 않는다'
 
 
 def _loader_src():
