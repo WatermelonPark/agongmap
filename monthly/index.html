@@ -46,7 +46,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "headline": "이달의 통계",
     "description": "매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.",
     "datePublished": "2026-09-01",
-    "dateModified": "2026-11-12",
+    "dateModified": "2026-11-13",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
@@ -172,7 +172,7 @@ tbody tr.agg{background:var(--paper2)}
 <style>.pshare{padding:6px 0 26px}.pshare-lead{font-size:14px;color:var(--muted);text-align:center;margin:0 0 10px}.pshare-row{display:flex;gap:8px;max-width:400px;margin:0 auto}.pshare-btn{flex:1 1 0;min-width:0;min-height:46px;display:flex;align-items:center;justify-content:center;gap:5px;background:#fff;color:var(--ink);border:1.5px solid var(--ink);border-radius:3px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:600;padding:10px 6px;line-height:1.3;white-space:nowrap}.pshare-btn.pshare-k{background:#FEE500;border-color:#FEE500;color:#191919}.pshare-btn svg{flex:none}</style>
 <script>(function(){var D={"ct": "monthly", "url": "https://www.agongmap.co.kr/monthly/?utm_source=monthly_share&utm_medium=viral&utm_campaign=month_202609", "title": "이달의 통계 · 2026년 9월 기준", "text": "매매 변동이 큰 곳: 경기 +0.82% · 서울 +0.74% · 제주 -0.29%", "img": "https://www.agongmap.co.kr/share/monthly-card.png?v=2026-09", "w": 1200, "h": 675, "btn": "이달의 통계 보기"},KEY="1bd3370cb08703d1450ddb0e7726ab98",SDK="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js",P=null,FAIL=false;
 function load(){if(window.Kakao)return Promise.resolve();if(P)return P;
-P=new Promise(function(ok,no){var s=document.createElement('script');s.src=SDK;s.async=true;s.onload=function(){ok();};
+P=new Promise(function(ok,no){var s=document.createElement('script');s.src=SDK;s.async=true;s.onload=function(){if(!window.Kakao)FAIL=true;ok();};
 s.onerror=function(){s.parentNode&&s.parentNode.removeChild(s);P=null;FAIL=true;no();};document.head.appendChild(s);});return P;}
 function ready(){if(!window.Kakao)return false;try{if(!Kakao.isInitialized())Kakao.init(KEY);return Kakao.isInitialized();}catch(e){return false;}}
 function ev(m){try{gtag('event','share',{content_type:D.ct,method:m});}catch(e){}}
