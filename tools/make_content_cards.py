@@ -358,7 +358,7 @@ def main(argv=None):
         img, lines = draw_card(title, chip, (meta.get('region') or '').strip())
         if save(img, card_rel(sec, slug), {'title': title, 'chip': chip, 'lines': '\n'.join(lines)}):
             wrote += 1
-        spec, big = _thumb_source(meta, body, data)
+        spec, big = _thumb_source(meta, body, CT.for_post(data, meta))
         cap = thumb_caption(title) if sec == 'column' else None
         th = draw_thumb(spec, None if cap else big, cap)
         if save_thumb(th, thumb_rel(sec, slug)):

@@ -1003,6 +1003,7 @@ def content_img_src(body_html, sec):
 
 
 def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
+    data = CT.for_post(data, meta)     # 도시 3년 창·그림 기본 연도는 이 글의 작성 연도가 정한다
     filled, blocks = fill_placeholders(strip_lead_thumb(body_md), data, key=_key_of(meta))
     sec = meta['section']
     body_html = content_img_src(restore_tables(markdown(filled), blocks), sec)
