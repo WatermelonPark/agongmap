@@ -44,7 +44,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 배치 게이트를 순서 그대로 따라 한다: (fetch 잡의) split_data → (커밋 잡의) 설치 전 생성기 여덟 → pytest·pillow
+  # 배치 게이트를 순서 그대로 따라 한다: (fetch 잡의) split_data → (커밋 잡의) 설치 전 생성기 아홉 → pytest·pillow
   # 설치 → pytest. 배치 게이트는 fetch 잡이 **지금 코드의** split_data 로 새로 쓴 data-core.js·data-*.json 위에서 돈다.
   # 여기서 split 을 빼면 커밋된 옛 split 산출물 위에서 돌아, split_data(와 그것이 읽는 sido_zones·weekly_moves 등)를
   # 고친 PR 이 여기서는 초록이고 병합 뒤 배치 게이트에서 빨개진다(전수리뷰 #31). 코드가 그대로면 split 결과는
@@ -117,7 +117,7 @@ jobs:
       - name: 깔린 패키지 (pip 외에는 없어야 한다)
         run: python3 -m pip list
 
-      - name: split_data + 생성기 여덟 (설치 없이)
+      - name: split_data + 생성기 아홉 (설치 없이)
         run: |
           python3 tools/make_city_moveins.py
           python3 tools/split_data.py

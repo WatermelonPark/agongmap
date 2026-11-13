@@ -19,7 +19,7 @@ grace가 봐주는 것:
   목요일 당일 판정에 쓴다. 연간은 grace 없음.
 
 사용: KOSIS_API_KEY=... RONE_API_KEY=... python tools/check_freshness.py
-      실패(뒤처짐) 시 exit 1 — GitHub Actions가 알림 메일을 보낸다.
+      실패(뒤처짐) 시 exit 1 — 감시 워크플로의 notify 잡이 경보 이슈 코멘트로 메일 한 통을 보낸다.
 """
 import datetime
 import json
@@ -619,6 +619,9 @@ def check_derived_pages(adv, stats):
         elif jr and got_j != jr:
             out.append('/jeonse-ratio/가 %s인데 데이터는 %s' % (got_j, jr))
             print('  전세가율  %s (데이터 %s) — 어긋남' % (got_j, jr))
+        elif not jr:
+            # 데이터에 전세가율 달이 없으면 견줄 것이 없다 — '일치'라고 찍지 않는다(값이 빈 것은 check('전세가율')이 실패로 올린다).
+            print('  전세가율  %s — 데이터에 달이 없어 대조하지 않음' % got_j)
         else:
             print('  전세가율  %s 일치' % got_j)
     except Exception as e:
@@ -643,7 +646,13 @@ def check_derived_pages(adv, stats):
         if not m:
             out.append('/moveins/에 시점 표기(…분기까지 준공 실적)가 없다 — 페이지 구조가 바뀌었는지 확인')
             print('  입주물량  시점 표기 없음')
-        elif want and m.group(0) != want:
+        elif not want:
+            # 라이브 데이터에 준공 실적 분기가 없다(ADV.occupancy 가 비었거나 모양이 바뀌었다). 예전엔 이 갈래가 '일치'로
+            # 통과했다 — occupancy 를 지키는 감시가 이 대조 하나뿐이라, 데이터가 비는 사고에서 감시가 스스로 꺼졌다
+            # (2026-11-13 전수 리뷰).
+            out.append('/moveins/ 를 대조할 수 없다 — 라이브 데이터(ADV.occupancy)에 준공 실적 분기가 없다')
+            print('  입주물량  판정 못 함 — 데이터에 실적 분기 없음')
+        elif m.group(0) != want:
             out.append('/moveins/가 %s인데 데이터는 %s' % (m.group(0), want))
             print('  입주물량  %s (데이터 %s) — 어긋남' % (m.group(0), want))
         else:
@@ -1595,7 +1604,7 @@ def check_quiz_review(today, src=None):
     2026-12-15(1개)·2027-03-15(4개)부터 누가 home-app.js 를 고칠 때까지 감시가 **매일** 빨개졌고, 그 기간의
     'Run failed' 메일은 퀴즈 때문인지 진짜 뒤처짐 때문인지 구별되지 않았다 — 진짜 경보가 이미 예상한 빨강
     속에 묻힌다(2026-09-26 데이터 감사). write-reminder.yml 의 원칙과 같다: 실패 메일은 데이터 사고의 통로다.
-    사람에게는 배치 기록의 ℹ️ 줄(batch_notes.quiz_review_lines — 월요일 확인 메일에 실린다)로 간다.
+    사람에게는 배치 기록의 ℹ️ 줄(batch_notes.quiz_review_lines — 실행 화면 요약에 실린다. 2026-11-08 부터 메일은 아니다)로 간다.
     ⚠️ 문항을 0개 찾았거나 홈 스크립트를 못 읽은 것은 fails 로 둔다. 기한 감시가 조용히 꺼진 것이고(백로그 10
     이동 모의에서 실제로 그랬다), 날짜가 지나서 생기는 일이 아니다. 홈 스크립트는 home_src 로만 읽는다.
     """

@@ -262,6 +262,48 @@ def test_month_with_every_sido_empty_is_held(monkeypatch, tmp_path, shape):
     assert 'monthly:시도 결측 보류' in run.file('.fetch_failed')
 
 
+@pytest.mark.parametrize('shape', ['new-week', 'whole-window'])
+def test_week_with_every_sido_empty_is_held(monkeypatch, tmp_path, shape):
+    """주간 응답에서도 시도 값(매매·전세)이 전부 빈 주는 싣지 않는다 — 월간과 같은 규칙이다. 새 주는 시도·서울구·시군구 모두에서
+    보류하고, 저장분에 있던 주는 저장된 시도 값을 지킨다. .fetch_failed 에 'weekly:시도 결측 보류'가 남는다.
+
+    왜: 주간 수집도 월간과 같은 눈(rone_sido_key)으로 시도 행을 찾아, 원천이 시도 이름·계층을 바꾸는 회차에 시도 칸이 전부
+        None 이 된다. 월간에만 보류가 있어, 주간은 저장된 최근 주들의 시도 값이 '주간소급수정'이라는 이름으로 None 에 덮였다
+        (2026-11-13 전수 리뷰 — 스텁 재현: 시도 값 756칸 → 0칸, 실패 기록 없음, rc 0).
+    변이(실제로 확인): main() 의 `_hold_sido_empty(weekly, cur, soft_failed, tag='weekly', unit='주')` 줄을 지우면 new-week 는 빈
+          새 주가 붙어, whole-window 는 저장된 시도 값이 None 으로 덮여 빨개진다. tag 를 넘기지 않으면 기록 단정이 빨개진다.
+    픽스처: 실제 저장분 주간 블록의 최근 20주를 다시 받은 응답. new-week 는 끝에 다음 주 한 행을 붙인다 — 집계 열만 값이 있고
+            시도는 None, 서울구·시군구는 그 주 값이 있다. whole-window 는 창의 모든 주 시도 값을 None 으로 둔다.
+    """
+    import datetime
+    run = _Run(monkeypatch, tmp_path)
+    cur = run.before['weekly']
+    resp = _truncated(cur, -20, None)
+    sido = {i for i, r in enumerate(resp['regions']) if r in sido_zones.ORDER and r not in sido_zones.AGG}
+    assert sido and len(sido) < len(resp['regions']), '픽스처 전제: 주간 열에 시도와 집계가 함께 있어야 한다'
+
+    def blank(row):
+        for k in ('ma', 'je'):
+            if isinstance(row.get(k), list):
+                row[k] = [None if i in sido else x for i, x in enumerate(row[k])]
+        return row
+    if shape == 'new-week':
+        d = datetime.date(*(int(x) for x in resp['rows'][-1]['p'].split('-'))) + datetime.timedelta(days=7)
+        nxt = d.isoformat()
+        resp['rows'].append(blank(dict(copy.deepcopy(resp['rows'][-1]), p=nxt)))
+        for part in ('seoul', 'sgg'):
+            resp[part]['rows'].append(dict(copy.deepcopy(resp[part]['rows'][-1]), p=nxt))
+    else:
+        for r in resp['rows']:
+            blank(r)
+    run.set('fetch_weekly', resp)
+    got = run.main()['weekly']
+    assert [r['p'] for r in got['rows']] == [r['p'] for r in cur['rows']], '시도 값이 빈 주가 붙었거나 깊이가 바뀌었다'
+    assert got['rows'] == cur['rows'], '저장된 주간 시도 값이 빈 응답으로 덮였다'
+    assert got['seoul'] == cur['seoul'] and got['sgg'] == cur['sgg'], '보류한 주가 서울구·시군구에만 실렸다'
+    assert 'weekly:시도 결측 보류' in run.file('.fetch_failed')
+
+
 def test_seoul_gu_dropped_from_one_response_is_kept_and_recorded(monkeypatch, tmp_path):
     """주간 응답의 서울구 블록에서 구 하나가 빠져도 저장 블록은 그 구의 열과 창 밖 이력을 지키고, .fetch_failed 에
     '주간 서울구 열 빠짐(구)' 이 남는다(배치 알림 ℹ️ 줄).
