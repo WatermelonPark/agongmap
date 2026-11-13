@@ -2,7 +2,7 @@
 """사이클 '검증 대상 곳 수'를 말하는 세 자리가 같은 값을 말하는지 고정한다.
 
 같은 대상을 재는 코드가 셋이다.
-  · 정본      make_naver_post.CYCLE_SYNC_N  (데이터에서 세어 나온다)
+  · 정본      theory_guards.CYCLE_SYNC_N  (/cycle/ D.sync 에서 세어 나온다)
   · 리포트    cycle/index.html              (생성물)
   · 홈 배너   index.html                    (손으로 관리하는 파일)
 
@@ -32,8 +32,8 @@ COVERAGE = len([z for z in SZ.ORDER if z not in SZ.AGG])   # 16 — 섞이면 �
 
 def _canon():
     """정본 곳 수. 데이터에서 세어 나오므로 import 로만 얻는다."""
-    import make_theory_post as M
-    return M.CYCLE_SYNC_N
+    import theory_guards as T
+    return T.CYCLE_SYNC_N
 
 
 def _counts(rel):
@@ -44,7 +44,7 @@ def _counts(rel):
 
 def test_canon_is_derived_not_hardcoded():
     """정본이 상수로 박혀 있으면 이 시험 전체가 무의미해진다."""
-    s = io.open(os.path.join(ROOT, 'tools', 'make_naver_post.py'), encoding='utf-8').read()
+    s = io.open(os.path.join(ROOT, 'tools', 'theory_guards.py'), encoding='utf-8').read()
     assert re.search(r'CYCLE_SYNC_N\s*=\s*len\(', s), (
         'CYCLE_SYNC_N 이 len() 파생이 아니다 — 데이터에서 세어야 한다')
     assert _canon() >= 2, '곳 수가 비정상이다'
@@ -71,21 +71,6 @@ def test_cycle_page_says_one_number_for_the_sample():
     assert got, '/cycle/ 에서 검증 대상 곳 수를 찾지 못했다'
     bad = sorted(set(c for c in got if c != n))
     assert not bad, '/cycle/ 이 정본 %d 말고 %s 도 말한다' % (n, bad)
-
-
-def test_theory_post_never_hardcodes_the_sample_size():
-    """원고 생성기는 같은 파일 안에서도 빠짐없이 정본을 써야 한다.
-
-    2026-09-13 이전에는 제목만 정본을 쓰고 본문 세 자리가 15로 박혀 있었다.
-    발행하면 제목은 14, 본문은 15라고 말하는 글이 나간다.
-    """
-    s = io.open(os.path.join(ROOT, 'tools', 'make_theory_post.py'), encoding='utf-8').read()
-    # 문자열 안에 박힌 'N개 시도'. %(sync_n)d / %d 로 쓴 자리는 잡히지 않는다.
-    hard = sorted(set(re.findall(r'(\d+)개 시도', s)))
-    allowed = {str(COVERAGE)}       # 커버리지 문장은 다른 수라 허용
-    bad = [h for h in hard if h not in allowed]
-    assert not bad, (
-        '원고에 곳 수가 박혀 있다: %s — CYCLE_SYNC_N(%%(sync_n)d)로 바꿀 것' % bad)
 
 
 def test_the_two_numbers_are_not_the_same():

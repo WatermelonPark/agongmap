@@ -9,10 +9,10 @@
 '이번 주 시군구 시세'보다 단추와 같은 말이라야 위아래가 이어져 읽힌다(요청서도 그렇게 권한다).
 2026-10-29 대표 결정 '단추 하나에 지도 하나'로 이 구역의 주간 시군구 지도는 지도 구역 카드의 '주간 시세' 단추로 옮겼다 — 구역에
 지도가 없어져 단위('시군구')를 떼고 단추 이름만 쓴다(지도가 하나라 월간 결과로 잘못 읽을 아래 지도가 없다).
-픽스처: 저장소 index.html·home-app.js(home_src)·make_naver_post.WEEKLY_SHOTS.
+픽스처: 저장소 index.html·home-app.js(home_src).
 
 변이(각각 실제로 확인): 머리말을 지우거나 h2 아래로 옮기면, 문구를 모드 단추 이름과 다르게('이번 주 시군구 시세'·옛 '주간 시세 · 시군구') 쓰면, applyWeeklyStatus 가 머리말을
-건드리면, 블로그 캡처 상자를 홈 주간 구역으로 바꾸면 빨개진다.
+건드리면 빨개진다.
 """
 import os
 import re
@@ -20,7 +20,6 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
-import make_naver_post as P  # noqa: E402
 
 KICKER = '주간 시세'        # 머리말 문구 — 시험은 이 상수를 마크업에서 찾는다(문구를 여러 곳에 박지 않는다)
 
@@ -52,9 +51,3 @@ def test_weekly_status_leaves_the_kicker_alone():
     m = re.search(r'^function applyWeeklyStatus\(.*?^\}', src, re.S | re.M)
     assert m and 'wk-h2' in m.group(0)
     assert 'wk-label' not in src, '머리말은 고정 문구다 — 스크립트가 바꾸지 않는다'
-
-
-def test_blog_capture_boxes_are_the_stats_tab_ones():
-    """블로그 주간 캡처는 시세 탭 시장동향 상자(#week-map 안 순위·지도)를 뜬다 — 홈 주간 구역의 머리말과 무관하다."""
-    assert P.WEEKLY_SHOTS == {'top10': '.map-rank', 'map': '.map-scroll'}
-    assert "getElementById('week-map')" in P._SHOT_JS

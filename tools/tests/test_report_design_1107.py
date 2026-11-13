@@ -290,7 +290,7 @@ def test_desk_layouts_for_posts_weekly_links_and_doc_measure():
 def test_cycle_reference_sections_are_folded_and_open_from_links():
     """사이클 참고 ①~④는 접는 칸이다(2026-11-07 대표 결정 '참고 4절 접기' — 휴대폰 29화면 중 10화면이 참고였다).
 
-    제목(h2)은 summary 안이라 접어도 보이고, 본문·그림은 details 안이다. 블로그 글(make_theory_post 의 /cycle/#ref1)·절 끝
+    제목(h2)은 summary 안이라 접어도 보이고, 본문·그림은 details 안이다. 블로그 이론편 발행본(7편의 /cycle/#ref1)·절 끝
     '다음' 링크·30초 요약의 참고 줄이 #refN 으로 들어오므로, 그 주소나 링크로 오면 칸을 펴는 스크립트가 있어야 한다.
     무엇을 바꾸면 빨개지나(실제로 확인): 한 절의 details 를 풀면(넷이 아니게 된다), 제목을 summary 밖으로 빼면, 펴는 스크립트를
     지우면. 데이터 재산정(refresh_cycle_data)이 접는 칸을 지우지 않는지는 픽스처가 아니라 저장소의 실제 파일로 본다 — 배치가

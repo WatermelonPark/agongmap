@@ -12,8 +12,8 @@
     마지막 달(sido_zones.permit_ref_month)이라 그 지역의 최신 달만 비어도 None 이다(전수리뷰 Z1-4 —
     예전엔 그 지역만 묵은 창을 '최근 2년'이라 말했다). 그러면 리포트 머리의 '3년 너머' 줄이 경고
     없이 사라진다. 2026-09-17 현재 19곳 모두 값이 있으므로 None 은 평상 상태가 아니다.
-  · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋나거나 데이터 상태로 초안이 멈춘 편
-    (theory_claim_lines — 초안 도구만 멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한
+  · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋나거나 데이터 상태로 가드가 멈춘 편
+    (theory_claim_lines — 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한
     경과(quiz_review_lines), 주간에는 값이 있는데 월간 시군구 매핑에 코드가 없는 곳(sgg_map_gap_lines, 전수리뷰 A-6),
     손 페이지 '인허가는 착공보다 N%쯤 많다'가 시도 리포트 값과 다른 날(hand_permit_lines, 전수리뷰 X1-11), 모델 전환율 CONV 를 그
     구간의 데이터로 다시 잰 값이 화면 정수로 달라진 날(conv_model_lines — 원천 소급 정정, 2026-10-21).
@@ -50,13 +50,14 @@ _STOP_TAIL = re.compile(r'\s*(?:\d편 )?문장을 먼저 고칠 것\.?$')
 def theory_claim_lines():
     """사이클 이론편(1~7편)이 못 박은 전제가 지금 데이터와 어긋나면 편마다 ℹ️ 한 줄로 알린다(대표 결정 2026-10-18 D1).
 
-    전제가 깨진 편은 초안 도구(make_theory_post <편>)만 SystemExit 로 멈춘다 — 게이트 시험은 그 데이터 상태로 실패하지 않는다.
-    대신 사람이 알아야 하니(발행본을 다시 볼지 정한다) 여기서 알린다. 검사는 초안 도구와 같은 함수(make_theory_post.guard_values —
-    1·2편 고리①, 3편 동조성, 4편 theory_link3, 5편 theory_link4, 6편 link6_values, 7편 link7_values)를 지금 데이터로 돌린 것이다.
+    전제가 깨진 편은 가드(theory_guards.guard_values)가 SystemExit 로 멈춘다 — 게이트 시험은 그 데이터 상태로 실패하지 않는다.
+    대신 사람이 알아야 하니(발행본을 다시 볼지 정한다) 여기서 알린다. 검사는 theory_guards.guard_values(1·2편 고리①, 3편 동조성,
+    4편 theory_link3, 5편 theory_link4, 6편 link6_values, 7편 link7_values)를 지금 데이터로 돌린 것이다. 블로그 초안 도구는
+    2026-11-13 에 지웠고 이 가드만 남겼다(docs/2026-11-13-블로그-도구-휴면-기록.md).
     같은 이유로 멈춘 이웃 편은 한 줄로 묶는다(1·2편은 고리① 전제 하나를 함께 쓴다). 가드가 SystemExit 말고 다른 예외로 죽으면 코드
     결함이라 그 편을 '검사 불가'로 적는다(도구·데이터를 못 올리면 '이론편 검사 불가' 한 줄). 옛 sync_claim_lines(3편만)를 접었다 —
     3편도 이 검사가 보므로 따로 두면 같은 줄이 두 번 나간다.
-    문장 전제가 아니라 데이터 상태로 멈춘 편(멈춤 문구에 make_theory_post.NOT_THE_TEXT — 4편 지수 기준 단절, 5편 착공·준공 끝 달
+    문장 전제가 아니라 데이터 상태로 멈춘 편(멈춤 문구에 theory_guards.NOT_THE_TEXT — 4편 지수 기준 단절, 5편 착공·준공 끝 달
     어긋남, 6편 판정 칸을 못 읽음, 7편 금리 오버레이 빈 분기)은 '전제가 어긋남 … 발행본 재검토'가 아니라 '데이터 상태' 줄로 적는다 —
     발행본을 다시 볼 일이 아니라 다음 배치에서 풀리는 일이다.
     ⚠️ lines(adv) 에 넣지 않는다(전수리뷰 #32·#94). 인자 adv 가 아니라 저장소 data.js·cycle/index.html 을 읽는다. lines() 를 부르는
@@ -64,14 +65,13 @@ def theory_claim_lines():
        데이터 상태가 다시 게이트 실패가 된다. main() 이 따로 붙인다.
     """
     try:
-        import make_theory_post as T
-        D = T.P.cycle_d()
+        import theory_guards as T
+        D = T.cycle_d()
         data = T.M.load()
     except Exception as e:   # 도구·데이터를 못 올리면 그것도 알린다 — 조용히 통과하지 않는다
         return ['%s 사이클 이론편 검사 불가 — %s: %s' % (ML.MARK, type(e).__name__, str(e)[:100])]
     got = []                 # [(편 번호들, 'stop'|'data'|'crash', 글)] — 편 순서대로
-    for post in T.POSTS:
-        n = post['n']
+    for n in T.POSTS:
         try:
             T.guard_values(n, D, data)
             continue

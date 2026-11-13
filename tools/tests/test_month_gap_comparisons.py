@@ -6,20 +6,20 @@
 08 을 06 바로 뒤에 붙이고, 07 칸은 없다. 예전엔 소비처가 모두 i-1·i-12 로 비교 칸을 잡아 /monthly/ 가 '08 − 06'
 (두 달 치)을 '전월 대비'로 싣고, 요약 줄도 같은 값으로 3곳을 뽑았다. 감시는 dates[-1] 만 보므로 이 상태를
 경보하지 않는다. 같은 인덱스 산식이 /jeonse-ratio/·시도 리포트 카드(li-12), 블로그 도구(_series_last 의 '결측을
-건너뛴 앞 값'), 홈 통계표(k-lag)에도 있었다.
+건너뛴 앞 값' — 2026-11-13 도구와 함께 지웠다), 홈 통계표(k-lag)에도 있었다.
 
 픽스처: 실제 상태를 재현한 합성 계열이다. 미분양은 [..., 2026.05, 2026.06, 2026.08](07 보류 후 08 완비 — 감사가
 update_supply 전 경로로 재현한 모양), 전세가율은 12달 창 안에서 한 달이 빠진 계열이다. 값은 달마다 다르게 두어
 어느 칸과 견줬는지가 숫자로 드러난다(실데이터 전세가율은 0.1씩 움직여 13달 전과 12달 전이 같을 수 있다).
 
 무엇을 깨뜨리면 빨개지나(각각 실제로 적용해 확인):
-  - sido_zones.month_back 을 인덱스 차(`return i - k if i >= k else None`)로 바꾸면 → 월간·전세가율·시도 카드·
-    블로그 시험이 모두 빨강
+  - sido_zones.month_back 을 인덱스 차(`return i - k if i >= k else None`)로 바꾸면 → 월간·전세가율·시도 카드
+    시험이 모두 빨강
   - make_monthly_page 의 미분양 비교를 `series_at(un, i - 1)` 로 되돌리면 → 월간 표 시험 빨강(08−06 = +30)
   - top3_lines 의 미분양 비교를 `i - 1` 로 되돌리면 → 요약 줄 시험 빨강(3곳이 실린다)
   - _with_top 의 사유 줄 분기를 지우면 → 요약 줄이 사라져 빨강
   - build_jeonse 의 `at(name, ya)` 를 `at(name, li - 12)` 로 되돌리면 → 13달 전 값이 실려 빨강
-  - 시도 카드의 ya 를 `li - 12` 로, 블로그의 j 를 `idx[-2]`(결측 건너뛴 앞 값)로 되돌리면 → 각 시험 빨강
+  - 시도 카드의 ya 를 `li - 12` 로 되돌리면 → 시도 카드 시험 빨강
   - make_indicator_pages.jeonse_delta 를 원값 차(`round(cur - ago, 1)`)로 되돌리면 → 월간·전세가율·시도 카드 시험 빨강(픽스처의
     기준월·1년 전 둘째 자리 — 전수리뷰 W1 G2b overflow. 예전 기대값은 원값 차라 정본에서 벗어나도 초록이었다)
   - 홈 buildTable 의 비교를 `(k>=lag)?vals[k-lag]:null` 로 되돌리면 → 홈 시험 둘 다 빨강, 연 1점 구간 예외를
@@ -39,7 +39,6 @@ import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로�
 import make_indicator_pages as I  # noqa: E402
 import make_monthly_page as MP  # noqa: E402
 import sido_zones as SZ  # noqa: E402  (날짜 두 단계의 짧은 꼴)
-import make_naver_post as NP  # noqa: E402
 import make_sido_pages as SP  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 from test_monthly_top3 import _assert_summary_matches_table, _rows, _section, _top  # noqa: E402
@@ -176,15 +175,6 @@ def test_zone_card_compares_with_the_same_month_a_year_ago():
     html = SP.next_links(z, None, {'전세가율': jr})
     want = _shown_delta(_val(jr, z, '2026.08'), _val(jr, z, '2025.08'))
     assert '1년 전 대비 %+.1f%%p' % want in html, html
-
-
-# ── 블로그 도구 ──────────────────────────────────────────────────────────
-def test_blog_last_month_is_the_calendar_month_before():
-    sts = {'미분양': {'dates': list(UN_DATES), 'series': {'전국': [65000, 67464, 68000]}}}
-    assert NP._series_last(sts, '미분양') == (None, None, None), '두 달 전 값을 전월로 적었다'
-    assert NP.extra_section({}, sts, 1) == '', '전월이 없는데 미분양 절을 썼다'
-    sts['미분양']['dates'][-1] = '2026.07'
-    assert NP._series_last(sts, '미분양') == (68000, 67464, '2026.07')
 
 
 # ── 홈 통계표 ────────────────────────────────────────────────────────────

@@ -1,14 +1,10 @@
 # -*- coding: utf-8 -*-
-"""발행 도구·발행 확인 이슈의 리뷰 2026-09-18 결함(백로그 19·23)을 고정한다.
+"""발행 확인 이슈 도구와 이론편 점검의 리뷰 2026-09-18 결함(백로그 19·23)을 고정한다.
+
+블로그 초안 도구(썸네일 문구·제목에서 지역 읽기·썸네일 덮기)의 시험은 2026-11-13 도구와 함께 지웠다. close_published_issues 는
+살아 있는 blog_feed 가 RSS 읽기·카테고리 이름의 정본으로 가져오므로 남는다.
 
 깨뜨리면 빨개지는 것(각각 확인):
-  - thumb_message 를 옛 규칙('하락 3% 미만이면 역대 최고가')으로 되돌리면 → test_old_peak_is_not_called_all_time_high,
-    test_recent_peak_is_all_time_high(-0.5% 는 고점이 아니다 — 2026-10-05 리뷰 D4)
-  - _zone_of_title 을 '가장 앞' 대신 첫 매치로 되돌리거나 접미사 허용을 빼면 → title 시험 둘
-  - ZONE_CAT 을 다시 손 문자열로 두면 → test_zone_category_comes_from_the_closer
-  - _published_zone_posts 의 빈 목록 처리를 빼면 → test_empty_feed_is_unreadable_not_empty
-  - _keep_existing_thumb 를 늘 False 로, 또는 '--force' 로도 다시 만들게 되돌리면 → test_custom_thumbnail_is_kept_on_rerun
-    (초안 덮기 --force 와 썸네일 --force-thumb 는 따로다 — 2026-10-05 리뷰 D1)
   - close_published_issues.match 의 예정일 조건·카테고리 조건을 빼면 → match 시험 둘
   - note_record 가 view 실패에도 --body 를 넘기면 → test_body_is_not_overwritten_when_view_fails
   - 닫기 실패 뒤 제목 복원을 빼면 → test_title_is_restored_when_close_fails
@@ -19,66 +15,9 @@ import datetime
 import os
 import sys
 
-import pytest
-
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import batch_notes as N  # noqa: E402
 import close_published_issues as C  # noqa: E402
-import make_naver_post as P  # noqa: E402
-
-
-# ── 썸네일 문구 ──────────────────────────────────────────────────────────
-def test_old_peak_is_not_called_all_time_high():
-    vals = [100 + i for i in range(24)] + [123.5, 123.0, 122.0]   # 고점 24개월 전, 지금 −1.7%
-    curve = (vals, 23, -1.7)
-    first = P.thumb_message('전북', curve)[0]
-    assert '역대 최고가' not in first and '고점에서' in first, first
-
-
-def test_recent_peak_is_all_time_high():
-    vals = list(range(100, 130))
-    assert '역대 최고가' in P.thumb_message('전북', (vals, len(vals) - 1, 0.0))[0]
-    assert '역대 최고가' in P.thumb_message('전북', (vals, len(vals) - 2, -0.04))[0], '표시 자릿수로 0 이면 고점이다'
-    assert P.thumb_message('전북', (vals, len(vals) - 2, -0.5))[0] == '전북, 고점에서 -0.5%'
-
-
-# ── 제목에서 지역 읽기 ───────────────────────────────────────────────────
-NAMES = {'서울', '부산', '세종', '경기', '전남광주'}
-
-
-def test_two_regions_in_a_title_pick_the_first_one_every_time():
-    t = '2026년 부산 아파트 공급물량 전망, 서울 아파트와 반대로 갑니다'
-    assert P._zone_of_title(t, NAMES) == '부산'
-    assert P._zone_of_title(t, sorted(NAMES, reverse=True)) == '부산', '순회 순서에 좌우되면 안 된다'
-
-
-def test_suffixed_region_names_are_counted():
-    assert P._zone_of_title('2026년 세종시 아파트 공급 전망', NAMES) == '세종'
-    assert P._zone_of_title('2026년 경기도 아파트 공급 전망', NAMES) == '경기'
-    assert P._zone_of_title('이번 주 아파트 시세 지도', NAMES) is None
-
-
-def test_zone_category_comes_from_the_closer():
-    assert P.ZONE_CAT == C.KIND_TO_CATEGORY['지역 공급']
-
-
-def test_empty_feed_is_unreadable_not_empty(monkeypatch):
-    monkeypatch.setattr(C, 'fetch_posts', lambda: [])
-    assert P._published_zone_posts(NAMES) is None, '빈 피드로 1번 지역부터 다시 시작하면 안 된다'
-    monkeypatch.setattr(C, 'fetch_posts', lambda: [
-        {'cat': C.KIND_TO_CATEGORY['지역 공급'], 'url': 'u1', 'title': '2026년 서울 아파트 공급물량 전망'},
-        {'cat': C.KIND_TO_CATEGORY['주간 시세'], 'url': 'u2', 'title': '이번 주 서울 아파트 시세'}])
-    assert P._published_zone_posts(NAMES) == {'서울': {'u1'}}
-
-
-def test_custom_thumbnail_is_kept_on_rerun(tmp_path):
-    path = str(tmp_path / 'thumb-서울.png')
-    open(path, 'wb').write(b'x')
-    assert P._keep_existing_thumb(path, None, argv=['x'])
-    assert not P._keep_existing_thumb(path, ['a', '*b*'], argv=['x']), '문구를 주면 새로 만든다'
-    assert P._keep_existing_thumb(path, None, argv=['x', '--force']), '초안 --force 가 맞춤 썸네일을 덮는다'
-    assert not P._keep_existing_thumb(path, None, argv=['x', '--force-thumb'])
-    assert not P._keep_existing_thumb(str(tmp_path / 'none.png'), None, argv=['x'])
 
 
 # ── 발행 확인 이슈 ───────────────────────────────────────────────────────
@@ -217,7 +156,7 @@ def test_one_post_never_closes_two_issues_across_runs(monkeypatch, capsys):
     — 거른 회차가 조용히 사라지고 글 하나가 이슈 둘을 닫는다.
     변이(실제로 확인): match 의 창 조건 `start <= p['date'] < end` 를 예전 `p['date'] >= start` 로 되돌리고 이슈를
     오래된 것부터 돌면(예전 match) 첫 실행이 9/18 을 닫아 빨개진다.
-    픽스처: write-reminder 가 만드는 제목의 열린 알림 이슈 둘(9/18·9/25 주간 시세)과 RSS 글 하나(9/25, 주간 카테고리).
+    픽스처: 옛 발행 알림 워크플로(2026-11-13 삭제)가 만들던 제목의 열린 알림 이슈 둘(9/18·9/25 주간 시세)과 RSS 글 하나(9/25, 주간 카테고리).
     gh 는 상태가 있는 가짜 저장소라 첫 실행에서 닫힌 이슈와 본문 기록이 다음 실행에 그대로 보인다.
     """
     t18 = '✍️ 오늘 발행할 글: 주간 시세 (2026-09-18)'
@@ -260,7 +199,7 @@ def test_post_recorded_in_a_closed_issue_is_not_reused(monkeypatch, capsys):
 
 # ── 3편 주장 점검은 게이트가 아니라 알림 ──────────────────────────────────
 def test_sync_claim_mismatch_is_noted(monkeypatch):
-    import make_theory_post as T
+    import theory_guards as T
     rows = [{'region': '대구', 'corr': 0.3, 'sudo': False}, {'region': '서울', 'corr': 0.55, 'sudo': True}]
     monkeypatch.setattr(T, 'CYCLE_SYNC', sorted(rows, key=lambda x: -x['corr']))
     out = N.theory_claim_lines()      # 3편도 이론편 점검(theory_claim_lines — 옛 sync_claim_lines 를 접었다)이 본다

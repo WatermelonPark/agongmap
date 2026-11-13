@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 """사이클 이론 5편(고리 ④ 착공 → 입주, 공사 기간이 늘어났다)의 숫자를 데이터에서 센다.
 
-5편 본문(make_theory_post.POSTS n=5)의 %(키)s 자리는 render 가 채우는 링크·exp·nsido 를 빼고 전부 여기서
+5편 본문의 %(키)s 자리는 초안이 채우던 링크·exp·nsido 를 빼고 전부 여기서
 채운다. 사람이 센 수를 본문에 박지 않는다(CLAUDE.md 데이터 원칙). 계열은 사이트가 쓰는 것 그대로다:
 sts['착공']·sts['준공'](국토교통부 주택건설 실적 중 아파트, 월별), adv['occupancy'](홈 공급표·/moveins/ 와 같은
 분기 입주 추정: 과거는 준공 실적, 이후는 착공 × 전환율을 3년 뒤로), adv['sido'] 판정(zones 의 split·fut),
 /cycle/ 의 정본 D(prose 의 lead_old·lead_new·lead_r).
 
-앞으로 3년 입주 목록(fut_lists — 적정물량을 넘는 곳·3분의 1에도 못 미치는 곳)은 6편(make_theory_post.link6_values)과 같이 쓰는
+앞으로 3년 입주 목록(fut_lists — 적정물량을 넘는 곳·3분의 1에도 못 미치는 곳)은 6편(theory_guards.link6_values)과 같이 쓰는
 정본이다. 6편은 그 목록만 읽고 5편의 다른 단정에는 묶이지 않는다(전수리뷰 BL2-4).
 
 공사 기간은 사이트 정본(D.prose)을 쓰고, 같은 계산 함수(rebuild_cycle_analysis.link45_leadtime)를 지금 데이터로
@@ -64,13 +64,13 @@ def fut_ratio(z):
 
 
 def fut_lists(adv, name=SZ.disp):
-    """앞으로 3년 입주가 적정물량에 견줘 어떤지로 가른 시도 목록 — 5편(link4_numbers 의 fut_*)과 6편(make_theory_post.link6_values)이
+    """앞으로 3년 입주가 적정물량에 견줘 어떤지로 가른 시도 목록 — 5편(link4_numbers 의 fut_*)과 6편(theory_guards.link6_values)이
     같은 규칙을 쓰는 한 정본이다. 예전엔 6편이 이 넷을 얻으려고 5편의 단정 약 60개 전부(link4_numbers)를 돌려, 6편과 무관한 5편
     숫자가 바뀌어도 멈추고 '발행한 5편 문장을 고치라'고 안내했다(전수리뷰 BL2-4).
 
     돌려주는 것: hi(적정물량을 넘는 시도 키, 많은 순)·lo(LOW 에도 못 미치는 시도 키, 적은 순)·below(적정물량에 못 미치는 시도 수)·
     n(시도 수)·fut_high·fut_low('대전 115%, 충남 112%' 꼴 글자)·fut_high_names('대전·충남')·win_y(판정 창 햇수 글자).
-    글자 속 지역 이름은 name(키 → 이름)으로 바꾼다 — 화면 이름 정본 SZ.disp 가 기본이고, 블로그는 검색 표기(make_naver_post.SEARCH_NAME)를
+    글자 속 지역 이름은 name(키 → 이름)으로 바꾼다 — 화면 이름 정본 SZ.disp 가 기본이고, 이론편 가드는 검색 표기(theory_guards.SEARCH_NAME)를
     넘긴다. 판정 칸을 못 읽으면(키·모양이 바뀌었거나 적정물량이 0·빈칸) Link4ClaimError — 그 밖의 예외로 새지 않는다.
     """
     try:

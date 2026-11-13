@@ -12,12 +12,11 @@
 
 2026-11-08 대표 결정('꼭 봐야 하는 것만')으로 더 줄였다: 메일은 경보 이슈 코멘트 하나뿐이고(tools/post_alert.sh), 보내는
 경우는 데이터 갱신이 하루 넘게 멈춤(같은 KST 날짜에 한 통) · 감시 판정 실패 · 매일 밤 예약 시험 실패 셋이다. 월요일 정상
-확인·확인 중(⚠️)·하루 실패는 화면 요약에만 남고, 블로그 발행 알림 예약은 껐다.
+확인·확인 중(⚠️)·하루 실패는 화면 요약에만 남고, 블로그 발행 알림 워크플로는 껐다가 2026-11-13 에 지웠다.
 
 ⚠️ 워크플로는 실행해 볼 수 없어 원문을 본다. 문구가 아니라 **구조**(무엇 뒤에 무엇이 오는가)를
    단정해, 주석을 고쳤다고 깨지지 않게 한다.
 """
-import ast
 import datetime
 import io
 import os
@@ -165,17 +164,6 @@ def test_alerts_fire_only_for_scheduled_real_failures():
     assert "workflows: ['%s']" % ci_name in n, 'ci-tests 이름이 바뀌면 경보가 조용히 끊긴다'
 
 
-def test_blog_reminders_are_off():
-    """블로그 발행 종료(2026-10-29)로 발행 알림·발행 확인 예약을 껐다(2026-11-08). 손으로는 돈다.
-
-    변이: write-reminder.yml 에 cron 줄을 되살리면 빨강.
-    """
-    for name in ('write-reminder.yml', 'publish-check.yml'):
-        code = _code(_wf(name))
-        assert 'schedule:' not in code and '- cron:' not in code, name
-        assert 'workflow_dispatch:' in code, name
-
-
 def test_fallback_report_still_sends_mail():
     """본문 생성이 죽은 회차는 그 자체가 이상이다 — 조용히 넘어가면 안 된다."""
     code = _code(_wf('update-cloud.yml'))
@@ -228,7 +216,7 @@ def test_failure_mail_subjects_are_readable():
 # ── 3. 한 통씩 더 가는 것들을 되살리지 않는다 ──────────────────────────────
 
 def test_no_workflow_assigns_the_owner():
-    for name in ('update-cloud.yml', 'write-reminder.yml', 'watchdog.yml', 'nightly-alert.yml'):
+    for name in ('update-cloud.yml', 'watchdog.yml', 'nightly-alert.yml'):
         code = _code(_wf(name))
         assert '--assignee' not in code and '--add-assignee' not in code, name
     assert '--assignee' not in _code(_alert()) and '--add-assignee' not in _code(_alert())
@@ -239,39 +227,6 @@ def test_closer_closes_without_a_comment():
                         encoding='utf-8').read())
     assert "'--comment'" not in src, '코멘트를 달고 닫으면 메일이 두 통 간다'
     assert src.find('note_record(') < src.find("'issue', 'close'"), '제목을 바꾸기 전에 닫는다'
-
-
-def test_reminder_title_round_trips_through_the_closer():
-    wf = _wf('write-reminder.yml')
-    m = re.search(r'--title "([^"]+)"', wf)
-    title = (m.group(1).replace('${{ steps.plan.outputs.kind }}', '지역 공급')
-             .replace('${{ steps.plan.outputs.date }}', '2026-09-15'))
-    assert C.parse_title(title) == (datetime.date(2026, 9, 15), '지역 공급'), title
-    assert '오늘 발행할 글' in title
-
-
-def test_reminder_kinds_and_categories_match_the_closer():
-    """발행 알림(write-reminder.yml 의 plan 파이썬)이 내는 종류·카테고리 쌍과 시험용 force 선택지가 닫는 도구의
-    KIND_TO_CATEGORY 와 정확히 같다(전수리뷰 #34). 한쪽만 바꾸면 닫는 쪽이 `if not cat: continue` 로 그 종류의 이슈를
-    조용히 건너뛰어 알림이 영원히 안 닫히거나, 본문이 안내한 카테고리로 발행해도 닫는 도구는 다른 카테고리를 찾는다.
-
-    변이(각각 확인): plan 의 `kind = '사이클 이론'` 을 '사이클 편' 으로 → 빨강(기준 커밋에선 관련 시험 5개가 초록이었다),
-          `cat = '부동산 사이클'` 을 '사이클 이론' 으로 → 빨강, force options 에서 '지역 공급' 을 지우면 → 빨강.
-    픽스처: 저장소의 실제 write-reminder.yml 원문과 close_published_issues.KIND_TO_CATEGORY.
-    """
-    wf = _wf('write-reminder.yml')
-    code = '\n'.join(ln for ln in wf.splitlines() if not ln.lstrip().startswith('#'))
-    pairs = re.findall(r"^\s*kind = '([^']+)'\n(?:(?!^\s*kind = ).*\n)*?^\s*cat = '([^']+)'", code, re.M)
-    want = dict(C.KIND_TO_CATEGORY)
-    assert len(pairs) == len(want) and dict(pairs) == want, \
-        '발행 알림의 종류·카테고리가 닫는 도구와 다르다: 알림 %s / 닫는 도구 %s' % (pairs, want)
-    opts = re.search(r"options:\s*\[([^\]]*)\]", code)
-    assert opts, 'force 선택지를 못 찾았다'
-    assert set(ast.literal_eval('[%s]' % opts.group(1))) - {''} == set(want), opts.group(1)
-    wd = re.search(r"wd = \{([^}]*)\}\.get\(force", code)
-    assert wd and set(re.findall(r"'([^']+)':", wd.group(1))) == set(want), wd and wd.group(1)
-    alt = re.search(r"alt_override = [^\n]*", code)
-    assert alt and set(re.findall(r"force == '([^']+)'", alt.group(0))) <= set(want), alt and alt.group(0)
 
 
 def test_closer_still_reads_titles_made_before_the_change():

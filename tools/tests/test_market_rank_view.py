@@ -32,7 +32,6 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
-import make_naver_post as P  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 
 ROOT = HS.ROOT
@@ -213,11 +212,6 @@ def test_top10_entries_link_the_rank_view():
     assert '<a class="cta" href="/#stats-market-week-rank">전체 TOP 10 보기</a>' in src
     assert '<a class="go" href="/#stats-market-week-rank">TOP 10 →</a>' in src          # 머리 지도 아래 입구
     assert not re.search(r'href="/#stats-market"[^>]*>[^<]*TOP 10', src)                # TOP 10 이라 쓰고 지도로 가는 입구가 없다
-    assert set(P.WEEKLY_SHOT_HASH) == set(P.WEEKLY_SHOTS)
-    assert P.WEEKLY_SHOT_HASH['top10'] == 'stats-market-week-rank' and P.WEEKLY_SHOT_HASH['map'] == 'stats-market'
-    rx = re.search(r"const sm=h\.match\(/(.*?)/\);", _files()['home-app.js']).group(1)
-    for h in P.WEEKLY_SHOT_HASH.values():
-        assert re.match(rx.replace('\\/', '/'), h), h                              # 캡처 주소를 라우터가 받는다
     assert MW  # /weekly/ 생성기를 함께 불러 둔다(CTA 가 그 파일의 글자다)
 
 
