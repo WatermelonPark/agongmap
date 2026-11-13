@@ -14,7 +14,8 @@ tools: Read, Grep, Glob, Bash
    이미지 도구는 pillow 만(numpy 금지).
 2. **정본 상수**: 지역 목록·순서·등급·이름은 `sido_zones`(`zone_order`·`DISPLAY_ORDER`·`ORDER`·`disp`), 화면 숫자는 그 정본 함수.
    지역 수·시군구 수를 박지 않는다(`len(SGG_QNAME)` 처럼 센다). 같은 대상을 재는 코드가 둘이면 같은 상수를 쓴다.
-   색·탭바·글자 하한은 `site_nav`(`BRAND_TOKENS`·`UP_INK`·`DN_INK`·`SERIES_COL`·`READ_PX`·`LABEL_PX`).
+   색·탭바·글자 하한·글꼴 목록은 `site_nav`(`BRAND_TOKENS`·`UP_INK`·`DN_INK`·`SERIES_COL`·`READ_PX`·`LABEL_PX`·`NAV_SCROLL_PAD_CSS`·`FONT_FALLBACK_CSS`).
+   콘텐츠 자리표의 단위·빈 해는 `content_tables`(`NO_MOVEIN`·`year_span`), 허브 제목은 `make_content_pages.REPORTS_NAME`.
 3. **날짜**: '오늘'은 `tools/kst.py`(KST), '전월'·'1년 전'은 인덱스 차가 아니라 `sido_zones.month_back`. 화면 날짜는 두 단계 정본(`day_text` 등).
 4. **데이터 원칙**: 원천 숫자를 그대로, 합친 값을 비율로 쪼개지 않는다. 모델 밖 원천 집계 행은 싣지 않는다. 블로그·피드는 재계산하지 않는다.
 5. **생성 페이지**: 문구는 생성기에서 고친다. PR 에 생성 산출물이 섞이지 않는다.
