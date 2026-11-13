@@ -48,13 +48,6 @@ def card_rel(section, slug):
     return 'share/post-%s-%s.png' % (section, slug)
 
 
-def thumb_rel(section, slug):
-    """목록용 썸네일의 저장소 상대 경로. 굽는 쪽(make_content_cards)도 이 함수를 쓴다. 여기 두는 까닭: 이 생성기는 배치에서
-    pillow 를 깔기 전에 돈다 — 경로 하나를 얻으려고 카드 생성기(모듈 맨 위에서 PIL 을 들인다)를 불러오면 그 단계가
-    ModuleNotFoundError 로 멈춘다(test_test_deps_are_installed)."""
-    return 'share/thumb-%s-%s.jpg' % (section, slug)
-
-
 def section_card_rel(section):
     """섹션 공통 카드 — 글별 카드가 없을 때."""
     return 'share/section-%s.png' % section

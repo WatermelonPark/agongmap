@@ -857,12 +857,12 @@ def test_cards_have_no_thumbnails_and_carry_chips_hook_and_key():
 
 
 def test_missing_post_cards_are_a_batch_note_not_a_gate(tmp_path):
-    """제 카드·썸네일이 없는 구워진 글은 배치 기록 ℹ️ 줄이다 — 게이트가 아니다.
+    """제 카드가 없는 구워진 글은 배치 기록 ℹ️ 줄이다 — 게이트가 아니다(목록 썸네일은 2026-11-13 부터 그리지 않는다).
 
-    무엇을 바꾸면 빨개지나: content_card_lines 가 카드만 보고 썸네일을 안 보거나(둘째 단정), 구워지지 않은 원고까지
-    세거나(셋째 단정), 다 갖춘 글에도 줄을 쓰면(넷째 단정). 실제로 각각 깨뜨려 확인했다.
-    픽스처: 원고 둘이 구워진 임시 저장소 — 하나는 카드·썸네일이 다 있고, 하나는 썸네일만 없다(단지 7편처럼 카드
-    단계가 아직 돌지 않은 상태), 그리고 페이지가 아직 없는 원고 하나.
+    무엇을 바꾸면 빨개지나: content_card_lines 가 카드를 보지 않거나(둘째 단정), 구워지지 않은 원고까지 세거나(셋째 단정),
+    다 갖춘 글에도 줄을 쓰면(넷째 단정). 실제로 각각 깨뜨려 확인했다.
+    픽스처: 원고 둘이 구워진 임시 저장소 — 하나는 카드가 있고, 하나는 카드가 없다(단지 7편처럼 카드 단계가 아직 돌지
+    않은 상태), 그리고 페이지가 아직 없는 원고 하나.
     """
     import batch_notes as BN
     root = tmp_path
@@ -874,14 +874,12 @@ def test_missing_post_cards_are_a_batch_note_not_a_gate(tmp_path):
             (root / sec / slug).mkdir(parents=True)
             (root / sec / slug / 'index.html').write_text('<html></html>', encoding='utf-8')
     (root / 'share').mkdir()
-    for rel in (MC.card_rel('danji', 'a'), MC.thumb_rel('danji', 'a'), MC.card_rel('danji', 'b')):
-        (root / rel).write_bytes(b'x')
+    (root / MC.card_rel('danji', 'a')).write_bytes(b'x')
     got = BN.content_card_lines(str(root))
     assert len(got) == 1 and got[0].startswith('ℹ️'), got
     assert 'danji/b' in got[0] and 'danji/a' not in got[0]
     assert 'danji/c' not in got[0]
-    for rel in (MC.thumb_rel('danji', 'b'),):
-        (root / rel).write_bytes(b'x')
+    (root / MC.card_rel('danji', 'b')).write_bytes(b'x')
     assert BN.content_card_lines(str(root)) == []
 
 
@@ -1054,40 +1052,6 @@ def test_collector_reads_every_city_placeholder_kind():
     assert len(cities) >= 10, '원고에서 도시를 %d곳밖에 못 읽었다' % len(cities)
 
 
-def test_thumbnail_is_a_picture_not_the_title_card():
-    """목록 썸네일은 **그림**이다 — OG 카드(제목 글자)를 줄인 판이 아니다(총괄 요청 2026-10-30).
-
-    무엇을 바꾸면 빨개지나: 썸네일을 다시 카드 축소판으로 되돌리면. 그러면 목록에서 제목이 두 번 보인다
-    (그림 속 제목과 바로 옆 제목). 반박 글은 발언 인용을 뽑아 쓴다.
-    픽스처: 저장소의 카드·썸네일 한 쌍과 손으로 지은 제목들.
-    """
-    import make_content_cards as CC
-    from PIL import Image
-    built = CM.built(ROOT)
-    if not built:
-        pytest.skip('구워진 글이 없다')
-    checked = 0
-    for sec, slug, _ in built[:4]:
-        cp = os.path.join(ROOT, MC.card_rel(sec, slug))
-        tp = os.path.join(ROOT, CC.thumb_rel(sec, slug))
-        if not (os.path.exists(cp) and os.path.exists(tp)):
-            continue
-        shrunk = Image.open(cp).convert('RGB').resize((CC.THUMB_W, CC.THUMB_H), Image.LANCZOS)
-        actual = Image.open(tp).convert('RGB')
-        # 카드를 그대로 줄인 것이면 두 그림이 거의 같다. 그림형이면 눈에 띄게 다르다.
-        diff = sum(abs(a - b) for a, b in zip(shrunk.resize((48, 26)).tobytes(),
-                                              actual.resize((48, 26)).tobytes()))
-        assert diff > 20000, '%s/%s: 썸네일이 카드 축소판으로 보인다(차이 %d)' % (sec, slug, diff)
-        checked += 1
-    assert checked >= 2, '카드·썸네일 쌍을 %d개밖에 못 봤다' % checked
-    # 반박 글의 인용 뽑기 — 작은따옴표·큰따옴표·둥근 따옴표를 모두 읽는다.
-    for title, want in (("이성훈 LH 사장 '집값 급락할 가능성', 입주 물량은", '집값 급락할 가능성'),
-                        ('그는 "공급 폭탄" 이라고 했다', '공급 폭탄'),
-                        ('따옴표가 없는 제목입니다', None)):
-        assert CC._quote(title) == want, '인용 뽑기가 틀렸다: %r → %r' % (title, CC._quote(title))
-
-
-# ── /weekly/ 해설 칸(총괄 요청 2026-10-30) ──────────────────────────────────────────────────────────────
 def _weekly_week():
     """주간 생성기에 넘길 최소한의 주 하나. 값은 쓰지 않는다 — 이 시험이 보는 것은 칸의 처리다."""
     import sido_zones as SZ
@@ -1188,70 +1152,6 @@ def _chart_region(meta, body):
     return None, None
 
 
-def test_thumbnail_draws_the_region_the_post_itself_chose():
-    """썸네일 막대는 **그 글이 `chart:moveins` 로 고른 지역**이다 — 프런트매터 region 이 아니다.
-
-    왜: region 을 먼저 보던 판은 단지·GTX·반박 편에 모두 같은 막대를 달았다. 그 세 섹션의 region 은
-    시도('경기')라, 수원 단지 글과 서울을 따지는 반박 글이 똑같은 숫자를 보였다(총괄 지적 2026-10-30).
-    글이 가리키는 가장 좁은 지역은 글쓴이가 고른 chart 자리표에 있다.
-
-    무엇을 바꾸면 빨개지나(둘 다 확인): thumb_args 가 region 을 먼저 보게 되돌리면, 자리표를 보지 않고
-      region 만 쓰게 하면.
-    ⚠️ 'chart 를 table·v 뒤로 미루기'와 'chart 의 해 인자 버리기'는 **지금 원고에서는 구분되지 않는다** —
-       한 글의 chart 와 table·v 가 같은 지역을 쓰고, 그 해가 기본 연도와 같기 때문이다(변이로 확인).
-       그래도 chart 를 먼저 보는 것이 옳다: 글이 여러 지역을 말할 때 대표 그림을 고른 자리표가 chart 다.
-    픽스처: 저장소의 실제 원고와 데이터. 기대 지역은 자리표를 **따로 읽어** 만든다(썸네일 코드를 쓰지 않는다).
-    """
-    import make_content_cards as CC
-    data = CT.load()
-    checked = 0
-    for sec, slug, path in CM.posts(ROOT):
-        meta, body = CM.read(path, sec, slug)
-        want, args = _chart_region(meta, body)
-        if not want:
-            continue
-        try:
-            CT.chart(data, 'moveins', args)     # 그 지역 자료가 아직 없는 글은 건너뛴다(군포 같은 새 도시)
-        except CT.TableError:
-            continue
-        spec, _big = CC._thumb_source(meta, body, data)
-        assert spec and spec['title'].split()[0] == want, \
-            '%s/%s: 썸네일이 %r 를 그린다 — 글은 %r 를 고랐다' % (
-                sec, slug, (spec or {}).get('title', '없음').split()[0], want)
-        checked += 1
-    assert checked >= 10, 'chart 자리표를 쓴 글을 %d편밖에 못 봤다' % checked
-
-
-def test_thumbnail_number_is_that_regions_own_moveins_value():
-    """썸네일의 큰 숫자는 그 지역·그 해의 `v:moveins` 와 **글자 그대로 같다**.
-
-    무엇을 바꾸면 빨개지나(둘 다 확인): 큰 숫자를 입주 세대가 아닌 다른 카드에서 읽으면, 다른 해의
-      값을 쓰면. 지역이 틀리는 경우는 윗 시험이 잡는다.
-    픽스처: 저장소의 실제 원고와 데이터. 기대값은 자리표를 따로 채워 만든다.
-    """
-    import re as _re
-    import make_content_cards as CC
-    data = CT.load()
-    seen, by_region = 0, {}
-    for sec, slug, path in CM.posts(ROOT):
-        meta, body = CM.read(path, sec, slug)
-        spec, big = CC._thumb_source(meta, body, data)
-        if not (spec and big):
-            continue
-        name = spec['title'].split()[0]
-        year = _re.search(r'(\d{4})', big[1])
-        assert year, '%s/%s: 큰 숫자 꼬리표에 연도가 없다 — %r' % (sec, slug, big)
-        ph = '{{v:moveins:%s:%s}}' % (name, year.group(1))
-        assert big[0] == CT.fill_inline(ph, data), \
-            '%s/%s: 썸네일 숫자 %r 가 %s(%r) 와 다르다' % (sec, slug, big[0], ph, CT.fill_inline(ph, data))
-        by_region.setdefault(big[0], set()).add(name)
-        seen += 1
-    assert seen >= 10, '썸네일 숫자를 %d개밖에 못 봤다' % seen
-    # 같은 숫자를 서로 다른 지역이 나눠 쓰면 한쪽이 남의 값을 들고 있는 것이다.
-    shared = {v: sorted(r) for v, r in by_region.items() if len(r) > 1}
-    assert not shared, '한 숫자를 여러 지역이 쓴다 — 지역이 섞였다: %s' % shared
-
-
 def test_basic_concepts_chips_sit_above_recent_posts():
     """허브의 '기본 개념' 칩 줄이 사이클·FAQ·테스트 3종을 싣는다(10-30 승인한 다섯). 절 제목(.rh2)과 칩(.rchip) 꼴로 최근 글 **위**
     (2026-11-07 디자인 검수 — 맨 아래 13px 중점 한 줄은 40장 카드 뒤 푸터와 같은 꼴이라 입구 구실을 못 했다).
@@ -1297,45 +1197,6 @@ def test_cycle_page_lights_the_content_tab():
     assert nav, '사이클 페이지에 탭바가 없다'
     on = re.findall(r'<a class="nav-btn on"[^>]*href="([^"]+)"', nav.group(0))
     assert on == [N.HREF['reports']], '사이클 페이지가 켠 탭이 콘텐츠가 아니다: %s' % on
-
-
-def test_column_thumbnails_are_always_words_never_numbers():
-    """반박 편 썸네일은 **늘 글자**다 — 따옴표 안 발언, 없으면 제목 앞 구절(총괄 결정 2026-10-30).
-
-    왜: 한 섹션 안에서 어떤 글은 '20,664세대' 숫자형이고 어떤 글은 인용구형이면 목록이 들쭉날쭉해진다.
-    실제로 반박 4편 중 반도체 글만 제목에 따옴표가 없어 숫자로 떨어졌다. 따지는 글이라 발언이 먼저
-    보여야 하므로 숫자는 쓰지 않는다. 따옴표가 없는 제목은 쉼표 앞을 어절 경계에서 끊어 따옴표 없이 쓴다.
-
-    무엇을 바꾸면 빨개지나(셋 다 확인): 따옴표 없는 글을 다시 숫자로 떨어뜨리면, 앞 구절을 글자 수로
-      잘라 낱말이 토막 나면, 인용에서 따옴표를 떼면.
-    픽스처: 저장소의 실제 반박 원고 제목과, 어절 경계를 재려고 손으로 지은 긴 제목.
-    """
-    import make_content_cards as CC
-    seen = 0
-    for sec, slug, path in CM.posts(ROOT):
-        if sec != 'column':
-            continue
-        meta, _ = CM.read(path, sec, slug)
-        text, quoted = CC.thumb_caption(meta['title'])
-        assert text, '%s: 썸네일에 넣을 글자가 없다' % slug
-        assert len(text) <= max(CC.QUOTE_MAX, CC.LEAD_MAX), '%s: 캡션이 너무 길다(%r)' % (slug, text)
-        if quoted:
-            assert text in meta['title'], '%s: 인용이 제목에 없는 말이다' % slug
-        else:
-            assert meta['title'].startswith(text), '%s: 앞 구절이 제목 머리와 다르다(%r)' % (slug, text)
-        seen += 1
-    assert seen >= 3, '반박 글을 %d편밖에 못 봤다' % seen
-
-    # 앞 구절은 어절 경계에서 끊는다 — 글자 수로 자르면 낱말이 토막 난다.
-    long_title = '2029년 이후 집값은 삼성·하이닉스가 정할까, 공급이 먼저 정합니다'
-    text, quoted = CC.thumb_caption(long_title)
-    assert not quoted and long_title.startswith(text)
-    assert ' '.join(text.split()) == text and not text.endswith(' ')
-    assert all(w in long_title.split(',')[0].split() for w in text.split()), \
-        '낱말이 토막 났다: %r' % text
-    # 따옴표가 있으면 그 발언을 따옴표째 쓴다.
-    assert CC.thumb_caption("오세훈 시장의 '주택의 삭제', 서울은") == ('주택의 삭제', True)
-    assert CC.thumb_caption('') == (None, False)
 
 
 def test_local_card_run_warns_not_to_commit(capsys, monkeypatch):

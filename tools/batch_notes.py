@@ -203,18 +203,17 @@ def conv_model_lines(stats):
 
 
 def content_card_lines(root=None):
-    """제 공유 카드·목록 썸네일이 없는 구워진 글 → ℹ️ 한 줄. 카드는 발행·배치 모두 게이트 뒤에서 굽으므로 새 글이 올라온
+    """제 공유 카드가 없는 구워진 글 → ℹ️ 한 줄(목록 썸네일은 2026-11-13 부터 그리지 않는다). 카드는 발행·배치 모두 게이트 뒤에서 굽으므로 새 글이 올라온
     회차에는 잠시 없을 수 있다 — 게이트가 아니라 알림으로 둔다(2026-10-30, 단지 6·7편 발행이 게이트에 막힘).
     다음 카드 단계(발행 워크플로·매일 배치)가 굽고 나면 줄이 사라진다. 이틀 넘게 남으면 카드 생성이 실패하는 것이다."""
     import content_md as CM
     import make_content_pages as MC
     root = root or ROOT
     miss = [('%s/%s' % (s, g)) for s, g, _ in CM.built(root)
-            if not (os.path.exists(os.path.join(root, MC.card_rel(s, g)))
-                    and os.path.exists(os.path.join(root, MC.thumb_rel(s, g))))]
+            if not os.path.exists(os.path.join(root, MC.card_rel(s, g)))]
     if not miss:
         return []
-    return ['ℹ️ 글 카드·썸네일 없음 %d편 — 섹션 공통 카드로 나간다(다음 카드 단계가 굽는다): %s' % (len(miss), ', '.join(miss))]
+    return ['ℹ️ 글 카드 없음 %d편 — 섹션 공통 카드로 나간다(다음 카드 단계가 굽는다): %s' % (len(miss), ', '.join(miss))]
 
 
 def lines(adv):
