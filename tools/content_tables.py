@@ -58,9 +58,11 @@ def _pending_or_error(name, msg):
     """도시 자료에 없을 때: 실재하는 시군구면 PendingCity, 아니면 TableError."""
     try:
         import make_city_moveins as MCM
-        if MCM.sido_of(name):
+        if MCM.sido_of(name) and not MCM.collectable(name):
+            raise TableError('%r 는 도시 자료를 받을 수 없는 이름이다 — 도시 자리표에는 시 이름 하나를 적는다(구 이름·구분 앞말 없이)' % name)
+        if MCM.collectable(name):
             raise PendingCity('%r 는 아직 도시 자료에 없다 — 배치가 다음 회차에 받는다(원고의 region 으로)' % name)
-    except PendingCity:
+    except TableError:               # PendingCity 도 이 갈래다
         raise
     except Exception:
         pass
@@ -399,6 +401,13 @@ def pct(v, digits=2):
     return ('+' if r > 0 else '') + ('%%.%df' % digits) % r
 
 
+def level(v, digits=1):
+    """수준 값(비율·지수) 표기 — 부호를 붙이지 않는다. 변동률은 pct 를 쓴다."""
+    if v is None:
+        raise TableError('값이 비었다')
+    return ('%%.%df' % digits) % (round(v, digits) + 0.0)
+
+
 def _series_rows(block, key):
     """{'regions','rows'} 꼴에서 지역 열을 뽑는다 → [(기간, 값, 예정인가)]"""
     regs = block.get('regions') or []
@@ -459,7 +468,8 @@ def stats(data, name, key):
         raise TableError('%s 자료에 지역 %r 이 없다' % (name, key))
     pairs = [(p, v) for p, v in zip(dates, ser)][-STATS_PERIODS:]
     unit = d.get('unit') or ''
-    body = [[p, (pct(v, 1) if '%' in unit else num(v))] for p, v in pairs if v is not None]
+    # 비율 계열(전세가율)은 **수준**이다 — 변동률 서식(pct)을 쓰면 '+52.3' 처럼 부호가 붙는다(2026-11-13 전수 리뷰).
+    body = [[p, (level(v, 1) if '%' in unit else num(v))] for p, v in pairs if v is not None]
     if not body:
         raise TableError('%s %s 에 값이 하나도 없다' % (name, key))
     return ['기간', '%s(%s)' % (name, unit) if unit else name], body, d.get('source') or ''
@@ -469,8 +479,8 @@ def sgg_codes(data, name):
     """도시·구 이름 → [(코드, 이름표)]. 받는 꼴은 셋이다(이름표는 홈 시군구 지도와 같은 SGG_QNAME).
 
       '고양 덕양구'  정확한 이름표 → 그 구 하나
-      '덕양구'       구 이름만 → 그 구 하나(여러 시에 같은 구 이름이 있으면 모두)
       '고양'         시 이름 → 그 시의 구를 모두(이름표 순서)
+      '덕양구'       구 이름만 → 그 구 하나(여러 시에 같은 구 이름이 있으면 모두)
 
     ⚠️ 도시 한 줄 값을 만들지 않는다. 주간 시세는 지수 변동률이라 구를 평균 내면 원천이 발표하지 않은 수가
        된다(저장소 데이터 원칙). 도시 글에는 구별 표를 싣는다.
@@ -479,11 +489,14 @@ def sgg_codes(data, name):
     exact = [(c, n) for c, n in q.items() if n == name]
     if exact:
         return exact
-    tail = [(c, n) for c, n in q.items() if n.rsplit(' ', 1)[-1] == name]   # '분당구' → '성남 분당구'
-    if tail:
-        return sorted(tail, key=lambda x: x[1])
+    # 시 이름(앞말)을 구 이름(끝말)보다 **먼저** 본다. '광주'는 광주광역시의 구들이다 — 예전엔 끝말을 먼저 봐 '경기 광주'
+    # 한 곳으로 풀렸고, 같은 이름이 입주물량 자리표·수집에서는 광주광역시라 한 글 안에서 입주는 광역시, 시세는 경기
+    # 광주시가 됐다(2026-11-13 전수 리뷰). 경기 광주시는 이름표 그대로 '경기 광주'로 적는다.
     pre = [(c, n) for c, n in q.items() if n.startswith(name + ' ')]
-    return sorted(pre, key=lambda x: x[1])
+    if pre:
+        return sorted(pre, key=lambda x: x[1])
+    tail = [(c, n) for c, n in q.items() if n.rsplit(' ', 1)[-1] == name]   # '분당구' → '성남 분당구'
+    return sorted(tail, key=lambda x: x[1])
 
 
 def weekly_sgg(data, name):
@@ -540,21 +553,20 @@ def streak(data, name, what='매매'):
     kinds = {'매매': 'ma', '전세': 'je'}
     if what not in kinds:
         raise TableError('streak 은 매매 또는 전세다: %r' % what)
-    import make_weekly_page as MW
-    ser = [(p, v) for p, v in _weekly_series(data, name, kinds[what]) if v is not None]
+    import weekly_moves as WM
+    ser = _weekly_series(data, name, kinds[what])
+    while ser and ser[-1][1] is None:          # 최신 주가 빈 지역은 값이 있는 마지막 주를 말한다(그 조사일을 적는다)
+        ser = ser[:-1]
     if not ser:
         raise TableError('%s %s 주간 값이 없다' % (name, what))
-    last_p, last_v = ser[-1]
-    sign = (1 if MW.pv2r(last_v) > 0 else (-1 if MW.pv2r(last_v) < 0 else 0))
-    if sign == 0:
-        return '보합(%s 조사)' % _kdate(last_p)
-    n = 0
-    for _, v in reversed(ser):
-        r = MW.pv2r(v)
-        if (r > 0) != (sign > 0) or r == 0:
-            break
-        n += 1
-    return '%d주 연속 %s(%s 조사)' % (n, '상승' if sign > 0 else '하락', _kdate(last_p))
+    # 셈은 주간 정본(weekly_moves.streak·opened)이 한다 — /weekly/ 표·시도 리포트와 같은 주 수가 나온다. 연속이 보관 이력의
+    # 첫 주까지 닿으면 '이상'을 붙인다: 실제로는 더 길 수 있다(예전엔 따로 세어 '156주 연속'이라고 잘라 말했다 — 전수 리뷰).
+    vals = [v for _p, v in ser]
+    s = WM.streak(vals)
+    if not s:
+        return '보합(%s 조사)' % _kdate(ser[-1][0])
+    return '%d주%s 연속 %s(%s 조사)' % (abs(s), ' 이상' if WM.opened(vals, abs(s)) else '',
+                                     '상승' if s > 0 else '하락', _kdate(ser[-1][0]))
 
 
 # 화면 날짜 두 단계(CLAUDE.md, sido_zones 정본) — 읽는 자리(각주·출처 '10/26 조사')는 day_text, 표 칸은 day_short·month_short.
@@ -836,7 +848,20 @@ def fill_inline(text, data):
             raise TableError('%s 자리표는 본문에만 쓴다(제목·요약·FAQ 는 한 줄이다): %s'
                              % (m.group(1), m.group(0)))
         return value(data, kind, args)
-    return PH.sub(sub, text or '')
+    return no_leftover(PH.sub(sub, text or ''))
+
+
+# 채운 뒤에도 남은 '{{' — 꼴이 어긋난 자리표다('{{ v:need:수원 }}'·'{{value:…}}'·'{{V:…}}'·닫는 괄호 하나). PH 에 걸리지 않아
+# 글자 그대로 발행됐고, 검사기와 게이트 시험이 같은 정규식을 써서 아무도 잡지 못했다(2026-11-13 전수 리뷰).
+LEFTOVER = re.compile(r'\{\{[^\n]{0,60}')
+
+
+def no_leftover(text):
+    m = LEFTOVER.search(text or '')
+    if m:
+        raise TableError("자리표 꼴이 어긋났다 — '{{v:종류:인자}}'·'{{table:…}}'·'{{chart:…}}' 꼴로(빈칸·대문자·다른 접두 없이): %s"
+                         % m.group(0).split('}}')[0][:50])
+    return text
 
 
 def city_codes(data, name):
@@ -901,4 +926,4 @@ def fill_markdown(body, data):
             # 글자로만 나가는 곳(llms-full.txt)에서는 그림을 대체 텍스트 한 문장으로 싣는다.
             return '\n' + chart(data, kind, args)['alt'] + '\n'
         return '\n' + md_table(*table(data, kind, args)) + '\n'
-    return PH.sub(sub, body or '')
+    return no_leftover(PH.sub(sub, body or ''))

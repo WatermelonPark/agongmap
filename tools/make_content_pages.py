@@ -103,8 +103,12 @@ def _inline(t):
     t = html.escape(t, quote=False)
     t = re.sub(r'`([^`]+)`', r'<code>\1</code>', t)
     t = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', t)
-    t = re.sub(r'!\[([^\]]*)\]\(([^)\s]+)\)', r'<img src="\2" alt="\1" loading="lazy">', t)
-    t = re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)', r'<a href="\2">\1</a>', t)
+    # 속성에 들어가는 조각(주소·대체글)만 큰따옴표를 &quot; 로 바꾼다 — 본문 글자의 따옴표는 그대로 둔다(위에서 quote=False).
+    # 안 바꾸면 `![그는 "오른다"고 했다](…)` 가 alt="그는 "오른다"고 했다" 로 나가 속성이 끊긴다(2026-11-13 전수 리뷰).
+    q = lambda s: s.replace('"', '&quot;')      # noqa: E731
+    t = re.sub(r'!\[([^\]]*)\]\(([^)\s]+)\)',
+               lambda m: '<img src="%s" alt="%s" loading="lazy">' % (q(m.group(2)), q(m.group(1))), t)
+    t = re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)', lambda m: '<a href="%s">%s</a>' % (q(m.group(2)), m.group(1)), t)
     return t
 
 
@@ -476,7 +480,7 @@ def fill_placeholders(body, data, key=None):
             blocks.append(_table_html(head, rows, note_of(note)))
         return '\n\n\x00TABLE%d\x00\n\n' % (len(blocks) - 1)
 
-    return PLACEHOLDER.sub(sub, body), blocks
+    return CT.no_leftover(PLACEHOLDER.sub(sub, body)), blocks      # 꼴이 어긋나 안 채워진 '{{' 는 발행하지 않는다
 
 
 def restore_tables(html_text, blocks):
@@ -1539,7 +1543,7 @@ def main(strict=False):
     wk = write_weekly_column(all_metas)
     mv = write_moveins_cities(all_metas)
     print('content pages: %d편%s · 섹션 %s%s%s%s%s' % (
-        wrote, (' · 건너뜀 %d편' % len(skipped)) if skipped else '',
+        wrote, (' · 건너뜀 %d편' % (len(skipped) + len(dropped))) if (skipped or dropped) else '',
         ', '.join(sorted(by_sec)), ' · 홈 최근 리포트 갱신' if home else '',
         ' · 지역 리포트 %d곳에 글 묶음' % zones if zones else '',
         ' · 주간 리포트 해설 칸 갱신' if wk else '',
