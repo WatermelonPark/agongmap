@@ -34,9 +34,7 @@ HAND = {
     'faq/index.html': ('doc', 'read'),
     'about/index.html': ('doc', 'read'),
     'privacy/index.html': ('doc', 'read'),
-    'burini-test/index.html': ('report', 'read'),
-    'investor-test/index.html': ('report', 'read'),
-    'redev-test/index.html': ('report', 'read'),
+    # 퀴즈 랜딩 3종(burini-test 등)은 2026-11-14 퀴즈 제거로 홈으로 넘기는 최소 페이지가 됐다.
 }
 
 

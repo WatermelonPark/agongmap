@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """홈(index.html) 스크립트를 읽는 단 하나의 입구 — 백로그 10 사전 작업(2026-09-16).
 
-도구·시험 약 20곳이 홈 인라인 스크립트(QUIZSETS·SGG_QNAME·MATRIX_REGIONS 등)를 index.html 에서 직접
+도구·시험 약 20곳이 홈 인라인 스크립트(SGG_QNAME·MATRIX_REGIONS 등)를 index.html 에서 직접
 읽었다. 버리는 작업 트리에서 스크립트를 외부 파일로 옮겨 보니 두 가지가 동시에 났다.
 
   - 크게 실패: 주간 시세 생성기(배치 데이터 커밋 중단), 시험 46건.
@@ -19,17 +19,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOME = 'index.html'
 
 # 동결 창에서 인라인 스크립트를 외부 파일로 옮기면 여기에 그 파일(저장소 루트 기준)을 적는다. 예: ('home-app.js',)
-# 퀴즈·통계 화면 코드는 2026-09-27 홈 마케팅 검수 B11 에 home-app.js 에서 떼어 냈다(홈이 그 화면을 열 때 받는다).
+# 통계 화면 코드는 2026-09-27 홈 마케팅 검수 B11 에 home-app.js 에서 떼어 냈다(홈이 그 화면을 열 때 받는다).
+# 퀴즈 화면 코드(home-quiz.js)도 그때 떼었으나 2026-11-14 퀴즈 3종 제거로 지웠다.
 # 이어 붙이는 순서는 브라우저가 실행하는 순서와 같다 — 본문 스크립트가 먼저고, 분할 파일은 그 전역 위에서 돈다.
 # 분할 파일을 늘리면 여기와 home-app.js 의 PARTS·sw.js 사전 캐시를 같이 고친다(test_home_parts 가 셋을 대조한다).
-PARTS = ('home-quiz.js', 'home-stats.js')
+PARTS = ('home-stats.js',)
 EXTERNAL = ('home-app.js',) + PARTS
 
 # 읽는 쪽이 기대는 식별자. 하나라도 없으면 '스크립트를 못 읽었다'로 본다.
-MARKERS = ('const QUIZSETS', 'const QUIZ_LEN', 'const QUIZ_SLUG', 'const SGG_QNAME',
-           'const MATRIX_REGIONS', 'function nextStepHTML')
+MARKERS = ('const SGG_QNAME', 'const MATRIX_REGIONS')
 
 # 홈(마크업+스크립트) 크기 하한. 2026-09-16 기준 약 250KB 다. 스크립트가 빠지면 50KB 안팎으로 준다.
+# 2026-11-14 퀴즈 제거 뒤 약 330KB(index.html·home-app.js·home-stats.js). 하한은 그대로 둔다.
 MIN_BYTES = 150000
 
 # 파일마다 제 안에 있어야 하는 표식과 크기 하한(전수리뷰 #13). 위 MARKERS 는 모두 분할 파일에 있고 합계 하한은
@@ -39,11 +40,10 @@ MIN_BYTES = 150000
 FILE_MARKERS = {
     'home-app.js': ('const PARTS', 'function showView', 'function applyHash', 'function weeklyRelease',
                     'function tbBuild', 'function boot'),
-    'home-quiz.js': ('const QUIZSETS', 'const QUIZ_LEN', 'const QUIZ_SLUG', 'function nextStepHTML'),
     'home-stats.js': ('const SGG_QNAME', 'const MATRIX_REGIONS', 'function statsOpen'),
 }
-# 2026-09-30 기준 home-app.js 약 130KB, home-quiz.js 약 59KB, home-stats.js 약 81KB. 하한은 그 절반 남짓.
-FILE_MIN_BYTES = {'home-app.js': 60000, 'home-quiz.js': 25000, 'home-stats.js': 35000}
+# 2026-09-30 기준 home-app.js 약 130KB, home-stats.js 약 81KB. 하한은 그 절반 남짓.
+FILE_MIN_BYTES = {'home-app.js': 60000, 'home-stats.js': 35000}
 
 
 class HomeSourceError(RuntimeError):
@@ -120,43 +120,3 @@ def require(text, *needles, **kw):
     if miss:
         raise AssertionError('%s 을(를) 읽지 못했다(%s 없음) — 이 "없어야 한다" 검사가 헛돈다'
                              % (what, ', '.join(miss)))
-
-
-# ── 퀴즈 정본 읽기(전수리뷰 P-9·P-14) ─────────────────────────────────────────────────────────────
-# 문항 수(QUIZ_LEN)와 등급 표(QUIZSETS.<세트>.grade)는 home-quiz.js 가 정본이다. 공유 카드 도구(make_*_cards)·점수 공유
-# 페이지(make_quiz_share_pages)·시험이 각자 정규식으로 읽으면 한쪽이 형식 변화에 조용히 어긋난다 — 여기 한 곳에서 읽는다.
-import re as _re
-
-
-def quiz_len(src=None):
-    """home-quiz.js 의 QUIZ_LEN(한 회차 문항 수). 못 찾으면 HomeSourceError."""
-    src = home_source() if src is None else src
-    m = _re.search(r'const QUIZ_LEN=(\d+);', src)
-    if not m:
-        raise HomeSourceError('홈 스크립트에서 const QUIZ_LEN 을 읽지 못했다')
-    return int(m.group(1))
-
-
-def quiz_grades(key, src=None):
-    """QUIZSETS.<key>.grade 의 등급 구간 [(하한 점수, 'LVn', 이름 g, 이모지)] — 하한이 낮은 것부터.
-    결과 화면(gradeOf(s).g)·랜딩 '점수별 레벨' 표·공유 카드가 같은 이름을 쓰게 하는 정본 읽기. 못 읽으면 HomeSourceError."""
-    src = home_source() if src is None else src
-    i = src.find('\n  %s:{' % key)
-    j = src.find('grade:s=>{', i) if i >= 0 else -1
-    if j < 0:
-        raise HomeSourceError('QUIZSETS 에서 %s.grade 를 찾지 못했다' % key)
-    body = src[j:src.index('\n    }', j)]
-    out = []
-    for lo, lv, g, e in _re.findall(r"(?:if\(s>=(\d+)\))?return\{lv:'(LV\d+)',g:'([^']+)',d:'[^']*',emoji:'([^']+)'\}", body):
-        out.append((int(lo) if lo else 0, lv, g, e))
-    if len(out) < 2:
-        raise HomeSourceError('%s.grade 등급을 %d개만 읽었다' % (key, len(out)))
-    return sorted(out)
-
-
-def quiz_grade_of(grades, score):
-    """quiz_grades() 표에서 점수 score 의 등급 — home-quiz.js grade(s) 와 같은 규칙(하한 이상인 가장 높은 구간)."""
-    hit = [g for g in grades if score >= g[0]]
-    if not hit:
-        raise ValueError(score)
-    return hit[-1]

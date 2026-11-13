@@ -1113,7 +1113,7 @@ REPORTS_DESC = '질문이나 내 동네로 들어와 결론부터 읽는 글. �
 # ⚠️ 이름과 곁말을 여기에 손으로 적지 않는다. 각 페이지의 <title> 에서 읽는다('이름 — 곁말 | 아공맵').
 #    손 페이지의 제목을 고치면 이 줄도 따라 바뀐다. 파일이 없으면 그 카드만 빠진다.
 BASIC_H2 = '기본 개념'
-BASIC_PAGES = ('cycle', 'faq', 'burini-test', 'investor-test', 'redev-test')
+BASIC_PAGES = ('cycle', 'faq')   # 퀴즈 3종(burini-test 등)은 2026-11-14 대표 결정으로 걷었다
 _TITLE_RE = re.compile(r'<title>([^<]*)</title>')
 
 

@@ -13,8 +13,7 @@
     예전엔 그 지역만 묵은 창을 '최근 2년'이라 말했다). 그러면 리포트 머리의 '3년 너머' 줄이 경고
     없이 사라진다. 2026-09-17 현재 19곳 모두 값이 있으므로 None 은 평상 상태가 아니다.
   · (main() 이 붙이는 ℹ️ 곁가지) 사이클 이론편 1~7편 전제가 지금 데이터와 어긋나거나 데이터 상태로 초안이 멈춘 편
-    (theory_claim_lines — 초안 도구만 멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 퀴즈 제도 문항의 검토 기한
-    경과(quiz_review_lines), 주간에는 값이 있는데 월간 시군구 매핑에 코드가 없는 곳(sgg_map_gap_lines, 전수리뷰 A-6),
+    (theory_claim_lines — 초안 도구만 멈추고 게이트는 막지 않는다, 대표 결정 2026-10-18 D1), 주간에는 값이 있는데 월간 시군구 매핑에 코드가 없는 곳(sgg_map_gap_lines, 전수리뷰 A-6),
     손 페이지 '인허가는 착공보다 N%쯤 많다'가 시도 리포트 값과 다른 날(hand_permit_lines, 전수리뷰 X1-11), 모델 전환율 CONV 를 그
     구간의 데이터로 다시 잰 값이 화면 정수로 달라진 날(conv_model_lines — 원천 소급 정정, 2026-10-21).
 
@@ -97,6 +96,7 @@ def theory_claim_lines():
     return out
 
 
+<<<<<<< HEAD
 def quiz_review_lines(today, src=None):
     """퀴즈 제도 문항의 검토 기한이 지났으면 ℹ️ 줄로 알린다. 형식기는 ℹ️ 줄을 실행 화면 요약에 싣는다(메일이 아니다 — 세션이 본다).
 
@@ -115,6 +115,8 @@ def quiz_review_lines(today, src=None):
     return ['%s %s' % (ML.MARK, q) for q in qo]
 
 
+=======
+>>>>>>> 185fb27b (퀴즈 3종 제거: 랜딩·점수 페이지·생성기·홈 퀴즈 화면·진입점을 걷고 옛 주소는 홈으로 넘긴다(대표 결정 11-14), 판 v222)
 def _sgg_names(codes):
     """시군구 코드 → 홈 SGG_QNAME 이름(못 읽으면 코드 그대로). 알림 글자라 읽기 실패로 줄을 잃지 않는다."""
     try:
@@ -158,7 +160,7 @@ def hand_permit_lines(stats, texts=None):
     (전수리뷰 X1-11). 게이트 시험(test_hand_page_numbers)은 데이터가 한 칸 넘어가도 그날 커밋을 막지 않게 한 칸(PERMIT_OVER_STEP)까지
     봐 주므로, 갈린 날 사람에게 닿는 통로가 여기다. stats 는 data.js 의 STATS(main 이 읽은 것), texts 는 {경로: 글}(없으면 저장소
     파일 — 홈은 home_src 입구로). 리포트가 그 구절을 빼는 상태(잴 수 없음)면 줄이 없다.
-    ⚠️ lines(adv) 에 넣지 않는다 — 데이터가 앞으로 가는 날 '줄이 정확히 몇 개'를 단정하는 시험이 빨개진다(quiz_review_lines 와 같은 까닭)."""
+    ⚠️ lines(adv) 에 넣지 않는다 — 데이터가 앞으로 가는 날 '줄이 정확히 몇 개'를 단정하는 시험이 빨개진다."""
     try:
         import sido_zones as SZ
         want = SZ.permit_over_start_pct(stats or {})
@@ -218,7 +220,7 @@ def content_card_lines(root=None):
 
 
 def lines(adv):
-    """인자 adv 만 보고 찍을 줄. 저장소 파일·오늘 날짜를 읽는 곁가지(theory_claim_lines·quiz_review_lines)는 main() 이 붙인다."""
+    """인자 adv 만 보고 찍을 줄. 저장소 파일을 읽는 곁가지(theory_claim_lines 등)는 main() 이 붙인다."""
     out = []
     gaps = permit_gaps(adv)
     if gaps:
@@ -242,7 +244,6 @@ def main(argv=None):
     # 맨 끝 content_card_lines 하나가 죽으면 그 회차 기록 줄이 **전부** 사라졌다(워크플로는 `|| true` 로 받아 빈 채 넘어간다 —
     # 2026-11-13 전수 리뷰). 죽은 곁가지는 '검사 불가' 한 줄로 남긴다.
     for name, fn in (('인허가 신호', lambda: lines(adv)), ('이론편 전제', theory_claim_lines),
-                     ('퀴즈 검토 기한', lambda: quiz_review_lines(kst.today())),
                      ('시군구 매핑', lambda: sgg_map_gap_lines(adv)), ('손 페이지 인허가', lambda: hand_permit_lines(sts)),
                      ('전환율 재측정', lambda: conv_model_lines(sts)), ('글 카드', content_card_lines)):
         try:

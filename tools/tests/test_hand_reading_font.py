@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""손 페이지(소개·FAQ·개인정보·퀴즈 랜딩 3종·404)와 공용 푸터 면책의 글자 하한 두 단계, 그리고 같은 검수에서 고친 손 페이지 화면.
+"""손 페이지(소개·FAQ·개인정보·404)와 공용 푸터 면책의 글자 하한 두 단계, 그리고 같은 검수에서 고친 손 페이지 화면.
 
 2026-11-06 대표 결정 '읽는 글 14px 하한 채택': 읽는 문장(설명·주석·단락·카드 결론 줄·보기 줄·링크 카드 설명·푸터 면책)은
 site_nav.READ_PX(14px) 이상, 라벨·축 눈금·표 칸·칩·날짜·캡션 한 줄은 site_nav.LABEL_PX(13px) 이상이다. 홈·시세 탭·생성 페이지의
@@ -7,24 +7,22 @@ site_nav.READ_PX(14px) 이상, 라벨·축 눈금·표 칸·칩·날짜·캡션 
 두 단계로 본다.
 
 재현한 실제 상태(2026-11-07 디자인 검수 D, 저장소 그대로):
-  · 퀴즈 랜딩 3종의 예시 보기 줄 `.q .qo` 13.5px(회색)·링크 카드 설명 `.links a span` 13px — 문장인데 라벨 하한만 넘었다(hand-2).
   · 공용 푸터 면책 문장이 손 페이지 `footer{font-size:13px}`·app.css `.disc{13px}`·지표 뼈대 `.disc{13px}` 를 따라 13px 이었다.
   · 링크 줄 '홈 · 소개 · FAQ · 개인정보처리방침 · 메일' 이 한 줄에 중점 넷이었다(hand-10).
-  · 퀴즈 머리 CTA '🐣 부린이 테스트 시작하기' 와 바닥 CTA '지금 바로 테스트 시작 →' 가 같은 곳으로 가는데 말이 달랐고, 소개·FAQ·
-    개인정보·404 의 홈 단추가 '🏠 아공맵 홈으로' 로 단추 안에 OS 색 이모지를 썼다(hand-9).
+  · 소개·FAQ·개인정보·404 의 홈 단추가 '🏠 아공맵 홈으로' 로 단추 안에 OS 색 이모지를 썼다(hand-9).
   · 404 에 되돌아가기가 없고 머리 라벨이 다른 손 페이지의 먹색 칩이 아니었다(hand-4).
   · FAQ 질문 summary 의 오른쪽 여백(20px)이 '+' 기호(right 18px, 20px 글자)를 비워 두지 않아 긴 질문이 기호에 닿았다(hand-1).
   · 개인정보 1·2항 표가 375px 에서 min-width 560px 로 밀려 '보유 기간'·'이전 국가·시점' 이 첫 화면에 없었다(hand-0).
 
 변이(각각 실제로 넣어 빨간 것을 확인):
-  · burini-test `.q .qo` 를 13.5px 로, redev-test `.links a span` 을 13px 로 되돌리면 test_hand_pages_keep_two_floors 가 빨강.
-  · about `.chip` 을 12px 로 내리면 같은 시험이 빨강(라벨 하한).
+  · about `.chip` 을 12px 로 내리면 test_hand_pages_keep_two_floors 가 빨강(라벨 하한).
   · site_nav.FOOTER_DISC 의 인라인 크기를 지우면(또는 READ_PX 를 13 으로) test_footer_disclaimer_is_reading_size 가 빨강.
-  · investor-test 바닥 CTA 를 옛 '지금 바로 테스트 시작 →' 로, 404 홈 단추를 '🏠 아공맵 홈으로' 로 되돌리면 test_cta_wording 이 빨강.
+  · 404 홈 단추를 '🏠 아공맵 홈으로' 로 되돌리면 test_cta_wording 이 빨강.
   · 404 에서 history.back() 단추나 .chip 을 지우면 test_404_offers_a_way_back 이 빨강.
   · faq summary padding 을 옛 '16px 20px' 으로 되돌리면 test_faq_question_leaves_room_for_the_icon 이 빨강.
   · privacy 2항 표 한 칸의 data-label 을 지우거나 머리와 다르게 적으면, `.stack` 클래스를 지우면 test_privacy_key_tables_stack 이 빨강.
-픽스처: 저장소의 손 페이지 HTML·site_nav 상수·make_quiz_share_pages.pages() 그대로(데이터·날짜와 무관 — 앞으로 가도 같은 답).
+픽스처: 저장소의 손 페이지 HTML·site_nav 상수 그대로(데이터·날짜와 무관 — 앞으로 가도 같은 답).
+퀴즈 랜딩 3종·점수 공유 페이지에 관한 단정은 2026-11-14 퀴즈 제거 때 걷었다.
 """
 import io
 import os
@@ -33,13 +31,11 @@ import sys
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
-import make_quiz_share_pages as MQ  # noqa: E402
 import site_nav as N  # noqa: E402
 
 # 13~14px 사이가 허락되는 라벨 자리 — 선택자 맨 끝(주어)의 클래스·태그. 칩·표 머리·탭 라벨·한 줄 메타·코드 식별자·푸터 바탕
 # (브랜드·링크·문의·자료 줄; 면책은 FOOTER_DISC 인라인 14px).
 LABEL_SUBJECTS = {'chip', 'th', 'nav-btn', 'meta', 'code', 'footer', 'sfoot'}
-LANDINGS = ('burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')
 
 
 def _read(rel):
@@ -137,25 +133,15 @@ def _disc_px(foot):
 
 
 def test_footer_disclaimer_is_reading_size():
-    """공용 푸터의 면책 문장은 READ_PX 이상이다 — 손 페이지·생성 페이지·퀴즈 점수 페이지가 같은 FOOTER_DISC 한 줄을 싣는다.
+    """공용 푸터의 면책 문장은 READ_PX 이상이다 — 손 페이지·생성 페이지가 같은 FOOTER_DISC 한 줄을 싣는다.
     인라인 크기라 손 페이지 footer 13px·app.css .disc 13px·지표 뼈대 .disc 13px 위에서도 이긴다. 링크 줄에는 메일이 없고
     문의 줄(FOOTER_CONTACT)이 따로 있다."""
     feet = {'HAND_FOOTER': N.HAND_FOOTER, 'site_footer(src)': N.site_footer('국토교통부'), 'site_footer()': N.site_footer('')}
-    for path, body in MQ.pages()[:1]:
-        feet['퀴즈 점수 페이지'] = re.search(r'<footer.*?</footer>', body, re.S).group(0)
     for name, foot in feet.items():
         px = _disc_px(foot)
         assert px and px >= N.READ_PX, '%s 면책 글자 %s' % (name, px)
         assert N.FOOTER_CONTACT in foot and 'mailto' not in N.FOOTER_LINKS, name
     assert N.FOOTER_LINKS.count(' · ') <= 3, '링크 줄 중점이 넷 이상이다'
-
-
-def test_score_pages_use_the_hand_shell():
-    """퀴즈 점수 공유 페이지의 JS 없는 폴백도 손 페이지 틀이다 — 먹색 칩, 문서 h1 토큰, 공용 푸터(hand-11)."""
-    for path, body in MQ.pages():
-        assert body.count(N.HAND_FOOTER) == 1, path
-        assert '<div class="chip">' in body and 'font-size:var(--h1-doc)' in body, path
-        assert not _floor_breaks(path, body), _floor_breaks(path, body)
 
 
 EMOJI = re.compile('[\U0001F000-\U0001FAFF☀-➿⬀-⯿️]')
@@ -167,12 +153,8 @@ def _ctas(html):
 
 
 def test_cta_wording():
-    """같은 곳으로 가는 퀴즈 CTA 는 한 문구('… 테스트 시작하기', 꼬리 화살표 없음)이고, 손 페이지 단추 글자에는 OS 색 이모지가 없다."""
+    """손 페이지 단추 글자에는 OS 색 이모지와 꼬리 화살표가 없다."""
     bad = []
-    for rel in LANDINGS:
-        starts = [t for h, t in _ctas(_read(rel)) if h.startswith('/#test-')]
-        if len(starts) < 2 or len(set(starts)) != 1 or not starts[0].endswith('테스트 시작하기'):
-            bad.append('%s 시작 CTA %s' % (rel, starts))
     for rel in N.HAND_FOOTER_PAGES:
         html = _read(rel)
         for h, t in _ctas(html) + [('button', re.sub(r'<[^>]+>', '', t).strip())

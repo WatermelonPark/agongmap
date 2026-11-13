@@ -52,8 +52,8 @@ TABS = (
 # 손 페이지가 켜는 탭(2026-10-30 디자인 리뷰 — 퀴즈 3종은 '홈', FAQ 는 아무것도 켜지 않았는데 푸터 사이트맵에서는 둘 다
 # '읽을거리'였다). 읽을거리는 콘텐츠 탭('reports')이 맡으므로 그 탭을 켠다. 소개·개인정보·404 는 어느 탭에도 속하지 않아
 # 켜지 않는다. test_site_nav 가 각 손 페이지 탭바의 켜진 탭을 이 표와 대조한다.
-HAND_TAB_ON = {'faq/index.html': 'reports', 'burini-test/index.html': 'reports',
-               'investor-test/index.html': 'reports', 'redev-test/index.html': 'reports',
+# 퀴즈 랜딩 3종은 2026-11-14 퀴즈 제거로 빠졌다(그 주소는 홈으로 넘기는 최소 페이지라 탭바·푸터가 없다).
+HAND_TAB_ON = {'faq/index.html': 'reports',
                'about/index.html': None, 'privacy/index.html': None, '404.html': None}
 # 탭 라벨 글자 크기(px) — 라벨 글자 하한 13px(2026-09-28 대표 결정 — 홈 작은 글씨 정리, 예전 11.5px). 탭바는 모든 페이지
 # 공용이라 app.css·손 페이지 <style>·생성기(make_indicator_pages SHELL, make_weekly_page put_nav)가 이 값을 쓴다 —
@@ -136,8 +136,7 @@ def bottomnav(on=None):
 # 뼈대(make_indicator_pages SHELL·/weekly/ 뼈대)의 .disc·footer 규칙이 13px 이어도 이 한 줄이 이긴다. 그래서 면책 크기를 바꿀
 # 곳은 여기 하나다(test_hand_reading_font 가 손 페이지·site_footer·퀴즈 점수 페이지를 본다).
 # 연락처 agongmap@gmail.com 은 서비스 대표 주소(공개 연락처, 2026-09-18 대표 결정)다.
-HAND_FOOTER_PAGES = ('about/index.html', 'faq/index.html', 'privacy/index.html', 'burini-test/index.html',
-                     'investor-test/index.html', 'redev-test/index.html', '404.html')
+HAND_FOOTER_PAGES = ('about/index.html', 'faq/index.html', 'privacy/index.html', '404.html')
 # 모든 페이지 푸터가 싣는 링크 줄의 정본(2026-10-30 디자인 리뷰 — 생성 페이지·콘텐츠 페이지 대부분에 개인정보처리방침 링크가
 # 없었다). 손 페이지 HAND_FOOTER 와 생성기 푸터(site_footer)가 같은 글자를 쓰고, test_site_nav 가 저장소의 모든 <footer> 에
 # 이 줄이 있는지 본다(홈 세 벌은 갱신 주기로 묶은 사이트맵 푸터라 test_home_summary 가 따로 본다).

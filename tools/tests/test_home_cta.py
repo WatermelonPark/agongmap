@@ -7,7 +7,8 @@
 입구 셋(격자·버튼·푸터)도 구별할 수 없었다.
 
 무엇을 깨뜨리면 빨개지나: 퀴즈 버튼 하나의 onclick 을 지우거나, 격자 링크의 to 를 'weekly_map' 으로 바꿔 버튼과
-겹치게 하거나, 값을 'WeeklyGrid' 처럼 snake_case 밖으로 쓰면 빨개진다(셋 다 실제로 바꿔 확인).
+겹치게 하거나, 값을 'WeeklyGrid' 처럼 snake_case 밖으로 쓰면 빨개진다(셋 다 실제로 바꿔 확인). 퀴즈 버튼 셋(quiz_*)은
+2026-11-14 퀴즈 제거로 홈에서 빠졌다 — 지금은 사이클 버튼의 onclick 을 지우면 같은 갈래로 빨개진다.
 픽스처: 손으로 쓴 index.html 홈 뷰와 home-app.js 가 굽는 주간 격자 링크(home_src 로 읽는다).
 """
 import os
@@ -22,13 +23,11 @@ import blog_feed as BF  # noqa: E402  (블로그 첫 화면 주소의 정본 —
 WANT = {
     ('/zone/', '시도별로 자세히 보기'): 'zone_hub',
     ('#stats-market-week-rank', '시군구 상승·하락 TOP 10 보기'): 'weekly_map',   # 순위 보기 입구(2026-10-10)
-    ('/burini-test/', '부린이 테스트 · 난이도'): 'quiz_burini',
-    ('/investor-test/', '투자자 테스트 · 난이도'): 'quiz_investor',
-    ('/redev-test/', '재건축·재개발 테스트 · 난이도'): 'quiz_redev',
+    # 퀴즈 버튼 셋(quiz_burini·quiz_investor·quiz_redev)은 2026-11-14 퀴즈 3종 제거로 뺐다.
     ('/cycle/', '사이클 리포트 읽기'): 'cycle',
     ('/weekly/', '이번 주 시세 지도'): 'weekly_footer',
     # 푸터 블로그 링크(blog_footer)는 2026-10-29 콘텐츠 입구 개편에서 뺐다(블로그 발행 종료 — 푸터는 '읽을거리' 섹션 링크).
-    # 다시 생기지 않는지는 test_home_summary.test_three_footers_are_the_same_grouped_by_cadence 가 본다.
+    # 다시 생기지 않는지는 test_home_summary.test_footers_are_the_same_grouped_by_cadence 가 본다.
     # 3차(2026-09-27): 이달의 통계 입구(B6·IA-8 — 푸터 '이달의 통계'와 가르려고 입구 이름 전체로 찾는다).
     # 첫 화면 '이번 주' 띠(weekly_hero)·'내 지역' 줄(my_zone)은 2026-10-05 대표 요청으로 뺐다.
     ('/monthly/', '이달의 통계 한 화면으로 보기'): 'monthly',
@@ -84,8 +83,7 @@ def test_in_page_entrances_keep_the_landing_query():
     bad = re.findall(r'<a class="home-cta" href="(/#[^"]*)"', home)
     assert not bad, '같은 문서 안 화면 전환 입구가 절대 경로(%s)다 — 쿼리 착지에서 문서를 다시 불러온다' % bad
     src = HS.home_source()
-    # 홈 주소의 쿼리는 q — 퀴즈가 아니면 대결 쿼리(c·s·q)만 걷은 location.search(chalSearch, 전수리뷰 #44)
+    # 홈 주소의 쿼리는 q — 착지 쿼리(location.search) 그대로. 대결 쿼리 걷기(chalSearch)는 2026-11-14 퀴즈 제거로 빠졌다.
     m = re.search(r"tgtUrl=v==='home'\?([^:]+):", src)
     assert m and m.group(1) == 'location.pathname+q', "홈으로 갈 때 pushState 주소가 쿼리를 버린다: %s" % (m and m.group(1))
-    assert "const q=v==='test'?location.search:chalSearch();" in src
-    assert re.search(r"function chalSearch\(\)\{\s*if\(!chalInURL\(location\.search\)\)return location\.search;", src)
+    assert "const q=location.search;" in src

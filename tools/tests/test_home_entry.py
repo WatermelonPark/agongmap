@@ -86,9 +86,9 @@ def _home_parts():
     src = HS.home_source()
     r2c = re.search(r'^const R2C=new Set\(\[.*?\]\);', src, re.M)
     assert r2c, 'R2C(리포트로 넘기는 옛 해시) 선언을 찾지 못했다'
-    # PV_SENT(부팅 page_view 를 보냈는가)와 대결 쿼리 걷기(chalInURL·chalSearch)는 showView 가 쓴다(전수리뷰 #44·#46)
-    return '\n'.join(['var PV_SENT=false, PV_AFTER=null;', _js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
-                      _js_func(src, 'chalInURL'), _js_func(src, 'chalSearch'), _js_func(src, 'chalBootable'),
+    # PV_SENT(부팅 page_view 를 보냈는가)는 showView 가 쓴다(전수리뷰 #46). 대결 쿼리 걷기(chalInURL 등)는 2026-11-14
+    # 퀴즈 제거로 홈에서 빠졌다.
+    return '\n'.join(['var PV_SENT=false;', _js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
                       _js_func(src, 'applyHash'), r2c.group(0),
                       # 시장동향 주소 입구는 요청한 때의 GT_SEQ 를 넘긴다(2026-11-12 누름 경로 점검 B) — 그 선언도 같이 싣는다
                       re.search(r'^const GT_SEQ=\{[^}]*\};', src, re.M).group(0)])
@@ -140,14 +140,12 @@ const queueAtHead = (ctx.dataLayer || []).map((a) => [a[0], typeof a[1] === 'str
 const gtagAtHead = typeof ctx.gtag;
 if (!CFG.noHome) {
   vm.runInContext(`
-    var vHome={style:{}},vStats={style:{}},vTest={style:{}};
+    var vHome={style:{}},vStats={style:{}};
     var statsInited=true,curView=null,statsMode='market';
     function setStatsMode(m,p){ __rec.stats.push([m,p]); }
     function setMarketTab(t,p){ __rec.market.push([t,p]); }
     function setAdvTab(t,p){ __rec.adv.push([t,p]); }
     function openTrendRegion(k,c,v){ __rec.trend.push([k,c,v]); }
-    function startQuiz(){ __rec.quiz.push([].slice.call(arguments)); }
-    function backToPick(){}
     function afterLayout(fn){}
     function statsHashOf(m){ return '#stats-'+m+(m==='market'?'-week':''); }
   `, Object.assign(ctx, {__rec: rec}));
@@ -284,6 +282,7 @@ def _all_drafts(monkeypatch):
     n_rot = len(P.MORE_ROTATION)
     for rot in range(n_rot):
         monkeypatch.setattr(P, 'rot_index', lambda p, _r=rot: _r)
+        monkeypatch.setattr(P, 'more_index', lambda p, _r=rot: _r)   # '더 보기' 칸은 따로 돈다(2026-11-14 퀴즈 칸 제거)
         out['weekly-%d' % rot] = P.draft_weekly(adv, sts)['body']
     zones = [z for z in adv['sido']['zones'] if not z.get('agg')]
     for seq in range(1, len(P.ZONE_CTA) + 1):
@@ -319,7 +318,6 @@ def test_weekly_map_link_lands_on_stats_with_campaign(monkeypatch):
     (SITE + '/#stats-market-week', 'view_stats', SITE + '/?view=stats#stats-market-week'),
     (SITE + '/#stats-adv-occ', 'view_stats', SITE + '/?view=stats#stats-adv-occ'),
     (SITE + '/#score', 'view_home', SITE + '/#score'),
-    (SITE + '/#test', 'view_test', SITE + '/?view=test#test'),
     (BLOG_URL, 'view_stats', FIXED_PV),
 ])
 def test_boot_sends_exactly_one_page_view(start, view, loc):
@@ -368,30 +366,29 @@ def _ga_path_query(u):
 
 
 def test_page_path_report_tells_views_apart():
-    """MEAS-1 권고: GA 페이지 경로 보고서에서 홈·통계·퀴즈가 서로 다른 한 줄씩이어야 한다.
+    """MEAS-1 권고: GA 페이지 경로 보고서에서 홈·통계가 서로 다른 한 줄씩이어야 한다(퀴즈 화면은 2026-11-14 제거).
 
-    픽스처: 캠페인 없는 세 착지('/', 통계 해시, 퀴즈 해시)에서 부팅한 뒤 탭을 오가는 실제 순서, 그리고
+    픽스처: 캠페인 없는 두 착지('/', 통계 해시)에서 부팅한 뒤 탭을 오가는 실제 순서, 그리고
     요소 앵커(#sec-week — 홈 화면이 뜬 채 머리 로더가 채운 한 건, page_title 없음). 화면 하나는 부팅이든
     전환이든 같은 한 줄로, 화면끼리는 다른 줄로 모여야 한다. 옛 '/#'+v 는 셋 다 '/' 한 줄이었다.
     주소창에 GA 보고서의 가상 주소를 붙여 넣고 다른 화면 해시로 들어와도 view= 가 두 번 붙지 않는다.
     """
     seen = {}
-    runs = [(SITE + '/', ["showView('stats')", "showView('test')", "showView('home')"], []),
+    runs = [(SITE + '/', ["showView('stats')", "showView('home')"], []),
             (SITE + '/#stats-market-week', ["showView('home')", "showView('stats')"], []),
-            (SITE + '/#test', ["showView('stats')", "showView('home')", "showView('test')"], []),
             (SITE + '/#sec-week', ["showView('stats')"], ['sec-week'])]
     for start, after, ids in runs:
         got = _run(start, after=after, ids=ids)
         assert len(got['pv']) == len(after) + 1, got['pv']
         for pv in got['pv']:
             seen.setdefault(pv.get('page_title') or 'view_home', set()).add(_ga_path_query(pv['page_location']))
-    assert set(seen) == {'view_home', 'view_stats', 'view_test'}, seen
+    assert set(seen) == {'view_home', 'view_stats'}, seen
     for title, rows in seen.items():
         assert len(rows) == 1, '%s 가 부팅·전환에서 다른 주소로 갈라진다: %s' % (title, sorted(rows))
     rows = {title: next(iter(r)) for title, r in seen.items()}
     assert len(set(rows.values())) == len(rows), '화면끼리 페이지 경로 한 줄로 합쳐진다: %s' % rows
     assert rows['view_home'] == '/', rows
-    got = _run(SITE + '/?view=test#stats-market-week')
+    got = _run(SITE + '/?view=home#stats-market-week')
     assert got['pv'][0]['page_location'] == SITE + '/?view=stats#stats-market-week', got['pv']
 
 
@@ -442,97 +439,18 @@ def test_bare_stats_hash_sets_the_default_screen_and_normalizes_the_address():
     assert _views(got) == ['view_stats']
 
 
-def test_bad_challenge_link_sends_one_boot_page_view():
-    """값이 틀린 대결 링크(점수 상한 초과)는 부팅 page_view 가 한 번(view_home, 착지 주소)이다(전수리뷰 #46).
-    맞는 대결 링크도 한 번(view_test).
+def test_old_quiz_hash_opens_home_and_drops_the_hash():
+    """옛 퀴즈 주소(/#test·/#test-<세트>, 발행한 글·북마크·공유 링크에 남아 있다)는 홈을 열고 주소에서 해시를 걷는다 — 퀴즈 3종은
+    2026-11-14 대표 결정으로 걷었다. 부팅 page_view 는 홈(view_home) 한 번이고 착지 쿼리(utm)를 그대로 싣는다.
 
-    변이: showView 의 quiet 인자를 무시하면(`if(changed&&!quiet)` → `if(changed)`) view_test·view_home 두 건이 나가
-          빨개진다(실제로 확인).
-    픽스처: boot 의 실제 순서 — showView('test',false,true) 뒤 bootChallenge 가 readChallenge 실패로 applyHash, 또는
-            성공해 showView('test',false). 착지 주소 '/?c=11&s=beginner'(QUIZ_LEN 10 초과)와 '/?c=7&s=beginner&q=abc'.
+    변이(실제로 확인): applyHash 의 옛 퀴즈 주소 갈래를 지우면 해시가 남고(모르는 해시라 요소 앵커로 빠진다) 빨개진다.
+    픽스처: 퀴즈 랜딩 '시작하기'가 보내던 주소 모양(/?utm_source=kakao#test-investor)과 맨 #test.
     """
-    bad = _run(SITE + '/?c=11&s=beginner', bootFails=True, beforeDCL=["showView('test',false,true)", 'applyHash()'])
-    assert _views(bad) == ['view_home'], bad['pv']
-    assert bad['pv'][0]['page_location'] == SITE + '/?c=11&s=beginner', bad['pv']
-    assert bad['href'] == SITE + '/', '값이 틀린 대결 쿼리가 홈 주소에 남았다: %s' % bad['href']
-    ok = _run(SITE + '/?c=7&s=beginner&q=abc', bootFails=True,
-              beforeDCL=["showView('test',false,true)", "showView('test',false)"])
-    assert _views(ok) == ['view_test'], ok['pv']
-
-
-def test_challenge_query_leaves_with_the_quiz_and_other_hashes_win():
-    """대결 쿼리(c·s·q)는 퀴즈 화면에서만 남는다 — 시세·홈으로 옮기면 걷고 utm 은 둔다. 부팅은 그 대결 세트 퀴즈 해시
-    (또는 해시 없음)일 때만 대결로 간다(전수리뷰 #44·#49).
-
-    변이(실제로 확인): showView 의 `q` 를 location.search 로 되돌리면 옮긴 주소에 c·s·q 가 남아, chalBootable 이 늘 참을
-          내면 '#stats-…' 부팅 단정이 빨개진다.
-    픽스처: 대결 링크로 들어와 퀴즈(#test-beginner)를 보다가 하단 '시세' → '홈'을 누른 실제 순서, 그리고 옛 탭에 남은
-            '?c=7&s=beginner#stats-market-week' 주소.
-    """
-    start = SITE + '/?c=7&s=beginner&q=abc&utm_source=quiz_challenge#test-beginner'
-    got = _run(start, bootFails=True, beforeDCL=["__rec.quiz.push(['boot', chalBootable()])",
-                                                  "showView('test',false,true)", "showView('test',false)"],
-               after=["showView('stats')", "__rec.quiz.push(['stats', location.href])",
-                      "showView('home')", "__rec.quiz.push(['home', location.href])"])
-    q = dict((k, v) for k, v in got['rec']['quiz'])
-    assert q['boot'] is True
-    assert q['stats'] == SITE + '/?utm_source=quiz_challenge#stats-market-week', q['stats']
-    assert q['home'] == SITE + '/?utm_source=quiz_challenge', q['home']
-    old = _run(SITE + '/?c=7&s=beginner#stats-market-week', bootFails=True,
-               beforeDCL=["__rec.quiz.push(['boot', chalBootable()])"])
-    assert old['rec']['quiz'] == [['boot', False]], '다른 화면 해시가 붙은 대결 주소를 대결로 부팅한다'
-
-
-
-def test_leaving_the_challenge_quiz_strips_the_query_from_both_entries():
-    """대결 퀴즈(/?c=&s=&q=#test-…)에서 시세로 옮기면, 새 항목만이 아니라 떠나는 퀴즈 항목의 주소에서도 대결 쿼리를 먼저
-    걷는다(replaceState). 두 항목의 쿼리가 다르면 뒤로 가기에 hashchange 가 오지 않아(popstate 만) 주소는 퀴즈인데 화면은
-    시세에 머물렀다(통합 검토, Chromium 재현: 새 판 view=stats hc=0 · 기준 커밋 view=test hc=1).
-
-    변이(실제로 확인): showView 의 `if(curView==='test'&&v!=='test'&&chalInURL(location.search))history.replaceState(…)` 줄을
-          지우면 퀴즈 항목을 걷는 replace 가 없어 빨개진다.
-    픽스처: 퀴즈 랜딩이 넘기는 대결 링크 모양과 utm 한 개(걷지 않고 남아야 한다).
-    """
-    got = _run('https://www.agongmap.co.kr/?utm_source=kakao&c=6&s=investor&q=abc12#test-investor',
-               after=["showView('stats')"])
-    rep = [u for u in got['rec']['replace'] if u.endswith('#test-investor')]
-    assert rep and all('c=' not in u and 'q=' not in u for u in rep) and 'utm_source=kakao' in rep[-1], got['rec']
-    pushed = got['rec']['push'][-1]
-    assert pushed.endswith('#stats-market-week'), pushed
-    left = rep[-1].split('#')[0]
-    assert (pushed.split('#')[0] or left) == left, '두 항목의 쿼리가 다르다 — 뒤로 가기에 hashchange 가 오지 않는다: %s · %s' % (left, pushed)
-
-
-def test_head_fallback_leaves_the_boot_page_view_to_a_deferred_challenge_boot():
-    """머리 스크립트의 idle 폴백은 dataLayer 에 page_view 가 없으면 보낸다. 대결 부팅은 page_view 를 home-quiz.js 도착 뒤로
-    미루므로(#46) 그 파일만 늦으면 폴백과 bootChallenge 가 한 건씩 두 건을 보냈다(통합 검토 — home-quiz.js 800ms 지연 재현).
-    부팅이 window.__pvDefer 를 세우면 폴백은 보내지 않는다. 표지가 없으면 예전처럼 한 건을 보낸다.
-
-    변이(실제로 확인): index.html 머리 load() 의 `&&!window.__pvDefer` 를 지우면 첫 단정이 빨개진다.
-    픽스처: 홈 스크립트 없이 머리만 돈 상태(home-quiz.js 가 아직 안 온 대결 부팅과 같다).
-    """
-    got = _run('https://www.agongmap.co.kr/?c=6&s=investor&q=abc12', noHome=True, beforeDCL=['window.__pvDefer=true'])
-    assert got['pv'] == [], got['pv']
-    got = _run('https://www.agongmap.co.kr/', noHome=True)
-    assert len(got['pv']) == 1, got['pv']
-
-
-def test_deferred_boot_runs_the_visit_after_the_first_page_view():
-    """대결 부팅의 home_visit 은 부팅 page_view 뒤에 간다 — boot 가 countVisit 를 PV_AFTER 로 걸어 두고, showView 가 첫
-    page_view 를 보낸 직후 한 번 부른다. 예전엔 page_view 가 bootChallenge 로 미뤄진 뒤에도 boot 가 곧바로 home_visit 을
-    보내 순서가 늘 뒤집혔다(통합 검토).
-
-    변이(실제로 확인): showView 의 `if(first&&PV_AFTER){…}` 를 지우면 기록이 비어 빨개지고, boot 의 대결 분기에서
-          `PV_AFTER=()=>{VISIT=countVisit();};` 를 지우면 정적 단정이 빨개진다.
-    픽스처: 부팅 applyHash 없이(bootFails), 부팅처럼 __pvDefer 를 세우고 quiet 로 퀴즈를 띄운 뒤 대결 확정
-            (showView('test',false))을 흉내 낸다.
-    """
-    got = _run('https://www.agongmap.co.kr/?c=6&s=investor&q=abc12', bootFails=True, beforeDCL=['window.__pvDefer=true'], after=[
-        "PV_AFTER=()=>{__rec.quiz.push(['visit',(dataLayer||[]).filter(a=>a&&a[1]==='page_view').length]);}",
-        "showView('test',false,true)", "showView('test',false)", "showView('home')"])
-    assert got['rec']['quiz'] == [['visit', 1]], got['rec']['quiz']
-    boot = _js_func(HS.home_source(), 'boot')
-    assert 'PV_AFTER=()=>{VISIT=countVisit();};' in boot and 'if(!PV_AFTER)VISIT=countVisit();' in boot
+    for frag in ('#test-investor', '#test'):
+        got = _run(SITE + '/?utm_source=kakao' + frag)
+        assert got['href'] == SITE + '/?utm_source=kakao', got['href']
+        assert _views(got) == ['view_home'], got['pv']
+        assert got['pv'][0]['page_location'] == SITE + '/?utm_source=kakao', got['pv']   # utm 은 남는다
 
 
 def test_head_scripts_leave_no_globals():
