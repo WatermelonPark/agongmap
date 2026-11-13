@@ -752,8 +752,13 @@ def update_sitemap(entries):
     for path, lm in entries:
         loc = SITE + path
         pat = r'(<loc>%s</loc>\s*<lastmod>)[^<]*(</lastmod>)' % re.escape(loc)
+        bare = r'(<loc>%s</loc>)(?!\s*<lastmod>)' % re.escape(loc)
         if re.search(pat, x):
             x = re.sub(pat, r'\g<1>%s\g<2>' % lm, x)
+        elif re.search(bare, x):
+            # lastmod 가 없는 줄(손으로 넣은 url)은 그 자리에 lastmod 를 단다. 예전엔 '없다'로 보고 url 을 하나 더 붙여 같은 주소가
+            # 두 번 실렸다(2026-11-13 전수 리뷰 G4 — 지금 sitemap 에는 그런 줄이 없어 아직 드러나지 않았다).
+            x = re.sub(bare, r'\g<1>\n    <lastmod>%s</lastmod>' % lm, x, count=1)
         else:
             block = ('\n  <url>\n    <loc>%s</loc>\n    <lastmod>%s</lastmod>\n'
                      '    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>'

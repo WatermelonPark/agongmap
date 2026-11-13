@@ -379,6 +379,13 @@ def main():
         zones, overlay = prev['zones'], prev['rate_overlay']
         print('  ⚠️ 매매·전세지수 기준시점이 다르다(%s) — zones·rate_overlay 는 어제 판을 둔다(재수집 보류 중인 계열이 복구되면 다시 굽는다)'
               % ', '.join('%s %s' % (k, index_basis(S.get(k))) for k in RC.INDEX_KEYS))
+    if not overlay.get('t'):
+        # 금리 계열이 비었거나(ECOS 를 못 받은 회차) 매매지수와 겹치는 분기가 없으면 금리 오버레이는 어제 판을 둔다. 예전엔 빈 배열을
+        # 그대로 실어 페이지를 쓴 뒤 아래 로그 줄의 overlay['maemae'][-1] 이 IndexError 로 죽었다 — 생성기가 실패하면 배치는 그날
+        # 데이터 전체를 커밋하지 않는다(2026-11-13 전수 리뷰 Y4).
+        prev = json.loads(re.search(r'const D=(\{.*?\});\n', page, re.S).group(1))
+        overlay = prev['rate_overlay']
+        print('  ⚠️ 금리 오버레이에 겹칠 분기가 없다(금리 계열을 못 받은 회차) — rate_overlay 는 어제 판을 둔다')
     lvl, sudo_mean, jib_mean, prd = build_jratio(S)
 
     page = splice(page, 'zones', zones)

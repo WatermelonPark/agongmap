@@ -258,19 +258,21 @@ def write(data, cps, root=ROOT):
     d = os.path.join(root, FONT_DIR)
     os.makedirs(d, exist_ok=True)
     fname = 'home-%s.woff2' % hashlib.sha1(data).hexdigest()[:10]
-    for f in os.listdir(d):
-        if re.match(r'home-[0-9a-f]+\.woff2$', f) and f != fname:
-            os.remove(os.path.join(d, f))
-    io.open(os.path.join(d, fname), 'wb').write(data)
-    lic = os.path.join(root, 'tools', 'fonts', 'LICENSE.txt')
-    if os.path.isfile(lic):
-        io.open(os.path.join(d, 'LICENSE.txt'), 'wb').write(io.open(lic, 'rb').read())
+    # 홈의 표식 구간부터 본다 — 예전엔 옛 서브셋을 먼저 지운 뒤 구간 검사에서 멈춰, 홈이 가리키는 글꼴 파일이 사라진 채 끝났다
+    # (2026-11-13 전수 리뷰 B7). 새 파일·홈 쓰기가 다 끝난 뒤에 옛 파일을 지운다.
     path = os.path.join(root, HS.HOME)
     h = io.open(path, encoding='utf-8').read()
     if h.count(START) != 1 or h.count(END) != 1:
         raise SystemExit('index.html 에 %s … %s 구간이 하나씩 있어야 한다' % (START, END))
+    io.open(os.path.join(d, fname), 'wb').write(data)
+    lic = os.path.join(root, 'tools', 'fonts', 'LICENSE.txt')
+    if os.path.isfile(lic):
+        io.open(os.path.join(d, 'LICENSE.txt'), 'wb').write(io.open(lic, 'rb').read())
     out = _BLOCK.sub(lambda m: START + block_html(fname, ranges(cps), root) + END, h)
     io.open(path, 'w', encoding='utf-8', newline='\n').write(out)
+    for f in os.listdir(d):
+        if re.match(r'home-[0-9a-f]+\.woff2$', f) and f != fname:
+            os.remove(os.path.join(d, f))
     return fname
 
 

@@ -174,7 +174,7 @@ def test_audit_counts_only_decorative_shadows(tmp_path):
 
 
 def test_audit_and_apply_see_the_same_tracking_and_uppercase(tmp_path):
-    """자간·대문자 변환을 감사가 세면 적용 도구가 고치고, 둘 다 같은 꼴을 본다 — '0.08em'·'1em'·'.045em'·쌍점 뒤 빈칸.
+    r"""자간·대문자 변환을 감사가 세면 적용 도구가 고치고, 둘 다 같은 꼴을 본다 — '0.08em'·'1em'·'.045em'·쌍점 뒤 빈칸.
 
     왜: 두 도구가 정규식을 따로 적어, 자간은 둘 다 '.05em' 꼴만 잡았고('0.08em'·'1em'·'.045em' 은 위반 없음으로 나왔다),
         `text-transform: uppercase`(쌍점 뒤 빈칸)는 감사가 세는데 적용은 그대로 남겼다(2026-11-13 전수 리뷰).
@@ -198,7 +198,7 @@ def test_audit_and_apply_see_the_same_tracking_and_uppercase(tmp_path):
 
 
 def test_shadow_scan_is_linear_and_agrees_with_the_rule_grammar():
-    """그림자 훑기는 문서 길이에 비례하고, 예전 정규식과 같은 답을 낸다.
+    r"""그림자 훑기는 문서 길이에 비례하고, 예전 정규식과 같은 답을 낸다.
 
     왜: 예전 식은 그림자가 없는 규칙마다 선택자 자리의 모든 시작점에서 다시 훑어 제곱으로 느렸다 — 시도 리포트 한 장에 13초,
         /cycle/ 에 7초, 이 감사를 부르는 시험 하나가 24초로 게이트에서 셋째로 느렸다(2026-11-13 전수 리뷰).

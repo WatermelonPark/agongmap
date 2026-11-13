@@ -17,6 +17,8 @@ import os
 import re
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import make_home_font as F  # noqa: E402
@@ -137,3 +139,19 @@ def test_home_script_strings_are_inside_the_subset():
     assert not miss, ('홈 스크립트 문구에 서브셋에 없는 글자가 있다: %s — `pip install fonttools brotli` 뒤 '
                       '`python tools/make_home_font.py` 로 다시 구울 것(원본 글꼴에 없는 글자면 NOT_IN_FONT 에)'
                       % ' '.join('%s(U+%04X)' % (c, ord(c)) for c in miss))
+
+
+def test_writing_keeps_the_old_subset_when_the_home_has_no_slot(tmp_path):
+    """홈에 글꼴 표식 구간이 없으면 아무것도 지우지 않고 멈춘다 — 홈이 가리키는 옛 서브셋이 남아야 한다.
+
+    변이(실제로 확인): write 에서 옛 파일 지우기를 예전처럼 구간 검사 앞으로 옮기면 옛 파일이 사라져 빨개진다.
+    픽스처: 옛 서브셋 하나가 든 글꼴 폴더와 표식 구간이 없는 홈(손으로 고치다 구간을 지운 상태).
+    """
+    import make_home_font as F
+    d = tmp_path / F.FONT_DIR
+    d.mkdir(parents=True)
+    (d / 'home-0123456789.woff2').write_bytes(b'old')
+    (tmp_path / 'index.html').write_text('<html><head></head><body></body></html>', encoding='utf-8')
+    with pytest.raises(SystemExit):
+        F.write(b'new font bytes', {0x41}, root=str(tmp_path))
+    assert sorted(p.name for p in d.iterdir()) == ['home-0123456789.woff2']

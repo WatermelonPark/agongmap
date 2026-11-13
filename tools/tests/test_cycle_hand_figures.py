@@ -121,6 +121,23 @@ def _run_refresh(monkeypatch, tmp_path, S):
     return json.loads(re.search(r'const D=(\{.*?\});\n', txt, re.S).group(1))
 
 
+def test_refresh_keeps_the_rate_overlay_when_the_rate_series_is_empty(monkeypatch, tmp_path, capsys):
+    """금리 계열을 못 받은 회차(빈 계열)에도 생성기는 끝까지 돌고, 금리 오버레이는 어제 판을 둔다.
+
+    왜: 빈 금리면 build_overlay 가 분기 0개를 돌려주는데, main 은 그것을 실어 페이지를 쓴 뒤 로그 줄에서 IndexError 로 죽었다 —
+        생성기 실패는 그날 데이터 전체의 커밋을 막는다(2026-11-13 전수 리뷰 Y4).
+    변이(실제로 확인): main 의 `if not overlay.get('t'):` 묶음을 지우면 IndexError 로 빨개진다.
+    픽스처: 실제 STATS 에서 금리 계열만 비운 판(ECOS 를 못 받은 회차의 저장 모양).
+    """
+    S = RF.load_stats()
+    before = json.loads(re.search(r'const D=(\{.*?\});\n', io.open(RF.PAGE, encoding='utf-8').read(), re.S).group(1))
+    S['금리'] = dict(S['금리'], series={k: [] for k in S['금리']['series']})
+    assert not RF.build_overlay(S)['t']
+    D = _run_refresh(monkeypatch, tmp_path, S)
+    assert D['rate_overlay'] == before['rate_overlay']
+    assert '금리 오버레이에 겹칠 분기가 없다' in capsys.readouterr().out
+
+
 def test_refresh_keeps_the_overlay_charts_while_index_bases_differ(monkeypatch, tmp_path):
     """매매·전세지수의 기준시점이 다르면(한 계열만 재수집에 성공 — 수집은 계열마다 따로 재수집·보류한다) 두 지수를 한 축에
     겹치는 zones·rate_overlay 는 어제 판을 둔다. 기준이 같으면 예전처럼 새로 굽는다.
