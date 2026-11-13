@@ -44,14 +44,14 @@ PAGE = '''<!doctype html>
 <meta name="twitter:card" content="%(tw)s">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/app.css">
-<style>.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:6px 16px;margin-bottom:18px}
+<style>.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:6px 16px;margin-bottom:18px}
 .sfoot{text-align:center}</style>
 </head><body>
 <main class="wrap" style="max-width:560px;margin:14vh auto 0;text-align:center;padding:0 20px">
-<div class="chip">%(emoji)s %(title)s</div>
+<div class="chip">%(title)s</div>
 <h1 style="font-size:var(--h1-doc);line-height:1.3">친구의 점수 %(sc)d/%(n)d점</h1>
 <p style="color:var(--ink2);line-height:1.7;margin-top:12px">친구가 받은 점수입니다. 같은 문제로 도전하는 화면으로 이동합니다.</p>
-<p style="margin-top:22px"><a href="%(landing)s" style="display:inline-block;background:var(--ink);color:#fff;font-size:17px;font-weight:600;padding:14px 26px;border-radius:3px;text-decoration:none">같은 문제로 도전하기</a></p>
+<p style="margin-top:22px"><a href="%(landing)s" style="display:inline-block;background:var(--brand);color:#fff;font-size:17px;font-weight:600;padding:14px 26px;border-radius:3px;text-decoration:none">같은 문제로 도전하기</a></p>
 </main>
 %(footer)s
 <script>

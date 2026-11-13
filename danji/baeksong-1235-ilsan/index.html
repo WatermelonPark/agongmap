@@ -117,16 +117,17 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     ]
   }
 ]</script>
-<style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -169,14 +170,16 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -192,9 +195,9 @@ footer a{color:var(--ink2)}
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -207,12 +210,12 @@ footer a{color:var(--ink2)}
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -254,11 +257,12 @@ footer a{color:var(--ink2)}
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -283,10 +287,10 @@ footer a{color:var(--ink2)}
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
@@ -298,14 +302,14 @@ footer a{color:var(--ink2)}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -313,7 +317,7 @@ footer a{color:var(--ink2)}
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
@@ -380,7 +384,7 @@ footer a{color:var(--ink2)}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -409,15 +413,15 @@ footer a{color:var(--ink2)}
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">항목</th><th scope="col" class="tx">이름</th><th scope="col" class="tx">거리</th></tr></thead><tbody><tr><th scope="row">배정초</th><td class="tx">고양백석초</td><td class="tx">구역 안, 1단지 정문 도보 1분</td></tr><tr><th scope="row">가까운 학원가</th><td class="tx">백마학원가(마두동 143개, 일산동구 1위)</td><td class="tx">도보 10~18분</td></tr><tr><th scope="row">일산 최대 학원가</th><td class="tx">후곡학원가(일산동 202개)</td><td class="tx">약 3.6km, 차량 이동</td></tr><tr><th scope="row">대형마트</th><td class="tx">이마트 일산점, 코스트코 일산점</td><td class="tx">도보 14분, 25분</td></tr><tr><th scope="row">백화점·쇼핑몰</th><td class="tx">벨라시타, 뉴코아아울렛 일산점, 롯데백화점 일산점</td><td class="tx">도보 24~39분</td></tr><tr><th scope="row">대형 병원</th><td class="tx">국민건강보험공단 일산병원</td><td class="tx">도보 14분</td></tr><tr><th scope="row">공원</th><td class="tx">백송공원(구역 안), 백석공원</td><td class="tx">도보 0~11분</td></tr></tbody></table></div>
 <p>일산동구 1위 학원가인 백마학원가와 일산병원·이마트가 걸어서 15분 안팎이고, 초등학교가 구역 안에 있다. 역은 걸어서 15~20분이라 역세권은 아니다. 입주민 후기에서는 초품아·학원가와 일산에서 가장 빠른 재건축 속도가 장점으로, 주차난과 노후가 걱정거리로 꼽힌다.</p>
 <h2>고양 입주 물량</h2>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>고양 2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정물량은 8,448세대. 3년 합계(2027~2029년) 10,836세대 · 적정물량 대비 43%." class="cchart-svg"><rect x="120.0" y="150.4" width="72.0" height="19.6" class="cb"/><text x="156.0" y="146.4" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="119.3" width="72.0" height="50.7" class="cb"/><text x="238.0" y="115.3" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="49.3" width="72.0" height="120.7" class="cb"/><text x="320.0" y="45.3" class="cb-v cb-k">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="161.8" width="72.0" height="8.2" class="cb"/><text x="402.0" y="157.8" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="131.8" width="72.0" height="38.2" class="cb"/><text x="484.0" y="127.8" class="cb-v cb-k">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 8,448세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/9 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 10,836세대 · 적정물량 대비 43%</p></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>3,061세대</b><span>고양 2027년 입주</span></div><div class="ccard"><b>36%</b><span>적정물량 대비</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="고양 연도별 입주 물량 막대그래프. 2026년 1,184세대, 2027년 3,061세대, 2028년 7,281세대, 2029년 494세대, 2030년 2,306세대. 한 해 적정물량은 8,448세대. 3년 합계(2027~2029년) 10,836세대 · 적정물량 대비 43%." class="cchart-svg"><rect x="120.0" y="150.4" width="72.0" height="19.6" class="cb"/><text x="156.0" y="146.4" class="cb-v">1,184</text><text x="156.0" y="202" class="cb-x">2026</text><rect x="202.0" y="119.3" width="72.0" height="50.7" class="cb"/><text x="238.0" y="115.3" class="cb-v">3,061</text><text x="238.0" y="202" class="cb-x">2027</text><rect x="284.0" y="49.3" width="72.0" height="120.7" class="cb"/><text x="320.0" y="45.3" class="cb-v cb-k">7,281</text><text x="320.0" y="202" class="cb-x">2028</text><rect x="366.0" y="161.8" width="72.0" height="8.2" class="cb"/><text x="402.0" y="157.8" class="cb-v">494</text><text x="402.0" y="202" class="cb-x">2029</text><rect x="448.0" y="131.8" width="72.0" height="38.2" class="cb"/><text x="484.0" y="127.8" class="cb-v cb-k">2,306</text><text x="484.0" y="202" class="cb-x">2030</text><line x1="6" y1="30.0" x2="634" y2="30.0" class="cb-rule"/><text x="632" y="26.0" class="cb-rl cx-e">적정 8,448세대</text></svg><figcaption>고양 해마다 입주 물량 · 한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/13 조사)</figcaption><p class="cfoot3">3년 합계(2027~2029년) 10,836세대 · 적정물량 대비 43%</p></figure>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col">적정물량 대비</th></tr></thead><tbody><tr><th scope="row">2026</th><td>1,184</td><td>14%</td></tr><tr><th scope="row">2027</th><td>3,061</td><td>36%</td></tr><tr><th scope="row">2028</th><td>7,281</td><td>86%</td></tr><tr><th scope="row">2029</th><td>494</td><td>6%</td></tr><tr><th scope="row">2030</th><td>2,306</td><td>27%</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 적정물량 8,448세대(인구 ÷ 2.5 × 2%, 인구 2026년 10월)</p></div>
-<p>고양의 2027년 입주 물량은 3,061세대로 한 해 적정물량 8,448세대의 36%다. 2028년에는 7,281세대가 몰리지만, 앞으로 3년을 합치면 10,836세대로 적정물량의 43%다. 적정물량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 일산동구 매매가는 95주 연속 하락(11월 2일 조사)이고, 주간 시세 흐름은 아래와 같다.</p>
-<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="고양 일산동구 최근 26주 주간 변동률 꺾은선. 매매 최신 -0.01%, 전세 최신 +0.23%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="150.0" x2="632" y2="150.0" class="cl-grid"/><line x1="8" y1="97.7" x2="632" y2="97.7" class="cl-zero"/><path d="M8.0 150.0 L33.0 124.4 L57.9 103.0 L82.9 114.0 L107.8 101.5 L132.8 122.4 L157.8 100.9 L182.7 99.2 L207.7 100.2 L232.6 122.6 L257.6 101.5 L282.6 108.8 L307.5 136.0 L332.5 111.5 L357.4 135.3 L382.4 140.4 L407.4 135.1 L432.3 117.5 L457.3 100.1 L482.2 107.3 L507.2 112.1 L532.2 101.7 L557.1 102.1 L582.1 120.8 L607.0 113.6 L632.0 100.9" class="cl cl-ma"/><circle cx="632.0" cy="100.9" r="2.5" class="cl-dot"/><path d="M8.0 79.3 L33.0 73.3 L57.9 76.1 L82.9 74.3 L107.8 69.5 L132.8 64.9 L157.8 76.2 L182.7 62.8 L207.7 57.7 L232.6 62.9 L257.6 67.8 L282.6 87.5 L307.5 85.5 L332.5 69.9 L357.4 67.4 L382.4 34.0 L407.4 58.7 L432.3 49.4 L457.3 53.7 L482.2 88.6 L507.2 81.8 L532.2 86.5 L557.1 45.7 L582.1 64.9 L607.0 63.8 L632.0 34.7" class="cl cl-je"/><circle cx="632.0" cy="34.7" r="2.5" class="cl-dot"/><text x="10" y="92.7" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.24%</text><text x="10" y="145.0" class="cb-x cx-s cl-t">-0.19%</text><text x="626.0" y="92.9" class="cb-v cb-k cx-e cl-t">-0.01%</text><text x="10" y="183" class="cb-x cx-s">5/11</text><text x="630" y="183" class="cb-x cx-e">11/2</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>고양 일산동구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/2 조사 · 전주 대비 변동률</figcaption></figure>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">고양 덕양구</th><td>+0.05%</td><td>+0.05%</td></tr><tr><th scope="row">고양 일산동구</th><td>-0.01%</td><td>+0.23%</td></tr><tr><th scope="row">고양 일산서구</th><td>+0.06%</td><td>+0.05%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
+<p>고양의 2027년 입주 물량은 3,061세대로 한 해 적정물량 8,448세대의 36%다. 2028년에는 7,281세대가 몰리지만, 앞으로 3년을 합치면 10,836세대로 적정물량의 43%다. 적정물량은 2026년 9월 주민등록 인구를 가구당 2.5명으로 나눈 가구 수의 2%로 잡는다. 일산동구 매매가는 96주 연속 하락(11월 9일 조사)이고, 주간 시세 흐름은 아래와 같다.</p>
+<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="고양 일산동구 최근 26주 주간 변동률 꺾은선. 매매 최신 -0.01%, 전세 최신 +0.09%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="150.0" x2="632" y2="150.0" class="cl-grid"/><line x1="8" y1="103.4" x2="632" y2="103.4" class="cl-zero"/><path d="M8.0 132.5 L33.0 109.3 L57.9 121.2 L82.9 107.5 L107.8 130.4 L132.8 107.0 L157.8 105.1 L182.7 106.1 L207.7 130.5 L232.6 107.6 L257.6 115.6 L282.6 145.2 L307.5 118.5 L332.5 144.4 L357.4 150.0 L382.4 144.2 L407.4 125.0 L432.3 106.1 L457.3 113.9 L482.2 119.1 L507.2 107.8 L532.2 108.2 L557.1 128.6 L582.1 120.8 L607.0 107.0 L632.0 105.2" class="cl cl-ma"/><circle cx="632.0" cy="105.2" r="2.5" class="cl-dot"/><path d="M8.0 76.8 L33.0 79.9 L57.9 77.9 L82.9 72.7 L107.8 67.7 L132.8 80.0 L157.8 65.4 L182.7 59.8 L207.7 65.5 L232.6 70.8 L257.6 92.4 L282.6 90.1 L307.5 73.1 L332.5 70.4 L357.4 34.0 L382.4 61.0 L407.4 50.8 L432.3 55.5 L457.3 93.5 L482.2 86.1 L507.2 91.2 L532.2 46.7 L557.1 67.7 L582.1 66.5 L607.0 34.7 L632.0 76.5" class="cl cl-je"/><circle cx="632.0" cy="76.5" r="2.5" class="cl-dot"/><text x="10" y="98.4" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.24%</text><text x="10" y="145.0" class="cb-x cx-s cl-t">-0.16%</text><text x="626.0" y="97.2" class="cb-v cb-k cx-e cl-t">-0.01%</text><text x="10" y="183" class="cb-x cx-s">5/18</text><text x="630" y="183" class="cb-x cx-e">11/9</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>고양 일산동구 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/9 조사 · 전주 대비 변동률</figcaption></figure>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">고양 덕양구</th><td>+0.12%</td><td>+0.03%</td></tr><tr><th scope="row">고양 일산동구</th><td>-0.01%</td><td>+0.09%</td></tr><tr><th scope="row">고양 일산서구</th><td>-0.05%</td><td>+0.05%</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
 <p>일산 선도지구 네 곳과 그 뒤를 잇는 구역만 1만 세대가 넘는다. 이 구역들이 차례로 이주하면 새 집이 모자란 고양에서 전세 수요가 늘어난다. 고양은 앞으로 3년 입주가 적정물량의 절반에도 못 미친다. 아공맵은 이 부족이 일산 전세를 먼저 받치고, 사업이 가장 앞선 백송마을부터 매매가에 실릴 것으로 본다. 이 단지의 다음 변수는 12월 지정 고시와 추진위 승인, 그리고 기준용적률 350% 상향 여부다.</p>
 <h2>고른 기준</h2>
 <ul><li>앞으로 3년 입주 합계와 적정물량 대비 %는 자료 기준월 다음 해부터 3년(지금은 2027~2029년) 입주 예정 물량 합계를 한 해 적정물량의 3배로 나눈 값이다.</li><li>최근 1년 상승률은 2025년 6~11월과 2026년 6~11월 실거래 중위값을 견준 값이다. 최근 4주 주간 지수는 한국부동산원 주간 변동률 4주를 곱해 셌다.</li></ul>
-<p>관련 리포트: <a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세</a></p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2025년 1월~2026년 11월, 2026년 11월 6일 조회)</li><li>국토교통부 건축물대장(총괄표제부·표제부 대지면적·용적률, 백석동 1183·1186·1187·1190)</li><li>네이버 부동산 매물 호가(2026년 11월 6일 조회, 세 낀 매물·실거주 매물 구분)</li><li>고양시 고시 제2025-162호 2035 노후계획도시정비 기본계획(2025년 6월 5일)</li><li>고양시 공고 제2026-1286호 아파트21구역 특별정비구역 지정 및 특별정비계획 결정(안) 주민공람(2026년 5월 12일)</li><li>고양시의회 건설교통위원회 의견청취 심사보고서(2026년 6월 19일)</li><li>도시계획위원회 조건부 가결(데일리하우징 2026년 10월 28일 보도), 경관위원회 조건부 가결(데일리하우징 2026년 8월 25일 보도)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>한국부동산원 주간 아파트가격동향(11/2 조사)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>백송마을 재건축은 어느 단계인가요</dt><dd>2026년 5월 특별정비계획(안)을 주민공람했고, 6월 시의회 의견청취와 8월 경관위원회를 거쳐 10월 28일 고양시 도시계획위원회에서 특별정비구역 지정안이 조건부 가결됐습니다. 일산 선도지구 가운데 처음입니다. 조치 계획을 보완한 뒤 12월 지정 고시가 예정돼 있습니다.</dd><dt>백송마을은 몇 세대로 재건축하나요</dt><dd>공람한 계획안 기준으로 백송마을 1·2·3·5단지 2,732세대를 하나로 묶어 최고 49층 이하, 용적률 300% 이하, 3,686세대로 짓습니다. 사업 방식은 주민투표로 정한 조합 방식이고, 추정 비례율은 102.75%로 보도됐습니다.</dd><dt>백송마을 대지지분은 얼마인가요</dt><dd>단지마다 다릅니다. 번지별 건축물대장 대지면적을 공급면적 비율로 나누면 1단지 삼부 32평형 18.7평, 2단지 대림 22평형 13.2평, 3단지 한신·우성 21평형 15.4평, 5단지 풍림삼호 23평형 13.3평·31평형 18.1평으로 추정됩니다.</dd><dt>백송마을 시세는 왜 안 오르나요</dt><dd>2026년 6~11월 실거래 중위값은 1년 전과 견줘 단지별로 -6%~+11%입니다. 일산동구 아파트 매매가 지수가 2026년 10월 26일 조사까지 오랫동안 내려 온 흐름 속에 있어, 사업 진척이 아직 값에 실리지 않았습니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a><a href="/#stats-market-week~a806022"><span>시세 지도</span>고양 일산동구 주간 시세</a></div></section><div class="cnav"><a class="cnav-p" href="/danji/sinnamusil-5-yeongtong/"><span>이전 글</span>영통 신나무실 리모델링, 분담금 확정 뒤 24평형이 1년 새 35% 올랐습니다</a><a class="cnav-n" href="/danji/cheolsan13-gwangmyeong/"><span>다음 글</span>광명 철산주공13단지 재건축, 조합 설립 뒤 1년 새 39% 올랐습니다</a><a class="cnav-hub" href="/danji/"><span>이 질문의 글 모두</span>재건축·리모델링, 어디까지 왔나?</a></div></div></section>
+<p>관련 리포트: <a href="/zone/경기/#weekly-sgg">경기 시군구 주간·월간 시세</a></p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 아파트 매매·전월세 실거래가(2025년 1월~2026년 11월, 2026년 11월 6일 조회)</li><li>국토교통부 건축물대장(총괄표제부·표제부 대지면적·용적률, 백석동 1183·1186·1187·1190)</li><li>네이버 부동산 매물 호가(2026년 11월 6일 조회, 세 낀 매물·실거주 매물 구분)</li><li>고양시 고시 제2025-162호 2035 노후계획도시정비 기본계획(2025년 6월 5일)</li><li>고양시 공고 제2026-1286호 아파트21구역 특별정비구역 지정 및 특별정비계획 결정(안) 주민공람(2026년 5월 12일)</li><li>고양시의회 건설교통위원회 의견청취 심사보고서(2026년 6월 19일)</li><li>도시계획위원회 조건부 가결(데일리하우징 2026년 10월 28일 보도), 경관위원회 조건부 가결(데일리하우징 2026년 8월 25일 보도)</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>한국부동산원 주간 아파트가격동향(11/9 조사)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>백송마을 재건축은 어느 단계인가요</dt><dd>2026년 5월 특별정비계획(안)을 주민공람했고, 6월 시의회 의견청취와 8월 경관위원회를 거쳐 10월 28일 고양시 도시계획위원회에서 특별정비구역 지정안이 조건부 가결됐습니다. 일산 선도지구 가운데 처음입니다. 조치 계획을 보완한 뒤 12월 지정 고시가 예정돼 있습니다.</dd><dt>백송마을은 몇 세대로 재건축하나요</dt><dd>공람한 계획안 기준으로 백송마을 1·2·3·5단지 2,732세대를 하나로 묶어 최고 49층 이하, 용적률 300% 이하, 3,686세대로 짓습니다. 사업 방식은 주민투표로 정한 조합 방식이고, 추정 비례율은 102.75%로 보도됐습니다.</dd><dt>백송마을 대지지분은 얼마인가요</dt><dd>단지마다 다릅니다. 번지별 건축물대장 대지면적을 공급면적 비율로 나누면 1단지 삼부 32평형 18.7평, 2단지 대림 22평형 13.2평, 3단지 한신·우성 21평형 15.4평, 5단지 풍림삼호 23평형 13.3평·31평형 18.1평으로 추정됩니다.</dd><dt>백송마을 시세는 왜 안 오르나요</dt><dd>2026년 6~11월 실거래 중위값은 1년 전과 견줘 단지별로 -6%~+11%입니다. 일산동구 아파트 매매가 지수가 2026년 10월 26일 조사까지 오랫동안 내려 온 흐름 속에 있어, 사업 진척이 아직 값에 실리지 않았습니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a><a href="/#stats-market-week~a806022"><span>시세 지도</span>고양 일산동구 주간 시세</a></div></section><div class="cnav"><a class="cnav-p" href="/danji/sinnamusil-5-yeongtong/"><span>이전 글</span>영통 신나무실 리모델링, 분담금 확정 뒤 24평형이 1년 새 35% 올랐습니다</a><a class="cnav-n" href="/danji/sanggye6-nowon/"><span>다음 글</span>노원 상계주공6단지 재건축, 59층 공람 뒤 24평형이 1년 새 23% 올랐습니다</a><a class="cnav-hub" href="/danji/"><span>이 질문의 글 모두</span>재건축·리모델링, 어디까지 왔나?</a></div></div></section>
 </main>
 <footer class="sitefoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

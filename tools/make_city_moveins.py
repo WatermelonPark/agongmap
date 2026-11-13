@@ -66,10 +66,23 @@ def sido_of(city, names=None):
     names = names if names is not None else sgg_names()
     hit = [c for c, n in names.items() if n == city or n.startswith(city + ' ')]
     for c in hit:
-        for pre, sido in WM.SGG_PREFIX.items():
-            if c.startswith(pre):
-                return SZ.key_of(sido) if SZ.key_of(sido) in SZ.ORDER else sido
+        # 판정 단위로 접는다(weekly_moves.sgg_zone — 광주·전남 시군구는 통합 단위 '전남광주'). 예전엔 접두 표의 원천 시도 이름
+        # ('전남'·'광주')을 그대로 돌려줘 sido_zones.ORDER 에 없는 키가 됐다: 순천·광주 북구 글의 '지역 공급 리포트' 링크와
+        # /zone/전남광주/ 글 묶음이 빠지고 허브 지역 칩이 두 줄로 갈렸다(2026-11-13 전수 리뷰 — 첫 광주·전남 원고에서 드러날 결함).
+        z = WM.sgg_zone(c)
+        if z:
+            return z
     return None
+
+
+def collectable(city, names=None):
+    """도시 자료(입주 예정·인구)를 받을 수 있는 이름인가 — **시 이름 하나**('수원'·'남양주'·'청주')만이다.
+
+    구 이름('성남 분당구')이나 이름표의 구분 앞말이 붙은 이름('경기 광주')은 시군구 이름표에는 있지만 수집기가 인구 행을
+    찾지 못한다(KOSIS 행은 '성남시'·'광주시'). 예전엔 그런 이름이 원고에 하나 있으면 수집이 KeyError 로 끝나 **모든 도시**의
+    갱신이 멈췄고, 검사기는 '기다리면 들어온다'고 했다(2026-11-13 전수 리뷰).
+    """
+    return bool(city) and ' ' not in city and sido_of(city, names) is not None
 
 
 def placeholder_cities(text):
@@ -106,12 +119,14 @@ def cities_from_content(root=ROOT):
             if not city or city in out or city in SZ.ORDER or SZ.key_of(city) in SZ.ORDER:
                 continue
             sido = sido_of(city, names)
-            if sido:
+            if sido and collectable(city, names):
                 out[city] = sido
             elif city not in unknown:
                 unknown.append(city)
     for c in unknown:
-        sys.stderr.write('⚠️ 시도를 알 수 없는 도시라 건너뛴다: %s (홈 시군구 이름표에 없다)\n' % c)
+        sys.stderr.write('⚠️ 도시 자료를 받을 수 없는 이름이라 건너뛴다: %s (%s)\n'
+                         % (c, '시 이름 하나로 적을 것 — 구 이름·구분 앞말은 받지 못한다' if sido_of(c, names)
+                            else '홈 시군구 이름표에 없다'))
     return out
 
 
@@ -147,6 +162,7 @@ def build(cities, start, fetch=False, keep=None):
     """
     keep = keep or {}
     out, done = {}, set()
+    old = (_read(OUT) or {}).get('cities') or {}
     for city, sido in sorted(cities.items()):
         if city in keep:
             out[city] = keep[city]
@@ -154,7 +170,14 @@ def build(cities, start, fetch=False, keep=None):
         if fetch and sido not in done:
             CMV.fetch(sido)          # 시도 하나당 한 번만 받는다(원천은 시도 단위 캐시)
             done.add(sido)
-        out[city] = city_facts(city, sido, start)
+        try:
+            out[city] = city_facts(city, sido, start)
+        except (IOError, OSError):
+            raise                    # 원천 캐시가 없다 — main 이 파일을 그대로 두는 갈래다
+        except Exception as e:       # noqa: BLE001 — 한 도시의 탈(인구 행 없음·빈 목록)이 나머지 도시의 갱신을 막지 않게 가둔다
+            sys.stderr.write('⚠️ 도시 자료를 만들지 못해 건너뛴다: %s (%s: %s)\n' % (city, type(e).__name__, e))
+            if city in old:
+                out[city] = old[city]          # 지난 값이 있으면 그대로 둔다(글이 갑자기 건너뛰어지지 않게)
     return {'start': start, 'source': '한국부동산원 입주예정물량정보 · 청약홈 분양정보 · KOSIS 주민등록인구',
             'cities': out}
 

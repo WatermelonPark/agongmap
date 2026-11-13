@@ -11,7 +11,7 @@
    새로고침 뒤 첫 부팅이 결과를 build_reload 로 한 번 잰다(현장에서 실제로 일어나는지 보려고).
    판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올리면 index.html data-build 와 여기, 분할 파일(home-quiz.js·home-stats.js)의
    판 표식도 같이(test_home_build). 분할 파일 쪽 대조는 아래 partBuildOk(B11). */
-const HOME_BUILD='v215';
+const HOME_BUILD='v220';
 let BUILD_RELOAD=false;
 (function(){
   try{
@@ -124,6 +124,9 @@ function partBuildOk(n){
     return false;
   }catch(e){return true;}
 }
+/* '다시 시도'(#stats-loading): 화면 준비만 다시 하면 들어온 입구(순위 '-rank'·지역 '~코드')를 잃었다 — 대기열 실패 갈래가 대기 중이던
+   부름을 버리기 때문이다(2026-11-12 누름 경로 점검 D). 통계 주소면 주소 입구를 다시 돌린다(showView 가 statsOpen 을 다시 부른다). */
+function statsRetry(){ if(/^#stats/.test(location.hash))applyHash(); else statsOpen(); }
 function partReady(n){ return n==='stats'?Promise.all([loadPart(n),loadFullData()]):loadPart(n); }
 function partBusy(n,fn,state){
   if(n==='stats'){
@@ -133,7 +136,7 @@ function partBusy(n,fn,state){
     /* '다시 눌러 주세요'라고만 하면 누를 것이 없었다(백로그 36-6) — 같은 자리에 다시 시도 단추를 둔다(statsOpen 은 PARTS 입구라
        누르면 분할 파일을 다시 받는다. 실패한 주소는 loadPart 가 _loaded 에서 지워 둔다). */
     else{box.textContent='통계 '+(PART_FAIL?'화면을':'데이터를')+' 불러오지 못했습니다. 연결을 확인해 주세요. ';
-      if(box.insertAdjacentHTML)box.insertAdjacentHTML('beforeend','<button type="button" class="retry-btn" onclick="statsOpen()">다시 시도</button>');
+      if(box.insertAdjacentHTML)box.insertAdjacentHTML('beforeend','<button type="button" class="retry-btn" onclick="statsRetry()">다시 시도</button>');
       box.style.display='';}
     return;
   }
@@ -148,12 +151,17 @@ function partBusy(n,fn,state){
     toast('테스트를 불러오지 못했습니다. 연결을 확인하고 다시 눌러 주세요.');
   }
 }
+/* 주소 입구(applyHash)가 대기열에 넣은 부름은, 기다리는 사이 사람이 화면을 옮겼으면(statsNav 의 push — NAV_N) 버린다. 예전엔
+   통계 파일은 왔고 데이터가 늦는 사이 '월간'을 누르면, 데이터가 온 뒤 대기열의 setMarketTab('week') 가 돌아 화면만 주간으로
+   돌아가고 주소는 #stats-market-month 로 남았다(2026-11-12 누름 경로 점검 C). 사람이 누른 부름끼리는 차례대로 다 돈다. */
+var NAV_N=0, HASH_APPLYING=false;
 Object.keys(PARTS).forEach(n=>PARTS[n].api.forEach(fn=>{
   const wait=function(){
-    const a=arguments;
+    const a=arguments, viaHash=HASH_APPLYING, n0=NAV_N;
     partBusy(n,fn,'wait');
     return partReady(n).then(()=>{
       partBusy(n,fn,'done');
+      if(viaHash&&fn!=='statsOpen'&&NAV_N!==n0)return;
       /* 기다리는 사이 다른 화면으로 떠났으면 그 화면용 누름은 버린다 — 예: '시세' → '투자지표'를 누르고 파일이 오기 전에
          뒤로 가기로 홈에 오면, 늦게 돈 setStatsMode 가 주소만 #stats-adv-occ 로 바꿔 화면(홈)과 주소가 갈린다.
          statsOpen(화면 준비)은 숨은 채로라도 돌려 둔다 — 다시 들어올 때 statsInited 가 이미 서 있다. */
@@ -338,7 +346,12 @@ const R2C=new Set(["report", "c4", "c5", "c6", "cFlow", "cL1", "cL3", "cL6", "cM
    같은 실수를 반복하지 않으려고 남긴다: 창 스크롤을 재기 전에 창이 스크롤
    되는지부터 확인할 것. */
 function afterLayout(fn){ setTimeout(fn, 0); }
-function applyHash(){
+function applyHash(e){
+  /* 지역 그래프를 닫으며 history.back() 으로 앞 항목에 돌아온 것(trHashDrop) — 화면은 이미 맞다. 다시 돌리면 맨 위로 튄다.
+     (typeof: 이 함수만 떼어 돌리는 시험 틀에도 그대로 돈다) */
+  if(typeof TR_SKIP_HASH==='string'&&TR_SKIP_HASH){const skip=TR_SKIP_HASH;TR_SKIP_HASH='';if(location.hash===skip)return;}
+  HASH_APPLYING=true;   // 이 사이 대기열에 들어가는 부름은 '주소 입구가 넣은 것'(위 PARTS 대기 함수)
+  try{
   /* '#화면?utm_…'(발행한 주간 블로그 글의 옛 링크 모양)은 index.html 머리가 먼저 '?…#화면'으로 고친다(A1).
      여기서도 '?' 뒤를 잘라 둔다 — 머리 스크립트가 못 돈 경우(옛 캐시의 HTML 등)에도 화면은 열리게. */
   const h=location.hash.replace('#','').split('?')[0];
@@ -355,9 +368,16 @@ function applyHash(){
        순위로 바꾸는 일은 openTrendRegion(셋째 인자 'r')이 데이터가 온 뒤에 한다 — 연 지역 그래프가 있으면 닫고, 받는 사이 사람이
        고른 보기는 덮지 않는다. 여기서 따로 gtSet 을 부르면 통계 파일을 못 받은 날 그 부름이 파일만 다시 받아 statsOpen 없이 빈
        화면을 남기고(다시 시도 단추까지 걷힌다), 받는 사이 누른 '그래프'를 늦게 덮었다(10-10 코드 리뷰). */
+    /* '-rank' 를 주소에서 걷는 일도 openTrendRegion 이 순위로 바꾼 뒤에 한다 — 통계 파일·데이터를 못 받은 날 '다시 시도'가 그 입구를
+       다시 읽을 수 있게(2026-11-12 누름 경로 점검 D). '~코드' 입구에도 요청한 때의 GT_SEQ 를 넘긴다 — 받는 사이 사람이 고른 보기를
+       덮지 않게(같은 점검 B). 같은 주기의 코드 없는 주소에서 지역 링크로 왔으면 그 항목에 표지(trBase)를 단다 — 그래프를 닫을 때
+       한 칸 뒤로 접어 뒤로 가기가 헛돌지 않게(같은 점검 E, trHashDrop). */
     if(sm[1]==='market'){const t=sm[2]==='month'?'month':'week';setMarketTab(t,false);
-      if(sm[3]){openTrendRegion(t,null,'r',GT_SEQ[t]);history.replaceState(null,'','#stats-market-'+t);}
-      else openTrendRegion(t,sm[4]||null,sm[5]?'t':'g');}
+      if(sm[3])openTrendRegion(t,null,'r',GT_SEQ[t]);
+      else{
+        if(sm[4]&&e&&e.oldURL&&!history.state&&'#'+(e.oldURL.split('#')[1]||'')==='#stats-market-'+t)
+          history.replaceState({trBase:'#stats-market-'+t},'',location.hash);
+        openTrendRegion(t,sm[4]||null,sm[5]?'t':'g',GT_SEQ[t]);}}
     else if(sm[1]==='adv')setAdvTab(sm[2]||'occ',false);
     return;
   }
@@ -374,6 +394,7 @@ function applyHash(){
   if(R2C.has(h)){location.replace('/cycle/'+(h==='report'?'':'#'+h));return;}
   const el=document.getElementById(h);
   if(el){afterLayout(()=>el.scrollIntoView());}
+  }finally{HASH_APPLYING=false;}
 }
 window.addEventListener('hashchange',applyHash);
 
@@ -486,8 +507,8 @@ let statsMode='market';   // 통계 해시(statsHashOf)가 읽는다 — 부팅�
    replace로 접는다. 복원은 applyHash가 해시만 보고 전체 화면을 재현한다. */
 function statsNav(hh,replace){
   if(location.hash===hh)return;
-  if(replace)history.replaceState(null,'',hh);
-  else history.pushState(null,'',hh);
+  if(replace)history.replaceState(history.state,'',hh);   // 항목 표지(trBase)는 지킨다 — 그래프↔표 바꾸기가 지우지 않게
+  else{NAV_N++;history.pushState(null,'',hh);}            // 사람이 화면을 옮긴 수(위 대기열이 읽는다)
 }
 /* 모드의 정규 해시 — market/adv는 지금 켜져 있는 하위탭까지 포함한다.
    모드 진입 해시가 하위탭을 생략하면 뒤로가기 복원이 기본탭으로 튀어,
@@ -500,6 +521,7 @@ const TR_OPEN={week:null,month:null};   // 주기별로 openTrendRegion(home-sta
    데이터가 온 뒤에도 수가 같을 때만 순위로 바꾼다 — 통계 파일은 왔는데 데이터가 늦는 사이 누른 '그래프'를 덮지 않게(10-10 코드
    리뷰). 요청한 때를 재야 해서 분할 파일이 아니라 여기 둔다. */
 const GT_SEQ={week:0,month:0};
+let TR_SKIP_HASH='';   // trHashDrop 이 history.back() 으로 돌아갈 주소 — applyHash 가 한 번 건너뛴다
 function statsHashOf(m){
   if(m==='market'){const t=document.getElementById('mtab-month').classList.contains('on')?'month':'week', c=TR_OPEN[t];
     return '#stats-market-'+t+(c?'~'+c+(document.getElementById('sec-'+t).classList.contains('gm-t')?'-t':''):'');}
@@ -563,7 +585,12 @@ function sggMapSvg(vals,o){
   };
   const SI_PARENT=new Set(['a80203','a80103','a80202','a80102','a80602','a80301','a80302','a80305']);
   const clOf=c=>{ if(SI_PARENT.has(c))return c; for(const p of SI_PARENT)if(c.indexOf(p)===0)return p; return null; };
-  const tcol=v=>{const r=pvSign(v);return r>0?'#8f2318':(r<0?'#123c5c':'#5e6f74');};
+  /* 값 글자색: 칠한 알파가 MAP_INK_A 이상인 진한 칸은 먹색 — 진한 빨강 칸 위 진한 빨강 글자가 2.72:1 이었다(2026-11-12 접근성 점검,
+     대표 결정 '진한 칸 글자만 먹색'. 먹색은 가장 진한 빨강 5.3·파랑 4.95:1). 옅은 칸은 등락색 그대로, '0.00' 칸은 #4e5d61(5.75:1). */
+  const INK_A=0.45;   // 이 알파 이상인 칸의 값 글자는 먹색 — 알파는 칸 색(mapColor) 글자에서 읽어 둘이 한 값을 본다(파이썬 거울 MAP_INK_A)
+  const tcol=(v,ref)=>{const r=pvSign(v);if(r===0)return '#4e5d61';
+    const m=/,([0-9.]+)\)$/.exec(mapColor(v,ref));
+    return m&&parseFloat(m[1])>=INK_A?'#131e24':(r>0?'#8f2318':'#123c5c');};
   /* 칸 설명의 앞말 — 짧은 이름('북'·'중'·'강서')이 여러 시도에 겹쳐 보조기기에서 같은 소리로 읽히지 않게, 구는 소속 시
      (수원 장안), 그 밖의 칸은 소속 시도(서울 강남·부산 북)를 붙인다. 시도 머리 칸(두 글자 코드)은 붙이지 않는다. */
   const HN={}; N.t.forEach(([c,nm,,,h])=>{ if(h&&c.length===2)HN[c]=nm; });
@@ -588,7 +615,7 @@ function sggMapSvg(vals,o){
       `<text x="${TW/2}" y="${NH-4}" text-anchor="middle" font-size="${MAP_FS}"${nm.length>=4?` textLength="${TW-3}" lengthAdjust="spacingAndGlyphs"`:''} font-weight="600" fill="${(h||SI_PARENT.has(c))?'#fff':'#1b2426'}">${nm}</text>`+
       vals.map((m,j)=>{ const v=m[c], ry=NH+1+j*(VH+1);
         return `<rect y="${ry}" width="${TW}" height="${VH}" rx="3" fill="${mapColor(v,ref)}" stroke="#d8dfdc"/>`+
-          `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="${MAP_FS}" font-weight="600" fill="${tcol(v)}">${pv2(v)}</text>`; }).join('')+
+          `<text x="${TW/2}" y="${ry+tb}" text-anchor="middle" font-size="${MAP_FS}" font-weight="600" fill="${tcol(v,ref)}">${pv2(v)}</text>`; }).join('')+
       (href?'':`<title>${lab}</title>`)+'</g>';
     sv.push(href?`<a href="${href}" data-code="${c}" aria-label="${lab}">${g}</a>`:g);
   });
@@ -755,7 +782,8 @@ var TB_TINTC={};
    조용히 갈라지는 상태였다(2026-08-10 리뷰). PAPER_RGB는 CSS --paper의 사본 —
    토큰을 바꾸면 여기도 같이 바꿀 것. */
 var TB_UP=[198,58,48], TB_DN=[38,110,180], PAPER_RGB=[244,246,245];
-function tintA(v,scale){ return (TB_MIN+(1-TB_MIN)*Math.min(1,Math.abs(v)/scale))*0.8; }
+/* 최대 0.78 — 가장 진한 빨강 칸 위 먹색 글자가 0.8 에서 4.40:1 이었다(2026-11-12 접근성 점검, 4.5:1 이상으로). 파이썬 거울 make_sido_pages.tint */
+function tintA(v,scale){ return (TB_MIN+(1-TB_MIN)*Math.min(1,Math.abs(v)/scale))*0.78; }
 function tbTint(v,scale){
   if(v==null) return TB_NODATA;
   if(v===0) return 'transparent';

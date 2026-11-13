@@ -345,3 +345,55 @@ def test_a_lit_tab_is_drawn_lit():
     assert seen >= 8, '켜진 탭이 있는 페이지를 거의 못 찾았다(%d)' % seen
     assert not bad, '켜진 탭을 흰 글자로 그리는 규칙이 없다: %s' % bad
     assert rule.search(N.NAV_ON_CSS)
+
+
+def test_focus_never_hides_under_the_bottom_tabbar():
+    """탭바를 싣는 모든 스타일 원본이 NAV_SCROLL_PAD_CSS 를 싣는다 — 키보드 초점을 옮길 때 탭바(62px) 높이만큼 띄워 스크롤한다.
+    재현한 실제 상태(2026-11-12 접근성 점검, 375px): scroll-padding-bottom 이 auto 라 FAQ 질문·지도 칸·푸터 메일 링크 등이 초점을
+    받고도 탭바 뒤에 통째로 가렸다(WCAG 2.4.11). 1280px(탭바가 위)에서는 0건이었다.
+    변이(실제로 확인): app.css·지표 뼈대·손 페이지 한 곳에서 그 줄을 지우거나, make_weekly_page.put_nav 의 넣기를 지우면 빨개진다.
+    픽스처: 저장소의 실제 원본 — app.css, 지표 뼈대(파일 글자), 손 페이지 일곱, 줄을 뺀 합성 주간 뼈대에 put_nav 를 돌린 결과."""
+    import make_weekly_page as MW
+    assert re.fullmatch(r'@media\(max-width:1023px\)\{html\{scroll-padding-bottom:(\d+)px\}\}', N.NAV_SCROLL_PAD_CSS)
+    pad = int(re.search(r'(\d+)px', N.NAV_SCROLL_PAD_CSS).group(1))
+    app = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
+    tab_h = int(re.search(r'\.bottomnav\{position:fixed;bottom:0;[^}]*?height:(\d+)px', app).group(1))
+    assert pad >= tab_h + 8, (pad, tab_h)
+    src = io.open(os.path.join(ROOT, 'tools', 'make_indicator_pages.py'), encoding='utf-8').read()
+    i = src.index('SHELL = """')
+    shell = src[i:src.index('</html>', i)]       # 뼈대는 여러 조각을 + 로 잇는다 — 첫 조각만 자르면 탭바 규칙이 빠진다
+    bad = [name for name, text in [('app.css', app), ('지표 뼈대', shell)] + [
+        (rel, io.open(os.path.join(ROOT, rel), encoding='utf-8').read())
+        for rel in ('404.html', 'about/index.html', 'faq/index.html', 'privacy/index.html',
+                    'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')]
+        if N.NAV_SCROLL_PAD_CSS not in text]
+    assert not bad, '초점이 탭바 밑에 숨는다(NAV_SCROLL_PAD_CSS 없음): %s' % bad
+    wk = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8').read().replace(N.NAV_SCROLL_PAD_CSS, '')
+    assert wk.count(N.NAV_SCROLL_PAD_CSS) == 0 and MW.put_nav(wk).count(N.NAV_SCROLL_PAD_CSS) == 1
+
+
+def test_every_font_stack_has_the_size_matched_fallback():
+    """Pretendard 를 쓰는 모든 스타일 원본은 크기를 맞춘 대체 글꼴(site_nav.FONT_FALLBACK_CSS)을 싣고, 글꼴 목록은 'Pretendard' 바로 뒤에
+    'Agong Fallback' 을 둔다(FONT_STACK_HEAD). 웹 글꼴이 늦게 와 다시 줄바꿈되며 화면이 밀리던 것(CLS)을 줄인다.
+    재현한 실제 상태(2026-11-12 배포 점검, 대체 글꼴 Noto Sans KR·느린 망 375px): /cycle/ 0.214, /column/ 0.113, /monthly/ 0.035,
+    서울 리포트 1280px 0.088 → 넣은 뒤 0·0·0·0.042.
+    변이(실제로 확인): app.css 의 face 줄을 지우거나 지표 뼈대 글꼴 목록에서 'Agong Fallback' 을 빼거나, make_weekly_page.put_nav 의
+    넣기를 지우면 빨개진다. size-adjust 값은 시험하지 않는다(브라우저 실측 값이라 주석에 근거를 적었다).
+    픽스처: 저장소의 실제 원본 — app.css, 홈 index.html, 지표 뼈대(파일 글자), 손 페이지 일곱, 줄을 뺀 주간 뼈대에 put_nav 를 돌린 결과."""
+    import make_weekly_page as MW
+    assert "font-family:'Agong Fallback'" in N.FONT_FALLBACK_CSS and 'size-adjust:' in N.FONT_FALLBACK_CSS
+    src = io.open(os.path.join(ROOT, 'tools', 'make_indicator_pages.py'), encoding='utf-8').read()
+    i = src.index('SHELL = """')
+    texts = [('지표 뼈대', src[i:src.index('</html>', i)])] + [
+        (rel, io.open(os.path.join(ROOT, rel), encoding='utf-8').read())
+        for rel in ('app.css', 'index.html', '404.html', 'about/index.html', 'faq/index.html', 'privacy/index.html',
+                    'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')]
+    wk = io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8').read()
+    wk = wk.replace(N.FONT_FALLBACK_CSS, '').replace(N.FONT_STACK_HEAD, "'Pretendard Variable','Pretendard',")
+    texts.append(('주간 뼈대(put_nav)', MW.put_nav(wk)))
+    bad = []
+    for name, t in texts:
+        stacks = re.findall(r"font-family:\s*(?:'AgongHome',)?'Pretendard Variable','Pretendard',[^;}]*", t)
+        if N.FONT_FALLBACK_CSS not in t or not stacks or any(N.FONT_STACK_HEAD not in s for s in stacks):
+            bad.append(name)
+    assert not bad, '대체 글꼴이 빠진 원본: %s' % bad

@@ -109,16 +109,17 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     ]
   }
 ]</script>
-<style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -161,14 +162,16 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -184,9 +187,9 @@ footer a{color:var(--ink2)}
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -199,12 +202,12 @@ footer a{color:var(--ink2)}
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -246,11 +249,12 @@ footer a{color:var(--ink2)}
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -275,10 +279,10 @@ footer a{color:var(--ink2)}
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
@@ -290,14 +294,14 @@ footer a{color:var(--ink2)}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -305,7 +309,7 @@ footer a{color:var(--ink2)}
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
@@ -372,7 +376,7 @@ footer a{color:var(--ink2)}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -380,7 +384,7 @@ footer a{color:var(--ink2)}
 <main id="main"><section><div class="wrap"><div class="ctldr"><b>3줄 요약</b><ol><li>2029년까지의 입주는 이미 착공한 현장에서 정해져 있고 서울 2027년은 적정물량의 28%입니다</li><li>2029년 이후도 착공이 바닥에서 올라오지 않는 한 입주는 늘지 않습니다</li><li>반도체는 경기 남부 수요를 키우고 강남이 약세여도 분당·수지·동탄은 오름세입니다</li></ol></div><p class="caud"><b>이 글이 맞는 분</b>반도체 호황을 보고 경기 남부 매수를 재는 실수요자</p><div class="ckey"><strong>0곳</strong><span>남쪽 축 3기 신도시</span></div><div class="cbody"><p>2026년 10월 직장인 익명 커뮤니티에 올라온 한 글의 제목은 이랬습니다. "29년까진 어쩔 수 없고 그 이후는 삼성 하이닉스에 달림". 앞 절반과 뒤 절반을 따로 놓고 숫자를 대 보면, 앞은 데이터와 맞고 뒤는 맞지 않습니다.</p>
 <h2>앞 절반: 2029년까지는 정해져 있다</h2>
 <p>착공에서 입주까지는 대략 3년입니다. 2029년 상반기에 열쇠를 받을 집은 지금 현장에서 골조가 올라가는 중입니다. 서울의 연도별 입주 물량과 한 해 적정물량을 함께 그리면 다음과 같습니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>20,664세대</b><span>서울 2027년 입주</span></div><div class="ccard"><b>91주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="서울 연도별 입주 물량 막대그래프. 2017년 29,201세대, 2018년 38,853세대, 2019년 45,860세대, 2020년 54,355세대, 2021년 43,729세대, 2022년 31,836세대, 2023년 38,028세대, 2024년 32,988세대, 2025년 41,893세대, 2026년 32,533세대, 2027년 20,664세대, 2028년 25,707세대, 2029년 15,287세대. 앞으로 3년 71,424세대 · 적정물량 대비 32%." class="cchart-svg cb-dense"><rect x="8.0" y="94.8" width="38.8" height="75.2" class="cb"/><text x="8.0" y="90.8" class="cb-v cx-s">29,201</text><text x="8.0" y="202" class="cb-x cx-s">2017</text><rect x="56.8" y="69.9" width="38.8" height="100.1" class="cb"/><text x="76.2" y="65.9" class="cb-v">38,853</text><text x="76.2" y="202" class="cb-x cb-x2">2018</text><rect x="105.5" y="51.9" width="38.8" height="118.1" class="cb"/><text x="124.9" y="47.9" class="cb-v">45,860</text><text x="124.9" y="202" class="cb-x">2019</text><rect x="154.3" y="30.0" width="38.8" height="140.0" class="cb"/><text x="173.7" y="26.0" class="cb-v cb-k">54,355</text><text x="173.7" y="202" class="cb-x cb-x2">2020</text><rect x="203.1" y="57.4" width="38.8" height="112.6" class="cb"/><text x="222.5" y="53.4" class="cb-v">43,729</text><text x="222.5" y="202" class="cb-x">2021</text><rect x="251.8" y="88.0" width="38.8" height="82.0" class="cb"/><text x="271.2" y="84.0" class="cb-v">31,836</text><text x="271.2" y="202" class="cb-x cb-x2">2022</text><rect x="300.6" y="72.1" width="38.8" height="97.9" class="cb"/><text x="320.0" y="68.1" class="cb-v">38,028</text><text x="320.0" y="202" class="cb-x">2023</text><rect x="349.4" y="85.0" width="38.8" height="85.0" class="cb"/><text x="368.8" y="81.0" class="cb-v">32,988</text><text x="368.8" y="202" class="cb-x cb-x2">2024</text><rect x="398.2" y="62.1" width="38.8" height="107.9" class="cb"/><text x="417.5" y="58.1" class="cb-v">41,893</text><text x="417.5" y="202" class="cb-x">2025</text><rect x="446.9" y="86.2" width="38.8" height="83.8" class="cb"/><text x="466.3" y="82.2" class="cb-v">32,533</text><text x="466.3" y="202" class="cb-x cb-x2">2026</text><rect x="495.7" y="116.8" width="38.8" height="53.2" class="cb"/><text x="515.1" y="112.8" class="cb-v">20,664</text><text x="515.1" y="202" class="cb-x">2027</text><rect x="544.5" y="103.8" width="38.8" height="66.2" class="cb"/><text x="563.8" y="99.8" class="cb-v">25,707</text><text x="563.8" y="202" class="cb-x cb-x2">2028</text><rect x="593.2" y="130.6" width="38.8" height="39.4" class="cb"/><text x="632.0" y="126.6" class="cb-v cb-k cx-e">15,287</text><text x="632.0" y="202" class="cb-x cx-e">2029</text></svg><figcaption>서울 해마다 입주 물량 · 국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정</figcaption><p class="cfoot3">앞으로 3년 71,424세대 · 적정물량 대비 32%</p></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>20,664세대</b><span>서울 2027년 입주</span></div><div class="ccard"><b>92주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="서울 연도별 입주 물량 막대그래프. 2017년 29,201세대, 2018년 38,853세대, 2019년 45,860세대, 2020년 54,355세대, 2021년 43,729세대, 2022년 31,836세대, 2023년 38,028세대, 2024년 32,988세대, 2025년 41,893세대, 2026년 32,533세대, 2027년 20,664세대, 2028년 25,707세대, 2029년 15,287세대. 앞으로 3년 71,424세대 · 적정물량 대비 32%." class="cchart-svg cb-dense"><rect x="8.0" y="94.8" width="38.8" height="75.2" class="cb"/><text x="8.0" y="90.8" class="cb-v cx-s">29,201</text><text x="8.0" y="202" class="cb-x cx-s">2017</text><rect x="56.8" y="69.9" width="38.8" height="100.1" class="cb"/><text x="76.2" y="65.9" class="cb-v">38,853</text><text x="76.2" y="202" class="cb-x cb-x2">2018</text><rect x="105.5" y="51.9" width="38.8" height="118.1" class="cb"/><text x="124.9" y="47.9" class="cb-v">45,860</text><text x="124.9" y="202" class="cb-x">2019</text><rect x="154.3" y="30.0" width="38.8" height="140.0" class="cb"/><text x="173.7" y="26.0" class="cb-v cb-k">54,355</text><text x="173.7" y="202" class="cb-x cb-x2">2020</text><rect x="203.1" y="57.4" width="38.8" height="112.6" class="cb"/><text x="222.5" y="53.4" class="cb-v">43,729</text><text x="222.5" y="202" class="cb-x">2021</text><rect x="251.8" y="88.0" width="38.8" height="82.0" class="cb"/><text x="271.2" y="84.0" class="cb-v">31,836</text><text x="271.2" y="202" class="cb-x cb-x2">2022</text><rect x="300.6" y="72.1" width="38.8" height="97.9" class="cb"/><text x="320.0" y="68.1" class="cb-v">38,028</text><text x="320.0" y="202" class="cb-x">2023</text><rect x="349.4" y="85.0" width="38.8" height="85.0" class="cb"/><text x="368.8" y="81.0" class="cb-v">32,988</text><text x="368.8" y="202" class="cb-x cb-x2">2024</text><rect x="398.2" y="62.1" width="38.8" height="107.9" class="cb"/><text x="417.5" y="58.1" class="cb-v">41,893</text><text x="417.5" y="202" class="cb-x">2025</text><rect x="446.9" y="86.2" width="38.8" height="83.8" class="cb"/><text x="466.3" y="82.2" class="cb-v">32,533</text><text x="466.3" y="202" class="cb-x cb-x2">2026</text><rect x="495.7" y="116.8" width="38.8" height="53.2" class="cb"/><text x="515.1" y="112.8" class="cb-v">20,664</text><text x="515.1" y="202" class="cb-x">2027</text><rect x="544.5" y="103.8" width="38.8" height="66.2" class="cb"/><text x="563.8" y="99.8" class="cb-v">25,707</text><text x="563.8" y="202" class="cb-x cb-x2">2028</text><rect x="593.2" y="130.6" width="38.8" height="39.4" class="cb"/><text x="632.0" y="126.6" class="cb-v cb-k cx-e">15,287</text><text x="632.0" y="202" class="cb-x cx-e">2029</text></svg><figcaption>서울 해마다 입주 물량 · 국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정</figcaption><p class="cfoot3">앞으로 3년 71,424세대 · 적정물량 대비 32%</p></figure>
 <p>2027년 한 해 서울 입주 물량은 20,664세대로, 적정물량의 28%입니다. 연도마다 실적과 예정을 나눈 표는 아래와 같습니다.</p>
 <div class="ctab"><table><thead><tr><th scope="col" class="tx">연도</th><th scope="col">세대</th><th scope="col" class="tx">구분</th></tr></thead><tbody><tr><th scope="row">2017</th><td>29,201</td><td class="tx">실적</td></tr><tr><th scope="row">2018</th><td>38,853</td><td class="tx">실적</td></tr><tr><th scope="row">2019</th><td>45,860</td><td class="tx">실적</td></tr><tr><th scope="row">2020</th><td>54,355</td><td class="tx">실적</td></tr><tr><th scope="row">2021</th><td>43,729</td><td class="tx">실적</td></tr><tr><th scope="row">2022</th><td>31,836</td><td class="tx">실적</td></tr><tr><th scope="row">2023</th><td>38,028</td><td class="tx">실적</td></tr><tr><th scope="row">2024</th><td>32,988</td><td class="tx">실적</td></tr><tr><th scope="row">2025</th><td>41,893</td><td class="tx">실적</td></tr><tr><th scope="row">2026</th><td>32,533</td><td class="tx">예정</td></tr><tr><th scope="row">2027</th><td>20,664</td><td class="tx">예정</td></tr><tr><th scope="row">2028</th><td>25,707</td><td class="tx">예정</td></tr><tr><th scope="row">2029</th><td>15,287</td><td class="tx">예정</td></tr></tbody></table><p class="cnote">출처는 위와 같습니다</p></div>
 <h2>뒤 절반: 2029년 이후는 착공 숫자가 먼저 말한다</h2>
@@ -392,13 +396,13 @@ footer a{color:var(--ink2)}
 <h2>경기 남부는 수요가 늘고 택지는 부족하다</h2>
 <p>반도체가 동탄·수지·분당 일대 직주근접 수요를 두텁게 만든다는 점은 주장이 맞습니다.</p>
 <p>공급 쪽 사정은 다릅니다. 대규모 3기 신도시는 고양 창릉, 부천 대장, 인천 계양, 남양주 왕숙, 하남 교산으로 모두 서울 서·북·동쪽에 자리 잡았습니다. 동탄·수지·분당을 잇는 남쪽 축에 들어선 곳은 없습니다. 용인의 그해 입주 물량을 구별로 나눠 보면 처인구에 쏠려 있고 수지구는 미미합니다.</p>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">처인구</th><td>5,164</td></tr><tr><th scope="row">수지구</th><td>65</td></tr><tr><th scope="row">합계</th><td>5,229</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/9 조사)</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">세대</th></tr></thead><tbody><tr><th scope="row">처인구</th><td>5,164</td></tr><tr><th scope="row">수지구</th><td>65</td></tr><tr><th scope="row">합계</th><td>5,229</td></tr></tbody></table><p class="cnote">한국부동산원 입주예정물량정보 · 청약홈 분양정보 · 2028년 6월 입주분까지 공개된 목록(11/13 조사)</p></div>
 <p>일자리는 남쪽에서 늘고 새 택지는 다른 방향에서 생기니, 남쪽의 기존 단지 가격이 먼저 반응합니다.</p>
 <h2>'강남이 빠지면 외곽도 빠진다'는 전제</h2>
 <p>주간 시세로 보면 이 전제는 지금 들어맞지 않습니다.</p>
-<ul><li>서울 강남구: 13주 연속 하락(11월 2일 조사)</li><li>서울 서초구: 13주 연속 하락(11월 2일 조사)</li><li>성남 분당구: 86주 연속 상승(11월 2일 조사)</li><li>용인 수지구: 92주 연속 상승(11월 2일 조사)</li><li>화성 동탄구: 39주 연속 상승(11월 2일 조사)</li></ul>
+<ul><li>서울 강남구: 14주 연속 하락(11월 9일 조사)</li><li>서울 서초구: 14주 연속 하락(11월 9일 조사)</li><li>성남 분당구: 87주 연속 상승(11월 9일 조사)</li><li>용인 수지구: 93주 연속 상승(11월 9일 조사)</li><li>화성 동탄구: 40주 연속 상승(11월 9일 조사)</li></ul>
 <p>분당구 최근 8주 흐름은 아래 표와 같습니다.</p>
-<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">성남 분당구</th><td>+0.23%</td><td>+0.11%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 11/2 조사 · 전주 대비 변동률</p></div>
+<div class="ctab"><table><thead><tr><th scope="col" class="tx">지역</th><th scope="col">매매</th><th scope="col">전세</th></tr></thead><tbody><tr><th scope="row">성남 분당구</th><td>+0.26%</td><td>+0.22%</td></tr></tbody></table><p class="cnote">한국부동산원 주간 아파트가격동향 · 11/9 조사 · 전주 대비 변동률</p></div>
 <p>과거에도 규제로 강남이 약세였던 시기에 외곽은 상승하거나 버틴 경우가 많았습니다. 강남을 겨냥한 규제는 수요를 경기 남부 같은 택지 부족 지역으로 옮기는 결과를 낳기 쉽습니다.</p>
 <h2>정리</h2>
 <p>반도체는 오를 동네를 고르는 데 영향을 줍니다. 오르는 방향과 속도는 입주 물량이 정합니다. 2029년 이후가 궁금하다면 반도체 뉴스보다 오늘의 착공 집계가 더 많은 것을 알려 줍니다.</p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>국토교통부 주택건설실적통계(인허가·착공·준공), 아공맵 입주 추정(2026년 하반기부터 착공을 3년 뒤로 밀어 셈)</li><li>한국부동산원 주간 아파트가격동향</li><li>한국부동산원 입주예정물량, 청약홈 분양 공고</li><li>국토교통부 3기 신도시 지구 지정 발표(2018년 12월, 2019년 5월, 2020년 5월)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>2029년까지 서울 입주 물량은 바뀔 수 있나요</dt><dd>착공에서 입주까지 대략 3년이 걸리므로, 2029년 상반기 입주분은 지금 공사 중인 현장에서 이미 정해져 있습니다. 해마다 물량은 본문의 서울 입주 그림에 있습니다.</dd><dt>반도체 호황이면 경기 남부 집값이 오르나요</dt><dd>반도체 공장과 연구소가 늘면 그 일대로 출퇴근하려는 직주근접 수요가 커집니다. 이 권역에는 대규모 3기 신도시가 들어서지 않아 신규 택지가 부족하므로, 늘어난 수요는 가격으로 먼저 반영되기 쉽습니다.</dd><dt>강남이 내리면 경기 남부도 따라 내리나요</dt><dd>최근 주간 시세는 그렇지 않습니다. 강남구가 약세인 동안에도 분당구·수지구·동탄구는 오름세를 이어 왔습니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EA%B2%BD%EA%B8%B0/"><span>지역 공급 리포트</span>경기 아파트 공급 분석</a><a href="/#stats-market-week~a803051"><span>시세 지도</span>화성 동탄구 주간 시세</a><a href="/city/yongin-2027-moveins/"><span>도시 입주물량</span>용인 2027년 입주는 적정물량의 60%, 그마저 처인구에 몰립니다</a></div></section><div class="cnav"><a class="cnav-p" href="/column/oh-sehoon-permits-19y/"><span>이전 글</span>오세훈 시장 &#x27;주택의 삭제&#x27;, 서울 인허가는 19년 내내 적정물량의 절반입니다</a><a class="cnav-n" href="/column/hong-completion-2033/"><span>다음 글</span>홍지선 장관 &#x27;착공과 준공&#x27; 잣대면 새 택지 입주는 2033년부터입니다</a><a class="cnav-hub" href="/column/"><span>이 질문의 글 모두</span>그 발언, 숫자로 맞나?</a></div></div></section>

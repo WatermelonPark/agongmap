@@ -72,9 +72,45 @@ READ_PX = 14
 # 탭바 키보드 초점(백로그 36-8, 2026-10-06) — 손 페이지 탭바엔 초점 표시가 없어 Tab 으로 어디 있는지 보이지 않았다. 먹색 바탕 위라
 # 흰 테두리를 안쪽으로 그린다. app.css 와 각 페이지 <style> 이 이 글자를 그대로 싣고 test_site_nav 가 모든 탭바 페이지를 본다.
 NAV_FOCUS_CSS = '.nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}'
+# 키보드 초점이 하단 탭바(62px) 밑에 숨지 않게 — 초점을 옮길 때 브라우저가 이만큼 띄워 스크롤한다(WCAG 2.4.11, 2026-11-12 접근성
+# 점검: 375px 에서 FAQ 질문·지도 칸·푸터 링크 등이 탭바 뒤에 통째로 가렸다). 탭바가 아래에 있는 폭(1023px 이하)만. 탭바를 싣는
+# 모든 스타일 원본(app.css·지표 뼈대·주간 뼈대 생성기·손 페이지)이 이 글자를 싣고 test_site_nav 가 본다.
+NAV_SCROLL_PAD_CSS = '@media(max-width:1023px){html{scroll-padding-bottom:72px}}'
+# 웹 글꼴(Pretendard)이 늦게 와 글이 다시 줄바꿈되며 화면이 밀리는 것(CLS)을 줄이는 대체 글꼴 — 안드로이드 기본 한글 글꼴(Noto Sans
+# CJK KR)을 Pretendard 한글 폭에 맞춰 94% 로 그린다(Pretendard 한글 폭은 Noto 의 0.939배 — 2026-11-12 브라우저 실측). 세로 치수도
+# Pretendard(위 0.952·아래 0.248)를 size-adjust 로 나눈 값. 같은 조건 재현에서 /cycle/ 0.214 → 0, /column/ 0.113 → 0, /monthly/
+# 0.035 → 0.002(375px), 서울 리포트 1280px 0.088 → 0.038. 그 글꼴이 없는 기기(iOS·Windows 기본)는 이 칸을 건너뛰어 예전과 같다.
+# 글꼴 목록에서는 'Pretendard' 바로 뒤에 둔다(FONT_STACK_HEAD). 글꼴 목록을 싣는 모든 스타일 원본이 두 글자를 싣고 test_site_nav 가 본다.
+FONT_FALLBACK_CSS = "@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}"
+FONT_STACK_HEAD = "'Pretendard Variable','Pretendard','Agong Fallback',"
 # 켜진 탭 색(2026-10-31 디자인 리뷰 2차 — FAQ 가 '콘텐츠' 탭을 켜도록 class="nav-btn on" 을 달았는데 이 규칙이 없어 네 탭이
 # 모두 회색이었다). 탭을 켜는 페이지는 자기 <style> 이나 읽는 시트(app.css)에 이 글자를 싣고, test_site_nav 가 본다.
 NAV_ON_CSS = '.nav-btn.on{color:#fff}'
+# 틀 강조색(2026-11-11 대표 결정 B안 '남색 + 형광 표시'). 사이트 틀이 먹색·회색뿐이라(색 감사: 18개 페이지 종류 중 9개가
+# 틀에 유채색 0%) 내비·선택된 단추·주요 단추·링크·요약 표지는 남색(--brand), 결론 숫자에는 노랑 형광 표시(--mark), 콘텐츠 분류
+# 태그는 연노랑(--mark-bg·--mark-ink)으로 칠한다. 데이터(지도·표·그래프)는 의미색만 쓰고 이 색을 쓰지 않는다 — 남색은 하락 파랑
+# (#2a62a3)보다 훨씬 어둡게 두어 갈린다. 모든 페이지의 :root 가 이 글자를 그대로 싣고 test_brand_color 가 대조한다.
+BRAND_TOKENS = '--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300'
+# 하단 탭바(데스크톱 위 내비) 바탕 — 모든 탭바 페이지가 같은 남색이다(test_brand_color).
+NAV_BG_CSS = 'background:var(--brand)'
+# 데이터 의미색 — 흰 바탕 위 등락 글자(2026-11-11 색 감사: '상승' 글자 빨강이 #c0392b·#a93226·#8f2318·#b23b2e 네 벌,
+# '하락' 파랑이 #1a5276·#123c5c·#2a62a3 세 벌이었다). 흰 바탕 표·순위의 등락 글자는 이 둘만 쓴다(대비 6:1 이상).
+# 지도 칸 채움과 칠한 칸 위 글자(make_weekly_page.tile_ink ↔ 홈 tcol)는 바탕이 달라 따로 둔다. test_brand_color 가 대조한다.
+UP_INK = '#a93226'
+DN_INK = '#1a5276'
+# 그래프 계열색(2026-11-11 대표 결정 '사이클 색으로 통일') — 매매 빨강·전세 보라·공급(착공·준공·입주물량, 월세 선) 초록.
+# /cycle/ 와 app.css --maemae·--jeonse·--stock 이 원래 쓰던 값이다. 시세 탭 시장동향(TR_COL)·기본통계(DS_COLOR)·콘텐츠 글 그림이
+# 같은 값을 쓴다(test_brand_color). 지도·표의 상승·하락은 칸 채움·글자색(UP_INK·DN_INK)이라 선 그래프와 범례로 갈린다.
+SERIES_COL = {'ma': '#c0392b', 'je': '#6c4ab6', 'sup': '#1f8a70'}
+SERIES_TOKENS = '--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70'
+# 뒤 단계가 채우는 표식 구간(자리는 그 페이지의 생성기가 빈 쌍으로 내고, 안쪽은 make_content_pages 가 채운다). 페이지를 다시 굽는
+# 생성기는 늘 빈 쌍을 내므로, 커밋된 옛 판(채워진 구간)과 견주면 데이터가 그대로인 날에도 '내용 바뀜'이 된다 — 2026-11-13 전수
+# 리뷰: 시도 리포트 전부와 /moveins/ 의 dateModified·'페이지 수정'·sitemap lastmod 가 매일 오늘로 올랐다. 그래서
+# make_sido_pages.keep_dates 는 이 구간들을 양쪽에서 비우고 견준다. **keep_dates 를 거치는 페이지에 새 표식 구간을 두면 여기에 올린다**
+# (test_late_slots). /weekly/ 해설 칸(WK:COLUMN)과 홈 CONTENT_RECENT 는 keep_dates 를 거치지 않는 페이지라 여기 없다.
+SLOT_ZONE_POSTS = ('<!--ZONE_POSTS_START-->', '<!--ZONE_POSTS_END-->')
+SLOT_MOVEINS_CITY = ('<!--MV:CITY-->', '<!--/MV:CITY-->')
+LATE_SLOTS = (SLOT_ZONE_POSTS, SLOT_MOVEINS_CITY)
 IDS = tuple(t[0] for t in TABS)
 LABELS = tuple(t[2] for t in TABS)
 HREF = {t[0]: t[1] for t in TABS}

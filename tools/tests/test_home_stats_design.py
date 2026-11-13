@@ -157,22 +157,25 @@ def test_stats_map_basis_and_cell_meaning_share_one_line_above_the_map():
     assert 'flex-wrap:wrap' in _rule(css, '.map-top')
 
 
-def test_trend_chart_series_colors_are_not_the_direction_colors():
-    """stats-5: 그래프 계열 색은 TR_COL(매매 먹·전세 회청·월세 초록) 하나이고 범례 네모(.cl-ma·.cl-je·.cl-wo)와 같다. 빨강·파랑(지도·
-    표·순위의 상승·하락 — #e0564a·#c0392b·#3a7bd5·#1a5276)과 옛 보라 #a98be0 는 drawTrendChart 와 범례에 없다.
+def test_trend_chart_series_colors_follow_the_site_series_colors():
+    """그래프 계열 색은 TR_COL 하나이고 사이트 공통 계열색(site_nav.SERIES_COL — 매매 빨강·전세 보라·월세 초록, 2026-11-11 대표 결정
+    '사이클 색으로 통일')과 같으며 범례 네모(.cl-ma·.cl-je·.cl-wo)와 같다. 11-07 stats-5 의 먹·회청(#131e24·#7a8b91)과 옛 연보라
+    #a98be0·옛 빨강 #e0564a 는 쓰지 않는다.
 
-    변이(실제로 확인): drawTrendChart 의 매매 선을 옛 '#e0564a' 로 되돌리면, .cl-je 범례를 '#a98be0' 로 되돌리면, TR_COL.je 만
-    바꾸고 범례를 그대로 두면 빨개진다.
+    변이(실제로 확인): TR_COL.ma 를 옛 '#131e24' 로 되돌리면, .cl-je 범례를 '#a98be0' 로 되돌리면, TR_COL.je 만 바꾸고 범례를 그대로
+    두면 빨개진다.
     """
+    import site_nav as N
     src = HS.home_source()
     m = re.search(r"^const TR_COL=\{ma:'(#[0-9a-f]{6})',je:'(#[0-9a-f]{6})',wo:'(#[0-9a-f]{6})'\};", src, re.M)
     assert m, 'TR_COL 이 없다'
     col = dict(zip(('ma', 'je', 'wo'), m.groups()))
+    assert col == {'ma': N.SERIES_COL['ma'], 'je': N.SERIES_COL['je'], 'wo': N.SERIES_COL['sup']}, col
     css = _css()
     for k, cls in (('ma', 'cl-ma'), ('je', 'cl-je'), ('wo', 'cl-wo')):
         assert ('background:%s' % col[k]) in _rule(css, '.chart-legend .%s::before' % cls), (k, cls)
     draw = _js_func(src, 'drawTrendChart')
-    for bad in ('#e0564a', '#c0392b', '#3a7bd5', '#1a5276', '#a98be0'):
+    for bad in ('#e0564a', '#131e24', '#7a8b91', '#a98be0'):
         assert bad not in draw and bad not in set(col.values()), bad
     for k in ('ma', 'je', 'wo'):
         assert 'TR_COL.%s' % k in draw, k
@@ -361,3 +364,13 @@ def test_home_quiz_buttons_have_no_emoji_and_cycle_text_has_no_count():
     assert all(not re.search('[\U0001F000-\U0001FAFF☀-➿️]', b) for b in btns), btns
     cyc = re.search(r'<h2>집값은 왜 돌고 도는가</h2>\s*(?:<!--.*?-->\s*)?<p>([^<]*)</p>', home, re.S).group(1)
     assert not re.search(r'\d+\s*개\s*고리', cyc), cyc
+
+
+def test_number_cells_are_right_aligned_heads_stay_centered():
+    """시세 탭 표(table.adv)·순위 표(.rank-tbl)의 숫자 칸은 오른쪽 맞춤이고(자릿수가 세로로 맞는다), 머리는 07-22 원칙대로 가운데다.
+    실제 상태(2026-11-12 디자인 마감 점검): 칸이 가운데 맞춤이라 +0.35%·+0.61% 끝과 ▲2위·▲18위 자릿수가 어긋났다.
+    변이(실제로 확인): 'table.adv th,table.adv td' 규칙의 text-align 을 center 로 되돌리면 빨개진다."""
+    css = _css()
+    assert 'text-align:right' in _rule(css, 'table.adv th,table.adv td')
+    assert 'text-align:right' in _rule(css, '.rank-tbl th,.rank-tbl td')
+    assert 'text-align:center' in _rule(css, 'table.adv thead th') and 'text-align:center' in _rule(css, '.rank-tbl thead th')

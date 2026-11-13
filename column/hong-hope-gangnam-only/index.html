@@ -64,7 +64,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         "name": "서울 아파트값은 지금 내리고 있나요",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "서울 전체는 91주 연속 상승(11월 2일 조사)입니다. 내리는 곳은 강남구·서초구·송파구입니다."
+          "text": "서울 전체는 92주 연속 상승(11월 9일 조사)입니다. 내리는 곳은 강남구·서초구·송파구입니다."
         }
       },
       {
@@ -80,7 +80,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
         "name": "서울 전세는 어떤가요",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "서울 아파트 전세는 91주 연속 상승(11월 2일 조사)입니다."
+          "text": "서울 아파트 전세는 92주 연속 상승(11월 9일 조사)입니다."
         }
       }
     ]
@@ -109,16 +109,17 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     ]
   }
 ]</script>
-<style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;--h1-report:clamp(28px,6vw,40px);--h1-doc:clamp(26px,5.6vw,34px);--col-read:560px;--col-wide:820px;--fs-read:16px;--fs-dense:14px;--brand:#16325c;--brand-bg:#e8eef7;--mark:#ffe066;--mark-bg:#fff3b8;--mark-soft:#fff6cc;--mark-ink:#5a4300;--maemae:#c0392b;--jeonse:#6c4ab6;--stock:#1f8a70}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -161,14 +162,16 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:13px;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -184,9 +187,9 @@ footer a{color:var(--ink2)}
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -199,12 +202,12 @@ footer a{color:var(--ink2)}
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -246,11 +249,12 @@ footer a{color:var(--ink2)}
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -275,10 +279,10 @@ footer a{color:var(--ink2)}
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
@@ -290,14 +294,14 @@ footer a{color:var(--ink2)}
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -305,7 +309,7 @@ footer a{color:var(--ink2)}
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
@@ -372,7 +376,7 @@ footer a{color:var(--ink2)}
 .clist span{display:block;font-size:13.5px;color:var(--ink2);line-height:1.6}
 .clist i{display:block;font-style:normal;font-size:13px;color:var(--muted);margin-top:5px}
 </style>
-<link rel="stylesheet" href="/desk.css?v=8cdd1d81" media="(min-width:1024px)">
+<link rel="stylesheet" href="/desk.css?v=6ea590ec" media="(min-width:1024px)">
 </head>
 <body data-desk="read">
 <a class="skip" href="#main">본문으로 건너뛰기</a>
@@ -380,18 +384,18 @@ footer a{color:var(--ink2)}
 <main id="main"><section><div class="wrap"><div class="ctldr"><b>3줄 요약</b><ol><li>주간 시세가 내린 곳은 강남·서초·송파 강남 3구입니다</li><li>서울 외곽 여섯 구와 서울 전세는 아직 오르고 있습니다</li><li>앞으로 3년 서울 입주는 적정물량의 32%라 하락이 번지기 어렵습니다</li></ol></div><p class="caud"><b>이 글이 맞는 분</b>강남 하락 소식에 서울 외곽 매수 시점을 다시 재는 실수요자</p><div class="ckey"><strong>32%</strong><span>3년 적정물량 대비</span></div><div class="cbody"><p>홍지선 국토교통부 장관은 11월 5일 자기 SNS에 서울 집값을 두고 이렇게 썼습니다(뉴스핌·헤럴드경제 보도). "주택시장 가격 지표에서 일부 희망적인 신호가 보인다". 근거로는 "한국부동산원 주간동향조사에서는 서울 강남권을 중심으로 하락세가 이어지고 있고"라는 문장을 들었습니다.</p>
 <p>강남권 하락은 사실입니다. 그런데 서울에서 내리는 곳은 거기까지입니다. 구별 주간 시세를 한 칸씩 짚어 보겠습니다.</p>
 <h2>내린 곳은 강남 3구</h2>
-<p>강남구는 13주 연속 하락(11월 2일 조사), 서초구는 13주 연속 하락(11월 2일 조사), 송파구는 9주 연속 하락(11월 2일 조사)입니다. 장관이 말한 '강남권 하락'에 해당하는 곳이 이 세 구입니다.</p>
-<p>같은 서울에서도 강남 3구 밖은 다릅니다. 마포·용산·성동 묶음을 보면 마포구는 92주 연속 상승(11월 2일 조사), 용산구는 4주 연속 상승(11월 2일 조사), 성동구는 31주 연속 상승(11월 2일 조사)입니다. 양천구도 92주 연속 상승(11월 2일 조사)입니다.</p>
+<p>강남구는 14주 연속 하락(11월 9일 조사), 서초구는 14주 연속 하락(11월 9일 조사), 송파구는 10주 연속 하락(11월 9일 조사)입니다. 장관이 말한 '강남권 하락'에 해당하는 곳이 이 세 구입니다.</p>
+<p>같은 서울에서도 강남 3구 밖은 다릅니다. 마포·용산·성동 묶음을 보면 마포구는 93주 연속 상승(11월 9일 조사), 용산구는 5주 연속 상승(11월 9일 조사), 성동구는 1주 연속 하락(11월 9일 조사)입니다. 양천구도 93주 연속 상승(11월 9일 조사)입니다.</p>
 <h2>서울 외곽은 아직 오릅니다</h2>
-<p>노원구는 75주 연속 상승(11월 2일 조사), 도봉구는 57주 연속 상승(11월 2일 조사), 강북구는 74주 연속 상승(11월 2일 조사)입니다. 금천구 82주 연속 상승(11월 2일 조사), 관악구 86주 연속 상승(11월 2일 조사), 구로구 84주 연속 상승(11월 2일 조사)까지 서울 외곽 여섯 구에서 내린 곳은 없습니다.</p>
-<p>서울 전체로 묶으면 91주 연속 상승(11월 2일 조사)이고, 서울 아파트 전세는 91주 연속 상승(11월 2일 조사)입니다. 노원구 전세도 91주 연속 상승(11월 2일 조사)입니다.</p>
-<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="서울 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.07%, 전세 최신 +0.17%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="150.0" x2="632" y2="150.0" class="cl-zero"/><path d="M8.0 57.5 L33.0 46.5 L57.9 68.6 L82.9 68.1 L107.8 60.7 L132.8 59.4 L157.8 49.8 L182.7 60.3 L207.7 51.0 L232.6 50.7 L257.6 59.9 L282.6 68.8 L307.5 65.5 L332.5 81.1 L357.4 79.1 L382.4 53.0 L407.4 77.9 L432.3 85.7 L457.3 98.0 L482.2 105.8 L507.2 120.5 L532.2 110.7 L557.1 96.7 L582.1 107.5 L607.0 120.2 L632.0 126.7" class="cl cl-ma"/><circle cx="632.0" cy="126.7" r="2.5" class="cl-dot"/><path d="M8.0 59.3 L33.0 53.5 L57.9 63.2 L82.9 53.5 L107.8 43.4 L132.8 49.6 L157.8 34.0 L182.7 51.6 L207.7 49.4 L232.6 56.4 L257.6 61.9 L282.6 67.1 L307.5 69.0 L332.5 85.6 L357.4 87.1 L382.4 77.1 L407.4 82.1 L432.3 86.2 L457.3 94.0 L482.2 86.7 L507.2 95.7 L532.2 96.2 L557.1 89.0 L582.1 97.2 L607.0 94.8 L632.0 92.5" class="cl cl-je"/><circle cx="632.0" cy="92.5" r="2.5" class="cl-dot"/><text x="10" y="145.0" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.35%</text><text x="626.0" y="118.7" class="cb-v cb-k cx-e cl-t">+0.07%</text><text x="10" y="183" class="cb-x cx-s">5/11</text><text x="630" y="183" class="cb-x cx-e">11/2</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>서울 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/2 조사 · 전주 대비 변동률</figcaption></figure>
+<p>노원구는 76주 연속 상승(11월 9일 조사), 도봉구는 58주 연속 상승(11월 9일 조사), 강북구는 75주 연속 상승(11월 9일 조사)입니다. 금천구 83주 연속 상승(11월 9일 조사), 관악구 87주 연속 상승(11월 9일 조사), 구로구 85주 연속 상승(11월 9일 조사)까지 서울 외곽 여섯 구에서 내린 곳은 없습니다.</p>
+<p>서울 전체로 묶으면 92주 연속 상승(11월 9일 조사)이고, 서울 아파트 전세는 92주 연속 상승(11월 9일 조사)입니다. 노원구 전세도 92주 연속 상승(11월 9일 조사)입니다.</p>
+<figure class="cchart"><svg viewBox="0 0 640 190" role="img" aria-label="서울 최근 26주 주간 변동률 꺾은선. 매매 최신 +0.07%, 전세 최신 +0.17%." class="cchart-svg"><line x1="8" y1="34.0" x2="632" y2="34.0" class="cl-grid"/><line x1="8" y1="150.0" x2="632" y2="150.0" class="cl-zero"/><path d="M8.0 46.5 L33.0 68.6 L57.9 68.1 L82.9 60.7 L107.8 59.4 L132.8 49.8 L157.8 60.3 L182.7 51.0 L207.7 50.7 L232.6 59.9 L257.6 68.8 L282.6 65.5 L307.5 81.1 L332.5 79.1 L357.4 53.0 L382.4 77.9 L407.4 85.7 L432.3 98.0 L457.3 105.8 L482.2 120.5 L507.2 110.7 L532.2 96.7 L557.1 107.5 L582.1 120.2 L607.0 126.7 L632.0 126.4" class="cl cl-ma"/><circle cx="632.0" cy="126.4" r="2.5" class="cl-dot"/><path d="M8.0 53.5 L33.0 63.2 L57.9 53.5 L82.9 43.4 L107.8 49.6 L132.8 34.0 L157.8 51.6 L182.7 49.4 L207.7 56.4 L232.6 61.9 L257.6 67.1 L282.6 69.0 L307.5 85.6 L332.5 87.1 L357.4 77.1 L382.4 82.1 L407.4 86.2 L432.3 94.0 L457.3 86.7 L482.2 95.7 L507.2 96.2 L532.2 89.0 L557.1 97.2 L582.1 94.8 L607.0 92.5 L632.0 95.2" class="cl cl-je"/><circle cx="632.0" cy="95.2" r="2.5" class="cl-dot"/><text x="10" y="145.0" class="cb-x cx-s cl-t">0</text><text x="10" y="29.0" class="cb-x cx-s cl-t">+0.35%</text><text x="626.0" y="118.4" class="cb-v cb-k cx-e cl-t">+0.07%</text><text x="10" y="183" class="cb-x cx-s">5/18</text><text x="630" y="183" class="cb-x cx-e">11/9</text></svg><p class="clegend"><span class="lg-ma">매매</span><span class="lg-je">전세</span></p><figcaption>서울 최근 26주 변동률 · 한국부동산원 주간 아파트가격동향 · 11/9 조사 · 전주 대비 변동률</figcaption></figure>
 <h2>하락이 서울 전체로 번지기 어려운 까닭</h2>
 <p>서울 외곽과 전세를 붙잡고 있는 것은 입주 물량입니다. 앞으로 3년 서울에 들어올 아파트는 71,424세대로 적정물량의 32%입니다. 2027년 한 해만 보면 20,664세대, 적정물량의 28%입니다.</p>
-<figure class="cchart"><div class="ccards"><div class="ccard"><b>20,664세대</b><span>서울 2027년 입주</span></div><div class="ccard"><b>91주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="서울 연도별 입주 물량 막대그래프. 2017년 29,201세대, 2018년 38,853세대, 2019년 45,860세대, 2020년 54,355세대, 2021년 43,729세대, 2022년 31,836세대, 2023년 38,028세대, 2024년 32,988세대, 2025년 41,893세대, 2026년 32,533세대, 2027년 20,664세대, 2028년 25,707세대, 2029년 15,287세대. 앞으로 3년 71,424세대 · 적정물량 대비 32%." class="cchart-svg cb-dense"><rect x="8.0" y="94.8" width="38.8" height="75.2" class="cb"/><text x="8.0" y="90.8" class="cb-v cx-s">29,201</text><text x="8.0" y="202" class="cb-x cx-s">2017</text><rect x="56.8" y="69.9" width="38.8" height="100.1" class="cb"/><text x="76.2" y="65.9" class="cb-v">38,853</text><text x="76.2" y="202" class="cb-x cb-x2">2018</text><rect x="105.5" y="51.9" width="38.8" height="118.1" class="cb"/><text x="124.9" y="47.9" class="cb-v">45,860</text><text x="124.9" y="202" class="cb-x">2019</text><rect x="154.3" y="30.0" width="38.8" height="140.0" class="cb"/><text x="173.7" y="26.0" class="cb-v cb-k">54,355</text><text x="173.7" y="202" class="cb-x cb-x2">2020</text><rect x="203.1" y="57.4" width="38.8" height="112.6" class="cb"/><text x="222.5" y="53.4" class="cb-v">43,729</text><text x="222.5" y="202" class="cb-x">2021</text><rect x="251.8" y="88.0" width="38.8" height="82.0" class="cb"/><text x="271.2" y="84.0" class="cb-v">31,836</text><text x="271.2" y="202" class="cb-x cb-x2">2022</text><rect x="300.6" y="72.1" width="38.8" height="97.9" class="cb"/><text x="320.0" y="68.1" class="cb-v">38,028</text><text x="320.0" y="202" class="cb-x">2023</text><rect x="349.4" y="85.0" width="38.8" height="85.0" class="cb"/><text x="368.8" y="81.0" class="cb-v">32,988</text><text x="368.8" y="202" class="cb-x cb-x2">2024</text><rect x="398.2" y="62.1" width="38.8" height="107.9" class="cb"/><text x="417.5" y="58.1" class="cb-v">41,893</text><text x="417.5" y="202" class="cb-x">2025</text><rect x="446.9" y="86.2" width="38.8" height="83.8" class="cb"/><text x="466.3" y="82.2" class="cb-v">32,533</text><text x="466.3" y="202" class="cb-x cb-x2">2026</text><rect x="495.7" y="116.8" width="38.8" height="53.2" class="cb"/><text x="515.1" y="112.8" class="cb-v">20,664</text><text x="515.1" y="202" class="cb-x">2027</text><rect x="544.5" y="103.8" width="38.8" height="66.2" class="cb"/><text x="563.8" y="99.8" class="cb-v">25,707</text><text x="563.8" y="202" class="cb-x cb-x2">2028</text><rect x="593.2" y="130.6" width="38.8" height="39.4" class="cb"/><text x="632.0" y="126.6" class="cb-v cb-k cx-e">15,287</text><text x="632.0" y="202" class="cb-x cx-e">2029</text></svg><figcaption>서울 해마다 입주 물량 · 국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정</figcaption><p class="cfoot3">앞으로 3년 71,424세대 · 적정물량 대비 32%</p></figure>
+<figure class="cchart"><div class="ccards"><div class="ccard"><b>20,664세대</b><span>서울 2027년 입주</span></div><div class="ccard"><b>92주 연속 상승</b><span>전세 흐름</span></div></div><svg viewBox="0 0 640 210" role="img" aria-label="서울 연도별 입주 물량 막대그래프. 2017년 29,201세대, 2018년 38,853세대, 2019년 45,860세대, 2020년 54,355세대, 2021년 43,729세대, 2022년 31,836세대, 2023년 38,028세대, 2024년 32,988세대, 2025년 41,893세대, 2026년 32,533세대, 2027년 20,664세대, 2028년 25,707세대, 2029년 15,287세대. 앞으로 3년 71,424세대 · 적정물량 대비 32%." class="cchart-svg cb-dense"><rect x="8.0" y="94.8" width="38.8" height="75.2" class="cb"/><text x="8.0" y="90.8" class="cb-v cx-s">29,201</text><text x="8.0" y="202" class="cb-x cx-s">2017</text><rect x="56.8" y="69.9" width="38.8" height="100.1" class="cb"/><text x="76.2" y="65.9" class="cb-v">38,853</text><text x="76.2" y="202" class="cb-x cb-x2">2018</text><rect x="105.5" y="51.9" width="38.8" height="118.1" class="cb"/><text x="124.9" y="47.9" class="cb-v">45,860</text><text x="124.9" y="202" class="cb-x">2019</text><rect x="154.3" y="30.0" width="38.8" height="140.0" class="cb"/><text x="173.7" y="26.0" class="cb-v cb-k">54,355</text><text x="173.7" y="202" class="cb-x cb-x2">2020</text><rect x="203.1" y="57.4" width="38.8" height="112.6" class="cb"/><text x="222.5" y="53.4" class="cb-v">43,729</text><text x="222.5" y="202" class="cb-x">2021</text><rect x="251.8" y="88.0" width="38.8" height="82.0" class="cb"/><text x="271.2" y="84.0" class="cb-v">31,836</text><text x="271.2" y="202" class="cb-x cb-x2">2022</text><rect x="300.6" y="72.1" width="38.8" height="97.9" class="cb"/><text x="320.0" y="68.1" class="cb-v">38,028</text><text x="320.0" y="202" class="cb-x">2023</text><rect x="349.4" y="85.0" width="38.8" height="85.0" class="cb"/><text x="368.8" y="81.0" class="cb-v">32,988</text><text x="368.8" y="202" class="cb-x cb-x2">2024</text><rect x="398.2" y="62.1" width="38.8" height="107.9" class="cb"/><text x="417.5" y="58.1" class="cb-v">41,893</text><text x="417.5" y="202" class="cb-x">2025</text><rect x="446.9" y="86.2" width="38.8" height="83.8" class="cb"/><text x="466.3" y="82.2" class="cb-v">32,533</text><text x="466.3" y="202" class="cb-x cb-x2">2026</text><rect x="495.7" y="116.8" width="38.8" height="53.2" class="cb"/><text x="515.1" y="112.8" class="cb-v">20,664</text><text x="515.1" y="202" class="cb-x">2027</text><rect x="544.5" y="103.8" width="38.8" height="66.2" class="cb"/><text x="563.8" y="99.8" class="cb-v">25,707</text><text x="563.8" y="202" class="cb-x cb-x2">2028</text><rect x="593.2" y="130.6" width="38.8" height="39.4" class="cb"/><text x="632.0" y="126.6" class="cb-v cb-k cx-e">15,287</text><text x="632.0" y="202" class="cb-x cx-e">2029</text></svg><figcaption>서울 해마다 입주 물량 · 국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정</figcaption><p class="cfoot3">앞으로 3년 71,424세대 · 적정물량 대비 32%</p></figure>
 <p>입주가 적으면 새로 나오는 전세 물건도 적습니다. 서울 전세가 쉬지 않고 오르는 것도 이 물량과 같은 방향입니다. 강남 3구의 하락이 서울 외곽까지 넓어지려면 입주 물량이 먼저 늘어야 하는데, 앞으로 3년 숫자는 그렇지 않습니다.</p>
 <h2>장관 말 가운데 맞는 대목</h2>
-<p>장관은 같은 글에서 "결국 서울 안의 공급은 국토부와 서울시가 함께 풀어야 할 일"이라고 썼습니다. 이 대목은 입주 물량이 그대로 뒷받침합니다. 서울 입주가 적정물량의 3분의 1에 머무는 동안, 가격 지표 몇 개의 둔화로는 서울 외곽 실수요자의 부담이 줄지 않습니다. 희망적인 신호는 서울 안에서 착공이 늘고 그 물량이 입주로 이어질 때 나옵니다.</p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>뉴스핌·헤럴드경제 보도(2026년 11월 5일, 홍지선 장관 SNS 글 인용)</li><li>한국부동산원 주간 아파트 가격동향</li><li>국토교통부 준공 실적, 아공맵 입주 추정(2026년 하반기부터 착공을 3년 뒤로 밀어 셈)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>서울 아파트값은 지금 내리고 있나요</dt><dd>서울 전체는 91주 연속 상승(11월 2일 조사)입니다. 내리는 곳은 강남구·서초구·송파구입니다.</dd><dt>앞으로 3년 서울 입주 물량은 얼마인가요</dt><dd>71,424세대로 적정물량의 32%입니다.</dd><dt>서울 전세는 어떤가요</dt><dd>서울 아파트 전세는 91주 연속 상승(11월 2일 조사)입니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EC%84%9C%EC%9A%B8/"><span>지역 공급 리포트</span>서울 아파트 공급 분석</a><a href="/#stats-market-week"><span>시세 지도</span>서울 주간 시세</a></div></section><div class="cnav"><a class="cnav-p" href="/column/hong-completion-2033/"><span>이전 글</span>홍지선 장관 &#x27;착공과 준공&#x27; 잣대면 새 택지 입주는 2033년부터입니다</a><a class="cnav-hub" href="/column/"><span>이 질문의 글 모두</span>그 발언, 숫자로 맞나?</a></div></div></section>
+<p>장관은 같은 글에서 "결국 서울 안의 공급은 국토부와 서울시가 함께 풀어야 할 일"이라고 썼습니다. 이 대목은 입주 물량이 그대로 뒷받침합니다. 서울 입주가 적정물량의 3분의 1에 머무는 동안, 가격 지표 몇 개의 둔화로는 서울 외곽 실수요자의 부담이 줄지 않습니다. 희망적인 신호는 서울 안에서 착공이 늘고 그 물량이 입주로 이어질 때 나옵니다.</p></div><section class="csrc-s"><h2>숫자의 출처</h2><ul class="csrc"><li>뉴스핌·헤럴드경제 보도(2026년 11월 5일, 홍지선 장관 SNS 글 인용)</li><li>한국부동산원 주간 아파트 가격동향</li><li>국토교통부 준공 실적, 아공맵 입주 추정(2026년 하반기부터 착공을 3년 뒤로 밀어 셈)</li></ul></section><section class="cfaq"><h2>자주 묻는 질문</h2><dl><dt>서울 아파트값은 지금 내리고 있나요</dt><dd>서울 전체는 92주 연속 상승(11월 9일 조사)입니다. 내리는 곳은 강남구·서초구·송파구입니다.</dd><dt>앞으로 3년 서울 입주 물량은 얼마인가요</dt><dd>71,424세대로 적정물량의 32%입니다.</dd><dt>서울 전세는 어떤가요</dt><dd>서울 아파트 전세는 92주 연속 상승(11월 9일 조사)입니다.</dd></dl></section><section class="cmore"><h2>이 지역 더 보기</h2><div class="cmore-l"><a class="cgo" href="/zone/%EC%84%9C%EC%9A%B8/"><span>지역 공급 리포트</span>서울 아파트 공급 분석</a><a href="/#stats-market-week"><span>시세 지도</span>서울 주간 시세</a></div></section><div class="cnav"><a class="cnav-p" href="/column/hong-completion-2033/"><span>이전 글</span>홍지선 장관 &#x27;착공과 준공&#x27; 잣대면 새 택지 입주는 2033년부터입니다</a><a class="cnav-hub" href="/column/"><span>이 질문의 글 모두</span>그 발언, 숫자로 맞나?</a></div></div></section>
 </main>
 <footer class="sitefoot"><div class="wrap">
   <b>아공맵</b> — 아파트 공급 지도<br>

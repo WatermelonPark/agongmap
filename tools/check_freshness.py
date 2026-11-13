@@ -1178,6 +1178,30 @@ def too_old(label, ours, max_age):
             % (label, ours, age, max_age))
 
 
+# 원천 표가 멈춘 것을 사람이 이미 확인한 계열 → (확인한 날, 다시 볼 날, 사유). 다시 볼 날까지는 '원천과 같은 시점에
+# 멈춘 채 나이 상한을 넘음'을 실패가 아니라 경고(WARN)로 둔다 — 같은 원천 정지로 매일 경보 메일이 가지 않게
+# (2026-11-10 대표 결정 '연말까지 경고로'). 원천이 새 달을 내는데 우리가 못 받으면(behind) 그대로 실패고, 원천 조회가
+# 실패해 원천 시점을 모르는 회차도 그대로 실패다. 다시 볼 날이 지나면 저절로 실패로 돌아간다 — 그날까지 원천이
+# 살아나지 않으면 판정 단위·원천을 바꿀지 사람이 정한다(R-ONE 규모별 표로 옮기기 — 키가 있는 세션 몫).
+SOURCE_PAUSED = {
+    '규모별 %s' % n: ('2026-11-10', '2026-12-31',
+                    'KOSIS 전국주택가격동향(기준월 2026.01) 묶음 표 전부가 2026.06 에서 멈춤(자료갱신일 2026-07-30)')
+    for n in ('매매', '전세', '월세')
+}
+
+
+def paused_until(label, today=None):
+    """label 이 확인된 원천 정지 기간 안이면 그 사유, 아니면 None."""
+    p = SOURCE_PAUSED.get(label)
+    if not p:
+        return None
+    try:
+        until = datetime.date.fromisoformat(p[1])
+    except ValueError:
+        return None
+    return p[2] if (today or TODAY) <= until else None
+
+
 def check(label, ours, getter, grace, _retry=True, max_age=None):
     """원천이 더 최신이고 grace를 넘겨 뒤처졌으면 실패 사유를 반환.
 
@@ -1216,7 +1240,13 @@ def check(label, ours, getter, grace, _retry=True, max_age=None):
             return '%s(라이브 %s < 원천 %s, 경과 %s일)' % (label, ours, src, age)
         mark += ' (발표 직후 가능 — grace %d일 내)' % grace
     print('  %-12s %-12s %s일%s' % (label, ours, age, mark))
-    return too_old(label, ours, max_age)
+    old = too_old(label, ours, max_age)
+    why = paused_until(label) if (old and not behind) else None
+    if why:
+        WARN.append('%s — 확인된 원천 정지(%s, %s까지 경고로만): %s'
+                    % (old, why, SOURCE_PAUSED[label][1], label))
+        return None
+    return old
 
 
 def retry_failed(fails, wait=None):

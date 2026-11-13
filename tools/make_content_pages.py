@@ -34,6 +34,7 @@ import content_tables as CT        # noqa: E402  (자리표 → 사이트 데이
 import make_indicator_pages as I   # noqa: E402  (뼈대 SHELL·fill·sitemap 갱신)
 import make_sido_pages as SP       # noqa: E402  (keep_dates — 내용이 같으면 옛 날짜 유지)
 import home_src as HS             # noqa: E402  (홈 파일 위치의 정본 — 백로그 10)
+import site_nav as N              # noqa: E402  (탭바·뒤 단계 표식 구간 LATE_SLOTS 의 정본)
 
 SITE = I.SITE
 AUTHOR = '아공맵 운영팀'
@@ -102,8 +103,12 @@ def _inline(t):
     t = html.escape(t, quote=False)
     t = re.sub(r'`([^`]+)`', r'<code>\1</code>', t)
     t = re.sub(r'\*\*([^*]+)\*\*', r'<b>\1</b>', t)
-    t = re.sub(r'!\[([^\]]*)\]\(([^)\s]+)\)', r'<img src="\2" alt="\1" loading="lazy">', t)
-    t = re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)', r'<a href="\2">\1</a>', t)
+    # 속성에 들어가는 조각(주소·대체글)만 큰따옴표를 &quot; 로 바꾼다 — 본문 글자의 따옴표는 그대로 둔다(위에서 quote=False).
+    # 안 바꾸면 `![그는 "오른다"고 했다](…)` 가 alt="그는 "오른다"고 했다" 로 나가 속성이 끊긴다(2026-11-13 전수 리뷰).
+    q = lambda s: s.replace('"', '&quot;')      # noqa: E731
+    t = re.sub(r'!\[([^\]]*)\]\(([^)\s]+)\)',
+               lambda m: '<img src="%s" alt="%s" loading="lazy">' % (q(m.group(2)), q(m.group(1))), t)
+    t = re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)', lambda m: '<a href="%s">%s</a>' % (q(m.group(2)), m.group(1)), t)
     return t
 
 
@@ -139,7 +144,8 @@ def _anchor(cx, txt, lo, hi):
 def _bars_svg(spec):
     pts = spec['series'][0]['points']
     rule = spec.get('rule')
-    top = max([v for _, v in pts] + ([rule[0]] if rule and rule[0] else [0])) or 1
+    # 값이 None 인 해는 막대 없이 자리만 두고 '없음'을 적는다(CT.NO_MOVEIN — 공개 목록에 그 해 입주가 없다, 2026-11-12 대표 결정).
+    top = max([v for _, v in pts if v is not None] + ([rule[0]] if rule and rule[0] else [0])) or 1
     # 위 여백은 휴대폰 글자(viewBox 단위 26, .cb-v)가 가장 높은 막대 위에서 잘리지 않을 만큼 둔다. 아래 여백은 휴대폰 x 축
     # 글자(26~32 단위) 윗선이 막대 밑단에 붙지 않을 만큼(2026-11-07 디자인 검수 — 26 이라 연도 글자 위로 막대가 덮였다).
     pad_l, pad_b, pad_t = 8, 40, 30
@@ -153,13 +159,21 @@ def _bars_svg(spec):
     # 막대가 많으면 값을 다 적을 자리가 없다(경기 13개에서 숫자가 서로 겹쳤다). 좁아지면 가장 큰 해와
     # 마지막 해만 적는다 — 나머지 숫자는 바로 아래 표와 대체 텍스트에 있다.
     tight = bw < 34
-    keep = {max(range(len(pts)), key=lambda i: pts[i][1]), len(pts) - 1}
+    keep = {max(range(len(pts)), key=lambda i: pts[i][1] or 0), len(pts) - 1}
     # 데스크톱 기본 단위(17)로도 값 글자가 막대 간격보다 넓으면 화면 폭과 상관없이 대표 둘만 적는다(cb-dense).
-    widest = max(len(CT.num(v)) for _, v in pts)
+    widest = max(len(CT.num(v)) for _, v in pts if v is not None)
     dense = widest * CH_EM * CH_UNIT > bw + gap
     out = [_svg_open(spec, CH_BAR_H, ' cb-dense' if dense else '')]
     for i, (lab, v) in enumerate(pts):
         x = pad_l + i * (bw + gap)
+        if v is None:
+            tx, al = _anchor(x + bw / 2, '없음', x, x + bw)
+            out.append('<text x="%.1f" y="%.1f" class="cb-v cb-k cb-none%s">없음</text>' % (tx, pad_t + plot_h - 4, al))
+            odd = len(pts) > 6 and (len(pts) - 1 - i) % 2 == 1
+            tx, al = _anchor(x + bw / 2, str(lab), x, x + bw)
+            out.append('<text x="%.1f" y="%d" class="cb-x%s%s">%s</text>'
+                       % (tx, CH_BAR_H - 8, ' cb-x2' if odd else '', al, html.escape(str(lab))))
+            continue
         hh = max(1.0, v / float(top) * plot_h)
         y = pad_t + plot_h - hh
         over = rule and rule[0] and v >= rule[0]
@@ -276,7 +290,6 @@ def _own_tab(page):
 
     탭바 마크업은 site_nav 가 정본이라 그 함수가 만든 두 덩어리를 맞바꾼다(문자열을 손으로 적지 않는다).
     """
-    import site_nav as N
     return page.replace(N.bottomnav('stats'), N.bottomnav('reports'), 1)
 
 
@@ -332,11 +345,19 @@ def _table_html(head, body, note=''):
     return ''.join(h)
 
 
-def markdown(body):
-    """문단·제목·목록·인용·표만 있는 작은 마크다운. 모르는 줄은 문단으로 둔다."""
+def markdown(body, stray=None):
+    """문단·제목·목록·인용·표만 있는 작은 마크다운. 모르는 줄은 문단으로 둔다.
+
+    stray 에 목록을 주면 '표 줄(|)인데 표가 되지 못한 줄'의 (줄 번호, 글)을 담는다 — 구분 줄(|---|)이 없거나 끝 파이프가
+    빠진 표다. 원고 검사기(content_check)가 이 목록으로 고칠 곳을 알린다(같은 걸음으로 봐야 검사와 굽기가 갈리지 않는다).
+    """
     lines = body.replace('\r\n', '\n').split('\n')
-    out, i = [], 0
+    out, i, last = [], 0, -1
     while i < len(lines):
+        if i == last:           # 걸음 감시 — 어느 갈래도 이 줄을 먹지 못했다면 넘긴다. 이 함수는 무슨 일이 있어도 끝난다
+            i += 1
+            continue
+        last = i
         ln = lines[i]
         s = ln.strip()
         if not s:
@@ -384,12 +405,17 @@ def markdown(body):
                 i += 1
             out.append('<blockquote><p>%s</p></blockquote>' % _inline(' '.join(quote)))
             continue
-        para = []
+        # 여기까지 온 줄은 위 어느 덩어리의 머리도 아니다 — **첫 줄은 무조건 먹는다**. 예전엔 표 머리가 아닌 '|' 줄(구분 줄 없는 표,
+        # 끝 파이프가 빠진 구분 줄, 표 뒤 빈 줄 다음의 행)이 어느 갈래에도 먹히지 않아 i 가 그대로였고, 이 함수가 끝나지 않았다
+        # (2026-11-13 전수 리뷰 — 검사기는 OK 를 내고 배치의 생성기 단계가 시간 상한까지 매달려 그날 데이터 커밋이 막힌다).
+        if s.startswith('|') and stray is not None:
+            stray.append((i + 1, s))
+        para = [s]
+        i += 1
         while i < len(lines) and lines[i].strip() and not re.match(r'^(#{2,4}\s|[-*]\s|\d+\.\s|\||>)', lines[i].strip()):
             para.append(lines[i].strip())
             i += 1
-        if para:
-            out.append(_para(' '.join(para)))
+        out.append(_para(' '.join(para)))
     return '\n'.join(out)
 
 
@@ -454,7 +480,7 @@ def fill_placeholders(body, data, key=None):
             blocks.append(_table_html(head, rows, note_of(note)))
         return '\n\n\x00TABLE%d\x00\n\n' % (len(blocks) - 1)
 
-    return PLACEHOLDER.sub(sub, body), blocks
+    return CT.no_leftover(PLACEHOLDER.sub(sub, body)), blocks      # 꼴이 어긋나 안 채워진 '{{' 는 발행하지 않는다
 
 
 def restore_tables(html_text, blocks):
@@ -473,9 +499,9 @@ LIST_CSS = """/* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) —
 .rchips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px}
 .rchip{display:inline-block;text-decoration:none;font:inherit;font-size:13px;line-height:1;padding:10px 12px;
  border:1px solid var(--line);border-radius:3px;background:var(--paper);color:var(--ink2);cursor:pointer}
-.rchip.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rchip.on{background:var(--brand);border-color:var(--brand);color:var(--paper)}
 /* 지금 보는 섹션은 테두리로만 — 지역 칩의 '켜짐'(먹색 채움)과 다른 꼴이라야 어느 쪽이 페이지이고 어느 쪽이 거름인지 갈린다. */
-.rchip[aria-current=page]{border-color:var(--ink);color:var(--ink);font-weight:600}
+.rchip[aria-current=page]{border-color:var(--brand);color:var(--brand);background:var(--brand-bg);font-weight:600}
 .rchip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .kgrid{display:grid;gap:12px}
 .kcard{display:flex;flex-direction:column;gap:8px;padding:16px;border:1px solid var(--line);border-radius:3px;
@@ -488,12 +514,12 @@ LIST_CSS = """/* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) —
 .kmore{display:block;width:100%;margin:12px 0 0;padding:14px 12px;text-align:center}
 .kc-chips{display:flex;gap:4px;flex-wrap:wrap}
 .kc-chip{font-size:13px;line-height:1;padding:4px 8px;border-radius:3px;background:var(--paper2);color:var(--ink2)}
-.kc-chip.kc-t{background:var(--ink2);color:var(--paper)}
+.kc-chip.kc-t{background:var(--mark-bg);color:var(--mark-ink);font-weight:600}
 /* 결론 제목은 세 줄까지 — 두 줄에서 자르니 3열 칸(약 300px)에서 결론 동사('…올랐습니다')가 잘렸다(2026-11-07 디자인 검수). */
 .kc-hook{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
  font-size:16px;font-weight:600;line-height:1.45}
 .kc-key{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:auto}
-.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.kc-key strong{font-size:22px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .kc-key small{font-size:13px;color:var(--muted)}
 .kc-date{font-style:normal;font-size:13px;color:var(--muted)}
 /* 질문 카드 — 허브 '질문으로 찾기'. 질문 오른쪽에 글 수, 아래에 최신 결론(휴대폰 한 줄, 768px 이상 두 줄). 결론은 읽는 글이라
@@ -539,11 +565,12 @@ EXTRA_CSS = LIST_CSS + """
 .cfoot3{font-size:14px;font-weight:600;color:var(--ink);margin:4px 0 0;line-height:1.55}
 .clegend{display:flex;gap:14px}
 .clegend span{display:inline-flex;align-items:center;gap:5px}
-.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--ink)}
-.clegend .lg-je::before{border-top-style:dashed;opacity:.75}
-.cb{fill:var(--ink);opacity:.45}
-.cb-over{opacity:.78}
+.clegend span::before{content:"";width:16px;height:0;border-top:2px solid var(--maemae)}
+.clegend .lg-je::before{border-top:2px dashed var(--jeonse)}
+.cb{fill:var(--stock);opacity:.5}
+.cb-over{opacity:.85}
 .cb-v{fill:var(--ink);font-size:11px;text-anchor:middle}
+.cb-none{fill:var(--muted)}   /* 입주 예정이 없는 해(CT.NO_MOVEIN) — 막대 없이 자리만 */
 .cb-x{fill:var(--muted);font-size:11px;text-anchor:middle}
 .cx-s{text-anchor:start}
 .cx-e{text-anchor:end}
@@ -568,10 +595,10 @@ EXTRA_CSS = LIST_CSS + """
 /* 꺾은선 눈금(최고·0·최저)과 마지막 값 — 선 위에 놓여도 읽히게 종이색 테두리를 두른다. */
 .cl-t{paint-order:stroke;stroke:var(--paper);stroke-width:5px;stroke-linejoin:round}
 .cl-grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
-.cl{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linejoin:round}
-.cl-je{stroke-dasharray:4 3;opacity:.75}
+.cl{fill:none;stroke:var(--maemae);stroke-width:1.8;stroke-linejoin:round}
+.cl-je{stroke:var(--jeonse);stroke-dasharray:4 3}
 .cl-zero{stroke:var(--muted);stroke-width:1}
-.cl-dot{fill:var(--ink)}
+.cl-dot{fill:var(--maemae)}
 .cmeta{font-size:13px;color:var(--muted);margin:0 0 14px}
 .cmeta a{white-space:nowrap}
 /* 허브·섹션 목록·글의 머리는 왼쪽 정렬 — 뼈대 header 는 가운데라 머리만 가운데, 그 아래 칩·카드·본문은 왼쪽이라 정렬선이
@@ -583,14 +610,14 @@ EXTRA_CSS = LIST_CSS + """
 /* 글 머리(2026-11-05 콘텐츠 구조 개편): 질문·지역 눈썹 → 제목 → 메타 → 3줄 요약 → 이 글이 맞는 분 → 핵심 숫자 띠 → 본문. */
 .eyebrow{font-size:13px;color:var(--ink2);margin:0 0 8px}
 .eyebrow a{color:var(--ink2);font-weight:600;text-decoration-color:var(--line)}
-.ctldr{background:var(--paper2);border-left:3px solid var(--ink);padding:12px 16px;margin:0 0 14px}
-.ctldr b{display:block;font-size:13px;color:var(--ink2);margin:0 0 6px}
+.ctldr{background:var(--mark-soft);border-left:3px solid var(--brand);padding:12px 16px;margin:0 0 14px}
+.ctldr b{display:block;font-size:13px;color:var(--brand);margin:0 0 6px}
 .ctldr ol{margin:0;padding:0 0 0 1.3em}
 .ctldr li{font-size:15.5px;line-height:1.7}
 .caud{font-size:14px;line-height:1.7;color:var(--ink2);margin:0 0 14px}
 .caud b{color:var(--ink);margin-right:6px}
 .ckey{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:3px;padding:12px 16px;margin:0 0 22px}
-.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em}
+.ckey strong{font-size:26px;font-weight:700;line-height:1.2;letter-spacing:-.01em;background:linear-gradient(transparent 58%,var(--mark) 58%);padding:0 2px}
 .ckey span{font-size:13px;color:var(--muted)}
 .cmore{margin-top:8px}
 .cmore h2{font-size:20px;margin:0 0 12px}
@@ -598,7 +625,7 @@ EXTRA_CSS = LIST_CSS + """
 .cmore-l a{flex:1;min-width:200px;border:1px solid var(--line);border-radius:3px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
 .cmore-l a span{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
 /* 글 끝의 첫 행동은 하나만 채운다(.cgo) — 꼬리 상자 넷이 같은 테두리라 무엇을 먼저 누를지 신호가 없었다(2026-11-07 디자인 검수). */
-.cmore-l a.cgo{background:var(--ink);border-color:var(--ink);color:var(--paper);font-size:15px;font-weight:600}
+.cmore-l a.cgo{background:var(--brand);border-color:var(--brand);color:var(--paper);font-size:15px;font-weight:600}
 .cmore-l a.cgo span{color:var(--paper);opacity:.85;font-weight:400}
 .cbody h2{font-size:22px;letter-spacing:-.01em;margin:28px 0 10px}
 .cbody h3{font-size:18px;margin:22px 0 8px}
@@ -1066,14 +1093,16 @@ def build_index(sec, posts_meta):
     lastmod = max([m['updated'] for m in posts_meta], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % name), ogtitle=html.escape(name),
                   desc=html.escape(desc), url=url, body=body,
-                  ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED),
+                  ld=I.ld_pack(name, desc, url, name, lastmod or I.PUBLISHED, kind='CollectionPage'),
                   src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
 
 
 REPORTS_DIR = 'reports'
-REPORTS_TITLE = '콘텐츠'
+REPORTS_TITLE = '콘텐츠'          # 탭·빵부스러기 이름(site_nav 탭 '콘텐츠'와 같다)
+# 허브 페이지 제목·h1·JSON-LD — '콘텐츠'는 검색어가 없다(2026-11-12 SEO 점검·대표 결정). 탭 이름은 그대로 REPORTS_TITLE.
+REPORTS_NAME = '부동산 공급 리포트'
 REPORTS_DESC = '질문이나 내 동네로 들어와 결론부터 읽는 글. 숫자는 국가 통계에서 옵니다.'
 
 # ── '기본 개념' 줄(대표 승인 2026-10-30) ──────────────────────────────────────────────────────────────
@@ -1131,15 +1160,15 @@ def build_reports(all_metas, data=None):
             '<section class="hub-q"><div class="wrap"><h2 class="rh2">질문으로 찾기</h2>%s</div></section>'
             '<section class="hub-city"><div class="wrap"><h2 class="rh2">지역으로 찾기</h2>%s</div></section>%s'
             '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2>%s</div></section>%s'
-            % (html.escape(REPORTS_TITLE), html.escape(REPORTS_TITLE), html.escape(REPORTS_DESC),
+            % (html.escape(REPORTS_TITLE), html.escape(REPORTS_NAME), html.escape(REPORTS_DESC),
                questions_block(all_metas), city_chips(all_metas), basic_row(),
                cards_grid(newest, fold=HUB_FIRST) if newest else '<p>아직 글이 없습니다.</p>', FILTER_JS))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in all_metas], default=None)
-    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_TITLE),
-                  ogtitle=html.escape(REPORTS_TITLE), desc=html.escape(REPORTS_DESC),
-                  url=url, body=body, ld=I.ld_pack(REPORTS_TITLE, REPORTS_DESC, url, REPORTS_TITLE,
-                                                   lastmod or I.PUBLISHED),
+    page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_NAME),
+                  ogtitle=html.escape(REPORTS_NAME), desc=html.escape(REPORTS_DESC),
+                  url=url, body=body, ld=I.ld_pack(REPORTS_NAME, REPORTS_DESC, url, REPORTS_TITLE,
+                                                   lastmod or I.PUBLISHED, kind='CollectionPage'),
                   src='', nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     return page, lastmod
@@ -1179,7 +1208,7 @@ def write_home_recent(metas, root=ROOT):
     return True
 
 
-ZONE_START, ZONE_END = '<!--ZONE_POSTS_START-->', '<!--ZONE_POSTS_END-->'
+ZONE_START, ZONE_END = N.SLOT_ZONE_POSTS      # 정본은 site_nav(keep_dates 가 이 구간을 가리고 견준다)
 _ZONE_RE = re.compile(re.escape(ZONE_START) + r'(.*?)' + re.escape(ZONE_END), re.S)
 
 
@@ -1316,7 +1345,7 @@ def write_weekly_column(metas, root=ROOT):
 # 남았고, 같은 주제의 글이 사이트에 생겼다(/city/ 도시 입주물량 편). 자리(표식)는 make_indicator_pages 가
 # 내고 내용은 여기서 채운다 — /weekly/ 해설 칸과 같은 나눔이고, 이유도 같다(그쪽 주석 참조).
 MOVEINS_PAGE = os.path.join('moveins', 'index.html')
-MOVEINS_START, MOVEINS_END = '<!--MV:CITY-->', '<!--/MV:CITY-->'
+MOVEINS_START, MOVEINS_END = N.SLOT_MOVEINS_CITY
 MOVEINS_H2 = '도시별 입주 예정 단지'
 MOVEINS_SEC = 'city'
 MOVEINS_MAX = 6                 # 칸에 싣는 글 수. 더 많아지면 '전체 보기'로 보낸다
@@ -1395,6 +1424,17 @@ def _warn(msg):
     print(('::warning::' if os.environ.get('GITHUB_ACTIONS') else '  ⚠️ ') + msg)
 
 
+def _crash_note(sec, meta, err, where):
+    """원고 한 편을 굽다 난 **예상 밖 예외**의 한 줄. 배치는 그 글만 건너뛰고 나머지를 굽는다.
+
+    왜 넓게 잡나: 자리표·프런트매터 오류(TableError·ContentError)만 받으면, 검사를 통과한 원고 한 편의 모양 탈(목록이어야 할
+    값이 짝으로 읽힘 등)이 생성기 전체를 예외로 끝내고 배치가 '생성기 실패 — 커밋하지 않는다'로 그날 데이터를 올리지 못한다
+    (2026-11-13 전수 리뷰). 생성기 버그도 이 줄로 드러난다 — 예외 이름을 그대로 적는다. --strict 는 예전처럼 멈춘다.
+    """
+    return '%s/%s.md %s: 굽다가 예외(%s: %s) — 원고 꼴이나 생성기를 고칠 것' % (
+        sec, meta.get('slug'), where, type(err).__name__, err)
+
+
 def main(strict=False):
     old_format = []
     posts, skipped = collect(strict=strict, old_format=old_format)
@@ -1422,6 +1462,10 @@ def main(strict=False):
             if strict:
                 raise
             dropped.append('%s/%s.md 프런트매터: %s' % (sec, meta['slug'], e))
+        except Exception as e:      # noqa: BLE001 — 한 편의 탈이 나머지 글과 그날 데이터 커밋을 막지 않게 가둔다(_crash_note)
+            if strict:
+                raise
+            dropped.append(_crash_note(sec, meta, e, '프런트매터'))
     for why in dropped:
         _warn('콘텐츠 원고를 건너뛴다 — ' + why)
     posts = filled
@@ -1430,6 +1474,29 @@ def main(strict=False):
         print('content pages: 쓸 수 있는 원고가 없다 — 페이지를 만들지 않는다%s'
               % (' · 홈 묶음 비움' if emptied else ''))
         return 0
+    # 본문 자리표를 못 채우는 글을 **먼저** 거른다 — 이전·다음 글과 '이 지역 더 보기'는 구워지는 글만 가리켜야 한다.
+    # 예전엔 거르기 전 목록에서 이웃을 골라, 건너뛴 단지 글(광명 철산13, 11-06~)로 가는 '이전·다음 글'이 404 였다
+    # (2026-11-12 SEO 점검). 한 바퀴 더 구워도 52편에 2초 남짓이다.
+    ok = []
+    for sec, meta, body in posts:
+        try:
+            build_page(meta, body, data)
+        except (CT.TableError, CM.ContentError) as e:
+            # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
+            if strict:
+                raise
+            skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
+            _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
+            continue
+        except Exception as e:      # noqa: BLE001 — 위와 같다
+            if strict:
+                raise
+            why = _crash_note(sec, meta, e, '본문')
+            skipped.append(why)
+            _warn('콘텐츠 원고를 건너뛴다 — ' + why)
+            continue
+        ok.append((sec, meta, body))
+    posts = ok
     by_sec = {}
     for sec, meta, body in posts:
         by_sec.setdefault(sec, []).append((meta, body))
@@ -1441,15 +1508,7 @@ def main(strict=False):
         for i, (meta, body) in enumerate(items):
             prev = metas[i - 1] if i else None
             nxt = metas[i + 1] if i + 1 < len(metas) else None
-            try:
-                page, lm = build_page(meta, body, data, prev, nxt, everyone)
-            except (CT.TableError, CM.ContentError) as e:
-                # 자리표를 못 채운 글도 건너뛴다(collect 와 같은 이유). 반쯤 채운 페이지는 내보내지 않는다.
-                if strict:
-                    raise
-                skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
-                _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
-                continue
+            page, lm = build_page(meta, body, data, prev, nxt, everyone)
             d = os.path.join(ROOT, sec, meta['slug'])
             os.makedirs(d, exist_ok=True)
             fp = os.path.join(d, 'index.html')
@@ -1484,7 +1543,7 @@ def main(strict=False):
     wk = write_weekly_column(all_metas)
     mv = write_moveins_cities(all_metas)
     print('content pages: %d편%s · 섹션 %s%s%s%s%s' % (
-        wrote, (' · 건너뜀 %d편' % len(skipped)) if skipped else '',
+        wrote, (' · 건너뜀 %d편' % (len(skipped) + len(dropped))) if (skipped or dropped) else '',
         ', '.join(sorted(by_sec)), ' · 홈 최근 리포트 갱신' if home else '',
         ' · 지역 리포트 %d곳에 글 묶음' % zones if zones else '',
         ' · 주간 리포트 해설 칸 갱신' if wk else '',

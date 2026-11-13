@@ -202,16 +202,17 @@ __ROBOTS__
 <meta property="og:image" content="https://www.agongmap.co.kr/og-brand.png">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">__LD__</script>
-<style>
-:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#b23b2e;--dn:#2a62a3;__TOKENS__}
+<style>@font-face{font-family:'Agong Fallback';src:local('Noto Sans CJK KR'),local('NotoSansCJKkr-Regular'),local('Noto Sans KR'),local('NotoSansKR-Regular');size-adjust:94%;ascent-override:101%;descent-override:26.4%;line-gap-override:0%;unicode-range:U+1100-11FF,U+3130-318F,U+AC00-D7A3}
+
+:root{--ink:#131e24;--ink2:#4c5f66;--paper:#f4f6f5;--paper2:#e9edeb;--muted:#5e6f74;--line:#c4cec9;--up:#a93226;--dn:#1a5276;__TOKENS__;__BRAND__;__SERIES__}
 *{margin:0;padding:0;box-sizing:border-box}
 b,strong{font-weight:600}
 body{background:var(--paper);color:var(--ink);word-break:keep-all;overflow-wrap:break-word;
- font-family:'Pretendard Variable','Pretendard',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+ font-family:'Pretendard Variable','Pretendard','Agong Fallback',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
  line-height:1.75;-webkit-font-smoothing:antialiased;padding-bottom:66px}
 .wrap{max-width:var(--col-read);margin:0 auto;padding:0 22px}
 header{padding:44px 0 24px;text-align:center}
-.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--ink);padding:5px 14px;margin-bottom:14px}
+.chip{display:inline-block;font-size:13px;font-weight:600;color:#fff;background:var(--brand);padding:5px 14px;margin-bottom:14px}
 h1{font-size:var(--h1-doc);font-weight:700;letter-spacing:-.02em;line-height:1.28;margin-bottom:12px}
 .lead{font-size:var(--fs-read);color:var(--ink2)}
 .big{font-size:clamp(34px,9vw,48px);font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
@@ -254,14 +255,16 @@ tr.agg td,tr.agg th{background:var(--paper2);font-weight:600}
 .up{color:var(--up)}.dn{color:var(--dn)}.mut{color:var(--muted)}
 .links{display:grid;gap:10px;margin-top:6px}
 .links a{display:block;background:#fff;border:1px solid var(--line);padding:13px 16px;text-decoration:none;color:var(--ink);font-weight:600;font-size:14.5px}
-.links a span{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.links a span{display:block;font-weight:400;font-size:14px;color:var(--muted);margin-top:2px}
 .links a:hover{border-color:var(--ink)}
 footer{padding:28px 0 40px;font-size:13px;color:var(--muted);text-align:center}
+:where(main) :where(p,li,dd,td)>a:not([class]){color:var(--brand);text-decoration:underline;text-underline-offset:2px}
 footer a{color:var(--ink2)}
 .disc{margin-top:10px;font-size:13px;line-height:1.6;color:var(--muted)}
-.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--ink);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
+.bottomnav{position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--brand);display:flex;justify-content:center;z-index:100;box-shadow:0 -4px 18px rgba(22,32,58,.28)}
 .nav-btn{flex:1;max-width:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#97a0b8;font-size:""" + ("%gpx" % N.LABEL_PX) + """;font-weight:600;text-decoration:none}
 .nav-btn:focus-visible{outline:2px solid #fff;outline-offset:-4px}   /* 탭바 키보드 초점(백로그 36-8, 정본 site_nav.NAV_FOCUS_CSS) */
+@media(max-width:1023px){html{scroll-padding-bottom:72px}}   /* 초점이 탭바 밑에 숨지 않게(정본 site_nav.NAV_SCROLL_PAD_CSS) */
 .nav-btn svg{display:block}
 .nav-btn.on{color:#fff}
 .nav-btn:hover{color:#fff}
@@ -302,7 +305,7 @@ def type_tokens(css=None):
 
 
 def fill(shell, desk='wide', **kw):
-    out = shell.replace('__TOKENS__', type_tokens()).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
+    out = shell.replace('__TOKENS__', type_tokens()).replace('__BRAND__', N.BRAND_TOKENS).replace('__SERIES__', N.SERIES_TOKENS).replace('__ROBOTS__', RM.TAG)   # 검색 로봇 메타(D2) — /monthly/ 도 이 뼈대
     out = out.replace('__THEME__', N.THEME_COLOR)   # 브라우저 머리 색 정본(site_nav.THEME_COLOR)
     out = out.replace('__GAINT__', GT.INTERNAL_SCRIPT).replace('__GACFG__', GT.config_call())   # GA 내부 트래픽 표식(백로그 48)
     # 데스크톱 틀(desk.css, 2026-10-06): 지표 두 쪽은 표 단을 넓히고(wide), /monthly/ 는 왼쪽 목차(doc)
@@ -326,17 +329,20 @@ def not_before_pub(iso):
     return max(iso, PUBLISHED)
 
 
-def ld_pack(headline, desc, url, crumb_name, modified):
+def ld_pack(headline, desc, url, crumb_name, modified, kind='Article'):
+    """페이지 JSON-LD 한 벌. kind='CollectionPage' 는 글 목록 페이지(콘텐츠 허브)다 — 글이 아니라 목록이라
+    mainEntityOfPage 대신 url 을 싣는다(2026-11-12 SEO 점검)."""
     modified = not_before_pub(modified)
-    return json.dumps([{
-        "@context": "https://schema.org", "@type": "Article",
+    page = {
+        "@context": "https://schema.org", "@type": kind,
         "headline": headline,
         "description": desc,
         "datePublished": PUBLISHED, "dateModified": modified,
         "author": {"@type": "Organization", "name": "아공맵"},
         "publisher": {"@type": "Organization", "name": "아공맵"},
-        "mainEntityOfPage": url,
-    }, {
+    }
+    page["mainEntityOfPage" if kind == 'Article' else "url"] = url
+    return json.dumps([page, {
         "@context": "https://schema.org", "@type": "BreadcrumbList",
         "itemListElement": [
             {"@type": "ListItem", "position": 1, "name": "아공맵", "item": SITE + '/'},
@@ -592,7 +598,7 @@ def est_regions_text():
 # ⚠️ 왜 여기서 채우지 않나: 배치가 이 생성기를 **먼저** 돌리고 콘텐츠 생성기를 뒤에 돌린다
 #    (update-cloud.yml·run_weekly_update.bat 모두). 여기서 글 목록을 읽으면 '구워진 글만' 셀 수밖에 없어,
 #    그 회차에 처음 구워지는 새 도시 글이 하루 늦게 뜬다. /weekly/ 해설 칸과 같은 나눔이다.
-CITY_START, CITY_END = '<!--MV:CITY-->', '<!--/MV:CITY-->'
+CITY_START, CITY_END = N.SLOT_MOVEINS_CITY     # 정본은 site_nav(keep_dates 가 이 구간을 가리고 견준다)
 
 
 def city_html():
