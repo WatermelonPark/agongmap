@@ -126,7 +126,7 @@ details.hist code{font-size:13px}
 <header><div class="wrap">
   <div class="chip">개인정보처리방침</div>
   <h1>아공맵 개인정보처리방침</h1>
-  <p class="lead"><span class="nw">시행일 2026년 8월 1일</span> · <span class="nw">최근 개정 2026년 10월 30일</span></p>
+  <p class="lead"><span class="nw">시행일 2026년 8월 1일</span> · <span class="nw">최근 개정 2026년 11월 14일</span></p>
 </div></header>
 <!-- 왼쪽 조항 목록(1024px 이상, desk.css doc). 절을 더하면 id(s번호)와 여기 줄을 같이 더한다(test_desk 가 앵커를 본다) -->
 <nav class="dtoc" hidden aria-label="목차"><b>조항</b><ol><li><a href="#s1">수집 항목과 목적</a></li><li><a href="#s2">처리 위탁·국외 이전</a></li><li><a href="#s3">쿠키와 거부 방법</a></li><li><a href="#s4">이용자의 권리</a></li><li><a href="#s5">안전성 확보 조치</a></li><li><a href="#s6">방침의 변경</a></li></ol></nav>
@@ -147,17 +147,17 @@ details.hist code{font-size:13px}
       </tr>
       <tr>
         <td>이용 이벤트<br>(자동 수집)</td>
-        <td data-label="수집 항목">화면·버튼 이용 기록, 퀴즈 점수·문항별 정답 여부, 친구 대결 점수(아래 목록)</td>
+        <td data-label="수집 항목">화면·버튼 이용 기록(아래 목록)</td>
         <td data-label="이용 목적">서비스 이용 현황 파악 및 개선</td>
         <td data-label="보유 기간">수집일로부터 14개월</td>
       </tr>
     </tbody>
   </table>
   </div>
-  <p>퀴즈 점수·문항별 정답 여부와 화면·버튼 이용 기록은 <b>이름·연락처 없이 익명 이용 통계로 Google Analytics에 전송</b>됩니다. 풀던 퀴즈의 진행 상태처럼 다음 방문을 위해 기억하는 정보는 <b>이용자 브라우저에만 저장</b>되며, 그 내용 자체는 서버로 보내지 않습니다.</p>
+  <p>화면·버튼 이용 기록은 <b>이름·연락처 없이 익명 이용 통계로 Google Analytics에 전송</b>됩니다. 주간 시세를 마지막으로 본 날처럼 다음 방문을 위해 기억하는 정보는 <b>이용자 브라우저에만 저장</b>되며, 그 내용 자체는 서버로 보내지 않습니다.</p>
   <details class="ev" id="ga-events">
     <summary>사이트 코드가 Google Analytics로 보내는 이벤트 목록</summary>
-    <p>이벤트 이름과 함께 보내는 값의 이름입니다. 모두 화면에서 무엇을 눌렀는지, 퀴즈를 어떻게 풀었는지에 관한 값이며 이름·연락처·입력한 글은 없습니다.</p>
+    <p>이벤트 이름과 함께 보내는 값의 이름입니다. 모두 화면에서 무엇을 눌렀는지에 관한 값이며 이름·연락처·입력한 글은 없습니다.</p>
     <div class="scroll">
     <table>
       <thead><tr><th>이벤트</th><th>함께 보내는 값</th><th>보내는 때</th></tr></thead>
@@ -188,18 +188,8 @@ details.hist code{font-size:13px}
         <tr data-ev="trend_pick"><td><code>trend_pick</code></td><td><code>period</code> <code>region</code> <code>from</code></td><td>시세 지도·순위표에서 지역을 누르거나 홈 지도 시세 보기의 그래프·표 단추로 그래프를 열 때(주간·월간, 지역 코드, 누른 곳)</td></tr>
         <tr data-ev="bubble_detail"><td><code>bubble_detail</code></td><td><code>region</code></td><td>지역 상세를 펼칠 때(지역 이름)</td></tr>
         <tr data-ev="adv_link"><td><code>adv_link</code></td><td><code>to</code></td><td>외부 통계 사이트 링크를 누를 때</td></tr>
-        <tr><th colspan="3">퀴즈</th></tr>
-        <tr data-ev="quiz_start"><td><code>quiz_start</code></td><td><code>quiz_type</code> <code>start_type</code></td><td>퀴즈를 시작할 때(퀴즈 종류, 처음·이어 풀기·다시 풀기)</td></tr>
-        <tr data-ev="quiz_answer"><td><code>quiz_answer</code></td><td><code>quiz_type</code> <code>idx</code> <code>correct</code></td><td>문항에 답할 때(문항 번호, 정답 여부)</td></tr>
-        <tr data-ev="quiz_review"><td><code>quiz_review</code></td><td><code>quiz_type</code> <code>idx</code></td><td>결과 화면에서 문항 해설을 다시 볼 때</td></tr>
-        <tr data-ev="quiz_complete"><td><code>quiz_complete</code></td><td><code>quiz_type</code> <code>score</code></td><td>퀴즈를 끝낼 때(점수)</td></tr>
-        <tr data-ev="next_step"><td><code>next_step</code></td><td><code>from</code> <code>to</code></td><td>결과 화면의 다음 안내를 누를 때</td></tr>
-        <tr data-ev="challenge_accepted"><td><code>challenge_accepted</code></td><td><code>quiz_type</code> <code>friend_score</code> <code>same_paper</code></td><td>친구가 보낸 대결 링크를 열 때(친구 점수, 같은 문제지 여부)</td></tr>
-        <tr data-ev="challenge_result"><td><code>challenge_result</code></td><td><code>quiz_type</code> <code>score</code> <code>friend_score</code> <code>outcome</code></td><td>대결을 끝낼 때(내 점수, 친구 점수, 승패)</td></tr>
-        <tr data-ev="challenge_retry"><td><code>challenge_retry</code></td><td><code>quiz_type</code></td><td>대결을 다시 할 때</td></tr>
-        <tr data-ev="challenge_sent"><td><code>challenge_sent</code></td><td><code>quiz_type</code> <code>score</code></td><td>대결 링크를 보낼 때(내 점수)</td></tr>
         <tr><th colspan="3">공유·기타 페이지</th></tr>
-        <tr data-ev="share"><td><code>share</code></td><td><code>content_type</code> <code>method</code> <code>quiz_type</code> <code>score</code> <code>page</code> <code>region</code></td><td>공유 단추를 누를 때(공유한 내용, 공유 방법, 퀴즈 결과 공유면 점수, 지역 리포트면 지역 이름)</td></tr>
+        <tr data-ev="share"><td><code>share</code></td><td><code>content_type</code> <code>method</code> <code>region</code></td><td>공유 단추를 누를 때(공유한 내용, 공유 방법, 지역 리포트면 지역 이름)</td></tr>
         <tr data-ev="view"><td><code>view</code></td><td><code>screen_name</code></td><td>이달의 통계 페이지를 열 때</td></tr>
         <tr data-ev="cycle_jump"><td><code>cycle_jump</code></td><td><code>to</code></td><td>사이클 리포트의 도식에서 본문으로 이동할 때</td></tr>
         <tr data-ev="tldr_jump"><td><code>tldr_jump</code></td><td><code>to</code></td><td>사이클 리포트의 요약에서 본문으로 이동할 때</td></tr>
@@ -242,7 +232,7 @@ details.hist code{font-size:13px}
     <li>브라우저 설정에서 쿠키 차단 또는 삭제</li>
     <li>Google이 제공하는 <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener nofollow" target="_blank">Google Analytics 차단 브라우저 부가기능</a> 설치</li>
   </ul>
-  <p>쿠키를 차단해도 통계·지도·퀴즈 등 서비스의 모든 기능은 정상적으로 이용할 수 있습니다.</p>
+  <p>쿠키를 차단해도 통계·지도 등 서비스의 모든 기능은 정상적으로 이용할 수 있습니다.</p>
 </div></section>
 
 <section id="s4"><div class="wrap">
@@ -280,10 +270,11 @@ details.hist code{font-size:13px}
       <li>2026년 10월 6일 — 1항 <code>blog_link</code> 설명에 입주물량 페이지를 더함(보내는 값은 같음)</li>
       <li>2026년 10월 10일 — 1항 <code>stats_gt</code> 설명을 순위·지도·그래프·표 보기로 고침(보기 값에 순위·지도가 더해짐)</li>
       <li data-ga="f2486773">2026년 10월 20일 — 1항 목록을 '사이트 코드가 보내는 이벤트'로 좁히고 Google Analytics가 스스로 모으는 기본 이벤트를 한 줄로 밝힘, 운영자 기기 표식(<code>traffic_type</code>)을 더함</li>
+      <li data-ga="1b2e1ca7">2026년 10월 30일 — 사이트에서 네이버 블로그 글 링크를 모두 걷어(주간 시세·입주물량 페이지·홈) 1항 전송 목록에서 <code>blog_link</code>를 뺌</li>
     </ul>
   </details>
   <ul class="hist-now">
-    <li data-ga="1b2e1ca7">2026년 10월 30일 — 사이트에서 네이버 블로그 글 링크를 모두 걷어(주간 시세·입주물량 페이지·홈) 1항 전송 목록에서 <code>blog_link</code>를 뺌</li>
+    <li data-ga="fd6bc23c">2026년 11월 14일 — 퀴즈 3종(부린이·투자자·재건축·재개발 테스트)을 없애 1항 수집 항목과 전송 목록에서 퀴즈·친구 대결 이벤트(<code>quiz_start</code>·<code>quiz_answer</code>·<code>quiz_review</code>·<code>quiz_complete</code>·<code>next_step</code>·<code>challenge_*</code>)와 공유 이벤트의 퀴즈 값(<code>quiz_type</code>·<code>score</code>·<code>page</code>)을 뺌</li>
   </ul>
   <a class="cta" href="/">아공맵 홈으로</a>
 </div></section>

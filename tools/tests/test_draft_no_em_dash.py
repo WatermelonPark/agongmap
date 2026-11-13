@@ -54,14 +54,15 @@ def P(monkeypatch, tmp_path):
 
 
 def test_every_weekly_draft_variant_has_no_em_dash(P, monkeypatch):
-    """주간 초안: 이번 주의 지표·더 보기 4칸(rot_index) × 문장 틀 3개(_wk) 전부.
-    변이(확인): MORE_ROTATION 퀴즈 링크 글자를 옛 '부린이 테스트 — 내 감각은 몇 점인가' 로 되돌리면 빨개진다.
+    """주간 초안: 이번 주의 지표 4칸(rot_index)·더 보기 칸(more_index) × 문장 틀 3개(_wk) 전부.
+    변이(확인): MORE_ROTATION 링크 글자에 엠대시를 넣으면(옛 퀴즈 칸 '부린이 테스트 — …' 모양) 빨개진다.
     픽스처: 저장소의 실제 ADV 최신 주(캡처·썸네일·경쟁 글 패널은 끈다), rot 와 문장 틀만 고정해 바꾼다."""
     adv, sts = P.M.load()
     n = 0
     for rot in range(4):
         for k in range(3):
             monkeypatch.setattr(P, 'rot_index', lambda p, rot=rot: rot)
+            monkeypatch.setattr(P, 'more_index', lambda p, rot=rot: rot % len(P.MORE_ROTATION))
             monkeypatch.setattr(P, '_wk', lambda p, m, k=k: k % m)
             text = _shown(P.draft_weekly(adv, sts, shot=False)['body'])
             assert '—' not in text, (rot, k, re.findall(r'.{20}—.{10}', text))

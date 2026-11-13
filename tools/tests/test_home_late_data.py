@@ -2,7 +2,8 @@
 """홈의 '늦게 받는 데이터'와 history 항목 — 2026-11-13 전수 리뷰(홈 스크립트)에서 확인한 것.
 
 ① 통계 탭을 열 때 받는 data-trend.json 이 코어(data-core.js)보다 옛 판이면 홈의 이번 주·이번 달 값을 지난 것으로 덮었다.
-② 대결 결과에서 다른 테스트로 가면 뒤로 가기가 헛돌았다(두 항목의 쿼리가 달라 hashchange 가 오지 않는다).
+② 대결 결과에서 다른 테스트로 가면 뒤로 가기가 헛돌았다(두 항목의 쿼리가 달라 hashchange 가 오지 않는다). 2026-11-14 퀴즈 3종을
+   걷어 대상 코드(goQuiz)와 시험이 함께 빠졌다.
 ③ 같은 화면 탭을 다시 누르면 지금 항목의 state 를 지워, 지역 그래프를 닫은 뒤 첫 뒤로 가기가 헛돌았다.
 """
 import io
@@ -97,32 +98,6 @@ process.stdout.write(JSON.stringify({old:lateBlock(cur,old)===cur, same:lateBloc
   newer:lateBlock(cur,newer)===newer, none:lateBlock(undefined,same)===same}));
 """
     assert J.node(js) == {'old': True, 'same': True, 'newer': True, 'none': True}
-
-
-def test_leaving_a_challenge_for_another_quiz_strips_the_query_first():
-    """대결 결과에서 다른 테스트로 갈 때(goQuiz) 지금 항목의 대결 쿼리를 **먼저** 걷는다 — 그래야 뒤로 가기에 hashchange 가 온다.
-
-    왜: showView 가 쿼리를 남긴 채 지금 항목을 #test 로 바꾸고 startQuiz 가 새 항목에서만 쿼리를 걷어 두 항목의 쿼리가 달랐다.
-        쿼리가 다른 항목 사이의 이동은 hashchange 를 내지 않아, 뒤로 가도 주소만 바뀌고 화면은 새 테스트에 머물렀다.
-    변이(실제로 확인): goQuiz 에서 replaceState 줄을 지우면 showView 가 불릴 때 쿼리가 남아 있어 빨개진다.
-    픽스처: 대결 링크(/?c=7&s=beginner&q=abc&utm_source=quiz_challenge#test-beginner)로 들어와 결과 화면에서 '투자자 테스트
-            도전하기'를 누른 상태. history 는 지금 항목의 state 와 주소만 기록하는 모형.
-    """
-    js = (r"""
-const location={pathname:'/',search:'?c=7&s=beginner&q=abc&utm_source=quiz_challenge',hash:'#test-beginner'};
-const history={state:{k:1},log:[],replaceState(s,t,u){this.log.push(['replace',s,u]);
-  const m=/^([^?#]*)(\?[^#]*)?(#.*)?$/.exec(u); location.pathname=m[1]; location.search=m[2]||''; location.hash=m[3]||'';}};
-const seen=[]; function showView(v){seen.push(['showView',v,location.search]);} function startQuiz(k){seen.push(['startQuiz',k,location.search]);}
-""" + J.fns(_app(), 'chalInURL', 'chalSearch', 'goQuiz') + r"""
-goQuiz('investor');
-const a={seen:seen.slice(), log:history.log.slice(), search:location.search, hash:location.hash};
-seen.length=0; history.log.length=0; goQuiz('calc');      // 대결 쿼리가 없으면 주소를 건드리지 않는다
-process.stdout.write(JSON.stringify({a:a, b:{seen:seen, log:history.log}}));
-""")
-    o = J.node(js)
-    assert o['a']['seen'] == [['showView', 'test', '?utm_source=quiz_challenge'], ['startQuiz', 'investor', '?utm_source=quiz_challenge']], o['a']
-    assert o['a']['log'] == [['replace', {'k': 1}, '/?utm_source=quiz_challenge#test-beginner']], o['a']['log']
-    assert o['b']['log'] == [] and [s[:2] for s in o['b']['seen']] == [['showView', 'test'], ['startQuiz', 'calc']], o['b']
 
 
 def test_same_view_tab_press_keeps_the_entry_state():

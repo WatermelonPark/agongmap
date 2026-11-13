@@ -6,9 +6,9 @@
 돌았다. 2초로 늦추면 섞이지 않았다. 조치: index.html 의 <html data-build> 와 home-app.js 의 HOME_BUILD 를 견줘 다르면
 한 번 새로고침한다. 판 값은 sw.js 의 VERSION 과 같다 — VERSION 을 올릴 때 셋을 같이 올린다.
 
-B11(2026-09-27)에 퀴즈·통계 코드를 home-quiz.js·home-stats.js 로 떼면서 판 표식이 다섯 곳이 됐다. 분할 파일은 ?v=판
-주소로 받지만 GitHub Pages 는 쿼리를 무시한다 — 열어 둔 옛 판 탭이 배포 뒤에 퀴즈를 열면 새 판 파일이 온다(검토에서
-재현). 그래서 분할 파일도 자기 판(HOME_QUIZ_BUILD·HOME_STATS_BUILD)을 싣고 홈이 받은 뒤 견준다(partBuildOk).
+B11(2026-09-27)에 퀴즈·통계 코드를 분할 파일로 떼면서 판 표식이 다섯 곳이 됐다(2026-11-14 퀴즈 제거로 home-quiz.js 가
+빠져 네 곳). 분할 파일은 ?v=판 주소로 받지만 GitHub Pages 는 쿼리를 무시한다 — 열어 둔 옛 판 탭이 배포 뒤에 통계를 열면
+새 판 파일이 온다(검토에서 재현). 그래서 분할 파일도 자기 판(HOME_STATS_BUILD)을 싣고 홈이 받은 뒤 견준다(partBuildOk).
 """
 import io
 import json
@@ -26,7 +26,7 @@ import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로�
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
-PART_MARK = {'home-quiz.js': 'HOME_QUIZ_BUILD', 'home-stats.js': 'HOME_STATS_BUILD'}
+PART_MARK = {'home-stats.js': 'HOME_STATS_BUILD'}
 
 
 def _builds():
@@ -46,13 +46,13 @@ def _builds():
 
 
 def test_build_marker_is_the_same_in_html_script_and_sw():
-    """index.html data-build = home-app.js HOME_BUILD = sw.js VERSION = 분할 파일 두 개의 판 표식(B11).
+    """index.html data-build = home-app.js HOME_BUILD = sw.js VERSION = 분할 파일의 판 표식(B11).
 
     둘(HTML·스크립트)이 다르면 모든 방문자가 매번(세션마다 한 번) 새로고침한다. sw.js VERSION 과 같게 둔 까닭: 배포마다
     VERSION 을 올리는 습관이 이미 있고(test_sw_version 이 단조 증가를 본다) 판 이름이 하나면 제보를 읽기 쉽다.
     무엇을 깨뜨리면 빨개지나(각각 실제로 확인): sw.js VERSION 만 올리거나, index.html data-build 만, home-app.js
-    HOME_BUILD 만 바꾸면 빨개진다. home-quiz.js HOME_QUIZ_BUILD 나 home-stats.js HOME_STATS_BUILD 만 옛 값으로 두어도
-    빨개진다(각각 실제로 확인). 픽스처: 저장소의 다섯 파일 그대로.
+    HOME_BUILD 만 바꾸면 빨개진다. home-stats.js HOME_STATS_BUILD 만 옛 값으로 두어도
+    빨개진다(각각 실제로 확인). 픽스처: 저장소의 네 파일 그대로.
     """
     sw, html, js, parts = _builds()
     assert html == js == sw and set(parts.values()) == {sw}, (
@@ -150,7 +150,7 @@ const TOP = %(top)s, FN = %(fn)s, JB = %(jb)s, NEW = JB + 'next';
 function page(htmlBuild, scriptBuild, store, partBuild) {
   const events = []; let reloads = 0;
   const window = {};
-  if (partBuild) window.HOME_QUIZ_BUILD = partBuild;
+  if (partBuild) window.HOME_STATS_BUILD = partBuild;
   const document = { documentElement: { getAttribute: (k) => (k === 'data-build' ? htmlBuild : null) } };
   const sessionStorage = store === null
     ? { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); }, removeItem() {} }
@@ -160,7 +160,7 @@ function page(htmlBuild, scriptBuild, store, partBuild) {
   const track = (ev, p) => events.push([ev, p]);
   const code = TOP.split("'" + JB + "'").join("'" + scriptBuild + "'") + '\n' + FN;
   const ok = new Function('window', 'document', 'sessionStorage', 'location', 'track', 'partBuild',
-    code + '\nreturn BUILD_RELOAD ? null : (partBuild === undefined ? true : partBuildOk("quiz"));')(
+    code + '\nreturn BUILD_RELOAD ? null : (partBuild === undefined ? true : partBuildOk("stats"));')(
     window, document, sessionStorage, location, track, partBuild);
   return { reloads, ok, events };
 }
@@ -180,10 +180,10 @@ process.stdout.write(JSON.stringify(out));
 
 
 def test_part_with_another_build_reloads_once_and_measures():
-    """분할 파일의 판이 홈 스크립트 판과 다르면(열어 둔 옛 판 탭이 배포 뒤 퀴즈·통계를 열었다) 한 번만 새로고침하고
+    """분할 파일의 판이 홈 스크립트 판과 다르면(열어 둔 옛 판 탭이 배포 뒤 통계를 열었다) 한 번만 새로고침하고
     다음 부팅이 build_reload(part 표시)로 잰다. 맨 위 판 비교 코드와 partBuildOk 를 node 로 그대로 돌린다.
 
-    재현하는 실제 상태: v164 탭이 /home-quiz.js?v=v164 를 요청했는데 GitHub Pages 가 쿼리를 무시하고 새 서비스워커가
+    재현하는 실제 상태: v164 탭이 분할 파일(당시 /home-quiz.js?v=v164)을 요청했는데 GitHub Pages 가 쿼리를 무시하고 새 서비스워커가
     network-first 로 v165 파일을 준 경우(검토에서 재현), 새로고침해도 옛 HTML 이 오는 망, 저장소를 못 쓰는 브라우저.
     무엇을 깨뜨리면 빨개지나(각각 실제로 확인): partBuildOk 의 `===html)return true` 가드를 빼면 stuck 이 세 번
     새로고침하고, `b===HOME_BUILD` 비교를 빼면(늘 새로고침) same 이, 새로고침 앞 setItem(k,html+'!') 을 빼면 afterReload
@@ -206,7 +206,7 @@ def test_part_with_another_build_reloads_once_and_measures():
     assert o['oldTab']['reloads'] == 1 and o['oldTab']['ok'] is False, '옛 판 탭이 새 판 분할 파일을 그대로 돌린다: %s' % o['oldTab']
     ev = o['afterReload']['events']
     assert o['afterReload']['reloads'] == 0 and [e[0] for e in ev] == ['build_reload'], o['afterReload']
-    assert ev[0][1]['part'].startswith('quiz:') and 'fixed' not in ev[0][1], ev   # 분할 파일은 다시 열어야 받는다
+    assert ev[0][1]['part'].startswith('stats:') and 'fixed' not in ev[0][1], ev   # 분할 파일은 다시 열어야 받는다
     assert sum(r['reloads'] for r in o['stuck']) == 1, '판이 계속 어긋나는 망에서 새로고침이 한 번이 아니다: %s' % o['stuck']
     assert o['stuck'][-1]['ok'] is True, '새로고침을 포기한 뒤에는 받은 파일을 그대로 써야 한다(누름이 사라진다)'
     assert o['noStorage']['reloads'] == 0 and o['noStorage']['ok'] is True

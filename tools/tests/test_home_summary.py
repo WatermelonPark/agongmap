@@ -243,24 +243,23 @@ def _footers(s):
     return re.findall(r'<nav class="ft-nav ft-grp"[^>]*>(.*?)</nav>', s, re.S)
 
 
-def test_three_footers_are_the_same_grouped_by_cadence():
-    """홈·통계·퀴즈 푸터 세 벌이 같고(측정 onclick 만 다름), 매주·매달·분기·읽을거리 순서로 묶인다.
-    요일·알림 약속이 없다. 투자자·재건축 테스트 링크가 있다(IA-9).
+def test_footers_are_the_same_grouped_by_cadence():
+    """홈·통계 푸터 두 벌이 같고(측정 onclick 만 다름), 매주·매달·분기·읽을거리 순서로 묶인다.
+    요일·알림 약속이 없다. 퀴즈 3종 링크는 2026-11-14 퀴즈 제거로 뺐다(셋째 벌이던 퀴즈 화면 푸터도 함께).
 
     2026-10-29 대표 결정으로 네이버 블로그 링크를 뺐고(발행 종료) 읽을거리에 콘텐츠 네 섹션을 넣었다.
-    변이: 셋 중 하나에서 링크 하나를 지우거나, 묶음 순서를 바꾸거나, 블로그 링크를 되살리면 빨개진다.
+    변이: 둘 중 하나에서 링크 하나를 지우거나, 묶음 순서를 바꾸거나, 블로그 링크를 되살리면 빨개진다.
     """
     s = _index()
     fs = [re.sub(r' onclick="[^"]*"', '', f) for f in _footers(s)]
-    assert len(fs) == 3 and fs[0] == fs[1] == fs[2], '푸터 세 벌이 다르다'
+    assert len(fs) == 2 and fs[0] == fs[1], '푸터 두 벌이 다르다'
     f = fs[0]
     assert re.findall(r'<span class="fg"><b>([^<]+)</b>', f) == ['매주', '매달', '분기', '읽을거리']
     assert 'blog.naver.com' not in f, '푸터의 네이버 블로그 링크는 2026-10-29 결정으로 뺐다'
     # 콘텐츠 글로 가는 입구 — 모아 보는 자리와 네 섹션이 모두 있어야 한다(대표 요청 10-29).
     for href in ('/reports/', '/city/', '/gtx/', '/danji/', '/column/'):
         assert ('href="%s"' % href) in f, '푸터에 %s 링크가 없다' % href
-    for href in ('/weekly/', '/monthly/', '/jeonse-ratio/', '/zone/', '/moveins/', '/cycle/', '/faq/',
-                 '/burini-test/', '/investor-test/', '/redev-test/'):
+    for href in ('/weekly/', '/monthly/', '/jeonse-ratio/', '/zone/', '/moveins/', '/cycle/', '/faq/'):
         assert f.count('href="%s"' % href) == 1, href
     assert not re.search(r'금요일|알림|구독', f)
 

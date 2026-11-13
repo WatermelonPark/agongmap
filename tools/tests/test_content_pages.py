@@ -898,9 +898,9 @@ def test_content_has_an_entrance_in_tab_footer_and_home():
     home = io.open(os.path.join(ROOT, HS.HOME), encoding='utf-8').read()
     assert 'href="/%s/"' % MC.REPORTS_DIR in home, '홈에 /reports/ 링크가 없다'
     assert '콘텐츠 전체 보기' in home, "홈 묶음에 '전체 보기' 가 없다"
-    # 푸터는 세 벌(홈·통계·퀴즈)이다 — 한 벌에만 넣으면 어떤 화면에서는 입구가 없다.
+    # 푸터는 두 벌(홈·통계)이다 — 한 벌에만 넣으면 어떤 화면에서는 입구가 없다(퀴즈 화면 푸터는 2026-11-14 퀴즈 제거로 빠졌다).
     foots = re.findall(r'<nav class="ft-nav ft-grp".*?</nav>', home, re.S)
-    assert len(foots) == 3, '홈 푸터가 %d벌이다' % len(foots)
+    assert len(foots) == 2, '홈 푸터가 %d벌이다' % len(foots)
     for i, f in enumerate(foots):
         for href in ('/reports/', '/city/', '/gtx/', '/danji/', '/column/'):
             assert 'href="%s"' % href in f, '%d번째 푸터에 %s 링크가 없다' % (i + 1, href)
@@ -1253,7 +1253,8 @@ def test_thumbnail_number_is_that_regions_own_moveins_value():
 
 
 def test_basic_concepts_chips_sit_above_recent_posts():
-    """허브의 '기본 개념' 칩 줄이 사이클·FAQ·테스트 3종을 싣는다(10-30 승인한 다섯). 절 제목(.rh2)과 칩(.rchip) 꼴로 최근 글 **위**
+    """허브의 '기본 개념' 칩 줄이 사이클·FAQ 를 싣는다(10-30 승인한 다섯 가운데 테스트 3종은 2026-11-14 퀴즈 제거로 뺐다).
+    절 제목(.rh2)과 칩(.rchip) 꼴로 최근 글 **위**
     (2026-11-07 디자인 검수 — 맨 아래 13px 중점 한 줄은 40장 카드 뒤 푸터와 같은 꼴이라 입구 구실을 못 했다).
 
     왜: 상단 탭에서 '사이클'을 빼면서 그 입구를 여기로 옮겼다. 발행 주기가 없는 상시 글이라 입구만 있으면 된다.
@@ -1271,7 +1272,7 @@ def test_basic_concepts_chips_sit_above_recent_posts():
     assert ' · ' not in row.group(1), '기본 개념이 중점 나열이다'
     hrefs = re.findall(r'<a class="rchip" href="([^"]+)"', row.group(1))
     # 기대 목록을 **여기 적는다**. MC.BASIC_PAGES 에서 만들면 상수를 바꿀 때 기대값도 같이 바뀐다(2026-10-30 변이로 확인).
-    want = ['/cycle/', '/faq/', '/burini-test/', '/investor-test/', '/redev-test/']
+    want = ['/cycle/', '/faq/']
     assert hrefs == want, '기본 개념 줄의 순서·링크가 다르다: %s' % hrefs
     assert row.start() < page.index('<a class="kcard"'), '기본 개념 줄이 최근 글 아래에 있다'
     import html as _h

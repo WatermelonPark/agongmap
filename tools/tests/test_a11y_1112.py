@@ -37,7 +37,7 @@ def test_cycle_howto_focus_ring_is_white_on_the_green_banner():
 
 def test_reading_sentences_that_were_13px_are_14px():
     """마침표로 끝나는 읽는 문장은 14px(2026-11-06 대표 결정 '읽는 글 14px', 정본 site_nav.READ_PX). 접근성 점검(11-12)에서 13px 로
-    남아 있던 자리: 홈 퀴즈 예시 설명, 리포트 '…입니다' 참조 줄, 링크 카드 설명(지표 뼈대·/cycle/·/weekly/ 뼈대), /cycle/ '한계.'
+    남아 있던 자리: 홈 퀴즈 예시 설명(2026-11-14 퀴즈 제거로 걷음), 리포트 '…입니다' 참조 줄, 링크 카드 설명(지표 뼈대·/cycle/·/weekly/ 뼈대), /cycle/ '한계.'
     문단, /monthly/ 공유 안내, /weekly/ 서울 구 요약 줄. 이 페이지들의 글자 시험은 아직 13px 한 단계라 걸리지 않았다.
     변이(실제로 확인): page_share 의 .pshare-lead 를 13px 로 되돌리거나 put_nav 의 .sub 바꾸기를 지우면 빨개진다.
     픽스처: 저장소의 실제 원본과, 13px 줄을 담은 합성 주간 뼈대에 put_nav 를 돌린 결과."""
@@ -57,7 +57,7 @@ def test_reading_sentences_that_were_13px_are_14px():
     wk = MW.put_nav(io.open(os.path.join(ROOT, 'weekly', 'index.html'), encoding='utf-8').read()
                     .replace('  .sub{font-size:14px;', '  .sub{font-size:13px;')
                     .replace('.links a span{display:block;font-size:14px;', '.links a span{display:block;font-size:13px;'))
-    for text, sel in ((app, '.rcard.rc-sample .rc-desc'), (app, '.zs-ref'), (ind, '.links a span'), (cyc, '.links a span'),
+    for text, sel in ((app, '.zs-ref'), (ind, '.links a span'), (cyc, '.links a span'),
                       (cyc, 'footer .src'), (PS.CSS, '.pshare-lead'), (wk, '  .sub'), (wk, '.links a span')):
         assert px(text, sel) >= N.READ_PX, sel
 
@@ -132,17 +132,14 @@ def test_series_lines_and_labels_have_the_dark_variants():
 
 
 def test_page_chips_carry_no_emoji():
-    """손 페이지·퀴즈 점수 페이지 머리 표지(.chip)에는 이모지를 쓰지 않는다(2026-11-12 대표 결정 — 11-07 메달 이모지를 '팔레트 밖 색'
+    """손 페이지 머리 표지(.chip)에는 이모지를 쓰지 않는다(2026-11-12 대표 결정 — 11-07 메달 이모지를 '팔레트 밖 색'
     이라 걷은 기준과 같다). 공유 미리보기 제목(og:title)의 이모지는 그대로다.
-    실제 상태: 소개 🗺️·FAQ ❓·개인정보 🔒·부린이 🐣·투자자 🦅·재건축 🏗️ 와 점수 페이지 33장.
-    변이(실제로 확인): make_quiz_share_pages 의 chip 을 옛 '%(emoji)s %(title)s' 로 되돌리면(점수 페이지를 다시 구우면) 빨개진다.
-    픽스처: 저장소의 손 페이지와 구워 둔 점수 페이지 전부, 점수 페이지 생성기 틀."""
-    pages = ['about/index.html', 'faq/index.html', 'privacy/index.html', '404.html'] + sorted(
-        os.path.relpath(f, ROOT) for q in ('burini-test', 'investor-test', 'redev-test')
-        for f in glob.glob(os.path.join(ROOT, q, '**', 'index.html'), recursive=True))
-    emoji = re.compile('[\U0001F300-\U0001FAFF☀-➿⬀-⯿️]')
-    bad = [(p, c) for p in pages for c in re.findall(r'<div class="chip">([^<]*)</div>', io.open(os.path.join(ROOT, p), encoding='utf-8').read())
-           if emoji.search(c)]
+    실제 상태: 소개 🗺️·FAQ ❓·개인정보 🔒(퀴즈 랜딩·점수 페이지는 2026-11-14 퀴즈 제거로 없어졌다).
+    변이(실제로 확인): about/index.html 의 칩을 '🗺️ 아공맵 소개' 로 되돌리면 빨개진다.
+    픽스처: 저장소의 손 페이지."""
+    pages = ['about/index.html', 'faq/index.html', 'privacy/index.html', '404.html']
+    emoji = re.compile('[🌀-🫿☀-➿⬀-⯿️]')
+    chips = [(p, c) for p in pages for c in re.findall(r'<div class="chip">([^<]*)</div>', io.open(os.path.join(ROOT, p), encoding='utf-8').read())]
+    assert len(chips) >= 3, '손 페이지 칩을 거의 못 읽었다: %s' % chips
+    bad = [(p, c) for p, c in chips if emoji.search(c)]
     assert not bad, bad
-    src = io.open(os.path.join(ROOT, 'tools', 'make_quiz_share_pages.py'), encoding='utf-8').read()
-    assert '<div class="chip">%(title)s</div>' in src

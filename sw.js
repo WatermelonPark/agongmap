@@ -9,9 +9,9 @@
 // 배포 이력을 못 읽게 만들고, 다음 사람이 이미 쓴 번호를 재사용하게 한다.
 // 단조 증가는 test_sw_version_only_moves_forward가 지킨다.
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
-// home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
+// home-app.js 의 HOME_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
 // — 하나라도 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v221'; // 전수 리뷰 홈 수정(묵은 그래프 데이터가 이번 주를 덮지 않게, 천안·전주 시 전체, 뒤로 가기 둘, 카카오 SDK 빈 응답, 2026-11-13)
+const VERSION = 'v222'; // 퀴즈 3종 제거(홈 퀴즈 구역·퀴즈 화면·home-quiz.js 사전 캐시, 2026-11-14 대표 결정)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
@@ -63,18 +63,17 @@ function networkFirst(req, fallback) {
 // 3종·512px 아이콘까지 17개(전송 약 294KB)를 받아, 재방문자가 배포마다 백그라운드에서 그만큼 모바일 데이터를
 // 썼다 — 홈은 차트 라이브러리를 첫 로딩에서 받지도 않는다(home-app.js 머리 주석). 뺀 것은 처음 쓸 때 아래
 // fetch 처리기가 런타임 캐시에 넣는다(페이지는 탐색 분기, 차트 라이브러리·아이콘은 정적 자산 분기).
-// 오프라인에서 한 번도 안 연 /cycle/·퀴즈는 홈으로 폴백한다(탐색 분기의 fallback). 시험: test_speed_a11y 의 test_sw_precache_*.
+// 오프라인에서 한 번도 안 연 /cycle/ 은 홈으로 폴백한다(탐색 분기의 fallback). 시험: test_speed_a11y 의 test_sw_precache_*.
 const PRECACHE = [
   '/',
   '/data-core.js',   // 홈이 실제로 읽는 것
   '/sido-geo.js',    // 홈 지도 모드 경계(기본 모드라 프리캐시)
   '/app.css',
   '/home-app.js',   // 홈 본문 스크립트(2026-09-16 index.html 에서 분리) — HTML 과 한 몸이라 network-first
-  // 퀴즈·통계 화면 코드(B11·MOB-8 코드 분할). 홈이 그 화면을 열 때 '?v=<HOME_BUILD>' 를 붙여 받으므로(home-app.js
-  // loadPart) 같은 주소로 넣는다 — VERSION 과 HOME_BUILD 는 같은 값이다(test_home_build). 오프라인에서 #test-… 로 들어와도
-  // 퀴즈가 뜬다. 주소에 판이 붙어 있어 VERSION 을 올리면 두 파일은 새로 받는다(전송 약 40KB, test_home_parts).
-  // 두 파일 안의 판 표식(HOME_QUIZ_BUILD·HOME_STATS_BUILD)도 VERSION 과 같이 올린다(test_home_build).
-  '/home-quiz.js?v=' + VERSION,
+  // 통계 화면 코드(B11·MOB-8 코드 분할). 홈이 그 화면을 열 때 '?v=<HOME_BUILD>' 를 붙여 받으므로(home-app.js
+  // loadPart) 같은 주소로 넣는다 — VERSION 과 HOME_BUILD 는 같은 값이다(test_home_build). 주소에 판이 붙어 있어
+  // VERSION 을 올리면 새로 받는다(test_home_parts). 파일 안의 판 표식(HOME_STATS_BUILD)도 VERSION 과 같이 올린다.
+  // 퀴즈 화면(home-quiz.js)은 2026-11-14 퀴즈 3종 제거로 목록에서 뺐다.
   '/home-stats.js?v=' + VERSION,
   '/404.html',
   '/favicon.svg',
@@ -133,10 +132,10 @@ self.addEventListener('fetch', (e) => {
   //    따라온다 — 경계선이 한 방문 늦는 건 데이터 스테일과 달리 무해하고,
   //    network-first로 두면 파서 블로킹 스크립트가 매 방문 네트워크 왕복을 기다린다.
   // - home-app.js 는 index.html 에서 떼어낸 본문 스크립트다. app.css 와 같은 이유로 마크업과 함께 받는다.
-  // - home-quiz.js·home-stats.js 는 home-app.js 에서 떼어 낸 화면 코드다(B11). 같은 이유로 함께 받는다 — 판(?v=)이 붙은
+  // - home-stats.js 는 home-app.js 에서 떼어 낸 화면 코드다(B11). 같은 이유로 함께 받는다 — 판(?v=)이 붙은
   //   주소째로 캐시하므로 네트워크가 늦어 캐시로 내려도 같은 판 파일만 나온다.
   if (url.pathname === '/data.js' || url.pathname === '/app.css' || url.pathname === '/home-app.js'
-      || url.pathname === '/home-quiz.js' || url.pathname === '/home-stats.js'
+      || url.pathname === '/home-stats.js'
       || url.pathname === '/data-core.js' || url.pathname === '/data-rest.json'
       || url.pathname === '/data-size.json'
       || url.pathname === '/data-trend.json' || url.pathname === '/data-sgg.json') {

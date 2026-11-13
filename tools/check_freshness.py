@@ -42,16 +42,15 @@ import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목�
 import make_indicator_pages as I  # noqa: E402  (/moveins/ 시점 문구 공유)
 import make_weekly_page as MW  # noqa: E402  (주간 공유 카드 주소·PNG 메타 읽기 공유)
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
-import quiz_review as QR       # noqa: E402  (퀴즈 제도 문항 검토 기한)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
-import kst as KST      # noqa: E402  (오늘(KST) — 퀴즈 검토 기한은 한국 날짜로 본다)
+import kst as KST      # noqa: E402  (오늘(KST))
 
 SITE = 'https://www.agongmap.co.kr'
 UA = {'User-Agent': 'agongmap-watchdog'}
 # 오늘은 한국 날짜다(tools/kst.py). 감시는 18:07~23:15 KST(09~14 UTC)에 돌아 UTC 날짜와 같지만, 수동 실행이
 # 00~09 KST 에 들면 UTC 는 전날이다 — 나이 상한(MAX_AGE_*)이 하루 늦게 걸리지 않게 KST 로 잰다.
 TODAY = KST.today()
-# 감시를 실패시키지 않는 알림(퀴즈 제도 문항 검토 기한). fails 와 따로 둔다 — _emit_warnings 참고.
+# 감시를 실패시키지 않는 알림(확인된 원천 정지·목록 조회 끊김 등). fails 와 따로 둔다 — _emit_warnings 참고.
 WARN = []
 # 잡 요약 파일(GITHUB_STEP_SUMMARY). 스크립트로 돌 때만 채운다(맨 아래 __main__) — 시험이 main() 을 불러도
 # 배치 게이트의 실행 요약에 쓰지 않게 한다.
@@ -1550,14 +1549,6 @@ def main():
     fails.extend(check_sido_sum(stats))
     fails.extend(check_derived_pages(adv, stats))
 
-    # 퀴즈의 제도 문항(6·27 대책, 추진 중인 법 개정 등)은 시간이 지나면 틀린 답이 된다(2026-09-15 점검
-    # 후속 ⑧). 기한 경과는 **경고**로만 남기고 감시를 실패시키지 않는다(check_quiz_review·_emit_warnings).
-    # ⚠️ extend 로 붙인다 — fails 길이는 검사한 계열 수로 쓰인다.
-    print('[퀴즈 제도 문항 — 검토 기한]')
-    _qf, _qw = check_quiz_review(KST.today())
-    fails.extend(_qf)
-    WARN.extend(_qw)
-
     # 커버리지 가드: 라이브에 있는데 위에서 한 번도 대조 안 한 계열을 잡는다.
     # 분양·미분양이 SUPPLY_CONF에 있다는 이유로 몇 주간 감시 밖에 있었다 — 사람이
     # 기억으로 막을 일이 아니라서, 새 계열이 늘면 감시가 스스로 실패하게 둔다.
@@ -1595,34 +1586,6 @@ ADV_UNWATCHED = {
     'holidays': '공휴일 달력 — 배치가 실패해도 지난 목록을 유지하고, 연 단위로만 바뀐다',
     'aged30': '30년 넘은 아파트 — 배치가 받지 않는 시딩 자료다',
 }
-
-
-def check_quiz_review(today, src=None):
-    """퀴즈 제도 문항의 검토 기한 → (fails, warns).
-
-    기한이 지난 문항은 warns 다. 데이터 사고가 아니라 콘텐츠 검토 알림이기 때문이다. 예전엔 fails 에 넣어
-    2026-12-15(1개)·2027-03-15(4개)부터 누가 home-app.js 를 고칠 때까지 감시가 **매일** 빨개졌고, 그 기간의
-    'Run failed' 메일은 퀴즈 때문인지 진짜 뒤처짐 때문인지 구별되지 않았다 — 진짜 경보가 이미 예상한 빨강
-    속에 묻힌다(2026-09-26 데이터 감사). write-reminder.yml 의 원칙과 같다: 실패 메일은 데이터 사고의 통로다.
-    사람에게는 배치 기록의 ℹ️ 줄(batch_notes.quiz_review_lines — 실행 화면 요약에 실린다. 2026-11-08 부터 메일은 아니다)로 간다.
-    ⚠️ 문항을 0개 찾았거나 홈 스크립트를 못 읽은 것은 fails 로 둔다. 기한 감시가 조용히 꺼진 것이고(백로그 10
-    이동 모의에서 실제로 그랬다), 날짜가 지나서 생기는 일이 아니다. 홈 스크립트는 home_src 로만 읽는다.
-    """
-    fails, warns = [], []
-    try:
-        src = HS.home_source() if src is None else src
-        qi = QR.items(src)
-        qo = QR.overdue(src, today)
-        print('  제도 문항 %d개 · 기한 지남 %d개' % (len(qi), len(qo)))
-        if not qi:
-            fails.append('퀴즈 제도 문항을 0개 찾았다 — 검토 기한 감시가 헛돈다(asof·review 형식이나 홈 스크립트 위치 확인)')
-        half = QR.half_tagged(src)
-        if half:
-            fails.append('퀴즈 문항 %d개가 asof·review 가운데 하나만 달아 검토 기한 감시에서 빠진다: %s' % (len(half), '; '.join(half)))
-        warns.extend(qo)
-    except HS.HomeSourceError as e:
-        fails.append('홈 스크립트를 읽지 못해 퀴즈 검토 기한을 못 봤다: %s' % e)
-    return fails, warns
 
 
 def _emit_warnings(warns, summary=None):
