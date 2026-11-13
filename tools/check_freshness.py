@@ -42,16 +42,15 @@ import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목�
 import make_indicator_pages as I  # noqa: E402  (/moveins/ 시점 문구 공유)
 import make_weekly_page as MW  # noqa: E402  (주간 공유 카드 주소·PNG 메타 읽기 공유)
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
-import quiz_review as QR       # noqa: E402  (퀴즈 제도 문항 검토 기한)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
-import kst as KST      # noqa: E402  (오늘(KST) — 퀴즈 검토 기한은 한국 날짜로 본다)
+import kst as KST      # noqa: E402  (오늘(KST))
 
 SITE = 'https://www.agongmap.co.kr'
 UA = {'User-Agent': 'agongmap-watchdog'}
 # 오늘은 한국 날짜다(tools/kst.py). 감시는 18:07~23:15 KST(09~14 UTC)에 돌아 UTC 날짜와 같지만, 수동 실행이
 # 00~09 KST 에 들면 UTC 는 전날이다 — 나이 상한(MAX_AGE_*)이 하루 늦게 걸리지 않게 KST 로 잰다.
 TODAY = KST.today()
-# 감시를 실패시키지 않는 알림(퀴즈 제도 문항 검토 기한). fails 와 따로 둔다 — _emit_warnings 참고.
+# 감시를 실패시키지 않는 알림(확인된 원천 정지·목록 조회 끊김 등). fails 와 따로 둔다 — _emit_warnings 참고.
 WARN = []
 # 잡 요약 파일(GITHUB_STEP_SUMMARY). 스크립트로 돌 때만 채운다(맨 아래 __main__) — 시험이 main() 을 불러도
 # 배치 게이트의 실행 요약에 쓰지 않게 한다.
@@ -1550,14 +1549,6 @@ def main():
     fails.extend(check_sido_sum(stats))
     fails.extend(check_derived_pages(adv, stats))
 
-    # 퀴즈의 제도 문항(6·27 대책, 추진 중인 법 개정 등)은 시간이 지나면 틀린 답이 된다(2026-09-15 점검
-    # 후속 ⑧). 기한 경과는 **경고**로만 남기고 감시를 실패시키지 않는다(check_quiz_review·_emit_warnings).
-    # ⚠️ extend 로 붙인다 — fails 길이는 검사한 계열 수로 쓰인다.
-    print('[퀴즈 제도 문항 — 검토 기한]')
-    _qf, _qw = check_quiz_review(KST.today())
-    fails.extend(_qf)
-    WARN.extend(_qw)
-
     # 커버리지 가드: 라이브에 있는데 위에서 한 번도 대조 안 한 계열을 잡는다.
     # 분양·미분양이 SUPPLY_CONF에 있다는 이유로 몇 주간 감시 밖에 있었다 — 사람이
     # 기억으로 막을 일이 아니라서, 새 계열이 늘면 감시가 스스로 실패하게 둔다.
@@ -1597,6 +1588,7 @@ ADV_UNWATCHED = {
 }
 
 
+<<<<<<< HEAD
 def check_quiz_review(today, src=None):
     """퀴즈 제도 문항의 검토 기한 → (fails, warns).
 
@@ -1625,6 +1617,8 @@ def check_quiz_review(today, src=None):
     return fails, warns
 
 
+=======
+>>>>>>> 185fb27b (퀴즈 3종 제거: 랜딩·점수 페이지·생성기·홈 퀴즈 화면·진입점을 걷고 옛 주소는 홈으로 넘긴다(대표 결정 11-14), 판 v222)
 def _emit_warnings(warns, summary=None):
     """감시를 실패시키지 않는 알림을 남긴다 — 로그의 WARN 목록, GitHub 실행 화면의 ::warning:: 주석,
     그리고 summary(잡 요약 파일)가 있으면 거기에도. 판정(_gate)과 종료 코드에는 손대지 않는다."""

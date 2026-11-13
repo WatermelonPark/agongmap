@@ -34,7 +34,7 @@ def _read(*p):
 
 def test_no_page_navigation_through_buttons():
     s = _read('index.html')
-    HS.require(s, 'function nextStepHTML', 'class="qpick', what='이동 버튼이 있던 퀴즈 템플릿·카드')
+    HS.require(s, 'class="home-cta', 'function showView', what='홈 이동 단추와 화면 전환 코드(이동 버튼이 있던 퀴즈 화면은 2026-11-14 제거)')
     left = re.findall(r'<button[^>]*onclick="[^"]*location\.href[^"]*"', s)
     assert not left, '버튼으로 페이지를 옮기는 곳이 남았다 — <a href> 로: %s' % left
 

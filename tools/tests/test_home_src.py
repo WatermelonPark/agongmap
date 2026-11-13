@@ -55,7 +55,7 @@ def test_emptied_body_script_raises_even_if_the_total_is_big_enough(tmp_path):
 
     변이: home_source 에서 `_check_file(rel, body)` 호출을 빼면 이 시험이 빨개진다(실제로 확인 — 예전엔 206KB 부분
           소스를 조용히 돌려줬다).
-    픽스처: 저장소의 index.html·home-quiz.js·home-stats.js 사본 + 주석 한 줄뿐인 home-app.js — 본문을 EXTERNAL 에
+    픽스처: 저장소의 index.html·home-stats.js 사본 + 주석 한 줄뿐인 home-app.js — 본문을 EXTERNAL 에
             없는 새 파일로 옮기고 원래 파일을 비워 둔 상태. 둘째 모양은 크기는 넘지만 표식 하나(boot)가 빠진 본문.
     """
     for rel in (HS.HOME,) + HS.PARTS:
@@ -161,7 +161,4 @@ def glob_py():
                 yield os.path.join(dirpath, fn)
 
 
-def test_watchdog_fails_when_it_finds_no_policy_items():
-    src = io.open(os.path.join(ROOT, 'tools', 'check_freshness.py'), encoding='utf-8').read()
-    assert 'HS.home_source()' in src and '0개 찾았다' in src and 'HS.HomeSourceError' in src, (
-        '감시가 제도 문항 0개·홈 스크립트 못 읽음을 실패로 올리지 않는다')
+# (감시의 퀴즈 제도 문항 0개 검사 test_watchdog_fails_when_it_finds_no_policy_items 는 2026-11-14 퀴즈 제거로 검사와 함께 걷었다.)

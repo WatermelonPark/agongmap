@@ -72,7 +72,7 @@ def test_monthly_entry_is_a_button_on_home_and_stats():
 
 
 def test_footer_links_are_split_by_hidden_dots_and_left_aligned():
-    """홈·통계·퀴즈 푸터 세 벌 모두 링크 사이 가운뎃점이 .ft-dot 으로 감싸여 있고(CSS 가 숨기고 간격으로 가른다 — 줄 끝에 점이
+    """홈·통계 푸터 두 벌 모두 링크 사이 가운뎃점이 .ft-dot 으로 감싸여 있고(CSS 가 숨기고 간격으로 가른다 — 줄 끝에 점이
     매달리지 않는다), 푸터는 왼쪽 정렬, 머리말 열(매주·매달·분기·읽을거리)은 padding 안에 고정된다.
 
     변이(각각 실제로 확인): 한 푸터의 '<i class="ft-dot"> · </i>' 를 맨 ' · ' 로 되돌리면 첫 단정이, .ft-dot 숨김 규칙을 지우면
@@ -80,7 +80,7 @@ def test_footer_links_are_split_by_hidden_dots_and_left_aligned():
     """
     h = _index()
     blocks = re.findall(r'<nav class="ft-nav ft-grp".*?</nav>|<div class="ft-meta">.*?</div>', h, re.S)
-    assert len(blocks) == 6, len(blocks)   # 푸터 세 벌 × (색인·메타)
+    assert len(blocks) == 4, len(blocks)   # 푸터 두 벌(홈·통계 — 퀴즈 화면 푸터는 2026-11-14 제거) × (색인·메타)
     for b in blocks:
         assert '</a> · <a' not in b, '줄 끝에 매달리는 맨 가운뎃점이 남았다: ' + b[:80]
     css = _css()

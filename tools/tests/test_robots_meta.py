@@ -46,7 +46,7 @@ def test_walker_sees_every_kind_of_page():
     """파서 자기 확인 — 빈 목록이면 아래 시험이 헛돈다."""
     got = {_rel(p) for p in html_files()}
     for must in ('index.html', '404.html', 'about/index.html', 'weekly/index.html', 'monthly/index.html',
-                 'cycle/index.html', 'zone/index.html', 'burini-test/index.html', 'burini-test/0/index.html'):
+                 'cycle/index.html', 'zone/index.html', 'burini-test/index.html', 'city/ansan-2027-moveins/index.html'):
         assert must in got, '%s 를 찾지 못했다 — 걷는 범위가 깨졌다' % must
     assert len(got) >= 60
 
@@ -72,13 +72,15 @@ def test_every_page_has_exactly_one_robots_meta_with_large_preview():
 
 def test_noindex_stays_only_on_404_and_old_intent_is_kept():
     """robots 한 줄을 모든 페이지에 넣다가 noindex 가 퍼지면 사이트가 검색에서 빠진다. 404 의 noindex·개인정보의
-    index, follow 는 합친 뒤에도 남아야 한다."""
+    index, follow 는 합친 뒤에도 남아야 한다. noindex 는 404 와 옛 퀴즈 주소 세 곳(2026-11-14 퀴즈 제거 — 홈으로 넘기는 최소
+    페이지, test_quiz_removed)에만 있다."""
     noindex = []
     for p in html_files():
         m = RM._ROBOTS.search(io.open(p, encoding='utf-8').read())
         if m and 'noindex' in m.group('c').lower():
             noindex.append(_rel(p))
-    assert noindex == ['404.html'], 'noindex 가 404 밖으로 퍼졌거나 404 에서 빠졌다: %s' % noindex
+    want = ['404.html', 'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html']
+    assert sorted(noindex) == want, 'noindex 가 404·옛 퀴즈 주소 밖으로 퍼졌거나 거기서 빠졌다: %s' % noindex
     priv = RM._ROBOTS.search(io.open(os.path.join(ROOT, 'privacy', 'index.html'), encoding='utf-8').read())
     assert priv and 'index, follow' in priv.group('c')
 

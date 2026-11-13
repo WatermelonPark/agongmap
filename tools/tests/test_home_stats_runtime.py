@@ -626,23 +626,23 @@ def test_home_tabbar_marks_the_current_view():
     처음 마크업의 홈 버튼에도 있고, 버튼 아이콘 svg 는 aria-hidden 이다.
 
     변이(실제로 확인): showView 의 setAttribute('aria-current','page') 줄을 옛 classList.toggle 만으로 되돌리면 빨개진다.
-    픽스처: 실제 showView·viewLoc·chalInURL·chalSearch 와 탭 버튼 네 개(홈·시세 버튼, 지역·사이클 링크) 모형.
+    픽스처: 실제 showView·viewLoc 와 탭 버튼 네 개(홈·시세 버튼, 지역·사이클 링크) 모형(퀴즈 화면은 2026-11-14 제거).
     """
     files = dict(HS.home_files())
     app = files['home-app.js']
-    js = (DOM + 'var PV_SENT=false,PV_AFTER=null,statsInited=true,curView=null,statsMode="market";\n'
-          'const vHome={style:{}},vStats={style:{}},vTest={style:{}};document.body={classList:{toggle(){}}};\n'
+    js = (DOM + 'var PV_SENT=false,statsInited=true,curView=null,statsMode="market";\n'
+          'const vHome={style:{}},vStats={style:{}};document.body={classList:{toggle(){}}};\n'
           'const location={href:"https://x/",search:"",hash:"",pathname:"/",origin:"https://x"};\n'
           'const history={pushState(){},replaceState(){}};function statsHashOf(){return "#stats-market-week";}\n'
           'const btns=[["home"],[null],["stats"],[null]].map(([v],i)=>{const b=__mk("b"+i);if(v)b.dataset.view=v;return b;});\n'
           'document.querySelectorAll=q=>q===".nav-btn"?btns:[];\n'
-          + '\n'.join(_fn(app, n) for n in ('viewLoc', 'showView', 'chalInURL', 'chalSearch')) + '\n'
+          + '\n'.join(_fn(app, n) for n in ('viewLoc', 'showView')) + '\n'
           'const OUT={};showView("stats");OUT.stats=btns.map(b=>b.getAttribute("aria-current"));\n'
-          'showView("test");OUT.test=btns.map(b=>b.getAttribute("aria-current"));\n'
+          'showView("home");OUT.home=btns.map(b=>b.getAttribute("aria-current"));\n'
           'process.stdout.write(JSON.stringify(OUT));')
     got = _node(js)
     assert got['stats'] == [None, None, 'page', None], got
-    assert got['test'] == ['page', None, None, None], got
+    assert got['home'] == ['page', None, None, None], got
     nav = re.search(r'<nav class="bottomnav">(.*?)</nav>', files['index.html'], re.S).group(1)
     assert re.search(r'<button class="nav-btn on" data-view="home" aria-current="page">', nav)
     for b in re.findall(r'<button[^>]*>\s*<svg[^>]*>', nav):
