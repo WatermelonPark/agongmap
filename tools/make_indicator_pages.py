@@ -598,7 +598,7 @@ def est_regions_text():
 # ⚠️ 왜 여기서 채우지 않나: 배치가 이 생성기를 **먼저** 돌리고 콘텐츠 생성기를 뒤에 돌린다
 #    (update-cloud.yml·run_weekly_update.bat 모두). 여기서 글 목록을 읽으면 '구워진 글만' 셀 수밖에 없어,
 #    그 회차에 처음 구워지는 새 도시 글이 하루 늦게 뜬다. /weekly/ 해설 칸과 같은 나눔이다.
-CITY_START, CITY_END = '<!--MV:CITY-->', '<!--/MV:CITY-->'
+CITY_START, CITY_END = N.SLOT_MOVEINS_CITY     # 정본은 site_nav(keep_dates 가 이 구간을 가리고 견준다)
 
 
 def city_html():

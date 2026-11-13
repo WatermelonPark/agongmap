@@ -203,6 +203,35 @@ def test_indicator_main_keeps_dates_across_same_content_runs(tmp_path, monkeypat
         assert second == first, '%s: 내용이 같은데 날짜가 %s 로 움직였다' % (sub, second)
 
 
+def test_moveins_city_slot_does_not_restamp_the_page(tmp_path, monkeypatch):
+    """/moveins/ 의 도시 글 칸이 채워진 뒤에 다시 구워도, 데이터가 그대로면 페이지와 lastmod 가 그대로다.
+
+    왜: 이 생성기는 빈 표식 쌍만 굽고 make_content_pages.write_moveins_cities 가 뒤에서 채운다. 커밋된 옛 판(채워짐)과 새
+        판(빈 쌍)이 그 구간에서 늘 달라 keep_dates 가 매일 '바뀜'으로 읽었다(2026-11-13 전수 리뷰 — /zone/ 과 같은 결함).
+        위 시험은 main() 만 두 번 돌려 이 길을 지나지 않았다.
+    변이(실제로 확인): site_nav.LATE_SLOTS 에서 SLOT_MOVEINS_CITY 를 빼면 둘째 날 /moveins/ 의 날짜가 03-04 로 움직여 빨개진다.
+    픽스처: 첫날 구운 /moveins/ 에 실제 write_moveins_cities 로 도시 글 한 편을 채운 저장소 상태, 다음 날 원천 갱신 없는 재생성.
+    """
+    import shutil
+    import make_content_pages as MC
+    for f in ('data.js', 'data-rest.json', 'sitemap.xml', 'app.css'):
+        shutil.copy(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', f), str(tmp_path / f))
+    monkeypatch.setattr(I, 'ROOT', str(tmp_path))
+    monkeypatch.setattr(I, 'hand_lastmods', lambda root=None: [])
+    monkeypatch.setattr(I.KST, 'today_iso', lambda: '2031-03-03')
+    I.main()
+    meta = {'section': MC.MOVEINS_SEC, 'slug': 'sample', 'title': '가짜 도시 글', 'updated': '2031-03-01', 'date': '2031-03-01'}
+    assert MC.write_moveins_cities([meta], root=str(tmp_path)) is True
+    fp = tmp_path / 'moveins' / 'index.html'
+    filled = io.open(str(fp), encoding='utf-8').read()
+    assert '가짜 도시 글' in filled
+    monkeypatch.setattr(I.KST, 'today_iso', lambda: '2031-03-04')
+    I.main()
+    assert io.open(str(fp), encoding='utf-8').read() == filled, '/moveins/ 가 내용 변화 없이 다시 쓰였다(도시 글 칸 탓)'
+    sm = io.open(str(tmp_path / 'sitemap.xml'), encoding='utf-8').read()
+    assert re.search(r'<loc>[^<]*/moveins/</loc>\s*<lastmod>([^<]*)</lastmod>', sm).group(1) == '2031-03-03'
+
+
 def _moveins_with_pcts(adv, pcts):
     """머리 해(Y) 입주 합을 지역마다 '적정물량의 pcts[지역]%'로 맞춘 사본(첫 분기에 몰아 싣고 나머지 분기는 0)."""
     a = copy.deepcopy(adv)

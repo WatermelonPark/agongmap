@@ -74,7 +74,7 @@
 | `make_content_pages.py`, `content_tables.py`, `content_md.py`, `content_check.py`, `make_content_cards.py` | 글 페이지·허브·자리표·원고 검사·글 카드. 아래 "콘텐츠 원고" |
 | `make_home_summary.py`, `make_feed.py`, `make_llms_txt.py` | 홈 표식 구간·설명 메타(데이터가 그대로면 '페이지 수정' 날짜도 그대로), `/feed.xml` RSS, `/llms.txt`(AI 검색 요약 — 숫자 없이, 콘텐츠 글 목록 구역만 예외)·`/llms-full.txt`(글 전문) |
 | `sido_zones.py` | 판정 단위·등급·정렬·화면 숫자·지역 이름·날짜 표기의 **정본**. 아래 "정본: sido_zones" |
-| `site_nav.py` | 모든 페이지가 같이 쓰는 틀의 정본: 하단 탭바(홈·지역·시세·콘텐츠 — `TABS`, 생성기는 `bottomnav()`로 굽고 손 페이지는 손으로 맞추되 `test_site_nav`가 저장소의 모든 탭바를 대조한다. 탭 식별자는 GA 값이라 라벨을 바꿔도 그대로 둔다. 손 페이지가 켜는 탭은 `HAND_TAB_ON`), 글자 하한 `READ_PX`·`LABEL_PX`, 색 `BRAND_TOKENS`·`UP_INK`·`DN_INK`·`SERIES_COL`, 공용 조각 `NAV_FOCUS_CSS`·`NAV_ON_CSS`·`NAV_SCROLL_PAD_CSS`·`FONT_FALLBACK_CSS`·`FONT_STACK_HEAD`, 푸터 `HAND_FOOTER`·`FOOTER_DISC`·`FOOTER_CONTACT`·`site_footer()`, 데스크톱 틀 `desk_link`·`desk_body`·`dtoc`·`DTOC_JS`, 브라우저 머리 색 `THEME_COLOR`(= app.css `--ink`). **탭바나 글꼴 목록을 싣는 새 페이지는 이 글자를 그대로 싣는다** |
+| `site_nav.py` | 모든 페이지가 같이 쓰는 틀의 정본: 하단 탭바(홈·지역·시세·콘텐츠 — `TABS`, 생성기는 `bottomnav()`로 굽고 손 페이지는 손으로 맞추되 `test_site_nav`가 저장소의 모든 탭바를 대조한다. 탭 식별자는 GA 값이라 라벨을 바꿔도 그대로 둔다. 손 페이지가 켜는 탭은 `HAND_TAB_ON`), 글자 하한 `READ_PX`·`LABEL_PX`, 색 `BRAND_TOKENS`·`UP_INK`·`DN_INK`·`SERIES_COL`, 공용 조각 `NAV_FOCUS_CSS`·`NAV_ON_CSS`·`NAV_SCROLL_PAD_CSS`·`FONT_FALLBACK_CSS`·`FONT_STACK_HEAD`, 푸터 `HAND_FOOTER`·`FOOTER_DISC`·`FOOTER_CONTACT`·`site_footer()`, 데스크톱 틀 `desk_link`·`desk_body`·`dtoc`·`DTOC_JS`, 뒤 단계가 채우는 표식 구간 `LATE_SLOTS`(`keep_dates`가 이 구간을 비우고 견준다 — keep_dates 를 거치는 페이지에 새 표식 구간을 두면 여기에 올린다), 브라우저 머리 색 `THEME_COLOR`(= app.css `--ink`). **탭바나 글꼴 목록을 싣는 새 페이지는 이 글자를 그대로 싣는다** |
 | `check_freshness.py` | 데이터 신선도·정합성 검사. 감시 워크플로가 부른다. 알려진 원천 정지는 `SOURCE_PAUSED`(기한 있음)로 경고로만 둔다 |
 | `batch_notes.py`, `format_batch_report.py`, `post_alert.sh` | 배치 기록 줄(ℹ️·⚠️), 결과 보고, 경보 이슈 코멘트. 아래 "자동화"의 메일 |
 | `gen_sgg_rone_map.py [--weekly] [--write]` | 시군구 매핑(월간 `SGG_RONE_CLS`·주간 `SGG_RONE_CLS_WK`) 재생성·대조. 키가 필요하다. 현재 매핑에만 있는 코드가 있으면 `--write`를 거부한다. 원천이 새 시군구를 내도 매핑은 저절로 붙지 않는다 — `batch_notes.sgg_map_gap_lines`가 '월간 시군구 매핑 없음' ℹ️ 줄로 알린다 |
@@ -177,6 +177,10 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
 - **숫자는 자리표로만 적는다**(`{{v:…}}`·`{{table:…}}`·`{{chart:…}}`, `content_tables.py`). 손으로 적은 숫자는 데이터가 바뀌어도 따라오지
   않는다. 자리표 종류·프런트매터·글자 상한(`content_md.TITLE_MAX` 등)은 `content/README.md`가 정본이고, 원고 규칙 여섯 가지는
   `docs/2026-11-07-콘텐츠-원고-규칙-안내.md`에 있다.
+- **원고(md)는 배포하지 않는다.** `_config.yml`의 exclude 가 `content/`의 md 만 뺀다(`test_pages_config`). 빼지 않으면 Jekyll 이
+  자리표가 지워진 중복 페이지를 `/content/…html`로 내보낸다. `content/`를 통째로 빼면 글 페이지가 부르는 그림(`content/<섹션>/img/`)이 깨진다.
+- **원고 한 편의 탈은 그 글만 건너뛴다.** 생성기는 한 편을 굽다 난 예외를 그 글에 가두고(`_crash_note`) 나머지를 굽는다. 검사기는
+  생성기의 `build_page`·`markdown`을 그대로 돌려 같은 탈을 `✗`로 미리 알린다(`test_content_robust`).
 - **올리기 전에 `python tools/content_check.py`를 돌려 `※` 줄을 0 으로 만든다.** 아직 원천에 없는 자료(새 도시, 공개 전인 해)는
   '기다림(…)'으로 떨어진다 — 원고는 올려도 되고, 자료가 들어온 회차에 저절로 구워진다. 그동안 그 글은 건너뛰고,
   건너뛴 글로 가는 링크(이전·다음 글, 목록, 지역 묶음)는 만들지 않는다.

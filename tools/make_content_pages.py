@@ -34,6 +34,7 @@ import content_tables as CT        # noqa: E402  (자리표 → 사이트 데이
 import make_indicator_pages as I   # noqa: E402  (뼈대 SHELL·fill·sitemap 갱신)
 import make_sido_pages as SP       # noqa: E402  (keep_dates — 내용이 같으면 옛 날짜 유지)
 import home_src as HS             # noqa: E402  (홈 파일 위치의 정본 — 백로그 10)
+import site_nav as N              # noqa: E402  (탭바·뒤 단계 표식 구간 LATE_SLOTS 의 정본)
 
 SITE = I.SITE
 AUTHOR = '아공맵 운영팀'
@@ -285,7 +286,6 @@ def _own_tab(page):
 
     탭바 마크업은 site_nav 가 정본이라 그 함수가 만든 두 덩어리를 맞바꾼다(문자열을 손으로 적지 않는다).
     """
-    import site_nav as N
     return page.replace(N.bottomnav('stats'), N.bottomnav('reports'), 1)
 
 
@@ -341,11 +341,19 @@ def _table_html(head, body, note=''):
     return ''.join(h)
 
 
-def markdown(body):
-    """문단·제목·목록·인용·표만 있는 작은 마크다운. 모르는 줄은 문단으로 둔다."""
+def markdown(body, stray=None):
+    """문단·제목·목록·인용·표만 있는 작은 마크다운. 모르는 줄은 문단으로 둔다.
+
+    stray 에 목록을 주면 '표 줄(|)인데 표가 되지 못한 줄'의 (줄 번호, 글)을 담는다 — 구분 줄(|---|)이 없거나 끝 파이프가
+    빠진 표다. 원고 검사기(content_check)가 이 목록으로 고칠 곳을 알린다(같은 걸음으로 봐야 검사와 굽기가 갈리지 않는다).
+    """
     lines = body.replace('\r\n', '\n').split('\n')
-    out, i = [], 0
+    out, i, last = [], 0, -1
     while i < len(lines):
+        if i == last:           # 걸음 감시 — 어느 갈래도 이 줄을 먹지 못했다면 넘긴다. 이 함수는 무슨 일이 있어도 끝난다
+            i += 1
+            continue
+        last = i
         ln = lines[i]
         s = ln.strip()
         if not s:
@@ -393,12 +401,17 @@ def markdown(body):
                 i += 1
             out.append('<blockquote><p>%s</p></blockquote>' % _inline(' '.join(quote)))
             continue
-        para = []
+        # 여기까지 온 줄은 위 어느 덩어리의 머리도 아니다 — **첫 줄은 무조건 먹는다**. 예전엔 표 머리가 아닌 '|' 줄(구분 줄 없는 표,
+        # 끝 파이프가 빠진 구분 줄, 표 뒤 빈 줄 다음의 행)이 어느 갈래에도 먹히지 않아 i 가 그대로였고, 이 함수가 끝나지 않았다
+        # (2026-11-13 전수 리뷰 — 검사기는 OK 를 내고 배치의 생성기 단계가 시간 상한까지 매달려 그날 데이터 커밋이 막힌다).
+        if s.startswith('|') and stray is not None:
+            stray.append((i + 1, s))
+        para = [s]
+        i += 1
         while i < len(lines) and lines[i].strip() and not re.match(r'^(#{2,4}\s|[-*]\s|\d+\.\s|\||>)', lines[i].strip()):
             para.append(lines[i].strip())
             i += 1
-        if para:
-            out.append(_para(' '.join(para)))
+        out.append(_para(' '.join(para)))
     return '\n'.join(out)
 
 
@@ -1191,7 +1204,7 @@ def write_home_recent(metas, root=ROOT):
     return True
 
 
-ZONE_START, ZONE_END = '<!--ZONE_POSTS_START-->', '<!--ZONE_POSTS_END-->'
+ZONE_START, ZONE_END = N.SLOT_ZONE_POSTS      # 정본은 site_nav(keep_dates 가 이 구간을 가리고 견준다)
 _ZONE_RE = re.compile(re.escape(ZONE_START) + r'(.*?)' + re.escape(ZONE_END), re.S)
 
 
@@ -1328,7 +1341,7 @@ def write_weekly_column(metas, root=ROOT):
 # 남았고, 같은 주제의 글이 사이트에 생겼다(/city/ 도시 입주물량 편). 자리(표식)는 make_indicator_pages 가
 # 내고 내용은 여기서 채운다 — /weekly/ 해설 칸과 같은 나눔이고, 이유도 같다(그쪽 주석 참조).
 MOVEINS_PAGE = os.path.join('moveins', 'index.html')
-MOVEINS_START, MOVEINS_END = '<!--MV:CITY-->', '<!--/MV:CITY-->'
+MOVEINS_START, MOVEINS_END = N.SLOT_MOVEINS_CITY
 MOVEINS_H2 = '도시별 입주 예정 단지'
 MOVEINS_SEC = 'city'
 MOVEINS_MAX = 6                 # 칸에 싣는 글 수. 더 많아지면 '전체 보기'로 보낸다
@@ -1407,6 +1420,17 @@ def _warn(msg):
     print(('::warning::' if os.environ.get('GITHUB_ACTIONS') else '  ⚠️ ') + msg)
 
 
+def _crash_note(sec, meta, err, where):
+    """원고 한 편을 굽다 난 **예상 밖 예외**의 한 줄. 배치는 그 글만 건너뛰고 나머지를 굽는다.
+
+    왜 넓게 잡나: 자리표·프런트매터 오류(TableError·ContentError)만 받으면, 검사를 통과한 원고 한 편의 모양 탈(목록이어야 할
+    값이 짝으로 읽힘 등)이 생성기 전체를 예외로 끝내고 배치가 '생성기 실패 — 커밋하지 않는다'로 그날 데이터를 올리지 못한다
+    (2026-11-13 전수 리뷰). 생성기 버그도 이 줄로 드러난다 — 예외 이름을 그대로 적는다. --strict 는 예전처럼 멈춘다.
+    """
+    return '%s/%s.md %s: 굽다가 예외(%s: %s) — 원고 꼴이나 생성기를 고칠 것' % (
+        sec, meta.get('slug'), where, type(err).__name__, err)
+
+
 def main(strict=False):
     old_format = []
     posts, skipped = collect(strict=strict, old_format=old_format)
@@ -1434,6 +1458,10 @@ def main(strict=False):
             if strict:
                 raise
             dropped.append('%s/%s.md 프런트매터: %s' % (sec, meta['slug'], e))
+        except Exception as e:      # noqa: BLE001 — 한 편의 탈이 나머지 글과 그날 데이터 커밋을 막지 않게 가둔다(_crash_note)
+            if strict:
+                raise
+            dropped.append(_crash_note(sec, meta, e, '프런트매터'))
     for why in dropped:
         _warn('콘텐츠 원고를 건너뛴다 — ' + why)
     posts = filled
@@ -1455,6 +1483,13 @@ def main(strict=False):
                 raise
             skipped.append('%s/%s.md: %s' % (sec, meta['slug'], e))
             _warn('콘텐츠 자리표를 채우지 못해 건너뛴다 — %s/%s.md: %s' % (sec, meta['slug'], e))
+            continue
+        except Exception as e:      # noqa: BLE001 — 위와 같다
+            if strict:
+                raise
+            why = _crash_note(sec, meta, e, '본문')
+            skipped.append(why)
+            _warn('콘텐츠 원고를 건너뛴다 — ' + why)
             continue
         ok.append((sec, meta, body))
     posts = ok

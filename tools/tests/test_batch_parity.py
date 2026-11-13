@@ -259,6 +259,43 @@ def test_publish_commit_keeps_the_lists_feed_and_sitemap(tmp_path):
         '대상 밖 변경이 되돌려지지 않았다'
 
 
+def test_publish_commits_a_run_that_only_made_new_files(tmp_path):
+    """추적 파일은 그대로이고 **새 파일만** 생긴 회차도 발행이 커밋한다(새 글 카드·썸네일만 그려진 회차).
+
+    왜: '바뀐 것이 있나'를 `git diff --quiet`(작업 트리)로 재면 untracked 파일이 보이지 않는다. 그런 회차를 "바뀐 것이
+        없다"로 끝내 카드가 다음 배치까지 올라가지 않았다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): 판정을 `git add` 앞의 `git diff --quiet -- $HAVE` 로 되돌리면 커밋이 생기지 않아 빨개진다.
+    픽스처: 임시 git 저장소에 share/ 의 옛 카드 한 장과 목록을 커밋해 두고, 새 카드 파일 하나만 더 만든 상태.
+    """
+    bash = shutil.which('bash')
+    if not bash:
+        pytest.skip('bash 가 없다 — 워크플로 조각을 돌려 볼 수 없다(CI 러너에는 있다)')
+    d = tmp_path / 'repo'
+    (d / 'share').mkdir(parents=True)
+    (d / 'share' / 'post-old.png').write_bytes(b'old')
+    (d / 'feed.xml').write_text('피드', encoding='utf-8')
+
+    def git(*a):
+        return subprocess.run(['git'] + list(a), cwd=str(d), capture_output=True, text=True,
+                              encoding='utf-8', errors='replace')
+
+    git('init', '-q', '-b', 'main')
+    git('config', 'user.email', 't@t'), git('config', 'user.name', 't')
+    git('add', '-A'), git('commit', '-qm', 'base')
+    base = git('rev-parse', 'HEAD').stdout.strip()
+    (d / 'share' / 'post-new.png').write_bytes(b'new')
+    p = subprocess.run([bash, '-c', _publish_commit_script()], cwd=str(d), capture_output=True,
+                       text=True, encoding='utf-8', errors='replace', timeout=120)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert git('rev-parse', 'HEAD').stdout.strip() != base, '새 파일만 생긴 회차가 커밋되지 않았다: ' + p.stdout
+    assert 'share/post-new.png' in git('show', '--name-only', '--format=', 'HEAD').stdout.split()
+    # 아무것도 안 바뀐 회차는 여전히 커밋 없이 0 으로 끝난다(빈 커밋을 만들지 않는다).
+    head = git('rev-parse', 'HEAD').stdout.strip()
+    p = subprocess.run([bash, '-c', _publish_commit_script()], cwd=str(d), capture_output=True,
+                       text=True, encoding='utf-8', errors='replace', timeout=120)
+    assert p.returncode == 0 and git('rev-parse', 'HEAD').stdout.strip() == head, p.stdout + p.stderr
+
+
 def _pub_steps():
     """발행 워크플로의 steps 구간에서 **게이트 앞까지** 도는 python 도구를 순서대로 읽는다.
 

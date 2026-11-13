@@ -189,7 +189,7 @@ def test_quiz_line_reaches_the_monday_report():
 def test_main_appends_quiz_lines_from_the_real_home(tmp_path, monkeypatch, capsys):
     """배치가 부르는 main() 이 실제 홈 스크립트로 퀴즈 검사를 해 줄을 붙인다(오늘을 먼 미래로 돌려 기한을 넘긴다).
 
-    변이: main() 에서 `+ quiz_review_lines(kst.today())` 를 지우면 빨개진다(확인).
+    변이: main() 의 곁가지 목록에서 '퀴즈 검토 기한' 항목을 지우면 빨개진다(확인).
     픽스처: 인허가 신호가 모두 있는 최소 data.js(인허가 줄 없음) + 저장소의 실제 홈 스크립트, 오늘 = 2099-01-01.
     """
     import json
@@ -223,7 +223,7 @@ def test_lines_does_not_read_the_repo_sync_data(monkeypatch):
 def test_main_appends_theory_claim_lines(tmp_path, monkeypatch, capsys):
     """배치가 부르는 main() 은 이론편 전제 점검 줄을 기록에 싣는다 — lines() 밖으로 옮기다 알림을 잃지 않는다(대표 결정 D1).
 
-    변이: main() 에서 `+ theory_claim_lines()` 를 지우면 빨개진다(확인).
+    변이: main() 의 곁가지 목록에서 '이론편 전제' 항목을 지우면 빨개진다(확인).
     픽스처: 인허가 신호가 모두 있는 최소 data.js + 어긋남 줄 하나를 돌려주는 theory_claim_lines(금리 인하로 7편 전제가
             깨진 날의 모양), 오늘은 퀴즈 기한 전(2026-01-01).
     """
@@ -279,7 +279,7 @@ def test_sgg_map_gap_names_only_unmapped_codes_with_weekly_values(monkeypatch):
 def test_main_appends_the_sgg_map_gap_line(tmp_path, monkeypatch, capsys):
     """배치가 부르는 main() 이 매핑 공백 줄을 기록에 싣는다.
 
-    변이(실제로 확인): main() 에서 `+ sgg_map_gap_lines(adv)` 를 지우면 빨개진다.
+    변이(실제로 확인): main() 의 곁가지 목록에서 '시군구 매핑' 항목을 지우면 빨개진다.
     픽스처: 인허가 신호가 모두 있고 주간 시군구에 매핑 없는 코드 하나가 값이 있는 최소 data.js, 오늘은 퀴즈 기한 전.
     """
     import datetime
@@ -296,3 +296,32 @@ def test_main_appends_the_sgg_map_gap_line(tmp_path, monkeypatch, capsys):
     assert N.main(['--data', str(p)]) == 0
     out = capsys.readouterr().out.splitlines()
     assert len(out) == 1 and '월간 시군구 매핑 없음' in out[0], out
+
+
+def test_one_dead_side_check_does_not_erase_the_other_lines(tmp_path, monkeypatch, capsys):
+    """곁가지 하나가 예외로 죽어도 다른 줄은 그대로 나가고, 죽은 곁가지는 '검사 불가' 한 줄로 남는다.
+
+    왜: main() 이 곁가지를 한 식으로 이어 붙여, 맨 끝 content_card_lines 하나가 죽으면 표준 출력이 비었다. 워크플로는
+        `|| true` 로 받아 빈 채 넘어가므로 그 회차의 ⚠️ 인허가 신호 빠짐까지 흔적 없이 사라졌다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): main() 의 try/except 를 걷고 `got = fn()` 만 남기면 예외로 끝나 빨개진다.
+    픽스처: 인허가 신호가 빠진 지역 하나가 있는 최소 data.js + 글 카드 곁가지가 OSError 를 내는 상태(share/ 를 읽지 못함).
+    """
+    import datetime
+    import json
+    import kst
+    p = tmp_path / 'data.js'
+    p.write_text('/*ADV_DATA_START*/ const ADV=%s; /*ADV_DATA_END*/\nconst STATS={};\n'
+                 % json.dumps(_adv(('가', 0.8), ('나', None)), ensure_ascii=False), encoding='utf-8')
+
+    def dead(root=None):
+        raise OSError('share/ 를 읽지 못했다')
+
+    for name in ('theory_claim_lines', 'sgg_map_gap_lines', 'hand_permit_lines', 'conv_model_lines'):
+        monkeypatch.setattr(N, name, lambda *a, **k: [])
+    monkeypatch.setattr(N, 'content_card_lines', dead)
+    monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
+    assert N.main(['--data', str(p)]) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert len(out) == 2, out
+    assert out[0].startswith(N.WARN) and '인허가 신호 빠짐' in out[0] and '나' in out[0], out
+    assert '검사 불가' in out[1] and '글 카드' in out[1] and 'OSError' in out[1], out
