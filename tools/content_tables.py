@@ -108,8 +108,26 @@ def _zones(data):
     return {z['z']: z for z in (data['sido'].get('zones') or [])}
 
 
+def _is_zone(name):
+    import sido_zones as SZ
+    return name in SZ.ORDER or SZ.key_of(name) in SZ.ORDER
+
+
 def city(data, name):
-    """도시(시군구) 입주물량 묶음 — tools/data/city_moveins.json. 없으면 None."""
+    """도시(시군구) 입주물량 묶음 — tools/data/city_moveins.json. 없으면 None.
+
+    ⚠️ 시도 키와 같은 이름(대구·부산 같은 광역시)에는 None 이다 — 그 묶음이 파일에 있어도. 광역시는 도시이면서 곧 시도라,
+    도시 산식(인구 ÷ 2.5 × 2%)의 적정물량·단지 목록 합을 쓰면 같은 지역을 시도 리포트(기준표 적정물량·착공 추정)와 다른
+    숫자로 말하게 된다(대구 1년 적정물량 20,000 대 약 18,900세대). 그래서 적정물량·해마다 입주·비율은 시도 값을 쓰고
+    (2026-11-13 대표 결정 '시도 리포트와 같게'), 단지 목록·몰리는 달·인구만 `listing` 으로 이 묶음을 읽는다.
+    """
+    if _is_zone(name):
+        return None
+    return listing(data, name)
+
+
+def listing(data, name):
+    """단지 목록 묶음 — 시도 키(광역시)여도 돌려준다. 단지 목록(complexes)·몰리는 달(peak)·인구(pop)만 이것을 쓴다."""
     return ((data.get('cities') or {}).get('cities') or {}).get(name)
 
 
@@ -625,7 +643,7 @@ def table(data, kind, args):
     if kind == 'complexes':
         if not 1 <= len(args) <= 2:
             raise TableError('complexes 자리표는 도시[:연도] 꼴이다')
-        f = city(data, args[0])
+        f = listing(data, args[0])
         if not f:
             _pending_or_error(args[0], '%r 의 단지 목록이 없다 — 도시 자료에 없는 도시다' % args[0])
         return city_complexes(data, f, args[1] if len(args) > 1 else None)
@@ -673,11 +691,15 @@ def value(data, kind, args):
         want = {'need': (1, 1), 'pop': (1, 1), 'peak': (1, 2), 'ratio': (3, 3)}[kind]
         if not want[0] <= len(args) <= want[1]:
             raise TableError('%s 자리표는 도시%s 꼴이다' % (kind, {'peak': '[:연도]', 'ratio': ':연도:견줄 연도'}.get(kind, '')))
-        f = city(data, args[0])
+        f = listing(data, args[0]) if kind in ('pop', 'peak') else city(data, args[0])
         if not f:
-            # 시도는 기준표(sido_zones)로 낸다 — need·share 만. 인구(pop)와 단지 목록(peak)은 도시 자료에만 있다.
+            # 시도는 기준표(sido_zones)로 낸다 — need·share 만. 인구(pop)와 단지 목록(peak)은 도시 자료에만 있다
+            # (광역시는 그 묶음이 있으면 listing 으로 위에서 받는다).
             if kind == 'need' and region_key(data, args[0]) in _zones(data):
                 return sido_need(data, region_key(data, args[0]))
+            if kind == 'ratio' and _is_zone(args[0]):
+                # 기다림(PendingCity)으로 떨어뜨리면 영영 구워지지 않는다 — 광역시의 도시 묶음은 city() 가 읽지 않는다.
+                raise TableError('%r 는 시도다 — ratio 는 도시 자료에만 있다(시도는 v:share 두 개로 견줄 것)' % args[0])
             _pending_or_error(args[0], '%r 는 도시 자료에 없다%s'
                               % (args[0], ' — 시도는 need·share 만 쓸 수 있다' if kind in ('pop', 'peak') else ''))
         if kind == 'need':

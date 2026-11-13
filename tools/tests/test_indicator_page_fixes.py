@@ -268,3 +268,24 @@ def test_moveins_lowest_sentence_is_true_and_lists_ties():
     one[I.SIDO17[3]] = 50
     html2, _ = I.build_moveins(_moveins_with_pcts(adv, one))
     assert '입주가 적정물량에 가장 못 미치는 곳은 <strong>%s(적정물량의 50%%)</strong>' % SZ.disp(I.SIDO17[3]) in html2
+
+
+def test_sitemap_update_dates_a_bare_url_instead_of_adding_a_twin(tmp_path, monkeypatch):
+    """lastmod 가 없는 url 줄(손으로 넣은 주소)을 갱신하면 그 자리에 lastmod 를 단다 — 같은 주소를 하나 더 붙이지 않는다.
+
+    변이(실제로 확인): update_sitemap 의 `elif re.search(bare, x):` 갈래를 지우면 같은 loc 가 두 번 실려 빨개진다.
+    픽스처: lastmod 가 있는 url 하나와 없는 url 하나가 든 작은 sitemap, 그리고 아직 없는 새 주소 하나.
+    """
+    import make_indicator_pages as I
+    site = I.SITE
+    sm = tmp_path / 'sitemap.xml'
+    sm.write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset>\n'
+                  '  <url>\n    <loc>%s/a/</loc>\n    <lastmod>2026-01-01</lastmod>\n  </url>\n'
+                  '  <url>\n    <loc>%s/b/</loc>\n    <priority>0.5</priority>\n  </url>\n</urlset>\n' % (site, site),
+                  encoding='utf-8')
+    monkeypatch.setattr(I, 'ROOT', str(tmp_path))
+    I.update_sitemap([('/a/', '2026-11-13'), ('/b/', '2026-11-13'), ('/c/', '2026-11-13')])
+    x = sm.read_text(encoding='utf-8')
+    for p in ('/a/', '/b/', '/c/'):
+        assert x.count('<loc>%s%s</loc>' % (site, p)) == 1, (p, x)
+    assert x.count('<lastmod>2026-11-13</lastmod>') == 3, x

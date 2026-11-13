@@ -175,6 +175,28 @@ def test_late_slots_are_one_canon_and_only_hide_the_slot():
         assert P.keep_dates(two.replace('y', 'Y'), two.replace(DAY2, DAY1), DAY2)[2] is True, (a, b)
 
 
+def test_price_cell_color_follows_the_number_on_the_cell(site, monkeypatch):
+    """분기표 가격 칸의 색은 그 칸에 적힌 값(소수 첫째 자리)으로 칠한다 — 글자가 '0.0%' 인 칸은 무색이다.
+
+    왜: 글자는 반올림값, 색은 원값이라 '0.0%' 인데 바탕이 빨강·파랑인 칸이 리포트 19장에 127칸 있었다. 홈 표는 같은 칸을
+        소수 첫째 자리 값으로 칠해 무색이다 — 같은 지역·같은 분기가 화면마다 다른 색이었다(2026-11-13 전수 리뷰).
+    변이(실제로 확인): 가격 칸의 tint 입력을 원값(`p[n]`)으로 되돌리면 색 있는 '0.0%' 칸이 생겨 빨개진다.
+    픽스처: 저장소의 실제 data.js 로 구운 시도 리포트 전부(원값이 0 은 아니지만 0.05 미만인 분기 칸이 실제로 여럿 있다).
+    """
+    _set_today(monkeypatch, DAY1)
+    P.main()
+    zero, colored = 0, []
+    for z in _names():
+        h = _read(site / 'zone' / z / 'index.html')
+        for bg in re.findall(r'<td style="background:([^"]+)">0\.0%</td>', h):
+            zero += 1
+            if bg != 'transparent':
+                colored.append((z, bg))
+    assert zero > 0, "글자가 '0.0%' 인 가격 칸이 하나도 없다 — 픽스처가 결함을 재현하지 못한다"
+    assert not colored, "글자는 '0.0%' 인데 색이 칠해진 칸 %d개: %s" % (len(colored), colored[:3])
+    assert P.shown1(0.04) == 0 and P.shown1(0.05) == 0.1 and P.shown1(-0.05) == 0.0 and P.shown1(-0.06) == -0.1
+
+
 def test_changed_page_keeps_its_first_publish_date(site, monkeypatch):
     """내용이 바뀐 회차에는 dateModified 만 오늘이 되고 datePublished 는 처음 발행일을 물려받는다.
     안 그러면 8월에 색인된 페이지가 '어제 처음 발행, 수정 이력 없음' 이라고 선언한다(2026-08-07 감사).
