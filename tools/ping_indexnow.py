@@ -36,7 +36,7 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENDPOINT = 'https://api.indexnow.org/indexnow'
-DEFAULT = ['/', '/weekly/', '/faq/', '/burini-test/', '/cycle/']
+DEFAULT = ['/', '/weekly/', '/faq/', '/cycle/']
 OK_CODES = (200, 202)   # 202 = 받았고 키 확인은 나중에(IndexNow 규격)
 TAIL = '색인 지연만 발생(데이터는 정상)'
 

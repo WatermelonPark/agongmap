@@ -352,17 +352,14 @@ def test_home_reading_text_is_14px_and_the_title_leads():
     assert '15px' in _rule(css, '.crecent h2')
 
 
-def test_home_quiz_buttons_have_no_emoji_and_cycle_text_has_no_count():
-    """home-9·10: 홈 퀴즈 단추 셋에 컬러 이모지가 없고, 사이클 구역 문장은 고리 수를 말하지 않는다(아래 축약 도식은 칸 넷 — 고리 수 6은
-    /cycle/ 안에서만).
+def test_cycle_text_has_no_count():
+    """home-10: 홈 사이클 구역 문장은 고리 수를 말하지 않는다(아래 축약 도식은 칸 넷 — 고리 수 6은 /cycle/ 안에서만).
+    (home-9 의 퀴즈 단추 이모지 단정은 2026-11-14 퀴즈 3종 제거로 단추와 함께 걷었다.)
 
-    변이(실제로 확인): 부린이 단추에 '🐣 '를 되살리면, 문장을 '순환의 6개 고리입니다'로 되돌리면 빨개진다.
+    변이(실제로 확인): 문장을 '순환의 6개 고리입니다'로 되돌리면 빨개진다.
     """
     h = _index()
     home = h[h.index('<div id="view-home">'):h.index('<!-- ===== 통계보기 대시보드 ===== -->')]
-    btns = re.findall(r'<a class="home-cta[^"]*" href="/(?:burini|investor|redev)-test/"[^>]*>([^<]*)</a>', home)
-    assert len(btns) == 3, btns
-    assert all(not re.search('[\U0001F000-\U0001FAFF☀-➿️]', b) for b in btns), btns
     cyc = re.search(r'<h2>집값은 왜 돌고 도는가</h2>\s*(?:<!--.*?-->\s*)?<p>([^<]*)</p>', home, re.S).group(1)
     assert not re.search(r'\d+\s*개\s*고리', cyc), cyc
 

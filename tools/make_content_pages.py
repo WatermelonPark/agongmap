@@ -48,13 +48,6 @@ def card_rel(section, slug):
     return 'share/post-%s-%s.png' % (section, slug)
 
 
-def thumb_rel(section, slug):
-    """목록용 썸네일의 저장소 상대 경로. 굽는 쪽(make_content_cards)도 이 함수를 쓴다. 여기 두는 까닭: 이 생성기는 배치에서
-    pillow 를 깔기 전에 돈다 — 경로 하나를 얻으려고 카드 생성기(모듈 맨 위에서 PIL 을 들인다)를 불러오면 그 단계가
-    ModuleNotFoundError 로 멈춘다(test_test_deps_are_installed)."""
-    return 'share/thumb-%s-%s.jpg' % (section, slug)
-
-
 def section_card_rel(section):
     """섹션 공통 카드 — 글별 카드가 없을 때."""
     return 'share/section-%s.png' % section
@@ -1003,6 +996,7 @@ def content_img_src(body_html, sec):
 
 
 def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
+    data = CT.for_post(data, meta)     # 도시 3년 창·그림 기본 연도는 이 글의 작성 연도가 정한다
     filled, blocks = fill_placeholders(strip_lead_thumb(body_md), data, key=_key_of(meta))
     sec = meta['section']
     body_html = content_img_src(restore_tables(markdown(filled), blocks), sec)
@@ -1113,7 +1107,7 @@ REPORTS_DESC = '질문이나 내 동네로 들어와 결론부터 읽는 글. �
 # ⚠️ 이름과 곁말을 여기에 손으로 적지 않는다. 각 페이지의 <title> 에서 읽는다('이름 — 곁말 | 아공맵').
 #    손 페이지의 제목을 고치면 이 줄도 따라 바뀐다. 파일이 없으면 그 카드만 빠진다.
 BASIC_H2 = '기본 개념'
-BASIC_PAGES = ('cycle', 'faq', 'burini-test', 'investor-test', 'redev-test')
+BASIC_PAGES = ('cycle', 'faq')   # 퀴즈 3종(burini-test 등)은 2026-11-14 대표 결정으로 걷었다
 _TITLE_RE = re.compile(r'<title>([^<]*)</title>')
 
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-build="v221">
+<html lang="ko" data-build="v222">
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) — 홈만 지연 로딩한다(아래 ③). 순서가 곧 기능이다: ① → ② → ③. -->
@@ -50,7 +50,7 @@ gtag('config','G-3FJNG6G1F3',gaCfg({send_page_view:false}));
     if(a&&a[0]==='event'&&a[1]==='page_view')return true;}return false;}
   function load(){
     if(on)return;on=true;
-    if(!sent()&&!window.__pvDefer)gtag('event','page_view',{page_location:at});   // 대결 부팅은 분할 퀴즈 파일이 도착한 뒤 보낸다(__pvDefer)
+    if(!sent())gtag('event','page_view',{page_location:at});
     if(window['ga-disable-'+ID])return;   // 제외 기기는 194KB 를 받지도 않는다
     var s=document.createElement('script');s.async=true;
     s.src='https://www.googletagmanager.com/gtag/js?id='+ID;
@@ -60,16 +60,15 @@ gtag('config','G-3FJNG6G1F3',gaCfg({send_page_view:false}));
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',idle);else idle();
 })();
 </script>
-<!-- ⑤ 퀴즈·통계로 바로 들어오는 주소는 그 화면 코드를 미리 받는다(홈 마케팅 검수 B11·MOB-8). 퀴즈·통계 코드는
-     home-quiz.js·home-stats.js 로 떼어 그 화면을 열 때 받는데(home-app.js loadPart), 퀴즈 랜딩의 '시작하기'(/#test-…)·
-     대결 링크(?c=&s=)·블로그 주간 링크(/#stats-market)는 첫 화면이 곧 그 화면이라 home-app.js 가 돈 뒤에야 받기 시작하면
-     한 번 더 기다린다. 여기서 같은 주소(?v=판)로 preload 해 두면 본문 스크립트와 나란히 받는다. 통계는 그래프 데이터도.
+<!-- ⑤ 통계로 바로 들어오는 주소는 그 화면 코드를 미리 받는다(홈 마케팅 검수 B11·MOB-8). 통계 코드는
+     home-stats.js 로 떼어 그 화면을 열 때 받는데(home-app.js loadPart), 블로그 주간 링크(/#stats-market)는 첫 화면이
+     곧 그 화면이라 home-app.js 가 돈 뒤에야 받기 시작하면 한 번 더 기다린다. 여기서 같은 주소(?v=판)로 preload 해 두면
+     본문 스크립트와 나란히 받는다. 그래프 데이터도 함께 받는다. 퀴즈 화면(home-quiz.js)은 2026-11-14 퀴즈 제거로 걷었다.
      판은 <html data-build>(= home-app.js HOME_BUILD, test_home_build). ① 이 해시 속 쿼리를 옮긴 뒤라야 해시가 맞다. -->
 <script>
 try{(function(){
-  var b=document.documentElement.getAttribute('data-build')||'',h=location.hash,q=location.search,u=[];
-  if(/^#test/.test(h)||(/[?&]c=\d/.test(q)&&/[?&]s=(beginner|investor|calc)/.test(q)))u.push(['/home-quiz.js?v='+b,'script']);
-  else if(/^#stats/.test(h))u.push(['/home-stats.js?v='+b,'script'],['/data-trend.json','fetch']);
+  var b=document.documentElement.getAttribute('data-build')||'',h=location.hash,u=[];
+  if(/^#stats/.test(h))u.push(['/home-stats.js?v='+b,'script'],['/data-trend.json','fetch']);
   for(var i=0;i<u.length;i++){var l=document.createElement('link');l.rel='preload';l.href=u[i][0];l.as=u[i][1];
     if(u[i][1]==='fetch')l.crossOrigin='anonymous';document.head.appendChild(l);}
 })();}catch(e){}
@@ -106,7 +105,7 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard','Agong 
   "name": "아공맵",
   "alternateName": "agongmap",
   "url": "https://www.agongmap.co.kr/",
-  "description": "전국 16개 시도 아파트 공급 지도, 준공·착공 실적으로 본 입주물량, 주간 시세 지도, 아파트 사이클 리포트, 부동산 테스트 — 국가기관 통계 기반",
+  "description": "전국 16개 시도 아파트 공급 지도, 준공·착공 실적으로 본 입주물량, 주간 시세 지도, 아파트 사이클 리포트 — 국가기관 통계 기반",
   "inLanguage": "ko"
 }
 </script>
@@ -363,24 +362,6 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard','Agong 
          2026-10-30 총괄 결정으로 카드·데이터(ADV 의 blog 키)·스타일을 함께 걷었다 — 되살리지 말 것. -->
   </div></section>
 
-  <section class="home-sec hs-alt"><div class="wrap">
-    <div class="hs-kicker">10문항 · 5분</div>
-    <h2>내 부동산 감각, 몇 점일까?</h2>
-    <p>10문항으로 재는 내 부동산 감각. 결과는 친구와 대결할 수 있습니다.</p>
-    <!-- 무엇을 얻는지가 안 보여서 안 누른다(2026-08-17). 결과 화면의 티어 카드를
-         축소해 미리 보여준다. 문구는 BLV 정본에서 읽어 굽는다 — 손으로 옮겨
-         적으면 티어 문구를 고칠 때 홈만 옛말을 하게 된다(quizSample).
-         ⚠️ 참여자 수·평균 점수는 넣지 않는다. 지금 트래픽에선 적은 숫자가
-         그대로 드러나 사회적 증거가 역효과다(PM 결정). -->
-    <div id="quiz-sample" class="qsample" aria-hidden="true"></div>
-    <!-- 단추 글자에 컬러 이모지(🐣·🦅·🏗️)를 달지 않는다 — 홈의 다른 단추·탭바는 단색 선 아이콘·글자뿐이라 아이콘 언어가 둘이 됐고
-         기기마다 모양이 달랐다(2026-11-07 디자인 검수 home-9). 결과 예시 카드(#quiz-sample)의 그림은 공유 이미지와 같은 것이라 둔다. -->
-    <div class="hs-cta">
-      <a class="home-cta" href="/burini-test/" onclick="track('home_cta',{to:'quiz_burini'})">부린이 테스트 · 난이도 하</a>
-      <a class="home-cta alt" href="/investor-test/" onclick="track('home_cta',{to:'quiz_investor'})">투자자 테스트 · 난이도 중</a>
-      <a class="home-cta alt" href="/redev-test/" onclick="track('home_cta',{to:'quiz_redev'})">재건축·재개발 테스트 · 난이도 상</a>
-    </div>
-  </div></section>
 
   <section class="home-sec hs-alt"><div class="wrap">
     <!-- ⚠️ 고리 검증 대상 곳 수. /cycle/ 과 사이클 3편 원고가 쓰는 값과 같아야 한다
@@ -437,15 +418,15 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard','Agong 
   <!-- 최근 리포트(백로그 50): 아래 두 표식 **사이**만 배치(tools/make_content_pages.py)가 고쳐 쓴다.
        손으로 고치지 말 것 — 다음 배치가 되돌린다. 글이 없으면 구간은 빈 채로 둔다. -->
 <!--CONTENT_RECENT_START-->
-<div class="crecent"><h2>최근 리포트</h2><div class="kgrid"><a class="kcard" href="/column/hong-hope-gangnam-only/" data-sec="column" data-topic="claim" data-city="서울 전체"><span class="kc-chips"><span class="kc-chip">서울 전체</span><span class="kc-chip kc-t">발언 검증</span></span><b class="kc-hook">홍지선 장관 &#x27;희망적인 신호&#x27;, 내린 곳은 강남 3구뿐입니다</b><span class="kc-key"><strong>32%</strong><small>3년 적정물량 대비</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/city/wonju-2027-moveins/" data-sec="city" data-topic="moveins" data-city="원주"><span class="kc-chips"><span class="kc-chip">원주</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">2027년 원주 아파트 분양·입주물량, 세 해 합쳐도 적정의 54%입니다</b><span class="kc-key"><strong>4,750세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/danji/seongsan-siyeong-mapo/" data-sec="danji" data-topic="redevelop" data-city="서울 마포구"><span class="kc-chips"><span class="kc-chip">서울 마포구</span><span class="kc-chip kc-t">재건축·리모델링</span></span><b class="kc-hook">성산시영 재건축, 조합 설립 뒤 거래는 줄고 값은 1년 새 18~29% 올랐습니다</b><span class="kc-key"><strong>14억 7,000만</strong><small>대우 20평형 실거래</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/city/jeonju-2027-moveins/" data-sec="city" data-topic="moveins" data-city="전주"><span class="kc-chips"><span class="kc-chip">전주</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">2027년 전주 아파트 분양·입주물량, 세 해 합쳐도 적정의 36%입니다</b><span class="kc-key"><strong>5,308세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/danji/guro-jugong/" data-sec="danji" data-topic="redevelop" data-city="서울 구로구"><span class="kc-chips"><span class="kc-chip">서울 구로구</span><span class="kc-chip kc-t">재건축·리모델링</span></span><b class="kc-hook">구로주공 재건축, 49층 정비계획 재공람 뒤 1년 새 34~43% 올랐습니다</b><span class="kc-key"><strong>34~43%</strong><small>1년 상승률</small></span><i class="kc-date">26.11.7</i></a><a class="kcard" href="/gtx/gtx-b-wangsuk/" data-sec="gtx" data-topic="first-home" data-city="남양주"><span class="kc-chips"><span class="kc-chip">남양주</span><span class="kc-chip kc-t">역세권 첫 집</span></span><b class="kc-hook">GTX-B 왕숙역 도보 15분 기존 아파트 0곳, 첫 입주는 2028년입니다</b><span class="kc-key"><strong>0곳</strong><small>15분 안 기존 단지</small></span><i class="kc-date">26.11.7</i></a></div><p class="crecent-all"><a href="/reports/">콘텐츠 전체 보기 →</a></p></div>
+<div class="crecent"><h2>최근 리포트</h2><div class="kgrid"><a class="kcard" href="/city/ulsan-2027-moveins/" data-sec="city" data-topic="moveins" data-city="울산 남구|울산 중구|울산 울주군"><span class="kc-chips"><span class="kc-chip">울산 남구 외 2</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">울산 아파트 입주물량, 앞으로 3년 적정물량의 57%입니다</b><span class="kc-key"><strong>13,718세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.14</i></a><a class="kcard" href="/city/sejong-2027-moveins/" data-sec="city" data-topic="moveins" data-city="세종"><span class="kc-chips"><span class="kc-chip">세종</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">세종 아파트 입주물량, 2029년 적정물량의 27%로 줄어듭니다</b><span class="kc-key"><strong>7,186세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.14</i></a><a class="kcard" href="/city/incheon-2027-moveins/" data-sec="city" data-topic="moveins" data-city="인천 미추홀구|인천 연수구|인천 부평구"><span class="kc-chips"><span class="kc-chip">인천 미추홀구 외 2</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">인천 아파트 입주물량, 2027년 적정물량의 116% 뒤 줄어듭니다</b><span class="kc-key"><strong>69,420세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.14</i></a><a class="kcard" href="/city/daejeon-2027-moveins/" data-sec="city" data-topic="moveins" data-city="대전 유성구|대전 중구|대전 서구"><span class="kc-chips"><span class="kc-chip">대전 유성구 외 2</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">대전 아파트 입주물량, 2027년 몰린 뒤 2028년 적정물량의 54%입니다</b><span class="kc-key"><strong>29,960세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.14</i></a><a class="kcard" href="/city/daegu-2027-moveins/" data-sec="city" data-topic="moveins" data-city="대구 수성구|대구 달서구|대구 북구"><span class="kc-chips"><span class="kc-chip">대구 수성구 외 2</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">대구 아파트 입주물량, 앞으로 3년 적정물량의 15%뿐입니다</b><span class="kc-key"><strong>9,175세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.14</i></a><a class="kcard" href="/city/busan-2027-moveins/" data-sec="city" data-topic="moveins" data-city="부산 남구|부산 강서구|부산 해운대구"><span class="kc-chips"><span class="kc-chip">부산 남구 외 2</span><span class="kc-chip kc-t">도시 입주물량</span></span><b class="kc-hook">부산 아파트 입주물량, 2029년 적정물량의 33%로 줄어듭니다</b><span class="kc-key"><strong>46,830세대</strong><small>3년 입주 합계</small></span><i class="kc-date">26.11.14</i></a></div><p class="crecent-all"><a href="/reports/">콘텐츠 전체 보기 →</a></p></div>
 <!--CONTENT_RECENT_END-->
   <!-- 푸터 링크를 갱신 주기(매주·매달·분기)와 읽을거리로 묶는다(홈 마케팅 검수 B5·IA-9, 2026-09-27) — 푸터까지 내려온 사람에게
        무엇이 언제 새로 나오는지 보인다. 알림·요일은 약속하지 않는다. 네이버 블로그 링크는
        2026-10-29 대표 결정(네이버 발행 종료)으로 뺐고, '읽을거리' 에 콘텐츠 네 섹션을 넣었다.
-       같은 푸터가 이 파일에 세 벌(홈·통계·퀴즈) 있다 — 셋을 같이 고친다(test_home_summary 가 같은지 본다). -->
+       같은 푸터가 이 파일에 두 벌(홈·통계) 있다 — 둘을 같이 고친다(test_home_summary 가 같은지 본다). -->
   <div class="home-foot">
     <div class="ft-brand"><b>아공맵</b> — 아파트 공급 지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/" onclick="track('home_cta',{to:'weekly_footer'})">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div></div>
@@ -624,74 +605,13 @@ body.home-app{font-family:'AgongHome','Pretendard Variable','Pretendard','Agong 
 
   <div class="minifooter">
     <div class="ft-brand"><b>아공맵</b> — 아파트 공급 지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
+    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a></span></nav>
     <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
     <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
     <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
   </div>
 </div>
 
-<!-- ===== 부동산 사이클 테스트 ===== -->
-<div id="view-test" style="display:none">
-  <div class="quiz-wrap">
-    <!-- 시작 화면 -->
-    <div id="quiz-intro">
-      <div class="quiz-hero">
-        
-        <h2>당신의 부동산 감각,<br>몇 점일까?</h2>
-        
-        <div class="qpick">
-          <a class="qpick-card" href="/burini-test/">
-            <div class="pc-top">
-              <span class="pc-emoji">🐣</span>
-              <span class="pc-title">부린이 테스트</span>
-              <span class="pc-badge lv1">난이도 하</span>
-            </div>
-            <p class="pc-desc">LTV·디딤돌·계약갱신청구권… 집 사기 전 꼭 알아야 할 제도와 용어. 부린이 탈출의 첫걸음.</p>
-            <span class="pc-go">→</span>
-          </a>
-          <a class="qpick-card" href="/investor-test/">
-            <div class="pc-top">
-              <span class="pc-emoji">🦅</span>
-              <span class="pc-title">투자자 테스트</span>
-              <span class="pc-badge lv2">난이도 중</span>
-            </div>
-            <p class="pc-desc">호재를 악재로, 악재를 호재로. 통념을 거꾸로 뒤집어야 풀리는 사이클·금리·수급의 진짜 게임.</p>
-            <span class="pc-go">→</span>
-          </a>
-          <a class="qpick-card" href="/redev-test/">
-            <div class="pc-top">
-              <span class="pc-emoji">🏗️</span>
-              <span class="pc-title">재건축·재개발 테스트</span>
-              <span class="pc-badge lv3">난이도 상</span>
-            </div>
-            <p class="pc-desc">매매가·대지지분·용적률에서 재건축 사업성이, 구역 면적과 조합원 수에서 재개발 사업성이 보이나요? 쉬운 숫자로 바로 굴려보는 훈련.</p>
-            <span class="pc-go">→</span>
-          </a>
-        </div>
-        <div class="qmeta">각 10문항 · 약 5분 · 문항마다 즉시 해설</div>
-        <button class="qshare-btn primary" style="margin:22px auto 0;padding:13px 28px;border-radius:var(--r-touch)" onclick="shareTest()"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="#191919" d="M12 3C6.48 3 2 6.54 2 10.9c0 2.8 1.86 5.26 4.66 6.66-.15.52-.97 3.36-1 3.58 0 0-.02.17.09.24.11.07.24.02.24.02.32-.04 3.66-2.4 4.24-2.81.57.08 1.16.13 1.77.13 5.52 0 10-3.54 10-7.9S17.52 3 12 3z"/></svg>카카오톡으로 테스트 보내기</button>
-      </div>
-    </div>
-    <!-- 문제 화면 -->
-    <div id="quiz-play" style="display:none">
-      <div id="chal-bar" class="chalbar" style="display:none"></div>
-      <div class="qprogress"><div class="qbar" id="qbar"></div></div>
-      <div class="qcount" id="qcount"></div>
-      <div class="qcard" id="qcard"></div>
-      <p class="sr-only" id="qlive" role="status" aria-live="polite"></p>
-    </div>
-    <!-- 결과 화면 -->
-    <div id="quiz-result" style="display:none"></div>
-  </div>
-  <div class="minifooter">
-    <div class="ft-brand"><b>아공맵</b> — 아파트 공급 지도</div>
-    <nav class="ft-nav ft-grp" aria-label="주요 페이지"><span class="fg"><b>매주</b> <a href="/weekly/">이번 주 시세 지도</a></span> <span class="fg"><b>매달</b> <a href="/monthly/">이달의 통계</a><i class="ft-dot"> · </i><a href="/jeonse-ratio/">전세가율</a></span> <span class="fg"><b>분기</b> <a href="/zone/">시도별 공급</a><i class="ft-dot"> · </i><a href="/moveins/">입주물량</a></span> <span class="fg"><b>읽을거리</b> <a href="/reports/">콘텐츠 전체</a><i class="ft-dot"> · </i><a href="/city/">도시 입주물량</a><i class="ft-dot"> · </i><a href="/gtx/">역세권 첫 집</a><i class="ft-dot"> · </i><a href="/danji/">재건축·리모델링</a><i class="ft-dot"> · </i><a href="/column/">발언 검증</a><i class="ft-dot"> · </i><a href="/cycle/">사이클 리포트</a><i class="ft-dot"> · </i><a href="/faq/">부동산 FAQ</a><i class="ft-dot"> · </i><a href="/burini-test/">부린이 테스트</a><i class="ft-dot"> · </i><a href="/investor-test/">투자자 테스트</a><i class="ft-dot"> · </i><a href="/redev-test/">재건축·재개발 테스트</a></span></nav>
-    <div class="ft-src">KOSIS · 한국부동산원 · 국토교통부 원자료 기반</div>
-    <div class="ft-meta"><a href="/about/">아공맵 소개</a><i class="ft-dot"> · </i><a href="/privacy/">개인정보처리방침</a><i class="ft-dot"> · </i><a href="mailto:agongmap@gmail.com">만든이 agongmap@gmail.com</a></div>
-    <div class="legal-disc"><b>투자 면책 고지</b> · 공공 데이터를 가공한 <b>참고 자료</b>이며 투자자문이 아닙니다. <b>투자 판단과 책임은 이용자에게 있습니다.</b></div>
-  </div>
-</div>
 </main>
 
 <!-- ===== 하단 내비 ===== -->

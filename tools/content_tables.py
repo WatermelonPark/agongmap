@@ -131,9 +131,17 @@ def listing(data, name):
     return ((data.get('cities') or {}).get('cities') or {}).get(name)
 
 
+def _listed(f, year):
+    """공개 목록이 그 해를 끝까지 덮는가 — 목록의 마지막 입주월(occ_max)이 그 해 뒤 해에 있다. 덮는데 단지가 없으면 그 해는 0 이다."""
+    ym = f.get('occ_max') or ''
+    return len(ym) >= 4 and ym[:4].isdigit() and int(ym[:4]) > int(year)
+
+
 def _city_years(f, year=None):
     by = {y: n for y, n in (f.get('by_year') or {}).items()}
     if year:
+        if str(year) not in by and _listed(f, year):
+            return {str(year): 0}         # 목록이 덮는 해에 단지가 없으면 0(표·그림의 '입주 예정 없음'과 같은 뜻)
         if str(year) not in by:
             raise TableError('그 도시의 %s년 입주 예정이 자료에 없다(%s)' % (year, _upto(f)))
         return {str(year): by[str(year)]}
@@ -161,18 +169,38 @@ CITY_KINDS = ('moveins', 'share', 'complexes', 'need', 'pop', 'peak', 'ratio',
 SRC_CITY = '한국부동산원 입주예정물량정보 · 청약홈 분양정보'
 
 # 3년 합계 자리표(share3·moveins3)가 재는 창. 사이트 모델의 '앞으로 3년'과 같은 길이다
-# (시도는 ADV.sido.H 분기 = 12분기). 연도를 글이 적지 않는 까닭: 해가 바뀌면 그 글이 옛 창을 말한다.
+# (시도는 ADV.sido.H 분기 = 12분기).
 FUT_YEARS = 3
 
 
-def _future_years(data):
-    """3년 합계가 더할 연도들 — 자료의 기준월 다음 해부터 FUT_YEARS 해.
+def for_post(data, meta):
+    """글 하나가 읽는 데이터 — 도시 3년 창과 그림 기본 연도를 **그 글의 작성 연도 다음 해**로 고정한다.
 
-    기준월(cities['start'])은 수집기가 적는 '이 목록이 어느 달부터인가'이고, 그림의 기본 연도도 같은
-    자리에서 온다(_chart_moveins). 그래서 그림이 집어 보이는 해가 3년 창의 첫 해다 — 둘이 갈리지 않는다.
+    왜 글이 정하나(2026-11-13 대표 결정 '글이 연도를 고정'). 예전 창은 수집 목록의 기준월(cities['start'])을 따라 굴렀다.
+    2027-01-01 첫 배치에서 창이 2028~2030 으로 넘어가면, 2030 년분이 아직 목록에 없는 글(전주·원주…)이 기다림으로 빠지고 그 글을
+    전제하는 시험이 빨개져 그날 데이터 커밋이 멈춘다. 게다가 제목은 '2027년'인데 본문 3년 합계가 2028~2030 을 말하게 된다.
+    작성일로 고정하면 2026년에 쓴 글은 늘 2027~2029 를 말하고(지금과 같은 수), 새해 글은 새 창을 쓴다.
+    작성일이 없으면(원고 밖에서 부르는 길) 데이터 그대로 — 예전처럼 기준월을 따른다.
     """
-    y0 = int(((data.get('cities') or {}).get('start') or '2026-01')[:4])
-    return tuple(str(y0 + 1 + i) for i in range(FUT_YEARS))
+    d = str((meta or {}).get('date') or '')
+    if len(d) < 4 or not d[:4].isdigit():
+        return data
+    out = dict(data)
+    out['from_year'] = int(d[:4]) + 1
+    return out
+
+
+def _first_year(data):
+    """3년 창의 첫 해 — 글이 정한 해(for_post), 없으면 수집 목록 기준월의 다음 해."""
+    if data.get('from_year'):
+        return int(data['from_year'])
+    return int(((data.get('cities') or {}).get('start') or '2026-01')[:4]) + 1
+
+
+def _future_years(data):
+    """3년 합계가 더할 연도들 — 창의 첫 해부터 FUT_YEARS 해. 그림의 기본 연도(_chart_moveins)도 같은 첫 해다."""
+    y0 = _first_year(data)
+    return tuple(str(y0 + i) for i in range(FUT_YEARS))
 
 
 def _upto(f):
@@ -236,8 +264,11 @@ def city_share(data, f, year):
 
 def city_moveins3_n(data, f, name):
     """도시의 3년 입주 합(세대, 정수). 창 안의 해 하나라도 없으면 PendingYear 를 올린다."""
-    by = f.get('by_year') or {}
+    by = dict(f.get('by_year') or {})
     want = _future_years(data)
+    for y in want:
+        if y not in by and _listed(f, y):
+            by[y] = 0             # 목록이 그 해를 다 덮는데 단지가 없다 — 기다릴 것이 아니라 '입주 예정 없음'이다(0)
     missing = [y for y in want if y not in by]
     if missing:
         raise PendingYear('%s 의 %s년 입주 예정이 아직 목록에 없다 — %s. 분양이 되는 대로 들어온다'
@@ -550,6 +581,10 @@ def _weekly_series(data, name, kind='ma'):
         i = regs.index(key)
         return [(r.get('p'), (r.get(kind) or [None] * len(regs))[i]) for r in (W.get('rows') or [])]
     got = sgg_codes(data, name)
+    if not got:
+        # 이름표에 없는 이름(오타·행정구역 개편 전 이름 — 2026-07 인천 '서구'는 '서해구'·'검단구'로 갈렸다). 예전엔 아래 예시를 고르다
+        # IndexError 로 죽어, 원고 검사가 고칠 곳(✗)으로 짚지 못하고 그 글을 '탈'로만 건너뛰었다(2026-11-14 광역시 원고 작성 중).
+        raise TableError('%r 는 시군구 이름표에 없다 — 홈 지도의 시군구 이름으로 적을 것' % name)
     if len(got) != 1:
         raise TableError('주간 계열은 한 지역만 받는다 — %r 는 %d곳이다. 구 이름까지 적을 것(예: %s)'
                          % (name, len(got), got[0][1]))
@@ -711,7 +746,7 @@ def value(data, kind, args):
         return city_peak(data, f, args[1] if len(args) > 1 else None)
     if kind in ('share3', 'moveins3'):
         if len(args) != 1:
-            raise TableError('%s 자리표는 지역 하나를 받는다 — 연도는 적지 않는다(자료가 3년을 고른다)' % kind)
+            raise TableError('%s 자리표는 지역 하나를 받는다 — 연도는 적지 않는다(글의 작성 연도 다음 해부터 3년이다)' % kind)
         f = city(data, args[0])
         if f:
             return (city_share3 if kind == 'share3' else city_moveins3)(data, f, args[0])
@@ -774,7 +809,7 @@ def _chart_moveins(data, name, year=None):
         need = None
     if not by:
         raise TableError('%r 의 연도별 입주물량이 없다' % name)
-    year = str(year or (int((data.get('cities') or {}).get('start', '2026-01')[:4]) + 1))
+    year = str(year or _first_year(data))
     pts = year_span(by) if f else [(y, by[y]) for y in sorted(by)]   # 도시는 빈 해도 자리를 둔다(NO_MOVEIN)
     cards = []
     if year in by:
@@ -912,6 +947,7 @@ def check_lengths(meta):
 def fill_meta(meta, data):
     """프런트매터의 글에 자리표를 채워 **새 dict** 로 돌려준다. 실패하면 TableError 를 올린다."""
     out = dict(meta)
+    data = for_post(data, meta)
     for k in ('title', 'summary', 'audience'):
         if isinstance(out.get(k), str):
             out[k] = fill_inline(out[k], data)

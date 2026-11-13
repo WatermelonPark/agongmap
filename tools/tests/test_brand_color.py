@@ -16,8 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import site_nav as N  # noqa: E402
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
-HAND = ('404.html', 'about/index.html', 'faq/index.html', 'privacy/index.html',
-        'burini-test/index.html', 'investor-test/index.html', 'redev-test/index.html')
+HAND = ('404.html', 'about/index.html', 'faq/index.html', 'privacy/index.html')   # 퀴즈 랜딩 3종은 2026-11-14 제거
 
 
 def _read(rel):

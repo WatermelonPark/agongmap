@@ -61,19 +61,14 @@ def test_home_mirror_matches_the_python_canon():
     assert not bad, '홈 거울이 파이썬 정본과 다르다: %s' % bad
 
 
-def test_quiz_asof_and_aux_labels_use_the_canon():
-    """퀴즈 '제도 기준일'은 읽는 꼴('2026년 9월 15일' — _dL, 정본 day_long), 기본통계 보조선 라벨은 그래프 눈금과 같은 좁은 꼴
-    ('21.10' — _ymCell)로 찍는다(전수리뷰 H2-11). 재현한 실제 상태: 퀴즈 해설 아래 '제도 기준일 2026.09.15', 매매지수 보조선
-    '정점 2021.10'(옛 꼴 'YYYY.MM'), 같은 그래프의 눈금은 '21.10'이었다. 픽스처: 저장소 홈 스크립트(퀴즈·통계 파일)와 퀴즈 문항의
-    asof 실제 값.
+def test_aux_labels_use_the_canon():
+    """기본통계 보조선 라벨은 그래프 눈금과 같은 좁은 꼴('21.10' — _ymCell)로 찍는다(전수리뷰 H2-11). 재현한 실제 상태: 매매지수 보조선
+    '정점 2021.10'(옛 꼴 'YYYY.MM'), 같은 그래프의 눈금은 '21.10'이었다. 픽스처: 저장소 홈 스크립트(통계 파일).
+    (같은 리뷰가 짚은 퀴즈 '제도 기준일' 꼴은 2026-11-14 퀴즈 제거로 대상이 없어졌다.)
 
-    변이(실제로 확인): home-quiz.js 를 옛 `item.asof.replace(/-/g,'.')` 로, 보조선 라벨(auxText)을 옛 `labels[pos]` 로 되돌리면 빨개진다.
+    변이(실제로 확인): 보조선 라벨(auxText)을 옛 `labels[pos]` 로 되돌리면 빨개진다.
     """
     files = dict(HS.home_files())
-    quiz, stats = files['home-quiz.js'], files['home-stats.js']
-    line = re.search(r'class="qasof">([^<]*)<', quiz)
-    assert line and '${_dL(item.asof)}' in line.group(1), line and line.group(1)
-    asofs = sorted(set(re.findall(r"asof:'(\d{4}-\d{2}-\d{2})'", quiz)))
-    assert asofs and all(re.fullmatch(r'\d{4}년 \d{1,2}월 \d{1,2}일', SZ.day_long(a)) for a in asofs), asofs
+    stats = files['home-stats.js']
     assert "ctx.fillText(' '+auxText(l,labels[pos],vals[pos])" in stats
     assert re.search(r"function auxText\(l,lb,v\)\{ return l\.fmt\?l\.fmt\(lb,v\):l\.t\+\(l\.find\?' '\+_ymCell\(lb\):''\); \}", stats)

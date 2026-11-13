@@ -23,16 +23,16 @@
 | 위치 | 내용 |
 |---|---|
 | `index.html`, `app.css`, `data.js`, `data-core.js`, `data-*.json` | 홈과 데이터 페이로드. 데이터는 `data.js`의 `ADV_DATA` 블록을 배치가 갈아끼우고 `tools/split_data.py`가 `data-core.js`·`data-*.json`으로 쪼갠다. `index.html`은 손으로 쓰는 파일이지만 표식 구간 셋과 설명 메타는 도구가 쓴다(손으로 고치지 않는다): `HOME_SUMMARY`와 description·og·twitter 설명 메타(`make_home_summary.py`, 매 회차), `CONTENT_RECENT`(최근 글 묶음, `make_content_pages.py`), `HOME_FONT`(글꼴 서브셋, `make_home_font.py` — 사람이 돌림) |
-| `home-app.js`, `home-quiz.js`, `home-stats.js` | 홈 본문 스크립트. 퀴즈·통계 화면 코드는 `home-quiz.js`·`home-stats.js`로 떼어 필요할 때 받는다(`home-app.js`의 `PARTS` 대기열 — 입구 함수 이름은 `test_home_parts`가 맞물림을 본다). **도구·시험은 이 파일들을 직접 열지 말고 `tools/home_src.py`의 `home_source()`(이어 붙인 전체)·`home_files()`(파일별)로 읽는다**(`test_home_src`). 화면 동작 규칙은 아래 "홈·시세 탭 동작" |
+| `home-app.js`, `home-stats.js` | 홈 본문 스크립트. 통계 화면 코드는 `home-stats.js`로 떼어 필요할 때 받는다(`home-app.js`의 `PARTS` 대기열 — 입구 함수 이름은 `test_home_parts`가 맞물림을 본다). **도구·시험은 이 파일들을 직접 열지 말고 `tools/home_src.py`의 `home_source()`(이어 붙인 전체)·`home_files()`(파일별)로 읽는다**(`test_home_src`). 화면 동작 규칙은 아래 "홈·시세 탭 동작" |
 | `webfonts/` | 홈 첫 화면 글꼴 서브셋(`make_home_font.py`, 사람이 돌림 — fonttools·brotli 필요). 홈 문구에 새 글자를 넣으면 다시 돌린다(`test_home_font`가 알린다). 루트 `fonts/`는 카드 도구 자리라 쓰지 않는다 |
 | `desk.css` | 데스크톱 틀(1024px 이상). 모든 탭바 페이지가 `site_nav.desk_link()`(주소에 내용 해시)를 `media="(min-width:1024px)"`로 싣고 `<body data-desk="종류">`로 배치를 고른다 — read(글 단 그대로)·wide(표 단 넓힘)·doc(왼쪽 목차 `.dtoc`)·report(시도 리포트: 왼쪽 머리·오른쪽 표)·weekly(왼쪽 결론+지도·오른쪽 순위)·home. 규칙은 모두 `body[data-desk]` 아래라 1023px 이하와 표지 없는 페이지는 그대로다. **desk.css 를 고치면 해시가 바뀌어 손 페이지 링크의 `v=`도 고친다**(`test_desk`가 알린다). 위 내비 높이는 홈 `app.css`와 같은 52px. 시도 리포트 머리는 960px 이상 창에서만 붙고 화면보다 길면 머리 안에서 내려 읽으며, `/weekly/` 머리는 붙이지 않는다(`test_desk.test_sticky_heads_fit_the_window`). `audit_design.py`가 desk.css 를 따로 감사한다 |
-| `sw.js` | 서비스워커. **홈 HTML·스크립트·app.css 를 바꾸는 배포는 판 표식 다섯 개를 같은 값으로 올린다**: `sw.js`의 `VERSION`, `index.html`의 `<html data-build>`, `home-app.js`의 `HOME_BUILD`, `home-quiz.js`의 `HOME_QUIZ_BUILD`, `home-stats.js`의 `HOME_STATS_BUILD`(`test_home_build`). 느린 망에서 새 HTML과 옛 스크립트가 섞이면 한 번 새로고침하는 표식이다. 분할 스크립트는 `?v=판` 주소로 받고 사전 캐시해 옛 판 파일이 새 홈에 섞이지 않고, 파일 안의 판 표식을 홈이 견줘 열어 둔 옛 판 탭이 새 판 파일을 받으면 한 번 새로고침한다(GitHub Pages 는 쿼리를 무시한다). GA 사용자 속성 `home_variant`(`HOME_VARIANT`)는 홈 구성을 크게 바꾸는 배포에서만 새 값으로 바꾼다 |
+| `sw.js` | 서비스워커. **홈 HTML·스크립트·app.css 를 바꾸는 배포는 판 표식 네 개를 같은 값으로 올린다**: `sw.js`의 `VERSION`, `index.html`의 `<html data-build>`, `home-app.js`의 `HOME_BUILD`, `home-stats.js`의 `HOME_STATS_BUILD`(`test_home_build`). 느린 망에서 새 HTML과 옛 스크립트가 섞이면 한 번 새로고침하는 표식이다. 분할 스크립트는 `?v=판` 주소로 받고 사전 캐시해 옛 판 파일이 새 홈에 섞이지 않고, 파일 안의 판 표식을 홈이 견줘 열어 둔 옛 판 탭이 새 판 파일을 받으면 한 번 새로고침한다(GitHub Pages 는 쿼리를 무시한다). GA 사용자 속성 `home_variant`(`HOME_VARIANT`)는 홈 구성을 크게 바꾸는 배포에서만 새 값으로 바꾼다 |
 | `zone/`(시도별 리포트), `weekly/`, `monthly/`, `moveins/`, `jeonse-ratio/` | 생성 페이지(데이터). 손으로 고치지 말고 생성기를 고친다 |
 | `content/` | **글 원고의 정본**(`content/<섹션>/<slug>.md`, 섹션은 `city`·`gtx`·`danji`·`column`). 규칙은 `content/README.md`, 아래 "콘텐츠 원고" |
 | `city/`, `gtx/`, `danji/`, `column/`, `reports/` | 생성 페이지(글). 원고에서 `make_content_pages.py`가 굽는다. `/reports/`는 네 섹션을 모은 허브(하단 탭 '콘텐츠') |
 | `cycle/` | 서술은 손으로 쓴 문서이고, `refresh_cycle_data.py`가 매 회차 차트 데이터(zones·rate_overlay·jratio_level·flow_chain·super.stock30)와 data-d 칸·`const ZN`·머리 메타의 'N개 시도 M년' 햇수(`RC.span_years` — RC 는 `rebuild_cycle_analysis`)를 다시 쓴다. D 에 싣는 하위 필드는 `rebuild_cycle_analysis.SHIP_FIELDS`가 정본이다. 고리 절 손 문장의 전제는 `RC.claim_breaks`가 보고, 재산정 `--write`는 전제가 깨지면 쓰지 않는다 — 문장을 고치면 claim_breaks 도 같이 고친다. 탭이 없고 입구는 `/reports/` 허브 '기본 개념' 줄이다 |
-| `share/` | 공유 이미지. 주간·월간 카드(`weekly-map.png`·`monthly-card.png`)와 글 카드(`post-*`·`thumb-*`, `make_content_cards.py`)는 **CI 가 굽는다**(배치와 원고 발행 워크플로, 게이트 앞). 지역·퀴즈 카드(`make_zone_cards.py` 등)는 지역 구성이나 문항이 바뀔 때 사람이 돌린다 |
-| 퀴즈 3종(`burini-test/`, `investor-test/`, `redev-test/`) | 랜딩은 손으로 쓴 파일, 점수별 하위 페이지(`/0/`~)는 `make_quiz_share_pages.py`가 만든다(사람이 돌리고 커밋한다). 퀴즈 정본 읽기는 `home_src.quiz_len()`·`quiz_grades()`·`quiz_grade_of()` 하나로 하고, 손으로 적은 'N문항'은 `test_every_quiz_count_follows_quiz_len`이 대조한다 |
+| `share/` | 공유 이미지. 주간·월간 카드(`weekly-map.png`·`monthly-card.png`)와 글 카드(`post-*`, `make_content_cards.py` — 목록 썸네일 `thumb-*`는 2026-11-13 부터 그리지 않는다)는 **CI 가 굽는다**(배치와 원고 발행 워크플로, 게이트 앞). 지역 카드(`make_zone_cards.py` 등)는 지역 구성이 바뀔 때 사람이 돌린다 |
+| 옛 퀴즈 주소(`burini-test/`, `investor-test/`, `redev-test/`) | 퀴즈 3종은 2026-11-14 대표 결정으로 걷었다. 세 주소에는 홈(`/`)으로 넘기는 noindex 최소 페이지만 둔다. 홈·메뉴·sitemap·llms.txt 에 퀴즈 링크를 되살리지 않는다(`test_quiz_removed`) |
 | `about/`, `faq/`, `privacy/`, `404.html` | 손 페이지. GA 이벤트를 더하거나 보내는 값을 바꾸면 개인정보처리방침의 전송 목록 표(`#ga-events`)도 고친다(`test_privacy_ga_events`가 코드의 모든 GA 호출과 대조). 목록은 '사이트 코드가 보내는 이벤트'이고 GA 자동 수집은 `#ga-auto` 한 줄로 밝힌다. 목록을 고치면 변경 이력에 오늘 날짜 줄(`data-ga` 지문)을 더하고 '최근 개정'도 고친다(`test_privacy_history_follows_the_event_table`) |
 | `tools/` | 배치·생성기·점검 도구 (아래 표) |
 | `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다. 홈 스크립트 조각을 node 에 올리는 새 시험은 공용 도우미 `tools/tests/_js.py`(`fn`·`node`)를 쓴다. 시험이 저장소 파일을 바꾸면 실행이 실패한다 — conftest 의 쓰기 감시가 gitignore 상태 파일(`_STATE_FILES`)과 로컬 전용 폴더 `drafts/`(`_WATCH_DIRS`, 파일마다)까지 본다(`test_repo_write_guard`) |
@@ -40,7 +40,7 @@
 | `docs/` | 요청서·결정 기록·백로그. 날짜 접두 파일명. 목록은 `docs/README.md`, 종결된 문서는 `docs/archive/`로 옮긴다 |
 | `.github/workflows/` | 워크플로 여덟 개 (아래 "워크플로" 표) |
 | `.claude/skills/`, `.claude/agents/` | 이 저장소 규칙에 맞춘 점검 스킬 다섯(`agongmap-seo-check`·`-a11y-check`·`-click-path-audit`·`-release-check`·`-design-polish`)과 리뷰 에이전트 둘(`agongmap-python-reviewer`·`agongmap-test-analyzer`). 공개 플러그인의 점검 항목을 참고해 우리 정본·시험 이름으로 새로 썼다(원문 복사는 저작권 고지에 개인 이름이 들어가 하지 않았다). 클라우드 세션은 플러그인을 불러오지 않지만 이 폴더는 읽는다. **정본 이름이 바뀌면 여기도 고친다** |
-| `icons/`, `art_raw/` | 앱 아이콘 산출물과 그 원본 그림 |
+| `icons/` | 앱 아이콘 산출물 |
 | `drafts/`, `logs/` | **로컬 전용(gitignore)**. 옛 블로그 초안과 배치 로그. 클라우드 세션에서는 보이지 않는다 |
 
 ### 워크플로
@@ -80,7 +80,6 @@
 | `refresh_cycle_data.py`, `rebuild_cycle_analysis.py` | `/cycle/` 데이터 갱신과 재산정. 칸 바로 뒤에는 값에 기대는 손 조사를 두지 않고, 지역 이름 뒤 조사는 화면 이름 받침(`RC._jong`)을 따른다. 고리⑥ 반응 시차 수는 `RC.link6_lag_prose` 한 함수가 정본이다. 홈 사이클 배너·FAQ 의 '20년'은 손 글자라 `test_span_years_come_from_the_data_span`이 자료 기간을 넘지 않는지만 본다 |
 | `page_share.py`, `robots_meta.py`, `ga_tag.py`, `ping_indexnow.py`, `blog_feed.py` | 공유 버튼 조각(`/weekly/`·`/monthly/`). robots 메타(`max-image-preview:large`)의 정본 — 저장소의 모든 `.html`에 정확히 하나씩(`test_robots_meta`), 손 페이지를 새로 만들면 한 줄 넣는다. GA 내부 트래픽 표식(`?internal=on|off` → localStorage, 모든 `gtag('config', …)`는 `gaCfg(…)`를 거친다, `test_ga_internal`). 배치 커밋이 sitemap lastmod를 바꾼 주소만 IndexNow로 보냄(`--changed HEAD~1`, 도메인은 `CNAME`). 네이버 블로그 RSS에서 최신 글을 읽어 `tools/data/blog_latest.json`에 적음(실패하면 지난 값 유지) |
 | `make_zone_cards.py`, `make_og_cards.py`, `make_weekly_share.py`, `make_monthly_share.py` | 공유용 이미지·OG 카드. 이미지 도구는 pillow 만 쓴다(numpy 등 금지). 디자인 감사·적용(`audit_design.py`·`apply_design.py`)은 `RADIUS_SHAPE`·`RADIUS_OK` 한 기준을 쓴다. 카드 글자는 `SZ.disp`·'적정물량'을 쓰고, 주간·월간 카드의 색 기준은 홈 지도 정본(`make_weekly_page.map_refs` = WK_MAP_REF·MO_MAP_REF), 주간 카드 범례는 `make_weekly_share.LEGEND`(하락 → 상승) 순서다 |
-| `make_quiz_share_pages.py` | 퀴즈 점수별 정적 공유 페이지. 퀴즈 세트나 공유 이미지를 바꿨을 때 사람이 돌린다 |
 | `theory_guards.py`, `theory_link3.py`, `theory_link4.py` | 사이클 이론편(1~7편, 블로그 발행본) 전제 가드. 배치 기록이 `theory_guards.guard_values`를 편마다 불러 전제가 지금 데이터와 어긋난 편을 ℹ️ 한 줄로 알린다(`batch_notes.theory_claim_lines` — 전제가 깨져도 게이트는 막지 않는다, 2026-10-18 대표 결정. 데이터 상태로 멈춘 편은 멈춤 문구에 `NOT_THE_TEXT`가 든다). 4·5편 셈은 `theory_link3`·`theory_link4`(의존은 가드 → 셈 모듈 한쪽). 블로그 초안 도구 일곱과 발행 알림·확인 워크플로는 2026-11-13 대표 결정('가드만 살리고 정리')으로 지웠다 — 기록과 되살리는 법은 `docs/2026-11-13-블로그-도구-휴면-기록.md`. 홈 블로그 칸의 `blog_feed.py`와 그 RSS 정본 `close_published_issues.py`는 남는다 |
 | `run_weekly_update.bat` | 로컬 배치 러너(Windows 작업 스케줄러). 휴면 확정(2026-09-23), 비상용으로만 남긴다. 다시 켜면 두 배치의 순서·대상이 같아야 한다(`test_batch_parity`) |
 
@@ -122,7 +121,8 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
   같은 시험을 다음 판(26.04)에서 주 1회·수동으로 돌린다. 몇 주 초록이면 고정 판을 함께 올린다(2026-10-06 대표 결정).
 - **감시**: `watchdog.yml`이 매일 `check_freshness.py`로 라이브 데이터를 원천과 대조한다. R-ONE 지역 목록 조회가 끊기면 재시도하고,
   그래도 끊기면 첫날은 경고, 이틀 연속이면 실패다(`region_fail_tolerated`, 상태는 actions/cache 의 `.watch_state` — 같은 회차·이웃 회차는
-  KST 날짜가 아니라 실행 id 와 경과 시간으로 가른다). 감시 최악 소요는 `test_freshness_budget`이 줄인 시계로 main() 을 돌려 잡 상한과
+  KST 날짜가 아니라 실행 id 와 경과 시간으로 가른다). 계열별 원천 조회도 같은 규칙이다 — 재시도까지 못 본 계열은 첫날 경고, 이틀 연속이면
+  실패(`series_fail_escalated`, 확인된 원천 정지 `SOURCE_PAUSED`는 기한까지 경고, 2026-11-13 대표 결정). 감시 최악 소요는 `test_freshness_budget`이 줄인 시계로 main() 을 돌려 잡 상한과
   견준다 — 원천 호출·재시도를 늘리면 이 시험이 알린다. 배치 안의 알림 코드는 배치가 안 뜨면 실행되지 않으므로 감시자를 밖에 둔 것이다.
 - **메일**(2026-11-08 대표 결정 '꼭 봐야 하는 것만'): 사람에게 가는 메일은 경보 이슈(`batch-report` 라벨) 코멘트 하나뿐이고,
   코멘트·제목 바꾸기는 `tools/post_alert.sh` 한 곳이 한다. 보내는 경우는 셋이다 — 데이터 갱신이 하루 넘게 멈춤(배치, 같은 KST 날짜에
@@ -204,7 +204,7 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
   '세대'(원천 표의 '호'는 화면에서 `sido_zones.unit_text`·홈 `unitT`로 바꾼다 — 아파트는 1호가 1세대라 숫자는 같다), 해마다 입주 수준은
   신호등 낱말 '적음·보통·많음'(`/moveins/` 포함). 신호등은 판정과 다른 값이라 판정 낱말(부족·균형·여유)과 겹치지 않게 하고,
   모양은 어두운 틀 안에 채운 등이다(2026-10-06 대표 결정).
-- **날짜는 두 단계로 쓴다.** 해를 넘겨 보이는 읽는 자리(퀴즈 제도 기준일, 글 머리 작성·갱신일, '페이지 수정')는 '2026년 9월 15일'
+- **날짜는 두 단계로 쓴다.** 해를 넘겨 보이는 읽는 자리(글 머리 작성·갱신일, '페이지 수정')는 '2026년 9월 15일'
   (`sido_zones.day_long`, 홈 거울 `_dL`). 읽는 자리(기준 줄·문장·배너)는 '9/28'·'2026년 8월'·'2026년 2분기', 좁은 자리(표 칸·축 눈금·툴팁)는
   '26.9.28'(눈금 '9/28')·'26.8'·'26Q2'. 기준 줄은 '시점 기준 · 출처' 한 양식, 범위는 '~'. 기계가 읽는 값(JSON-LD 날짜·RSS·utm·PNG 메타)은
   그대로 둔다. 정본은 `sido_zones.month_text`·`month_short`·`day_text`·`day_short`·`quarter_text`·`quarter_short`, 홈 거울은
@@ -213,7 +213,7 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
   (2026-10-06 대표 결정, `test_zone_gauge`가 막대·범례·홈 지도 범례 방향을 본다).
 - **글자 하한은 두 단계다**(2026-11-06 대표 결정 '읽는 글 14px'): 읽는 문장(마침표로 끝나는 설명·주석·단락·카드 결론 줄·보기 줄·푸터
   면책)은 14px 이상, 라벨·축 눈금·표 칸·칩·날짜·캡션 한 줄은 13px 이상이고, SVG 지도 라벨·그래프 축·표 보기 표·사이클 도식은 제외한다.
-  정본 상수는 `site_nav.READ_PX`(14)·`LABEL_PX`(13)다. 홈(`test_home_min_font`)·시세 탭·퀴즈 화면·모든 푸터(`test_view_min_font`)·생성
+  정본 상수는 `site_nav.READ_PX`(14)·`LABEL_PX`(13)다. 홈(`test_home_min_font`)·시세 탭·모든 푸터(`test_view_min_font`)·생성
   페이지(`test_page_min_font`)의 시험은 아직 13px 한 단계로 보고, 손 페이지와 공용 푸터 면책은 `test_hand_reading_font`가 두 단계로 본다.
   홈에서 공용 클래스를 고칠 때는 `#view-home`으로 덮어 다른 페이지를 바꾸지 않는다.
 - **색은 쓰임마다 정본이 하나다**(2026-11-11 대표 결정 '남색 + 형광 표시', 11-12 접근성 결정). 틀(내비·선택된 단추·주요 단추·링크·요약
@@ -304,7 +304,7 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
   생성 페이지(`zone/`·`weekly/`·`monthly/`·`moveins/`·`jeonse-ratio/`·`cycle/`·`city/`·`gtx/`·`danji/`·`column/`·`reports/`), `feed.xml`·`llms.txt`·
   `llms-full.txt`·`sitemap.xml`, `index.html`의 표식 구간·설명 메타, `share/` 이미지, `tools/data/`의 배치 산출물. 봇이 `main` 푸시마다와
   매일 배치에서 다시 쓰므로 PR 브랜치에서 고치면 병합 때 충돌하고 덮인다. 생성기(`make_*.py`)와 시험만 고치고 산출물은 CI 가 굽게 둔다.
-  생성기를 돌려 확인만 했다면 산출물 변경은 커밋 전에 되돌린다. (사람이 돌리는 산출물 — 퀴즈 점수 페이지, 지역·퀴즈 카드, 글꼴 서브셋 —
+  생성기를 돌려 확인만 했다면 산출물 변경은 커밋 전에 되돌린다. (사람이 돌리는 산출물 — 지역 카드, 글꼴 서브셋 —
   은 그 도구를 돌린 PR 에 싣는다.)
 - 병합 전 CI(`ci-tests.yml` 시험·Netlify 미리보기)가 초록인지 본다. 운영 반영은 `main` 병합 뒤 GitHub Pages 배포로 이뤄진다. 병합이
   늦어져 `main`과 충돌하면 `main`을 병합해 푼다. 병합 뒤에는 산출물 재생성 런(원고·생성기면 원고 발행 런)이 초록인지 본다.

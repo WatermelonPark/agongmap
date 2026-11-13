@@ -57,5 +57,5 @@ def test_public_text_does_not_carry_the_hub_factor_as_permit_inflation():
             for m in HUB.finditer(src):
                 bad.append('%s: …%s…' % (rel, src[max(0, m.start() - 30):m.end() + 10].replace('\n', ' ')))
     assert any(rel.startswith('faq') for rel, _ in groups['페이지']), 'FAQ 를 훑지 않았다'
-    assert {'home-stats.js', 'home-quiz.js'} <= {rel for rel, _ in groups['홈']}, '분할 홈 스크립트를 훑지 않았다'
+    assert {'home-app.js', 'home-stats.js'} <= {rel for rel, _ in groups['홈']}, '분할 홈 스크립트를 훑지 않았다'   # home-quiz.js 는 2026-11-14 제거
     assert not bad, '인허가 부풀림을 HUB 수치로 말한다:\n' + '\n'.join(bad)
