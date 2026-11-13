@@ -11,7 +11,7 @@
 // ⚠️ 이 값은 홈의 **판 표식**이기도 하다(C11·MOB-9). 올리면 index.html 의 <html data-build> 와
 // home-app.js 의 HOME_BUILD, home-quiz.js 의 HOME_QUIZ_BUILD, home-stats.js 의 HOME_STATS_BUILD 도 같은 값으로 바꾼다
 // — 하나라도 다르면 test_home_build 가 빨개진다.
-const VERSION = 'v220'; // 따로 선 링크 누름 면 40px(홈 '콘텐츠 전체 보기'·'지도에서 보기', /cycle/ 요약 링크, 2026-11-12)
+const VERSION = 'v221'; // 전수 리뷰 홈 수정(묵은 그래프 데이터가 이번 주를 덮지 않게, 천안·전주 시 전체, 뒤로 가기 둘, 카카오 SDK 빈 응답, 2026-11-13)
 const CACHE = `agongmap-${VERSION}`;
 
 // 네트워크 우선 요청의 대기 한도(2026-09-15 점검 후속 ⑦). 느린 망에서 응답이 늦으면 캐시가
@@ -109,7 +109,7 @@ self.addEventListener('activate', (e) => {
 });
 
 // 서비스워커가 손대지 않는 같은 출처 경로(fetch 처리기 참조). 시험(test_feed·test_llms_txt)이 /feed.xml·/llms.txt 가 여기 있는지 본다.
-const NO_SW = new Set(['/feed.xml', '/llms.txt', '/sitemap.xml', '/robots.txt']);
+const NO_SW = new Set(['/feed.xml', '/llms.txt', '/llms-full.txt', '/sitemap.xml', '/robots.txt']);
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
