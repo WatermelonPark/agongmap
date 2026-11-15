@@ -20,7 +20,6 @@ pytest·pillow 는 시험(pytest 줄 시점)과 커밋 잡의 pip 줄 **뒤** �
   - 아무 시험·도구에 `import yaml`(또는 requests 등) → 빨강
   - make_monthly_page 맨 위에 `from PIL import Image` → 빨강(생성기는 pip 전)
   - split_data 맨 위에 `import pytest` → 빨강(fetch 잡에는 pip 가 없다)
-  - quiz_review 맨 위에 `from PIL import ImageFont` → 빨강(check_freshness 가 가져오고, 감시에는 pip 가 없다)
   - make_weekly_page 맨 위에 `import make_weekly_share`(모듈 맨 위에서 PIL 을 가져온다) → 빨강(간접 도달)
   - format_batch_report 맨 위에 `from PIL import Image` → 빨강(`if: always()` 스텝)
   - 워크플로 설치 목록에서 pillow 를 빼면 시험이 PIL 을 쓰는 곳 때문에 빨강
