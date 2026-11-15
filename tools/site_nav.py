@@ -23,9 +23,6 @@ _I_ZONE = ('<path d="M12 21s-7-5.8-7-11a7 7 0 0 1 14 0c0 5.2-7 11-7 11z" fill="n
            'stroke="currentColor" stroke-width="2"/>')
 _I_STATS = ('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" '
             'stroke-linecap="round"/>')
-_I_CYCLE = ('<path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2" '
-            'stroke-linecap="round"/><path d="M20.3 3.7v5h-5" fill="none" stroke="currentColor" stroke-width="2" '
-            'stroke-linecap="round" stroke-linejoin="round"/>')
 
 _I_CONTENT = ('<path d="M6 3h9l4 4v14H6z" fill="none" stroke="currentColor" stroke-width="2" '
              'stroke-linejoin="round"/><path d="M15 3v4h4M9.5 12h6M9.5 16h6" fill="none" '

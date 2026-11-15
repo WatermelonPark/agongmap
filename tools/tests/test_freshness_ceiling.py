@@ -207,7 +207,7 @@ def test_sido_quarter_ceiling_fails_through_main(monkeypatch, capsys):
 
 def test_harness_with_ceilings_off_stays_green_however_far_today_moves(monkeypatch, capsys):
     """상한을 끈 하니스(_run 에 today 없음)는 감시의 오늘이 아무리 앞으로 가도 초록이다 — main() 의 날짜 판정이 모두 MAX_AGE_
-    고리를 거친다. 그래야 이 하니스를 쓰는 시험(test_freshness_parallel·test_quiz_review_is_a_warning)이 데이터가 멈춘 날에도
+    고리를 거친다. 그래야 이 하니스를 쓰는 시험(test_freshness_parallel 등)이 데이터가 멈춘 날에도
     게이트를 막지 않는다(그 경보는 감시가 실패 메일로 낸다).
 
     재현하는 실제 상태: '시도 지표' 나이 검사가 숫자 200 을 main() 에 박아 하니스가 끄지 못했다. 준공 원천이 멈춰 L 이 2026Q2 에
