@@ -6,7 +6,14 @@
   <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 통계를 알립니다.</description>
   <language>ko</language>
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
-  <lastBuildDate>Sat, 14 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <lastBuildDate>Mon, 16 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <item>
+    <title>이달의 통계 — 2026년 10월 기준</title>
+    <link>https://www.agongmap.co.kr/monthly/</link>
+    <guid isPermaLink="false">agongmap-monthly-2026-10</guid>
+    <pubDate>Mon, 16 Nov 2026 00:00:00 +0900</pubDate>
+    <description>매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.</description>
+  </item>
   <item>
     <title>부산 아파트 입주물량, 2029년 적정물량의 33%로 줄어듭니다</title>
     <link>https://www.agongmap.co.kr/city/busan-2027-moveins/</link>
@@ -426,13 +433,6 @@
     <guid isPermaLink="false">agongmap-content-danji-byeokjeokgol8-yeongtong</guid>
     <pubDate>Mon, 26 Oct 2026 00:00:00 +0900</pubDate>
     <description>벽적골8단지 두산·우성·한신은 2026년 8월 이주를 시작했고 9월 매매 96건으로 영통구 거래의 19%였다.</description>
-  </item>
-  <item>
-    <title>이달의 통계 — 2026년 9월 기준</title>
-    <link>https://www.agongmap.co.kr/monthly/</link>
-    <guid isPermaLink="false">agongmap-monthly-2026-09</guid>
-    <pubDate>Thu, 15 Oct 2026 00:00:00 +0900</pubDate>
-    <description>매달 발표되는 공개 통계를 한 화면에서 순서대로. 시도별 매매·전세·월세 변동률, 인허가, 입주물량, 미분양, 전세가율 — 기준월과 원천을 함께 표시합니다.</description>
   </item>
 </channel>
 </rss>
