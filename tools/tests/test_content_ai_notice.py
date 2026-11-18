@@ -12,7 +12,8 @@
   - build_page 의 본문 꼴 인자에서 AI_NOTICE_HTML 을 빼면 → test_post_page_carries_the_notice_once_after_the_faq
   - 고지를 FAQ 앞(src_html 앞)으로 옮기면 → 같은 시험(순서 검사)
   - EXTRA_CSS 의 .cai 를 13px 로 내리면 → test_notice_is_reading_size
-  - 고지를 body_html(본문 마크다운 결과)에 붙이면 JSON-LD 본문에 실려 → test_notice_stays_off_json_ld
+  - 고지를 body_html(본문 마크다운 결과)에도 붙이면 두 번 실려 → test_post_page_carries_the_notice_once_after_the_faq
+  - _ld 의 Article description 에 고지를 붙이면 → test_notice_stays_off_json_ld
   - build_index 나 build_reports 에 고지를 붙이면 → test_lists_do_not_carry_the_notice
 픽스처: tmp_path 에 쓴 원고 한 편(test_content_pages 의 FRONT 와 같은 양식, FAQ 있음)과 저장소의 실제
 data-*.json. 구운 파일 검사는 저장소에 실제로 구워진 글·feed·llms-full 을 읽는다(CI 는 생성기를 먼저 돌린다).
@@ -118,7 +119,7 @@ def test_baked_posts_carry_it_and_feeds_do_not():
     for f in posts:
         n = io.open(f, encoding='utf-8').read().count(MC.AI_NOTICE)
         assert n == 1, '%s: 고지가 %d번 있다' % (os.path.relpath(f, ROOT), n)
-    for name in ('feed.xml', 'llms.txt', 'llms-full.txt', 'index.html'):
+    for name in ('feed.xml', 'llms.txt', 'llms-full.txt'):
         f = os.path.join(ROOT, name)
         if os.path.exists(f):
             assert MC.AI_NOTICE not in io.open(f, encoding='utf-8').read(), '%s 에 고지가 실렸다' % name
