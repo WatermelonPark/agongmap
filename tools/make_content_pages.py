@@ -39,6 +39,11 @@ import site_nav as N              # noqa: E402  (탭바·뒤 단계 표식 구�
 SITE = I.SITE
 AUTHOR = '아공맵 운영팀'
 # 면책은 공용 푸터(site_nav.site_footer)가 싣는다 — 글 끝에 같은 문장을 또 두면 두 번 연달아 나왔다(2026-10-31 디자인 리뷰 2차).
+# AI 작성 고지(2026-11-18 대표 결정): 글은 AI 가 쓰고 대표가 전편을 검수하지 못하므로, 글 페이지에만 본문 끝(FAQ 뒤·
+# 이 지역 글 앞)에 한 칸을 둔다. 푸터 면책(투자자문 아님)과는 다른 말이라 겹치지 않는다. 지역 리포트·주간·월간은 생성기가
+# 정해진 틀로 찍는 화면이라 싣지 않고, 화면에만 둔다 — 설명 메타·JSON-LD 본문·RSS·llms-full.txt 에는 넣지 않는다(대표 결정).
+AI_NOTICE = '본 콘텐츠는 AI가 생성한 저작물로, 사실과 다른 내용이 있을 수 있으니 참고용으로만 활용해 주세요.'
+AI_NOTICE_HTML = '<p class="cai">%s</p>' % AI_NOTICE
 OG_IMAGE = '/og-brand.png'   # 어느 카드도 없을 때 떨어지는 자리
 
 
@@ -672,6 +677,8 @@ EXTRA_CSS = LIST_CSS + """
 .cfaq{margin-top:0}
 .cfaq dt{font-weight:600;font-size:15px;margin-top:14px}
 .cfaq dd{margin:6px 0 0;font-size:14.5px;line-height:1.75;color:var(--ink2)}
+/* AI 작성 고지(AI_NOTICE) — 읽는 문장이라 14px(site_nav.READ_PX). 본문과 가르는 위 선 하나만. */
+.cai{font-size:14px;line-height:1.7;color:var(--ink2);border-top:1px solid var(--line);padding-top:12px;margin:24px 0 0}
 /* 이전·다음 글과 섹션 목록은 2급 — 테두리 없이 위아래 선만. 휴대폰은 이전·다음을 한 줄에. */
 .cnav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px}
 .cnav a{min-width:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 2px;
@@ -1051,12 +1058,12 @@ def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
         '<section><div class="wrap">'
         '%s'
         '<div class="cbody">%s</div>'
-        '%s%s%s'
+        '%s%s%s%s'
         '<div class="cnav">%s</div>'
         '</div></section>'
         % (REPORTS_DIR, html.escape(REPORTS_TITLE), sec, html.escape(SECTION_META[sec][0]), eyebrow, html.escape(meta['title']),
            _day_long(meta['date']), _day_long(meta['updated']), AUTHOR,
-           head, body_html, src_html, faq_html, more,
+           head, body_html, src_html, faq_html, AI_NOTICE_HTML, more,
            ''.join(nav)))
     # 제목·요약은 <title> 과 og 속성 값에 들어간다. 반박 글 제목에는 발언을 그대로 옮긴 큰따옴표가 있어
     # 이스케이프하지 않으면 속성이 그 자리에서 끊긴다(2026-10-29 게이트가 잡았다).
