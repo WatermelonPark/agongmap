@@ -14,6 +14,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import check_freshness as C
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 
 def _stats(nat, over=None, name='준공'):
@@ -172,8 +173,7 @@ def test_live_data_satisfies_every_rule():
     import re
     root = os.path.join(os.path.dirname(__file__), '..', '..')
     src = io.open(os.path.join(root, 'data.js'), encoding='utf-8').read()
-    st = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)',
-                              src, re.S).group(1))
+    st = AIO.stats_of(src)
     assert C.check_sido_sum(st) == []
 
 

@@ -22,6 +22,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import check_freshness as C  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 U = C.U
 
@@ -424,7 +425,7 @@ def test_every_live_adv_key_is_classified():
     import re
     root = os.path.join(os.path.dirname(__file__), '..', '..')
     t = open(os.path.join(root, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});', t, re.S).group(1))
+    adv = AIO.adv_of(t)
     assert not set(C.ADV_WATCHED) & set(C.ADV_UNWATCHED)
     assert set(adv) <= set(C.ADV_WATCHED) | set(C.ADV_UNWATCHED), \
         sorted(set(adv) - set(C.ADV_WATCHED) - set(C.ADV_UNWATCHED))

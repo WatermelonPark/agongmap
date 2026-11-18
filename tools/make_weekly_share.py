@@ -75,6 +75,7 @@ TILE = [('전국', 0, 0), ('수도권', 1, 0), ('지방', 2, 0), ('제주', 3, 0
 
 import sido_zones as _SZ  # noqa: E402
 import make_weekly_page as _MW  # noqa: E402  (주간 변동률 반올림 정본)
+import adv_io as _AIO  # noqa: E402  (data.js ADV 읽기 정본 — 백로그 61-A)
 _MISSING = set(_SZ.ORDER) - set(t[0] for t in TILE)
 if _MISSING:
     raise SystemExit('TILE에 빠진 지역: %s — 그 지역만 그림에서 사라진다'
@@ -82,10 +83,7 @@ if _MISSING:
 
 
 def load_weekly():
-    c = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    i, j = c.find('/*ADV_DATA_START*/'), c.find('/*ADV_DATA_END*/')
-    adv = json.loads(re.match(r'const ADV=(.*);$', c[i + 18:j], re.S).group(1))
-    return adv['weekly']
+    return _AIO.load_adv(os.path.join(ROOT, 'data.js'))['weekly']
 
 
 def cell_bg(v, ref):

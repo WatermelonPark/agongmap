@@ -39,6 +39,7 @@ except Exception:
 import make_indicator_pages as I           # noqa: E402  SHELL·fill·ld_pack 공유
 import site_nav as N                       # noqa: E402  데스크톱 왼쪽 목차(dtoc·DTOC_JS)
 import sido_zones as SZ                    # noqa: E402  지역 정의 정본
+import adv_io as AIO                       # noqa: E402  data.js ADV·STATS 읽기 정본(백로그 61-A)
 import make_weekly_page as MW              # noqa: E402  변동률 반올림 정본(pv2r)
 import page_share as PS                    # noqa: E402  공유 버튼(홈 마케팅 검수 B8)
 import make_sido_pages as SP              # noqa: E402  날짜 굽기·물려받기 규칙(keep_dates) — /zone/ 과 같은 함수
@@ -83,13 +84,7 @@ def moveins_est_note():
 
 def load():
     """data.js → (ADV, STATS)."""
-    src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/',
-        src, re.S).group(1))
-    sts = json.loads(re.search(
-        r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
-    return adv, sts
+    return AIO.load(os.path.join(ROOT, 'data.js'))
 
 
 def share_version(adv):

@@ -376,7 +376,7 @@ def test_main_records_soft_failures_without_changing_rc(monkeypatch, tmp_path):
         return []
     monkeypatch.setattr(U, 'update_basic', basic)
     import sido_zones
-    _, _, _, adv = U.read_current_adv()
+    adv = U.read_current_adv()
     monkeypatch.setattr(sido_zones, 'calc', lambda st: adv['sido'])
     monkeypatch.setattr(sido_zones, 'supply_rows',
                         lambda st: {k: adv['occupancy'].get(k) for k in ('rows',)})

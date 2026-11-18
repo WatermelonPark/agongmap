@@ -20,14 +20,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import sido_zones as SZ  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
 def _data():
     s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', s, re.S).group(1))
-    sts = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', s, re.S).group(1))
+    adv = AIO.adv_of(s)
+    sts = AIO.stats_of(s)
     return adv, sts
 
 

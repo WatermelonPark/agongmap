@@ -21,15 +21,15 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import split_data as S  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 REPO_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data.js')
 
 
 def _read_src(path):
     src = io.open(path, encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
-    stats = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    adv = AIO.adv_of(src)
+    stats = AIO.stats_of(src)
     return adv, stats
 
 

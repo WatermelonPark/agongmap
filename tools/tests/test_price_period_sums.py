@@ -34,6 +34,7 @@ import sido_zones as SZ  # noqa: E402
 import split_data as S  # noqa: E402
 import make_sido_pages as P  # noqa: E402
 import home_src as HS  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 REGS = ['A', 'B']
 
@@ -125,7 +126,7 @@ def test_home_tbagg_empties_the_same_cells(per, with_agg):
 
 def _adv():
     src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    return json.loads(re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
+    return AIO.adv_of(src)
 
 
 def test_home_quarter_values_are_the_report_values():

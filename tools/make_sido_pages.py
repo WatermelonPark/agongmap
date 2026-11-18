@@ -35,6 +35,7 @@ import site_nav as N             # noqa: E402  하단 탭바 정본(홈 마케�
 import weekly_moves as WM        # noqa: E402  시군구 순위·방향·연속의 정본(/weekly/ 표·블로그 초안과 같은 함수, D4)
 import robots_meta as RM          # noqa: E402  검색 로봇 메타 정본(홈 마케팅 검수 D2)
 import ga_tag as GT               # noqa: E402  GA 내부 트래픽 표식 정본(백로그 48)
+import adv_io as AIO              # noqa: E402  data.js ADV·STATS 읽기 정본(백로그 61-A)
 
 SITE = 'https://www.agongmap.co.kr'
 OUT = os.path.join(ROOT, 'zone')
@@ -442,11 +443,7 @@ def signed(v):
 
 
 def load():
-    src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
-    stats = json.loads(re.search(
-        r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    adv, stats = AIO.load(os.path.join(ROOT, 'data.js'))
     # 판정 화면 문구(ctxt 등)는 지금의 정본 함수로 다시 굽는다 — data.js 의 문구는 다음 배치까지 옛말일 수 있다
     # (sido_zones.refresh_texts, 홈 data-core 도 split_data 가 같은 함수로 굽는다).
     if (adv.get('sido') or {}).get('zones'):

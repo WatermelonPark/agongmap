@@ -26,6 +26,7 @@ import urllib.parse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ  # noqa: E402  지역 정본(판정 모델)
+import adv_io as AIO  # noqa: E402  data.js ADV·STATS 읽기·쓰기 정본(백로그 61-A)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
@@ -1678,23 +1679,15 @@ def fetch_bubble():
 
 
 # ---- data.js 재작성 ----------------------------------------------------
-START, END = '/*ADV_DATA_START*/', '/*ADV_DATA_END*/'
-BSTART, BEND = '/*STATS_DATA_START*/', '/*STATS_DATA_END*/'
+# 표식 찾기·JSON 자리 바꾸기는 adv_io 한 곳(백로그 61-A) — 생성기·감시가 같은 정규식으로 읽는다.
 
 def read_current_stats():
-    c = io.open(DATA, encoding='utf-8').read()
-    i, j = c.find(BSTART), c.find(BEND)
-    assert i >= 0 and j > i, 'STATS 마커를 찾을 수 없음'
-    blob = c[i + len(BSTART):j]
-    m = re.match(r'const STATS=(.*);$', blob, re.S)
-    return json.loads(m.group(1))
+    return AIO.stats_of(io.open(DATA, encoding='utf-8').read())   # 읽기·쓰기 정본은 adv_io(백로그 61-A)
 
 
 def write_stats(stats):
     c = io.open(DATA, encoding='utf-8').read()
-    i, j = c.find(BSTART), c.find(BEND)
-    blob = 'const STATS=' + json.dumps(stats, ensure_ascii=False, separators=(',', ':')) + ';'
-    io.open(DATA, 'w', encoding='utf-8').write(c[:i + len(BSTART)] + blob + c[j:])
+    io.open(DATA, 'w', encoding='utf-8').write(AIO.put(c, 'STATS', stats))
 
 
 def update_rate(stats):
@@ -2269,19 +2262,12 @@ def build_size(metrics, prev, failed=None):
 
 
 def read_current_adv():
-    c = io.open(DATA, encoding='utf-8').read()
-    i, j = c.find(START), c.find(END)
-    assert i >= 0 and j > i, 'ADV 마커를 찾을 수 없음'
-    blob = c[i + len(START):j]
-    m = re.match(r'const ADV=(.*);$', blob, re.S)
-    return c, i, j, json.loads(m.group(1))
+    return AIO.adv_of(io.open(DATA, encoding='utf-8').read())
 
 
 def write_adv(adv):
-    c, i, j, _ = read_current_adv()
-    blob = 'const ADV=' + json.dumps(adv, ensure_ascii=False, separators=(',', ':')) + ';'
-    c2 = c[:i + len(START)] + blob + c[j:]
-    io.open(DATA, 'w', encoding='utf-8').write(c2)
+    c = io.open(DATA, encoding='utf-8').read()
+    io.open(DATA, 'w', encoding='utf-8').write(AIO.put(c, 'ADV', adv))
 
 
 # ── 생활권(31곳)·건축HUB 파생 코드는 2026-08-06에 통째로 걷어냈다 ──────────
@@ -2321,7 +2307,7 @@ def main():
     if arg == '--discover':
         discover(sys.argv[2])
         return
-    _, _, _, adv = read_current_adv()
+    adv = read_current_adv()
     if arg == '--seed-bubble':   # 버블밴드 최초 시딩 (KOSIS+ECOS 필요)
         adv['bubble'] = fetch_bubble()
         write_adv(adv)

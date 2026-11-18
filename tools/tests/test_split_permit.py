@@ -20,15 +20,15 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import sido_zones as SZ  # noqa: E402
 import make_sido_pages as P  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 
 
 def _data():
     src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    st = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
+    st = AIO.stats_of(src)
+    adv = AIO.adv_of(src)
     return st, adv
 
 

@@ -31,6 +31,7 @@ import kst  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import split_data as S  # noqa: E402
 import weekly_release as WR  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -42,7 +43,7 @@ H2026 = ['2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-03-01', '
 
 def _adv():
     s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    return json.loads(re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', s, re.S).group(1))
+    return AIO.adv_of(s)
 
 
 def _d(iso):

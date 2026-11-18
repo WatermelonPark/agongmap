@@ -354,7 +354,7 @@ def test_gu_missing_for_one_run_keeps_its_history(kind, window):
             받은 응답. 첫 회차 응답은 열 목록 첫 구가 빠졌다(fetch_*_rone 이 최신 주 매매값에서 gus 를 다시 만들 때
             그 구 행이 페이지 경계에서 밀린 회차). 둘째 회차는 정상 응답.
     """
-    cur = copy.deepcopy(U.read_current_adv()[3][kind]['seoul'])
+    cur = copy.deepcopy(U.read_current_adv()[kind]['seoul'])
     regs = cur['regions']
     gu = regs[0]
     keep = U.CONF[kind]['sgg_hist']
@@ -580,7 +580,7 @@ def test_gu_block_with_no_columns_keeps_the_saved_block(kind, window):
     픽스처: 저장 ADV 의 weekly/monthly.seoul 과, fetch_*_rone 이 최신 주 매매값에서 gus 를 다시 만들 때 서울 구 행이
             하나도 없던 응답(regions [] · 각 행 값 배열 []). 둘째 회차는 정상 응답(저장분 끝 구간).
     """
-    cur = copy.deepcopy(U.read_current_adv()[3][kind]['seoul'])
+    cur = copy.deepcopy(U.read_current_adv()[kind]['seoul'])
     keep = U.CONF[kind]['sgg_hist']
     empty = {'regions': [], 'rows': [{k: ([] if isinstance(v, list) else v) for k, v in r.items()}
                                      for r in copy.deepcopy(cur['rows'][-window:])]}

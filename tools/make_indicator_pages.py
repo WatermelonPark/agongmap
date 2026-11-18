@@ -28,6 +28,7 @@ import kst as KST  # noqa: E402  오늘(KST) — 생성기가 찍는 날짜의 �
 import site_nav as N  # noqa: E402  하단 탭바 정본(C2)
 import robots_meta as RM  # noqa: E402  검색 로봇 메타 정본(D2)
 import ga_tag as GT  # noqa: E402  GA 내부 트래픽 표식 정본(백로그 48)
+import adv_io as AIO  # noqa: E402  data.js ADV·STATS 읽기 정본(백로그 61-A)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SITE = 'https://www.agongmap.co.kr'
@@ -48,9 +49,7 @@ if set(SIDO17) != _MODEL:
 
 
 def load():
-    s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', s, re.S).group(1))
+    adv = AIO.load_adv(os.path.join(ROOT, 'data.js'))
     # 전세가율은 기본통계 파일(data-rest.json)에서 읽는다 — split_data 가 원천 계열을 그대로 싣는다. 예전엔 홈 코어
     # (data-core.js)의 STATS 를 읽었는데, 홈 첫 화면이 쓰지 않아 2026-09-27 코어에서 뺐다(홈 마케팅 검수 B11 다이어트).
     sts = json.load(io.open(os.path.join(ROOT, 'data-rest.json'), encoding='utf-8'))['STATS']

@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -466,8 +467,7 @@ def test_dataset_temporal_coverage_starts_at_the_first_data_month():
     """
     import json
     W, s = _rendered()
-    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});',
-                               io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read(), re.S).group(1))
+    adv = AIO.adv_of(io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read())
     firsts = [adv['weekly']['rows'][0]['p'][:7]] + [str(r['p'])[:7].replace('.', '-') for r in adv['monthly']['rows'][:1]]
     want = min(firsts) + '/..'
     got = re.findall(r'"temporalCoverage":\s*"([^"]*)"', s)
