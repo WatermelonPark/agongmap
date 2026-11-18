@@ -11,12 +11,12 @@
 
 무엇을 바꾸면 빨개지나(실제로 넣어 확인했다):
   - site_footer 가 ai 인자를 무시하면 → test_footer_switch, 그리고 구운 페이지 시험
-  - site_footer 의 기본값을 ai=True 로 바꾸면 → test_footer_switch, test_lists_do_not_carry_it
+  - site_footer 의 기본값을 ai=True 로 바꾸면 → test_footer_switch(목록·허브는 fill 이 ai=False 를 넘겨 그대로다)
   - AI_DISC 의 인라인 크기를 13px 로 내리면 → test_notice_is_reading_size
   - make_content_pages.build_page 의 fill 에서 ai=True 를 빼면 → test_generators_switch_it_on
-  - make_sido_pages 리포트가 FOOT_REPORT 대신 FOOT 를 쓰면 → test_generators_switch_it_on
-  - make_weekly_page.put_footer 나 make_monthly_page 의 fill 에서 ai=True 를 빼면 → test_generators_switch_it_on(주간)·
-    test_baked_pages(월간)
+  - make_sido_pages 리포트가 FOOT_REPORT 대신 FOOT 를 쓰면 → test_baked_pages(다시 구운 뒤)
+  - make_weekly_page.put_footer 에서 ai=True 를 빼면 → test_generators_switch_it_on
+  - make_monthly_page 의 fill 에서 ai=True 를 빼면 → test_baked_pages(다시 구운 뒤)
   - _ld(Article description)에 고지를 붙이면 → test_notice_stays_off_machine_text
 픽스처: tmp_path 에 쓴 원고 한 편(2026-11-05 양식)과 저장소의 실제 data-*.json, 그리고 저장소에 구워진 페이지
 (CI 는 생성기를 먼저 돌린다 — 굽기 전 작업 트리에서는 구운 페이지 시험이 옛 산출물을 본다).
