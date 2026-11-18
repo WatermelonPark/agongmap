@@ -980,7 +980,7 @@ def put_footer(s):
     if len(pat.findall(s)) != 1:
         raise SystemExit('weekly/index.html 에서 <footer> 를 하나 찾지 못했다')
     nl = '\r\n' if '\r\n' in s else '\n'
-    return pat.sub(lambda m: N.site_footer(FOOTER_SRC).replace('\n', nl), s, 1)
+    return pat.sub(lambda m: N.site_footer(FOOTER_SRC, ai=True).replace('\n', nl), s, 1)   # ai: AI 작성 고지(site_nav.AI_NOTICE)
 
 
 def put_source(s):

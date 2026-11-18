@@ -39,6 +39,7 @@ import site_nav as N              # noqa: E402  (탭바·뒤 단계 표식 구�
 SITE = I.SITE
 AUTHOR = '아공맵 운영팀'
 # 면책은 공용 푸터(site_nav.site_footer)가 싣는다 — 글 끝에 같은 문장을 또 두면 두 번 연달아 나왔다(2026-10-31 디자인 리뷰 2차).
+# AI 작성 고지는 푸터가 면책 위에 싣는다(site_nav.AI_NOTICE — fill(..., ai=True), 2026-11-18 대표 결정).
 OG_IMAGE = '/og-brand.png'   # 어느 카드도 없을 때 떨어지는 자리
 
 
@@ -1065,6 +1066,7 @@ def build_page(meta, body_md, data, prev=None, nxt=None, others=None):
     page = I.fill(I.SHELL, desk='read', title=html.escape('%s | 아공맵' % meta['title']),
                   ogtitle=html.escape(meta['title']), desc=html.escape(meta['summary']), url=url, body=body,
                   ld=_ld(meta, url, body_html), src='',   # 출처는 본문 '숫자의 출처'(src_html)에 있다 — 푸터에 되풀이하지 않는다
+                  ai=True,   # AI 작성 고지(site_nav.AI_NOTICE)
                   nsido=str(len(I.SIDO17)))
     page = _own_tab(page.replace('</style>', EXTRA_CSS + '</style>', 1))
     page = re.sub(r'<meta property="og:image" content="[^"]*">',
