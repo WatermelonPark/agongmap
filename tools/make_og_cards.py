@@ -10,36 +10,25 @@
 사용:  python tools/make_og_cards.py
 """
 import os
-from PIL import Image, ImageDraw, ImageFont
+import sys
 
-W, H = 1200, 630
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import card_kit as CK  # noqa: E402
 
-# 랜딩 페이지 :root 토큰과 동일 (쿨 계열)
-PAPER = (244, 246, 245)   # --paper #f4f6f5
-INK   = (19, 30, 36)      # --ink   #131e24
-RED   = (192, 57, 43)     # 상승/훅 라인 #c0392b
-MUTED = (94, 111, 116)    # --muted #5e6f74
-LINE  = (196, 206, 201)   # --line  #c4cec9
-WHITE = (255, 255, 255)
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT_DIR = os.path.join(ROOT, 'fonts') if os.path.exists(os.path.join(ROOT, 'fonts')) \
-    else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
-FONT_FILES = {'Bold': 'Pretendard-Bold.subset.ttf', 'Medium': 'Pretendard-Medium.subset.ttf'}
-
-
-def font(size, weight='Bold'):
-    return ImageFont.truetype(os.path.join(FONT_DIR, FONT_FILES[weight]), size)
+# 크기·쿨 계열 색·글꼴은 card_kit 이 정본이다(백로그 61-C — 지역·글 카드와 한 벌). 이름은 그대로 남긴다.
+W, H = CK.W, CK.H
+PAPER, INK, RED, MUTED, LINE, WHITE = CK.PAPER, CK.INK, CK.RED, CK.MUTED, CK.LINE, CK.WHITE
+ROOT = CK.ROOT
+FONT_DIR, FONT_FILES = CK.FONT_DIR, CK.FONT_FILES
+font = CK.font
 
 
 def make_brand():
     """og-brand.png(홈 공유 카드) — 옛 병아리·웜톤 카드를 현 브랜드로 교체.
     모래시계 아이콘(make_app_icon.draw_icon 재사용) + 훅 + 아공맵 + 슬로건."""
     from make_app_icon import draw_icon
-    img = Image.new('RGBA', (W, H), PAPER + (255,))
-    d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W, 13], fill=INK)          # 상단 바: 브랜드는 먹색
-    MX = 64
+    img, d = CK.canvas()                          # 상단 바: 브랜드는 먹색
+    MX = CK.MX
 
     # 우측: 사이클 모래시계 (배경색 동일해 그대로 붙는다)
     glass = draw_icon(380, 0.94)
@@ -52,14 +41,7 @@ def make_brand():
     d.text((MX, 400), '아파트 공급 지도', font=font(42, 'Medium'), fill=MUTED)
 
     # 하단 구분선 + 푸터
-    fy = 548
-    d.line([MX, fy, W - MX, fy], fill=LINE, width=2)
-    d.text((MX, fy + 24), '주간 시세 지도 · 시도별 공급 진단 · 국가기관 데이터 기반',
-           font=font(24, 'Medium'), fill=MUTED)
-    dom = 'agongmap.co.kr'
-    df = font(26, 'Bold')
-    dbb = d.textbbox((0, 0), dom, font=df)
-    d.text((W - MX - (dbb[2] - dbb[0]), fy + 22), dom, font=df, fill=RED)
+    CK.footer(d, '주간 시세 지도 · 시도별 공급 진단 · 국가기관 데이터 기반')
 
     img.convert('RGB').save(os.path.join(ROOT, 'og-brand.png'), 'PNG', optimize=True)
     return 'og-brand.png'

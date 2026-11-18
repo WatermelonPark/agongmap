@@ -27,26 +27,19 @@
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
+from PIL import Image, ImageDraw, PngImagePlugin
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ  # noqa: E402  화면 이름 정본(DISPLAY_NAME) — 그리는 글자만 바꾸고 파일 이름은 키 그대로
+import card_kit as CK  # noqa: E402  카드 크기·쿨 계열 색·글꼴·칩·푸터의 정본(백로그 61-C)
 
-W, H = 1200, 630
-
-# make_og_cards.py와 동일 토큰 (쿨 계열). 브랜드 카드가 먹색 상단바를 쓰므로
-# 존 카드도 먹색으로 맞춘다 — 그린 바는 퀴즈 카드 몫이다.
-PAPER = (244, 246, 245)
-INK   = (19, 30, 36)
-RED   = (192, 57, 43)
-MUTED = (94, 111, 116)
-LINE  = (196, 206, 201)
-WHITE = (255, 255, 255)
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FONT_DIR = os.path.join(ROOT, 'fonts') if os.path.exists(os.path.join(ROOT, 'fonts')) \
-    else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fonts')
-FONT_FILES = {'Bold': 'Pretendard-Bold.subset.ttf', 'Medium': 'Pretendard-Medium.subset.ttf'}
+# 크기·색·글꼴은 card_kit 이 정본이다. 이름은 글 카드(make_content_cards)·시험이 ZC.* 로 읽던 그대로 남긴다.
+# 브랜드 카드(make_og_cards)와 같은 쿨 계열이고, 브랜드 카드가 먹색 상단바를 쓰므로 존 카드도 먹색으로 맞춘다.
+W, H = CK.W, CK.H
+PAPER, INK, RED, MUTED, LINE, WHITE = CK.PAPER, CK.INK, CK.RED, CK.MUTED, CK.LINE, CK.WHITE
+ROOT = CK.ROOT
+FONT_DIR, FONT_FILES = CK.FONT_DIR, CK.FONT_FILES
+font = CK.font
 
 OUT_DIR = os.path.join(ROOT, 'share')
 
@@ -55,10 +48,6 @@ CHIP = '아공맵 지역 리포트'
 SUB = '적정물량 vs 들어올 집'   # 기준 물량은 '적정물량' 한 이름(2026-10-06 대표 결정 — 옛 '필요한 집', 전수리뷰 Z1-5)
 # 2026-08-06 재편 반영: 미래 공급을 인허가가 아니라 착공 실적으로 센다.
 FOOT = '준공·착공 실적으로 본 아파트 공급'
-
-
-def font(size, weight='Bold'):
-    return ImageFont.truetype(os.path.join(FONT_DIR, FONT_FILES[weight]), size)
 
 
 def fit_width(text, target, weight='Bold', hi=140, lo=40):
@@ -102,11 +91,9 @@ def zone_names():
 
 
 def make(name):
-    img = Image.new('RGBA', (W, H), PAPER + (255,))
-    d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W, 13], fill=INK)
+    img, d = CK.canvas()
 
-    MX = 64
+    MX = CK.MX
 
     # 우측 모래시계 — 브랜드 카드(og-brand)와 같은 아이콘을 써서 계열을 맞춘다.
     # draw_icon은 PAPER 배경의 RGB를 돌려주므로 alpha_composite가 아니라
@@ -123,13 +110,7 @@ def make(name):
     except Exception as e:
         sys.stderr.write('WARN: 모래시계 아이콘 생략 (%s: %s)\n' % (type(e).__name__, e))
 
-    # 칩
-    cf = font(28, 'Bold')
-    cbb = d.textbbox((0, 0), CHIP, font=cf)
-    cw, ch = cbb[2] - cbb[0], cbb[3] - cbb[1]
-    px, py = 22, 13
-    d.rounded_rectangle([MX, 66, MX + cw + px * 2, 66 + ch + py * 2], radius=6, fill=INK)
-    d.text((MX + px - cbb[0], 66 + py - cbb[1]), CHIP, font=cf, fill=WHITE)
+    CK.chip(d, CHIP)
 
     # 지역명 — 아이콘 왼쪽까지만 쓰고, 그 폭에 맞춰 크기를 잡는다.
     shown = label(name)
@@ -144,14 +125,7 @@ def make(name):
     sf = font(38, 'Medium')
     d.text((MX, name_bottom + 30), SUB, font=sf, fill=MUTED)
 
-    # 하단 구분선 + 푸터
-    fy = 548
-    d.line([MX, fy, W - MX, fy], fill=LINE, width=2)
-    d.text((MX, fy + 24), FOOT, font=font(24, 'Medium'), fill=MUTED)
-    dom = 'agongmap.co.kr'
-    df = font(26, 'Bold')
-    dbb = d.textbbox((0, 0), dom, font=df)
-    d.text((W - MX - (dbb[2] - dbb[0]), fy + 22), dom, font=df, fill=RED)
+    CK.footer(d, FOOT)   # 하단 구분선 + 푸터(왼쪽 FOOT, 오른쪽 도메인)
 
     out = os.path.join(OUT_DIR, 'zone-%s.png' % name)
     # 그린 이름·부제를 PNG 글 칸에 함께 싣는다 — 시험(test_zone_cards)이 커밋된 카드가 지금 도구의 글자와 같은지 읽는다(그림은 못 읽는다)
