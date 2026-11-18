@@ -86,7 +86,8 @@ def test_generators_bake_the_canonical_tabbar():
     make_sido_pages FOOT 이나 make_indicator_pages SHELL 에 옛 손 탭바 문자열('<span>통계</span>')을 되살리면 빨개진다.
     """
     want = list(zip(N.IDS, N.LABELS))
-    for name, tpl, on in (('make_indicator_pages.SHELL', I.SHELL, 'stats'), ('make_sido_pages.FOOT', M.FOOT, 'zone')):
+    for name, tpl, on in (('make_indicator_pages.SHELL', I.SHELL, 'stats'), ('make_sido_pages.FOOT', M.FOOT, 'zone'),
+                          ('make_sido_pages.FOOT_REPORT', M.FOOT_REPORT, 'zone')):
         navs = NAV.findall(tpl)
         assert len(navs) == 1, '%s 에 탭바가 %d개' % (name, len(navs))
         tabs = _tabs(navs[0])
@@ -264,7 +265,7 @@ def test_every_footer_carries_the_canonical_links():
            and N.FOOTER_CONTACT not in io.open(os.path.join(ROOT, rel), encoding='utf-8').read()]
     assert not bad and 'mailto' not in N.FOOTER_LINKS, '문의 줄이 없는 푸터: %s' % bad
     assert N.FOOTER_LINKS in I.fill(I.SHELL, src='국토교통부')
-    assert N.FOOTER_LINKS in M.FOOT
+    assert N.FOOTER_LINKS in M.FOOT and N.FOOTER_LINKS in M.FOOT_REPORT
     w = MW.put_footer('<footer><div class="wrap">옛 푸터</div></footer>')
     assert N.FOOTER_LINKS in w and '옛 푸터' not in w
     for rel in _html_pages():

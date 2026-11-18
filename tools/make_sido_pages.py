@@ -645,13 +645,22 @@ def share_section(z):
 # 글이 POSTS_CAP 편을 넘으면 zone.js 가 앞 POSTS_CAP 편만 보이고 '글 N편 모두 보기' 단추를 단다(스크립트 없이는 모두 보인다).
 POSTS_SLOT = ''.join(N.SLOT_ZONE_POSTS)
 POSTS_CAP = 4
-FOOT = '''</main>
-''' + N.site_footer('국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트') + '''
+ZONE_SRC = '국토교통부 주택건설실적(준공·착공) · 한국부동산원 「전국주택가격동향조사」 월간 아파트'
+
+
+def _foot(ai):
+    return '''</main>
+''' + N.site_footer(ZONE_SRC, ai=ai) + '''
 
 ''' + N.bottomnav('zone') + '''
 </body>
 </html>
 '''
+
+
+# 시도 리포트는 판정·해석 문장이 있어 푸터에 AI 작성 고지를 싣고(site_nav.AI_NOTICE, 2026-11-18 대표 결정), 허브는 목록이라 싣지 않는다.
+FOOT = _foot(False)
+FOOT_REPORT = _foot(True)
 
 
 def tint(v, scale):
@@ -1393,7 +1402,7 @@ def build_page(z, calc, stats, pq, others, weekly=None, names=None, monthly=None
     h.append('</div><p class="zsub" style="margin-top:14px">'
              '<a class="zback" href="/">← 전국 공급 표로 돌아가기</a></p></div></section>')
     h.append(share_section(z))
-    h.append(FOOT)
+    h.append(FOOT_REPORT)
     return ''.join(h)
 
 
