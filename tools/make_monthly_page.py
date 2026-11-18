@@ -725,6 +725,7 @@ def main():
         desc=esc(desc), url=URL,
         ld=ld_pack_here('이달의 통계', desc, URL, today),
         src='한국부동산원 · 국토교통부 · KOSIS',
+        ai=True,   # AI 작성 고지(site_nav.AI_NOTICE — 결론 문장이 있는 리포트)
         body=body)
     # 이 페이지 전용 CSS를 SHELL 스타일 끝에 얹는다(SHELL을 건드리지 않는다).
     html = html.replace('</style>', EXTRA_CSS + '</style>', 1)

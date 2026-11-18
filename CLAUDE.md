@@ -73,7 +73,7 @@
 | `make_content_pages.py`, `content_tables.py`, `content_md.py`, `content_check.py`, `make_content_cards.py` | 글 페이지·허브·자리표·원고 검사·글 카드. 아래 "콘텐츠 원고" |
 | `make_home_summary.py`, `make_feed.py`, `make_llms_txt.py` | 홈 표식 구간·설명 메타(데이터가 그대로면 '페이지 수정' 날짜도 그대로), `/feed.xml` RSS, `/llms.txt`(AI 검색 요약 — 숫자 없이, 콘텐츠 글 목록 구역만 예외)·`/llms-full.txt`(글 전문) |
 | `sido_zones.py` | 판정 단위·등급·정렬·화면 숫자·지역 이름·날짜 표기의 **정본**. 아래 "정본: sido_zones" |
-| `site_nav.py` | 모든 페이지가 같이 쓰는 틀의 정본: 하단 탭바(홈·지역·시세·콘텐츠 — `TABS`, 생성기는 `bottomnav()`로 굽고 손 페이지는 손으로 맞추되 `test_site_nav`가 저장소의 모든 탭바를 대조한다. 탭 식별자는 GA 값이라 라벨을 바꿔도 그대로 둔다. 손 페이지가 켜는 탭은 `HAND_TAB_ON`), 글자 하한 `READ_PX`·`LABEL_PX`, 색 `BRAND_TOKENS`·`UP_INK`·`DN_INK`·`SERIES_COL`, 공용 조각 `NAV_FOCUS_CSS`·`NAV_ON_CSS`·`NAV_SCROLL_PAD_CSS`·`FONT_FALLBACK_CSS`·`FONT_STACK_HEAD`, 푸터 `HAND_FOOTER`·`FOOTER_DISC`·`FOOTER_CONTACT`·`site_footer()`, 데스크톱 틀 `desk_link`·`desk_body`·`dtoc`·`DTOC_JS`, 뒤 단계가 채우는 표식 구간 `LATE_SLOTS`(`keep_dates`가 이 구간을 비우고 견준다 — keep_dates 를 거치는 페이지에 새 표식 구간을 두면 여기에 올린다), 브라우저 머리 색 `THEME_COLOR`(= app.css `--ink`). **탭바나 글꼴 목록을 싣는 새 페이지는 이 글자를 그대로 싣는다** |
+| `site_nav.py` | 모든 페이지가 같이 쓰는 틀의 정본: 하단 탭바(홈·지역·시세·콘텐츠 — `TABS`, 생성기는 `bottomnav()`로 굽고 손 페이지는 손으로 맞추되 `test_site_nav`가 저장소의 모든 탭바를 대조한다. 탭 식별자는 GA 값이라 라벨을 바꿔도 그대로 둔다. 손 페이지가 켜는 탭은 `HAND_TAB_ON`), 글자 하한 `READ_PX`·`LABEL_PX`, 색 `BRAND_TOKENS`·`UP_INK`·`DN_INK`·`SERIES_COL`, 공용 조각 `NAV_FOCUS_CSS`·`NAV_ON_CSS`·`NAV_SCROLL_PAD_CSS`·`FONT_FALLBACK_CSS`·`FONT_STACK_HEAD`, 푸터 `HAND_FOOTER`·`FOOTER_DISC`·`FOOTER_CONTACT`·`site_footer()`·AI 작성 고지 `AI_NOTICE`, 데스크톱 틀 `desk_link`·`desk_body`·`dtoc`·`DTOC_JS`, 뒤 단계가 채우는 표식 구간 `LATE_SLOTS`(`keep_dates`가 이 구간을 비우고 견준다 — keep_dates 를 거치는 페이지에 새 표식 구간을 두면 여기에 올린다), 브라우저 머리 색 `THEME_COLOR`(= app.css `--ink`). **탭바나 글꼴 목록을 싣는 새 페이지는 이 글자를 그대로 싣는다** |
 | `check_freshness.py` | 데이터 신선도·정합성 검사. 감시 워크플로가 부른다. 알려진 원천 정지는 `SOURCE_PAUSED`(기한 있음)로 경고로만 둔다 |
 | `batch_notes.py`, `format_batch_report.py`, `post_alert.sh` | 배치 기록 줄(ℹ️·⚠️), 결과 보고, 경보 이슈 코멘트. 아래 "자동화"의 메일 |
 | `gen_sgg_rone_map.py [--weekly] [--write]` | 시군구 매핑(월간 `SGG_RONE_CLS`·주간 `SGG_RONE_CLS_WK`) 재생성·대조. 키가 필요하다. 현재 매핑에만 있는 코드가 있으면 `--write`를 거부한다. 원천이 새 시군구를 내도 매핑은 저절로 붙지 않는다 — `batch_notes.sgg_map_gap_lines`가 '월간 시군구 매핑 없음' ℹ️ 줄로 알린다 |
@@ -189,6 +189,12 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
   시도 적정물량(기준표 분기 값 × 4)은 산식이 다르다 — 한 글에서 나란히 견주면 그 차이를 글이 밝힌다. 광역시(시도 키 = 한 도시)는
   적정물량·해마다 입주를 시도 값으로만 말하고 도시 자료에서는 단지 목록·몰리는 달·인구만 읽는다(`content_tables.city`·`listing`,
   2026-11-13 대표 결정). 광역시 단지 목록은 원고 없이도 늘 받는다(`metro_cities`).
+- **작문이 들어간 페이지는 푸터 면책 바로 위에 AI 작성 고지 한 줄을 싣는다**(`site_nav.AI_NOTICE`, `site_footer(src, ai=True)`,
+  2026-11-18 대표 결정). 싣는 곳은 콘텐츠 글·시도 리포트(`make_sido_pages.FOOT_REPORT`)·`/weekly/`·`/monthly/`이고, 허브·섹션 목록·
+  `/jeonse-ratio/`·`/moveins/`·`/cycle/`·손 페이지에는 싣지 않는다. 화면에만 둔다 — 설명 메타·JSON-LD·RSS·llms 에는 넣지 않는다
+  (`test_ai_notice`). 작문이 들어간 새 페이지 종류를 만들면 `ai=True` 를 켜고 시험의 목록에 올린다.
+- **`content/column/` 원고 PR 은 세션이 병합하지 않는다.** 공직자 실명이 들어가 대표가 본 뒤 병합한다(2026-11-18 대표 결정).
+  세션은 CI 초록까지 만들고 PR 을 열어 둔 채 알린다. 다른 섹션 원고는 지금처럼 세션이 검증하고 병합한다.
 - 허브 페이지 제목·h1 은 `make_content_pages.REPORTS_NAME`('부동산 공급 리포트'), 탭·빵부스러기 이름은 `REPORTS_TITLE`('콘텐츠')이다.
   목록 페이지의 JSON-LD 는 `CollectionPage`, 글은 `Article`이다.
 - `make_content_pages.py`는 다른 페이지의 표식 구간도 쓴다: 홈 `CONTENT_RECENT`, 시도 리포트 `ZONE_POSTS`('이 지역 글'),

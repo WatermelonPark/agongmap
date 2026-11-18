@@ -146,6 +146,11 @@ FOOTER_BRAND = '<b>아공맵</b> — 아파트 공급 지도'
 DISCLAIMER = '공공 데이터를 가공한 참고 자료이며 투자자문이 아닙니다. 투자 판단과 책임은 이용자에게 있습니다.'
 FOOTER_PX = LABEL_PX
 FOOTER_DISC = '<div class="disc" style="font-size:%gpx">%s</div>' % (READ_PX, DISCLAIMER)
+# AI 작성 고지(2026-11-18 대표 결정): 작문이 들어간 페이지 — 콘텐츠 글, 시도 리포트 17곳, /weekly/, /monthly/ — 의 푸터에서
+# 면책 바로 위 한 줄. site_footer(src, ai=True) 로만 싣는다(자리가 하나라 페이지마다 모양이 갈리지 않는다). 허브·목록·지표 두 쪽·
+# /cycle/·손 페이지에는 싣지 않고(대표 결정), 화면에만 둔다 — 설명 메타·JSON-LD·RSS·llms 에는 넣지 않는다(test_ai_notice).
+AI_NOTICE = '본 콘텐츠는 AI가 생성한 저작물로, 사실과 다른 내용이 있을 수 있으니 참고용으로만 활용해 주세요.'
+AI_DISC = '<div class="disc" style="font-size:%gpx">%s</div>' % (READ_PX, AI_NOTICE)
 HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
                '  ' + FOOTER_BRAND + '<br>\n'
                '  ' + FOOTER_LINKS + '<br>\n'
@@ -155,15 +160,17 @@ HAND_FOOTER = ('<footer class="sfoot"><div class="wrap">\n'
                '</div></footer>')
 
 
-def site_footer(src):
+def site_footer(src, ai=False):
     """생성 페이지·콘텐츠 페이지 푸터 — 브랜드 · 링크 줄(FOOTER_LINKS) · 문의 · 그 페이지의 자료 기관 · 면책.
-    src 는 기관명이다(공개 저장소 규칙 — '자료: 아공맵' 처럼 우리 이름을 출처로 쓰지 않는다). 없으면 자료 줄을 뺀다."""
+    src 는 기관명이다(공개 저장소 규칙 — '자료: 아공맵' 처럼 우리 이름을 출처로 쓰지 않는다). 없으면 자료 줄을 뺀다.
+    ai=True 면 면책 위에 AI 작성 고지(AI_DISC)를 싣는다 — 작문이 들어간 페이지만(AI_NOTICE 주석)."""
     srcl = ('  자료: %s\n' % src) if src else ''
     return ('<footer class="sitefoot"><div class="wrap">\n'
             '  ' + FOOTER_BRAND + '<br>\n'
             '  ' + FOOTER_LINKS + '<br>\n'
             '  ' + FOOTER_CONTACT + (('<br>\n') if src else '\n')
-            + srcl +
+            + srcl
+            + (('  ' + AI_DISC + '\n') if ai else '') +
             '  ' + FOOTER_DISC + '\n'
             '</div></footer>')
 
