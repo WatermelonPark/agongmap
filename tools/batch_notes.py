@@ -197,6 +197,28 @@ def content_card_lines(root=None):
     return ['ℹ️ 글 카드 없음 %d편 — 섹션 공통 카드로 나간다(다음 카드 단계가 굽는다): %s' % (len(miss), ', '.join(miss))]
 
 
+def content_claim_lines(root=None):
+    """구워진 글의 전제(claims, content_claims)가 지금 데이터와 어긋나면 글마다 ℹ️ 한 줄(2026-11-19 대표 결정). 글의 숫자는 자리표라
+    배치가 새 값으로 채우지만 그 숫자로 쓴 해석 문장은 손 글자다 — 문장이 틀려진 글을 세션이 고친다. 게이트가 아니라 알림이다."""
+    import content_md as CM
+    import content_tables as CT
+    import content_claims as CC
+    root = root or ROOT
+    data = CT.load(root)
+    out = []
+    for s, g, path in CM.built(root):
+        try:
+            meta = CM.read(path, s, g, lenient=True)[0]
+            bad = CC.broken(meta, data)
+        except Exception as e:      # noqa: BLE001 — 꼴 오류도 알린다(원고 검사가 발행 때 막지만 옛 글일 수 있다)
+            out.append('%s 글 전제 검사 불가 — %s/%s: %s' % (WARN, s, g, str(e)[:120]))
+            continue
+        if bad:
+            out.append('%s 글 전제 어긋남 — %s/%s: %s (해석 문장을 고칠 것)'
+                       % (ML.MARK, s, g, '; '.join('%s → 지금 %s' % (c, now) for c, now in bad)))
+    return out
+
+
 def lines(adv):
     """인자 adv 만 보고 찍을 줄. 저장소 파일을 읽는 곁가지(theory_claim_lines 등)는 main() 이 붙인다."""
     out = []
@@ -223,7 +245,8 @@ def main(argv=None):
     # 2026-11-13 전수 리뷰). 죽은 곁가지는 '검사 불가' 한 줄로 남긴다.
     for name, fn in (('인허가 신호', lambda: lines(adv)), ('이론편 전제', theory_claim_lines),
                      ('시군구 매핑', lambda: sgg_map_gap_lines(adv)), ('손 페이지 인허가', lambda: hand_permit_lines(sts)),
-                     ('전환율 재측정', lambda: conv_model_lines(sts)), ('글 카드', content_card_lines)):
+                     ('전환율 재측정', lambda: conv_model_lines(sts)), ('글 카드', content_card_lines),
+                     ('글 전제', content_claim_lines)):
         try:
             got = fn()
         except Exception as e:      # noqa: BLE001 — 알림용 곁가지다. 죽은 것을 알리는 것이 이 줄의 일이다

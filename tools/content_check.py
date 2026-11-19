@@ -26,6 +26,7 @@ except Exception:
 
 import content_md as CM        # noqa: E402
 import content_tables as CT    # noqa: E402
+import content_claims as CC    # noqa: E402  (글 전제 — 2026-11-19)
 
 PLACEHOLDER = CT.PH      # 정규식은 content_tables 가 정본이다 — 종류가 늘면 한 곳만 고친다
 
@@ -73,6 +74,10 @@ def check_post(path, data, root=ROOT, lenient=False):
         else:
             key = next((k for k in CM.REQUIRED + CM.REQUIRED_V2 + ('faq', 'sources', 'region') if k in msg), None)
             return ([(_front_line(text, key) if key else 1, msg)], [], rel)
+    try:
+        CC.check(meta, data)               # 전제(claims)의 꼴 — 틀리면 고칠 곳(✗). 어긋남(맞지 않음)은 main 이 ※ 로 알린다
+    except CC.ClaimError as e:
+        out.append((_front_line(text, 'claims'), '전제(claims): %s' % e))
     data = CT.for_post(data, meta)     # 생성기(build_page·fill_meta)와 같은 창 — 도시 3년 창은 이 글의 작성 연도가 정한다
     # 2026-11-05 양식의 지역·길이 — 이름표에 없는 city, 자리표를 채우면 넘치는 길이. 생성기(make_content_pages)와 같은 함수다.
     if not lenient:
@@ -261,6 +266,17 @@ def table_notes(text):
     return out
 
 
+def claim_notes(path, sec, slug, text, data):
+    """어긋난 전제(claims) → [(줄, ※ 글)]. 데이터가 움직여 문장이 틀려진 것이라 발행을 막지 않는다 — 그 문장을 고친다."""
+    try:
+        meta = CM.read(path, sec, slug, lenient=True)[0]
+        bad = CC.broken(meta, data)
+    except Exception:
+        return []                          # 꼴 오류는 check_post 가 ✗ 로 센다
+    ln = _front_line(text, 'claims')
+    return [(ln, '전제가 지금 데이터와 어긋난다: %s (지금 %s) — 그 전제에 기대는 문장을 고친다' % (c, now)) for c, now in bad]
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     lenient = '--lenient' in argv or os.environ.get('CONTENT_CHECK_LENIENT') == '1'
@@ -294,7 +310,8 @@ def main(argv=None):
             summary = CM.read(path, sec, slug, lenient=True)[0].get('summary') or ''
         except Exception:
             summary = ''
-        for ln, why in sorted(term_notes(text) + layout_notes(text, summary, sec) + table_notes(text) + knotes.get(rel, [])):
+        for ln, why in sorted(term_notes(text) + layout_notes(text, summary, sec) + table_notes(text) + knotes.get(rel, [])
+                              + claim_notes(path, sec, slug, text, data)):
             print('  ※    %s:%d  %s' % (rel, ln, why))
         for ln, why in sorted(waits):
             # 아직 자료가 없는 것은 고칠 곳이 아니다(안 받은 도시, 아직 분양 안 된 연도) —
