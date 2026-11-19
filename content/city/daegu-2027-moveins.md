@@ -14,9 +14,7 @@ key:
   - label: 3년 입주 합계
     value: "{{v:moveins3:대구}}"
 city:
-  - 대구 수성구
-  - 대구 달서구
-  - 대구 북구
+  - 대구
 topic: moveins
 sources:
   - 국토교통부 주택건설실적(준공·착공)

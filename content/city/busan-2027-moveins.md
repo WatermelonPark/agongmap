@@ -14,9 +14,7 @@ key:
   - label: 3년 입주 합계
     value: "{{v:moveins3:부산}}"
 city:
-  - 부산 남구
-  - 부산 강서구
-  - 부산 해운대구
+  - 부산
 topic: moveins
 sources:
   - 국토교통부 주택건설실적(준공·착공)
