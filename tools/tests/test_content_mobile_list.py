@@ -12,6 +12,7 @@
   - .klist .kcard[hidden] 규칙을 빼면(목록형 grid 가 [hidden] 을 이겨 거른 카드가 보였다 — 실제로 났던 결함) → test_compact_css_keeps_filtered_cards_hidden
   - build_index 의 compact='klist ksec' 를 빼면 → test_lists_use_the_compact_layout
   - JS 가 없을 때 도시 줄을 숨기면(.cityf:not(.js) 대신 .cityf 로) → test_without_js_every_city_row_shows
+  - FILTER_JS 에서 거른 뒤 reveal() 부르기를 빼면(허브에서 '눌러도 안 보인다' — 2026-11-19 대표 지적) → test_filter_reveals_results
 픽스처: 합성 글(경기 셋 — 수원 둘·김포 하나, 부산 하나)과 생성기의 CSS·스크립트 글자.
 """
 import os
@@ -61,3 +62,12 @@ def test_lists_use_the_compact_layout():
     hub = hub[0] if isinstance(hub, tuple) else hub
     assert 'class="kgrid klist' in hub, '허브 최근 글 카드가 목록형이 아니다'
     assert 'klist' not in MC.cards_grid(METAS), '홈·시도 리포트 카드(기본)는 그대로여야 한다'
+
+
+def test_filter_reveals_results():
+    """거른 뒤 첫 글이 화면 밖이면 그 글까지 내려 보인다 — 허브는 지역 칩과 '최근 글' 사이에 '기본 개념' 줄이 있어, 누르면 편수만
+    바뀌고 글은 화면 아래에 있었다(2026-11-19 대표 지적 '눌러도 안보임'). 실제 휴대폰 폭에서 허브 '대구' → 첫 카드가 화면 안(210px),
+    /city/ '경기' → 내려가지 않음(scrollY 0)을 Playwright 로 확인했다."""
+    js = MC.FILTER_JS
+    assert 'if(on)reveal()' in js, '거른 뒤 결과로 내려 보이지 않는다'
+    assert 't>innerHeight-120' in js and 'scrollTo(' in js, '첫 글이 화면 밖일 때만 내린다'
