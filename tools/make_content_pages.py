@@ -951,6 +951,8 @@ def city_chips(metas, total_label='글'):
 # 때는 '수원'을 누르면 영통구 글 4편이 숨었다, 2026-11-07 디자인 검수). 빈칸까지 보므로 '광주'가 '광주시' 꼴을 잘못 잡지 않는다.
 # 시도 단추(.cf-sd)는 그 시도 줄을 열고, 그 줄의 도시 칩 가운데 하나라도 맞는 글을 남긴다. 다시 누르면 푼다(2026-11-19).
 # 허브 '최근 글'의 접힘(.kfold)은 거르는 동안 풀고(맞는 글이 모두 보인다), '더 보기'를 누르면 아주 푼다.
+# 거른 뒤 첫 글이 화면 밖이면 그 글까지 내려 보인다(reveal) — 허브는 지역 칩과 '최근 글' 사이에 '기본 개념' 줄이 있어, 누르면 편수만
+# 바뀌고 글은 화면 아래에 있어 '눌러도 안 보인다'(2026-11-19 대표 지적). 섹션 목록은 칩 바로 아래가 글이라 내리지 않는다.
 FILTER_JS = ("<script>(function(){var g=document.querySelector('.kgrid.kfold'),mb=document.querySelector('.kmore'),open=false;"
              "if(mb)mb.addEventListener('click',function(){open=true;if(g)g.classList.remove('kfold');mb.hidden=true});"
              "var f=document.querySelector('.cityf');if(!f)return;f.classList.add('js');"
@@ -959,7 +961,9 @@ FILTER_JS = ("<script>(function(){var g=document.querySelector('.kgrid.kfold'),m
              "function show(cs,label){var k=0,on=cs.length>0;cards.forEach(function(x){var d='|'+x.getAttribute('data-city')+'|',"
              "s=!on||cs.some(function(c){return hit(d,c)});x.hidden=!s;if(s)k++});"
              "if(g)g.classList.toggle('kfold',!on&&!open);if(mb)mb.hidden=on||open;"
-             "if(n){n.textContent=(on?label+' ':'')+'글 '+k+'편';n.hidden=!on}}"
+             "if(n){n.textContent=(on?label+' ':'')+'글 '+k+'편';n.hidden=!on}if(on)reveal()}"
+             "function reveal(){var c=[].filter.call(cards,function(x){return !x.hidden})[0];if(!c)return;"
+             "var t=c.getBoundingClientRect().top;if(t>innerHeight-120||t<0)scrollTo({top:t+scrollY-72,behavior:'smooth'})}"
              "function row(z){f.querySelectorAll('.cf-g').forEach(function(r){r.classList.toggle('open',r.getAttribute('data-sido')===z)})}"
              "function off(sel){f.querySelectorAll(sel).forEach(function(x){x.classList.remove('on')})}"
              "f.addEventListener('click',function(e){var b=e.target.closest('.rchip');if(!b)return;e.preventDefault();"
