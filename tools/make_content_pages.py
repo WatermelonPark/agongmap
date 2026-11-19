@@ -857,9 +857,28 @@ def city_groups(metas):
     return [(SZ.DISPLAY_NAME.get(z, z) if z else '그 밖', sorted(by[z], key=key)) for z in order]
 
 
-def _chip_label(c, names):
-    """지역 칩 글자 — 바로 앞에 그 시의 칩이 있는 구는 구 이름만('부천' 다음의 '원미구'). 거르는 값(data-city)은 이름 그대로다."""
+def whole_city_names(metas):
+    """도시 전체 편이 있는 시 이름 — 도시 입주물량 편(section city) 가운데 city 가 region 시 하나인 글('대구' 편·'수원' 편).
+
+    이 칩만 '대구시'·'수원시'처럼 '시'를 붙인다(2026-11-19 대표). 이름표(SGG_QNAME)에는 시와 군이 섞여 있어('무안'·'칠곡')
+    이름만으로는 붙일 수 없다 — 도시 편은 인구를 KOSIS '…시' 행(특별시·광역시·특별자치시 포함)에서 읽으므로 모두 시다
+    (city_movein.population). 역세권·단지 글이 만든 시 칩('구리'·'광명')과 구 칩이 둘 이상인 시에 세우는 시 칩('고양')은
+    도시 전체 편이 아니라 이름 그대로 둔다."""
+    out = set()
+    for m in metas:
+        if m.get('section') == 'city' and m.get('region') and post_cities(m) == [m['region']]:
+            out.add(m['region'])
+    return out
+
+
+def _chip_label(c, names, whole=frozenset()):
+    """지역 칩 글자 — 바로 앞에 그 시의 칩이 있는 구는 구 이름만('부천' 다음의 '원미구'). 거르는 값(data-city)은 이름 그대로다.
+
+    도시 전체 편의 칩(whole_city_names)은 '대구시'·'세종시'·'수원시'로 쓴다(2026-11-19 대표 — 광역시도 행정 명칭
+    '대구광역시' 대신 짧게). 그 시의 구 칩('수성구')은 구 글이 있을 때만 서고 시 칩 바로 뒤에 붙는다(city_groups 정렬)."""
     head, _, rest = c.partition(' ')
+    if not rest and c in whole:
+        return c + '시'
     return rest if rest and head in names and not rest.endswith('전체') else c
 
 
@@ -873,11 +892,12 @@ def city_chips(metas, total_label='글'):
         return ''
     rows = ['<div class="cf-g"><em></em><span class="cf-c"><button type="button" class="rchip on" data-city="">전체 %d편</button></span></div>'
             % len(metas)]
+    whole = whole_city_names(metas)
     for sido, cities in groups:
         names = set(cities)
         rows.append('<div class="cf-g"><em>%s</em><span class="cf-c">%s</span></div>' % (html.escape(sido), ''.join(
             '<button type="button" class="rchip" data-city="%s">%s</button>'
-            % (html.escape(c), html.escape(_chip_label(c, names))) for c in cities)))
+            % (html.escape(c), html.escape(_chip_label(c, names, whole))) for c in cities)))
     # 거른 수 줄은 거를 때만 보인다(hidden) — 전체일 때는 '전체' 칩이 이미 편수를 말한다.
     return '<nav class="cityf" aria-label="지역으로 찾기">%s</nav><p class="cf-n" hidden>%s %d편</p>' % (''.join(rows), html.escape(total_label), len(metas))
 

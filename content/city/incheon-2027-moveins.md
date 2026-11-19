@@ -14,9 +14,7 @@ key:
   - label: 3년 입주 합계
     value: "{{v:moveins3:인천}}"
 city:
-  - 인천 미추홀구
-  - 인천 연수구
-  - 인천 부평구
+  - 인천
 topic: moveins
 sources:
   - 국토교통부 주택건설실적(준공·착공)
