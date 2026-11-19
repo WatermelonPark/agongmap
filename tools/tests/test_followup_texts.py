@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import sido_zones as SZ  # noqa: E402
 import make_sido_pages as P  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 
@@ -29,8 +30,7 @@ def _src(rel):
 
 
 def _adv():
-    return json.loads(re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/',
-                                _src('data.js'), re.S).group(1))
+    return AIO.adv_of(_src('data.js'))
 
 
 # ---- ③ 기간 정본 ----

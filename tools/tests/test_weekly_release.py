@@ -19,7 +19,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 
 import pytest
@@ -27,10 +26,12 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import check_freshness as CF  # noqa: E402
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import kst  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import split_data as S  # noqa: E402
 import weekly_release as WR  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -42,7 +43,7 @@ H2026 = ['2026-01-01', '2026-02-16', '2026-02-17', '2026-02-18', '2026-03-01', '
 
 def _adv():
     s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    return json.loads(re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', s, re.S).group(1))
+    return AIO.adv_of(s)
 
 
 def _d(iso):
@@ -84,7 +85,6 @@ def test_normal_week_names_the_next_thursday_and_waits_one_day():
     assert WR.status('2026-09-21', _d('2026-10-02'), H2026)['stale']
     # 정적 페이지(오늘 없음)는 지연을 판정하지 않는다
     assert not WR.status('2026-09-21', None, H2026)['stale']
-
 
 
 # 2025 법정공휴일(대체·임시 포함) — 원천이 조사를 거른 두 번(설·추석)을 재현하는 데 쓴다.
@@ -149,12 +149,6 @@ def _home():
     return HS.home_source()
 
 
-def _fn(src, name):
-    m = re.search(r'\nfunction %s\([^)]*\)\{.*?\n\}' % name, src, re.S)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    return m.group(0)
-
-
 def test_home_reads_grace_from_data_and_both_views_share_one_function():
     """홈 격자 머리줄과 통계 탭 rel-week 가 같은 함수(weeklyReleaseNow → weeklyRelease)를 쓰고, 유예는 데이터에서 읽는다.
 
@@ -165,11 +159,11 @@ def test_home_reads_grace_from_data_and_both_views_share_one_function():
     """
     src = _home()
     assert '_nextThu(' not in src, '오늘 기준 다음 목요일 계산이 되살아났다 — 데이터 기준(weeklyRelease)으로 센다'
-    now = _fn(src, 'weeklyReleaseNow')
+    now = J.fn(src, 'weeklyReleaseNow')
     assert 'weeklyRelease(row.p,new Date(),W.grace)' in now, '유예를 데이터(ADV.weekly.grace)가 아닌 곳에서 읽는다'
-    rel, grid = _fn(src, 'renderReleaseInfo'), _fn(src, 'renderWeeklyGrid')
+    rel, grid = J.fn(src, 'renderReleaseInfo'), J.fn(src, 'renderWeeklyGrid')
     assert 'weeklyReleaseNow()' in rel and 'wkNextText(r)' in rel
-    apply = _fn(src, 'applyWeeklyStatus')
+    apply = J.fn(src, 'applyWeeklyStatus')
     assert 'applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly))' in grid
     # 주간 구역 머리줄(wk-kicker)은 뺐다(2026-10-03 대표 요청 — 군더더기). 정적 '매주 갱신'도 되살아나지 않는다.
     assert "getElementById('wk-kicker')" not in apply and 'id="wk-kicker"' not in src and '매주 갱신 · 한국부동산원' not in src
@@ -225,17 +219,13 @@ def _js_matches_python(holidays, cases):
     """같은 공휴일·같은 사례로 JS(weeklyRelease·wkNextText·wkWhenText·wkPubLead)와 파이썬 정본을 돌려 전부 같은지 본다.
     wkPubLead(늦은 주 '발표 기준' 머리말)는 2026-09-27 추가 — '기준'을 한쪽에서만 빼면 늦은 주 사례가 빨개진다(확인).
     유예는 감시 상수·10·없음(옛 캐시) 세 가지. 파이썬 쪽 결과를 돌려준다(갈래 확인용)."""
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     graces = GRACES
     js = (_js_block() + '\n_HOLIDAYS=new Set(%s);\nconst C=%s, G=%s, out=[];\n'
           'for(const [p,ms] of C)for(const g of G){const r=weeklyRelease(p,new Date(ms),g);'
           'out.push([r.survey,r.pub,r.next,r.hedge,r.due,r.stale,wkNextText(r),wkWhenText(r),wkPubLead(r)]);}\n'
           'process.stdout.write(JSON.stringify(out));'
           % (json.dumps(list(holidays)), json.dumps([[p, ms] for p, ms, _ in cases]), json.dumps(list(graces))))
-    proc = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert proc.returncode == 0, proc.stderr.decode('utf-8', 'replace')
-    got = json.loads(proc.stdout.decode('utf-8'))
+    got = J.node(js)
     want = []
     for p, _, t in cases:
         for g in graces:
@@ -344,14 +334,6 @@ def test_weekly_page_dataset_points_at_itself_and_source_claim_is_checkable():
 
 # ---- 화면에 적는 줄(1차 배포 검토에서 시험이 비어 있던 두 곳) ----
 
-def _node(js):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    proc = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert proc.returncode == 0, proc.stderr.decode('utf-8', 'replace')
-    return json.loads(proc.stdout.decode('utf-8'))
-
-
 def test_home_h2_follows_the_release_state_and_no_kicker_is_written():
     """홈 주간 구역: h2 는 늦은 주에만 '이번 주' 대신 발표일로 바뀐다(TRUST-1②). 구역 머리줄은 2026-10-03 에 뺐다 —
     늦은 주를 알리는 곳은 이 h2 와 첫 화면 띠뿐이라, 머리줄 자리에 아무것도 적지 않는지도 본다.
@@ -362,7 +344,7 @@ def test_home_h2_follows_the_release_state_and_no_kicker_is_written():
     """
     src = _home()
     h2_default = '이번 주, 어디가 오르고 내렸을까?'
-    js = (_js_block() + '\n' + _fn(src, 'applyWeeklyStatus') + '\n'
+    js = (_js_block() + '\n' + J.fn(src, 'applyWeeklyStatus') + '\n'
           '_HOLIDAYS=new Set([]);const out=[];\n'
           'for(const iso of %s){const el={"wk-kicker":{textContent:""},"wk-h2":{textContent:%s}};\n'
           '  globalThis.document={getElementById:id=>el[id]||null};\n'
@@ -370,13 +352,13 @@ def test_home_h2_follows_the_release_state_and_no_kicker_is_written():
           '  out.push([el["wk-kicker"].textContent,el["wk-h2"].textContent]);}\n'
           'process.stdout.write(JSON.stringify(out));'
           % (json.dumps(['2026-09-18T03:00:00Z', '2026-09-27T03:00:00Z']), json.dumps(h2_default), WR.GRACE_WEEKLY))
-    (k_ok, h_ok), (k_late, h_late) = _node(js)
+    (k_ok, h_ok), (k_late, h_late) = J.node(js)
     st = WR.status('2026-09-14', datetime.date(2026, 9, 18))
     assert k_ok == '' and h_ok == h2_default, (k_ok, h_ok)
     st = WR.status('2026-09-14', datetime.date(2026, 9, 27))
     assert st['stale'] and k_late == '', k_late
     assert h_late == '9/17 발표, 어디가 오르고 내렸을까?', h_late
-    assert 'applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly))' in _fn(src, 'renderWeeklyGrid')
+    assert 'applyWeeklyStatus(weeklyReleaseNow(),weeklyHead(ADV.weekly))' in J.fn(src, 'renderWeeklyGrid')
 
 
 def test_weekly_page_script_compares_the_kst_date():
@@ -398,7 +380,7 @@ def test_weekly_page_script_compares_the_kst_date():
           % (json.dumps([int(datetime.datetime(2026, 10, 1, 14, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000),
                          int(datetime.datetime(2026, 10, 1, 20, 0, tzinfo=datetime.timezone.utc).timestamp() * 1000)]),
              script))
-    (k1, h1), (k2, h2) = _node(js)
+    (k1, h1), (k2, h2) = J.node(js)
     assert (k1, h1) == ('x', '이번 주 아파트'), '기준일(KST 10/1) 당일에 벌써 바꿨다'
     assert k2 == '최근 반영: 9/17 발표 · 이번 주 발표분 반영 대기' and h2 == '9/17 발표 기준 아파트', (k2, h2)
 
@@ -426,4 +408,4 @@ def test_js_fallback_holidays_are_the_python_default():
     """
     import inspect
     assert inspect.signature(WR.status).parameters['holidays'].default == ()
-    assert _node(_js_block() + '\nprocess.stdout.write(JSON.stringify([..._HOLIDAYS]));') == []
+    assert J.node(_js_block() + '\nprocess.stdout.write(JSON.stringify([..._HOLIDAYS]));') == []

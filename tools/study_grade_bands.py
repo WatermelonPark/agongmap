@@ -27,9 +27,8 @@ import kst  # noqa: E402
 # 조회·표본의 끝 연도는 오늘(KST)에서 — 박아 두면 그 해가 지난 뒤 재현에서 새 분기를 버린다(전수 리뷰 Z1 overflow).
 END_Y = kst.today().year
 
-st = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)',
-                          io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read(),
-                          re.S).group(1))
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
+st = AIO.stats_of(AIO.read_text(os.path.join(ROOT, 'data.js')))
 # 매매지수가 기준 단절된 채면(2026-09-28 배치: 2026.01 부터 새 기준 2026.06=100) L+16 분기가 새 기준에 걸린 표본의
 # 실질 상승률이 −40%대로 들어가 문서 수치를 재현하지 못한다(전수 리뷰 #73). 물가를 받기 전에 멈춘다.
 RC.require_continuous(st, 'study_grade_bands')

@@ -42,14 +42,19 @@ import site_nav as N  # noqa: E402  (하단 탭바 정본 — 홈 마케팅 검�
 import page_share as PS  # noqa: E402  (공유 버튼 — 홈 마케팅 검수 B8)
 import weekly_moves as WM  # noqa: E402  (시군구 순위 이동 정본 rank_moves·move_text — 홈 마케팅 검수 B7)
 import robots_meta as RM  # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
+import adv_io as AIO  # noqa: E402  (data.js ADV 읽기 정본 — 백로그 61-A)
 
 PAGE = os.path.join(ROOT, 'weekly', 'index.html')
+# 뼈대(백로그 61-D, 2026-11-19): 이 페이지의 손 구간(머리·CSS·스크립트·설명 문단·구조화 데이터 틀)의 정본. 예전엔 지난 회차
+# 산출물(weekly/index.html)을 다시 읽어 그 위에 고쳐 썼다 — 산출물이 다음 회차의 입력이라 손으로 고칠 길이 없었고(봇이 덮는다),
+# 한 번 잘못 구운 글자가 계속 실려 갔다. 이제 매 회차 이 뼈대에서 새로 굽는다. 데이터 자리(WK 표식 구간·제목·설명 메타·og:image·
+# JSON-LD 날짜·기간)는 비워 두고 render 가 채운다. 뼈대를 고치는 일은 PR 로 이 파일을 고친다.
+TEMPLATE = os.path.join(ROOT, 'tools', 'templates', 'weekly.html')
 SIDO = [z for z in SZ.DISPLAY_ORDER if z not in SZ.AGG]
 
 
 def load():
-    s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});', s, re.S).group(1))
+    adv = AIO.load_adv(os.path.join(ROOT, 'data.js'))
     h = HS.home_source()
     m = re.search(r'const SGG_QNAME=(\{.*?\});', h)
     if not m:
@@ -1110,10 +1115,20 @@ def render(s, W, Q, root=None):
     return s
 
 
+def carry_column(out, prev):
+    """해설 글 칸(WK:COLUMN)의 **내용**은 make_content_pages 의 것이다 — 지난 산출물에 채워져 있으면 그대로 옮긴다.
+    이 생성기만 따로 돌려도 칸이 비지 않게(배치에서는 뒤에 make_content_pages 가 다시 채운다)."""
+    got = _COL_MARK.findall(prev or '')
+    if len(got) != 1:
+        return out
+    return _COL_MARK.sub(lambda m: got[0], out, 1)
+
+
 def main():
     W, Q = load()
-    s = io.open(PAGE, encoding='utf-8', newline='').read()
-    out = render(s, W, Q)
+    skel = io.open(TEMPLATE, encoding='utf-8', newline='').read()
+    s = io.open(PAGE, encoding='utf-8', newline='').read() if os.path.exists(PAGE) else ''
+    out = carry_column(render(skel, W, Q), s)
     if out != s:
         io.open(PAGE, 'w', encoding='utf-8', newline='').write(out)
         print('wrote weekly/index.html (%s)' % W['rows'][-1]['p'])

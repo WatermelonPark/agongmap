@@ -26,7 +26,7 @@ import make_weekly_share as WS  # noqa: E402  (타일 배치·색·폰트)
 import sido_zones as SZ         # noqa: E402
 
 INK, PAPER, MUTED, LINE = WS.INK, WS.PAPER, WS.MUTED, WS.LINE
-UP_INK, DN_INK = (143, 35, 24), (18, 60, 92)
+UP_INK, DN_INK = WS.UP_INK, WS.DN_INK
 
 
 def load():

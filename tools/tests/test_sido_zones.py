@@ -6,6 +6,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import sido_zones as M
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 
 def _months(y0, m0, n):
@@ -318,8 +319,7 @@ def test_pwarn_fires_on_live_data_where_expected():
     import batch_notes as N
     root = os.path.join(os.path.dirname(__file__), '..', '..')
     src = io.open(os.path.join(root, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
+    adv = AIO.adv_of(src)
     zones = adv['sido']['zones']
     have = [z for z in zones if z.get('pbr') is not None]
     assert have or N.permit_gaps(adv) == [z['z'] for z in zones], '인허가 신호가 하나도 없는데 배치 기록이 알리지 않는다'
@@ -495,8 +495,7 @@ def test_grade_never_bends_to_unsold():
     import copy, io as _io, json, re
     root = os.path.join(os.path.dirname(__file__), '..', '..')
     src = _io.open(os.path.join(root, 'data.js'), encoding='utf-8').read()
-    stats = json.loads(re.search(
-        r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    stats = AIO.stats_of(src)
     calc = M.calc(stats)
     base = {z['z']: (z['grade'], z['ratio']) for z in calc['zones']}
 

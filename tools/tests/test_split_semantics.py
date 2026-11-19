@@ -21,15 +21,15 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import split_data as S  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 REPO_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'data.js')
 
 
 def _read_src(path):
     src = io.open(path, encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
-    stats = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    adv = AIO.adv_of(src)
+    stats = AIO.stats_of(src)
     return adv, stats
 
 
@@ -116,11 +116,8 @@ def test_home_monthly_values_display_like_the_monthly_page(split):
     픽스처: 실제 data.js ADV.monthly 사본을 split 한 코어 — 원천은 소수 넷째 자리라 둘째 자리 경계(x.xx5)에 걸린 칸이
           있다. 기대값은 같은 사본의 원값에서 유도하므로 데이터가 앞으로 가도 초록이다. 홈 pv2 는 node 로 실제 함수를 돈다.
     """
-    import shutil as _sh
-    import subprocess as _sp
-    if not _sh.which('node'):
-        pytest.skip('node 없음')
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+    import _js as J
     import home_src as HS
     import make_monthly_page as MP
     adv, _, out = split
@@ -138,9 +135,7 @@ def test_home_monthly_values_display_like_the_monthly_page(split):
     assert fns, 'home-app.js 에서 pv2r·pv2 를 못 찾았다'
     js = fns.group(0) + '\nconst C=%s;process.stdout.write(JSON.stringify(C.filter(c=>pv2(c[1])!==c[2]).map(c=>[c[0],pv2(c[1]),c[2]])));' % (
         json.dumps(cells, ensure_ascii=False))
-    p = _sp.run(['node', '-'], input=js.encode('utf-8'), capture_output=True, timeout=60)   # 칸이 많아 명령줄 한도를 넘는다
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    bad = json.loads(p.stdout.decode('utf-8'))
+    bad = J.node(js)   # 칸이 많아 명령줄 한도를 넘는다 — J.node 는 파일로 넘긴다
     assert not bad, '홈과 /monthly/ 의 월간 표시값이 갈린다(%d칸, 앞 5칸: 칸·홈·/monthly/): %s' % (len(bad), bad[:5])
 
 

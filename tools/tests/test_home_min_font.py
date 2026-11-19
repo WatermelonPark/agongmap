@@ -36,6 +36,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 MIN_PX = 13.0
@@ -79,17 +80,6 @@ def _js_strings(src):
         else:
             i += 1
     return '\n'.join(out)
-
-
-def _js_func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i, depth = src.index('{', m.end()), 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
 
 
 def _has_token(blob, tok):
@@ -210,10 +200,10 @@ def _home_tokens():
         home |= set(m.group(1).split())
     home |= {'#' + x for x in re.findall(r'\bid="([^"]+)"', view)}
     home |= set(re.search(r'<body class="([^"]*)"', idx).group(1).split())
-    table_src = ''.join(_js_func(app, n) for n in TABLE_FUNCS)
+    table_src = ''.join(J.fn(app, n) for n in TABLE_FUNCS)
     rest = app
     for n in TABLE_FUNCS:
-        rest = rest.replace(_js_func(app, n), '')
+        rest = rest.replace(J.fn(app, n), '')
     s_rest, s_table = _js_strings(rest), _js_strings(table_src)
     built = _class_attr_tokens(s_rest)
     outside_tok = set()

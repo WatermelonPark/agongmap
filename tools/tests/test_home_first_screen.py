@@ -22,7 +22,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 import urllib.parse
 
@@ -30,6 +29,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import kst  # noqa: E402
 import make_sido_pages as M  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
@@ -55,37 +55,16 @@ def _home():
     return HS.home_source()
 
 
-def _js_func(src, name):
-    """홈 스크립트에서 `function name(...){...}` 하나를 중괄호 짝으로 잘라 온다."""
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError('%s 의 끝을 찾지 못했다' % name)
-
-
 def _wk_block():
     m = re.search(r'// <wk-release>[^\n]*\n(.*?)// </wk-release>', _home(), re.S)
     assert m, 'home-app.js 에서 <wk-release> 구간을 찾지 못했다'
     return m.group(1)
 
 
-def _node(js):
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
-    p = subprocess.run([node, '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
-
-
 def _band_js():
     """주간 h2 를 만드는 홈 함수들(순수 함수 + h2 적기)을 그대로 뽑는다(첫 화면 띠는 2026-10-05 대표 요청으로 뺐다)."""
     h = _home()
-    return '\n'.join([_wk_block()] + [_js_func(h, n) for n in ('weeklyHead', 'applyWeeklyStatus')])
+    return '\n'.join([_wk_block()] + [J.fn(h, n) for n in ('weeklyHead', 'applyWeeklyStatus')])
 
 
 def _kst_ms(y, m, d, hh=12):
@@ -143,7 +122,7 @@ def test_weekly_head_is_one_sentence_on_weekly_page_and_home_h2():
               'applyWeeklyStatus(r,weeklyHead(W));\n'
               'process.stdout.write(JSON.stringify(el["wk-h2"].textContent));'
               % (json.dumps(H2026), json.dumps(WJ, ensure_ascii=False), _kst_ms(2026, 9, 11)))
-        assert _node(js) == want, key
+        assert J.node(js) == want, key
 
 
 @pytest.fixture(scope='module')
@@ -198,7 +177,7 @@ def test_when_line_follows_the_release_state_without_a_holiday_notice():
           'process.stdout.write(JSON.stringify(C.map(([p,ms])=>{const r=weeklyRelease(p,new Date(ms),%d);'
           'return [r.hedge,wkWhenText(r)];})));'
           % (json.dumps(H2026), json.dumps([(p, _kst_ms(*d)) for p, d in cases]), WR.GRACE_WEEKLY))
-    got = _node(js)
+    got = J.node(js)
     for (p, d), (_, when) in zip(cases, got):
         assert when == WR.when_text(WR.status(p, datetime.date(*d), H2026)), (p, when)
     (h0, normal), (h1, hedge), (_, stale) = got
@@ -231,7 +210,7 @@ def test_late_week_lead_is_one_phrase_on_h2_and_weekly_page():
               'applyWeeklyStatus(r,weeklyHead(W));\n'
               'process.stdout.write(JSON.stringify([r.stale,el["wk-h2"].textContent]));'
               % (json.dumps(H2026), json.dumps(W, ensure_ascii=False), _kst_ms(2026, mon, day)))
-        out.append(_node(js))
+        out.append(J.node(js))
     (late, h2), (ok, h2_ok) = out
     st = WR.status('2026-09-14', datetime.date(2026, 10, 2), H2026)
     assert late and st['stale'] and not ok
@@ -261,12 +240,12 @@ def test_hero_is_the_title_block_only():
     """
     hero = _hero()
     assert '<a ' not in hero and 'myz' not in hero and 'hero-wk' not in hero, hero
-    boot = _js_func(_home(), 'boot')
+    boot = J.fn(_home(), 'boot')
     assert not re.search(r'renderHeroBand|renderMyZone|initMyZonePick', boot), boot
     # 2026-10-29 주간 시군구 지도는 지도 구역 카드의 '주간 시세' 단추로 옮겼다. 발표일은 2026-10-30 디자인 리뷰 2차부터 그 지도 위
     # 기준 줄(#tb-when = M.when) 하나가 말한다 — 지도 머리에도 날짜가 있어 두 번 나왔다.
-    assert "when:_md(r.survey)+' 기준('+_md(r.pub)+' 발표) · 한국부동산원'" in _js_func(_home(), 'wkMapModel')
-    tiles = _js_func(_home(), 'priceTilesHtml')
+    assert "when:_md(r.survey)+' 기준('+_md(r.pub)+' 발표) · 한국부동산원'" in J.fn(_home(), 'wkMapModel')
+    tiles = J.fn(_home(), 'priceTilesHtml')
     assert "'<span class=\"wg-when\">'+M.unit+'(%)</span></div>'" in tiles and 's.lead' not in tiles, '시군구 지도 아랫줄에 날짜가 다시 붙었다(기준 줄과 두 번)'
     assert 'dropOldMyZone();' in boot
     css = _src('app.css')
@@ -360,19 +339,19 @@ def test_supply_map_colors_balance_as_neutral():
     픽스처: 09-26 라이브의 균형 셋(충북 0.009·세종 0.126·경기 0.165)과 0·0.49(균형 끝), 부족(0.6)·여유(−0.19)·심각(1.79).
     """
     h = _home()
-    fns = '\n'.join(_js_func(h, n) for n in ('tintA', 'mapFill', 'supplyFill'))
+    fns = '\n'.join(J.fn(h, n) for n in ('tintA', 'mapFill', 'supplyFill'))
     consts = '\n'.join(re.search(r'^var %s=.*$' % n, h, re.M).group(0) for n in ('TB_MIN', 'TB_BAL'))
     consts += '\n' + re.search(r'^var TB_UP=.*$', h, re.M).group(0)
     js = (consts + '\n' + fns + '\nconst C=%s;process.stdout.write(JSON.stringify(C.map(([g,r])=>supplyFill({grade:g,ratio:r}))));'
           % json.dumps([['g1', 0.0], ['g1', 0.009], ['g1', 0.126], ['g1', 0.165], ['g1', 0.49],
                         ['g2', 0.6], ['g0', -0.19], ['g4', 1.79]]))
-    got = _node(js)
+    got = J.node(js)
     assert got[:5] == ['var(--bal)'] * 5, got[:5]
     rgb = [tuple(int(x) for x in re.findall(r'\d+', c)) for c in got[5:]]
     assert rgb[0][0] > rgb[0][2] and rgb[2][0] > rgb[2][2], '부족 쪽이 붉지 않다: %s' % got[5:]
     assert rgb[1][2] > rgb[1][0], '여유 쪽이 푸르지 않다: %s' % got[5:]
     # 공급 모드(M 없음)의 도형 채움은 supplyFill 이다 — 주간 모드(C3)의 wkFill 과 갈래로 나뉜다(test_home_map_mode 가 돌려 본다).
-    assert "fill=\"'+(M?wkFill(M.v[key],M.ref):supplyFill(z))+'\"" in _js_func(h, 'renderSidoMap'), '지도 도형이 균형 중립색 규칙을 쓰지 않는다'
+    assert "fill=\"'+(M?wkFill(M.v[key],M.ref):supplyFill(z))+'\"" in J.fn(h, 'renderSidoMap'), '지도 도형이 균형 중립색 규칙을 쓰지 않는다'
 
     css = _css()
     root = _rule(css, ':root')
@@ -411,7 +390,7 @@ def test_distribution_and_legend_lines_are_gone_with_their_data():
         z.update(SZ.zone_texts(dict(z, ref=1000, fut=1000, inow=-1, dtot=z['tot']), SZ.LEAD_Q))
     sido = {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'H': SZ.LEAD_Q, 'zones': zones,
             'dist': '시도 16곳: 부족 이상 10', 'dist_g0': ['인천'], 'ktxt': '지난 4년 덜 지은 몫까지'}   # 옛 data.js 모양
-    fns = '\n'.join(_js_func(h, n) for n in ('tintA', 'mapFill', 'supplyFill', 'aggLights', 'aggLightKey', 'aggCard', 'mapKeyHtml', 'mapAria', 'tbNum', 'tbSigned',
+    fns = '\n'.join(J.fn(h, n) for n in ('tintA', 'mapFill', 'supplyFill', 'aggLights', 'aggLightKey', 'aggCard', 'mapKeyHtml', 'mapAria', 'tbNum', 'tbSigned',
                                               'renderAggCards', 'renderSidoMap', 'zn'))
     consts = '\n'.join(re.search(r'^var %s=.*$' % n, h, re.M).group(0)
                         for n in ('TB_MIN', 'TB_BAL', 'TB_UP', 'TB_GRADE', 'MAP_MODE'))
@@ -422,7 +401,7 @@ def test_distribution_and_legend_lines_are_gone_with_their_data():
           'querySelector:function(){return null}};\n'
           'renderAggCards();renderSidoMap();process.stdout.write(JSON.stringify([AG.innerHTML+EL.innerHTML,mapKeyHtml(null)]));'
           % json.dumps(sido, ensure_ascii=False))
-    html, key = _node(js)
+    html, key = J.node(js)
     top = _plain(html.split('<svg')[0])
     assert 'agg-dist' not in html and '시도 16곳' not in top and '인천' not in top, '분포 한 줄이 되살아났다: ' + top
     assert 'tk-n' not in key and '기준' not in _plain(key) and '지난 4년' not in key, key
@@ -458,9 +437,9 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
           'globalThis.document={getElementById:id=>id==="agg-how-1"?p:null};\n'
           'const st=[];aggHow(b);st.push([b.a["aria-expanded"],p.hidden]);aggHow(b);st.push([b.a["aria-expanded"],p.hidden]);\n'
           'process.stdout.write(JSON.stringify([aggCard("수도권",z,1),aggCard("수도권",old,1),st]));'
-          % (json.dumps(SZ.GRADE_LABS, ensure_ascii=False), _js_func(h, 'aggLights') + _js_func(h, 'aggCard'), _js_func(h, 'aggHow'),
+          % (json.dumps(SZ.GRADE_LABS, ensure_ascii=False), J.fn(h, 'aggLights') + J.fn(h, 'aggCard'), J.fn(h, 'aggHow'),
              json.dumps(z, ensure_ascii=False)))
-    card, old, toggles = _node(js)
+    card, old, toggles = J.node(js)
     a = re.search(r'<a class="agg-a" href="/zone/[^"]+/">(.*?)</a>(.*)</div>$', card, re.S)
     assert a and '<button' not in a.group(1) and a.group(2).startswith('<button type="button" class="agg-i"'), card
     assert 'aria-expanded="false" aria-controls="agg-how-1"' in a.group(2)
@@ -475,7 +454,7 @@ def test_cards_are_two_line_links_and_the_how_button_toggles():
     assert '<i class="agg-p">%s</i>' % z['cpct'] in a.group(1) and z['cpct'] == '1년 적정물량의 1.7배', a.group(1)
     assert toggles == [['true', False], ['false', True]], toggles
     assert '<button' not in old and '349,029세대 부족' in old
-    how = _js_func(h, 'renderAggCards')   # 카드·ⓘ 식은 2026-10-04 에 지도 상자 밖(#agg-wrap)으로 나갔다
+    how = J.fn(h, 'renderAggCards')   # 카드·ⓘ 식은 2026-10-04 에 지도 상자 밖(#agg-wrap)으로 나갔다
     assert "'<p class=\"agg-how\" id=\"agg-how-'+i+'\" hidden>" in how and 'z.ftxt' in how
 
 
@@ -487,7 +466,7 @@ def test_home_weekly_map_shows_sales_and_jeonse_rows():
     변이(실제로 확인): sggLastRow 의 계열 목록에서 je 를 빼면, renderWeeklyGrid 에 sggMapSvg 를 되살리면 빨개진다.
     픽스처: 저장소 홈 스크립트(home_src)의 sggLastRow·priceTilesHtml·renderWeeklyGrid 원문."""
     h = _home()
-    assert "['ma','je','wo'].filter(function(k){ return Array.isArray(r[k]); })" in _js_func(h, 'sggLastRow')
-    t = _js_func(h, 'priceTilesHtml')
+    assert "['ma','je','wo'].filter(function(k){ return Array.isArray(r[k]); })" in J.fn(h, 'sggLastRow')
+    t = J.fn(h, 'priceTilesHtml')
     assert 'sggMapSvg(s.vals,' in t and "'위 = 매매 · 아래 = 전세'" in t
-    assert 'sggMapSvg' not in _js_func(h, 'renderWeeklyGrid'), '주간 구역에 지도가 남았다 — 홈 지도는 하나다'
+    assert 'sggMapSvg' not in J.fn(h, 'renderWeeklyGrid'), '주간 구역에 지도가 남았다 — 홈 지도는 하나다'

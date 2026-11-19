@@ -29,14 +29,12 @@ import json
 import math
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import sido_zones as SZ  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -82,8 +80,6 @@ def _circle_poly(cx, cy, r, n=64):
 
 def _targets():
     """지도 루프를 node 로 돌려 작은 지역마다 표적 다각형을 돌려준다. {이름: (앵커 x, y, [(x, y), …])}"""
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
     js = ('var ADV={sido:{L:""},zname:%s},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";%s\n'
           'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}'
@@ -95,9 +91,7 @@ def _targets():
           'while((m=re2.exec(h))){if(m[1])out.push({n:names[i],el:m[1]});i++;}'
           'process.stdout.write(JSON.stringify({out:out,count:i}));'
           % (json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False), json.dumps(zones, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _zn_src(), _loop_src()))
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    got = json.loads(p.stdout.decode('utf-8'))
+    got = J.node(js, timeout=30)
     geo = _geo()['p']
     assert got['count'] == len(geo), '지도 도형 수가 SIDO_GEO 와 다르다 — 순서 대응이 깨졌다'
     geo = {a['n']: a for a in geo}

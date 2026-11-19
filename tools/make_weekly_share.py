@@ -9,34 +9,23 @@ data.js의 ADV.weekly 최신 주차를 읽어 16개 시도 타일 지도를 그�
 사용: python tools/make_weekly_share.py
 """
 import io, os, re, json, sys
-from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
+from PIL import Image, ImageDraw, PngImagePlugin
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 
-# 글꼴 로더 — 예전엔 퀴즈 카드 도구(make_beginner_cards)에서 가져왔다. 2026-11-14 퀴즈 제거로 그 도구를 지우며 옮겼다.
-# 폰트는 저장소에 번들(tools/fonts/, Pretendard — SIL OFL 1.1)해 OS와 무관하게 동작한다.
-FONT_DIR = os.path.join(ROOT, 'tools', 'fonts')
-FONT_FILES = {'Bold': 'Pretendard-Bold.subset.ttf', 'Medium': 'Pretendard-Medium.subset.ttf'}
-# 번들 폰트가 없을 때만 쓰는 시스템 가변폰트 폴백(개발 PC 호환용)
-FONT_FALLBACK = ['C:/Windows/Fonts/NotoSansKR-VF.ttf']
+import card_kit as CK  # noqa: E402  (글꼴 폴더·파일·폴백 로더의 정본, 백로그 61-C)
+
+# 글꼴 — 저장소 번들(tools/fonts/, Pretendard — SIL OFL 1.1)만 보고, 없으면 시스템 가변 글꼴로 폴백한다(card_kit.noto).
+# 쿨 계열 카드(card_kit.font)와 달리 루트 fonts/ 는 보지 않는다 — 예전 동작 그대로다.
+FONT_DIR = CK.TOOLS_FONT_DIR
+FONT_FILES = CK.FONT_FILES
+FONT_FALLBACK = CK.FONT_FALLBACK
 
 
 def noto(size, weight='Bold'):
-    """번들 폰트(tools/fonts) 우선, 없으면 시스템 가변폰트로 폴백."""
-    path = os.path.join(FONT_DIR, FONT_FILES.get(weight, FONT_FILES['Bold']))
-    if os.path.exists(path):
-        return ImageFont.truetype(path, size)
-    for p in FONT_FALLBACK:
-        if os.path.exists(p):
-            f = ImageFont.truetype(p, size)
-            try:
-                f.set_variation_by_name(weight)
-            except Exception:
-                pass
-            return f
-    raise FileNotFoundError(
-        '한글 폰트를 찾을 수 없습니다. %s 에 Pretendard 서브셋을 두세요.' % FONT_DIR)
+    """번들 폰트(tools/fonts) 우선, 없으면 시스템 가변폰트로 폴백(card_kit.noto)."""
+    return CK.noto(size, weight, FONT_DIR)
 
 
 def _pubdate(basis):
@@ -52,12 +41,14 @@ def _pubdate(basis):
     return _MW.share_version(basis)
 
 
+# 웜 계열 — 주간·월간 카드의 색 정본(월간 카드가 WS.* 로 읽는다). 쿨 계열(card_kit)과 값이 달라 따로 둔다.
 INK = (22, 32, 58)
 PAPER = (246, 244, 238)
 MUTED = (111, 106, 92)
 LINE = (218, 213, 201)
 UP = (224, 86, 74)
 DN = (58, 123, 213)
+UP_INK, DN_INK = (143, 35, 24), (18, 60, 92)   # 등락 글자(타일 숫자·요약 줄) — 월간 카드도 같은 값
 
 # 범례는 왼쪽부터 이 순서로 그린다 — 시세 가로축 정본 '왼쪽 하락 → 오른쪽 상승'(2026-10-06 대표 결정). 홈 주간 구역·
 # /weekly/ 머리 지도 범례와 같은 방향이다(전수리뷰 X2-9·Z2-7, test_share_cards).
@@ -75,6 +66,7 @@ TILE = [('전국', 0, 0), ('수도권', 1, 0), ('지방', 2, 0), ('제주', 3, 0
 
 import sido_zones as _SZ  # noqa: E402
 import make_weekly_page as _MW  # noqa: E402  (주간 변동률 반올림 정본)
+import adv_io as _AIO  # noqa: E402  (data.js ADV 읽기 정본 — 백로그 61-A)
 _MISSING = set(_SZ.ORDER) - set(t[0] for t in TILE)
 if _MISSING:
     raise SystemExit('TILE에 빠진 지역: %s — 그 지역만 그림에서 사라진다'
@@ -82,10 +74,7 @@ if _MISSING:
 
 
 def load_weekly():
-    c = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    i, j = c.find('/*ADV_DATA_START*/'), c.find('/*ADV_DATA_END*/')
-    adv = json.loads(re.match(r'const ADV=(.*);$', c[i + 18:j], re.S).group(1))
-    return adv['weekly']
+    return _AIO.load_adv(os.path.join(ROOT, 'data.js'))['weekly']
 
 
 def cell_bg(v, ref):
@@ -197,22 +186,22 @@ def draw(W, back=0):
         d.text((px + TW // 2, py + 34), _SZ.disp(name), font=noto(30), fill=INK, anchor='mm')   # 화면 이름(백로그 46)
         # 글자색도 표시값 기준(pv2r) — 원값으로 정하면 '0.00'이 빨강/파랑으로 갈린다
         rv = pv2r(v) or 0
-        tc = (143, 35, 24) if rv > 0 else ((18, 60, 92) if rv < 0 else MUTED)
+        tc = UP_INK if rv > 0 else (DN_INK if rv < 0 else MUTED)
         d.text((px + TW // 2, py + 74), fmt(v), font=noto(31), fill=tc, anchor='mm')
         jv = je.get(name)
         rj = pv2r(jv) or 0
         d.text((px + TW // 2, py + 105), '전세 %s' % fmt(jv), font=noto(18),
-               fill=(143, 35, 24) if rj > 0 else ((18, 60, 92) if rj < 0 else MUTED), anchor='mm')
+               fill=UP_INK if rj > 0 else (DN_INK if rj < 0 else MUTED), anchor='mm')
 
     # 요약 한 줄 (상승·하락 상위) — /weekly/ 의 상위 3과 같은 함수(summary_top3 → make_weekly_page.top3)
     up3, dn3 = summary_top3(regs, row)
     sy = oy + 5 * TH + 4 * G + 34
     if up3:
         d.text((IW // 2, sy), '상승: ' + ' · '.join('%s %s' % (_SZ.disp(r), fmt(v)) for r, v in up3),
-               font=noto(24), fill=(143, 35, 24), anchor='mm')
+               font=noto(24), fill=UP_INK, anchor='mm')
     if dn3:
         d.text((IW // 2, sy + 36), '하락: ' + ' · '.join('%s %s' % (_SZ.disp(r), fmt(v)) for r, v in dn3),
-               font=noto(24), fill=(18, 60, 92), anchor='mm')
+               font=noto(24), fill=DN_INK, anchor='mm')
 
     # 푸터
     d.line((60, IH - 92, IW - 60, IH - 92), fill=LINE, width=2)

@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 
 import sido_zones as SZ  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -46,7 +47,7 @@ def test_calc_emits_zones_in_display_order():
 def test_live_payload_uses_display_order():
     """배포되는 페이로드가 표시 순서인가 — 홈 표 모드가 이 순서를 그린다."""
     s = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});', s, re.S).group(1))
+    adv = AIO.adv_of(s)
     got = [z['z'] for z in adv['sido']['zones']]
     assert got == [z for z in SZ.DISPLAY_ORDER if z in got], '페이로드 zones 순서가 표시 순서가 아니다: %s' % got
 

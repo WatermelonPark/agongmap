@@ -8,17 +8,14 @@
 여러 개 붙음'이다. 그래서 로더 코드를 꺼내 node 로 실제로 돌린다.
 """
 import io
-import json
 import os
 import re
-import shutil
-import subprocess
 
-import pytest
 
 import sys as _hs_sys  # noqa: E402
 _hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
@@ -110,11 +107,7 @@ function chartSetup() { setups++; }
 
 
 def test_loader_appends_once_redraws_after_load_and_shares_even_when_kakao_fails():
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    p = subprocess.run(['node', '-e', HARNESS % {'src': _loader_src()}], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    o = json.loads(p.stdout.decode('utf-8'))
+    o = J.node(HARNESS % {'src': _loader_src()})
     assert o['first'] is True and o['second'] is True
     assert o['scriptsAfterTwoCalls'] == 1, '동시에 두 번 불리자 스크립트가 %d개 붙었다' % o['scriptsAfterTwoCalls']
     assert o['redraws'] == 2 and o['setups'] == 1, '받은 뒤 다시 그리지 않았거나 설정을 여러 번 했다: %s' % o

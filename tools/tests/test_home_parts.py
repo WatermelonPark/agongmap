@@ -15,14 +15,12 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import split_data as SD  # noqa: E402
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
@@ -229,26 +227,15 @@ def _loader_src():
     e = core.index('\n}));', s) + len('\n}));')
     pieces.append(core[s:e])
     for fn in ('loadFullData', 'loadData', 'ensureBasicStats', 'ensureSizeStats', 'applyHash'):
-        m = re.search(r'^function %s\(' % fn, core, re.M)
-        assert m, 'home-app.js 에서 %s 를 못 찾았다' % fn
-        i, depth = core.index('{', m.end()), 0
-        for j in range(i, len(core)):
-            depth += {'{': 1, '}': -1}.get(core[j], 0)
-            if depth == 0:
-                pieces.append(core[m.start():j + 1])
-                break
+        pieces.append(J.fn(core, fn))
     pieces.append('let _loaded={}; const R2C=new Set(); function afterLayout(){}')
     return '\n'.join(pieces)
 
 
 def _run_loader():
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     build = re.search(r"const HOME_BUILD='(v\d+)'", _core()).group(1)
     cfg = {'core': _loader_src(), 'build': build}
-    p = subprocess.run(['node', '-e', LOADER % {'cfg': json.dumps(cfg, ensure_ascii=False)}], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    return json.loads(p.stdout.decode('utf-8')), build
+    return J.node(LOADER % {'cfg': json.dumps(cfg, ensure_ascii=False)}), build
 
 
 def test_calls_before_the_part_arrives_wait_and_replay_in_order():
@@ -328,19 +315,14 @@ def test_stats_loading_box_belongs_to_the_gating_loads():
     픽스처: 저장소 로더 코드(test_calls_before_the_part_arrives… 와 같은 조각)를 node 로 돌린다 — 느린 망에서 통계 탭을
           열었는데 home-stats.js 요청만 끊긴 경우, 그 뒤 data-rest 가 503 으로 실패한 경우.
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     build = re.search(r"const HOME_BUILD='(v\d+)'", _core()).group(1)
     cfg = {'core': _loader_src(), 'build': build}
-    p = subprocess.run(['node', '-e', LOADER_BOX % {'cfg': json.dumps(cfg, ensure_ascii=False)}], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    o = json.loads(p.stdout.decode('utf-8'))
+    o = J.node(LOADER_BOX % {'cfg': json.dumps(cfg, ensure_ascii=False)})
     assert o['partFail']['shown'] and '통계 화면을 불러오지 못했습니다' in o['partFail']['text'], o
     assert not o['retry']['shown'], o
     assert not o['restWaiting']['shown'], '뒤에서 받는 data-rest 가 화면 위 안내 칸을 열었다: %s' % o
     assert not o['restFail']['box']['shown'] and '불러오지 못했습니다' in o['restFail']['note'], o
     assert not o['sizeOk']['shown'], o
-
 
 
 LOADER_DATA_RETRY = r"""
@@ -386,16 +368,6 @@ const st = () => vm.runInContext('({inited: statsInited, partFail: PART_FAIL, in
 """
 
 
-def _top_fn(src, name):
-    m = re.search(r'^function %s\(' % name, src, re.M)
-    assert m, '%s 를 못 찾았다' % name
-    i, depth = src.index('{', m.end()), 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-
-
 def test_stats_data_only_failure_recovers_on_retry():
     """통계 화면 파일은 왔는데 그래프 데이터(data-trend.json)만 실패한 뒤 '다시 시도'로 성공하면 안내 칸이 걷히고,
     statsInited 가 서서 모드 탭이 통계 화면을 다시 열지 않는다(전수리뷰 2차 H1-3·H2-5).
@@ -410,18 +382,13 @@ def test_stats_data_only_failure_recovers_on_retry():
     home-stats.js statsOpen 첫 줄의 statsInited=true 를 지우면 retry.inited 가, partBusy 실패 문구를 '통계 화면' 고정으로
     되돌리면 dataFail.text 단정이 빨개진다.
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     stats = _files()['home-stats.js']
-    real = 'let TREND_P=null;\n' + _top_fn(stats, 'statsOpen') + '\n' + \
+    real = 'let TREND_P=null;\n' + J.fn(stats, 'statsOpen') + '\n' + \
         'function renderReleaseInfo(){} function renderWeekSec(){} function renderMonthSec(){} ' \
         'function renderBubbleSec(){} function initStats(){ INIT_N++; }'
     build = re.search(r"const HOME_BUILD='(v\d+)'", _core()).group(1)
     cfg = {'core': _loader_src(), 'build': build, 'stats': real}
-    p = subprocess.run(['node', '-e', LOADER_DATA_RETRY % {'cfg': json.dumps(cfg, ensure_ascii=False)}],
-                       capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    o = json.loads(p.stdout.decode('utf-8'))
+    o = J.node(LOADER_DATA_RETRY % {'cfg': json.dumps(cfg, ensure_ascii=False)})
     d = o['dataFail']
     assert d['shown'] and '통계 데이터를 불러오지 못했습니다' in d['text'] and not d['partFail'], o
     assert not d['inited'], '실패 뒤 statsInited 가 풀리지 않았다(다음 진입이 다시 열지 못한다): %s' % o
@@ -455,15 +422,11 @@ def test_init_stats_binds_the_period_and_region_controls_once():
     initStats·STATS_BOUND 선언을 최소 DOM(기간 단추 둘·지역 선택) 위에서 두 번 부른다.
     변이(실제로 확인): initStats 의 `if(STATS_BOUND){…return;}` 줄을 지우면 리스너가 두 번 붙어 빨개진다.
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     stats = _files()['home-stats.js']
     decl = re.search(r'^let STATS_BOUND=false;$', stats, re.M)
     assert decl, 'home-stats.js 에서 STATS_BOUND 선언을 못 찾았다'
-    js = INIT_TWICE % {'decl': decl.group(0), 'fn': _top_fn(stats, 'initStats')}
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    o = json.loads(p.stdout.decode('utf-8'))
+    js = INIT_TWICE % {'decl': decl.group(0), 'fn': J.fn(stats, 'initStats')}
+    o = J.node(js)
     assert o == {'period': [1, 1], 'reg': 1, 'draw': 2}, o
 
 
@@ -507,14 +470,10 @@ def test_sw_precaches_the_parts_at_the_address_home_asks_for():
     주소로 넣으면, network-first 목록에서 home-stats.js 를 빼면(정적 자산 분기의 cache-first 가 옛 캐시를 준다).
     픽스처: 저장소 sw.js 의 설치·fetch 처리기 그대로, 판은 home-app.js 의 HOME_BUILD.
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     build = re.search(r"const HOME_BUILD='(v\d+)'", _core()).group(1)
     urls = ['/%s?v=%s' % (src, build) for src, _ in _parts_decl().values()]
     src = io.open(os.path.join(ROOT, 'sw.js'), encoding='utf-8').read()
-    p = subprocess.run(['node', '-e', SW % {'src': json.dumps(src), 'urls': json.dumps(urls)}], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    o = json.loads(p.stdout.decode('utf-8'))
+    o = J.node(SW % {'src': json.dumps(src), 'urls': json.dumps(urls)})
     miss = [u for u in urls if u not in o['added']]
     assert not miss, '사전 캐시에 홈이 부르는 분할 파일 주소가 없다: %s (사전 캐시 %s)' % (miss, o['added'])
     stale = [u for u, tag in o['fresh'].items() if tag != 'net']
@@ -530,8 +489,6 @@ def test_head_preloads_the_part_for_deep_links():
     #stats 분기에서 data-trend.json 을 빼면.
     픽스처: index.html 머리의 ⑤ 스크립트를 node 로 돌린다(주소 넷: 옛 #test-beginner, 옛 대결 ?c=&s=, #stats-market, 홈).
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     html = _files()['index.html']
     head = html[:html.index('</head>')]
     js = [s for s in re.findall(r'<script>(.*?)</script>', head, re.S) if 'home-stats.js' in s]
@@ -549,9 +506,7 @@ process.stdout.write(JSON.stringify(out));
 """ % {'cases': json.dumps([['https://x.test/#test-beginner'], ['https://x.test/?c=7&s=calc&q=1z'],
                              ['https://x.test/?utm_source=naver_blog#stats-market'], ['https://x.test/']]),
        'build': json.dumps(build), 'js': json.dumps(js[0])}
-    p = subprocess.run(['node', '-e', runner], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    o = json.loads(p.stdout.decode('utf-8'))
+    o = J.node(runner)
     s = '/home-stats.js?v=' + build
     assert o['https://x.test/#test-beginner'] == [], o
     assert o['https://x.test/?c=7&s=calc&q=1z'] == [], o
@@ -617,12 +572,8 @@ def test_hash_queued_calls_are_dropped_when_the_person_moved_meanwhile():
     변이(실제로 확인): 대기 함수의 'viaHash&&…NAV_N!==n0' 줄을 지우면 stale 단정이 빨개진다. 사람이 누른 부름까지 버리게 하면
     human 단정이 빨개진다.
     픽스처: home-app.js 의 실제 대기 함수 덩어리(NAV_N·HASH_APPLYING 선언부터 forEach 끝까지)."""
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     core = _core()
     a = core.index('var NAV_N=0, HASH_APPLYING=false;')
     b = core.index('\n}));', a) + len('\n}));')
-    p = subprocess.run(['node', '-e', QUEUE_C % {'block': core[a:b]}], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    got = json.loads(p.stdout.decode('utf-8'))
+    got = J.node(QUEUE_C % {'block': core[a:b]})
     assert got == {'stale': [], 'fresh': ['month'], 'human': ['week']}, got

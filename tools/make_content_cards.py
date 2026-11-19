@@ -27,16 +27,15 @@ try:
 except Exception:
     pass
 
-from PIL import Image, ImageDraw, PngImagePlugin  # noqa: E402
+from PIL import PngImagePlugin  # noqa: E402
 
+import card_kit as CK              # noqa: E402  (카드 글꼴·색·크기·칩·푸터의 정본 — 지역·브랜드 카드와 한 계열로 보이게, 백로그 61-C)
 import content_md as CM            # noqa: E402  (원고 읽기)
-import make_zone_cards as ZC       # noqa: E402  (카드 글꼴·색·크기의 정본 — 지역 카드와 한 계열로 보이게)
 import make_content_pages as MC    # noqa: E402  (섹션 이름표 SECTION_META)
 
-W, H = ZC.W, ZC.H
+W, H = CK.W, CK.H
 OUT_DIR = os.path.join(ROOT, 'share')
-MX = 64                            # 좌우 여백(지역 카드와 같다)
-FOOT = 'agongmap.co.kr'
+MX = CK.MX                         # 좌우 여백(지역 카드와 같다)
 
 
 def card_rel(section, slug):
@@ -61,7 +60,7 @@ def _font_misses(text):
     except ImportError:
         sys.stderr.write('⚠️ fontTools 가 없어 글꼴 글자 검사를 건너뛴다(카드는 그린다)\n')
         return []
-    cmap = set(TTFont(os.path.join(ZC.FONT_DIR, ZC.FONT_FILES['Bold'])).getBestCmap())
+    cmap = set(TTFont(os.path.join(CK.FONT_DIR, CK.FONT_FILES['Bold'])).getBestCmap())
     return sorted({c for c in text if ord(c) > 0x20 and ord(c) not in cmap})
 
 
@@ -101,36 +100,13 @@ def wrap(draw, text, fnt, width, max_lines):
     return lines
 
 
-def _chip(d, text):
-    """왼쪽 위 분류 칩(지역 카드와 같은 모양)."""
-    cf = ZC.font(28, 'Bold')
-    bb = d.textbbox((0, 0), text, font=cf)
-    cw, ch = bb[2] - bb[0], bb[3] - bb[1]
-    px, py = 22, 13
-    d.rounded_rectangle([MX, 66, MX + cw + px * 2, 66 + ch + py * 2], radius=6, fill=ZC.INK)
-    d.text((MX + px - bb[0], 66 + py - bb[1]), text, font=cf, fill=ZC.WHITE)
-    return 66 + ch + py * 2
-
-
-def _foot(d, left_text):
-    fy = 548
-    d.line([MX, fy, W - MX, fy], fill=ZC.LINE, width=2)
-    if left_text:
-        d.text((MX, fy + 24), left_text, font=ZC.font(24, 'Medium'), fill=ZC.MUTED)
-    df = ZC.font(26, 'Bold')
-    bb = d.textbbox((0, 0), FOOT, font=df)
-    d.text((W - MX - (bb[2] - bb[0]), fy + 22), FOOT, font=df, fill=ZC.RED)
-
-
 def draw_card(title, chip, foot_left):
     """제목 카드 한 장. 제목 크기는 줄 수에 맞춰 줄인다(긴 제목도 세 줄 안에 들어오게)."""
-    img = Image.new('RGBA', (W, H), ZC.PAPER + (255,))
-    d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, W, 13], fill=ZC.INK)
-    top = _chip(d, chip)
+    img, d = CK.canvas()
+    top = CK.chip(d, chip)          # 왼쪽 위 분류 칩(지역 카드와 같은 모양)
     avail = W - MX * 2
     for size, max_lines in ((64, 3), (56, 3), (50, 4), (44, 4)):
-        fnt = ZC.font(size, 'Bold')
+        fnt = CK.font(size, 'Bold')
         lines = wrap(d, title, fnt, avail, max_lines)
         if len(lines) <= max_lines - (1 if size > 50 else 0) or size == 44:
             break
@@ -140,9 +116,9 @@ def draw_card(title, chip, foot_left):
     y = max(top + 40, top + 40 + ((548 - 40) - (top + 40) - block) // 2)
     for ln in lines:
         bb = d.textbbox((0, 0), ln, font=fnt)
-        d.text((MX - bb[0], y - bb[1]), ln, font=fnt, fill=ZC.INK)
+        d.text((MX - bb[0], y - bb[1]), ln, font=fnt, fill=CK.INK)
         y += step
-    _foot(d, foot_left)
+    CK.footer(d, foot_left)
     return img, lines
 
 

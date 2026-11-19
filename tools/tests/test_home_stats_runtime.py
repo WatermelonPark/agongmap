@@ -10,15 +10,12 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
-import tempfile
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as JS  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import sido_zones as SZ  # noqa: E402
 import weekly_moves as WM  # noqa: E402
 import weekly_release as WR  # noqa: E402
@@ -44,39 +41,10 @@ const __TR=[]; function track(e,p){__TR.push([e,p]);}
 """
 
 
-def _fn(src, name):
-    """src 에서 function name(…){…} 를 중괄호 짝으로 떼어 낸다."""
-    a = src.find('function %s(' % name)
-    assert a >= 0, '%s 를 찾지 못했다' % name
-    i, depth = src.index('{', a), 0
-    for j in range(i, len(src)):
-        if src[j] == '{':
-            depth += 1
-        elif src[j] == '}':
-            depth -= 1
-            if depth == 0:
-                return src[a:j + 1]
-    raise AssertionError(name)
-
-
 def _wk_block(app):
     m = re.search(r'// <wk-release>[^\n]*\n(.*?)// </wk-release>', app, re.S)
     assert m
     return m.group(1)
-
-
-def _node(js):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    fd, path = tempfile.mkstemp(suffix='.js')
-    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-        f.write(js)
-    try:
-        p = subprocess.run(['node', path], capture_output=True, timeout=60)
-    finally:
-        os.remove(path)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    return json.loads(p.stdout.decode('utf-8'))
 
 
 def _stats_js(body, pre=''):
@@ -109,7 +77,7 @@ def test_reentry_after_trend_failure_requests_the_trend_again():
           setStatsMode 의 advReady 가드를 빼면 permits 없는 renderAdvPermits 가 던져 빨개진다.
     픽스처: 첫 trend 요청만 실패(망이 흔들린 경우)하고 두 번째는 성공 — 리뷰 재현(t1_trend_fail.js)과 같은 순서.
     """
-    o = _node(_stats_js(r"""
+    o = JS.node(_stats_js(r"""
 let calls=0; const R=[];
 loadFullData=function(){ calls++; if(calls===1)return Promise.reject(new Error('trend'));
   ADV.permits={regions:[]}; ADV.occupancy={regions:[]}; return Promise.resolve(); };
@@ -123,7 +91,7 @@ statsInited=true; await statsOpen(); OUT.second={calls, drawn:R.slice()};
 """, pre='function loadFullData(){} function ensureBasicStats(){}'))
     assert o['first'] == {'calls': 1, 'inited': False, 'drawn': []}, o['first']
     assert o['second']['calls'] == 2 and o['second']['drawn'][:3] == ['rel', 'week', 'month'], o['second']
-    o = _node(_stats_js(r"""
+    o = JS.node(_stats_js(r"""
 let calls=0; const R=[]; let resolve;
 loadFullData=function(){ calls++; return new Promise(r=>{resolve=()=>{ADV.permits={regions:[]};ADV.occupancy={regions:[]};r();};}); };
 renderAdvPermits=()=>{ if(!ADV.permits)throw new TypeError('regions'); R.push('permits'); };
@@ -144,7 +112,7 @@ def test_tab_events_count_clicks_only():
           빨개진다. setMarketTab·setAdvTab 도 같다.
     픽스처: 블로그 링크 착지(/#stats-market) → applyHash 가 부르는 모양(false) 세 번, 그다음 사람이 누른 세 번.
     """
-    o = _node(_stats_js(r"""
+    o = JS.node(_stats_js(r"""
 setStatsMode('market',false); setMarketTab('week',false); setAdvTab('permit',false);
 OUT.hash=__TR.map(x=>x[0]);
 setStatsMode('basic'); setMarketTab('month'); setAdvTab('permit');
@@ -174,7 +142,7 @@ def test_leadtime_curve_peaks_are_the_canonical_analysis():
     assert peak(L['old']) == (lt['old_months'], lt['old_r']) and lt['old_months'] == SZ.START_DONE_MONTHS_OLD
     assert peak(L['new']) == (lt['new_months'], lt['new_r']) and lt['new_months'] == SZ.START_DONE_MONTHS_NEW
     assert 'peak_old' not in L and 'peak_new' not in L, '봉우리를 곡선과 따로 박았다'
-    body = _fn(src, 'drawLeadtime')
+    body = JS.fn(src, 'drawLeadtime')
     assert not re.search(r'약 \d+개월', body), '리드타임 설명문에 개월 수가 박혀 있다'
 
 
@@ -188,7 +156,7 @@ def test_sgg_choices_fold_into_judgement_units():
             값이 하나도 없는 시군구는 홈이 세우지 않으므로(has) 파이썬 쪽도 같은 기준으로 거른다.
     """
     trend = _load('data-trend.json')['ADV']
-    got = _node(_stats_js('OUT={};for(const k of ["weekly","monthly"]){const W=ADV_T[k];OUT[k]={};'
+    got = JS.node(_stats_js('OUT={};for(const k of ["weekly","monthly"]){const W=ADV_T[k];OUT[k]={};'
                           'for(const z of W.regions)OUT[k][z]=sggOfSido(W,z);}\nOUT.names=Object.keys(SGG_QNAME);',
                           pre='const ADV_T=%s;' % json.dumps({k: trend[k] for k in ('weekly', 'monthly')},
                                                              ensure_ascii=False)))
@@ -228,7 +196,7 @@ def test_monthly_next_release_waits_for_this_months_moved_date():
     cases = [(8, 15, 10), (8, 16, 10), (8, 18, 10), (8, 18, 13), (11, 16, 10), (11, 16, 13), (12, 31, 23)]
     ms = [int(datetime.datetime(2026, m, d, h, tzinfo=datetime.timezone(datetime.timedelta(hours=9))).timestamp() * 1000)
           for m, d, h in cases]
-    got = _node(_stats_js('_HOLIDAYS=new Set(%s);OUT.r=%s.map(t=>_iso(_next15(new Date(t))));' % (json.dumps(H2026), json.dumps(ms))))
+    got = JS.node(_stats_js('_HOLIDAYS=new Set(%s);OUT.r=%s.map(t=>_iso(_next15(new Date(t))));' % (json.dumps(H2026), json.dumps(ms))))
     want = []
     for m, d, h in cases:
         r = WR.biz_day(datetime.date(2026, m, 15), H2026)
@@ -253,7 +221,7 @@ def test_bubble_summary_counts_provinces_only():
     trend, rest = _load('data-trend.json'), _load('data-rest.json')
     B = I.bubble_payload(trend['ADV']['bubble'], rest['STATS']['전세가율'])
     B['loan'] = dict(B['loan'], v=0.01)
-    got = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
+    got = JS.node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
                           'OUT.sum=document.getElementById("bubble-wrap").innerHTML.split("</p>")[0];'
                           % json.dumps(B, ensure_ascii=False)))
     n = int(re.search(r'(\d+)개 지역', got['sum']).group(1))
@@ -296,7 +264,7 @@ def test_bubble_band_reads_the_site_reference_month_and_says_both_months():
     """
     B, J = _bubble_fixture()
     assert B['jp'] == '2026.08' and B['jr']['서울'] == 50.0, B['jp']
-    got = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
+    got = JS.node(_stats_js('ADV.bubble=%s;renderBubbleSec();'
                           'OUT.html=document.getElementById("bubble-wrap").innerHTML;'
                           'OUT.badge=document.getElementById("bubble-prd").textContent;' % json.dumps(B, ensure_ascii=False)))
     assert got['badge'] == '전세가율 2026년 8월 · 전환율 2026년 7월 기준', got['badge']
@@ -311,7 +279,7 @@ def test_bubble_band_reads_the_site_reference_month_and_says_both_months():
     # 완비 달이 마지막이면 배지는 전환율 달과 다를 때만 둘 — 같으면 한 달만 적는다
     B2, _ = _bubble_fixture(jr_last_partial=False)
     B2['prd'] = B2['jp']
-    got2 = _node(_stats_js('ADV.bubble=%s;renderBubbleSec();OUT.badge=document.getElementById("bubble-prd").textContent;'
+    got2 = JS.node(_stats_js('ADV.bubble=%s;renderBubbleSec();OUT.badge=document.getElementById("bubble-prd").textContent;'
                            % json.dumps(B2, ensure_ascii=False)))
     assert got2['badge'] == '2026년 9월 기준', got2
 
@@ -331,7 +299,7 @@ def test_bubble_band_hides_when_no_jeonse_month_is_complete():
     assert B0['jp'] is None and B0['jr'] == {}, (B0['jp'], B0['jr'])
     out = {}
     for name, b in (('none', B0), ('full', B)):
-        out[name] = _node(_stats_js('ADV.bubble=%s;document.getElementById("sec-bubble");renderBubbleSec();'
+        out[name] = JS.node(_stats_js('ADV.bubble=%s;document.getElementById("sec-bubble");renderBubbleSec();'
                                     'OUT.d=document.getElementById("sec-bubble").style.display||"";'
                                     'OUT.h=document.getElementById("bubble-wrap").innerHTML.length;' % json.dumps(b, ensure_ascii=False)))
     assert out['none'] == {'d': 'none', 'h': 0}, out['none']
@@ -370,7 +338,7 @@ def test_region_select_follows_the_display_order_then_other_rows():
     other = [k for k in keys if k not in SZ.DISPLAY_ORDER]
     assert model and other, '매매지수에 판정 단위와 권역 행이 둘 다 있어야 이 시험이 뜻이 있다'
     zones = [{'z': z} for z in SZ.DISPLAY_ORDER]
-    got = _node(_stats_js('ADV.sido={zones:%s};ADV.zname=%s;OUT.list=regSort(%s);'
+    got = JS.node(_stats_js('ADV.sido={zones:%s};ADV.zname=%s;OUT.list=regSort(%s);'
                           % (json.dumps(zones), json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False),
                              json.dumps(list(reversed(keys)), ensure_ascii=False)),
                           pre='function zn(r){return (ADV.zname||{})[r]||r;}'))
@@ -378,7 +346,7 @@ def test_region_select_follows_the_display_order_then_other_rows():
     assert got['list'][:len(want_head)] == want_head, got['list']
     tail = got['list'][len(want_head):]
     assert sorted(tail) == sorted(other) and len(tail) == len(other)
-    collator = _node('process.stdout.write(JSON.stringify(%s.sort((a,b)=>a.localeCompare(b,"ko"))));'
+    collator = JS.node('process.stdout.write(JSON.stringify(%s.sort((a,b)=>a.localeCompare(b,"ko"))));'
                      % json.dumps(other, ensure_ascii=False))
     assert tail == collator, tail
 
@@ -393,7 +361,7 @@ def test_size_dataset_switches_view_quietly_and_restores_it():
     변이(실제로 확인): 규모별 진입을 옛 `gtSet('basicmain','t')`(silent 없음)로 되돌리면 stats_gt 가 쌓여, 이탈 때 되돌리기 줄을
     빼면 표에 머물러 빨개진다.
     """
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 STATS={'매매지수':{series:{}},'착공':{series:{}},'규모별':{series:{},regions:[]}};
 const btns={};
 const seg=document.getElementById('ds-seg');
@@ -427,7 +395,7 @@ def test_period_button_kst_quarter_and_stale_sgg_file():
     변이(실제로 확인): renderTrPeriods 의 되돌림 조건을 옛 `cur[1]>have` 로, occFut 를 기기 시간대(getFullYear·getMonth)로,
     ensureSggHist 의 날짜 비교를 빼면 빨개진다(③은 node 가 TZ=UTC 일 때 ②와 함께).
     """
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 ADV.weekly={rows:Array.from({length:150},(_,i)=>({p:'w'+i}))};
 TRP.week=2; renderTrPeriods('week'); OUT.kept=TRP.week;
 OUT.has3y=document.getElementById('week-period').innerHTML.indexOf('3년')>=0;
@@ -453,7 +421,7 @@ def test_aux_peak_lines_sit_on_the_data_peak():
     """
     rest = _load('data-rest.json')['STATS']
     src = dict(HS.home_files())['home-stats.js']
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 OUT={};
 for(const ds of ['매매지수','전세지수','금리']){
   const D=S_[ds]; const labels=D.dates.map(d=>parseDate(d).label);
@@ -491,7 +459,7 @@ def test_apartment_build_aux_labels_come_from_the_data():
     i97 = moved['dates'].index(next(d for d in moved['dates'] if d.startswith('1997')))
     moved['series'][reg][i97] = max(v for v in moved['series'][reg] if v is not None) + 20000
     for data in (D, moved):
-        got = _node(_stats_js(r"""
+        got = JS.node(_stats_js(r"""
 const labels=S_.dates.map(d=>parseDate(d).label), vals=S_.series['전국'];
 OUT.t=AUXLINES['아파트건설'].map(l=>{const p=auxPos(l,labels,vals);return p<0?null:[labels[p],auxText(l,labels[p],vals[p])];});
 """, pre='const S_=%s;' % json.dumps(data, ensure_ascii=False)))
@@ -516,7 +484,7 @@ def test_aux_line_labels_stack_and_restore_the_canvas():
     restore 0 회·같은 y 셋이라 빨개진다.
     """
     D = _load('data-rest.json')['STATS']['아파트건설']
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 ST.ds='아파트건설'; ST.reg='전국'; ST.years=0; STATS['아파트건설']=S_;
 ST.aux=new Set(AUXLINES['아파트건설'].map((_,i)=>String(i)));
 buildTable=()=>{}; buildMatrix=()=>{};
@@ -541,7 +509,7 @@ def test_swipe_hint_is_judged_when_visible():
     변이(실제로 확인): setMarketTab 의 syncSwipe(t) 호출을 빼면 월간 탭을 연 뒤에도 안내가 숨은 채라 빨개진다.
     픽스처: 375px 실측 모양 — 월간 지도 상자 clientWidth 0(숨김)으로 그려진 뒤, 탭을 열면 scrollWidth 472 > clientWidth 339.
     """
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 const box={clientWidth:0,scrollWidth:0}, sw={hidden:true};
 const m=document.getElementById(TREND.month.map); m.querySelector=q=>q==='.map-scroll'?box:(q==='.map-swipe'?sw:null);
 syncSwipe('month'); OUT.hiddenWhileHidden=sw.hidden;
@@ -559,7 +527,7 @@ def test_basic_stats_table_draws_without_the_chart_library():
     픽스처: /chart-4.4.1.umd.js 요청이 실패한 첫 방문(리뷰 t5_nochart.js) — needChart 는 늘 '기다림', loadChart 는 거부.
     """
     rest = _load('data-rest.json')['STATS']
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 ST.ds='매매지수'; ST.reg='전국'; STATS['매매지수']=S_;
 let tbl=0; buildTable=()=>{tbl++;}; buildMatrix=()=>{};
 drawStat(); await new Promise(r=>setTimeout(r,0));
@@ -584,7 +552,7 @@ def test_market_and_investor_charts_say_when_the_library_fails():
     chartFailNote 를 빼면, CHART_FAIL 의 week 자리를 'src-note' 로 바꾸면 빨개진다.
     """
     trend = _load('data-trend.json')['ADV']
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 Object.assign(ADV, T_);
 ['adv-week-reg','adv-week-sgg','adv-month-reg','adv-month-sgg','adv-permit-reg','adv-occ-reg'].forEach(id=>{document.getElementById(id).options=[];});
 let redo=[]; drawTrendChart=(k=>{const f=drawTrendChart; return k2=>{redo.push(k2); return f(k2);};})();
@@ -614,10 +582,10 @@ def test_boot_renders_survive_a_missing_data_core():
     """
     app = dict(HS.home_files())['home-app.js']
     js = (DOM + 'const NATION_TILE={};function mapColor(){}\nvar TB_VIEW="map";\n'
-          + _fn(app, 'renderHeroMap') + '\n' + _fn(app, 'renderSidoMap') + '\n'
+          + JS.fn(app, 'renderHeroMap') + '\n' + JS.fn(app, 'renderSidoMap') + '\n'
           'let OUT={};try{renderHeroMap();renderSidoMap();OUT.ok=true;}catch(e){OUT.err=String(e);}\n'
           'process.stdout.write(JSON.stringify(OUT));')
-    assert _node(js) == {'ok': True}
+    assert JS.node(js) == {'ok': True}
 
 
 # ── #47 홈 탭바 aria-current ─────────────────────────────────────────────────
@@ -636,18 +604,17 @@ def test_home_tabbar_marks_the_current_view():
           'const history={pushState(){},replaceState(){}};function statsHashOf(){return "#stats-market-week";}\n'
           'const btns=[["home"],[null],["stats"],[null]].map(([v],i)=>{const b=__mk("b"+i);if(v)b.dataset.view=v;return b;});\n'
           'document.querySelectorAll=q=>q===".nav-btn"?btns:[];\n'
-          + '\n'.join(_fn(app, n) for n in ('viewLoc', 'showView')) + '\n'
+          + '\n'.join(JS.fn(app, n) for n in ('viewLoc', 'showView')) + '\n'
           'const OUT={};showView("stats");OUT.stats=btns.map(b=>b.getAttribute("aria-current"));\n'
           'showView("home");OUT.home=btns.map(b=>b.getAttribute("aria-current"));\n'
           'process.stdout.write(JSON.stringify(OUT));')
-    got = _node(js)
+    got = JS.node(js)
     assert got['stats'] == [None, None, 'page', None], got
     assert got['home'] == ['page', None, None, None], got
     nav = re.search(r'<nav class="bottomnav">(.*?)</nav>', files['index.html'], re.S).group(1)
     assert re.search(r'<button class="nav-btn on" data-view="home" aria-current="page">', nav)
     for b in re.findall(r'<button[^>]*>\s*<svg[^>]*>', nav):
         assert 'aria-hidden="true"' in b, b
-
 
 
 # ── 통합 검토: 재진입 없이 모드 탭으로 다시 열기(#42 잔여) ─────────────────────────
@@ -661,7 +628,7 @@ def test_mode_tab_reopens_stats_after_a_failed_first_open():
           week·month 가 없어 빨개진다.
     픽스처: 첫 trend 요청만 실패하고 다음은 성공(망이 흔들린 경우) — test_reentry_after_trend_failure 와 같은 순서.
     """
-    o = _node(_stats_js(r"""
+    o = JS.node(_stats_js(r"""
 let calls=0; const R=[];
 loadFullData=function(){ calls++; if(calls===1)return Promise.reject(new Error('trend'));
   ADV.permits={regions:[]}; ADV.occupancy={regions:[]}; return Promise.resolve(); };
@@ -687,7 +654,7 @@ def test_leadtime_table_draws_without_the_chart_library():
     변이(실제로 확인): drawLeadtime 첫 줄을 옛 `if(needChart(()=>drawLeadtime()))return;` 로 되돌리면 표 머리가 비어 빨개진다.
     픽스처: needChart 는 늘 '기다림', loadChart 는 거부(첫 방문에서 라이브러리 요청 실패). 앞 데이터셋 표가 남아 있는 상태.
     """
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 document.querySelector=(q)=>document.getElementById(q);
 document.getElementById('#stat-tbl thead').innerHTML='<tr><th>연월</th><th>매매 실거래지수</th></tr>';
 document.getElementById('meta-bar').innerHTML='<span>단위 <b>지수(2017.11=100)</b></span>';
@@ -710,10 +677,10 @@ def test_supply_table_buttons_survive_a_missing_data_core():
     픽스처: data-core.js 요청이 실패한 착지(통합 검토 fr_s15) — ADV·STATS 선언 없음.
     """
     app = dict(HS.home_files())['home-app.js']
-    js = ('var TB_BCACHE=null;\n' + _fn(app, 'tbBuild') + '\n'
+    js = ('var TB_BCACHE=null;\n' + JS.fn(app, 'tbBuild') + '\n'
           'let OUT={};try{OUT.b=tbBuild();}catch(e){OUT.err=String(e);}\n'
           'process.stdout.write(JSON.stringify(OUT));')
-    assert _node(js) == {'b': None}
+    assert JS.node(js) == {'b': None}
 
 
 # ── 전수리뷰 A3: 지역을 연 시장동향 주소 ─────────────────────────────────────────
@@ -729,14 +696,14 @@ def test_market_hash_keeps_the_opened_region():
           연 상태(TR_OPEN.week='a7'), 월간은 연 지역 없음.
     """
     app = dict(HS.home_files())['home-app.js']
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 statsHashOf=(function(){ %s; return statsHashOf; })();
 document.getElementById('mtab-week').classList.add('on'); TR_OPEN.week='a7';
 OUT.same=statsHashOf('market');
 setMarketTab('week'); setMarketTab('month'); setMarketTab('week');
 OUT.nav=__NAV.slice();
 document.getElementById('sec-week').classList.add('gm-t'); OUT.table=statsHashOf('market');
-""" % _fn(app, 'statsHashOf')))
+""" % JS.fn(app, 'statsHashOf')))
     assert got['same'] == '#stats-market-week~a7', got
     assert got['nav'] == [['#stats-market-week~a7', True], ['#stats-market-month', False], ['#stats-market-week~a7', False]], got
     assert got['table'] == '#stats-market-week~a7-t', got
@@ -768,9 +735,9 @@ def test_size_pivot_drops_trailing_months_without_selected_values():
     픽스처: 위 _size_payload(실제 상태 — 전환율만 2026.07 을 실은 축).
     """
     app = dict(HS.home_files())['home-app.js']
-    pre = '\n'.join(_fn(app, n) for n in ('pv2r', 'pv2', 'pvSign')) + '\nconst SD_=%s;' % json.dumps(
+    pre = '\n'.join(JS.fn(app, n) for n in ('pv2r', 'pv2', 'pvSign')) + '\nconst SD_=%s;' % json.dumps(
         _size_payload(), ensure_ascii=False)
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 const T=document.getElementById('stat-tbl'), TH=document.getElementById('__th'), TB=document.getElementById('__tb');
 T.querySelector=s=>s==='thead'?TH:TB;
 document.getElementById('size-ctl').innerHTML='x';
@@ -802,7 +769,7 @@ def test_basic_matrix_skips_a_region_with_no_values():
     from merge_regions import DST
     D = _load('data-rest.json')['STATS']['보급률']
     D['series'][DST] = [None] * len(D['dates'])
-    got = _node(_stats_js(r"""
+    got = JS.node(_stats_js(r"""
 ST.ds='보급률'; STATS['보급률']=D_;
 const parsed=D_.dates.map(parseDate);
 buildMatrix(D_, parsed.map((p,i)=>i), parsed);
@@ -834,7 +801,7 @@ def test_city_totals_are_pickable_but_not_ranked():
             'const opts=[...document.getElementById(TREND.week.sel2).innerHTML.matchAll(/<option value="([^"]*)">([^<]*)</g)].map(m=>[m[1],m[2]]);'
             'OUT[k]={pick:pick,names:pick.map(c=>sggName(S,c)),opts:opts,'
             'ranked:sggRanks(S,row,"ma").order.map(x=>x[0]),target:trendTarget(W,"a80103")};}')
-    got = _node(_stats_js(body, pre=tile + '\nconst ADV_T=%s;' % json.dumps(
+    got = JS.node(_stats_js(body, pre=tile + '\nconst ADV_T=%s;' % json.dumps(
         {k: trend[k] for k in ('weekly', 'monthly')}, ensure_ascii=False)))
     for k in ('weekly', 'monthly'):
         g = got[k]
@@ -857,7 +824,7 @@ def test_bubble_band_draws_without_the_basic_stats_file():
     변이(실제로 확인): renderBubbleSec() 을 예전처럼 ensureBasicStats().then(...) 안으로 옮기면 drawn 에 'bubble' 이 없어 빨개진다.
     픽스처: trend 는 오고 rest 는 실패하는 통계 화면 첫 진입(리뷰 재현: data-rest.json 을 막고 #stats-adv-bubble).
     """
-    o = _node(_stats_js(r"""
+    o = JS.node(_stats_js(r"""
 const R=[];
 loadFullData=()=>Promise.resolve();
 ensureBasicStats=()=>Promise.reject(new Error('rest'));
@@ -877,7 +844,7 @@ def test_a_failed_graph_load_always_offers_retry():
     변이(실제로 확인): statsOpen 의 거부 갈래에서 partBusy('stats','statsOpen','fail') 을 지우면 빨개진다.
     픽스처: trend 요청이 두 번 연속 실패하는 진입(망이 끊긴 채 '다시 시도'를 누름).
     """
-    o = _node(_stats_js(r"""
+    o = JS.node(_stats_js(r"""
 loadFullData=()=>Promise.reject(new Error('trend'));
 ensureBasicStats=()=>Promise.resolve();
 await statsOpen(); const a=__PB.slice(); await statsOpen();
@@ -907,7 +874,7 @@ def test_every_city_with_districts_has_a_whole_city_choice():
     assert len(want) >= 10, '시 전체 후보가 너무 적다 — 픽스처를 볼 것: %r' % want
     t = src.index('const NATION_TILE=')
     pre = src[t:src.index(';', src.index(']}', t)) + 1] + '\n'      # 지도 칸 정의는 home-app.js 에 있다(이름표·sidoOf 는 통계 파일)
-    o = _node(_stats_js(r"""
+    o = JS.node(_stats_js(r"""
 const W=%s; W.sgg=%s;
 OUT.names=Object.fromEntries(%s.map(c=>[c,sggCityName(W.sgg,c)]));
 OUT.target=Object.fromEntries(%s.map(c=>[c,trendTarget(W,c)]));

@@ -18,32 +18,18 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_sido_pages as M  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 
 
 def _home():
     return HS.home_source()
-
-
-def _js_func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError('%s 의 끝을 찾지 못했다' % name)
 
 
 def _block(tag):
@@ -113,17 +99,11 @@ process.stdout.write(JSON.stringify(CFG.cases.map(run)));
 
 
 def _run(*cases):
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('node 없음')   # CI 에서는 conftest 가 실패로 바꾼다
     h = _home()
-    prelude = '\n'.join([_block('wk-release'), _js_func(h, 'pv2r'), _js_func(h, 'pv2'), _js_func(h, 'tbSigned'),
+    prelude = '\n'.join([_block('wk-release'), J.fn(h, 'pv2r'), J.fn(h, 'pv2'), J.fn(h, 'tbSigned'),
                          'var TB_GRADE=%s;' % _tb_grade()])
     cfg = {'prelude': prelude, 'block': _block('home-small'), 'cases': list(cases)}
-    p = subprocess.run([node, '-e', HARNESS % {'cfg': json.dumps(cfg, ensure_ascii=False)}],
-                       capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
+    return J.node(HARNESS % {'cfg': json.dumps(cfg, ensure_ascii=False)})
 
 
 # ── C5 내 지역(2026-10-05 대표 요청으로 뺐다) ─────────────────────────────────────────────────────────────
@@ -220,7 +200,7 @@ def test_source_line_sits_under_the_cards_and_the_report_mail_is_in_the_footer()
     assert len(metas) == 2 and all('<a href="mailto:agongmap@gmail.com">' in m for m in metas), metas
     more, sub = sec.index('<p class="tb-more">'), sec.index('<p class="tb-sub"><a href="/monthly/"')
     assert more < sub < how and sec[more:sub].count('<p') == 1
-    boot = _js_func(h, 'boot')
+    boot = J.fn(h, 'boot')
     for f in ('renderSupplySpan();', 'dropOldMyZone();', 'VISIT=countVisit();', 'watchSections();'):
         assert f in boot, f
 
