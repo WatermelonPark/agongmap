@@ -31,6 +31,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import check_freshness as C  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 U = C.U
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -73,7 +74,7 @@ def _live():
     import json
     import re
     t = open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});', t, re.S).group(1))
+    adv = AIO.adv_of(t)
     stats = {}
     for f in ('data-rest.json', 'data-size.json'):
         stats.update(json.load(open(os.path.join(ROOT, f), encoding='utf-8'))['STATS'])

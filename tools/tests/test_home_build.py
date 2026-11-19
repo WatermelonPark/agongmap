@@ -14,14 +14,12 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -96,15 +94,11 @@ process.stdout.write(JSON.stringify(out));
 
 
 def _run():
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     src = HS.home_source()
     m = re.search(r"const HOME_BUILD='([^']*)';\s*let BUILD_RELOAD=false;\s*\(function\(\)\{.*?\n\}\)\(\);", src, re.S)
     assert m, 'home-app.js 에서 판 비교 코드를 못 찾았다 — 모양이 바뀌었으면 이 시험도 고칠 것'
     js = HARNESS % {'snip': json.dumps(m.group(0)), 'jb': json.dumps(m.group(1))}
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    return json.loads(p.stdout.decode('utf-8'))
+    return J.node(js)
 
 
 def test_mismatch_reloads_exactly_once_and_measures_the_result():
@@ -189,8 +183,6 @@ def test_part_with_another_build_reloads_once_and_measures():
     새로고침하고, `b===HOME_BUILD` 비교를 빼면(늘 새로고침) same 이, 새로고침 앞 setItem(k,html+'!') 을 빼면 afterReload
     의 결과 이벤트가 사라진다. loadPart 가 partBuildOk 를 부르지 않게 하면 호출 확인이 빨개진다.
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     src = dict(HS.home_files())['home-app.js']
     top = re.search(r"const HOME_BUILD='([^']*)';\s*let BUILD_RELOAD=false;\s*\(function\(\)\{.*?\n\}\)\(\);", src, re.S)
     fn = re.search(r'^function partBuildOk\(n\)\{.*?\n\}', src, re.S | re.M)
@@ -198,9 +190,7 @@ def test_part_with_another_build_reloads_once_and_measures():
     assert re.search(r'loadScript\(partURL\(n\)\)\.then\(\(\)=>\{[^}]*if\(!partBuildOk\(n\)\)', src), \
         'loadPart 가 받은 분할 파일의 판을 견주지 않는다'
     js = PART_HARNESS % {'top': json.dumps(top.group(0)), 'fn': json.dumps(fn.group(0)), 'jb': json.dumps(top.group(1))}
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    o = json.loads(p.stdout.decode('utf-8'))
+    o = J.node(js)
     assert o['same'] == {'reloads': 0, 'ok': True, 'events': []}, o['same']
     assert o['noMark']['reloads'] == 0 and o['noMark']['ok'] is True, '판 표식 없는 분할 파일에서 새로고침했다'
     assert o['oldTab']['reloads'] == 1 and o['oldTab']['ok'] is False, '옛 판 탭이 새 판 분할 파일을 그대로 돌린다: %s' % o['oldTab']

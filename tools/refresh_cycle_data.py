@@ -31,6 +31,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
 import kst as KST            # noqa: E402  (오늘(KST) — 생성기가 찍는 날짜의 단일 출처)
+import adv_io as AIO         # noqa: E402  (data.js ADV·STATS 읽기 정본 — 백로그 61-A)
 import make_indicator_pages as I  # noqa: E402  (전세가율 기준월 규칙·sitemap — /jeonse-ratio/ 와 같은 규칙)
 import robots_meta as RM     # noqa: E402  (검색 로봇 메타 정본 — 홈 마케팅 검수 D2)
 import rebuild_cycle_analysis as RC  # noqa: E402  (지수 연속성 검사·페이지 데이터에서 채우는 본문 칸의 정본)
@@ -52,10 +53,7 @@ OVERLAY_FROM = 2015        # 금리 오버레이 구간
 
 
 def load_stats():
-    c = io.open(DATA, encoding='utf-8').read()
-    i = c.find('const STATS=')
-    j = c.find('/*STATS_DATA_END*/')
-    return json.loads(c[i + len('const STATS='):j].rstrip().rstrip(';'))
+    return AIO.stats_of(AIO.read_text(DATA))   # data.js 읽기 정본(백로그 61-A)
 
 
 def ym(label):

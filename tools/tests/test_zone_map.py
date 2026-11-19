@@ -25,14 +25,10 @@
 import datetime
 import html as H
 import io
-import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import make_sido_pages as M  # noqa: E402
@@ -40,6 +36,7 @@ import merge_regions as MR  # noqa: E402  (통합 정본 SRC·DST — 광주·�
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 import weekly_moves as WM  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 HREF = {'week': '/#stats-market-week~%s', 'month': '/#stats-market-month~%s'}
@@ -212,11 +209,7 @@ def test_toggle_switches_between_week_and_month():
             assert s.count(M.ZM_SEG) == 1, z
             assert re.search(r'<div class="zm" data-zm="week">', s) and re.search(r'<div class="zm" data-zm="month" hidden>', s), z
     assert 'aria-pressed="true" data-zm="week"' in M.ZM_SEG and 'aria-pressed="false" data-zm="month"' in M.ZM_SEG
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    p = subprocess.run(['node', '-e', _dom_harness(M.zone_js())], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    got = json.loads(p.stdout.decode('utf-8'))
+    got = J.node(_dom_harness(M.zone_js()))
     assert got['start'] == [False, True, True], got            # 주간 지도 300 < 상자 320 — 안내 없음
     assert got['month'] == [True, False, 'false', 'true', False, True, False], got   # 월간 472 > 327 — 안내를 켠다
     assert got['week'] == [False, True, 'true', 'false'], got

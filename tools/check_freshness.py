@@ -41,6 +41,7 @@ import update_adv_data as U  # noqa: E402  (표 설정을 배치와 공유 — �
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
 import make_indicator_pages as I  # noqa: E402  (/moveins/ 시점 문구 공유)
 import make_weekly_page as MW  # noqa: E402  (주간 공유 카드 주소·PNG 메타 읽기 공유)
+import adv_io as AIO  # noqa: E402  (data.js ADV 읽기 정본 — 백로그 61-A)
 import split_data as S       # noqa: E402  (지연 로드 분리 규칙을 공유 — 부작용 없는 import)
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
 import kst as KST      # noqa: E402  (오늘(KST))
@@ -361,11 +362,11 @@ def live_adv_stats():
     txt = urllib.request.urlopen(
         urllib.request.Request(SITE + '/data.js', headers=UA), timeout=SITE_TIMEOUT
     ).read().decode('utf-8', 'replace')
-    m = re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});', txt, re.S)
-    if not m:
+    try:
+        adv = AIO.adv_of(txt)
+    except ValueError:
         print('FAIL: data.js에서 ADV 블록을 찾지 못했습니다 (배포가 깨졌을 수 있음)')
         sys.exit(1)
-    adv = json.loads(m.group(1))
     stats = (get_json(SITE + '/data-rest.json') or {}).get('STATS') or {}
     # 2026-08-01 split_data가 '규모별'(186KB)을 data-size.json으로 분리하면서
     # rest에서 빠졌다. 여기서 합치지 않으면 아래 `if '규모별' in stats` 게이트가

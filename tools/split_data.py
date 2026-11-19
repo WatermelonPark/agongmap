@@ -94,6 +94,7 @@ from weekly_release import GRACE_WEEKLY  # noqa: E402
 # 준공·착공 지역을 옛 목록으로 거르고 화면 문구(refresh_texts)도 건너뛴 코어를 실을 수 있었다. 표준 라이브러리만 쓴다.
 import kst as _kst  # noqa: E402
 import sido_zones as _SZ  # noqa: E402
+import adv_io as _AIO  # noqa: E402  (data.js ADV·STATS 읽기 정본 — 백로그 61-A)
 TABLE_REGIONS = set(_SZ.ORDER)
 # 홈 '지난 방문 이후 새 발표 N회'가 세는 최근 조사기준일 수(ADV.weekly.ps). 이보다 오래 안 온 기기는 'N회 이상'으로 적는다.
 WK_SEEN_N = 12
@@ -267,9 +268,7 @@ def fresh_marks(periods, old, today, pub=None):
 def main():
     import make_indicator_pages as _I   # 전세가율 정본(기준월·원천 표기) — 생성기와 같은 함수
     src = io.open(SRC, encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
-    stats = json.loads(re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
+    adv, stats = _AIO.adv_of(src), _AIO.stats_of(src)
 
     core_adv = {k: adv[k] for k in CORE_ADV if k in adv}
 

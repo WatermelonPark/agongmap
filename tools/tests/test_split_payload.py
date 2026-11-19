@@ -11,6 +11,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import split_data as S
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.join(os.path.dirname(__file__), '..', '..')
 
@@ -34,8 +35,7 @@ def out(tmp_path_factory):
         'core_stats': json.loads(re.search(r'const STATS=(\{.*?\});\nwindow', core, re.S).group(1)),
         'trend': json.loads(paths['TREND'].read_text(encoding='utf-8')),
         'core_bytes': os.path.getsize(paths['OUT']),
-        'src_adv': json.loads(re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/',
-                                        raw, re.S).group(1)),
+        'src_adv': AIO.adv_of(raw),
     }
 
 

@@ -20,42 +20,20 @@
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_weekly_page as MW  # noqa: E402
-
-
-def _func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, '홈 소스에서 %s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
-
-
-def _node(js):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    return json.loads(p.stdout.decode('utf-8'))
 
 
 def _js_map(vals, names, ref, href):
     """홈 sggMapSvg 를 실제 홈 함수(mapColor·pv2·pvSign)와 함께 node 로 돌린다. href: 코드 앞에 붙일 주소 또는 None."""
     h = HS.home_source()
-    pre = [re.search(r'^const NATION_TILE=.*$', h, re.M).group(0)] + [_func(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg')]
-    return _node('\n'.join(pre + [
+    pre = [re.search(r'^const NATION_TILE=.*$', h, re.M).group(0)] + [J.fn(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'mapColor', 'sggMapSvg')]
+    return J.node('\n'.join(pre + [
         'const vals=%s;' % json.dumps(vals),
         'const o={ref:%s,names:%s%s};' % (json.dumps(ref), json.dumps(names, ensure_ascii=False),
                                           (',href:c=>%s+c' % json.dumps(href)) if href else ''),
@@ -162,12 +140,12 @@ def test_tile_opens_the_right_region():
     h = HS.home_source()
     js = '\n'.join([re.search(r'^const SGG_QNAME=.*$', h, re.M).group(0),
                     re.search(r'^const SIDO_PREFIX=\{.*?\};', h, re.M | re.S).group(0)]
-                   + [_func(h, n) for n in ('sidoOf', 'sggZoneOf', 'sggHas', 'sggOfSido', 'sggCityName', 'sggPickOf', 'trendTarget')] + [
+                   + [J.fn(h, n) for n in ('sidoOf', 'sggZoneOf', 'sggHas', 'sggOfSido', 'sggCityName', 'sggPickOf', 'trendTarget')] + [
         'const codes=["a0","a7","a7020202","b3","b304","c5","c503","c3","c302","c301","b6"];',
         'const W={regions:["전국","수도권","지방","서울","전남광주","충남","세종"],',
         ' sgg:{codes:codes,rows:[{ma:codes.map((c,i)=>c==="c301"?null:0.01*i),je:codes.map(()=>null)}]}};',
         'process.stdout.write(JSON.stringify(Object.fromEntries(codes.concat(["c999"]).map(c=>[c,trendTarget(W,c)]))));'])
-    got = _node(js)
+    got = J.node(js)
     want = {'a0': ('', ''), 'a7': ('서울', ''), 'a7020202': ('서울', 'a7020202'), 'b3': ('전남광주', ''),
             'b304': ('전남광주', 'b304'), 'c5': ('전남광주', ''), 'c503': ('전남광주', 'c503'), 'c3': ('충남', ''),
             'c302': ('충남', 'c302'), 'c301': ('충남', ''), 'b6': ('세종', ''), 'c999': ('', '')}
@@ -181,8 +159,8 @@ def test_every_map_and_rank_link_is_wired_to_the_graph():
     시세 단추의 시군구 지도)이 onTrendLink 를 붙이지 않으면 빨개진다."""
     h = HS.home_source()
     assert re.search(r"stats:\{src:'/home-stats\.js',api:\[[^\]]*'openTrendRegion'", h), 'PARTS.stats.api 에 openTrendRegion 이 없다'
-    assert '<a class="rk-go" href="#stats-market-\'+k+\'~\'+c+\'" data-code="\'+c+\'">' in _func(h, 'rankTables')
+    assert '<a class="rk-go" href="#stats-market-\'+k+\'~\'+c+\'" data-code="\'+c+\'">' in J.fn(h, 'rankTables')
     # 홈 시군구 지도는 지도 구역 카드의 시세 단추가 그린다(2026-10-29 단추 하나에 지도 하나) — 그 상자의 누름 처리
-    assert "onTrendLink(e,'score_map')" in _func(h, 'renderSidoMap') and 'priceTilesHtml(MT)' in _func(h, 'renderSidoMap')
-    assert "onTrendLink(e," in _func(h, 'drawNationMap')
-    assert 'openTrendRegion(m[1],m[2])' in _func(h, 'onTrendLink')
+    assert "onTrendLink(e,'score_map')" in J.fn(h, 'renderSidoMap') and 'priceTilesHtml(MT)' in J.fn(h, 'renderSidoMap')
+    assert "onTrendLink(e," in J.fn(h, 'drawNationMap')
+    assert 'openTrendRegion(m[1],m[2])' in J.fn(h, 'onTrendLink')

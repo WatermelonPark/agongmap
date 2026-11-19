@@ -285,7 +285,7 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
     new_L = _advance_supply(stats)
     idx = _advance_indices(stats)
     U.write_stats(stats)
-    _, _, _, adv = U.read_current_adv()
+    adv = U.read_current_adv()
     old_w, old_m = adv['weekly']['rows'][-1]['p'], adv['monthly']['rows'][-1]['p']
     new_w, new_m = _advance_prices(adv)
     U.write_adv(adv)
@@ -296,7 +296,7 @@ def test_generators_and_gate_pass_on_next_quarter_data(tmp_path, monkeypatch):
         assert rc == 0, '%s 실패(rc=%d)\n%s' % (' '.join(step), rc, out[-3000:])
 
     # 픽스처 자기 확인 — 전진이 실제로 일어났고 점수가 그 데이터로 다시 구워졌다.
-    _, _, _, adv2 = U.read_current_adv()
+    adv2 = U.read_current_adv()
     assert adv2['sido']['L'] == SZ.qkey(new_L) and new_L == old_L + 1, \
         'L 이 한 분기 나아가지 않았다: %s → %s' % (SZ.qkey(old_L), adv2['sido']['L'])
     assert adv2['sido']['H'] == SZ.LEAD_Q, '전진한 사본이 H≠lead 다 — 준공·착공을 같은 달까지 채우지 못했다'

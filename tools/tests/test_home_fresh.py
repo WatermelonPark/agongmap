@@ -31,14 +31,13 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import split_data as S  # noqa: E402
 
 TODAY = '2026-10-08'
@@ -121,25 +120,6 @@ def test_main_reads_the_previous_core_and_old_fresh_stops_on_a_broken_file(tmp_p
         S.old_fresh(out)
 
 
-def _fn(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i, depth = src.index('{', m.end()), 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
-
-
-def _node(js):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    return json.loads(p.stdout.decode('utf-8'))
-
-
 HARNESS = r'''
 %(fns)s
 const MODE_SEEN_KEY='mode_seen';
@@ -185,11 +165,11 @@ process.stdout.write(JSON.stringify(out));
 
 def test_badge_window_seen_and_tap():
     src = HS.home_source()
-    fns = '\n'.join(_fn(src, n) for n in ('_dn', 'freshModes', 'modeSeen', 'markFresh', 'seeFresh', 'mapMode'))
+    fns = '\n'.join(J.fn(src, n) for n in ('_dn', 'freshModes', 'modeSeen', 'markFresh', 'seeFresh', 'mapMode'))
     assert S.FRESH_DAYS == {'supply': 14, 'weekly': 4, 'monthly': 7}   # 2026-10-08 대표 결정(주간 목→일, 월간 한 주, 분기 두 주)
     fresh = {'days': S.FRESH_DAYS, 'force': S.FRESH_FORCE, 'supply': {'p': '2026Q2', 'd': '2026-09-25'}, 'weekly': {'p': '2026-10-05', 'd': '2026-10-08'},
              'monthly': {'p': '2026-09', 'd': '2026-10-08'}}
-    got = _node('var _DAY=864e5;\n' + HARNESS % {'fns': fns, 'fresh': json.dumps(fresh)})
+    got = J.node('var _DAY=864e5;\n' + HARNESS % {'fns': fns, 'fresh': json.dumps(fresh)})
     # 공급 9/25(14일째가 10/8), 주간·월간 10/8 — 그날 포함 공급 14·주간 4(목→일)·월간 7일
     assert got['by'] == {'2026-10-08': ['supply', 'weekly', 'monthly'], '2026-10-09': ['weekly', 'monthly'],
                          '2026-10-11': ['weekly', 'monthly'], '2026-10-12': ['monthly'], '2026-10-14': ['monthly'],
@@ -211,7 +191,7 @@ def test_badge_window_seen_and_tap():
 def test_badges_are_drawn_at_boot_and_the_style_is_plan_b():
     src = HS.home_source()
     assert '\nmarkFresh();' in src, '부팅에서 markFresh 를 부르지 않는다'
-    assert "Object.keys(F.days)" in _fn(src, 'freshModes'), '모드 목록을 손으로 적었다 — 데이터(F.days)가 정본'
+    assert "Object.keys(F.days)" in J.fn(src, 'freshModes'), '모드 목록을 손으로 적었다 — 데이터(F.days)가 정본'
     css = io.open(os.path.join(HS.ROOT, 'app.css'), encoding='utf-8').read()
     rule = re.search(r'#sec-score \.map-mode \.nb\{([^}]*)\}', css).group(1)
     # 단추 안 글자 바로 왼쪽(2026-10-22 대표 요청 — 테두리 위 좌상단에 걸치면 두 단추 사이 경계라 어느 칸 배지인지 몰랐다).

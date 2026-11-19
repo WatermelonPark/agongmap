@@ -24,14 +24,12 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_weekly_page as MW  # noqa: E402
 
 ROOT = HS.ROOT
@@ -41,30 +39,11 @@ def _files():
     return dict(HS.home_files())
 
 
-def _fn(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, '%s 를 찾지 못했다' % name
-    i, depth = src.index('{', m.end()), 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
-
-
 def _gt_seq_decl(f):
     """home-app.js 의 GT_SEQ 선언(사람이 누른 보기 전환 수 — 순위 입구가 요청한 때 읽는다)."""
     m = re.search(r'^const GT_SEQ=\{[^}]*\};', f['home-app.js'], re.M)
     assert m, 'home-app.js 에 GT_SEQ 선언이 없다'
     return m.group(0)
-
-
-def _node(js):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    return json.loads(p.stdout.decode('utf-8'))
 
 
 def test_four_buttons_rank_map_graph_table_with_map_pressed():
@@ -109,7 +88,7 @@ process.stdout.write(JSON.stringify({out:out,drops:drops,sent:sent,swipe:swipe,s
 
 def test_gtset_switches_to_rank_and_drops_an_open_region():
     f = _files()
-    got = _node(GT % {'decl': _gt_seq_decl(f), 'fn': _fn(f['home-stats.js'], 'gtSet')})
+    got = J.node(GT % {'decl': _gt_seq_decl(f), 'fn': J.fn(f['home-stats.js'], 'gtSet')})
     assert got['out'] == [['r', ['gm-r'], ['r']], ['m', ['gm-m'], ['m']], ['r', ['gm-r'], ['r']], ['g', ['gm-g'], ['g']]], got['out']
     assert got['drops'] == ['week', 'week', 'week'], got['drops']      # 순위·지도로 바꿀 때 연 지역 그래프를 닫는다
     assert got['swipe'] == ['week', 'week'], got['swipe']              # 밀기 안내는 지도 보기만(사람이 누른 것·조용한 것 하나씩)
@@ -159,7 +138,7 @@ def test_back_from_a_region_opened_on_the_rank_view_returns_to_rank():
              ['rank2', 'gm-r', [['a7', n], ['b11', n], [n, n]]], ['idle', 'gm-r', [[n, n]]],
              ['entry', 'gm-m', [[n, 'r']]], ['entry_open', 'gm-m', [['a7', n], [n, 'r']]],
              ['entry_race', 'gm-g', [[n, 'r', True]]]]
-    got = _node(BACK % {'decl': decl.group(0), 'seq': _gt_seq_decl(f), 'fn': _fn(src, 'openTrendRegion'),
+    got = J.node(BACK % {'decl': decl.group(0), 'seq': _gt_seq_decl(f), 'fn': J.fn(src, 'openTrendRegion'),
                         'cases': json.dumps(cases)})
     assert got['rank'] == ['g', 'r'], got
     assert got['map'] == ['g', 'm'], got
@@ -192,7 +171,7 @@ var res={};
 
 def test_rank_entry_hash_opens_the_rank_view_and_keeps_the_old_shapes():
     hs = ['#stats-market-week-rank', '#stats-market-month-rank', '#stats-market-week~a7-t', '#stats-market', '#stats-adv-occ']
-    got = _node(ROUTER % {'fn': _fn(_files()['home-app.js'], 'applyHash'), 'hashes': json.dumps(hs)})
+    got = J.node(ROUTER % {'fn': J.fn(_files()['home-app.js'], 'applyHash'), 'hashes': json.dumps(hs)})
     # 순위는 openTrendRegion 이 데이터가 온 뒤에(요청한 때의 GT_SEQ 와 함께) — gtSet 을 따로 부르지 않는다. 주소의 '-rank'도
     # 그 함수가 순위로 바꾼 뒤에 걷는다 — 못 받은 날 '다시 시도'가 입구를 다시 읽게(2026-11-12 누름 경로 점검 D)
     assert got['#stats-market-week-rank'] == [['view', 'stats'], ['mode', 'market'], ['tab', 'week'],
@@ -266,8 +245,8 @@ def test_click_path_fixes_a_b_d_e_in_the_trend_functions():
     픽스처: home-stats.js 의 실제 gtSet·openTrendRegion·trOpenDrop·trHashDrop 과 home-app.js 의 GT_SEQ 를 합성 DOM·history 위에서."""
     f = _files()
     src = f['home-stats.js']
-    got = _node(CLICK % {'seq': _gt_seq_decl(f), 'gtset': _fn(src, 'gtSet'), 'open': _fn(src, 'openTrendRegion'),
-                         'drop': _fn(src, 'trOpenDrop'), 'hdrop': _fn(src, 'trHashDrop')})
+    got = J.node(CLICK % {'seq': _gt_seq_decl(f), 'gtset': J.fn(src, 'gtSet'), 'open': J.fn(src, 'openTrendRegion'),
+                         'drop': J.fn(src, 'trOpenDrop'), 'hdrop': J.fn(src, 'trHashDrop')})
     assert got['A'] == [['nav', '#stats-market-week~a7-t', True]], got['A']
     assert got['A0'] == [], got['A0']
     tr, view, log = got['B']
@@ -304,7 +283,7 @@ def test_router_marks_a_region_entry_reached_from_the_plain_address_and_skips_it
     변이(실제로 확인): oldURL 비교를 빼면 other·boot 단정이, TR_SKIP_HASH 건너뛰기를 지우면 skip 단정이 빨개진다.
     픽스처: home-app.js 의 실제 applyHash 와 GT_SEQ."""
     f = _files()
-    got = _node(ROUTER_E % {'fn': _fn(f['home-app.js'], 'applyHash'), 'seq': _gt_seq_decl(f)})
+    got = J.node(ROUTER_E % {'fn': J.fn(f['home-app.js'], 'applyHash'), 'seq': _gt_seq_decl(f)})
     assert ['mark', '#stats-market-week', '#stats-market-week~a7'] in got['mark'], got['mark']
     assert not [c for c in got['other'] + got['boot'] if c[0] == 'mark'], (got['other'], got['boot'])
     assert got['skip'] == [[], ''], got['skip']

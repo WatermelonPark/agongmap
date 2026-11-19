@@ -13,15 +13,13 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 import urllib.parse
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_indicator_pages as I  # noqa: E402
 import make_sido_pages as M  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
@@ -199,8 +197,6 @@ def test_home_tab_click_is_measured_by_identifier_not_label():
     무엇을 깨뜨리면 빨개지나(각각 실제로 확인): 구문을 지우면, 값을 b.textContent(표시 문자열)로 바꾸면, 링크 탭의
     주소 가공을 빼서 '/zone/' 이 그대로 가면 빨개진다. 픽스처: 저장소 index.html 탭바와 home-app.js(home_source).
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     src = HS.home_source()
     nav = NAV.search(src[src.index('<!-- ===== 하단 내비 ===== -->'):])
     assert nav, '홈 탭바를 못 찾았다'
@@ -214,11 +210,7 @@ def test_home_tab_click_is_measured_by_identifier_not_label():
                      'cls': re.search(r'class="([^"]*)"', m.group(0)).group(1)})
     m = re.search(r"document\.querySelectorAll\('\.bottomnav \.nav-btn'\)\.forEach\(.*?\)\)\);", src, re.S)
     assert m, "home-app.js 에 하단 탭 클릭 측정(nav_tab) 구문이 없다"
-    p = subprocess.run(['node', '-e', HARNESS % {'cfg': json.dumps({'tabs': tabs, 'code': m.group(0)},
-                                                                  ensure_ascii=False)}],
-                       capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    sent = json.loads(p.stdout.decode('utf-8'))
+    sent = J.node(HARNESS % {'cfg': json.dumps({'tabs': tabs, 'code': m.group(0)}, ensure_ascii=False)})
     assert [e for e, _ in sent] == ['nav_tab'] * len(N.IDS), sent
     assert [x.get('tab') for _, x in sent] == list(N.IDS), '탭 클릭 값이 식별자가 아니다: %s' % sent
 

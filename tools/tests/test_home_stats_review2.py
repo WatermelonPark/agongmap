@@ -19,15 +19,13 @@
 픽스처: 저장소 home-app.js·home-stats.js(home_src)·app.css·index.html 원문과, 폭·스크롤 값을 넣은 가짜 상자(node).
 """
 import io
-import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -42,28 +40,8 @@ def _rule(css, sel):
     return m.group(1)
 
 
-def _js_func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, '%s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
-
-
-def _node(js):
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
-    p = subprocess.run([node, '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    return json.loads(p.stdout.decode('utf-8'))
-
-
 def test_scroll_cue_marks_the_side_with_more_to_scroll():
-    fn = _js_func(HS.home_source(), 'scrollCue')
+    fn = J.fn(HS.home_source(), 'scrollCue')
     js = fn + r'''
 function mk(sw,cw,sl){
   var cls={cue:1};
@@ -77,24 +55,24 @@ var out=[];
 });
 process.stdout.write(JSON.stringify(out));
 '''
-    got = _node(js)
+    got = J.node(js)
     # 처음(오른쪽만) · 끝(왼쪽만) · 가운데(둘 다) · 안 넘침(없음) · 숨은 상자(판정 안 함)
     assert got == ['cue cue-r', 'cue cue-l', 'cue cue-l cue-r', 'cue', 'cue'], got
     css = _css()
     assert 'opacity:1' in _rule(css, '.cue.cue-l::before,.cue.cue-r::after')
     stats = HS.home_source()
-    assert '<div class="cue"><div class="map-scroll">' in _js_func(stats, 'drawNationMap'), '시세 탭 지도 상자에 흐림 덮개가 없다'
-    assert 'scrollCue(box)' in _js_func(stats, 'syncSwipe'), '보일 때(syncSwipe) 흐림을 다시 재지 않는다'
+    assert '<div class="cue"><div class="map-scroll">' in J.fn(stats, 'drawNationMap'), '시세 탭 지도 상자에 흐림 덮개가 없다'
+    assert 'scrollCue(box)' in J.fn(stats, 'syncSwipe'), '보일 때(syncSwipe) 흐림을 다시 재지 않는다'
 
 
 def test_stats_map_has_a_light_basis_line_and_a_legend_under_the_map():
     src = HS.home_source()
-    chip = _js_func(src, 'mapDateChip')
+    chip = J.fn(src, 'mapDateChip')
     assert "'<p class=\"map-datechip\">'" in chip and '<span>' not in chip, chip
     assert "' 기준 · 한국부동산원</p>'" in chip, '기준 줄이 홈 #tb-when 과 같은 \'시점 기준 · 출처\' 양식이 아니다'
     rule = _rule(_css(), '.map-datechip')
     assert 'background' not in rule and 'text-align:left' in rule, rule
-    draw = _js_func(src, 'drawNationMap')
+    draw = J.fn(src, 'drawNationMap')
     leg = draw[draw.index('map-suplegend'):]
     assert 'tb-key wg-key' in leg and '하락' in leg and '상승' in leg and leg.index('하락') < leg.index('상승'), \
         '지도 아래 범례가 없거나 왼쪽 하락 → 오른쪽 상승이 아니다'
@@ -102,7 +80,7 @@ def test_stats_map_has_a_light_basis_line_and_a_legend_under_the_map():
 
 def test_rank_change_column_is_named_and_neutral():
     src = HS.home_source()
-    tbl = _js_func(src, 'rankTables')
+    tbl = J.fn(src, 'rankTables')
     assert "<th>순위 변화</th>" in tbl and "'<th>'+unit+'</th>'" not in tbl
     css = _css()
     for sel in ('.rk-up', '.rk-dn'):
@@ -131,4 +109,4 @@ def test_columns_line_up_and_price_cards_keep_their_series():
     assert 'max-width:var(--col-wide)' in rec and 'padding:4px 24px 18px' in rec, rec
     assert _rule(css, '.wgrid').startswith('max-width:400px'), '주간 구역 링크 줄이 아래 큰 단추(400px) 폭이 아니다'
     assert re.search(r'\.agg-wk \.agg-p\{position:static', css), "375px 시세 카드가 '매매 전주 대비'를 감춘다"
-    assert "class=\"agg-c agg-wk\"" in _js_func(HS.home_source(), 'wkAggCard')
+    assert "class=\"agg-c agg-wk\"" in J.fn(HS.home_source(), 'wkAggCard')

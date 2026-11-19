@@ -13,14 +13,12 @@ _dS 가 달·일을 숫자로 바꾸지 않으면('26.09.28') 빨강. 파이썬 
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import sido_zones as SZ  # noqa: E402
 
 MONTHS = ['2026.08', '2026.08 p)', '2026-08', '2006.01', '2025.12', '2026.10', '연', '']
@@ -43,8 +41,6 @@ def test_python_canon_examples():
 
 
 def test_home_mirror_matches_the_python_canon():
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     src = HS.home_source()
     fns = []
     for name in ('_md', '_ymP', '_ymT', '_ymS', '_dS', '_dL', '_qT', 'unitT'):
@@ -53,9 +49,7 @@ def test_home_mirror_matches_the_python_canon():
         fns.append(m.group(0))
     calls = [(n, v) for n, _, vals in PAIRS for v in vals]
     js = '\n'.join(fns) + '\nprocess.stdout.write(JSON.stringify(%s.map(([n,v])=>eval(n)(v))));' % json.dumps(calls)
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    got = json.loads(p.stdout.decode('utf-8'))
+    got = J.node(js, timeout=30)
     want = [fn(v) for _, fn, vals in PAIRS for v in vals]
     bad = [(c, g, w) for c, g, w in zip(calls, got, want) if g != w]
     assert not bad, '홈 거울이 파이썬 정본과 다르다: %s' % bad

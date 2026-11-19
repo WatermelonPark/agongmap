@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 import sido_zones as SZ      # noqa: E402  (지역 정의의 정본 — 손 목록 금지)
+import adv_io as AIO         # noqa: E402  (data.js ADV·STATS 읽기 정본 — 백로그 61-A)
 
 EXCLUDE = ('세종', '제주')
 SIDO = [z for z in SZ.ORDER if z not in SZ.AGG]
@@ -120,9 +121,7 @@ def detrend(v):
 # ---------- 데이터 ----------
 
 def load_stats(path=None):
-    txt = open(path or os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    m = re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', txt, re.S)
-    return json.loads(m.group(1))
+    return AIO.stats_of(AIO.read_text(path or os.path.join(ROOT, 'data.js')))
 
 
 # ---------- 지수 연속성 (전수 리뷰 #61·#73, 2026-09-30) ----------

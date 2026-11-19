@@ -25,6 +25,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import adv_io as AIO  # noqa: E402  (data.js ADV·STATS 읽기·쓰기 정본 — 백로그 61-A)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, 'data.js')
 
@@ -106,10 +109,7 @@ def merge_rows(rows, regions, keys):
 
 def main():
     src = io.open(DATA, encoding='utf-8').read()
-    m = re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S)
-    adv = json.loads(m.group(1))
-    m2 = re.search(r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S)
-    stats = json.loads(m2.group(1))
+    adv, stats = AIO.adv_of(src), AIO.stats_of(src)
 
     print('[STATS]')
     for name, D in sorted(stats.items()):
@@ -128,9 +128,7 @@ def main():
         blk['regions'] = regs
         print('  %-8s 지역 %d개 · 셀 %d개 가중평균' % (key, len(regs), n))
 
-    out = src[:m2.start(1)] + json.dumps(stats, ensure_ascii=False, separators=(',', ':')) + src[m2.end(1):]
-    m3 = re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', out, re.S)
-    out = out[:m3.start(1)] + json.dumps(adv, ensure_ascii=False, separators=(',', ':')) + out[m3.end(1):]
+    out = AIO.put(AIO.put(src, 'STATS', stats), 'ADV', adv)
     io.open(DATA, 'w', encoding='utf-8', newline='\n').write(out)
     print('data.js 갱신')
     return 0

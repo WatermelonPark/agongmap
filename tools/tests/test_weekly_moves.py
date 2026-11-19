@@ -21,14 +21,13 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 import weekly_moves as WM  # noqa: E402
@@ -61,26 +60,6 @@ def _fixture():
         ma = [CASES[z][0][k] if z in CASES else 0.01 for z in regs]   # 나머지는 4주 연속 상승
         rows.append({'p': p, 'ma': ma, 'je': ma})
     return {'regions': regs, 'rows': rows}
-
-
-def _node(js):
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
-    p = subprocess.run([node, '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
-
-
-def _js_func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
 
 
 def _wk_block(h):
@@ -138,7 +117,7 @@ def _grid_js(W, seen=None):
     ref = re.search(r'^var WK_MAP_REF=.*$', h, re.M).group(0)
     return '\n'.join([_wk_block(h), key.group(0), tile, ref,
                       'let KAKAO_P=null,KAKAO_FAIL=false;function loadScript(){return Promise.resolve();}']
-                     + [_js_func(h, n) for n in names] + [
+                     + [J.fn(h, n) for n in names] + [
         'globalThis.ADV={weekly:%s,holidays:[]};' % json.dumps(W, ensure_ascii=False),
         'const LS={};if(%s!==null)LS.wk_seen=%s;' % (json.dumps(seen), json.dumps(seen)),
         'globalThis.localStorage={getItem:k=>k in LS?LS[k]:null,setItem:(k,v)=>{LS[k]=String(v);}};',
@@ -169,13 +148,13 @@ def test_seen_release_is_only_moved_forward():
     가짜 localStorage.
     """
     WJ = _sgg_fixture()
-    later = _node(_grid_js(WJ, seen='2030-02-07'))          # 더 새 발표를 이미 본 기기에 옛 판 화면
+    later = J.node(_grid_js(WJ, seen='2030-02-07'))          # 더 새 발표를 이미 본 기기에 옛 판 화면
     assert later['drawn'], '주간 구역이 그려지지 않았다 — 머리 줄만 보고 초록이 되지 않게'
     assert later['tiles'] == 0, '주간 구역에 지도가 남았다 — 홈 지도는 지도 구역 카드 하나다(2026-10-29)'
     assert later['seen'] == '2030-02-07' and later['since'] is None
-    older = _node(_grid_js(WJ, seen='2030-01-24'))
+    older = J.node(_grid_js(WJ, seen='2030-01-24'))
     assert older['seen'] == '2030-01-31' and older['since'] == '지난 방문(1/24 발표) 이후 새 발표 1회'
-    first = _node(_grid_js(WJ))
+    first = J.node(_grid_js(WJ))
     assert first['seen'] == '2030-01-31' and first['since'] is None
 
 
@@ -187,11 +166,11 @@ def test_since_last_visit_line():
     픽스처: 발표일 2030-01-31(목) 기준 합성 발표 상태.
     """
     h = HS.home_source()
-    js = '\n'.join([_wk_block(h), _js_func(h, 'wkSinceText'),
+    js = '\n'.join([_wk_block(h), J.fn(h, 'wkSinceText'),
                     'const r={pub:"2030-01-31"};',
                     'process.stdout.write(JSON.stringify([null,"2030-01-31","2030-01-24","2030-01-10","x","2030-02-07"]'
                     '.map(s=>wkSinceText(s,r))));'])
-    assert _node(js) == [None, None, '지난 방문(1/24 발표) 이후 새 발표 1회',
+    assert J.node(js) == [None, None, '지난 방문(1/24 발표) 이후 새 발표 1회',
                          '지난 방문(1/10 발표) 이후 새 발표 3회', None, None]
 
 
@@ -206,11 +185,11 @@ def test_since_last_visit_skips_a_week_the_source_skipped():
     """
     h = HS.home_source()
     ps = ['2025-01-06', '2025-01-13', '2025-01-20', '2025-02-03']
-    js = '\n'.join([_wk_block(h), _js_func(h, 'wkSinceText'), _js_func(h, 'wkPs'),
+    js = '\n'.join([_wk_block(h), J.fn(h, 'wkSinceText'), J.fn(h, 'wkPs'),
                     'const r=weeklyRelease("2025-02-03",new Date("2025-02-07T03:00:00Z"),9), W={ps:%s};' % json.dumps(ps),
                     'process.stdout.write(JSON.stringify([r.pub].concat(["2025-01-23","2025-01-16","2025-01-02","2025-02-06"]'
                     '.map(s=>wkSinceText(s,r,wkPs(W))))));'])
-    assert _node(js) == ['2025-02-06', '지난 방문(1/23 발표) 이후 새 발표 1회', '지난 방문(1/16 발표) 이후 새 발표 2회',
+    assert J.node(js) == ['2025-02-06', '지난 방문(1/23 발표) 이후 새 발표 1회', '지난 방문(1/16 발표) 이후 새 발표 2회',
                          '지난 방문(1/2 발표) 이후 새 발표 4회 이상', None]
     import split_data as SD
     import tempfile as _tf
@@ -249,11 +228,11 @@ def test_sgg_rank_moves_match_the_home_top10():
     h = HS.home_source()
     for label, SS in (('실데이터', S), ('반올림 겹침', dict(S, rows=[S['rows'][0], tie]))):
         for met in ('ma', 'je'):
-            js = '\n'.join(['const SGG_QNAME=%s;' % json.dumps(Q, ensure_ascii=False), _js_func(h, 'sggRanks'),
+            js = '\n'.join(['const SGG_QNAME=%s;' % json.dumps(Q, ensure_ascii=False), J.fn(h, 'sggRanks'),
                             'const S=%s;' % json.dumps(SS, ensure_ascii=False),
                             'const cr=sggRanks(S,S.rows[1],"%s"),pr=sggRanks(S,S.rows[0],"%s").rk;' % (met, met),
                             'process.stdout.write(JSON.stringify(cr.order.map(([c])=>[c,cr.rk[c],(c in pr)?pr[c]-cr.rk[c]:null])));'])
-            site = _node(js)
+            site = J.node(js)
             ours = [[c, r, d] for c, _, r, d in WM.rank_moves(SS, Q, met)]
             assert len(ours) > 10 and ours == site, '%s %s: 파이썬 %s… / 홈 %s…' % (label, met, ours[:5], site[:5])
 
@@ -325,7 +304,7 @@ const row=c=>({cells:[c]});
 const a=['+0.12','0.00','-0.05'].map(t=>val(row(cell(t)),0,true));
 const b=[['▲3','3'],['▼2','-2'],['NEW','']].map(([t,v])=>val(row(cell(t,v)),0,true));
 process.stdout.write(JSON.stringify([a,b]));'''
-    a, b = _node(js)
+    a, b = J.node(js)
     assert a == [0.12, 0, -0.05], a
     assert b == [3, -2, -1e9], b
 
@@ -368,11 +347,11 @@ def test_home_top10_rank_moves_follow_each_tables_own_order():
     S = copy.deepcopy(W['sgg'])
     S['rows'] = S['rows'][-2:]
     h = HS.home_source()
-    fns = '\n'.join(_js_func(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'sggRanks', 'rankTables'))
+    fns = '\n'.join(J.fn(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'sggRanks', 'rankTables'))
     js = '\n'.join(['const SGG_QNAME=%s;' % json.dumps(Q, ensure_ascii=False), "const RANKMET={week:'ma'};", fns,
                     'const S=%s;' % json.dumps(S, ensure_ascii=False),
                     'process.stdout.write(JSON.stringify(rankTables(S,"전주 대비","week")));'])
-    out = _node(js)
+    out = J.node(js)
     boxes = re.findall(r'<div class="rank-box">(.*?)</table>', out, re.S)
     assert len(boxes) == 2, out[:300]
 
@@ -404,11 +383,11 @@ def test_home_top10_rank_moves_follow_each_tables_own_order():
 def _home_rank_boxes(S, Q, k='month', met='ma'):
     """홈 rankTables 를 node 로 돌려 두 표(상승·하락)의 [(메달 유무, 순위, 코드, 값 글자)] 와 빈 표 안내를 돌려준다."""
     h = HS.home_source()
-    fns = '\n'.join(_js_func(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'sggRanks', 'rankTables'))
+    fns = '\n'.join(J.fn(h, n) for n in ('pv2r', 'pv2', 'pvSign', 'sggRanks', 'rankTables'))
     js = '\n'.join(['const SGG_QNAME=%s;' % json.dumps(Q, ensure_ascii=False), "const RANKMET={%s:'%s'};" % (k, met), fns,
                     'const S=%s;' % json.dumps(S, ensure_ascii=False),
                     'process.stdout.write(JSON.stringify(rankTables(S,"전월 대비","%s")));' % k])
-    out = _node(js)
+    out = J.node(js)
     boxes = re.findall(r'<div class="rank-box">(.*?)</table>', out, re.S)
     assert len(boxes) == 2, out[:300]
     res = []

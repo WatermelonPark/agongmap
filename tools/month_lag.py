@@ -33,6 +33,9 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import adv_io as AIO  # noqa: E402  (data.js ADV·STATS 읽기 정본 — 백로그 61-A)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 MIN_MONTHS = 2       # 이만큼 뒤처지면 알린다(월요일 회차)
@@ -160,12 +163,7 @@ def line(adv, stats, min_months=MIN_MONTHS):
 
 def load(path=None):
     """data.js 에서 ADV 와 STATS 를 읽는다. /monthly/ 생성기와 같은 방식이다."""
-    src = io.open(path or os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    adv = json.loads(re.search(
-        r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
-    sts = json.loads(re.search(
-        r'const STATS\s*=\s*(\{.*?\});?\s*(?:/\*|const |$)', src, re.S).group(1))
-    return adv, sts
+    return AIO.load(path or os.path.join(ROOT, 'data.js'))
 
 
 def main(argv=None):

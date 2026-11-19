@@ -21,8 +21,6 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 import pytest
@@ -34,6 +32,8 @@ import sido_zones as SZ  # noqa: E402
 import split_data as S  # noqa: E402
 import make_sido_pages as P  # noqa: E402
 import home_src as HS  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 REGS = ['A', 'B']
 
@@ -71,21 +71,13 @@ def _tbagg_js():
         m = re.search(pat, src)
         assert m, '%s 를 home-app.js 에서 못 찾았다' % pat
         parts.append(m.group(0))
-    i = src.index('function tbAgg(rows,per){')
-    depth, j = 0, src.index('{', i)
-    while True:
-        c = src[j]
-        depth += (c == '{') - (c == '}')
-        j += 1
-        if depth == 0:
-            break
-    parts.append(src[i:j])
+    fn = J.fn(src, 'tbAgg')
+    assert fn.startswith('function tbAgg(rows,per){'), fn[:80]
+    parts.append(fn)
     return '\n'.join(parts)
 
 
 def _node_tbagg(mo, per, with_agg):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     rows = []
     for r in mo['rows']:
         y, m = int(r['p'][:4]), int(r['p'][5:7])
@@ -94,9 +86,7 @@ def _node_tbagg(mo, per, with_agg):
     js = ('var TB_BCACHE=%s;\n%s\nvar out=tbAgg(%s,%s).map(function(c){return [c.g,c.m];});\n'
           'process.stdout.write(JSON.stringify(out));'
           % (json.dumps(cache), _tbagg_js(), json.dumps(rows), json.dumps(per)))
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
+    return J.node(js)
 
 
 def _label(g, per):
@@ -125,7 +115,7 @@ def test_home_tbagg_empties_the_same_cells(per, with_agg):
 
 def _adv():
     src = io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read()
-    return json.loads(re.search(r'/\*ADV_DATA_START\*/\s*const ADV=(\{.*?\});?\s*/\*ADV_DATA_END\*/', src, re.S).group(1))
+    return AIO.adv_of(src)
 
 
 def test_home_quarter_values_are_the_report_values():

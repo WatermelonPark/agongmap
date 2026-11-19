@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
+import adv_io as AIO  # noqa: E402  (data.js 읽기 정본 — 백로그 61-A)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
@@ -239,18 +240,12 @@ def test_generator_rounding_matches_the_site_js():
     픽스처: 경계값 모음 — 리뷰가 찾은 0.145, 부호 대칭 −0.085, 은행가 반올림이 갈리는 0.125·2.675.
     """
     import json
-    import shutil
-    import subprocess
+    import _js as J
     import home_src as HS
-    if not shutil.which('node'):
-        import pytest
-        pytest.skip('node 없음')
     m = re.search(r'^function pv2r\(v\)\{[^\n]*\}', HS.home_source(), re.M)
     assert m, 'home-app.js 에서 pv2r 를 찾지 못했다'
     js = m.group(0) + ';process.stdout.write(JSON.stringify(%s.map(pv2r)));' % json.dumps(list(PV2R_CASES))
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    site = json.loads(p.stdout.decode('utf-8'))
+    site = J.node(js, timeout=30)
     ours = [MW.pv2r(v) for v in PV2R_CASES]
     bad = ['%s: 사이트 %s · 생성기 %s' % (v, a, b) for v, a, b in zip(PV2R_CASES, site, ours) if abs(a - b) > 1e-9]
     assert not bad, '생성기 반올림이 사이트와 다르다: %s' % '; '.join(bad)
@@ -466,8 +461,7 @@ def test_dataset_temporal_coverage_starts_at_the_first_data_month():
     """
     import json
     W, s = _rendered()
-    adv = json.loads(re.search(r'/\*ADV_DATA_START\*/const ADV=(\{.*?\});',
-                               io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read(), re.S).group(1))
+    adv = AIO.adv_of(io.open(os.path.join(ROOT, 'data.js'), encoding='utf-8').read())
     firsts = [adv['weekly']['rows'][0]['p'][:7]] + [str(r['p'])[:7].replace('.', '-') for r in adv['monthly']['rows'][:1]]
     want = min(firsts) + '/..'
     got = re.findall(r'"temporalCoverage":\s*"([^"]*)"', s)

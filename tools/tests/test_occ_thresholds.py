@@ -13,8 +13,6 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 import pytest
@@ -26,6 +24,7 @@ import sido_zones as SZ  # noqa: E402
 import split_data as S  # noqa: E402
 import make_indicator_pages as I  # noqa: E402
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 PCTS = (64.4, 69.4, 69.6, 70, 100, 110, 130, 130.4, 130.6, 140)
 REF = 1000.0
@@ -33,13 +32,9 @@ REF = 1000.0
 
 def _occcls_src():
     src = dict(HS.home_files())['home-stats.js']
-    i = src.index('function occCls(region,v){')
-    depth, j = 0, src.index('{', i)
-    while True:
-        depth += (src[j] == '{') - (src[j] == '}')
-        j += 1
-        if depth == 0:
-            return src[i:j]
+    fn = J.fn(src, 'occCls')
+    assert fn.startswith('function occCls(region,v){'), fn[:80]
+    return fn
 
 
 def _moveins_cls(p):
@@ -49,16 +44,12 @@ def _moveins_cls(p):
 
 
 def test_home_occcls_matches_moveins():
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     band = S.occ_band()
     assert band == {'lo': SZ.OCC_LO_PCT, 'hi': SZ.OCC_HI_PCT}
     js = ('var ADV={occupancy:{ref:{X:%s},band:%s}};\n%s\n'
           'process.stdout.write(JSON.stringify(%s.map(function(p){return occCls("X",p/100*%s);})));'
           % (REF, json.dumps(band), _occcls_src(), json.dumps(PCTS), REF))
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    home = json.loads(p.stdout.decode('utf-8'))
+    home = J.node(js)
     site = [_moveins_cls(x) for x in PCTS]
     assert home == site, dict(zip(PCTS, zip(home, site)))
     assert home.count('lo') == 2 and home.count('hi') == 2, home   # 64.4·69.4 부족, 130.6·140 과잉(130.4 는 130% — 과잉 아님)

@@ -53,7 +53,7 @@ class _Run:
         monkeypatch.setattr(sido_zones, 'supply_rows', lambda st: {'rows': copy.deepcopy(occ.get('rows'))})
 
     def adv(self):
-        return U.read_current_adv()[3]
+        return U.read_current_adv()
 
     def set(self, fn, value):
         """fetch 함수가 매 호출 새 사본을 돌려주게 한다(main이 응답을 제자리에서 고친다)."""
