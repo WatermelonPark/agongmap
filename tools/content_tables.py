@@ -597,6 +597,40 @@ def _weekly_series(data, name, kind='ma'):
     return [(r.get('p'), (r.get(kind) or [None] * len(codes))[i]) for r in (S.get('rows') or [])]
 
 
+def _weekly_block(data, name):
+    """(주간 행, 열 번호) — 시도면 ADV.weekly, 시군구면 sgg. 이름 검사는 _weekly_series 와 같다(같은 오류 문구)."""
+    import sido_zones as SZ
+    if name in SZ.ORDER or SZ.key_of(name) in SZ.ORDER:
+        W = data['weekly']
+        return W.get('rows') or [], (W.get('regions') or []).index(region_key(data, name))
+    _weekly_series(data, name)
+    S = data.get('sgg') or {}
+    return S.get('rows') or [], (S.get('codes') or []).index(sgg_codes(data, name)[0][0])
+
+
+CUM_BACK = 3      # 최신 주의 창을 못 잡으면(기준 주를 원천이 걸렀거나 최신 값이 빔) 몇 회차까지 물러서 보나
+
+
+def cum(data, name, what='매매', weeks=None):
+    """'+1.65%' — 최근 weeks 주 누적 변동률(주간 변동률을 이어 곱한 값). 셈은 주간 정본(weekly_moves.cum_window·cum_change)이라
+    시도 리포트 12주 누적 칸과 같은 값이 나온다. 최신 회차의 창을 잡지 못하면 앞 회차로 물러서고, 그때는 '(10월 26일 조사까지)'를
+    붙여 어느 주까지의 값인지 밝힌다 — 원천 값을 쪼개거나 빈 주를 0 으로 채우지 않는다."""
+    kinds = {'매매': 'ma', '전세': 'je'}
+    if what not in kinds:
+        raise TableError('cum 은 매매 또는 전세다: %r' % what)
+    import weekly_moves as WM
+    weeks = int(weeks or WM.CUM_WEEKS)
+    if weeks < 1:
+        raise TableError('cum 주수는 1 이상이다: %r' % weeks)
+    rows, i = _weekly_block(data, name)
+    for back in range(CUM_BACK + 1):
+        part = rows[:len(rows) - back] if back else rows
+        v = WM.cum_change(part, WM.cum_window(part, weeks), i, kinds[what])
+        if v is not None:
+            return pct(v, 2) + '%' + ('(%s 조사까지)' % _kdate(part[-1].get('p')) if back else '')
+    raise TableError('%s %s %d주 누적을 셀 주간 값이 없다(최근 %d회차)' % (name, what, weeks, CUM_BACK + 1))
+
+
 def streak(data, name, what='매매'):
     """'42주 연속 상승(10월 19일 조사)' — 최신 주와 같은 방향이 이어진 주 수.
 
@@ -690,6 +724,8 @@ def table(data, kind, args):
         if len(args) != 2:
             raise TableError('stats 자리표는 계열:지역 꼴이다')
         return stats(data, args[0], region_key(data, args[1]))
+    if kind == 'cum':
+        raise TableError('cum 은 표가 아니라 값이다 — {{v:cum:...}} 로 쓸 것')
     if kind == 'streak':
         if not 1 <= len(args) <= 2:
             raise TableError('streak 자리표는 지역[:매매|전세] 꼴이다')
@@ -704,7 +740,7 @@ def table(data, kind, args):
         if sgg_codes(data, args[0]):
             return weekly_sgg(data, args[0])
         return weekly(data, region_key(data, args[0]))
-    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:share3, v:moveins3, v:streak, v:need, v:pop, v:peak, v:ratio, v:asof)' % kind)
+    raise TableError('모르는 자리표 종류다: %r (쓸 수 있는 것: moveins, supply, stats, weekly, complexes · 값 전용: v:share, v:share3, v:moveins3, v:streak, v:cum, v:need, v:pop, v:peak, v:ratio, v:asof)' % kind)
 
 
 def value(data, kind, args):
@@ -722,6 +758,10 @@ def value(data, kind, args):
         if not 1 <= len(args) <= 2:
             raise TableError('streak 자리표는 지역[:매매|전세] 꼴이다')
         return streak(data, args[0], args[1] if len(args) > 1 else '매매')
+    if kind == 'cum':
+        if not 2 <= len(args) <= 3 or not args[-1].isdigit():
+            raise TableError('cum 자리표는 지역[:매매|전세]:주수 꼴이다(예: v:cum:서울 노원구:4)')
+        return cum(data, args[0], args[1] if len(args) == 3 else '매매', args[-1])
     if kind in ('need', 'pop', 'peak', 'ratio'):
         want = {'need': (1, 1), 'pop': (1, 1), 'peak': (1, 2), 'ratio': (3, 3)}[kind]
         if not want[0] <= len(args) <= want[1]:
