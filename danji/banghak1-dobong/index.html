@@ -242,6 +242,32 @@ footer a{color:var(--ink2)}
   .qgrid{grid-template-columns:repeat(2,1fr)}
   .qcard li+li{display:-webkit-box}
 }
+/* 지역 거르기 두 단(2026-11-19 대표 결정 '시도 한 줄 + 도시 둘째 줄'): 첫 줄 '전체'·시도 단추, 시도를 누르면 그 시도의 도시 칩
+   줄만 열린다(FILTER_JS 가 .cityf 에 js 를 단다 — JS 가 없으면 시도 단추를 숨기고 도시 칩 줄을 모두 보인다). 휴대폰은 시도 줄을
+   옆으로 밀고 오른쪽 끝을 흐리게 해 더 있다는 단서를 둔다. LIST_CSS(홈 app.css 와 같은 글자) 밖에 둔다 — 칩은 콘텐츠 페이지에만 있다. */
+.cf-s{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.cf-sd small{font-size:13px;margin-left:4px;color:var(--muted)}
+.cf-sd.on small{color:inherit}
+.cityf:not(.js) .cf-sd{display:none}
+.cityf.js .cf-g{display:none}
+.cityf.js .cf-g.open{display:flex}
+.cityf.js .cf-g em{display:none}
+/* 휴대폰 목록형 카드(.klist, 같은 날 대표 결정 '촘촘한 목록형'): 칩·날짜 한 줄 → 결론 제목 → 핵심 숫자. 카드 높이가 절반 아래로 줄어
+   한 화면에 5편 안팎이 보인다. 섹션 목록(.ksec)은 질문 칩이 모두 같아 감춘다. 768px 이상은 3열 카드 그대로. */
+@media (max-width:767px){
+  .cf-s{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;
+   -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent)}
+  .cf-s::-webkit-scrollbar{display:none}
+  .cf-s .rchip{flex:none}
+  .klist{gap:8px}
+  .klist .kcard{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 12px;padding:12px 14px}
+  .klist .kc-date{grid-column:2;grid-row:1}
+  .klist .kc-hook{grid-column:1/-1;font-size:15px;line-height:1.4}
+  .klist .kc-key{grid-column:1/-1;margin-top:0;gap:6px}
+  .klist .kc-key strong{font-size:17px}
+  .klist.ksec .kc-t{display:none}
+  .klist .kcard[hidden]{display:none}   /* 위 grid 가 LIST_CSS 의 .kcard[hidden] 과 같은 급이라 뒤에서 이겼다 — 거른 카드가 그대로 보였다 */
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
