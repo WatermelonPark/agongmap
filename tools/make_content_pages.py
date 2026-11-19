@@ -568,6 +568,7 @@ EXTRA_CSS = LIST_CSS + """
   .klist .kc-key{grid-column:1/-1;margin-top:0;gap:6px}
   .klist .kc-key strong{font-size:17px}
   .klist.ksec .kc-t{display:none}
+  .klist .kcard[hidden]{display:none}   /* 위 grid 가 LIST_CSS 의 .kcard[hidden] 과 같은 급이라 뒤에서 이겼다 — 거른 카드가 그대로 보였다 */
 }
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
