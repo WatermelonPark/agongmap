@@ -15,14 +15,12 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 
-import pytest
 
 import sys as _hs_sys  # noqa: E402
 _hs_sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
@@ -148,12 +146,8 @@ async function run(path, mode) {
 
 
 def _sw_run():
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     js = HARNESS % {'src': json.dumps(_read('sw.js'))}
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    return json.loads(p.stdout.decode('utf-8'))
+    return J.node(js)
 
 
 def test_sw_timeout_is_3_to_4_seconds():

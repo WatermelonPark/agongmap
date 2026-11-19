@@ -23,15 +23,13 @@
 각 시험 독스트링에 변이(실제로 넣어 빨간 것을 확인)를 적는다. 픽스처: 저장소 index.html·app.css·home-*.js(home_src) 원문과 합성 DOM.
 """
 import io
-import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import site_nav as NAV  # noqa: E402
 
 READ_PX = getattr(NAV, 'READ_PX', 14)   # 읽는 문장 하한(2026-11-06 대표 결정) — 정본은 site_nav.READ_PX(영역 D)
@@ -63,26 +61,6 @@ def _media_block(css, cond):
     raise AssertionError(cond)
 
 
-def _js_func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, '%s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
-
-
-def _node(js):
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
-    p = subprocess.run([node, '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    return json.loads(p.stdout.decode('utf-8'))
-
-
 def _px(rule, prop='font-size'):
     m = re.search(r'(?<![\w-])%s:([\d.]+)px' % prop, rule)
     assert m, (prop, rule)
@@ -103,7 +81,7 @@ def test_transpose_button_hides_where_it_cannot_apply():
     wide = _media_block(css, 'min-width:721px')
     assert re.search(r'\.gsec\.sel-one \.tr-row\{display:none\}', wide), '한 지역 표에서 행열 전환 단추를 숨기지 않는다'
     src = HS.home_source()
-    fn = _js_func(src, 'renderTrendTables')
+    fn = J.fn(src, 'renderTrendTables')
     compact = fn[fn.index('const CR='):]
     assert 'TRANSP' not in compact, 'compact 표가 행열 전환을 읽는다 — 단추를 숨길 까닭이 없어졌다(규칙을 걷을 것)'
     assert "classList.toggle('sel-one'" in fn
@@ -148,7 +126,7 @@ def test_stats_map_basis_and_cell_meaning_share_one_line_above_the_map():
 
     변이(실제로 확인): drawNationMap 에서 .map-top 감싸기를 빼면, 순위 보기 숨김 목록에서 .gsec.gm-r .map-rows 를 빼면 빨개진다.
     """
-    draw = _js_func(HS.home_source(), 'drawNationMap')
+    draw = J.fn(HS.home_source(), 'drawNationMap')
     top = draw.index("'<div class=\"map-top\">'+mapDateChip(")
     assert top < draw.index("'<p class=\"map-rows\">칸 숫자: '") < draw.index('rankTables(S') < draw.index('map-scroll'), draw[:400]
     css = _css()
@@ -174,7 +152,7 @@ def test_trend_chart_series_colors_follow_the_site_series_colors():
     css = _css()
     for k, cls in (('ma', 'cl-ma'), ('je', 'cl-je'), ('wo', 'cl-wo')):
         assert ('background:%s' % col[k]) in _rule(css, '.chart-legend .%s::before' % cls), (k, cls)
-    draw = _js_func(src, 'drawTrendChart')
+    draw = J.fn(src, 'drawTrendChart')
     for bad in ('#e0564a', '#131e24', '#7a8b91', '#a98be0'):
         assert bad not in draw and bad not in set(col.values()), bad
     for k in ('ma', 'je', 'wo'):
@@ -192,7 +170,7 @@ def test_trend_chart_axis_uses_the_home_font_and_turns_only_when_needed():
     body = re.search(r"body\.home-app\{font-family:([^}]+)\}", _index()).group(1)
     head = [x.strip() for x in body.split(',')][:2]
     assert [x.strip() for x in font.split(',')][:2] == head, (font, head)
-    draw = _js_func(src, 'drawTrendChart')
+    draw = J.fn(src, 'drawTrendChart')
     assert 'minRotation:0' in draw and 'minRotation:45' not in draw
     sizes = [int(x) for x in re.findall(r'font:\{size:(\d+)\}', draw)]
     assert sizes and min(sizes) >= 11, sizes
@@ -230,7 +208,7 @@ def test_rank_tables_have_no_medals_or_black_sort_head():
     변이(실제로 확인): rankTables 에 메달(🥇)을 되살리면, .rk-sort.on 을 'background:var(--ink)' 로 되돌리면, 머리에 basis 를
     되살리면 빨개진다.
     """
-    fn = re.sub(r'/\*.*?\*/', '', _js_func(HS.home_source(), 'rankTables'), flags=re.S)   # 주석 속 옛 사례(🥈김제)는 뺀다
+    fn = re.sub(r'/\*.*?\*/', '', J.fn(HS.home_source(), 'rankTables'), flags=re.S)   # 주석 속 옛 사례(🥈김제)는 뺀다
     assert not re.search('[\U0001F947-\U0001F949]', fn) and 'rk-medal' not in fn
     assert '기준</span>' not in fn and 'basis' not in fn
     css = _css()
@@ -294,7 +272,7 @@ def test_map_buttons_follow_the_map_mode():
     """
     src = HS.home_source()
     const = re.search(r'^const SCORE_CTA=\{.*?^\};', src, re.M | re.S).group(0)
-    got = _node(SCORE_DOM % {'fns': const + '\n' + _js_func(src, 'scoreCta')})
+    got = J.node(SCORE_DOM % {'fns': const + '\n' + J.fn(src, 'scoreCta')})
     w, mo, sup, w2 = got['out']
     assert w[:3] == ['#stats-market-week-rank', '시군구 상승·하락 TOP 10 보기', None] and w[3:] == ['/weekly/', '이번 주 요약 보기 →'], w
     assert mo[0] == '/monthly/' and mo[3] == '#stats-market-month-rank' and 'TOP 10' in mo[4], mo
@@ -304,7 +282,7 @@ def test_map_buttons_follow_the_map_mode():
     assert tos == ['score_week_rank', 'score_weekly', 'score_monthly', 'score_month_rank', 'zone_hub', 'monthly',
                    'score_week_rank', 'score_weekly'], tos
     assert all(re.match(r'^[a-z][a-z0-9_]*$', t) for t in tos)
-    assert 'scoreCta(m);' in _js_func(src, 'mapMode')
+    assert 'scoreCta(m);' in J.fn(src, 'mapMode')
     # 같은 주소로 가는 다른 입구와 to 값이 겹치지 않는다(test_home_cta 의 홈 뷰 값들)
     assert not {'score_week_rank', 'score_weekly', 'score_monthly', 'score_month_rank'} & set(
         re.findall(r"track\('home_cta',\{to:'([^']*)'\}\)", _index()))
@@ -321,7 +299,7 @@ def test_weekly_share_sits_after_the_main_action_and_is_not_yellow():
     sec = h[h.index('id="wk-h2"'):]
     sec = sec[:sec.index('</section>')]
     assert sec.index('id="home-weekly-grid"') < sec.index('<div class="hs-cta">') < sec.index('<div id="home-weekly-share"></div>')
-    fn = _js_func(HS.home_source(), 'renderWeeklyGrid')
+    fn = J.fn(HS.home_source(), 'renderWeeklyGrid')
     assert "document.getElementById('home-weekly-share')" in fn and 'shBox.innerHTML=share' in fn
     assert "+(shBox?'':share)" in fn, '공유 상자가 있는데도 주간 상자 안에 공유를 또 붙인다'
     css = _css()

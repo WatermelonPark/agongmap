@@ -19,8 +19,6 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 from urllib.parse import unquote
 
@@ -28,6 +26,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import kst  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
@@ -54,18 +53,6 @@ def _src():
     return HS.home_source()
 
 
-def _js_func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError('%s 의 끝을 찾지 못했다' % name)
-
-
 def _var(src, name):
     m = re.search(r'^var %s=.*$' % re.escape(name), src, re.M)
     assert m, 'home-app.js 에서 var %s 를 찾지 못했다' % name
@@ -76,14 +63,6 @@ def _wk_block(src):
     m = re.search(r'// <wk-release>[^\n]*\n(.*?)// </wk-release>', src, re.S)
     assert m, 'home-app.js 에서 <wk-release> 구간을 찾지 못했다'
     return m.group(1)
-
-
-def _node(js):
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
-    p = subprocess.run([node, '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-2000:]
-    return json.loads(p.stdout.decode('utf-8'))
 
 
 def _geo():
@@ -111,17 +90,13 @@ def _zones():
     return out
 
 
-def _fns(src, names):
-    return '\n'.join(_js_func(src, n) for n in names)
-
-
 def _base_js(src):
     """주간 모드에 쓰는 홈 함수 전부(색·서식·발표 문장·범례·카드) — 실제 소스 그대로."""
     return '\n'.join([
         _wk_block(src), _var(src, 'TB_MIN'), _var(src, 'TB_UP'), _var(src, 'TB_BAL'), _var(src, 'TB_GRADE'),
         _var(src, 'WK_MAP_REF'), _var(src, 'MO_MAP_REF'), _var(src, 'MAP_MODE'),
         re.search(r'^const NATION_TILE=.*$', src, re.M).group(0),
-        _fns(src, ('pv2r', 'pv2', 'pvSign', 'mapColor', 'tintA', 'mapFill', 'supplyFill', 'opaqueOnPaper', 'wkFill',
+        J.fns(src, *('pv2r', 'pv2', 'pvSign', 'mapColor', 'tintA', 'mapFill', 'supplyFill', 'opaqueOnPaper', 'wkFill',
                    'wkPct', 'sggLastRow', 'sggMapSvg', 'priceTilesHtml', 'wkMapModel', 'moMapModel', 'priceModel', 'mapKeyHtml', 'mapAria', 'wkAggCard', 'aggLights', 'aggLightKey', 'aggCard',
                    'tbSigned', 'sidoCode', 'priceOk', 'renderAggCards', 'renderSidoMap')),
     ])
@@ -150,7 +125,7 @@ def _render(src, p, now_ms, mode):
           'MM:moMapModel(ADV.monthly),r:weeklyReleaseNow(),wb:WB.disabled,tw:TW.textContent}));'
           % (json.dumps(ADV, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _base_js(src), now_ms,
              json.dumps(mode)))
-    return _node(js)
+    return J.node(js)
 
 
 def _shapes(h):
@@ -340,8 +315,8 @@ def test_mode_toggle_markup_state_and_measurement():
     css = io.open(os.path.join(ROOT, 'app.css'), encoding='utf-8').read()
     assert not re.search(r':not\(\.vm-map\) \.map-mode\{display:none\}', css), '모드 단추가 그래프·표 보기에서 숨는다'
 
-    fns = '\n'.join(_js_func(src, n) for n in ('mapMode', 'sggLastRow', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk', '_md', '_ymP', '_ymT'))
-    got = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"map"'})
+    fns = '\n'.join(J.fn(src, n) for n in ('mapMode', 'sggLastRow', 'wkMapModel', 'moMapModel', 'priceModel', 'priceOk', '_md', '_ymP', '_ymT'))
+    got = J.node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"map"'})
     assert got['st'] == [['weekly', 'false,true+on,false', 1, 1, '', True],
                          ['weekly', 'false,true+on,false', 1, 1, '', True],
                          ['monthly', 'false,false,true+on', 2, 2, '', True],
@@ -353,9 +328,9 @@ def test_mode_toggle_markup_state_and_measurement():
                            ['map_mode', {'mode': 'supply'}]], got['sent']
     assert all(re.match(r'^[a-z][a-z0-9_]*$', x) for e, p in got['sent'] for x in (e, p['mode']))
     assert got['views'] == []
-    g2 = _node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"graph"'})
+    g2 = J.node(MODE_HARNESS % {'fns': fns, 'has': 'true', 'view': '"graph"'})
     assert g2['views'] == [['map', True]], '공급 그래프를 보던 중 시세 모드를 눌렀는데 지도로 조용히(quiet) 돌리지 않았다'
-    none = _node(MODE_HARNESS % {'fns': fns, 'has': 'false', 'view': '"map"'})
+    none = J.node(MODE_HARNESS % {'fns': fns, 'has': 'false', 'view': '"map"'})
     assert none['st'][0][:1] == ['supply'] and none['sent'] == [], none
 
 
@@ -381,7 +356,7 @@ def test_price_mode_graph_and_table_open_the_stats_tab(mode, v, want):
           그래프로 바뀜) 주소 단정이 빨개진다. 픽스처: 저장소 tbView 와 합성 DOM.
     """
     src = _src()
-    got = _node(TBVIEW_HARNESS % {'fns': _js_func(src, 'tbView'), 'mode': json.dumps(mode), 'v': json.dumps(v)})
+    got = J.node(TBVIEW_HARNESS % {'fns': J.fn(src, 'tbView'), 'mode': json.dumps(mode), 'v': json.dumps(v)})
     assert got['hash'] == want and got['view'] == 'map', got
     assert got['sent'] == [['trend_pick', {'period': want.split('-')[2].split('~')[0], 'region': 'a0', 'from': 'score_' + v}]], got
 
@@ -424,15 +399,15 @@ def test_weekly_color_scale_is_one_constant():
     """
     src = _src()
     assert len(re.findall(r'^var WK_MAP_REF=', src, re.M)) == 1
-    assert "k==='week'?WK_MAP_REF:" in _js_func(src, 'drawNationMap')
-    assert 'mapColor(v[a[0]],WK_MAP_REF)' in _js_func(src, 'renderHeroMap')
-    assert 'mapColor(v,ref||WK_MAP_REF)' in _js_func(src, 'wkFill')
+    assert "k==='week'?WK_MAP_REF:" in J.fn(src, 'drawNationMap')
+    assert 'mapColor(v[a[0]],WK_MAP_REF)' in J.fn(src, 'renderHeroMap')
+    assert 'mapColor(v,ref||WK_MAP_REF)' in J.fn(src, 'wkFill')
     # 월간도 한 상수(MO_MAP_REF) — 홈 지도 월간 모드와 통계 탭 시군구 월간 지도가 같이 쓴다(2026-10-04)
     assert len(re.findall(r'^var MO_MAP_REF=', src, re.M)) == 1
-    assert "k==='week'?WK_MAP_REF:MO_MAP_REF" in _js_func(src, 'drawNationMap')
-    assert 'ref:MO_MAP_REF' in _js_func(src, 'moMapModel')
+    assert "k==='week'?WK_MAP_REF:MO_MAP_REF" in J.fn(src, 'drawNationMap')
+    assert 'ref:MO_MAP_REF' in J.fn(src, 'moMapModel')
     for fn in ('drawNationMap', 'renderHeroMap', 'wkFill', 'mapKeyHtml'):
-        assert not re.search(r'mapColor\([^)]*,\s*0\.\d', _js_func(src, fn)), '%s 가 기준을 숫자로 적었다' % fn
+        assert not re.search(r'mapColor\([^)]*,\s*0\.\d', J.fn(src, fn)), '%s 가 기준을 숫자로 적었다' % fn
 
 
 LOCK_HARNESS = r'''
@@ -469,7 +444,7 @@ def test_price_buttons_lock_when_their_data_or_the_map_is_missing(case):
         ADV['weekly'] = dict(ADV['weekly'], regions=[])
     geo = '' if case == 'no_geo' else 'var SIDO_GEO=%s;' % json.dumps(_geo(), ensure_ascii=False)
     base = 'var ADV=%s; %s\n%s' % (json.dumps(ADV, ensure_ascii=False), geo, _base_js(src))
-    got = _node(LOCK_HARNESS % {'base': base, 'ms': _kst_ms(2026, 9, 11)})
+    got = J.node(LOCK_HARNESS % {'base': base, 'ms': _kst_ms(2026, 9, 11)})
     want = {'all': (False, False), 'no_month': (False, True), 'no_week': (True, False), 'no_geo': (True, True)}[case]
     assert (got['w'], got['m']) == want, got
     if case == 'no_geo':
@@ -500,7 +475,7 @@ def test_open_trend_region_opens_the_table_for_the_t_route():
     src = _src()
     decl = re.search(r'^const TR_BACK=.*$', src, re.M)       # 열기 전 보기(순위·지도, test_market_rank_view)
     assert decl, 'TR_BACK 선언이 없다'
-    got = _node(OPEN_HARNESS % {'decl': decl.group(0), 'fn': _js_func(src, 'openTrendRegion')})
+    got = J.node(OPEN_HARNESS % {'decl': decl.group(0), 'fn': J.fn(src, 'openTrendRegion')})
     assert got == [['week', 't', True], ['week', 'g', True]], got
 
 
@@ -546,7 +521,7 @@ def test_price_buttons_draw_the_nationwide_district_map_in_the_card(geo):
     mo['sgg'] = {'codes': codes, 'rows': [{'p': MONTH, 'ma': vals(0), 'je': vals(0.01), 'wo': vals(0.02)}]}
     ADV = {'sido': {'L': '2026Q2', 'Ltxt': '2026년 2분기', 'zones': _zones()}, 'weekly': wk, 'monthly': mo, 'holidays': H2026}
     g = 'var SIDO_GEO=%s;' % json.dumps(_geo(), ensure_ascii=False) if geo else ''
-    got = _node(TILES_HARNESS % {'adv': json.dumps(ADV, ensure_ascii=False), 'geo': g, 'base': _base_js(src),
+    got = J.node(TILES_HARNESS % {'adv': json.dumps(ADV, ensure_ascii=False), 'geo': g, 'base': _base_js(src),
                                  'ms': _kst_ms(2026, 9, 11)})
     st = WR.status('2026-09-07', today=datetime.date(2026, 9, 11), holidays=H2026)
 

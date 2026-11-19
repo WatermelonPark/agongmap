@@ -15,14 +15,13 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
-import tempfile
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_sido_pages as P  # noqa: E402
 import sido_zones as SZ  # noqa: E402
 import split_data as S  # noqa: E402
@@ -39,17 +38,6 @@ const document={getElementById(id){return __els[id]||(__els[id]=__mk(id));},quer
 """
 
 SYN = '시험용이름'   # 표시 이름이 키와 다른 열을 데이터와 무관하게 하나 더 만든다(아래 시험 독스트링)
-
-
-def _fn(src, name):
-    a = src.find('function %s(' % name)
-    assert a >= 0, '%s 를 찾지 못했다' % name
-    i, depth = src.index('{', a), 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[a:j + 1]
-    raise AssertionError(name)
 
 
 def _tb_vars(app):
@@ -74,7 +62,7 @@ def home_table(tmp_path_factory):
     app = dict(HS.home_files())['home-app.js']
     fns = ('_ymP', '_ymT', 'zn', 'tintA', 'tbTint', 'tbPv', 'tbNum', 'tbMi', 'tbQLast', 'tbLabel',
            'tbBuild', 'tbAgg', 'refBtn', 'tbRefSync', 'tbDraw')
-    js = (DOM + core + '\n' + _tb_vars(app) + '\n' + '\n'.join(_fn(app, n) for n in fns) + r"""
+    js = (DOM + core + '\n' + _tb_vars(app) + '\n' + '\n'.join(J.fn(app, n) for n in fns) + r"""
 TB_ANCHOR=false; document.getElementById('tb-main').dataset.refbound='1';
 const B=tbBuild();
 const OUT={regs:B.regs, from:TB_FROM, cells:[]};
@@ -91,17 +79,7 @@ OUT.zname=ADV.zname; OUT.html={};
 ['q','y'].forEach(function(p){ TB_PER=p; tbDraw(); OUT.html[p]=document.getElementById('tb-main').innerHTML; });
 process.stdout.write(JSON.stringify(OUT));
 """)
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    fd, path = tempfile.mkstemp(suffix='.js')
-    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-        f.write(js)
-    try:
-        p = subprocess.run(['node', path], capture_output=True, timeout=120)
-    finally:
-        os.remove(path)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    return json.loads(p.stdout.decode('utf-8'))
+    return J.node(js, timeout=120)
 
 
 def test_home_table_supply_cells_are_the_zone_report_cells(home_table):
@@ -172,8 +150,6 @@ def test_future_cell_multiplies_the_period_sum_once(tmp_path):
     변이(실제로 확인): tbBuild 가 예전처럼 달마다 `*S.conv` 를 곱해 s 에 실으면 473 이 나와 빨개진다.
     픽스처: 지역 하나, 착공 169·9·322(합 500)가 36개월 뒤 한 분기의 추정이 되는 합성 원장. 전환율은 모델 값(SZ.CONV).
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     app = dict(HS.home_files())['home-app.js']
     months = [169, 9, 322]
     assert sum(months) % 1000 == 500
@@ -182,16 +158,12 @@ def test_future_cell_multiplies_the_period_sum_once(tmp_path):
              '착공': {'dates': ['2023.07', '2023.08', '2023.09'], 'series': {'가': months}}}
     fns = ('tbMi', 'tbQLast', 'tbBuild', 'tbAgg')
     js = (DOM + 'const ADV=%s, STATS=%s;\n' % (json.dumps(adv, ensure_ascii=False), json.dumps(stats, ensure_ascii=False))
-          + _tb_vars(app) + '\n' + '\n'.join(_fn(app, n) for n in fns) + r"""
+          + _tb_vars(app) + '\n' + '\n'.join(J.fn(app, n) for n in fns) + r"""
 const B=tbBuild(), out={};
 ['q','y','m'].forEach(function(p){ out[p]=tbAgg(B.rows,p).filter(function(c){return c.s[0];}).map(function(c){return [c.g,c.s[0],c.fut];}); });
 process.stdout.write(JSON.stringify(out));
 """)
-    path = tmp_path / 't.js'
-    path.write_text(js, encoding='utf-8')
-    p = subprocess.run(['node', str(path)], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    got = json.loads(p.stdout.decode('utf-8'))
+    got = J.node(js)
     want = sum(months) * SZ.CONV                      # 리포트의 셈(make_sido_pages.series: 분기 합 × conv)
     assert len(got['q']) == 1 and got['q'][0][2] is True, got
     assert got['q'][0][1] == want and P.rnd(got['q'][0][1]) == P.rnd(want), (got['q'], want)

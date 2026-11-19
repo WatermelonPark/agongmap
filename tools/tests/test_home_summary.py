@@ -281,17 +281,6 @@ def test_home_has_an_organization_without_same_as_yet():
 
 
 # ── ⑥ 홈 주간 구역의 해석 글 한 줄 ──────────────────────────────────────────────────────────────────────
-def _js_func(src, name):
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i, depth = src.index('{', m.end()), 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError(name)
-
-
 def test_home_has_no_blog_commentary_card():
     """홈 주간 구역에 네이버 해설 카드가 없다 — 마크업·스크립트·스타일·데이터 넷 다(총괄 결정 2026-10-30).
 

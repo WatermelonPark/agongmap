@@ -19,7 +19,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import sys
 from urllib.parse import parse_qs, urlsplit
 
@@ -27,6 +26,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_monthly_page as MP  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import page_share as PS  # noqa: E402
@@ -35,14 +35,6 @@ import split_data as S  # noqa: E402
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 # 먼 미래 두 주(조사일 월 → 발표일 목). 날짜 셈은 여기 따로 적어 대조한다.
 WEEKS = (('2030-01-07', '20300110', '2030-01-10'), ('2030-01-14', '20300117', '2030-01-17'))
-
-
-def _node(js):
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 공유 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
-    p = subprocess.run([node, '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
 
 
 def _week(p):
@@ -146,7 +138,7 @@ def _run_page_share(html, mode, which='kakao'):
     js = ('const MODE=%s;' % json.dumps(mode)) + _STUB + m.group(1) + (
         '\nagShare(%s,{innerHTML:"",textContent:""});'
         'setTimeout(()=>process.stdout.write(JSON.stringify(calls)),50);' % json.dumps(which))
-    return _node(js)
+    return J.node(js)
 
 
 @pytest.mark.parametrize('page', ['weekly', 'monthly'])
@@ -187,15 +179,14 @@ def test_home_weekly_share_uses_the_baked_payload():
     h = HS.home_source()
     W, _ = MW.load()
     sh = MW.share_payload(W)
-    fn = lambda n: re.search(r'^function %s\(.*?^\}' % n, h, re.M | re.S).group(0)
     base = '\n'.join(['const calls={kakao:[],ev:[]};',
                       'globalThis.Kakao={isInitialized:()=>true,Share:{sendDefault:o=>calls.kakao.push(o)}};',
                       'function needKakao(){return false;} function kakaoReady(){return true;}',
                       'function track(a,b){calls.ev.push([a,b]);} function copyText(){}',
-                      fn('weeklyShare'), fn('shareWeekly')])
+                      J.fn(h, 'weeklyShare'), J.fn(h, 'shareWeekly')])
     for shp, n in ((sh, 1), (dict(sh, p='1999-01-04'), 0)):
         adv = {'weekly': {'rows': [{'p': W['rows'][-1]['p']}], 'share': shp}}
-        c = _node(base + '\nglobalThis.ADV=%s;shareWeekly("kakao");process.stdout.write(JSON.stringify(calls));'
+        c = J.node(base + '\nglobalThis.ADV=%s;shareWeekly("kakao");process.stdout.write(JSON.stringify(calls));'
                   % json.dumps(adv, ensure_ascii=False))
         assert len(c['kakao']) == n, shp['p']
         if n:
@@ -396,7 +387,7 @@ function run(until){T.sort((a,b)=>a.at-b.at);for(const t of T.slice()){if(t.on&&
 run(700);agShare('link',b);await null;await null;
 run(10000);process.stdout.write(JSON.stringify({mid,after:b.innerHTML}));})();
 '''
-    out = _node(js.replace('BTN', json.dumps(btn0)))
+    out = J.node(js.replace('BTN', json.dumps(btn0)))
     assert out['mid'] == '링크를 복사했어요', out
     assert out['after'] == btn0 and '<svg' in out['after'], '두 번 누른 뒤 버튼이 %r 로 굳었다' % out['after']
 
@@ -413,16 +404,8 @@ def test_an_sdk_that_loads_without_defining_kakao_falls_back_instead_of_spinning
           `.then(()=>{ if(!window.Kakao)KAKAO_FAIL=true; })` 를 지우면 둘째 묶음이 끝나지 않아 시간 초과(20초)로 빨개진다.
     픽스처: 방금 구운 공유 조각(PS.block)과 저장소 홈의 loadKakao·needKakao 를, 'onload 는 오지만 Kakao 는 없는' 문서 모형에서 돌린다.
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-
     def run(js):
-        try:
-            p = subprocess.run(['node', '-e', js], capture_output=True, timeout=20)
-        except subprocess.TimeoutExpired:
-            pytest.fail('공유가 끝나지 않는다 — SDK 가 Kakao 를 만들지 못했을 때 자기를 끝없이 다시 부른다')
-        assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-        return json.loads(p.stdout.decode('utf-8'))
+        return J.node(js, timeout=20, timeout_msg='공유가 끝나지 않는다 — SDK 가 Kakao 를 만들지 못했을 때 자기를 끝없이 다시 부른다')
 
     d = {'ct': 'weekly', 'url': 'https://example.invalid/weekly/', 'title': '제목', 'text': '설명',
          'img': 'https://example.invalid/a.png', 'w': 1200, 'h': 630, 'btn': '보기'}
@@ -435,17 +418,9 @@ def test_an_sdk_that_loads_without_defining_kakao_falls_back_instead_of_spinning
     assert c['loaded'] == 1 and not c['kakao'] and [x['url'] for x in c['share']] == [d['url']], c
     app = dict(HS.home_files())['home-app.js']
 
-    def fn(name):
-        a = app.index('\nfunction %s(' % name) + 1
-        i, depth = app.index('{', a), 0
-        for j in range(i, len(app)):
-            depth += {'{': 1, '}': -1}.get(app[j], 0)
-            if depth == 0:
-                return app[a:j + 1]
-
     c = run('globalThis.window=globalThis; let n=0, fell=0;\n'
             'function loadScript(u){ n++; return new Promise(r=>setTimeout(r,0)); }\n'      # 파일은 온다. Kakao 는 안 생긴다
-            'let KAKAO_P=null, KAKAO_FAIL=false;\n' + fn('loadKakao') + '\n' + fn('needKakao') + '\n'
+            'let KAKAO_P=null, KAKAO_FAIL=false;\n' + J.fn(app, 'loadKakao') + '\n' + J.fn(app, 'needKakao') + '\n'
             'function share(){ if(needKakao(share))return; fell++; }\n'
             'share(); setTimeout(()=>process.stdout.write(JSON.stringify({n:n,fell:fell,fail:KAKAO_FAIL})),50);')
     assert c == {'n': 1, 'fell': 1, 'fail': True}, c

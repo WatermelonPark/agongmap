@@ -28,14 +28,12 @@ update_supply 전 경로로 재현한 모양), 전세가율은 12달 창 안에�
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_indicator_pages as I  # noqa: E402
 import make_monthly_page as MP  # noqa: E402
 import sido_zones as SZ  # noqa: E402  (날짜 두 단계의 짧은 꼴)
@@ -178,17 +176,8 @@ def test_zone_card_compares_with_the_same_month_a_year_ago():
 
 
 # ── 홈 통계표 ────────────────────────────────────────────────────────────
-def _fn(src, head):
-    a = src.find(head)
-    assert a >= 0, '홈 스크립트에서 %s 를 찾지 못했다 — 구조가 바뀌었으면 이 시험도 고칠 것' % head
-    b = src.find('\n}\n', a)
-    return src[a:b + 2]
-
-
 def _home_table(ds, dates, vals, keep=None):
     """홈 drawStat 이 buildTable 을 부르는 모양 그대로 돌려 {라벨: 증감 문자열} 을 받는다. keep 은 기간 단추로 자른 칸(idx)."""
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     s = HS.home_source()
     cum = re.search(r'const DS_CUM=new Set\([^)]*\);', s)
     assert cum, '홈 스크립트에서 DS_CUM 을 찾지 못했다'
@@ -201,11 +190,9 @@ def _home_table(ds, dates, vals, keep=None):
           'const out={},re=/<tr><td>([^<]*)<\\/td><td>[^<]*<\\/td><td>(.*?)<\\/td><\\/tr>/g;let m;'
           'while((m=re.exec(T.tbody.innerHTML)))out[m[1]]=m[2].replace(/<[^>]+>/g,"").split(" ")[0];'
           'process.stdout.write(JSON.stringify(out));'
-          % (cum.group(0), _date_fns(s), json.dumps(ds, ensure_ascii=False), _fn(s, 'function parseDate('),
-             _fn(s, 'function buildTable('), json.dumps(dates), json.dumps(vals), json.dumps(keep)))
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    out = json.loads(p.stdout.decode('utf-8'))
+          % (cum.group(0), _date_fns(s), json.dumps(ds, ensure_ascii=False), J.fn(s, 'parseDate'),
+             J.fn(s, 'buildTable'), json.dumps(dates), json.dumps(vals), json.dumps(keep)))
+    out = J.node(js, timeout=30)
     # 표 칸은 좁은 자리라 '26.8'(날짜 두 단계, 백로그 36-1) — 칸 라벨을 데이터 라벨로 되돌려 아래 단언이 데이터 꼴로 읽게 한다.
     back = {SZ.month_short(d): d for d in dates}
     assert set(out) <= set(back), '표 칸 라벨이 짧은 꼴(26.8)이 아니다: %s' % sorted(set(out) - set(back))

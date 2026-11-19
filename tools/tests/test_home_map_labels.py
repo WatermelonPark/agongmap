@@ -12,14 +12,12 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 import sido_zones as SZ  # noqa: E402
 
@@ -47,8 +45,6 @@ def _geo():
 
 
 def _labels():
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     zones = {z: {'grade': 0, 'tot': 0, 'ratio': 0} for z in SZ.ORDER}
     js = ('var ADV={sido:{L:""},zname:%s},Z=%s,SIDO_GEO=%s,TB_GRADE={},h="";%s\n'
           'function tbSigned(v){return String(v)}function mapFill(){return "#ccc"}function supplyFill(){return "#ccc"}'
@@ -59,9 +55,7 @@ def _labels():
           'var links=[],r2=/href="\\/zone\\/([^\\/]*)\\//g;while((m=r2.exec(h)))links.push(decodeURIComponent(m[1]));'
           'process.stdout.write(JSON.stringify({labels:out,links:links}));'
           % (json.dumps(SZ.DISPLAY_NAME, ensure_ascii=False), json.dumps(zones, ensure_ascii=False), json.dumps(_geo(), ensure_ascii=False), _zn_src(), _loop_src()))
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    got = json.loads(p.stdout.decode('utf-8'))
+    got = J.node(js, timeout=30)
     got['shown'] = got['labels']
     got['labels'] = [SZ.key_of(x) for x in got['labels']]   # 라벨은 화면 이름 — 판정 단위 키로 되돌려 대조한다(백로그 46)
     return got

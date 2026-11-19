@@ -17,6 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..'))
 import rebuild_cycle_analysis as RC  # noqa: E402
 import refresh_cycle_data as RF  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 ROOT = os.path.join(HERE, '..', '..')
 PAGE = os.path.join(ROOT, 'cycle', 'index.html')
@@ -773,20 +774,12 @@ process.stdout.write(JSON.stringify(out));
 
 
 def _run_page_js(tmp_path, D=None):
-    import shutil
-    import subprocess
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    h = tmp_path / 'harness.js'
-    h.write_text(_PAGE_JS, encoding='utf-8')
-    args = ['node', str(h), PAGE]
+    args = [PAGE]
     if D is not None:
         d = tmp_path / 'D.json'
         d.write_text(json.dumps(D, ensure_ascii=False), encoding='utf-8')
         args.append(str(d))
-    proc = subprocess.run(args, capture_output=True, timeout=60)
-    assert proc.returncode == 0, proc.stderr.decode('utf-8', 'replace')
-    return json.loads(proc.stdout.decode('utf-8'))
+    return J.node(_PAGE_JS, args=args)
 
 
 def test_jratio_spectrum_axis_widens_for_values_outside_the_default_band(tmp_path):

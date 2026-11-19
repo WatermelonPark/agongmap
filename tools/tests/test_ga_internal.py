@@ -18,17 +18,15 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
-import pytest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..'))
 sys.path.insert(0, HERE)
 import ga_tag as GT  # noqa: E402
 from test_ga_optout import _ga_pages  # noqa: E402  (GA 로더를 싣는 페이지 찾기 — 같은 목록)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 RAW_CONFIG = re.compile(r"""gtag\(\s*['"]config['"]""")
 
@@ -55,14 +53,6 @@ def test_every_ga_page_routes_config_through_the_flag():
     assert not bad, 'GA 내부 트래픽 표식이 어긋난 페이지(손 페이지는 tools/ga_tag.py 의 INTERNAL_SCRIPT 를 글자 그대로): %s' % bad
 
 
-def _node(script):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
-    p = subprocess.run(['node', '-e', script], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
-
-
 SWITCH = r'''
 const vm = require('vm');
 const out = [];
@@ -85,7 +75,7 @@ def test_flag_switch_on_off():
     k = GT.INTERNAL_KEY
     cases = [{'search': '', 'store': {}}, {'search': '?internal=on', 'store': {}},
              {'search': '?utm_source=x', 'store': {k: '1'}}, {'search': '?internal=off', 'store': {k: '1'}}]
-    o = _node(SWITCH % {'cases': json.dumps(cases), 'js': json.dumps(js)})
+    o = J.node(SWITCH % {'cases': json.dumps(cases), 'js': json.dumps(js)})
     assert o[0]['store'] == {} and o[0]['plain'] == {} and o[0]['home'] == {'send_page_view': False}
     assert o[1]['store'] == {k: '1'} and o[1]['plain'] == {'traffic_type': GT.TRAFFIC_TYPE}
     assert o[1]['home'] == {'send_page_view': False, 'traffic_type': GT.TRAFFIC_TYPE}

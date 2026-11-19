@@ -20,47 +20,26 @@
   - 이름 글자 크기를 옛 식(nm.length>=4?7:(nm.length===3?8:9))으로 되돌리면 ② 가 빨개진다.
   - 네 글자 이름의 textLength 를 빼면 ③ 이 빨개진다.
 """
-import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402  (홈 스크립트 읽기 입구 — 백로그 10)
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 FLOOR_PX = 11      # app.css 첫머리 주석의 글자 하한(2026-09-18 오딧 1번)
 
 
-def _func(src, name):
-    """`function name(` 부터 짝이 맞는 닫는 중괄호까지."""
-    a = src.find('function %s(' % name)
-    assert a >= 0, '%s 를 홈 소스에서 찾지 못했다' % name
-    i = src.index('{', a)
-    depth = 0
-    for j in range(i, len(src)):
-        c = src[j]
-        if c == '{':
-            depth += 1
-        elif c == '}':
-            depth -= 1
-            if depth == 0:
-                return src[a:j + 1]
-    raise AssertionError('%s 의 끝을 찾지 못했다' % name)
-
-
 def _render(monthly):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     src = HS.home_source()
     tile = re.search(r'const NATION_TILE=\{.*?\};\n', src).group(0)
     # 밀기 안내 판정(syncSwipe)은 drawNationMap 이 부르는 도우미다(전수리뷰 #54) — 같이 싣는다(HOST 는 요소가 없어 판정을 건너뛴다)
     # 그림은 홈과 같이 쓰는 sggMapSvg(home-app.js)다 — 지도 함수 셋을 같이 싣는다
-    fn = _func(src, 'syncSwipe') + '\n' + _func(src, 'sggMapSvg') + '\n' + _func(src, 'drawNationMap')
+    fn = J.fn(src, 'syncSwipe') + '\n' + J.fn(src, 'sggMapSvg') + '\n' + J.fn(src, 'drawNationMap')
     # 주간 만색 기준(WK_MAP_REF)은 홈 지도 주간 모드(C3)·히어로 배경과 한 상수다 — 선언 줄을 그대로 가져온다.
     ref = re.search(r'^var WK_MAP_REF=.*$', src, re.M).group(0) + '\n'
     js = (tile + ref +
@@ -76,9 +55,7 @@ def _render(monthly):
           '%s\n'
           'drawNationMap("week"); process.stdout.write(JSON.stringify(HOST.innerHTML));'
           % ('true' if monthly else 'false', fn))
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=30)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')[-1500:]
-    return json.loads(p.stdout.decode('utf-8'))
+    return J.node(js, timeout=30)
 
 
 @pytest.mark.parametrize('monthly', [False, True], ids=['주간2단', '월간3단'])

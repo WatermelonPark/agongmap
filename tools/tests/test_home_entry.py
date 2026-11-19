@@ -39,8 +39,6 @@ CI 에서는 건너뜀도 실패다(conftest) — node 는 러너에 있다.
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 import urllib.parse
 
@@ -49,6 +47,7 @@ import pytest
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 
 GA_ID = 'G-3FJNG6G1F3'
 SITE = 'https://www.agongmap.co.kr'
@@ -68,27 +67,14 @@ def _head_scripts():
     return head, re.findall(r'<script>(.*?)</script>', head, re.S)
 
 
-def _js_func(src, name):
-    """홈 스크립트에서 `function name(...){...}` 하나를 중괄호 짝으로 잘라 온다."""
-    m = re.search(r'^function %s\(' % re.escape(name), src, re.M)
-    assert m, 'home-app.js 에서 %s 를 찾지 못했다' % name
-    i = src.index('{', m.end())
-    depth = 0
-    for j in range(i, len(src)):
-        depth += {'{': 1, '}': -1}.get(src[j], 0)
-        if depth == 0:
-            return src[m.start():j + 1]
-    raise AssertionError('%s 의 끝을 찾지 못했다' % name)
-
-
 def _home_parts():
     src = HS.home_source()
     r2c = re.search(r'^const R2C=new Set\(\[.*?\]\);', src, re.M)
     assert r2c, 'R2C(리포트로 넘기는 옛 해시) 선언을 찾지 못했다'
     # PV_SENT(부팅 page_view 를 보냈는가)는 showView 가 쓴다(전수리뷰 #46). 대결 쿼리 걷기(chalInURL 등)는 2026-11-14
     # 퀴즈 제거로 홈에서 빠졌다.
-    return '\n'.join(['var PV_SENT=false;', _js_func(src, 'track'), _js_func(src, 'viewLoc'), _js_func(src, 'showView'),
-                      _js_func(src, 'applyHash'), r2c.group(0),
+    return '\n'.join(['var PV_SENT=false;', J.fn(src, 'track'), J.fn(src, 'viewLoc'), J.fn(src, 'showView'),
+                      J.fn(src, 'applyHash'), r2c.group(0),
                       # 시장동향 주소 입구는 요청한 때의 GT_SEQ 를 넘긴다(2026-11-12 누름 경로 점검 B) — 그 선언도 같이 싣는다
                       re.search(r'^const GT_SEQ=\{[^}]*\};', src, re.M).group(0)])
 
@@ -175,15 +161,10 @@ process.stdout.write(JSON.stringify({afterHead, href: url.href, flag, store, que
 
 
 def _run(start, **kw):
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     _, head = _head_scripts()
     cfg = dict(start=start, head=head, home=_home_parts(), ga=GA_ID)
     cfg.update(kw)
-    p = subprocess.run(['node', '-e', HARNESS % {'cfg': json.dumps(cfg, ensure_ascii=False)}],
-                       capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
+    return J.node(HARNESS % {'cfg': json.dumps(cfg, ensure_ascii=False)})
 
 
 def _views(got):
@@ -413,8 +394,6 @@ def test_head_scripts_leave_no_globals():
     변이(실제로 확인): index.html 머리 스크립트의 (function(){ … })() 감싸기를 지우면 빨개진다.
     픽스처: 저장소 홈 머리 스크립트를 해시 속 쿼리·ga_off 가 있는 주소로 node vm 에서 돌린다(두 갈래를 다 탄다).
     """
-    if not shutil.which('node'):
-        pytest.skip('node 없음')
     _, head = _head_scripts()
     assert head, '머리 인라인 스크립트를 못 찾았다'
     js = r"""
@@ -432,8 +411,6 @@ const before = new Set(Object.keys(ctx));
 for (const s of S) vm.runInContext(s, ctx);
 process.stdout.write(JSON.stringify({leaked: Object.keys(ctx).filter((k) => !before.has(k) && /^_[a-z]$/.test(k)), ga: store.ga_off || null}));
 """ % json.dumps(head, ensure_ascii=False)
-    p = subprocess.run(['node', '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    o = json.loads(p.stdout.decode('utf-8'))
+    o = J.node(js)
     assert o['ga'] == '1', '머리 스크립트가 돌지 않았다(헛통과 방지): %s' % o
     assert o['leaked'] == [], '머리 스크립트가 전역 이름을 남긴다: %s' % o['leaked']

@@ -23,14 +23,13 @@ import io
 import json
 import os
 import re
-import shutil
-import subprocess
 import sys
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 import home_src as HS  # noqa: E402
+import _js as J  # noqa: E402  (홈 스크립트 조각을 node 에 올리는 공용 도우미)
 import make_indicator_pages as I  # noqa: E402
 import make_sido_pages as M  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
@@ -105,14 +104,6 @@ def test_description_and_paragraph_share_one_fragment_list():
 
 # ── D4: 시군구 → 시도 ────────────────────────────────────────────────────────────────────────
 
-def _node(js):
-    node = shutil.which('node')
-    assert node, 'node 가 없다 — 홈 스크립트를 돌려 볼 수 없다(CI 러너에는 있다)'
-    p = subprocess.run([node, '-e', js], capture_output=True, timeout=60)
-    assert p.returncode == 0, p.stderr.decode('utf-8', 'replace')
-    return json.loads(p.stdout.decode('utf-8'))
-
-
 def _js_block(src, head, end):
     a = src.find(head)
     assert a >= 0, 'home-app.js 에서 %s 를 찾지 못했다' % head
@@ -132,7 +123,7 @@ def test_sgg_sido_matches_home_sidoOf():
     js = '\n'.join([_js_block(src, 'const SIDO_PREFIX=', '};'), _js_block(src, 'function sidoOf(', '\n}'),
                     'const cs=%s;' % json.dumps(codes),
                     'process.stdout.write(JSON.stringify(cs.map(c=>sidoOf(c))));'])
-    site = _node(js)
+    site = J.node(js)
     ours = [WM.sgg_sido(c) for c in codes]
     assert ours == site, [(c, a, b) for c, a, b in zip(codes, ours, site) if a != b][:10]
 
