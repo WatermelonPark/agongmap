@@ -837,7 +837,7 @@ def test_hub_offers_questions_regions_and_recent_cards():
     assert page.index('class="cityf"') < page.index('class="hub-basic"') < page.index('<a class="kcard"'), \
         '기본 개념 칩이 지역 칩과 최근 글 사이에 있지 않다'
     if len(metas) > MC.HUB_FIRST:
-        assert '<div class="kgrid kfold">' in recent and ('글 %d편 더 보기' % (len(metas) - MC.HUB_FIRST)) in recent, \
+        assert '<div class="kgrid klist kfold">' in recent and ('글 %d편 더 보기' % (len(metas) - MC.HUB_FIRST)) in recent, \
             "최근 글이 접히지 않았거나 '더 보기' 편수가 다르다"
         assert '.kfold .kcard:nth-child(n+%d){display:none}' % (MC.HUB_FIRST + 1) in MC.LIST_CSS
     assert 'class="cityf"' in page and '<script>' in recent, '지역 칩이나 거르는 스크립트가 없다'
