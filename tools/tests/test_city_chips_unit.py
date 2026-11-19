@@ -56,7 +56,7 @@ def _rows(metas):
     """[(줄 이름, [(data-city, 칩 글자)…])] — 허브 칩 줄 그대로."""
     h = MC.city_chips(metas)
     return [(em, re.findall(r'data-city="([^"]+)">([^<]+)<', body))
-            for em, body in re.findall(r'<div class="cf-g"><em>([^<]*)</em><span class="cf-c">(.*?)</span></div>', h) if em]
+            for em, body in re.findall(r'<div class="cf-g"(?: data-sido="[^"]*")?><em>([^<]*)</em><span class="cf-c">(.*?)</span></div>', h) if em]
 
 
 def _whole_city(m):
