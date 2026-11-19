@@ -14,9 +14,7 @@ key:
   - label: 3년 입주 합계
     value: "{{v:moveins3:울산}}"
 city:
-  - 울산 남구
-  - 울산 중구
-  - 울산 울주군
+  - 울산
 topic: moveins
 sources:
   - 국토교통부 주택건설실적(준공·착공)

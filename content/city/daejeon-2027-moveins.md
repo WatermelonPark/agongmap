@@ -14,9 +14,7 @@ key:
   - label: 3년 입주 합계
     value: "{{v:moveins3:대전}}"
 city:
-  - 대전 유성구
-  - 대전 중구
-  - 대전 서구
+  - 대전
 topic: moveins
 sources:
   - 국토교통부 주택건설실적(준공·착공)
