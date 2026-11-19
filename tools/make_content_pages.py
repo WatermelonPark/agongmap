@@ -544,6 +544,31 @@ LIST_CSS = """/* 콘텐츠 카드 부품(2026-11-05 콘텐츠 구조 개편) —
 # 그래서 같은 글자가 두 곳에 있고, test_content_pages 가 app.css 의 LIST_CSS 구간과 대조한다.
 
 EXTRA_CSS = LIST_CSS + """
+/* 지역 거르기 두 단(2026-11-19 대표 결정 '시도 한 줄 + 도시 둘째 줄'): 첫 줄 '전체'·시도 단추, 시도를 누르면 그 시도의 도시 칩
+   줄만 열린다(FILTER_JS 가 .cityf 에 js 를 단다 — JS 가 없으면 시도 단추를 숨기고 도시 칩 줄을 모두 보인다). 휴대폰은 시도 줄을
+   옆으로 밀고 오른쪽 끝을 흐리게 해 더 있다는 단서를 둔다. LIST_CSS(홈 app.css 와 같은 글자) 밖에 둔다 — 칩은 콘텐츠 페이지에만 있다. */
+.cf-s{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.cf-sd small{font-size:13px;margin-left:4px;color:var(--muted)}
+.cf-sd.on small{color:inherit}
+.cityf:not(.js) .cf-sd{display:none}
+.cityf.js .cf-g{display:none}
+.cityf.js .cf-g.open{display:flex}
+.cityf.js .cf-g em{display:none}
+/* 휴대폰 목록형 카드(.klist, 같은 날 대표 결정 '촘촘한 목록형'): 칩·날짜 한 줄 → 결론 제목 → 핵심 숫자. 카드 높이가 절반 아래로 줄어
+   한 화면에 5편 안팎이 보인다. 섹션 목록(.ksec)은 질문 칩이 모두 같아 감춘다. 768px 이상은 3열 카드 그대로. */
+@media (max-width:767px){
+  .cf-s{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;
+   -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent)}
+  .cf-s::-webkit-scrollbar{display:none}
+  .cf-s .rchip{flex:none}
+  .klist{gap:8px}
+  .klist .kcard{display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 12px;padding:12px 14px}
+  .klist .kc-date{grid-column:2;grid-row:1}
+  .klist .kc-hook{grid-column:1/-1;font-size:15px;line-height:1.4}
+  .klist .kc-key{grid-column:1/-1;margin-top:0;gap:6px}
+  .klist .kc-key strong{font-size:17px}
+  .klist.ksec .kc-t{display:none}
+}
 /* 본문 그림은 단 폭을 넘지 않는다 — 그림 주소를 고친 뒤(2026-10-30) 지도·표 그림이 원본 폭(1,900~2,500px)으로 그려져
    375px·1280px 모두 페이지가 옆으로 넘쳤다. */
 .cbody img{display:block;max-width:100%;height:auto;margin:0 0 16px}
@@ -801,17 +826,21 @@ def _newest(metas, n=None):
     return out[:n] if n else out
 
 
-def cards_grid(metas, n=None, fold=None):
+def cards_grid(metas, n=None, fold=None, compact=''):
     """카드 격자. fold 를 주면 그 수 뒤 카드는 접어 두고(.kfold) '글 N편 더 보기' 단추를 단다 — 허브 '최근 글'이 40장을 한 번에
-    쌓아 휴대폰에서 7,000px 카드 벽이었다(2026-11-07 디자인 검수). 카드는 모두 마크업에 있다(거르기·검색·JS 없는 독자)."""
+    쌓아 휴대폰에서 7,000px 카드 벽이었다(2026-11-07 디자인 검수). 카드는 모두 마크업에 있다(거르기·검색·JS 없는 독자).
+
+    compact 는 휴대폰 목록형 표지(LIST_COMPACT_CSS): 'klist'(허브) 또는 'klist ksec'(섹션 목록 — 질문 칩이 모두 같아 감춘다).
+    카드 하나가 화면의 3분의 1이라 한 화면에 2~3편만 보였다(2026-11-19 대표 지적 '글 선택이 모바일에서 너무 불편')."""
     got = _newest(metas, n)
+    cls = 'kgrid' + ((' ' + compact) if compact else '')
     if not fold or len(got) <= fold:
-        return '<div class="kgrid">%s</div>' % ''.join(card(m) for m in got)
+        return '<div class="%s">%s</div>' % (cls, ''.join(card(m) for m in got))
     assert fold == HUB_FIRST, 'LIST_CSS 의 .kfold nth-child(n+%d) 와 수가 다르다' % (HUB_FIRST + 1)
-    return ('<div class="kgrid kfold">%s</div>'
+    return ('<div class="%s kfold">%s</div>'
             '<button type="button" class="rchip kmore">글 %d편 더 보기</button>'
             '<noscript><style>.kfold .kcard:nth-child(n){display:flex}.kmore{display:none}</style></noscript>'
-            % (''.join(card(m) for m in got), len(got) - fold))
+            % (cls, ''.join(card(m) for m in got), len(got) - fold))
 
 
 HUB_FIRST = 12      # 허브 '최근 글'이 처음 보이는 카드 수(3열 네 줄). LIST_CSS 의 .kfold nth-child(n+13) 과 짝이다
@@ -883,41 +912,65 @@ def _chip_label(c, names, whole=frozenset()):
 
 
 def city_chips(metas, total_label='글'):
-    """'지역으로 찾기' — 시도별 칩 줄. 칩은 button(JS 가 거른다). JS 없이는 모두 보이는 목록이라 입구 구실은 그대로다.
+    """'지역으로 찾기' — 첫 줄은 '전체'와 시도 단추, 시도를 누르면 그 시도의 도시 칩 줄이 그 아래에 열린다(FILTER_JS).
 
-    첫 줄의 '전체' 칩은 거름을 푸는 단추라 글자도 '전체 N편'이다('글 N편'은 편수 이름표로 읽혀 눌리는 줄 몰랐다).
+    휴대폰에서 시도별 도시 칩을 모두 펼친 벽이 한 화면을 넘어, 섹션 목록 첫 화면에 글이 한 편도 보이지 않았다(2026-11-19 대표 지적
+    '글 선택이 모바일에서 너무 불편' — 대표 결정 '시도 한 줄 + 도시 둘째 줄'). 시도 줄은 휴대폰에서 옆으로 밀고, 오른쪽 끝을 흐리게 해
+    더 있다는 단서를 둔다(가로 밀기가 단서 없이 칩을 숨겼던 2026-11-07 지적). JS 가 없으면 시도 단추는 숨고 도시 칩 줄이 모두 보인다
+    (예전 모양 — 입구 구실은 그대로). 첫 단추 '전체 N편'은 거름을 푸는 단추다.
     """
     groups = city_groups(metas)
     if not groups:
         return ''
-    rows = ['<div class="cf-g"><em></em><span class="cf-c"><button type="button" class="rchip on" data-city="">전체 %d편</button></span></div>'
-            % len(metas)]
+    count = {}
+    for m in metas:
+        for z in {city_sido(c) or '' for c in post_cities(m)}:
+            count[z] = count.get(z, 0) + 1
+    import sido_zones as SZ
+    disp_key = {SZ.DISPLAY_NAME.get(z, z): z for z in SZ.ORDER}
+    head = ['<button type="button" class="rchip on" data-city="">전체 %d편</button>' % len(metas)]
+    rows = []
     whole = whole_city_names(metas)
     for sido, cities in groups:
         names = set(cities)
-        rows.append('<div class="cf-g"><em>%s</em><span class="cf-c">%s</span></div>' % (html.escape(sido), ''.join(
-            '<button type="button" class="rchip" data-city="%s">%s</button>'
-            % (html.escape(c), html.escape(_chip_label(c, names, whole))) for c in cities)))
+        n = count.get(disp_key.get(sido, sido if sido != '그 밖' else ''), 0)
+        head.append('<button type="button" class="rchip cf-sd" data-sido="%s">%s<small>%d</small></button>'
+                    % (html.escape(sido), html.escape(sido), n))
+        rows.append('<div class="cf-g" data-sido="%s"><em>%s</em><span class="cf-c">%s</span></div>' % (
+            html.escape(sido), html.escape(sido), ''.join(
+                '<button type="button" class="rchip" data-city="%s">%s</button>'
+                % (html.escape(c), html.escape(_chip_label(c, names, whole))) for c in cities)))
     # 거른 수 줄은 거를 때만 보인다(hidden) — 전체일 때는 '전체' 칩이 이미 편수를 말한다.
-    return '<nav class="cityf" aria-label="지역으로 찾기">%s</nav><p class="cf-n" hidden>%s %d편</p>' % (''.join(rows), html.escape(total_label), len(metas))
+    return ('<nav class="cityf" aria-label="지역으로 찾기"><div class="cf-s">%s</div>%s</nav><p class="cf-n" hidden>%s %d편</p>'
+            % (''.join(head), ''.join(rows), html.escape(total_label), len(metas)))
 
 
 # 지역 칩이 카드를 거르는 스크립트. 칩을 다시 누르면 푼다. 거른 수는 .cf-n 에 적는다.
 # 거르기는 이름 그대로이거나 **앞말 + 빈칸**이 같으면 남긴다 — '부천' 칩이 '부천 원미구'·'부천 오정구' 글까지 남긴다(정확 일치일
 # 때는 '수원'을 누르면 영통구 글 4편이 숨었다, 2026-11-07 디자인 검수). 빈칸까지 보므로 '광주'가 '광주시' 꼴을 잘못 잡지 않는다.
+# 시도 단추(.cf-sd)는 그 시도 줄을 열고, 그 줄의 도시 칩 가운데 하나라도 맞는 글을 남긴다. 다시 누르면 푼다(2026-11-19).
 # 허브 '최근 글'의 접힘(.kfold)은 거르는 동안 풀고(맞는 글이 모두 보인다), '더 보기'를 누르면 아주 푼다.
 FILTER_JS = ("<script>(function(){var g=document.querySelector('.kgrid.kfold'),mb=document.querySelector('.kmore'),open=false;"
              "if(mb)mb.addEventListener('click',function(){open=true;if(g)g.classList.remove('kfold');mb.hidden=true});"
-             "var f=document.querySelector('.cityf');if(!f)return;"
+             "var f=document.querySelector('.cityf');if(!f)return;f.classList.add('js');"
              "var cards=document.querySelectorAll('.kgrid .kcard[data-city]'),n=document.querySelector('.cf-n');"
-             "f.addEventListener('click',function(e){var b=e.target.closest('.rchip');if(!b)return;e.preventDefault();"
-             "var c=b.getAttribute('data-city')||'',on=!!c&&!b.classList.contains('on'),k=0;"
-             "f.querySelectorAll('.rchip.on').forEach(function(x){x.classList.remove('on')});"
-             "cards.forEach(function(x){var d='|'+x.getAttribute('data-city')+'|',"
-             "s=!on||d.indexOf('|'+c+'|')>=0||d.indexOf('|'+c+' ')>=0;x.hidden=!s;if(s)k++});"
-             "(on?b:f.querySelector('.rchip[data-city=\\\"\\\"]')).classList.add('on');"
+             "function hit(d,c){return d.indexOf('|'+c+'|')>=0||d.indexOf('|'+c+' ')>=0}"
+             "function show(cs,label){var k=0,on=cs.length>0;cards.forEach(function(x){var d='|'+x.getAttribute('data-city')+'|',"
+             "s=!on||cs.some(function(c){return hit(d,c)});x.hidden=!s;if(s)k++});"
              "if(g)g.classList.toggle('kfold',!on&&!open);if(mb)mb.hidden=on||open;"
-             "if(n){n.textContent=(on?c+' ':'')+'글 '+k+'편';n.hidden=!on}});})();</script>")
+             "if(n){n.textContent=(on?label+' ':'')+'글 '+k+'편';n.hidden=!on}}"
+             "function row(z){f.querySelectorAll('.cf-g').forEach(function(r){r.classList.toggle('open',r.getAttribute('data-sido')===z)})}"
+             "function off(sel){f.querySelectorAll(sel).forEach(function(x){x.classList.remove('on')})}"
+             "f.addEventListener('click',function(e){var b=e.target.closest('.rchip');if(!b)return;e.preventDefault();"
+             "var z=b.getAttribute('data-sido');"
+             "if(z!==null){var was=b.classList.contains('on');off('.rchip.on');"
+             "if(was){f.querySelector('.rchip[data-city=\"\"]').classList.add('on');row(null);show([],'');return}"
+             "b.classList.add('on');row(z);var r=f.querySelector('.cf-g.open');"
+             "show(r?[].map.call(r.querySelectorAll('.rchip'),function(x){return x.getAttribute('data-city')}):[],z);return}"
+             "var c=b.getAttribute('data-city')||'',on=!!c&&!b.classList.contains('on');off('.cf-g .rchip.on');"
+             "if(!c){off('.rchip.on');row(null);b.classList.add('on');show([],'');return}"
+             "if(on){b.classList.add('on');show([c],c)}else{var sd=f.querySelector('.cf-sd.on');"
+             "if(sd){sd.classList.remove('on');sd.click()}else show([],'')}});})();</script>")
 
 
 def questions_block(metas):
@@ -1099,7 +1152,7 @@ def build_index(sec, posts_meta):
     name, desc = SECTION_META[sec]
     url = '%s/%s/' % (SITE, sec)
     q = TOPIC_BY[SECTION_TOPIC[sec]][0]
-    items = cards_grid(posts_meta) if posts_meta else '<p>아직 글이 없습니다.</p>'
+    items = cards_grid(posts_meta, compact='klist ksec') if posts_meta else '<p>아직 글이 없습니다.</p>'
     body = ('<header class="hub-head"><div class="wrap">'
             '<nav class="crumb"><a href="/">아공맵</a> › <a href="/%s/">%s</a> › <b>%s</b></nav>'
             '<h1>%s</h1><p class="cmeta">%s</p></div></header>'
@@ -1178,7 +1231,7 @@ def build_reports(all_metas, data=None):
             '<section class="hub-recent"><div class="wrap"><h2 class="rh2">최근 글</h2>%s</div></section>%s'
             % (html.escape(REPORTS_TITLE), html.escape(REPORTS_NAME), html.escape(REPORTS_DESC),
                questions_block(all_metas), city_chips(all_metas), basic_row(),
-               cards_grid(newest, fold=HUB_FIRST) if newest else '<p>아직 글이 없습니다.</p>', FILTER_JS))
+               cards_grid(newest, fold=HUB_FIRST, compact='klist') if newest else '<p>아직 글이 없습니다.</p>', FILTER_JS))
     url = '%s/%s/' % (SITE, REPORTS_DIR)
     lastmod = max([m['updated'] for m in all_metas], default=None)
     page = I.fill(I.SHELL, title=html.escape('%s | 아공맵' % REPORTS_NAME),

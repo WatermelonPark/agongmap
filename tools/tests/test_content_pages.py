@@ -1499,7 +1499,8 @@ def test_questions_and_city_chips_count_from_the_posts():
     chips = MC.city_chips(metas)
     assert '<em>경기</em>' in chips and '<em>경북</em>' in chips
     assert chips.index('<em>경기</em>') < chips.index('<em>경북</em>'), '시도 표시 순서(DISPLAY_ORDER)가 아니다'
-    assert chips.count('<button') == 4 and 'data-city="수원"' in chips
+    assert chips.count('data-city=') == 4 and 'data-city="수원"' in chips
+    assert chips.count('data-sido="경기"') == 2 and chips.count('class="rchip cf-sd"') == 2, '시도 단추(첫 줄)와 그 도시 줄이 짝이어야 한다'
 
 
 def test_lead_thumb_is_stripped_from_the_body():
