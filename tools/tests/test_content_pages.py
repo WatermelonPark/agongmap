@@ -837,7 +837,7 @@ def test_hub_offers_questions_regions_and_recent_cards():
     assert page.index('class="cityf"') < page.index('class="hub-basic"') < page.index('<a class="kcard"'), \
         '기본 개념 칩이 지역 칩과 최근 글 사이에 있지 않다'
     if len(metas) > MC.HUB_FIRST:
-        assert '<div class="kgrid kfold">' in recent and ('글 %d편 더 보기' % (len(metas) - MC.HUB_FIRST)) in recent, \
+        assert '<div class="kgrid klist kfold">' in recent and ('글 %d편 더 보기' % (len(metas) - MC.HUB_FIRST)) in recent, \
             "최근 글이 접히지 않았거나 '더 보기' 편수가 다르다"
         assert '.kfold .kcard:nth-child(n+%d){display:none}' % (MC.HUB_FIRST + 1) in MC.LIST_CSS
     assert 'class="cityf"' in page and '<script>' in recent, '지역 칩이나 거르는 스크립트가 없다'
@@ -1499,7 +1499,8 @@ def test_questions_and_city_chips_count_from_the_posts():
     chips = MC.city_chips(metas)
     assert '<em>경기</em>' in chips and '<em>경북</em>' in chips
     assert chips.index('<em>경기</em>') < chips.index('<em>경북</em>'), '시도 표시 순서(DISPLAY_ORDER)가 아니다'
-    assert chips.count('<button') == 4 and 'data-city="수원"' in chips
+    assert chips.count('data-city=') == 4 and 'data-city="수원"' in chips
+    assert chips.count('data-sido="경기"') == 2 and chips.count('class="rchip cf-sd"') == 2, '시도 단추(첫 줄)와 그 도시 줄이 짝이어야 한다'
 
 
 def test_lead_thumb_is_stripped_from_the_body():
