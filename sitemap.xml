@@ -530,6 +530,20 @@
   </url>
 
   <url>
+    <loc>https://www.agongmap.co.kr/city/anyang-2027-moveins/</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.agongmap.co.kr/city/gunpo-2027-moveins/</loc>
+    <lastmod>2026-11-20</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
     <loc>https://www.agongmap.co.kr/zone/</loc>
     <lastmod>2026-11-12</lastmod>
     <changefreq>weekly</changefreq>
@@ -648,19 +662,5 @@
     <lastmod>2026-11-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
-  </url>
-
-  <url>
-    <loc>https://www.agongmap.co.kr/city/anyang-2027-moveins/</loc>
-    <lastmod>2026-11-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://www.agongmap.co.kr/city/gunpo-2027-moveins/</loc>
-    <lastmod>2026-11-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
 </urlset>
