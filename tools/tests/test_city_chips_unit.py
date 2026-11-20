@@ -16,6 +16,9 @@
   가리키고, 대구 편을 가리키는 칩이 '대구시' 하나가 아니다).
 - make_content_pages._chip_label 의 도시 전체 분기(`return c + '시'`)를 지우면 test_every_city_post_has_one_whole_city_chip_first
   와 test_whole_city_chip_comes_first_and_reads_si 가 빨개진다.
+- 시도 전체 편(content/city/jeju-2027-moveins.md — city 비움, region 이 판정 단위 키)의 city 를 [제주] 로 바꾸면
+  test_every_city_post_has_one_whole_city_chip_first 가 빨개진다(시도 전체 글을 '제주시' 칩이 가리킨다). 그 갈래가
+  post_cities 를 '… 전체' 로 보지 않으면(예: _region_disp 를 빼면) 같은 시험이 빨개진다.
 - city_groups 정렬 열쇠의 구 표시(`' ' in c and not c.endswith(' 전체')`)를 뒤집으면 test_whole_city_chip_comes_first_and_reads_si
   와 test_every_city_post_has_one_whole_city_chip_first 가 빨개진다(구 칩이 시 칩 앞에 선다 — 실제 허브의 수원·용인·부천 줄).
 """
@@ -117,7 +120,21 @@ def test_every_city_post_has_one_whole_city_chip_first():
     assert city_posts, 'content/city/ 원고가 없다'
     sel = _selected(metas)
     labels = {c: label for _row, chips in _rows(metas) for c, label in chips}
+    import sido_zones as SZ
+    import make_city_moveins as MCM
+    metro = MCM.metro_cities()          # 시도 키이면서 곧 한 시(대구·서울…) — 그 편은 '대구시' 칩 하나
     for m in city_posts:
+        if m['region'] in SZ.ORDER and m['region'] not in metro:
+            assert not m.get('city'), ('%s: %s 는 한 시가 아니라 시도다 — 시도 전체 편은 city 를 비운다(%s 칩이 시도 전체 글을 '
+                                       '한 시 글로 읽게 한다)' % (m['slug'], m['region'], m.get('city')))
+            # 시도 전체 편(제주·광주·전남 — 단지 목록 없이 판정 단위 값만 쓰는 글): 칩은 '제주 전체' 하나다. 광역시와 달리
+            # 시도 이름이 곧 한 시가 아니라 '…시' 칩을 세우면 '제주시' 처럼 시도 전체 글을 한 시 글로 읽게 한다.
+            whole = SZ.disp(m['region']) + ' 전체'
+            assert MC.post_cities(m) == [whole], '%s: 시도 전체 편의 칩은 %s 하나다: %s' % (
+                m['slug'], whole, MC.post_cities(m))
+            hits = [c for c, got in sel.items() if m['slug'] in got]
+            assert hits == [whole], '%s 를 가리키는 칩이 %s' % (m['slug'], hits)
+            continue
         assert MC.post_cities(m) == [m['region']], '%s: city 가 글이 다루는 시 하나(%s)가 아니다: %s' % (
             m['slug'], m['region'], MC.post_cities(m))
         hits = [c for c, got in sel.items() if m['slug'] in got and ' ' not in c]
