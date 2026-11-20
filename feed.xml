@@ -6,7 +6,42 @@
   <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 통계를 알립니다.</description>
   <language>ko</language>
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
-  <lastBuildDate>Thu, 19 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <lastBuildDate>Fri, 20 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <item>
+    <title>고양 아파트 입주물량, 2028년에 몰려도 3년 적정물량의 43%입니다</title>
+    <link>https://www.agongmap.co.kr/city/goyang-2028-moveins/</link>
+    <guid isPermaLink="false">agongmap-content-city-goyang-2028-moveins</guid>
+    <pubDate>Fri, 20 Nov 2026 00:00:00 +0900</pubDate>
+    <description>고양 아파트 입주는 2027년 3,061세대, 2028년 7,281세대입니다. 2028년 창릉·장항 공공분양이 들어와도 3년을 합치면 인구로 잡은 적정물량의 43%입니다.</description>
+  </item>
+  <item>
+    <title>광주·전남 아파트 입주물량, 2027년부터 적정물량의 절반 아래로 줄어듭니다</title>
+    <link>https://www.agongmap.co.kr/city/gwangju-jeonnam-2027-moveins/</link>
+    <guid isPermaLink="false">agongmap-content-city-gwangju-jeonnam-2027-moveins</guid>
+    <pubDate>Fri, 20 Nov 2026 00:00:00 +0900</pubDate>
+    <description>광주·전남 아파트 입주는 2026년 18,179세대에서 2027년 10,844세대, 2028년 7,314세대로 줄어듭니다. 지금 매매가 보합인 것은 올해 입주와 미분양을 소화하는 구간이기 때문입니다.</description>
+  </item>
+  <item>
+    <title>제주 아파트 입주물량, 2028년 적정물량의 8%로 끊깁니다</title>
+    <link>https://www.agongmap.co.kr/city/jeju-2027-moveins/</link>
+    <guid isPermaLink="false">agongmap-content-city-jeju-2027-moveins</guid>
+    <pubDate>Fri, 20 Nov 2026 00:00:00 +0900</pubDate>
+    <description>제주 아파트 입주는 2027년 2,743세대가 들어온 뒤 2028년 361세대로 끊깁니다. 지금 매매가 내리는 것은 미분양을 소화하는 구간이고, 공급 판정은 부족입니다.</description>
+  </item>
+  <item>
+    <title>성남 아파트 입주물량, 2027년 적정물량 155% 뒤 2028년 4%로 끊깁니다</title>
+    <link>https://www.agongmap.co.kr/city/seongnam-2027-moveins/</link>
+    <guid isPermaLink="false">agongmap-content-city-seongnam-2027-moveins</guid>
+    <pubDate>Fri, 20 Nov 2026 00:00:00 +0900</pubDate>
+    <description>성남 아파트 입주는 2027년 11,105세대로 한 해 적정물량을 넘었다가 2028년 315세대로 끊깁니다. 3년을 합치면 인구로 잡은 적정물량의 57%입니다.</description>
+  </item>
+  <item>
+    <title>서울 아파트 입주물량, 3년 적정물량의 32%이고 2029년 더 줄어듭니다</title>
+    <link>https://www.agongmap.co.kr/city/seoul-2027-moveins/</link>
+    <guid isPermaLink="false">agongmap-content-city-seoul-2027-moveins</guid>
+    <pubDate>Fri, 20 Nov 2026 00:00:00 +0900</pubDate>
+    <description>서울 아파트 입주는 2027년 20,664세대, 2028년 25,707세대, 2029년 15,287세대로 한 해 적정물량 74,800세대의 3분의 1 안팎입니다. 전세와 매매가 함께 오르는 구간이 이어집니다.</description>
+  </item>
   <item>
     <title>주간 아파트가격 동향 2026년 11월 셋째 주 · 전국·서울 아파트 시세 지도</title>
     <link>https://www.agongmap.co.kr/weekly/</link>
