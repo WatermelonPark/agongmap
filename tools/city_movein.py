@@ -186,6 +186,16 @@ def _months(ym):
     return int(ym[:4]) * 12 + int(ym[5:7])
 
 
+NAME_CORE_MIN = 6       # 같은 세대수 짝짓기에 요구하는 이름의 공통 핵심(정규화 뒤 이어진 글자 수)
+
+
+def _common_core(a, b):
+    """두 정규화 이름에 이어서 겹치는 가장 긴 부분의 길이."""
+    import difflib
+    m = difflib.SequenceMatcher(None, a, b, autojunk=False).find_longest_match(0, len(a), 0, len(b))
+    return m.size
+
+
 def merge(raw, city, start):
     """도시 단지 목록. city 는 주소에 들어가는 이름('대구', '청주'), start 는 'YYYY-MM'.
 
@@ -200,6 +210,15 @@ def merge(raw, city, start):
                 key=lambda c: (c.get('RCRIT_PBLANC_DE') or '', c.get('HOUSE_NM') or '', c.get('TOT_SUPLY_HSHLDCO') or ''))
     rows = [dict(ym=r['입주예정월'], name=r['아파트명'], gu=gu_of(r['주소'], city), addr=r['주소'],
                  n=int(r['세대수'] or 0), kind=r['사업유형'], src='입주예정물량정보', note='') for r in occ]
+    # 청약홈 주소의 '구' 는 부동산원 목록에 나온 구일 때만 구다. gu_of 는 '…구' 로 끝나는 낱말을 모두 구로 읽어 '성남낙생지구'·
+    # '고덕국제화계획지구' 같은 택지지구 이름을 구로 세웠다(11-20 성남 2029년 '성남낙생지구' 933세대가 구 칸에 섰다). 끝 글자로 거르면
+    # 용인 '수지구' 가 빠지므로, 구 목록을 손으로 적지 않고 그 도시 부동산원 행의 구에서 센다.
+    known_gu = {gu_of(r.get('주소'), city) for r in raw['occ'] if in_city(r.get('주소'), city, within)} - {''}
+
+    def ch_gu(addr):
+        g = gu_of(addr, city)
+        return g if g in known_gu else ''
+
     groups = []
     for c in ch:
         ym = c.get('MVN_PREARNGE_YM') or ''
@@ -225,7 +244,16 @@ def merge(raw, city, start):
             if best is None and part and (addr_key(r['addr']) == akey or r['ym'] == ym):
                 best = i
             # 이름이 전혀 달라도(부동산원 '본리동자이' ↔ 청약홈 '달서자이 제니크', 10-16 대구) 같은 구·같은 달·같은 세대수면 같은 단지다.
-            if best is None and r['ym'] == ym and r['n'] == n and r['gu'] and r['gu'] == gu_of(c.get('HSSPLY_ADRES'), city):
+            if best is None and r['ym'] == ym and r['n'] == n and r['gu'] and r['gu'] == ch_gu(c.get('HSSPLY_ADRES')):
+                best = i
+            # 이름 꼴이 달라도(블록 꼬리·지구 이름이 붙고 빠짐) 세대수가 정확히 같고 입주 월이 두 달 안이며 정규화한 이름에 같은 핵심
+            # 글자(NAME_CORE_MIN 자 이상 이어진 부분)가 있으면 같은 단지다. 두 쪽 구가 모두 적혀 있는데 다르면 짝짓지 않는다.
+            # 11-20 원천: 남양주(구 없는 시) 부동산원 '왕숙푸르지오더퍼스트1단지(B1)' 560 ↔ 청약홈 '왕숙 푸르지오 더 퍼스트 1단지
+            # 공공분양주택(본청약)' 560(2단지 587 도 같은 꼴), 화성 '금성백조 예미지2차M(B-1BL)' 530(9월) ↔ '화성 비봉지구 B1블록 금성백조
+            # 예미지2차' 530(10월)이 두 번 셌다. 이름 앞 여섯 글자만 보던 옛 규칙(F23 ②)과 달리 세대수가 정확히 같아야 한다.
+            g2 = ch_gu(c.get('HSSPLY_ADRES'))
+            if (best is None and r['n'] == n and not (r['gu'] and g2 and r['gu'] != g2)
+                    and _common_core(a, b) >= NAME_CORE_MIN):
                 best = i
         if best is not None:
             r = rows[best]
@@ -237,7 +265,7 @@ def merge(raw, city, start):
         # ① 청약홈 단독 공고는 같은 단지끼리 묶는다 — 추가·취소분·회차 공고가 따로 세지지 않게(F23).
         g = next((g for g in groups if g['key'] == (b, akey) and abs(_months(g['ym']) - _months(ym)) <= 6), None)
         if g is None:
-            g = dict(key=(b, akey), ym=ym, name=base_name(c.get('HOUSE_NM')), gu=gu_of(c.get('HSSPLY_ADRES'), city),
+            g = dict(key=(b, akey), ym=ym, name=base_name(c.get('HOUSE_NM')), gu=ch_gu(c.get('HSSPLY_ADRES')),
                      addr=c.get('HSSPLY_ADRES'), n=0, re_n=None, kind='분양', src='청약홈', ch_date=c.get('RCRIT_PBLANC_DE'))
             groups.append(g)
         else:
