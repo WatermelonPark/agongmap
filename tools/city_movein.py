@@ -186,6 +186,9 @@ def _months(ym):
     return int(ym[:4]) * 12 + int(ym[5:7])
 
 
+NAME_PREFIX_MIN = 4     # 구 없는 시에서 같은 달·같은 세대수 짝짓기에 요구하는 이름 앞부분 겹침(정규화 글자 수)
+
+
 def merge(raw, city, start):
     """도시 단지 목록. city 는 주소에 들어가는 이름('대구', '청주'), start 는 'YYYY-MM'.
 
@@ -200,6 +203,15 @@ def merge(raw, city, start):
                 key=lambda c: (c.get('RCRIT_PBLANC_DE') or '', c.get('HOUSE_NM') or '', c.get('TOT_SUPLY_HSHLDCO') or ''))
     rows = [dict(ym=r['입주예정월'], name=r['아파트명'], gu=gu_of(r['주소'], city), addr=r['주소'],
                  n=int(r['세대수'] or 0), kind=r['사업유형'], src='입주예정물량정보', note='') for r in occ]
+    # 청약홈 주소의 '구' 는 부동산원 목록에 나온 구일 때만 구다. gu_of 는 '…구' 로 끝나는 낱말을 모두 구로 읽어 '성남낙생지구'·
+    # '고덕국제화계획지구' 같은 택지지구 이름을 구로 세웠다(11-20 성남 2029년 '성남낙생지구' 933세대가 구 칸에 섰다). 끝 글자로 거르면
+    # 용인 '수지구' 가 빠지므로, 구 목록을 손으로 적지 않고 그 도시 부동산원 행의 구에서 센다.
+    known_gu = {gu_of(r.get('주소'), city) for r in raw['occ'] if in_city(r.get('주소'), city, within)} - {''}
+
+    def ch_gu(addr):
+        g = gu_of(addr, city)
+        return g if g in known_gu else ''
+
     groups = []
     for c in ch:
         ym = c.get('MVN_PREARNGE_YM') or ''
@@ -225,7 +237,14 @@ def merge(raw, city, start):
             if best is None and part and (addr_key(r['addr']) == akey or r['ym'] == ym):
                 best = i
             # 이름이 전혀 달라도(부동산원 '본리동자이' ↔ 청약홈 '달서자이 제니크', 10-16 대구) 같은 구·같은 달·같은 세대수면 같은 단지다.
-            if best is None and r['ym'] == ym and r['n'] == n and r['gu'] and r['gu'] == gu_of(c.get('HSSPLY_ADRES'), city):
+            if best is None and r['ym'] == ym and r['n'] == n and r['gu'] and r['gu'] == ch_gu(c.get('HSSPLY_ADRES')):
+                best = i
+            # 구가 없는 시(남양주·광명 등 — 두 쪽 모두 구가 빈 칸)는 위 규칙이 서지 않는다. 같은 달·같은 세대수에 이름 앞부분이 겹치면
+            # 같은 단지다(11-20 남양주 원천: 부동산원 '왕숙푸르지오더퍼스트1단지(B1)' 560 ↔ 청약홈 '왕숙 푸르지오 더 퍼스트 1단지
+            # 공공분양주택(본청약)' 560 이 두 번 셌다 — 블록 꼬리 'B1' 때문에 이름 포함 규칙도 빗나갔다). 앞부분만으로 짝짓던 옛 규칙(F23 ②)과
+            # 달리 달과 세대수가 정확히 같아야 한다.
+            if (best is None and r['ym'] == ym and r['n'] == n and not r['gu'] and not ch_gu(c.get('HSSPLY_ADRES'))
+                    and len(os.path.commonprefix([a, b])) >= NAME_PREFIX_MIN):
                 best = i
         if best is not None:
             r = rows[best]
@@ -237,7 +256,7 @@ def merge(raw, city, start):
         # ① 청약홈 단독 공고는 같은 단지끼리 묶는다 — 추가·취소분·회차 공고가 따로 세지지 않게(F23).
         g = next((g for g in groups if g['key'] == (b, akey) and abs(_months(g['ym']) - _months(ym)) <= 6), None)
         if g is None:
-            g = dict(key=(b, akey), ym=ym, name=base_name(c.get('HOUSE_NM')), gu=gu_of(c.get('HSSPLY_ADRES'), city),
+            g = dict(key=(b, akey), ym=ym, name=base_name(c.get('HOUSE_NM')), gu=ch_gu(c.get('HSSPLY_ADRES')),
                      addr=c.get('HSSPLY_ADRES'), n=0, re_n=None, kind='분양', src='청약홈', ch_date=c.get('RCRIT_PBLANC_DE'))
             groups.append(g)
         else:
