@@ -186,7 +186,14 @@ def _months(ym):
     return int(ym[:4]) * 12 + int(ym[5:7])
 
 
-NAME_PREFIX_MIN = 4     # 구 없는 시에서 같은 달·같은 세대수 짝짓기에 요구하는 이름 앞부분 겹침(정규화 글자 수)
+NAME_CORE_MIN = 6       # 같은 세대수 짝짓기에 요구하는 이름의 공통 핵심(정규화 뒤 이어진 글자 수)
+
+
+def _common_core(a, b):
+    """두 정규화 이름에 이어서 겹치는 가장 긴 부분의 길이."""
+    import difflib
+    m = difflib.SequenceMatcher(None, a, b, autojunk=False).find_longest_match(0, len(a), 0, len(b))
+    return m.size
 
 
 def merge(raw, city, start):
@@ -239,12 +246,14 @@ def merge(raw, city, start):
             # 이름이 전혀 달라도(부동산원 '본리동자이' ↔ 청약홈 '달서자이 제니크', 10-16 대구) 같은 구·같은 달·같은 세대수면 같은 단지다.
             if best is None and r['ym'] == ym and r['n'] == n and r['gu'] and r['gu'] == ch_gu(c.get('HSSPLY_ADRES')):
                 best = i
-            # 구가 없는 시(남양주·광명 등 — 두 쪽 모두 구가 빈 칸)는 위 규칙이 서지 않는다. 같은 달·같은 세대수에 이름 앞부분이 겹치면
-            # 같은 단지다(11-20 남양주 원천: 부동산원 '왕숙푸르지오더퍼스트1단지(B1)' 560 ↔ 청약홈 '왕숙 푸르지오 더 퍼스트 1단지
-            # 공공분양주택(본청약)' 560 이 두 번 셌다 — 블록 꼬리 'B1' 때문에 이름 포함 규칙도 빗나갔다). 앞부분만으로 짝짓던 옛 규칙(F23 ②)과
-            # 달리 달과 세대수가 정확히 같아야 한다.
-            if (best is None and r['ym'] == ym and r['n'] == n and not r['gu'] and not ch_gu(c.get('HSSPLY_ADRES'))
-                    and len(os.path.commonprefix([a, b])) >= NAME_PREFIX_MIN):
+            # 이름 꼴이 달라도(블록 꼬리·지구 이름이 붙고 빠짐) 세대수가 정확히 같고 입주 월이 두 달 안이며 정규화한 이름에 같은 핵심
+            # 글자(NAME_CORE_MIN 자 이상 이어진 부분)가 있으면 같은 단지다. 두 쪽 구가 모두 적혀 있는데 다르면 짝짓지 않는다.
+            # 11-20 원천: 남양주(구 없는 시) 부동산원 '왕숙푸르지오더퍼스트1단지(B1)' 560 ↔ 청약홈 '왕숙 푸르지오 더 퍼스트 1단지
+            # 공공분양주택(본청약)' 560(2단지 587 도 같은 꼴), 화성 '금성백조 예미지2차M(B-1BL)' 530(9월) ↔ '화성 비봉지구 B1블록 금성백조
+            # 예미지2차' 530(10월)이 두 번 셌다. 이름 앞 여섯 글자만 보던 옛 규칙(F23 ②)과 달리 세대수가 정확히 같아야 한다.
+            g2 = ch_gu(c.get('HSSPLY_ADRES'))
+            if (best is None and r['n'] == n and not (r['gu'] and g2 and r['gu'] != g2)
+                    and _common_core(a, b) >= NAME_CORE_MIN):
                 best = i
         if best is not None:
             r = rows[best]
