@@ -199,9 +199,17 @@ def test_post_recorded_in_a_closed_issue_is_not_reused(monkeypatch, capsys):
 
 # ── 3편 주장 점검은 게이트가 아니라 알림 ──────────────────────────────────
 def test_sync_claim_mismatch_is_noted(monkeypatch):
+    """3편 동조성 전제가 깨진 상태를 알림 줄로 본다. 3편 가드는 넘겨받은 D(/cycle/ 정본)의 sync 로 재므로(백로그 59),
+    이 픽스처는 cycle_d() 가 돌려주는 D 의 sync 만 바꾼다.
+
+    변이: theory_claim_lines 의 3편 줄 생성을 지우면 빨개진다.
+    픽스처: 동조성 최저가 서울이 아니라 대구인 재산정 회차(D.sync 한 줄 모양 그대로 — 2026-09-12 재산정 때 실제로 나온 모양).
+    """
     import theory_guards as T
     rows = [{'region': '대구', 'corr': 0.3, 'sudo': False}, {'region': '서울', 'corr': 0.55, 'sudo': True}]
-    monkeypatch.setattr(T, 'CYCLE_SYNC', sorted(rows, key=lambda x: -x['corr']))
+    D = dict(T.cycle_d())
+    D['sync'] = sorted(rows, key=lambda x: -x['corr'])
+    monkeypatch.setattr(T, 'cycle_d', lambda: D)
     out = N.theory_claim_lines()      # 3편도 이론편 점검(theory_claim_lines — 옛 sync_claim_lines 를 접었다)이 본다
     line = next((ln for ln in out if ' 사이클 3편 ' in ln), None)   # 다른 편 줄은 실데이터 상태에 따라 있을 수도 없을 수도
     assert line and line.startswith(N.ML.MARK) and '대구' in line and '검사 불가' not in line, out
