@@ -371,6 +371,21 @@ def test_missing_share_card_is_a_deterministic_failure(monkeypatch, capsys):
     assert '공유카드' not in r['skipped']
 
 
+def test_transient_share_card_failure_is_retryable(monkeypatch, capsys):
+    """공유 카드 기준일 조회가 타임아웃이면 '이번 회차 판정 못 함'으로 넘기지 않고 새 IP 재확인으로 보낸다. 예전엔
+    SKIPPED 에만 넣어 VERDICT=ok 초록이었다 — 카드가 옛 주차에 고정된 사고를 그날 놓친다(2026-11-13 전수 리뷰
+    잠복 결함, 백로그 59).
+
+    변이(실제로 확인): 공유카드 비-hard 예외 갈래를 옛 `SKIPPED.append('공유카드')` 로 되돌리면 rc 0(초록)으로 빨개진다.
+    픽스처: 라이브 카드 기준일 조회가 TimeoutError, 원천·지역 계층은 정상인 날.
+    """
+    def slow_card():
+        raise TimeoutError('timed out')
+    r = _run(monkeypatch, capsys, 4, card=slow_card)
+    assert r['rc'] == C.EXIT_RETRYABLE, r['out'][-800:]
+    assert '공유카드' in r['out'] and '새 IP로 재확인' in r['out'], r['out'][-800:]
+
+
 def test_majority_outage_fails_through_main(monkeypatch, capsys):
     """개수 게이트('SKIPPED×2 > len(fails)')를 main() 경로로 돈다 — 핵심 계열(주간)은 살아 있고 나머지 원천 대부분이
     재시도까지 죽은 날(2026-08-12 KOSIS·R-ONE 광역 타임아웃 14/18 의 모양)은 OK 가 아니라 재확인(rc=1)이어야 한다.

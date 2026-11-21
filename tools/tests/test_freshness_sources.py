@@ -247,6 +247,19 @@ def test_missing_page_404_is_a_deterministic_failure(monkeypatch, part):
     assert any('404' in f for f in fails if f), fails
 
 
+@pytest.mark.parametrize('part', ['/jeonse-ratio/', '/moveins/'])
+def test_transient_timeout_on_a_derived_page_is_retryable(monkeypatch, part):
+    """지표 페이지 한 장이 망 사정으로 타임아웃이면 '판정 못 함'으로 넘기지 않고 **새 IP로 재확인**으로 보낸다. 예전엔
+    SKIPPED 에만 넣어 게이트 산수에 걸리지 않는 날 VERDICT=ok 초록이었다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59).
+
+    변이(실제로 확인): 두 갈래를 옛 `SKIPPED.append(...)` 로 되돌리면 이 시험이 rc 0(초록)으로 빨개진다.
+    픽스처: /jeonse-ratio/ 또는 /moveins/ 하나만 타임아웃, 나머지 페이지는 정상.
+    """
+    rc, fails = _gate_after_derived(monkeypatch, {part: 'timeout'})
+    assert rc == C.EXIT_RETRYABLE, (part, rc)
+    assert not [f for f in fails if f], '망 오류를 데이터 실패로 올렸다'
+
+
 # ---------------------------------------------------------------------------
 # #40·#109 배치와 같은 원천 조회 인자·같은 '최신 달' 규칙
 # ---------------------------------------------------------------------------
