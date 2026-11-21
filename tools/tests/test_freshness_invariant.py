@@ -504,7 +504,7 @@ def test_watchdog_supply_check_lower_bounds_by_our_own_date(monkeypatch):
     stats = {'분양': {'dates': ['2026.05', '2026.06'], 'series': {}}}
     jobs = C.source_jobs(stats)
     tbl = U.SUPPLY_CONF['분양']['tbl']
-    r = C.check('분양', '2026.06', jobs[('supply', '분양')], C.GRACE_MONTHLY)
+    r = C.check('분양', '2026.06', jobs[('supply', '분양')], C.GRACE_SUPPLY)
     assert got[tbl] == '202605', got
     assert r and '분양' in r, '원천이 더 최신인데 뒤처짐을 못 잡았다'
 

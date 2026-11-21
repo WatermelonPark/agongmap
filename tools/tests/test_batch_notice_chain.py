@@ -43,9 +43,9 @@ def _cli(name, data):
 
 def test_month_lag_cli_prints_the_lag_line(tmp_path):
     data = _data_js(tmp_path, {'monthly': {'rows': [{'p': '2026.08'}]}},
-                    {'미분양': {'dates': ['2026.05']}, '금리': {'dates': ['2026.08']}})
-    out = _cli('month_lag.py', data)
-    assert out.startswith(ML.MARK) and '미분양 2026.05' in out and '최신 2026.08' in out, out
+                    {'미분양': {'dates': ['2026.03']}, '금리': {'dates': ['2026.08']}})
+    out = _cli('month_lag.py', data)     # 미분양은 정상 시차 2개월(공급 — GRACE_SUPPLY)이라 5개월 늦어야 3개월 뒤처짐이다
+    assert out.startswith(ML.MARK) and '미분양 2026.03' in out and '최신 2026.08' in out, out
 
 
 def test_batch_notes_cli_prints_the_permit_gap_line(tmp_path):
@@ -59,12 +59,13 @@ def test_batch_notes_cli_prints_the_permit_gap_line(tmp_path):
 
 def test_lag_line_is_readable_by_the_report_formatter():
     """month_lag 가 찍는 줄을 형식기가 그대로 읽어야 한다 — 두 파일 사이의 형식 계약."""
-    stats = {'미분양': {'dates': ['2026.05']}, '분양': {'dates': ['2026.06']}, '금리': {'dates': ['2026.08']}}
+    # 공급 두 계열은 정상 시차 2개월(GRACE_SUPPLY) — 그만큼 더 늦춰 '정상을 넘은 3개월·2개월'을 만든다
+    stats = {'미분양': {'dates': ['2026.03']}, '분양': {'dates': ['2026.04']}, '금리': {'dates': ['2026.08']}}
     line = ML.line({}, stats)
     say, months = F.lag_notice([line])
     assert months == 3 and say and '2026년 8월' in say, (line, say)
     # 계열마다 제 기준월이 붙어야 한다 — 구분자가 바뀌면 두 계열이 한 덩어리로 읽혀 한쪽 달이 사라진다
-    assert '미분양이 2026년 5월 기준' in say and '분양이 2026년 6월 기준' in say, say
+    assert '미분양이 2026년 3월 기준' in say and '분양이 2026년 4월 기준' in say, say
 
 
 def _code():
