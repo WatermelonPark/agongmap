@@ -163,6 +163,11 @@ from weekly_release import GRACE_WEEKLY  # noqa: E402
 import weekly_release as WR  # noqa: E402  (주간 나이 상한의 연휴 주 판정 — weekly_max_age)
 GRACE_MONTHLY = 50     # 매월 15일경 전월분 발표
 GRACE_BASIC = 100      # 인허가·착공·준공이 약 2개월 지연(정상 최대 ~95일)
+# 공급 두 계열(분양 R-ONE·미분양 KOSIS)은 GRACE_MONTHLY 로 보았는데, 원천에 새 달이 올라온 날 우리 값(전달)의 나이가 이미
+# 그보다 길다 — 실측(2026, data.js 커밋 이력): 분양 2026.09 가 올라온 날(10-22) 우리 2026.08 은 82일, 2026.10(11-20 새벽)은
+# 80일, 미분양 2026.09(11-05)는 97일. 감시(실제 시작 03시 KST 무렵)가 발표 뒤·배치 반영 전에 돌면 그날 곧바로 실패 메일이었다
+# (11-05 미분양 97일·11-20 분양 80일 — 둘 다 같은 날 밤 배치가 받았다). 실측 최대 97일 위로 배치 두 주 남짓을 둔다.
+GRACE_SUPPLY = 110
 # 버블밴드 두 계열은 발표가 더 늦다 — 새 달이 원천에 올라온 날 우리 값(전달)의 나이가 이미 GRACE_MONTHLY(50)를
 # 넘어, 감시가 발표 뒤·배치 반영 전에 한 번만 돌아도(감시 예약 18:07 KST 는 배치보다 앞선다) 그날 실패 메일이 났다
 # (전수 리뷰 통합 검토). 실측(2026): 전월세전환율 새 달이 올라온 날 우리 값 나이 132일(09-10, 2026.05)·119일
@@ -1510,7 +1515,7 @@ def main():
         # 그걸 모르면 의도된 건너뜀이 뒤처짐으로 읽혀 매일 빨개진다 — 2026.07
         # 미분양이 실제로 그랬다(원천에 광주·전남 행이 없고 통합 노드도 아직 없음).
         # 원천이 그 달을 채우면 그때부터 비교 대상이 되므로 경보가 늦지 않는다.
-        fails.append(check(name, last, pre[('supply', name)], GRACE_MONTHLY, max_age=MAX_AGE_BASIC))
+        fails.append(check(name, last, pre[('supply', name)], GRACE_SUPPLY, max_age=MAX_AGE_BASIC))
         # 시점이 같아도 값이 멈춰 있을 수 있다.
         # ⚠️ 두 가지를 지킨다(리뷰 2026-09-16 9번).
         #   ① 통과(None)는 fails 에 넣지 않는다. len(fails) 는 '검사한 계열 수'이고 개수
@@ -1669,7 +1674,7 @@ def _gate(fails):
         print('FAIL: 문제 %d건' % len(bad))
         for b in bad:
             print('  - %s' % b)
-        print('  → update-cloud 실행 이력, 해당 KOSIS 표 ID 변경/폐지 여부 확인')
+        print('  → 먼저 원천 발표 뒤 update-cloud 가 돌았는지 볼 것(발표 뒤·배치 전이면 다음 배치가 받는다). 그다음 원천 표(KOSIS·R-ONE) ID 변경·폐지 여부')
         _verdict_exit()
     if FETCH_FAIL:
         # 조회 자체가 실패한 검사(지역 계층·지역 페이지 등)는 fails 에 항목이 없다. 여기서 보지 않으면
