@@ -634,8 +634,8 @@ def check_derived_pages(adv, stats):
             out.append('/jeonse-ratio/ HTTP %d — 페이지가 배포에 없다' % e.code)
             print('  전세가율  HTTP %d — 배포에 없음' % e.code)
         else:
-            SKIPPED.append('파생 페이지(전세가율)')
-            print('  전세가율  판정 못 함 — %s' % str(e)[:60])
+            FETCH_FAIL.append('파생 페이지(전세가율)')
+            print('  전세가율  판정 못 함 — %s (새 IP로 재확인)' % str(e)[:60])
 
     try:
         o = adv.get('occupancy') or {}
@@ -667,8 +667,8 @@ def check_derived_pages(adv, stats):
             out.append('/moveins/ HTTP %d — 페이지가 배포에 없다' % e.code)
             print('  입주물량  HTTP %d — 배포에 없음' % e.code)
         else:
-            SKIPPED.append('파생 페이지(입주물량)')
-            print('  입주물량  판정 못 함 — %s' % str(e)[:60])
+            FETCH_FAIL.append('파생 페이지(입주물량)')
+            print('  입주물량  판정 못 함 — %s (새 IP로 재확인)' % str(e)[:60])
     return out
 
 
@@ -1476,8 +1476,8 @@ def main():
             print('  공유카드: HTTP %d — 배포에 없음' % e.code)
             fails.append('공유카드 HTTP %d — share/weekly-map.png 가 배포에 없다' % e.code)
         else:
-            SKIPPED.append('공유카드')
-            print('  공유카드: 조회 실패(%s) — 이번 회차 판정 못 함' % str(e)[:50])
+            FETCH_FAIL.append('공유카드')
+            print('  공유카드: 조회 실패(%s) — 이번 회차 판정 못 함 (새 IP로 재확인)' % str(e)[:50])
 
     mo = ((adv.get('monthly') or {}).get('rows') or [{}])[-1].get('p')
     fails.append(check('월간', mo, pre['월간'], GRACE_MONTHLY, max_age=MAX_AGE_MONTHLY))
