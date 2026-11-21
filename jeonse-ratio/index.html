@@ -16,7 +16,7 @@ else localStorage.setItem('ga_off','1');}
 if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
 }catch(e){}
 </script>
-<script>/* 내부 트래픽 표식(?internal=on|off) — 정본 tools/ga_tag.py */try{var _iq=new URLSearchParams(location.search).get('internal');if(_iq==='on')localStorage.setItem('ga_internal','1');else if(_iq==='off')localStorage.removeItem('ga_internal');}catch(e){}function gaCfg(o){o=o||{};try{if(localStorage.getItem('ga_internal'))o.traffic_type='internal';}catch(e){}return o;}</script>
+<script>/* 내부 트래픽 표식(?internal=on|off) — 정본 tools/ga_tag.py */(function(){try{var _iq=new URLSearchParams(location.search).get('internal');if(_iq==='on')localStorage.setItem('ga_internal','1');else if(_iq==='off')localStorage.removeItem('ga_internal');}catch(e){}})();function gaCfg(o){o=o||{};try{if(localStorage.getItem('ga_internal'))o.traffic_type='internal';}catch(e){}return o;}</script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-3FJNG6G1F3"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-3FJNG6G1F3',gaCfg());</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,7 +43,7 @@ if(localStorage.getItem('ga_off'))window['ga-disable-G-3FJNG6G1F3']=true;
     "headline": "전세가율 — 전국·시도별 현황과 의미",
     "description": "전세가율은 매매가 대비 전세가 비율. 2026년 10월 기준 전국 아파트 전세가율은 69.2%로 1년 전보다 +1.0%p. 경북이 79.0%로 가장 높고 서울은 52.4%. 시도별 현황과 사이클 신호로서의 의미를 데이터로 정리했다.",
     "datePublished": "2026-07-29",
-    "dateModified": "2026-11-19",
+    "dateModified": "2026-11-21",
     "author": {
       "@type": "Organization",
       "name": "아공맵"
