@@ -388,10 +388,12 @@ def test_old_quiz_hash_opens_home_and_drops_the_hash():
 
 
 def test_head_scripts_leave_no_globals():
-    """머리 인라인 스크립트(쿼리 옮기기·ga_off)는 전역에 이름을 남기지 않는다 — 뒤 스크립트가 같은 이름(_h·_p 등)을 최상위
-    let/const 로 두면 그 파일 전체가 SyntaxError 로 죽는다(전수리뷰 2차 overflow, 지금은 충돌 없음).
+    """머리 인라인 스크립트(쿼리 옮기기·ga_off·내부 트래픽 표식)는 전역에 이름을 남기지 않는다 — 뒤 스크립트가 같은 이름(_h·_p 등)을
+    최상위 let/const 로 두면 그 파일 전체가 SyntaxError 로 죽는다(전수리뷰 2차 overflow, 지금은 충돌 없음).
 
-    변이(실제로 확인): index.html 머리 스크립트의 (function(){ … })() 감싸기를 지우면 빨개진다.
+    변이(실제로 확인): index.html 머리 스크립트의 (function(){ … })() 감싸기를 지우면 빨개진다. 내부 트래픽 표식의
+    `var _iq` 를 감싸지 않으면(옛 INTERNAL_SCRIPT) 예전 탐지식 `/^_[a-z]$/` 는 두 글자 이름이라 놓쳤다 — 지금은 `_` 로
+    시작하는 이름을 다 본다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59).
     픽스처: 저장소 홈 머리 스크립트를 해시 속 쿼리·ga_off 가 있는 주소로 node vm 에서 돌린다(두 갈래를 다 탄다).
     """
     _, head = _head_scripts()
@@ -409,7 +411,7 @@ ctx.window = ctx;
 vm.createContext(ctx);
 const before = new Set(Object.keys(ctx));
 for (const s of S) vm.runInContext(s, ctx);
-process.stdout.write(JSON.stringify({leaked: Object.keys(ctx).filter((k) => !before.has(k) && /^_[a-z]$/.test(k)), ga: store.ga_off || null}));
+process.stdout.write(JSON.stringify({leaked: Object.keys(ctx).filter((k) => !before.has(k) && /^_/.test(k)), ga: store.ga_off || null}));
 """ % json.dumps(head, ensure_ascii=False)
     o = J.node(js)
     assert o['ga'] == '1', '머리 스크립트가 돌지 않았다(헛통과 방지): %s' % o
