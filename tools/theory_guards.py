@@ -270,7 +270,11 @@ def guard_values(n, D=None, data=None):
         v['permit_over'] = permit_over_x(load()[1])
         return v
     if n == 3:
-        check_sync_claims()
+        # 넘겨받은 D(/cycle/ 정본)의 sync 로 잰다. 예전엔 D 를 무시하고 모듈을 읽을 때 잡아 둔 CYCLE_SYNC 만 써서,
+        # 배치가 그 회차에 읽은 정본과 다른 값으로 3편 전제를 판정할 수 있었다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59).
+        d = D or {}
+        rows = sorted(d['sync'], key=lambda r: -r['corr']) if 'sync' in d else None
+        check_sync_claims(rows)
         return {}
     if n == 4:
         # 4편 숫자는 데이터에서 센다. 단정이 깨지면 멈춘다(theory_link3 docstring).

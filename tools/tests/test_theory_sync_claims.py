@@ -55,3 +55,16 @@ def test_guard_runs_the_sync_check_for_episode_3(monkeypatch):
     assert str(e.value).startswith('3편을 만들 수 없다 — ') and '대구' in str(e.value)
     monkeypatch.setattr(T, 'CYCLE_SYNC', _rows())
     assert T.guard_values(3, D={}, data=({}, {})) == {}
+
+
+def test_guard_reads_the_passed_cycle_d(monkeypatch):
+    """guard_values(3, D)는 넘겨받은 D.sync로 전제를 잰다. 예전엔 D를 무시하고 모듈을 읽을 때 잡아 둔 CYCLE_SYNC만 써서,
+    배치가 그 회차에 읽은 /cycle/ 정본과 다른 값으로 3편 전제를 판정할 수 있었다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59).
+
+    변이(실제로 확인): 3편 갈래를 옛 `check_sync_claims()`(인자 없음)로 되돌리면 이 시험이 빨개진다.
+    픽스처: 모듈 상수 CYCLE_SYNC는 정상(서울 최저)인데 넘긴 D는 대구가 최저인 재산정 회차 — 가드는 D 쪽을 봐야 멈춘다.
+    """
+    monkeypatch.setattr(T, 'CYCLE_SYNC', _rows())          # import 때 읽은 값은 정상
+    with pytest.raises(SystemExit) as e:
+        T.guard_values(3, D={'sync': _rows(대구=0.30)}, data=({}, {}))
+    assert str(e.value).startswith('3편을 만들 수 없다 — ') and '대구' in str(e.value)
