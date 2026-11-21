@@ -22,10 +22,12 @@ INTERNAL_KEY = 'ga_internal'
 INTERNAL_PARAM = 'internal'
 TRAFFIC_TYPE = 'internal'
 
+# 표식 처리부는 IIFE 로 감싼다 — `var _iq` 를 최상위에 두면 전역(window._iq)으로 새어, 뒤에 오는 스크립트가 같은 이름을
+# 최상위 let/const 로 두면 SyntaxError 로 죽는다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59). 의도한 전역은 gaCfg 하나뿐이다.
 INTERNAL_SCRIPT = (
     "<script>/* 내부 트래픽 표식(?internal=on|off) — 정본 tools/ga_tag.py */"
-    "try{var _iq=new URLSearchParams(location.search).get('%(p)s');"
-    "if(_iq==='on')localStorage.setItem('%(k)s','1');else if(_iq==='off')localStorage.removeItem('%(k)s');}catch(e){}"
+    "(function(){try{var _iq=new URLSearchParams(location.search).get('%(p)s');"
+    "if(_iq==='on')localStorage.setItem('%(k)s','1');else if(_iq==='off')localStorage.removeItem('%(k)s');}catch(e){}})();"
     "function gaCfg(o){o=o||{};try{if(localStorage.getItem('%(k)s'))o.traffic_type='%(t)s';}catch(e){}return o;}</script>"
 ) % {'p': INTERNAL_PARAM, 'k': INTERNAL_KEY, 't': TRAFFIC_TYPE}
 
