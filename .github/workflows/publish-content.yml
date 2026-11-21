@@ -122,6 +122,13 @@ jobs:
           # 없으면 수집 단계에서 4 errors 로 끊긴다 — 첫 실행(40429921901)이 그래서 멈췄다.
           python -m pip install --quiet pytest pillow fonttools
 
+      - name: 카드 글꼴 표 확인
+        run: |
+          # 카드 글꼴(tools/fonts)을 바꾸면 표(tools/data/card_font_cmap.json)도 다시 구워야 한다. 배치에는 fonttools 가
+          # 없어 이 대조를 못 하므로, fonttools 를 까는 이 워크플로가 맡는다(백로그 59). 표가 낡으면 배치의 카드 글자
+          # 검사가 옛 글꼴 기준으로 돌아 두부(□) 카드가 나갈 수 있다.
+          python tools/make_card_font_cmap.py --check
+
       - name: 글 공유 카드
         run: |
           # 새 글의 카드·썸네일을 굽고 같은 커밋에 싣는다 — 글이 올라온 그 회차부터 카카오·트위터

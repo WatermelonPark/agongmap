@@ -16,6 +16,7 @@
     python tools/make_content_cards.py          원고 전부(바뀐 것만 다시 그린다)
 """
 import io
+import json
 import os
 import sys
 
@@ -35,6 +36,7 @@ import make_content_pages as MC    # noqa: E402  (섹션 이름표 SECTION_META)
 
 W, H = CK.W, CK.H
 OUT_DIR = os.path.join(ROOT, 'share')
+CMAP_JSON = os.path.join(CK.TOOLS, 'data', 'card_font_cmap.json')   # fontTools 없이 글자 검사(백로그 59)
 MX = CK.MX                         # 좌우 여백(지역 카드와 같다)
 
 
@@ -48,19 +50,33 @@ def section_rel(section):
     return 'share/section-%s.png' % section
 
 
-def _font_misses(text):
-    """카드 글꼴에 없는 글자. 두부(□)가 박힌 카드를 퍼뜨리지 않으려고 먼저 본다.
+def _bold_cmap():
+    """카드 Bold 글꼴이 실제로 가진 글자 코드 집합. fontTools 가 없으면 fontTools 로 구운 표(CMAP_JSON)를 읽는다.
 
-    fontTools 가 없으면 **검사를 건너뛴다**(빈 목록). 그 묶음은 배치에 깔려 있지 않을 수 있는데, 글자 검사
-    하나 때문에 카드 전체가 안 그려지면 손해가 더 크다 — 2026-10-29 발행이 그렇게 죽어 반박 4편이 묶였다.
-    워크플로에는 fonttools 를 함께 깔아 두었으므로 평소에는 검사가 돈다.
+    표까지 못 읽으면 None — 그때만 검사를 건너뛴다(카드 전체를 못 그리는 손해가 더 크다).
     """
     try:
         from fontTools.ttLib import TTFont
     except ImportError:
-        sys.stderr.write('⚠️ fontTools 가 없어 글꼴 글자 검사를 건너뛴다(카드는 그린다)\n')
+        try:
+            with io.open(CMAP_JSON, encoding='utf-8') as f:
+                return set(json.load(f)[CK.FONT_FILES['Bold']])
+        except (OSError, ValueError, KeyError):
+            sys.stderr.write('⚠️ fontTools 가 없고 글꼴 표(data/card_font_cmap.json)도 못 읽어 글자 검사를 건너뛴다(카드는 그린다)\n')
+            return None
+    return set(TTFont(os.path.join(CK.FONT_DIR, CK.FONT_FILES['Bold'])).getBestCmap())
+
+
+def _font_misses(text):
+    """카드 글꼴에 없는 글자. 두부(□)가 박힌 카드를 퍼뜨리지 않으려고 먼저 본다.
+
+    ⚠️ 배치(update-cloud)에는 fontTools 가 없다. 예전엔 그때 검사를 통째로 건너뛰어 두부 카드가 그대로 커밋될 수 있었다
+    (2026-11-13 전수 리뷰 잠복 결함, 백로그 59). 지금은 fontTools 가 없으면 번들 글꼴에서 구운 표(CMAP_JSON,
+    `tools/make_card_font_cmap.py`)를 읽어 검사한다. 글꼴을 바꾸면 표를 다시 굽는다.
+    """
+    cmap = _bold_cmap()
+    if cmap is None:
         return []
-    cmap = set(TTFont(os.path.join(CK.FONT_DIR, CK.FONT_FILES['Bold'])).getBestCmap())
     return sorted({c for c in text if ord(c) > 0x20 and ord(c) not in cmap})
 
 
