@@ -343,7 +343,7 @@ jobs:
           echo "::error::라이브 데이터 대조 실패(결정론) — 원천 조회는 전부 성공했다."
           echo "새 IP로 재확인해도 결과가 같으므로 recheck를 건너뛰었다."
           echo "실패 목록은 이 실행의 'freshness' 잡 로그 맨 아래 FAIL 항목을 볼 것."
-          echo "→ update-cloud 실행 이력, KOSIS 표 ID 변경/폐지 여부 확인"
+          echo "→ 먼저 원천 발표 뒤 update-cloud 가 돌았는지 볼 것(발표 뒤·배치 전이면 다음 배치가 받는다). 그다음 원천 표(KOSIS·R-ONE) ID 변경·폐지 여부"
           exit 1
 
   # 사람에게 가는 메일은 경보 이슈 코멘트 하나뿐이다(2026-11-08 대표 결정 — 실행 실패 메일은 대표가 GitHub 설정에서 껐다).

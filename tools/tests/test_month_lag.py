@@ -90,14 +90,18 @@ def test_allowance_comes_from_the_watchdog_constants():
     import update_adv_data as U
     assert L.SLOW_ALLOWANCE == int(round((CF.GRACE_BASIC - CF.GRACE_MONTHLY) / 30.0)) >= 1
     assert set(U.BASIC_CONF) <= L.SLOW_SERIES and '규모별' in L.SLOW_SERIES
-    assert L.allowance('미분양') == 0 and L.allowance('금리') == 0, '공급·금리는 정상 시차 0 이어야 한다'
+    assert L.allowance('금리') == 0, '금리(가장 빠른 계열)는 정상 시차 0 이어야 한다'
+    # 공급 두 계열은 감시가 GRACE_SUPPLY(2026-11-21 — 발표 당일 우리 값이 이미 80~97일)로 본다. 개월로 반올림한 정상 시차가
+    # 기본통계 묶음과 같아야 한 묶음(SLOW_SERIES)에 둘 수 있다 — 유예를 바꿔 반올림이 갈리면 여기서 빨개진다.
+    assert int(round((CF.GRACE_SUPPLY - CF.GRACE_MONTHLY) / 30.0)) == L.SLOW_ALLOWANCE
+    assert set(U.SUPPLY_CONF) <= L.SLOW_SERIES and L.allowance('미분양') == L.SLOW_ALLOWANCE
 
 
 def test_normal_publication_lag_of_slow_series_is_not_a_lag():
     """인허가가 금리보다 2개월 늦은 것은 정상이다 — 매달 초 금리가 새 달로 넘어가도 알리지 않는다."""
-    months = {'금리': (2026, 9), '인허가': (2026, 7), '미분양': (2026, 7)}
+    months = {'금리': (2026, 9), '인허가': (2026, 7), '미분양': (2026, 7), 'monthly': (2026, 7)}
     _, rows = L.behind(months)
-    assert [r[0] for r in rows] == ['미분양'], rows
+    assert [r[0] for r in rows] == ['monthly'], rows        # 월간 시세는 정상 시차 0 — 2개월 늦으면 뒤처짐이다
     assert rows[0][2] == 2
     # 같은 계열이 정상보다 2개월 더 늦으면 그때 잡힌다(정상을 넘은 개월 수로 센다)
     _, rows = L.behind({'금리': (2026, 9), '인허가': (2026, 5)})

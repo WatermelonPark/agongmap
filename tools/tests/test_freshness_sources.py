@@ -415,6 +415,29 @@ def test_bubble_grace_covers_the_measured_release_lag(monkeypatch, label, ours, 
     assert re.search(r"pre\[\('bubble', '%s'\)\], %s[,)]" % ('전환율' if grace.endswith('CONV') else '주담대', grace), body)
 
 
+@pytest.mark.parametrize('label,ours,today,src', [
+    ('분양', '2026.08', (2026, 10, 22), '202609'),     # 나이 82일 — 그날 배치가 받았다(10-22 09:41 KST 커밋)
+    ('분양', '2026.09', (2026, 11, 20), '202610'),     # 나이 80일 — 11-20 03:11 KST 감시가 실패 메일, 그날 21:55 배치가 받았다
+    ('미분양', '2026.08', (2026, 11, 5), '202609'),    # 나이 96일(감시 실행 날 97일) — 11-05 감시 실패, 그날 밤 배치가 받았다
+])
+def test_supply_grace_covers_the_measured_release_lag(monkeypatch, label, ours, today, src):
+    """공급 두 계열(분양 R-ONE·미분양 KOSIS)은 원천에 새 달이 올라온 날 우리 값이 이미 80~97일이다 — GRACE_MONTHLY(50)로 보면
+    감시(실제 시작 03시 KST 무렵)가 발표 뒤·배치 반영 전에 도는 날마다 곧바로 실패 메일이었다(2026-11-05 미분양, 11-20 분양 —
+    둘 다 배치는 그날 받았다). 발표 당일은 유예 안이고, 배치가 그 달을 놓쳐 유예를 넘기면 실패다.
+
+    변이(실제로 확인): main 의 공급 줄을 GRACE_MONTHLY 로 되돌리거나 GRACE_SUPPLY 를 90 으로 줄이면 빨개진다.
+    픽스처: data.js 커밋 이력에서 잰 실측 발표일과 그날 우리 값, 원천이 한 달 앞선 상태.
+    """
+    g = C.GRACE_SUPPLY
+    monkeypatch.setattr(C, 'TODAY', datetime.date(*today))
+    assert C.check(label, ours, lambda: src, g, _retry=False) is None, '발표 당일 뒤처짐을 실패로 올렸다'
+    late = datetime.date(*today) + datetime.timedelta(days=g - C.age_days(ours) + 1)
+    monkeypatch.setattr(C, 'TODAY', late)
+    assert C.check(label, ours, lambda: src, g, _retry=False), '유예를 넘긴 뒤처짐을 놓쳤다'
+    body = io.open(C.__file__, encoding='utf-8').read()
+    assert "pre[('supply', name)], GRACE_SUPPLY," in body, '감시 main 의 공급 대조가 GRACE_SUPPLY 를 쓰지 않는다'
+
+
 def test_every_live_adv_key_is_classified():
     """커버리지 가드의 ADV 목록이 라이브 ADV 키를 전부 분류한다(감시하거나, 이유를 적고 빼거나).
 
