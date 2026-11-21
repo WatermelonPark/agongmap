@@ -1057,7 +1057,12 @@ def calc(stats):
         # grade() 로 'g2'라, 저장된 ratio·grade 짝이 어긋난다(전수 리뷰 #9).
         g = grade(round(ratio, 4))
         un, un_p = unsold_latest(stats, z)
-        if un_p:
+        # 기준월은 **전 지역 중 가장 최신 달**이다. ORDER 의 마지막 지역(제주) 것으로 덮으면,
+        # 원천(KOSIS)이 시도 행을 순서대로 채우는 회차에 제주 행만 한 달 늦을 때 모든 리포트의
+        # '기준 · 분기 적정물량' 날짜가 한 달 뒤로 밀린다 — 감시(check_freshness)는 같은 값
+        # (ADV.sido.unsold_prd)과 견주므로 그 스테일을 잡지 못한다(2026-11-13 전수 리뷰, 백로그 59).
+        # 라벨은 'YYYY.MM' 0 채움이라 문자열 비교로 달 순서가 맞는다.
+        if un_p and (un_prd is None or un_p > un_prd):
             un_prd = un_p
         # 미분양이 분기 적정물량의 몇 배인가. 판정이 '부족' 쪽인데 이 값이 1을
         # 넘으면 두 신호가 어긋난 것 — 화면에 ⚠로 드러낸다.
