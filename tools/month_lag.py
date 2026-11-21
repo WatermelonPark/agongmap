@@ -55,8 +55,10 @@ ESCALATE_MONTHS = 3  # 이만큼이면 매 회차 알리고 멘션을 붙인다
 def _slow():
     import check_freshness as CF   # noqa: E402
     import update_adv_data as U    # noqa: E402
+    # 감시가 GRACE_BASIC 이상으로 보는 계열 — 기본통계·규모별과 공급 두 계열(GRACE_SUPPLY, 2026-11-21). 공급은 유예가 더 길지만
+    # 개월로 반올림하면 같은 2개월이라 한 묶음으로 둔다(test_month_lag 가 둘의 반올림이 같은지 본다).
     return (max(0, int(round((CF.GRACE_BASIC - CF.GRACE_MONTHLY) / 30.0))),
-            frozenset(list(U.BASIC_CONF) + ['규모별']))   # 감시가 GRACE_BASIC 으로 보는 계열
+            frozenset(list(U.BASIC_CONF) + ['규모별'] + list(U.SUPPLY_CONF)))
 
 
 def __getattr__(name):
