@@ -26,6 +26,7 @@ import make_monthly_page as MO  # noqa: E402
 import make_sido_pages as M  # noqa: E402
 import make_weekly_page as MW  # noqa: E402
 import sido_zones as SZ  # noqa: E402
+import site_nav as N  # noqa: E402
 
 
 def _read(rel):
@@ -39,13 +40,31 @@ def _ctx():
     return adv, stats, s
 
 
-def _px(css, sel):
-    """css 안에서 선택자 sel 규칙의 font-size(px). var(--fs-dense)=14, var(--fs-read)=16."""
+def _tokens(css=None):
+    """사이트 글자 크기 CSS 변수 정의 → {이름: px}. 정본은 app.css 의 :root 다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59)."""
+    css = _read('app.css') if css is None else css
+    out = {}
+    for name, num, unit in re.findall(r'(--[\w-]+)\s*:\s*([\d.]+)(px|rem)\b', css):
+        out.setdefault(name, float(num) * (16 if unit == 'rem' else 1))
+    return out
+
+
+def _px(css, sel, tokens=None):
+    """css 안에서 선택자 sel 규칙의 font-size(px). `var(--이름)` 은 app.css 의 변수 정의로 푼다.
+
+    예전엔 {'var(--fs-dense)': 14.0, 'var(--fs-read)': 16.0} 을 코드에 박아 두었다. 그래서 app.css 의 그 변수를
+    13px 로 내려도 이 파일의 시험은 초록이었다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59 — 시험이 결함을 스스로 재현).
+    """
     rules = re.findall(r'(?:^|[}\n])\s*%s\{([^}]*)\}' % re.escape(sel), css)   # 선택자가 그것 하나뿐인 규칙(앞 조상 선택자 없음)
     sizes = [f.group(1).strip() for f in (re.search(r'font-size:\s*([^;}]+)', r) for r in rules) if f]
     assert sizes, '%s 의 글자 크기 규칙을 못 찾았다' % sel
     v = sizes[0]
-    return {'var(--fs-dense)': 14.0, 'var(--fs-read)': 16.0}.get(v) or float(v.rstrip('px'))
+    m = re.match(r'var\(\s*(--[\w-]+)', v)
+    if m:
+        tok = _tokens() if tokens is None else tokens
+        assert m.group(1) in tok, '%s 의 CSS 변수 %s 정의를 못 찾았다' % (sel, m.group(1))
+        return tok[m.group(1)]
+    return float(v.rstrip('px'))
 
 
 def _contrast(a, b):
@@ -91,7 +110,7 @@ def test_hub_cards_lead_with_the_verdict_in_the_grade_colour():
     others = page[page.index('<h2>다른 지역</h2>'):]
     assert others.count('<i class="zv g') == len(s['zones']) - 1
     css = _read('app.css')
-    assert _px(css, '.zlinks a i.zv') >= 14
+    assert _px(css, '.zlinks a i.zv') >= N.READ_PX
     for g, col in re.findall(r'\.zlinks a i\.zv\.(g\d)\{color:(#[0-9a-f]{6})\}', css):
         assert _contrast(col, '#f4f6f5') >= 4.5 and _contrast(col, '#e9edeb') >= 4.5, (g, col)
 
@@ -163,10 +182,25 @@ def test_report_sentences_are_14px():
     변이(실제로 확인): app.css .zsub 를 13px 로 되돌리면 빨개진다."""
     css = _read('app.css')
     for sel in ('.zsub', '.znote', '.zwarn', '.zg-note', '.tb-refnote'):
-        assert _px(css, sel) >= 14, sel
-    assert _px(css, '.zs-note,.zs-est') >= 14
+        assert _px(css, sel) >= N.READ_PX, sel
+    assert _px(css, '.zs-note,.zs-est') >= N.READ_PX
     assert 'font-size:var(--fs-dense)' in re.search(r'\.zl-legend\{[^}]*\}', css).group(0)
     assert '.zyear{font-size:var(--fs-dense)' in M.WK_CSS and '.zwk-none{font-size:var(--fs-dense)' in M.WK_CSS
+
+
+def test_font_tokens_are_read_from_app_css():
+    """글자 크기를 CSS 변수로 받는 규칙의 값은 app.css 의 정의에서 읽는다. 시험에 14·16 을 박아 두면 app.css 의
+    --fs-dense 를 13px 로 내려도 이 파일의 시험이 초록이라 회귀를 놓친다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59).
+
+    변이(실제로 확인): _px 의 변수 갈래를 옛 사전({'var(--fs-dense)': 14.0, …})으로 되돌리면 비튼 표의 값이 13 이 아니라
+          14 로 나와 빨개진다.
+    픽스처: app.css 의 실제 정의와, 그 --fs-dense 를 13px 로 비튼 CSS 문자열.
+    """
+    tok = _tokens()
+    assert '--fs-dense' in tok and '--fs-read' in tok, tok
+    assert _px('.znote{font-size:var(--fs-dense)}', '.znote') == tok['--fs-dense']
+    regressed = _tokens('x{--fs-dense:13px}')
+    assert _px('.znote{font-size:var(--fs-dense)}', '.znote', tokens=regressed) == 13
 
 
 # ── /weekly/·/monthly/ ─────────────────────────────────────────────────────────────────────
@@ -223,7 +257,7 @@ def test_moveins_keeps_the_denominator_on_phones_and_heads_read_cleanly():
     jr, _ = I.build_jeonse(stats, '2031-03-03')
     assert re.search(r'<span class="nw">· \d{4}년 \d{1,2}월 기준</span>', jr)
     assert SZ.basis_month(jr), '감시가 읽는 시점 문구가 깨졌다'
-    assert _px(I.SHELL, '.note') >= 14
+    assert _px(I.SHELL, '.note') >= N.READ_PX
 
 
 # ── /cycle/ ────────────────────────────────────────────────────────────────────────────────
@@ -271,7 +305,7 @@ def test_cycle_has_one_chart_world_and_reading_sizes():
     links = re.search(r'<div class="links">(.*?)</div>', s, re.S).group(1)
     assert not re.search('[\U0001F300-\U0001FAFF☀-➿]', links), links
     css = _read('app.css')
-    assert _px(css, '.note') >= 14 and _px(css, '.conf .ctxt') >= 14 and _px(css, '.chartbox .cap') >= 14
+    assert _px(css, '.note') >= N.READ_PX and _px(css, '.conf .ctxt') >= N.READ_PX and _px(css, '.chartbox .cap') >= N.READ_PX
     assert '#157a61' not in css
     assert '<div class="howto">' not in s and s.index('class="mainbanner"') < s.index('class="howto-d"') < s.index('id="link1"')
 
