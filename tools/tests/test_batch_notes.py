@@ -169,6 +169,7 @@ def test_lines_does_not_read_the_repo_sync_data(monkeypatch):
     monkeypatch.setattr(N, 'theory_claim_lines', boom)
     monkeypatch.setattr(N, 'content_card_lines', lambda root=None: [])   # 글 카드 줄은 test_content_pages 가 본다
     monkeypatch.setattr(N, 'content_claim_lines', lambda root=None: [])  # 글 전제 줄은 test_content_claims 가 본다(실데이터라 데이터가 움직이면 줄 수가 바뀐다)
+    monkeypatch.setattr(N, 'cycle_claim_lines', lambda root=None: [])  # 사이클 문장 전제 줄은 test_cycle_hand_figures 가 본다(실데이터)
     assert N.lines(_adv(('가', 0.8))) == []
 
 
@@ -189,6 +190,7 @@ def test_main_appends_theory_claim_lines(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(N, 'theory_claim_lines', lambda: [line])
     monkeypatch.setattr(N, 'content_card_lines', lambda root=None: [])   # 글 카드 줄은 test_content_pages 가 본다
     monkeypatch.setattr(N, 'content_claim_lines', lambda root=None: [])  # 글 전제 줄은 test_content_claims 가 본다(실데이터라 데이터가 움직이면 줄 수가 바뀐다)
+    monkeypatch.setattr(N, 'cycle_claim_lines', lambda root=None: [])  # 사이클 문장 전제 줄은 test_cycle_hand_figures 가 본다(실데이터)
     monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
     assert N.main(['--data', str(p)]) == 0
     assert capsys.readouterr().out.splitlines() == [line]
@@ -246,6 +248,7 @@ def test_main_appends_the_sgg_map_gap_line(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(N, 'theory_claim_lines', lambda: [])
     monkeypatch.setattr(N, 'content_card_lines', lambda root=None: [])   # 글 카드 줄은 test_content_pages 가 본다
     monkeypatch.setattr(N, 'content_claim_lines', lambda root=None: [])  # 글 전제 줄은 test_content_claims 가 본다(실데이터라 데이터가 움직이면 줄 수가 바뀐다)
+    monkeypatch.setattr(N, 'cycle_claim_lines', lambda root=None: [])  # 사이클 문장 전제 줄은 test_cycle_hand_figures 가 본다(실데이터)
     monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))
     assert N.main(['--data', str(p)]) == 0
     out = capsys.readouterr().out.splitlines()
@@ -270,7 +273,7 @@ def test_one_dead_side_check_does_not_erase_the_other_lines(tmp_path, monkeypatc
     def dead(root=None):
         raise OSError('share/ 를 읽지 못했다')
 
-    for name in ('theory_claim_lines', 'sgg_map_gap_lines', 'hand_permit_lines', 'conv_model_lines', 'content_claim_lines'):
+    for name in ('theory_claim_lines', 'sgg_map_gap_lines', 'hand_permit_lines', 'conv_model_lines', 'content_claim_lines', 'cycle_claim_lines'):
         monkeypatch.setattr(N, name, lambda *a, **k: [])
     monkeypatch.setattr(N, 'content_card_lines', dead)
     monkeypatch.setattr(kst, 'today', lambda now=None: datetime.date(2026, 1, 1))

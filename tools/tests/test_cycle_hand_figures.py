@@ -687,7 +687,9 @@ def test_hand_particles_and_claims_hold_for_any_recomputed_value():
     예전 본문은 '−0.30으로 약하다'·'−0.40으로 살아난다'·'0.55로 가장 느슨'처럼 지금 값의 끝 숫자에 맞춘 조사였고(−0.31 이면
     '−0.31으로'), 공급 많은 분기 상승률이 +0.1 이 되면 같은 절이 '0.1%로 꺾였다'와 '소폭 하락으로 돌아선다'를 함께 말했다.
     변이(실제로 확인): 본문 l6_prov 뒤를 옛 '으로 약하다'로 되돌리면 칸 뒤 조사 단정이, claim_breaks 의 공급 많은 분기 부호 검사를
-    지우면 그 뒤집기 단정이, RC.splice 의 claim_breaks 호출을 지우면 쓰기 거절 단정이 빨개진다.
+    지우면 그 뒤집기 단정이, RC.splice 의 claim_breaks 호출을 지우면 쓰기 거절 단정이 빨개진다. 백로그 60 의 세 검사(고리③ L3_CUT
+    음, 고리② 전부 양, 참고② JR_MID 사이) 가운데 하나를 지우면 그 뒤집기 단정이, batch_notes.main 에서 cycle_claim_lines 를 빼면
+    배치 기록 단정이 빨개진다.
     픽스처: 게이트 시점 페이지 D·본문(그 칸은 손 재산정에서만 바뀐다 — 매일 배치는 건드리지 않는다)과, 그 D 에서 전제를 하나씩
             뒤집은 합성 사본.
     """
@@ -716,6 +718,10 @@ def test_hand_particles_and_claims_hold_for_any_recomputed_value():
         '살아난다': lambda x: x['prose'].update(sudo_l6='−0.05'),
         '서울은 예외': lambda x: [r.__setitem__('sig', True) for r in x['link6_regional'] if r['region'] == '서울'],
         '수도권은 한 분기 뒤': lambda x: [r.__setitem__('lag', 0) for r in x['link6_regional'] if r['zone'] == '수도권'],
+        # 백로그 60 — 손 문장 셋(고리③ 수도권 음, 고리② 14개 전부, 참고② 대구·대전 사이)
+        '음(−)으로 끊긴다': lambda x: [r.__setitem__('r', 0.05) for r in x['link3_regional'] if r['region'] == '경기'],
+        '전부에서 확인': lambda x: [r.__setitem__('corr', -0.1) for r in x['sync'] if r['region'] == '전북'],
+        '그 사이에 있습니다': lambda x: [r.__setitem__('val', 80.0) for r in x['jratio_level'] if r['region'] == '대전'],
     }
     for why, fn in flips.items():
         got = broken(fn)
@@ -732,6 +738,18 @@ def test_hand_particles_and_claims_hold_for_any_recomputed_value():
         assert '소폭 하락' in str(e.value)
         assert io.open(page, encoding='utf-8').read() == s, '전제가 깨진 재산정으로 페이지를 고쳤다'
         RC.splice(page, copy.deepcopy(D))      # 전제가 서면 쓴다
+    # 참고② 전세가율은 매일 배치가 바꾸므로(재산정을 거치지 않는다) 배치 기록이 같은 검사를 ℹ️ 줄로 낸다(백로그 60)
+    import batch_notes as BN
+    with tempfile.TemporaryDirectory() as td:
+        os.makedirs(os.path.join(td, 'cycle'))
+        x = copy.deepcopy(D)
+        [r.__setitem__('val', 80.0) for r in x['jratio_level'] if r['region'] == '대전']
+        io.open(os.path.join(td, 'cycle', 'index.html'), 'w', encoding='utf-8').write(
+            'const D=%s;\n' % json.dumps(x, ensure_ascii=False))
+        got = BN.cycle_claim_lines(td)
+    assert len(got) == 1 and '그 사이에 있습니다' in got[0], got
+    assert "('사이클 문장 전제', cycle_claim_lines)" in io.open(BN.__file__, encoding='utf-8').read(), \
+        'batch_notes.main 이 사이클 문장 전제 줄을 싣지 않는다'
 
 
 # ---------------------------------------------------------------- 페이지 스크립트를 node 로 돌려 본다 (전수리뷰 C-2·C-6·C-13)

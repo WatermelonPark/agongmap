@@ -934,6 +934,11 @@ def page_prose(D):
 # (--write)에서만 바뀌므로 그 쓰기에서 전제를 보고, 깨지면 쓰지 않는다 — 블로그 이론편 가드(theory_guards)와 같은 원칙이다.
 # 단정마다 그 문장이 있는 절을 적는다. 문장을 고치면 여기도 같이 고친다.
 
+L3_CUT = ('서울', '경기')            # 고리③ 손 문장이 '음(−)으로 끊긴다'고 꼽는 곳
+JR_ENDS = ('서울', '전남광주')       # 참고② 손 문장의 두 끝(투자 시장 · 실거주 시장)
+JR_MID = ('대구', '대전')            # 그 '사이'로 꼽는 곳 — refresh_cycle_data.jratio_prose 의 need 와 같은 넷
+
+
 def claim_breaks(D):
     """페이지(또는 재산정 결과) D 에서 손 문장의 전제가 깨진 것을 사람이 읽을 줄로. 모두 서면 빈 목록."""
     bad = []
@@ -949,8 +954,27 @@ def claim_breaks(D):
             bad.append('고리② 동조성 상위 둘(%s)이 지방 대도시가 아니다 — \'지방 대도시(…)\'' % '·'.join(top2))
         if sync[-1]['region'] != '서울':
             bad.append('고리② 동조성 최하위가 서울이 아니다(%s) — \'서울은 가장 느슨\'·\'서울이 맨 아래\'' % sync[-1]['region'])
+        neg = [x['region'] for x in sync if not x['corr'] > 0]
+        if neg:
+            bad.append('고리② 동조성이 양이 아닌 시도가 있다(%s) — \'14개 시도 전부에서 확인\'' % '·'.join(neg))
     else:
         bad.append('고리② 동조성 자료가 없다')
+    # 고리③(매매 → 1년 뒤 인허가) — 본문·캡션·요약이 '수도권(서울·경기)에선 음(−)으로 끊긴다', '서울은 매매→공급 고리가 끊겨'를
+    # 손으로 말한다(백로그 60). 두 곳 r 이 음이 아니면 그 문장만 남는다.
+    l3 = {x['region']: x['r'] for x in D.get('link3_regional') or []}
+    for reg in L3_CUT:
+        if reg not in l3:
+            bad.append('고리③ %s 값이 없다 — \'수도권(서울·경기)에선 음(−)으로 끊긴다\'' % reg)
+        elif not l3[reg] < 0:
+            bad.append('고리③ %s r 이 음이 아니다(%s) — \'수도권(서울·경기)에선 음(−)으로 끊긴다\'' % (reg, l3[reg]))
+    # 참고②(전세가율) 풀이 '대구·대전(70%%대)은 그 사이에 있습니다' — 두 곳이 서울(투자 시장)과 광주·전남(실거주 시장) 사이여야
+    # 한다. 이 값은 재산정이 아니라 매일 배치(refresh_cycle_data)가 바꾸므로 batch_notes.cycle_claim_lines 도 이 함수를 부른다.
+    jr = {x['region']: x['val'] for x in D.get('jratio_level') or []}
+    lo_r, hi_r = JR_ENDS
+    if all(k in jr for k in (lo_r, hi_r) + JR_MID):
+        out = [k for k in JR_MID if not jr[lo_r] < jr[k] < jr[hi_r]]
+        if out:
+            bad.append('참고② 전세가율 %s 가 서울과 광주·전남 사이가 아니다 — \'대구·대전은 그 사이에 있습니다\'' % '·'.join(out))
     rows = D.get('link6_regional') or []
     if any(x['region'] == '서울' and x['sig'] for x in rows):
         bad.append('고리⑥ 서울이 유의로 나온다 — \'서울은 예외\'')
