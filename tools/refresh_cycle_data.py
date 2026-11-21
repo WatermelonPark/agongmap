@@ -237,11 +237,11 @@ def jratio_prose(lvl, prd):
     if not re.match(r'^\d{4}\.\d{2}$', str(prd or '')):
         raise RuntimeError('전세가율 기준월을 읽지 못했다: %r' % (prd,))
     by = {x['region']: x['val'] for x in lvl}
-    need = ('서울', '전남광주', '대구', '대전')
+    need = RC.JR_ENDS + RC.JR_MID        # 문장의 두 끝과 '그 사이' 둘 — 전제 검사(RC.claim_breaks)와 같은 목록
     gone = [r for r in need if r not in by]
     if gone:
         raise RuntimeError('전세가율 풀이 문장의 지역이 차트에 없다: %s' % ', '.join(gone))
-    lo, hi = sorted((by['대구'], by['대전']))
+    lo, hi = sorted(by[k] for k in RC.JR_MID)
     # '70%대'는 두 곳 값의 십의 자리(반올림 전 값의 내림)가 같을 때만 참이다. 갈리면 범위로 쓴다.
     # 반올림한 정수로 십 단위를 보면 69.6 이 '70%대'가 되고 70.9·79.6 이 '71~80%'가 됐다(전수 리뷰 #25).
     # 정수는 사이트 규칙(half-up, SZ.half_up)으로 만든다 — 파이썬 round() 는 52.5 를 52 로 내린다.

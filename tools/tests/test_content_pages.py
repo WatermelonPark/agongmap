@@ -1324,6 +1324,11 @@ def test_content_check_notes_off_canon_words_without_failing():
     # 변이(실제로 확인): 세 규칙 가운데 하나를 TERM_NOTES 에서 지우면 줄 목록이 달라진다.
     more = CC.term_notes('제목은 적정의 {{v:share3:전주}}입니다\n본문\n## 더 보기\n![단지 시세 화면](img/x.png)\n적정물량의 30%')
     assert [ln for ln, _ in more] == [1, 3, 4], more
+    # 자리표 뒤 조사 두 가지(2026-11-20 — 화성·고양·성남 '43%이라', 서울·군포·안양·제주 '연속 상승(…)로'). 맞게 쓴 줄은 알리지 않는다.
+    # 변이(실제로 확인): 두 규칙 가운데 하나를 지우면 줄 목록이 달라진다.
+    pp = CC.term_notes('적정물량의 {{v:share3:화성}}이라 모자랍니다\n전세가 {{v:streak:군포:전세}}로 드러납니다\n'
+                       '적정물량의 {{v:share3:화성}}라 모자랍니다\n전세가 {{v:streak:군포:전세}}으로 드러납니다')
+    assert [ln for ln, _ in pp] == [1, 2], pp
 
 
 def test_post_layout_reads_as_an_article():

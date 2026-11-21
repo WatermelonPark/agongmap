@@ -219,6 +219,15 @@ def content_claim_lines(root=None):
     return out
 
 
+def cycle_claim_lines(root=None):
+    """/cycle/ 손 문장의 전제(rebuild_cycle_analysis.claim_breaks)가 지금 페이지 데이터와 어긋나면 ℹ️ 한 줄(백로그 60).
+    재산정 --write 는 전제가 깨지면 쓰지 않지만, 참고② 전세가율처럼 매일 배치(refresh_cycle_data)가 바꾸는 칸은 재산정을 거치지 않아
+    문장만 남을 수 있다. 게이트가 아니라 알림이다 — 세션이 cycle/index.html 문장과 claim_breaks 를 함께 고친다."""
+    import rebuild_cycle_analysis as RC
+    bad = RC.claim_breaks(RC.current_payload(os.path.join(root or ROOT, 'cycle', 'index.html')))
+    return ['%s /cycle/ 손 문장 전제 어긋남 — %s (cycle/index.html 문장을 고칠 것)' % (ML.MARK, b) for b in bad]
+
+
 def lines(adv):
     """인자 adv 만 보고 찍을 줄. 저장소 파일을 읽는 곁가지(theory_claim_lines 등)는 main() 이 붙인다."""
     out = []
@@ -246,7 +255,7 @@ def main(argv=None):
     for name, fn in (('인허가 신호', lambda: lines(adv)), ('이론편 전제', theory_claim_lines),
                      ('시군구 매핑', lambda: sgg_map_gap_lines(adv)), ('손 페이지 인허가', lambda: hand_permit_lines(sts)),
                      ('전환율 재측정', lambda: conv_model_lines(sts)), ('글 카드', content_card_lines),
-                     ('글 전제', content_claim_lines)):
+                     ('글 전제', content_claim_lines), ('사이클 문장 전제', cycle_claim_lines)):
         try:
             got = fn()
         except Exception as e:      # noqa: BLE001 — 알림용 곁가지다. 죽은 것을 알리는 것이 이 줄의 일이다
