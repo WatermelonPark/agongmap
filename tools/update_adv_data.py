@@ -1293,6 +1293,11 @@ def _fetch_basic_one(name, months=None, upto=None):
     weighted = name in _GJ_WEIGHTED
     for vals in out.values():
         _fold_gj(vals, weighted)
+    if data and not out and not rates:
+        # 원천은 행을 줬는데 읽은 값이 0건 = 파싱 규칙이 어긋났다(항목·지역 이름이 바뀐 회차 등). 예전엔 조용히
+        # 0건 병합으로 끝나 .fetch_failed 에도 배치 기록에도 남지 않았다(백로그 59). 행 자체가 빈 응답은 새 표의
+        # 첫 공개 전 같은 정상 상태일 수 있어 여기서 실패로 올리지 않는다(그 계열은 저장분을 지키며 기다린다).
+        raise RuntimeError('빈 파싱 — 원천 행 %d개에서 읽은 값이 없다' % len(data))
     return out, rates
 
 
@@ -1711,6 +1716,9 @@ def update_rate(stats):
         if len(t) == 6:
             fetched[(int(t[:4]), int(t[4:6]))] = {'CD(91일)': v}
     n = merge_basic(stats['금리'], fetched)
+    if not fetched:
+        # 빈 파싱은 실패다 — update_basic 이 잡아 .fetch_failed 로 올린다(백로그 59). 예전엔 0건 병합으로 조용히 끝났다.
+        raise RuntimeError('빈 응답 — ECOS 행 %d개에서 읽은 값이 없다' % len(rows))
     return ['금리(%d)' % n] if n else []
 
 
@@ -1775,6 +1783,9 @@ def _fetch_annual_raw(name, years=None):
             continue                       # 원천의 0 = 없음(ANNUAL_CONF 주석) — 값으로 싣지 않는다
         if len(y) == 4 and y.isdigit():
             out.setdefault(y, {})[reg] = v
+    if not out:
+        # 빈 파싱은 실패다 — update_annual 이 계열별로 잡아 .fetch_failed 로 올린다(백로그 59).
+        raise RuntimeError('빈 응답 — 원천 행 %d개에서 읽은 값이 없다' % len(data))
     return out
 
 
