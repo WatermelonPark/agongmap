@@ -1227,6 +1227,19 @@ def drop_unsplittable_months(name, out):
     return dropped
 
 
+def _claim_code(won, key, code):
+    """같은 이름·시점에 시도 행과 시군구 행이 겹칠 때 **짧은 코드(상위 행정단위)가 이긴다**. 우선권은 값의 유무가
+    아니라 행의 존재로 정한다 — 값이 빈 시도 행 뒤에 오는 시군구 행 값으로 대신 채우면 상위 집계 자리에 하위 값이
+    앉는다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59). 채택하면 True.
+
+    won: {키: 채택한 코드}. key 는 계열마다 다르다(기본통계 (ym, 지역), 버블 (PRD_DE, 지역), 규모별 (지역, PRD_DE, 구간))."""
+    prev = won.get(key)
+    if prev is not None and len(prev) <= len(code):
+        return False
+    won[key] = code
+    return True
+
+
 def _fetch_basic_one(name, months=None, upto=None):
     """upto=(y,m)이 주어지면 그 달을 끝으로 months개월을 받는다(이력 교정용).
        기본은 오늘 기준 최근 창(BASIC_MONTHS / BASIC_MONTHS_DEEP)."""
@@ -1273,20 +1286,24 @@ def _fetch_basic_one(name, months=None, upto=None):
             if (row.get('C2_NM') or '').strip() != cfg['type']: continue
             reg = (row.get('C1_NM') or '').strip()
         reg = BASIC_REGMAP.get(reg, reg)
+        prd = row.get('PRD_DE') or ''
+        try:
+            ym = (int(prd[:4]), int(prd[4:6]))
+        except (TypeError, ValueError):
+            continue
+        if cfg['mode'] == 'flat' and itm == '잠정 증감률':
+            try: v = float(row['DT'])
+            except (TypeError, ValueError, KeyError): continue
+            rates.setdefault(ym, {})[reg] = v
+            continue
+        # ⚠️ 우선권(짧은 코드 = 상위 행정단위)은 **값의 유무가 아니라 행의 존재**로 정한다. 값이 빈 시도 행도 그
+        # 회차의 정본이라, 뒤따르는 시군구 행 값으로 대신 채우지 않는다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59).
+        if not _claim_code(won, (ym, reg), str(row.get(regcol) or '')):
+            continue
         try: v = float(row['DT'])
         except (TypeError, ValueError, KeyError): continue
-        prd = row['PRD_DE']
-        ym = (int(prd[:4]), int(prd[4:6]))
-        if cfg['mode'] == 'flat' and itm == '잠정 증감률':
-            rates.setdefault(ym, {})[reg] = v
-        else:
-            code = str(row.get(regcol) or '')
-            prev = won.get((ym, reg))
-            if prev is not None and len(prev) <= len(code):
-                continue            # 이미 더 상위(짧은) 코드를 잡았다 — 시군구 행은 버린다
-            won[(ym, reg)] = code
-            v = round(v, cfg['dec']) if cfg['dec'] else int(round(v))
-            out.setdefault(ym, {})[reg] = v
+        v = round(v, cfg['dec']) if cfg['dec'] else int(round(v))
+        out.setdefault(ym, {})[reg] = v
 
     drop_unsplittable_months(name, out)
     # 통합 전 두 이름(광주·전남)을 접는다 — 인허가 표·공급과 같은 함수(_fold_gj). 이게 없으면
@@ -1633,16 +1650,14 @@ def bubble_conv_by_prd(rows):
         # 이유는 payload의 regions가 `if r in conv`로 걸러지기 때문이다.
         if rg not in BUBBLE_REGIONS and rg not in _GJ_OLD:
             continue
+        prd = r.get('PRD_DE', '')
+        # 우선권은 값의 유무가 아니라 행의 존재로 정한다 — 값이 빈 시도 행 뒤의 시군구 값으로 채우지 않는다(백로그 59).
+        if not _claim_code(won, (prd, rg), str(r.get('C2') or '')):
+            continue
         try:
             v = round(float(r['DT']), 2)
         except (TypeError, ValueError, KeyError):
             continue
-        prd = r.get('PRD_DE', '')
-        code = str(r.get('C2') or '')
-        prev = won.get((prd, rg))
-        if prev is not None and len(prev) <= len(code):
-            continue
-        won[(prd, rg)] = code
         by_prd.setdefault(prd, {})[rg] = v
     return _merge_gj_rate(by_prd)
 
@@ -2104,17 +2119,18 @@ def _size_levels(rows):
             continue
         try:
             si = int(r.get('C3') or 0) - 1
-            v = float(r['DT'])
-        except (TypeError, ValueError, KeyError):
+        except (TypeError, ValueError):
             continue
         p = r.get('PRD_DE') or ''
         if not (0 <= si < 6) or len(p) != 6:
             continue
-        code = str(r.get('C2') or '')
-        prev = won.get((reg, p, si))
-        if prev is not None and len(prev) <= len(code):
+        # 우선권은 값의 유무가 아니라 행의 존재로 정한다(백로그 59).
+        if not _claim_code(won, (reg, p, si), str(r.get('C2') or '')):
             continue
-        won[(reg, p, si)] = code
+        try:
+            v = float(r['DT'])
+        except (TypeError, ValueError, KeyError):
+            continue
         by.setdefault(reg, {}).setdefault(p, [None] * 6)[si] = v
     return by
 
