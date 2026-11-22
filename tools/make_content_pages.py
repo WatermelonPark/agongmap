@@ -19,6 +19,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sys
 
 try:
@@ -1509,6 +1510,34 @@ def _crash_note(sec, meta, err, where):
         sec, meta.get('slug'), where, type(err).__name__, err)
 
 
+def prune_stale_pages(built, wrote):
+    """이번 회차에 굽지 못한 글의 옛 페이지 디렉터리를 지운다(백로그 59).
+
+    왜: 원고 한 편이 자리표를 못 채워 건너뛰어도 예전에 구워 둔 `<섹션>/<slug>/` 는 그대로 남았다. 그러면 없는
+    원고의 페이지가 라이브에 계속 서고, 다음 원고가 같은 slug 로 돌아올 때 옛 페이지가 먼저 실린 것처럼 보인다.
+    sitemap 은 이번 회차에 구운 글만 싣지만(make_content_pages 의 entries), 페이지 파일은 아무도 지우지 않았다.
+
+    built: 이번 회차에 실제로 구운 (섹션, slug) 집합. wrote==0 이면 아무것도 지우지 않는다 — 원천·데이터 탈로
+    전부 건너뛴 회차에 콘텐츠 페이지를 통째로 날리는 쪽이 더 위험하다. 지우는 대상은 index.html 이 든 디렉터리뿐이다.
+    """
+    if not wrote:
+        return []
+    removed = []
+    for sec in CM.SECTIONS:
+        d = os.path.join(ROOT, sec)
+        if not os.path.isdir(d):
+            continue
+        for name in sorted(os.listdir(d)):
+            if (sec, name) in built:
+                continue
+            p = os.path.join(d, name)
+            if not os.path.isdir(p) or not os.path.isfile(os.path.join(p, 'index.html')):
+                continue
+            shutil.rmtree(p)
+            removed.append('/%s/%s/' % (sec, name))
+    return removed
+
+
 def main(strict=False):
     old_format = []
     posts, skipped = collect(strict=strict, old_format=old_format)
@@ -1576,6 +1605,7 @@ def main(strict=False):
         by_sec.setdefault(sec, []).append((meta, body))
     everyone = [m for _s, m, _b in posts]       # 글 끝 '이 지역 더 보기'가 같은 도시의 입주물량 글을 찾는 범위
     entries, wrote = [], 0
+    written = set()                              # 이번 회차에 실제로 구운 (섹션, slug) — 옛 페이지 정리의 기준
     for sec, items in by_sec.items():
         items.sort(key=lambda x: (x[0]['date'], x[0]['slug']))
         metas = [m for m, _ in items]
@@ -1589,6 +1619,7 @@ def main(strict=False):
             page, lm, changed = SP.keep_dates(page, SP.read_old(fp), lm)
             io.open(fp, 'w', encoding='utf-8', newline='\n').write(page)
             wrote += 1
+            written.add((sec, meta['slug']))
             entries.append(('/%s/%s/' % (sec, meta['slug']), lm))
         # 목록에는 **실제로 구워진 글만** 싣는다 — 건너뛴 글로 가는 링크를 만들지 않는다.
         done = [m for m in metas if os.path.exists(os.path.join(ROOT, sec, m['slug'], 'index.html'))]
@@ -1600,6 +1631,8 @@ def main(strict=False):
         page, lm, _ = SP.keep_dates(page, SP.read_old(fp), lm or I.PUBLISHED)
         io.open(fp, 'w', encoding='utf-8', newline='\n').write(page)
         entries.append(('/%s/' % sec, lm))
+    for gone in prune_stale_pages(written, wrote):
+        _warn('건너뛴 글의 옛 페이지를 지운다 — 이번 회차에 구워지지 않았다: %s' % gone)
     I.update_sitemap(entries)
     all_metas = [m for items in by_sec.values() for m, _ in items
                  if os.path.exists(os.path.join(ROOT, m['section'], m['slug'], 'index.html'))]
