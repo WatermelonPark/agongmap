@@ -740,6 +740,25 @@ def rone_sido_key(names, name):
     return min(cand, key=lambda k: k.count('>'))
 
 
+def rone_sido_value(snap, name):
+    """한 시점 {R-ONE 계층 이름: 값}에서 우리 지역 name 의 값. 계층 규칙은 rone_sido_key.
+
+    ⚠️ 원천이 통합 마디('전남광주')를 빼고 조각('전남광주>광주'·'>전남')만 주는 회차가 있다 — 2025-05~2026-07 월간
+    13달·주간 11주가 그래서 전남광주 열이 통째로 비어 있었다(로컬 15 결과 4, 백로그 53). 그때는 두 조각을
+    W_GJ 가중평균한다(지수·비율이라 합이 아니다 — merge_regions.WEIGHTED·_size_fold_old 와 같은 정본).
+    조각이 하나라도 없거나 값이 비면 None — 한쪽으로 채우면 그 칸이 한 도시 값으로 바뀐다.
+    """
+    k = rone_sido_key(snap, name)
+    if k is not None:
+        return snap[k]
+    if name != _GJ_NEW:
+        return None
+    gk, jk = (rone_sido_key(snap, n) for n in _GJ_OLD)
+    if gk is None or jk is None or snap[gk] is None or snap[jk] is None:
+        return None
+    return W_GJ * snap[gk] + (1 - W_GJ) * snap[jk]
+
+
 def rone_seoul_gu(snap):
     """{CLS_FULLNM: 값} 한 시점에서 서울 구 값 {구 이름: 값}(계층 마지막 조각을 이름으로). 주간·월간 수집이 같이 쓴다."""
     out = {}
@@ -774,9 +793,8 @@ def fetch_weekly_rone(weeks=None):
         raise RuntimeError('R-ONE 주간 데이터 부족')
 
     def sido(week, name):
-        """시도 이름 → 그 주의 값(계층 규칙은 rone_sido_key — 월간·감시와 같은 함수)."""
-        k = rone_sido_key(week, name)
-        return None if k is None else week[k]
+        """시도 이름 → 그 주의 값(계층 규칙은 rone_sido_key, 통합 마디가 없는 주는 두 조각 가중평균 — rone_sido_value)."""
+        return rone_sido_value(week, name)
 
     seoul_gu = rone_seoul_gu
 
@@ -1115,9 +1133,8 @@ def fetch_monthly_rone(months=None):
         raise RuntimeError('R-ONE 월간 데이터 부족')
 
     def sido(mon, name):
-        """시도 이름 → 그 달의 값(계층 규칙은 rone_sido_key — 주간·감시와 같은 함수)."""
-        k = rone_sido_key(mon, name)
-        return None if k is None else mon[k]
+        """시도 이름 → 그 달의 값(계층 규칙은 rone_sido_key, 통합 마디가 없는 달은 두 조각 가중평균 — rone_sido_value)."""
+        return rone_sido_value(mon, name)
 
     seoul_gu = rone_seoul_gu
 

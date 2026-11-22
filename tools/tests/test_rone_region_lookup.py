@@ -111,3 +111,51 @@ def test_monthly_fetch_puts_each_region_from_its_own_row(monkeypatch):
         for f, t in (('ma', 0), ('je', 1), ('wo', 2)):
             assert row[f][i] == _chg(names, want[r], t), '월간 %s %s 가 다른 행(또는 None)' % (f, r)
     assert got['seoul']['regions'] == ['강남구', '종로구']
+
+
+# ── 백로그 53: 원천이 통합 마디 없이 조각만 주는 회차 — 두 조각을 가중평균한다 ─────────────────
+def _fold_want(names, t):
+    """조각만 있는 시점에서 전남광주 값(가중평균) — _rows 가 행 이름마다 다른 값을 주는 픽스처 기준."""
+    gk, jk = [DST + '>' + p for p in SRC]
+    g, j = names.index(gk), names.index(jk)
+    prev = U.W_GJ * 100.0 + (1 - U.W_GJ) * 100.0      # 직전 시점은 모든 행이 100 이다
+    cur = U.W_GJ * (100 + (g + 1) * (t + 1) / 10.0) + (1 - U.W_GJ) * (100 + (j + 1) * (t + 1) / 10.0)
+    return round((cur / prev - 1) * 100, 4)
+
+
+def _drop_flat_dst(book, tables):
+    for t in tables:
+        book[t] = [r for r in book[t] if r['CLS_FULLNM'] != DST]
+
+
+def test_weekly_fetch_folds_the_two_pieces_when_the_merged_node_is_missing(monkeypatch):
+    """통합 마디('전남광주')가 빠지고 '전남광주>광주'·'>전남'만 있는 주 — 두 조각을 W_GJ 가중평균해 전남광주 열을 채운다.
+
+    변이(실제로 확인): rone_sido_value 의 조각 접기 분기를 지우면 전남광주 열이 None 이 되어 이 시험이 빨개진다.
+    픽스처: 기존 주간 픽스처에서 평평한 '전남광주' 행만 뺀 모양(2025-05~2026-07 원천 계층).
+    """
+    tables = [U.RONE_TBL['maega'], U.RONE_TBL['jeonse']]
+    book, names = _rows(['2026-10-05', '2026-10-12'], 'WRTTIME_DESC', tables)
+    _drop_flat_dst(book, tables)
+    _fake(monkeypatch, book)
+    got = U.fetch_weekly_rone(1)
+    i = U.WEEKLY_REGIONS.index(DST)
+    row = got['rows'][-1]
+    assert row['ma'][i] == _fold_want(names, 0), '전남광주 매매가 조각 가중평균이 아니다: %r' % row['ma'][i]
+    assert row['je'][i] == _fold_want(names, 1), '전남광주 전세가 조각 가중평균이 아니다: %r' % row['je'][i]
+
+
+def test_monthly_fetch_folds_the_two_pieces_when_the_merged_node_is_missing(monkeypatch):
+    """월간도 같은 규칙 — 2025-06~2026-05 13달이 이 경로로 메워진다(백로그 53).
+
+    변이(실제로 확인): 조각 접기 분기를 지우면 세 계열(매매·전세·월세) 전남광주가 None 이 되어 빨개진다.
+    """
+    tables = [U.RONE_MONTHLY_TBL[k] for k in ('maega', 'jeonse', 'wolse')]
+    book, names = _rows(['202608', '202609'], 'WRTTIME_IDTFR_ID', tables)
+    _drop_flat_dst(book, tables)
+    _fake(monkeypatch, book)
+    got = U.fetch_monthly_rone(1)
+    i = U.WEEKLY_REGIONS.index(DST)
+    row = got['rows'][-1]
+    for f, t in (('ma', 0), ('je', 1), ('wo', 2)):
+        assert row[f][i] == _fold_want(names, t), '전남광주 %s 가 조각 가중평균이 아니다: %r' % (f, row[f][i])
