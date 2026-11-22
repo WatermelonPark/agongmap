@@ -381,8 +381,9 @@ ANNUAL_SHAPES = {k: v for k, v in SHAPES.items() if k != 'none'}
 
 
 def _annual_rows(name, prd, vals):
-    """ANNUAL_CONF[name] 표의 응답 모양 한 해치. 노후주택30년(shortmap)은 원천 전체명('광주광역시'·'전라남도')으로 준다."""
-    cfg = U.ANNUAL_CONF[name]
+    """ANNUAL_CONF[name] 표의 응답 모양 한 해치. 노후주택30년(shortmap)은 원천 전체명('광주광역시'·'전라남도')으로 준다.
+    보급률 재료(주택수·가구수)는 ANNUAL_CONF 를 줄여 도는 시험에서도 표를 알 수 있게 HOUSING_CONF 를 본다."""
+    cfg = U.ANNUAL_CONF.get(name) or U.HOUSING_CONF[name]
     full = {v: k for k, v in U.BUBBLE_SHORT.items()}
     rows = []
     for r, v in vals.items():
@@ -393,13 +394,23 @@ def _annual_rows(name, prd, vals):
     return rows
 
 
+def _with_housing_parts(name, rows, prd, vals):
+    """보급률 응답에 같은 해 주택수·가구수 행을 더한다 — 비율 재계산 재료(백로그 52).
+    주택수를 가구수의 1.25배로 주어 통합 보급률이 125.0 이 나오게 한다."""
+    if name != '보급률':
+        return rows
+    return (rows + _annual_rows('주택수', prd, {r: v * 10 for r, v in vals.items()})
+            + _annual_rows('가구수', prd, {r: v * 8 for r, v in vals.items()}))
+
+
 @pytest.mark.parametrize('name', [n for n, c in U.ANNUAL_CONF.items() if not c.get('region')])
 @pytest.mark.parametrize('shape', sorted(ANNUAL_SHAPES))
 def test_annual_path_folds_like_the_other_paths(monkeypatch, name, shape):
     """연간 계열(멸실·노후)도 기본통계와 같은 규칙으로 광주·전남을 전남광주로 접는다 — 물량은 합, 원천 통합 행 우선, 한 조각이면
-    만들지 않는다. 주택보급률(merge_regions.UNFOLDABLE)은 두 조각으로 통합 값을 만들지 않고 원천 통합 행만 남긴다(대표 결정
-    2026-10-18 D3 — 주택 수 ÷ 가구 수라 W_GJ 가중평균은 원천으로 재현되지 않는다).
-    변이(D3, 실제로 확인): fold_annual 의 synth 를 늘 True 로 두면(예전처럼 조각으로 만들면) 보급률 'both'·'merged' 아닌 모양이 빨개진다.
+    만들지 않는다. 주택보급률은 비율이라 **두 조각의 주택수·가구수로 다시 계산**한다(주택수 합 ÷ 가구수 합 × 100,
+    대표 결정 2026-10-18 D3, 백로그 52) — 검산 픽스처는 주택수 = 보급률×10, 가구수 = 보급률×8 이라 두 조각의 비율이 125.0 이다.
+    변이(D3/52, 실제로 확인): fold_annual_fetched 의 보급률 분기를 지우면(옛 _fold_gj 가중평균) 'both' 가 125.0 이 아니라
+    원천 보급률의 단순 합으로 나와 빨개진다.
 
     변이: _fetch_annual_one 끝의 `for vals in out.values(): _fold_gj(vals, weighted)` 두 줄을 지우면 'both'·'one'·
           'merged+one'·'merged+both' 가 빨개진다(확인 — 옛 이름이 남아 merge_annual 이 버리고 전남광주가 빈다).
@@ -408,9 +419,19 @@ def test_annual_path_folds_like_the_other_paths(monkeypatch, name, shape):
     """
     vals = ANNUAL_SHAPES[shape]
     rows = _annual_rows(name, '2025', vals)
+    rows = _with_housing_parts(name, rows, '2025', vals)
     monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
     got = U._fetch_annual_one(name).get('2025', {})
-    if name in UNFOLDABLE:
+    if name == '보급률':
+        # 원천 통합 행이 있으면 그 값, 두 조각만 있으면 (주택수 합)/(가구수 합)=125.0, 한 조각이면 만들지 않는다.
+        direct = {k: v for k, v in vals.items() if k not in SRC}
+        if DST in direct:
+            want = direct
+        elif all(k in vals for k in SRC):
+            want = {DST: 125.0}
+        else:
+            want = {}
+    elif name in UNFOLDABLE:
         want = {k: v for k, v in vals.items() if k not in SRC}     # 원천 통합 행만 남는다(D3)
     else:
         want = U._fold_gj(dict(vals), name in WEIGHTED)
@@ -509,6 +530,7 @@ def test_annual_zero_is_missing_for_the_ratio_series(monkeypatch):
     vals = {r: a[-1] for r, a in D['series'].items() if a[-1] is not None and r != DST}
     vals[one] = 0
     rows = _annual_rows(name, y, vals)
+    rows = _with_housing_parts(name, rows, y, vals)     # 보급률 재계산 재료(백로그 52)
     monkeypatch.setattr(U, 'kosis', lambda p, get=None: rows)
     got = U._fetch_annual_one(name)[y]
     assert one not in got and len(got) == len(vals) - 1, '원천 0 이 값으로 실렸다'
@@ -519,22 +541,20 @@ def test_annual_zero_is_missing_for_the_ratio_series(monkeypatch):
     assert D['series'][one][5] is None and all(D['series'][r][6:] == keep[r] for r in keep), '0 이 아닌 칸이 바뀌었거나 0 이 남았다'
 
 
-# ── 전수리뷰 A-8 · 대표 결정 2026-10-18 D3: 광주·전남 주택보급률은 비운다 ─────────────────────
-def test_unfoldable_ratio_history_is_blanked_by_the_batch(monkeypatch):
-    """주택보급률의 통합 지역(전남광주) 값은 두 조각(광주·전남)으로 만들지 않는다. 저장 이력 중 원천이 아직 두 조각으로 주는 해까지의
-    값(merge_regions 09-10 병합·옛 접기의 W_GJ 가중평균)은 배치(update_annual)가 지우고, 원천이 통합 행을 직접 준 해는 남긴다.
+# ── 백로그 52 · 대표 결정 2026-10-18 D3: 광주·전남 주택보급률은 주택수·가구수로 다시 계산한다 ──────────
+def test_housing_ratio_history_is_recomputed_by_the_batch(monkeypatch):
+    """두 조각만 있는 해의 전남광주 보급률을 배치(update_annual)가 (주택수 합)/(가구수 합)×100 으로 다시 계산한다.
+    원천이 통합 행을 직접 준 해는 그 값을 쓴다(원천 숫자 우선). 재료(주택수·가구수)가 없는 해는 만들지 않는다.
 
-    변이(각각 실제로 확인): update_annual 의 `n += blank_unfoldable(...)` 를 지우면 저장 이력이 남아, blank_unfoldable 의
-          `y not in direct` 를 빼면 원천 통합 행이 있던 해까지 지워져 빨개진다. (조각으로 만들지 않는 규칙 자체는
-          test_annual_path_folds_like_the_other_paths 가 본다 — synth 를 늘 True 로 두면 거기서 빨개진다.)
-    픽스처: 저장 STATS 보급률(전남광주 이력이 가중평균으로 차 있는 실제 상태)과 원천 응답 — 저장 마지막 두 해는 광주·전남 두 조각
-            (마지막 해는 통합 행도 함께 오는 전환기 모양), 그다음 새 해는 통합 행 '전남광주'만.
+    변이(실제로 확인): fold_annual_fetched 의 보급률 분기를 지우면(옛 규칙) y1 이 104.0 그대로거나 비어 빨개진다.
+    픽스처: y1 은 두 조각만(주택수 100·200, 가구수 80·160 → 125.0), y2 는 두 조각 + 원천 통합 행 109.5(전환기),
+            y3 은 통합 행만 109.9. 저장 y1 의 전남광주는 옛 값 104.0.
     """
     st = _stats()
     D = st['보급률']
     y1, y2 = D['dates'][-2:]
     y3 = str(int(y2) + 1)
-    D['series'][DST][D['dates'].index(y1)] = 104.0                    # 가중평균으로 만든 저장값(지워질 칸)이 적어도 하나 있게
+    D['series'][DST][D['dates'].index(y1)] = 104.0                    # 옛(가중평균) 저장값 — 다시 계산되면 바뀐다
     rows = []
     for y in (y1, y2):
         i = D['dates'].index(y)
@@ -542,31 +562,30 @@ def test_unfoldable_ratio_history_is_blanked_by_the_batch(monkeypatch):
         vals[SRC[0]], vals[SRC[1]] = 106.4, 113.0
         if y == y2:
             vals[DST] = 109.5                                         # 전환기: 원천이 통합 행도 함께 낸 해
-        rows += _annual_rows('보급률', y, vals)
+        rows += _with_housing_parts('보급률', _annual_rows('보급률', y, vals), y, vals)
     vals = {r: a[-1] for r, a in D['series'].items() if a[-1] is not None and r != DST}
     vals[DST] = 109.9
     rows += _annual_rows('보급률', y3, vals)
     failed = _annual_update(monkeypatch, st, '보급률', rows)
-    assert not failed
+    assert not failed, failed
     at = {y: v for y, v in zip(D['dates'], D['series'][DST])}
-    assert D['dates'][-1] == y3 and at[y3] == 109.9 and at[y2] == 109.5, '원천 통합 행이 실리지 않았거나 지워졌다'
-    assert all(v is None for y, v in at.items() if y < y2), '두 조각에서 만든 통합 이력이 남았다'
+    assert D['dates'][-1] == y3 and at[y3] == 109.9 and at[y2] == 109.5, '원천 통합 행이 실리지 않았거나 덮였다'
+    assert at[y1] == 125.0, '두 조각 해를 주택수·가구수로 다시 계산하지 않았다: %r' % at[y1]
+    assert all(v is None for y, v in at.items() if y < y1), '재료 없는 옛 해에 값이 생겼다'
     assert not (set(SRC) & set(D['series'])), '옛 두 이름이 저장 계열에 생겼다'
 
 
-def test_one_time_history_merge_blanks_the_unfoldable_series():
-    """merge_regions.merge_series(09-10 이력 병합 도구)도 같은 규칙 — 주택보급률은 통합 칸을 비우고 옛 두 이름을 뺀다(D3).
+def test_one_time_history_merge_uses_the_housing_ratio_rule():
+    """1회성 이력 병합 도구(merge_regions)도 보급률을 '비운다'가 아니라 비율 재계산으로 접는다(백로그 52) —
+    UNFOLDABLE 이 빈 목록이고, 연도→지역 표로 바꾸는 _year_rows 가 있다.
 
-    변이(실제로 확인): merge_series 의 UNFOLDABLE 분기를 지우면 보급률이 WEIGHTED 밖이라 두 조각의 합(219.4)이 실려 빨개진다.
-    픽스처: 통합 전 저장 계열 모양 — 광주·전남 두 열(한 해는 한쪽만 값).
+    변이(실제로 확인): merge_regions.UNFOLDABLE 에 '보급률'을 되돌리면 빨개진다.
     """
     import merge_regions as MR
-    ser = {SRC[0]: [106.4, None], SRC[1]: [113.0, 112.0], '서울': [94.0, 93.9]}
-    assert MR.merge_series('보급률', ser) == 2
-    assert ser[DST] == [None, None] and not (set(SRC) & set(ser)) and ser['서울'] == [94.0, 93.9]
-    vol = {SRC[0]: [1, 2], SRC[1]: [3, None]}
-    MR.merge_series('준공', vol)
-    assert vol[DST] == [4, 2], '물량 계열은 여전히 합이다'
+    assert MR.UNFOLDABLE == set()
+    assert callable(MR.fold_housing_ratio) and callable(MR._year_rows)
+    D = {'dates': ['2024'], 'series': {'광주': [106.4], '전남': [113.0], '서울': [94.0]}}
+    assert MR._year_rows(D) == {'2024': {'광주': 106.4, '전남': 113.0, '서울': 94.0}}
 
 
 # ── 전수리뷰 #4: 응답에 서울구 열이 하나도 없으면 직전 블록을 지킨다 ───────────────────────

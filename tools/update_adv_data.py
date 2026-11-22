@@ -178,6 +178,7 @@ def _supply_region(full):
 # 다른 이름·가중치를 보게 된다.
 from merge_regions import SRC as _GJ_OLD, DST as _GJ_NEW, W_GJ  # noqa: E402
 from merge_regions import WEIGHTED as _GJ_WEIGHTED, UNFOLDABLE as _GJ_UNFOLDABLE  # noqa: E402
+from merge_regions import HOUSING_PARTS, fold_housing_ratio as _fold_housing_ratio  # noqa: E402  (백로그 52)
 
 
 def _fold_gj(vals, weighted=False, synth=True):
@@ -456,6 +457,15 @@ ANNUAL_CONF = {
                     'shortmap': True},
 }
 ANNUAL_YEARS = 3                      # 최근 3개년 조회(소급 정정 흡수)
+# 보급률을 두 조각(광주·전남)으로 다시 계산할 때만 받는 원자료(백로그 52) — 같은 원천 표의 같은 기준 항목이다.
+# 보급률 = (주택수 합) ÷ (가구수 합) × 100 이며, 원천도 시도 합으로 전국을 만든다(로컬 14 확인, 검산 29/30 일치).
+# 저장 계열(STATS)로는 싣지 않는다 — 비율을 다시 계산하는 재료로만 쓰고, 화면·감시에 새 계열을 늘리지 않는다.
+HOUSING_CONF = {
+    '주택수': {'org': '116', 'tbl': 'DT_MLTM_2100', 'objn': 1, 'dec': 1,
+              'itm': '주택수(다가구 구분거처 반영)', 'zero_missing': True},
+    '가구수': {'org': '116', 'tbl': 'DT_MLTM_2100', 'objn': 1, 'dec': 1,
+              'itm': '가구수(등록센서스)', 'zero_missing': True},
+}
 
 # 시세(주간·월간)는 3년 히스토리를 매번 전량 재조회하면 R-ONE 페이징이 수십 회라
 # 배치가 느리다(클라우드 40분의 83%). 과거 주/월은 소급수정 외엔 안 바뀌고 저장돼
@@ -1741,8 +1751,21 @@ def update_rate(stats):
 
 
 def _fetch_annual_one(name, years=None):
-    """{연도(str): {지역: 값}} 반환(광주·전남은 접은 뒤 — fold_annual). 원천 응답 그대로는 _fetch_annual_raw."""
-    return fold_annual(name, _fetch_annual_raw(name, years))
+    """{연도(str): {지역: 값}} 반환(광주·전남은 접은 뒤 — fold_annual_fetched). 원천 응답 그대로는 _fetch_annual_raw."""
+    return fold_annual_fetched(name, _fetch_annual_raw(name, years), years)
+
+
+def fold_annual_fetched(name, raw, years=None, raw_of=None):
+    """연간 원자료(raw)를 통합 지역으로 접는다. 일반 계열은 fold_annual 그대로.
+    주택보급률은 비율이라 조각 두 개의 가중평균밖에 못 만든다 — 대신 두 조각의 **주택수·가구수를 함께 받아**
+    (주택수 합) ÷ (가구수 합) × 100 으로 다시 계산한다(대표 결정 2026-10-18 D3, 백로그 52).
+    raw_of 는 이름 → 원자료 함수다(배치가 캐시를 쓰도록 넘긴다. 없으면 years 로 직접 받는다)."""
+    raw = copy.deepcopy(raw)
+    if name != '보급률':
+        return fold_annual(name, raw)
+    get = raw_of or (lambda nm: _fetch_annual_raw(nm, years, cfg=HOUSING_CONF.get(nm)))
+    _fold_housing_ratio(raw, get(HOUSING_PARTS[0]), get(HOUSING_PARTS[1]), ANNUAL_CONF[name]['dec'])
+    return raw
 
 
 def fold_annual(name, out):
@@ -1756,11 +1779,11 @@ def fold_annual(name, out):
     return out
 
 
-def _fetch_annual_raw(name, years=None):
+def _fetch_annual_raw(name, years=None, cfg=None):
     """원천 응답 {연도(str): {지역: 값}} — 옛 두 이름(광주·전남)이 있으면 그대로 둔다. 다년 요청이 40,000셀을 넘으면 연 단위로
-       쪼갠다(노후주택30년은 지역×유형이 넓어 3년치가 한계다)."""
+       쪼갠다(노후주택30년은 지역×유형이 넓어 3년치가 한계다). cfg 는 HOUSING_CONF 처럼 ANNUAL_CONF 밖 표를 넘길 때 쓴다."""
     import datetime
-    cfg = ANNUAL_CONF[name]
+    cfg = cfg or ANNUAL_CONF[name]
     n = years or ANNUAL_YEARS
     p = {'orgId': cfg['org'], 'tblId': cfg['tbl'], 'itmId': 'ALL', 'prdSe': 'Y',
          'newEstPrdCnt': str(n)}
@@ -1874,15 +1897,24 @@ def blank_unfoldable(name, D, raw):
 
 def update_annual(stats, failed=None):
     changed = []
+    raw_cache = {}
+
+    def raw_of(nm):
+        """한 회차 안에서 같은 원자료를 두 번 받지 않는다 — 주택보급률은 자기 원자료에 더해
+        주택수·가구수 원자료까지 필요하다(백로그 52)."""
+        if nm not in raw_cache:
+            raw_cache[nm] = _fetch_annual_raw(nm, cfg=HOUSING_CONF.get(nm))
+            time.sleep(0.2)
+        return raw_cache[nm]
+
     for name in ANNUAL_CONF:
         if name not in stats:
             print('annual %s skip: STATS에 없음' % name)
             continue
         n = blank_zero_cells(name, stats[name])      # 원천 조회와 무관한 저장분 정리 — 조회가 죽은 날도 돈다
         try:
-            raw = _fetch_annual_raw(name)
-            time.sleep(0.2)
-            n += merge_annual(stats[name], fold_annual(name, copy.deepcopy(raw)), ANNUAL_CONF[name]['dec'])
+            raw = raw_of(name)
+            n += merge_annual(stats[name], fold_annual_fetched(name, raw, raw_of=raw_of), ANNUAL_CONF[name]['dec'])
             n += blank_unfoldable(name, stats[name], raw)
         except Exception as e:
             if failed is not None:
@@ -2407,7 +2439,7 @@ def main():
         assert KEY, 'KOSIS_API_KEY 환경변수 필요'
         st = read_current_stats()
         raw = _fetch_annual_raw(name, years)
-        fetched = fold_annual(name, copy.deepcopy(raw))
+        fetched = fold_annual_fetched(name, raw, years)   # 주택보급률은 주택수·가구수로 다시 계산(백로그 52)
         D = st[name]
         n = (merge_annual(D, fetched, ANNUAL_CONF[name]['dec']) + blank_zero_cells(name, D)
              + blank_unfoldable(name, D, raw))
