@@ -11,7 +11,7 @@
 변이(각각 실제로 확인):
   - permit_half_mismatch 의 하반기를 12월 누계 그대로(− 6월 누계 없이) 견주면 첫 시험이 빨개진다.
   - update_basic 의 `if permits: changed += heal_permit_years(...)` 를 지우면 둘째 시험이 빨개진다.
-  - heal_permit_years 의 `years[:PERMIT_HEAL_YEARS]` 를 `years` 로 바꾸면(어긋난 해를 한 회차에 다 받으면) 호출 수 단정이 빨개진다.
+  - heal_permit_years 의 상한을 1로 되돌리면(옛 상한) 어긋난 옛 해가 시도되지 않아 호출 수·어긋남 단정이 빨개진다.
   - 재수집 실패를 failed 에 남기는 줄을 지우면 셋째 시험이 빨개진다.
   - main() 이 update_basic 에 ADV.permits 를 넘기지 않으면 넷째 시험이 빨개진다.
   - update-cloud.yml 커밋 잡에서 '원천 소급 정정 반영' rep 를 지우면 다섯째 시험이 빨개진다.
@@ -106,7 +106,7 @@ def test_revised_year_is_refetched_for_the_three_mltm_series(monkeypatch):
     i6, i12 = D['dates'].index('2025.06'), D['dates'].index('2025.12')
     fixed12 = D['series'][NAT][i12] + 10
     permits = _permits(st, [('2025H2', NAT, D['series'][NAT][i12] - D['series'][NAT][i6] + 10),
-                            ('2024H1', NAT, 1)])                 # 더 옛 해도 어긋났다 — 이번 회차는 늦은 해 하나만
+                            ('2024H1', NAT, 1)])                 # 더 옛 해도 어긋났다 — 상한(4) 안이라 함께 시도한다
     other = [n for n in U.PERMIT_HEAL_SERIES if n != '인허가'][0]
 
     def heal(name, upto):
@@ -116,12 +116,70 @@ def test_revised_year_is_refetched_for_the_three_mltm_series(monkeypatch):
             return {(2025, 3): {NAT: 777}}
         return {}
     changed, failed, calls = _run_basic(monkeypatch, st, permits, heal)
-    assert sorted(calls) == sorted((n, (2025, 12)) for n in U.PERMIT_HEAL_SERIES), calls
+    assert sorted(calls) == sorted((n, (y, 12)) for n in U.PERMIT_HEAL_SERIES for y in (2025, 2024)), calls
     assert D['series'][NAT][i12] == fixed12 and st[other]['series'][NAT][st[other]['dates'].index('2025.03')] == 777
     tok = [t for t in changed if U.REVISION_MARK in t]
     assert len(tok) == 1 and '2025' in tok[0], changed
-    assert not failed, failed
+    assert failed == ['인허가:원천 정정 대조 어긋남(2024)'], failed
     assert [b[0] for b in U.permit_half_mismatch(permits, st)] == ['2024H1'], '고친 해가 그대로이거나 옛 해가 사라졌다'
+
+
+def _rows12(y, june, dec):
+    """그 해 1~12월 누계를 6월·12월 목표에 맞춰 채운다 — heal 이 해마다 12달을 받는 실제 모양(반기 값이 그대로 맞는다)."""
+    out = {}
+    for m in range(1, 13):
+        out[(y, m)] = {NAT: round(june + (dec - june) * (m - 6) / 6.0)}
+    return out
+
+
+def test_all_mismatched_years_are_healed_in_one_run(monkeypatch):
+    """어긋난 해가 둘이면 한 회차에 둘 다 받아 고친다 — 예전엔 늘 가장 늦은 해 하나만 받아 옛 해가 여러 회차 밀렸다(백로그 59).
+
+    변이(실제로 확인): 상한을 1로 되돌리거나(옛 PERMIT_HEAL_YEARS 동작) 옛 해를 건너뛰면 2024 반기가 계속 어긋나 빨개진다.
+    픽스처: 2024 상반기·2025 하반기 원천 정정 — heal 이 해마다 12달을 반기 목표에 맞춰 돌려준다.
+    """
+    st = _stats()
+    D = st['인허가']
+    at = {lab: i for i, lab in enumerate(D['dates'])}
+    j24, d24 = D['series'][NAT][at['2024.06']], D['series'][NAT][at['2024.12']]
+    h2_25 = D['series'][NAT][at['2025.12']] - D['series'][NAT][at['2025.06']]
+    permits = _permits(st, [('2024H1', NAT, j24 + 5), ('2025H2', NAT, h2_25 + 10)])
+
+    def heal(name, upto):
+        y = upto[0]
+        if y == 2024:
+            return _rows12(y, j24 + 5, d24 + 5)
+        return _rows12(y, D['series'][NAT][at['2025.06']], D['series'][NAT][at['2025.12']] + 10)
+    changed, failed, calls = _run_basic(monkeypatch, st, permits, heal)
+    assert not U.permit_half_mismatch(permits, st), U.permit_half_mismatch(permits, st)
+    assert not failed, failed
+    tok = ' '.join(t for t in changed if U.REVISION_MARK in t)
+    assert '2024' in tok and '2025' in tok, changed
+    assert {y for _n, y in calls} == {(2024, 12), (2025, 12)}, calls
+
+
+def test_years_over_the_cap_are_reported_for_the_next_run(monkeypatch):
+    """한 회차 상한을 넘는 해는 조용히 잊지 않고 '원천 정정 대기'로 남긴다 — 다음 회차가 이어 받는다(백로그 59).
+
+    변이(실제로 확인): 대기 줄을 지우면(옛 cap-1 동작처럼) 이 시험이 빨개진다.
+    픽스처: 2024·2025 두 해가 어긋난 회차에 상한을 1로 낮춘 상태.
+    """
+    monkeypatch.setattr(U, 'PERMIT_HEAL_MAX_YEARS', 1)
+    st = _stats()
+    D = st['인허가']
+    at = {lab: i for i, lab in enumerate(D['dates'])}
+    j24, d24 = D['series'][NAT][at['2024.06']], D['series'][NAT][at['2024.12']]
+    h2_25 = D['series'][NAT][at['2025.12']] - D['series'][NAT][at['2025.06']]
+    permits = _permits(st, [('2024H1', NAT, j24 + 5), ('2025H2', NAT, h2_25 + 10)])
+
+    def heal(name, upto):
+        y = upto[0]
+        if y == 2025:
+            return _rows12(y, D['series'][NAT][at['2025.06']], D['series'][NAT][at['2025.12']] + 10)
+        return _rows12(y, j24 + 5, d24 + 5)
+    changed, failed, calls = _run_basic(monkeypatch, st, permits, heal)
+    assert {y for _n, y in calls} == {(2025, 12)}, calls
+    assert '인허가:원천 정정 대기(2024)' in failed, failed
 
 
 def test_refetch_failure_or_lasting_mismatch_is_recorded(monkeypatch):

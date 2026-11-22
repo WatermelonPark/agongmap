@@ -1899,11 +1899,12 @@ def update_annual(stats, failed=None):
 # 따라가 두 화면이 다른 수를 냈다(전국 2025 하반기 232,955 대 224,469, 경북 +40%). 착공·준공(같은 국토교통부 실적 표 묶음)도 같은
 # 창이라 같은 회차의 정정을 놓쳤을 수 있다 — 대조할 두 번째 경로가 없어 인허가가 어긋난 해에 셋을 함께 다시 받는다.
 # 창을 넓히지 않는 까닭: mltm 은 달마다 한 번씩 부르는 표라 창을 전년 1월까지 넓히면 매일 호출이 세 배가 된다(KOSIS 차단 위험).
-# 어긋날 때만, 한 회차에 PERMIT_HEAL_YEARS 해씩 다시 받는다(해마다 세 표 × 12달 = 36호출). 게이트로 막지 않는다 — 원천이 고친 날
+# 어긋날 때만, 한 회차에 최대 PERMIT_HEAL_MAX_YEARS 해까지 다시 받는다(해마다 세 표 × 12달 = 36호출). 게이트로 막지 않는다 — 원천이 고친 날
 # 커밋이 멈추면 안 된다. 다시 받은 회차는 변경 토큰에 REVISION_MARK 를 달아 배치 기록 ℹ️ 줄로 올리고(update-cloud.yml 커밋 잡),
-# 받지 못했거나 받아도 어긋나면 .fetch_failed(ℹ️ 원천 일부 실패 줄)에 남긴다.
+# 받지 못했거나 받아도 어긋나면 .fetch_failed(ℹ️ 원천 일부 실패 줄)에 남긴다. 상한을 넘는 해는 '원천 정정 대기'로 남겨
+# 다음 회차에 이어 받는다 — 예전엔 상한(1)이 늘 가장 늦은 해만 골라, 옛 해 정정이 여러 회차째 밀렸다(백로그 59).
 PERMIT_HEAL_SERIES = [n for n, c in BASIC_CONF.items() if c['mode'] == 'mltm']    # 인허가·착공·준공
-PERMIT_HEAL_YEARS = 1
+PERMIT_HEAL_MAX_YEARS = 4               # 한 회차 API 호출 상한 — 이보다 많이 어긋나면 다음 회차로 미룬다
 REVISION_MARK = '원천정정'
 
 
@@ -1935,15 +1936,16 @@ def permit_half_mismatch(permits, stats):
 
 
 def heal_permit_years(stats, permits, failed):
-    """permit_half_mismatch 가 어긋난 해를 가장 늦은 해부터 PERMIT_HEAL_YEARS 해만 인허가·착공·준공 12달씩 다시 받아 병합한다.
-    변경 토큰 목록(REVISION_MARK 포함)을 돌려준다. 받지 못했거나 받아도 어긋나면 failed 에 남긴다."""
+    """permit_half_mismatch 가 어긋난 해를 가장 늦은 해부터 최대 PERMIT_HEAL_MAX_YEARS 해까지 인허가·착공·준공 12달씩 다시 받아
+    병합한다. 변경 토큰 목록(REVISION_MARK 포함)을 돌려준다. 받지 못했거나 받아도 어긋나면 failed 에 남기고, 상한을 넘겨 이번에
+    못 받은 해는 '원천 정정 대기' 한 줄로 남겨 다음 회차에 이어 받는다."""
     # ⚠️ 다 찬 해(12월이 STATS 인허가에 있는 해)만, 이미 있는 달만 고친다 — 다시 받기가 새 달을 덧붙이면 _hold_horizon(이 함수보다
     # 앞에서 돈다)을 비켜 준공·착공의 끝 분기가 갈라질 수 있다(올해 상반기 칸이 그날 기본통계 조회 실패로 어긋난 회차 등).
     have = {name: {_label_ym(d) for d in (stats.get(name) or {}).get('dates') or []} for name in PERMIT_HEAL_SERIES}
     years = sorted({int(h[:4]) for h, _, _, _ in permit_half_mismatch(permits, stats)
                     if (int(h[:4]), 12) in have.get('인허가', ())}, reverse=True)
     out = []
-    for y in years[:PERMIT_HEAL_YEARS]:
+    for y in years[:PERMIT_HEAL_MAX_YEARS]:
         n = 0
         try:
             for name in PERMIT_HEAL_SERIES:
@@ -1961,6 +1963,11 @@ def heal_permit_years(stats, permits, failed):
             failed.append('인허가:원천 정정 대조 어긋남(%d)' % y)
         if n:
             out.append('%s(%s %d년 %d칸)' % ('·'.join(PERMIT_HEAL_SERIES), REVISION_MARK, y, n))
+    rest = years[PERMIT_HEAL_MAX_YEARS:]
+    if rest:
+        print('basic 인허가: 원천 정정 대기 %d개 해 — %s (한 회차 상한 %d; 다음 회차에 이어 받는다)'
+              % (len(rest), ','.join(str(y) for y in rest), PERMIT_HEAL_MAX_YEARS))
+        failed.append('인허가:원천 정정 대기(%s)' % ','.join(str(y) for y in rest))
     return out
 
 
