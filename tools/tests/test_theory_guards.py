@@ -235,3 +235,25 @@ def test_a_bare_assert_still_says_what_failed(tmp_path):
         {}['없는 키']
     assert '없는 키' in RC.why_of(e.value)
     assert "% (k, RC.why_of(e))" in inspect.getsource(T4.link4_numbers), '5편 가드가 단정 실패의 사유를 그대로(빈 글로) 싣는다'
+
+
+def test_permit_premise_stops_only_part_one(monkeypatch):
+    """'인허가가 착공보다 N배' 문장은 1편만 쓴다 — 그 전제가 깨져도 2편(고리① 숫자만 쓴다)은 멈추지 않는다(백로그 59).
+
+    변이(실제로 확인): guard_values 의 `if n == 1:` 을 지워 둘 다 permit_over_x 를 부르게 하면 2편도 멈춰 이 시험이 빨개진다.
+    픽스처: 인허가 전제만 깨진 날(permit_over_x 가 SystemExit), 2편은 data 없이(고리①만) 돈다.
+    """
+    D = T.cycle_d()
+    seen = []
+
+    def boom(sts):
+        seen.append(sts)
+        raise SystemExit('1편을 만들 수 없다 — 전국 인허가가 착공보다 많지 않다(정본 -1%)')
+
+    monkeypatch.setattr(T, 'permit_over_x', boom)
+    v2 = T.guard_values(2, D, None)          # 2편은 data 를 안 쓴다 — 쓰면 여기서 멈춘다
+    assert 'l1_lo' in v2 and 'permit_over' not in v2, v2
+    assert seen == [], '2편이 1편의 인허가 전제를 셈했다'
+    with pytest.raises(SystemExit):
+        T.guard_values(1, D, None)
+    assert len(seen) == 1

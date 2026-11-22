@@ -260,14 +260,19 @@ def guard_values(n, D=None, data=None):
     batch_notes.theory_claim_lines 가 이 함수 하나를 부른다. 대표 결정 2026-10-18 D1: 지금 데이터가 발행본의 전제와 어긋나면
     배치 게이트는 막지 않고 기록 줄(ℹ️)로 알린다. SystemExit 말고 다른 예외(TypeError·KeyError …)가 나면 코드 결함이다 — 가드가
     셈을 못 하고 죽었으니 고칠 곳은 가드다.
-    D 는 /cycle/ 정본(없으면 읽는다), data 는 (adv, sts)(1·2·4~7편에서 쓰고, 없으면 M.load() 로 읽는다)."""
+    D 는 /cycle/ 정본(없으면 읽는다), data 는 (adv, sts)(1·4~7편에서 쓰고, 없으면 M.load() 로 읽는다. 2편은 고리①만 보므로 data 가
+    필요 없다)."""
     D = cycle_d() if D is None else D
 
     def load():
         return M.load() if data is None else data
     if n in (1, 2):
         v = link1_values(D)
-        v['permit_over'] = permit_over_x(load()[1])
+        if n == 1:
+            # '인허가가 착공보다 N배' 문장은 1편만 쓴다 — 2편은 고리① 숫자(lo·hi·dir·mid)만 쓴다. 예전엔 둘 다
+            # permit_over 를 셈해, 인허가 전제만 깨져도 배치 기록이 1·2편을 함께 '전제 어긋남'으로 적었다
+            # (2편 발행본 본문을 고칠 이유가 없는데도, 백로그 59).
+            v['permit_over'] = permit_over_x(load()[1])
         return v
     if n == 3:
         # 넘겨받은 D(/cycle/ 정본)의 sync 로 잰다. 예전엔 D 를 무시하고 모듈을 읽을 때 잡아 둔 CYCLE_SYNC 만 써서,
