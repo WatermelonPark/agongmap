@@ -59,6 +59,8 @@ def test_commit_is_limited_to_generated_and_data_paths():
     line = next((l for l in t.splitlines() if 'BAD=$(grep -Ev' in l), '')
     assert line, '커밋 화이트리스트 없이 git add -A 를 한다'
     assert '커밋 화이트리스트 밖 파일이 섞였다' in t
+    # 한글 경로(`zone/강원/index.html`)가 8진수로 인용되면 화이트리스트가 놓친다 — quotePath=false 로 뽑는다.
+    assert '-c core.quotePath=false diff --cached --name-only' in t, '한글 경로가 인용된 채로 화이트리스트를 돈다'
     pat = re.compile(line.split("'")[1])
     for p in ('data.js', 'data-core.js', 'data-trend.json', 'zone/서울/index.html', 'weekly/index.html',
               'city/x/index.html', 'feed.xml', 'sitemap.xml', 'tools/data/city_moveins.json', 'share/post-city-x.png'):

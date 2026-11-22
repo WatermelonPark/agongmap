@@ -122,7 +122,8 @@ jobs:
             exit 0
           fi
           git add -A
-          git diff --cached --name-only > /tmp/heal_changed.txt
+          # 한글 경로가 8진수로 인용되지 않게 core.quotePath=false — 인용되면 화이트리스트 정규식이 한글 경로를 놓친다.
+          git -c core.quotePath=false diff --cached --name-only > /tmp/heal_changed.txt
           BAD=$(grep -Ev '^(data\.js|data-core\.js|data-[^/]+\.json|index\.html|feed\.xml|llms\.txt|llms-full\.txt|sitemap\.xml|(zone|weekly|monthly|moveins|jeonse-ratio|cycle|city|gtx|danji|column|reports|share|tools/data)/)' /tmp/heal_changed.txt || true)
           if [ -n "$BAD" ]; then
             echo "::error::커밋 화이트리스트 밖 파일이 섞였다 — 커밋하지 않는다"
