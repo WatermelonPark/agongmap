@@ -668,6 +668,31 @@ def put_share_image(s, W, root=None):
     return put_meta(s, 'name', 'twitter:image', url)
 
 
+def _put_after(s, anchor, add):
+    """anchor 바로 뒤에 add 를 한 번 넣는다. anchor 가 정확히 하나가 아니면 멈춘다.
+
+    예전엔 `if X not in s: s = s.replace(anchor, anchor + X, 1)` 꼴이었다. 뼈대의 anchor 글자가 바뀐 회차에는
+    replace 가 조용히 아무것도 안 해 스타일이 몇 회차째 빠진 채 배포돼도 알 길이 없었다(백로그 59).
+    """
+    n = s.count(anchor)
+    if n != 1:
+        raise SystemExit('weekly/index.html 에서 넣을 자리를 하나 찾지 못했다(%d개): %.40r' % (n, anchor))
+    nl = '\r\n' if '\r\n' in s else '\n'
+    return s.replace(anchor, anchor + nl + add, 1)
+
+
+def _put_after_first(s, anchor, add):
+    """첫 anchor 뒤에 add 를 넣는다(여러 개여도 첫 자리만 — `<style>` 은 페이지에 여럿일 수 있다). 새 줄은 add 뒤에
+    붙인다(옛 `<style>` + css + 줄바꿈 꼴 그대로 — 바이트가 달라지면 산출물 대조 시험이 흔들린다).
+    anchor 가 아예 없으면 멈춘다 — 예전처럼 조용히 아무것도 안 넣지 않는다(백로그 59)."""
+    i = s.find(anchor)
+    if i < 0:
+        raise SystemExit('weekly/index.html 에서 넣을 자리를 찾지 못했다: %.40r' % anchor)
+    nl = '\r\n' if '\r\n' in s else '\n'
+    j = i + len(anchor)
+    return s[:j] + add + nl + s[j:]
+
+
 def put_nav(s):
     """하단 탭바를 정본(site_nav)으로 갈아 끼우고 NAV_TAB(시세) 탭 하나만 켠다. 예전엔 켜진 탭이 없어 블로그 독자가
     착지하는 이 페이지가 사이트의 어느 메뉴인지 보이지 않았다(IA-6). 탭 라벨도 정본을 따른다(C2) — 옛 뼈대처럼
@@ -681,23 +706,20 @@ def put_nav(s):
         nav = nav.replace('\n', '\r\n')
     s = _NAV_BLOCK.sub(lambda m: nav, s)
     if NAV_ON_CSS not in s:
-        anchor = '.nav-btn svg{display:block}'
-        if s.count(anchor) != 1:
-            raise SystemExit('weekly/index.html 에서 하단 탭 스타일 자리를 찾지 못했다')
-        s = s.replace(anchor, anchor + ('\r\n' if '\r\n' in s else '\n') + NAV_ON_CSS, 1)
+        s = _put_after(s, '.nav-btn svg{display:block}', NAV_ON_CSS)
     if N.NAV_FOCUS_CSS not in s:     # 탭바 키보드 초점(백로그 36-8) — 뼈대는 배치 산출물이라 여기서 넣는다
-        s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_FOCUS_CSS, 1)
+        s = _put_after(s, NAV_ON_CSS, N.NAV_FOCUS_CSS)
     # 읽는 문장 14px(2026-11-06 대표 결정 — 11-12 접근성 점검에서 뼈대의 서울 구 요약 줄·링크 카드 설명이 13px 로 남아 있었다).
     s = s.replace('  .sub{font-size:13px;', '  .sub{font-size:14px;', 1)
     s = s.replace('.links a span{display:block;font-size:13px;', '.links a span{display:block;font-size:14px;', 1)
     # 대체 글꼴(웹 글꼴이 늦게 와 화면이 밀리는 것 줄이기, 정본 site_nav.FONT_FALLBACK_CSS — 2026-11-12 배포 점검·대표 결정)
     if N.FONT_FALLBACK_CSS not in s:
-        s = s.replace('<style>', '<style>' + N.FONT_FALLBACK_CSS + ('\r\n' if '\r\n' in s else '\n'), 1)
+        s = _put_after_first(s, '<style>', N.FONT_FALLBACK_CSS)
     s = s.replace("font-family:'Pretendard Variable','Pretendard',-apple", 'font-family:' + N.FONT_STACK_HEAD + '-apple')
     if N.NAV_SCROLL_PAD_CSS not in s:     # 초점이 탭바 밑에 숨지 않게(2026-11-12 접근성 점검)
-        s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + N.NAV_SCROLL_PAD_CSS, 1)
+        s = _put_after(s, NAV_ON_CSS, N.NAV_SCROLL_PAD_CSS)
     if HEAD_DESKTOP_CSS not in s:    # 데스크톱 머리 위 빈칸(백로그 36-9)
-        s = s.replace(NAV_ON_CSS, NAV_ON_CSS + ('\r\n' if '\r\n' in s else '\n') + HEAD_DESKTOP_CSS, 1)
+        s = _put_after(s, NAV_ON_CSS, HEAD_DESKTOP_CSS)
     # 탭 라벨 글자 크기도 정본(site_nav.LABEL_PX — 홈 화면 글자 하한 13px, 2026-09-28)으로 맞춘다. 뼈대 <style> 은 배치 산출물이라
     # PR 로 고치지 않고 여기서 고쳐 쓴다(옛 뼈대 11.5px).
     rules = _NAV_BTN_CSS.findall(s)
@@ -974,8 +996,9 @@ def put_min_font(s):
         if 'svg' in sel or 'fill:' in body:
             return m.group(0)
         return sel + '{' + re.sub(r'font-size:\s*1[0-2](?:\.\d+)?px', 'font-size:%dpx' % MIN_PX, body) + '}'
-    return re.sub(r'(<style>.*?</style>)',
-                  lambda st: re.sub(r'([^{}<>]+)\{([^{}]*)\}', fix, st.group(1)), s, flags=re.S)
+    # 선택자를 [^{}]+ 로 넓힌다 — 예전 [^{}<>]+ 는 자식 결합자(>)가 든 규칙을 통째로 건너뛰어, 그 규칙의 12px 이 남았다(백로그 59).
+    return re.sub(r'(<style[^>]*>.*?</style>)',
+                  lambda st: re.sub(r'([^{}]+)\{([^{}]*)\}', fix, st.group(1)), s, flags=re.S)
 
 
 def put_footer(s):
