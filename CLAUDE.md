@@ -38,7 +38,7 @@
 | `tools/tests/` | pytest. 배치가 커밋 직전에 게이트로 돌린다. 홈 스크립트 조각을 node 에 올리는 새 시험은 공용 도우미 `tools/tests/_js.py`(`fn`·`node`)를 쓴다. 시험이 저장소 파일을 바꾸면 실행이 실패한다 — conftest 의 쓰기 감시가 gitignore 상태 파일(`_STATE_FILES`)과 로컬 전용 폴더 `drafts/`(`_WATCH_DIRS`, 파일마다)까지 본다(`test_repo_write_guard`) |
 | `tools/data/` | 시딩 데이터·캐시·스탬프. 도시 입주물량 `city_moveins.json`·블로그 최신 글 `blog_latest.json`·`.home_stamp`는 배치가 커밋한다. `tools/cache/`와 벌크 원본은 gitignore |
 | `docs/` | 요청서·결정 기록·백로그. 날짜 접두 파일명. 목록은 `docs/README.md`, 종결된 문서는 `docs/archive/`로 옮긴다 |
-| `.github/workflows/` | 워크플로 여덟 개 (아래 "워크플로" 표) |
+| `.github/workflows/` | 워크플로 아홉 개 (아래 "워크플로" 표) |
 | `.claude/skills/`, `.claude/agents/` | 이 저장소 규칙에 맞춘 점검 스킬 다섯(`agongmap-seo-check`·`-a11y-check`·`-click-path-audit`·`-release-check`·`-design-polish`)과 리뷰 에이전트 둘(`agongmap-python-reviewer`·`agongmap-test-analyzer`). 공개 플러그인의 점검 항목을 참고해 우리 정본·시험 이름으로 새로 썼다(원문 복사는 저작권 고지에 개인 이름이 들어가 하지 않았다). 클라우드 세션은 플러그인을 불러오지 않지만 이 폴더는 읽는다. **정본 이름이 바뀌면 여기도 고친다** |
 | `icons/` | 앱 아이콘 산출물 |
 | `drafts/`, `logs/` | **로컬 전용(gitignore)**. 옛 블로그 초안과 배치 로그. 클라우드 세션에서는 보이지 않는다 |
@@ -49,6 +49,7 @@
 |---|---|---|---|
 | `update-cloud.yml` | 예약(KST): 매일 13:00, 목요일 07·10·11·12·16시. GitHub 대기열 탓에 **실제 시작은 4~9시간 늦다**. 손으로도 돌린다 | 데이터·산출물(`stats-bot`) | 하루 넘게 멈추면 메일 한 통 |
 | `update-cloud-retry.yml` | 러너 3개가 모두 프리플라이트에 실패하면 35분 뒤 배치를 다시 부른다 | — | — |
+| `data-heal.yml` | 손으로만(Actions → Run workflow) — 키가 필요한 1회성 교정: 보급률·시세 heal, 등급 재현, 규모별 표 탐색 | 데이터·산출물(`stats-bot`, 게이트 통과 뒤) | 메일 없음 — 실행한 세션이 결과를 본다 |
 | `publish-content.yml` | `content/`나 생성기 경로가 바뀐 `main` 푸시 | 산출물(글 페이지·카드 등) | 메일 없음 — **병합한 세션이 실행 결과를 본다** |
 | `rebake-outputs.yml` | 그 밖의 모든 `main` 푸시(발행 워크플로를 그대로 부른다) | 산출물 | 메일 없음 — 위와 같다 |
 | `ci-tests.yml` | PR, `main` 푸시, 매일 22:17 예약 | — | PR 은 빨간 체크, 예약 실패는 `nightly-alert.yml` |
@@ -144,7 +145,7 @@ PR 은 산출물을 싣지 않으므로 생성기를 고친 뒤 굽지 않고 �
 - **숫자는 원천에서 그대로 가져온다.** 원천이 합쳐서 발표한 값을 비율로 쪼개 채우지 않는다. 검증 불가능한
   수가 되기 때문이다. 원천 분류가 바뀌면 판정 단위 자체를 바꾸거나 그 달을 보류한다.
 - 사이트의 여러 화면과 글이 다른 숫자·다른 산식을 말하면 안 된다. 글·피드는 배치가 구운 값을 읽고 재계산하지 않는다.
-- **모델 밖 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)은 싣지 않는다** — 판정 모델 지역 축 계열(`MODEL_REGION_SERIES`)에서 `drop_raw_aggregates`가 매 회차 뺀다(2026-10-18 대표 결정 D2). 광주·전남 주택보급률은 두 조각으로 만들지 않고 비운다(`merge_regions.UNFOLDABLE`, D3 — 주택수·가구수 합 재계산은 백로그 52). 0 이 될 수 없는 연간 비율의 원천 0 은 '없음'이다(`ANNUAL_CONF`의 `zero_missing`).
+- **모델 밖 원천 집계 행(6대·5대광역시·9개도·8개도·기타광역시·기타지방)은 싣지 않는다** — 판정 모델 지역 축 계열(`MODEL_REGION_SERIES`)에서 `drop_raw_aggregates`가 매 회차 뺀다(2026-10-18 대표 결정 D2). 광주·전남 주택보급률은 비율이라 그냥 더하지 않고 (주택수 합) ÷ (가구수 합) × 100 으로 다시 계산한다(`merge_regions.fold_housing_ratio`, 백로그 52·D3). 0 이 될 수 없는 연간 비율의 원천 0 은 '없음'이다(`ANNUAL_CONF`의 `zero_missing`).
 - **사람이 센 수와 손으로 적은 목록을 코드에 박지 않는다.** 지역 수·시군구 수·검증 대상 곳 수
   같은 값은 모델이나 데이터에서 세어 쓴다(`len(SGG_QNAME)`, `CYCLE_SYNC_N`처럼). 박아 두면 모델이
   바뀌어도 따라오지 않고 **아무것도 빨개지지 않는다.** 2026-09-10 광주·전남 통합 한 번이 아홉
