@@ -69,5 +69,12 @@ def test_commit_is_limited_to_generated_and_data_paths():
 
 
 def test_read_only_jobs_must_not_touch_the_repo():
-    """등급 재현·표 탐색은 읽기만 한다 — 저장소가 바뀌면 실패한다(산출물을 실수로 커밋하지 않는다)."""
-    assert '보기 전용 작업인데 저장소 파일이 바뀌었다' in _t()
+    """등급 재현·표 탐색은 읽기만 한다 — 저장소가 바뀌면 실패하고, 결과 JSON 은 저장소 밖에 쓴다.
+
+    변이(실제로 확인): 결과 경로를 저장소 안(`grade_bands.json`)으로 되돌리면 이 시험이 빨개진다
+    (2026-11-22 첫 실행이 그렇게 '보기 전용 작업인데 저장소 파일이 바뀌었다'로 실패했다).
+    """
+    t = _t()
+    assert '보기 전용 작업인데 저장소 파일이 바뀌었다' in t
+    assert '"$RUNNER_TEMP/grade_bands.json"' in t, '결과 JSON 을 저장소 안에 쓴다'
+    assert 'path: ${{ runner.temp }}/grade_bands.json' in t, '아티팩트 경로가 저장소 밖이 아니다'
