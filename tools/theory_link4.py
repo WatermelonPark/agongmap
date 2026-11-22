@@ -68,6 +68,10 @@ def fut_lists(adv, name=SZ.disp):
     같은 규칙을 쓰는 한 정본이다. 예전엔 6편이 이 넷을 얻으려고 5편의 단정 약 60개 전부(link4_numbers)를 돌려, 6편과 무관한 5편
     숫자가 바뀌어도 멈추고 '발행한 5편 문장을 고치라'고 안내했다(전수리뷰 BL2-4).
 
+    ⚠️ 문턱(넘는 곳·3분의 1 미만·못 미치는 곳)은 **화면에 찍히는 정수 퍼센트**(fut_pct — 판정 split 칸)로 가른다. 예전엔 원값
+    fut_ratio 로 갈라, 원값 100.04%(화면 '100%')를 '적정물량을 넘는 곳'으로, 원값 99.96%(화면 '100%')를 '못 미치는 곳'으로 셌다 —
+    같은 문장이 화면 숫자와 모순됐다(2026-11-13 전수 리뷰 잠복 결함, 백로그 59).
+
     돌려주는 것: hi(적정물량을 넘는 시도 키, 많은 순)·lo(LOW 에도 못 미치는 시도 키, 적은 순)·below(적정물량에 못 미치는 시도 수)·
     n(시도 수)·fut_high·fut_low('대전 115%, 충남 112%' 꼴 글자)·fut_high_names('대전·충남')·win_y(판정 창 햇수 글자).
     글자 속 지역 이름은 name(키 → 이름)으로 바꾼다 — 화면 이름 정본 SZ.disp 가 기본이고, 이론편 가드는 검색 표기(theory_guards.SEARCH_NAME)를
@@ -76,12 +80,13 @@ def fut_lists(adv, name=SZ.disp):
     try:
         SD = adv['sido']
         zs = [z for z in SD['zones'] if not z.get('agg')]
-        hi = sorted([z for z in zs if fut_ratio(z) > 1], key=lambda z: -fut_ratio(z))
-        lo = sorted([z for z in zs if fut_ratio(z) < LOW], key=fut_ratio)
+        pct = {z['z']: fut_pct(z) for z in zs}
+        hi = sorted([z for z in zs if pct[z['z']] > 100], key=lambda z: (-pct[z['z']], z['z']))
+        lo = sorted([z for z in zs if pct[z['z']] < LOW * 100], key=lambda z: (pct[z['z']], z['z']))
         out = dict(hi=[z['z'] for z in hi], lo=[z['z'] for z in lo], n=len(zs),
-                   below=sum(1 for z in zs if fut_ratio(z) < 1),
-                   fut_high=', '.join('%s %d%%' % (name(z['z']), fut_pct(z)) for z in hi),
-                   fut_low=', '.join('%s %d%%' % (name(z['z']), fut_pct(z)) for z in lo),
+                   below=sum(1 for z in zs if pct[z['z']] < 100),
+                   fut_high=', '.join('%s %d%%' % (name(z['z']), pct[z['z']]) for z in hi),
+                   fut_low=', '.join('%s %d%%' % (name(z['z']), pct[z['z']]) for z in lo),
                    fut_high_names='·'.join(name(z['z']) for z in hi))
         assert zs and SD['H'] % 4 == 0, ('시도 수', len(zs), '판정 창', SD['H'])
         out['win_y'] = str(SD['H'] // 4)
