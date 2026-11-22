@@ -65,7 +65,8 @@ jobs:
               python3 tools/update_adv_data.py --heal-price 160 130
               ;;
             study-grade-bands)
-              python3 tools/study_grade_bands.py grade_bands.json
+              # 결과 JSON 은 저장소 밖(RUNNER_TEMP)에 쓴다 — 저장소에 쓰면 '보기 전용' 가드가 잡는다.
+              python3 tools/study_grade_bands.py "$RUNNER_TEMP/grade_bands.json"
               ;;
             discover-규모별)
               python3 tools/update_adv_data.py --discover 주택규모별
@@ -91,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: grade-bands-json
-          path: grade_bands.json
+          path: ${{ runner.temp }}/grade_bands.json
           if-no-files-found: warn
 
       - name: 게이트 (바뀐 경우만, 배치와 같은 순서)
