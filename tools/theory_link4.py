@@ -80,7 +80,11 @@ def fut_lists(adv, name=SZ.disp):
     try:
         SD = adv['sido']
         zs = [z for z in SD['zones'] if not z.get('agg')]
-        pct = {z['z']: fut_pct(z) for z in zs}
+        pct = {}
+        for z in zs:
+            if not z.get('need'):        # 적정물량이 0·빈칸이면 판정 칸을 못 읽은 것이다(0 나눗셈 대신 데이터 상태로 멈춘다)
+                raise ZeroDivisionError(z['z'])
+            pct[z['z']] = fut_pct(z)
         hi = sorted([z for z in zs if pct[z['z']] > 100], key=lambda z: (-pct[z['z']], z['z']))
         lo = sorted([z for z in zs if pct[z['z']] < LOW * 100], key=lambda z: (pct[z['z']], z['z']))
         out = dict(hi=[z['z'] for z in hi], lo=[z['z'] for z in lo], n=len(zs),
