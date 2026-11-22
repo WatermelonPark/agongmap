@@ -22,6 +22,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else None
 sys.path.insert(0, os.path.join(ROOT, 'tools'))
 import sido_zones as SZ  # noqa: E402
 import rebuild_cycle_analysis as RC  # noqa: E402  (지수 연속성 검사 — 사이클 재산정과 같은 문턱)
+import grade_bands as GB  # noqa: E402  (등급 구간표 정본 — 구간이 전체를 덮는지 시험이 본다, 백로그 54)
 import kst  # noqa: E402
 
 # 조회·표본의 끝 연도는 오늘(KST)에서 — 박아 두면 그 해가 지난 뒤 재현에서 새 분기를 버린다(전수 리뷰 Z1 overflow).
@@ -95,14 +96,7 @@ for s in samples:
     v = byL[s['L']]
     s['rel'] = s['real'] - sum(v) / len(v)
 
-BANDS = [('<0', -9, 0.0), ('0~0.25', 0.0, 0.25), ('0.25~0.5', 0.25, 0.5),
-         ('0.5~1.0', 0.5, 1.0), ('≥1.0', 1.0, 99)]
-
-
-def band(r):
-    for name, lo, hi in BANDS:
-        if lo <= r < hi:
-            return name
+BANDS = GB.BANDS
 
 
 def summarize(sub, key):
@@ -160,6 +154,11 @@ res = {
     'diff_all_rel': diff_boot(samples, 'rel'),
     'diff_calm_real': diff_boot(calm, 'real'),
 }
+# 구간표가 표본 전체를 덮는지 스스로 확인한다 — 예전 첫 구간 하한(-9) 밖으로 16개가 새어 n 합이 496이었다(백로그 54).
+_missing = len(samples) - sum(b['n'] for b in res['all_real'])
+if _missing:
+    raise SystemExit('등급 구간표가 표본 %d개를 덮지 못했다 — %d개가 어느 구간에도 없다. tools/grade_bands.py 를 고칠 것'
+                     % (len(samples), _missing))
 # 두 하위 구간이 어느 지역·시기로 채워졌는지 — 한두 지역이 구간을 독점하면 차이는 지역 효과다
 for name, lo, hi in (('0~0.25', 0.0, 0.25), ('0.25~0.5', 0.25, 0.5)):
     cnt = {}
