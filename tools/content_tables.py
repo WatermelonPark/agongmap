@@ -484,13 +484,19 @@ def moveins(data, key, year=None):
         tot = sum(v for _, v, _ in got if v is not None)
         body.append(['합계', num(tot), '예정 포함' if any(e for _, _, e in got) else '실적'])
         return ['분기', '세대', '구분'], body, '국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정'
-    by = {}
+    by, qn = {}, {}
     for p, v, e in rows:
         y = str(p)[:4]
         a, kind = by.get(y, (0, '실적'))
         by[y] = (a + (v or 0), '예정' if e else kind)
-    body = [[y, num(t), kind] for y, (t, kind) in sorted(by.items())]
-    return ['연도', '세대', '구분'], body, '국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정'
+        qn[y] = qn.get(y, 0) + 1
+    body = []
+    for y, (t, kind) in sorted(by.items()):
+        if qn[y] < 4:                    # 창 경계의 해 — 달력 한 해 네 분기가 다 들어오지 않았다
+            kind = '%s(일부 분기)' % kind
+        body.append([y, num(t), kind])
+    return ['연도', '세대', '구분'], body, '국토교통부 준공 실적 · 앞으로의 분기는 착공 실적에서 추정' \
+        ' · 창 경계의 해는 들어온 분기만 합산'
 
 
 def supply(data, key):
@@ -840,19 +846,22 @@ CHART_WEEKS = 26          # 주간 꺾은선이 담는 주 수
 
 def _chart_moveins(data, name, year=None):
     f = city(data, name)
+    part = set()                            # 창 경계의 덜 찬 해(분기가 4개 미만) — 시도 표의 구분이 '(일부 분기)'다
     if f:
         by = {y: v for y, v in (f.get('by_year') or {}).items()}
         need, note = f['need'], _city_note(f)
     else:                                   # 시도는 사이트 데이터의 입주물량(연도별 실적+예정)
         head, rows, note = moveins(data, region_key(data, name))
         by = {r[0]: int(r[1].replace(',', '')) for r in rows if r[0] != '합계'}
+        part = {r[0] for r in rows if r[0] != '합계' and '일부 분기' in r[2]}
         need = None
     if not by:
         raise TableError('%r 의 연도별 입주물량이 없다' % name)
     year = str(year or _first_year(data))
-    pts = year_span(by) if f else [(y, by[y]) for y in sorted(by)]   # 도시는 빈 해도 자리를 둔다(NO_MOVEIN)
+    # 덜 찬 해를 한 해 물량처럼 그리지 않는다 — 창이 끝나는 해(예: 2029)는 분기 몇 개만 들어와 있다(백로그 59).
+    pts = year_span(by) if f else [(y, by[y]) for y in sorted(by) if y not in part]
     cards = []
-    if year in by:
+    if year in by and year not in part:
         # 카드 이름에 도시를 적는다 — 단지·GTX 글에서 '2027년 입주 640세대'가 그 단지 세대수로 읽혔다(2026-10-30 디자인 리뷰).
         cards.append(('%s %s년 입주' % (name, year), num(by[year]) + '세대'))
         if need:
@@ -866,6 +875,8 @@ def _chart_moveins(data, name, year=None):
             continue
     alt = '%s 연도별 입주 물량 막대그래프. %s.' % (
         name, ', '.join(('%s년 %s세대' % (y, num(v))) if v is not None else '%s년 %s' % (y, NO_MOVEIN) for y, v in pts))
+    if part:
+        alt += ' 창 경계의 덜 찬 해(%s)는 막대에서 뺐다.' % ', '.join('%s년' % y for y in sorted(part))
     if need:
         alt += ' 한 해 적정물량은 %s세대.' % num(need)
     # 3년 합계 한 줄. 카드로 넣지 않는 까닭: 카드는 세 칸까지라(좁은 화면에서 줄이 늘어난다) 넷째가
