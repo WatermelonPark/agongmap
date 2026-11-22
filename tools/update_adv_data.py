@@ -372,16 +372,17 @@ def update_supply(stats, months=None, failed=None):
     base = list(((stats.get('준공') or {}).get('series') or {}).keys()) or list(WEEKLY_REGIONS)
     for name, cfg in SUPPLY_CONF.items():
         try:
-            # 시딩(months=0)은 계열을 새로 만든다. 증분 8개월이 이미 들어간 계열에
-            # 과거 전량을 merge하면 예전 merge_basic은 뒤에 append만 해서 dates가
-            # '2025.11 ~ 2025.10'처럼 뒤섞였다. 지금은 merge_basic이 끝에 정렬하지만
-            # (2026-09-23), 시딩은 원천 전량으로 새로 짓는 것이 뜻이므로 그대로 둔다.
-            if months == 0:
-                stats.pop(name, None)
-            if name not in stats:
-                stats[name] = {'dates': [], 'unit': cfg['unit'],
-                               'series': {r: [] for r in base}, 'source': cfg['source']}
-            D = stats[name]
+            # 시딩(months=0)은 계열을 새로 짓는다. 지금은 merge_basic이 끝에 정렬하므로 순서 문제는 없지만,
+            # ⚠️ 갈아 끼우는 것은 원천 조회·완비 검사를 **통과한 뒤**다 — 예전엔 fetch 앞에서 stats.pop(name, None) 을
+            # 해서, 한 계열 조회가 실패한 회차에 그 계열의 저장 이력이 통째로 사라졌다(백로그 59). 실패하면
+            # 저장분을 그대로 두고 다음 시딩 회차를 기다린다.
+            seeded = months == 0
+            fresh = seeded or name not in stats
+            if fresh:
+                D = {'dates': [], 'unit': cfg['unit'],
+                     'series': {r: [] for r in base}, 'source': cfg['source']}
+            else:
+                D = stats[name]
             regions = set(D['series'])
             # ⚠️ 원천은 분양을 아직 광주·전남으로 따로 주고, 미분양도 통합 전 달은 두 이름이다. 저장 계열에는
             # '전남광주'만 있으므로, 조회 단계에서 지역 필터에 두 옛 이름을 함께
@@ -413,6 +414,8 @@ def update_supply(stats, months=None, failed=None):
             _supply_rollup(fetched, regions)
             D['source'] = cfg['source']     # 원천을 옮기면(미분양 R-ONE → KOSIS, 2026-10-07) 계열의 출처 칸도 따라간다
             n = merge_basic(D, fetched)
+            if fresh:
+                stats[name] = D             # 조회·완비 검사를 통과한 뒤에만 갈아 끼운다(백로그 59)
             if n:
                 changed.append('%s(%d)' % (name, n))
             time.sleep(0.2)

@@ -609,3 +609,25 @@ def test_size_token_only_when_the_payload_changes(monkeypatch):
     changed['dates'] = changed['dates'] + ['9999.12']
     monkeypatch.setattr(U, 'build_size', lambda metrics, prev, failed=None: copy.deepcopy(changed))
     assert U.update_size(st) == ['규모별(%d)' % len(changed['dates'])]
+
+def test_supply_seed_failure_keeps_the_stored_history(monkeypatch):
+    """--seed-supply(months=0)는 원천 조회가 실패한 계열의 저장 이력을 지우지 않는다. 예전엔 조회 **앞**에서
+    stats.pop(name, None) 을 해서, 한 계열이 실패한 회차에 그 계열의 26년 이력이 통째로 사라졌다(백로그 59).
+
+    변이(실제로 확인): 갈아 끼우기를 조회 앞으로 되돌리면(옛 pop 또는 선(先) 대입) 실패 계열이 사라져 빨개진다.
+    픽스처: 저장 이력이 있는 두 공급 계열 + 원천이 예외를 내는 시딩 회차.
+    """
+    st = {'준공': {'dates': [], 'series': {}},
+          '분양': {'dates': ['2020.01'], 'unit': '세대', 'series': {'전국': [100]}, 'source': 'R-ONE'},
+          '미분양': {'dates': ['2020.01'], 'unit': '세대', 'series': {'전국': [7]}, 'source': 'KOSIS'}}
+
+    def boom(*a, **k):
+        raise RuntimeError('원천 장애')
+    monkeypatch.setattr(U, 'fetch_supply', boom)
+    monkeypatch.setattr(U, 'SUPPLY_STALLED', [])
+    monkeypatch.setattr(U.time, 'sleep', lambda s: None)
+    failed = []
+    U.update_supply(st, months=0, failed=failed)
+    assert st['분양']['dates'] == ['2020.01'] and st['분양']['series']['전국'] == [100]
+    assert st['미분양']['dates'] == ['2020.01'] and st['미분양']['series']['전국'] == [7]
+    assert set(failed) == set(U.SUPPLY_CONF), failed
