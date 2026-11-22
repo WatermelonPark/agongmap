@@ -547,6 +547,8 @@ def test_housing_ratio_history_is_recomputed_by_the_batch(monkeypatch):
     원천이 통합 행을 직접 준 해는 그 값을 쓴다(원천 숫자 우선). 재료(주택수·가구수)가 없는 해는 만들지 않는다.
 
     변이(실제로 확인): fold_annual_fetched 의 보급률 분기를 지우면(옛 규칙) y1 이 104.0 그대로거나 비어 빨개진다.
+    ⚠️ 재료 없는 옛 해는 'None'을 박지 않고 **호출 전후 값을 비교**한다 — 데이터가 앞으로 가면 옛 해에 값이 생겨
+    (2026-11-22 배치 게이트가 이 단정으로 실패해 그날 데이터 커밋이 막혔다) 날짜가 지나도 초록이어야 한다.
     픽스처: y1 은 두 조각만(주택수 100·200, 가구수 80·160 → 125.0), y2 는 두 조각 + 원천 통합 행 109.5(전환기),
             y3 은 통합 행만 109.9. 저장 y1 의 전남광주는 옛 값 104.0.
     """
@@ -555,6 +557,7 @@ def test_housing_ratio_history_is_recomputed_by_the_batch(monkeypatch):
     y1, y2 = D['dates'][-2:]
     y3 = str(int(y2) + 1)
     D['series'][DST][D['dates'].index(y1)] = 104.0                    # 옛(가중평균) 저장값 — 다시 계산되면 바뀐다
+    before = {y: v for y, v in zip(D['dates'], D['series'][DST])}     # 재료 없는 옛 해는 그대로여야 한다(데이터 상태를 박지 않는다)
     rows = []
     for y in (y1, y2):
         i = D['dates'].index(y)
@@ -571,7 +574,9 @@ def test_housing_ratio_history_is_recomputed_by_the_batch(monkeypatch):
     at = {y: v for y, v in zip(D['dates'], D['series'][DST])}
     assert D['dates'][-1] == y3 and at[y3] == 109.9 and at[y2] == 109.5, '원천 통합 행이 실리지 않았거나 덮였다'
     assert at[y1] == 125.0, '두 조각 해를 주택수·가구수로 다시 계산하지 않았다: %r' % at[y1]
-    assert all(v is None for y, v in at.items() if y < y1), '재료 없는 옛 해에 값이 생겼다'
+    for y, v in before.items():                                      # 재료 없는 옛 해는 손대지 않는다(값을 박지 않고 전후 비교)
+        if y < y1:
+            assert at[y] == v, '재료 없는 옛 해의 값이 바뀌었다: %s %r → %r' % (y, v, at[y])
     assert not (set(SRC) & set(D['series'])), '옛 두 이름이 저장 계열에 생겼다'
 
 
