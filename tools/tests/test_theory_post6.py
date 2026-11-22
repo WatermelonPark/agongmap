@@ -35,6 +35,7 @@ import sys
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import sido_zones as SZ  # noqa: E402
 import theory_guards as T  # noqa: E402
 import theory_link4 as L4  # noqa: E402
 
@@ -74,6 +75,13 @@ def _snap():
 
 def _zone(adv, name):
     return next(z for z in adv['sido']['zones'] if z['z'] == name)
+
+
+def _set_fut(z, fut):
+    """앞으로 3년 물량을 바꾸고 **판정 split 문장의 퍼센트도 같이** 맞춘다 — fut_lists 의 문턱은 화면 정수(split 칸)로
+    가르므로(백로그 59), 실제 데이터처럼 두 칸이 함께 움직여야 한다."""
+    z['fut'] = fut
+    z['split']['rows'][1][1] = '적정물량의 %d%%가 들어옵니다' % SZ.half_up(100.0 * fut / z['need'])
 
 
 def _stops(D, adv, why):
@@ -160,14 +168,14 @@ def test_strongest_region_outside_the_oversupply_list_stops_the_draft():
 def test_no_oversupply_region_stops_the_draft():
     D, adv = _snap()
     for z in adv['sido']['zones']:
-        z['fut'] = min(z['fut'], z['need'] * 0.9)      # 적정물량을 넘는 시도가 없다
+        _set_fut(z, min(z['fut'], z['need'] * 0.9))      # 적정물량을 넘는 시도가 없다
     _stops(D, adv, '앞으로 입주가 적정물량을 넘는 시도가 없다')
 
 
 def test_no_region_below_a_third_stops_the_draft():
     D, adv = _snap()
     for z in adv['sido']['zones']:
-        z['fut'] = max(z['fut'], z['need'] * 0.4)      # '가장 적은 곳은 …' 목록이 빈다
+        _set_fut(z, max(z['fut'], z['need'] * 0.4))      # '가장 적은 곳은 …' 목록이 빈다
     _stops(D, adv, '3분의 1에도 못 미치는 시도가 없다')
 
 
@@ -175,7 +183,7 @@ def test_most_regions_not_short_stops_the_draft():
     D, adv = _snap()
     for name in ('경기', '인천', '세종', '충북', '부산', '전남광주'):   # 적정물량을 넘는 곳이 2곳 → 8곳(못 미치는 곳 8/16)
         z = _zone(adv, name)
-        z['fut'] = z['need'] * 1.01
+        _set_fut(z, z['need'] * 1.01)
     _stops(D, adv, '대부분이 아니다')
 
 
