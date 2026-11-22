@@ -735,7 +735,7 @@ jobs:
             echo "push 재시도 $i"; sleep 5
           done
           if [ "$pushed" -eq 0 ] && [ "$STOP" = "unsafe" ]; then
-            rep "❌ 사람이 손대는 파일이 충돌해 멈췄다 — 그 수정을 확인한 뒤 다시 실행할 것"
+            rep "❌ 생성물이 아닌 파일이 충돌해 멈췄다 — 사람 손수정·정본(data.js 등)을 확인한 뒤 다시 실행할 것"
             exit 1
           fi
           if [ "$pushed" -eq 0 ]; then
