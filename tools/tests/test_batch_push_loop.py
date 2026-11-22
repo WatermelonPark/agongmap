@@ -50,12 +50,19 @@ def _git(cwd, *args):
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+def _w(base, rel, text):
+    """중첩 경로 파일을 만든다(생성 페이지는 디렉터리 아래에 있다)."""
+    p = base / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(text, encoding='utf-8')
+
+
 def _setup(tmp_path, a_line, b_line, b_file='data.js', a_file='data.js'):
     """원격 main 에 한 줄짜리 data.js·other.txt·index.html. 앞 런(A)이 a_file 을 a_line 으로 바꿔 먼저
     푸시하고, 대기 런(B)은 **옛 main 에서** b_file 을 b_line 으로 바꿔 커밋한 상태를 만든다.
 
-    앞 런은 실제로는 거의 늘 발행 런이다(같은 생성 파일을 먼저 커밋한다). index.html 은 사람이 손대는
-    구역이 섞인 파일을 대신한다 — 그 충돌은 자동으로 덮지 않는다."""
+    앞 런은 실제로는 거의 늘 발행 런이다(같은 생성 파일을 먼저 커밋한다). index.html·data.js 는 자동 해소
+    대상이 아닌 파일을 대신한다 — 그 충돌은 덮지 않는다."""
     env_user = ('-c', 'user.name=stats-bot', '-c', 'user.email=bot@example.invalid')
     origin = tmp_path / 'origin.git'
     _git(tmp_path, 'init', '-q', '--bare', str(origin))
@@ -71,11 +78,11 @@ def _setup(tmp_path, a_line, b_line, b_file='data.js', a_file='data.js'):
     _git(tmp_path, 'clone', '-q', '-b', 'main', str(origin), str(b))
     a = tmp_path / 'a'
     _git(tmp_path, 'clone', '-q', '-b', 'main', str(origin), str(a))
-    (a / a_file).write_text(a_line, encoding='utf-8')
+    _w(a, a_file, a_line)
     _git(a, 'add', a_file)
     _git(a, *env_user, 'commit', '-q', '-m', '데이터 자동 갱신')
     _git(a, 'push', '-q')
-    (b / b_file).write_text(b_line, encoding='utf-8')
+    _w(b, b_file, b_line)
     _git(b, 'add', b_file)
     _git(b, *env_user, 'commit', '-q', '-m', '데이터 자동 갱신')
     for k, v in (('user.name', 'stats-bot'), ('user.email', 'bot@example.invalid')):
@@ -115,30 +122,33 @@ def test_push_loop_reports_already_applied_conflict_and_success(tmp_path):
     """워크플로의 푸시 루프 셸을 그대로 잘라 실제 git 저장소 셋(원격·앞 런·대기 런)에서 돌린다.
 
     ① 앞 런과 같은 내용(같은 data.js 줄) → rebase 가 패치를 버린다 → '➖ … 이미 커밋'(✅ 커밋·푸시 아님), rc 0.
-    ② 앞 런과 다른 내용(같은 줄을 다르게) → 충돌을 **새 데이터 쪽으로 해소**하고 푸시, rc 0.
+    ② 앞 런과 다른 내용(같은 생성물 줄) → 충돌을 **새 데이터 쪽으로 해소**하고 푸시, rc 0.
     ③ 다른 파일만 바꿈 → 정상 푸시 '✅ 커밋·푸시'.
     ④ 사람이 손대는 파일(index.html)이 충돌 → 덮지 않고 **한 번에** 멈춤, rc 1.
+    ⑤ 정본(data.js)이 충돌 → 덮지 않고 멈춤, rc 1 — 생성물이 아니면 화이트리스트 밖이다(백로그 59).
     변이(실제로 확인): '이미 반영' 분기(HEAD == FETCH_HEAD 검사)를 지우면 ① 이 '✅ 커밋·푸시'가 되어 빨강.
-    --theirs 를 --ours 로 뒤집으면 ② 가 앞 런의 옛 값을 올려 빨강. MIXED 목록에서 index.html 을 빼면 ④ 가 빨강.
+    --theirs 를 --ours 로 뒤집으면 ② 가 앞 런의 옛 값을 올려 빨강. 화이트리스트에서 생성 페이지를 빼거나
+    data.js 를 넣으면 ②·⑤ 가 빨강.
     픽스처: 2026-10-05 겹친 두 런(앞 런 70c50c7 커밋 뒤 대기 런이 옛 main 에서 같은 데이터·다른 데이터를 만든 경우)을
-    한 줄 data.js 로 줄였다.
+    한 줄 파일로 줄였다.
     """
     (tmp_path / 's1').mkdir()
     b = _setup(tmp_path / 's1', 'const ADV={"a":2};\n', 'const ADV={"a":2};\n')
     rc, rep = _run_loop(b, tmp_path / 's1')
     assert rc == 0 and '➖' in rep and '이미 커밋' in rep and '✅ 커밋·푸시' not in rep, (rc, rep)
 
-    # ② 생성 파일이 겹쳐 충돌하면 **새 데이터 쪽으로 해소하고 푸시한다**(2026-11-06 부터).
+    # ② 생성물이 겹쳐 충돌하면 **새 데이터 쪽으로 해소하고 푸시한다**(2026-11-06 부터, 2026-11-22 화이트리스트).
     #    왜: 겹친 상대는 거의 늘 발행 런이고, 그쪽은 **옛 데이터**로 같은 파일을 구웠다. 되풀이해 봐야
     #    바탕이 그대로라 같은 충돌이 그대로 나온다 — 런 42120140875 이 세 번 되풀이한 끝에 그 회차
     #    (주간 2026-11-02 조사분)를 잃었다. 겹치지 않은 남의 변경은 그대로 남아야 한다.
     (tmp_path / 's2').mkdir()
-    b = _setup(tmp_path / 's2', 'const ADV={"a":2};\n', 'const ADV={"a":3};\n')
+    b = _setup(tmp_path / 's2', '<html>old</html>\n', '<html>new</html>\n',
+               b_file='weekly/index.html', a_file='weekly/index.html')
     rc, rep = _run_loop(b, tmp_path / 's2')
     assert rc == 0 and '새 데이터 쪽으로 해소' in rep and '✅ 커밋·푸시' in rep, (rc, rep)
-    assert _remote(b, 'data.js').strip() == 'const ADV={"a":3};', \
+    assert _remote(b, 'weekly/index.html').strip() == '<html>new</html>', \
         '새 데이터가 아니라 앞 런의 옛 값이 올라갔다 — rebase 의 --ours/--theirs 를 뒤집어 쓴 것이다: %r' \
-        % _remote(b, 'data.js')
+        % _remote(b, 'weekly/index.html')
 
     # ④ 사람이 손대는 구역이 섞인 파일(index.html)이 충돌하면 **덮지 않고 한 번에 멈춘다.**
     #    그 파일에는 표식 밖 문장이 사람 손으로 들어가 있어, 조용히 덮으면 되돌릴 길이 없다.
@@ -146,10 +156,19 @@ def test_push_loop_reports_already_applied_conflict_and_success(tmp_path):
     b = _setup(tmp_path / 's4', '<html>published</html>\n', '<html>batch</html>\n',
                b_file='index.html', a_file='index.html')
     rc, rep = _run_loop(b, tmp_path / 's4')
-    assert rc == 1 and '사람이 손대는 파일' in rep, (rc, rep)
-    assert rep.count('사람이 손대는 파일') == 1, '같은 충돌을 되풀이했다: %r' % rep
+    assert rc == 1 and '생성물이 아닌 파일' in rep, (rc, rep)
+    assert rep.count('생성물이 아닌 파일') == 1, '같은 충돌을 되풀이했다: %r' % rep
     assert _remote(b, 'index.html').strip() == '<html>published</html>', \
         '사람 손수정이 섞인 파일을 덮었다: %r' % _remote(b, 'index.html')
+
+    # ⑤ 정본(data.js)이 충돌하면 자동 해소하지 않는다 — --heal-basic 같은 이력 교정은 다음 배치가 다시
+    #    만들지 못한다. 남는 것은 앞 런의 값이고, 이 회차 커밋은 유실되지만 사람 수정은 지켜진다(백로그 59).
+    (tmp_path / 's5').mkdir()
+    b = _setup(tmp_path / 's5', 'const ADV={"a":2};\n', 'const ADV={"a":3};\n')
+    rc, rep = _run_loop(b, tmp_path / 's5')
+    assert rc == 1 and '생성물이 아닌 파일' in rep, (rc, rep)
+    assert _remote(b, 'data.js').strip() == 'const ADV={"a":2};', \
+        'data.js 충돌에서 자동 해소가 남의 값을 덮었다: %r' % _remote(b, 'data.js')
 
     (tmp_path / 's3').mkdir()
     b = _setup(tmp_path / 's3', 'const ADV={"a":2};\n', 'y\n', b_file='other.txt')
