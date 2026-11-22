@@ -37,11 +37,42 @@ SRC, DST = ('광주', '전남'), '전남광주'
 # 지수·비율 계열은 가중평균, 나머지는 합. 계열이 늘면 여기에 적어야 한다 —
 # 빠뜨리면 지수를 더해 두 배가 된 값이 조용히 화면에 나간다.
 WEIGHTED = {'매매지수', '전세지수', '전세가율'}
-# 두 조각에서 통합 값을 만들 수 없는 계열 — 원천이 통합 행을 직접 주는 해만 싣고, 나머지는 비운다.
-# 주택보급률은 주택 수 ÷ 가구 수라 합치려면 (주택 수 합) ÷ (가구 수 합)이어야 원천 숫자로 검산된다. W_GJ(가격지수에서 역산한
-# 광주 몫)로 가중평균하던 값은 원천으로 재현되지 않아 비운다(대표 결정 2026-10-18 D3, 전수리뷰 A-8). 주택 수·가구 수 항목으로
-# 다시 계산하는 일은 docs/2026-10-19-주택보급률-합산-원천-확인-요청.md 의 확인 뒤에 한다.
-UNFOLDABLE = {'보급률'}
+# 두 조각에서 통합 값을 만들 수 없는 계열 — 지금은 비어 있다. 주택보급률('보급률')이 2026-11-22 백로그 52 로
+# 아래 fold_housing_ratio(주택수 합 ÷ 가구수 합)로 옮겨 갔다. 이 목록에 남는 계열은 원천 통합 행만 싣고 나머지는 비운다.
+UNFOLDABLE = set()
+
+# 주택보급률은 비율이라 더할 수 없다 — (주택수 합) ÷ (가구수 합) × 100 으로 접는다. 두 조각으로 원천 보급률을
+# 검산할 수 있는 유일한 식이고(검산 29/30 일치), 원천도 시도 합으로 전국을 만든다(대표 결정 2026-10-18 D3 — 가중평균 금지).
+HOUSING_PARTS = ('주택수', '가구수')
+
+
+def fold_housing_ratio(out, raw_h, raw_g, dec=1):
+    """연도별 보급률 {연도: {지역: %}}의 광주·전남을 (주택수 합)/(가구수 합)×100 으로 접는다(out 을 고쳐 돌려준다).
+    돌려주는 값은 다시 계산한 칸 수.
+
+    원천이 통합 행('전남광주')을 직접 주면 그 값을 쓴다. 두 조각 가운데 주택수·가구수 어느 하나라도 없으면 통합 값을
+    만들지 않는다 — 없는 쪽을 0으로 세면 비율이 뒤집힌다. 옛 두 이름은 어느 경우에도 빠진다.
+    """
+    g, j = SRC
+    n = 0
+    for y, vals in out.items():
+        if DST not in vals:
+            h = raw_h.get(y) or {}
+            a = raw_g.get(y) or {}
+            hs, gs = (h.get(g), h.get(j)), (a.get(g), a.get(j))
+            if all(v is not None for v in hs + gs) and (gs[0] + gs[1]):
+                vals[DST] = round((hs[0] + hs[1]) / (gs[0] + gs[1]) * 100, dec)
+                n += 1
+        vals.pop(g, None)
+        vals.pop(j, None)
+    return n
+
+
+def _year_rows(D):
+    """연간 STATS 계열 {dates, series{지역: [값]}} → {연도: {지역: 값}} — 이력 병합(main)의 보급률 재계산용."""
+    dates = D.get('dates') or []
+    ser = D.get('series') or {}
+    return {y: {r: (arr[i] if i < len(arr) else None) for r, arr in ser.items()} for i, y in enumerate(dates)}
 
 
 def merge_series(name, series):
@@ -72,6 +103,16 @@ def merge_series(name, series):
         else:
             out.append((x or 0) + (y or 0))
     series[DST] = out
+    series.pop(SRC[0], None)
+    series.pop(SRC[1], None)
+    return n
+
+
+def _blank_series(series):
+    """조각으로 통합 값을 만들 수 없을 때(재료 없음) 두 조각을 빼고 통합 칸을 비운다 — 옛 UNFOLDABLE 규칙."""
+    a, b = series.get(SRC[0]), series.get(SRC[1])
+    n = max(len(a or []), len(b or []))
+    series[DST] = [None] * n
     series.pop(SRC[0], None)
     series.pop(SRC[1], None)
     return n
@@ -115,6 +156,15 @@ def main():
     for name, D in sorted(stats.items()):
         ser = D.get('series') or {}
         if SRC[0] not in ser and SRC[1] not in ser:
+            continue
+        if name == '보급률':            # 비율은 합·가중평균이 아니라 주택수·가구수로 다시 계산한다(백로그 52)
+            parts = [stats.get(p) for p in HOUSING_PARTS]
+            if all(parts):
+                n = fold_housing_ratio(ser, _year_rows(parts[0]), _year_rows(parts[1]))
+                print('  %-10s %-6s %d기간' % (name, '비율재계산', n))
+            else:
+                n = _blank_series(ser)
+                print('  %-10s %-6s %d기간' % (name, '가구·주택수없음', n))
             continue
         n = merge_series(name, ser)
         print('  %-10s %-6s %d기간' % (name, '비움' if name in UNFOLDABLE else '가중평균' if name in WEIGHTED else '합', n))
