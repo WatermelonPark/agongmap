@@ -16,7 +16,8 @@ description: 아공맵 페이지의 검색·AI 검색 노출 점검(색인·cano
 | 시도 리포트 `zone/<키>/` | `make_sido_pages.py` | `page_title`·`summary_parts` |
 | `/weekly/`·`/monthly/`·`/moveins/`·`/jeonse-ratio/` | `make_weekly_page.py`·`make_monthly_page.py`·`make_indicator_pages.py` | 각 생성기 |
 | 콘텐츠 `city/`·`gtx/`·`danji/`·`column/`·`reports/` | `make_content_pages.py`(원고 `content/`) | 원고 머리 `title`·`summary` |
-| 손 페이지(소개·FAQ·개인정보·퀴즈·404·`/cycle/` 서술) | 손으로 쓴 HTML | — |
+| 손 페이지(소개·FAQ·개인정보·404·`/cycle/` 서술) | 손으로 쓴 HTML | — |
+| 옛 퀴즈 주소(`burini-test/`·`investor-test/`·`redev-test/`) | 손으로 쓴 최소 조각 | 홈으로 넘기는 자리다. 점검 순서 2의 canonical 줄을 볼 것 |
 | `sitemap.xml`·`feed.xml`·`llms.txt`·`llms-full.txt` | 생성기(lastmod 는 `keep_dates`, KST) | 손으로 고치지 않는다 |
 
 ## 점검 순서
@@ -25,7 +26,10 @@ description: 아공맵 페이지의 검색·AI 검색 노출 점검(색인·cano
 2. **페이지마다 본다**(375px·1280px, `python3 -m http.server 8321` + Playwright):
    - `<title>` 한 개, 30자 안쪽에 검색어가 앞, 결론이 뒤(블로그 제목 규칙과 같은 꼴). 지역 이름은 화면 이름(`SZ.disp` — '광주·전남').
    - `meta description` 한 개, 본문 첫 문단과 같은 사실(시도 리포트는 `summary_parts` 한 목록에서 나온다).
-   - `link rel=canonical` 이 자기 자신(퀴즈 점수 페이지는 랜딩으로).
+   - `link rel=canonical` 이 자기 자신. 예외는 옛 퀴즈 주소 셋이다 — 퀴즈 3종은 2026-11-14 에 걷혔고
+     (CLAUDE.md 구조 표, `test_quiz_removed`) 그 자리에는 `noindex` + `canonical` 이 홈(`/`) + `meta refresh`
+     인 최소 조각만 둔다. 거기서 canonical 이 자기 자신이면 걷힌 주소가 다시 색인된다. sitemap·`llms.txt`
+     에도 없어야 한다(지금 0건).
    - robots 메타 정확히 하나(`tools/robots_meta.py`, `test_robots_meta`).
    - JSON-LD: `@type` 이 페이지 종류에 맞는지(Article·Dataset·FAQPage·WebPage), `dateModified` 는 내용이 바뀐 날이지 데이터 시점이 아니다.
    - `h1` 한 개, 제목과 같은 답. 숫자는 화면 숫자 정본(`sido_zones`)과 같다.
