@@ -6,7 +6,14 @@
   <description>국가 통계로 보는 시도별 아파트 공급과 주간 시세. 한국부동산원 주간 발표, 시도 공급 리포트 분기 갱신, 이달의 통계를 알립니다.</description>
   <language>ko</language>
   <atom:link href="https://www.agongmap.co.kr/feed.xml" rel="self" type="application/rss+xml"/>
-  <lastBuildDate>Fri, 20 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <lastBuildDate>Thu, 26 Nov 2026 00:00:00 +0900</lastBuildDate>
+  <item>
+    <title>주간 아파트가격 동향 2026년 11월 넷째 주 · 전국·서울 아파트 시세 지도</title>
+    <link>https://www.agongmap.co.kr/weekly/</link>
+    <guid isPermaLink="false">agongmap-weekly-2026-11-26</guid>
+    <pubDate>Thu, 26 Nov 2026 00:00:00 +0900</pubDate>
+    <description>11/23 조사 · 11/26 발표 기준 이번 주 아파트 매매가격은 전국 +0.05%, 경기 +0.17%로 가장 크게 올랐다. 시군구 상승 1위 군포 +0.52%, 하락 1위 서울 송파구 -0.50%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
+  </item>
   <item>
     <title>안양 아파트 입주물량, 평촌 대단지 뒤 2028년 적정물량의 25%입니다</title>
     <link>https://www.agongmap.co.kr/city/anyang-2027-moveins/</link>
@@ -69,13 +76,6 @@
     <guid isPermaLink="false">agongmap-content-city-seoul-2027-moveins</guid>
     <pubDate>Fri, 20 Nov 2026 00:00:00 +0900</pubDate>
     <description>서울 아파트 입주는 2027년 20,664세대, 2028년 25,707세대, 2029년 15,287세대로 한 해 적정물량 74,800세대의 3분의 1 안팎입니다. 전세와 매매가 함께 오르는 구간이 이어집니다.</description>
-  </item>
-  <item>
-    <title>주간 아파트가격 동향 2026년 11월 셋째 주 · 전국·서울 아파트 시세 지도</title>
-    <link>https://www.agongmap.co.kr/weekly/</link>
-    <guid isPermaLink="false">agongmap-weekly-2026-11-19</guid>
-    <pubDate>Thu, 19 Nov 2026 00:00:00 +0900</pubDate>
-    <description>11/16 조사 · 11/19 발표 기준 이번 주 아파트 매매가격은 전국 +0.06%, 경기 +0.21%로 가장 크게 올랐다. 시군구 상승 1위 수원 권선구 +0.62%, 하락 1위 서울 송파구 -0.42%. 한국부동산원 주간 통계로 전국 시군구·서울 구별 변동률을 본다.</description>
   </item>
   <item>
     <title>이달의 통계 — 2026년 10월 기준</title>
